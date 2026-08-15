@@ -1,4 +1,4 @@
-# ByFTP 2.12.0 — privatnost
+# ByFTP 2.12.1 — privatnost
 
 ByFTP nema telemetriju, analytics, oglašivačke SDK-ove, vanjske API-je, crash-reporting prema internetu, tracking ni automatski update-check.
 
@@ -46,3 +46,9 @@ Release build pokreće `scripts/audit_privacy.py`; build pada ako se uvedu runti
 - settings cache sadrži samo lokalne preference aplikacije; nema hosta, korisničkog imena, lozinke, ključa ni udaljenih putanja
 - automatski retry i batch retry nikada ne mijenjaju mrežno odredište; Retry starog posla prema drugoj vezi je odbijen
 - current-directory DLL search je uklonjen za ByFTP proces kako lokalna radna mapa ne bi bila izvor neočekivanog DLL učitavanja
+
+## Dodatne 2.12.1 zaštite
+
+- recursive upload više ne tretira odabrani upload root kao neprovjeravanu granicu; svaki queued file vezan je uz roditeljsku lokalnu granicu pa se i sam root ponovno provjerava neposredno prije svakog pokušaja
+- kasna zamjena upload root direktorija symlinkom, junctionom ili drugim reparse preusmjerenjem više ne može preusmjeriti već planirani recursive upload izvan izvorno dopuštenog lokalnog stabla
+- regresijski test reproducira zamjenu root direktorija nakon planiranja i zahtijeva odbijanje takvog transfera
