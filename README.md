@@ -10,6 +10,14 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/bren-wp/by-ftp/releases"><strong>Releases</strong></a> ·
+  <a href="https://github.com/users/bren-wp/packages?repo_name=by-ftp"><strong>Packages</strong></a> ·
+  <a href="LICENSE"><strong>License</strong></a> ·
+  <a href="PRIVACY.md"><strong>Privacy</strong></a> ·
+  <a href="SECURITY.md"><strong>Security</strong></a>
+</p>
+
+<p align="center">
   <a href="../../actions/workflows/ci.yml"><img alt="CI" src="../../actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
@@ -20,6 +28,24 @@ ByFTP is a native Windows x64 client for **FTP, FTPS and SFTP**. It combines a f
 There is no embedded browser, no localhost web dashboard, no analytics SDK, no advertising layer and no account required. ByFTP connects to the server **you choose** and keeps application data local to your Windows profile.
 
 **Current release: 2.12.0**
+
+## Download
+
+### [Releases](https://github.com/bren-wp/by-ftp/releases)
+
+**Recommended for Windows users.** Official ByFTP release downloads are published on the GitHub Releases page. Release downloads can include:
+
+- Portable x64 EXE
+- Setup x64 EXE
+- Uninstaller
+- SHA-256 checksums
+- build/security verification report
+
+### [Packages](https://github.com/users/bren-wp/packages?repo_name=by-ftp)
+
+GitHub Packages is reserved for packaged ByFTP distributions and related official artifacts where that distribution format is appropriate.
+
+> Only unmodified builds published by Brendigo through an official ByFTP/Brendigo channel are official releases.
 
 ### Why ByFTP?
 
@@ -148,7 +174,9 @@ The project currently has **no external Go modules**.
 
 ## Build from source
 
-From PowerShell on Windows:
+The source is published for transparency, security review and authorized development. **ByFTP is not open-source software.** Modification, redistribution, rebranding, derivative works and reuse of the source code require prior written permission from Brendigo. See [LICENSE](LICENSE).
+
+For authorized builds, from PowerShell on Windows:
 
 ```powershell
 .\BUILD-WINDOWS.ps1
@@ -196,17 +224,21 @@ build/          ByFTP icon resources
 .github/        CI, CODEOWNERS and issue templates
 ```
 
-## Releases
+## License
 
-Release binaries belong in **GitHub Releases**, not in normal source history. A production release can include:
+**Copyright © 2026 Brendigo. All rights reserved.**
 
-- `ByFTP-<version>-Portable-x64.exe`
-- `ByFTP-<version>-Setup-x64.exe`
-- `ByFTP-<version>-Uninstall-x64.exe`
-- SHA-256 checksums
-- build/security verification report
+ByFTP is **proprietary/source-available software, not open-source software**. The source can be viewed for transparency, security review and evaluation, but the license does not grant a general right to modify, redistribute, rebrand, sell, sublicense, create derivative works from, or reuse the code in another project.
 
-Public production binaries should be Authenticode-signed with the real Brendigo code-signing identity before broad distribution.
+Read the complete [Brendigo ByFTP Proprietary Source License](LICENSE).
+
+Because this repository is public, GitHub's own Terms of Service may allow GitHub users to view and fork the repository through GitHub's platform functionality. That platform permission does not grant broader modification, redistribution, commercialization or rebranding rights under the ByFTP license.
+
+## Authorized contributions
+
+Issues and feature suggestions are welcome. Source modifications or pull-request contributions should be made only when expressly requested or authorized by Brendigo and remain subject to [LICENSE](LICENSE) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**Never** include real passwords, private keys, production hostnames, account names or customer server information in issues, screenshots, test fixtures or pull requests.
 
 ## Documentation
 
@@ -221,12 +253,6 @@ Public production binaries should be Authenticode-signed with the real Brendigo 
 - [Contributing](CONTRIBUTING.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 
-## Contributing
-
-Contributions are welcome where they preserve ByFTP's privacy and security model. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
-
-**Never** include real passwords, private keys, production hostnames, account names or customer server information in issues, screenshots, test fixtures or pull requests.
-
 ## Security reports
 
 Please follow [SECURITY.md](SECURITY.md). Do not publish credentials or sensitive server information in a public GitHub issue.
@@ -234,6 +260,7 @@ Please follow [SECURITY.md](SECURITY.md). Do not publish credentials or sensitiv
 ---
 
 <p align="center">
+  <a href="https://github.com/bren-wp/by-ftp/releases"><strong>Download ByFTP</strong></a><br><br>
   <strong>ByFTP</strong><br>
   Native file transfer for Windows · Built by Brendigo
 </p>
