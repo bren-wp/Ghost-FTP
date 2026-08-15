@@ -11,6 +11,7 @@ $icon = Join-Path $PWD 'build\icon.ico'
 $env:GOTOOLCHAIN='local'
 $env:GOPROXY='off'
 $env:GOSUMDB='off'
+$env:GOTELEMETRY='off'
 
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) { throw 'Go nije instaliran.' }
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) { throw 'Python 3 nije instaliran.' }
@@ -47,13 +48,13 @@ $setup = Join-Path $dist "ByFTP-$version-Setup-x64.exe"
 $ldflags = "-s -w -H=windowsgui -X main.version=$version"
 
 Write-Host '[4/10] Portable'
-go build -trimpath -buildvcs=false -ldflags=$ldflags -o $portable ./cmd/byftp
+go build -trimpath -buildvcs=false -ldflags $ldflags -o $portable ./cmd/byftp
 if ($LASTEXITCODE -ne 0) { throw 'Portable build nije uspio.' }
 python scripts/pe_resources.py $portable --ico $icon --version $version --role portable --original-filename "ByFTP-$version-Portable-x64.exe"
 if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada portable builda nije uspjela.' }
 
 Write-Host '[5/10] Uninstaller'
-go build -trimpath -buildvcs=false -ldflags=$ldflags -o $uninstall ./cmd/uninstaller
+go build -trimpath -buildvcs=false -ldflags $ldflags -o $uninstall ./cmd/uninstaller
 if ($LASTEXITCODE -ne 0) { throw 'Uninstaller build nije uspio.' }
 python scripts/pe_resources.py $uninstall --ico $icon --version $version --role uninstaller --original-filename 'ByFTP-Uninstall.exe'
 if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada uninstallera nije uspjela.' }
@@ -64,7 +65,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Kompresija setup payloada nije uspjela.' }
 
 Write-Host '[7/10] Setup'
 try {
-    go build -trimpath -buildvcs=false -ldflags=$ldflags -o $setup ./cmd/installer
+    go build -trimpath -buildvcs=false -ldflags $ldflags -o $setup ./cmd/installer
     if ($LASTEXITCODE -ne 0) { throw 'Setup build nije uspio.' }
 } finally {
     Remove-Item "$payload\payload.zip" -Force -ErrorAction SilentlyContinue
