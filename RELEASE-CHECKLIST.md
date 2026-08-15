@@ -1,0 +1,21 @@
+# ByFTP 2.12.0 release checklist
+
+- [ ] Go 1.26.5 ili noviji sigurnosni patch u podržanoj Go 1.26 liniji
+- [ ] build je offline: `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off`
+- [ ] privacy audit PASS
+- [ ] persistent runtime log je isključen, WER je blokiran za ByFTP proces i osjetljivi Connect/Profile put ne koristi generički JSON dispatcher
+- [ ] spremljeni profil je DPAPI-zaštićen u cijelosti, connection manager ne radi rano dešifriranje i SFTP bez eksplicitnog ključa ne koristi default identity datoteke
+- [ ] AskPass nema disk credential artefakt; OpenSSH command line ne sadrži user-entered host/username/key path i parent provjera koristi System32 OpenSSH
+- [ ] server→lokalno download putanje koriste SafeLocalChild i no-follow delete ne prolazi kroz symlink/reparse/junction
+- [ ] transfer batch connection generation blokira stale commit nakon reconnecta; Retry prema drugom endpoint identityju je blokiran; osjetljiva UI polja imaju input cap
+- [ ] nema vanjskih Go modula, telemetrije, analyticsa, crash uploada, update-checka ni HTTP API endpointa
+- [ ] typed engine nema generički JSON dispatcher; settings hot-path cache i batch/auto-retry regresije PASS
+- [ ] `go test ./...`, race i `go vet ./...` PASS
+- [ ] Windows x64 cross-vet/build PASS
+- [ ] Portable/Setup/Uninstaller su tri različita PE32+ GUI binarija
+- [ ] VERSIONINFO/Brendigo branding su prisutni, a Setup embedded manifest SHA-256 provjera prolazi
+- [ ] HIGH_ENTROPY_VA, DYNAMIC_BASE, NX_COMPAT, TERMINAL_SERVER_AWARE
+- [ ] Authenticode potpis provjeren za javnu distribuciju
+- [ ] Windows 10 i 11 runtime smoke-test sa stvarnim FTP/FTPS/SFTP serverima
+- [ ] privacy test mrežnog prometa potvrđuje samo korisnički odabrani server + standardni Windows DNS resolution
+- [ ] SHA-256 i ZIP integrity potvrđeni
