@@ -2,21 +2,24 @@ name: Publish ByFTP
 
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
+    paths:
+      - 'VERSION'
   workflow_dispatch:
     inputs:
       version:
         description: 'Release version without the v prefix (for example 2.13.0)'
         required: true
-        default: '2.12.0'
+        default: '2.12.1'
 
 permissions:
   contents: write
   packages: write
 
 concurrency:
-  group: byftp-release-${{ github.ref }}-${{ inputs.version || 'tag' }}
+  group: byftp-release-${{ github.ref }}-${{ inputs.version || 'source' }}
   cancel-in-progress: false
 
 env:
@@ -29,24 +32,36 @@ jobs:
   publish:
     name: Build, Release & Package
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Resolve release version
         shell: pwsh
         run: |
           if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
             $version = '${{ inputs.version }}'.Trim()
-          } else {
+          } elseif ($env:GITHUB_REF_TYPE -eq 'tag') {
             $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
           }
           if ($version -notmatch '^\d+\.\d+\.\d+$') {
             throw "Invalid release version: $version"
           }
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify source version
+        shell: pwsh
+        run: |
+          $sourceVersion = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
+          if ($sourceVersion -ne $env:VERSION) {
+            throw "Release version $env:VERSION does not match VERSION file $sourceVersion."
+          }
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -60,22 +75,16 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Verify source version
-        shell: pwsh
-        run: |
-          $scriptVersion = Select-String -Path 'BUILD-WINDOWS.ps1' -Pattern "^\$version = '([^']+)'$" | ForEach-Object { $_.Matches[0].Groups[1].Value }
-          if ($scriptVersion -ne $env:VERSION) {
-            throw "Release version $env:VERSION does not match BUILD-WINDOWS.ps1 version $scriptVersion."
-          }
-
       - name: Build and verify ByFTP
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
 
-      - name: Prepare release files
+      - name: Prepare complete release files
         shell: pwsh
         run: |
-          Copy-Item 'dist\ByFTP-Uninstall.exe' "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" -Force
+          $uninstaller = "dist\ByFTP-$env:VERSION-Uninstall-x64.exe"
+          Copy-Item 'dist\ByFTP-Uninstall.exe' $uninstaller -Force
+
           @"
           ByFTP $env:VERSION
 
@@ -88,15 +97,59 @@ jobs:
           - Transfer queue with parallelism, transient retry and Skip Existing
           - Windows DPAPI-protected saved profiles
           - SFTP host-key pinning
+          - Hardened recursive-upload root revalidation against late symlink/junction redirection
           - No telemetry, analytics, cloud account or automatic external API calls
 
           Downloads:
-          - Setup: recommended installation
-          - Portable: run without installation
-          - Uninstaller: standalone removal binary
+          - Setup x64 EXE: recommended installation
+          - Portable x64 EXE: run without installation
+          - Uninstaller x64 EXE: standalone removal binary
+          - Windows x64 ZIP: complete ready-to-use Windows bundle
+          - Source ZIP: exact tracked source snapshot for this release
 
           Verify SHA-256 values before distribution. Public production binaries should be Authenticode-signed with the real Brendigo signing identity.
           "@ | Set-Content 'dist\RELEASE-NOTES.txt' -Encoding UTF8
+
+          $bundleRoot = "dist\ByFTP-$env:VERSION-Windows-x64"
+          Remove-Item -Recurse -Force $bundleRoot -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $bundleRoot | Out-Null
+          Copy-Item "dist\ByFTP-$env:VERSION-Portable-x64.exe" $bundleRoot -Force
+          Copy-Item "dist\ByFTP-$env:VERSION-Setup-x64.exe" $bundleRoot -Force
+          Copy-Item $uninstaller $bundleRoot -Force
+          Copy-Item 'dist\verification.txt' $bundleRoot -Force
+          Copy-Item 'dist\RELEASE-NOTES.txt' $bundleRoot -Force
+          Copy-Item 'README.md','LICENSE','PRIVACY.md','SECURITY.md' $bundleRoot -Force
+
+          $bundleHashes = foreach ($file in Get-ChildItem -LiteralPath $bundleRoot -File | Sort-Object Name) {
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $bundleHashes | Set-Content (Join-Path $bundleRoot 'BUNDLE-SHA256.txt') -Encoding ascii
+
+          $windowsZip = "dist\ByFTP-$env:VERSION-Windows-x64.zip"
+          Remove-Item -Force $windowsZip -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$bundleRoot\*" -DestinationPath $windowsZip -CompressionLevel Optimal
+
+          $sourceZip = "dist\ByFTP-$env:VERSION-Source.zip"
+          Remove-Item -Force $sourceZip -ErrorAction SilentlyContinue
+          git archive --format=zip --output=$sourceZip HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Source ZIP creation failed.' }
+
+          $releaseFiles = @(
+            "dist\ByFTP-$env:VERSION-Portable-x64.exe",
+            "dist\ByFTP-$env:VERSION-Setup-x64.exe",
+            $uninstaller,
+            $windowsZip,
+            $sourceZip,
+            'dist\verification.txt',
+            'dist\RELEASE-NOTES.txt'
+          )
+          $releaseHashes = foreach ($file in $releaseFiles) {
+            $item = Get-Item -LiteralPath $file
+            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($item.Name)"
+          }
+          $releaseHashes | Set-Content 'dist\SHA256.txt' -Encoding ascii
 
       - name: Create GitHub Release
         shell: pwsh
@@ -112,6 +165,8 @@ jobs:
               "dist\ByFTP-$env:VERSION-Portable-x64.exe" `
               "dist\ByFTP-$env:VERSION-Setup-x64.exe" `
               "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" `
+              "dist\ByFTP-$env:VERSION-Windows-x64.zip" `
+              "dist\ByFTP-$env:VERSION-Source.zip" `
               "dist\SHA256.txt" `
               "dist\verification.txt" `
               "dist\RELEASE-NOTES.txt" `
@@ -121,6 +176,22 @@ jobs:
               --target "$env:GITHUB_SHA"
           }
 
+      - name: Upload complete release artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-${{ env.VERSION }}-complete-release
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/ByFTP-${{ env.VERSION }}-Portable-x64.exe
+            dist/ByFTP-${{ env.VERSION }}-Setup-x64.exe
+            dist/ByFTP-${{ env.VERSION }}-Uninstall-x64.exe
+            dist/ByFTP-${{ env.VERSION }}-Windows-x64.zip
+            dist/ByFTP-${{ env.VERSION }}-Source.zip
+            dist/SHA256.txt
+            dist/verification.txt
+            dist/RELEASE-NOTES.txt
+
       - name: Build GitHub Package
         shell: pwsh
         run: |
@@ -128,6 +199,7 @@ jobs:
           Copy-Item "dist\ByFTP-$env:VERSION-Portable-x64.exe" 'package\assets\' -Force
           Copy-Item "dist\ByFTP-$env:VERSION-Setup-x64.exe" 'package\assets\' -Force
           Copy-Item "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" 'package\assets\' -Force
+          Copy-Item "dist\ByFTP-$env:VERSION-Windows-x64.zip" 'package\assets\' -Force
           Copy-Item 'dist\SHA256.txt' 'package\assets\' -Force
           Copy-Item 'dist\verification.txt' 'package\assets\' -Force
           @"
@@ -135,7 +207,7 @@ jobs:
 
           Official packaged Windows distribution of ByFTP by Brendigo.
 
-          For normal Windows installation, GitHub Releases is the recommended download channel. This package contains the same verified Setup, Portable and Uninstaller artifacts plus checksums and verification output.
+          For normal Windows installation, GitHub Releases is the recommended download channel. This package contains the verified Setup, Portable, Uninstaller and complete Windows ZIP plus checksums and verification output.
 
           ByFTP is proprietary/source-available software. See LICENSE, PRIVACY.md and SECURITY.md in the package and repository.
           "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
