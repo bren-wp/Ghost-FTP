@@ -1,6 +1,15 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
-$version = '2.12.0'
+
+$versionFile = Join-Path $PSScriptRoot 'VERSION'
+if (-not (Test-Path -LiteralPath $versionFile -PathType Leaf)) {
+    throw 'Nedostaje VERSION datoteka.'
+}
+$version = (Get-Content -LiteralPath $versionFile -Raw).Trim()
+if ($version -notmatch '^\d+\.\d+\.\d+$') {
+    throw "Neispravna ByFTP verzija u VERSION datoteci: $version"
+}
+
 $minimumGo = [Version]'1.26.5'
 $dist = Join-Path $PWD 'dist'
 $payload = Join-Path $PWD 'cmd\installer\payload'
@@ -26,6 +35,7 @@ if ($goVersion -lt $minimumGo) {
     throw "Za produkcijski ByFTP build potreban je Go $minimumGo ili noviji security-patch release. Trenutno: $rawGoVersion"
 }
 
+Write-Host "ByFTP $version"
 Write-Host "[1/10] Privacy/network audit"
 python scripts/audit_privacy.py
 if ($LASTEXITCODE -ne 0) { throw 'Privacy audit nije prošao.' }
@@ -85,4 +95,4 @@ $verification = Get-Content "$dist\verification.txt" -Raw
 if ($verification -match 'AUTHENTICODE_SIGNED=NO') {
     Write-Warning 'Binariji nisu Authenticode potpisani. Za javnu distribuciju potpiši portable, uninstaller i setup nakon PE resource obrade pa ponovno pokreni verifikaciju.'
 }
-Write-Host "ByFTP build završen: $dist"
+Write-Host "ByFTP $version build završen: $dist"
