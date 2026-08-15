@@ -138,7 +138,7 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 	return nil
 }
 
-var version = "2.11.0"
+var version = "2.12.0"
 
 const uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
 
@@ -285,9 +285,6 @@ func main() {
 		if err := registryBackup.restore(); err != nil {
 			errs = append(errs, err)
 		}
-		// On a fresh install, remove partially created Windows integration. On an
-		// upgrade, keep existing shortcuts/keys because they still target the
-		// restored installation paths.
 		if !appBackup.existed() && !unBackup.existed() {
 			if err := platform.RemoveShortcuts(); err != nil {
 				errs = append(errs, err)
