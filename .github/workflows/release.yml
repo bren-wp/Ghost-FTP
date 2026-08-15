@@ -179,15 +179,15 @@ jobs:
       - name: Upload complete release artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-${{ env.VERSION }}-complete-release
+          name: byftp-complete-release
           if-no-files-found: error
           retention-days: 30
           path: |
-            dist/ByFTP-${{ env.VERSION }}-Portable-x64.exe
-            dist/ByFTP-${{ env.VERSION }}-Setup-x64.exe
-            dist/ByFTP-${{ env.VERSION }}-Uninstall-x64.exe
-            dist/ByFTP-${{ env.VERSION }}-Windows-x64.zip
-            dist/ByFTP-${{ env.VERSION }}-Source.zip
+            dist/ByFTP-*-Portable-x64.exe
+            dist/ByFTP-*-Setup-x64.exe
+            dist/ByFTP-*-Uninstall-x64.exe
+            dist/ByFTP-*-Windows-x64.zip
+            dist/ByFTP-*-Source.zip
             dist/SHA256.txt
             dist/verification.txt
             dist/RELEASE-NOTES.txt
