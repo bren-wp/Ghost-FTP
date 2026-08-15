@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.12.1 — Recursive-upload root hardening & complete release packaging
+
+- recursive upload jobs now bind their local safety boundary to the parent of the selected upload root so the root itself is revalidated before every queued attempt
+- late replacement of an already-planned upload root with a symlink, junction or other reparse redirect is rejected before transfer execution
+- added regression coverage reproducing the late-root redirect scenario
+- introduced a canonical `VERSION` file used by production builds and release automation
+- GitHub release automation now produces standalone Setup, Portable and Uninstaller EXEs plus a complete Windows x64 ZIP and exact tracked Source ZIP
+- complete Windows ZIP includes release notes, privacy/security/license documentation, verification output and bundle-local SHA-256 checksums
+- release workflow regenerates global SHA-256 checksums across EXEs, ZIPs and verification assets and uploads a 30-day complete Actions artifact
+- version bumps on `main` now trigger the verified release pipeline automatically while tag/manual releases remain supported
+
 ## 2.12.0 — Safer retry, skip-existing, connection timeout & tree-transfer hardening
 
 - added Skip Existing transfer policy for safe non-overwriting upload/download workflows
