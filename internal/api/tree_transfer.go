@@ -116,7 +116,7 @@ func buildUploadPlan(ctx context.Context, localRoot, remoteRoot string) (treePla
 		if entry.IsDir() {
 			plan.remoteDirs = append(plan.remoteDirs, remoteTarget)
 		} else {
-			plan.requests = append(plan.requests, transfer.Request{Direction: "upload", LocalPath: local, RemotePath: remoteTarget, LocalRoot: localRoot})
+			plan.requests = append(plan.requests, transfer.Request{Direction: "upload", LocalPath: local, RemotePath: remoteTarget, LocalRoot: filepath.Dir(localRoot)})
 		}
 		return plan.checkLimit()
 	})
