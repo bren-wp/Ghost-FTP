@@ -1,0 +1,145 @@
+name: Publish ByFTP 2.12.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'scripts/**'
+      - 'build/icon.ico'
+      - 'BUILD-WINDOWS.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: byftp-release-2.12.0
+  cancel-in-progress: false
+
+env:
+  VERSION: '2.12.0'
+
+jobs:
+  publish:
+    name: Build, Release & Package
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build and verify ByFTP
+        shell: pwsh
+        run: .\BUILD-WINDOWS.ps1
+
+      - name: Prepare release files
+        shell: pwsh
+        run: |
+          Copy-Item 'dist\ByFTP-Uninstall.exe' "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" -Force
+          @"
+          ByFTP $env:VERSION
+
+          Native Windows FTP / FTPS / SFTP client by Brendigo.
+
+          Highlights:
+          - Native dark Windows desktop interface
+          - FTP, FTPS Explicit/Implicit and SFTP
+          - Multi-file and whole-folder transfers
+          - Transfer queue with parallelism, transient retry and Skip Existing
+          - Windows DPAPI-protected saved profiles
+          - SFTP host-key pinning
+          - No telemetry, analytics, cloud account or automatic external API calls
+
+          Downloads:
+          - Setup: recommended installation
+          - Portable: run without installation
+          - Uninstaller: standalone removal binary
+
+          Verify SHA-256 values before distribution. Public production binaries should be Authenticode-signed with the real Brendigo signing identity.
+          "@ | Set-Content 'dist\RELEASE-NOTES.txt' -Encoding UTF8
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v$env:VERSION"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; skipping creation."
+            exit 0
+          }
+          gh release create $tag `
+            "dist\ByFTP-$env:VERSION-Portable-x64.exe" `
+            "dist\ByFTP-$env:VERSION-Setup-x64.exe" `
+            "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" `
+            "dist\SHA256.txt" `
+            "dist\verification.txt" `
+            "dist\RELEASE-NOTES.txt" `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --title "ByFTP $env:VERSION" `
+            --notes-file 'dist\RELEASE-NOTES.txt' `
+            --target "$env:GITHUB_SHA"
+
+      - name: Build GitHub Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'package\assets','package-out' | Out-Null
+          Copy-Item "dist\ByFTP-$env:VERSION-Portable-x64.exe" 'package\assets\' -Force
+          Copy-Item "dist\ByFTP-$env:VERSION-Setup-x64.exe" 'package\assets\' -Force
+          Copy-Item "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" 'package\assets\' -Force
+          Copy-Item 'dist\SHA256.txt' 'package\assets\' -Force
+          Copy-Item 'dist\verification.txt' 'package\assets\' -Force
+          @"
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net8.0</TargetFramework>
+              <PackageId>ByFTP.Windows</PackageId>
+              <Version>$env:VERSION</Version>
+              <Authors>Brendigo</Authors>
+              <Company>Brendigo</Company>
+              <Description>Official ByFTP Windows FTP/FTPS/SFTP distribution package.</Description>
+              <PackageTags>byftp;ftp;ftps;sftp;windows;brendigo</PackageTags>
+              <RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl>
+              <RepositoryType>git</RepositoryType>
+              <PackageLicenseFile>LICENSE</PackageLicenseFile>
+              <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+              <IncludeBuildOutput>false</IncludeBuildOutput>
+            </PropertyGroup>
+            <ItemGroup>
+              <None Include="assets\**\*" Pack="true" PackagePath="tools\" />
+              <None Include="..\LICENSE" Pack="true" PackagePath="" />
+              <None Include="..\PRIVACY.md" Pack="true" PackagePath="docs\" />
+              <None Include="..\SECURITY.md" Pack="true" PackagePath="docs\" />
+            </ItemGroup>
+          </Project>
+          "@ | Set-Content 'package\ByFTP.Windows.csproj' -Encoding UTF8
+          dotnet pack 'package\ByFTP.Windows.csproj' -c Release -o 'package-out'
+
+      - name: Publish GitHub Package
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $pkg = Get-ChildItem 'package-out\ByFTP.Windows.*.nupkg' | Select-Object -First 1
+          if (-not $pkg) { throw 'ByFTP.Windows package was not created.' }
+          dotnet nuget push $pkg.FullName `
+            --api-key "$env:GITHUB_TOKEN" `
+            --source 'https://nuget.pkg.github.com/bren-wp/index.json' `
+            --skip-duplicate
