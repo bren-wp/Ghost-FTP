@@ -27,19 +27,22 @@ ByFTP is a native Windows x64 client for **FTP, FTPS and SFTP**. It combines a f
 
 There is no embedded browser, no localhost web dashboard, no analytics SDK, no advertising layer and no account required. ByFTP connects to the server **you choose** and keeps application data local to your Windows profile.
 
-**Current release: 2.12.0**
+**Current release: 2.12.1**
 
 ## Download
 
 ### [Releases](https://github.com/bren-wp/by-ftp/releases)
 
-**Recommended for Windows users.** Official ByFTP release downloads are published on the GitHub Releases page. Release downloads can include:
+**Recommended for Windows users.** Official ByFTP release downloads are published on the GitHub Releases page. Release downloads include:
 
 - Portable x64 EXE
 - Setup x64 EXE
-- Uninstaller
+- Uninstaller x64 EXE
+- complete Windows x64 ZIP bundle
+- exact tracked Source ZIP
 - SHA-256 checksums
 - build/security verification report
+- release notes
 
 ### [Packages](https://github.com/users/bren-wp/packages?repo_name=by-ftp)
 
@@ -96,6 +99,7 @@ GitHub Packages is reserved for packaged ByFTP distributions and related officia
 - **Skip existing files** mode
 - cross-server retry protection
 - runtime local-root revalidation before every attempt
+- recursive-upload root revalidation against late symlink/junction replacement
 - worker panic containment so one unexpected job failure does not take down the whole application
 
 ## Privacy-first architecture
@@ -127,6 +131,7 @@ Read the complete model in [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.m
 - no early decryption of saved credentials in the connection manager
 - safe local-child validation for server-controlled file names
 - junction/symlink/reparse-point traversal protections
+- recursive-upload root is revalidated as a child of its original parent boundary before every queued attempt
 - transactional upload/download staging and rollback
 - cryptographically random internal staging names
 - secure ByFTP-owned directory creation
@@ -176,7 +181,7 @@ The project currently has **no external Go modules**.
 
 The source is published for transparency, security review and authorized development. **ByFTP is not open-source software.** Modification, redistribution, rebranding, derivative works and reuse of the source code require prior written permission from Brendigo. See [LICENSE](LICENSE).
 
-For authorized builds, from PowerShell on Windows:
+The canonical release number is stored in [`VERSION`](VERSION). For authorized builds, from PowerShell on Windows:
 
 ```powershell
 .\BUILD-WINDOWS.ps1
@@ -189,6 +194,8 @@ BUILD-WINDOWS.cmd
 ```
 
 The production pipeline runs privacy checks, unit tests, `go vet`, Windows builds, PE resource injection, mitigation verification and SHA-256 generation. Output is written to `dist/`.
+
+Official release automation additionally produces the standalone EXEs, a complete Windows x64 ZIP, a tracked-source ZIP, release checksums, verification output, GitHub Release assets and the `ByFTP.Windows` GitHub Package.
 
 ## Quality gates
 
@@ -207,6 +214,7 @@ See [TESTING.md](TESTING.md) and [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
 ## Repository structure
 
 ```text
+VERSION         canonical release version
 cmd/
   byftp/        desktop application + controlled SFTP AskPass mode
   installer/    per-user Windows installer
