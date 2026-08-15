@@ -1,26 +1,29 @@
-name: Publish ByFTP 2.12.0
+name: Publish ByFTP
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'cmd/**'
-      - 'internal/**'
-      - 'scripts/**'
-      - 'build/icon.ico'
-      - 'BUILD-WINDOWS.ps1'
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without the v prefix (for example 2.13.0)'
+        required: true
+        default: '2.12.0'
 
 permissions:
   contents: write
   packages: write
 
 concurrency:
-  group: byftp-release-2.12.0
+  group: byftp-release-${{ github.ref }}-${{ inputs.version || 'tag' }}
   cancel-in-progress: false
 
 env:
-  VERSION: '2.12.0'
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+  GOTELEMETRY: off
 
 jobs:
   publish:
@@ -30,19 +33,40 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve release version
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'.Trim()
+          } else {
+            $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid release version: $version"
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
+
+      - name: Verify source version
+        shell: pwsh
+        run: |
+          $scriptVersion = Select-String -Path 'BUILD-WINDOWS.ps1' -Pattern "^\$version = '([^']+)'$" | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          if ($scriptVersion -ne $env:VERSION) {
+            throw "Release version $env:VERSION does not match BUILD-WINDOWS.ps1 version $scriptVersion."
+          }
 
       - name: Build and verify ByFTP
         shell: pwsh
@@ -80,22 +104,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "v$env:VERSION"
-          gh release view $tag 2>$null
+          gh release view $tag --repo "$env:GITHUB_REPOSITORY" 2>$null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Release $tag already exists; skipping creation."
-            exit 0
+          } else {
+            gh release create $tag `
+              "dist\ByFTP-$env:VERSION-Portable-x64.exe" `
+              "dist\ByFTP-$env:VERSION-Setup-x64.exe" `
+              "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" `
+              "dist\SHA256.txt" `
+              "dist\verification.txt" `
+              "dist\RELEASE-NOTES.txt" `
+              --repo "$env:GITHUB_REPOSITORY" `
+              --title "ByFTP $env:VERSION" `
+              --notes-file 'dist\RELEASE-NOTES.txt' `
+              --target "$env:GITHUB_SHA"
           }
-          gh release create $tag `
-            "dist\ByFTP-$env:VERSION-Portable-x64.exe" `
-            "dist\ByFTP-$env:VERSION-Setup-x64.exe" `
-            "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" `
-            "dist\SHA256.txt" `
-            "dist\verification.txt" `
-            "dist\RELEASE-NOTES.txt" `
-            --repo "$env:GITHUB_REPOSITORY" `
-            --title "ByFTP $env:VERSION" `
-            --notes-file 'dist\RELEASE-NOTES.txt' `
-            --target "$env:GITHUB_SHA"
 
       - name: Build GitHub Package
         shell: pwsh
@@ -107,6 +131,15 @@ jobs:
           Copy-Item 'dist\SHA256.txt' 'package\assets\' -Force
           Copy-Item 'dist\verification.txt' 'package\assets\' -Force
           @"
+          # ByFTP.Windows $env:VERSION
+
+          Official packaged Windows distribution of ByFTP by Brendigo.
+
+          For normal Windows installation, GitHub Releases is the recommended download channel. This package contains the same verified Setup, Portable and Uninstaller artifacts plus checksums and verification output.
+
+          ByFTP is proprietary/source-available software. See LICENSE, PRIVACY.md and SECURITY.md in the package and repository.
+          "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
+          @"
           <Project Sdk="Microsoft.NET.Sdk">
             <PropertyGroup>
               <TargetFramework>net8.0</TargetFramework>
@@ -115,16 +148,20 @@ jobs:
               <Authors>Brendigo</Authors>
               <Company>Brendigo</Company>
               <Description>Official ByFTP Windows FTP/FTPS/SFTP distribution package.</Description>
-              <PackageTags>byftp;ftp;ftps;sftp;windows;brendigo</PackageTags>
+              <PackageTags>byftp;ftp;ftps;sftp;windows;brendigo;privacy</PackageTags>
+              <PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl>
               <RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl>
               <RepositoryType>git</RepositoryType>
               <PackageLicenseFile>LICENSE</PackageLicenseFile>
+              <PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile>
               <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+              <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
               <IncludeBuildOutput>false</IncludeBuildOutput>
             </PropertyGroup>
             <ItemGroup>
               <None Include="assets\**\*" Pack="true" PackagePath="tools\" />
-              <None Include="..\LICENSE" Pack="true" PackagePath="" />
+              <None Include="PACKAGE-README.md" Pack="true" PackagePath="\" />
+              <None Include="..\LICENSE" Pack="true" PackagePath="\" />
               <None Include="..\PRIVACY.md" Pack="true" PackagePath="docs\" />
               <None Include="..\SECURITY.md" Pack="true" PackagePath="docs\" />
             </ItemGroup>
