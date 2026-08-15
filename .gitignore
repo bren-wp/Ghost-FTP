@@ -1,0 +1,26 @@
+# Build output
+/dist/
+/cmd/installer/payload/*.exe
+/cmd/installer/payload/payload.zip
+
+# Generated release artifacts
+*.exe
+*.zip
+*.sha256
+
+# Temporary/runtime files
+*.tmp
+*.log
+*.bak
+*.part
+
+# Python
+__pycache__/
+*.pyc
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
