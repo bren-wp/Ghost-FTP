@@ -18,7 +18,7 @@ env:
 
 jobs:
   test:
-    name: Test, race, vet & privacy
+    name: Test, race, vet, privacy & release metadata
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -48,6 +48,14 @@ jobs:
 
       - name: Privacy audit
         run: python scripts/audit_privacy.py
+
+      - name: Release metadata validation
+        shell: bash
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
 
   windows-build:
     name: Windows production build
