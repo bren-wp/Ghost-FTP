@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Embed VERSIONINFO, app manifest and ICO resources into an unsigned PE32/PE32+ executable.
+"""Ugrađuje VERSIONINFO, manifest aplikacije i ICO resurse u nepotpisanu PE32/PE32+ izvršnu datoteku.
 
-Uses only Python's standard library. Intended for deterministic ByFTP release builds.
-This does not sign the executable; Authenticode signing is a separate release step.
+Koristi samo Python standardnu biblioteku i namijenjen je determinističkim ByFTP buildovima.
+Ne potpisuje izvršnu datoteku; Authenticode potpisivanje zaseban je korak izdanja.
 """
 from __future__ import annotations
 
@@ -61,24 +61,24 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
     major, minor, patch, build = version
     fixed = struct.pack(
         "<13I",
-        0xFEEF04BD,  # dwSignature
-        0x00010000,  # dwStrucVersion
+        0xFEEF04BD,
+        0x00010000,
         (major << 16) | minor,
         (patch << 16) | build,
         (major << 16) | minor,
         (patch << 16) | build,
-        0x0000003F,  # dwFileFlagsMask
-        0x00000000,  # dwFileFlags
-        0x00040004,  # VOS_NT_WINDOWS32
-        0x00000001,  # VFT_APP
+        0x0000003F,
+        0x00000000,
+        0x00040004,
+        0x00000001,
         0,
         0,
         0,
     )
     descriptions = {
-        "portable": ("ByFTP Client", "ByFTP"),
-        "setup": ("ByFTP Client Setup", "ByFTPSetup"),
-        "uninstaller": ("ByFTP Client Uninstaller", "ByFTPUninstall"),
+        "portable": ("ByFTP klijent", "ByFTP"),
+        "setup": ("ByFTP instalacijski program", "ByFTPSetup"),
+        "uninstaller": ("ByFTP program za uklanjanje", "ByFTPUninstall"),
     }
     description, internal_name = descriptions.get(role, descriptions["portable"])
     strings = [
@@ -90,28 +90,14 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
         ("OriginalFilename", original_filename),
         ("ProductName", "ByFTP"),
         ("ProductVersion", f"{major}.{minor}.{patch}.{build}"),
-        ("Comments", "Secure FTP, FTPS and SFTP client — Brendigo — brendigo.com"),
+        ("Comments", "Siguran FTP, FTPS i SFTP klijent — Brendigo — brendigo.com"),
     ]
-    string_table = make_container_block(
-        "040904B0",
-        [make_string_block(k, v) for k, v in strings],
-        value_type=1,
-    )
+    string_table = make_container_block("040904B0", [make_string_block(k, v) for k, v in strings], value_type=1)
     string_file_info = make_container_block("StringFileInfo", [string_table], value_type=1)
-
     translation_value = struct.pack("<HH", LANG_EN_US, CODEPAGE_UNICODE)
-    var_translation = make_container_block(
-        "Translation", [], value=translation_value, value_length=len(translation_value), value_type=0
-    )
+    var_translation = make_container_block("Translation", [], value=translation_value, value_length=len(translation_value), value_type=0)
     var_file_info = make_container_block("VarFileInfo", [var_translation], value_type=1)
-
-    return make_container_block(
-        "VS_VERSION_INFO",
-        [string_file_info, var_file_info],
-        value=fixed,
-        value_length=len(fixed),
-        value_type=0,
-    )
+    return make_container_block("VS_VERSION_INFO", [string_file_info, var_file_info], value=fixed, value_length=len(fixed), value_type=0)
 
 
 def make_manifest(version: tuple[int, int, int, int], role: str) -> bytes:
@@ -124,7 +110,7 @@ def make_manifest(version: tuple[int, int, int, int], role: str) -> bytes:
     xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity version="{major}.{minor}.{patch}.{build}" processorArchitecture="amd64" name="{identity}" type="win32"/>
-  <description>ByFTP Client by Brendigo</description>
+  <description>ByFTP klijent tvrtke Brendigo</description>
   <dependency>
     <dependentAssembly>
       <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0" processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
@@ -134,9 +120,7 @@ def make_manifest(version: tuple[int, int, int, int], role: str) -> bytes:
     <security><requestedPrivileges><requestedExecutionLevel level="asInvoker" uiAccess="false"/></requestedPrivileges></security>
   </trustInfo>
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
-    <application>
-      <supportedOS Id="{{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}}"/>
-    </application>
+    <application><supportedOS Id="{{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}}"/></application>
   </compatibility>
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
     <windowsSettings>
@@ -196,7 +180,6 @@ def make_resource_tree(resources: dict[int, list[tuple[int, bytes]]]) -> Node:
 def walk_nodes(root: Node) -> tuple[list[Node], list[Leaf]]:
     nodes: list[Node] = []
     leaves: list[Leaf] = []
-
     def visit(node: Node) -> None:
         nodes.append(node)
         for _, child in node.entries:
@@ -204,7 +187,6 @@ def walk_nodes(root: Node) -> tuple[list[Node], list[Leaf]]:
                 visit(child)
             else:
                 leaves.append(child)
-
     visit(root)
     return nodes, leaves
 
@@ -212,7 +194,6 @@ def walk_nodes(root: Node) -> tuple[list[Node], list[Leaf]]:
 def build_resource_section(resources: dict[int, list[tuple[int, bytes]]], section_rva: int) -> bytes:
     root = make_resource_tree(resources)
     nodes, leaves = walk_nodes(root)
-
     cursor = 0
     for node in nodes:
         node.offset = cursor
@@ -226,31 +207,17 @@ def build_resource_section(resources: dict[int, list[tuple[int, bytes]]], sectio
         leaf.payload_offset = cursor
         cursor += len(leaf.payload)
         cursor = align(cursor, 4)
-
     out = bytearray(cursor)
     for node in nodes:
-        # Numeric IDs only; named entries = 0.
         struct.pack_into("<IIHHHH", out, node.offset, 0, 0, 0, 0, 0, len(node.entries))
         entry_off = node.offset + 16
         for resource_id, child in node.entries:
-            if isinstance(child, Node):
-                target = 0x80000000 | child.offset
-            else:
-                target = child.data_entry_offset
+            target = (0x80000000 | child.offset) if isinstance(child, Node) else child.data_entry_offset
             struct.pack_into("<II", out, entry_off, resource_id, target)
             entry_off += 8
-
     for leaf in leaves:
-        struct.pack_into(
-            "<IIII",
-            out,
-            leaf.data_entry_offset,
-            section_rva + leaf.payload_offset,
-            len(leaf.payload),
-            0,
-            0,
-        )
-        out[leaf.payload_offset : leaf.payload_offset + len(leaf.payload)] = leaf.payload
+        struct.pack_into("<IIII", out, leaf.data_entry_offset, section_rva + leaf.payload_offset, len(leaf.payload), 0, 0)
+        out[leaf.payload_offset:leaf.payload_offset + len(leaf.payload)] = leaf.payload
     return bytes(out)
 
 
@@ -259,7 +226,7 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
     if raw[:2] != b"MZ":
         raise ValueError("Datoteka nije PE/MZ")
     pe_off = struct.unpack_from("<I", raw, 0x3C)[0]
-    if raw[pe_off : pe_off + 4] != b"PE\0\0":
+    if raw[pe_off:pe_off + 4] != b"PE\0\0":
         raise ValueError("PE potpis nije pronađen")
     coff = pe_off + 4
     machine, number_sections, _, _, _, size_opt, _ = struct.unpack_from("<HHIIIHH", raw, coff)
@@ -276,14 +243,12 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
     new_header_off = section_table + number_sections * 40
     if new_header_off + 40 > size_headers:
         raise ValueError("Nema mjesta za dodatni .rsrc section header")
-
     max_end_rva = 0
     for i in range(number_sections):
         off = section_table + i * 40
         vsize, vaddr, raw_size, _ = struct.unpack_from("<IIII", raw, off + 8)
         max_end_rva = max(max_end_rva, vaddr + max(vsize, raw_size))
     section_rva = align(max_end_rva, section_alignment)
-
     icon_images, group_icon = parse_ico(ico)
     resources: dict[int, list[tuple[int, bytes]]] = {
         RT_ICON: [(i + 1, payload) for i, payload in enumerate(icon_images)],
@@ -298,34 +263,16 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
         raw.extend(b"\0" * (raw_ptr - len(raw)))
     raw.extend(rsrc)
     raw.extend(b"\0" * (raw_size - len(rsrc)))
-
-    # New section header.
     name = b".rsrc\0\0\0"
-    header = struct.pack(
-        "<8sIIIIIIHHI",
-        name,
-        len(rsrc),
-        section_rva,
-        raw_size,
-        raw_ptr,
-        0,
-        0,
-        0,
-        0,
-        SECTION_CHARS,
-    )
-    raw[new_header_off : new_header_off + 40] = header
-
+    header = struct.pack("<8sIIIIIIHHI", name, len(rsrc), section_rva, raw_size, raw_ptr, 0, 0, 0, 0, SECTION_CHARS)
+    raw[new_header_off:new_header_off + 40] = header
     struct.pack_into("<H", raw, coff + 2, number_sections + 1)
     initialized_size = struct.unpack_from("<I", raw, opt + 8)[0]
     struct.pack_into("<I", raw, opt + 8, initialized_size + raw_size)
     struct.pack_into("<I", raw, opt + 56, align(section_rva + len(rsrc), section_alignment))
-    # Resource DataDirectory is index 2. PE32+ directory table starts at +112.
     resource_dd = opt + 112 + 2 * 8
     struct.pack_into("<II", raw, resource_dd, section_rva, len(rsrc))
-    # Zero PE checksum; Windows accepts zero and Authenticode tooling recalculates when signing.
     struct.pack_into("<I", raw, opt + 64, 0)
-
     exe.write_bytes(raw)
 
 

@@ -11,6 +11,8 @@ import (
 )
 
 func (a *app) loadSettings() {
+	// Osiguraj hrvatski cue tekst i kod nadogradnje sa starijeg UI resursa.
+	cue(a.host, "Poslužitelj")
 	a.goSafe(func() {
 		settings, err := a.engine.Settings()
 		if err != nil {

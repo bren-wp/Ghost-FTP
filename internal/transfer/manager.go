@@ -61,10 +61,23 @@ func id() (string, error) {
 	}
 	return hex.EncodeToString(b), nil
 }
+
+func cloneEvent(e Event) Event {
+	out := e
+	if e.Job != nil {
+		job := *e.Job
+		out.Job = &job
+	}
+	if e.Jobs != nil {
+		out.Jobs = append([]model.TransferJob(nil), e.Jobs...)
+	}
+	return out
+}
+
 func (m *Manager) emitLocked(e Event) {
 	m.seq++
 	e.Seq = m.seq
-	m.events = append(m.events, e)
+	m.events = append(m.events, cloneEvent(e))
 	if len(m.events) > 1000 {
 		m.events = append([]Event(nil), m.events[len(m.events)-500:]...)
 	}
@@ -237,11 +250,13 @@ func (m *Manager) AddBatch(requests []Request) ([]model.TransferJob, error) {
 	}
 	return reservation.Commit()
 }
+
 func (m *Manager) List() []model.TransferJob {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return append([]model.TransferJob(nil), m.jobs...)
 }
+
 func (m *Manager) Events(since int64) ([]Event, int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -249,10 +264,10 @@ func (m *Manager) Events(since int64) ([]Event, int64) {
 		jobs := append([]model.TransferJob(nil), m.jobs...)
 		return []Event{{Seq: m.seq, Type: "state", Jobs: jobs, Paused: m.paused}}, m.seq
 	}
-	out := []Event{}
+	out := make([]Event, 0, len(m.events))
 	for _, e := range m.events {
 		if e.Seq > since {
-			out = append(out, e)
+			out = append(out, cloneEvent(e))
 		}
 	}
 	return out, m.seq
@@ -272,6 +287,7 @@ func (m *Manager) Pause() {
 	m.emitLocked(Event{Type: "state", Jobs: jobs, Paused: true})
 	m.mu.Unlock()
 }
+
 func (m *Manager) Resume() {
 	m.mu.Lock()
 	if m.closed || !m.accepting {
@@ -284,12 +300,11 @@ func (m *Manager) Resume() {
 	m.mu.Unlock()
 	m.pump()
 }
+
 func (m *Manager) Cancel(id string) error {
 	return m.CancelBatch([]string{id})
 }
 
-// CancelBatch validates the whole selection before changing queue state. This
-// prevents half-cancelled selections when one stale row is no longer active.
 func (m *Manager) CancelBatch(ids []string) error {
 	if len(ids) == 0 {
 		return errors.New("nije odabran nijedan prijenos")
@@ -333,6 +348,7 @@ func (m *Manager) CancelBatch(ids []string) error {
 	}
 	return nil
 }
+
 func (m *Manager) ActiveCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -349,7 +365,6 @@ func (m *Manager) Retry(id string) error {
 	return m.RetryBatch([]string{id})
 }
 
-// RetryBatch requeues a validated selection atomically.
 func (m *Manager) RetryBatch(ids []string) error {
 	if len(ids) == 0 {
 		return errors.New("nije odabran nijedan prijenos")
@@ -411,9 +426,6 @@ func (m *Manager) RetryBatch(ids []string) error {
 func (m *Manager) ClearFinished() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// Allocate a fresh backing slice instead of filtering in place. Finished jobs
-	// contain local/remote path strings and errors; keeping them in the unused tail
-	// of the old backing array would unnecessarily retain that metadata in memory.
 	out := make([]model.TransferJob, 0, len(m.jobs))
 	for _, j := range m.jobs {
 		if j.Status != "done" && j.Status != "failed" && j.Status != "cancelled" && j.Status != "skipped" {
@@ -429,6 +441,7 @@ func (m *Manager) ClearFinished() {
 	m.jobs = out
 	m.emitLocked(Event{Type: "state", Jobs: append([]model.TransferJob(nil), m.jobs...), Paused: m.paused})
 }
+
 func (m *Manager) pump() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -465,6 +478,7 @@ func (m *Manager) pump() {
 		}(j.ID)
 	}
 }
+
 func (m *Manager) jobSnapshot(id string) (model.TransferJob, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -598,14 +612,13 @@ func (m *Manager) execute(ctx context.Context, id string) {
 		}
 	}
 }
+
 func (m *Manager) Enable() {
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
 		return
 	}
-	// A successful connection starts a new admission generation. Any batch
-	// reservation created for an older session must never commit into this one.
 	m.generation++
 	m.accepting = true
 	m.paused = false
@@ -629,9 +642,6 @@ func (m *Manager) waitWorkers(ctx context.Context) error {
 	}
 }
 
-// DisableAndCancel atomically stops queue admission before cancelling active
-// work. This closes the disconnect race where a new transfer could previously
-// be queued between CancelAll and the remote session being cleared.
 func (m *Manager) DisableAndCancel(ctx context.Context, reason string) error {
 	if strings.TrimSpace(reason) == "" {
 		reason = "Otkazano prekidom veze"

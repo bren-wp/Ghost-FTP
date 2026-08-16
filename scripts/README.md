@@ -1,17 +1,14 @@
-# ByFTP build & verification scripts
+# ByFTP build i verifikacijski alati
 
-This directory contains the release tooling used by ByFTP's production pipeline.
+Ova mapa sadrži pomoćne alate produkcijskog pipelinea.
 
-The scripts are intentionally part of the repository so a release can be audited from source before publication.
+- `BUILD-LOCAL.sh` — lokalna offline Windows cross-build provjera
+- `generate_brand_assets.py` — reproducibilno generiranje i provjera PNG/ICO resursa
+- `audit_croatian.py` — provjera hrvatskih korisničkih/GitHub/release površina
+- `audit_privacy.py` — privacy/network-policy provjera
+- `make_payload.py` — izrada i integritet instalacijskog payloada
+- `pe_resources.py` — PE ikona i VERSIONINFO resursi
+- `verify_release.py` — PE i sigurnosna verifikacija binarija
+- `release_notes.py` — hrvatske bilješke iz točnog CHANGELOG odjeljka
 
-Key checks include:
-
-- privacy/network-policy audit
-- installer payload creation and SHA-256 verification
-- Windows PE resource/version metadata injection
-- release PE mitigation verification
-- reproducible release integrity checks
-
-The production pipeline is designed around ByFTP's core constraints: native Windows operation, no telemetry, no external runtime API dependency and no hidden credential upload path.
-
-For the full release sequence use `BUILD-WINDOWS.ps1` from the repository root and review `RELEASE-CHECKLIST.md` before publishing binaries.
+Puni proces izdavanja dokumentiran je u [`docs/IZDAVANJE-NA-GITHUBU.md`](../docs/IZDAVANJE-NA-GITHUBU.md), a kontrolna lista u [`docs/PROVJERA-IZDANJA.md`](../docs/PROVJERA-IZDANJA.md).
