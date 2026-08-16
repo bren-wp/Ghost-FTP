@@ -43,6 +43,9 @@ func TestReadLimitedRejectsDifferentRegularFileAfterLstat(t *testing.T) {
 	}
 
 	_, err := readLimitedWithOpen(path, func(name string) (*os.File, error) {
+		if err := os.Remove(name); err != nil {
+			return nil, err
+		}
 		if err := os.Rename(replacement, name); err != nil {
 			return nil, err
 		}
