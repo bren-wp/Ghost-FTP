@@ -33,6 +33,9 @@ jobs:
         run: |
           set -euo pipefail
           for patch in .github/byftp-patches/*.patch; do
+            if [ "$(basename "$patch")" = "03-release-workflow.patch" ]; then
+              continue
+            fi
             git apply --check "$patch"
             git apply "$patch"
           done
@@ -50,7 +53,6 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf .github/byftp-patches
-          rm -f .github/workflows/apply-byftp-2142.yml
           git config user.name "Brendigo"
           git config user.email "info@brendigo.com"
           git add -A
