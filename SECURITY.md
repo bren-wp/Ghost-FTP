@@ -1,4 +1,4 @@
-# ByFTP 2.12.0 — sigurnost
+# ByFTP 2.13.0 — sigurnost
 
 ## Vjerodajnice
 
@@ -36,6 +36,7 @@
 - atomski upload/download koriste privremenu datoteku i rollback prije zamjene originala
 - direktorij ili symlink nikad se ne prepisuje običnom datotekom
 - config i privatne helper datoteke koriste nasumične temp datoteke i atomic replace
+- state/config čitanje provjerava da je otvoreni handle isti regularni filesystem objekt koji je prethodno prošao `Lstat`; zamjena putanje symlinkom ili drugim regularnim objektom između provjere i otvaranja se odbija
 
 ## Runtime greške
 
@@ -45,13 +46,15 @@
 
 ## Ograničenja
 
-Konačni release treba Authenticode potpis i runtime smoke-test na Windows 10/11 s stvarnim FTP/FTPS/SFTP serverima.
+Konačni javni release treba Authenticode potpis i runtime smoke-test na Windows 10/11 s stvarnim FTP/FTPS/SFTP serverima. CI i PE verifikacija potvrđuju build strukturu i automatizirane zaštite, ali ne zamjenjuju provjeru stvarnog potpisanog binarija na ciljnom Windows okruženju.
 
 ## Otpornost na reconnect i ekstreman unos
 
 - transfer batch rezervacije su vezane uz generation aktivne veze; stara rezervacija ne može postati posao nakon Disconnect/reconnect ciklusa
 - folder download rollback uklanja samo prazne direktorije koje je ByFTP upravo stvorio; nikad ne radi rekurzivni rollback tuđeg sadržaja
 - Win32 input kontrole imaju ograničenja prije alokacije za host, user, password, passphrase, key i path vrijednosti
+- lokalni directory view je ograničen na 50.000 stavki; 2.13 sortiranje unaprijed računa case-folded ključeve umjesto alociranja lower-case kopija pri svakom sortiranom uspoređivanju
+- transfer-event batch se primjenjuje preko ID indeksa pa update burst više ne radi puni linearni scan reda za svaki event
 
 ## 2.11 dodatno učvršćivanje
 
@@ -60,3 +63,15 @@ Konačni release treba Authenticode potpis i runtime smoke-test na Windows 10/11
 - FTP MLSD capability cache razlikuje eksplicitno nepodržanu naredbu od transient mrežne/auth greške i ne zaključava pogrešno server na LIST fallback
 - prethodni directory refresh se otkazuje pri novoj navigaciji, a subprocess wait cleanup je vremenski ograničen
 - Windows proces uklanja current-directory DLL search putanju prije otvaranja GUI-ja
+
+## 2.12.1 dodatno učvršćivanje
+
+- recursive-upload datoteke koriste roditelja odabranog root direktorija kao lokalnu sigurnosnu granicu, pa je i sam root dio runtime revalidacije
+- kasna symlink/junction/reparse zamjena upload roota odbija se prije izvršenja već queued prijenosa
+
+## 2.13 dodatno učvršćivanje
+
+- state-file safe-open zatvara `Lstat`→`Open` TOCTOU prozor usporedbom `os.SameFile` identiteta prije čitanja sadržaja
+- testovi deterministički simuliraju i symlink i regular-file zamjenu nakon validacije putanje, a prije otvaranja
+- `BUILD-METADATA.txt` veže release uz konkretni source commit/ref, Go toolchain i Actions run bez zapisivanja korisničkih podataka ili credentiala
+- release notes generiraju se iz točno odgovarajućeg CHANGELOG odjeljka; CI zasebno provjerava da odjeljak za kanonski `VERSION` postoji i može se generirati

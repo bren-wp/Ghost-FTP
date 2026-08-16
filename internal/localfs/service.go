@@ -1,6 +1,7 @@
 package localfs
 
 import (
+	"brendigo.com/byftp/internal/itemlist"
 	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/security"
@@ -9,7 +10,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -73,12 +73,7 @@ func (s *Service) ListContext(ctx context.Context, p string) (string, []model.It
 			return "", nil, readErr
 		}
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].IsDirectory != items[j].IsDirectory {
-			return items[i].IsDirectory
-		}
-		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
-	})
+	itemlist.Sort(items)
 	return p, items, nil
 }
 func (s *Service) Mkdir(base, name string) error {

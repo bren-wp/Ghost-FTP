@@ -1,4 +1,4 @@
-# ByFTP 2.12.1 — privatnost
+# ByFTP 2.13.0 — privatnost
 
 ByFTP nema telemetriju, analytics, oglašivačke SDK-ove, vanjske API-je, crash-reporting prema internetu, tracking ni automatski update-check.
 
@@ -52,3 +52,10 @@ Release build pokreće `scripts/audit_privacy.py`; build pada ako se uvedu runti
 - recursive upload više ne tretira odabrani upload root kao neprovjeravanu granicu; svaki queued file vezan je uz roditeljsku lokalnu granicu pa se i sam root ponovno provjerava neposredno prije svakog pokušaja
 - kasna zamjena upload root direktorija symlinkom, junctionom ili drugim reparse preusmjerenjem više ne može preusmjeriti već planirani recursive upload izvan izvorno dopuštenog lokalnog stabla
 - regresijski test reproducira zamjenu root direktorija nakon planiranja i zahtijeva odbijanje takvog transfera
+
+## Dodatne 2.13 zaštite
+
+- čitanje lokalnog state/config zapisa više se ne oslanja samo na provjeru putanje prije otvaranja: ByFTP uspoređuje identitet datoteke provjerene s `Lstat` s identitetom stvarno otvorenog handlea i odbija symlink ili regular-file zamjenu nastalu u međuvremenu
+- ako se current state zapis promijeni ili postane nepouzdan tijekom sigurnog otvaranja, postojeći recovery mehanizam koristi provjerenu prethodnu generaciju ili sigurne zadane vrijednosti umjesto sadržaja zamijenjene datoteke
+- `BUILD-METADATA.txt` u službenom releaseu sadrži samo verziju, source commit/ref, Go verziju, platformu i GitHub Actions identifikatore; ne sadrži hostove, korisnička imena, lokalne putanje, profile ni vjerodajnice
+- release notes nastaju lokalno unutar GitHub Actions joba iz odgovarajućeg CHANGELOG odjeljka; taj proces ne uvodi runtime mrežni endpoint niti telemetry kanal u ByFTP aplikaciju

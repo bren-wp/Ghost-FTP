@@ -12,7 +12,7 @@ on:
       version:
         description: 'Release version without the v prefix (for example 2.13.0)'
         required: true
-        default: '2.12.1'
+        default: '2.13.0'
 
 permissions:
   contents: write
@@ -41,6 +41,7 @@ jobs:
           fetch-depth: 0
 
       - name: Resolve release version
+        id: version
         shell: pwsh
         run: |
           if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
@@ -54,6 +55,7 @@ jobs:
             throw "Invalid release version: $version"
           }
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Verify source version
         shell: pwsh
@@ -85,30 +87,20 @@ jobs:
           $uninstaller = "dist\ByFTP-$env:VERSION-Uninstall-x64.exe"
           Copy-Item 'dist\ByFTP-Uninstall.exe' $uninstaller -Force
 
+          python scripts/release_notes.py --version $env:VERSION --output 'dist\RELEASE-NOTES.txt'
+          if ($LASTEXITCODE -ne 0) { throw 'Release notes generation failed.' }
+
+          $goVersion = (go env GOVERSION).Trim()
           @"
-          ByFTP $env:VERSION
-
-          Native Windows FTP / FTPS / SFTP client by Brendigo.
-
-          Highlights:
-          - Native dark Windows desktop interface
-          - FTP, FTPS Explicit/Implicit and SFTP
-          - Multi-file and whole-folder transfers
-          - Transfer queue with parallelism, transient retry and Skip Existing
-          - Windows DPAPI-protected saved profiles
-          - SFTP host-key pinning
-          - Hardened recursive-upload root revalidation against late symlink/junction redirection
-          - No telemetry, analytics, cloud account or automatic external API calls
-
-          Downloads:
-          - Setup x64 EXE: recommended installation
-          - Portable x64 EXE: run without installation
-          - Uninstaller x64 EXE: standalone removal binary
-          - Windows x64 ZIP: complete ready-to-use Windows bundle
-          - Source ZIP: exact tracked source snapshot for this release
-
-          Verify SHA-256 values before distribution. Public production binaries should be Authenticode-signed with the real Brendigo signing identity.
-          "@ | Set-Content 'dist\RELEASE-NOTES.txt' -Encoding UTF8
+          VERSION=$env:VERSION
+          COMMIT=$env:GITHUB_SHA
+          SOURCE_REF=$env:GITHUB_REF
+          GO_VERSION=$goVersion
+          BUILD_OS=windows
+          BUILD_ARCH=amd64
+          GITHUB_RUN_ID=$env:GITHUB_RUN_ID
+          GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
+          "@ | Set-Content 'dist\BUILD-METADATA.txt' -Encoding ascii
 
           $bundleRoot = "dist\ByFTP-$env:VERSION-Windows-x64"
           Remove-Item -Recurse -Force $bundleRoot -ErrorAction SilentlyContinue
@@ -118,7 +110,8 @@ jobs:
           Copy-Item $uninstaller $bundleRoot -Force
           Copy-Item 'dist\verification.txt' $bundleRoot -Force
           Copy-Item 'dist\RELEASE-NOTES.txt' $bundleRoot -Force
-          Copy-Item 'README.md','LICENSE','PRIVACY.md','SECURITY.md' $bundleRoot -Force
+          Copy-Item 'dist\BUILD-METADATA.txt' $bundleRoot -Force
+          Copy-Item 'README.md','CHANGELOG.md','LICENSE','PRIVACY.md','SECURITY.md' $bundleRoot -Force
 
           $bundleHashes = foreach ($file in Get-ChildItem -LiteralPath $bundleRoot -File | Sort-Object Name) {
             $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -142,7 +135,8 @@ jobs:
             $windowsZip,
             $sourceZip,
             'dist\verification.txt',
-            'dist\RELEASE-NOTES.txt'
+            'dist\RELEASE-NOTES.txt',
+            'dist\BUILD-METADATA.txt'
           )
           $releaseHashes = foreach ($file in $releaseFiles) {
             $item = Get-Item -LiteralPath $file
@@ -170,6 +164,7 @@ jobs:
               "dist\SHA256.txt" `
               "dist\verification.txt" `
               "dist\RELEASE-NOTES.txt" `
+              "dist\BUILD-METADATA.txt" `
               --repo "$env:GITHUB_REPOSITORY" `
               --title "ByFTP $env:VERSION" `
               --notes-file 'dist\RELEASE-NOTES.txt' `
@@ -179,18 +174,19 @@ jobs:
       - name: Upload complete release artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-complete-release
+          name: byftp-${{ steps.version.outputs.version }}-complete-release
           if-no-files-found: error
           retention-days: 30
           path: |
-            dist/ByFTP-*-Portable-x64.exe
-            dist/ByFTP-*-Setup-x64.exe
-            dist/ByFTP-*-Uninstall-x64.exe
-            dist/ByFTP-*-Windows-x64.zip
-            dist/ByFTP-*-Source.zip
+            dist/ByFTP-${{ steps.version.outputs.version }}-Portable-x64.exe
+            dist/ByFTP-${{ steps.version.outputs.version }}-Setup-x64.exe
+            dist/ByFTP-${{ steps.version.outputs.version }}-Uninstall-x64.exe
+            dist/ByFTP-${{ steps.version.outputs.version }}-Windows-x64.zip
+            dist/ByFTP-${{ steps.version.outputs.version }}-Source.zip
             dist/SHA256.txt
             dist/verification.txt
             dist/RELEASE-NOTES.txt
+            dist/BUILD-METADATA.txt
 
       - name: Build GitHub Package
         shell: pwsh
@@ -202,12 +198,13 @@ jobs:
           Copy-Item "dist\ByFTP-$env:VERSION-Windows-x64.zip" 'package\assets\' -Force
           Copy-Item 'dist\SHA256.txt' 'package\assets\' -Force
           Copy-Item 'dist\verification.txt' 'package\assets\' -Force
+          Copy-Item 'dist\BUILD-METADATA.txt' 'package\assets\' -Force
           @"
           # ByFTP.Windows $env:VERSION
 
           Official packaged Windows distribution of ByFTP by Brendigo.
 
-          For normal Windows installation, GitHub Releases is the recommended download channel. This package contains the verified Setup, Portable, Uninstaller and complete Windows ZIP plus checksums and verification output.
+          For normal Windows installation, GitHub Releases is the recommended download channel. This package contains the verified Setup, Portable, Uninstaller and complete Windows ZIP plus checksums, verification output and build provenance.
 
           ByFTP is proprietary/source-available software. See LICENSE, PRIVACY.md and SECURITY.md in the package and repository.
           "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8

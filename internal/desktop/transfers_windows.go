@@ -5,7 +5,6 @@ package desktop
 import (
 	"fmt"
 
-	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/transfer"
 	"brendigo.com/byftp/internal/usererror"
@@ -53,30 +52,9 @@ func (a *app) addTransfer(direction, local, remotePath, localRoot string) {
 	})
 }
 
-func upsertTransferJob(jobs []model.TransferJob, job model.TransferJob) []model.TransferJob {
-	for i := range jobs {
-		if jobs[i].ID == job.ID {
-			jobs[i] = job
-			return jobs
-		}
-	}
-	return append(jobs, job)
-}
-
 func (a *app) applyTransferEvents(events []transfer.Event) bool {
-	changed := false
-	for _, event := range events {
-		switch event.Type {
-		case "state":
-			a.transferJobs = append([]model.TransferJob(nil), event.Jobs...)
-			changed = true
-		case "job":
-			if event.Job != nil {
-				a.transferJobs = upsertTransferJob(a.transferJobs, *event.Job)
-				changed = true
-			}
-		}
-	}
+	jobs, changed := applyTransferEventsToJobs(a.transferJobs, events)
+	a.transferJobs = jobs
 	return changed
 }
 
@@ -115,6 +93,9 @@ func (a *app) resumeTransfers() {
 }
 func (a *app) clearFinishedTransfers() {
 	a.engine.ClearFinishedTransfers()
+	// IDs are used only to avoid refreshing both file panels repeatedly for the
+	// same completed job. Once terminal jobs are removed, retain no stale IDs.
+	a.seenDone = make(map[string]bool)
 	a.setStatus("Završeni prijenosi uklonjeni iz reda.")
 	a.refreshTransfers()
 }

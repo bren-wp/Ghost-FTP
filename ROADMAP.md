@@ -4,7 +4,7 @@ ByFTP is developed as a focused, native and privacy-first Windows FTP / FTPS / S
 
 This roadmap is directional. Features, priorities and release dates may change as stability, security and compatibility findings take precedence.
 
-## Current baseline — 2.12.x
+## Current baseline — 2.13.x
 
 - Native Win32 dark desktop interface
 - FTP, FTPS Explicit, FTPS Implicit and SFTP
@@ -18,7 +18,20 @@ This roadmap is directional. Features, priorities and release dates may change a
 - Transient-only retry and Skip Existing mode
 - Transactional staging and rollback protections
 - Symlink, junction, reparse-point and path traversal defenses
+- Runtime upload-root revalidation and state-file safe-open identity checks
+- Indexed transfer-event application for high-volume queues
+- Allocation-conscious sorting for large local directory views
+- Versioned release provenance, tracked Source ZIP and complete Windows bundle
 - No telemetry, analytics, advertising SDKs or cloud account requirement
+
+## Completed quality work in 2.13
+
+- Closed the config/state `Lstat`→`Open` path-swap window by verifying the opened object identity before parsing.
+- Reworked transfer-event application from repeated full-queue scans to one ID index per event batch.
+- Released stale panel-refresh job IDs when terminal transfer history is cleared.
+- Centralized large-list ordering so case-folded sort keys are calculated once per item.
+- Bound release notes to the exact matching CHANGELOG section and added build/source provenance metadata.
+- Fixed GitHub Actions dynamic version propagation so complete release artifacts receive exact versioned names and file paths.
 
 ## Planned quality work
 

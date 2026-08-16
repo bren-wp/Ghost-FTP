@@ -27,7 +27,7 @@ ByFTP is a native Windows x64 client for **FTP, FTPS and SFTP**. It combines a f
 
 There is no embedded browser, no localhost web dashboard, no analytics SDK, no advertising layer and no account required. ByFTP connects to the server **you choose** and keeps application data local to your Windows profile.
 
-**Current release: 2.12.1**
+**Current release: 2.13.0**
 
 ## Download
 
@@ -42,7 +42,8 @@ There is no embedded browser, no localhost web dashboard, no analytics SDK, no a
 - exact tracked Source ZIP
 - SHA-256 checksums
 - build/security verification report
-- release notes
+- release notes generated from the matching CHANGELOG entry
+- build provenance metadata with release commit and toolchain information
 
 ### [Packages](https://github.com/users/bren-wp/packages?repo_name=by-ftp)
 
@@ -55,6 +56,7 @@ GitHub Packages is reserved for packaged ByFTP distributions and related officia
 - **Native Windows experience** — dark Win32 desktop UI with Fluent-style system icons and proper DPI scaling.
 - **FTP + FTPS + SFTP in one client** — including explicit/implicit FTPS and SFTP key authentication.
 - **Built for real file work** — multi-select, whole-folder transfers, batch operations, permissions and a persistent transfer queue.
+- **Scales more cleanly** — large local directory sorting precomputes case-folded keys and transfer-event batches use indexed updates instead of repeated full-queue scans.
 - **Safer transfer behavior** — transactional staging, rollback, path revalidation, symlink/junction protection and cross-server retry blocking.
 - **Privacy by design** — no telemetry, no analytics, no automatic external API calls and no persistent runtime activity log.
 - **Local credential protection** — saved profiles are protected with Windows DPAPI and sensitive values are kept out of process command lines.
@@ -86,6 +88,7 @@ GitHub Packages is reserved for packaged ByFTP distributions and related officia
 - refresh/navigation controls
 - remote permissions (CHMOD), including batch selection
 - Windows file-type and folder icons
+- bounded 50,000-entry local directory views with allocation-conscious stable sorting
 - protection against path traversal, reserved Windows names, symlinks, junctions and reparse-point escapes
 
 ### Transfer queue
@@ -100,6 +103,8 @@ GitHub Packages is reserved for packaged ByFTP distributions and related officia
 - cross-server retry protection
 - runtime local-root revalidation before every attempt
 - recursive-upload root revalidation against late symlink/junction replacement
+- indexed event application for large queues and event bursts
+- finished-job metadata and UI refresh-deduplication IDs are released by Clear Finished
 - worker panic containment so one unexpected job failure does not take down the whole application
 
 ## Privacy-first architecture
@@ -120,6 +125,8 @@ Normal ByFTP network traffic is intended for the **FTP/FTPS/SFTP destination sel
 
 Saved connection profiles are protected locally with Windows DPAPI. SFTP trust material is session-scoped, sensitive SSH metadata is minimized on process command lines and ByFTP blocks inherited proxy/SSH helper paths that could redirect a connection unexpectedly.
 
+Local state reads verify that the file opened is the same regular filesystem object that was validated immediately beforehand. A state path replaced with a symlink or another file during that validation/open window is rejected and ByFTP falls back to the previous/default generation instead of trusting the replacement.
+
 Read the complete model in [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 ## Security highlights
@@ -132,6 +139,7 @@ Read the complete model in [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.m
 - safe local-child validation for server-controlled file names
 - junction/symlink/reparse-point traversal protections
 - recursive-upload root is revalidated as a child of its original parent boundary before every queued attempt
+- state-file `Lstat`→`Open` identity verification rejects late path replacement
 - transactional upload/download staging and rollback
 - cryptographically random internal staging names
 - secure ByFTP-owned directory creation
@@ -195,7 +203,7 @@ BUILD-WINDOWS.cmd
 
 The production pipeline runs privacy checks, unit tests, `go vet`, Windows builds, PE resource injection, mitigation verification and SHA-256 generation. Output is written to `dist/`.
 
-Official release automation additionally produces the standalone EXEs, a complete Windows x64 ZIP, a tracked-source ZIP, release checksums, verification output, GitHub Release assets and the `ByFTP.Windows` GitHub Package.
+Official release automation additionally produces the standalone EXEs, a complete Windows x64 ZIP, a tracked-source ZIP, release checksums, verification output, `BUILD-METADATA.txt`, versioned GitHub Actions release artifacts, GitHub Release assets and the `ByFTP.Windows` GitHub Package. Release notes are generated from the exact `CHANGELOG.md` section matching `VERSION` so the public release description cannot silently drift from repository documentation.
 
 ## Quality gates
 
@@ -205,9 +213,10 @@ Core checks:
 go test ./...
 go vet ./...
 python scripts/audit_privacy.py
+python scripts/release_notes.py --version (Get-Content VERSION -Raw).Trim() --output RELEASE-NOTES.test.txt
 ```
 
-GitHub Actions additionally runs race tests and the Windows production build path.
+GitHub Actions additionally runs race tests, release-metadata validation and the Windows production build path.
 
 See [TESTING.md](TESTING.md) and [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).
 
@@ -221,15 +230,16 @@ cmd/
   uninstaller/  guarded Windows uninstaller
 internal/
   api/          typed in-process application engine
-  config/       profiles, settings and local protection
-  desktop/      native Win32 UI
+  config/       profiles, settings and local state protection
+  desktop/      native Win32 UI + indexed transfer-event state
+  itemlist/     shared allocation-conscious file-list ordering
   localfs/      local filesystem operations
   remote/       FTP / FTPS / SFTP adapters
   security/     validation and Windows security helpers
   transfer/     queue, retry and worker lifecycle
-scripts/        privacy, build, payload and PE verification tooling
+scripts/        privacy, build, release-notes, payload and PE verification tooling
 build/          ByFTP icon resources
-.github/        CI, CODEOWNERS and issue templates
+.github/        CI, release workflow, CODEOWNERS and issue templates
 ```
 
 ## License
