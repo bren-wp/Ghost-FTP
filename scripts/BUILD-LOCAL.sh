@@ -30,22 +30,33 @@ if cur < req:
     raise SystemExit(f'Za produkcijski ByFTP build potreban je Go {minimum}+ sigurnosni patch; trenutačno: {current}')
 PY
 
-echo "[1/12] Provjera slikovnih resursa"
+echo "[1/16] Provjera slikovnih resursa"
 python3 scripts/generate_brand_assets.py --check
 
-echo "[2/12] Provjera hrvatskog korisničkog sadržaja"
+echo "[2/16] Provjera hrvatskog korisničkog sadržaja i verzije"
 python3 scripts/audit_croatian.py
-
 python3 scripts/audit_version.py
 
-echo "[3/12] Provjera privatnosti i mrežne politike"
+echo "[3/16] Provjera dokumentacije"
+python3 scripts/audit_docs.py
+
+echo "[4/16] Provjera sigurnosnih invarijanti"
+python3 scripts/audit_security.py
+
+echo "[5/16] Provjera privatnosti i mrežne politike"
 python3 scripts/audit_privacy.py
 
-echo "[4/12] Testovi i statička provjera ($GO_VERSION)"
+echo "[6/16] Provjera release pipelinea"
+python3 scripts/audit_release.py
+
+echo "[7/16] Python regresije release alata"
+python3 -m unittest discover -s scripts -p 'test_*.py'
+
+echo "[8/16] Go testovi i statička provjera ($GO_VERSION)"
 go test ./...
 go vet ./...
 
-echo "[5/12] Čišćenje izlaznih datoteka"
+echo "[9/16] Čišćenje izlaznih datoteka"
 rm -rf "$DIST"
 mkdir -p "$DIST" "$PAYLOAD"
 rm -f "$PAYLOAD/payload.zip"
@@ -53,31 +64,31 @@ rm -f "$PAYLOAD/payload.zip"
 export GOOS=windows GOARCH=amd64 CGO_ENABLED=0
 LDFLAGS="-s -w -H=windowsgui -X main.version=$VERSION"
 
-echo "[6/12] Portable"
+echo "[10/16] Portable"
 go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$DIST/ByFTP-$VERSION-Portable-x64.exe" ./cmd/byftp
 python3 scripts/pe_resources.py "$DIST/ByFTP-$VERSION-Portable-x64.exe" --ico "$ICON" --version "$VERSION" --role portable --original-filename "ByFTP-$VERSION-Portable-x64.exe"
 
-echo "[7/12] Program za uklanjanje"
+echo "[11/16] Program za uklanjanje"
 go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$DIST/ByFTP-Uninstall.exe" ./cmd/uninstaller
 python3 scripts/pe_resources.py "$DIST/ByFTP-Uninstall.exe" --ico "$ICON" --version "$VERSION" --role uninstaller --original-filename "ByFTP-Uninstall.exe"
 
-echo "[8/12] Komprimirani instalacijski paket"
+echo "[12/16] Komprimirani instalacijski paket"
 python3 scripts/make_payload.py --app "$DIST/ByFTP-$VERSION-Portable-x64.exe" --uninstaller "$DIST/ByFTP-Uninstall.exe" --output "$PAYLOAD/payload.zip"
 trap 'rm -f "$PAYLOAD/payload.zip"' EXIT
 
-echo "[9/12] Instalacijski program"
+echo "[13/16] Instalacijski program"
 go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$DIST/ByFTP-$VERSION-Setup-x64.exe" ./cmd/installer
 rm -f "$PAYLOAD/payload.zip"
 trap - EXIT
 python3 scripts/pe_resources.py "$DIST/ByFTP-$VERSION-Setup-x64.exe" --ico "$ICON" --version "$VERSION" --role setup --original-filename "ByFTP-$VERSION-Setup-x64.exe"
 
-echo "[10/12] PE i sigurnosna provjera"
+echo "[14/16] PE i sigurnosna provjera"
 python3 scripts/verify_release.py "$DIST/ByFTP-$VERSION-Setup-x64.exe" "$DIST/ByFTP-$VERSION-Portable-x64.exe" "$DIST/ByFTP-Uninstall.exe" | tee "$DIST/verification.txt"
 
-echo "[11/12] SHA-256"
+echo "[15/16] SHA-256"
 sha256sum "$DIST/ByFTP-$VERSION-Setup-x64.exe" "$DIST/ByFTP-$VERSION-Portable-x64.exe" "$DIST/ByFTP-Uninstall.exe" > "$DIST/SHA256.txt"
 
-echo "[12/12] Status digitalnog potpisa"
+echo "[16/16] Status digitalnog potpisa"
 if grep -q 'AUTHENTICODE_SIGNED=NO' "$DIST/verification.txt"; then
   echo 'UPOZORENJE: binariji nisu Authenticode potpisani; potpišite release binarije prije šire javne distribucije.' >&2
 fi
