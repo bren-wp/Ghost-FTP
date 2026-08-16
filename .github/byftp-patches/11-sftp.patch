@@ -1,0 +1,16 @@
+diff --git a/internal/remote/sftp.go b/internal/remote/sftp.go
+index 6979847..bb304c2 100644
+--- a/internal/remote/sftp.go
++++ b/internal/remote/sftp.go
+@@ -604,9 +604,9 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
+ 		_ = os.Remove(part)
+ 		return err
+ 	}
+-	if st, err := os.Stat(part); err != nil || st.IsDir() {
++	if err := validateDownloadedPart(part); err != nil {
+ 		_ = os.Remove(part)
+-		return errors.New("preuzeta datoteka nije valjana")
++		return err
+ 	}
+ 	return replaceLocalFileAtomic(local, part, options.KeepBackup)
+ }
