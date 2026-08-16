@@ -18,7 +18,7 @@ env:
 
 jobs:
   test:
-    name: Testovi, race, vet, privatnost, hrvatski sadržaj i release metadata
+    name: Testovi, race, vet, sigurnost, privatnost, dokumentacija i release integritet
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -46,6 +46,21 @@ jobs:
       - name: Provjeri verzijsku konzistentnost
         run: python scripts/audit_version.py
 
+      - name: Provjeri dokumentaciju
+        run: python scripts/audit_docs.py
+
+      - name: Provjeri sigurnosne invarijante
+        run: python scripts/audit_security.py
+
+      - name: Provjeri privatnost i mrežnu politiku
+        run: python scripts/audit_privacy.py
+
+      - name: Provjeri release pipeline
+        run: python scripts/audit_release.py
+
+      - name: Python regresije release alata
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+
       - name: Jedinični testovi
         run: go test ./...
 
@@ -54,9 +69,6 @@ jobs:
 
       - name: Go vet
         run: go vet ./...
-
-      - name: Provjera privatnosti
-        run: python scripts/audit_privacy.py
 
       - name: Provjera release metapodataka
         shell: bash
