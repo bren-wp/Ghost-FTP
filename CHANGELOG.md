@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.13.0 — State safety, large-queue performance & release provenance
+
+- hardened config/state reads by verifying the opened object is the exact regular file previously validated, blocking `Lstat`→`Open` path swaps to a symlink or a different file
+- added deterministic regression coverage for symlink and regular-file replacement between state validation and file open
+- transfer UI now applies event batches through an ID index in O(jobs + events) time instead of scanning the complete queue for every event
+- Clear Finished now drops stale completed-job IDs used only for panel-refresh deduplication
+- large local directory sorting now precomputes case-folded keys once per item through a shared stable directory-first sorter
+- added 50,000-item sorting and 20,000-job/1,000-event regression coverage for high-volume desktop workflows
+- release notes are generated from the exact matching CHANGELOG section instead of duplicated static workflow text
+- releases now include `BUILD-METADATA.txt` with source commit, ref, Go toolchain and GitHub Actions run provenance, and the Windows bundle now includes CHANGELOG documentation
+- fixed dynamic version propagation into GitHub Actions expressions through an explicit step output so complete release artifacts receive exact versioned names and paths
+- the complete Actions artifact is now versioned (`byftp-2.13.0-complete-release`) and explicitly contains every public EXE/ZIP plus checksums, verification and provenance files
+
 ## 2.12.1 — Recursive-upload root hardening & complete release packaging
 
 - recursive upload jobs now bind their local safety boundary to the parent of the selected upload root so the root itself is revalidated before every queued attempt
