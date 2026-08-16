@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-var version = "2.12.0"
+var version = "dev"
 
 func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 	if askpassExe == "" || !strings.EqualFold(strings.TrimSpace(require), "force") || len(token) != 32 {

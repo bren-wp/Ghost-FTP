@@ -46,3 +46,7 @@ Merge se ne smatra spremnim dok oba joba nisu zelena.
 ## Release metadata
 
 CI čita `VERSION`, generira bilješke iz odgovarajućeg `CHANGELOG.md` odjeljka i zahtijeva da izlaz nije prazan. Time se sprječava objava verzije bez dokumentirane povijesti promjena.
+
+## Konzistentnost verzije
+
+`scripts/audit_version.py` provjerava da `VERSION` ostaje jedini produkcijski izvor broja verzije, da razvojni build ne glumi staro izdanje te da README, CHANGELOG i build skripte ostaju usklađeni.

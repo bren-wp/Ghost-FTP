@@ -138,7 +138,7 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 	return nil
 }
 
-var version = "2.12.0"
+var version = "dev"
 
 const uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
 
