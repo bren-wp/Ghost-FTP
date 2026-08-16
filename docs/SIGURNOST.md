@@ -1,4 +1,4 @@
-# ByFTP 2.14.0 — sigurnost
+# ByFTP — sigurnost
 
 ## Vjerodajnice
 
@@ -8,7 +8,7 @@
 - AskPass prihvaća samo vlastiti ByFTP executable, jednokratni token i očekivani System32 OpenSSH parent proces
 - spremljeni credential blob ne dešifrira se rano u connection manageru
 - SFTP trust credential je DPAPI-zaštićen, vezan uz točan host/port/user/key/fingerprint i vremenski ograničen
-- od 2.14 privremeni trust blob briše se nakon svake završene trust sekvence, uključujući grešku ili otkaz
+- privremeni trust blob briše se nakon svake završene trust sekvence, uključujući grešku ili otkaz
 
 ## Mrežni procesi
 
@@ -27,8 +27,10 @@
 - download ne smije izaći kroz nested symlink/junction
 - upload ne prati lokalne symlinkove
 - rekurzivno brisanje ne prolazi kroz symlink/reparse/junction točke
+- `RemoveTreeNoFollow` ima depth/item limite i samostalno blokira filesystem root, uključujući Windows drive i UNC root
 - atomski upload/download koristi privremenu datoteku i rollback prije zamjene originala
-- direktorij/symlink ne prepisuje se običnom datotekom
+- download `.byftp-part-*` staging objekt prije aktivacije prolazi `Lstat`, regular-file i Windows reparse-point provjeru
+- ciljni lokalni replace odbija nepouzdani reparse objekt i ne prepisuje postojeću stavku kroz check-then-rename utrku
 - temp datoteke imaju nepredvidive nazive i stvaraju se ekskluzivno
 - rekurzivni upload root ponovno se validira prije svakog queued pokušaja
 
@@ -36,9 +38,11 @@
 
 State safe-open odbija ne-regularni objekt i provjerava identitet/stabilnost stvarno otvorene datoteke. Ako current zapis nije siguran ili valjan, store koristi provjerenu prethodnu generaciju ili zadane vrijednosti.
 
-## Transfer event izolacija
+## Transfer izolacija
 
-Do 2.13 poziv `Events` vraćao je plitke kopije event struktura. Iako se time nije mijenjao glavni `jobs` slice, pozivatelj je mogao mutirati pokazivač/slice spremljen u event povijesti i tako utjecati na kasnije event odgovore. U 2.14 svaki `Event.Job` i `Event.Jobs` izlaz duboko se kopira prije izlaganja pozivatelju i prije spremanja eventa.
+`Events` vraća duboke kopije event struktura. Pozivatelj ne može mutirati pokazivač/slice spremljen u event povijesti i tako utjecati na kasnije event odgovore.
+
+Transfer posao pamti identitet veze i ne može se ručno retryati na drugi server/account. Queued posao ponovno validira lokalni root pri svakom pokušaju. Završni status koristi stvarni rezultat adaptera pa kasni cancel nakon uspješnog/preskočenog transfera ne može lažno promijeniti rezultat u `cancelled`.
 
 ## Installer i uninstaller
 
@@ -57,12 +61,21 @@ Do 2.13 poziv `Events` vraćao je plitke kopije event struktura. Iako se time ni
 
 ## Release zaštite
 
-- CI izvršava unit, race, vet, privacy, hrvatski-content i asset audit
+- CI izvršava unit, race, vet, privacy, security, hrvatski-content, docs, version, release i asset audit
 - Windows build provjerava PE32+ GUI strukturu, resurse i sigurnosne mitigacije
 - Setup, Portable i Uninstaller moraju biti različiti binariji
 - SHA-256 se objavljuje uz release
 - Windows ZIP ima zaseban rekurzivni `BUNDLE-SHA256.txt`
+- konačni ZIP ponovno se čita i hashira nakon kompresije; ne raspakirava se na filesystem tijekom provjere
 - build metadata veže izdanje uz commit/ref/toolchain bez korisničkih podataka
+- Source ZIP dolazi iz točnog `git archive HEAD`
+- postojeći release tag mora pokazivati na očekivani commit
+- rerun releasea smije dopuniti samo nedostajuće assete
+- postojeći asset s drugom veličinom ili SHA-256 digestom zaustavlja izdanje umjesto automatskog prepisivanja
+
+## Automatizirani sigurnosni gate
+
+`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor. Time promjena sigurnosnog koda i slučajno uklanjanje njegova testa ne mogu neopaženo proći standardni CI.
 
 ## Ograničenje
 
