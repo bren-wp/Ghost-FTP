@@ -1,5 +1,15 @@
 # Povijest promjena
 
+## 2.14.2 — Točniji završni statusi i čvršći lokalni staging
+
+- završni rezultat transfer adaptera postao je autoritativan: kasno otkazivanje ili prekid veze nakon stvarnog uspjeha više ne prepisuje posao u status `cancelled`
+- `ErrSkipped` ostaje `skipped` čak i ako kontekst bude otkazan neposredno nakon odluke da se postojeća datoteka preskoči
+- FTP/FTPS i SFTP download staging datoteke provjeravaju se s `Lstat`, moraju biti obične regularne datoteke i ne smiju biti Windows reparse pointovi
+- atomska aktivacija preuzete datoteke dodatno odbija reparse-point cilj prije backup/rollback preimenovanja
+- `RemoveTreeNoFollow` eksplicitno blokira korijen datotečnog sustava, uključujući Windows drive i UNC root putanje, kao vlastitu sigurnosnu granicu
+- dodani su regresijski testovi za kasni cancel, skipped status, stvarno otkazivanje, staging symlink i filesystem-root zaštitu
+- puni unit/race/vet, privatnost, hrvatski sadržaj, verzijski audit i Windows produkcijski build ostaju obavezni prije objave
+
 ## 2.14.1 — Završna konzistentnost verzije i službenog izvora
 
 - `cmd/byftp` i `cmd/installer` koriste jasni `dev` fallback pri razvojnim buildovima umjesto zastarjele hardkodirane produkcijske verzije
