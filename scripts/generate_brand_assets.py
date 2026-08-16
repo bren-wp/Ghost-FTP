@@ -234,7 +234,7 @@ def parse_png(data: bytes) -> tuple[bytes, bytes]:
         length = struct.unpack(">I", data[pos : pos + 4])[0]
         end = pos + 12 + length
         if end > len(data):
-            raise ValueError("PNG chunk prelazi kraj datoteke")
+            raise ValueError(f"PNG chunk prelazi kraj datoteke (pozicija={pos}, duljina={length}, ukupno={len(data)})")
         kind = data[pos + 4 : pos + 8]
         payload = data[pos + 8 : pos + 8 + length]
         crc = struct.unpack(">I", data[pos + 8 + length : end])[0]
@@ -263,6 +263,26 @@ def verify_png(data: bytes) -> None:
     parse_png(data)
 
 
+def raw_png_semantic(width: int, height: int, rgba: bytes) -> tuple[bytes, bytes]:
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    scan = bytearray()
+    stride = width * 4
+    for y in range(height):
+        scan.append(0)
+        scan.extend(rgba[y * stride : (y + 1) * stride])
+    return ihdr, bytes(scan)
+
+
+def expected_png_semantic(path: Path) -> tuple[bytes, bytes]:
+    if path == ICON_PNG:
+        w, h, px = draw_icon(512)
+        return raw_png_semantic(w, h, bytes(px))
+    if path == HEADER_PNG:
+        w, h, px = draw_header()
+        return raw_png_semantic(w, h, bytes(px))
+    raise ValueError(f"nepoznat PNG resurs: {path}")
+
+
 def parse_ico_semantic(data: bytes) -> list[tuple[tuple[int, ...], tuple[bytes, bytes]]]:
     if len(data) < 6:
         raise ValueError("ICO je prekratak")
@@ -286,14 +306,24 @@ def parse_ico_semantic(data: bytes) -> list[tuple[tuple[int, ...], tuple[bytes, 
     return result
 
 
-def assets_equivalent(path: Path, current: bytes, expected: bytes) -> bool:
-    # Zlib može zapisati isti PNG scan-stream različitim byteovima između
-    # verzija. Zato uspoređujemo validirani sadržaj/piksele, ne kompresijski layout.
+def expected_ico_semantic() -> list[tuple[tuple[int, ...], tuple[bytes, bytes]]]:
+    result = []
+    for size in [16, 24, 32, 48, 64, 128, 256]:
+        dim = 0 if size == 256 else size
+        w, h, px = draw_icon(size)
+        result.append(((dim, dim, 0, 0, 1, 32), raw_png_semantic(w, h, bytes(px))))
+    return result
+
+
+def assets_equivalent(path: Path, current: bytes) -> bool:
+    # Uspoređujemo stvarni sadržaj/piksele, a ne zlib kompresijski layout koji
+    # može varirati između verzija Pythona/zliba. Očekivani pikseli nastaju
+    # izravno iz renderera, bez ponovnog parsiranja tek generiranog PNG-a.
     if path.suffix.lower() == ".png":
-        return parse_png(current) == parse_png(expected)
+        return parse_png(current) == expected_png_semantic(path)
     if path.suffix.lower() == ".ico":
-        return parse_ico_semantic(current) == parse_ico_semantic(expected)
-    return current == expected
+        return parse_ico_semantic(current) == expected_ico_semantic()
+    return current == expected_assets()[path]
 
 def write_assets() -> None:
     for path, data in expected_assets().items():
@@ -310,7 +340,7 @@ def check_assets() -> None:
             raise SystemExit(f"Nedostaje slikovni resurs: {path.relative_to(ROOT)}")
         current = path.read_bytes()
         try:
-            equivalent = assets_equivalent(path, current, data)
+            equivalent = assets_equivalent(path, current)
         except ValueError as exc:
             raise SystemExit(f"Slikovni resurs nije valjan ({path.relative_to(ROOT)}): {exc}") from exc
         if not equivalent:
