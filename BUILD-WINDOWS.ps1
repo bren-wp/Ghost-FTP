@@ -36,28 +36,43 @@ if ($goVersion -lt $minimumGo) {
 }
 
 Write-Host "ByFTP $version"
-Write-Host '[1/12] Provjera slikovnih resursa'
+Write-Host '[1/16] Provjera slikovnih resursa'
 python scripts/generate_brand_assets.py --check
 if ($LASTEXITCODE -ne 0) { throw 'Slikovni resursi nisu prošli provjeru.' }
 
-Write-Host '[2/12] Provjera hrvatskog korisničkog sadržaja'
+Write-Host '[2/16] Provjera hrvatskog korisničkog sadržaja i verzije'
 python scripts/audit_croatian.py
 if ($LASTEXITCODE -ne 0) { throw 'Provjera hrvatskog sadržaja nije prošla.' }
-
 python scripts/audit_version.py
 if ($LASTEXITCODE -ne 0) { throw 'Provjera verzijske konzistentnosti nije prošla.' }
 
-Write-Host '[3/12] Provjera privatnosti i mrežne politike'
+Write-Host '[3/16] Provjera dokumentacije'
+python scripts/audit_docs.py
+if ($LASTEXITCODE -ne 0) { throw 'Provjera dokumentacije nije prošla.' }
+
+Write-Host '[4/16] Provjera sigurnosnih invarijanti'
+python scripts/audit_security.py
+if ($LASTEXITCODE -ne 0) { throw 'Sigurnosni audit nije prošao.' }
+
+Write-Host '[5/16] Provjera privatnosti i mrežne politike'
 python scripts/audit_privacy.py
 if ($LASTEXITCODE -ne 0) { throw 'Provjera privatnosti nije prošla.' }
 
-Write-Host "[4/12] Testovi i statička provjera ($rawGoVersion)"
+Write-Host '[6/16] Provjera release pipelinea'
+python scripts/audit_release.py
+if ($LASTEXITCODE -ne 0) { throw 'Release audit nije prošao.' }
+
+Write-Host '[7/16] Python regresije release alata'
+python -m unittest discover -s scripts -p 'test_*.py'
+if ($LASTEXITCODE -ne 0) { throw 'Python regresije release alata nisu prošle.' }
+
+Write-Host "[8/16] Go testovi i statička provjera ($rawGoVersion)"
 go test ./...
 if ($LASTEXITCODE -ne 0) { throw 'Go testovi nisu prošli.' }
 go vet ./...
 if ($LASTEXITCODE -ne 0) { throw 'Go vet nije prošao.' }
 
-Write-Host '[5/12] Čišćenje izlaznih datoteka'
+Write-Host '[9/16] Čišćenje izlaznih datoteka'
 Remove-Item -Recurse -Force $dist -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $dist,$payload | Out-Null
 Remove-Item "$payload\payload.zip" -Force -ErrorAction SilentlyContinue
@@ -68,23 +83,23 @@ $uninstall = Join-Path $dist 'ByFTP-Uninstall.exe'
 $setup = Join-Path $dist "ByFTP-$version-Setup-x64.exe"
 $ldflags = "-s -w -H=windowsgui -X main.version=$version"
 
-Write-Host '[6/12] Portable'
+Write-Host '[10/16] Portable'
 go build -trimpath -buildvcs=false -ldflags $ldflags -o $portable ./cmd/byftp
 if ($LASTEXITCODE -ne 0) { throw 'Portable build nije uspio.' }
 python scripts/pe_resources.py $portable --ico $icon --version $version --role portable --original-filename "ByFTP-$version-Portable-x64.exe"
 if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada Portable builda nije uspjela.' }
 
-Write-Host '[7/12] Program za uklanjanje'
+Write-Host '[11/16] Program za uklanjanje'
 go build -trimpath -buildvcs=false -ldflags $ldflags -o $uninstall ./cmd/uninstaller
 if ($LASTEXITCODE -ne 0) { throw 'Build programa za uklanjanje nije uspio.' }
 python scripts/pe_resources.py $uninstall --ico $icon --version $version --role uninstaller --original-filename 'ByFTP-Uninstall.exe'
 if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada programa za uklanjanje nije uspjela.' }
 
-Write-Host '[8/12] Komprimirani instalacijski paket'
+Write-Host '[12/16] Komprimirani instalacijski paket'
 python scripts/make_payload.py --app $portable --uninstaller $uninstall --output "$payload\payload.zip"
 if ($LASTEXITCODE -ne 0) { throw 'Kompresija instalacijskog payloada nije uspjela.' }
 
-Write-Host '[9/12] Instalacijski program'
+Write-Host '[13/16] Instalacijski program'
 try {
     go build -trimpath -buildvcs=false -ldflags $ldflags -o $setup ./cmd/installer
     if ($LASTEXITCODE -ne 0) { throw 'Setup build nije uspio.' }
@@ -94,11 +109,11 @@ try {
 python scripts/pe_resources.py $setup --ico $icon --version $version --role setup --original-filename "ByFTP-$version-Setup-x64.exe"
 if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada Setup builda nije uspjela.' }
 
-Write-Host '[10/12] PE i sigurnosna provjera'
+Write-Host '[14/16] PE i sigurnosna provjera'
 python scripts/verify_release.py $setup $portable $uninstall | Tee-Object -FilePath "$dist\verification.txt"
 if ($LASTEXITCODE -ne 0) { throw 'Provjera izdanja nije prošla.' }
 
-Write-Host '[11/12] SHA-256'
+Write-Host '[15/16] SHA-256'
 $hashLines = foreach ($file in @($setup,$portable,$uninstall)) {
     $item = Get-Item -LiteralPath $file
     $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -106,7 +121,7 @@ $hashLines = foreach ($file in @($setup,$portable,$uninstall)) {
 }
 $hashLines | Set-Content "$dist\SHA256.txt" -Encoding ascii
 
-Write-Host '[12/12] Status digitalnog potpisa'
+Write-Host '[16/16] Status digitalnog potpisa'
 $verification = Get-Content "$dist\verification.txt" -Raw
 if ($verification -match 'AUTHENTICODE_SIGNED=NO') {
     Write-Warning 'Binariji nisu Authenticode potpisani. Za širu javnu distribuciju potpišite Portable, Uninstaller i Setup nakon PE resource obrade pa ponovno pokrenite provjeru.'
