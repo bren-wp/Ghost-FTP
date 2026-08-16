@@ -24,52 +24,38 @@ jobs:
     steps:
       - name: Dohvati izvorni kod
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Postavi Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
-
       - name: Postavi Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-
       - name: Provjeri slikovne resurse
         run: python scripts/generate_brand_assets.py --check
-
       - name: Provjeri hrvatski korisnički sadržaj
         run: python scripts/audit_croatian.py
-
       - name: Provjeri verzijsku konzistentnost
         run: python scripts/audit_version.py
-
       - name: Provjeri dokumentaciju
         run: python scripts/audit_docs.py
-
       - name: Provjeri sigurnosne invarijante
         run: python scripts/audit_security.py
-
       - name: Provjeri privatnost i mrežnu politiku
         run: python scripts/audit_privacy.py
-
       - name: Provjeri release pipeline
         run: python scripts/audit_release.py
-
       - name: Python regresije release alata
         run: python -m unittest discover -s scripts -p 'test_*.py'
-
       - name: Jedinični testovi
         run: go test ./...
-
       - name: Race provjera
         run: go test -race ./...
-
       - name: Go vet
         run: go vet ./...
-
       - name: Provjera release metapodataka
         shell: bash
         run: |
@@ -85,23 +71,29 @@ jobs:
     steps:
       - name: Dohvati izvorni kod
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Postavi Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
-
       - name: Postavi Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-
+      - name: Provjeri sintaksu release publishera
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path '.\scripts\publish_release.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw 'publish_release.ps1 ima PowerShell sintaksnu grešku.'
+          }
       - name: Izgradi i provjeri
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
-
       - name: Spremi nepotpisane verifikacijske artefakte
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
