@@ -68,8 +68,8 @@ func mergeConnection(base model.ConnectionConfig, override model.ConnectionConfi
 	if override.Fingerprint != "" {
 		base.Fingerprint = override.Fingerprint
 	}
-	// Plaintext secrets are intentionally not merged here. They are handled
-	// separately so a saved DPAPI blob can remain encrypted until actual use.
+	// Vjerodajnice u čistom tekstu namjerno se ovdje ne spajaju. Obrađuju se
+	// odvojeno kako bi spremljeni DPAPI blob ostao šifriran sve do stvarne uporabe.
 	base.Password = override.Password
 	base.Passphrase = override.Passphrase
 	return base
@@ -165,6 +165,16 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 
+	// Privremeni SFTP trust podaci smiju preživjeti samo prvi korak u kojem
+	// korisnik treba potvrditi novi ključ. Svaki uspjeh, otkaz ili greška u
+	// sljedećem koraku briše DPAPI-zaštićene privremene vjerodajnice iz memorije.
+	preservePendingTrust := false
+	defer func() {
+		if !preservePendingTrust {
+			m.clearPendingTrustLocked()
+		}
+	}()
+
 	m.mu.RLock()
 	alreadyConnected := m.session != nil
 	m.mu.RUnlock()
@@ -185,14 +195,14 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		}
 	}
 	if trust == "" {
-		// A fresh connect attempt supersedes any previously unanswered trust prompt.
+		// Novi pokušaj povezivanja poništava svaku prethodno neodgovorenu potvrdu povjerenja.
 		m.clearPendingTrustLocked()
 	}
 	var s Session
 	if cfg.Protocol == "sftp" {
 		knownHostsDir := filepath.Join(m.dataDir, "known_hosts")
 		if err := security.EnsureNoRedirectDirectory(m.dataDir, knownHostsDir); err != nil {
-			return ConnectResult{}, errors.New("SFTP session mapa nije sigurna")
+			return ConnectResult{}, errors.New("mapa SFTP sesije nije sigurna")
 		}
 		fp, keyLine, keyAlgorithm, err := ScanFingerprint(ctx, cfg.Host, cfg.Port, knownHostsDir)
 		if err != nil {
@@ -203,17 +213,18 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 			expected = profile.Fingerprint
 		}
 		if expected != "" && expected != fp {
-			return ConnectResult{}, errors.New("SFTP host fingerprint se promijenio; veza je blokirana")
+			return ConnectResult{}, errors.New("otisak SFTP host ključa se promijenio; veza je blokirana")
 		}
 		if expected == "" && trust == "" {
 			if err := m.stashPendingTrust(cfg, resolved, fp); err != nil {
 				return ConnectResult{}, err
 			}
+			preservePendingTrust = true
 			return ConnectResult{RequiresTrust: true, Fingerprint: fp}, nil
 		}
 		if trust != "" && trust != fp {
 			m.clearPendingTrustLocked()
-			return ConnectResult{}, errors.New("potvrđeni SFTP fingerprint ne odgovara poslužitelju")
+			return ConnectResult{}, errors.New("potvrđeni otisak SFTP ključa ne odgovara poslužitelju")
 		}
 		if trust != "" {
 			m.applyPendingTrust(cfg, &resolved, fp)
@@ -252,26 +263,18 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		return ConnectResult{}, err
 	}
 
-	// Do not keep plaintext secrets in connection state after the protocol adapter owns them.
+	// Nakon predaje protokolarnom adapteru vjerodajnice u čistom tekstu ne ostaju u stanju veze.
 	publicCfg := cfg
 	publicCfg.Password = ""
 	publicCfg.Passphrase = ""
 
 	sessionCtx, sessionCancel := context.WithCancel(context.Background())
 	m.mu.Lock()
-	old := m.session
-	oldCancel := m.sessionCancel
 	m.session = s
 	m.sessionCtx = sessionCtx
 	m.sessionCancel = sessionCancel
 	m.cfg = publicCfg
 	m.mu.Unlock()
-	if oldCancel != nil {
-		oldCancel()
-	}
-	if old != nil {
-		_ = old.Close()
-	}
 	return ConnectResult{Connected: true}, nil
 }
 
@@ -310,8 +313,8 @@ func (m *Manager) Probe(ctx context.Context) error {
 	return err
 }
 
-// Operation returns the active session with a context that is cancelled when
-// either the caller cancels or the active ByFTP connection is disconnected.
+// Operation vraća aktivnu sesiju s kontekstom koji se otkazuje kada ga
+// otkaže pozivatelj ili kada se prekine aktivna ByFTP veza.
 func (m *Manager) Operation(ctx context.Context) (Session, context.Context, func(), error) {
 	m.mu.RLock()
 	s := m.session
@@ -335,9 +338,9 @@ func connectionIdentity(cfg model.ConnectionConfig) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ConnectionIdentity returns an opaque in-memory identity for the active
-// endpoint. It contains no secret and lets the transfer queue prevent a job
-// created for one server/account from being retried against another.
+// ConnectionIdentity vraća neprozirni memorijski identitet aktivnog odredišta.
+// Ne sadrži tajne podatke i sprječava da se prijenos stvoren za jedan
+// poslužitelj/račun ponovno pokuša izvršiti prema drugome.
 func (m *Manager) ConnectionIdentity() (string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
