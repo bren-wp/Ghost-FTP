@@ -1,61 +1,61 @@
-Brendigo ByFTP vlasnička licenca izvornog koda
-Verzija 1.1 — Sva prava pridržana
+Brendigo ByFTP Proprietary Source License
+Version 1.0 — All Rights Reserved
 
-Copyright (c) 2026 Brendigo. Sva prava pridržana.
+Copyright (c) 2026 Brendigo. All rights reserved.
 
-1. VLASNIŠTVO
+1. OWNERSHIP
 
-ByFTP, uključujući izvorni kod, objektni kod, korisničko sučelje, brending, dokumentaciju, grafiku, ikone, build skripte i povezane materijale (zajedno: „Softver”), vlasnički je softver tvrtke Brendigo i zaštićen je primjenjivim autorskim i drugim pravima intelektualnog vlasništva.
+ByFTP, including its source code, object code, user interface, branding, documentation, graphics, icons, build scripts and related materials (collectively, the "Software"), is proprietary software owned by Brendigo and is protected by applicable copyright and other intellectual-property laws.
 
-2. OGRANIČENO DOPUŠTENJE
+2. LIMITED PERMISSION
 
-Dopušteno je pregledavati izvorni kod u ovom repozitoriju te preuzeti i koristiti službena, neizmijenjena binarna ByFTP izdanja za njihovu namijenjenu svrhu, pod uvjetima ove Licence.
+You may view the source code in this repository and download and use official, unmodified ByFTP binary releases for their intended purpose, subject to this License.
 
-Izvorni kod objavljen je radi transparentnosti, sigurnosne provjere i evaluacije. Sama objava izvornog koda ne čini ByFTP open-source softverom i ne daje opće pravo izmjene, redistribucije ili izrade izvedenih djela.
+The source code is made available for transparency, security review and evaluation. Publication of the source code does not make ByFTP open-source software and does not grant a general right to modify, redistribute or create derivative works.
 
-3. ZABRANJENO BEZ PRETHODNOG PISANOG DOPUŠTENJA TVRTKE BRENDIGO
+3. PROHIBITED WITHOUT PRIOR WRITTEN PERMISSION FROM BRENDIGO
 
-Osim prava koja se prema zakonu ne mogu ograničiti, bez prethodnog pisanog dopuštenja tvrtke Brendigo nije dopušteno:
+Except for rights that cannot legally be restricted, you may not, without prior written permission from Brendigo:
 
-(a) mijenjati, prilagođavati, prevoditi, patchirati ili izrađivati izvedena djela Softvera;
-(b) distribuirati, objavljivati, sublicencirati, prodavati, iznajmljivati ili na drugi način davati trećim osobama izmijenjeni izvorni kod ili binarne datoteke;
-(c) redistribuirati izvorni kod ili službene binarne datoteke kao dio drugog proizvoda, instalacijskog paketa, bundlea, usluge ili repozitorija;
-(d) rebrandirati, white-labelati, ukloniti, zamijeniti ili prikriti nazive ByFTP/Brendigo, autorska prava, identitet proizvoda ili atribuciju;
-(e) koristiti dio izvornog koda u drugom projektu ili proizvodu;
-(f) izrađivati ili distribuirati konkurentski ili izvedeni proizvod koji se u bitnom temelji na Softveru;
-(g) tvrditi autorstvo ili vlasništvo nad Softverom ili njegovim bitnim dijelom;
-(h) sublicencirati ili prenositi prava dana ovom Licencom;
-(i) koristiti žigove, logotipe, ikone ili brending Brendigo/ByFTP na način koji stvara dojam neodobrene podrške, povezanosti ili autorizacije.
+(a) modify, adapt, translate, patch, alter or create derivative works of the Software;
+(b) distribute, publish, sublicense, sell, rent, lease or otherwise provide modified source code or modified binaries to third parties;
+(c) redistribute the source code or official binaries as part of another product, installer, bundle, service or repository;
+(d) rebrand, white-label or remove, replace or obscure the ByFTP or Brendigo names, copyright notices, product identity or attribution;
+(e) use any portion of the source code in another project or product;
+(f) create or distribute a competing or derivative product based substantially on the Software;
+(g) claim authorship or ownership of the Software or any substantial portion of it;
+(h) sublicense or transfer rights granted by this License;
+(i) use Brendigo or ByFTP trademarks, logos, icons or branding to imply endorsement, affiliation or authorization that has not been granted in writing.
 
-4. PRAVA VEZANA UZ JAVNI GITHUB REPOZITORIJ
+4. GITHUB PUBLIC-REPOSITORY PLATFORM RIGHTS
 
-Ako je ovaj repozitorij javan na GitHubu, GitHubovi uvjeti korištenja mogu korisnicima platforme dati ograničena prava nužna za pregled i fork sadržaja javnog repozitorija kroz GitHubovu uslugu. Takva platformska prava ne daju dopuštenje za izmjenu, distribuciju, komercijalizaciju, rebranding, sublicenciranje ili uporabu Softvera izvan prava koja su nužna prema GitHubovim uvjetima ili zasebno pisano odobrena od tvrtke Brendigo.
+If this repository is public on GitHub, GitHub's Terms of Service may grant GitHub users limited rights necessary to view and fork public repository content through GitHub's service. Those platform-specific rights do not grant permission to modify, distribute, commercialize, rebrand, sublicense or use the Software outside the rights expressly required by GitHub's Terms of Service or otherwise granted in writing by Brendigo.
 
-5. OVLAŠTENI DOPRINOSI
+5. AUTHORIZED CONTRIBUTIONS
 
-Otvaranje issuea, forka ili pull requesta samo po sebi ne daje dopuštenje za izmjenu ili redistribuciju ByFTP-a. Doprinosi izvornom kodu dopušteni su samo kada ih Brendigo izričito zatraži ili odobri. Prihvaćeni doprinosi podliježu pravilima doprinosa ovog repozitorija i ne smiju sadržavati kod treće strane koji Brendigo nema pravo distribuirati prema ovom modelu licence.
+No person receives permission to modify or redistribute ByFTP merely by opening an issue, fork or pull request. Code contributions may be made only when expressly requested or authorized by Brendigo. Any accepted contribution is subject to the repository's contribution terms and must not include third-party code that Brendigo is not permitted to distribute under this License.
 
-6. SLUŽBENA IZDANJA
+6. OFFICIAL RELEASES
 
-Službena su samo binarna izdanja koja Brendigo distribuira kroz službeni ByFTP/Brendigo kanal. Izmijenjeni, prepakirani ili rebrandirani buildovi nisu službena izdanja.
+Only binaries distributed by Brendigo through an official ByFTP/Brendigo distribution channel are official releases. Modified, repackaged or rebranded builds are not authorized releases.
 
-7. BEZ JAMSTVA
+7. NO WARRANTY
 
-U NAJVEĆOJ MJERI DOPUŠTENOJ ZAKONOM, SOFTVER SE DAJE „KAKAV JEST” BEZ IKAKVIH IZRIČITIH ILI PREŠUTNIH JAMSTAVA, UKLJUČUJUĆI JAMSTVA TRŽIŠNE PRIKLADNOSTI, PRIKLADNOSTI ZA ODREĐENU SVRHU I NEPOVREĐIVANJA PRAVA TREĆIH OSOBA.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
 
-8. OGRANIČENJE ODGOVORNOSTI
+8. LIMITATION OF LIABILITY
 
-U NAJVEĆOJ MJERI DOPUŠTENOJ ZAKONOM, BRENDIGO NE ODGOVARA ZA NEIZRAVNU, SLUČAJNU, POSEBNU, POSLJEDIČNU ILI KAZNENU ŠTETU, NITI ZA GUBITAK PODATAKA, DOBITI, POSLOVANJA ILI MOGUĆNOSTI UPORABE, KOJI NASTANU IZ ILI U VEZI SA SOFTVEROM.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, BRENDIGO SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR PUNITIVE DAMAGES, OR FOR LOSS OF DATA, PROFITS, BUSINESS OR USE, ARISING FROM OR RELATED TO THE SOFTWARE.
 
-9. PRESTANAK PRAVA
+9. TERMINATION
 
-Sva prava dana ovom Licencom automatski prestaju kršenjem njezinih uvjeta. Nakon prestanka potrebno je prekinuti svaku uporabu koja je ovisila o tim pravima i zaustaviti neovlaštenu distribuciju Softvera.
+Any rights granted under this License terminate automatically if you violate its terms. Upon termination, you must stop any use that depended on those rights and cease unauthorized distribution of the Software.
 
-10. KOMERCIJALNO ILI DRUGO POSEBNO DOPUŠTENJE
+10. COMMERCIAL OR MODIFICATION PERMISSION
 
-Za izmjene, redistribuciju, integraciju, white-labeling, komercijalno licenciranje ili druga posebna prava potrebno je prethodno pisano dopuštenje tvrtke Brendigo.
+Requests for modification, redistribution, integration, white-labeling, commercial licensing or other permissions must be obtained from Brendigo in writing before such use.
 
-Kontakt: info@brendigo.com
-Web: https://brendigo.com
+Contact: info@brendigo.com
+Website: https://brendigo.com
 
-Ovaj repozitorij je source-available/vlasnički i NIJE licenciran pod OSI odobrenom open-source licencom.
+This repository is source-available/proprietary and is NOT licensed under an OSI-approved open-source license.

@@ -1,4 +1,4 @@
-name: Objavi ByFTP
+name: Publish ByFTP
 
 on:
   push:
@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Verzija izdanja bez prefiksa v (primjer 2.14.0)'
+        description: 'Release version without the v prefix (for example 2.13.0)'
         required: true
-        default: '2.14.0'
+        default: '2.13.0'
 
 permissions:
   contents: write
@@ -30,49 +30,66 @@ env:
 
 jobs:
   publish:
-    name: Izgradi, objavi i zapakiraj
+    name: Build, Release & Package
     runs-on: windows-latest
     timeout-minutes: 35
+
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Odredi verziju izdanja
+
+      - name: Resolve release version
         id: version
         shell: pwsh
         run: |
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch') { $version = '${{ inputs.version }}'.Trim() }
-          elseif ($env:GITHUB_REF_TYPE -eq 'tag') { $version = $env:GITHUB_REF_NAME.TrimStart('v') }
-          else { $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim() }
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Neispravna verzija izdanja: $version" }
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'.Trim()
+          } elseif ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid release version: $version"
+          }
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-      - name: Provjeri verziju izvornog koda
+
+      - name: Verify source version
         shell: pwsh
         run: |
           $sourceVersion = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
-          if ($sourceVersion -ne $env:VERSION) { throw "Verzija izdanja $env:VERSION ne odgovara VERSION datoteci $sourceVersion." }
-      - name: Postavi Go
+          if ($sourceVersion -ne $env:VERSION) {
+            throw "Release version $env:VERSION does not match VERSION file $sourceVersion."
+          }
+
+      - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
-      - name: Postavi Python
+
+      - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Izgradi i provjeri ByFTP
+
+      - name: Build and verify ByFTP
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
-      - name: Pripremi kompletne datoteke izdanja
+
+      - name: Prepare complete release files
         shell: pwsh
         run: |
           $uninstaller = "dist\ByFTP-$env:VERSION-Uninstall-x64.exe"
           Copy-Item 'dist\ByFTP-Uninstall.exe' $uninstaller -Force
+
           python scripts/release_notes.py --version $env:VERSION --output 'dist\RELEASE-NOTES.txt'
-          if ($LASTEXITCODE -ne 0) { throw 'Generiranje bilješki izdanja nije uspjelo.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Release notes generation failed.' }
+
           $goVersion = (go env GOVERSION).Trim()
           @"
           VERSION=$env:VERSION
@@ -84,46 +101,60 @@ jobs:
           GITHUB_RUN_ID=$env:GITHUB_RUN_ID
           GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
           "@ | Set-Content 'dist\BUILD-METADATA.txt' -Encoding ascii
+
           $bundleRoot = "dist\ByFTP-$env:VERSION-Windows-x64"
           Remove-Item -Recurse -Force $bundleRoot -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $bundleRoot | Out-Null
-          $bundleDocs = Join-Path $bundleRoot 'Dokumentacija'
-          New-Item -ItemType Directory -Force -Path $bundleDocs | Out-Null
           Copy-Item "dist\ByFTP-$env:VERSION-Portable-x64.exe" $bundleRoot -Force
           Copy-Item "dist\ByFTP-$env:VERSION-Setup-x64.exe" $bundleRoot -Force
           Copy-Item $uninstaller $bundleRoot -Force
-          Copy-Item 'dist\verification.txt','dist\RELEASE-NOTES.txt','dist\BUILD-METADATA.txt' $bundleRoot -Force
-          Copy-Item 'README.md','CHANGELOG.md','LICENSE' $bundleRoot -Force
-          Copy-Item 'docs\PRIVATNOST.md','docs\SIGURNOST.md','docs\PODRSKA.md','docs\TESTIRANJE.md' $bundleDocs -Force
-          $bundleHashes = foreach ($file in Get-ChildItem -LiteralPath $bundleRoot -Recurse -File | Sort-Object FullName) {
+          Copy-Item 'dist\verification.txt' $bundleRoot -Force
+          Copy-Item 'dist\RELEASE-NOTES.txt' $bundleRoot -Force
+          Copy-Item 'dist\BUILD-METADATA.txt' $bundleRoot -Force
+          Copy-Item 'README.md','CHANGELOG.md','LICENSE','PRIVACY.md','SECURITY.md' $bundleRoot -Force
+
+          $bundleHashes = foreach ($file in Get-ChildItem -LiteralPath $bundleRoot -File | Sort-Object Name) {
             $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            $relative = [IO.Path]::GetRelativePath($bundleRoot, $file.FullName).Replace('\','/')
-            "$hash  $relative"
+            "$hash  $($file.Name)"
           }
           $bundleHashes | Set-Content (Join-Path $bundleRoot 'BUNDLE-SHA256.txt') -Encoding ascii
+
           $windowsZip = "dist\ByFTP-$env:VERSION-Windows-x64.zip"
           Remove-Item -Force $windowsZip -ErrorAction SilentlyContinue
           Compress-Archive -Path "$bundleRoot\*" -DestinationPath $windowsZip -CompressionLevel Optimal
+
           $sourceZip = "dist\ByFTP-$env:VERSION-Source.zip"
           Remove-Item -Force $sourceZip -ErrorAction SilentlyContinue
           git archive --format=zip --output=$sourceZip HEAD
-          if ($LASTEXITCODE -ne 0) { throw 'Izrada Source ZIP-a nije uspjela.' }
-          $releaseFiles = @("dist\ByFTP-$env:VERSION-Portable-x64.exe","dist\ByFTP-$env:VERSION-Setup-x64.exe",$uninstaller,$windowsZip,$sourceZip,'dist\verification.txt','dist\RELEASE-NOTES.txt','dist\BUILD-METADATA.txt')
+          if ($LASTEXITCODE -ne 0) { throw 'Source ZIP creation failed.' }
+
+          $releaseFiles = @(
+            "dist\ByFTP-$env:VERSION-Portable-x64.exe",
+            "dist\ByFTP-$env:VERSION-Setup-x64.exe",
+            $uninstaller,
+            $windowsZip,
+            $sourceZip,
+            'dist\verification.txt',
+            'dist\RELEASE-NOTES.txt',
+            'dist\BUILD-METADATA.txt'
+          )
           $releaseHashes = foreach ($file in $releaseFiles) {
             $item = Get-Item -LiteralPath $file
             $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $($item.Name)"
           }
           $releaseHashes | Set-Content 'dist\SHA256.txt' -Encoding ascii
-      - name: Objavi GitHub izdanje
+
+      - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "v$env:VERSION"
           gh release view $tag --repo "$env:GITHUB_REPOSITORY" 2>$null
-          if ($LASTEXITCODE -eq 0) { Write-Host "Izdanje $tag već postoji; preskačem ponovno stvaranje." }
-          else {
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; skipping creation."
+          } else {
             gh release create $tag `
               "dist\ByFTP-$env:VERSION-Portable-x64.exe" `
               "dist\ByFTP-$env:VERSION-Setup-x64.exe" `
@@ -139,7 +170,8 @@ jobs:
               --notes-file 'dist\RELEASE-NOTES.txt' `
               --target "$env:GITHUB_SHA"
           }
-      - name: Spremi kompletni release artefakt
+
+      - name: Upload complete release artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-${{ steps.version.outputs.version }}-complete-release
@@ -155,7 +187,8 @@ jobs:
             dist/verification.txt
             dist/RELEASE-NOTES.txt
             dist/BUILD-METADATA.txt
-      - name: Izgradi GitHub paket
+
+      - name: Build GitHub Package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path 'package\assets','package-out' | Out-Null
@@ -163,15 +196,17 @@ jobs:
           Copy-Item "dist\ByFTP-$env:VERSION-Setup-x64.exe" 'package\assets\' -Force
           Copy-Item "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" 'package\assets\' -Force
           Copy-Item "dist\ByFTP-$env:VERSION-Windows-x64.zip" 'package\assets\' -Force
-          Copy-Item 'dist\SHA256.txt','dist\verification.txt','dist\BUILD-METADATA.txt' 'package\assets\' -Force
+          Copy-Item 'dist\SHA256.txt' 'package\assets\' -Force
+          Copy-Item 'dist\verification.txt' 'package\assets\' -Force
+          Copy-Item 'dist\BUILD-METADATA.txt' 'package\assets\' -Force
           @"
           # ByFTP.Windows $env:VERSION
 
-          Službeni zapakirani Windows ByFTP paket tvrtke Brendigo.
+          Official packaged Windows distribution of ByFTP by Brendigo.
 
-          Za uobičajenu Windows instalaciju preporučuje se GitHub Releases. Ovaj paket sadrži provjereni Setup, Portable, Uninstaller i kompletni Windows ZIP zajedno s kontrolnim vrijednostima, verifikacijom i podacima o podrijetlu builda.
+          For normal Windows installation, GitHub Releases is the recommended download channel. This package contains the verified Setup, Portable, Uninstaller and complete Windows ZIP plus checksums, verification output and build provenance.
 
-          ByFTP je vlasnički/source-available softver. Pogledajte LICENSE i dokumente privatnosti/sigurnosti u paketu i repozitoriju.
+          ByFTP is proprietary/source-available software. See LICENSE, PRIVACY.md and SECURITY.md in the package and repository.
           "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
           @"
           <Project Sdk="Microsoft.NET.Sdk">
@@ -181,7 +216,7 @@ jobs:
               <Version>$env:VERSION</Version>
               <Authors>Brendigo</Authors>
               <Company>Brendigo</Company>
-              <Description>Službeni ByFTP Windows FTP/FTPS/SFTP distribucijski paket.</Description>
+              <Description>Official ByFTP Windows FTP/FTPS/SFTP distribution package.</Description>
               <PackageTags>byftp;ftp;ftps;sftp;windows;brendigo;privacy</PackageTags>
               <PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl>
               <RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl>
@@ -196,20 +231,20 @@ jobs:
               <None Include="assets\**\*" Pack="true" PackagePath="tools\" />
               <None Include="PACKAGE-README.md" Pack="true" PackagePath="\" />
               <None Include="..\LICENSE" Pack="true" PackagePath="\" />
-              <None Include="..\docs\PRIVATNOST.md" Pack="true" PackagePath="docs\" />
-              <None Include="..\docs\SIGURNOST.md" Pack="true" PackagePath="docs\" />
-              <None Include="..\docs\PODRSKA.md" Pack="true" PackagePath="docs\" />
+              <None Include="..\PRIVACY.md" Pack="true" PackagePath="docs\" />
+              <None Include="..\SECURITY.md" Pack="true" PackagePath="docs\" />
             </ItemGroup>
           </Project>
           "@ | Set-Content 'package\ByFTP.Windows.csproj' -Encoding UTF8
           dotnet pack 'package\ByFTP.Windows.csproj' -c Release -o 'package-out'
-      - name: Objavi GitHub paket
+
+      - name: Publish GitHub Package
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           $pkg = Get-ChildItem 'package-out\ByFTP.Windows.*.nupkg' | Select-Object -First 1
-          if (-not $pkg) { throw 'ByFTP.Windows paket nije izrađen.' }
+          if (-not $pkg) { throw 'ByFTP.Windows package was not created.' }
           dotnet nuget push $pkg.FullName `
             --api-key "$env:GITHUB_TOKEN" `
             --source 'https://nuget.pkg.github.com/bren-wp/index.json' `

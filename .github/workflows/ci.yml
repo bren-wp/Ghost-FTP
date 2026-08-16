@@ -1,4 +1,4 @@
-name: Provjere
+name: CI
 
 on:
   push:
@@ -18,44 +18,38 @@ env:
 
 jobs:
   test:
-    name: Testovi, race, vet, privatnost, hrvatski sadržaj i release metadata
+    name: Test, race, vet, privacy & release metadata
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Postavi Go
+      - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
 
-      - name: Postavi Python
+      - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
 
-      - name: Provjeri slikovne resurse
-        run: python scripts/generate_brand_assets.py --check
-
-      - name: Provjeri hrvatski korisnički sadržaj
-        run: python scripts/audit_croatian.py
-
-      - name: Jedinični testovi
+      - name: Unit tests
         run: go test ./...
 
-      - name: Race provjera
+      - name: Race detector
         run: go test -race ./...
 
       - name: Go vet
         run: go vet ./...
 
-      - name: Provjera privatnosti
+      - name: Privacy audit
         run: python scripts/audit_privacy.py
 
-      - name: Provjera release metapodataka
+      - name: Release metadata validation
         shell: bash
         run: |
           version="$(tr -d '\r\n' < VERSION)"
@@ -64,33 +58,33 @@ jobs:
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
 
   windows-build:
-    name: Windows produkcijski build
+    name: Windows production build
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Postavi Go
+      - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
 
-      - name: Postavi Python
+      - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
 
-      - name: Izgradi i provjeri
+      - name: Build and verify
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
 
-      - name: Spremi nepotpisane verifikacijske artefakte
+      - name: Upload unsigned verification artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-windows-nepotpisano
+          name: byftp-windows-unsigned
           if-no-files-found: error
           retention-days: 7
           path: |
