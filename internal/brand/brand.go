@@ -2,7 +2,7 @@ package brand
 
 const (
 	ProductName = "ByFTP"
-	ProductFull = "ByFTP Client"
+	ProductFull = "ByFTP klijent"
 	Company     = "Brendigo"
 	Website     = "brendigo.com"
 	Support     = "info@brendigo.com"
