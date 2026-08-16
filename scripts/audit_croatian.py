@@ -44,7 +44,6 @@ FORBIDDEN = {
         "## Authorization", "## Summary", "Security & privacy checklist", "## Validation",
     ],
     ROOT / "internal" / "desktop" / "protocols_windows.go": ["FTPS (explicit)", "FTPS (implicit)"],
-    ROOT / "internal" / "desktop" / "ui_windows.go": ["Poslužitelj / Host"],
     ROOT / "internal" / "brand" / "brand.go": ["ByFTP Client"],
     ROOT / "scripts" / "pe_resources.py": ["ByFTP Client", "Secure FTP, FTPS and SFTP client"],
     ROOT / ".github" / "workflows" / "release.yml": [
@@ -84,6 +83,9 @@ def main() -> int:
     for label in ["FTPS (eksplicitni)", "FTPS (implicitni)"]:
         if label not in protocols:
             fail(f"nedostaje hrvatska oznaka protokola: {label}")
+    settings_ui = (ROOT / "internal" / "desktop" / "settings_windows.go").read_text(encoding="utf-8")
+    if 'cue(a.host, "Poslužitelj")' not in settings_ui:
+        fail("Windows UI ne postavlja hrvatski tekst polja poslužitelja")
     print("HRVATSKI_AUDIT=PROSAO")
     return 0
 
