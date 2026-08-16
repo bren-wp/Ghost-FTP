@@ -75,7 +75,7 @@ func (a *app) createControls(hinst uintptr) error {
 	a.connect = mkButton("Poveži", iconConnect, buttonAccent, idConnect)
 	a.disconnect = mkButton("Prekini", iconDisconnect, buttonDanger, idDisconnect)
 	enableWindow.Call(a.disconnect, 0)
-	cue(a.host, "Poslužitelj / Host")
+	cue(a.host, "Poslužitelj")
 	cue(a.user, "Korisničko ime")
 	cue(a.pass, "Lozinka")
 
