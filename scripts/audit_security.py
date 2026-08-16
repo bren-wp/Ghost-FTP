@@ -79,7 +79,10 @@ def main() -> int:
     )
     require("internal/remote/download_security_test.go", ("validateDownloadedPart", "Symlink"))
     require("internal/security/remove_tree_root_test.go", ("RemoveTreeNoFollow",))
-    require("internal/security/remove_tree_root_windows_test.go", ("RemoveTreeNoFollow", "C:\\\\"))
+    require(
+        "internal/security/remove_tree_root_windows_test.go",
+        ("TestIsFilesystemRootRejectsWindowsVolumeRoots", "server\\share"),
+    )
 
     print("SECURITY_AUDIT=PASS")
     print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
