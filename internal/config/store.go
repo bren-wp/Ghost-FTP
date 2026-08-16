@@ -74,10 +74,23 @@ func readLimited(path string) ([]byte, error) {
 	return readLimitedWithOpen(path, os.Open)
 }
 
-// readLimitedWithOpen verifies that the object opened is the exact regular file
-// observed by Lstat. This closes the Lstat -> Open swap window where a local
-// process could replace a validated state file with a symlink or another file
-// immediately before os.Open followed the path.
+func sameStateSnapshot(before, after os.FileInfo) bool {
+	if before == nil || after == nil || !before.Mode().IsRegular() || !after.Mode().IsRegular() {
+		return false
+	}
+	if !os.SameFile(before, after) {
+		return false
+	}
+	// SameFile is the primary identity check. Size and modification time are also
+	// compared because some filesystems may recycle an identifier immediately
+	// after delete/replace. Legitimate concurrent edits are rejected and retried
+	// through the store's previous/default generation rather than read mid-write.
+	return before.Size() == after.Size() && before.ModTime().Equal(after.ModTime())
+}
+
+// readLimitedWithOpen verifies that the object opened is the same stable regular
+// file observed by Lstat. This closes path-swap windows where a local process
+// replaces a validated state path immediately before or during the read.
 func readLimitedWithOpen(path string, openFile stateOpenFunc) ([]byte, error) {
 	lst, err := os.Lstat(path)
 	if err != nil {
@@ -95,14 +108,14 @@ func readLimitedWithOpen(path string, openFile stateOpenFunc) ([]byte, error) {
 	}
 	defer f.Close()
 
-	st, err := f.Stat()
+	opened, err := f.Stat()
 	if err != nil {
 		return nil, err
 	}
-	if !st.Mode().IsRegular() || !os.SameFile(lst, st) {
+	if !sameStateSnapshot(lst, opened) {
 		return nil, errors.New("state datoteka se promijenila tijekom sigurnog otvaranja")
 	}
-	if st.Size() > maxStateSize {
+	if opened.Size() > maxStateSize {
 		return nil, errors.New("state datoteka je prevelika")
 	}
 	data, err := io.ReadAll(io.LimitReader(f, maxStateSize+1))
@@ -111,6 +124,13 @@ func readLimitedWithOpen(path string, openFile stateOpenFunc) ([]byte, error) {
 	}
 	if len(data) > maxStateSize {
 		return nil, errors.New("state datoteka je prevelika")
+	}
+	afterRead, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !sameStateSnapshot(opened, afterRead) || int64(len(data)) != afterRead.Size() {
+		return nil, errors.New("state datoteka se promijenila tijekom čitanja")
 	}
 	return data, nil
 }
