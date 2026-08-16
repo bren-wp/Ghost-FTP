@@ -68,7 +68,17 @@ func (s *Store) Read(name string, fallback any, out any) (string, error) {
 	return "fallback", nil
 }
 
+type stateOpenFunc func(string) (*os.File, error)
+
 func readLimited(path string) ([]byte, error) {
+	return readLimitedWithOpen(path, os.Open)
+}
+
+// readLimitedWithOpen verifies that the object opened is the exact regular file
+// observed by Lstat. This closes the Lstat -> Open swap window where a local
+// process could replace a validated state file with a symlink or another file
+// immediately before os.Open followed the path.
+func readLimitedWithOpen(path string, openFile stateOpenFunc) ([]byte, error) {
 	lst, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
@@ -76,7 +86,10 @@ func readLimited(path string) ([]byte, error) {
 	if !lst.Mode().IsRegular() || lst.Mode()&os.ModeSymlink != 0 {
 		return nil, errors.New("state putanja nije obična datoteka")
 	}
-	f, err := os.Open(path)
+	if lst.Size() > maxStateSize {
+		return nil, errors.New("state datoteka je prevelika")
+	}
+	f, err := openFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +99,8 @@ func readLimited(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !st.Mode().IsRegular() {
-		return nil, errors.New("state putanja nije obična datoteka")
+	if !st.Mode().IsRegular() || !os.SameFile(lst, st) {
+		return nil, errors.New("state datoteka se promijenila tijekom sigurnog otvaranja")
 	}
 	if st.Size() > maxStateSize {
 		return nil, errors.New("state datoteka je prevelika")
