@@ -192,7 +192,6 @@ def png_bytes(width: int, height: int, rgba: bytes) -> bytes:
         scan.extend(rgba[y * stride : (y + 1) * stride])
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(bytes(scan), 9)) + chunk(b"IEND", b"")
 
-
 def icon_png(size: int) -> bytes:
     w, h, px = draw_icon(size)
     return png_bytes(w, h, bytes(px))
@@ -224,11 +223,13 @@ def expected_assets() -> dict[Path, bytes]:
     }
 
 
-def verify_png(data: bytes) -> None:
+def parse_png(data: bytes) -> tuple[bytes, bytes]:
     if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         raise ValueError("PNG potpis nije ispravan")
     pos = 8
     saw_iend = False
+    ihdr = b""
+    idat = bytearray()
     while pos + 12 <= len(data):
         length = struct.unpack(">I", data[pos : pos + 4])[0]
         end = pos + 12 + length
@@ -239,15 +240,60 @@ def verify_png(data: bytes) -> None:
         crc = struct.unpack(">I", data[pos + 8 + length : end])[0]
         if (binascii.crc32(kind + payload) & 0xFFFFFFFF) != crc:
             raise ValueError(f"PNG CRC nije ispravan za {kind!r}")
-        if kind == b"IEND":
+        if kind == b"IHDR":
+            ihdr = payload
+        elif kind == b"IDAT":
+            idat.extend(payload)
+        elif kind == b"IEND":
             saw_iend = True
             if end != len(data):
                 raise ValueError("PNG sadrži podatke nakon IEND chunka")
             break
         pos = end
-    if not saw_iend:
-        raise ValueError("PNG nema IEND chunk")
+    if not saw_iend or not ihdr or not idat:
+        raise ValueError("PNG nema obavezne IHDR/IDAT/IEND chunkove")
+    try:
+        pixels = zlib.decompress(bytes(idat))
+    except zlib.error as exc:
+        raise ValueError(f"PNG IDAT nije moguće dekomprimirati: {exc}") from exc
+    return ihdr, pixels
 
+
+def verify_png(data: bytes) -> None:
+    parse_png(data)
+
+
+def parse_ico_semantic(data: bytes) -> list[tuple[tuple[int, ...], tuple[bytes, bytes]]]:
+    if len(data) < 6:
+        raise ValueError("ICO je prekratak")
+    reserved, kind, count = struct.unpack_from("<HHH", data, 0)
+    if reserved != 0 or kind != 1 or count < 1 or count > 64:
+        raise ValueError("ICO zaglavlje nije ispravno")
+    result = []
+    for i in range(count):
+        off = 6 + i * 16
+        if off + 16 > len(data):
+            raise ValueError("ICO tablica je skraćena")
+        width, height, colors, reserved2, planes, bpp, size, image_off = struct.unpack_from("<BBBBHHII", data, off)
+        end = image_off + size
+        if end > len(data):
+            raise ValueError("ICO zapis izlazi iz datoteke")
+        image = data[image_off:end]
+        if not image.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise ValueError("ByFTP ICO očekuje PNG-backed slike")
+        meta = (width, height, colors, reserved2, planes, bpp)
+        result.append((meta, parse_png(image)))
+    return result
+
+
+def assets_equivalent(path: Path, current: bytes, expected: bytes) -> bool:
+    # Zlib može zapisati isti PNG scan-stream različitim byteovima između
+    # verzija. Zato uspoređujemo validirani sadržaj/piksele, ne kompresijski layout.
+    if path.suffix.lower() == ".png":
+        return parse_png(current) == parse_png(expected)
+    if path.suffix.lower() == ".ico":
+        return parse_ico_semantic(current) == parse_ico_semantic(expected)
+    return current == expected
 
 def write_assets() -> None:
     for path, data in expected_assets().items():
@@ -263,10 +309,12 @@ def check_assets() -> None:
         if not path.is_file():
             raise SystemExit(f"Nedostaje slikovni resurs: {path.relative_to(ROOT)}")
         current = path.read_bytes()
-        if current != data:
-            raise SystemExit(f"Slikovni resurs nije sinkroniziran: {path.relative_to(ROOT)}")
-        if path.suffix.lower() == ".png":
-            verify_png(current)
+        try:
+            equivalent = assets_equivalent(path, current, data)
+        except ValueError as exc:
+            raise SystemExit(f"Slikovni resurs nije valjan ({path.relative_to(ROOT)}): {exc}") from exc
+        if not equivalent:
+            raise SystemExit(f"Slikovni resurs nije sadržajno sinkroniziran: {path.relative_to(ROOT)}")
     print("SLIKOVNI_RESURSI=ISPRAVNI")
 
 
