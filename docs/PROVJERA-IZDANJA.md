@@ -1,0 +1,26 @@
+# ByFTP 2.14.0 — kontrolna lista izdanja
+
+- [ ] `VERSION` sadrži točnu semantičku verziju
+- [ ] `CHANGELOG.md` ima odgovarajući odjeljak
+- [ ] `scripts/release_notes.py` generira hrvatske bilješke za taj odjeljak
+- [ ] `scripts/generate_brand_assets.py --check` prolazi i PNG/ICO nisu oštećeni
+- [ ] `scripts/audit_croatian.py` prolazi
+- [ ] privacy audit prolazi
+- [ ] nema vanjskih Go modula, telemetrije, analyticsa, crash uploada ni automatskih runtime API endpointa
+- [ ] `go test ./...`, `go test -race ./...` i `go vet ./...` prolaze
+- [ ] event deep-copy regresija prolazi
+- [ ] pending SFTP trust lifecycle je ograničen i credential blob se ne zadržava nakon završene sekvence
+- [ ] recursive-upload root revalidacija prolazi
+- [ ] 50.000-item i 20.000-job/1.000-event regresije prolaze
+- [ ] Windows x64 produkcijski build prolazi
+- [ ] Portable/Setup/Uninstaller su tri različita PE32+ GUI binarija
+- [ ] VERSIONINFO/Brendigo resursi i aktualni višerezolucijski ICO su ugrađeni
+- [ ] HIGH_ENTROPY_VA, DYNAMIC_BASE, NX_COMPAT i TERMINAL_SERVER_AWARE su potvrđeni
+- [ ] GitHub Release sadrži Setup, Portable, Uninstaller, Windows ZIP, Source ZIP, SHA256, verification, RELEASE-NOTES i BUILD-METADATA
+- [ ] kompletni Actions artefakt ima naziv `byftp-<verzija>-complete-release`
+- [ ] Windows ZIP ima uređenu `Dokumentacija/` podmapu
+- [ ] `BUNDLE-SHA256.txt` rekurzivno pokriva i dokumentaciju u podmapama
+- [ ] Source ZIP dolazi iz `git archive HEAD`
+- [ ] GitHub Package build/publish prolazi
+- [ ] Authenticode potpis je provjeren kada je produkcijski Brendigo certifikat dostupan
+- [ ] Windows 10/11 smoke-test sa stvarnim FTP/FTPS/SFTP poslužiteljima je odrađen prije šire distribucije
