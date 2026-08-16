@@ -10,9 +10,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Verzija izdanja bez prefiksa v (primjer 2.14.1)'
-        required: true
-        default: '2.14.1'
+        description: 'Opcionalna verzija bez prefiksa v; prazno koristi kanonski VERSION'
+        required: false
 
 permissions:
   contents: write
@@ -44,8 +43,9 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            $version = '${{ inputs.version }}'.Trim()
+          $manualVersion = '${{ inputs.version }}'.Trim()
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and $manualVersion) {
+            $version = $manualVersion
           } elseif ($env:GITHUB_REF_TYPE -eq 'tag') {
             $version = $env:GITHUB_REF_NAME.TrimStart('v')
           } else {
@@ -76,6 +76,18 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
+
+      - name: Provjeri dokumentaciju, sigurnost i release ugovor
+        shell: pwsh
+        run: |
+          python scripts/audit_docs.py
+          if ($LASTEXITCODE -ne 0) { throw 'Audit dokumentacije nije prošao.' }
+          python scripts/audit_security.py
+          if ($LASTEXITCODE -ne 0) { throw 'Sigurnosni audit nije prošao.' }
+          python scripts/audit_release.py
+          if ($LASTEXITCODE -ne 0) { throw 'Release audit nije prošao.' }
+          python -m unittest discover -s scripts -p 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { throw 'Python release regresije nisu prošle.' }
 
       - name: Izgradi i provjeri ByFTP
         shell: pwsh
@@ -115,7 +127,7 @@ jobs:
           Copy-Item 'dist\RELEASE-NOTES.txt' $bundleRoot -Force
           Copy-Item 'dist\BUILD-METADATA.txt' $bundleRoot -Force
           Copy-Item 'README.md','CHANGELOG.md','LICENSE' $bundleRoot -Force
-          Copy-Item 'docs\PRIVATNOST.md','docs\SIGURNOST.md','docs\PODRSKA.md','docs\TESTIRANJE.md' $bundleDocs -Force
+          Copy-Item 'docs\*.md' $bundleDocs -Force
 
           $bundleHashes = foreach ($file in Get-ChildItem -LiteralPath $bundleRoot -Recurse -File | Sort-Object FullName) {
             $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -127,6 +139,8 @@ jobs:
           $windowsZip = "dist\ByFTP-$env:VERSION-Windows-x64.zip"
           Remove-Item -Force $windowsZip -ErrorAction SilentlyContinue
           Compress-Archive -Path "$bundleRoot\*" -DestinationPath $windowsZip -CompressionLevel Optimal
+          python scripts/verify_bundle.py $windowsZip --version $env:VERSION
+          if ($LASTEXITCODE -ne 0) { throw 'Provjera konačnog Windows ZIP-a nije prošla.' }
 
           $sourceZip = "dist\ByFTP-$env:VERSION-Source.zip"
           Remove-Item -Force $sourceZip -ErrorAction SilentlyContinue
@@ -150,31 +164,28 @@ jobs:
           }
           $releaseHashes | Set-Content 'dist\SHA256.txt' -Encoding ascii
 
-      - name: Objavi GitHub izdanje
+      - name: Objavi ili popravi GitHub izdanje
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v$env:VERSION"
-          gh release view $tag --repo "$env:GITHUB_REPOSITORY" 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Izdanje $tag već postoji; preskačem ponovno stvaranje."
-          } else {
-            gh release create $tag `
-              "dist\ByFTP-$env:VERSION-Portable-x64.exe" `
-              "dist\ByFTP-$env:VERSION-Setup-x64.exe" `
-              "dist\ByFTP-$env:VERSION-Uninstall-x64.exe" `
-              "dist\ByFTP-$env:VERSION-Windows-x64.zip" `
-              "dist\ByFTP-$env:VERSION-Source.zip" `
-              "dist\SHA256.txt" `
-              "dist\verification.txt" `
-              "dist\RELEASE-NOTES.txt" `
-              "dist\BUILD-METADATA.txt" `
-              --repo "$env:GITHUB_REPOSITORY" `
-              --title "ByFTP $env:VERSION" `
-              --notes-file 'dist\RELEASE-NOTES.txt' `
-              --target "$env:GITHUB_SHA"
-          }
+          $assets = @(
+            "dist\ByFTP-$env:VERSION-Portable-x64.exe",
+            "dist\ByFTP-$env:VERSION-Setup-x64.exe",
+            "dist\ByFTP-$env:VERSION-Uninstall-x64.exe",
+            "dist\ByFTP-$env:VERSION-Windows-x64.zip",
+            "dist\ByFTP-$env:VERSION-Source.zip",
+            'dist\SHA256.txt',
+            'dist\verification.txt',
+            'dist\RELEASE-NOTES.txt',
+            'dist\BUILD-METADATA.txt'
+          )
+          & .\scripts\publish_release.ps1 `
+            -Repository $env:GITHUB_REPOSITORY `
+            -Version $env:VERSION `
+            -Commit $env:GITHUB_SHA `
+            -NotesFile 'dist\RELEASE-NOTES.txt' `
+            -Assets $assets
 
       - name: Spremi kompletni release artefakt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -203,13 +214,14 @@ jobs:
           Copy-Item "dist\ByFTP-$env:VERSION-Windows-x64.zip" 'package\assets\' -Force
           Copy-Item 'dist\SHA256.txt' 'package\assets\' -Force
           Copy-Item 'dist\verification.txt' 'package\assets\' -Force
+          Copy-Item 'dist\RELEASE-NOTES.txt' 'package\assets\' -Force
           Copy-Item 'dist\BUILD-METADATA.txt' 'package\assets\' -Force
           @"
           # ByFTP.Windows $env:VERSION
 
           Službeni zapakirani Windows ByFTP paket tvrtke Brendigo.
 
-          Za uobičajenu Windows instalaciju preporučuje se GitHub Releases. Ovaj paket sadrži provjereni Setup, Portable, Uninstaller i kompletni Windows ZIP zajedno s kontrolnim vrijednostima, verifikacijom i podacima o podrijetlu builda.
+          Za uobičajenu Windows instalaciju preporučuje se GitHub Releases. Ovaj paket sadrži provjereni Setup, Portable, Uninstaller i kompletni Windows ZIP zajedno s kontrolnim vrijednostima, verifikacijom, bilješkama izdanja i podacima o podrijetlu builda.
 
           ByFTP je vlasnički/source-available softver. Pogledajte LICENSE i dokumente privatnosti/sigurnosti u paketu i repozitoriju.
           "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
@@ -236,9 +248,7 @@ jobs:
               <None Include="assets\**\*" Pack="true" PackagePath="tools\" />
               <None Include="PACKAGE-README.md" Pack="true" PackagePath="\" />
               <None Include="..\LICENSE" Pack="true" PackagePath="\" />
-              <None Include="..\docs\PRIVATNOST.md" Pack="true" PackagePath="docs\" />
-              <None Include="..\docs\SIGURNOST.md" Pack="true" PackagePath="docs\" />
-              <None Include="..\docs\PODRSKA.md" Pack="true" PackagePath="docs\" />
+              <None Include="..\docs\*.md" Pack="true" PackagePath="docs\" />
             </ItemGroup>
           </Project>
           "@ | Set-Content 'package\ByFTP.Windows.csproj' -Encoding UTF8

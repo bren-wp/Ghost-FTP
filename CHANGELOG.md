@@ -1,5 +1,21 @@
 # Povijest promjena
 
+## 2.14.3 — Fail-closed izdavanje i dokumentacija kao provjerena komponenta
+
+- GitHub Release objava izdvojena je u `scripts/publish_release.ps1` i postala sigurno ponovljiva nakon djelomičnog pada
+- postojeći release tag mora se razriješiti na točan release commit; mismatch odmah zaustavlja objavu
+- postojeći asseti uspoređuju se po nazivu, veličini i GitHub SHA-256 digestu; potvrđeni asset se ne prepisuje, nedostajući se dopunjuje, a različit sadržaj zaustavlja izdanje
+- uklonjen je zastarjeli hardkodirani `workflow_dispatch` default/primjer verzije; prazni ručni unos ponovno koristi kanonski `VERSION`
+- konačni Windows ZIP nakon `Compress-Archive` prolazi novu `verify_bundle.py` provjeru putanja, duplikata, obaveznih datoteka, potpunosti `BUNDLE-SHA256.txt` manifesta i svakog SHA-256
+- dodane su stdlib Python regresije za valjani bundle, traversal, nepopisanu datoteku i integritetsku pogrešku
+- uvedeni su zasebni `audit_docs.py`, `audit_security.py` i `audit_release.py` quality gateovi
+- hrvatski audit sada dinamički čita `VERSION` umjesto ručnog hardkodiranja aktualnog broja
+- version audit blokira povratak hardkodiranog release defaulta i aktualne verzije u bug predložak/audit
+- CI, `BUILD-WINDOWS.ps1` i `BUILD-LOCAL.sh` pokreću isti prošireni skup docs/security/privacy/release provjera i Python regresija
+- Windows ZIP i GitHub Package sada uključuju kompletnu `docs/*.md` dokumentaciju, a paket uključuje i release bilješke
+- detaljni dokumenti postali su verzijski neutralni, prošireni stvarnim 2.14.2/2.14.3 granicama i automatski se provjeravaju za pokvarene lokalne poveznice i nepotpun indeks
+- ispravljene su povijesne tipografske greške u CHANGELOG-u
+
 ## 2.14.2 — Točniji završni statusi i čvršći lokalni staging
 
 - završni rezultat transfer adaptera postao je autoritativan: kasno otkazivanje ili prekid veze nakon stvarnog uspjeha više ne prepisuje posao u status `cancelled`
@@ -95,12 +111,12 @@
 - legacy plaintext profili automatski se migriraju i uklanjaju
 - file picker privatnog ključa ne dodaje ključ u Windows Recent listu
 
-## 2.7.0 — Windows lifecycle, integritet installacije i učvršćene sesije
+## 2.7.0 — Windows lifecycle, integritet instalacije i učvršćene sesije
 
 - Known Folder/System Directory API-ji zamijenili su oslanjanje na nepouzdane env putanje
 - installer payload dobio je size + SHA-256 manifest provjeru
 - nadogradnja dobiva rollback binarija i Registry stanja
-- PE verifikacija razNikuje i provjerava sva tri binarija
+- PE verifikacija razlikuje i provjerava sva tri binarija
 
 ## 2.6.0 — Produkcijska privatnost i sigurnija preuzimanja
 
@@ -109,11 +125,11 @@
 - lokalni download dobio je zaštitu od Windows rezerviranih naziva i traversal escapea
 - uvedeni su transakcijski staging/rollback prijenosi
 
-## 2.5.0 — Fluent UI a dubinska provjera pouzdanosti
+## 2.5.0 — Fluent UI i dubinska provjera pouzdanosti
 
 - glavni desktop gumbi prešli su na centralizirane Windows Fluent/MDL2 glyphove
 - poboljšani su DPI, tamna tema, file/folder prikaz i resursi
-- uklonjeni9su Windows `unsafe.Pointer` vet problemi i poboljšan installer feedback
+- uklonjeni su Windows `unsafe.Pointer` vet problemi i poboljšan installer feedback
 
 ## 2.4.0 — Pouzdanost i SFTP učvršćivanje
 
@@ -129,9 +145,9 @@
 
 - dodan je dvopanelni tamni file manager, lokalne/udaljene operacije i transfer queue prikaz
 
-## 2.1.0 — Izforni desktop
+## 2.1.0 — Izvorni desktop
 
-- ByFTP prelazi na izforni Win32 desktop proces bez browser/localhost sučelja
+- ByFTP prelazi na izvorni Win32 desktop proces bez browser/localhost sučelja
 
 ## 2.0.0 — Nova generacija ByFTP-a
 

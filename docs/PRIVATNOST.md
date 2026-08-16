@@ -1,4 +1,4 @@
-# ByFTP 2.14.0 — privatnost
+# ByFTP — privatnost
 
 ByFTP je projektiran da prenosi korisničke datoteke prema poslužitelju koji korisnik sam odabere, bez paralelnog slanja podataka Brendigu ili analitičkim servisima.
 
@@ -26,17 +26,21 @@ Profili i postavke ostaju u korisničkoj ByFTP data mapi. Osjetljivi profile pod
 
 Windows Error Reporting isključen je za ByFTP proces kako rušenje aplikacije ne bi pokrenulo automatsko slanje memorijskog izvještaja kroz WER.
 
+State/config zapis koristi ograničeno, provjereno čitanje regularne datoteke i sigurnu prethodnu generaciju. ByFTP-owned direktoriji ne smiju biti preusmjereni symlinkom/junctionom ispod kanonske korisničke mape.
+
 ## SFTP
 
 Host, korisnik i privatni ključ nisu na OpenSSH command lineu. Kratkoživa session konfiguracija koristi nasumični alias i uklanja se nakon sesije/startup cleanupa. AskPass dobiva samo DPAPI-zaštićene vrijednosti kroz child environment i ne stvara credential datoteku.
 
-Od 2.14 pending trust vjerodajnice ostaju u memoriji samo između prikaza novog host ključa i korisničke odluke. Nakon potvrde, greške, otkaza ili uspješnog spajanja odmah se brišu.
+Pending trust vjerodajnice ostaju u memoriji samo između prikaza novog host ključa i korisničke odluke. Nakon potvrde, greške, otkaza ili uspješnog spajanja brišu se.
 
 ## Release i CI podaci
 
 `BUILD-METADATA.txt` sadrži samo verziju, Git commit/ref, Go verziju, platformu i GitHub Actions run identifikatore. Ne uključuje profile, hostove, korisnička imena, lokalne putanje ni vjerodajnice.
 
-Release bilješke nastaju iz `CHANGELOG.md` unutar GitHub Actions joba. Asset i hrvatski audit čitaju samo datoteke repozitorija i ne dodaju runtime mrežne pozive aplikaciji.
+Release bilješke nastaju iz `CHANGELOG.md`. Asset, hrvatski, dokumentacijski, security, privacy i release auditi čitaju samo datoteke repozitorija i ne dodaju runtime mrežne pozive aplikaciji.
+
+Javni release rerun provjerava Git tag i digest već objavljenih asseta. To je build/release integritetska provjera; ne uvodi telemetriju u ByFTP runtime.
 
 ## Što ByFTP ne može kontrolirati
 

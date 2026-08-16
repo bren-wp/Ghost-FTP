@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Brz, privatan i izvorni FTP / FTPS / SFTP klijent za Windows.</strong><br>
-  ByFTP je fokusirani desktop alat tvrtke Brendigo za razvojne timove, agencije, administratore hostinga i sve koji žele izravan pristup poslužitelju bez browser sučelja, telemetrije ili obaveznog cloud računa.
+  ByFTP je fokusirani desktop alat tvrtke Brendigo bez browser sučelja, telemetrije ili obaveznog cloud računa.
 </p>
 
 <p align="center">
@@ -21,135 +21,89 @@
 
 ## Prenosite datoteke. Zadržite kontrolu.
 
-ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja poznati dvopanelni upravitelj datotekama s učvršćenim transfer engineom, višestrukim operacijama i arhitekturom usmjerenom na privatnost.
+ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja dvopanelni upravitelj datotekama s učvršćenim transfer engineom, skupnim operacijama i arhitekturom usmjerenom na privatnost.
 
-Nema ugrađeni preglednik, localhost web nadzornu ploču, analitički SDK, oglašavanje ni obavezni korisnički račun. ByFTP se povezuje s poslužiteljem **koji korisnik odabere**, a aplikacijske podatke drži lokalno u Windows korisničkom profilu.
-
-**Trenutačno izdanje: 2.14.2**
+**Trenutačno izdanje: 2.14.3**
 
 ## Preuzimanje
 
-### [GitHub izdanja](https://github.com/bren-wp/by-ftp/releases)
+Preporučeni kanal su [GitHub izdanja](https://github.com/bren-wp/by-ftp/releases). Službeno izdanje sadrži:
 
-To je preporučeni kanal za Windows korisnike. Službeno izdanje sadrži:
+- `ByFTP-<verzija>-Setup-x64.exe`
+- `ByFTP-<verzija>-Portable-x64.exe`
+- `ByFTP-<verzija>-Uninstall-x64.exe`
+- `ByFTP-<verzija>-Windows-x64.zip`
+- `ByFTP-<verzija>-Source.zip`
+- `SHA256.txt`
+- `verification.txt`
+- `RELEASE-NOTES.txt`
+- `BUILD-METADATA.txt`
 
-- `ByFTP-<verzija>-Setup-x64.exe` — instalacijski program
-- `ByFTP-<verzija>-Portable-x64.exe` — prijenosna verzija bez instalacije
-- `ByFTP-<verzija>-Uninstall-x64.exe` — samostalni program za uklanjanje
-- `ByFTP-<verzija>-Windows-x64.zip` — kompletan Windows paket
-- `ByFTP-<verzija>-Source.zip` — točna snimka praćenog izvornog koda
-- `SHA256.txt` — SHA-256 kontrolne vrijednosti
-- `verification.txt` — PE i sigurnosna provjera
-- `RELEASE-NOTES.txt` — hrvatske bilješke iz odgovarajućeg CHANGELOG odjeljka
-- `BUILD-METADATA.txt` — podrijetlo izvornog commita i build okruženja
-
-### [GitHub paketi](https://github.com/users/bren-wp/packages?repo_name=by-ftp)
-
-GitHub Packages služi kao dodatni paketni/arhivski kanal. Za uobičajenu instalaciju preporučuje se GitHub Releases.
-
-> Službena su samo neizmijenjena izdanja koja Brendigo objavi kroz službeni ByFTP/Brendigo kanal.
+GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenjena izdanja koja Brendigo objavi kroz službeni ByFTP/Brendigo kanal.
 
 ## Mogućnosti
 
 ### Veze
 
 - FTP
-- FTPS — eksplicitni način
-- FTPS — implicitni način
+- FTPS — eksplicitni i implicitni način
 - SFTP
-- autentikacija lozinkom
-- autentikacija privatnim ključem uz zaporku ključa
-- potvrda i pinning SFTP otiska ključa poslužitelja
-- podesivo vrijeme čekanja pri spajanju od 5 do 60 sekundi
-- lokalno spremljeni profili zaštićeni Windows DPAPI mehanizmom
+- autentikacija lozinkom ili privatnim ključem
+- potvrda i pinning SFTP host ključa
+- podesivo vrijeme čekanja veze
+- lokalni profili zaštićeni Windows DPAPI mehanizmom
 
 ### Upravitelj datotekama
 
-- dvopanelni prikaz lokalnog računala i poslužitelja
-- višestruki odabir uz Ctrl/Shift
-- navigacija dvoklikom i brzi prijenos
-- slanje/preuzimanje pojedinačnih datoteka ili cijelih stabala mapa
-- stvaranje mapa, preimenovanje, brisanje i osvježavanje
-- udaljene dozvole (CHMOD), uključujući skupni odabir
-- Windows ikone vrsta datoteka i mapa
-- lokalni prikaz ograničen na 50.000 stavki radi kontrolirane potrošnje memorije
-- zaštita od traversal putanja, rezerviranih Windows naziva, symlinkova, junctiona i reparse-point izlaza
+- dvopanelni lokalni/udaljeni prikaz
+- višestruki odabir, dvoklik i brzi prijenos
+- pojedinačne datoteke i cijela stabla mapa
+- stvaranje mapa, preimenovanje, brisanje, osvježavanje i CHMOD
+- zaštita od traversal putanja, Windows rezerviranih naziva, symlinkova, junctiona i reparse-point izlaza
+- kontrolirana lokalna enumeracija do 50.000 stavki
 
 ### Red prijenosa
 
 - 1–8 paralelnih prijenosa
-- pauziranje i nastavak reda
-- skupno otkazivanje i ponavljanje
-- opcionalno automatsko ponavljanje samo prolaznih mrežnih grešaka
-- podesiva pauza između pokušaja
-- način „preskoči postojeće datoteke”
-- blokada ponavljanja posla prema drugom poslužitelju/računu
-- ponovna validacija lokalnog korijena prije svakog pokušaja
-- zaštita rekurzivnog slanja od kasne symlink/junction zamjene korijena
-- indeksirana obrada događaja za velike redove
-- `Očisti završene` uklanja završene poslove, event backing podatke i UI deduplikacijske ID-eve
-- izolacija panic greške radnika kako pojedinačni prijenos ne bi srušio cijelu aplikaciju
+- pause/resume, skupni cancel i retry
+- automatski retry samo prolaznih mrežnih grešaka
+- preskakanje postojećih datoteka
+- cross-server retry blokada
+- runtime revalidacija lokalnog korijena
+- zaštita rekurzivnog uploada od kasne zamjene roota
+- autoritativni završni status koji late cancel ne može prepisati nakon stvarnog uspjeha
 
-## Što donosi 2.14.2
+## Što donosi 2.14.3
 
-- završni status prijenosa sada daje prednost stvarnom rezultatu adaptera, pa kasni prekid veze više ne može već uspješan ili preskočen posao lažno označiti kao otkazan
-- preuzete `.byftp-part-*` staging datoteke prije atomskog aktiviranja prolaze `Lstat`/regular-file/reparse provjeru; symlink, junction ili drugi reparse objekt se odbija
-- atomska zamjena lokalne datoteke dodatno odbija postojeći Windows reparse-point cilj
-- `RemoveTreeNoFollow` sada samostalno blokira korijen datotečnog sustava, uključujući Windows drive i UNC root putanje, neovisno o zaštitama pozivatelja
-- dodane su regresije za kasni cancel nakon uspjeha/preskakanja, staging symlink i filesystem-root zaštitu
+- GitHub Release objava je idempotentna i fail-closed: tag mora pokazivati na točan commit, a postojeći asset mora imati istu veličinu i SHA-256 digest
+- djelomično izdanje može se sigurno dovršiti ponovnim runom bez slijepog `--clobber` prepisivanja potvrđenih asseta
+- konačni Windows ZIP ponovno se provjerava nakon kompresije, uključujući putanje, duplikate, obavezne datoteke i svaki `BUNDLE-SHA256.txt` zapis
+- uvedeni su zasebni docs, security i release auditi te Python regresije release alata
+- hrvatski i version auditi više ne trebaju ručno sinkronizirane produkcijske verzije
+- CI, Windows build i lokalni build koriste isti prošireni skup quality gateova
+- Windows ZIP i GitHub Package uključuju kompletnu Markdown dokumentaciju
+- detaljna dokumentacija postala je verzijski neutralna i automatski se provjerava za pokvarene poveznice i nepotpun indeks
 
-## Što donosi 2.14.1
+## Sigurnost i privatnost
 
-- razvojni `go build`/`go run` više ne prikazuje zastarjelu produkcijsku verziju nego jasnu oznaku `dev`
-- `VERSION` je automatski provjeren kao jedini produkcijski izvor broja verzije kroz CI, Windows build i lokalni build
-- službeni source paket ponovno se sinkronizira s konačnim 2.14.x stanjem `main` grane
+ByFTP namjerno nema telemetriju, analitiku, oglašavanje, automatski update API, trajni runtime log ni browser/localhost upravljački server. Normalan mrežni promet usmjeren je prema FTP/FTPS/SFTP poslužitelju koji korisnik odabere.
 
-## Što donosi 2.14.0
+Ključne zaštite uključuju:
 
-- događaji reda prijenosa sada se vraćaju kao duboke, neovisne snimke; vanjski potrošač više ne može mutacijom povratne vrijednosti promijeniti spremljenu event povijest
-- privremene SFTP trust vjerodajnice brišu se nakon svake završene potvrde, greške ili otkaza i ostaju u memoriji samo dok korisnik stvarno odlučuje o novom ključu
-- uklonjen je nedostižni cleanup prethodne sesije iz `Connect` puta
-- popravljena je zastarjela hardkodirana verzija u `scripts/BUILD-LOCAL.sh`; svi buildovi sada čitaju jedini izvor istine iz `VERSION`
-- potpuno obnovljeni PNG/ICO resursi; stari `build/icon.png` imao je oštećen IDAT CRC/bitstream
-- dodan reproducibilni generator i CI provjera slikovnih resursa
-- hrvatski je postavljen kao jedini korisnički jezik za UI, GitHub predloške, release bilješke, paketnu dokumentaciju i glavne projektne dokumente
-- dokumentacija je premještena iz root direktorija u uređeni `docs/` indeks, a release bundle dokumentaciju slaže u vlastitu podmapu
+- SFTP host-key pinning i izolirani session trust
+- Windows curl/OpenSSH iz System32
+- DPAPI zaštitu spremljenih osjetljivih podataka
+- sanitizirani AskPass bez credential datoteke
+- state safe-open provjeru stvarno otvorenog regularnog objekta
+- kriptografski nasumične staging nazive
+- download `Lstat`/regular-file/reparse provjeru prije atomske aktivacije
+- no-follow rekurzivno brisanje s filesystem-root, depth i item granicama
+- transakcijski staging/rollback i no-replace rename
+- connection-generation i cross-server retry izolaciju
+- duboke kopije transfer događaja
+- offline produkcijske buildove bez vanjskih Go modula
 
-## Privatnost
-
-ByFTP namjerno nema:
-
-- telemetriju i analitiku
-- oglašivačke SDK-ove
-- vanjsko automatsko slanje izvještaja o rušenju
-- pozadinsku sinkronizaciju računa
-- automatski update API
-- browser/localhost upravljački server
-- trajni runtime activity/error log
-
-Normalan mrežni promet ByFTP-a namijenjen je **FTP/FTPS/SFTP poslužitelju koji odabere korisnik**. Windows i sigurnosni softver mogu zasebno provoditi DNS, firewall, antivirus/EDR ili druge sistemske funkcije izvan kontrole ByFTP-a.
-
-Detalji: [Privatnost](docs/PRIVATNOST.md) i [Sigurnost](docs/SIGURNOST.md).
-
-## Sigurnosne značajke
-
-- SFTP host-key pinning vezan uz provjereni ključ i algoritam
-- Windows curl/OpenSSH samo iz stvarnog System32 direktorija
-- blokirani naslijeđeni proxy, SSH agent, ProxyJump/ProxyCommand i vanjski helperi
-- lozinke i zaporke privatnog ključa ne ulaze u command-line argumente
-- spremljene vjerodajnice ne dešifriraju se rano u connection manageru
-- server-controlled lokalni nazivi prolaze sigurnu child-path validaciju
-- zaštita od junction/symlink/reparse-point traversala
-- transakcijski upload/download staging i rollback
-- kriptografski nasumični interni staging nazivi
-- sigurnije stvaranje ByFTP direktorija bez preusmjeravanja
-- izolacija generationa aktivne veze za transfer batch
-- blokada cross-server retryja
-- SHA-256 provjera embedded instalacijskog payloada
-- rollback binarija i Registry stanja pri neuspjeloj nadogradnji
-- strogo ograničen uninstall put
-- state safe-open provjerava stvarno otvoreni regularni objekt prije parsiranja
-- event API u 2.14 vraća duboke kopije i ne izlaže internu event povijest mutaciji pozivatelja
+Detalji: [Sigurnost](docs/SIGURNOST.md) i [Privatnost](docs/PRIVATNOST.md).
 
 ## Zahtjevi
 
@@ -159,60 +113,44 @@ Detalji: [Privatnost](docs/PRIVATNOST.md) i [Sigurnost](docs/SIGURNOST.md).
 - sistemski `curl.exe` za FTP/FTPS
 - Windows OpenSSH Client za SFTP
 
-### Izgradnja iz izvornog koda
+### Izgradnja
 
 - Go **1.26.5+**
 - Python 3
 - Windows x64 za puni produkcijski build
 
-Produkcijski build je namjerno offline:
-
-```text
-GOTOOLCHAIN=local
-GOPROXY=off
-GOSUMDB=off
-GOTELEMETRY=off
-```
-
-Projekt nema vanjske Go module.
-
-## Izgradnja
-
 Kanonska verzija nalazi se isključivo u [`VERSION`](VERSION).
-
-Na Windowsu:
 
 ```powershell
 .\BUILD-WINDOWS.ps1
 ```
 
-ili:
-
-```cmd
-BUILD-WINDOWS.cmd
-```
-
-Za lokalnu cross-build provjeru iz Unix/Linux okruženja:
+Lokalna Unix/Linux Windows cross-build provjera:
 
 ```bash
 ./scripts/BUILD-LOCAL.sh
 ```
 
-Build provjerava slikovne resurse, hrvatski korisnički sadržaj, privatnost, testove, `go vet`, PE resurse, sigurnosne mitigacije i SHA-256 vrijednosti.
+Produkcijski build koristi `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off` i `GOTELEMETRY=off`.
 
 ## Provjere kvalitete
 
 ```text
+python scripts/generate_brand_assets.py --check
+python scripts/audit_croatian.py
+python scripts/audit_version.py
+python scripts/audit_docs.py
+python scripts/audit_security.py
+python scripts/audit_privacy.py
+python scripts/audit_release.py
+python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go test -race ./...
 go vet ./...
-python scripts/generate_brand_assets.py --check
-python scripts/audit_croatian.py
-python scripts/audit_privacy.py
-python scripts/release_notes.py --version 2.14.2 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.14.3 --output RELEASE-NOTES.test.txt
 ```
 
-GitHub Actions dodatno izvršava puni Windows produkcijski build.
+GitHub Actions dodatno izvršava puni Windows produkcijski build. Release workflow nakon kompresije verificira i konačni Windows ZIP.
 
 ## Struktura repozitorija
 
@@ -224,13 +162,11 @@ VERSION                 jedini izvor release verzije
 BUILD-WINDOWS.*         produkcijski Windows entrypointi
 cmd/                    aplikacija, instalacija i uklanjanje
 internal/               tipizirani runtime moduli
-build/                  službeni PNG/ICO resursi aplikacije
-docs/                   sva detaljna dokumentacija i slike
-scripts/                build, audit, release i PE alati
+build/                  službeni PNG/ICO resursi
+scripts/                build, audit, bundle, release i PE alati
+docs/                   detaljna dokumentacija i slike
 .github/                CI, release workflow i hrvatski GitHub predlošci
 ```
-
-Root direktorij namjerno ostaje kratak; detaljna dokumentacija više nije razbacana po vrhu repozitorija.
 
 ## Dokumentacija
 
@@ -259,11 +195,3 @@ Pročitajte cijelu [ByFTP vlasničku licencu](LICENSE).
 ## Sigurnosne prijave
 
 Za osjetljive sigurnosne probleme slijedite [SIGURNOST.md](docs/SIGURNOST.md). U javni issue nikada ne stavljajte lozinke, privatne ključeve, stvarne produkcijske hostove, korisnička imena ili povjerljive podatke klijenata.
-
----
-
-<p align="center">
-  <a href="https://github.com/bren-wp/by-ftp/releases"><strong>Preuzmi ByFTP</strong></a><br><br>
-  <strong>ByFTP</strong><br>
-  Izvorni prijenos datoteka za Windows · Brendigo
-</p>

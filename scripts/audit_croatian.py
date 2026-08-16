@@ -63,6 +63,7 @@ def fail(message: str) -> None:
 
 
 def main() -> int:
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     for path in REQUIRED:
         if not path.is_file():
             fail(f"nedostaje dokument: {path.relative_to(ROOT)}")
@@ -77,14 +78,14 @@ def main() -> int:
             if phrase in text:
                 fail(f"pronađen je engleski korisnički tekst {phrase!r} u {path.relative_to(ROOT)}")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    for required in ["Trenutačno izdanje: 2.14.2", "Preuzimanje", "Mogućnosti", "Dokumentacija"]:
+    for required in [f"Trenutačno izdanje: {version}", "Preuzimanje", "Mogućnosti", "Dokumentacija"]:
         if required not in readme:
             fail(f"README nema obavezni hrvatski tekst: {required}")
     protocols = (ROOT / "internal" / "desktop" / "protocols_windows.go").read_text(encoding="utf-8")
     for label in ["FTPS (eksplicitni)", "FTPS (implicitni)"]:
         if label not in protocols:
             fail(f"nedostaje hrvatska oznaka protokola: {label}")
-    print("HRVATSKI_AUDIT=PROSAO")
+    print(f"HRVATSKI_AUDIT=PROSAO ({version})")
     return 0
 
 
