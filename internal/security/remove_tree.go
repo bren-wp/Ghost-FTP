@@ -31,9 +31,19 @@ func (g *removeTreeGuard) step(depth int) error {
 // RemoveTreeNoFollow recursively removes a local tree without traversing
 // symbolic links or Windows reparse/junction points. Link-like entries are
 // removed as entries only; their targets are never visited.
+func isFilesystemRoot(target string) bool {
+	cleaned := filepath.Clean(target)
+	abs, err := filepath.Abs(cleaned)
+	if err != nil {
+		return false
+	}
+	volumeRoot := filepath.VolumeName(abs) + string(filepath.Separator)
+	return filepath.Clean(abs) == filepath.Clean(volumeRoot)
+}
+
 func RemoveTreeNoFollow(root string) error {
 	root = filepath.Clean(root)
-	if root == "." || root == string(filepath.Separator) || root == "" {
+	if root == "." || root == "" || isFilesystemRoot(root) {
 		return errors.New("nije dopušteno brisanje korijenske lokalne mape")
 	}
 	return removeTreeNoFollow(root, 0, &removeTreeGuard{})

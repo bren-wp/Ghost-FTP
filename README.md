@@ -25,7 +25,7 @@ ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja poznati dvop
 
 Nema ugrađeni preglednik, localhost web nadzornu ploču, analitički SDK, oglašavanje ni obavezni korisnički račun. ByFTP se povezuje s poslužiteljem **koji korisnik odabere**, a aplikacijske podatke drži lokalno u Windows korisničkom profilu.
 
-**Trenutačno izdanje: 2.14.1**
+**Trenutačno izdanje: 2.14.2**
 
 ## Preuzimanje
 
@@ -89,6 +89,14 @@ GitHub Packages služi kao dodatni paketni/arhivski kanal. Za uobičajenu instal
 - indeksirana obrada događaja za velike redove
 - `Očisti završene` uklanja završene poslove, event backing podatke i UI deduplikacijske ID-eve
 - izolacija panic greške radnika kako pojedinačni prijenos ne bi srušio cijelu aplikaciju
+
+## Što donosi 2.14.2
+
+- završni status prijenosa sada daje prednost stvarnom rezultatu adaptera, pa kasni prekid veze više ne može već uspješan ili preskočen posao lažno označiti kao otkazan
+- preuzete `.byftp-part-*` staging datoteke prije atomskog aktiviranja prolaze `Lstat`/regular-file/reparse provjeru; symlink, junction ili drugi reparse objekt se odbija
+- atomska zamjena lokalne datoteke dodatno odbija postojeći Windows reparse-point cilj
+- `RemoveTreeNoFollow` sada samostalno blokira korijen datotečnog sustava, uključujući Windows drive i UNC root putanje, neovisno o zaštitama pozivatelja
+- dodane su regresije za kasni cancel nakon uspjeha/preskakanja, staging symlink i filesystem-root zaštitu
 
 ## Što donosi 2.14.1
 
@@ -201,7 +209,7 @@ go vet ./...
 python scripts/generate_brand_assets.py --check
 python scripts/audit_croatian.py
 python scripts/audit_privacy.py
-python scripts/release_notes.py --version 2.14.1 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.14.2 --output RELEASE-NOTES.test.txt
 ```
 
 GitHub Actions dodatno izvršava puni Windows produkcijski build.

@@ -278,6 +278,17 @@ func remoteTransferNames(remotePath string) (dir, base, tempName, savedName stri
 	return
 }
 
+func validateDownloadedPart(part string) error {
+	st, err := os.Lstat(part)
+	if err != nil {
+		return err
+	}
+	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(part) {
+		return errors.New("preuzeta privremena datoteka nije obična lokalna datoteka")
+	}
+	return nil
+}
+
 func localTransferSibling(local, kind string, preserveBase bool) (string, error) {
 	dir := filepath.Dir(local)
 	base := filepath.Base(local)

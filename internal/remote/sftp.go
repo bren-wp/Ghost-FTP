@@ -604,9 +604,9 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
 		_ = os.Remove(part)
 		return err
 	}
-	if st, err := os.Stat(part); err != nil || st.IsDir() {
+	if err := validateDownloadedPart(part); err != nil {
 		_ = os.Remove(part)
-		return errors.New("preuzeta datoteka nije valjana")
+		return err
 	}
 	return replaceLocalFileAtomic(local, part, options.KeepBackup)
 }
