@@ -11,7 +11,8 @@ body:
     id: version
     attributes:
       label: ByFTP verzija
-      placeholder: "2.14.2"
+      description: Upišite broj verzije prikazan u ByFTP-u ili naziv preuzetog službenog izdanja.
+      placeholder: "npr. verzija prikazana u aplikaciji"
     validations:
       required: true
   - type: dropdown
