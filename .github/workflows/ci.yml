@@ -43,6 +43,9 @@ jobs:
       - name: Provjeri hrvatski korisnički sadržaj
         run: python scripts/audit_croatian.py
 
+      - name: Provjeri verzijsku konzistentnost
+        run: python scripts/audit_version.py
+
       - name: Jedinični testovi
         run: go test ./...
 
