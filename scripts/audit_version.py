@@ -53,6 +53,27 @@ def main() -> int:
     if "VERSION=\"$(tr -d '\\r\\n' < VERSION)\"" not in local_build or "-X main.version=$VERSION" not in local_build:
         fail("lokalni build ne koristi VERSION kao runtime verziju")
 
+    # Operativne površine ne smiju ponovno uvoditi ručno sinkronizirane brojeve
+    # verzije. Workflow može primiti ručni broj, ali zadani slučaj mora čitati VERSION.
+    release_workflow = read(".github/workflows/release.yml")
+    if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
+        fail("release workflow ima hardkodiranu zadanu produkcijsku verziju")
+    if re.search(r"(?i)primjer\s+\d+\.\d+\.\d+", release_workflow):
+        fail("release workflow ima hardkodirani verzijski primjer")
+    for marker in ("$manualVersion", "Get-Content -LiteralPath 'VERSION' -Raw"):
+        if marker not in release_workflow:
+            fail(f"release workflow nema VERSION fallback marker: {marker}")
+
+    bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
+    if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
+        fail("bug predložak hardkodira trenutačnu verziju")
+
+    croatian_audit = read("scripts/audit_croatian.py")
+    if re.search(r"Trenutačno izdanje:\s*\d+\.\d+\.\d+", croatian_audit):
+        fail("hrvatski audit ponovno hardkodira trenutačnu verziju")
+    if 'version = (ROOT / "VERSION")' not in croatian_audit:
+        fail("hrvatski audit ne čita VERSION dinamički")
+
     print(f"VERSION_AUDIT=PROSAO ({version})")
     return 0
 
