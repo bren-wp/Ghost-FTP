@@ -5,7 +5,6 @@ package desktop
 import (
 	"fmt"
 
-	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/transfer"
 	"brendigo.com/byftp/internal/usererror"
