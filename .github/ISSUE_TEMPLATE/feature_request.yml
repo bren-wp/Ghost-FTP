@@ -1,25 +1,25 @@
-name: Feature request
-description: Suggest a focused ByFTP improvement
-title: "[Feature] "
+name: Prijedlog funkcije
+description: Predložite fokusirano poboljšanje ByFTP-a
+title: "[Prijedlog] "
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem or workflow
-      description: What workflow would this improve?
+      label: Problem ili radni tijek
+      description: Koji bi radni tijek ovo poboljšalo?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed behavior
+      label: Predloženo ponašanje
     validations:
       required: true
   - type: checkboxes
     id: constraints
     attributes:
-      label: Project constraints
+      label: Ograničenja projekta
       options:
-        - label: The proposal does not require telemetry or sending user-entered data to third parties.
+        - label: Prijedlog ne zahtijeva telemetriju niti slanje korisničkih podataka trećim stranama.
           required: true
