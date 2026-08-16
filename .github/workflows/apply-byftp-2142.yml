@@ -1,0 +1,59 @@
+name: Primijeni ByFTP 2.14.2 hardening
+
+on:
+  push:
+    branches:
+      - agent/byftp-2.14.2-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Dohvati transportnu granu
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Postavi Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Postavi Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Primijeni i provjeri zakrpe
+        shell: bash
+        run: |
+          set -euo pipefail
+          for patch in .github/byftp-patches/*.patch; do
+            git apply --check "$patch"
+            git apply "$patch"
+          done
+          gofmt -w internal/transfer/manager.go internal/transfer/finish_status_test.go internal/remote/util.go internal/remote/curl_ftp.go internal/remote/sftp.go internal/remote/download_security_test.go internal/security/remove_tree.go internal/security/remove_tree_root_test.go internal/security/remove_tree_root_windows_test.go
+          git diff --check
+          python3 scripts/generate_brand_assets.py --check
+          python3 scripts/audit_croatian.py
+          python3 scripts/audit_version.py
+          python3 scripts/audit_privacy.py
+          go test ./...
+          go vet ./...
+          python3 scripts/release_notes.py --version 2.14.2 --output /tmp/RELEASE-NOTES-2.14.2.txt
+      - name: Spremi čisti rezultat
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .github/byftp-patches
+          rm -f .github/workflows/apply-byftp-2142.yml
+          git config user.name "Brendigo"
+          git config user.email "info@brendigo.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Objavi ByFTP 2.14.2 hardening"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
