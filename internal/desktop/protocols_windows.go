@@ -12,9 +12,9 @@ type protocolSpec struct {
 
 var protocolSpecs = []protocolSpec{
 	{Value: "ftp", Label: "FTP", Port: "21"},
-	{Value: "ftps", Label: "FTPS (explicit)", Port: "21"},
+	{Value: "ftps", Label: "FTPS (eksplicitni)", Port: "21"},
 	{Value: "sftp", Label: "SFTP", Port: "22"},
-	{Value: "ftpsi", Label: "FTPS (implicit)", Port: "990"},
+	{Value: "ftpsi", Label: "FTPS (implicitni)", Port: "990"},
 }
 
 func protocolAt(index uintptr) protocolSpec {
