@@ -25,7 +25,7 @@ ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja poznati dvop
 
 Nema ugrađeni preglednik, localhost web nadzornu ploču, analitički SDK, oglašavanje ni obavezni korisnički račun. ByFTP se povezuje s poslužiteljem **koji korisnik odabere**, a aplikacijske podatke drži lokalno u Windows korisničkom profilu.
 
-**Trenutačno izdanje: 2.14.0**
+**Trenutačno izdanje: 2.14.1**
 
 ## Preuzimanje
 
@@ -89,6 +89,12 @@ GitHub Packages služi kao dodatni paketni/arhivski kanal. Za uobičajenu instal
 - indeksirana obrada događaja za velike redove
 - `Očisti završene` uklanja završene poslove, event backing podatke i UI deduplikacijske ID-eve
 - izolacija panic greške radnika kako pojedinačni prijenos ne bi srušio cijelu aplikaciju
+
+## Što donosi 2.14.1
+
+- razvojni `go build`/`go run` više ne prikazuje zastarjelu produkcijsku verziju nego jasnu oznaku `dev`
+- `VERSION` je automatski provjeren kao jedini produkcijski izvor broja verzije kroz CI, Windows build i lokalni build
+- službeni source paket ponovno se sinkronizira s konačnim 2.14.x stanjem `main` grane
 
 ## Što donosi 2.14.0
 
@@ -195,7 +201,7 @@ go vet ./...
 python scripts/generate_brand_assets.py --check
 python scripts/audit_croatian.py
 python scripts/audit_privacy.py
-python scripts/release_notes.py --version 2.14.0 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.14.1 --output RELEASE-NOTES.test.txt
 ```
 
 GitHub Actions dodatno izvršava puni Windows produkcijski build.

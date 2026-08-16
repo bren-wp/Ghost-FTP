@@ -11,7 +11,7 @@ body:
     id: version
     attributes:
       label: ByFTP verzija
-      placeholder: "2.14.0"
+      placeholder: "2.14.1"
     validations:
       required: true
   - type: dropdown
@@ -40,7 +40,7 @@ body:
     id: problem
     attributes:
       label: Što se dogodilo?
-      description: Koristite samo sanitizirane primjere poslužitelja, korisnika i putanja.
+      description: Koristite samo sanitizirane primjere hosta, korisnika i putanja.
     validations:
       required: true
   - type: textarea

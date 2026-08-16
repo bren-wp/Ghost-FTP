@@ -1,5 +1,13 @@
 # Povijest promjena
 
+## 2.14.1 — Završna konzistentnost verzije i službenog izvora
+
+- `cmd/byftp` i `cmd/installer` koriste jasni `dev` fallback pri razvojnim buildovima umjesto zastarjele hardkodirane produkcijske verzije
+- dodan je `scripts/audit_version.py` koji provjerava `VERSION`, README, CHANGELOG i oba build puta te blokira buduće razilaženje broja verzije
+- CI, Windows build i lokalni build pokreću istu provjeru verzijske konzistentnosti
+- službeni 2.14.1 release ponovno pakira završno stanje izvornog koda tako da `Source.zip` odgovara konačnom `main` stanju ove patch verzije
+- funkcionalnost transfera i sigurnosni model ostaju kompatibilni s 2.14.0; ovo je završni patch za source/build/release konzistentnost
+
 ## 2.14.0 — Hrvatski projekt, uređeni repozitorij, event izolacija i obnovljeni resursi
 
 - cijelo korisničko sučelje, GitHub predlošci, release bilješke, paketna dokumentacija i glavna projektna dokumentacija standardizirani su na hrvatski jezik
@@ -77,12 +85,12 @@
 - legacy plaintext profili automatski se migriraju i uklanjaju
 - file picker privatnog ključa ne dodaje ključ u Windows Recent listu
 
-## 2.7.0 — Windows lifecycle, integritet instalacije i učvršćene sesije
+## 2.7.0 — Windows lifecycle, integritet installacije i učvršćene sesije
 
 - Known Folder/System Directory API-ji zamijenili su oslanjanje na nepouzdane env putanje
 - installer payload dobio je size + SHA-256 manifest provjeru
 - nadogradnja dobiva rollback binarija i Registry stanja
-- PE verifikacija razlikuje i provjerava sva tri binarija
+- PE verifikacija razNikuje i provjerava sva tri binarija
 
 ## 2.6.0 — Produkcijska privatnost i sigurnija preuzimanja
 
@@ -91,11 +99,11 @@
 - lokalni download dobio je zaštitu od Windows rezerviranih naziva i traversal escapea
 - uvedeni su transakcijski staging/rollback prijenosi
 
-## 2.5.0 — Fluent UI i dubinska provjera pouzdanosti
+## 2.5.0 — Fluent UI a dubinska provjera pouzdanosti
 
 - glavni desktop gumbi prešli su na centralizirane Windows Fluent/MDL2 glyphove
 - poboljšani su DPI, tamna tema, file/folder prikaz i resursi
-- uklonjeni su Windows `unsafe.Pointer` vet problemi i poboljšan installer feedback
+- uklonjeni9su Windows `unsafe.Pointer` vet problemi i poboljšan installer feedback
 
 ## 2.4.0 — Pouzdanost i SFTP učvršćivanje
 
@@ -111,9 +119,9 @@
 
 - dodan je dvopanelni tamni file manager, lokalne/udaljene operacije i transfer queue prikaz
 
-## 2.1.0 — Izvorni desktop
+## 2.1.0 — Izforni desktop
 
-- ByFTP prelazi na izvorni Win32 desktop proces bez browser/localhost sučelja
+- ByFTP prelazi na izforni Win32 desktop proces bez browser/localhost sučelja
 
 ## 2.0.0 — Nova generacija ByFTP-a
 
