@@ -32,7 +32,7 @@ def main() -> int:
     workflow = require(
         ".github/workflows/release.yml",
         (
-            "scripts/publish_release.ps1",
+            "publish_release.ps1",
             "scripts/verify_bundle.py",
             "python scripts/audit_docs.py",
             "python scripts/audit_security.py",
