@@ -10,7 +10,7 @@ Veza nije „uspješna” kada je samo pokrenut curl/OpenSSH proces. `remote.Man
 
 ### OpenSSH BatchMode regresija
 
-ByFTP 2.16.0 više ne koristi `sftp -b`. Aktualni OpenSSH pri `-b` postavlja batch način rada i dodaje `BatchMode=yes`, što može onemogućiti password/passphrase AskPass čak i ako je ranije naveden `BatchMode=no`.
+ByFTP ne koristi `sftp -b`. Aktualni OpenSSH pri `-b` postavlja batch način rada i dodaje `BatchMode=yes`, što može onemogućiti password/passphrase AskPass čak i ako je ranije naveden `BatchMode=no`.
 
 Sigurnosna invarijanta zato zahtijeva:
 
@@ -18,6 +18,17 @@ Sigurnosna invarijanta zato zahtijeva:
 - zabranu `-b` u SFTP command args
 - naredbe preko stdin-a
 - regresijski test koji pada čim se `-b` ponovno uvede
+
+### Process-level connect smoke
+
+Od 2.16.1 nije dovoljan samo unit test sastavljenih argumenata. Ne-Windows testni sloj stvarno pokreće lokalne child procese preko produkcijskog `exec.CommandContext` puta:
+
+- FTP/FTPS smoke potvrđuje runtime-secret token, curl config preko stdin-a, MLSD odgovor, parser i wipe-on-close
+- SFTP smoke prekida test ako vidi `-b`, zahtijeva `ls -la` na stdin-u i vraća listing koji prolazi produkcijski parser
+- testni procesi ne kontaktiraju mrežu i ne koriste stvarne vjerodajnice
+- Linux i macOS CI izvršavaju iste smoke regresije na vlastitim runnerima prije izrade install paketa
+
+`scripts/audit_security.py` zahtijeva postojanje tih testova i ključnih markera, pa ih refaktor ne može neprimjetno ukloniti.
 
 ### Timeout i otkazivanje
 
@@ -41,9 +52,9 @@ Bracketirani IPv6 unos prihvaća se kao korisnički host, ali se `[]` uklanjaju 
 
 ### Linux/macOS
 
-FTP/FTPS aktivna lozinka ne sprema se u profil ili datoteku. `ProtectRuntimeString` stvara kriptografski nasumični token i čuva vrijednost samo u procesu. Adapter drži token, `run()` dobiva kratkotrajnu kopiju i briše je, a `Close()` uklanja i briše spremljenu procesnu vrijednost.
+FTP/FTPS aktivna lozinka ne sprema se u profil ili datoteku. `ProtectRuntimeString` stvara kriptografski nasumični token i čuva vrijednost samo u procesu. Adapter drži token, `run()` dobiva kratkotrajnu kopiju i briše je, a `Close()` uklanja i briše spremljenu procesnu vrijednost. Process-level smoke test dodatno potvrđuje da tajna više nije dostupna nakon `Close()`.
 
-SFTP u 2.16.0 na Linuxu/macOS-u namjerno je ograničen na eksplicitni privatni ključ bez passphrasea. Password/passphrase SFTP odbija se prije mrežnog pokušaja dok Unix AskPass broker nije dovršen. To je sigurnije od privremenog slanja tajne kroz argument ili običan environment.
+SFTP na Linuxu/macOS-u trenutačno je namjerno ograničen na eksplicitni privatni ključ bez passphrasea. Password/passphrase SFTP odbija se prije mrežnog pokušaja dok Unix AskPass broker nije dovršen. To je sigurnije od privremenog slanja tajne kroz argument ili običan environment.
 
 ## Profilni identitet
 
@@ -99,8 +110,8 @@ State safe-open provjerava regularnost i stabilnost stvarno otvorene datoteke. N
 - `VERSION` je jedini kanonski broj
 - quality job: docs/security/privacy/release auditi + Python testovi + Go unit/race/vet
 - Windows job: x64 i x86 production build
-- Linux job: amd64, arm64 i i386 DEB
-- macOS job: Universal Intel+Apple Silicon PKG
+- Linux job: Go test/vet na Linuxu + amd64, arm64 i i386 DEB
+- macOS job: Go test/vet na macOS-u + Universal Intel+Apple Silicon PKG
 - Windows ZIP se verificira nakon kompresije i ne smije sadržavati interni uninstaller/verification report
 - centralni publisher veže tag uz točan commit i uspoređuje postojeći asset po veličini i SHA-256 digestu
 - release rerun smije nadopuniti samo nedostajući potvrđeni asset
@@ -112,4 +123,4 @@ Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brend
 
 ## Automatizirani gate
 
-`scripts/audit_security.py` zaključava SFTP BatchMode, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem granice. `scripts/audit_release.py` zasebno zaključava platforme i javni asset ugovor.
+`scripts/audit_security.py` zaključava SFTP BatchMode, process-level connect smoke, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem granice. `scripts/audit_release.py` zasebno zaključava platforme i javni asset ugovor.
