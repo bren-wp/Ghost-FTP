@@ -94,6 +94,12 @@ func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
 	default:
 		t.Fatal("session was not closed after active operation released it")
 	}
+	m.mu.RLock()
+	closing := m.closing != nil
+	m.mu.RUnlock()
+	if closing {
+		t.Fatal("disconnect returned before closing state was cleared")
+	}
 }
 
 func TestDisconnectTimeoutDefersCloseAndBlocksReconnect(t *testing.T) {
@@ -134,21 +140,49 @@ func TestDisconnectTimeoutDefersCloseAndBlocksReconnect(t *testing.T) {
 		t.Fatal("deferred cleanup did not close session after release")
 	}
 
-	deadline := time.Now().Add(time.Second)
-	for {
-		m.mu.RLock()
-		closing := m.closing != nil
-		m.mu.RUnlock()
-		if !closing {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("closing state was not cleared after deferred cleanup")
-		}
-		time.Sleep(time.Millisecond)
-	}
 	if err := m.Disconnect(context.Background()); err != nil {
 		t.Fatalf("second disconnect after cleanup: %v", err)
+	}
+	m.mu.RLock()
+	closing := m.closing != nil
+	m.mu.RUnlock()
+	if closing {
+		t.Fatal("closing state remained after completed deferred cleanup")
+	}
+}
+
+func TestDisconnectCancellationDefersClose(t *testing.T) {
+	m, session := newManagerTestConnection()
+	_, opCtx, release, err := m.Operation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = m.Disconnect(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("disconnect error=%v, want context.Canceled", err)
+	}
+	select {
+	case <-opCtx.Done():
+	default:
+		t.Fatal("cancelled disconnect did not cancel active session context")
+	}
+	select {
+	case <-session.closed:
+		t.Fatal("cancelled disconnect closed adapter before operation release")
+	default:
+	}
+
+	release()
+	select {
+	case <-session.closed:
+	case <-time.After(time.Second):
+		t.Fatal("cleanup did not finish after release following cancelled wait")
+	}
+	if err := m.Disconnect(context.Background()); err != nil {
+		t.Fatalf("cleanup state after cancelled wait: %v", err)
 	}
 }
 
