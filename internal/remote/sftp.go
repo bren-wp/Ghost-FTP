@@ -37,11 +37,15 @@ func findOpenSSH(name string) (string, error) {
 	if runtime.GOOS == "windows" {
 		return "", errors.New("SFTP podrška nije dostupna u sustavu Windows")
 	}
+	if strings.HasSuffix(strings.ToLower(name), ".exe") {
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+	}
 	if p, err := exec.LookPath(name); err == nil {
 		return p, nil
 	}
 	return "", errors.New("SFTP komponenta nije pronađena")
 }
+
 func writePrivateTempFile(dir, pattern string, data []byte) (string, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
@@ -123,6 +127,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if err := security.ValidateHost(host); err != nil {
 		return "", "", "", err
 	}
+	scanHost := strings.Trim(host, "[]")
 	if port < 1 || port > 65535 {
 		return "", "", "", errors.New("neispravan SFTP port")
 	}
@@ -145,7 +150,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	cmd := exec.CommandContext(scanCtx, scan, "-T", "8", "-t", "ed25519,ecdsa,rsa", "-p", strconv.Itoa(port), "-f", "-")
 	configureToolCommand(cmd)
 	cmd.WaitDelay = 5 * time.Second
-	cmd.Stdin = strings.NewReader(host + "\n")
+	cmd.Stdin = strings.NewReader(scanHost + "\n")
 	cmd.Dir = filepath.Dir(scan)
 	cmd.Env = sanitizedToolEnv(os.Environ())
 	out := newBoundedOutput(1 << 20)
@@ -153,6 +158,9 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	cmd.Stdout = out
 	cmd.Stderr = er
 	if err := cmd.Run(); err != nil {
+		if ctxErr := scanCtx.Err(); ctxErr != nil {
+			return "", "", "", ctxErr
+		}
 		if overflowErr := er.Err("odgovor"); overflowErr != nil {
 			return "", "", "", overflowErr
 		}
@@ -214,6 +222,9 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	cmd.Stdout = out
 	cmd.Stderr = er
 	if err := cmd.Run(); err != nil {
+		if ctxErr := keygenCtx.Err(); ctxErr != nil {
+			return "", "", "", ctxErr
+		}
 		if overflowErr := er.Err("odgovor"); overflowErr != nil {
 			return "", "", "", overflowErr
 		}
@@ -262,6 +273,7 @@ func createSSHSessionConfig(dir, host string, port int, username, keyPath, known
 	if connectTimeout < 5 || connectTimeout > 60 {
 		connectTimeout = 15
 	}
+	host = strings.Trim(host, "[]")
 	if err := validatePrivateKeyPath(keyPath); err != nil {
 		return "", "", err
 	}
@@ -409,11 +421,11 @@ func (s *SFTP) askpassEnvironment() ([]string, error) {
 }
 
 func (s *SFTP) commandArgs() []string {
-	// The user-entered host, username, key path and known_hosts path live only in
-	// the private short-lived config. Process command lines expose only a random
-	// local alias plus generic hardening switches.
+	// Naredbe i dalje dolaze preko stdin-a, ali ne koristimo sftp -b. OpenSSH
+	// sftp -b prisilno dodaje BatchMode=yes transportu i time gasi password/
+	// passphrase AskPass autentikaciju. BatchMode=no ostaje eksplicitno postavljen.
 	return []string{
-		"-q", "-oBatchMode=no", "-b", "-", "-F", s.sshConfig,
+		"-q", "-oBatchMode=no", "-F", s.sshConfig,
 		"-oProxyCommand=none", "-oProxyJump=none", "-oIdentityAgent=none",
 		"-oPKCS11Provider=none", "-oKnownHostsCommand=none", "-oPermitLocalCommand=no",
 		"-oClearAllForwardings=yes", "-oForwardAgent=no", "-oForwardX11=no",
@@ -455,6 +467,9 @@ func (s *SFTP) run(ctx context.Context, commands ...string) (string, error) {
 	cmd.Stdout = out
 	cmd.Stderr = er
 	if err := cmd.Run(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
+		}
 		if overflowErr := er.Err("dijagnostički odgovor"); overflowErr != nil {
 			return "", overflowErr
 		}
@@ -493,10 +508,10 @@ func (s *SFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 				return nil, errors.New("mapa sadrži previše stavki za siguran prikaz")
 			}
 		}
-	}
 	sortItems(items)
 	return items, nil
 }
+
 func (s *SFTP) Mkdir(ctx context.Context, base, name string) error {
 	if err := security.ValidateRemoteName(name); err != nil {
 		return err
@@ -504,6 +519,7 @@ func (s *SFTP) Mkdir(ctx context.Context, base, name string) error {
 	_, err := s.run(ctx, "mkdir "+sftpQuote(remoteJoin(base, name)))
 	return err
 }
+
 func (s *SFTP) Rename(ctx context.Context, base, oldName, newName string) error {
 	if err := security.ValidateRemoteName(oldName); err != nil {
 		return err
@@ -514,6 +530,7 @@ func (s *SFTP) Rename(ctx context.Context, base, oldName, newName string) error 
 	_, err := s.run(ctx, "rename "+sftpQuote(remoteJoin(base, oldName))+" "+sftpQuote(remoteJoin(base, newName)))
 	return err
 }
+
 func (s *SFTP) Delete(ctx context.Context, base, name string, isDir bool) error {
 	ops := recursiveDeleteOps{
 		list: s.List,
@@ -539,6 +556,7 @@ func (s *SFTP) Chmod(ctx context.Context, base, name, mode string) error {
 	_, err := s.run(ctx, "chmod "+mode+" "+sftpQuote(remoteJoin(base, name)))
 	return err
 }
+
 func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options TransferOptions) error {
 	if err := security.ValidateRemotePath(remotePath); err != nil {
 		return err
@@ -579,6 +597,7 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 		delete: s.Delete,
 	})
 }
+
 func (s *SFTP) Download(ctx context.Context, remotePath, local string, options TransferOptions) error {
 	if err := security.ValidateRemotePath(remotePath); err != nil {
 		return err
