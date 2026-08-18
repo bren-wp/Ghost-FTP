@@ -76,9 +76,6 @@ func (p *Profiles) load() ([]model.Profile, error) {
 		return items, err
 	}
 
-	// One-time migration from the legacy plaintext profile container. Password
-	// and passphrase fields in that file were already DPAPI blobs, but host/user
-	// metadata was readable. Re-save everything inside one DPAPI-protected envelope.
 	var legacy []model.Profile
 	_, err := p.store.Read("profiles.json", []model.Profile{}, &legacy)
 	if err != nil {
@@ -123,6 +120,25 @@ func (p *Profiles) saveAll(items []model.Profile) error {
 func publicProfile(x model.Profile) model.PublicProfile {
 	return model.PublicProfile{ID: x.ID, Name: x.Name, Protocol: x.Protocol, Host: x.Host, Port: x.Port, Username: x.Username, HasPassword: x.PasswordBlob != "", PrivateKeyPath: x.PrivateKeyPath, HasPassphrase: x.PassphraseBlob != "", Fingerprint: x.Fingerprint, RemotePath: x.RemotePath, LocalPath: x.LocalPath}
 }
+
+func profileHostKey(host string) string {
+	host = strings.TrimSpace(host)
+	host = strings.Trim(host, "[]")
+	host = strings.TrimSuffix(host, ".")
+	return strings.ToLower(host)
+}
+
+func sameSFTPEndpoint(a, b model.Profile) bool {
+	return strings.EqualFold(strings.TrimSpace(a.Protocol), "sftp") &&
+		strings.EqualFold(strings.TrimSpace(b.Protocol), "sftp") &&
+		profileHostKey(a.Host) == profileHostKey(b.Host) &&
+		a.Port == b.Port
+}
+
+func validFingerprint(fp string) bool {
+	return fp != "" && strings.HasPrefix(fp, "SHA256:") && len(fp) <= 128 && !strings.ContainsAny(fp, "\x00\r\n ")
+}
+
 func (p *Profiles) List() ([]model.PublicProfile, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -137,6 +153,7 @@ func (p *Profiles) List() ([]model.PublicProfile, error) {
 	sort.SliceStable(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
 	return out, nil
 }
+
 func (p *Profiles) Get(id string) (model.Profile, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -151,6 +168,7 @@ func (p *Profiles) Get(id string) (model.Profile, error) {
 	}
 	return model.Profile{}, errors.New("profil nije pronađen")
 }
+
 func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -172,6 +190,7 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	if in.ID != "" && idx < 0 {
 		return model.PublicProfile{}, errors.New("profil za izmjenu nije pronađen")
 	}
+	previous := x
 	if x.ID == "" {
 		x.ID, err = randomID()
 		if err != nil {
@@ -179,13 +198,13 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 		}
 	}
 
+	requestedFingerprint := strings.TrimSpace(in.Fingerprint)
 	x.Name = strings.TrimSpace(in.Name)
 	x.Protocol = strings.ToLower(strings.TrimSpace(in.Protocol))
 	x.Host = strings.TrimSpace(in.Host)
 	x.Port = in.Port
 	x.Username = strings.TrimSpace(in.Username)
 	x.PrivateKeyPath = strings.TrimSpace(in.PrivateKeyPath)
-	x.Fingerprint = strings.TrimSpace(in.Fingerprint)
 	x.RemotePath = strings.TrimSpace(in.RemotePath)
 	x.LocalPath = strings.TrimSpace(in.LocalPath)
 	if x.RemotePath == "" {
@@ -207,12 +226,28 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	if len(x.PrivateKeyPath) > 32767 || strings.ContainsAny(x.PrivateKeyPath, "\x00\r\n") {
 		return model.PublicProfile{}, errors.New("putanja privatnog ključa je neispravna")
 	}
-	if x.Fingerprint != "" && (!strings.HasPrefix(x.Fingerprint, "SHA256:") || len(x.Fingerprint) > 128 || strings.ContainsAny(x.Fingerprint, "\x00\r\n ")) {
+	if requestedFingerprint != "" && !validFingerprint(requestedFingerprint) {
 		return model.PublicProfile{}, errors.New("SFTP fingerprint je neispravan")
 	}
 	if err := security.ValidateConnection(x.Protocol, x.Host, x.Username, x.Port); err != nil {
 		return model.PublicProfile{}, err
 	}
+
+	// Host-key pin pripada endpointu, ne ostalim poljima profila. Obično uređivanje
+	// istog SFTP hosta/porta mora sačuvati postojeći pin. Promjena endpointa ili
+	// protokola resetira ga i prisiljava novu trust potvrdu. Eksplicitno predani
+	// fingerprint (npr. nakon potvrde host ključa) ima prednost.
+	switch {
+	case x.Protocol != "sftp":
+		x.Fingerprint = ""
+	case requestedFingerprint != "":
+		x.Fingerprint = requestedFingerprint
+	case idx >= 0 && sameSFTPEndpoint(previous, x):
+		x.Fingerprint = previous.Fingerprint
+	default:
+		x.Fingerprint = ""
+	}
+
 	if x.Protocol == "sftp" && x.PrivateKeyPath == "" && in.Passphrase != "" {
 		return model.PublicProfile{}, errors.New("zaporka privatnog ključa zahtijeva odabran privatni ključ")
 	}
@@ -239,8 +274,6 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 		}
 	}
 	if x.Protocol == "sftp" && x.PrivateKeyPath == "" {
-		// Passphrase nema svrhu bez privatnog ključa. Ako korisnik ukloni key path,
-		// ukloni i prethodno spremljeni blob kako profil ne bi zadržavao mrtvu tajnu.
 		x.PassphraseBlob = ""
 	}
 	if x.Protocol != "sftp" {
@@ -258,6 +291,7 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	}
 	return publicProfile(x), nil
 }
+
 func (p *Profiles) Remove(id string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -279,6 +313,7 @@ func (p *Profiles) Remove(id string) error {
 	}
 	return p.saveAll(out)
 }
+
 func (p *Profiles) UpdateFingerprint(id, fp string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -286,9 +321,15 @@ func (p *Profiles) UpdateFingerprint(id, fp string) error {
 	if err != nil {
 		return err
 	}
+	if !validFingerprint(strings.TrimSpace(fp)) {
+		return errors.New("SFTP fingerprint je neispravan")
+	}
 	for i := range items {
 		if items[i].ID == id {
-			items[i].Fingerprint = fp
+			if items[i].Protocol != "sftp" {
+				return errors.New("fingerprint je dopušten samo za SFTP profil")
+			}
+			items[i].Fingerprint = strings.TrimSpace(fp)
 			return p.saveAll(items)
 		}
 	}
