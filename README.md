@@ -23,7 +23,7 @@
 
 ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja dvopanelni upravitelj datotekama s učvršćenim transfer engineom, skupnim operacijama i arhitekturom usmjerenom na privatnost.
 
-**Trenutačno izdanje: 2.14.4**
+**Trenutačno izdanje: 2.14.5**
 
 ## Preuzimanje
 
@@ -73,16 +73,17 @@ GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenje
 - zaštita rekurzivnog uploada od kasne zamjene roota
 - autoritativni završni status koji late cancel ne može prepisati nakon stvarnog uspjeha
 
-## Što donosi 2.14.4
+## Što donosi 2.14.5
 
-- ispravljen je Unix FTP/SFTP fallback parser tako da obična datoteka čiji naziv sadrži ` -> ` više nije pogrešno skraćena kao simbolička poveznica
-- veličina iz nepouzdanog listinga parsira se preko provjerenog `int64` pretvaranja pa prevelika/neispravna vrijednost više ne može wrapati; DOS listing sada pravilno čita i veličinu obične datoteke
-- udaljeni prikazi koriste isti optimizirani `internal/itemlist` sorter kao lokalni prikazi, s jednim case-fold ključem po stavci umjesto ponavljanih alokacija u svakom comparator pozivu
-- SFTP privatni ključ mora biti obična lokalna datoteka i sada se na Windowsu dodatno odbija ako je reparse point
-- disconnect više ne zatvara curl/OpenSSH adapter niti briše SFTP session datoteke dok ih aktivni remote poziv još koristi
-- svaka udaljena operacija dobiva referencu na životni ciklus sesije; disconnect najprije blokira nove pozive i otkazuje kontekst, čeka postojeće `release()` pozive, a tek zatim zatvara adapter
-- `Operation` release je idempotentan, a nove regresije provjeravaju close-race, parser rubne slučajeve, privatni ključ i sortiranje punog limita od 50.000 stavki
-- sigurnosni audit sada obavezno čuva i SFTP private-key reparse zaštitu te active-operation/session-close granicu
+- sigurno zatvaranje remote sesije više ne može neograničeno blokirati UI ili shutdown dok aktivna operacija zadržava session referencu
+- `Disconnect` sada poštuje kontekst i njegov deadline; nakon isteka vraća kontrolu pozivatelju umjesto beskonačnog `WaitGroup.Wait()` čekanja
+- timeout ne prisiljava opasan `Session.Close()` ispod aktivnog `List`, rename, chmod ili transfer poziva — završni cleanup nastavlja čekati zadnji idempotentni `release()`
+- dok se prethodna sesija sigurno zatvara, reconnect je fail-closed blokiran kako nova veza ne bi prešla preko starih curl/OpenSSH resursa ili SFTP session datoteka
+- ponovljeni `Disconnect` koristi isti close-state i ne može dvaput zatvoriti isti adapter
+- engine prosljeđuje postojeći 20 s UI / 4 s shutdown kontekst i remote lifecycle sloju, pa stvarni timeout ugovor vrijedi kroz cijeli stack
+- korisničke poruke razlikuju mrežni timeout od lokalnog sigurnog zatvaranja stare sesije
+- dodane su determinističke regresije za normalni close, timeout/deferred close, reconnect blokadu, drugi disconnect i hrvatske poruke
+- sigurnosni audit sada obavezno čuva bounded disconnect i deferred cleanup invarijante
 
 ## Sigurnost i privatnost
 
@@ -95,7 +96,9 @@ Ključne zaštite uključuju:
 - DPAPI zaštitu spremljenih osjetljivih podataka
 - sanitizirani AskPass bez credential datoteke
 - private-key regular-file/symlink/reparse provjeru
-- session lifecycle zaštitu koja čeka završetak aktivnih remote operacija prije zatvaranja adaptera
+- session lifecycle zaštitu koja otkazuje aktivne remote kontekste, čeka njihov release i tek tada zatvara adapter
+- bounded disconnect koji vraća kontrolu UI-u/shutdownu bez prisilnog zatvaranja adaptera ispod aktivne operacije
+- reconnect blokadu dok se prethodna sesija još sigurno zatvara
 - state safe-open provjeru stvarno otvorenog regularnog objekta
 - kriptografski nasumične staging nazive
 - download `Lstat`/regular-file/reparse provjeru prije atomske aktivacije
@@ -149,7 +152,7 @@ python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go test -race ./...
 go vet ./...
-python scripts/release_notes.py --version 2.14.4 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.14.5 --output RELEASE-NOTES.test.txt
 ```
 
 GitHub Actions dodatno izvršava puni Windows produkcijski build. Release workflow nakon kompresije verificira i konačni Windows ZIP.
