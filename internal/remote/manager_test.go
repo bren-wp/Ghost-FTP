@@ -67,8 +67,6 @@ func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
 		t.Fatal("disconnect did not cancel active remote operation context")
 	}
 
-	// Nakon otkazivanja konteksta adapter još ne smije biti zatvoren dok
-	// pozivatelj nije završio protokolarnu operaciju i predao release.
 	select {
 	case <-session.closed:
 		t.Fatal("session was closed before active operation released it")
@@ -118,7 +116,7 @@ func TestDisconnectTimeoutDefersCloseAndBlocksReconnect(t *testing.T) {
 
 	select {
 	case <-opCtx.Done():
-	default:
+	case <-time.After(time.Second):
 		t.Fatal("timed-out disconnect did not cancel active operation context")
 	}
 	select {
@@ -164,9 +162,11 @@ func TestDisconnectCancellationDefersClose(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("disconnect error=%v, want context.Canceled", err)
 	}
+	// context.AfterFunc propagira session cancellation asinkrono. Ne zahtijevaj
+	// sinkrono izvršenje callbacka; zahtijevaj da se signal ipak pojavi brzo.
 	select {
 	case <-opCtx.Done():
-	default:
+	case <-time.After(time.Second):
 		t.Fatal("cancelled disconnect did not cancel active session context")
 	}
 	select {
@@ -229,7 +229,6 @@ func TestOperationReleaseIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Dvostruki release ne smije izazvati negativan WaitGroup niti panic.
 	release()
 	release()
 	if err := m.Disconnect(context.Background()); err != nil {
