@@ -1,4 +1,4 @@
-//go:build linux
+//go:build linux && (amd64 || arm64 || 386)
 
 package platform
 
@@ -21,7 +21,7 @@ func RenameNoReplace(src, dst string) error {
 	const renameNoReplace = 1
 	dirFD := -100 // AT_FDCWD
 	_, _, errno := syscall.Syscall6(
-		syscall.SYS_RENAMEAT2,
+		uintptr(sysRenameat2),
 		uintptr(dirFD), uintptr(unsafe.Pointer(s)),
 		uintptr(dirFD), uintptr(unsafe.Pointer(d)),
 		uintptr(renameNoReplace), 0,
