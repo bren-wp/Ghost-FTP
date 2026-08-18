@@ -36,21 +36,28 @@ func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 // spremljenu lozinku na nepoznati prompt, nego samo na jasno prepoznati
 // password/passphrase upit.
 func selectAskpassSecret(prompt string, password, passphrase []byte) ([]byte, bool) {
-	prompt = strings.ToLower(strings.TrimSpace(prompt))
-	switch {
-	case strings.Contains(prompt, "passphrase"):
+	normalized := strings.ToLower(strings.Join(strings.Fields(prompt), " "))
+	for _, blocked := range []string{
+		"verification code", "one-time", "one time", "otp", "security key",
+		"touch your", "challenge", "response code", "authentication code", "token",
+	} {
+		if strings.Contains(normalized, blocked) {
+			return nil, false
+		}
+	}
+	if strings.Contains(normalized, "passphrase") {
 		if len(passphrase) == 0 {
 			return nil, false
 		}
 		return passphrase, true
-	case strings.Contains(prompt, "password"):
+	}
+	if strings.Contains(normalized, "password") {
 		if len(password) == 0 {
 			return nil, false
 		}
 		return password, true
-	default:
-		return nil, false
 	}
+	return nil, false
 }
 
 func askpassMode() (bool, error) {
