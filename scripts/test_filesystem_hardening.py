@@ -27,12 +27,24 @@ def forbid(path: str, markers: tuple[str, ...]) -> None:
 
 def main() -> int:
     require("internal/platform/filemove_linux.go", (
-        "SYS_RENAMEAT2",
+        "sysRenameat2",
         "renameNoReplace = 1",
+        "syscall.Syscall6",
     ))
     forbid("internal/platform/filemove_linux.go", (
         "os.Lstat(dst)",
         "os.Rename(src, dst)",
+        "SYS_RENAMEAT2",
+    ))
+    for path, number in (
+        ("internal/platform/sysnum_linux_amd64.go", "316"),
+        ("internal/platform/sysnum_linux_arm64.go", "276"),
+        ("internal/platform/sysnum_linux_386.go", "353"),
+    ):
+        require(path, (f"const sysRenameat2 = {number}",))
+    require("internal/platform/filemove_linux_otherarch.go", (
+        "os.Link(src, dst)",
+        "os.Remove(src)",
     ))
     require("internal/platform/filemove_darwin.go", (
         "os.Link(src, dst)",
