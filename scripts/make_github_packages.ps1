@@ -42,12 +42,12 @@ try {
         $items = New-Object System.Text.StringBuilder
         foreach ($name in $package.Files) {
             $full = Join-Path $distPath $name
-            [void]$items.AppendLine("    <None Include=\"$full\" Pack=\"true\" PackagePath=\"tools\\$name\" />")
+            [void]$items.AppendLine(('    <None Include="{0}" Pack="true" PackagePath="tools\{1}" />' -f $full, $name))
         }
         $readme = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\README.md')).Path
         $license = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\LICENSE')).Path
-        [void]$items.AppendLine("    <None Include=\"$readme\" Pack=\"true\" PackagePath=\"README.md\" />")
-        [void]$items.AppendLine("    <None Include=\"$license\" Pack=\"true\" PackagePath=\"LICENSE\" />")
+        [void]$items.AppendLine(('    <None Include="{0}" Pack="true" PackagePath="README.md" />' -f $readme))
+        [void]$items.AppendLine(('    <None Include="{0}" Pack="true" PackagePath="LICENSE" />' -f $license))
 
         $xml = @"
 <Project Sdk="Microsoft.NET.Sdk">
