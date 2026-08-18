@@ -44,27 +44,58 @@ func configValue(value string) (string, error) {
 	if value == "" || strings.ContainsAny(value, "\x00\r\n") {
 		return "", errors.New("SSH konfiguracija sadrži nedopuštenu vrijednost")
 	}
-	// OpenSSH config podržava dvostruke navodnike; escapeamo samo znakove koji
-	// mogu promijeniti granicu vrijednosti. Novi red je već odbijen.
 	return `"` + strings.ReplaceAll(strings.ReplaceAll(value, `\`, `\\`), `"`, `\"`) + `"`, nil
+}
+
+func ensureKnownHosts(path string) error {
+	st, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		f, createErr := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if createErr != nil {
+			return createErr
+		}
+		return f.Close()
+	}
+	if err != nil {
+		return err
+	}
+	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(path) {
+		return errors.New("SSH known_hosts mora biti obična lokalna datoteka bez preusmjeravanja")
+	}
+	return nil
+}
+
+func validatePrivateKey(path string) error {
+	if path == "" {
+		return nil
+	}
+	st, err := os.Lstat(path)
+	if err != nil {
+		return errors.New("privatni SSH ključ nije dostupan")
+	}
+	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(path) {
+		return errors.New("privatni SSH ključ mora biti obična lokalna datoteka bez preusmjeravanja")
+	}
+	return nil
 }
 
 func writeConfig(dir string, cfg Config) (string, error) {
 	if err := security.ValidateConnection("sftp", cfg.Host, cfg.Username, cfg.Port); err != nil {
 		return "", err
 	}
-	if cfg.PrivateKey != "" {
-		st, err := os.Lstat(cfg.PrivateKey)
-		if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
-			return "", errors.New("privatni SSH ključ nije obična datoteka")
-		}
+	if err := validatePrivateKey(cfg.PrivateKey); err != nil {
+		return "", err
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
+	knownPath := filepath.Join(dir, "known_hosts")
+	if err := ensureKnownHosts(knownPath); err != nil {
+		return "", err
+	}
 	host, _ := configValue(strings.Trim(cfg.Host, "[]"))
 	user, _ := configValue(cfg.Username)
-	known, err := configValue(filepath.Join(dir, "known_hosts"))
+	known, err := configValue(knownPath)
 	if err != nil {
 		return "", err
 	}
@@ -74,21 +105,42 @@ func writeConfig(dir string, cfg Config) (string, error) {
 	b.WriteString("  Port " + strconv.Itoa(cfg.Port) + "\n")
 	b.WriteString("  User " + user + "\n")
 	b.WriteString("  UserKnownHostsFile " + known + "\n")
+	b.WriteString("  GlobalKnownHostsFile none\n")
 	b.WriteString("  StrictHostKeyChecking ask\n")
+	b.WriteString("  VerifyHostKeyDNS no\n")
+	b.WriteString("  UpdateHostKeys no\n")
 	b.WriteString("  BatchMode no\n")
-	b.WriteString("  ForwardAgent no\n")
+	b.WriteString("  NumberOfPasswordPrompts 3\n")
+	b.WriteString("  PasswordAuthentication yes\n")
+	b.WriteString("  KbdInteractiveAuthentication yes\n")
+	b.WriteString("  PubkeyAuthentication yes\n")
+	b.WriteString("  HostbasedAuthentication no\n")
+	b.WriteString("  GSSAPIAuthentication no\n")
+	b.WriteString("  IdentityAgent none\n")
+	b.WriteString("  AddKeysToAgent no\n")
+	b.WriteString("  PKCS11Provider none\n")
+	b.WriteString("  ProxyCommand none\n")
+	b.WriteString("  ProxyJump none\n")
+	b.WriteString("  KnownHostsCommand none\n")
+	b.WriteString("  CanonicalizeHostname no\n")
+	b.WriteString("  PermitLocalCommand no\n")
+	b.WriteString("  LocalCommand none\n")
 	b.WriteString("  ClearAllForwardings yes\n")
+	b.WriteString("  ForwardAgent no\n")
+	b.WriteString("  ForwardX11 no\n")
 	b.WriteString("  RequestTTY force\n")
 	b.WriteString("  ServerAliveInterval 30\n")
 	b.WriteString("  ServerAliveCountMax 3\n")
 	b.WriteString("  ConnectTimeout 20\n")
+	b.WriteString("  IdentitiesOnly yes\n")
 	if cfg.PrivateKey != "" {
 		key, err := configValue(cfg.PrivateKey)
 		if err != nil {
 			return "", err
 		}
 		b.WriteString("  IdentityFile " + key + "\n")
-		b.WriteString("  IdentitiesOnly yes\n")
+	} else {
+		b.WriteString("  IdentityFile none\n")
 	}
 	f, err := os.CreateTemp(dir, ".byftp-ssh-*.conf")
 	if err != nil {
