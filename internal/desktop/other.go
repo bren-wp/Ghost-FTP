@@ -65,22 +65,44 @@ func terminalStatus(status string) bool {
 	switch status { case "done", "failed", "cancelled", "skipped": return true; default: return false }
 }
 
+func terminalTransferResult(job model.TransferJob) (bool, error) {
+	if !terminalStatus(job.Status) {
+		return false, nil
+	}
+	switch job.Status {
+	case "done":
+		fmt.Println("Prijenos dovršen.")
+		return true, nil
+	case "skipped":
+		return true, errors.New("prijenos je preskočen jer odredište već postoji")
+	case "cancelled":
+		return true, context.Canceled
+	default:
+		if strings.TrimSpace(job.Error) != "" {
+			return true, errors.New(job.Error)
+		}
+		return true, errors.New("prijenos nije uspio")
+	}
+}
+
 func waitTransfer(engine *api.Engine, jobID string) error {
-	seq := int64(0)
+	seen := false
 	for {
-		events, next := engine.TransferEvents(seq); seq = next
-		for _, event := range events {
-			if event.Job == nil || event.Job.ID != jobID { continue }
-			job := *event.Job
-			if !terminalStatus(job.Status) { continue }
-			switch job.Status {
-			case "done": fmt.Println("Prijenos dovršen."); return nil
-			case "skipped": return errors.New("prijenos je preskočen jer odredište već postoji")
-			case "cancelled": return context.Canceled
-			default:
-				if strings.TrimSpace(job.Error) != "" { return errors.New(job.Error) }
-				return errors.New("prijenos nije uspio")
+		jobs := engine.Transfers()
+		found := false
+		for _, job := range jobs {
+			if job.ID != jobID {
+				continue
 			}
+			found = true
+			seen = true
+			if done, err := terminalTransferResult(job); done {
+				return err
+			}
+			break
+		}
+		if seen && !found {
+			return errors.New("prijenos više nije dostupan u redu")
 		}
 		time.Sleep(150 * time.Millisecond)
 	}
@@ -129,15 +151,26 @@ func runTerminal(engine *api.Engine, version string) error {
 	current := "/"; if cfg.Protocol == "sftp" { current = "." }
 	fmt.Printf("Povezano: %s:%d\n", cfg.Host, cfg.Port)
 	fmt.Println("Naredbe: ls, cd, mkdir, rename, delete, chmod, get, put, pwd, help, quit")
+	fmt.Println("Putanje i nazive s razmacima stavite u jednostruke ili dvostruke navodnike.")
 	for {
 		fmt.Printf("byftp:%s> ", current)
 		line, readErr := reader.ReadString('\n'); if readErr != nil && len(line) == 0 { return nil }
-		fields := strings.Fields(strings.TrimSpace(line)); if len(fields) == 0 { continue }
+		fields, parseErr := parseTerminalArgs(line)
+		if parseErr != nil { fmt.Println("Neispravna naredba: " + parseErr.Error()); continue }
+		if len(fields) == 0 { continue }
 		switch strings.ToLower(fields[0]) {
-		case "quit", "exit": return nil
-		case "help": fmt.Println("ls [putanja] | cd <putanja> | mkdir <ime> | rename <staro> <novo> | delete <ime> | chmod <mode> <ime> | get <remote> <local> | put <local> <remote> | pwd | quit")
-		case "pwd": fmt.Println(current)
+		case "quit", "exit":
+			if len(fields) != 1 { fmt.Println("Upotreba: quit"); continue }
+			return nil
+		case "help":
+			if len(fields) != 1 { fmt.Println("Upotreba: help"); continue }
+			fmt.Println("ls [putanja] | cd <putanja> | mkdir <ime> | rename <staro> <novo> | delete <ime> | chmod <mode> <ime> | get <remote> <local> | put <local> <remote> | pwd | quit")
+			fmt.Println("Primjer: get \"Ugovori/račun 2026.pdf\" \"/home/korisnik/Preuzeto/račun 2026.pdf\"")
+		case "pwd":
+			if len(fields) != 1 { fmt.Println("Upotreba: pwd"); continue }
+			fmt.Println(current)
 		case "ls":
+			if len(fields) > 2 { fmt.Println("Upotreba: ls [putanja]"); continue }
 			target := current; if len(fields) > 1 { target = fields[1] }
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second); items, e := engine.RemoteList(ctx, target); cancel()
 			if e != nil { fmt.Println(usererror.Message(e, "Udaljeni direktorij nije moguće pročitati.")); continue }; printRemoteItems(items)
