@@ -1,5 +1,27 @@
 # Povijest promjena
 
+## 2.16.2 — Produkcijski release hardening, stvarno ugašena build telemetrija i detaljna dokumentacija
+
+- ispravljena je build-privacy pogrešna pretpostavka: obična OS varijabla `GOTELEMETRY=off` nije pouzdan način za promjenu Go telemetry načina; CI i release sada stvarno izvršavaju `go telemetry off` i potvrđuju da rezultat glasi `off`
+- `BUILD-WINDOWS.ps1`, `BUILD-LINUX.sh`, `BUILD-MACOS.sh` i `BUILD-LOCAL.sh` fail-closed odbijaju produkcijski build ako stvarni Go telemetry način nije `off`, umjesto da prikazuju netočan osjećaj zaštite
+- Linux i macOS build skripte sada, jednako kao Windows build, zahtijevaju Go 1.26.5 ili noviji podržani sigurnosni patch
+- uklonjen je release self-trigger race: publisher-created `v*` tag više ne pokreće drugi release workflow nad istim izdanjem
+- svi release runovi koriste jednu serijaliziranu `byftp-release` concurrency grupu uz `cancel-in-progress: false`, pa dva publishera ne rade paralelno
+- release workflow dobio je zaseban produkcijski quality job koji ponovno izvršava asset/hrvatski/version/docs/security/privacy/release audite, Python regresije, `go test`, `go test -race`, `go vet` i probno generiranje release bilješki prije javne objave
+- `publish` sada ovisi o sva četiri release gatea: quality, Windows, Linux i macOS; javno izdanje više ne pretpostavlja da je raniji PR CI dovoljan dokaz
+- Linux release job ponovno provjerava DEB package/version/architecture metapodatke, a macOS release job ponovno širi završni PKG s `pkgutil` i potvrđuje njegovu strukturu
+- završni release staging prije generiranja zajedničkih metapodataka mora sadržavati točno 10 očekivanih platformskih paketa; dodatna, nedostajuća ili pogrešno imenovana datoteka zaustavlja objavu
+- `BUILD-METADATA.txt` bilježi da je produkcijski release quality gate prošao, dok `SHA256.txt` i dalje pokriva svih 10 platformskih paketa te release notes/build metadata
+- uklonjen je jednokratni v2.15 migracijski cleanup iz svakog budućeg releasea; produkcijska objava više ne ovisi nepotrebno o povijesnom tagu
+- lokalni Windows build odvojio je javni `dist/` sadržaj od tehničkih build dokaza: Setup, Portable i checksum ostaju javni izlazi, dok interna komponenta uklanjanja i verification zapis završavaju u `dist/internal/`
+- release audit sada blokira povratak tag-triggera, paralelnog publishera, jednokratnog legacy cleanupa, nedostatka production quality/race gatea i povratak zastarjelih javnih paketnih naziva u README/instalaciju/release bilješke
+- privacy audit sada zaključava stvarno gašenje Go build telemetrije i odbija povratak na neučinkovitu istoimenu OS environment varijablu
+- glavni README potpuno je proširen kao produkcijski ulaz: platforme, auth matrica, odabir paketa, instalacija/nadogradnja/OS uklanjanje, prvi spoj, connect semantika, transfer sigurnost, vjerodajnice, SHA-256, signing ograničenja, build i release integritet
+- `INSTALACIJA.md`, `ARHITEKTURA.md`, `SIGURNOST.md`, `PRIVATNOST.md`, `TESTIRANJE.md`, `PROVJERA-IZDANJA.md`, `IZDAVANJE-NA-GITHUBU.md`, `PODRSKA.md`, `POTPISIVANJE.md`, `PLAN-RAZVOJA.md`, `DOPRINOS.md` i docs indeks usklađeni su s aktualnim produkcijskim modelom
+- Windows korisnik za uklanjanje koristi standardni `Postavke → Aplikacije → Instalirane aplikacije → ByFTP` lifecycle; javna dokumentacija više ne upućuje korisnika na zasebnu tehničku release datoteku
+- javni distribucijski ugovor ostaje 13 custom asseta: šest Windows paketa, tri Linux DEB paketa, jedan macOS Universal PKG te `SHA256.txt`, `RELEASE-NOTES.txt` i `BUILD-METADATA.txt`
+- potpisivanje ostaje fail-closed: bez stvarnog Brendigo Authenticode odnosno Apple Developer ID identiteta release ne tvrdi Verified Publisher, notarizaciju ili drugi fabricirani publisher status
+
 ## 2.16.1 — Process-level connect provjera i stabilnija platformna matrica
 
 - dodani su process-level FTP/FTPS i SFTP connect smoke testovi koji stvarno pokreću child proces preko istog `exec.CommandContext`, stdin/config i parser puta koji koristi produkcijski adapter
