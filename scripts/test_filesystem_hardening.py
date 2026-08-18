@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import sys
+import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,7 +25,7 @@ def forbid(path: str, markers: tuple[str, ...]) -> None:
             raise AssertionError(f"{path}: zabranjeni obrazac {marker!r}")
 
 
-def main() -> int:
+def run_checks() -> None:
     require("internal/platform/filemove_linux.go", (
         "sysRenameat2",
         "renameNoReplace = 1",
@@ -73,12 +73,12 @@ def main() -> int:
     forbid("internal/remote/manager.go", (
         'cleanupStaleSFTPArtifacts(filepath.Join(dataDir, "known_hosts"))',
     ))
-    print("FILESYSTEM_HARDENING_REGRESSION=PROSAO")
-    return 0
+
+
+class FilesystemHardeningTests(unittest.TestCase):
+    def test_source_invariants(self) -> None:
+        run_checks()
 
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except AssertionError as exc:
-        raise SystemExit(f"FILESYSTEM_HARDENING_REGRESSION_NIJE_PROSAO: {exc}")
+    unittest.main()
