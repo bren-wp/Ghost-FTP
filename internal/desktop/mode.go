@@ -25,3 +25,23 @@ func clientMode() clientmode.Mode {
 	defer modeMu.RUnlock()
 	return mode
 }
+
+func clientProductName() string { return clientMode().ProductName() }
+
+func clientSubtitle() string {
+	switch clientMode() {
+	case clientmode.FTP:
+		return "FTP • FTPS  ·  Siguran prijenos datoteka  ·  Brendigo"
+	case clientmode.SFTP:
+		return "SFTP preko OpenSSH  ·  Host-key provjera  ·  Brendigo"
+	default:
+		return "FTP • FTPS • SFTP  ·  Siguran prijenos datoteka  ·  Brendigo"
+	}
+}
+
+func clientShowsSFTPAuth() bool {
+	m := clientMode()
+	return m == clientmode.Suite || m == clientmode.SFTP
+}
+
+func clientHasFixedProtocol() bool { return clientMode() == clientmode.SFTP }
