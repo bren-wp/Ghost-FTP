@@ -3,6 +3,7 @@ package remote
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -120,6 +121,9 @@ func TestFindCurlPrefersWindowsSystemBinary(t *testing.T) {
 
 func TestFindOpenSSHPreferWindowsSystemBinary(t *testing.T) {
 	system32 := filepath.Join(t.TempDir(), "System32")
+	if err := os.MkdirAll(system32, 0700); err != nil {
+		t.Fatal(err)
+	}
 	sshDir := filepath.Join(system32, "OpenSSH")
 	if err := os.MkdirAll(sshDir, 0700); err != nil {
 		t.Fatal(err)
@@ -180,14 +184,25 @@ func TestSSHSessionConfigIsPrivateDirectAndScoped(t *testing.T) {
 	}
 }
 
-func TestFTPSConfigDisablesExternalRevocationFetch(t *testing.T) {
+func TestFTPSConfigNeverDisablesCertificateRevocation(t *testing.T) {
 	for _, protocol := range []string{"ftps", "ftpsi"} {
 		c := &CurlFTP{protocol: protocol, username: "user"}
 		cfg := string(c.configFor([]byte("secret"), nil))
-		for _, required := range []string{"ssl-no-revoke", "tlsv1.2"} {
-			if !strings.Contains(cfg, required) {
-				t.Fatalf("%s config missing FTPS security option %q: %q", protocol, required, cfg)
+		if strings.Contains(cfg, "ssl-no-revoke") {
+			t.Fatalf("%s config disables certificate revocation: %q", protocol, cfg)
+		}
+		if !strings.Contains(cfg, "tlsv1.2") {
+			t.Fatalf("%s config missing TLS minimum: %q", protocol, cfg)
+		}
+		if protocol == "ftps" && !strings.Contains(cfg, "ssl-reqd") {
+			t.Fatalf("explicit FTPS config must require TLS: %q", cfg)
+		}
+		if runtime.GOOS == "windows" {
+			if !strings.Contains(cfg, "ssl-revoke-best-effort") {
+				t.Fatalf("%s Windows config missing best-effort certificate revocation: %q", protocol, cfg)
 			}
+		} else if strings.Contains(cfg, "ssl-revoke-best-effort") {
+			t.Fatalf("%s non-Windows config contains Schannel-only revocation option: %q", protocol, cfg)
 		}
 	}
 }
