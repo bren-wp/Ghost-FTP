@@ -12,6 +12,7 @@ ByFTP je jedan izvorni Win32 desktop proces. Nema browser UI, localhost HTTP ser
 - `internal/remote` — FTP/FTPS preko Windows curl i SFTP preko Windows OpenSSH
 - `internal/transfer` — red prijenosa, rezervacije, retry, cancellation, event stream i worker lifecycle
 - `internal/config` — atomsko lokalno stanje, DPAPI profili i settings cache
+- `internal/profilebinding` — zajednički endpoint/account/private-key identity ugovor za profile
 - `internal/itemlist` — zajedničko stabilno directory-first sortiranje velikih lokalnih i udaljenih popisa
 - `internal/localfs` — lokalne file operacije i bounded enumeracija
 - `internal/security` — validacija unosa/putanja, no-follow filesystem granice i Windows DPAPI zaštita
@@ -20,9 +21,23 @@ ByFTP je jedan izvorni Win32 desktop proces. Nema browser UI, localhost HTTP ser
 
 Runtime nema vanjske Go dependencies.
 
-## Granica vjerodajnica
+## Granica profila i vjerodajnica
 
 Lozinka i zaporka privatnog ključa ne prolaze kroz generički JSON dispatcher. Spremljeni DPAPI blob ostaje zaštićen kroz profile/manager sloj i otključava se tek neposredno prije sistemskog curl/OpenSSH poziva.
+
+`internal/profilebinding` centralizira tri identitetske razine. Endpoint je `protokol + normalizirani host + port`; account dodaje točno korisničko ime; private-key identitet dodatno dodaje case-insensitive Windows putanju privatnog ključa. Remote, config i desktop sloj koriste isti ugovor kako se sigurnosna pravila ne bi razišla.
+
+Spremljena lozinka automatski se nasljeđuje samo kada account identitet ostaje isti. Spremljeni passphrase dodatno zahtijeva isti privatni ključ. Ako korisnik privremeno promijeni host, port, korisnika ili ključ bez spremanja profila, stari DPAPI blob ne prelazi na novi identitet.
+
+Spremanje izmijenjenog profila također je fail-closed. Password blob automatski se uklanja kada se promijeni account identitet, a passphrase blob kada se promijeni endpoint/korisnik/ključ ili kada privatnog ključa više nema. Novi identitet dobiva spremljenu tajnu samo ako je korisnik ponovno izričito upiše i odobri spremanje.
+
+Prazno polje privatnog ključa je autoritativno: odabrani profil ne smije ponovno vratiti staru key putanju samo zato što je spremljena u profilu.
+
+## Granica SFTP host-key pina
+
+Host-key fingerprint pripada endpointu, ne login računu. Spremljeni pin koristi se samo kada se aktualni `protokol + host + port` podudara sa spremljenim profilom.
+
+Obično uređivanje naziva, korisnika, lokalne/udaljene putanje ili privatnog ključa na istom endpointu čuva pin. Promjena hosta, porta ili protokola čisti stari pin i traži novu trust potvrdu. Privremeno promijenjeni endpoint može biti prihvaćen samo za svoju sesiju i ne smije svoj fingerprint upisati u originalni profil.
 
 Kod potvrde novog SFTP host ključa ByFTP može privremeno zadržati DPAPI-zaštićene credential blobove najviše do isteka trust prozora. Podaci se brišu nakon potvrde, greške, otkaza ili uspješnog spajanja; jedina grana koja ih namjerno zadržava jest povrat `RequiresTrust` dok korisnik odlučuje o ključu.
 
