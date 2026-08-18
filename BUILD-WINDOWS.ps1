@@ -21,7 +21,6 @@ $icon = Join-Path $PWD 'build\icon.ico'
 $env:GOTOOLCHAIN = 'local'
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
-$env:GOTELEMETRY = 'off'
 $env:CGO_ENABLED = '0'
 
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) { throw 'Go nije instaliran.' }
@@ -35,6 +34,14 @@ $patch = if ($Matches[3]) { [int]$Matches[3] } else { 0 }
 $goVersion = [Version]::new([int]$Matches[1], [int]$Matches[2], $patch)
 if ($goVersion -lt $minimumGo) {
     throw "Za produkcijski ByFTP build potreban je Go $minimumGo ili noviji sigurnosni patch. Trenutačno: $rawGoVersion"
+}
+
+# GOTELEMETRY je read-only go env vrijednost. Produkcijski build ne prihvaća
+# local/on način rada. CI prije ove skripte izvršava `go telemetry off`; lokalni
+# graditelj mora isto učiniti svjesno kako skripta ne bi mijenjala globalnu Go postavku.
+$telemetryMode = (go telemetry).Trim()
+if ($LASTEXITCODE -ne 0 -or $telemetryMode -ne 'off') {
+    throw "Go telemetrija mora biti isključena prije produkcijskog builda. Pokrenite: go telemetry off (trenutačno: $telemetryMode)"
 }
 
 Write-Host "ByFTP $version"
@@ -60,7 +67,7 @@ Write-Host '[3/10] Python regresije release alata'
 python -m unittest discover -s scripts -p 'test_*.py'
 if ($LASTEXITCODE -ne 0) { throw 'Python regresije release alata nisu prošle.' }
 
-Write-Host "[4/10] Go testovi i statička provjera ($rawGoVersion)"
+Write-Host "[4/10] Go testovi i statička provjera ($rawGoVersion, telemetry=$telemetryMode)"
 go test ./...
 if ($LASTEXITCODE -ne 0) { throw 'Go testovi nisu prošli.' }
 go vet ./...
@@ -97,9 +104,9 @@ function Build-ByFTPArchitecture {
 
     Write-Host "      [$Label] Interni program za uklanjanje"
     go build -trimpath -buildvcs=false -ldflags $ldflags -o $uninstall ./cmd/uninstaller
-    if ($LASTEXITCODE -ne 0) { throw "Uninstaller $Label build nije uspio." }
+    if ($LASTEXITCODE -ne 0) { throw "Interni program za uklanjanje $Label nije izgrađen." }
     python scripts/pe_resources.py $uninstall --ico $icon --version $version --role uninstaller --original-filename 'Uninstall.exe'
-    if ($LASTEXITCODE -ne 0) { throw "PE resource obrada Uninstaller $Label builda nije uspjela." }
+    if ($LASTEXITCODE -ne 0) { throw "PE resource obrada internog programa za uklanjanje $Label nije uspjela." }
 
     Write-Host "      [$Label] Instalacijski payload"
     python scripts/make_payload.py --app $portable --uninstaller $uninstall --output "$payload\payload.zip"

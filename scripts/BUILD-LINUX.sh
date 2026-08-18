@@ -3,11 +3,35 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION="$(tr -d '\r\n' < VERSION)"
+MIN_GO_MAJOR=1
+MIN_GO_MINOR=26
+MIN_GO_PATCH=5
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Neispravan VERSION.' >&2; exit 1; }
 command -v go >/dev/null || { echo 'Go nije instaliran.' >&2; exit 1; }
 command -v dpkg-deb >/dev/null || { echo 'dpkg-deb nije instaliran.' >&2; exit 1; }
 
-export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOTELEMETRY=off CGO_ENABLED=0 GOOS=linux
+raw_go="$(go env GOVERSION)"
+if [[ ! "$raw_go" =~ ^go([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
+  echo "Nije moguće provjeriti Go verziju: $raw_go" >&2
+  exit 1
+fi
+go_major="${BASH_REMATCH[1]}"
+go_minor="${BASH_REMATCH[2]}"
+go_patch="${BASH_REMATCH[4]:-0}"
+if (( go_major < MIN_GO_MAJOR ||
+      (go_major == MIN_GO_MAJOR && go_minor < MIN_GO_MINOR) ||
+      (go_major == MIN_GO_MAJOR && go_minor == MIN_GO_MINOR && go_patch < MIN_GO_PATCH) )); then
+  echo "Za produkcijski ByFTP build potreban je Go 1.26.5+; trenutačno: $raw_go" >&2
+  exit 1
+fi
+
+telemetry="$(go telemetry)"
+[[ "$telemetry" == "off" ]] || {
+  echo "Go telemetrija mora biti isključena prije produkcijskog builda. Pokrenite: go telemetry off (trenutačno: $telemetry)" >&2
+  exit 1
+}
+
+export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS=linux
 mkdir -p dist
 
 build_arch() {
@@ -58,4 +82,4 @@ build_arch amd64 amd64
 build_arch arm64 arm64
 build_arch 386 i386
 
-echo "ByFTP ${VERSION} Linux paketi su izgrađeni."
+echo "ByFTP ${VERSION} Linux paketi su izgrađeni (Go ${raw_go}, telemetry=${telemetry})."

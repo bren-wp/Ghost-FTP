@@ -3,8 +3,6 @@ name: Objavi ByFTP
 on:
   push:
     branches: [main]
-    tags:
-      - 'v*'
     paths:
       - 'VERSION'
   workflow_dispatch:
@@ -17,17 +15,76 @@ permissions:
   contents: write
   packages: write
 
+# Jedan release kanal sprječava paralelne publishere nad istim ili susjednim
+# verzijama. Tag koji publisher izradi ne pokreće novi release workflow.
 concurrency:
-  group: byftp-release-${{ github.ref }}-${{ inputs.version || 'source' }}
+  group: byftp-release
   cancel-in-progress: false
 
 env:
   GOTOOLCHAIN: local
   GOPROXY: off
   GOSUMDB: off
-  GOTELEMETRY: off
 
 jobs:
+  quality:
+    name: Produkcijski quality, race, sigurnost i privatnost
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Dohvati izvorni kod
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Postavi Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Postavi Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Isključi i potvrdi Go telemetriju
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+      - name: Provjeri resurse, sadržaj i verziju
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/generate_brand_assets.py --check
+          python scripts/audit_croatian.py
+          python scripts/audit_version.py
+      - name: Provjeri dokumentaciju, sigurnost, privatnost i release ugovor
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/audit_docs.py
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
+          python scripts/audit_release.py
+      - name: Python regresije release alata
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Go unit, race i vet
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./...
+          go test -race ./...
+          go vet ./...
+      - name: Provjeri generiranje release bilješki
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+
   windows:
     name: Windows x64 i x86
     runs-on: windows-latest
@@ -47,6 +104,12 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
+      - name: Isključi i potvrdi Go telemetriju
+        shell: pwsh
+        run: |
+          go telemetry off
+          if ($LASTEXITCODE -ne 0) { throw 'Nije moguće isključiti Go telemetriju.' }
+          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetrija nije isključena.' }
       - name: Izgradi Windows x64 i x86
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
@@ -61,6 +124,7 @@ jobs:
           COMMIT=$env:GITHUB_SHA
           SOURCE_REF=$env:GITHUB_REF
           GO_VERSION=$((go env GOVERSION).Trim())
+          GO_TELEMETRY=$((go telemetry).Trim())
           BUILD_OS=windows
           BUILD_ARCH=x64,x86
           GITHUB_RUN_ID=$env:GITHUB_RUN_ID
@@ -115,6 +179,12 @@ jobs:
           go-version: '1.26.5'
           check-latest: false
           cache: false
+      - name: Isključi i potvrdi Go telemetriju
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
       - name: Provjeri Linux core
         shell: bash
         run: |
@@ -124,6 +194,18 @@ jobs:
       - name: Izgradi DEB pakete
         shell: bash
         run: bash scripts/BUILD-LINUX.sh
+      - name: Provjeri DEB metapodatke
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          for arch in amd64 arm64 i386; do
+            pkg="dist/ByFTP-${version}-Linux-${arch}.deb"
+            test -s "$pkg"
+            test "$(dpkg-deb -f "$pkg" Package)" = 'byftp'
+            test "$(dpkg-deb -f "$pkg" Version)" = "$version"
+            test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
+          done
       - name: Spremi Linux pakete
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -145,6 +227,12 @@ jobs:
           go-version: '1.26.5'
           check-latest: false
           cache: false
+      - name: Isključi i potvrdi Go telemetriju
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
       - name: Cross-platform testovi na macOS-u
         shell: bash
         run: |
@@ -154,6 +242,15 @@ jobs:
       - name: Izgradi Universal PKG
         shell: bash
         run: bash scripts/BUILD-MACOS.sh
+      - name: Provjeri PKG strukturu
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          pkg="dist/ByFTP-${version}-macOS-Universal.pkg"
+          test -s "$pkg"
+          pkgutil --expand "$pkg" "$RUNNER_TEMP/byftp-pkg"
+          test -f "$RUNNER_TEMP/byftp-pkg/PackageInfo"
       - name: Spremi macOS paket
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -164,7 +261,7 @@ jobs:
 
   publish:
     name: Provjeri i objavi izdanje
-    needs: [windows, linux, macos]
+    needs: [quality, windows, linux, macos]
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -181,9 +278,11 @@ jobs:
         shell: pwsh
         run: |
           $manual = '${{ inputs.version }}'.Trim()
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and $manual) { $version = $manual }
-          elseif ($env:GITHUB_REF_TYPE -eq 'tag') { $version = $env:GITHUB_REF_NAME.TrimStart('v') }
-          else { $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim() }
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and $manual) {
+            $version = $manual
+          } else {
+            $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
+          }
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Neispravna verzija: $version" }
           $source = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
           if ($source -ne $version) { throw "Release verzija $version ne odgovara VERSION=$source" }
@@ -204,6 +303,25 @@ jobs:
         with:
           name: byftp-macos-release
           path: release
+      - name: Provjeri staging javnih paketa
+        shell: pwsh
+        run: |
+          $expected = @(
+            "ByFTP-$env:VERSION-Portable-x64.exe",
+            "ByFTP-$env:VERSION-Setup-x64.exe",
+            "ByFTP-$env:VERSION-Windows-x64.zip",
+            "ByFTP-$env:VERSION-Portable-x86.exe",
+            "ByFTP-$env:VERSION-Setup-x86.exe",
+            "ByFTP-$env:VERSION-Windows-x86.zip",
+            "ByFTP-$env:VERSION-Linux-amd64.deb",
+            "ByFTP-$env:VERSION-Linux-arm64.deb",
+            "ByFTP-$env:VERSION-Linux-i386.deb",
+            "ByFTP-$env:VERSION-macOS-Universal.pkg"
+          )
+          $actual = @(Get-ChildItem -LiteralPath 'release' -File | ForEach-Object Name | Sort-Object)
+          $wanted = @($expected | Sort-Object)
+          if ($actual.Count -ne $wanted.Count) { throw "Release staging ima $($actual.Count) datoteka umjesto $($wanted.Count)." }
+          if (Compare-Object -ReferenceObject $wanted -DifferenceObject $actual) { throw 'Release staging ne odgovara ugovorenom skupu platformskih paketa.' }
       - name: Generiraj zajedničke metapodatke i SHA-256
         shell: pwsh
         run: |
@@ -216,6 +334,7 @@ jobs:
           WINDOWS=x64,x86
           LINUX=amd64,arm64,i386
           MACOS=universal-amd64-arm64
+          RELEASE_QUALITY_GATE=passed
           GITHUB_RUN_ID=$env:GITHUB_RUN_ID
           GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
           "@ | Set-Content 'release\BUILD-METADATA.txt' -Encoding ascii
@@ -225,26 +344,6 @@ jobs:
             "$hash  $($item.Name)"
           }
           $lines | Set-Content 'release\SHA256.txt' -Encoding ascii
-      - name: Očisti neželjene custom assete iz v2.15.0
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $oldTag = 'v2.15.0'
-          $remove = @('verification.txt','ByFTP-2.15.0-Source.zip','ByFTP-2.15.0-Uninstall-x64.exe')
-          $old = (& gh release view $oldTag --repo $env:GITHUB_REPOSITORY --json assets) | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw 'Nije moguće provjeriti v2.15.0 izdanje.' }
-          foreach ($name in $remove) {
-            if (@($old.assets | Where-Object { $_.name -eq $name }).Count -gt 0) {
-              & gh release delete-asset $oldTag $name --repo $env:GITHUB_REPOSITORY --yes
-              if ($LASTEXITCODE -ne 0) { throw "Nije moguće ukloniti $name iz $oldTag." }
-            }
-          }
-          $after = (& gh release view $oldTag --repo $env:GITHUB_REPOSITORY --json assets) | ConvertFrom-Json
-          foreach ($name in $remove) {
-            if (@($after.assets | Where-Object { $_.name -eq $name }).Count -ne 0) { throw "Neželjeni asset je i dalje prisutan: $name" }
-          }
-          Write-Host 'V2_15_CUSTOM_ASSET_CLEANUP=PASS'
       - name: Objavi ili sigurno nadopuni GitHub izdanje
         shell: pwsh
         env:
@@ -265,7 +364,9 @@ jobs:
             'release\RELEASE-NOTES.txt',
             'release\BUILD-METADATA.txt'
           )
-          foreach ($asset in $assets) { if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Nedostaje release asset: $asset" } }
+          foreach ($asset in $assets) {
+            if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Nedostaje release asset: $asset" }
+          }
           & .\scripts\publish_release.ps1 -Repository $env:GITHUB_REPOSITORY -Version $env:VERSION -Commit $env:GITHUB_SHA -NotesFile 'release\RELEASE-NOTES.txt' -Assets $assets
       - name: Spremi kompletni release artefakt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -281,11 +382,13 @@ jobs:
           foreach ($name in @(
             "ByFTP-$env:VERSION-Portable-x64.exe","ByFTP-$env:VERSION-Setup-x64.exe","ByFTP-$env:VERSION-Windows-x64.zip",
             "ByFTP-$env:VERSION-Portable-x86.exe","ByFTP-$env:VERSION-Setup-x86.exe","ByFTP-$env:VERSION-Windows-x86.zip",
-            'SHA256.txt','RELEASE-NOTES.txt','BUILD-METADATA.txt')) { Copy-Item (Join-Path 'release' $name) 'package\assets\' -Force }
+            'SHA256.txt','RELEASE-NOTES.txt','BUILD-METADATA.txt')) {
+            Copy-Item (Join-Path 'release' $name) 'package\assets\' -Force
+          }
           @"
           # ByFTP.Windows $env:VERSION
 
-          Službeni ByFTP Windows x64 i x86 distribucijski paket tvrtke Brendigo. Standalone uninstaller i interni verification izvještaj nisu javni package asseti.
+          Službeni ByFTP Windows distribucijski paket tvrtke Brendigo za x64 i x86. Sadrži samo javne Windows pakete i provjerene release metapodatke.
           "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
           @"
           <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><PackageId>ByFTP.Windows</PackageId><Version>$env:VERSION</Version><Authors>Brendigo</Authors><Company>Brendigo</Company><Description>ByFTP Windows x64 i x86 FTP/FTPS/SFTP distribucijski paket.</Description><PackageTags>byftp;ftp;ftps;sftp;windows;brendigo;privacy</PackageTags><PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl><RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl><RepositoryType>git</RepositoryType><PackageLicenseFile>LICENSE</PackageLicenseFile><PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance><SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup><ItemGroup><None Include="assets\**\*" Pack="true" PackagePath="tools\" /><None Include="PACKAGE-README.md" Pack="true" PackagePath="\" /><None Include="..\LICENSE" Pack="true" PackagePath="\" /><None Include="..\docs\*.md" Pack="true" PackagePath="docs\" /></ItemGroup></Project>

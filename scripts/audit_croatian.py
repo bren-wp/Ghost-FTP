@@ -78,7 +78,13 @@ def main() -> int:
             if phrase in text:
                 fail(f"pronađen je engleski korisnički tekst {phrase!r} u {path.relative_to(ROOT)}")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    for required in [f"Trenutačno izdanje: {version}", "Preuzimanje", "Mogućnosti", "Dokumentacija"]:
+    for required in [
+        f"Trenutačno izdanje: {version}",
+        "## Preuzimanje",
+        "## Instalacija, nadogradnja i uklanjanje",
+        "## Sigurnost transfera",
+        "## Dokumentacija",
+    ]:
         if required not in readme:
             fail(f"README nema obavezni hrvatski tekst: {required}")
     protocols = (ROOT / "internal" / "desktop" / "protocols_windows.go").read_text(encoding="utf-8")

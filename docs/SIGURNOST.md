@@ -2,37 +2,44 @@
 
 ## Cilj
 
-ByFTP je klijent kojem korisnik izričito daje endpoint i vjerodajnicu. Sigurnosni model zato prioritet daje pravilnom vezivanju tajni uz endpoint, strogoj SFTP host-key provjeri, no-follow datotečnim operacijama i fail-closed release procesu.
+ByFTP je klijent kojem korisnik izričito daje endpoint i vjerodajnicu. Sigurnosni model prioritet daje pravilnom vezivanju tajni uz endpoint, strogoj SFTP host-key provjeri, no-follow datotečnim operacijama, izolaciji transfera i fail-closed produkcijskom release procesu.
 
 ## Pouzdano povezivanje
 
-Veza nije „uspješna” kada je samo pokrenut curl/OpenSSH proces. `remote.Manager.Connect` mora dovršiti autentikaciju i početni remote `List` probe. Tek tada vraća `Connected=true`.
+Veza nije „uspješna” kada je samo pokrenut curl/OpenSSH proces. `remote.Manager.Connect` mora dovršiti autentikaciju i početni udaljeni `List` probe. Tek tada vraća `Connected=true`.
 
-### OpenSSH BatchMode regresija
+### OpenSSH BatchMode granica
 
-ByFTP ne koristi `sftp -b`. Aktualni OpenSSH pri `-b` postavlja batch način rada i dodaje `BatchMode=yes`, što može onemogućiti password/passphrase AskPass čak i ako je ranije naveden `BatchMode=no`.
+ByFTP ne koristi SFTP batch način koji bi prisilno uključio `BatchMode=yes` i time mogao onemogućiti password/passphrase AskPass.
 
-Sigurnosna invarijanta zato zahtijeva:
+Sigurnosna invarijanta zahtijeva:
 
-- `-oBatchMode=no`
-- zabranu `-b` u SFTP command args
+- `-oBatchMode=no` na Windows AskPass putu
 - naredbe preko stdin-a
-- regresijski test koji pada čim se `-b` ponovno uvede
+- regresiju koja pada čim se vrati konfliktni batch način
 
 ### Process-level connect smoke
 
-Od 2.16.1 nije dovoljan samo unit test sastavljenih argumenata. Ne-Windows testni sloj stvarno pokreće lokalne child procese preko produkcijskog `exec.CommandContext` puta:
+Ne-Windows testni sloj stvarno pokreće lokalne child procese kroz isti `exec.CommandContext` put kao produkcijski adapter.
 
-- FTP/FTPS smoke potvrđuje runtime-secret token, curl config preko stdin-a, MLSD odgovor, parser i wipe-on-close
-- SFTP smoke prekida test ako vidi `-b`, zahtijeva `ls -la` na stdin-u i vraća listing koji prolazi produkcijski parser
-- testni procesi ne kontaktiraju mrežu i ne koriste stvarne vjerodajnice
-- Linux i macOS CI izvršavaju iste smoke regresije na vlastitim runnerima prije izrade install paketa
+FTP/FTPS smoke potvrđuje:
 
-`scripts/audit_security.py` zahtijeva postojanje tih testova i ključnih markera, pa ih refaktor ne može neprimjetno ukloniti.
+- runtime-secret token
+- curl config preko stdin-a
+- MLSD odgovor i parser
+- wipe-on-close
+
+SFTP smoke potvrđuje:
+
+- sigurne process argumente
+- SFTP naredbu preko stdin-a
+- produkcijski listing parser
+
+Testni procesi ne kontaktiraju vanjsku mrežu i ne koriste stvarne vjerodajnice. Linux i macOS CI izvršavaju te regresije na svojim runnerima prije pakiranja.
 
 ### Timeout i otkazivanje
 
-`curl`, `sftp`, `ssh-keyscan` i `ssh-keygen` vraćaju stvarni `context.Canceled` ili `context.DeadlineExceeded` kada ih context prekine. UI tako ne mora zaključivati uzrok samo iz teksta vanjskog alata.
+`curl`, `sftp`, `ssh-keyscan` i `ssh-keygen` vraćaju stvarni `context.Canceled` ili `context.DeadlineExceeded` kada ih context prekine. UI ne mora zaključivati uzrok samo iz teksta vanjskog alata.
 
 ### IPv6
 
@@ -48,29 +55,29 @@ Bracketirani IPv6 unos prihvaća se kao korisnički host, ali se `[]` uklanjaju 
 - AskPass helper provjerava vlastiti executable, jednokratni token i očekivani System32 OpenSSH parent
 - AskPass daje password samo `password` promptu, passphrase samo `passphrase` promptu
 - MFA, OTP, security-key i nepoznati promptovi ne dobivaju spremljenu tajnu
-- UI ne briše upravo unesenu tajnu prije rezultata spajanja; kontrola je zaključana tijekom pokušaja, a sadržaj se briše nakon potvrđenog `Connected` stanja
+- UI ne briše upravo unesenu tajnu prije rezultata spajanja; sadržaj se briše nakon potvrđenog `Connected` stanja
 
 ### Linux/macOS
 
-FTP/FTPS aktivna lozinka ne sprema se u profil ili datoteku. `ProtectRuntimeString` stvara kriptografski nasumični token i čuva vrijednost samo u procesu. Adapter drži token, `run()` dobiva kratkotrajnu kopiju i briše je, a `Close()` uklanja i briše spremljenu procesnu vrijednost. Process-level smoke test dodatno potvrđuje da tajna više nije dostupna nakon `Close()`.
+FTP/FTPS aktivna lozinka ne sprema se u profil ili datoteku. `ProtectRuntimeString` stvara kriptografski nasumični token i čuva vrijednost samo u procesu. Adapter drži token, `run()` dobiva kratkotrajnu kopiju i briše je, a `Close()` uklanja i briše procesnu vrijednost.
 
-SFTP na Linuxu/macOS-u trenutačno je namjerno ograničen na eksplicitni privatni ključ bez passphrasea. Password/passphrase SFTP odbija se prije mrežnog pokušaja dok Unix AskPass broker nije dovršen. To je sigurnije od privremenog slanja tajne kroz argument ili običan environment.
+SFTP na Linuxu/macOS-u trenutačno je namjerno ograničen na eksplicitni privatni ključ bez passphrasea. Password/passphrase SFTP odbija se prije mrežnog pokušaja dok Unix credential broker nije sigurnosno dovršen.
 
 ## Profilni identitet
 
 Windows profilne tajne koriste `internal/profilebinding`:
 
-- endpoint: protokol + normalizirani host + port
-- account: endpoint + korisničko ime
-- private-key identitet: account + privatni ključ
+- endpoint = protokol + normalizirani host + port
+- account = endpoint + korisničko ime
+- private-key identitet = account + privatni ključ
 
-Lozinka se ne prenosi na drugi account, passphrase na drugi ključ, a SFTP host-key pin na drugi endpoint. Prazna key putanja je autoritativna i ne smije vratiti stari spremljeni ključ.
+Lozinka se ne prenosi na drugi account, passphrase na drugi ključ, a SFTP host-key pin na drugi endpoint. Prazna putanja privatnog ključa je autoritativna i ne smije vratiti staru spremljenu vrijednost.
 
 ## SFTP host-key trust
 
 SFTP spajanje prvo skenira host key, računa SHA-256 fingerprint i veže sesiju uz konkretni odabrani algoritam. `known_hosts` i OpenSSH session config kratkotrajni su i privatni.
 
-Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta/porta ne može prepisati pin originalnog profila.
+Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta ili porta ne može naslijediti ili prepisati pin drugog profila.
 
 ## Vanjski mrežni alati
 
@@ -105,17 +112,39 @@ Transfer posao pamti connection generation i opaque connection identity. Retry n
 
 State safe-open provjerava regularnost i stabilnost stvarno otvorene datoteke. Nepouzdani current zapis ne mora srušiti startup: koristi se provjerena prethodna generacija ili zadane vrijednosti.
 
+## Go toolchain build privatnost
+
+Go 1.23+ ima zasebnu telemetry postavku. `GOTELEMETRY` je vrijednost koju `go env` prijavljuje; obična OS env varijabla nije pouzdan način za gašenje prikupljanja.
+
+ByFTP produkcijski CI i release workflow zato izvršavaju:
+
+```text
+go telemetry off
+```
+
+i potvrđuju da `go telemetry` vraća `off` prije testova/builda.
+
+Produkcijske build skripte dodatno odbijaju rad ako telemetry mode nije `off`. Lokalne skripte ne mijenjaju globalnu Go postavku potajno, nego korisniku jasno kažu koju naredbu treba izvršiti.
+
+Ovo se odnosi na Go **build toolchain**, ne na ByFTP runtime. ByFTP aplikacija sama nema ugrađenu telemetriju.
+
 ## Release sigurnost
 
+2.16.2 dodatno učvršćuje release granicu:
+
 - `VERSION` je jedini kanonski broj
-- quality job: docs/security/privacy/release auditi + Python testovi + Go unit/race/vet
-- Windows job: x64 i x86 production build
-- Linux job: Go test/vet na Linuxu + amd64, arm64 i i386 DEB
-- macOS job: Go test/vet na macOS-u + Universal Intel+Apple Silicon PKG
-- Windows ZIP se verificira nakon kompresije i ne smije sadržavati interni uninstaller/verification report
+- automatski release okidač je samo promjena `VERSION` na `main`
+- tag koji publisher izradi ne pokreće novi release workflow
+- svi release runovi dijele jednu `byftp-release` concurrency grupu
+- zaseban release quality job ponovno pokreće audite, Python regresije, unit, race i vet
+- Windows job gradi i verificira x64 i x86
+- Linux job testira i gradi amd64, arm64 i i386 DEB
+- macOS job testira i gradi Universal Intel+Apple Silicon PKG
+- publish čeka sva četiri joba
+- release staging mora imati točno 10 očekivanih platformskih paketa
 - centralni publisher veže tag uz točan commit i uspoređuje postojeći asset po veličini i SHA-256 digestu
-- release rerun smije nadopuniti samo nedostajući potvrđeni asset
-- custom Source ZIP, standalone Uninstaller i `verification.txt` nisu javni asseti
+- rerun smije nadopuniti samo nedostajući potvrđeni asset
+- dodatni ili neočekivani javni asset zaustavlja izdanje
 
 ## Potpisivanje
 
@@ -123,4 +152,8 @@ Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brend
 
 ## Automatizirani gate
 
-`scripts/audit_security.py` zaključava SFTP BatchMode, process-level connect smoke, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem granice. `scripts/audit_release.py` zasebno zaključava platforme i javni asset ugovor.
+`scripts/audit_security.py` zaključava SFTP procesne granice, connect smoke, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem zaštite.
+
+`scripts/audit_privacy.py` zaključava runtime mrežnu politiku i stvarno gašenje Go build telemetrije.
+
+`scripts/audit_release.py` zaključava single-trigger/serialized release model, production quality gate, platformsku matricu, staging allowlist i završni javni asset ugovor.

@@ -1,5 +1,27 @@
 # ByFTP — testiranje
 
+## Cilj
+
+ByFTP testni sustav mora dokazati više od same kompilacije. Obavezno pokriva tipizirani engine, mrežne adaptere, child-process plumbing, transfer/session lifecycle, datotečne granice, privatnost, dokumentaciju i završno pakiranje za svaku podržanu platformu.
+
+## Go toolchain telemetrija prije testova
+
+Produkcijski CI i release workflow prije Go testova izvršavaju:
+
+```bash
+go telemetry off
+```
+
+i zahtijevaju da:
+
+```bash
+go telemetry
+```
+
+vrati `off`.
+
+Produkcijske build skripte dodatno odbijaju rad u `local` ili `on` načinu. Obična OS env varijabla nije zamjena za stvarnu Go telemetry postavku.
+
 ## Obavezne provjere
 
 ```text
@@ -16,7 +38,7 @@ go test -race ./...
 go vet ./...
 ```
 
-Platform-specific buildovi:
+Platformni buildovi:
 
 ```powershell
 .\BUILD-WINDOWS.ps1
@@ -27,53 +49,118 @@ bash scripts/BUILD-LINUX.sh
 bash scripts/BUILD-MACOS.sh   # na macOS-u
 ```
 
-## CI gateovi
+## Pull-request CI gateovi
 
-GitHub CI prije mergea ima četiri neovisna joba:
+GitHub CI prije mergea ima četiri neovisna joba.
 
-1. **Quality / Linux** — asset, hrvatski, version, docs, security, privacy i release auditi; Python release regresije; `go test`, `go test -race`, `go vet`; generiranje release notes.
-2. **Windows x64+x86** — puni `BUILD-WINDOWS.ps1`, PE32/PE32+ resursi, manifest, mitigacije i interne verifikacijske datoteke.
-3. **Linux DEB** — prvo izvršava `go test ./...` i `go vet ./...` na Linux runneru, zatim stvarno gradi amd64, arm64 i i386 `.deb` te provjerava package/version/architecture metapodatke s `dpkg-deb`.
-4. **macOS Universal** — na stvarnom `macos-14` runneru prvo izvršava `go test ./...` i `go vet ./...`, zatim gradi Intel i Apple Silicon binarije, spaja ih `lipo` alatom, radi `.icns`, `ByFTP.app` i Universal `.pkg` te provjerava PKG strukturu.
+### Quality / Linux
 
-Merge nije spreman dok **sva četiri** joba nisu zelena.
+Provjerava:
 
-## Povezivanje
+- brand resurse
+- hrvatski sadržaj
+- verzijsku konzistentnost
+- dokumentaciju
+- sigurnosne invarijante
+- privatnost
+- release arhitekturu
+- Python regresije release alata
+- Go unit testove
+- Go race detector
+- `go vet`
+- generiranje release bilješki
 
-2.16.1 dodatno zaključava stvarni connect put:
+### Windows x64+x86
 
-- `TestSFTPCommandArgsKeepAskPassEnabled` zahtijeva `BatchMode=no` i zabranjuje `sftp -b`
-- `TestCurlFTPProcessSmokeUsesRuntimeSecretAndParsesListing` stvarno pokreće lažni `curl` child proces preko produkcijskog `exec.CommandContext` puta, provjerava runtime tajnu u config stdin-u, MLSD odgovor, parser i wipe-on-close
-- `TestSFTPProcessSmokeUsesStdinWithoutBatchMode` stvarno pokreće lažni `sftp` child proces, odbija svaki `-b`, zahtijeva `ls -la` kroz stdin i provjerava parser udaljenog listinga
-- oba process smoke testa izvršavaju se na Linuxu i macOS-u prije izrade instalacijskih paketa
-- AskPass regresije potvrđuju password/passphrase odabir i odbijanje MFA/OTP/security-key promptova
-- IPv6 regresija potvrđuje uklanjanje `[]` prije OpenSSH `HostName`
-- non-Windows OpenSSH regresija potvrđuje `sftp`, `ssh-keyscan` i `ssh-keygen` nativne nazive bez `.exe`
-- usererror testovi razlikuju timeout, auth, host-key scan i session-closing stanje
-- connect se smatra uspješnim tek nakon remote `List` probea
+Pokreće puni `BUILD-WINDOWS.ps1`, koji dodatno:
 
-Process smoke testovi **ne kontaktiraju vanjsku mrežu**. Koriste kratkotrajne lokalne testne executable datoteke i produkcijski adapter/process plumbing, pa reproducibilno provjeravaju prijenos konfiguracije, stdin, cleanup i parser bez stvarnih vjerodajnica ili servera.
+- zahtijeva Go 1.26.5+
+- zahtijeva stvarno ugašenu Go telemetriju
+- gradi x64 i x86
+- provjerava Portable i Setup PE datoteke
+- provjerava resurse, manifest i sigurnosne mitigacije
+- čuva tehnički verification dokaz samo u CI/internal sloju
 
-## Runtime vjerodajnice
+### Linux
 
-- Windows testovi i sigurnosni audit čuvaju DPAPI + trusted-parent AskPass model
-- Linux/macOS runtime-secret spremište koristi nasumični token, procesnu mapu i wipe-on-forget
-- process-level FTP smoke dokazuje da se aktivna tajna može koristiti u mrežnom adapteru i više nije dostupna nakon `Close()`
-- terminalni frontend namjerno odbija SFTP password/passphrase prije mrežnog pokušaja dok Unix AskPass broker nije sigurnosno dovršen
-- FTP/FTPS terminalni unos ne prikazuje lozinku (`stty -echo`)
+Na stvarnom Linux runneru prije pakiranja izvršava:
 
-## Profili i trust
+```text
+go test ./...
+go vet ./...
+```
 
-Testovi pokrivaju endpoint/account/private-key identity, zabranu prijenosa spremljene lozinke na drugi host/port/korisnika, passphrasea na drugi ključ, očuvanje/reset host-key pina, autoritativno brisanje privatnog ključa i čišćenje mrtvih blobova.
+Zatim gradi amd64, arm64 i i386 DEB te `dpkg-deb` provjerava package ID, verziju i arhitekturu.
+
+### macOS
+
+Na stvarnom macOS runneru prije pakiranja izvršava Go testove i `go vet`, zatim gradi Intel + Apple Silicon Universal PKG i provjerava njegovu strukturu s `pkgutil`.
+
+Merge nije spreman dok sva četiri joba nisu zelena.
+
+## Process-level connect smoke testovi
+
+Unit test koji samo uspoređuje niz argumenata nije dovoljan za kritični connect put. Zbog toga `internal/remote/process_connect_smoke_other_test.go` stvarno pokreće lokalne child procese kroz produkcijski `exec.CommandContext` put.
+
+### FTP/FTPS smoke
+
+`TestCurlFTPProcessSmokeUsesRuntimeSecretAndParsesListing` potvrđuje:
+
+- aktivna tajna nije plaintext polje adaptera
+- runtime secret token se može otključati samo tijekom aktivne sesije
+- curl config ide kroz standardni ulaz
+- credential nije command-line argument
+- MLSD odgovor prolazi stvarni parser
+- `Close()` briše aktivnu runtime tajnu
+
+### SFTP smoke
+
+`TestSFTPProcessSmokeUsesStdinWithoutBatchMode` potvrđuje:
+
+- child proces ne dobiva batch način koji bi ugasio AskPass
+- `BatchMode=no` sigurnosni ugovor ostaje očuvan
+- `ls -la` naredba stvarno dolazi kroz stdin
+- povratni listing prolazi produkcijski parser
+
+Smoke testovi ne kontaktiraju vanjsku mrežu i ne koriste stvarne vjerodajnice. Lažni lokalni procesi služe samo kao deterministični adapter boundary.
+
+## SFTP i AskPass regresije
+
+Testovi dodatno zahtijevaju:
+
+- SHA-256 host-key trust tok
+- endpoint-scoped host-key pin
+- bracketirani IPv6 host normalizaciju
+- nativne OpenSSH nazive alata izvan Windowsa
+- password prompt dobiva samo password
+- passphrase prompt dobiva samo passphrase
+- MFA/OTP/security-key/nepoznati prompt ne dobiva spremljenu tajnu
+- timeout/cancel vraća stvarni `context` uzrok
+
+## Profili i vjerodajnice
+
+Regresije pokrivaju:
+
+- endpoint = protokol + normalizirani host + port
+- account = endpoint + korisničko ime
+- private-key identity = account + putanja ključa
+- zabranu automatskog slanja stare lozinke drugom accountu
+- zabranu prijenosa passphrasea na drugi privatni ključ
+- očuvanje pina na istom endpointu
+- reset pina nakon promjene endpointa
+- autoritativno brisanje privatnog ključa
+- čišćenje credential blobova koji više ne pripadaju profilu
 
 ## Remote/session lifecycle
 
 Regresije zahtijevaju:
 
-- aktivna `Operation` referenca čuva adapter živim do `release()`
+- svaka aktivna `Operation` drži adapter živim do `release()`
 - `release()` je idempotentan
-- disconnect otkazuje session context prije zatvaranja adaptera
-- caller timeout vraća kontrolu bez prisilnog closea ispod aktivne operacije
+- disconnect prvo blokira nove operacije
+- session context se otkazuje prije konačnog zatvaranja
+- adapter se ne zatvara ispod aktivne operacije
+- caller timeout vraća kontrolu bez rušenja aktivnog cleanup procesa
 - deferred cleanup blokira reconnect do stvarnog završetka
 - drugi disconnect koristi isti close-state
 
@@ -81,24 +168,81 @@ Regresije zahtijevaju:
 
 Pokriveni su:
 
-- connection generation i cross-server retry blokada
-- late-cancel status nakon uspjeha ili `ErrSkipped`
+- connection generation i cross-server retry izolacija
+- late-cancel nakon uspjeha ili `ErrSkipped`
+- lokalni i udaljeni path validation
 - symlink/junction/reparse traversal
-- download staging regular-file provjera
+- staging regular-file provjera
 - no-replace backup/rollback
-- filesystem-root zabrana brisanja
-- recursive depth/item limiti
-- veliki direktoriji i redovi do javnih limita
-- FTP MLSD/fallback parser, DOS listing i sigurno parsiranje veličina
+- filesystem-root zabrana rekurzivnog brisanja
+- depth/item limiti
+- veliki direktoriji i transfer redovi
+- FTP MLSD/fallback parser
+- DOS-style listing
+- sigurno parsiranje veličina
 
 ## Release regresije
 
-`test_release_tools.py` gradi privremene x64 i x86 Windows ZIP fixturee. Pozitivan fixture mora proći; traversal, hash mismatch, nepopisana datoteka te interni standalone uninstaller/verification file moraju pasti.
+`test_release_tools.py` gradi kontrolirane Windows ZIP fixturee i provjerava da bundle verifier odbija:
 
-`verify_bundle.py` provjerava stvarni komprimirani ZIP bez ekstrakcije na disk i zahtijeva točan `BUNDLE-SHA256.txt` manifest.
+- path traversal
+- absolute/drive putanje
+- duplicirane putanje
+- hash mismatch
+- nepopisanu datoteku
+- tehničku datoteku koja ne pripada javnom bundleu
 
-`audit_release.py` zaključava 13 javnih asseta: šest Windows, tri Linux, jedan macOS te SHA256/release notes/build metadata. Custom Source ZIP, standalone Uninstaller i `verification.txt` ne smiju se vratiti u javni `$assets` blok.
+`verify_bundle.py` čita ZIP bez ekstrakcije nepouzdanih putanja na disk i zahtijeva potpun `BUNDLE-SHA256.txt`.
+
+`audit_release.py` zaključava:
+
+- jedan autoritativni release okidač
+- jednu release concurrency grupu
+- zaseban production quality/race job
+- točno 10 platformskih staging paketa
+- točno 13 završnih custom asseta
+- Windows x64/x86, Linux amd64/arm64/i386 i macOS Universal podršku
+- centralni fail-closed publisher
+
+## Release workflow nije kopija PR CI-ja
+
+Produkcijski release ponovno izvršava vlastiti quality job. To znači da javno izdanje ne ovisi o pretpostavci da je prethodni PR check bio zelen ili da se `main` može mijenjati samo kroz PR.
+
+`publish` čeka:
+
+1. production quality/race gate
+2. Windows build
+3. Linux build
+4. macOS build
+
+Tek tada smije generirati završne metapodatke i objaviti release.
+
+## Build skripte i minimalni Go
+
+Windows, Linux, macOS i lokalni produkcijski build zahtijevaju Go **1.26.5+**. Buildovi koriste lokalni toolchain i ne smiju automatski preuzimati Go module ili zamjenski toolchain.
 
 ## Verzija i dokumentacija
 
-`audit_version.py` zahtijeva da Windows, Linux, macOS i lokalni buildovi čitaju isti `VERSION` i ugrađuju ga u runtime. `audit_docs.py` provjerava sve lokalne poveznice i da je svaki `docs/*.md` dokument indeksiran u `docs/README.md` i glavnom README-u.
+`audit_version.py` zahtijeva da svi buildovi čitaju isti `VERSION` i ugrađuju ga u runtime.
+
+`audit_docs.py` provjerava:
+
+- lokalne Markdown/HTML poveznice
+- izlazak linka iz repozitorija
+- indeksiranje svakog `docs/*.md` dokumenta
+- zastarjele verzionirane naslove detaljnih dokumenata
+
+`audit_release.py` dodatno sprječava da se glavni README, instalacijske upute ili generirane release bilješke vrate na zastarjeli javni paketni model.
+
+## Pre-release test sa stvarnim serverom
+
+Lokalni process smoke je deterministična regresija, ali ne zamjenjuje kontrolirani završni test protiv stvarnog FTP/FTPS/SFTP poslužitelja.
+
+Prije šire javne distribucije preporučeni su:
+
+- Windows x64 FTP/FTPS/SFTP test
+- Windows x86 osnovni test gdje je dostupan sustav
+- Linux FTP/FTPS i SFTP-key test
+- macOS FTP/FTPS i SFTP-key test
+
+Stvarne produkcijske vjerodajnice ne smiju završiti u repozitoriju, Actions secrets logovima, fixtureima ili issue/PR sadržaju.

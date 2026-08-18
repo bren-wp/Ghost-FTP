@@ -14,7 +14,6 @@ env:
   GOTOOLCHAIN: local
   GOPROXY: off
   GOSUMDB: off
-  GOTELEMETRY: off
 
 jobs:
   test:
@@ -34,6 +33,12 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
+      - name: Isključi i potvrdi Go telemetriju
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
       - name: Provjeri slikovne resurse
         run: python scripts/generate_brand_assets.py --check
       - name: Provjeri hrvatski korisnički sadržaj
@@ -81,6 +86,12 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
+      - name: Isključi i potvrdi Go telemetriju
+        shell: pwsh
+        run: |
+          go telemetry off
+          if ($LASTEXITCODE -ne 0) { throw 'Nije moguće isključiti Go telemetriju.' }
+          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetrija nije isključena.' }
       - name: Provjeri sintaksu release publishera
         shell: pwsh
         run: |
@@ -121,6 +132,12 @@ jobs:
           go-version: '1.26.5'
           check-latest: false
           cache: false
+      - name: Isključi i potvrdi Go telemetriju
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
       - name: Linux connect smoke, unit i vet
         shell: bash
         run: |
@@ -155,6 +172,12 @@ jobs:
           go-version: '1.26.5'
           check-latest: false
           cache: false
+      - name: Isključi i potvrdi Go telemetriju
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
       - name: macOS connect smoke, unit i vet
         shell: bash
         run: |

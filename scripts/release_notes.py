@@ -26,21 +26,21 @@ def extract_section(changelog: str, version: str) -> str:
 def build_notes(version: str, section: str) -> str:
     return f"""ByFTP {version}
 
-FTP / FTPS / SFTP klijent tvrtke Brendigo za Windows, Linux i macOS.
+Privatan FTP / FTPS / SFTP klijent tvrtke Brendigo za Windows, Linux i macOS.
 
 Najvažnije promjene
 -------------------
 {section}
 
-Datoteke za preuzimanje
------------------------
+Službeni paketi
+---------------
 Windows:
-- Setup x64 EXE: preporučena 64-bitna instalacija
+- Setup x64 EXE: preporučena instalacija za 64-bitni Windows 10/11
 - Portable x64 EXE: 64-bitno pokretanje bez instalacije
-- Windows x64 ZIP: provjereni 64-bitni paket s dokumentacijom
-- Setup x86 EXE: 32-bitna instalacija za kompatibilne Windows sustave
+- Windows x64 ZIP: Setup + Portable + dokumentacija i bundle checksumovi
+- Setup x86 EXE: instalacija za podržani 32-bitni Windows
 - Portable x86 EXE: 32-bitno pokretanje bez instalacije
-- Windows x86 ZIP: provjereni 32-bitni paket s dokumentacijom
+- Windows x86 ZIP: Setup + Portable + dokumentacija i bundle checksumovi
 
 Linux:
 - Linux amd64 DEB
@@ -48,16 +48,23 @@ Linux:
 - Linux i386 DEB
 
 macOS:
-- macOS Universal PKG: Intel + Apple Silicon
+- macOS Universal PKG: Intel x86_64 + Apple Silicon arm64
 
-Zajedničko:
-- SHA256.txt: kontrolni sažeci objavljenih paketa
+Provjera izdanja:
+- SHA256.txt: SHA-256 svih javnih paketa i zajedničkih release metapodataka
 - RELEASE-NOTES.txt: ove bilješke izdanja
-- BUILD-METADATA.txt: podrijetlo commita i buildova
+- BUILD-METADATA.txt: verzija, release commit i podaci produkcijskog build runa
 
-Standalone Uninstaller, interni verification izvještaj i dodatni ByFTP Source ZIP nisu javni release asseti. GitHub i dalje automatski prikazuje vlastite Source code ZIP/TAR poveznice za svaki tag.
+Preporuka prije instalacije
+---------------------------
+1. Preuzmite paket koji odgovara operacijskom sustavu i arhitekturi.
+2. Usporedite SHA-256 preuzetog paketa sa službenim SHA256.txt.
+3. Windows korisnici za uobičajenu instalaciju trebaju odabrati Setup paket; Portable je namijenjen radu bez instalacije.
+4. Linux i macOS izdanje koriste terminalno sučelje nad istim ByFTP engineom i sigurnosnim transfer slojem.
 
-Windows binariji nisu Authenticode potpisani bez stvarnog Brendigo code-signing certifikata, a macOS paket nije Developer ID potpisan bez stvarnog Apple certifikata. Provjerite SHA-256 prije distribucije.
+Sigurnost potpisa
+-----------------
+Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS PKG nije Developer ID potpisan/notariziran bez stvarnog Apple certifikata. Workflow ne fabricira publisher identitet; SHA-256 i release provenance ostaju obavezni dio izdanja.
 """
 
 
