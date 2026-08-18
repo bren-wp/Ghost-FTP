@@ -21,15 +21,15 @@ import (
 )
 
 type CurlFTP struct {
-	protocol             string
-	host                 string
-	username             string
-	passwordBlob         string
-	port                 int
-	connectTimeout       int
-	curl                 string
-	revokeBestEffort     bool
-	mlsdState            atomic.Int32
+	protocol         string
+	host             string
+	username         string
+	passwordBlob     string
+	port             int
+	connectTimeout   int
+	curl             string
+	revokeBestEffort bool
+	mlsdState        atomic.Int32
 }
 
 func NewCurlFTP(protocol, host string, port int, username, password string) (*CurlFTP, error) {
@@ -64,7 +64,7 @@ func newCurlFTPWithProtectedSecret(protocol, host string, port int, username, pa
 		passwordBlob:     passwordBlob,
 		connectTimeout:   connectTimeout,
 		curl:             p,
-		revokeBestEffort: curlSupportsRevokeBestEffort(p),
+		revokeBestEffort: protocolNeedsRevokeCapability(protocol) && curlSupportsRevokeBestEffort(p),
 	}, nil
 }
 
