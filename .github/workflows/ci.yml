@@ -20,7 +20,7 @@ jobs:
   test:
     name: Testovi, race, vet, sigurnost, privatnost, dokumentacija i release integritet
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Dohvati izvorni kod
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,9 +65,9 @@ jobs:
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
 
   windows-build:
-    name: Windows produkcijski build
+    name: Windows x64 i x86 produkcijski build
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Dohvati izvorni kod
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -91,15 +91,72 @@ jobs:
             $parseErrors | ForEach-Object { Write-Error $_.Message }
             throw 'publish_release.ps1 ima PowerShell sintaksnu grešku.'
           }
-      - name: Izgradi i provjeri
+      - name: Izgradi i provjeri x64 i x86
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
-      - name: Spremi nepotpisane verifikacijske artefakte
+      - name: Spremi interne build dokaze
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-windows-nepotpisano
+          name: byftp-windows-ci
           if-no-files-found: error
           retention-days: 7
           path: |
-            dist/*.exe
-            dist/*.txt
+            dist/ByFTP-*-Portable-x64.exe
+            dist/ByFTP-*-Setup-x64.exe
+            dist/ByFTP-*-Portable-x86.exe
+            dist/ByFTP-*-Setup-x86.exe
+            dist/internal/verification-x64.txt
+            dist/internal/verification-x86.txt
+
+  linux-build:
+    name: Linux DEB amd64 arm64 i i386
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Dohvati izvorni kod
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Postavi Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Izgradi Linux instalacijske pakete
+        run: bash scripts/BUILD-LINUX.sh
+      - name: Provjeri DEB metapodatke
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          for arch in amd64 arm64 i386; do
+            pkg="dist/ByFTP-${version}-Linux-${arch}.deb"
+            test -s "$pkg"
+            test "$(dpkg-deb -f "$pkg" Package)" = 'byftp'
+            test "$(dpkg-deb -f "$pkg" Version)" = "$version"
+            test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
+          done
+
+  macos-build:
+    name: macOS Universal PKG
+    runs-on: macos-14
+    timeout-minutes: 25
+    steps:
+      - name: Dohvati izvorni kod
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Postavi Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Izgradi macOS Universal installer
+        run: bash scripts/BUILD-MACOS.sh
+      - name: Provjeri PKG strukturu
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          pkg="dist/ByFTP-${version}-macOS-Universal.pkg"
+          test -s "$pkg"
+          pkgutil --expand "$pkg" "$RUNNER_TEMP/byftp-pkg"
+          test -f "$RUNNER_TEMP/byftp-pkg/PackageInfo"
