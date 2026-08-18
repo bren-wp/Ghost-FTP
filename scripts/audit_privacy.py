@@ -144,8 +144,31 @@ def main() -> None:
         if marker in installer:
             fail(f"installer sadrži vanjski URL hook {marker}")
 
+    # GOTELEMETRY je read-only vrijednost koju `go env` samo prijavljuje; postavljanje
+    # istoimene OS env varijable nije valjan privacy guard. CI/release moraju stvarno
+    # izvršiti `go telemetry off`, a produkcijske skripte moraju odbiti drugi način.
+    ci = require(".github/workflows/ci.yml", ("go telemetry off", "Go telemetrija nije isključena"))
+    release = require(".github/workflows/release.yml", ("go telemetry off", "test \"$(go telemetry)\" = 'off'"))
+    for rel, text in ((".github/workflows/ci.yml", ci), (".github/workflows/release.yml", release)):
+        if re.search(r"(?m)^\s*GOTELEMETRY:\s*off\s*$", text):
+            fail(f"{rel} koristi neučinkoviti GOTELEMETRY env guard umjesto `go telemetry off`")
+
+    windows_build = require("BUILD-WINDOWS.ps1", ("$telemetryMode = (go telemetry).Trim()", "go telemetry off", "Go telemetrija mora biti isključena"))
+    linux_build = require("scripts/BUILD-LINUX.sh", ('telemetry="$(go telemetry)"', "go telemetry off", "Go telemetrija mora biti isključena"))
+    macos_build = require("scripts/BUILD-MACOS.sh", ('telemetry="$(go telemetry)"', "go telemetry off", "Go telemetrija mora biti isključena"))
+    local_build = require("scripts/BUILD-LOCAL.sh", ('GO_TELEMETRY="$(go telemetry)"', "go telemetry off", "Go telemetrija mora biti isključena"))
+    for rel, text in (
+        ("BUILD-WINDOWS.ps1", windows_build),
+        ("scripts/BUILD-LINUX.sh", linux_build),
+        ("scripts/BUILD-MACOS.sh", macos_build),
+        ("scripts/BUILD-LOCAL.sh", local_build),
+    ):
+        if "GOTELEMETRY=off" in text or "$env:GOTELEMETRY = 'off'" in text:
+            fail(f"{rel} se ponovno oslanja na neučinkovitu GOTELEMETRY env varijablu")
+
     print("PRIVACY_AUDIT=PASS")
     print("TELEMETRY=ABSENT")
+    print("GO_BUILD_TELEMETRY=OFF_REQUIRED_AND_CI_VERIFIED")
     print("FIXED_HTTP_API_ENDPOINTS=ABSENT")
     print("EXTERNAL_GO_MODULES=ABSENT")
     print("CURL_EXTERNAL_ENV_INHERITANCE=DISABLED")
