@@ -21,14 +21,15 @@ import (
 )
 
 type CurlFTP struct {
-	protocol       string
-	host           string
-	username       string
-	passwordBlob   string
-	port           int
-	connectTimeout int
-	curl           string
-	mlsdState      atomic.Int32
+	protocol             string
+	host                 string
+	username             string
+	passwordBlob         string
+	port                 int
+	connectTimeout       int
+	curl                 string
+	revokeBestEffort     bool
+	mlsdState            atomic.Int32
 }
 
 func NewCurlFTP(protocol, host string, port int, username, password string) (*CurlFTP, error) {
@@ -55,7 +56,16 @@ func newCurlFTPWithProtectedSecret(protocol, host string, port int, username, pa
 			return nil, err
 		}
 	}
-	return &CurlFTP{protocol: protocol, host: host, port: port, username: username, passwordBlob: passwordBlob, connectTimeout: connectTimeout, curl: p}, nil
+	return &CurlFTP{
+		protocol:         protocol,
+		host:             host,
+		port:             port,
+		username:         username,
+		passwordBlob:     passwordBlob,
+		connectTimeout:   connectTimeout,
+		curl:             p,
+		revokeBestEffort: curlSupportsRevokeBestEffort(p),
+	}, nil
 }
 
 func (c *CurlFTP) Protocol() string { return c.protocol }
@@ -124,12 +134,12 @@ func (c *CurlFTP) configFor(password []byte, lines []string) []byte {
 	if c.protocol == "ftps" {
 		cfg = appendConfigLine(cfg, "ssl-reqd")
 		cfg = appendConfigLine(cfg, "tlsv1.2")
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == "windows" && c.revokeBestEffort {
 			cfg = appendConfigLine(cfg, "ssl-revoke-best-effort")
 		}
 	} else if c.protocol == "ftpsi" {
 		cfg = appendConfigLine(cfg, "tlsv1.2")
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == "windows" && c.revokeBestEffort {
 			cfg = appendConfigLine(cfg, "ssl-revoke-best-effort")
 		}
 	}
