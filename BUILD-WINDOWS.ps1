@@ -36,9 +36,6 @@ if ($goVersion -lt $minimumGo) {
     throw "Za produkcijski ByFTP build potreban je Go $minimumGo ili noviji sigurnosni patch. Trenutačno: $rawGoVersion"
 }
 
-# GOTELEMETRY je read-only go env vrijednost. Produkcijski build ne prihvaća
-# local/on način rada. CI prije ove skripte izvršava `go telemetry off`; lokalni
-# graditelj mora isto učiniti svjesno kako skripta ne bi mijenjala globalnu Go postavku.
 $telemetryMode = (go telemetry).Trim()
 if ($LASTEXITCODE -ne 0 -or $telemetryMode -ne 'off') {
     throw "Go telemetrija mora biti isključena prije produkcijskog builda. Pokrenite: go telemetry off (trenutačno: $telemetryMode)"
@@ -78,9 +75,42 @@ Remove-Item -Recurse -Force $dist -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $dist, $internalDist, $payload | Out-Null
 Remove-Item "$payload\payload.zip" -Force -ErrorAction SilentlyContinue
 
-$ldflags = "-s -w -H=windowsgui -X main.version=$version"
+$guiLdflags = "-s -w -H=windowsgui -X main.version=$version"
+$consoleLdflags = "-s -w -X main.version=$version"
 $publicFiles = New-Object System.Collections.Generic.List[string]
 $verificationFiles = New-Object System.Collections.Generic.List[string]
+
+$clientSpecs = @(
+    @{ Name = 'FTP';  Path = './cmd/ftpclient';  Gui = $true  },
+    @{ Name = 'SFTP'; Path = './cmd/sftpclient'; Gui = $true  },
+    @{ Name = 'SSH';  Path = './cmd/sshclient';  Gui = $false },
+    @{ Name = 'S3';   Path = './cmd/s3client';   Gui = $false }
+)
+
+function Build-StandaloneClient {
+    param(
+        [Parameter(Mandatory = $true)][string]$GoArch,
+        [Parameter(Mandatory = $true)][ValidateSet('x64','x86')][string]$Label,
+        [Parameter(Mandatory = $true)][hashtable]$Spec
+    )
+
+    $name = $Spec.Name
+    $output = Join-Path $dist "ByFTP-$name-Client-$version-Portable-$Label.exe"
+    $verification = Join-Path $internalDist "verification-$($name.ToLowerInvariant())-$Label.txt"
+    $ldflags = if ($Spec.Gui) { $guiLdflags } else { $consoleLdflags }
+    $subsystem = if ($Spec.Gui) { 'gui' } else { 'console' }
+
+    Write-Host "      [$Label] $name Client"
+    go build -trimpath -buildvcs=false -ldflags $ldflags -o $output $Spec.Path
+    if ($LASTEXITCODE -ne 0) { throw "$name Client $Label build nije uspio." }
+    python scripts/pe_resources.py $output --ico $icon --version $version --role portable --original-filename (Split-Path -Leaf $output)
+    if ($LASTEXITCODE -ne 0) { throw "$name Client $Label PE resource obrada nije uspjela." }
+    python scripts/verify_client_pe.py $output --arch $Label --subsystem $subsystem | Tee-Object -FilePath $verification
+    if ($LASTEXITCODE -ne 0) { throw "$name Client $Label PE provjera nije prošla." }
+
+    $script:publicFiles.Add($output)
+    $script:verificationFiles.Add($verification)
+}
 
 function Build-ByFTPArchitecture {
     param(
@@ -94,56 +124,60 @@ function Build-ByFTPArchitecture {
     $portable = Join-Path $dist "ByFTP-$version-Portable-$Label.exe"
     $uninstall = Join-Path $internalDist "ByFTP-$version-Uninstall-$Label.exe"
     $setup = Join-Path $dist "ByFTP-$version-Setup-$Label.exe"
-    $verification = Join-Path $internalDist "verification-$Label.txt"
+    $verification = Join-Path $internalDist "verification-suite-$Label.txt"
 
-    Write-Host "      [$Label] Portable"
-    go build -trimpath -buildvcs=false -ldflags $ldflags -o $portable ./cmd/byftp
+    Write-Host "      [$Label] ByFTP Portable"
+    go build -trimpath -buildvcs=false -ldflags $guiLdflags -o $portable ./cmd/byftp
     if ($LASTEXITCODE -ne 0) { throw "Portable $Label build nije uspio." }
-    python scripts/pe_resources.py $portable --ico $icon --version $version --role portable --original-filename "ByFTP-$version-Portable-$Label.exe"
+    python scripts/pe_resources.py $portable --ico $icon --version $version --role portable --original-filename (Split-Path -Leaf $portable)
     if ($LASTEXITCODE -ne 0) { throw "PE resource obrada Portable $Label builda nije uspjela." }
 
-    Write-Host "      [$Label] Interni program za uklanjanje"
-    go build -trimpath -buildvcs=false -ldflags $ldflags -o $uninstall ./cmd/uninstaller
-    if ($LASTEXITCODE -ne 0) { throw "Interni program za uklanjanje $Label nije izgrađen." }
+    Write-Host "      [$Label] Interna komponenta uklanjanja"
+    go build -trimpath -buildvcs=false -ldflags $guiLdflags -o $uninstall ./cmd/uninstaller
+    if ($LASTEXITCODE -ne 0) { throw "Interna komponenta uklanjanja $Label nije izgrađena." }
     python scripts/pe_resources.py $uninstall --ico $icon --version $version --role uninstaller --original-filename 'Uninstall.exe'
-    if ($LASTEXITCODE -ne 0) { throw "PE resource obrada internog programa za uklanjanje $Label nije uspjela." }
+    if ($LASTEXITCODE -ne 0) { throw "PE resource obrada interne komponente uklanjanja $Label nije uspjela." }
 
     Write-Host "      [$Label] Instalacijski payload"
     python scripts/make_payload.py --app $portable --uninstaller $uninstall --output "$payload\payload.zip"
     if ($LASTEXITCODE -ne 0) { throw "Kompresija $Label instalacijskog payloada nije uspjela." }
 
-    Write-Host "      [$Label] Setup"
+    Write-Host "      [$Label] ByFTP Setup"
     try {
-        go build -trimpath -buildvcs=false -ldflags $ldflags -o $setup ./cmd/installer
+        go build -trimpath -buildvcs=false -ldflags $guiLdflags -o $setup ./cmd/installer
         if ($LASTEXITCODE -ne 0) { throw "Setup $Label build nije uspio." }
     } finally {
         Remove-Item "$payload\payload.zip" -Force -ErrorAction SilentlyContinue
     }
-    python scripts/pe_resources.py $setup --ico $icon --version $version --role setup --original-filename "ByFTP-$version-Setup-$Label.exe"
+    python scripts/pe_resources.py $setup --ico $icon --version $version --role setup --original-filename (Split-Path -Leaf $setup)
     if ($LASTEXITCODE -ne 0) { throw "PE resource obrada Setup $Label builda nije uspjela." }
 
-    Write-Host "      [$Label] PE, sigurnost i privatnost"
+    Write-Host "      [$Label] Suite PE, sigurnost i privatnost"
     python scripts/verify_release.py $setup $portable $uninstall --arch $Label | Tee-Object -FilePath $verification
-    if ($LASTEXITCODE -ne 0) { throw "Provjera $Label izdanja nije prošla." }
+    if ($LASTEXITCODE -ne 0) { throw "Provjera Suite $Label izdanja nije prošla." }
 
     $script:publicFiles.Add($portable)
     $script:publicFiles.Add($setup)
     $script:verificationFiles.Add($verification)
+
+    foreach ($spec in $clientSpecs) {
+        Build-StandaloneClient -GoArch $GoArch -Label $Label -Spec $spec
+    }
 }
 
-Write-Host '[6/10] Windows x64 produkcijski build'
+Write-Host '[6/10] Windows x64 — Suite + FTP/SFTP/SSH/S3'
 Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'
 
-Write-Host '[7/10] Windows x86 produkcijski build'
+Write-Host '[7/10] Windows x86 — Suite + FTP/SFTP/SSH/S3'
 Build-ByFTPArchitecture -GoArch '386' -Label 'x86'
 
-Write-Host '[8/10] SHA-256 javnih binarija'
+Write-Host '[8/10] SHA-256 interni dokaz svih javnih EXE datoteka'
 $hashLines = foreach ($file in ($publicFiles | Sort-Object)) {
     $item = Get-Item -LiteralPath $file
     $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $($item.Name)"
 }
-$hashLines | Set-Content "$dist\SHA256.txt" -Encoding ascii
+$hashLines | Set-Content "$internalDist\SHA256.txt" -Encoding ascii
 
 Write-Host '[9/10] Status digitalnog potpisa'
 $unsigned = $false
@@ -157,7 +191,10 @@ if ($unsigned) {
     Write-Warning 'Binariji nisu Authenticode potpisani. Za Verified Publisher potreban je pravi Brendigo code-signing certifikat.'
 }
 
-Write-Host '[10/10] Završna kontrola izlaza'
+Write-Host '[10/10] Završna kontrola 12 javnih EXE izlaza'
+if ($publicFiles.Count -ne 12) {
+    throw "Očekuje se točno 12 javnih Windows EXE izlaza, pronađeno: $($publicFiles.Count)"
+}
 foreach ($file in $publicFiles) {
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
         throw "Nedostaje produkcijski izlaz: $file"
@@ -166,4 +203,4 @@ foreach ($file in $publicFiles) {
 if (Test-Path -LiteralPath "$payload\payload.zip") {
     throw 'Privremeni instalacijski payload nije uklonjen.'
 }
-Write-Host "ByFTP $version Windows x64+x86 build dovršen: $dist"
+Write-Host "ByFTP $version Windows x64+x86 build dovršen: 12 javnih EXE datoteka u $dist"
