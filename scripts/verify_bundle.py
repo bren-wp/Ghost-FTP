@@ -34,12 +34,10 @@ def normalize_member(name: str) -> str:
     return path.as_posix()
 
 
-def required_members(version: str) -> set[str]:
+def required_members(version: str, arch: str) -> set[str]:
     return {
-        f"ByFTP-{version}-Portable-x64.exe",
-        f"ByFTP-{version}-Setup-x64.exe",
-        f"ByFTP-{version}-Uninstall-x64.exe",
-        "verification.txt",
+        f"ByFTP-{version}-Portable-{arch}.exe",
+        f"ByFTP-{version}-Setup-{arch}.exe",
         "RELEASE-NOTES.txt",
         "BUILD-METADATA.txt",
         "README.md",
@@ -61,9 +59,11 @@ def sha256_member(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> str:
     return digest.hexdigest()
 
 
-def verify_bundle(zip_path: Path, version: str) -> None:
+def verify_bundle(zip_path: Path, version: str, arch: str) -> None:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"neispravna verzija: {version!r}")
+    if arch not in {"x64", "x86"}:
+        fail(f"neispravna Windows arhitektura: {arch!r}")
     if not zip_path.is_file():
         fail(f"ZIP ne postoji: {zip_path}")
 
@@ -86,9 +86,17 @@ def verify_bundle(zip_path: Path, version: str) -> None:
                 fail(f"ZIP sadrži dupliciranu putanju: {normalized}")
             files[normalized] = info
 
-        missing_required = sorted(required_members(version) - files.keys())
+        missing_required = sorted(required_members(version, arch) - files.keys())
         if missing_required:
             fail("nedostaju obavezne stavke: " + ", ".join(missing_required))
+        forbidden = {
+            f"ByFTP-{version}-Uninstall-{arch}.exe",
+            "verification.txt",
+            f"verification-{arch}.txt",
+        }
+        present_forbidden = sorted(forbidden & files.keys())
+        if present_forbidden:
+            fail("bundle sadrži interni/neželjeni artefakt: " + ", ".join(present_forbidden))
 
         manifest_info = files.get(MANIFEST)
         if manifest_info is None:
@@ -135,12 +143,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("zip_path", type=Path)
     parser.add_argument("--version", required=True)
+    parser.add_argument("--arch", choices=("x64", "x86"), required=True)
     args = parser.parse_args()
     try:
-        verify_bundle(args.zip_path, args.version)
+        verify_bundle(args.zip_path, args.version, args.arch)
     except (ValueError, zipfile.BadZipFile, OSError) as exc:
         raise SystemExit(str(exc)) from exc
-    print(f"BUNDLE_VERIFICATION=PASS ({args.zip_path.name})")
+    print(f"BUNDLE_VERIFICATION=PASS ({args.zip_path.name}, {args.arch})")
     return 0
 
 
