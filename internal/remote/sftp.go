@@ -508,6 +508,7 @@ func (s *SFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 				return nil, errors.New("mapa sadrži previše stavki za siguran prikaz")
 			}
 		}
+	}
 	sortItems(items)
 	return items, nil
 }
