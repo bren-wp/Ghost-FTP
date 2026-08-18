@@ -74,13 +74,32 @@ func ValidateSecret(secret string) error {
 
 func ValidateHost(host string) error {
 	host = strings.TrimSpace(host)
-	if host == "" || len(host) > 253 || !utf8.ValidString(host) || strings.ContainsAny(host, "\x00\r\n\t /\\:@[]") {
-		// Brackets and ':' are handled below only for raw IPv6 addresses.
-		if ip := net.ParseIP(strings.Trim(host, "[]")); ip == nil {
+	if host == "" || len(host) > 253 || !utf8.ValidString(host) || strings.ContainsAny(host, "\x00\r\n\t /\\@") {
+		return errors.New("neispravan poslužitelj")
+	}
+
+	// Uglate zagrade dopuštene su samo kao točan par oko IPv6 adrese.
+	// strings.Trim(host, "[]") nije siguran za validaciju jer bi prihvatio
+	// nepotpune ili višestruke zagrade poput "[2001:db8::1" i "[[...]]".
+	if strings.ContainsAny(host, "[]") {
+		if len(host) < 3 || host[0] != '[' || host[len(host)-1] != ']' || strings.Count(host, "[") != 1 || strings.Count(host, "]") != 1 {
 			return errors.New("neispravan poslužitelj")
 		}
+		inner := host[1 : len(host)-1]
+		if !strings.Contains(inner, ":") || net.ParseIP(inner) == nil {
+			return errors.New("neispravan poslužitelj")
+		}
+		return nil
 	}
-	if net.ParseIP(strings.Trim(host, "[]")) != nil {
+
+	// Dvotočka izvan zagrada dopuštena je samo u sirovoj IPv6 adresi.
+	if strings.Contains(host, ":") {
+		if net.ParseIP(host) == nil || !strings.Contains(host, ":") {
+			return errors.New("neispravan poslužitelj")
+		}
+		return nil
+	}
+	if net.ParseIP(host) != nil {
 		return nil
 	}
 	if strings.HasSuffix(host, ".") {
