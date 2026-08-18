@@ -1,5 +1,31 @@
 # Povijest promjena
 
+## 2.16.0 — Pouzdanije povezivanje, Windows x86, Linux i macOS
+
+- ispravljen je stvarni SFTP authentication bug: uklonjen je `sftp -b`, jer aktualni OpenSSH pri obradi `-b` prisilno uključuje `BatchMode=yes` i time može onemogućiti password/passphrase AskPass autentikaciju
+- SFTP naredbe i dalje idu kroz standardni ulaz bez vidljive konzole, ali `BatchMode=no` ostaje eksplicitno postavljen i više ga ne poništava kasnija CLI opcija
+- postojeći pogrešni regresijski test koji je tvrdio da je kombinacija `BatchMode=no` + `-b` kompatibilna s AskPassom zamijenjen je testom koji zabranjuje povratak `-b`
+- Windows unesena lozinka i passphrase ostaju u zaključanim kontrolama do stvarno uspješnog spajanja; mrežna/port/auth greška više ne briše korisnikov unos prije mogućeg ponovnog pokušaja
+- dvostupanjska SFTP trust potvrda može ponovno koristiti upravo unesenu vjerodajnicu, dok se osjetljivi UI unos briše tek nakon potvrđenog `Connected` stanja
+- AskPass je fail-closed i automatski daje tajnu samo jasno prepoznatom `password` ili `passphrase` promptu; MFA/OTP/security-key i nepoznati promptovi ne dobivaju spremljenu tajnu
+- curl, ssh-keyscan, ssh-keygen i sftp timeout/cancel putovi vraćaju stvarni `context` uzrok pa korisničko sučelje može razlikovati timeout, otkazivanje, odbijeni port i autentikacijsku pogrešku
+- bracketirani IPv6 hostovi normaliziraju se prije OpenSSH `HostName` i `ssh-keyscan` upotrebe
+- `findOpenSSH` na Linuxu/macOS-u koristi nativne executable nazive bez `.exe` nastavka
+- uvedeno je procesno memorijsko runtime spremište aktivnih ne-Windows tajni s kriptografski nasumičnim tokenom i wipe-on-close ponašanjem; aktivna FTP/FTPS lozinka ne zapisuje se na disk
+- Windows aktivne runtime tajne i dalje koriste DPAPI
+- ne-Windows desktop stub zamijenjen je stvarno funkcionalnim terminalnim ByFTP klijentom koji koristi isti `api.Engine`, remote adaptere i transfer queue kao Windows aplikacija
+- Linux/macOS terminal podržava remote `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd`, host-key potvrdu i zajedničke transfer sigurnosne granice
+- Linux/macOS FTP/FTPS podržava password autentikaciju; SFTP u 2.16.0 namjerno podržava eksplicitni privatni ključ bez passphrasea dok Unix AskPass broker nije sigurnosno dovršen
+- Windows produkcijski build sada proizvodi i provjerava x64 i x86 Setup/Portable binarije te PE32/PE32+ resurse, manifest i mitigacije
+- dodan je `scripts/BUILD-LINUX.sh` koji proizvodi DEB pakete za amd64, arm64 i i386
+- dodan je `scripts/BUILD-MACOS.sh` koji proizvodi Universal Intel+Apple Silicon PKG i Finder `ByFTP.app` terminal launcher
+- CI sada ima odvojene quality/race, Windows x64+x86, Linux DEB i macOS Universal PKG gateove
+- javni GitHub Release više ne objavljuje custom `verification.txt`, `ByFTP-<verzija>-Source.zip` ni standalone `Uninstall-*.exe`; Windows uninstaller ostaje interni dio Setup paketa
+- release workflow pri 2.16.0 objavi uklanja navedena tri custom asseta i iz postojećeg v2.15.0 izdanja te završno potvrđuje njihovu odsutnost
+- GitHubovi automatski `Source code (zip)` i `Source code (tar.gz)` linkovi ostaju jer ih platforma generira za svaki tag
+- novi 2.16.0 javni release ugovor sadrži 6 Windows paketa, 3 Linux DEB paketa, 1 macOS Universal PKG te `SHA256.txt`, `RELEASE-NOTES.txt` i `BUILD-METADATA.txt`
+- `audit_security.py`, `audit_release.py`, bundle verifier i release regresije prošireni su kako bi navedene connect, multi-platform i public-asset granice postale obavezne CI invarijante
+
 ## 2.15.0 — Sigurniji profili, credential binding i kontrola host-key pina
 
 - uveden je zajednički `internal/profilebinding` modul za jedan konzistentan endpoint/account/private-key identity ugovor kroz remote, config i Windows UI sloj
