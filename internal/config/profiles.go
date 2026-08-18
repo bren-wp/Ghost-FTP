@@ -213,6 +213,9 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	if err := security.ValidateConnection(x.Protocol, x.Host, x.Username, x.Port); err != nil {
 		return model.PublicProfile{}, err
 	}
+	if x.Protocol == "sftp" && x.PrivateKeyPath == "" && in.Passphrase != "" {
+		return model.PublicProfile{}, errors.New("zaporka privatnog ključa zahtijeva odabran privatni ključ")
+	}
 	if in.ClearPassword {
 		x.PasswordBlob = ""
 	} else if in.Password != "" {
@@ -234,6 +237,11 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 		if err != nil {
 			return model.PublicProfile{}, err
 		}
+	}
+	if x.Protocol == "sftp" && x.PrivateKeyPath == "" {
+		// Passphrase nema svrhu bez privatnog ključa. Ako korisnik ukloni key path,
+		// ukloni i prethodno spremljeni blob kako profil ne bi zadržavao mrtvu tajnu.
+		x.PassphraseBlob = ""
 	}
 	if x.Protocol != "sftp" {
 		x.PrivateKeyPath = ""
