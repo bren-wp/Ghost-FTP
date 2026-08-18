@@ -1,0 +1,46 @@
+package profilebinding
+
+import "testing"
+
+func TestEndpointMatchesNormalizesHost(t *testing.T) {
+	if !EndpointMatches("sftp", "Example.TEST.", 22, "SFTP", "example.test", 22) {
+		t.Fatal("equivalent endpoint was not matched")
+	}
+	if !EndpointMatches("sftp", "[2001:db8::1]", 22, "sftp", "2001:db8::1", 22) {
+		t.Fatal("equivalent IPv6 endpoint was not matched")
+	}
+	for _, tc := range []struct {
+		protocol string
+		host     string
+		port     int
+	}{
+		{"ftp", "example.test", 22},
+		{"sftp", "other.test", 22},
+		{"sftp", "example.test", 2222},
+	} {
+		if EndpointMatches("sftp", "example.test", 22, tc.protocol, tc.host, tc.port) {
+			t.Fatalf("different endpoint matched: %#v", tc)
+		}
+	}
+}
+
+func TestAccountMatchesRequiresExactUsername(t *testing.T) {
+	if !AccountMatches("sftp", "example.test", 22, "alice", "sftp", "example.test", 22, "alice") {
+		t.Fatal("same account was not matched")
+	}
+	if AccountMatches("sftp", "example.test", 22, "alice", "sftp", "example.test", 22, "Alice") {
+		t.Fatal("username case change crossed account boundary")
+	}
+}
+
+func TestPrivateKeyMatchesRequiresSameNonEmptyKey(t *testing.T) {
+	if !PrivateKeyMatches("sftp", "example.test", 22, "alice", `C:\Keys\id_ed25519`, "sftp", "example.test", 22, "alice", `c:\keys\ID_ED25519`) {
+		t.Fatal("same Windows key path was not matched")
+	}
+	if PrivateKeyMatches("sftp", "example.test", 22, "alice", `C:\Keys\id_ed25519`, "sftp", "example.test", 22, "alice", "") {
+		t.Fatal("empty key path matched stored key")
+	}
+	if PrivateKeyMatches("sftp", "example.test", 22, "alice", `C:\Keys\id_ed25519`, "sftp", "example.test", 22, "alice", `C:\Keys\other`) {
+		t.Fatal("different key path matched")
+	}
+}
