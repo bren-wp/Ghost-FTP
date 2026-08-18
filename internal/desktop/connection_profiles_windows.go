@@ -253,37 +253,42 @@ func (a *app) loadProfiles() {
 	a.goSafe(func() {
 		profiles, err := a.engine.Profiles()
 		a.dispatch(func() {
-			if err != nil {
-				a.setStatus(usererror.Message(err, "Spremljene profile trenutačno nije moguće učitati."))
-				return
-			}
-			a.profiles = profiles
-			const cbResetContent = 0x014B
-			sendMessageW.Call(a.profilesCombo, cbResetContent, 0, 0)
-			sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr("Brzi spoj (bez profila)"))))
-			for _, p := range profiles {
-				label := p.Name + " — " + p.Host
-				sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr(label))))
-			}
-			selected := 0
-			var selectedProfile model.PublicProfile
-			if a.selectedProfileID != "" {
-				for i, p := range profiles {
-					if p.ID == a.selectedProfileID {
-						selected = i + 1
-						selectedProfile = p
-						break
-					}
-			}
-			if selected == 0 {
-				a.selectedProfileID = ""
-				a.resetProfileCredentialCues()
-			} else {
-				a.setProfileCredentialCues(selectedProfile)
-			}
-			sendMessageW.Call(a.profilesCombo, cbSetCurSel, uintptr(selected), 0)
+			a.applyProfiles(profiles, err)
 		})
 	})
+}
+
+func (a *app) applyProfiles(profiles []model.PublicProfile, loadErr error) {
+	if loadErr != nil {
+		a.setStatus(usererror.Message(loadErr, "Spremljene profile trenutačno nije moguće učitati."))
+		return
+	}
+	a.profiles = profiles
+	const cbResetContent = 0x014B
+	sendMessageW.Call(a.profilesCombo, cbResetContent, 0, 0)
+	sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr("Brzi spoj (bez profila)"))))
+	for _, p := range profiles {
+		label := p.Name + " — " + p.Host
+		sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr(label))))
+	}
+	selected := 0
+	var selectedProfile model.PublicProfile
+	if a.selectedProfileID != "" {
+		for i, p := range profiles {
+			if p.ID == a.selectedProfileID {
+				selected = i + 1
+				selectedProfile = p
+				break
+			}
+		}
+	}
+	if selected == 0 {
+		a.selectedProfileID = ""
+		a.resetProfileCredentialCues()
+	} else {
+		a.setProfileCredentialCues(selectedProfile)
+	}
+	sendMessageW.Call(a.profilesCombo, cbSetCurSel, uintptr(selected), 0)
 }
 
 func (a *app) currentProfile() (model.PublicProfile, bool) {
