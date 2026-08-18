@@ -16,97 +16,83 @@ go test -race ./...
 go vet ./...
 ```
 
-Na Windowsu dodatno:
+Platform-specific buildovi:
 
 ```powershell
 .\BUILD-WINDOWS.ps1
 ```
 
-## Što testovi pokrivaju
+```bash
+bash scripts/BUILD-LINUX.sh
+bash scripts/BUILD-MACOS.sh   # na macOS-u
+```
 
-- validaciju FTP/FTPS/SFTP veza i korisničkog unosa
-- profile i DPAPI migracijske granice
-- zajednički endpoint/account/private-key profilni identity ugovor i normalizaciju hosta
-- zabranu automatskog prijenosa spremljene lozinke na drugi host/port/korisnika
-- zabranu automatskog prijenosa spremljenog passphrasea na drugi ili uklonjeni privatni ključ
-- očuvanje SFTP host-key pina na istom endpointu i reset pina pri promjeni hosta/porta/protokola
-- autoritativno brisanje privatnog ključa iz aktivnog profila
-- automatsko uklanjanje mrtvog passphrase bloba kada privatnog ključa više nema
-- neovisno uklanjanje spremljene lozinke i passphrasea kroz `ClearPassword`/`ClearPassphrase`
-- settings normalizaciju i cache
-- transfer queue, parallelism, pause/resume, cancel/retry i auto-retry
-- connection generation i cross-server retry blokadu
-- worker panic containment
-- završni status nakon kasnog cancel/disconnect racea
-- active-operation/session-close lifecycle: disconnect mora otkazati poziv, pričekati njegov `release()` i tek zatim zatvoriti adapter
-- bounded disconnect timeout koji vraća kontrolu pozivatelju bez prisilnog zatvaranja aktivnog adaptera
-- deferred cleanup nakon timeouta i reconnect blokadu dok stara sesija još postoji
-- ponovljeni disconnect nad istim close-stateom bez dvostrukog `Session.Close()`
-- idempotentni `Operation` release
-- path traversal, Windows rezervirane nazive, symlink/junction/reparse zaštite
-- SFTP private-key regular-file/symlink/reparse granicu
-- download staging `Lstat`/regular-file/reparse provjeru
-- filesystem-root zabranu brisanja, uključujući Windows drive i UNC root
-- Unix fallback listing s običnim nazivom koji sadrži ` -> ` i stvarnim symlink zapisom
-- sigurno parsiranje prevelike veličine listinga bez `int64` wraparounda
-- DOS/Windows-style listing veličinu datoteke
-- rekurzivne upload/download planove i rollback
-- installer payload integritet i upgrade rollback
-- event stream fallback, deep-copy izolaciju i velike queue burstove
-- velike lokalne i udaljene popise od 50.000 stavki kroz zajedničko stabilno sortiranje
-- hrvatske UI/release/GitHub površine
-- korisničke poruke za mrežni timeout, session-closing i deferred disconnect cleanup
-- konzistentnost `VERSION` izvora bez ručnog semver drifta
-- lokalne Markdown poveznice i potpunost dokumentacijskog indeksa
-- determinističku generaciju PNG/ICO resursa
-- Windows ZIP manifest, putanje, duplikate i SHA-256 nakon stvarnog pakiranja
-- release tag/commit i postojeći asset digest fail-closed ugovor
+## CI gateovi
 
-## Profilne i credential regresije
+GitHub CI prije mergea ima četiri neovisna joba:
 
-`internal/profilebinding/binding_test.go` definira zajedničku osnovu: hostname se uspoređuje case-insensitive i bez završne točke/bracket razlike za IPv6, account zahtijeva točno korisničko ime, a private-key identitet isti ne-prazni Windows key path.
+1. **Quality / Linux** — asset, hrvatski, version, docs, security, privacy i release auditi; Python release regresije; `go test`, `go test -race`, `go vet`; generiranje release notes.
+2. **Windows x64+x86** — puni `BUILD-WINDOWS.ps1`, PE32/PE32+ resursi, manifest, mitigacije i interne verifikacijske datoteke.
+3. **Linux DEB** — stvarno gradi amd64, arm64 i i386 `.deb` te provjerava package/version/architecture metapodatke s `dpkg-deb`.
+4. **macOS Universal** — na `macos-14` runneru gradi Intel i Apple Silicon binarije, spaja ih `lipo` alatom, radi `.icns`, `ByFTP.app` i Universal `.pkg` te provjerava PKG strukturu.
 
-`internal/remote/profile_binding_test.go` potvrđuje da se prazna private-key vrijednost ne nasljeđuje iz odabranog profila, da promjena korisnika prekida password binding i da promjena/brisanje ključa prekida passphrase binding.
+Merge nije spreman dok **sva četiri** joba nisu zelena.
 
-`internal/config/profiles_test.go` i `profile_secret_binding_test.go` koriste testne zaštićene blob vrijednosti bez otkrivanja stvarnih tajni. Provjeravaju da isto uređivanje profila čuva odgovarajuću tajnu/pin, a promjena endpointa, korisnika ili ključa automatski uklanja vrijednost koja više nije sigurno vezana uz profil. Passphrase bez privatnog ključa odbija se prije pokušaja zaštite.
+## Povezivanje
 
-Windows produkcijski build dodatno kompilira profilni UI koji koristi isti `profilebinding` modul. Security audit zahtijeva hrvatske poruke za eksplicitno zadržavanje/uklanjanje vjerodajnica i zabranu nasljeđivanja profilnih početnih putanja na privremeno promijenjeni endpoint.
+2.16.0 posebno zaključava stvarni connect put:
 
-## Stabilnosne regresije udaljene sesije
+- `TestSFTPCommandArgsKeepAskPassEnabled` zahtijeva `BatchMode=no` i zabranjuje `sftp -b`
+- AskPass regresije potvrđuju password/passphrase odabir i odbijanje MFA/OTP/security-key promptova
+- IPv6 regresija potvrđuje uklanjanje `[]` prije OpenSSH `HostName`
+- non-Windows OpenSSH regresija potvrđuje `sftp`, `ssh-keyscan` i `ssh-keygen` nativne nazive bez `.exe`
+- usererror testovi razlikuju timeout, auth, host-key scan i session-closing stanje
+- connect se smatra uspješnim tek nakon remote `List` probea
 
-`internal/remote/manager_test.go` deterministički pokreće disconnect dok je remote `Operation` još aktivan. Osnovna regresija zahtijeva da context bude otkazan, ali adapter ne smije biti zatvoren prije `release()`.
+## Runtime vjerodajnice
 
-Timeout regresija namjerno drži operaciju aktivnom dulje od disconnect deadlinea. Očekuje `ErrDisconnectTimeout`, potvrđuje da adapter i dalje nije zatvoren, da novi `Operation` nije dopušten i da `Connect` vraća `ErrSessionClosing`. Nakon `release()` test zahtijeva završni deferred `Session.Close()` i čišćenje close-statea.
+- Windows testovi i sigurnosni audit čuvaju DPAPI + trusted-parent AskPass model
+- Linux/macOS runtime-secret spremište koristi nasumični token, procesnu mapu i wipe-on-forget
+- terminalni frontend u 2.16.0 namjerno odbija SFTP password/passphrase prije mrežnog pokušaja
+- FTP/FTPS terminalni unos ne prikazuje lozinku (`stty -echo`)
 
-Zasebna regresija pokreće drugi `Disconnect` dok isti deferred close još traje i potvrđuje da oba poziva koriste isti lifecycle umjesto dvostrukog zatvaranja adaptera. Idempotentni release dodatno se poziva dvaput kako WaitGroup brojač ne bi mogao postati negativan.
+## Profili i trust
 
-`internal/usererror/message_test.go` čuva hrvatske, korisnički razumljive poruke za session-closing i disconnect-cleanup stanje, odvojeno od običnog mrežnog timeouta.
+Testovi pokrivaju endpoint/account/private-key identity, zabranu prijenosa spremljene lozinke na drugi host/port/korisnika, passphrasea na drugi ključ, očuvanje/reset host-key pina, autoritativno brisanje privatnog ključa i čišćenje mrtvih blobova.
 
-## Ostale regresije
+## Remote/session lifecycle
 
-`internal/remote/listing_regression_test.go` čuva parser i sorting rubne slučajeve. Test s 50.000 stavki namjerno koristi isti javni limit udaljenog prikaza kako optimizacija velikih direktorija ne bi ostala samo mikro-test.
+Regresije zahtijevaju:
 
-`internal/remote/private_key_validation_test.go` potvrđuje regularnu datoteku i symlink odbijanje; Windows produkcijski build i `audit_security.py` dodatno čuvaju reparse-point granu.
+- aktivna `Operation` referenca čuva adapter živim do `release()`
+- `release()` je idempotentan
+- disconnect otkazuje session context prije zatvaranja adaptera
+- caller timeout vraća kontrolu bez prisilnog closea ispod aktivne operacije
+- deferred cleanup blokira reconnect do stvarnog završetka
+- drugi disconnect koristi isti close-state
 
-## Python release regresije
+## Transfer i filesystem
 
-`test_release_tools.py` izrađuje privremene ZIP fixturee standardnom bibliotekom. Pozitivan fixture mora proći, a traversal, nepopisana datoteka i integritetska pogreška moraju biti odbijeni. Test ne treba mrežu ni vanjske Python pakete.
+Pokriveni su:
 
-## CI
+- connection generation i cross-server retry blokada
+- late-cancel status nakon uspjeha ili `ErrSkipped`
+- symlink/junction/reparse traversal
+- download staging regular-file provjera
+- no-replace backup/rollback
+- filesystem-root zabrana brisanja
+- recursive depth/item limiti
+- veliki direktoriji i redovi do javnih limita
+- FTP MLSD/fallback parser, DOS listing i sigurno parsiranje veličina
 
-GitHub CI ima dva glavna joba:
+## Release regresije
 
-1. Linux kvalitetu: Go unit/race/vet, privacy/security/version/docs/release/croatian/asset audite, Python release regresije i release metadata.
-2. Windows produkcijski build: isti `BUILD-WINDOWS.ps1` put koji koristi službeno izdanje.
+`test_release_tools.py` gradi privremene x64 i x86 Windows ZIP fixturee. Pozitivan fixture mora proći; traversal, hash mismatch, nepopisana datoteka te interni standalone uninstaller/verification file moraju pasti.
 
-Merge se ne smatra spremnim dok oba joba nisu zelena.
+`verify_bundle.py` provjerava stvarni komprimirani ZIP bez ekstrakcije na disk i zahtijeva točan `BUNDLE-SHA256.txt` manifest.
 
-## Release metadata i bundle
+`audit_release.py` zaključava 13 javnih asseta: šest Windows, tri Linux, jedan macOS te SHA256/release notes/build metadata. Custom Source ZIP, standalone Uninstaller i `verification.txt` ne smiju se vratiti u javni `$assets` blok.
 
-CI čita `VERSION`, generira bilješke iz odgovarajućeg `CHANGELOG.md` odjeljka i zahtijeva da izlaz nije prazan. Release workflow nakon kompresije dodatno pokreće `verify_bundle.py` nad konačnim Windows ZIP-om.
+## Verzija i dokumentacija
 
-`BUNDLE-SHA256.txt` ne hashira samoga sebe, ali mora točno pokrivati svaku drugu datoteku u bundleu. Nepopisana, nestala, duplicirana, traversal ili hash-nepodudarna stavka zaustavlja izdanje.
-
-## Konzistentnost verzije
-
-`scripts/audit_version.py` provjerava da `VERSION` ostaje jedini produkcijski izvor broja verzije, da razvojni build ne glumi staro izdanje, da README/CHANGELOG/build skripte ostaju usklađeni te da workflow i bug predložak ne vrate ručno hardkodiranu aktualnu semantičku verziju.
+`audit_version.py` zahtijeva da Windows, Linux, macOS i lokalni buildovi čitaju isti `VERSION` i ugrađuju ga u runtime. `audit_docs.py` provjerava sve lokalne poveznice i da je svaki `docs/*.md` dokument indeksiran u `docs/README.md` i glavnom README-u.
