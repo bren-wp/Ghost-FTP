@@ -2,6 +2,7 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -55,7 +56,9 @@ func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
 
 	disconnectDone := make(chan error, 1)
 	go func() {
-		disconnectDone <- m.Disconnect()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		disconnectDone <- m.Disconnect(ctx)
 	}()
 
 	select {
@@ -93,6 +96,99 @@ func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
 	}
 }
 
+func TestDisconnectTimeoutDefersCloseAndBlocksReconnect(t *testing.T) {
+	m, session := newManagerTestConnection()
+	_, opCtx, release, err := m.Operation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	err = m.Disconnect(ctx)
+	if !errors.Is(err, ErrDisconnectTimeout) {
+		t.Fatalf("disconnect error=%v, want ErrDisconnectTimeout", err)
+	}
+
+	select {
+	case <-opCtx.Done():
+	default:
+		t.Fatal("timed-out disconnect did not cancel active operation context")
+	}
+	select {
+	case <-session.closed:
+		t.Fatal("timed-out disconnect closed adapter before operation release")
+	default:
+	}
+	if _, _, _, err := m.Operation(context.Background()); err == nil {
+		t.Fatal("new operation was admitted while old session was closing")
+	}
+	if _, err := m.Connect(context.Background(), "", model.ConnectionConfig{}, "", false); !errors.Is(err, ErrSessionClosing) {
+		t.Fatalf("reconnect error=%v, want ErrSessionClosing", err)
+	}
+
+	release()
+	select {
+	case <-session.closed:
+	case <-time.After(time.Second):
+		t.Fatal("deferred cleanup did not close session after release")
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		m.mu.RLock()
+		closing := m.closing != nil
+		m.mu.RUnlock()
+		if !closing {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("closing state was not cleared after deferred cleanup")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if err := m.Disconnect(context.Background()); err != nil {
+		t.Fatalf("second disconnect after cleanup: %v", err)
+	}
+}
+
+func TestSecondDisconnectWaitsForExistingCloseState(t *testing.T) {
+	m, _ := newManagerTestConnection()
+	_, _, release, err := m.Operation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	err = m.Disconnect(ctx)
+	cancel()
+	if !errors.Is(err, ErrDisconnectTimeout) {
+		t.Fatalf("first disconnect error=%v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		done <- m.Disconnect(ctx)
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("second disconnect returned before release: %v", err)
+	default:
+	}
+
+	release()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("second disconnect did not observe deferred close completion")
+	}
+}
+
 func TestOperationReleaseIsIdempotent(t *testing.T) {
 	m, _ := newManagerTestConnection()
 	_, _, release, err := m.Operation(context.Background())
@@ -102,7 +198,7 @@ func TestOperationReleaseIsIdempotent(t *testing.T) {
 	// Dvostruki release ne smije izazvati negativan WaitGroup niti panic.
 	release()
 	release()
-	if err := m.Disconnect(); err != nil {
+	if err := m.Disconnect(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
