@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"net"
 	"net/http"
@@ -18,7 +19,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"brendigo.com/byftp/internal/platform"
 )
+
+const maxControlResponse = 16 << 20
 
 type Config struct {
 	Endpoint  string
@@ -65,9 +70,13 @@ func New(cfg Config) (*Client, error) {
 }
 
 func loopbackHTTP(u *url.URL) bool {
-	if u == nil || u.Scheme != "http" { return false }
+	if u == nil || u.Scheme != "http" {
+		return false
+	}
 	host := u.Hostname()
-	if host == "localhost" { return true }
+	if host == "localhost" {
+		return true
+	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
 }
@@ -83,71 +92,114 @@ func hashHex(data []byte) string {
 	return hex.EncodeToString(s[:])
 }
 
+func hashReader(r io.Reader) (string, error) {
+	var h hash.Hash = sha256.New()
+	if _, err := io.Copy(h, r); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
 func encodePath(value string) string {
 	parts := strings.Split(strings.TrimPrefix(value, "/"), "/")
-	for i := range parts { parts[i] = url.PathEscape(parts[i]) }
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
+	}
 	return "/" + strings.Join(parts, "/")
 }
 
 func canonicalQuery(values url.Values) string {
 	keys := make([]string, 0, len(values))
-	for k := range values { keys = append(keys, k) }
+	for k := range values {
+		keys = append(keys, k)
+	}
 	sort.Strings(keys)
 	var parts []string
 	for _, k := range keys {
 		vals := append([]string(nil), values[k]...)
 		sort.Strings(vals)
-		for _, v := range vals { parts = append(parts, url.QueryEscape(k)+"="+url.QueryEscape(v)) }
+		for _, v := range vals {
+			parts = append(parts, url.QueryEscape(k)+"="+url.QueryEscape(v))
+		}
 	}
 	return strings.ReplaceAll(strings.Join(parts, "&"), "+", "%20")
 }
 
 func (c *Client) objectURL(key string, query url.Values) (*url.URL, error) {
 	base, err := url.Parse(c.cfg.Endpoint)
-	if err != nil { return nil, err }
-	path := strings.TrimSuffix(base.Path, "/") + "/" + c.cfg.Bucket
-	if key != "" { path += "/" + strings.TrimPrefix(key, "/") }
-	base.Path = path
-	base.RawPath = encodePath(path)
+	if err != nil {
+		return nil, err
+	}
+	plainPath := strings.TrimSuffix(base.Path, "/") + "/" + c.cfg.Bucket
+	if key != "" {
+		plainPath += "/" + strings.TrimPrefix(key, "/")
+	}
+	base.Path = plainPath
+	base.RawPath = encodePath(plainPath)
 	base.RawQuery = canonicalQuery(query)
 	return base, nil
 }
 
-func (c *Client) signedRequest(ctx context.Context, method, key string, query url.Values, body []byte, extra http.Header) (*http.Request, error) {
+func (c *Client) signedRequestReader(ctx context.Context, method, key string, query url.Values, body io.Reader, payloadHash string, contentLength int64, extra http.Header) (*http.Request, error) {
 	u, err := c.objectURL(key, query)
-	if err != nil { return nil, err }
-	req, err := http.NewRequestWithContext(ctx, method, u.String(), bytes.NewReader(body))
-	if err != nil { return nil, err }
-	for k, vals := range extra { for _, v := range vals { req.Header.Add(k, v) } }
+	if err != nil {
+		return nil, err
+	}
+	if body == nil {
+		body = bytes.NewReader(nil)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
+	if err != nil {
+		return nil, err
+	}
+	if contentLength >= 0 {
+		req.ContentLength = contentLength
+	}
+	for k, vals := range extra {
+		for _, v := range vals {
+			req.Header.Add(k, v)
+		}
+	}
 	now := c.now().UTC()
 	amzDate := now.Format("20060102T150405Z")
 	date := now.Format("20060102")
-	payloadHash := hashHex(body)
 	req.Header.Set("x-amz-date", amzDate)
 	req.Header.Set("x-amz-content-sha256", payloadHash)
 
 	signedNames := []string{"host", "x-amz-content-sha256", "x-amz-date"}
 	for k := range extra {
 		lk := strings.ToLower(k)
-		if lk == "host" || lk == "authorization" || lk == "x-amz-date" || lk == "x-amz-content-sha256" { continue }
+		if lk == "host" || lk == "authorization" || lk == "x-amz-date" || lk == "x-amz-content-sha256" {
+			continue
+		}
 		signedNames = append(signedNames, lk)
 	}
 	sort.Strings(signedNames)
 	seen := map[string]bool{}
-	canonicalHeaders := strings.Builder{}
+	var canonicalHeaders strings.Builder
 	finalNames := make([]string, 0, len(signedNames))
 	for _, name := range signedNames {
-		if seen[name] { continue }
+		if seen[name] {
+			continue
+		}
 		seen[name] = true
 		value := ""
-		if name == "host" { value = req.URL.Host } else { value = strings.Join(strings.Fields(req.Header.Get(name)), " ") }
-		canonicalHeaders.WriteString(name+":"+value+"\n")
+		if name == "host" {
+			value = req.URL.Host
+		} else {
+			value = strings.Join(strings.Fields(req.Header.Get(name)), " ")
+		}
+		canonicalHeaders.WriteString(name + ":" + value + "\n")
 		finalNames = append(finalNames, name)
 	}
 	signedHeaderNames := strings.Join(finalNames, ";")
-	canonicalURI := req.URL.EscapedPath()
 	canonicalRequest := strings.Join([]string{
-		method, canonicalURI, req.URL.RawQuery, canonicalHeaders.String(), signedHeaderNames, payloadHash,
+		method,
+		req.URL.EscapedPath(),
+		req.URL.RawQuery,
+		canonicalHeaders.String(),
+		signedHeaderNames,
+		payloadHash,
 	}, "\n")
 	scope := date + "/" + c.cfg.Region + "/s3/aws4_request"
 	stringToSign := "AWS4-HMAC-SHA256\n" + amzDate + "\n" + scope + "\n" + hashHex([]byte(canonicalRequest))
@@ -160,19 +212,44 @@ func (c *Client) signedRequest(ctx context.Context, method, key string, query ur
 	return req, nil
 }
 
-func (c *Client) do(ctx context.Context, method, key string, query url.Values, body []byte, extra http.Header) ([]byte, error) {
-	req, err := c.signedRequest(ctx, method, key, query, body, extra)
-	if err != nil { return nil, err }
-	resp, err := c.http.Do(req)
-	if err != nil { return nil, err }
-	defer resp.Body.Close()
-	limited := io.LimitReader(resp.Body, 16<<20)
-	data, err := io.ReadAll(limited)
-	if err != nil { return nil, err }
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("S3 zahtjev nije uspio (%s): %s", resp.Status, strings.TrimSpace(string(data)))
+func (c *Client) signedRequest(ctx context.Context, method, key string, query url.Values, body []byte, extra http.Header) (*http.Request, error) {
+	return c.signedRequestReader(ctx, method, key, query, bytes.NewReader(body), hashHex(body), int64(len(body)), extra)
+}
+
+func readControlResponse(resp *http.Response) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxControlResponse+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxControlResponse {
+		return nil, errors.New("S3 kontrolni odgovor je prevelik")
 	}
 	return data, nil
+}
+
+func responseError(resp *http.Response) error {
+	data, _ := readControlResponse(resp)
+	text := strings.TrimSpace(string(data))
+	if len(text) > 4096 {
+		text = text[:4096]
+	}
+	return fmt.Errorf("S3 zahtjev nije uspio (%s): %s", resp.Status, text)
+}
+
+func (c *Client) do(ctx context.Context, method, key string, query url.Values, body []byte, extra http.Header) ([]byte, error) {
+	req, err := c.signedRequest(ctx, method, key, query, body, extra)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, responseError(resp)
+	}
+	return readControlResponse(resp)
 }
 
 type listResult struct {
@@ -180,37 +257,57 @@ type listResult struct {
 		Key  string `xml:"Key"`
 		Size int64  `xml:"Size"`
 	} `xml:"Contents"`
-	Prefixes []struct { Prefix string `xml:"Prefix"` } `xml:"CommonPrefixes"`
+	Prefixes []struct {
+		Prefix string `xml:"Prefix"`
+	} `xml:"CommonPrefixes"`
 	NextContinuationToken string `xml:"NextContinuationToken"`
-	IsTruncated bool `xml:"IsTruncated"`
+	IsTruncated           bool   `xml:"IsTruncated"`
 }
 
 func (c *Client) List(ctx context.Context, prefix string) ([]Item, error) {
 	prefix = strings.TrimPrefix(prefix, "/")
-	if prefix != "" && !strings.HasSuffix(prefix, "/") { prefix += "/" }
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
 	var out []Item
 	token := ""
 	for pages := 0; pages < 1000; pages++ {
 		q := url.Values{"list-type": {"2"}, "delimiter": {"/"}, "prefix": {prefix}, "max-keys": {"1000"}}
-		if token != "" { q.Set("continuation-token", token) }
+		if token != "" {
+			q.Set("continuation-token", token)
+		}
 		data, err := c.do(ctx, http.MethodGet, "", q, nil, nil)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		var result listResult
-		if err := xml.Unmarshal(data, &result); err != nil { return nil, errors.New("S3 odgovor nije valjan XML") }
+		if err := xml.Unmarshal(data, &result); err != nil {
+			return nil, errors.New("S3 odgovor nije valjan XML")
+		}
 		for _, p := range result.Prefixes {
 			name := strings.TrimSuffix(strings.TrimPrefix(p.Prefix, prefix), "/")
-			if name != "" { out = append(out, Item{Name: name, Prefix: true}) }
+			if name != "" {
+				out = append(out, Item{Name: name, Prefix: true})
+			}
 		}
 		for _, obj := range result.Contents {
 			name := strings.TrimPrefix(obj.Key, prefix)
-			if name != "" && !strings.Contains(name, "/") { out = append(out, Item{Name: name, Size: obj.Size}) }
+			if name != "" && !strings.Contains(name, "/") {
+				out = append(out, Item{Name: name, Size: obj.Size})
+			}
 		}
-		if !result.IsTruncated { break }
-		if result.NextContinuationToken == "" { return nil, errors.New("S3 odgovor je označen kao nepotpun bez continuation tokena") }
+		if !result.IsTruncated {
+			break
+		}
+		if result.NextContinuationToken == "" {
+			return nil, errors.New("S3 odgovor je označen kao nepotpun bez continuation tokena")
+		}
 		token = result.NextContinuationToken
 	}
 	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Prefix != out[j].Prefix { return out[i].Prefix }
+		if out[i].Prefix != out[j].Prefix {
+			return out[i].Prefix
+		}
 		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
 	})
 	return out, nil
@@ -218,28 +315,86 @@ func (c *Client) List(ctx context.Context, prefix string) ([]Item, error) {
 
 func (c *Client) Put(ctx context.Context, localPath, key string) error {
 	st, err := os.Lstat(localPath)
-	if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 { return errors.New("lokalna datoteka nije obična datoteka") }
-	if st.Size() > 5<<30 { return errors.New("S3 upload veći od 5 GiB zahtijeva multipart podršku") }
-	data, err := os.ReadFile(localPath)
-	if err != nil { return err }
-	_, err = c.do(ctx, http.MethodPut, strings.TrimPrefix(key, "/"), nil, data, http.Header{"Content-Type": {"application/octet-stream"}})
+	if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
+		return errors.New("lokalna datoteka nije obična datoteka")
+	}
+	if st.Size() > 5<<30 {
+		return errors.New("S3 upload veći od 5 GiB zahtijeva multipart podršku")
+	}
+	f, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	payloadHash, err := hashReader(f)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	req, err := c.signedRequestReader(ctx, http.MethodPut, strings.TrimPrefix(key, "/"), nil, f, payloadHash, st.Size(), http.Header{"Content-Type": {"application/octet-stream"}})
+	if err != nil {
+		return err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return responseError(resp)
+	}
+	_, err = io.Copy(io.Discard, io.LimitReader(resp.Body, maxControlResponse+1))
 	return err
 }
 
 func (c *Client) Get(ctx context.Context, key, localPath string) error {
-	data, err := c.do(ctx, http.MethodGet, strings.TrimPrefix(key, "/"), nil, nil, nil)
-	if err != nil { return err }
+	req, err := c.signedRequest(ctx, http.MethodGet, strings.TrimPrefix(key, "/"), nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return responseError(resp)
+	}
 	dir := filepath.Dir(localPath)
-	if err := os.MkdirAll(dir, 0700); err != nil { return err }
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
 	f, err := os.CreateTemp(dir, ".byftp-s3-*.part")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	tmp := f.Name()
-	cleanup := func() { _ = f.Close(); _ = os.Remove(tmp) }
-	if err := f.Chmod(0600); err != nil { cleanup(); return err }
-	if _, err := f.Write(data); err != nil { cleanup(); return err }
-	if err := f.Sync(); err != nil { cleanup(); return err }
-	if err := f.Close(); err != nil { _ = os.Remove(tmp); return err }
-	if err := os.Rename(tmp, localPath); err != nil { _ = os.Remove(tmp); return err }
+	cleanup := func() {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+	}
+	if err := f.Chmod(0600); err != nil {
+		cleanup()
+		return err
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		cleanup()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		cleanup()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := platform.RenameNoReplace(tmp, localPath); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
 	return nil
 }
 
@@ -250,16 +405,24 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 
 func (c *Client) Mkdir(ctx context.Context, prefix string) error {
 	prefix = strings.TrimPrefix(prefix, "/")
-	if prefix == "" { return errors.New("S3 prefix je prazan") }
-	if !strings.HasSuffix(prefix, "/") { prefix += "/" }
+	if prefix == "" {
+		return errors.New("S3 prefix je prazan")
+	}
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
 	_, err := c.do(ctx, http.MethodPut, prefix, nil, nil, http.Header{"Content-Type": {"application/x-directory"}})
 	return err
 }
 
 func (c *Client) Rename(ctx context.Context, oldKey, newKey string) error {
 	oldKey, newKey = strings.TrimPrefix(oldKey, "/"), strings.TrimPrefix(newKey, "/")
-	if oldKey == "" || newKey == "" { return errors.New("S3 ključ je prazan") }
-	source := "/" + c.cfg.Bucket + "/" + strings.Join(strings.Split(oldKey, "/"), "/")
-	if _, err := c.do(ctx, http.MethodPut, newKey, nil, nil, http.Header{"x-amz-copy-source": {source}}); err != nil { return err }
+	if oldKey == "" || newKey == "" {
+		return errors.New("S3 ključ je prazan")
+	}
+	source := encodePath("/" + c.cfg.Bucket + "/" + oldKey)
+	if _, err := c.do(ctx, http.MethodPut, newKey, nil, nil, http.Header{"x-amz-copy-source": {source}}); err != nil {
+		return err
+	}
 	return c.Delete(ctx, oldKey)
 }
