@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -52,7 +53,6 @@ type pendingTrustState struct {
 }
 
 func NewManager(p *config.Profiles, settings *config.SettingsStore, dataDir, exePath string) *Manager {
-	cleanupStaleSFTPArtifacts(filepath.Join(dataDir, "known_hosts"))
 	return &Manager{profiles: p, settings: settings, dataDir: dataDir, exePath: exePath}
 }
 
@@ -237,6 +237,13 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		knownHostsDir := filepath.Join(m.dataDir, "known_hosts")
 		if err := security.EnsureNoRedirectDirectory(m.dataDir, knownHostsDir); err != nil {
 			return ConnectResult{}, errors.New("mapa SFTP sesije nije sigurna")
+		}
+		// Windows klijent je single-instance, pa se crash-ostatci mogu očistiti
+		// tek nakon no-redirect provjere. Linux/macOS namjerno dopuštaju više
+		// terminalskih procesa; ondje startup cleanup ne smije dirati artefakte
+		// druge aktivne sesije.
+		if runtime.GOOS == "windows" {
+			cleanupStaleSFTPArtifacts(knownHostsDir)
 		}
 		fp, keyLine, keyAlgorithm, err := ScanFingerprint(ctx, cfg.Host, cfg.Port, knownHostsDir)
 		if err != nil {
