@@ -88,6 +88,16 @@ Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta ili p
 - bez eksplicitnog SFTP ključa koristi se `IdentitiesOnly yes` i `IdentityFile none`
 - host, korisnik i private-key putanja nisu na OpenSSH command lineu
 
+### FTPS certifikat i opoziv
+
+FTPS uvijek zadržava provjeru TLS certifikata koju pruža aktivni curl TLS backend i postavlja minimalni TLS zahtjev kroz `tlsv1.2`; eksplicitni FTPS dodatno zahtijeva TLS pomoću `ssl-reqd`.
+
+ByFTP ne koristi `ssl-no-revoke`. Na Windowsu se za Schannel koristi `ssl-revoke-best-effort`: provjera opoziva certifikata ostaje uključena kada su potrebni podaci dostupni, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu. To je svjesno sigurnosno/stabilnosno uravnoteženje i jače je od potpunog isključivanja revocation provjere.
+
+Linux/macOS ne dobivaju Schannel-specifičnu opciju. Ponašanje provjere certifikata i opoziva tamo ostaje u odgovornosti TLS backend-a sistemskog curl-a.
+
+Regresijski Go test i `audit_privacy.py` zajedno moraju odbiti ponovno uvođenje `ssl-no-revoke` i moraju potvrditi Windows best-effort revocation politiku.
+
 ## Datoteke i putanje
 
 - udaljene i lokalne putanje prolaze traversal/control-character validaciju
@@ -159,7 +169,7 @@ Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brend
 
 `scripts/audit_security.py` zaključava SFTP procesne granice, connect smoke, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem zaštite.
 
-`scripts/audit_privacy.py` zaključava runtime mrežnu politiku i stvarno gašenje Go build telemetrije.
+`scripts/audit_privacy.py` zaključava runtime mrežnu politiku, FTPS revocation pravilo i stvarno gašenje Go build telemetrije.
 
 `scripts/audit_release.py` zaključava single-trigger/serialized release model, production quality gate, platformsku matricu, staging allowlist i završni javni asset ugovor.
 
