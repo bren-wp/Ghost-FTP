@@ -45,9 +45,10 @@ func (a *app) createControls(hinst uintptr) error {
 		return a.registerButton(h, icon, label, variant)
 	}
 
-	// Branded application header.
-	a.brandTitle = mk("STATIC", brand.ProductName, 0, 0)
-	a.brandSubtitle = mk("STATIC", "FTP • FTPS • SFTP  ·  Siguran prijenos datoteka  ·  "+brand.Company, 0, 0)
+	// Svaki zasebni EXE dobiva stvarni vlastiti identitet, ali koristi isti
+	// provjereni Win32 file-manager core.
+	a.brandTitle = mk("STATIC", clientProductName(), 0, 0)
+	a.brandSubtitle = mk("STATIC", clientSubtitle(), 0, 0)
 	a.connectionBadge = mk("STATIC", "● NIJE POVEZANO", 0, 0)
 	setFont(a.brandTitle, a.titleFont)
 	setFont(a.brandSubtitle, a.smallFont)
@@ -79,7 +80,8 @@ func (a *app) createControls(hinst uintptr) error {
 	cue(a.user, "Korisničko ime")
 	cue(a.pass, "Lozinka")
 
-	// SFTP authentication row. Disabled for FTP/FTPS.
+	// SFTP authentication row. FTP Client ga uopće ne prikazuje; Suite ga
+	// aktivira samo kada je izabran SFTP, a SFTP Client ga uvijek koristi.
 	a.keyPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, idKeyPath)
 	a.chooseKey = mkButton("Privatni ključ…", iconPermissions, buttonDefault, idChooseKey)
 	a.passphrase = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, idPassphrase)
@@ -91,6 +93,11 @@ func (a *app) createControls(hinst uintptr) error {
 	limitEdit(a.passphrase, 8192)
 	cue(a.keyPath, "Privatni ključ za SFTP (opcionalno)")
 	cue(a.passphrase, "Zaporka privatnog ključa")
+	if !clientShowsSFTPAuth() {
+		for _, h := range []uintptr{a.keyPath, a.chooseKey, a.passphrase} {
+			showWindow.Call(h, 0)
+		}
+	}
 
 	// Section labels.
 	a.sectionLocal = mk("STATIC", "LOKALNO RAČUNALO", 0, 0)
@@ -133,7 +140,7 @@ func (a *app) createControls(hinst uintptr) error {
 	a.clearQueue = mkButton("Očisti završene", iconClear, buttonSubtle, idClearQueue)
 	a.transferList = mk("SysListView32", "", wsBorder|lvsReport|lvsShowSelAlways, idTransferList)
 	a.status = mk("STATIC", "", 0, idStatus)
-	a.statusVersion = mk("STATIC", brand.ProductName+" "+a.version+"  •  "+brand.Company, 0, 0)
+	a.statusVersion = mk("STATIC", clientProductName()+" "+a.version+"  •  "+brand.Company, 0, 0)
 	a.transferSummary = mk("STATIC", "0 aktivnih  •  0 na čekanju  •  0 završeno", 0, 0)
 	setFont(a.status, a.smallFont)
 	setFont(a.statusVersion, a.smallFont)
@@ -152,6 +159,7 @@ func (a *app) createControls(hinst uintptr) error {
 	a.setupTransferColumns(a.transferList)
 	a.setRemoteControls(false)
 	a.updateProtocolControls()
+	setText(a.hwnd, clientProductName()+" "+a.version+" — "+brand.Company)
 	return a.validateControls()
 }
 
@@ -305,8 +313,8 @@ func (a *app) layout(width, height int) {
 
 	// Branded header and compact application toolbar.
 	headerY := 10
-	a.move(a.brandTitle, margin, headerY, 145, 35)
-	a.move(a.brandSubtitle, margin+152, headerY+8, 445, 22)
+	a.move(a.brandTitle, margin, headerY, 220, 35)
+	a.move(a.brandSubtitle, margin+228, headerY+8, 530, 22)
 	a.move(a.connectionBadge, width-112, headerY+8, 98, 22)
 
 	toolbarY := 51
@@ -333,14 +341,18 @@ func (a *app) layout(width, height int) {
 	x += 106 + gap
 	a.move(a.disconnect, x, y, 106, rowH)
 
-	// SFTP authentication row.
-	y = 126
-	a.move(a.keyPath, margin, y, 500, rowH)
-	a.move(a.chooseKey, margin+508, y, 112, rowH)
-	a.move(a.passphrase, margin+628, y, 240, rowH)
+	// SFTP authentication row. FTP-only klijent koristi kompaktniji raspored.
+	sectionY := 168
+	if clientShowsSFTPAuth() {
+		y = 126
+		a.move(a.keyPath, margin, y, 500, rowH)
+		a.move(a.chooseKey, margin+508, y, 112, rowH)
+		a.move(a.passphrase, margin+628, y, 240, rowH)
+	} else {
+		sectionY = 130
+	}
 
 	// File panels.
-	sectionY := 168
 	centerW, panelGap := 126, 12
 	usableW := width - 2*margin - centerW - 2*panelGap
 	panelW := usableW / 2
@@ -395,8 +407,8 @@ func (a *app) layout(width, height int) {
 	}
 	queueY := queueButtonsY + queueButtonsH + 7
 	a.move(a.transferList, margin, queueY, width-2*margin, queueH)
-	a.move(a.status, margin, height-statusH-5, width-2*margin-250, statusH)
-	a.move(a.statusVersion, width-margin-238, height-statusH-5, 238, statusH)
+	a.move(a.status, margin, height-statusH-5, width-2*margin-320, statusH)
+	a.move(a.statusVersion, width-margin-308, height-statusH-5, 308, statusH)
 	invalidateRect.Call(a.hwnd, 0, 1)
 }
 
@@ -421,7 +433,10 @@ func (a *app) setRemoteControls(enabled bool) {
 }
 
 func (a *app) updateProtocolControls() {
-	sftp := a.protocolValue() == "sftp" && !a.connected
+	if clientHasFixedProtocol() {
+		enableWindow.Call(a.protocol, 0)
+	}
+	sftp := a.protocolValue() == "sftp" && !a.connected && clientShowsSFTPAuth()
 	val := uintptr(0)
 	if sftp {
 		val = 1
