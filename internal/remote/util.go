@@ -11,12 +11,13 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"unicode/utf8"
 
+	"brendigo.com/byftp/internal/itemlist"
 	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/security"
@@ -187,6 +188,14 @@ func escapeURLPath(p string) string {
 	return out
 }
 
+func parseListingSize(raw string) int64 {
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
+
 func parseListLine(line string) (model.Item, bool) {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "total ") {
@@ -194,23 +203,20 @@ func parseListLine(line string) (model.Item, bool) {
 	}
 	f := strings.Fields(line)
 	if len(f) >= 9 && (strings.HasPrefix(f[0], "d") || strings.HasPrefix(f[0], "-") || strings.HasPrefix(f[0], "l")) {
-		size := int64(0)
-		for _, c := range f[4] {
-			if c >= '0' && c <= '9' {
-				size = size*10 + int64(c-'0')
-			} else {
-				size = 0
-				break
-			}
-		}
+		isDirectory := strings.HasPrefix(f[0], "d")
+		isSymlink := strings.HasPrefix(f[0], "l")
 		name := strings.Join(f[8:], " ")
-		if ix := strings.Index(name, " -> "); ix >= 0 {
-			name = name[:ix]
+		// Samo ls -l zapis simboličke poveznice koristi "ime -> odredište".
+		// Obična datoteka smije legitimno sadržavati niz " -> " u nazivu.
+		if isSymlink {
+			if ix := strings.Index(name, " -> "); ix >= 0 {
+				name = name[:ix]
+			}
 		}
 		if name == "." || name == ".." {
 			return model.Item{}, false
 		}
-		return model.Item{Name: name, Size: size, IsDirectory: strings.HasPrefix(f[0], "d"), IsSymlink: strings.HasPrefix(f[0], "l"), Modified: time.Time{}}, true
+		return model.Item{Name: name, Size: parseListingSize(f[4]), IsDirectory: isDirectory, IsSymlink: isSymlink, Modified: time.Time{}}, true
 	}
 	if len(f) >= 4 && strings.Contains(f[0], "-") {
 		isDir := strings.EqualFold(f[2], "<DIR>")
@@ -218,18 +224,17 @@ func parseListLine(line string) (model.Item, bool) {
 		if name == "." || name == ".." {
 			return model.Item{}, false
 		}
-		return model.Item{Name: name, IsDirectory: isDir}, true
+		size := int64(0)
+		if !isDir {
+			size = parseListingSize(f[2])
+		}
+		return model.Item{Name: name, Size: size, IsDirectory: isDir}, true
 	}
 	return model.Item{Name: line}, true
 }
 
 func sortItems(items []model.Item) {
-	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].IsDirectory != items[j].IsDirectory {
-			return items[i].IsDirectory
-		}
-		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
-	})
+	itemlist.Sort(items)
 }
 
 func remoteEntry(items []model.Item, name string) (model.Item, bool) {
