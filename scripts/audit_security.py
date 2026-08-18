@@ -124,7 +124,11 @@ def main() -> int:
     )
     require(
         "internal/usererror/message_test.go",
-        ("TestMessageSessionStillClosing", "TestMessageDisconnectCleanupStillRunning"),
+        (
+            "TestMessageSessionStillClosing",
+            "TestMessageDisconnectCleanupStillRunning",
+            "TestMessageDisconnectLifecycleWinsJoinedDeadline",
+        ),
     )
     require("internal/security/remove_tree_root_test.go", ("RemoveTreeNoFollow",))
     require(
