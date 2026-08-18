@@ -61,6 +61,11 @@ type resolvedConnection struct {
 	PassphraseBlob string
 }
 
+// mergeConnection koristi spremljeni profil samo kao početne connection podatke.
+// Polje privatnog ključa je namjerno autoritativno iz aktualnog UI unosa: prazna
+// vrijednost znači "bez privatnog ključa" i ne smije potajno vratiti stari ključ.
+// Fingerprint nije vjerodajnica za spajanje nego trust pin i obrađuje se zasebno
+// prema identitetu endpointa.
 func mergeConnection(base model.ConnectionConfig, override model.ConnectionConfig) model.ConnectionConfig {
 	if override.Protocol != "" {
 		base.Protocol = override.Protocol
@@ -74,17 +79,41 @@ func mergeConnection(base model.ConnectionConfig, override model.ConnectionConfi
 	if override.Username != "" {
 		base.Username = override.Username
 	}
-	if override.PrivateKeyPath != "" {
-		base.PrivateKeyPath = override.PrivateKeyPath
-	}
-	if override.Fingerprint != "" {
-		base.Fingerprint = override.Fingerprint
-	}
+	base.PrivateKeyPath = override.PrivateKeyPath
+	base.Fingerprint = override.Fingerprint
 	// Vjerodajnice u čistom tekstu namjerno se ovdje ne spajaju. Obrađuju se
 	// odvojeno kako bi spremljeni DPAPI blob ostao šifriran sve do stvarne uporabe.
 	base.Password = override.Password
 	base.Passphrase = override.Passphrase
 	return base
+}
+
+func endpointHostKey(host string) string {
+	host = strings.TrimSpace(host)
+	host = strings.Trim(host, "[]")
+	host = strings.TrimSuffix(host, ".")
+	return strings.ToLower(host)
+}
+
+// profileEndpointMatches veže host-key pin uz mrežni endpoint. Korisničko ime
+// i privatni ključ nisu dio identiteta SSH host ključa.
+func profileEndpointMatches(profile model.Profile, cfg model.ConnectionConfig) bool {
+	return profile.ID != "" &&
+		strings.EqualFold(strings.TrimSpace(profile.Protocol), strings.TrimSpace(cfg.Protocol)) &&
+		endpointHostKey(profile.Host) == endpointHostKey(cfg.Host) &&
+		profile.Port == cfg.Port
+}
+
+// profileAccountMatches je stroža granica za spremljenu lozinku: vjerodajnica
+// se smije automatski naslijediti samo za isti endpoint i isto korisničko ime.
+func profileAccountMatches(profile model.Profile, cfg model.ConnectionConfig) bool {
+	return profileEndpointMatches(profile, cfg) && profile.Username == cfg.Username
+}
+
+func profilePrivateKeyMatches(profile model.Profile, cfg model.ConnectionConfig) bool {
+	return profileAccountMatches(profile, cfg) &&
+		strings.EqualFold(strings.TrimSpace(profile.PrivateKeyPath), strings.TrimSpace(cfg.PrivateKeyPath)) &&
+		strings.TrimSpace(cfg.PrivateKeyPath) != ""
 }
 
 func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolvedConnection, model.Profile, error) {
@@ -98,12 +127,13 @@ func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolved
 		profile = p
 		resolved.Config = mergeConnection(model.ConnectionConfig{
 			Protocol: p.Protocol, Host: p.Host, Port: p.Port, Username: p.Username,
-			PrivateKeyPath: p.PrivateKeyPath, Fingerprint: p.Fingerprint,
 		}, in)
-		if in.Password == "" {
+		// Spremljene tajne nikada se ne prenose preko privremeno izmijenjenog
+		// endpointa/računa. Korisnik tada mora izričito upisati vjerodajnicu.
+		if in.Password == "" && profileAccountMatches(p, resolved.Config) {
 			resolved.PasswordBlob = p.PasswordBlob
 		}
-		if in.Passphrase == "" {
+		if in.Passphrase == "" && profilePrivateKeyMatches(p, resolved.Config) {
 			resolved.PassphraseBlob = p.PassphraseBlob
 		}
 	}
@@ -177,9 +207,6 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 
-	// Privremeni SFTP trust podaci smiju preživjeti samo prvi korak u kojem
-	// korisnik treba potvrditi novi ključ. Svaki uspjeh, otkaz ili greška u
-	// sljedećem koraku briše DPAPI-zaštićene privremene vjerodajnice iz memorije.
 	preservePendingTrust := false
 	defer func() {
 		if !preservePendingTrust {
@@ -204,6 +231,7 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		return ConnectResult{}, err
 	}
 	cfg := resolved.Config
+	profileEndpoint := profileEndpointMatches(profile, cfg)
 	connectTimeout := 15
 	if m.settings != nil {
 		if settings, settingsErr := m.settings.Get(); settingsErr == nil && settings.ConnectionTimeoutSeconds >= 5 && settings.ConnectionTimeoutSeconds <= 60 {
@@ -211,7 +239,6 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		}
 	}
 	if trust == "" {
-		// Novi pokušaj povezivanja poništava svaku prethodno neodgovorenu potvrdu povjerenja.
 		m.clearPendingTrustLocked()
 	}
 	var s Session
@@ -224,8 +251,8 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		if err != nil {
 			return ConnectResult{}, err
 		}
-		expected := cfg.Fingerprint
-		if profile.Fingerprint != "" {
+		expected := strings.TrimSpace(cfg.Fingerprint)
+		if profileEndpoint && profile.Fingerprint != "" {
 			expected = profile.Fingerprint
 		}
 		if expected != "" && expected != fp {
@@ -249,7 +276,9 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		if err != nil {
 			return ConnectResult{}, err
 		}
-		if remember && profileID != "" {
+		// Privremena promjena hosta/porta smije vrijediti samo za ovu sesiju.
+		// Nikada ne prepisuj spremljeni pin originalnog profila drugim endpointom.
+		if remember && profileID != "" && profileEndpoint {
 			if err := m.profiles.UpdateFingerprint(profileID, fp); err != nil {
 				_ = os.Remove(kh)
 				return ConnectResult{}, err
@@ -279,7 +308,6 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		return ConnectResult{}, err
 	}
 
-	// Nakon predaje protokolarnom adapteru vjerodajnice u čistom tekstu ne ostaju u stanju veze.
 	publicCfg := cfg
 	publicCfg.Password = ""
 	publicCfg.Passphrase = ""
@@ -317,10 +345,6 @@ func (m *Manager) finishSessionClose(state *sessionCloseState, s Session) {
 	if s != nil {
 		state.err = s.Close()
 	}
-
-	// Close-state se mora ukloniti prije signaliziranja done kanala. Tako svaki
-	// pozivatelj koji se probudi na done zna da je stari adapter već zatvoren i
-	// da novi Connect više neće naletjeti na kratki, nepotrebni closing prozor.
 	m.mu.Lock()
 	if m.closing == state {
 		m.closing = nil
@@ -337,20 +361,12 @@ func (m *Manager) Disconnect(ctx context.Context) error {
 	defer m.opMu.Unlock()
 	m.clearPendingTrustLocked()
 
-	// Ako je prethodni poziv već odvojio sesiju, ali je timeout vratio kontrolu
-	// pozivatelju prije završnog Close(), samo čekaj isti close-state. Time jedan
-	// adapter nikada ne dobiva dvostruki Close i reconnect ne može prijeći preko
-	// stare sesije koja još koristi svoje privremene SFTP datoteke.
 	m.mu.Lock()
 	if m.session == nil {
 		state := m.closing
 		m.mu.Unlock()
 		return waitForSessionClose(ctx, state)
 	}
-
-	// Najprije atomarno zatvori ulaz za nove operacije. Operation registrira svoj
-	// WaitGroup ref dok još drži RLock, pa nakon ovog write locka nijedna nova
-	// operacija ne može početi na sesiji koju ćemo zatvoriti.
 	s := m.session
 	cancel := m.sessionCancel
 	m.session = nil
@@ -361,9 +377,6 @@ func (m *Manager) Disconnect(ctx context.Context) error {
 	m.closing = state
 	m.mu.Unlock()
 
-	// Otkazivanje budi aktivne protokolarne pozive. Čekanje i završni Close rade
-	// u odvojenom cleanup putu kako deadline UI-a/shutdowna nikada ne bi blokirao
-	// pozivatelja neograničeno. Adapter se ipak ne zatvara prije zadnjeg releasea.
 	if cancel != nil {
 		cancel()
 	}
@@ -385,9 +398,6 @@ func (m *Manager) Probe(ctx context.Context) error {
 	return err
 }
 
-// Operation vraća aktivnu sesiju s kontekstom koji se otkazuje kada ga
-// otkaže pozivatelj ili kada se prekine aktivna ByFTP veza. Svaka uspješna
-// registracija mora pozvati release; release je namjerno idempotentan.
 func (m *Manager) Operation(ctx context.Context) (Session, context.Context, func(), error) {
 	m.mu.RLock()
 	s := m.session
@@ -396,9 +406,6 @@ func (m *Manager) Operation(ctx context.Context) (Session, context.Context, func
 		m.mu.RUnlock()
 		return nil, nil, func() {}, errors.New("nije uspostavljena veza")
 	}
-	// Add mora biti pod istim RLockom pod kojim je pročitana aktivna sesija.
-	// Disconnect tako ne može početi Wait dok je nova operacija između provjere
-	// sesije i registracije svog reference counta.
 	m.activeOps.Add(1)
 	m.mu.RUnlock()
 
@@ -421,9 +428,6 @@ func connectionIdentity(cfg model.ConnectionConfig) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ConnectionIdentity vraća neprozirni memorijski identitet aktivnog odredišta.
-// Ne sadrži tajne podatke i sprječava da se prijenos stvoren za jedan
-// poslužitelj/račun ponovno pokuša izvršiti prema drugome.
 func (m *Manager) ConnectionIdentity() (string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
