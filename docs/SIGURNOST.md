@@ -9,6 +9,7 @@
 - spremljeni credential blob ne dešifrira se rano u connection manageru
 - SFTP trust credential je DPAPI-zaštićen, vezan uz točan host/port/user/key/fingerprint i vremenski ograničen
 - privremeni trust blob briše se nakon svake završene trust sekvence, uključujući grešku ili otkaz
+- privatni SFTP ključ mora biti regularna lokalna datoteka; symlink i Windows reparse-point objekt se odbijaju
 
 ## Mrežni procesi
 
@@ -19,6 +20,12 @@
 - bez izričito odabranog ključa postavljaju se `IdentitiesOnly=yes` i `IdentityFile=none`
 - host ključ provjerava se kroz session-temporary ByFTP known_hosts i sesija se veže uz potvrđeni algoritam
 - host/user/private-key metapodaci nisu na OpenSSH command lineu
+
+## Životni ciklus udaljene sesije
+
+Svaka uspješna remote `Operation` registracija drži aktivnu referencu na sesiju do poziva idempotentnog `release()`. Disconnect pod ekskluzivnim lockom najprije uklanja sesiju iz managera, čime blokira nove operacije, zatim otkazuje session context i čeka postojeće reference. Tek kada svi aktivni pozivi završe smije se pozvati `Session.Close()`.
+
+Ova granica sprječava da se curl/OpenSSH adapter zatvori, osjetljivi session state očisti ili SFTP config/known_hosts datoteke izbrišu dok ih paralelni list/rename/chmod/transfer poziv još koristi.
 
 ## Datoteke i putanje
 
@@ -33,6 +40,12 @@
 - ciljni lokalni replace odbija nepouzdani reparse objekt i ne prepisuje postojeću stavku kroz check-then-rename utrku
 - temp datoteke imaju nepredvidive nazive i stvaraju se ekskluzivno
 - rekurzivni upload root ponovno se validira prije svakog queued pokušaja
+
+## Udaljeni listing
+
+Tekstualni fallback listing tretira ` -> ` kao symlink separator samo ako permissions/type polje stvarno označava simboličku poveznicu. Time ime obične datoteke ostaje netaknuto. Veličina se pretvara provjerenim `strconv.ParseInt` pozivom; prevelik, negativan ili neispravan broj ne može wrapati `int64`.
+
+FTP MLSD ostaje preferirani strojno čitljivi format. Udaljeni i lokalni prikaz dijele isti bounded/stable sorter, testiran na 50.000 stavki.
 
 ## State/config
 
@@ -75,7 +88,7 @@ Transfer posao pamti identitet veze i ne može se ručno retryati na drugi serve
 
 ## Automatizirani sigurnosni gate
 
-`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor. Time promjena sigurnosnog koda i slučajno uklanjanje njegova testa ne mogu neopaženo proći standardni CI.
+`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. Od 2.14.4 izričito čuva i private-key reparse blokadu te active-operation/session-close lifecycle. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor. Time promjena sigurnosnog koda i slučajno uklanjanje njegova testa ne mogu neopaženo proći standardni CI.
 
 ## Ograničenje
 
