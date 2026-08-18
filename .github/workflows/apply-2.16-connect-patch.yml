@@ -6,6 +6,9 @@ on:
       - agent/byftp-2.16.0-connect-reliability
     paths:
       - '.github/workflows/apply-2.16-connect-patch.yml'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -18,6 +21,7 @@ env:
 
 jobs:
   apply:
+    if: github.head_ref == 'agent/byftp-2.16.0-connect-reliability' || github.ref_name == 'agent/byftp-2.16.0-connect-reliability'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,6 +51,8 @@ jobs:
           go vet ./...
       - name: Spremi čisti rezultat na granu
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name 'ByFTP CI'
