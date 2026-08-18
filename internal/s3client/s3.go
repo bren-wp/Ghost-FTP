@@ -23,14 +23,18 @@ import (
 	"brendigo.com/byftp/internal/platform"
 )
 
-const maxControlResponse = 16 << 20
+const (
+	maxControlResponse = 16 << 20
+	maxSinglePutBytes   = int64(5_000_000_000)
+)
 
 type Config struct {
-	Endpoint  string
-	Region    string
-	AccessKey string
-	SecretKey string
-	Bucket    string
+	Endpoint     string
+	Region       string
+	AccessKey    string
+	SecretKey    string
+	SessionToken string
+	Bucket       string
 }
 
 type Item struct {
@@ -60,13 +64,16 @@ func New(cfg Config) (*Client, error) {
 	if strings.ContainsAny(cfg.Bucket, "/\\\x00\r\n") || cfg.Bucket == "." || cfg.Bucket == ".." {
 		return nil, errors.New("neispravan S3 bucket")
 	}
+	if strings.ContainsAny(cfg.AccessKey, "\x00\r\n") || strings.ContainsAny(cfg.SecretKey, "\x00\r\n") || strings.ContainsAny(cfg.SessionToken, "\x00\r\n") {
+		return nil, errors.New("S3 vjerodajnica sadrži nedopuštene znakove")
+	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = http.ProxyFromEnvironment
-	return &Client{
-		cfg: cfg,
-		http: &http.Client{Timeout: 90 * time.Second, Transport: transport},
-		now: time.Now,
-	}, nil
+	// Privatnosno fail-closed: S3 ide izravno na endpoint koji je korisnik
+	// upisao. Ne nasljeđujemo HTTP(S)_PROXY koji bi endpoint/objektne putanje
+	// mogao poslati posredniku bez jasne postavke u ByFTP-u.
+	transport.Proxy = nil
+	transport.ResponseHeaderTimeout = 60 * time.Second
+	return &Client{cfg: cfg, http: &http.Client{Transport: transport}, now: time.Now}, nil
 }
 
 func loopbackHTTP(u *url.URL) bool {
@@ -74,7 +81,7 @@ func loopbackHTTP(u *url.URL) bool {
 		return false
 	}
 	host := u.Hostname()
-	if host == "localhost" {
+	if strings.EqualFold(host, "localhost") {
 		return true
 	}
 	ip := net.ParseIP(host)
@@ -100,29 +107,44 @@ func hashReader(r io.Reader) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func encodePath(value string) string {
-	parts := strings.Split(strings.TrimPrefix(value, "/"), "/")
-	for i := range parts {
-		parts[i] = url.PathEscape(parts[i])
+func awsURIEncode(value string, encodeSlash bool) string {
+	const hexUpper = "0123456789ABCDEF"
+	var b strings.Builder
+	for _, c := range []byte(value) {
+		unreserved := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~'
+		if unreserved || (c == '/' && !encodeSlash) {
+			b.WriteByte(c)
+			continue
+		}
+		b.WriteByte('%')
+		b.WriteByte(hexUpper[c>>4])
+		b.WriteByte(hexUpper[c&0x0f])
 	}
-	return "/" + strings.Join(parts, "/")
+	return b.String()
+}
+
+func encodePath(value string) string {
+	if !strings.HasPrefix(value, "/") {
+		value = "/" + value
+	}
+	return awsURIEncode(value, false)
 }
 
 func canonicalQuery(values url.Values) string {
-	keys := make([]string, 0, len(values))
-	for k := range values {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var parts []string
-	for _, k := range keys {
-		vals := append([]string(nil), values[k]...)
-		sort.Strings(vals)
-		for _, v := range vals {
-			parts = append(parts, url.QueryEscape(k)+"="+url.QueryEscape(v))
+	pairs := make([]string, 0)
+	for key, vals := range values {
+		encodedKey := awsURIEncode(key, true)
+		if len(vals) == 0 {
+			pairs = append(pairs, encodedKey+"=")
+			continue
+		}
+		for _, value := range vals {
+			pairs = append(pairs, encodedKey+"="+awsURIEncode(value, true))
 		}
 	}
-	return strings.ReplaceAll(strings.Join(parts, "&"), "+", "%20")
+	// AWS zahtijeva sortiranje nakon URI enkodiranja.
+	sort.Strings(pairs)
+	return strings.Join(pairs, "&")
 }
 
 func (c *Client) objectURL(key string, query url.Values) (*url.URL, error) {
@@ -165,14 +187,16 @@ func (c *Client) signedRequestReader(ctx context.Context, method, key string, qu
 	date := now.Format("20060102")
 	req.Header.Set("x-amz-date", amzDate)
 	req.Header.Set("x-amz-content-sha256", payloadHash)
+	if c.cfg.SessionToken != "" {
+		req.Header.Set("x-amz-security-token", c.cfg.SessionToken)
+	}
 
-	signedNames := []string{"host", "x-amz-content-sha256", "x-amz-date"}
-	for k := range extra {
+	signedNames := []string{"host"}
+	for k := range req.Header {
 		lk := strings.ToLower(k)
-		if lk == "host" || lk == "authorization" || lk == "x-amz-date" || lk == "x-amz-content-sha256" {
-			continue
+		if lk != "authorization" {
+			signedNames = append(signedNames, lk)
 		}
-		signedNames = append(signedNames, lk)
 	}
 	sort.Strings(signedNames)
 	seen := map[string]bool{}
@@ -187,7 +211,11 @@ func (c *Client) signedRequestReader(ctx context.Context, method, key string, qu
 		if name == "host" {
 			value = req.URL.Host
 		} else {
-			value = strings.Join(strings.Fields(req.Header.Get(name)), " ")
+			values := req.Header.Values(name)
+			for i := range values {
+				values[i] = strings.Join(strings.Fields(values[i]), " ")
+			}
+			value = strings.Join(values, ",")
 		}
 		canonicalHeaders.WriteString(name + ":" + value + "\n")
 		finalNames = append(finalNames, name)
@@ -232,6 +260,9 @@ func responseError(resp *http.Response) error {
 	text := strings.TrimSpace(string(data))
 	if len(text) > 4096 {
 		text = text[:4096]
+	}
+	if text == "" {
+		text = "poslužitelj nije vratio dodatno objašnjenje"
 	}
 	return fmt.Errorf("S3 zahtjev nije uspio (%s): %s", resp.Status, text)
 }
@@ -313,13 +344,32 @@ func (c *Client) List(ctx context.Context, prefix string) ([]Item, error) {
 	return out, nil
 }
 
+func (c *Client) objectExists(ctx context.Context, key string) (bool, error) {
+	req, err := c.signedRequest(ctx, http.MethodHead, strings.TrimPrefix(key, "/"), nil, nil, nil)
+	if err != nil {
+		return false, err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return true, nil
+	}
+	return false, responseError(resp)
+}
+
 func (c *Client) Put(ctx context.Context, localPath, key string) error {
 	st, err := os.Lstat(localPath)
 	if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
 		return errors.New("lokalna datoteka nije obična datoteka")
 	}
-	if st.Size() > 5<<30 {
-		return errors.New("S3 upload veći od 5 GiB zahtijeva multipart podršku")
+	if st.Size() > maxSinglePutBytes {
+		return errors.New("S3 upload veći od 5 GB zahtijeva multipart podršku")
 	}
 	f, err := os.Open(localPath)
 	if err != nil {
@@ -417,9 +467,19 @@ func (c *Client) Mkdir(ctx context.Context, prefix string) error {
 
 func (c *Client) Rename(ctx context.Context, oldKey, newKey string) error {
 	oldKey, newKey = strings.TrimPrefix(oldKey, "/"), strings.TrimPrefix(newKey, "/")
-	if oldKey == "" || newKey == "" {
-		return errors.New("S3 ključ je prazan")
+	if oldKey == "" || newKey == "" || oldKey == newKey {
+		return errors.New("neispravan S3 izvor ili odredište")
 	}
+	exists, err := c.objectExists(ctx, newKey)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return errors.New("odredišni S3 objekt već postoji")
+	}
+	// S3 nema atomski rename. ByFTP radi server-side CopyObject pa DeleteObject
+	// tek nakon uspješnog copyja; provjera odredišta smanjuje rizik prepisivanja,
+	// ali konkurentna izmjena između HEAD i COPY ostaje ograničenje S3 API-ja.
 	source := encodePath("/" + c.cfg.Bucket + "/" + oldKey)
 	if _, err := c.do(ctx, http.MethodPut, newKey, nil, nil, http.Header{"x-amz-copy-source": {source}}); err != nil {
 		return err
