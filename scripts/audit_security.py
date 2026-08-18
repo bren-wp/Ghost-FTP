@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-
 def fail(message: str) -> None: raise SystemExit("SECURITY_AUDIT_NIJE_PROSAO: " + message)
 def read(path: str) -> str:
     target = ROOT / path
@@ -39,6 +38,13 @@ def main() -> int:
     require("cmd/byftp/askpass_test.go", ("TestSelectAskpassSecretOnlyUsesRecognizedPrompts", "Verification code", "One-time password token"))
     require("internal/remote/sftp_stream_test.go", ("TestSFTPCommandArgsKeepAskPassEnabled", "sftp -b"))
     require("internal/remote/connect_regression_test.go", ("TestSSHSessionConfigNormalizesBracketedIPv6Host", "TestFindOpenSSHUsesNativeExecutableNameOutsideWindows"))
+    require("internal/remote/process_connect_smoke_other_test.go", (
+        "TestCurlFTPProcessSmokeUsesRuntimeSecretAndParsesListing",
+        "TestSFTPProcessSmokeUsesStdinWithoutBatchMode",
+        "security.UnprotectRuntimeBytes(token)",
+        'if [ "$arg" = "-b" ]',
+        "ls -la \".\"",
+    ))
 
     require("internal/security/runtime_secret_windows.go", ("ProtectRuntimeString", "UnprotectRuntimeBytes", "ForgetRuntimeSecret"))
     require("internal/security/runtime_secret_other.go", ("crypto/rand", "runtimeValues", "WipeBytes(value)", "ForgetRuntimeSecret"))
@@ -86,6 +92,7 @@ def main() -> int:
     print("SECURITY_AUDIT=PASS")
     print("SFTP_ASKPASS_BATCHMODE_CONFLICT=BLOCKED")
     print("ASKPASS_UNKNOWN_PROMPT_SECRET=BLOCKED")
+    print("CONNECT_PROCESS_SMOKE=ENFORCED_ON_UNIX")
     print("CONNECT_CONTEXT_CAUSE=PROPAGATED")
     print("IPV6_SFTP_HOST_NORMALIZATION=ENABLED")
     print("RUNTIME_SECRET_STORAGE=CROSS_PLATFORM_EPHEMERAL")
