@@ -1,16 +1,17 @@
 # ByFTP — plan razvoja
 
-## Završeno do 2.16 linije
+## Završeno u 2.16 liniji
 
 - izvorni Win32 desktop bez browser/localhost sloja
 - zajednički tipizirani Engine za Windows, Linux i macOS frontend
 - FTP, eksplicitni/implicitni FTPS i SFTP
 - Windows DPAPI profili i endpoint/account/private-key binding
-- SFTP host-key pinning, session-scoped trust i konkretnim algoritmom vezani `known_hosts`
-- ispravljen OpenSSH `sftp -b`/`BatchMode=yes` konflikt; password/passphrase AskPass ostaje funkcionalan na Windowsu
+- SFTP host-key pinning, session-scoped trust i algoritmom vezani `known_hosts`
+- uklonjen SFTP batch/AskPass konflikt; Windows password/passphrase AskPass ostaje funkcionalan
 - fail-closed AskPass koji ne šalje tajnu MFA/OTP/nepoznatom promptu
 - Linux/macOS terminalni app nad istim remote/transfer coreom
 - Linux/macOS procesno runtime spremište FTP/FTPS tajne bez disk persistencije
+- process-level FTP/SFTP child-process smoke regresije na Linux i macOS runnerima
 - Windows x64 + x86 produkcijski build
 - Linux DEB amd64 + arm64 + i386 build
 - macOS Universal Intel + Apple Silicon PKG build
@@ -23,20 +24,38 @@
 - reproducibilni brand resursi
 - hrvatski docs sustav i docs/security/privacy/release auditi
 - fail-closed idempotentni GitHub Release publisher
-- provjera konačnog Windows ZIP-a i rekurzivnog bundle SHA-256 manifesta
-- javni release ugovor bez custom Source ZIP-a, standalone uninstallera i internog verification reporta
+- produkcijski release quality/race gate neovisan o PR CI-ju
+- jedan autoritativni release okidač bez samookidanja vlastitim tagom
+- serijalizirani release concurrency model
+- točan staging allowlist za 10 platformskih paketa
+- provjera konačnih Windows ZIP bundleova, Linux DEB metapodataka i macOS PKG strukture
+- stvarno gašenje Go toolchain telemetrije u CI/releaseu uz fail-closed provjeru u build skriptama
+- javna dokumentacija i distribucijski izlazi odvojeni od internih tehničkih build dokaza
 
 ## Sljedeći prioriteti
 
-1. **Unix SFTP AskPass broker** — siguran password/passphrase tok na Linuxu/macOS-u bez plaintext argumenta, datoteke ili običnog environmenta
-2. **runtime interoperability smoke matriks** — automatizirani FTP/FTPS/SFTP test serveri s jednokratnim testnim credentialima
-3. **macOS Developer ID/notarizacija** kada je stvarni Brendigo Apple signing identitet dostupan
-4. **Windows Authenticode** kada je stvarni Brendigo code-signing certifikat dostupan
-5. **Linux paketni kanali** — eventualni RPM/AppImage tek nakon sigurnosnog i update-model pregleda
-6. **pristupačnost** — dodatna Win32 keyboard/focus poboljšanja i bolji terminal help/completion
-7. **transfer observability bez telemetrije** — stvarna lokalna brzina/ETA uz bounded event churn i bez vanjskog slanja
-8. **memory skaliranje** — dodatna optimizacija vrlo velikih rekurzivnih planova i queue eventa
-9. **controlled reconnect** — recovery od mrežnog prekida bez slabljenja endpoint/account identity granice
-10. **provenance/attestation** — build attestations bez runtime telemetrije ili tajni u repozitoriju
+1. **Unix SFTP credential broker** — siguran password/passphrase tok na Linuxu/macOS-u bez plaintext argumenta, disk credential datoteke ili nekontroliranog environmenta.
+2. **Kontrolirani interoperability test serveri** — automatizirani FTP/FTPS/SFTP testovi s jednokratnim testnim računima, potpuno odvojeni od produkcijskih credentiala.
+3. **Windows Authenticode** — uvesti tek kada postoji stvarni Brendigo code-signing certifikat i siguran secret/signing workflow.
+4. **macOS Developer ID i notarizacija** — uvesti tek kada postoji stvarni Apple Developer identitet i odgovarajući secrets.
+5. **macOS/Linux UX** — poboljšati terminal help, completion i ergonomiju bez stvaranja lažnog GUI pariteta.
+6. **Pristupačnost Windows GUI-ja** — dodatna keyboard/focus navigacija, screen-reader oznake i DPI provjere.
+7. **Transfer observability bez vanjske telemetrije** — stvarna lokalna brzina/ETA i statusi uz bounded event churn.
+8. **Memory skaliranje** — daljnja optimizacija vrlo velikih rekurzivnih planova, queue eventa i directory prikaza.
+9. **Kontrolirani reconnect** — recovery od mrežnog prekida bez slabljenja endpoint/account identity granice i bez retrya na drugi server.
+10. **Supply-chain provenance** — dodatne build attestations i SBOM/provenance dokazi bez runtime telemetrije, bez tajni u repozitoriju i bez vanjskih Go ovisnosti.
+11. **Linux distribucijski formati** — RPM/AppImage razmatrati tek nakon sigurnosnog, update i signing modela; ne širiti pakete samo radi broja formata.
 
-Svaka nova funkcija mora očuvati privatnost, hrvatski korisnički sadržaj, tipizirani in-process API, platform-specific auth granice, existing filesystem/session zaštite i fail-closed release ugovor.
+## Neće se raditi prečacima
+
+Sljedeće se ne smatra dovršenom funkcijom dok nema stvarnu sigurnosnu granicu i test:
+
+- lažno označavanje „Povezano” prije autentikacije i udaljenog probea
+- plaintext credential u command lineu
+- automatsko prihvaćanje promijenjenog SFTP host ključa
+- lažni Verified Publisher/Developer ID status
+- paket za platformu koji samo preimenuje binarij druge platforme
+- runtime telemetrija ili skriveni vanjski API
+- release koji preskače production quality gate
+
+Svaka nova funkcija mora očuvati privatnost, hrvatski korisnički sadržaj, tipizirani in-process API, platform-specific auth granice, filesystem/session zaštite, stvarno ugašenu build telemetriju i fail-closed release ugovor.
