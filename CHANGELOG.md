@@ -1,5 +1,18 @@
 # Povijest promjena
 
+## 2.14.5 — Ograničeno sigurno zatvaranje veze i pouzdaniji reconnect
+
+- ispravljen je lifecycle regresijski rizik iz 2.14.4: `remote.Manager.Disconnect` više ne može neograničeno blokirati pozivatelja na `activeOps.Wait()`
+- remote disconnect sada prima `context.Context` i poštuje postojeći UI/shutdown deadline kroz cijeli engine stack
+- istekom deadlinea adapter se namjerno ne zatvara ispod aktivne operacije; odvojeni cleanup čeka posljednji `Operation.release()` i tek tada poziva `Session.Close()`
+- uveden je eksplicitni close-state pa je reconnect blokiran dok se prethodna curl/OpenSSH sesija još sigurno zatvara
+- drugi `Disconnect` tijekom odgođenog čišćenja čeka isti close-state umjesto stvaranja drugog zatvaranja ili dvostrukog `Close()` poziva
+- `ErrDisconnectTimeout` i `ErrSessionClosing` razlikuju lokalni session lifecycle od stvarnog mrežnog timeouta
+- korisničke poruke sada jasno objašnjavaju kada se stara sesija još zatvara umjesto netočne poruke da poslužitelj nije odgovorio
+- dodane su regresije za normalni disconnect, timeout/deferred close, reconnect blokadu, drugi disconnect i idempotentni release
+- `audit_security.py` sada zahtijeva bounded disconnect, deferred session cleanup, engine context propagaciju i pripadajuće regresije
+- README, sigurnosni model i testna dokumentacija usklađeni su s 2.14.5 ponašanjem
+
 ## 2.14.4 — Stabilniji udaljeni prikaz, SFTP ključevi i lifecycle veze
 
 - ispravljen je Unix FTP/SFTP fallback parser: niz ` -> ` uklanja se samo iz stvarnog symlink zapisa pa obična datoteka s tim nizom u nazivu više nije pogrešno skraćena
