@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"brendigo.com/byftp/internal/model"
+	"brendigo.com/byftp/internal/profilebinding"
 	"brendigo.com/byftp/internal/security"
 )
 
@@ -121,18 +122,24 @@ func publicProfile(x model.Profile) model.PublicProfile {
 	return model.PublicProfile{ID: x.ID, Name: x.Name, Protocol: x.Protocol, Host: x.Host, Port: x.Port, Username: x.Username, HasPassword: x.PasswordBlob != "", PrivateKeyPath: x.PrivateKeyPath, HasPassphrase: x.PassphraseBlob != "", Fingerprint: x.Fingerprint, RemotePath: x.RemotePath, LocalPath: x.LocalPath}
 }
 
-func profileHostKey(host string) string {
-	host = strings.TrimSpace(host)
-	host = strings.Trim(host, "[]")
-	host = strings.TrimSuffix(host, ".")
-	return strings.ToLower(host)
-}
-
 func sameSFTPEndpoint(a, b model.Profile) bool {
 	return strings.EqualFold(strings.TrimSpace(a.Protocol), "sftp") &&
 		strings.EqualFold(strings.TrimSpace(b.Protocol), "sftp") &&
-		profileHostKey(a.Host) == profileHostKey(b.Host) &&
-		a.Port == b.Port
+		profilebinding.EndpointMatches(a.Protocol, a.Host, a.Port, b.Protocol, b.Host, b.Port)
+}
+
+func sameProfileAccount(a, b model.Profile) bool {
+	return profilebinding.AccountMatches(
+		a.Protocol, a.Host, a.Port, a.Username,
+		b.Protocol, b.Host, b.Port, b.Username,
+	)
+}
+
+func sameProfilePrivateKey(a, b model.Profile) bool {
+	return profilebinding.PrivateKeyMatches(
+		a.Protocol, a.Host, a.Port, a.Username, a.PrivateKeyPath,
+		b.Protocol, b.Host, b.Port, b.Username, b.PrivateKeyPath,
+	)
 }
 
 func validFingerprint(fp string) bool {
@@ -231,6 +238,16 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	}
 	if err := security.ValidateConnection(x.Protocol, x.Host, x.Username, x.Port); err != nil {
 		return model.PublicProfile{}, err
+	}
+
+	// Stare profilne tajne ne smiju se automatski preseliti na novi endpoint,
+	// korisnički račun ili privatni ključ. Za promijenjeni identitet korisnik
+	// mora ponovno upisati tajnu ako je želi spremiti.
+	if idx >= 0 && !sameProfileAccount(previous, x) {
+		x.PasswordBlob = ""
+	}
+	if idx >= 0 && !sameProfilePrivateKey(previous, x) {
+		x.PassphraseBlob = ""
 	}
 
 	// Host-key pin pripada endpointu, ne ostalim poljima profila. Obično uređivanje
