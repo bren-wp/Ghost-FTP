@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -123,10 +124,14 @@ func (c *CurlFTP) configFor(password []byte, lines []string) []byte {
 	if c.protocol == "ftps" {
 		cfg = appendConfigLine(cfg, "ssl-reqd")
 		cfg = appendConfigLine(cfg, "tlsv1.2")
-		cfg = appendConfigLine(cfg, "ssl-no-revoke")
+		if runtime.GOOS == "windows" {
+			cfg = appendConfigLine(cfg, "ssl-revoke-best-effort")
+		}
 	} else if c.protocol == "ftpsi" {
 		cfg = appendConfigLine(cfg, "tlsv1.2")
-		cfg = appendConfigLine(cfg, "ssl-no-revoke")
+		if runtime.GOOS == "windows" {
+			cfg = appendConfigLine(cfg, "ssl-revoke-best-effort")
+		}
 	}
 	for _, line := range lines {
 		cfg = appendConfigLine(cfg, line)
