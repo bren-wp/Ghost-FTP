@@ -27,25 +27,27 @@ func Message(err error, fallback string) string {
 	}
 
 	if errors.Is(err, context.Canceled) {
-		return "Operacija je otkazana."
+		return "Povezivanje ili operacija je otkazana."
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return "Poslužitelj nije odgovorio na vrijeme. Pokušajte ponovno."
+		return "Poslužitelj nije odgovorio na vrijeme. Provjerite adresu, port i mrežnu vezu pa pokušajte ponovno."
 	}
 
 	switch {
-	case strings.Contains(s, "fingerprint se promijenio") || strings.Contains(s, "host key verification failed"):
+	case strings.Contains(s, "otisak sftp host ključa se promijenio") || strings.Contains(s, "fingerprint se promijenio") || strings.Contains(s, "host key verification failed"):
 		return "Sigurnosni ključ poslužitelja promijenio se. Veza je blokirana radi vaše zaštite."
-	case strings.Contains(s, "openssh client nije instaliran") || strings.Contains(s, "nedostaje sftp.exe") || strings.Contains(s, "nedostaje ssh-keyscan.exe") || strings.Contains(s, "nedostaje ssh-keygen.exe"):
+	case containsAny(s, "sftp podrška nije dostupna u sustavu windows", "sftp komponenta nije pronađena", "openssh client nije instaliran", "nedostaje sftp.exe", "nedostaje ssh-keyscan.exe", "nedostaje ssh-keygen.exe"):
 		return "SFTP podrška nije dostupna. U postavkama sustava Windows uključite značajku OpenSSH Client."
-	case containsAny(s, "authentication failed", "permission denied (publickey", "permission denied (password", "login incorrect", "access denied", "530 login", "530 user", "530 not logged", "authentication rejected"):
+	case containsAny(s, "nije moguće dohvatiti sftp host ključ", "poslužitelj nije vratio ssh host ključ"):
+		return "SFTP poslužitelj nije vratio sigurnosni host ključ. Provjerite adresu, port i je li SSH/SFTP servis pokrenut."
+	case containsAny(s, "authentication failed", "permission denied (publickey", "permission denied (password", "permission denied, please try again", "login incorrect", "access denied", "530 login", "530 user", "530 not logged", "authentication rejected"):
 		return "Prijava nije prihvaćena. Provjerite korisničko ime, lozinku, SSH ključ ili zaporku ključa."
-	case containsAny(s, "could not resolve host", "name or service not known", "no such host", "host not found"):
+	case containsAny(s, "could not resolve host", "name or service not known", "temporary failure in name resolution", "no such host", "host not found"):
 		return "Poslužitelj nije pronađen. Provjerite adresu poslužitelja."
 	case containsAny(s, "connection refused", "actively refused"):
-		return "Poslužitelj odbija vezu na odabranom portu."
+		return "Poslužitelj odbija vezu na odabranom portu. Provjerite protokol i port."
 	case containsAny(s, "timed out", "timeout", "operation timed out"):
-		return "Poslužitelj nije odgovorio na vrijeme. Provjerite vezu i pokušajte ponovno."
+		return "Poslužitelj nije odgovorio na vrijeme. Provjerite adresu, port i mrežnu vezu pa pokušajte ponovno."
 	case containsAny(s, "connection reset", "connection closed", "broken pipe", "connection aborted", "network is unreachable", "no route to host"):
 		return "Veza s poslužiteljem je prekinuta. Povežite se ponovno i ponovite operaciju."
 	case containsAny(s, "certificate", "ssl certificate", "tls", "schannel"):
