@@ -26,45 +26,48 @@ def extract_section(changelog: str, version: str) -> str:
 def build_notes(version: str, section: str) -> str:
     return f"""ByFTP {version}
 
-Privatan FTP / FTPS / SFTP klijent tvrtke Brendigo za Windows, Linux i macOS.
+Nova stabilna ByFTP 1.x linija tvrtke Brendigo: moderni Windows file-transfer suite i zasebni FTP/FTPS, SFTP, SSH i S3 klijenti.
 
 Najvažnije promjene
 -------------------
 {section}
 
-Službeni paketi
+Službeni GitHub Release
+-----------------------
+ByFTP All-in-One:
+- Setup x64 EXE
+- Setup x86 EXE
+- Portable x64 EXE
+- Portable x86 EXE
+
+Zasebni klijenti:
+- FTP Client Portable x64 / x86
+- SFTP Client Portable x64 / x86
+- SSH Client Portable x64 / x86
+- S3 Client Portable x64 / x86
+
+GitHub uz tag automatski prikazuje standardne Source code (zip) i Source code (tar.gz) poveznice. ByFTP ne dodaje vlastiti Source.zip, verification.txt, standalone Uninstall EXE, Windows ZIP bundle ili release metadata datoteke kao javne assete.
+
+GitHub Packages
 ---------------
-Windows:
-- Setup x64 EXE: preporučena instalacija za 64-bitni Windows 10/11
-- Portable x64 EXE: 64-bitno pokretanje bez instalacije
-- Windows x64 ZIP: Setup + Portable + dokumentacija i bundle checksumovi
-- Setup x86 EXE: instalacija za podržani 32-bitni Windows
-- Portable x86 EXE: 32-bitno pokretanje bez instalacije
-- Windows x86 ZIP: Setup + Portable + dokumentacija i bundle checksumovi
+Ista verzija objavljuje se u paketima:
+- ByFTP.Suite
+- ByFTP.FTP.Client
+- ByFTP.SFTP.Client
+- ByFTP.SSH.Client
+- ByFTP.S3.Client
 
-Linux:
-- Linux amd64 DEB
-- Linux arm64 DEB
-- Linux i386 DEB
+Sigurnost i privatnost
+----------------------
+- nema telemetrije aplikacije;
+- produkcijski build zahtijeva stvarno isključenu Go build telemetriju;
+- SFTP i SSH koriste sistemski OpenSSH uz fail-closed sigurnosne granice;
+- S3 koristi vlastitu AWS Signature Version 4 implementaciju bez AWS SDK ovisnosti;
+- vjerodajnice se ne stavljaju u URL ili argumente procesa gdje ih ByFTP može izbjeći.
 
-macOS:
-- macOS Universal PKG: Intel x86_64 + Apple Silicon arm64
-
-Provjera izdanja:
-- SHA256.txt: SHA-256 svih javnih paketa i zajedničkih release metapodataka
-- RELEASE-NOTES.txt: ove bilješke izdanja
-- BUILD-METADATA.txt: verzija, release commit i podaci produkcijskog build runa
-
-Preporuka prije instalacije
----------------------------
-1. Preuzmite paket koji odgovara operacijskom sustavu i arhitekturi.
-2. Usporedite SHA-256 preuzetog paketa sa službenim SHA256.txt.
-3. Windows korisnici za uobičajenu instalaciju trebaju odabrati Setup paket; Portable je namijenjen radu bez instalacije.
-4. Linux i macOS izdanje koriste terminalno sučelje nad istim ByFTP engineom i sigurnosnim transfer slojem.
-
-Sigurnost potpisa
------------------
-Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS PKG nije Developer ID potpisan/notariziran bez stvarnog Apple certifikata. Workflow ne fabricira publisher identitet; SHA-256 i release provenance ostaju obavezni dio izdanja.
+Potpisivanje
+------------
+Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. Workflow ne fabricira publisher identitet.
 """
 
 
