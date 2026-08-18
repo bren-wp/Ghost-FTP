@@ -20,6 +20,7 @@ import (
 type Manager struct {
 	mu            sync.RWMutex
 	opMu          sync.Mutex
+	activeOps     sync.WaitGroup
 	session       Session
 	sessionCtx    context.Context
 	sessionCancel context.CancelFunc
@@ -282,6 +283,10 @@ func (m *Manager) Disconnect() error {
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 	m.clearPendingTrustLocked()
+
+	// Najprije atomarno zatvori ulaz za nove operacije. Operation registrira svoj
+	// WaitGroup ref dok još drži RLock, pa nakon ovog write locka nijedna nova
+	// operacija ne može početi na sesiji koju ćemo zatvoriti.
 	m.mu.Lock()
 	s := m.session
 	cancel := m.sessionCancel
@@ -290,9 +295,14 @@ func (m *Manager) Disconnect() error {
 	m.sessionCancel = nil
 	m.cfg = model.ConnectionConfig{}
 	m.mu.Unlock()
+
+	// Otkazivanje budi aktivne protokolarne pozive. Adapter (a kod SFTP-a i
+	// privremene config/known_hosts datoteke) zatvara se tek kada svaki postojeći
+	// poziv vrati svoj Operation release.
 	if cancel != nil {
 		cancel()
 	}
+	m.activeOps.Wait()
 	if s != nil {
 		return s.Close()
 	}
@@ -314,20 +324,31 @@ func (m *Manager) Probe(ctx context.Context) error {
 }
 
 // Operation vraća aktivnu sesiju s kontekstom koji se otkazuje kada ga
-// otkaže pozivatelj ili kada se prekine aktivna ByFTP veza.
+// otkaže pozivatelj ili kada se prekine aktivna ByFTP veza. Svaka uspješna
+// registracija mora pozvati release; release je namjerno idempotentan.
 func (m *Manager) Operation(ctx context.Context) (Session, context.Context, func(), error) {
 	m.mu.RLock()
 	s := m.session
 	sessionCtx := m.sessionCtx
-	m.mu.RUnlock()
 	if s == nil || sessionCtx == nil {
+		m.mu.RUnlock()
 		return nil, nil, func() {}, errors.New("nije uspostavljena veza")
 	}
+	// Add mora biti pod istim RLockom pod kojim je pročitana aktivna sesija.
+	// Disconnect tako ne može početi Wait dok je nova operacija između provjere
+	// sesije i registracije svog reference counta.
+	m.activeOps.Add(1)
+	m.mu.RUnlock()
+
 	opCtx, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(sessionCtx, cancel)
+	var once sync.Once
 	release := func() {
-		stop()
-		cancel()
+		once.Do(func() {
+			stop()
+			cancel()
+			m.activeOps.Done()
+		})
 	}
 	return s, opCtx, release, nil
 }
