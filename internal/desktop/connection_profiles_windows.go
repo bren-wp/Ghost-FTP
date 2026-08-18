@@ -5,6 +5,7 @@ package desktop
 import (
 	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
+	"brendigo.com/byftp/internal/profilebinding"
 	"brendigo.com/byftp/internal/usererror"
 	"context"
 	"strconv"
@@ -156,6 +157,17 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 	})
 }
 
+func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
+	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
+	if err != nil {
+		return false
+	}
+	return profilebinding.EndpointMatches(
+		p.Protocol, p.Host, p.Port,
+		a.protocolValue(), strings.TrimSpace(getText(a.host)), port,
+	)
+}
+
 func (a *app) onConnected(host string) {
 	setText(a.pass, "")
 	setText(a.passphrase, "")
@@ -166,7 +178,7 @@ func (a *app) onConnected(host string) {
 		remoteStart = "."
 	}
 	localStart := ""
-	if p, ok := a.currentProfile(); ok {
+	if p, ok := a.currentProfile(); ok && a.currentEndpointMatchesProfile(p) {
 		if strings.TrimSpace(p.RemotePath) != "" {
 			remoteStart = p.RemotePath
 		}
@@ -327,11 +339,28 @@ func (a *app) saveCurrentProfile() {
 	if !ok {
 		return
 	}
+	protocol := a.protocolValue()
+	host := strings.TrimSpace(getText(a.host))
+	username := strings.TrimSpace(getText(a.user))
+	keyPath := strings.TrimSpace(getText(a.keyPath))
 	port, _ := strconv.Atoi(strings.TrimSpace(getText(a.port)))
 	password := getText(a.pass)
 	passphrase := getText(a.passphrase)
 	clearPassword := false
 	clearPassphrase := false
+
+	if editing {
+		sameAccount := profilebinding.AccountMatches(
+			existing.Protocol, existing.Host, existing.Port, existing.Username,
+			protocol, host, port, username,
+		)
+		samePrivateKey := profilebinding.PrivateKeyMatches(
+			existing.Protocol, existing.Host, existing.Port, existing.Username, existing.PrivateKeyPath,
+			protocol, host, port, username, keyPath,
+		)
+		clearPassword = existing.HasPassword && !sameAccount
+		clearPassphrase = existing.HasPassphrase && !samePrivateKey
+	}
 
 	if password != "" || passphrase != "" {
 		if !platform.ConfirmDialog(
@@ -343,28 +372,50 @@ func (a *app) saveCurrentProfile() {
 			passphrase = ""
 			clearPassword = true
 			clearPassphrase = true
+		} else {
+			if password != "" {
+				clearPassword = false
+			}
+			if passphrase != "" {
+				clearPassphrase = false
+			}
 		}
-	} else if editing && (existing.HasPassword || existing.HasPassphrase) {
-		if !platform.ConfirmDialog(
-			"ByFTP — privatnost",
-			"Zadržati spremljene vjerodajnice?",
-			"Profil već sadrži spremljenu lozinku ili zaporku privatnog ključa.\n\nDa = zadrži postojeće spremljene vjerodajnice.\nNe = ukloni ih iz ByFTP spremišta.\n\nAko uklonite privatni ključ iz profila, njegova spremljena zaporka uklanja se automatski.",
-		) {
-			clearPassword = existing.HasPassword
-			clearPassphrase = existing.HasPassphrase
+	} else if editing {
+		retainPassword := existing.HasPassword && !clearPassword
+		retainPassphrase := existing.HasPassphrase && !clearPassphrase
+		autoRemoved := clearPassword || clearPassphrase
+		if retainPassword || retainPassphrase {
+			message := "Profil već sadrži spremljene vjerodajnice koje još pripadaju ovom identitetu.\n\nDa = zadrži ih.\nNe = ukloni ih iz ByFTP spremišta."
+			if autoRemoved {
+				message = "Vjerodajnice koje više ne pripadaju novom poslužitelju, korisniku ili privatnom ključu bit će automatski uklonjene.\n\n" + message
+			}
+			if !platform.ConfirmDialog("ByFTP — privatnost", "Zadržati spremljene vjerodajnice?", message) {
+				if retainPassword {
+					clearPassword = true
+				}
+				if retainPassphrase {
+					clearPassphrase = true
+				}
+			}
+		} else if autoRemoved {
+			platform.InfoDialog(
+				"ByFTP — sigurnost profila",
+				"Stare vjerodajnice neće se prenijeti",
+				"Promijenili ste poslužitelj, port, korisničko ime ili privatni ključ. Radi zaštite stare spremljene vjerodajnice uklanjaju se iz ovog profila. Ako ih želite spremiti za novi identitet, upišite ih ponovno.",
+			)
 		}
 	}
 
 	payload := model.ProfileInput{
 		ID:              a.selectedProfileID,
 		Name:            strings.TrimSpace(name),
-		Protocol:        a.protocolValue(),
-		Host:            strings.TrimSpace(getText(a.host)),
+		Protocol:        protocol,
+		Host:            host,
 		Port:            port,
-		Username:        strings.TrimSpace(getText(a.user)),
+		Username:        username,
 		Password:        password,
 		ClearPassword:   clearPassword,
-		PrivateKeyPath:  strings.TrimSpace(getText(a.keyPath)),
+		PrivateKeyPath:  keyPath,
 		Passphrase:      passphrase,
 		ClearPassphrase: clearPassphrase,
 		LocalPath:       a.localCurrent,
