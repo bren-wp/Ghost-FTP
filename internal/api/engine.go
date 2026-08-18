@@ -97,7 +97,7 @@ func (e *Engine) CancelPendingTrust() { e.remote.CancelPendingTrust() }
 
 func (e *Engine) Disconnect(ctx context.Context) error {
 	transferErr := e.transfers.DisableAndCancel(ctx, "Otkazano prekidom veze")
-	remoteErr := e.remote.Disconnect()
+	remoteErr := e.remote.Disconnect(ctx)
 	return errors.Join(transferErr, remoteErr)
 }
 
@@ -203,7 +203,7 @@ func (e *Engine) Close() {
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 		defer cancel()
 		_ = e.transfers.Shutdown(ctx)
-		_ = e.remote.Disconnect()
+		_ = e.remote.Disconnect(ctx)
 	})
 }
 
