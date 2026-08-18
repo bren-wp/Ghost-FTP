@@ -135,6 +135,49 @@ func readLimitedWithOpen(path string, openFile stateOpenFunc) ([]byte, error) {
 	return data, nil
 }
 
+// writeSyncedTemp writes one complete generation into an unpredictable private
+// temporary file in the final directory and syncs its contents before rename.
+// The caller owns the returned path and must either replace it or remove it.
+func writeSyncedTemp(dir, pattern string, data []byte) (string, error) {
+	f, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return "", err
+	}
+	name := f.Name()
+	cleanup := func() {
+		_ = f.Close()
+		_ = os.Remove(name)
+	}
+	if err = f.Chmod(0600); err != nil {
+		cleanup()
+		return "", err
+	}
+	if _, err = f.Write(data); err != nil {
+		cleanup()
+		return "", err
+	}
+	if err = f.Sync(); err != nil {
+		cleanup()
+		return "", err
+	}
+	if err = f.Close(); err != nil {
+		_ = os.Remove(name)
+		return "", err
+	}
+	return name, nil
+}
+
+func replaceSyncedGeneration(dir, tmp, dst string) error {
+	if err := replaceFile(tmp, dst); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	// A successful rename changes directory metadata. On Unix this explicit
+	// directory sync is needed to request durable visibility of the new entry;
+	// Windows replaceFile already uses MOVEFILE_WRITE_THROUGH.
+	return syncStateDirectory(dir)
+}
+
 func (s *Store) Write(name string, value any) error {
 	if err := validateStateName(name); err != nil {
 		return err
@@ -154,57 +197,22 @@ func (s *Store) Write(name string, value any) error {
 	data = append(data, '\n')
 	path := filepath.Join(s.dir, name)
 
-	// Keep only a known-valid previous generation. Temporary files are created
-	// with unpredictable names in the same directory and exclusive creation,
-	// so stale/symlinked predictable .tmp paths cannot be followed.
+	// Keep only a known-valid previous generation. The previous generation is
+	// synced before the new current generation is activated, preserving a
+	// recovery point if a crash happens between the two replacements.
 	if existing, e := readLimited(path); e == nil && json.Valid(existing) {
-		prevTmp, e := os.CreateTemp(s.dir, "."+name+".previous-*.tmp")
+		prevTmp, e := writeSyncedTemp(s.dir, "."+name+".previous-*.tmp", existing)
 		if e != nil {
 			return e
 		}
-		prevName := prevTmp.Name()
-		if e = prevTmp.Chmod(0600); e == nil {
-			_, e = prevTmp.Write(existing)
-		}
-		if e == nil {
-			e = prevTmp.Sync()
-		}
-		closeErr := prevTmp.Close()
-		if e == nil {
-			e = closeErr
-		}
-		if e != nil {
-			_ = os.Remove(prevName)
-			return e
-		}
-		if e = replaceFile(prevName, path+".previous"); e != nil {
-			_ = os.Remove(prevName)
+		if e = replaceSyncedGeneration(s.dir, prevTmp, path+".previous"); e != nil {
 			return e
 		}
 	}
 
-	f, err := os.CreateTemp(s.dir, "."+name+"-*.tmp")
+	tmp, err := writeSyncedTemp(s.dir, "."+name+"-*.tmp", data)
 	if err != nil {
 		return err
 	}
-	tmp := f.Name()
-	if err = f.Chmod(0600); err == nil {
-		_, err = f.Write(data)
-	}
-	if err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	if err = replaceFile(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	return nil
+	return replaceSyncedGeneration(s.dir, tmp, path)
 }
