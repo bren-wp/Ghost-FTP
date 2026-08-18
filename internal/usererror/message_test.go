@@ -23,6 +23,20 @@ func TestMessageDeadline(t *testing.T) {
 	}
 }
 
+func TestMessageSessionStillClosing(t *testing.T) {
+	got := Message(errors.New("prethodna veza se još sigurno zatvara"), "x")
+	if got != "Prethodna veza još se sigurno zatvara. Pokušajte ponovno za nekoliko trenutaka." {
+		t.Fatalf("unexpected message: %q", got)
+	}
+}
+
+func TestMessageDisconnectCleanupStillRunning(t *testing.T) {
+	got := Message(errors.New("sigurno zatvaranje veze još traje"), "x")
+	if got != "Prekid veze još se sigurno dovršava. Ponovno povezivanje bit će dostupno čim se stara sesija zatvori." {
+		t.Fatalf("unexpected message: %q", got)
+	}
+}
+
 func TestMessageFallback(t *testing.T) {
 	got := Message(errors.New("opaque-internal-tool-error"), "Radnja nije uspjela.")
 	if got != "Radnja nije uspjela." {
