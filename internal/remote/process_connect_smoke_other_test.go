@@ -3,6 +3,7 @@
 package remote
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -51,7 +52,7 @@ printf '%s\n' 'type=file;size=4;modify=20260101010203; test.txt'
 		t.Fatalf("aktivna FTP tajna nije izdvojena iza runtime tokena: %q", client.passwordBlob)
 	}
 	token := client.passwordBlob
-	items, err := client.List(t.Context(), "/")
+	items, err := client.List(context.Background(), "/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +100,7 @@ printf '%s\n' '-rw-r--r-- 1 user group 4 Jan 1 00:00 test.txt'
 	if err != nil {
 		t.Fatal(err)
 	}
-	items, err := client.List(t.Context(), ".")
+	items, err := client.List(context.Background(), ".")
 	if err != nil {
 		_ = client.Close()
 		t.Fatal(err)
