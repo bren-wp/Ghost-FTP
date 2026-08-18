@@ -9,6 +9,7 @@ from pathlib import Path
 I386 = 0x014C
 AMD64 = 0x8664
 GUI_SUBSYSTEM = 2
+CONSOLE_SUBSYSTEM = 3
 
 ARCH_SPECS = {
     "x86": {"machine": I386, "magic": 0x10B, "pe": "PE32", "data_dir": 96},
@@ -36,7 +37,7 @@ def detect_arch(machine: int, magic: int) -> str:
     raise ValueError(f"nepodržan PE stroj/magic: machine=0x{machine:04x}, magic=0x{magic:04x}")
 
 
-def read_pe(path: Path, expected_arch: str | None = None):
+def read_pe(path: Path, expected_arch: str | None = None, expected_subsystem: int | None = GUI_SUBSYSTEM):
     data = path.read_bytes()
     if len(data) < 1024 or data[:2] != b"MZ":
         raise ValueError(f"{path.name}: missing MZ header")
@@ -53,8 +54,9 @@ def read_pe(path: Path, expected_arch: str | None = None):
     spec = ARCH_SPECS[arch]
 
     subsystem = struct.unpack_from("<H", data, opt + 68)[0]
-    if subsystem != GUI_SUBSYSTEM:
-        raise ValueError(f"{path.name}: expected GUI subsystem, got {subsystem}")
+    if expected_subsystem is not None and subsystem != expected_subsystem:
+        expected_name = "GUI" if expected_subsystem == GUI_SUBSYSTEM else "Console" if expected_subsystem == CONSOLE_SUBSYSTEM else str(expected_subsystem)
+        raise ValueError(f"{path.name}: očekuje se {expected_name} subsystem ({expected_subsystem}), pronađen je {subsystem}")
     dll_characteristics = struct.unpack_from("<H", data, opt + 70)[0]
     required_mitigations = {
         "DYNAMIC_BASE": 0x40,
@@ -87,7 +89,7 @@ def read_pe(path: Path, expected_arch: str | None = None):
     manifest_arch = "amd64" if arch == "x64" else "x86"
     if f'processorArchitecture="{manifest_arch}"'.encode("ascii") not in data:
         raise ValueError(f"{path.name}: manifest architecture is not {manifest_arch}")
-    return data, bool(cert_offset and cert_size), arch, required_mitigations
+    return data, bool(cert_offset and cert_size), arch, required_mitigations, subsystem
 
 
 def sha256(data: bytes) -> str:
@@ -102,12 +104,12 @@ def main() -> None:
     ap.add_argument("--arch", choices=("x64", "x86"), default=None)
     args = ap.parse_args()
 
-    results = [read_pe(p, args.arch) for p in (args.setup, args.portable, args.uninstaller)]
+    results = [read_pe(p, args.arch, GUI_SUBSYSTEM) for p in (args.setup, args.portable, args.uninstaller)]
     arches = {result[2] for result in results}
     if len(arches) != 1:
         raise SystemExit("Setup, Portable and Uninstaller nisu iste arhitekture")
     arch = next(iter(arches))
-    (sdat, ssigned, _, mitigations), (pdat, psigned, _, _), (udat, usigned, _, _) = results
+    (sdat, ssigned, _, mitigations, _), (pdat, psigned, _, _, _), (udat, usigned, _, _, _) = results
 
     assert_no_telemetry_markers(args.setup, sdat)
     assert_no_telemetry_markers(args.portable, pdat)
