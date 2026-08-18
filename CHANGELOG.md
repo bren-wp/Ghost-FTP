@@ -1,5 +1,21 @@
 # Povijest promjena
 
+## 1.0.1 — Filesystem i SFTP hardening
+
+- ispravljena je Unix no-replace semantika koja je ranije radila `Lstat(dst)` pa obični `rename`, što je ostavljalo TOCTOU prozor u kojem je konkurentno odredište moglo biti prepisano
+- Linux lokalna aktivacija i rollback sada koriste kernel `renameat2(RENAME_NOREPLACE)` umjesto check-then-rename obrasca
+- macOS regularne staging datoteke koriste ekskluzivno hard-link + unlink premještanje; ako odredište već postoji, ono se ne prepisuje
+- generički ne-Windows fallback također koristi exclusive hard-link semantiku za obične datoteke umjesto neatomskog destination checka
+- rekurzivno lokalno brisanje više ne radi `os.ReadDir(target)` nakon zasebnog path checka; direktorij se otvara, verificira s `os.SameFile`, čita preko stabilnog handlea i ponovno provjerava prije destruktivnih koraka
+- dodana je regresija koja zamijeni provjereni direktorij symlinkom i potvrđuje da se vanjski sadržaj ne obilazi niti briše
+- privatni SFTP ključ sada ima maksimalnu veličinu od 1 MiB i prije OpenSSH korištenja se čita iz stabilno verificiranog regularnog file handlea
+- sadržaj privatnog ključa kopira se u kriptografski nasumično imenovan privatni `0600` session snapshot; memorijska kopija se briše nakon stvaranja, a session snapshot pri `Close()`
+- kasnija zamjena ili izmjena izvorne private-key putanje ne mijenja ključ koji koristi aktivna SFTP sesija
+- Linux/macOS `NewManager` više pri pokretanju ne briše zajedničke SFTP temp artefakte, pa paralelni terminalski proces ne može srušiti konfiguraciju druge aktivne sesije
+- Windows startup cleanup privremenih SFTP datoteka premješten je iza `EnsureNoRedirectDirectory`, nakon potvrde da ByFTP session mapa nije symlink/junction/reparse preusmjeravanje
+- novi Python filesystem-hardening regression zaključava Linux `RENAME_NOREPLACE`, macOS exclusive link, stable-directory delete, private-key snapshot i siguran SFTP cleanup redoslijed
+- postojeći release-version guard osigurava da se 1.0.1 objavi kao novi nepromjenjivi semantički release umjesto prepisivanja već objavljenog `v1.0.0`
+
 ## 1.0.0 — Stabilna produkcijska bazna linija
 
 - produkcijska semantička verzija resetirana je na `1.0.0`; `VERSION` je jedini autoritativni izvor verzije za aplikaciju, platformske pakete, GitHub Release i `ByFTP.Windows` GitHub Package
