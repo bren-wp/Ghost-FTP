@@ -92,11 +92,13 @@ Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta ili p
 
 FTPS uvijek zadržava provjeru TLS certifikata koju pruža aktivni curl TLS backend i postavlja minimalni TLS zahtjev kroz `tlsv1.2`; eksplicitni FTPS dodatno zahtijeva TLS pomoću `ssl-reqd`.
 
-ByFTP ne koristi `ssl-no-revoke`. Na Windowsu se za Schannel koristi `ssl-revoke-best-effort`: provjera opoziva certifikata ostaje uključena kada su potrebni podaci dostupni, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu. To je svjesno sigurnosno/stabilnosno uravnoteženje i jače je od potpunog isključivanja revocation provjere.
+ByFTP ne koristi `ssl-no-revoke`. Na Windowsu prvo lokalno i bounded provjerava `curl --version`. Ako curl podržava opciju uvedenu u 7.70.0, koristi `ssl-revoke-best-effort`: provjera opoziva ostaje uključena kada su potrebni podaci dostupni, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu.
+
+Ako je Windows curl stariji, version probe ne uspije ili izlaz nije prepoznatljiv, ByFTP ne šalje nepoznatu curl opciju. U tom slučaju zadržava se zadano Schannel ponašanje provjere opoziva umjesto prelaska na `ssl-no-revoke`. Time stari Windows/curl ne gubi FTPS samo zbog nepodržanog argumenta, a sigurnosna provjera se ne isključuje.
 
 Linux/macOS ne dobivaju Schannel-specifičnu opciju. Ponašanje provjere certifikata i opoziva tamo ostaje u odgovornosti TLS backend-a sistemskog curl-a.
 
-Regresijski Go test i `audit_privacy.py` zajedno moraju odbiti ponovno uvođenje `ssl-no-revoke` i moraju potvrditi Windows best-effort revocation politiku.
+Regresijski Go testovi i `audit_privacy.py` zajedno moraju odbiti ponovno uvođenje `ssl-no-revoke`, potvrditi capability-gated Windows best-effort politiku te fallback bez nepoznate opcije.
 
 ## Datoteke i putanje
 
