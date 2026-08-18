@@ -40,3 +40,8 @@ func replaceFile(src, dst string) error {
 	}
 	return nil
 }
+
+// MoveFileExW with MOVEFILE_WRITE_THROUGH already requests write-through for
+// the replacement operation. There is no portable Windows directory-fsync
+// equivalent needed by Store after a successful replaceFile call.
+func syncStateDirectory(string) error { return nil }
