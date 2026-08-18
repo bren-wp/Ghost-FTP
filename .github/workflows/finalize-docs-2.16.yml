@@ -1,0 +1,250 @@
+name: Jednokratno dovrši 2.16 dokumentaciju
+
+on:
+  push:
+    branches:
+      - agent/byftp-2.16.0-connect-reliability
+    paths:
+      - '.github/workflows/finalize-docs-2.16.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+  GOTELEMETRY: off
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/byftp-2.16.0-connect-reliability
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.x'
+      - name: Uskladi preostale javne tekstove
+        shell: python
+        run: |
+          from pathlib import Path
+          files = {
+          'docs/OBAVIJESTI-TRECIH-STRANA.md': '''# ByFTP — obavijesti trećih strana
+
+ByFTP runtime nema vanjske Go module i ne ugrađuje curl/OpenSSH kod u vlastiti binarij. Mrežne protokole oslanja na sistemske alate operativnog sustava.
+
+## curl
+
+FTP i FTPS adapter pokreće sistemski `curl`:
+
+- Windows: `System32\\curl.exe`
+- Linux/macOS: nativni `curl` iz sistemskog PATH-a
+
+ByFTP sanitizira proxy/TLS environment kontrole i za FTP/FTPS izričito koristi direktnu vezu prema korisnički odabranom serveru. curl ostaje softver svog izvornog autora/projekta i pod njegovom licencom.
+
+## OpenSSH
+
+SFTP koristi sistemske OpenSSH alate:
+
+- `sftp`
+- `ssh-keyscan`
+- `ssh-keygen`
+
+Na Windowsu se koriste isključivo binariji iz stvarnog System32/OpenSSH direktorija. Na Linuxu/macOS-u koriste se nativni sistemski executable nazivi bez `.exe` nastavka.
+
+ByFTP ne distribuira privatni OpenSSH fork. Session config, host-key pinning, proxy/agent blokade i AskPass pravila su ByFTP integracijski sloj oko sistemskog OpenSSH-a.
+
+## Sistemske komponente i licence
+
+Windows API-ji, Apple/macOS alati (`lipo`, `pkgbuild`, `iconutil`, Terminal/AppleScript) i Linux paketni alati (`dpkg-deb`) dio su odgovarajućih platformskih toolchaina. Njihove licence i uvjeti ostaju odvojeni od ByFTP vlasničke licence.
+
+## ByFTP licenca
+
+ByFTP vlastiti izvorni kod ostaje pod root [`LICENSE`](../LICENSE). Objava sourcea radi transparentnosti ne mijenja licence sistemskih alata niti ih relincencira kao dio ByFTP-a.
+''',
+          'scripts/README.md': '''# ByFTP skripte
+
+Ova mapa sadrži kanonske build, audit i release alate. Produkcijski broj verzije uvijek dolazi iz root `VERSION` datoteke.
+
+## Platform buildovi
+
+- `BUILD-LINUX.sh` — DEB za amd64, arm64 i i386
+- `BUILD-MACOS.sh` — macOS Universal Intel+Apple Silicon PKG
+- root `BUILD-WINDOWS.ps1` — Windows x64 i x86 Setup/Portable + interni Uninstaller
+- root `BUILD-LOCAL.sh` — lokalna provjera/build bez vanjskog Go prometa
+
+## Auditi
+
+- `audit_croatian.py` — hrvatski javni sadržaj
+- `audit_version.py` — jedan kanonski VERSION kroz sve platforme
+- `audit_docs.py` — lokalne veze i indeks dokumentacije
+- `audit_security.py` — connect, AskPass, profile/session/filesystem sigurnosne invarijante
+- `audit_privacy.py` — bez telemetrije, vanjskih API-ja i neželjenog network/helper inheritancea
+- `audit_release.py` — x64/x86/Linux/macOS i javni asset ugovor
+
+## Windows i bundle alati
+
+- `pe_resources.py` — PE32/PE32+ VERSIONINFO, manifest i ICO resursi
+- `verify_release.py` — Windows arhitektura, resursi, mitigacije i binarni integritet
+- `make_payload.py` — interni Windows Setup payload
+- `verify_bundle.py` — fail-closed x64/x86 ZIP provjera bez ekstrakcije nepouzdanih putanja
+- `test_release_tools.py` — Python regresije bundle/release alata
+
+## Release
+
+- `release_notes.py` — hrvatske bilješke iz točnog CHANGELOG odjeljka
+- `publish_release.ps1` — idempotentni/fail-closed GitHub Release publisher s tag/commit i asset digest provjerom
+
+Javni release od 2.16.0 ne sadrži custom Source ZIP, standalone Uninstaller niti `verification.txt`. Interni Windows verification rezultat ostaje CI dokaz, a uninstaller ostaje ugrađen u Setup payload.
+
+GitHub CI prije mergea gradi quality/race, Windows x64+x86, Linux DEB i macOS Universal PKG. Detalji su u `docs/TESTIRANJE.md`, `docs/PROVJERA-IZDANJA.md` i `docs/IZDAVANJE-NA-GITHUBU.md`.
+''',
+          '.github/REPOSITORY-INFO.md': '''# ByFTP GitHub metadata
+
+Preporučeni hrvatski opis repozitorija:
+
+> Izvorni FTP, FTPS i SFTP klijent tvrtke Brendigo za Windows, Linux i macOS — privatan, siguran i bez telemetrije.
+
+## Kanonske činjenice
+
+- verzija: root `VERSION`
+- Windows: x64 i x86 puni Win32 GUI
+- Linux: amd64/arm64/i386 DEB terminalni klijent
+- macOS: Universal Intel+Apple Silicon PKG i Finder terminal launcher
+- runtime nema telemetriju ni vanjski Go modul
+- javni release nema custom Source ZIP, standalone Uninstaller ni `verification.txt`
+- GitHub automatski Source code ZIP/TAR pripada platformi i nije ByFTP custom asset
+
+Ako se GitHubov About/Description mijenja ručno u postavkama repozitorija, treba ostati sadržajno usklađen s ovim dokumentom i glavnim README-em.
+''',
+          '.github/ISSUE_TEMPLATE/bug_report.yml': '''name: Prijava greške
+description: Prijavite ponovljivu ByFTP grešku bez osjetljivih podataka.
+title: "[Greška] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hvala na prijavi. **Ne objavljujte lozinke, privatne ključeve, produkcijske hostove, korisnička imena ili podatke klijenata.** Za sigurnosno osjetljiv problem koristite upute iz `docs/SIGURNOST.md`.
+  - type: input
+    id: version
+    attributes:
+      label: ByFTP verzija
+      description: Verziju prepišite iz aplikacije ili naziva preuzetog paketa.
+      placeholder: npr. trenutačna stabilna verzija
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platforma
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux
+        - macOS
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Arhitektura
+      options:
+        - x64 / amd64
+        - x86 / i386
+        - arm64 / Apple Silicon
+        - macOS Universal paket
+        - Nisam siguran
+    validations:
+      required: true
+  - type: dropdown
+    id: package
+    attributes:
+      label: Paket
+      options:
+        - Windows Setup
+        - Windows Portable
+        - Windows ZIP
+        - Linux DEB
+        - macOS PKG
+        - Razvojni build
+    validations:
+      required: true
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protokol
+      options:
+        - FTP
+        - FTPS eksplicitni
+        - FTPS implicitni
+        - SFTP
+        - Nije povezano s mrežnim protokolom
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Koraci za reprodukciju
+      description: Navedite minimalne korake, bez stvarnih tajni i povjerljivih hostova.
+      placeholder: |
+        1. Otvorim ByFTP...
+        2. Odaberem testni profil/protokol...
+        3. Kliknem Poveži...
+    validations:
+      required: true
+  - type: textarea
+    id: connection
+    attributes:
+      label: Ako je problem povezivanje
+      description: Navedite je li greška prije/poslije SFTP host-key potvrde, je li port otvoren i točan hrvatski tekst poruke. Ne navodite credentiale.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Očekivano ponašanje
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Stvarno ponašanje i sanitizirana poruka greške
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Potvrde
+      options:
+        - label: U prijavi nema lozinki, privatnih ključeva ni drugih osjetljivih podataka.
+          required: true
+        - label: Provjerio/la sam postoji li već ista otvorena prijava.
+          required: true
+'''
+          }
+          for name, content in files.items():
+              Path(name).write_text(content, encoding='utf-8', newline='\n')
+      - name: Provjeri dokumentaciju i javni sadržaj
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/audit_croatian.py
+          python scripts/audit_version.py
+          python scripts/audit_docs.py
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
+          python scripts/audit_release.py
+      - name: Spremi i ukloni vlastiti workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/finalize-docs-2.16.yml
+          git config user.name 'ByFTP CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Dovrši 2.16 cross-platform dokumentaciju i GitHub predloške'
+          git push origin HEAD:agent/byftp-2.16.0-connect-reliability
