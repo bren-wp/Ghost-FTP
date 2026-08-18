@@ -67,6 +67,19 @@ def main() -> int:
         if marker not in release_workflow:
             fail(f"release workflow nema VERSION fallback marker: {marker}")
 
+    # GitHub Package mora biti izveden iz istog VERSION izvora kao runtime i
+    # GitHub Release. Time budući refaktor ne može tiho ostaviti stari paket.
+    package_markers = (
+        "<PackageId>ByFTP.Windows</PackageId>",
+        "<Version>$env:VERSION</Version>",
+        "dotnet nuget push",
+        "nuget.pkg.github.com/bren-wp/index.json",
+        "--skip-duplicate",
+    )
+    for marker in package_markers:
+        if marker not in release_workflow:
+            fail(f"GitHub Package nije vezan uz kanonski VERSION: nedostaje {marker}")
+
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
         fail("bug predložak hardkodira trenutačnu verziju")
@@ -79,6 +92,7 @@ def main() -> int:
 
     print(f"VERSION_AUDIT=PROSAO ({version})")
     print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS")
+    print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
     return 0
 
 
