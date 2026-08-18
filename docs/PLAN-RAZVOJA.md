@@ -1,6 +1,6 @@
 # ByFTP — plan razvoja
 
-## Završeno u 2.16 liniji
+## Završene produkcijske cjeline
 
 - izvorni Win32 desktop bez browser/localhost sloja
 - zajednički tipizirani Engine za Windows, Linux i macOS frontend
@@ -10,6 +10,8 @@
 - uklonjen SFTP batch/AskPass konflikt; Windows password/passphrase AskPass ostaje funkcionalan
 - fail-closed AskPass koji ne šalje tajnu MFA/OTP/nepoznatom promptu
 - Linux/macOS terminalni app nad istim remote/transfer coreom
+- Linux/macOS terminal sigurno parsira quoted lokalne i udaljene putanje s razmacima bez shell evaluacije
+- terminalno čekanje transfera koristi autoritativni snapshot reda i ne ovisi o zadržavanju završnog eventa u bounded povijesti
 - Linux/macOS procesno runtime spremište FTP/FTPS tajne bez disk persistencije
 - process-level FTP/SFTP child-process smoke regresije na Linux i macOS runnerima
 - Windows x64 + x86 produkcijski build
@@ -38,7 +40,7 @@
 2. **Kontrolirani interoperability test serveri** — automatizirani FTP/FTPS/SFTP testovi s jednokratnim testnim računima, potpuno odvojeni od produkcijskih credentiala.
 3. **Windows Authenticode** — uvesti tek kada postoji stvarni Brendigo code-signing certifikat i siguran secret/signing workflow.
 4. **macOS Developer ID i notarizacija** — uvesti tek kada postoji stvarni Apple Developer identitet i odgovarajući secrets.
-5. **macOS/Linux UX** — poboljšati terminal help, completion i ergonomiju bez stvaranja lažnog GUI pariteta.
+5. **macOS/Linux UX** — dodati sigurnu command history/completion ergonomiju bez stvaranja lažnog GUI pariteta ili spremanja tajni.
 6. **Pristupačnost Windows GUI-ja** — dodatna keyboard/focus navigacija, screen-reader oznake i DPI provjere.
 7. **Transfer observability bez vanjske telemetrije** — stvarna lokalna brzina/ETA i statusi uz bounded event churn.
 8. **Memory skaliranje** — daljnja optimizacija vrlo velikih rekurzivnih planova, queue eventa i directory prikaza.
