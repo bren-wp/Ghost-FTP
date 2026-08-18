@@ -31,6 +31,28 @@ func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 	return err == nil && strings.EqualFold(filepath.Clean(exeAbs), filepath.Clean(askAbs))
 }
 
+// selectAskpassSecret je namjerno fail-closed. OpenSSH AskPass može se pozvati
+// i za keyboard-interactive/MFA upite. ByFTP ne smije automatski poslati
+// spremljenu lozinku na nepoznati prompt, nego samo na jasno prepoznati
+// password/passphrase upit.
+func selectAskpassSecret(prompt string, password, passphrase []byte) ([]byte, bool) {
+	prompt = strings.ToLower(strings.TrimSpace(prompt))
+	switch {
+	case strings.Contains(prompt, "passphrase"):
+		if len(passphrase) == 0 {
+			return nil, false
+		}
+		return passphrase, true
+	case strings.Contains(prompt, "password"):
+		if len(password) == 0 {
+			return nil, false
+		}
+		return password, true
+	default:
+		return nil, false
+	}
+}
+
 func askpassMode() (bool, error) {
 	token := os.Getenv("BYFTP_ASKPASS_TOKEN")
 	if token == "" {
@@ -71,13 +93,10 @@ func askpassMode() (bool, error) {
 		}
 		defer security.WipeBytes(passphrase)
 	}
-	prompt := strings.ToLower(strings.Join(os.Args[1:], " "))
-	secret := password
-	if strings.Contains(prompt, "passphrase") && len(passphrase) != 0 {
-		secret = passphrase
-	}
-	if len(secret) == 0 {
-		return true, errors.New("vjerodajnica nije dostupna")
+	prompt := strings.Join(os.Args[1:], " ")
+	secret, ok := selectAskpassSecret(prompt, password, passphrase)
+	if !ok {
+		return true, errors.New("nepoznat ili nepodržan zahtjev za vjerodajnicu")
 	}
 	if _, err = os.Stdout.Write(secret); err != nil {
 		return true, err
