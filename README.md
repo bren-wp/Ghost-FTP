@@ -16,14 +16,14 @@
 </p>
 
 <p align="center">
-  <a href="../../actions/workflows/ci.yml"><img alt="CI" src="../../actions/workflows/ci.yml/badge.svg"></a>
+  <a href="../../actions/workflows/ci.yml"><img alt="Provjere" src="../../actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
 ## Prenosite datoteke. Zadržite kontrolu.
 
 ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja dvopanelni upravitelj datotekama s učvršćenim transfer engineom, skupnim operacijama i arhitekturom usmjerenom na privatnost.
 
-**Trenutačno izdanje: 2.14.3**
+**Trenutačno izdanje: 2.14.4**
 
 ## Preuzimanje
 
@@ -60,7 +60,7 @@ GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenje
 - pojedinačne datoteke i cijela stabla mapa
 - stvaranje mapa, preimenovanje, brisanje, osvježavanje i CHMOD
 - zaštita od traversal putanja, Windows rezerviranih naziva, symlinkova, junctiona i reparse-point izlaza
-- kontrolirana lokalna enumeracija do 50.000 stavki
+- kontrolirana lokalna i udaljena enumeracija do 50.000 stavki
 
 ### Red prijenosa
 
@@ -73,16 +73,16 @@ GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenje
 - zaštita rekurzivnog uploada od kasne zamjene roota
 - autoritativni završni status koji late cancel ne može prepisati nakon stvarnog uspjeha
 
-## Što donosi 2.14.3
+## Što donosi 2.14.4
 
-- GitHub Release objava je idempotentna i fail-closed: tag mora pokazivati na točan commit, a postojeći asset mora imati istu veličinu i SHA-256 digest
-- djelomično izdanje može se sigurno dovršiti ponovnim runom bez slijepog `--clobber` prepisivanja potvrđenih asseta
-- konačni Windows ZIP ponovno se provjerava nakon kompresije, uključujući putanje, duplikate, obavezne datoteke i svaki `BUNDLE-SHA256.txt` zapis
-- uvedeni su zasebni docs, security i release auditi te Python regresije release alata
-- hrvatski i version auditi više ne trebaju ručno sinkronizirane produkcijske verzije
-- CI, Windows build i lokalni build koriste isti prošireni skup quality gateova
-- Windows ZIP i GitHub Package uključuju kompletnu Markdown dokumentaciju
-- detaljna dokumentacija postala je verzijski neutralna i automatski se provjerava za pokvarene poveznice i nepotpun indeks
+- ispravljen je Unix FTP/SFTP fallback parser tako da obična datoteka čiji naziv sadrži ` -> ` više nije pogrešno skraćena kao simbolička poveznica
+- veličina iz nepouzdanog listinga parsira se preko provjerenog `int64` pretvaranja pa prevelika/neispravna vrijednost više ne može wrapati; DOS listing sada pravilno čita i veličinu obične datoteke
+- udaljeni prikazi koriste isti optimizirani `internal/itemlist` sorter kao lokalni prikazi, s jednim case-fold ključem po stavci umjesto ponavljanih alokacija u svakom comparator pozivu
+- SFTP privatni ključ mora biti obična lokalna datoteka i sada se na Windowsu dodatno odbija ako je reparse point
+- disconnect više ne zatvara curl/OpenSSH adapter niti briše SFTP session datoteke dok ih aktivni remote poziv još koristi
+- svaka udaljena operacija dobiva referencu na životni ciklus sesije; disconnect najprije blokira nove pozive i otkazuje kontekst, čeka postojeće `release()` pozive, a tek zatim zatvara adapter
+- `Operation` release je idempotentan, a nove regresije provjeravaju close-race, parser rubne slučajeve, privatni ključ i sortiranje punog limita od 50.000 stavki
+- sigurnosni audit sada obavezno čuva i SFTP private-key reparse zaštitu te active-operation/session-close granicu
 
 ## Sigurnost i privatnost
 
@@ -94,6 +94,8 @@ Ključne zaštite uključuju:
 - Windows curl/OpenSSH iz System32
 - DPAPI zaštitu spremljenih osjetljivih podataka
 - sanitizirani AskPass bez credential datoteke
+- private-key regular-file/symlink/reparse provjeru
+- session lifecycle zaštitu koja čeka završetak aktivnih remote operacija prije zatvaranja adaptera
 - state safe-open provjeru stvarno otvorenog regularnog objekta
 - kriptografski nasumične staging nazive
 - download `Lstat`/regular-file/reparse provjeru prije atomske aktivacije
@@ -147,7 +149,7 @@ python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go test -race ./...
 go vet ./...
-python scripts/release_notes.py --version 2.14.3 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.14.4 --output RELEASE-NOTES.test.txt
 ```
 
 GitHub Actions dodatno izvršava puni Windows produkcijski build. Release workflow nakon kompresije verificira i konačni Windows ZIP.

@@ -1,5 +1,19 @@
 # Povijest promjena
 
+## 2.14.4 — Stabilniji udaljeni prikaz, SFTP ključevi i lifecycle veze
+
+- ispravljen je Unix FTP/SFTP fallback parser: niz ` -> ` uklanja se samo iz stvarnog symlink zapisa pa obična datoteka s tim nizom u nazivu više nije pogrešno skraćena
+- veličine iz tekstualnih listinga sada se parsiraju preko `strconv.ParseInt`; neispravna ili prevelika vrijednost pada na sigurnu nulu umjesto mogućeg `int64` wraparounda
+- DOS/Windows-style listing sada pravilno prenosi veličinu obične datoteke u `model.Item`
+- uklonjeno je duplicirano remote sortiranje s ponavljanim `strings.ToLower` pozivima po usporedbi; udaljeni prikaz koristi zajednički optimizirani `internal/itemlist.Sort`
+- dodane su regresije parsera za regularni naziv s ` -> `, symlink, overflow veličine, DOS veličinu i puni limit od 50.000 udaljenih stavki
+- SFTP privatni ključ sada mora biti obična datoteka bez symlinka i Windows reparse-point preusmjeravanja
+- remote session lifecycle dobio je reference count aktivnih operacija: disconnect prvo zatvara prijem novih poziva i otkazuje session context, čeka svaki postojeći `Operation` release, a tek zatim zatvara curl/OpenSSH adapter
+- `Operation` release postao je idempotentan kroz `sync.Once`, čime dvostruko čišćenje ne može spustiti active-operation brojač ispod nule
+- dodane su determinističke regresije koje potvrđuju da disconnect ne zatvara adapter prije završetka aktivnog poziva i da dvostruki release ostaje siguran
+- `audit_security.py` sada blokira regresiju private-key reparse zaštite i active-operation/session-close granice
+- README, arhitektura, sigurnosna dokumentacija i testni katalog usklađeni su s novim 2.14.4 ponašanjem
+
 ## 2.14.3 — Fail-closed izdavanje i dokumentacija kao provjerena komponenta
 
 - GitHub Release objava izdvojena je u `scripts/publish_release.ps1` i postala sigurno ponovljiva nakon djelomičnog pada

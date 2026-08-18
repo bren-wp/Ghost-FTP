@@ -252,8 +252,8 @@ func validatePrivateKeyPath(keyPath string) error {
 	if err != nil {
 		return errors.New("privatni ključ nije dostupan")
 	}
-	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
-		return errors.New("privatni ključ mora biti obična lokalna datoteka")
+	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(keyPath) {
+		return errors.New("privatni ključ mora biti obična lokalna datoteka bez preusmjeravanja")
 	}
 	return nil
 }

@@ -12,7 +12,7 @@ ByFTP je jedan izvorni Win32 desktop proces. Nema browser UI, localhost HTTP ser
 - `internal/remote` — FTP/FTPS preko Windows curl i SFTP preko Windows OpenSSH
 - `internal/transfer` — red prijenosa, rezervacije, retry, cancellation, event stream i worker lifecycle
 - `internal/config` — atomsko lokalno stanje, DPAPI profili i settings cache
-- `internal/itemlist` — stabilno directory-first sortiranje velikih popisa
+- `internal/itemlist` — zajedničko stabilno directory-first sortiranje velikih lokalnih i udaljenih popisa
 - `internal/localfs` — lokalne file operacije i bounded enumeracija
 - `internal/security` — validacija unosa/putanja, no-follow filesystem granice i Windows DPAPI zaštita
 - `internal/platform` — Win32 dijalozi, Known Folder/System Directory API-ji, Registry, shortcut, replace i single-instance pomoćne funkcije
@@ -25,6 +25,8 @@ Runtime nema vanjske Go dependencies.
 Lozinka i zaporka privatnog ključa ne prolaze kroz generički JSON dispatcher. Spremljeni DPAPI blob ostaje zaštićen kroz profile/manager sloj i otključava se tek neposredno prije sistemskog curl/OpenSSH poziva.
 
 Kod potvrde novog SFTP host ključa ByFTP može privremeno zadržati DPAPI-zaštićene credential blobove najviše do isteka trust prozora. Podaci se brišu nakon potvrde, greške, otkaza ili uspješnog spajanja; jedina grana koja ih namjerno zadržava jest povrat `RequiresTrust` dok korisnik odlučuje o ključu.
+
+Privatni SFTP ključ mora biti stvarna regularna lokalna datoteka. Symlink i Windows reparse-point objekti odbijaju se prije izrade session konfiguracije kako OpenSSH ne bi potrošio preusmjereni objekt koji ByFTP nije namjerno odabrao.
 
 ## Granica reda prijenosa
 
@@ -42,6 +44,12 @@ Download se izvodi kroz kriptografski nasumičnu `.byftp-part-*` datoteku. Prije
 
 `RemoveTreeNoFollow` ne prati symlink/junction/reparse točke, ima depth/item limite i samostalno odbija filesystem root, uključujući Windows drive i UNC root.
 
+## Granica udaljenog prikaza
+
+FTP/FTPS preferira strojno čitljivi MLSD. Kada poslužitelj to ne podržava, tekstualni Unix/DOS listing prolazi ograničeni parser: veličine se pretvaraju provjerenim `int64` parserom, a ` -> ` se tretira kao symlink separator samo kod zapisa koji je stvarno označen kao symlink.
+
+Lokalni i udaljeni prikaz koriste zajednički `internal/itemlist.Sort`. Case-fold ključ računa se jedanput po stavci, pa limit od 50.000 unosa ne stvara lowercase kopiju u svakoj usporedbi sortiranja.
+
 ## Granica lokalnog stanja
 
 State/config čitanje provjerava regularnu datoteku prije otvaranja, stvarno otvoreni objekt i stabilnost identiteta, veličine i modification metapodataka tijekom čitanja. Oštećeni ili nepouzdani current zapis ne blokira startup: koristi se provjerena `.previous` generacija ili sigurne zadane vrijednosti.
@@ -50,7 +58,11 @@ ByFTP data/install/SFTP direktoriji stvaraju se kroz no-redirect provjere ispod 
 
 ## Granica sesije
 
-Remote operacije dobivaju context koji se otkazuje i kada pozivatelj prekine posao i kada se aktivna ByFTP veza disconnecta. Transfer batch rezervacija pamti generation i opaque identitet veze kako stale posao ne bi nakon reconnecta završio na drugom endpointu.
+Remote operacije dobivaju context koji se otkazuje i kada pozivatelj prekine posao i kada se aktivna ByFTP veza disconnecta. Svaka uspješna `Operation` registracija drži active-operation referencu sve do idempotentnog `release()` poziva.
+
+Disconnect pod write lockom prvo uklanja aktivnu sesiju iz managera pa novi pozivi više ne mogu dobiti adapter. Zatim otkazuje session context, čeka da postojeći pozivi vrate svoje reference i tek tada poziva `Session.Close()`. Time curl/OpenSSH adapter i SFTP privremene config/known_hosts datoteke ne mogu biti uklonjeni dok ih paralelni `List`, rename, chmod ili transfer još koristi.
+
+Transfer batch rezervacija dodatno pamti generation i opaque identitet veze kako stale posao ne bi nakon reconnecta završio na drugom endpointu.
 
 ## Release granica
 

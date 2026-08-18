@@ -31,19 +31,33 @@ Na Windowsu dodatno:
 - connection generation i cross-server retry blokadu
 - worker panic containment
 - završni status nakon kasnog cancel/disconnect racea
+- active-operation/session-close lifecycle: disconnect mora otkazati poziv, pričekati njegov `release()` i tek zatim zatvoriti adapter
+- idempotentni `Operation` release
 - path traversal, Windows rezervirane nazive, symlink/junction/reparse zaštite
+- SFTP private-key regular-file/symlink/reparse granicu
 - download staging `Lstat`/regular-file/reparse provjeru
 - filesystem-root zabranu brisanja, uključujući Windows drive i UNC root
+- Unix fallback listing s običnim nazivom koji sadrži ` -> ` i stvarnim symlink zapisom
+- sigurno parsiranje prevelike veličine listinga bez `int64` wraparounda
+- DOS/Windows-style listing veličinu datoteke
 - rekurzivne upload/download planove i rollback
 - installer payload integritet i upgrade rollback
 - event stream fallback, deep-copy izolaciju i velike queue burstove
-- velike lokalne popise od 50.000 stavki
+- velike lokalne i udaljene popise od 50.000 stavki kroz zajedničko stabilno sortiranje
 - hrvatske UI/release/GitHub površine
 - konzistentnost `VERSION` izvora bez ručnog semver drifta
 - lokalne Markdown poveznice i potpunost dokumentacijskog indeksa
 - determinističku generaciju PNG/ICO resursa
 - Windows ZIP manifest, putanje, duplikate i SHA-256 nakon stvarnog pakiranja
 - release tag/commit i postojeći asset digest fail-closed ugovor
+
+## Stabilnosne regresije 2.14.4
+
+`internal/remote/listing_regression_test.go` čuva parser i sorting rubne slučajeve. Test s 50.000 stavki namjerno koristi isti javni limit udaljenog prikaza kako optimizacija velikih direktorija ne bi ostala samo mikro-test.
+
+`internal/remote/manager_test.go` deterministički pokreće disconnect dok je remote `Operation` još aktivan. Test zahtijeva da context bude otkazan, ali adapter ne smije biti zatvoren prije `release()`. Zasebna regresija dvaput poziva isti release i potvrđuje da lifecycle brojač ostaje ispravan.
+
+`internal/remote/private_key_validation_test.go` potvrđuje regularnu datoteku i symlink odbijanje; Windows produkcijski build i `audit_security.py` dodatno čuvaju reparse-point granu.
 
 ## Python release regresije
 

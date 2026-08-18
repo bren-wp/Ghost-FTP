@@ -39,6 +39,25 @@ def main() -> int:
         require(path, ("validateDownloadedPart(part)",))
 
     require(
+        "internal/remote/sftp.go",
+        (
+            "func validatePrivateKeyPath(keyPath string) error",
+            "os.Lstat(keyPath)",
+            "security.IsReparsePoint(keyPath)",
+        ),
+    )
+    require(
+        "internal/remote/manager.go",
+        (
+            "activeOps     sync.WaitGroup",
+            "m.activeOps.Add(1)",
+            "m.activeOps.Wait()",
+            "m.activeOps.Done()",
+            "var once sync.Once",
+        ),
+    )
+
+    require(
         "internal/security/remove_tree.go",
         (
             "func isFilesystemRoot(target string) bool",
@@ -78,6 +97,14 @@ def main() -> int:
         ),
     )
     require("internal/remote/download_security_test.go", ("validateDownloadedPart", "Symlink"))
+    require(
+        "internal/remote/private_key_validation_test.go",
+        ("TestValidatePrivateKeyPathAcceptsRegularFile", "TestValidatePrivateKeyPathRejectsSymlink"),
+    )
+    require(
+        "internal/remote/manager_test.go",
+        ("TestDisconnectWaitsForActiveOperationRelease", "TestOperationReleaseIsIdempotent"),
+    )
     require("internal/security/remove_tree_root_test.go", ("RemoveTreeNoFollow",))
     require(
         "internal/security/remove_tree_root_windows_test.go",
@@ -86,6 +113,8 @@ def main() -> int:
 
     print("SECURITY_AUDIT=PASS")
     print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
+    print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
+    print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
     print("FILESYSTEM_ROOT_DELETE=BLOCKED")
     print("LATE_TRANSFER_CANCEL_STATUS_REGRESSION=BLOCKED")
     print("STATE_SAFE_OPEN=ENABLED")
