@@ -186,7 +186,7 @@ func TestSSHSessionConfigIsPrivateDirectAndScoped(t *testing.T) {
 
 func TestFTPSConfigNeverDisablesCertificateRevocation(t *testing.T) {
 	for _, protocol := range []string{"ftps", "ftpsi"} {
-		c := &CurlFTP{protocol: protocol, username: "user"}
+		c := &CurlFTP{protocol: protocol, username: "user", revokeBestEffort: runtime.GOOS == "windows"}
 		cfg := string(c.configFor([]byte("secret"), nil))
 		if strings.Contains(cfg, "ssl-no-revoke") {
 			t.Fatalf("%s config disables certificate revocation: %q", protocol, cfg)
@@ -199,10 +199,23 @@ func TestFTPSConfigNeverDisablesCertificateRevocation(t *testing.T) {
 		}
 		if runtime.GOOS == "windows" {
 			if !strings.Contains(cfg, "ssl-revoke-best-effort") {
-				t.Fatalf("%s Windows config missing best-effort certificate revocation: %q", protocol, cfg)
+				t.Fatalf("%s Windows config missing supported best-effort revocation: %q", protocol, cfg)
 			}
 		} else if strings.Contains(cfg, "ssl-revoke-best-effort") {
 			t.Fatalf("%s non-Windows config contains Schannel-only revocation option: %q", protocol, cfg)
+		}
+	}
+}
+
+func TestFTPSConfigFallsBackWhenBestEffortOptionIsUnavailable(t *testing.T) {
+	for _, protocol := range []string{"ftps", "ftpsi"} {
+		c := &CurlFTP{protocol: protocol, username: "user", revokeBestEffort: false}
+		cfg := string(c.configFor([]byte("secret"), nil))
+		if strings.Contains(cfg, "ssl-no-revoke") || strings.Contains(cfg, "ssl-revoke-best-effort") {
+			t.Fatalf("%s fallback config must use TLS backend default revocation behavior: %q", protocol, cfg)
+		}
+		if !strings.Contains(cfg, "tlsv1.2") {
+			t.Fatalf("%s fallback config lost TLS minimum: %q", protocol, cfg)
 		}
 	}
 }
