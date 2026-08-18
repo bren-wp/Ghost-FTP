@@ -21,7 +21,9 @@ curl dobiva sanitizirano okruženje bez naslijeđenog proxy/TLS overridea. OpenS
 
 ### FTPS provjera opoziva certifikata
 
-ByFTP više ne koristi curl opciju `ssl-no-revoke`, jer bi ona na Windows Schannelu potpuno isključila provjeru opoziva certifikata. Windows FTPS koristi `ssl-revoke-best-effort`: Schannel smije provjeriti status opoziva certifikata, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu.
+ByFTP više ne koristi curl opciju `ssl-no-revoke`, jer bi ona na Windows Schannelu potpuno isključila provjeru opoziva certifikata.
+
+Na Windowsu ByFTP lokalno pokreće bounded `curl --version` capability provjeru bez mrežnog prometa. Ako curl podržava `ssl-revoke-best-effort`, ByFTP uključuje tu opciju: Schannel smije provjeriti status opoziva certifikata, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu. Ako je curl prestar ili capability provjera ne uspije, ta se opcija ne šalje i ostaje zadano Schannel ponašanje; revocation provjera se ne isključuje.
 
 Takvu provjeru može izvršiti Windows TLS/certificate infrastruktura i ona može kontaktirati CA/CRL infrastrukturu navedenu u certifikatu. To nije ByFTP telemetrija niti Brendigo API, ali jest mogući OS-vođeni sigurnosni mrežni promet izvan korisnički odabranog FTP endpointa. Linux/macOS ne dobivaju Schannel-specifičnu curl opciju i koriste ponašanje vlastitog TLS backend-a.
 
