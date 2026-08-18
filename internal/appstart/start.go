@@ -161,7 +161,8 @@ func RunFileClient(mode clientmode.Mode, version string) {
 	}
 	defer engine.Close()
 
-	if err := desktop.Run(engine, version, mode); err != nil {
+	desktop.SetClientMode(mode)
+	if err := desktop.Run(engine, version); err != nil {
 		platform.MessageBox(product, usererror.Message(err, product+" prozor nije moguće otvoriti. Pokušajte ponovno."), 0x10)
 	}
 }
