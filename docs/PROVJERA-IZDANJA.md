@@ -1,12 +1,23 @@
 # ByFTP — kontrolna lista izdanja
 
+Ova lista je fail-closed kriterij za javno ByFTP izdanje. Release nije spreman ako je bilo koja primjenjiva stavka neprovjerena.
+
 ## Verzija i sadržaj
 
 - [ ] `VERSION` sadrži točnu semantičku verziju
 - [ ] `CHANGELOG.md` ima odgovarajući odjeljak
-- [ ] README i svi detaljni dokumenti opisuju istu support/auth/release matricu
-- [ ] `release_notes.py` generira hrvatske bilješke bez hardkodirane aktualne verzije
+- [ ] README prikazuje isti broj kao `VERSION`
+- [ ] README i detaljni dokumenti opisuju istu platform/auth matricu
+- [ ] `release_notes.py` generira hrvatske bilješke iz aktualnog CHANGELOG odjeljka
 - [ ] GitHub bug predložak i workflow nemaju ručno sinkronizirani semver default
+
+## Go build privatnost
+
+- [ ] `go telemetry off` je izvršen u CI/release okruženju
+- [ ] `go telemetry` vraća `off` prije prvog Go testa/builda
+- [ ] produkcijske build skripte odbijaju drugi telemetry način
+- [ ] build skripte se ne oslanjaju na običnu `GOTELEMETRY` OS env varijablu
+- [ ] `GOTOOLCHAIN=local`, `GOPROXY=off` i `GOSUMDB=off` ostaju aktivni
 
 ## Quality gate
 
@@ -21,51 +32,72 @@
 - [ ] `go test ./...` prolazi
 - [ ] `go test -race ./...` prolazi
 - [ ] `go vet ./...` prolazi
+- [ ] release workflow ima vlastiti production quality/race job
 
 ## Connect regresije
 
-- [ ] SFTP command args sadrže `BatchMode=no` i **ne sadrže `-b`**
-- [ ] AskPass password/passphrase testovi prolaze
+- [ ] SFTP command args sadrže `BatchMode=no` i ne vraćaju batch način koji gasi AskPass
+- [ ] AskPass password/passphrase testovi prolaze na Windows kodu
 - [ ] MFA/OTP/nepoznati AskPass prompt ne dobiva tajnu
 - [ ] bracketirani IPv6 OpenSSH test prolazi
 - [ ] curl/SFTP timeout/cancel context propagacija je zaključana auditom
 - [ ] Windows unos vjerodajnice ostaje dostupan za retry/trust continuation do potvrđenog `Connected`
 - [ ] connect se smatra uspješnim tek nakon početnog remote `List` probea
+- [ ] process-level FTP/FTPS smoke prolazi
+- [ ] process-level SFTP smoke prolazi na Unix runneru
 
 ## Windows
 
-- [ ] `BUILD-WINDOWS.ps1` uspješno gradi x64 i x86
-- [ ] x64 Portable/Setup/internal Uninstaller su različiti PE32+ GUI binariji
-- [ ] x86 Portable/Setup/internal Uninstaller su različiti PE32 GUI binariji
+- [ ] `BUILD-WINDOWS.ps1` zahtijeva Go 1.26.5+
+- [ ] `BUILD-WINDOWS.ps1` zahtijeva `go telemetry=off`
+- [ ] x64 produkcijski build prolazi
+- [ ] x86 produkcijski build prolazi
+- [ ] x64 javni binariji imaju očekivani PE32+ format
+- [ ] x86 javni binariji imaju očekivani PE32 format
 - [ ] x64 ima HIGH_ENTROPY_VA, DYNAMIC_BASE, NX_COMPAT i TERMINAL_SERVER_AWARE
 - [ ] x86 ima DYNAMIC_BASE, NX_COMPAT i TERMINAL_SERVER_AWARE
 - [ ] oba manifesta imaju ispravni `processorArchitecture`
 - [ ] oba Windows ZIP-a sadrže Setup, Portable, release metadata i kompletnu Markdown dokumentaciju
-- [ ] Windows ZIP **ne sadrži** standalone Uninstaller ni verification report
 - [ ] `verify_bundle.py --arch x64` prolazi nad konačnim x64 ZIP-om
 - [ ] `verify_bundle.py --arch x86` prolazi nad konačnim x86 ZIP-om
+- [ ] lokalni `dist/` root prikazuje samo javne izlaze; tehnički build dokazi su izdvojeni u `dist/internal/`
 
 ## Linux
 
-- [ ] `BUILD-LINUX.sh` uspješno gradi amd64 DEB
-- [ ] uspješno gradi arm64 DEB
-- [ ] uspješno gradi i386 DEB
+- [ ] `BUILD-LINUX.sh` zahtijeva Go 1.26.5+
+- [ ] `BUILD-LINUX.sh` zahtijeva `go telemetry=off`
+- [ ] amd64 DEB se gradi
+- [ ] arm64 DEB se gradi
+- [ ] i386 DEB se gradi
 - [ ] `dpkg-deb` potvrđuje package=`byftp`, točnu verziju i arhitekturu
 - [ ] paket instalira `/usr/bin/byftp` i terminalni desktop launcher
 - [ ] runtime FTP/FTPS tajna ostaje procesna i briše se pri closeu
+- [ ] Linux job izvršava Go testove i `go vet` prije builda paketa
 
 ## macOS
 
-- [ ] `BUILD-MACOS.sh` prolazi na macOS runneru
+- [ ] `BUILD-MACOS.sh` zahtijeva Go 1.26.5+
+- [ ] `BUILD-MACOS.sh` zahtijeva `go telemetry=off`
 - [ ] amd64 i arm64 binariji uspješno se spajaju u Universal binarij
 - [ ] `.icns` resurs prolazi `iconutil`
 - [ ] `/Applications/ByFTP.app` i `/usr/local/bin/byftp` ulaze u PKG
 - [ ] `pkgbuild` proizvodi valjani Universal PKG
 - [ ] `pkgutil --expand` potvrđuje package strukturu
+- [ ] macOS job izvršava Go testove i `go vet` na stvarnom macOS runneru prije builda
+
+## Release workflow arhitektura
+
+- [ ] automatski okidač je promjena `VERSION` na `main`
+- [ ] tag koji publisher izradi ne pokreće drugi release workflow
+- [ ] manualni `workflow_dispatch` ostaje dostupan za siguran rerun
+- [ ] svi release runovi koriste jednu `byftp-release` concurrency grupu
+- [ ] `publish` ovisi o quality + Windows + Linux + macOS jobu
+- [ ] publish staging prije metapodataka sadrži točno 10 platformskih paketa
+- [ ] dodatna ili nedostajuća staging datoteka zaustavlja release
 
 ## Javni GitHub Release
 
-Točan javni asset ugovor ima **13 asseta**:
+Točan custom asset ugovor ima 13 stavki:
 
 1. `ByFTP-<v>-Portable-x64.exe`
 2. `ByFTP-<v>-Setup-x64.exe`
@@ -81,23 +113,33 @@ Točan javni asset ugovor ima **13 asseta**:
 12. `RELEASE-NOTES.txt`
 13. `BUILD-METADATA.txt`
 
-- [ ] nema custom `verification.txt`
-- [ ] nema custom `ByFTP-<v>-Source.zip`
-- [ ] nema standalone `Uninstall-*.exe`
-- [ ] v2.15.0 cleanup korak uklonio je ta tri stara custom asseta i završno potvrdio odsutnost
-- [ ] GitHub automatski Source code ZIP/TAR linkovi tretiraju se kao platform-generated tag poveznice, ne kao ByFTP asseti
+- [ ] nema dodatnih custom asseta izvan allowlista
 - [ ] `SHA256.txt` pokriva svih 10 platformskih paketa + release notes/build metadata
+- [ ] `BUILD-METADATA.txt` bilježi release quality gate
 - [ ] tag se razrješava na točan release commit
 - [ ] rerun postojeće assete uspoređuje po veličini + GitHub SHA-256 digestu
 - [ ] mismatch zaustavlja izdanje, a nedostajući potvrđeni asset može se dopuniti
-- [ ] kompletni Actions artefakt je spremljen
-- [ ] `ByFTP.Windows` GitHub Package sadrži x64+x86 Windows javne pakete bez standalone uninstallera/verification reporta
+- [ ] kompletni Actions release artefakt je spremljen
+- [ ] `ByFTP.Windows` GitHub Package sadrži samo aktualne Windows javne pakete, dokumentaciju i release metapodatke
 
-## Potpisi i smoke test
+## Potpisi
 
-- [ ] Windows Authenticode provjeren je samo ako postoji stvarni Brendigo certifikat; bez certifikata dokumentirano je `unsigned`
-- [ ] macOS Developer ID/notarizacija provjerena je samo ako postoji stvarni Apple certifikat; bez certifikata ne tvrditi da je paket potpisan
-- [ ] Windows x64 smoke-test sa stvarnim FTP/FTPS/SFTP serverom
-- [ ] Windows x86 smoke-test gdje je dostupan odgovarajući sustav
-- [ ] Linux FTP/FTPS i SFTP-key smoke-test
-- [ ] macOS FTP/FTPS i SFTP-key smoke-test
+- [ ] Windows Authenticode status se tvrdi samo ako je paket stvarno potpisan pravim Brendigo certifikatom
+- [ ] macOS Developer ID/notarizacija se tvrdi samo ako je paket stvarno potpisan/notariziran pravim Apple identitetom
+- [ ] bez certifikata dokumentacija jasno kaže da paket nije Verified Publisher/Developer ID
+
+## Produkcijski smoke sa stvarnim poslužiteljem
+
+Automatizirani process smoke testovi koriste lokalne fake procese i ne zamjenjuju završni pre-release test protiv kontroliranog stvarnog poslužitelja.
+
+- [ ] Windows x64 FTP smoke
+- [ ] Windows x64 eksplicitni FTPS smoke
+- [ ] Windows x64 SFTP password smoke
+- [ ] Windows x64 SFTP key smoke
+- [ ] Windows x86 osnovni smoke gdje je dostupan odgovarajući sustav
+- [ ] Linux FTP/FTPS smoke
+- [ ] Linux SFTP key smoke
+- [ ] macOS FTP/FTPS smoke
+- [ ] macOS SFTP key smoke
+
+Nikada ne stavljati produkcijske vjerodajnice ili privatne ključeve u CI fixturee, logove ili javne issue/PR poruke.
