@@ -153,6 +153,9 @@ func (c *CurlFTP) run(ctx context.Context, lines []string) ([]byte, error) {
 	cmd.Stdout = out
 	cmd.Stderr = er
 	if err := cmd.Run(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		if overflowErr := er.Err("dijagnostički odgovor"); overflowErr != nil {
 			return nil, overflowErr
 		}
