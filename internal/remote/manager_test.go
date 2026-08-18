@@ -8,44 +8,102 @@ import (
 	"brendigo.com/byftp/internal/model"
 )
 
-type managerTestSession struct{}
+type managerTestSession struct {
+	closed chan struct{}
+}
 
-func (managerTestSession) Protocol() string { return "sftp" }
-func (managerTestSession) Host() string     { return "example.test" }
-func (managerTestSession) Port() int        { return 22 }
-func (managerTestSession) List(ctx context.Context, _ string) ([]model.Item, error) {
+func (*managerTestSession) Protocol() string { return "sftp" }
+func (*managerTestSession) Host() string     { return "example.test" }
+func (*managerTestSession) Port() int        { return 22 }
+func (*managerTestSession) List(ctx context.Context, _ string) ([]model.Item, error) {
 	<-ctx.Done()
 	return nil, ctx.Err()
 }
-func (managerTestSession) Mkdir(context.Context, string, string) error                   { return nil }
-func (managerTestSession) Rename(context.Context, string, string, string) error          { return nil }
-func (managerTestSession) Delete(context.Context, string, string, bool) error            { return nil }
-func (managerTestSession) Chmod(context.Context, string, string, string) error           { return nil }
-func (managerTestSession) Upload(context.Context, string, string, TransferOptions) error { return nil }
-func (managerTestSession) Download(context.Context, string, string, TransferOptions) error {
+func (*managerTestSession) Mkdir(context.Context, string, string) error          { return nil }
+func (*managerTestSession) Rename(context.Context, string, string, string) error { return nil }
+func (*managerTestSession) Delete(context.Context, string, string, bool) error   { return nil }
+func (*managerTestSession) Chmod(context.Context, string, string, string) error  { return nil }
+func (*managerTestSession) Upload(context.Context, string, string, TransferOptions) error {
 	return nil
 }
-func (managerTestSession) Close() error { return nil }
+func (*managerTestSession) Download(context.Context, string, string, TransferOptions) error {
+	return nil
+}
+func (s *managerTestSession) Close() error {
+	if s.closed != nil {
+		close(s.closed)
+	}
+	return nil
+}
 
-func TestOperationContextIsCancelledByDisconnect(t *testing.T) {
+func newManagerTestConnection() (*Manager, *managerTestSession) {
 	m := &Manager{}
+	s := &managerTestSession{closed: make(chan struct{})}
 	sessionCtx, sessionCancel := context.WithCancel(context.Background())
-	m.session = managerTestSession{}
+	m.session = s
 	m.sessionCtx = sessionCtx
 	m.sessionCancel = sessionCancel
+	return m, s
+}
 
+func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
+	m, session := newManagerTestConnection()
 	_, opCtx, release, err := m.Operation(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer release()
-	if err := m.Disconnect(); err != nil {
-		t.Fatal(err)
-	}
+
+	disconnectDone := make(chan error, 1)
+	go func() {
+		disconnectDone <- m.Disconnect()
+	}()
+
 	select {
 	case <-opCtx.Done():
 	case <-time.After(time.Second):
 		t.Fatal("disconnect did not cancel active remote operation context")
+	}
+
+	// Nakon otkazivanja konteksta adapter još ne smije biti zatvoren dok
+	// pozivatelj nije završio protokolarnu operaciju i predao release.
+	select {
+	case <-session.closed:
+		t.Fatal("session was closed before active operation released it")
+	default:
+	}
+	select {
+	case err := <-disconnectDone:
+		t.Fatalf("disconnect returned before active operation release: %v", err)
+	default:
+	}
+
+	release()
+	select {
+	case err := <-disconnectDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("disconnect did not finish after active operation release")
+	}
+	select {
+	case <-session.closed:
+	default:
+		t.Fatal("session was not closed after active operation released it")
+	}
+}
+
+func TestOperationReleaseIsIdempotent(t *testing.T) {
+	m, _ := newManagerTestConnection()
+	_, _, release, err := m.Operation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Dvostruki release ne smije izazvati negativan WaitGroup niti panic.
+	release()
+	release()
+	if err := m.Disconnect(); err != nil {
+		t.Fatal(err)
 	}
 }
 
