@@ -13,6 +13,19 @@ func Message(err error, fallback string) string {
 	if err == nil {
 		return ""
 	}
+
+	// Specifični lokalni lifecycle status mora imati prednost nad generičkim
+	// context errorom. Engine može errors.Join-ati transfer deadline i remote
+	// close timeout; u tom slučaju korisnik treba vidjeti što se stvarno događa
+	// sa sesijom, a ne pogrešnu poruku da poslužitelj nije odgovorio.
+	s := strings.ToLower(strings.Join(strings.Fields(err.Error()), " "))
+	if strings.Contains(s, "prethodna veza se još sigurno zatvara") {
+		return "Prethodna veza još se sigurno zatvara. Pokušajte ponovno za nekoliko trenutaka."
+	}
+	if strings.Contains(s, "sigurno zatvaranje veze još traje") {
+		return "Prekid veze još se sigurno dovršava. Ponovno povezivanje bit će dostupno čim se stara sesija zatvori."
+	}
+
 	if errors.Is(err, context.Canceled) {
 		return "Operacija je otkazana."
 	}
@@ -20,7 +33,6 @@ func Message(err error, fallback string) string {
 		return "Poslužitelj nije odgovorio na vrijeme. Pokušajte ponovno."
 	}
 
-	s := strings.ToLower(strings.Join(strings.Fields(err.Error()), " "))
 	switch {
 	case strings.Contains(s, "fingerprint se promijenio") || strings.Contains(s, "host key verification failed"):
 		return "Sigurnosni ključ poslužitelja promijenio se. Veza je blokirana radi vaše zaštite."

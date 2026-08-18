@@ -2,6 +2,7 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -55,7 +56,9 @@ func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
 
 	disconnectDone := make(chan error, 1)
 	go func() {
-		disconnectDone <- m.Disconnect()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		disconnectDone <- m.Disconnect(ctx)
 	}()
 
 	select {
@@ -64,8 +67,6 @@ func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
 		t.Fatal("disconnect did not cancel active remote operation context")
 	}
 
-	// Nakon otkazivanja konteksta adapter još ne smije biti zatvoren dok
-	// pozivatelj nije završio protokolarnu operaciju i predao release.
 	select {
 	case <-session.closed:
 		t.Fatal("session was closed before active operation released it")
@@ -91,6 +92,135 @@ func TestDisconnectWaitsForActiveOperationRelease(t *testing.T) {
 	default:
 		t.Fatal("session was not closed after active operation released it")
 	}
+	m.mu.RLock()
+	closing := m.closing != nil
+	m.mu.RUnlock()
+	if closing {
+		t.Fatal("disconnect returned before closing state was cleared")
+	}
+}
+
+func TestDisconnectTimeoutDefersCloseAndBlocksReconnect(t *testing.T) {
+	m, session := newManagerTestConnection()
+	_, opCtx, release, err := m.Operation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	err = m.Disconnect(ctx)
+	if !errors.Is(err, ErrDisconnectTimeout) {
+		t.Fatalf("disconnect error=%v, want ErrDisconnectTimeout", err)
+	}
+
+	select {
+	case <-opCtx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("timed-out disconnect did not cancel active operation context")
+	}
+	select {
+	case <-session.closed:
+		t.Fatal("timed-out disconnect closed adapter before operation release")
+	default:
+	}
+	if _, _, _, err := m.Operation(context.Background()); err == nil {
+		t.Fatal("new operation was admitted while old session was closing")
+	}
+	if _, err := m.Connect(context.Background(), "", model.ConnectionConfig{}, "", false); !errors.Is(err, ErrSessionClosing) {
+		t.Fatalf("reconnect error=%v, want ErrSessionClosing", err)
+	}
+
+	release()
+	select {
+	case <-session.closed:
+	case <-time.After(time.Second):
+		t.Fatal("deferred cleanup did not close session after release")
+	}
+
+	if err := m.Disconnect(context.Background()); err != nil {
+		t.Fatalf("second disconnect after cleanup: %v", err)
+	}
+	m.mu.RLock()
+	closing := m.closing != nil
+	m.mu.RUnlock()
+	if closing {
+		t.Fatal("closing state remained after completed deferred cleanup")
+	}
+}
+
+func TestDisconnectCancellationDefersClose(t *testing.T) {
+	m, session := newManagerTestConnection()
+	_, opCtx, release, err := m.Operation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = m.Disconnect(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("disconnect error=%v, want context.Canceled", err)
+	}
+	// context.AfterFunc propagira session cancellation asinkrono. Ne zahtijevaj
+	// sinkrono izvršenje callbacka; zahtijevaj da se signal ipak pojavi brzo.
+	select {
+	case <-opCtx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("cancelled disconnect did not cancel active session context")
+	}
+	select {
+	case <-session.closed:
+		t.Fatal("cancelled disconnect closed adapter before operation release")
+	default:
+	}
+
+	release()
+	select {
+	case <-session.closed:
+	case <-time.After(time.Second):
+		t.Fatal("cleanup did not finish after release following cancelled wait")
+	}
+	if err := m.Disconnect(context.Background()); err != nil {
+		t.Fatalf("cleanup state after cancelled wait: %v", err)
+	}
+}
+
+func TestSecondDisconnectWaitsForExistingCloseState(t *testing.T) {
+	m, _ := newManagerTestConnection()
+	_, _, release, err := m.Operation(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	err = m.Disconnect(ctx)
+	cancel()
+	if !errors.Is(err, ErrDisconnectTimeout) {
+		t.Fatalf("first disconnect error=%v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		done <- m.Disconnect(ctx)
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("second disconnect returned before release: %v", err)
+	default:
+	}
+
+	release()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("second disconnect did not observe deferred close completion")
+	}
 }
 
 func TestOperationReleaseIsIdempotent(t *testing.T) {
@@ -99,10 +229,9 @@ func TestOperationReleaseIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Dvostruki release ne smije izazvati negativan WaitGroup niti panic.
 	release()
 	release()
-	if err := m.Disconnect(); err != nil {
+	if err := m.Disconnect(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

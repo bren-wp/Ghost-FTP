@@ -17,6 +17,16 @@ import (
 	"brendigo.com/byftp/internal/security"
 )
 
+var (
+	ErrSessionClosing    = errors.New("prethodna veza se još sigurno zatvara")
+	ErrDisconnectTimeout = errors.New("sigurno zatvaranje veze još traje")
+)
+
+type sessionCloseState struct {
+	done chan struct{}
+	err  error
+}
+
 type Manager struct {
 	mu            sync.RWMutex
 	opMu          sync.Mutex
@@ -24,6 +34,7 @@ type Manager struct {
 	session       Session
 	sessionCtx    context.Context
 	sessionCancel context.CancelFunc
+	closing       *sessionCloseState
 	cfg           model.ConnectionConfig
 	profiles      *config.Profiles
 	settings      *config.SettingsStore
@@ -178,9 +189,13 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 
 	m.mu.RLock()
 	alreadyConnected := m.session != nil
+	closing := m.closing != nil
 	m.mu.RUnlock()
 	if alreadyConnected {
 		return ConnectResult{}, errors.New("veza je već uspostavljena; prvo prekinite postojeću vezu")
+	}
+	if closing {
+		return ConnectResult{}, ErrSessionClosing
 	}
 
 	resolved, profile, err := m.Resolve(profileID, in)
@@ -279,34 +294,81 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 	return ConnectResult{Connected: true}, nil
 }
 
-func (m *Manager) Disconnect() error {
+func waitForSessionClose(ctx context.Context, state *sessionCloseState) error {
+	if state == nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case <-state.done:
+		return state.err
+	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return context.Canceled
+		}
+		return ErrDisconnectTimeout
+	}
+}
+
+func (m *Manager) finishSessionClose(state *sessionCloseState, s Session) {
+	m.activeOps.Wait()
+	if s != nil {
+		state.err = s.Close()
+	}
+
+	// Close-state se mora ukloniti prije signaliziranja done kanala. Tako svaki
+	// pozivatelj koji se probudi na done zna da je stari adapter već zatvoren i
+	// da novi Connect više neće naletjeti na kratki, nepotrebni closing prozor.
+	m.mu.Lock()
+	if m.closing == state {
+		m.closing = nil
+	}
+	m.mu.Unlock()
+	close(state.done)
+}
+
+func (m *Manager) Disconnect(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 	m.clearPendingTrustLocked()
 
+	// Ako je prethodni poziv već odvojio sesiju, ali je timeout vratio kontrolu
+	// pozivatelju prije završnog Close(), samo čekaj isti close-state. Time jedan
+	// adapter nikada ne dobiva dvostruki Close i reconnect ne može prijeći preko
+	// stare sesije koja još koristi svoje privremene SFTP datoteke.
+	m.mu.Lock()
+	if m.session == nil {
+		state := m.closing
+		m.mu.Unlock()
+		return waitForSessionClose(ctx, state)
+	}
+
 	// Najprije atomarno zatvori ulaz za nove operacije. Operation registrira svoj
 	// WaitGroup ref dok još drži RLock, pa nakon ovog write locka nijedna nova
 	// operacija ne može početi na sesiji koju ćemo zatvoriti.
-	m.mu.Lock()
 	s := m.session
 	cancel := m.sessionCancel
 	m.session = nil
 	m.sessionCtx = nil
 	m.sessionCancel = nil
 	m.cfg = model.ConnectionConfig{}
+	state := &sessionCloseState{done: make(chan struct{})}
+	m.closing = state
 	m.mu.Unlock()
 
-	// Otkazivanje budi aktivne protokolarne pozive. Adapter (a kod SFTP-a i
-	// privremene config/known_hosts datoteke) zatvara se tek kada svaki postojeći
-	// poziv vrati svoj Operation release.
+	// Otkazivanje budi aktivne protokolarne pozive. Čekanje i završni Close rade
+	// u odvojenom cleanup putu kako deadline UI-a/shutdowna nikada ne bi blokirao
+	// pozivatelja neograničeno. Adapter se ipak ne zatvara prije zadnjeg releasea.
 	if cancel != nil {
 		cancel()
 	}
-	m.activeOps.Wait()
-	if s != nil {
-		return s.Close()
-	}
-	return nil
+	go m.finishSessionClose(state, s)
+	return waitForSessionClose(ctx, state)
 }
 
 func (m *Manager) Probe(ctx context.Context) error {

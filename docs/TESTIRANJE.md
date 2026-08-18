@@ -32,6 +32,9 @@ Na Windowsu dodatno:
 - worker panic containment
 - završni status nakon kasnog cancel/disconnect racea
 - active-operation/session-close lifecycle: disconnect mora otkazati poziv, pričekati njegov `release()` i tek zatim zatvoriti adapter
+- bounded disconnect timeout koji vraća kontrolu pozivatelju bez prisilnog zatvaranja aktivnog adaptera
+- deferred cleanup nakon timeouta i reconnect blokadu dok stara sesija još postoji
+- ponovljeni disconnect nad istim close-stateom bez dvostrukog `Session.Close()`
 - idempotentni `Operation` release
 - path traversal, Windows rezervirane nazive, symlink/junction/reparse zaštite
 - SFTP private-key regular-file/symlink/reparse granicu
@@ -45,17 +48,26 @@ Na Windowsu dodatno:
 - event stream fallback, deep-copy izolaciju i velike queue burstove
 - velike lokalne i udaljene popise od 50.000 stavki kroz zajedničko stabilno sortiranje
 - hrvatske UI/release/GitHub površine
+- korisničke poruke za mrežni timeout, session-closing i deferred disconnect cleanup
 - konzistentnost `VERSION` izvora bez ručnog semver drifta
 - lokalne Markdown poveznice i potpunost dokumentacijskog indeksa
 - determinističku generaciju PNG/ICO resursa
 - Windows ZIP manifest, putanje, duplikate i SHA-256 nakon stvarnog pakiranja
 - release tag/commit i postojeći asset digest fail-closed ugovor
 
-## Stabilnosne regresije 2.14.4
+## Stabilnosne regresije udaljene sesije
+
+`internal/remote/manager_test.go` deterministički pokreće disconnect dok je remote `Operation` još aktivan. Osnovna regresija zahtijeva da context bude otkazan, ali adapter ne smije biti zatvoren prije `release()`.
+
+Timeout regresija namjerno drži operaciju aktivnom dulje od disconnect deadlinea. Očekuje `ErrDisconnectTimeout`, potvrđuje da adapter i dalje nije zatvoren, da novi `Operation` nije dopušten i da `Connect` vraća `ErrSessionClosing`. Nakon `release()` test zahtijeva završni deferred `Session.Close()` i čišćenje close-statea.
+
+Zasebna regresija pokreće drugi `Disconnect` dok isti deferred close još traje i potvrđuje da oba poziva koriste isti lifecycle umjesto dvostrukog zatvaranja adaptera. Idempotentni release dodatno se poziva dvaput kako WaitGroup brojač ne bi mogao postati negativan.
+
+`internal/usererror/message_test.go` čuva hrvatske, korisnički razumljive poruke za session-closing i disconnect-cleanup stanje, odvojeno od običnog mrežnog timeouta.
+
+## Ostale regresije 2.14.x
 
 `internal/remote/listing_regression_test.go` čuva parser i sorting rubne slučajeve. Test s 50.000 stavki namjerno koristi isti javni limit udaljenog prikaza kako optimizacija velikih direktorija ne bi ostala samo mikro-test.
-
-`internal/remote/manager_test.go` deterministički pokreće disconnect dok je remote `Operation` još aktivan. Test zahtijeva da context bude otkazan, ali adapter ne smije biti zatvoren prije `release()`. Zasebna regresija dvaput poziva isti release i potvrđuje da lifecycle brojač ostaje ispravan.
 
 `internal/remote/private_key_validation_test.go` potvrđuje regularnu datoteku i symlink odbijanje; Windows produkcijski build i `audit_security.py` dodatno čuvaju reparse-point granu.
 

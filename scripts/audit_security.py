@@ -49,11 +49,25 @@ def main() -> int:
     require(
         "internal/remote/manager.go",
         (
+            "ErrSessionClosing",
+            "ErrDisconnectTimeout",
             "activeOps     sync.WaitGroup",
+            "closing       *sessionCloseState",
             "m.activeOps.Add(1)",
             "m.activeOps.Wait()",
             "m.activeOps.Done()",
             "var once sync.Once",
+            "go m.finishSessionClose(state, s)",
+            "waitForSessionClose(ctx, state)",
+            "errors.Is(ctx.Err(), context.Canceled)",
+            "m.closing = nil",
+        ),
+    )
+    require(
+        "internal/api/engine.go",
+        (
+            "e.remote.Disconnect(ctx)",
+            "context.WithTimeout(context.Background(), 4*time.Second)",
         ),
     )
 
@@ -103,7 +117,21 @@ def main() -> int:
     )
     require(
         "internal/remote/manager_test.go",
-        ("TestDisconnectWaitsForActiveOperationRelease", "TestOperationReleaseIsIdempotent"),
+        (
+            "TestDisconnectWaitsForActiveOperationRelease",
+            "TestDisconnectTimeoutDefersCloseAndBlocksReconnect",
+            "TestDisconnectCancellationDefersClose",
+            "TestSecondDisconnectWaitsForExistingCloseState",
+            "TestOperationReleaseIsIdempotent",
+        ),
+    )
+    require(
+        "internal/usererror/message_test.go",
+        (
+            "TestMessageSessionStillClosing",
+            "TestMessageDisconnectCleanupStillRunning",
+            "TestMessageDisconnectLifecycleWinsJoinedDeadline",
+        ),
     )
     require("internal/security/remove_tree_root_test.go", ("RemoveTreeNoFollow",))
     require(
@@ -115,6 +143,8 @@ def main() -> int:
     print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
+    print("REMOTE_SESSION_CLOSE_TIMEOUT=BOUNDED")
+    print("REMOTE_SESSION_CANCEL=PROPAGATED")
     print("FILESYSTEM_ROOT_DELETE=BLOCKED")
     print("LATE_TRANSFER_CANCEL_STATUS_REGRESSION=BLOCKED")
     print("STATE_SAFE_OPEN=ENABLED")

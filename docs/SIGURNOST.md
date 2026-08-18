@@ -23,9 +23,13 @@
 
 ## Životni ciklus udaljene sesije
 
-Svaka uspješna remote `Operation` registracija drži aktivnu referencu na sesiju do poziva idempotentnog `release()`. Disconnect pod ekskluzivnim lockom najprije uklanja sesiju iz managera, čime blokira nove operacije, zatim otkazuje session context i čeka postojeće reference. Tek kada svi aktivni pozivi završe smije se pozvati `Session.Close()`.
+Svaka uspješna remote `Operation` registracija drži aktivnu referencu na sesiju do poziva idempotentnog `release()`. Disconnect pod ekskluzivnim lockom najprije uklanja sesiju iz managera, čime blokira nove operacije, zatim otkazuje session context. Zaseban cleanup put čeka postojeće reference i tek kada svi aktivni pozivi završe smije pozvati `Session.Close()`.
 
 Ova granica sprječava da se curl/OpenSSH adapter zatvori, osjetljivi session state očisti ili SFTP config/known_hosts datoteke izbrišu dok ih paralelni list/rename/chmod/transfer poziv još koristi.
+
+`Disconnect(ctx)` istodobno je bounded: UI i shutdown deadline mogu vratiti kontrolu pozivatelju prije završetka cleanup-a. Timeout namjerno ne poziva prisilni `Close()` nad adapterom koji je još u uporabi. Manager zadržava jedan close-state, čeka zadnji `release()` i potom zatvara adapter. Dok close-state traje, novi `Connect` vraća `ErrSessionClosing`, a ponovljeni `Disconnect` čeka isti state umjesto dvostrukog zatvaranja.
+
+`ErrDisconnectTimeout` je odvojen od mrežnog `context.DeadlineExceeded`, pa korisničko sučelje ne prikazuje netočnu poruku da poslužitelj nije odgovorio kada se zapravo lokalno dovršava sigurno zatvaranje stare sesije.
 
 ## Datoteke i putanje
 
@@ -88,7 +92,7 @@ Transfer posao pamti identitet veze i ne može se ručno retryati na drugi serve
 
 ## Automatizirani sigurnosni gate
 
-`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. Od 2.14.4 izričito čuva i private-key reparse blokadu te active-operation/session-close lifecycle. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor. Time promjena sigurnosnog koda i slučajno uklanjanje njegova testa ne mogu neopaženo proći standardni CI.
+`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. Izričito čuva private-key reparse blokadu, active-operation/session-close lifecycle, bounded disconnect timeout, deferred cleanup i engine propagaciju lifecycle konteksta. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor. Time promjena sigurnosnog koda i slučajno uklanjanje njegova testa ne mogu neopaženo proći standardni CI.
 
 ## Ograničenje
 

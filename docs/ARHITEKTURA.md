@@ -60,7 +60,11 @@ ByFTP data/install/SFTP direktoriji stvaraju se kroz no-redirect provjere ispod 
 
 Remote operacije dobivaju context koji se otkazuje i kada pozivatelj prekine posao i kada se aktivna ByFTP veza disconnecta. Svaka uspješna `Operation` registracija drži active-operation referencu sve do idempotentnog `release()` poziva.
 
-Disconnect pod write lockom prvo uklanja aktivnu sesiju iz managera pa novi pozivi više ne mogu dobiti adapter. Zatim otkazuje session context, čeka da postojeći pozivi vrate svoje reference i tek tada poziva `Session.Close()`. Time curl/OpenSSH adapter i SFTP privremene config/known_hosts datoteke ne mogu biti uklonjeni dok ih paralelni `List`, rename, chmod ili transfer još koristi.
+Disconnect pod write lockom najprije uklanja aktivnu sesiju iz managera pa novi pozivi više ne mogu dobiti adapter. Zatim otkazuje session context. Stvarna cleanup rutina čeka da postojeći pozivi vrate svoje reference i tek tada poziva `Session.Close()`, čime curl/OpenSSH adapter i SFTP privremene config/known_hosts datoteke ne mogu biti uklonjeni dok ih paralelni `List`, rename, chmod ili transfer još koristi.
+
+Pozivatelj ne čeka taj cleanup neograničeno. `Disconnect(ctx)` koristi isti deadline koji postavlja UI ili shutdown. Ako deadline istekne, manager vraća kontrolu pozivatelju, ali ne ruši sigurnosnu granicu prisilnim `Close()` pozivom. Close-state ostaje živ dok zadnja operacija ne preda `release()`, nakon čega se stari adapter automatski zatvara.
+
+Dok close-state postoji, novi `Connect` fail-closed vraća `ErrSessionClosing`. Ponovljeni `Disconnect` veže se uz isti close-state, pa isti adapter ne može biti zatvoren dvaput. Tek nakon završnog cleanup-a dopušten je novi session lifecycle.
 
 Transfer batch rezervacija dodatno pamti generation i opaque identitet veze kako stale posao ne bi nakon reconnecta završio na drugom endpointu.
 
