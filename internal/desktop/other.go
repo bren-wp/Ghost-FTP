@@ -65,22 +65,44 @@ func terminalStatus(status string) bool {
 	switch status { case "done", "failed", "cancelled", "skipped": return true; default: return false }
 }
 
+func terminalTransferResult(job model.TransferJob) (bool, error) {
+	if !terminalStatus(job.Status) {
+		return false, nil
+	}
+	switch job.Status {
+	case "done":
+		fmt.Println("Prijenos dovršen.")
+		return true, nil
+	case "skipped":
+		return true, errors.New("prijenos je preskočen jer odredište već postoji")
+	case "cancelled":
+		return true, context.Canceled
+	default:
+		if strings.TrimSpace(job.Error) != "" {
+			return true, errors.New(job.Error)
+		}
+		return true, errors.New("prijenos nije uspio")
+	}
+}
+
 func waitTransfer(engine *api.Engine, jobID string) error {
-	seq := int64(0)
+	seen := false
 	for {
-		events, next := engine.TransferEvents(seq); seq = next
-		for _, event := range events {
-			if event.Job == nil || event.Job.ID != jobID { continue }
-			job := *event.Job
-			if !terminalStatus(job.Status) { continue }
-			switch job.Status {
-			case "done": fmt.Println("Prijenos dovršen."); return nil
-			case "skipped": return errors.New("prijenos je preskočen jer odredište već postoji")
-			case "cancelled": return context.Canceled
-			default:
-				if strings.TrimSpace(job.Error) != "" { return errors.New(job.Error) }
-				return errors.New("prijenos nije uspio")
+		jobs := engine.Transfers()
+		found := false
+		for _, job := range jobs {
+			if job.ID != jobID {
+				continue
 			}
+			found = true
+			seen = true
+			if done, err := terminalTransferResult(job); done {
+				return err
+			}
+			break
+		}
+		if seen && !found {
+			return errors.New("prijenos više nije dostupan u redu")
 		}
 		time.Sleep(150 * time.Millisecond)
 	}
