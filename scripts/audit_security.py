@@ -59,6 +59,8 @@ def main() -> int:
             "var once sync.Once",
             "go m.finishSessionClose(state, s)",
             "waitForSessionClose(ctx, state)",
+            "errors.Is(ctx.Err(), context.Canceled)",
+            "m.closing = nil",
         ),
     )
     require(
@@ -118,6 +120,7 @@ def main() -> int:
         (
             "TestDisconnectWaitsForActiveOperationRelease",
             "TestDisconnectTimeoutDefersCloseAndBlocksReconnect",
+            "TestDisconnectCancellationDefersClose",
             "TestSecondDisconnectWaitsForExistingCloseState",
             "TestOperationReleaseIsIdempotent",
         ),
@@ -141,6 +144,7 @@ def main() -> int:
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_TIMEOUT=BOUNDED")
+    print("REMOTE_SESSION_CANCEL=PROPAGATED")
     print("FILESYSTEM_ROOT_DELETE=BLOCKED")
     print("LATE_TRANSFER_CANCEL_STATUS_REGRESSION=BLOCKED")
     print("STATE_SAFE_OPEN=ENABLED")
