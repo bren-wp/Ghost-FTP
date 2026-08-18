@@ -23,7 +23,7 @@
 
 ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja dvopanelni upravitelj datotekama s učvršćenim transfer engineom, skupnim operacijama i arhitekturom usmjerenom na privatnost.
 
-**Trenutačno izdanje: 2.14.5**
+**Trenutačno izdanje: 2.15.0**
 
 ## Preuzimanje
 
@@ -52,6 +52,7 @@ GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenje
 - potvrda i pinning SFTP host ključa
 - podesivo vrijeme čekanja veze
 - lokalni profili zaštićeni Windows DPAPI mehanizmom
+- eksplicitno zadržavanje ili uklanjanje već spremljenih vjerodajnica profila
 
 ### Upravitelj datotekama
 
@@ -73,17 +74,18 @@ GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenje
 - zaštita rekurzivnog uploada od kasne zamjene roota
 - autoritativni završni status koji late cancel ne može prepisati nakon stvarnog uspjeha
 
-## Što donosi 2.14.5
+## Što donosi 2.15.0
 
-- sigurno zatvaranje remote sesije više ne može neograničeno blokirati UI ili shutdown dok aktivna operacija zadržava session referencu
-- `Disconnect` sada poštuje kontekst i njegov deadline; nakon isteka vraća kontrolu pozivatelju umjesto beskonačnog `WaitGroup.Wait()` čekanja
-- timeout ne prisiljava opasan `Session.Close()` ispod aktivnog `List`, rename, chmod ili transfer poziva — završni cleanup nastavlja čekati zadnji idempotentni `release()`
-- dok se prethodna sesija sigurno zatvara, reconnect je fail-closed blokiran kako nova veza ne bi prešla preko starih curl/OpenSSH resursa ili SFTP session datoteka
-- ponovljeni `Disconnect` koristi isti close-state i ne može dvaput zatvoriti isti adapter
-- engine prosljeđuje postojeći 20 s UI / 4 s shutdown kontekst i remote lifecycle sloju, pa stvarni timeout ugovor vrijedi kroz cijeli stack
-- korisničke poruke razlikuju mrežni timeout od lokalnog sigurnog zatvaranja stare sesije
-- dodane su determinističke regresije za normalni close, timeout/deferred close, reconnect blokadu, drugi disconnect i hrvatske poruke
-- sigurnosni audit sada obavezno čuva bounded disconnect i deferred cleanup invarijante
+- uveden je zajednički `internal/profilebinding` modul koji jednom definira identitet endpointa, računa i privatnog ključa za remote, config i Windows UI sloj
+- spremljena lozinka profila automatski se koristi samo za isti `protokol + host + port + korisničko ime`; privremena promjena servera ili računa više ne može naslijediti staru lozinku
+- spremljeni passphrase koristi se samo za isti endpoint, korisnika i isti privatni ključ; promjena ili brisanje ključa ne može ponovno aktivirati staru zaporku ključa
+- prazna putanja privatnog ključa u odabranom profilu sada je autoritativna i stvarno znači „bez privatnog ključa“ umjesto implicitnog vraćanja spremljene putanje
+- SFTP host-key fingerprint vezan je samo uz isti `protokol + host + port`; privremeno izmijenjen endpoint ne nasljeđuje stari pin i ne može svoj novi pin upisati natrag u originalni profil
+- obično uređivanje istog SFTP endpointa čuva postojeći fingerprint, dok promjena hosta, porta ili protokola resetira pin i zahtijeva novu potvrdu
+- promjena identiteta spremljenog profila automatski uklanja stare password/passphrase blobove koji više ne pripadaju tom endpointu, korisniku ili ključu
+- Windows profilni UI jasno nudi „zadrži“ ili „ukloni“ za postojeće spremljene vjerodajnice i odmah osvježava oznake polja bez prikazivanja stvarne tajne
+- privremeno promijenjeni endpoint više ne preuzima spremljene lokalne/udaljene početne putanje starog profila
+- sigurnosni audit i nove regresije zaključavaju sva navedena pravila, uključujući normalizaciju hosta, promjenu korisnika, promjenu ključa, pin reset i uklanjanje mrtvog passphrase bloba
 
 ## Sigurnost i privatnost
 
@@ -91,6 +93,9 @@ ByFTP namjerno nema telemetriju, analitiku, oglašavanje, automatski update API,
 
 Ključne zaštite uključuju:
 
+- profilne vjerodajnice vezane uz točan endpoint/račun/ključ prije automatskog korištenja
+- SFTP host-key pin vezan uz točan protokol, host i port
+- eksplicitno uklanjanje spremljenih vjerodajnica i automatsko uklanjanje tajni koje više ne pripadaju izmijenjenom profilu
 - SFTP host-key pinning i izolirani session trust
 - Windows curl/OpenSSH iz System32
 - DPAPI zaštitu spremljenih osjetljivih podataka
@@ -152,7 +157,7 @@ python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go test -race ./...
 go vet ./...
-python scripts/release_notes.py --version 2.14.5 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.15.0 --output RELEASE-NOTES.test.txt
 ```
 
 GitHub Actions dodatno izvršava puni Windows produkcijski build. Release workflow nakon kompresije verificira i konačni Windows ZIP.
@@ -166,7 +171,7 @@ CHANGELOG.md            povijest izdanja
 VERSION                 jedini izvor release verzije
 BUILD-WINDOWS.*         produkcijski Windows entrypointi
 cmd/                    aplikacija, instalacija i uklanjanje
-internal/               tipizirani runtime moduli
+internal/               tipizirani runtime moduli i zajedničke sigurnosne granice
 build/                  službeni PNG/ICO resursi
 scripts/                build, audit, bundle, release i PE alati
 docs/                   detaljna dokumentacija i slike

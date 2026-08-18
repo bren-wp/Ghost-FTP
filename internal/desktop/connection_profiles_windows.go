@@ -5,6 +5,7 @@ package desktop
 import (
 	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
+	"brendigo.com/byftp/internal/profilebinding"
 	"brendigo.com/byftp/internal/usererror"
 	"context"
 	"strconv"
@@ -101,9 +102,6 @@ func (a *app) connectNow() {
 		platform.ErrorDialog("ByFTP", "Nedostaju podaci", "Upišite poslužitelj i korisničko ime.")
 		return
 	}
-	// Remove secrets from native edit controls as soon as the connection attempt
-	// owns its in-memory copy. A failed attempt therefore never leaves a password
-	// sitting in the window control for later inspection.
 	setText(a.pass, "")
 	setText(a.passphrase, "")
 	a.setConnectionBusy(true)
@@ -159,6 +157,17 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 	})
 }
 
+func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
+	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
+	if err != nil {
+		return false
+	}
+	return profilebinding.EndpointMatches(
+		p.Protocol, p.Host, p.Port,
+		a.protocolValue(), strings.TrimSpace(getText(a.host)), port,
+	)
+}
+
 func (a *app) onConnected(host string) {
 	setText(a.pass, "")
 	setText(a.passphrase, "")
@@ -169,7 +178,7 @@ func (a *app) onConnected(host string) {
 		remoteStart = "."
 	}
 	localStart := ""
-	if p, ok := a.currentProfile(); ok {
+	if p, ok := a.currentProfile(); ok && a.currentEndpointMatchesProfile(p) {
 		if strings.TrimSpace(p.RemotePath) != "" {
 			remoteStart = p.RemotePath
 		}
@@ -222,38 +231,64 @@ func (a *app) choosePrivateKey() {
 	}
 }
 
+func (a *app) resetProfileCredentialCues() {
+	cue(a.pass, "Lozinka")
+	cue(a.passphrase, "Zaporka privatnog ključa")
+}
+
+func (a *app) setProfileCredentialCues(p model.PublicProfile) {
+	if p.HasPassword {
+		cue(a.pass, "Spremljena lozinka — prazno koristi spremljenu")
+	} else {
+		cue(a.pass, "Lozinka")
+	}
+	if p.HasPassphrase && p.PrivateKeyPath != "" {
+		cue(a.passphrase, "Spremljena zaporka ključa — prazno koristi spremljenu")
+	} else {
+		cue(a.passphrase, "Zaporka privatnog ključa")
+	}
+}
+
 func (a *app) loadProfiles() {
 	a.goSafe(func() {
 		profiles, err := a.engine.Profiles()
 		a.dispatch(func() {
-			if err != nil {
-				a.setStatus(usererror.Message(err, "Spremljene profile trenutačno nije moguće učitati."))
-				return
-			}
-			a.profiles = profiles
-			// Recreate combo contents to avoid duplicates after save/remove.
-			const cbResetContent = 0x014B
-			sendMessageW.Call(a.profilesCombo, cbResetContent, 0, 0)
-			sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr("Brzi spoj (bez profila)"))))
-			for _, p := range profiles {
-				label := p.Name + " — " + p.Host
-				sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr(label))))
-			}
-			selected := 0
-			if a.selectedProfileID != "" {
-				for i, p := range profiles {
-					if p.ID == a.selectedProfileID {
-						selected = i + 1
-						break
-					}
-				}
-			}
-			if selected == 0 {
-				a.selectedProfileID = ""
-			}
-			sendMessageW.Call(a.profilesCombo, cbSetCurSel, uintptr(selected), 0)
+			a.applyProfiles(profiles, err)
 		})
 	})
+}
+
+func (a *app) applyProfiles(profiles []model.PublicProfile, loadErr error) {
+	if loadErr != nil {
+		a.setStatus(usererror.Message(loadErr, "Spremljene profile trenutačno nije moguće učitati."))
+		return
+	}
+	a.profiles = profiles
+	const cbResetContent = 0x014B
+	sendMessageW.Call(a.profilesCombo, cbResetContent, 0, 0)
+	sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr("Brzi spoj (bez profila)"))))
+	for _, p := range profiles {
+		label := p.Name + " — " + p.Host
+		sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr(label))))
+	}
+	selected := 0
+	var selectedProfile model.PublicProfile
+	if a.selectedProfileID != "" {
+		for i, p := range profiles {
+			if p.ID == a.selectedProfileID {
+				selected = i + 1
+				selectedProfile = p
+				break
+			}
+		}
+	}
+	if selected == 0 {
+		a.selectedProfileID = ""
+		a.resetProfileCredentialCues()
+	} else {
+		a.setProfileCredentialCues(selectedProfile)
+	}
+	sendMessageW.Call(a.profilesCombo, cbSetCurSel, uintptr(selected), 0)
 }
 
 func (a *app) currentProfile() (model.PublicProfile, bool) {
@@ -272,6 +307,9 @@ func (a *app) selectProfile() {
 	idx, _, _ := sendMessageW.Call(a.profilesCombo, cbGetCurSel, 0, 0)
 	if idx == 0 || int(idx) > len(a.profiles) {
 		a.selectedProfileID = ""
+		setText(a.pass, "")
+		setText(a.passphrase, "")
+		a.resetProfileCredentialCues()
 		return
 	}
 	p := a.profiles[int(idx)-1]
@@ -289,16 +327,7 @@ func (a *app) selectProfile() {
 	if p.RemotePath != "" {
 		setText(a.remotePath, p.RemotePath)
 	}
-	if p.HasPassword {
-		cue(a.pass, "Spremljena lozinka — ostavite prazno za zadržavanje")
-	} else {
-		cue(a.pass, "Lozinka")
-	}
-	if p.HasPassphrase {
-		cue(a.passphrase, "Spremljena zaporka ključa — ostavite prazno")
-	} else {
-		cue(a.passphrase, "Zaporka privatnog ključa")
-	}
+	a.setProfileCredentialCues(p)
 }
 
 func (a *app) saveCurrentProfile() {
@@ -306,41 +335,94 @@ func (a *app) saveCurrentProfile() {
 		platform.InfoDialog("ByFTP", "Profil nije moguće mijenjati tijekom veze", "Prekinite vezu pa spremite promjene profila.")
 		return
 	}
+	existing, editing := a.currentProfile()
 	defaultName := strings.TrimSpace(getText(a.host))
-	if p, ok := a.currentProfile(); ok {
-		defaultName = p.Name
+	if editing {
+		defaultName = existing.Name
 	}
 	name, ok := platform.PromptDialog("ByFTP — profil", "Naziv profila:", defaultName)
 	if !ok {
 		return
 	}
+	protocol := a.protocolValue()
+	host := strings.TrimSpace(getText(a.host))
+	username := strings.TrimSpace(getText(a.user))
+	keyPath := strings.TrimSpace(getText(a.keyPath))
 	port, _ := strconv.Atoi(strings.TrimSpace(getText(a.port)))
 	password := getText(a.pass)
 	passphrase := getText(a.passphrase)
-	clearSecrets := false
+	clearPassword := false
+	clearPassphrase := false
+
+	if editing {
+		sameAccount := profilebinding.AccountMatches(
+			existing.Protocol, existing.Host, existing.Port, existing.Username,
+			protocol, host, port, username,
+		)
+		samePrivateKey := profilebinding.PrivateKeyMatches(
+			existing.Protocol, existing.Host, existing.Port, existing.Username, existing.PrivateKeyPath,
+			protocol, host, port, username, keyPath,
+		)
+		clearPassword = existing.HasPassword && !sameAccount
+		clearPassphrase = existing.HasPassphrase && !samePrivateKey
+	}
+
 	if password != "" || passphrase != "" {
 		if !platform.ConfirmDialog(
 			"ByFTP — privatnost",
 			"Spremiti vjerodajnice na ovom računalu?",
-			"Da = lozinka i zaporka privatnog ključa ostaju samo na ovom računalu i zaštićene su sustavom Windows.\nNe = profil se sprema bez spremljenih vjerodajnica.",
+			"Da = upisane vjerodajnice spremit će se u ByFTP spremište zaštićeno sustavom Windows.\nNe = profil će se spremiti bez spremljene lozinke i zaporke privatnog ključa.",
 		) {
 			password = ""
 			passphrase = ""
-			clearSecrets = true
+			clearPassword = true
+			clearPassphrase = true
+		} else {
+			if password != "" {
+				clearPassword = false
+			}
+			if passphrase != "" {
+				clearPassphrase = false
+			}
+		}
+	} else if editing {
+		retainPassword := existing.HasPassword && !clearPassword
+		retainPassphrase := existing.HasPassphrase && !clearPassphrase
+		autoRemoved := clearPassword || clearPassphrase
+		if retainPassword || retainPassphrase {
+			message := "Profil već sadrži spremljene vjerodajnice koje još pripadaju ovom identitetu.\n\nDa = zadrži ih.\nNe = ukloni ih iz ByFTP spremišta."
+			if autoRemoved {
+				message = "Vjerodajnice koje više ne pripadaju novom poslužitelju, korisniku ili privatnom ključu bit će automatski uklonjene.\n\n" + message
+			}
+			if !platform.ConfirmDialog("ByFTP — privatnost", "Zadržati spremljene vjerodajnice?", message) {
+				if retainPassword {
+					clearPassword = true
+				}
+				if retainPassphrase {
+					clearPassphrase = true
+				}
+			}
+		} else if autoRemoved {
+			platform.InfoDialog(
+				"ByFTP — sigurnost profila",
+				"Stare vjerodajnice neće se prenijeti",
+				"Promijenili ste poslužitelj, port, korisničko ime ili privatni ključ. Radi zaštite stare spremljene vjerodajnice uklanjaju se iz ovog profila. Ako ih želite spremiti za novi identitet, upišite ih ponovno.",
+			)
 		}
 	}
+
 	payload := model.ProfileInput{
 		ID:              a.selectedProfileID,
 		Name:            strings.TrimSpace(name),
-		Protocol:        a.protocolValue(),
-		Host:            strings.TrimSpace(getText(a.host)),
+		Protocol:        protocol,
+		Host:            host,
 		Port:            port,
-		Username:        strings.TrimSpace(getText(a.user)),
+		Username:        username,
 		Password:        password,
-		ClearPassword:   clearSecrets,
-		PrivateKeyPath:  strings.TrimSpace(getText(a.keyPath)),
+		ClearPassword:   clearPassword,
+		PrivateKeyPath:  keyPath,
 		Passphrase:      passphrase,
-		ClearPassphrase: clearSecrets,
+		ClearPassphrase: clearPassphrase,
 		LocalPath:       a.localCurrent,
 		RemotePath:      optionalRemotePath(getText(a.remotePath)),
 	}
@@ -360,6 +442,7 @@ func (a *app) saveCurrentProfile() {
 			a.selectedProfileID = saved.ID
 			setText(a.pass, "")
 			setText(a.passphrase, "")
+			a.setProfileCredentialCues(saved)
 			a.setStatus("Profil spremljen: " + saved.Name)
 			a.loadProfiles()
 		})
@@ -388,6 +471,7 @@ func (a *app) removeCurrentProfile() {
 				return
 			}
 			a.selectedProfileID = ""
+			a.resetProfileCredentialCues()
 			a.loadProfiles()
 			a.setStatus("Profil obrisan.")
 		})

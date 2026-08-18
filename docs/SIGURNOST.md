@@ -7,9 +7,22 @@
 - AskPass ne sprema credential datoteku; DPAPI blob predaje se kratkoživućem child procesu kroz sanitizirani environment
 - AskPass prihvaća samo vlastiti ByFTP executable, jednokratni token i očekivani System32 OpenSSH parent proces
 - spremljeni credential blob ne dešifrira se rano u connection manageru
+- spremljena profilna lozinka koristi se automatski samo za isti protokol, host, port i korisničko ime
+- spremljeni passphrase dodatno zahtijeva isti privatni ključ
+- promjena endpointa, korisnika ili ključa pri spremanju profila automatski uklanja stare blobove koji više ne pripadaju novom identitetu
+- uklanjanje privatnog ključa automatski uklanja spremljeni passphrase; profil ne zadržava mrtvu tajnu
+- Windows UI omogućuje eksplicitno zadržavanje ili uklanjanje postojećih spremljenih vjerodajnica bez prikazivanja stvarnih vrijednosti
 - SFTP trust credential je DPAPI-zaštićen, vezan uz točan host/port/user/key/fingerprint i vremenski ograničen
 - privremeni trust blob briše se nakon svake završene trust sekvence, uključujući grešku ili otkaz
 - privatni SFTP ključ mora biti regularna lokalna datoteka; symlink i Windows reparse-point objekt se odbijaju
+
+## Profilni identitet i host-key pin
+
+`internal/profilebinding` je zajednička sigurnosna granica za remote, config i desktop sloj. Endpoint identitet je `protokol + normalizirani host + port`; account identitet dodaje točno korisničko ime; private-key identitet dodatno veže lokalnu Windows putanju ključa.
+
+Privremena izmjena hosta/porta/korisnika u odabranom profilu ne smije naslijediti spremljenu lozinku drugog account identiteta. Promjena ili brisanje privatnog ključa ne smije naslijediti stari passphrase. Prazna key putanja u aktualnom UI-u je autoritativna i ne smije biti zamijenjena starom profilnom vrijednošću.
+
+SFTP host-key fingerprint pripada samo endpointu. Spremljeni pin koristi se samo za isti protokol, host i port. Privremeno izmijenjeni endpoint može dobiti potvrdu za svoju sesiju, ali ne može prepisati pin originalnog profila. Obično uređivanje istog endpointa čuva postojeći pin; promjena hosta, porta ili protokola automatski ga resetira i zahtijeva novu trust potvrdu.
 
 ## Mrežni procesi
 
@@ -92,7 +105,7 @@ Transfer posao pamti identitet veze i ne može se ručno retryati na drugi serve
 
 ## Automatizirani sigurnosni gate
 
-`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. Izričito čuva private-key reparse blokadu, active-operation/session-close lifecycle, bounded disconnect timeout, deferred cleanup i engine propagaciju lifecycle konteksta. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor. Time promjena sigurnosnog koda i slučajno uklanjanje njegova testa ne mogu neopaženo proći standardni CI.
+`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. Izričito čuva profile endpoint/account/private-key binding, pin scope, autoritativno brisanje privatnog ključa, credential cleanup pri promjeni identiteta, private-key reparse blokadu, active-operation/session-close lifecycle, bounded disconnect timeout, deferred cleanup i engine propagaciju lifecycle konteksta. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor.
 
 ## Ograničenje
 

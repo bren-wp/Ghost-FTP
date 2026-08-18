@@ -47,8 +47,25 @@ def main() -> int:
         ),
     )
     require(
+        "internal/profilebinding/binding.go",
+        (
+            "func EndpointMatches(",
+            "func AccountMatches(",
+            "func PrivateKeyMatches(",
+            "strings.TrimSuffix(host, \".\")",
+        ),
+    )
+    require(
         "internal/remote/manager.go",
         (
+            "profilebinding.EndpointMatches",
+            "profilebinding.AccountMatches",
+            "profilebinding.PrivateKeyMatches",
+            "base.PrivateKeyPath = override.PrivateKeyPath",
+            "if in.Password == \"\" && profileAccountMatches",
+            "if in.Passphrase == \"\" && profilePrivateKeyMatches",
+            "profileEndpoint && profile.Fingerprint != \"\"",
+            "remember && profileID != \"\" && profileEndpoint",
             "ErrSessionClosing",
             "ErrDisconnectTimeout",
             "activeOps     sync.WaitGroup",
@@ -61,6 +78,27 @@ def main() -> int:
             "waitForSessionClose(ctx, state)",
             "errors.Is(ctx.Err(), context.Canceled)",
             "m.closing = nil",
+        ),
+    )
+    require(
+        "internal/config/profiles.go",
+        (
+            "sameProfileAccount(previous, x)",
+            "sameProfilePrivateKey(previous, x)",
+            "sameSFTPEndpoint(previous, x)",
+            "x.PasswordBlob = \"\"",
+            "x.PassphraseBlob = \"\"",
+            "zaporka privatnog ključa zahtijeva odabran privatni ključ",
+        ),
+    )
+    require(
+        "internal/desktop/connection_profiles_windows.go",
+        (
+            "profilebinding.AccountMatches",
+            "profilebinding.PrivateKeyMatches",
+            "Stare vjerodajnice neće se prenijeti",
+            "Zadržati spremljene vjerodajnice?",
+            "currentEndpointMatchesProfile",
         ),
     )
     require(
@@ -100,8 +138,38 @@ def main() -> int:
         ("os.Lstat(path)", "os.SameFile(before, after)", "io.LimitReader", "os.CreateTemp"),
     )
 
-    # Regresije moraju ostati u repozitoriju; audit time sprječava da zaštitni
-    # kod i test nestanu zajedno u jednoj kasnijoj izmjeni.
+    require(
+        "internal/profilebinding/binding_test.go",
+        (
+            "TestEndpointMatchesNormalizesHost",
+            "TestAccountMatchesRequiresExactUsername",
+            "TestPrivateKeyMatchesRequiresSameNonEmptyKey",
+        ),
+    )
+    require(
+        "internal/remote/profile_binding_test.go",
+        (
+            "TestMergeConnectionAllowsClearingPrivateKeyAndFingerprint",
+            "TestProfilePasswordBindingIncludesUsername",
+            "TestProfilePassphraseBindingIncludesPrivateKey",
+        ),
+    )
+    require(
+        "internal/config/profiles_test.go",
+        (
+            "TestRemovingSFTPPrivateKeyClearsStoredPassphrase",
+            "TestProfileSavePreservesFingerprintForSameEndpoint",
+            "TestProfileSaveClearsFingerprintWhenEndpointChanges",
+        ),
+    )
+    require(
+        "internal/config/profile_secret_binding_test.go",
+        (
+            "TestProfileSavePreservesPasswordForSameAccount",
+            "TestProfileSaveClearsPasswordWhenAccountIdentityChanges",
+            "TestProfileSavePreservesPassphraseOnlyForSamePrivateKeyIdentity",
+        ),
+    )
     require(
         "internal/transfer/finish_status_test.go",
         (
@@ -140,6 +208,9 @@ def main() -> int:
     )
 
     print("SECURITY_AUDIT=PASS")
+    print("PROFILE_ENDPOINT_PIN_BINDING=ENABLED")
+    print("PROFILE_CREDENTIAL_CROSS_ENDPOINT=BLOCKED")
+    print("PROFILE_PRIVATE_KEY_CLEAR=AUTHORITATIVE")
     print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")

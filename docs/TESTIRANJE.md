@@ -26,6 +26,13 @@ Na Windowsu dodatno:
 
 - validaciju FTP/FTPS/SFTP veza i korisničkog unosa
 - profile i DPAPI migracijske granice
+- zajednički endpoint/account/private-key profilni identity ugovor i normalizaciju hosta
+- zabranu automatskog prijenosa spremljene lozinke na drugi host/port/korisnika
+- zabranu automatskog prijenosa spremljenog passphrasea na drugi ili uklonjeni privatni ključ
+- očuvanje SFTP host-key pina na istom endpointu i reset pina pri promjeni hosta/porta/protokola
+- autoritativno brisanje privatnog ključa iz aktivnog profila
+- automatsko uklanjanje mrtvog passphrase bloba kada privatnog ključa više nema
+- neovisno uklanjanje spremljene lozinke i passphrasea kroz `ClearPassword`/`ClearPassphrase`
 - settings normalizaciju i cache
 - transfer queue, parallelism, pause/resume, cancel/retry i auto-retry
 - connection generation i cross-server retry blokadu
@@ -55,6 +62,16 @@ Na Windowsu dodatno:
 - Windows ZIP manifest, putanje, duplikate i SHA-256 nakon stvarnog pakiranja
 - release tag/commit i postojeći asset digest fail-closed ugovor
 
+## Profilne i credential regresije
+
+`internal/profilebinding/binding_test.go` definira zajedničku osnovu: hostname se uspoređuje case-insensitive i bez završne točke/bracket razlike za IPv6, account zahtijeva točno korisničko ime, a private-key identitet isti ne-prazni Windows key path.
+
+`internal/remote/profile_binding_test.go` potvrđuje da se prazna private-key vrijednost ne nasljeđuje iz odabranog profila, da promjena korisnika prekida password binding i da promjena/brisanje ključa prekida passphrase binding.
+
+`internal/config/profiles_test.go` i `profile_secret_binding_test.go` koriste testne zaštićene blob vrijednosti bez otkrivanja stvarnih tajni. Provjeravaju da isto uređivanje profila čuva odgovarajuću tajnu/pin, a promjena endpointa, korisnika ili ključa automatski uklanja vrijednost koja više nije sigurno vezana uz profil. Passphrase bez privatnog ključa odbija se prije pokušaja zaštite.
+
+Windows produkcijski build dodatno kompilira profilni UI koji koristi isti `profilebinding` modul. Security audit zahtijeva hrvatske poruke za eksplicitno zadržavanje/uklanjanje vjerodajnica i zabranu nasljeđivanja profilnih početnih putanja na privremeno promijenjeni endpoint.
+
 ## Stabilnosne regresije udaljene sesije
 
 `internal/remote/manager_test.go` deterministički pokreće disconnect dok je remote `Operation` još aktivan. Osnovna regresija zahtijeva da context bude otkazan, ali adapter ne smije biti zatvoren prije `release()`.
@@ -65,7 +82,7 @@ Zasebna regresija pokreće drugi `Disconnect` dok isti deferred close još traje
 
 `internal/usererror/message_test.go` čuva hrvatske, korisnički razumljive poruke za session-closing i disconnect-cleanup stanje, odvojeno od običnog mrežnog timeouta.
 
-## Ostale regresije 2.14.x
+## Ostale regresije
 
 `internal/remote/listing_regression_test.go` čuva parser i sorting rubne slučajeve. Test s 50.000 stavki namjerno koristi isti javni limit udaljenog prikaza kako optimizacija velikih direktorija ne bi ostala samo mikro-test.
 

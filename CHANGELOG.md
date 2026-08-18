@@ -1,5 +1,22 @@
 # Povijest promjena
 
+## 2.15.0 — Sigurniji profili, credential binding i kontrola host-key pina
+
+- uveden je zajednički `internal/profilebinding` modul za jedan konzistentan endpoint/account/private-key identity ugovor kroz remote, config i Windows UI sloj
+- spremljena lozinka profila automatski se nasljeđuje samo za isti protokol, host, port i korisničko ime; privremena promjena endpointa ili računa više ne može poslati staru lozinku drugom odredištu
+- spremljeni passphrase koristi se samo za isti endpoint, korisnika i privatni ključ; promjena ili brisanje ključa blokira nasljeđivanje stare zaporke ključa
+- prazna putanja privatnog ključa u aktivnom UI profilu postala je autoritativna i više ne vraća potajno staru spremljenu putanju
+- profilni SFTP host-key fingerprint koristi se samo na istom protokolu, hostu i portu; privremeni endpoint ne može naslijediti stari pin niti svoj prihvaćeni pin zapisati natrag u originalni profil
+- uređivanje istog SFTP endpointa čuva postojeći fingerprint, dok promjena hosta, porta ili protokola resetira pin i zahtijeva novu trust potvrdu
+- spremanje profila automatski uklanja password/passphrase blobove koji više ne pripadaju novom endpointu, korisniku ili ključu
+- SFTP passphrase više se ne čuva kada profil nema privatni ključ, čime se uklanja mrtva osjetljiva vrijednost iz spremišta
+- Windows UI sada eksplicitno nudi zadržavanje ili uklanjanje postojećih spremljenih vjerodajnica i jasno objašnjava automatsko uklanjanje tajni nakon promjene identiteta profila
+- oznake polja za spremljenu lozinku/passphrase osvježavaju se odmah nakon spremanja ili brisanja profila bez prikazivanja stvarne tajne
+- privremeno promijenjeni endpoint više ne preuzima lokalnu i udaljenu početnu putanju starog profila
+- `UpdateFingerprint` dodatno validira SHA-256 format i dopušta pin samo SFTP profilu
+- dodane su regresije za host normalizaciju, account/key binding, čišćenje password/passphrase blobova, očuvanje/reset fingerprinta i autoritativno brisanje privatnog ključa
+- `audit_security.py` sada blokira regresiju svih profilnih identity, credential i host-key pin granica
+
 ## 2.14.5 — Ograničeno sigurno zatvaranje veze i pouzdaniji reconnect
 
 - ispravljen je lifecycle regresijski rizik iz 2.14.4: `remote.Manager.Disconnect` više ne može neograničeno blokirati pozivatelja na `activeOps.Wait()`
@@ -142,7 +159,7 @@
 
 - Known Folder/System Directory API-ji zamijenili su oslanjanje na nepouzdane env putanje
 - installer payload dobio je size + SHA-256 manifest provjeru
-- nadogradnja dobiva rollback binarija i Registry stanja
+- nadogradnja dobiva rollback datoteka i Registry stanja
 - PE verifikacija razlikuje i provjerava sva tri binarija
 
 ## 2.6.0 — Produkcijska privatnost i sigurnija preuzimanja

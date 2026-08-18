@@ -95,3 +95,123 @@ func TestLegacyProfilesAreMigratedAndPlaintextRemoved(t *testing.T) {
 		t.Fatalf("secure profile envelope missing: %v", err)
 	}
 }
+
+func seedProfile(t *testing.T, profiles *Profiles, profile model.Profile) {
+	t.Helper()
+	if err := profiles.saveAll([]model.Profile{profile}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRemovingSFTPPrivateKeyClearsStoredPassphrase(t *testing.T) {
+	profiles := NewProfiles(New(t.TempDir()))
+	seedProfile(t, profiles, model.Profile{
+		ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester",
+		PrivateKeyPath: `C:\Keys\id_ed25519`, PassphraseBlob: "protected-passphrase", Fingerprint: "SHA256:test", RemotePath: ".",
+	})
+
+	saved, err := profiles.Save(model.ProfileInput{
+		ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester", PrivateKeyPath: "", RemotePath: ".",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.PrivateKeyPath != "" || saved.HasPassphrase {
+		t.Fatalf("private key/passphrase not cleared: %#v", saved)
+	}
+	if saved.Fingerprint != "SHA256:test" {
+		t.Fatalf("same endpoint fingerprint was lost: %q", saved.Fingerprint)
+	}
+	stored, err := profiles.Get("p1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.PassphraseBlob != "" {
+		t.Fatal("dead passphrase blob remained after private key removal")
+	}
+}
+
+func TestPassphraseWithoutPrivateKeyRejectedBeforeProtection(t *testing.T) {
+	profiles := NewProfiles(New(t.TempDir()))
+	_, err := profiles.Save(model.ProfileInput{
+		Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester", Passphrase: "secret",
+	})
+	if err == nil || !strings.Contains(err.Error(), "zahtijeva odabran privatni ključ") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestClearFlagsRemoveOnlyRequestedStoredSecrets(t *testing.T) {
+	profiles := NewProfiles(New(t.TempDir()))
+	seedProfile(t, profiles, model.Profile{
+		ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester",
+		PasswordBlob: "protected-password", PrivateKeyPath: `C:\Keys\id_ed25519`, PassphraseBlob: "protected-passphrase", RemotePath: ".",
+	})
+
+	saved, err := profiles.Save(model.ProfileInput{
+		ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester",
+		PrivateKeyPath: `C:\Keys\id_ed25519`, ClearPassword: true, RemotePath: ".",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.HasPassword || !saved.HasPassphrase {
+		t.Fatalf("wrong secret preservation after password clear: %#v", saved)
+	}
+
+	saved, err = profiles.Save(model.ProfileInput{
+		ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester",
+		PrivateKeyPath: `C:\Keys\id_ed25519`, ClearPassphrase: true, RemotePath: ".",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.HasPassword || saved.HasPassphrase {
+		t.Fatalf("stored secret was not cleared: %#v", saved)
+	}
+}
+
+func TestProfileSavePreservesFingerprintForSameEndpoint(t *testing.T) {
+	profiles := NewProfiles(New(t.TempDir()))
+	seedProfile(t, profiles, model.Profile{
+		ID: "p1", Name: "Stari naziv", Protocol: "sftp", Host: "Example.TEST.", Port: 22, Username: "tester", Fingerprint: "SHA256:test", RemotePath: ".",
+	})
+
+	saved, err := profiles.Save(model.ProfileInput{
+		ID: "p1", Name: "Novi naziv", Protocol: "sftp", Host: "example.test", Port: 22, Username: "drugi-korisnik", RemotePath: ".",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Fingerprint != "SHA256:test" {
+		t.Fatalf("fingerprint=%q want preserved pin", saved.Fingerprint)
+	}
+}
+
+func TestProfileSaveClearsFingerprintWhenEndpointChanges(t *testing.T) {
+	for _, change := range []model.ProfileInput{
+		{ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "other.test", Port: 22, Username: "tester", RemotePath: "."},
+		{ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 2222, Username: "tester", RemotePath: "."},
+		{ID: "p1", Name: "FTP", Protocol: "ftp", Host: "example.test", Port: 21, Username: "tester", RemotePath: "/"},
+	} {
+		profiles := NewProfiles(New(t.TempDir()))
+		seedProfile(t, profiles, model.Profile{
+			ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester", Fingerprint: "SHA256:test", RemotePath: ".",
+		})
+		saved, err := profiles.Save(change)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if saved.Fingerprint != "" {
+			t.Fatalf("changed endpoint kept stale fingerprint %q for %#v", saved.Fingerprint, change)
+		}
+	}
+}
+
+func TestUpdateFingerprintRejectsNonSFTPProfile(t *testing.T) {
+	profiles := NewProfiles(New(t.TempDir()))
+	seedProfile(t, profiles, model.Profile{ID: "p1", Name: "FTP", Protocol: "ftp", Host: "example.test", Port: 21, Username: "tester", RemotePath: "/"})
+	if err := profiles.UpdateFingerprint("p1", "SHA256:test"); err == nil {
+		t.Fatal("expected non-SFTP fingerprint update to fail")
+	}
+}

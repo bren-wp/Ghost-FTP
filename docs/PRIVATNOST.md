@@ -20,9 +20,15 @@ Mrežni adapteri razgovaraju s FTP/FTPS/SFTP odredištem koje korisnik odabere. 
 
 curl se pokreće bez naslijeđenih proxy/TLS override postavki. OpenSSH se pokreće s ByFTP-managed konfiguracijom koja blokira helper routing, forwarding i globalne trust izvore koji bi mogli nenamjerno promijeniti odredište ili izložiti metapodatke.
 
-## Lokalni podaci
+## Lokalni podaci i profili
 
-Profili i postavke ostaju u korisničkoj ByFTP data mapi. Osjetljivi profile podaci zaštićeni su Windows DPAPI mehanizmom. ByFTP nema persistent runtime log koji bi bilježio servere, putanje, nazive datoteka ili greške iz svakodnevnog rada.
+Profili i postavke ostaju u korisničkoj ByFTP data mapi. Osjetljivi profilni podaci zaštićeni su Windows DPAPI mehanizmom. ByFTP nema persistent runtime log koji bi bilježio servere, putanje, nazive datoteka ili greške iz svakodnevnog rada.
+
+Spremljena lozinka ne koristi se automatski izvan istog protokola, hosta, porta i korisničkog imena za koje je profil spremljen. Spremljeni passphrase dodatno je vezan uz isti privatni ključ. Privremena izmjena odredišta ili korisnika stoga ne može nenamjerno poslati staru profilnu lozinku drugom serveru ili računu.
+
+Kada se profil trajno promijeni na drugi endpoint, korisnika ili ključ, ByFTP uklanja stare credential blobove koji više ne pripadaju tom identitetu. Ako se privatni ključ ukloni, uklanja se i njegova spremljena zaporka. Novi identitet dobiva spremljenu tajnu samo nakon ponovnog izričitog unosa i korisničke odluke da je spremi.
+
+Windows UI za uređivanje profila prikazuje samo činjenicu da spremljena vjerodajnica postoji; nikada ne vraća stvarnu lozinku/passphrase u edit kontrolu. Pri spremanju korisnik može zadržati ili ukloniti vjerodajnice koje još pripadaju istom identitetu. Promijenjeni identitet jasno se označava i stare vrijednosti se ne prenose.
 
 Windows Error Reporting isključen je za ByFTP proces kako rušenje aplikacije ne bi pokrenulo automatsko slanje memorijskog izvještaja kroz WER.
 
@@ -31,6 +37,8 @@ State/config zapis koristi ograničeno, provjereno čitanje regularne datoteke i
 ## SFTP
 
 Host, korisnik i privatni ključ nisu na OpenSSH command lineu. Kratkoživa session konfiguracija koristi nasumični alias i uklanja se nakon sesije/startup cleanupa. AskPass dobiva samo DPAPI-zaštićene vrijednosti kroz child environment i ne stvara credential datoteku.
+
+Spremljeni host-key fingerprint koristi se samo kada se protokol, host i port podudaraju sa spremljenim profilom. Privremeno promijenjeni endpoint može biti prihvaćen za svoju sesiju, ali njegov fingerprint ne prepisuje originalni profil. Promjena spremljenog endpointa resetira stari pin i traži novu potvrdu.
 
 Pending trust vjerodajnice ostaju u memoriji samo između prikaza novog host ključa i korisničke odluke. Nakon potvrde, greške, otkaza ili uspješnog spajanja brišu se.
 
