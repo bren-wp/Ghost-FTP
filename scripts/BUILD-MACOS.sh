@@ -33,8 +33,8 @@ sips -z 128 128 build/icon.png --out "$iconset/icon_128x128.png" >/dev/null
 sips -z 256 256 build/icon.png --out "$iconset/icon_128x128@2x.png" >/dev/null
 sips -z 256 256 build/icon.png --out "$iconset/icon_256x256.png" >/dev/null
 sips -z 512 512 build/icon.png --out "$iconset/icon_256x256@2x.png" >/dev/null
-cp build/icon.png "$iconset/icon_512x512.png"
-cp build/icon.png "$iconset/icon_512x512@2x.png"
+sips -z 512 512 build/icon.png --out "$iconset/icon_512x512.png" >/dev/null
+sips -z 1024 1024 build/icon.png --out "$iconset/icon_512x512@2x.png" >/dev/null
 iconutil -c icns "$iconset" -o "$root/Applications/ByFTP.app/Contents/Resources/ByFTP.icns"
 
 cat > "$root/Applications/ByFTP.app/Contents/Info.plist" <<EOF
