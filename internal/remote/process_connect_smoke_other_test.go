@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"brendigo.com/byftp/internal/security"
 )
 
 func useOnlyTestToolDirectory(t *testing.T, dir string) {
@@ -54,7 +56,7 @@ printf '%s\n' 'type=file;size=4;modify=20260101010203; test.txt'
 	if err := client.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := securityUnprotectRuntimeForSmoke(token); err == nil {
+	if _, err := security.UnprotectRuntimeBytes(token); err == nil {
 		t.Fatal("FTP runtime tajna ostala je dostupna nakon Close()")
 	}
 }
