@@ -305,6 +305,9 @@ func waitForSessionClose(ctx context.Context, state *sessionCloseState) error {
 	case <-state.done:
 		return state.err
 	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return context.Canceled
+		}
 		return ErrDisconnectTimeout
 	}
 }
@@ -314,13 +317,16 @@ func (m *Manager) finishSessionClose(state *sessionCloseState, s Session) {
 	if s != nil {
 		state.err = s.Close()
 	}
-	close(state.done)
 
+	// Close-state se mora ukloniti prije signaliziranja done kanala. Tako svaki
+	// pozivatelj koji se probudi na done zna da je stari adapter već zatvoren i
+	// da novi Connect više neće naletjeti na kratki, nepotrebni closing prozor.
 	m.mu.Lock()
 	if m.closing == state {
 		m.closing = nil
 	}
 	m.mu.Unlock()
+	close(state.done)
 }
 
 func (m *Manager) Disconnect(ctx context.Context) error {
