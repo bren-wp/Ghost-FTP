@@ -61,11 +61,18 @@ func TestSnapshotPrivateKeyCreatesIndependentPrivateCopy(t *testing.T) {
 	if !bytes.Equal(got, original) {
 		t.Fatalf("snapshot changed with original path: %q", got)
 	}
-	st, err := os.Stat(copyPath)
+	st, err := os.Lstat(copyPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Mode().Perm()&0077 != 0 {
+	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("snapshot is not a regular file: %v", st.Mode())
+	}
+	// Unix permission bits are meaningful on Unix. Windows file privacy is
+	// enforced by the ByFTP-owned no-redirect session directory and Windows ACL
+	// semantics; Go's synthetic FileMode commonly reports 0666 on NTFS even
+	// after Chmod(0600), so asserting POSIX bits there would be a false failure.
+	if runtime.GOOS != "windows" && st.Mode().Perm()&0077 != 0 {
 		t.Fatalf("snapshot permissions are not private: %o", st.Mode().Perm())
 	}
 }
