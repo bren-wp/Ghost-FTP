@@ -14,6 +14,7 @@ import (
 
 	"brendigo.com/byftp/internal/config"
 	"brendigo.com/byftp/internal/model"
+	"brendigo.com/byftp/internal/profilebinding"
 	"brendigo.com/byftp/internal/security"
 )
 
@@ -62,10 +63,9 @@ type resolvedConnection struct {
 }
 
 // mergeConnection koristi spremljeni profil samo kao početne connection podatke.
-// Polje privatnog ključa je namjerno autoritativno iz aktualnog UI unosa: prazna
-// vrijednost znači "bez privatnog ključa" i ne smije potajno vratiti stari ključ.
-// Fingerprint nije vjerodajnica za spajanje nego trust pin i obrađuje se zasebno
-// prema identitetu endpointa.
+// Polje privatnog ključa je autoritativno iz aktualnog UI unosa: prazna
+// vrijednost znači "bez privatnog ključa" i ne smije vratiti stari ključ.
+// Fingerprint je trust pin i obrađuje se zasebno prema identitetu endpointa.
 func mergeConnection(base model.ConnectionConfig, override model.ConnectionConfig) model.ConnectionConfig {
 	if override.Protocol != "" {
 		base.Protocol = override.Protocol
@@ -81,39 +81,30 @@ func mergeConnection(base model.ConnectionConfig, override model.ConnectionConfi
 	}
 	base.PrivateKeyPath = override.PrivateKeyPath
 	base.Fingerprint = override.Fingerprint
-	// Vjerodajnice u čistom tekstu namjerno se ovdje ne spajaju. Obrađuju se
-	// odvojeno kako bi spremljeni DPAPI blob ostao šifriran sve do stvarne uporabe.
 	base.Password = override.Password
 	base.Passphrase = override.Passphrase
 	return base
 }
 
-func endpointHostKey(host string) string {
-	host = strings.TrimSpace(host)
-	host = strings.Trim(host, "[]")
-	host = strings.TrimSuffix(host, ".")
-	return strings.ToLower(host)
-}
-
-// profileEndpointMatches veže host-key pin uz mrežni endpoint. Korisničko ime
-// i privatni ključ nisu dio identiteta SSH host ključa.
 func profileEndpointMatches(profile model.Profile, cfg model.ConnectionConfig) bool {
-	return profile.ID != "" &&
-		strings.EqualFold(strings.TrimSpace(profile.Protocol), strings.TrimSpace(cfg.Protocol)) &&
-		endpointHostKey(profile.Host) == endpointHostKey(cfg.Host) &&
-		profile.Port == cfg.Port
+	return profile.ID != "" && profilebinding.EndpointMatches(
+		profile.Protocol, profile.Host, profile.Port,
+		cfg.Protocol, cfg.Host, cfg.Port,
+	)
 }
 
-// profileAccountMatches je stroža granica za spremljenu lozinku: vjerodajnica
-// se smije automatski naslijediti samo za isti endpoint i isto korisničko ime.
 func profileAccountMatches(profile model.Profile, cfg model.ConnectionConfig) bool {
-	return profileEndpointMatches(profile, cfg) && profile.Username == cfg.Username
+	return profile.ID != "" && profilebinding.AccountMatches(
+		profile.Protocol, profile.Host, profile.Port, profile.Username,
+		cfg.Protocol, cfg.Host, cfg.Port, cfg.Username,
+	)
 }
 
 func profilePrivateKeyMatches(profile model.Profile, cfg model.ConnectionConfig) bool {
-	return profileAccountMatches(profile, cfg) &&
-		strings.EqualFold(strings.TrimSpace(profile.PrivateKeyPath), strings.TrimSpace(cfg.PrivateKeyPath)) &&
-		strings.TrimSpace(cfg.PrivateKeyPath) != ""
+	return profile.ID != "" && profilebinding.PrivateKeyMatches(
+		profile.Protocol, profile.Host, profile.Port, profile.Username, profile.PrivateKeyPath,
+		cfg.Protocol, cfg.Host, cfg.Port, cfg.Username, cfg.PrivateKeyPath,
+	)
 }
 
 func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolvedConnection, model.Profile, error) {
