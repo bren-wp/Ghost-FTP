@@ -34,7 +34,7 @@ def main() -> int:
         (
             "group: byftp-release",
             "quality:",
-            "Produkccijski" if False else "Produkcijski quality, race, sigurnost i privatnost",
+            "Produkcijski quality, race, sigurnost i privatnost",
             "needs: [quality, windows, linux, macos]",
             "go test -race ./...",
             "go telemetry off",
@@ -84,35 +84,59 @@ def main() -> int:
 
     publisher = require(
         "scripts/publish_release.ps1",
-        ("Resolve-TagCommit", "Assert-TagCommit", "Assert-RemoteAsset", "Get-FileHash", "sha256:", "gh release upload", "neočekivani asset", "RELEASE_PUBLISH_VERIFICATION=PASS"),
+        (
+            "Resolve-TagCommit", "Assert-TagCommit", "Assert-RemoteAsset",
+            "Get-FileHash", "sha256:", "gh release upload", "neočekivani asset",
+            "RELEASE_PUBLISH_VERIFICATION=PASS",
+        ),
     )
     if "--clobber" in publisher:
         fail("publisher ne smije automatski prepisivati postojeći release asset")
 
     verifier = require(
         "scripts/verify_bundle.py",
-        ("BUNDLE-SHA256.txt", "x64", "x86", "dupliciranu putanju", "nesigurnu putanju", "SHA-256 se ne podudara", "BUNDLE_VERIFICATION=PASS", "forbidden"),
+        (
+            "BUNDLE-SHA256.txt", "x64", "x86", "dupliciranu putanju",
+            "nesigurnu putanju", "SHA-256 se ne podudara",
+            "BUNDLE_VERIFICATION=PASS", "forbidden",
+        ),
     )
     if "extractall(" in verifier or ".extract(" in verifier:
         fail("ZIP verifier ne smije raspakiravati nepouzdane putanje na disk")
 
     windows = require(
         "BUILD-WINDOWS.ps1",
-        ("Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'", "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'", "go telemetry").
-        if False else ("Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'", "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'", "$telemetryMode = (go telemetry).Trim()"),
+        (
+            "Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'",
+            "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'",
+            "$telemetryMode = (go telemetry).Trim()",
+        ),
     )
-    linux = require("scripts/BUILD-LINUX.sh", ("build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386", "dpkg-deb", 'telemetry="$(go telemetry)"'))
-    macos = require("scripts/BUILD-MACOS.sh", ('GOARCH="$arch"', "lipo -create", "pkgbuild", "ByFTP.app", 'telemetry="$(go telemetry)"'))
+    linux = require(
+        "scripts/BUILD-LINUX.sh",
+        ("build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386", "dpkg-deb", 'telemetry="$(go telemetry)"'),
+    )
+    macos = require(
+        "scripts/BUILD-MACOS.sh",
+        ('GOARCH="$arch"', "lipo -create", "pkgbuild", "ByFTP.app", 'telemetry="$(go telemetry)"'),
+    )
     if not windows or not linux or not macos:
         fail("platformski build ugovor nije dostupan")
 
-    notes = require("scripts/release_notes.py", ("Setup x86", "Linux amd64", "Linux arm64", "Linux i386", "macOS Universal", "SHA256.txt"))
+    notes = require(
+        "scripts/release_notes.py",
+        ("Setup x86", "Linux amd64", "Linux arm64", "Linux i386", "macOS Universal", "SHA256.txt"),
+    )
     if not notes:
         fail("release notes ugovor nije dostupan")
 
     ci = require(
         ".github/workflows/ci.yml",
-        ("go telemetry off", "python scripts/audit_docs.py", "python scripts/audit_security.py", "python scripts/audit_release.py", "python -m unittest discover -s scripts -p 'test_*.py'"),
+        (
+            "go telemetry off", "python scripts/audit_docs.py",
+            "python scripts/audit_security.py", "python scripts/audit_release.py",
+            "python -m unittest discover -s scripts -p 'test_*.py'",
+        ),
     )
     if "BUILD-WINDOWS.ps1" not in ci:
         fail("CI mora koristiti kanonski Windows produkcijski build")
