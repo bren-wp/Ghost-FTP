@@ -19,6 +19,14 @@ ByFTP mrežni adapteri razgovaraju s korisnički odabranim FTP/FTPS/SFTP endpoin
 
 curl dobiva sanitizirano okruženje bez naslijeđenog proxy/TLS overridea. OpenSSH dobiva ByFTP-managed session config koji blokira ProxyCommand, ProxyJump, agent, PKCS#11 provider, KnownHostsCommand i forwarding.
 
+### FTPS provjera opoziva certifikata
+
+ByFTP više ne koristi curl opciju `ssl-no-revoke`, jer bi ona na Windows Schannelu potpuno isključila provjeru opoziva certifikata.
+
+Na Windowsu ByFTP lokalno pokreće bounded `curl --version` capability provjeru bez mrežnog prometa. Ako curl podržava `ssl-revoke-best-effort`, ByFTP uključuje tu opciju: Schannel smije provjeriti status opoziva certifikata, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu. Ako je curl prestar ili capability provjera ne uspije, ta se opcija ne šalje i ostaje zadano Schannel ponašanje; revocation provjera se ne isključuje.
+
+Takvu provjeru može izvršiti Windows TLS/certificate infrastruktura i ona može kontaktirati CA/CRL infrastrukturu navedenu u certifikatu. To nije ByFTP telemetrija niti Brendigo API, ali jest mogući OS-vođeni sigurnosni mrežni promet izvan korisnički odabranog FTP endpointa. Linux/macOS ne dobivaju Schannel-specifičnu curl opciju i koriste ponašanje vlastitog TLS backend-a.
+
 ## Windows podaci
 
 Windows profili i postavke ostaju u ByFTP korisničkoj podatkovnoj mapi. Profilne tajne koriste DPAPI. UI prikazuje samo činjenicu da je spremljena tajna dostupna, ne vraća stvarnu spremljenu vrijednost u edit kontrolu.
@@ -78,7 +86,7 @@ go telemetry off
 
 i zahtijeva da `go telemetry` vrati `off`.
 
-Produkcijske build skripte ponovno čitaju stvarni način rada i fail-closed odbijaju build ako nije `off`. Time dokumentacija više ne ovisi o običnoj istoimenoj OS environment varijabli koja ne predstavlja stvarno stanje Go telemetry postavke.
+Produkcijske build skripte ponovno čitaju stvarni način rada i fail-closed odbijaju build ako nije `off`; ne oslanjaju se na običnu istoimenu OS environment varijablu koja ne predstavlja stvarno stanje Go telemetry postavke.
 
 Lokalna skripta ne mijenja globalnu Go postavku potajno. Ako telemetry nije `off`, build se prekida i korisniku se navodi potrebna naredba.
 
@@ -117,6 +125,6 @@ To smanjuje istodobne publish operacije i čini provenance jednog izdanja jednos
 
 ## Što ByFTP ne može kontrolirati
 
-Odredišni poslužitelj nužno vidi mrežne i autentikacijske podatke potrebne za vezu. OS, DNS, firewall, EDR, backup/sync sustavi ili udaljeni poslužitelj mogu imati vlastita pravila zapisivanja.
+Odredišni poslužitelj nužno vidi mrežne i autentikacijske podatke potrebne za vezu. OS, DNS, certificate revocation infrastruktura, firewall, EDR, backup/sync sustavi ili udaljeni poslužitelj mogu imati vlastita pravila zapisivanja.
 
 Lokalno brisanje datoteke ili procesne tajne nije isto što i forenzičko brisanje fizičkih SSD blokova ili svih kopija koje je napravio operativni sustav, backup ili sigurnosni proizvod.

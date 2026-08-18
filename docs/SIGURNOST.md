@@ -43,7 +43,7 @@ Testni procesi ne kontaktiraju vanjsku mrežu i ne koriste stvarne vjerodajnice.
 
 ### IPv6
 
-Bracketirani IPv6 unos prihvaća se kao korisnički host, ali se `[]` uklanjaju prije OpenSSH `HostName` i `ssh-keyscan` ulaza.
+Bracketirani IPv6 unos prihvaća se kao korisnički host, ali samo kada postoji točno jedan ispravno uparen par `[]`. Nepotpune ili višestruke zagrade i bracketirani IPv4 odbijaju se prije mrežnog pokušaja. Ispravne IPv6 zagrade uklanjaju se prije OpenSSH `HostName` i `ssh-keyscan` ulaza.
 
 ## Vjerodajnice
 
@@ -88,6 +88,18 @@ Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta ili p
 - bez eksplicitnog SFTP ključa koristi se `IdentitiesOnly yes` i `IdentityFile none`
 - host, korisnik i private-key putanja nisu na OpenSSH command lineu
 
+### FTPS certifikat i opoziv
+
+FTPS uvijek zadržava provjeru TLS certifikata koju pruža aktivni curl TLS backend i postavlja minimalni TLS zahtjev kroz `tlsv1.2`; eksplicitni FTPS dodatno zahtijeva TLS pomoću `ssl-reqd`.
+
+ByFTP ne koristi `ssl-no-revoke`. Na Windowsu prvo lokalno i bounded provjerava `curl --version`. Ako curl podržava opciju uvedenu u 7.70.0, koristi `ssl-revoke-best-effort`: provjera opoziva ostaje uključena kada su potrebni podaci dostupni, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu.
+
+Ako je Windows curl stariji, version probe ne uspije ili izlaz nije prepoznatljiv, ByFTP ne šalje nepoznatu curl opciju. U tom slučaju zadržava se zadano Schannel ponašanje provjere opoziva umjesto prelaska na `ssl-no-revoke`. Time stari Windows/curl ne gubi FTPS samo zbog nepodržanog argumenta, a sigurnosna provjera se ne isključuje.
+
+Linux/macOS ne dobivaju Schannel-specifičnu opciju. Ponašanje provjere certifikata i opoziva tamo ostaje u odgovornosti TLS backend-a sistemskog curl-a.
+
+Regresijski Go testovi i `audit_privacy.py` zajedno moraju odbiti ponovno uvođenje `ssl-no-revoke`, potvrditi capability-gated Windows best-effort politiku te fallback bez nepoznate opcije.
+
 ## Datoteke i putanje
 
 - udaljene i lokalne putanje prolaze traversal/control-character validaciju
@@ -98,6 +110,8 @@ Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta ili p
 - rekurzivne operacije imaju depth/item limite
 - queued transfer ponovno validira lokalni root prije svakog pokušaja
 
+Path-based provjere znatno smanjuju traversal i link rizik, ali stdlib operacije koje rade po imenima putanja ne mogu dokazati potpunu otpornost na namjerno, istodobno preimenovanje komponenti od drugog procesa istog korisnika između provjere i operacije. Potpuno zatvaranje takve TOCTOU klase zahtijeva platform-specific handle-relative filesystem primitive; dokumentacija zato ne tvrdi jaču garanciju od one koju kod stvarno daje.
+
 ## Session lifecycle
 
 Svaka `Operation` registrira aktivnu referencu. Disconnect prvo blokira nove operacije, zatim otkazuje session context i čeka postojeće reference. Adapter se ne zatvara ispod aktivnog `List`, rename, chmod ili transfer poziva.
@@ -107,6 +121,8 @@ Ako caller deadline istekne, cleanup nastavlja odvojeno. Reconnect je blokiran d
 ## Transfer izolacija
 
 Transfer posao pamti connection generation i opaque connection identity. Retry na drugi server/account nije dopušten. Event API vraća duboke kopije. Kasni cancel nakon uspješnog ili preskočenog transfera ne mijenja autoritativni završni status.
+
+Terminal koristi autoritativni snapshot transfer reda za završni status, pa ne ovisi o tome je li završni event još prisutan u ograničenoj event povijesti.
 
 ## State/config
 
@@ -130,7 +146,7 @@ Ovo se odnosi na Go **build toolchain**, ne na ByFTP runtime. ByFTP aplikacija s
 
 ## Release sigurnost
 
-2.16.2 dodatno učvršćuje release granicu:
+Aktualna produkcijska bazna linija dodatno učvršćuje release granicu:
 
 - `VERSION` je jedini kanonski broj
 - automatski release okidač je samo promjena `VERSION` na `main`
@@ -145,6 +161,7 @@ Ovo se odnosi na Go **build toolchain**, ne na ByFTP runtime. ByFTP aplikacija s
 - centralni publisher veže tag uz točan commit i uspoređuje postojeći asset po veličini i SHA-256 digestu
 - rerun smije nadopuniti samo nedostajući potvrđeni asset
 - dodatni ili neočekivani javni asset zaustavlja izdanje
+- GitHub Windows Package mora koristiti isti kanonski `VERSION` kao aplikacija i GitHub Release
 
 ## Potpisivanje
 
@@ -154,6 +171,8 @@ Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brend
 
 `scripts/audit_security.py` zaključava SFTP procesne granice, connect smoke, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem zaštite.
 
-`scripts/audit_privacy.py` zaključava runtime mrežnu politiku i stvarno gašenje Go build telemetrije.
+`scripts/audit_privacy.py` zaključava runtime mrežnu politiku, FTPS revocation pravilo i stvarno gašenje Go build telemetrije.
 
 `scripts/audit_release.py` zaključava single-trigger/serialized release model, production quality gate, platformsku matricu, staging allowlist i završni javni asset ugovor.
+
+`scripts/audit_version.py` dodatno blokira drift trenutačne verzije u README/CHANGELOG i verzionirane aktualne tvrdnje u produkcijskoj dokumentaciji.

@@ -82,10 +82,28 @@ def main() -> None:
             "security.ProtectRuntimeString(password)",
             "security.UnprotectRuntimeBytes(c.passwordBlob)",
             "security.ForgetRuntimeSecret(c.passwordBlob)",
+            'runtime.GOOS == "windows" && c.revokeBestEffort',
+            '"ssl-revoke-best-effort"',
+            "curlSupportsRevokeBestEffort(p)",
         ),
     )
     if "HTTP_PROXY" in curl or "HTTPS_PROXY" in curl:
         fail("CurlFTP ne smije izravno nasljeđivati proxy varijable")
+    if "ssl-no-revoke" in curl:
+        fail("FTPS ne smije potpuno isključiti provjeru opoziva certifikata")
+
+    require(
+        "internal/remote/curl_capability.go",
+        (
+            "func curlVersionSupportsRevokeBestEffort(",
+            "func curlSupportsRevokeBestEffort(",
+            'runtime.GOOS != "windows"',
+            'exec.CommandContext(ctx, curlPath, "--version")',
+            "context.WithTimeout(context.Background(), 3*time.Second)",
+            "newBoundedOutput(maxCurlVersionOutput)",
+            "sanitizedToolEnv(os.Environ())",
+        ),
+    )
 
     sftp = require(
         "internal/remote/sftp.go",
@@ -172,13 +190,15 @@ def main() -> None:
     print("FIXED_HTTP_API_ENDPOINTS=ABSENT")
     print("EXTERNAL_GO_MODULES=ABSENT")
     print("CURL_EXTERNAL_ENV_INHERITANCE=DISABLED")
+    print("FTPS_CERTIFICATE_REVOCATION=NOT_DISABLED")
+    print("WINDOWS_FTPS_REVOCATION=CAPABILITY_GATED_BEST_EFFORT")
     print("OPENSSH_USER_CONFIG_AND_HELPER_INHERITANCE=DISABLED")
     print("WINDOWS_ERROR_REPORTING=DISABLED_FOR_BYFTP_PROCESS")
     print("PERSISTENT_RUNTIME_LOGGING=DISABLED")
     print("SAVED_PROFILE_METADATA=WINDOWS_DPAPI_PROTECTED")
     print("ACTIVE_RUNTIME_SECRETS=WINDOWS_DPAPI_OR_PROCESS_MEMORY")
     print("ASKPASS_DISK_SECRET_ARTIFACTS=DISABLED")
-    print("NETWORK_POLICY=NO_TELEMETRY_NO_EXTERNAL_APIS_USER_SELECTED_SERVER")
+    print("NETWORK_POLICY=NO_TELEMETRY_NO_EXTERNAL_APIS_USER_SELECTED_SERVER_PLUS_OS_CERTIFICATE_VALIDATION")
 
 
 if __name__ == "__main__":

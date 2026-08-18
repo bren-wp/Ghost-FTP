@@ -43,6 +43,28 @@ def main() -> int:
     if f"## {version}" not in changelog:
         fail("CHANGELOG nema odjeljak za VERSION")
 
+    # Detaljna dokumentacija treba biti dugovječna i ne smije skrivati stari
+    # "trenutačni" broj verzije u proznom tekstu. Ako neki dokument ipak ima
+    # eksplicitnu oznaku trenutačnog izdanja, ona mora odgovarati VERSION-u.
+    for path in sorted((ROOT / "docs").rglob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        rel = path.relative_to(ROOT)
+        for match in re.finditer(r"Trenutačno izdanje:\s*(\d+\.\d+\.\d+)", text):
+            if match.group(1) != version:
+                fail(f"{rel} prikazuje zastarjelo trenutačno izdanje {match.group(1)}")
+
+    security_doc = read("docs/SIGURNOST.md")
+    if "Aktualna produkcijska bazna linija dodatno učvršćuje release granicu:" not in security_doc:
+        fail("SIGURNOST.md mora opisivati release sigurnost bez hardkodiranog starog broja verzije")
+    if re.search(r"(?m)^\d+\.\d+\.\d+\s+dodatno učvršćuje release granicu:", security_doc):
+        fail("SIGURNOST.md hardkodira broj verzije u aktualni release-sigurnosni opis")
+
+    plan = read("docs/PLAN-RAZVOJA.md")
+    if "## Završene produkcijske cjeline" not in plan:
+        fail("PLAN-RAZVOJA.md mora koristiti verzijski neutralan naslov završenih cjelina")
+    if re.search(r"(?m)^##\s+Završeno u\s+\d", plan):
+        fail("PLAN-RAZVOJA.md sadrži zastarjeli verzionirani naslov završenih cjelina")
+
     windows_build = read("BUILD-WINDOWS.ps1")
     if "Get-Content -LiteralPath $versionFile" not in windows_build or "-X main.version=$version" not in windows_build:
         fail("Windows build ne povezuje VERSION u runtime verziju")
@@ -93,6 +115,7 @@ def main() -> int:
     print(f"VERSION_AUDIT=PROSAO ({version})")
     print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
+    print("PRODUCTION_DOC_VERSION_DRIFT=BLOCKED")
     return 0
 
 
