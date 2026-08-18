@@ -1,0 +1,53 @@
+name: Jednokratno očisti 2.16 pomoćne datoteke
+
+on:
+  push:
+    branches:
+      - agent/byftp-2.16.0-connect-reliability
+    paths:
+      - '.github/workflows/cleanup-temp-2.16.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+  GOTELEMETRY: off
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/byftp-2.16.0-connect-reliability
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Potvrdi AskPass i testove
+        shell: bash
+        run: |
+          set -euo pipefail
+          gofmt -w cmd/byftp/main.go
+          go test ./...
+          go vet ./...
+      - name: Ukloni sve pomoćne 2.16 datoteke
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/debug-unit-test.log .github/debug-windows-build.log
+          rm -f .github/workflows/debug-2.16.yml
+          rm -f .github/workflows/fix-askpass-2.16.yml
+          rm -f .github/workflows/cleanup-temp-2.16.yml
+          git config user.name 'ByFTP CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Očisti 2.16 razvojne pomoćne datoteke'
+          git push origin HEAD:agent/byftp-2.16.0-connect-reliability
