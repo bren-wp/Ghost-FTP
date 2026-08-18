@@ -11,12 +11,17 @@ import (
 	"brendigo.com/byftp/internal/security"
 )
 
-func useOnlyTestToolDirectory(t *testing.T, dir string) {
+func prependTestToolDirectory(t *testing.T, dir string) {
 	t.Helper()
 	oldSystemDirectory := systemDirectory
 	systemDirectory = func() (string, error) { return "", errors.New("nema Windows system direktorija") }
 	t.Cleanup(func() { systemDirectory = oldSystemDirectory })
-	t.Setenv("PATH", dir)
+	oldPath := os.Getenv("PATH")
+	if oldPath == "" {
+		t.Setenv("PATH", dir)
+		return
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+oldPath)
 }
 
 func writeExecutable(t *testing.T, path, body string) {
@@ -28,7 +33,7 @@ func writeExecutable(t *testing.T, path, body string) {
 
 func TestCurlFTPProcessSmokeUsesRuntimeSecretAndParsesListing(t *testing.T) {
 	dir := t.TempDir()
-	useOnlyTestToolDirectory(t, dir)
+	prependTestToolDirectory(t, dir)
 	writeExecutable(t, filepath.Join(dir, "curl"), `#!/bin/sh
 cfg="$(cat)"
 case "$cfg" in
@@ -63,7 +68,7 @@ printf '%s\n' 'type=file;size=4;modify=20260101010203; test.txt'
 
 func TestSFTPProcessSmokeUsesStdinWithoutBatchMode(t *testing.T) {
 	dir := t.TempDir()
-	useOnlyTestToolDirectory(t, dir)
+	prependTestToolDirectory(t, dir)
 	writeExecutable(t, filepath.Join(dir, "sftp"), `#!/bin/sh
 for arg in "$@"; do
   if [ "$arg" = "-b" ]; then
