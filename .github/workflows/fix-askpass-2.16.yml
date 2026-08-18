@@ -1,0 +1,93 @@
+name: Jednokratno učvrsti AskPass 2.16
+
+on:
+  push:
+    branches:
+      - agent/byftp-2.16.0-connect-reliability
+    paths:
+      - '.github/workflows/fix-askpass-2.16.yml'
+
+permissions:
+  contents: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+  GOTELEMETRY: off
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/byftp-2.16.0-connect-reliability
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Učvrsti AskPass odabir
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('cmd/byftp/main.go')
+          text = path.read_text(encoding='utf-8')
+          pattern = re.compile(
+              r'func selectAskpassSecret\(prompt string, password, passphrase \[\]byte\) \(\[\]byte, bool\) \{.*?\n\}',
+              re.S,
+          )
+          replacement = '''func selectAskpassSecret(prompt string, password, passphrase []byte) ([]byte, bool) {
+              normalized := strings.ToLower(strings.Join(strings.Fields(prompt), " "))
+              for _, blocked := range []string{
+                  "verification code", "one-time", "one time", "otp", "security key",
+                  "touch your", "challenge", "response code", "authentication code", "token",
+              } {
+                  if strings.Contains(normalized, blocked) {
+                      return nil, false
+                  }
+              }
+              if strings.Contains(normalized, "passphrase") {
+                  if len(passphrase) == 0 {
+                      return nil, false
+                  }
+                  return passphrase, true
+              }
+              if strings.Contains(normalized, "password") {
+                  if len(password) == 0 {
+                      return nil, false
+                  }
+                  return password, true
+              }
+              return nil, false
+          }'''
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'AskPass funkcija nije pronađena točno jednom: {count}')
+          path.write_text(updated, encoding='utf-8')
+      - name: Formatiraj i provjeri
+        shell: bash
+        run: |
+          set -euo pipefail
+          gofmt -w cmd/byftp/main.go
+          go test ./...
+          go vet ./...
+      - name: Spremi samo provjerenu ispravku
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'ByFTP CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add cmd/byftp/main.go
+          git rm -f .github/debug-unit-test.log .github/debug-windows-build.log 2>/dev/null || true
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'Nema promjena.'
+            exit 0
+          fi
+          git commit -m 'Učvrsti AskPass protiv MFA i OTP promptova'
+          git push origin HEAD:agent/byftp-2.16.0-connect-reliability
