@@ -63,6 +63,20 @@ FTP/FTPS aktivna lozinka ne sprema se u profil ili datoteku. `ProtectRuntimeStri
 
 SFTP na Linuxu/macOS-u trenutačno je namjerno ograničen na eksplicitni privatni ključ bez passphrasea. Password/passphrase SFTP odbija se prije mrežnog pokušaja dok Unix credential broker nije sigurnosno dovršen.
 
+### Privatni SFTP ključ
+
+Korisnički odabrana private-key putanja ne predaje se OpenSSH-u odmah nakon običnog path checka. ByFTP:
+
+- ograničava ključ na običnu lokalnu datoteku bez symlink/junction/reparse preusmjeravanja
+- odbija praznu ili veću od 1 MiB datoteku
+- otvara ključ i uspoređuje filesystem identitet `Lstat` objekta sa stvarno otvorenim handleom
+- čita bounded sadržaj i ponovno provjerava identitet, veličinu i modification time nakon čitanja
+- zapisuje sadržaj u nasumično imenovan privatni `0600` session snapshot i briše memorijsku kopiju
+- OpenSSH konfiguracija koristi session snapshot, ne izvornu korisničku putanju
+- `SFTP.Close()` briše snapshot zajedno sa session configom i kratkotrajnim `known_hosts`
+
+Time zamjena izvorne key putanje nakon ByFTP validacije ne mijenja ključ aktivne sesije.
+
 ## Profilni identitet
 
 Windows profilne tajne koriste `internal/profilebinding`:
@@ -78,6 +92,8 @@ Lozinka se ne prenosi na drugi account, passphrase na drugi ključ, a SFTP host-
 SFTP spajanje prvo skenira host key, računa SHA-256 fingerprint i veže sesiju uz konkretni odabrani algoritam. `known_hosts` i OpenSSH session config kratkotrajni su i privatni.
 
 Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta ili porta ne može naslijediti ili prepisati pin drugog profila.
+
+Windows crash-cleanup SFTP session artefakata izvršava se tek nakon `EnsureNoRedirectDirectory`. Linux/macOS startup ne čisti zajedničku SFTP session mapu jer više terminalskih procesa smije raditi paralelno; normalni `Close()` i deferred cleanup uklanjaju artefakte vlastite sesije.
 
 ## Vanjski mrežni alati
 
@@ -105,12 +121,15 @@ Regresijski Go testovi i `audit_privacy.py` zajedno moraju odbiti ponovno uvođe
 - udaljene i lokalne putanje prolaze traversal/control-character validaciju
 - upload ne prati symlink/reparse objekt
 - download staging mora biti regularna datoteka i ne smije biti reparse/symlink
-- atomska zamjena koristi no-replace i rollback
-- `RemoveTreeNoFollow` ne prati symlink/junction/reparse točke i blokira filesystem root
+- Windows no-replace koristi exclusive `MoveFileExW` bez replace zastavice
+- Linux no-replace koristi kernel `renameat2(RENAME_NOREPLACE)` umjesto `Lstat` + običnog `rename` obrasca
+- macOS regularne staging datoteke koriste ekskluzivno `link` + `unlink` premještanje; postojeće odredište se ne prepisuje
+- `RemoveTreeNoFollow` blokira filesystem root, ne slijedi symlink/junction/reparse objekt i direktorij čita preko prethodno verificiranog otvorenog handlea
+- identitet direktorija ponovno se provjerava prije child rekurzije i završnog uklanjanja
 - rekurzivne operacije imaju depth/item limite
 - queued transfer ponovno validira lokalni root prije svakog pokušaja
 
-Path-based provjere znatno smanjuju traversal i link rizik, ali stdlib operacije koje rade po imenima putanja ne mogu dokazati potpunu otpornost na namjerno, istodobno preimenovanje komponenti od drugog procesa istog korisnika između provjere i operacije. Potpuno zatvaranje takve TOCTOU klase zahtijeva platform-specific handle-relative filesystem primitive; dokumentacija zato ne tvrdi jaču garanciju od one koju kod stvarno daje.
+Nove handle/identity provjere i platformske no-replace primitive zatvaraju najopasnije ranije check→follow/overwrite prozore. Dio stdlib operacija i dalje na kraju mora imenovati putanju, pa kod ne tvrdi apsolutnu otpornost na svaki namjerni same-user filesystem race. Potpuna takva garancija tražila bi platform-specific handle-relative operacije za cijeli traversal/destructive lifecycle.
 
 ## Session lifecycle
 
@@ -151,6 +170,7 @@ Aktualna produkcijska bazna linija dodatno učvršćuje release granicu:
 - `VERSION` je jedini kanonski broj
 - automatski release okidač je samo promjena `VERSION` na `main`
 - tag koji publisher izradi ne pokreće novi release workflow
+- normalni PR CI blokira produkcijsku promjenu pod već postojećim `v$VERSION` tagom ako isti skup promjena ne mijenja `VERSION`
 - svi release runovi dijele jednu `byftp-release` concurrency grupu
 - zaseban release quality job ponovno pokreće audite, Python regresije, unit, race i vet
 - Windows job gradi i verificira x64 i x86
@@ -170,6 +190,8 @@ Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brend
 ## Automatizirani gate
 
 `scripts/audit_security.py` zaključava SFTP procesne granice, connect smoke, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem zaštite.
+
+`scripts/test_filesystem_hardening.py` dodatno zaključava Linux kernel no-replace, macOS exclusive-link aktivaciju, stable-directory delete, private-key snapshot i SFTP cleanup redoslijed.
 
 `scripts/audit_privacy.py` zaključava runtime mrežnu politiku, FTPS revocation pravilo i stvarno gašenje Go build telemetrije.
 

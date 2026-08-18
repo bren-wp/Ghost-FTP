@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,11 +20,14 @@ import (
 	"brendigo.com/byftp/internal/security"
 )
 
+const maxPrivateKeySize = 1 << 20
+
 type SFTP struct {
 	host                               string
 	port                               int
 	passwordBlob, passphraseBlob       string
 	knownHosts, sshConfig, sessionHost string
+	privateKeyCopy                     string
 	exePath, sftp                      string
 }
 
@@ -83,7 +87,7 @@ func cleanupStaleSFTPArtifacts(dir string) {
 	if err != nil {
 		return
 	}
-	prefixes := []string{".byftp-sftp-", ".byftp-known-", ".byftp-scan-host-", "byftp-key-", "askpass-"}
+	prefixes := []string{".byftp-sftp-", ".byftp-known-", ".byftp-scan-host-", ".byftp-private-key-", "byftp-key-", "askpass-"}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -179,9 +183,6 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 		return "", "", "", errors.New("poslužitelj nije vratio SSH host ključ")
 	}
 
-	// Bind trust to one concrete host-key algorithm. Earlier versions displayed
-	// the fingerprint of the preferred key but wrote all scanned keys to
-	// known_hosts, allowing the real session to negotiate a different scanned key.
 	selected := lines[0]
 	rank := func(line string) int {
 		switch alg := scanKeyAlgorithm(line); {
@@ -266,7 +267,54 @@ func validatePrivateKeyPath(keyPath string) error {
 	if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(keyPath) {
 		return errors.New("privatni ključ mora biti obična lokalna datoteka bez preusmjeravanja")
 	}
+	if st.Size() < 1 || st.Size() > maxPrivateKeySize {
+		return errors.New("privatni ključ ima neispravnu veličinu")
+	}
 	return nil
+}
+
+// snapshotPrivateKey closes the check-then-open window around a user-selected
+// key. OpenSSH only sees a private 0600 copy made from one verified stable file
+// handle, never the original path that can be swapped after validation.
+func snapshotPrivateKey(dir, keyPath string) (string, error) {
+	if keyPath == "" {
+		return "", nil
+	}
+	if err := validatePrivateKeyPath(keyPath); err != nil {
+		return "", err
+	}
+	before, err := os.Lstat(keyPath)
+	if err != nil {
+		return "", err
+	}
+	f, err := os.Open(keyPath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !opened.Mode().IsRegular() || opened.Mode()&os.ModeSymlink != 0 || !os.SameFile(before, opened) || opened.Size() < 1 || opened.Size() > maxPrivateKeySize {
+		return "", errors.New("privatni ključ se promijenio tijekom sigurnog otvaranja")
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxPrivateKeySize+1))
+	if err != nil {
+		return "", err
+	}
+	defer security.WipeBytes(data)
+	if len(data) < 1 || len(data) > maxPrivateKeySize {
+		return "", errors.New("privatni ključ ima neispravnu veličinu")
+	}
+	after, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !os.SameFile(opened, after) || opened.Size() != after.Size() || int64(len(data)) != after.Size() || !opened.ModTime().Equal(after.ModTime()) {
+		return "", errors.New("privatni ključ se promijenio tijekom čitanja")
+	}
+	return writePrivateTempFile(dir, ".byftp-private-key-*.tmp", data)
 }
 
 func createSSHSessionConfig(dir, host string, port int, username, keyPath, knownHosts, hostKeyAlgorithm string, connectTimeout int) (string, string, error) {
@@ -359,13 +407,24 @@ func newSFTPWithProtectedSecrets(host string, port int, username, password, pass
 			return nil, err
 		}
 	}
-	sshConfig, sessionHost, err := createSSHSessionConfig(filepath.Dir(knownHosts), host, port, username, keyPath, knownHosts, hostKeyAlgorithm, connectTimeout)
+	sessionDir := filepath.Dir(knownHosts)
+	privateKeyCopy, err := snapshotPrivateKey(sessionDir, keyPath)
 	if err != nil {
+		return nil, err
+	}
+	configKeyPath := keyPath
+	if privateKeyCopy != "" {
+		configKeyPath = privateKeyCopy
+	}
+	sshConfig, sessionHost, err := createSSHSessionConfig(sessionDir, host, port, username, configKeyPath, knownHosts, hostKeyAlgorithm, connectTimeout)
+	if err != nil {
+		_ = os.Remove(privateKeyCopy)
 		return nil, err
 	}
 	return &SFTP{
 		host: host, port: port, passwordBlob: passwordBlob, passphraseBlob: passphraseBlob,
-		knownHosts: knownHosts, sshConfig: sshConfig, sessionHost: sessionHost, exePath: exePath, sftp: sftp,
+		knownHosts: knownHosts, sshConfig: sshConfig, sessionHost: sessionHost, privateKeyCopy: privateKeyCopy,
+		exePath: exePath, sftp: sftp,
 	}, nil
 }
 
@@ -374,7 +433,7 @@ func (s *SFTP) Host() string     { return s.host }
 func (s *SFTP) Port() int        { return s.port }
 func (s *SFTP) Close() error {
 	var errs []error
-	for _, file := range []string{s.knownHosts, s.sshConfig} {
+	for _, file := range []string{s.knownHosts, s.sshConfig, s.privateKeyCopy} {
 		if file == "" {
 			continue
 		}
@@ -382,15 +441,13 @@ func (s *SFTP) Close() error {
 			errs = append(errs, err)
 		}
 	}
-	// Drop active references to connection metadata/protected credentials once
-	// the session is closed. The DPAPI blobs are not plaintext, but there is no
-	// reason to retain them in the live session object after disconnect.
 	s.passwordBlob = ""
 	s.passphraseBlob = ""
 	s.host = ""
 	s.knownHosts = ""
 	s.sshConfig = ""
 	s.sessionHost = ""
+	s.privateKeyCopy = ""
 	s.exePath = ""
 	return errors.Join(errs...)
 }
@@ -421,9 +478,6 @@ func (s *SFTP) askpassEnvironment() ([]string, error) {
 }
 
 func (s *SFTP) commandArgs() []string {
-	// Naredbe i dalje dolaze preko stdin-a, ali ne koristimo sftp -b. OpenSSH
-	// sftp -b prisilno dodaje BatchMode=yes transportu i time gasi password/
-	// passphrase AskPass autentikaciju. BatchMode=no ostaje eksplicitno postavljen.
 	return []string{
 		"-q", "-oBatchMode=no", "-F", s.sshConfig,
 		"-oProxyCommand=none", "-oProxyJump=none", "-oIdentityAgent=none",
