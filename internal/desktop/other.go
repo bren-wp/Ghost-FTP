@@ -129,15 +129,26 @@ func runTerminal(engine *api.Engine, version string) error {
 	current := "/"; if cfg.Protocol == "sftp" { current = "." }
 	fmt.Printf("Povezano: %s:%d\n", cfg.Host, cfg.Port)
 	fmt.Println("Naredbe: ls, cd, mkdir, rename, delete, chmod, get, put, pwd, help, quit")
+	fmt.Println("Putanje i nazive s razmacima stavite u jednostruke ili dvostruke navodnike.")
 	for {
 		fmt.Printf("byftp:%s> ", current)
 		line, readErr := reader.ReadString('\n'); if readErr != nil && len(line) == 0 { return nil }
-		fields := strings.Fields(strings.TrimSpace(line)); if len(fields) == 0 { continue }
+		fields, parseErr := parseTerminalArgs(line)
+		if parseErr != nil { fmt.Println("Neispravna naredba: " + parseErr.Error()); continue }
+		if len(fields) == 0 { continue }
 		switch strings.ToLower(fields[0]) {
-		case "quit", "exit": return nil
-		case "help": fmt.Println("ls [putanja] | cd <putanja> | mkdir <ime> | rename <staro> <novo> | delete <ime> | chmod <mode> <ime> | get <remote> <local> | put <local> <remote> | pwd | quit")
-		case "pwd": fmt.Println(current)
+		case "quit", "exit":
+			if len(fields) != 1 { fmt.Println("Upotreba: quit"); continue }
+			return nil
+		case "help":
+			if len(fields) != 1 { fmt.Println("Upotreba: help"); continue }
+			fmt.Println("ls [putanja] | cd <putanja> | mkdir <ime> | rename <staro> <novo> | delete <ime> | chmod <mode> <ime> | get <remote> <local> | put <local> <remote> | pwd | quit")
+			fmt.Println("Primjer: get \"Ugovori/račun 2026.pdf\" \"/home/korisnik/Preuzeto/račun 2026.pdf\"")
+		case "pwd":
+			if len(fields) != 1 { fmt.Println("Upotreba: pwd"); continue }
+			fmt.Println(current)
 		case "ls":
+			if len(fields) > 2 { fmt.Println("Upotreba: ls [putanja]"); continue }
 			target := current; if len(fields) > 1 { target = fields[1] }
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second); items, e := engine.RemoteList(ctx, target); cancel()
 			if e != nil { fmt.Println(usererror.Message(e, "Udaljeni direktorij nije moguće pročitati.")); continue }; printRemoteItems(items)
