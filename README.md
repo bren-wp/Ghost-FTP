@@ -23,7 +23,7 @@
 
 ByFTP koristi jedan tipizirani Go engine za FTP, FTPS i SFTP, zajednički transfer queue, provjeru putanja, kontrolirani lifecycle veze i fail-closed sigurnosne granice. Windows izdanje ima puni izvorni Win32 dvopanelni GUI. Linux i macOS koriste funkcionalni terminalni frontend nad istim engineom.
 
-**Trenutačno izdanje: 1.0.0**
+**Trenutačno izdanje: 1.0.1**
 
 ## Produkcijska podrška
 
@@ -94,7 +94,8 @@ ByFTP:
 - blokira vezu ako se očekivani host ključ promijeni;
 - koristi privatni kratkotrajni `known_hosts`;
 - ograničava OpenSSH proxy, agent, forwarding i slične implicitne helper putove;
-- validira bracketirani i sirovi IPv6 oblik bez prihvaćanja neispravno uparenih zagrada.
+- validira bracketirani i sirovi IPv6 oblik bez prihvaćanja neispravno uparenih zagrada;
+- privatni ključ prije OpenSSH korištenja kopira iz stabilno verificiranog file handlea u privatni `0600` session snapshot, pa kasnija zamjena izvorne putanje ne mijenja ključ aktivne sesije.
 
 ## Upravljanje datotekama
 
@@ -108,7 +109,8 @@ ByFTP koristi obrambeni, transakcijski pristup:
 
 - kriptografski nasumične staging nazive;
 - provjeru regularne datoteke prije aktivacije downloada;
-- no-replace aktivaciju i rollback gdje je moguće;
+- stvarnu no-replace aktivaciju: Windows koristi exclusive `MoveFileExW`, Linux kernel `renameat2(RENAME_NOREPLACE)`, a macOS regularne staging datoteke aktivira ekskluzivnim hard-link korakom bez check-then-overwrite prozora;
+- stabilno otvaranje direktorija prije rekurzivnog lokalnog brisanja i ponovnu provjeru identiteta direktorija prije nastavka/finalnog uklanjanja;
 - zaštitu od symlink, junction i reparse traversal izlaza;
 - ponovnu validaciju lokalnog root-a prije queued transfera;
 - vezanje retry posla uz identitet iste veze;
@@ -153,16 +155,17 @@ Rezultat usporedite s odgovarajućim retkom u službenom `SHA256.txt`.
 
 Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS paket nije Developer ID potpisan/notariziran bez stvarnog Apple identiteta i potrebnih secrets. Release workflow ne fabricira publisher status.
 
-## Što donosi 1.0.0
+## Što donosi 1.0.1
 
-1.0.0 uspostavlja novu stabilnu produkcijsku baznu liniju:
+1.0.1 je sigurnosno/stabilnosno izdanje koje nadograđuje nepromjenjivi 1.0.0 tag bez prepisivanja već objavljenog sadržaja:
 
-- kanonska verzija cijelog proizvoda, GitHub Releasea i GitHub Packagea resetirana je na `1.0.0`;
-- pooštrena je validacija IPv6 hostova i odbijaju se nepotpune, višestruke ili pogrešno korištene uglate zagrade;
-- zadržani su session lifecycle, transfer queue, retry/cancel, atomic state, host-key pinning i credential-binding sigurnosni mehanizmi;
-- release i CI ostaju fail-closed te prije objave izvršavaju audite, unit testove, race detector i `go vet`;
-- GitHub Package koristi istu `VERSION` vrijednost kao aplikacija i izdanje, bez zasebnog ručnog broja verzije;
-- platforme i njihove stvarne mogućnosti dokumentirane su bez označavanja nedovršenih sigurnosno osjetljivih značajki kao gotovih.
+- Linux lokalna aktivacija/rollback više nema `Lstat` → `rename` overwrite race nego koristi kernel `RENAME_NOREPLACE`;
+- macOS regularne staging datoteke koriste ekskluzivno hard-link + unlink premještanje, pa konkurentno odredište ne može biti tiho prepisano;
+- rekurzivno lokalno brisanje direktorije čita kroz verificirani otvoreni handle i ponovno provjerava filesystem identitet prije svake destruktivne faze;
+- privatni SFTP ključ dobiva bounded, stabilno provjeren `0600` session snapshot prije nego ga OpenSSH koristi;
+- Linux/macOS novi manager više ne briše startup artefakte druge aktivne SFTP terminalske instance;
+- Windows crash-cleanup SFTP artefakata pomaknut je iza provjere sigurnog/no-redirect session direktorija;
+- CI regresije zaključavaju filesystem hardening invarijante, a postojeći release-version guard zahtijeva novi semantički broj za produkcijske promjene nakon taga.
 
 ## Izgradnja iz izvornog koda
 
