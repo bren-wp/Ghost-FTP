@@ -12,6 +12,7 @@ Ova mapa sadrži detaljnu produkcijsku dokumentaciju za novu ByFTP 1.x liniju. R
 - [TESTIRANJE.md](TESTIRANJE.md) — unit/race/vet, process-level connect smoke, S3/SSH regresije, Windows PE provjere i produkcijski CI
 - [PROVJERA-IZDANJA.md](PROVJERA-IZDANJA.md) — fail-closed kontrolna lista za 12 javnih EXE datoteka, tag, Release i pet GitHub Packages paketa
 - [IZDAVANJE-NA-GITHUBU.md](IZDAVANJE-NA-GITHUBU.md) — reset stare release linije za 1.0.0, serijalizirani publisher i Packages objava
+- [GITHUB-PACKAGES.md](GITHUB-PACKAGES.md) — pet package linija, verzijska sinkronizacija i obavezna provjera najnovije objavljene verzije
 - [POTPISIVANJE.md](POTPISIVANJE.md) — Authenticode granice i što je potrebno za stvarni Verified Publisher
 - [PODRSKA.md](PODRSKA.md) — podržani klijenti, preduvjeti, povezivanje, dijagnostika i sigurna prijava greške
 - [PLAN-RAZVOJA.md](PLAN-RAZVOJA.md) — završeno u 1.0.0 i prioriteti sljedećih 1.x izdanja
@@ -32,7 +33,8 @@ Dokumentacija mora opisivati ono što stvarni kod, build i javni Release zaista 
 - stanje `POVEZANO` u file-transfer GUI-ju znači uspješnu autentikaciju i stvarni početni udaljeni probe;
 - digitalni publisher identitet se ne tvrdi bez stvarnog certifikata;
 - Go build telemetrija mora biti stvarno `off` u produkcijskom build/release okruženju;
-- svaki službeni release mora objaviti istu verziju u svih pet GitHub Packages paketa.
+- svaki službeni release mora objaviti istu verziju u svih pet GitHub Packages paketa;
+- GitHub Packages nisu zasebna verzijska linija: njihova najnovija objavljena verzija mora odgovarati `VERSION` i najnovijem službenom Release tagu.
 
 ## Automatizirana konzistentnost
 
