@@ -7,7 +7,6 @@ Ne potpisuje izvršnu datoteku; Authenticode potpisivanje zaseban je korak izdan
 from __future__ import annotations
 
 import argparse
-import os
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,6 +18,8 @@ RT_MANIFEST = 24
 LANG_EN_US = 0x0409
 CODEPAGE_UNICODE = 1200
 SECTION_CHARS = 0x40000040  # IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+I386 = 0x014C
+AMD64 = 0x8664
 
 
 def align(value: int, boundary: int) -> int:
@@ -100,8 +101,10 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
     return make_container_block("VS_VERSION_INFO", [string_file_info, var_file_info], value=fixed, value_length=len(fixed), value_type=0)
 
 
-def make_manifest(version: tuple[int, int, int, int], role: str) -> bytes:
+def make_manifest(version: tuple[int, int, int, int], role: str, processor_architecture: str) -> bytes:
     major, minor, patch, build = version
+    if processor_architecture not in {"amd64", "x86"}:
+        raise ValueError(f"Nepodržana Windows arhitektura manifesta: {processor_architecture}")
     identity = {
         "portable": "Brendigo.ByFTP.Client",
         "setup": "Brendigo.ByFTP.Setup",
@@ -109,7 +112,7 @@ def make_manifest(version: tuple[int, int, int, int], role: str) -> bytes:
     }.get(role, "Brendigo.ByFTP.Client")
     xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity version="{major}.{minor}.{patch}.{build}" processorArchitecture="amd64" name="{identity}" type="win32"/>
+  <assemblyIdentity version="{major}.{minor}.{patch}.{build}" processorArchitecture="{processor_architecture}" name="{identity}" type="win32"/>
   <description>ByFTP klijent tvrtke Brendigo</description>
   <dependency>
     <dependentAssembly>
@@ -180,6 +183,7 @@ def make_resource_tree(resources: dict[int, list[tuple[int, bytes]]]) -> Node:
 def walk_nodes(root: Node) -> tuple[list[Node], list[Leaf]]:
     nodes: list[Node] = []
     leaves: list[Leaf] = []
+
     def visit(node: Node) -> None:
         nodes.append(node)
         for _, child in node.entries:
@@ -187,6 +191,7 @@ def walk_nodes(root: Node) -> tuple[list[Node], list[Leaf]]:
                 visit(child)
             else:
                 leaves.append(child)
+
     visit(root)
     return nodes, leaves
 
@@ -230,12 +235,17 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
         raise ValueError("PE potpis nije pronađen")
     coff = pe_off + 4
     machine, number_sections, _, _, _, size_opt, _ = struct.unpack_from("<HHIIIHH", raw, coff)
-    if machine != 0x8664:
-        raise ValueError("Očekuje se AMD64 PE")
     opt = coff + 20
     magic = struct.unpack_from("<H", raw, opt)[0]
-    if magic != 0x20B:
-        raise ValueError("Očekuje se PE32+")
+    if machine == AMD64 and magic == 0x20B:
+        processor_architecture = "amd64"
+        data_directory_offset = 112
+    elif machine == I386 and magic == 0x10B:
+        processor_architecture = "x86"
+        data_directory_offset = 96
+    else:
+        raise ValueError(f"Nepodržan PE stroj/magic: machine=0x{machine:04x}, magic=0x{magic:04x}")
+
     section_alignment = struct.unpack_from("<I", raw, opt + 32)[0]
     file_alignment = struct.unpack_from("<I", raw, opt + 36)[0]
     size_headers = struct.unpack_from("<I", raw, opt + 60)[0]
@@ -254,7 +264,7 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
         RT_ICON: [(i + 1, payload) for i, payload in enumerate(icon_images)],
         RT_GROUP_ICON: [(1, group_icon)],
         RT_VERSION: [(1, make_version_info(version, original_filename, role))],
-        RT_MANIFEST: [(1, make_manifest(version, role))],
+        RT_MANIFEST: [(1, make_manifest(version, role, processor_architecture))],
     }
     rsrc = build_resource_section(resources, section_rva)
     raw_ptr = align(len(raw), file_alignment)
@@ -270,7 +280,7 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
     initialized_size = struct.unpack_from("<I", raw, opt + 8)[0]
     struct.pack_into("<I", raw, opt + 8, initialized_size + raw_size)
     struct.pack_into("<I", raw, opt + 56, align(section_rva + len(rsrc), section_alignment))
-    resource_dd = opt + 112 + 2 * 8
+    resource_dd = opt + data_directory_offset + 2 * 8
     struct.pack_into("<II", raw, resource_dd, section_rva, len(rsrc))
     struct.pack_into("<I", raw, opt + 64, 0)
     exe.write_bytes(raw)
