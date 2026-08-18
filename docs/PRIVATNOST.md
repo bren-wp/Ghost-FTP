@@ -28,11 +28,17 @@ Unesena lozinka/passphrase tijekom povezivanja ostaje samo u zaključanoj edit k
 
 ## Linux i macOS
 
-Terminalni frontend u 2.16.0 ne sprema profile ni terminalne vjerodajnice na disk.
+Terminalni frontend ne sprema profile ni terminalne vjerodajnice na disk.
 
 FTP/FTPS aktivna lozinka pohranjuje se samo u procesu iza kriptografski nasumičnog runtime tokena. Adapter ne drži plaintext; kratkotrajna kopija nastaje neposredno prije curl poziva i briše se nakon uporabe. `Close()` uklanja i briše procesnu vrijednost.
 
-SFTP password/passphrase na Linuxu/macOS-u nije uključen u 2.16.0. Umjesto privremenog slanja tajne kroz argument ili običan environment, terminalno izdanje fail-closed zahtijeva eksplicitni privatni ključ bez passphrasea dok se ne uvede siguran Unix AskPass broker.
+SFTP password/passphrase na Linuxu/macOS-u trenutačno nije uključen. Umjesto privremenog slanja tajne kroz argument ili običan environment, terminalno izdanje fail-closed zahtijeva eksplicitni privatni ključ bez passphrasea dok se ne uvede siguran Unix AskPass broker.
+
+## Connect smoke testovi i privatnost
+
+2.16.1 process-level connect smoke testovi **nemaju vanjski mrežni promet**. Testovi stvaraju lokalni kratkotrajni fake `curl` ili `sftp` proces i koriste testnu vrijednost vjerodajnice. Time se provjerava produkcijski child-process/stdin/parser put bez kontaktiranja stvarnog servera, bez stvarnih korisničkih podataka i bez zapisivanja tajne u repozitorij.
+
+FTP smoke dodatno potvrđuje da runtime token više nije moguće razriješiti nakon `Close()`. Testni executable i njegovi privremeni podaci nalaze se u testnom privremenom direktoriju koji runner uklanja nakon testa.
 
 ## SFTP metapodaci
 
