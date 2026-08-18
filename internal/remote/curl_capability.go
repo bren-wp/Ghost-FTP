@@ -8,10 +8,22 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 const maxCurlVersionOutput = 16 << 10
+
+type curlCapabilityResult struct {
+	once      sync.Once
+	supported bool
+}
+
+var curlRevokeCapabilityCache sync.Map
+
+func protocolNeedsRevokeCapability(protocol string) bool {
+	return protocol == "ftps" || protocol == "ftpsi"
+}
 
 // curlVersionSupportsRevokeBestEffort provjerava verziju iz prvog curl --version
 // retka. Opcija --ssl-revoke-best-effort postoji od curl 7.70.0.
@@ -59,13 +71,7 @@ func curlVersionSupportsRevokeBestEffort(output string) bool {
 	return patch >= 0
 }
 
-// curlSupportsRevokeBestEffort je lokalna capability provjera bez mrežnog
-// prometa. Ako provjera zakaže ili je curl prestar, ByFTP ne dodaje nepoznatu
-// opciju; Schannel tada zadržava svoj zadani revocation model.
-func curlSupportsRevokeBestEffort(curlPath string) bool {
-	if runtime.GOOS != "windows" || strings.TrimSpace(curlPath) == "" {
-		return false
-	}
+func probeCurlRevokeBestEffort(curlPath string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, curlPath, "--version")
@@ -81,4 +87,21 @@ func curlSupportsRevokeBestEffort(curlPath string) bool {
 		return false
 	}
 	return curlVersionSupportsRevokeBestEffort(out.String())
+}
+
+// curlSupportsRevokeBestEffort je lokalna capability provjera bez mrežnog
+// prometa. Rezultat je cacheiran po očišćenoj trusted curl putanji i konkurentni
+// pozivi dijele isti sync.Once probe. Ako provjera zakaže ili je curl prestar,
+// ByFTP ne dodaje nepoznatu opciju i Schannel zadržava zadani revocation model.
+func curlSupportsRevokeBestEffort(curlPath string) bool {
+	if runtime.GOOS != "windows" || strings.TrimSpace(curlPath) == "" {
+		return false
+	}
+	key := filepath.Clean(curlPath)
+	entryValue, _ := curlRevokeCapabilityCache.LoadOrStore(key, &curlCapabilityResult{})
+	entry := entryValue.(*curlCapabilityResult)
+	entry.once.Do(func() {
+		entry.supported = probeCurlRevokeBestEffort(key)
+	})
+	return entry.supported
 }
