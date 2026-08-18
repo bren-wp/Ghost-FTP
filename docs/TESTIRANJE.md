@@ -33,27 +33,33 @@ GitHub CI prije mergea ima četiri neovisna joba:
 
 1. **Quality / Linux** — asset, hrvatski, version, docs, security, privacy i release auditi; Python release regresije; `go test`, `go test -race`, `go vet`; generiranje release notes.
 2. **Windows x64+x86** — puni `BUILD-WINDOWS.ps1`, PE32/PE32+ resursi, manifest, mitigacije i interne verifikacijske datoteke.
-3. **Linux DEB** — stvarno gradi amd64, arm64 i i386 `.deb` te provjerava package/version/architecture metapodatke s `dpkg-deb`.
-4. **macOS Universal** — na `macos-14` runneru gradi Intel i Apple Silicon binarije, spaja ih `lipo` alatom, radi `.icns`, `ByFTP.app` i Universal `.pkg` te provjerava PKG strukturu.
+3. **Linux DEB** — prvo izvršava `go test ./...` i `go vet ./...` na Linux runneru, zatim stvarno gradi amd64, arm64 i i386 `.deb` te provjerava package/version/architecture metapodatke s `dpkg-deb`.
+4. **macOS Universal** — na stvarnom `macos-14` runneru prvo izvršava `go test ./...` i `go vet ./...`, zatim gradi Intel i Apple Silicon binarije, spaja ih `lipo` alatom, radi `.icns`, `ByFTP.app` i Universal `.pkg` te provjerava PKG strukturu.
 
 Merge nije spreman dok **sva četiri** joba nisu zelena.
 
 ## Povezivanje
 
-2.16.0 posebno zaključava stvarni connect put:
+2.16.1 dodatno zaključava stvarni connect put:
 
 - `TestSFTPCommandArgsKeepAskPassEnabled` zahtijeva `BatchMode=no` i zabranjuje `sftp -b`
+- `TestCurlFTPProcessSmokeUsesRuntimeSecretAndParsesListing` stvarno pokreće lažni `curl` child proces preko produkcijskog `exec.CommandContext` puta, provjerava runtime tajnu u config stdin-u, MLSD odgovor, parser i wipe-on-close
+- `TestSFTPProcessSmokeUsesStdinWithoutBatchMode` stvarno pokreće lažni `sftp` child proces, odbija svaki `-b`, zahtijeva `ls -la` kroz stdin i provjerava parser udaljenog listinga
+- oba process smoke testa izvršavaju se na Linuxu i macOS-u prije izrade instalacijskih paketa
 - AskPass regresije potvrđuju password/passphrase odabir i odbijanje MFA/OTP/security-key promptova
 - IPv6 regresija potvrđuje uklanjanje `[]` prije OpenSSH `HostName`
 - non-Windows OpenSSH regresija potvrđuje `sftp`, `ssh-keyscan` i `ssh-keygen` nativne nazive bez `.exe`
 - usererror testovi razlikuju timeout, auth, host-key scan i session-closing stanje
 - connect se smatra uspješnim tek nakon remote `List` probea
 
+Process smoke testovi **ne kontaktiraju vanjsku mrežu**. Koriste kratkotrajne lokalne testne executable datoteke i produkcijski adapter/process plumbing, pa reproducibilno provjeravaju prijenos konfiguracije, stdin, cleanup i parser bez stvarnih vjerodajnica ili servera.
+
 ## Runtime vjerodajnice
 
 - Windows testovi i sigurnosni audit čuvaju DPAPI + trusted-parent AskPass model
 - Linux/macOS runtime-secret spremište koristi nasumični token, procesnu mapu i wipe-on-forget
-- terminalni frontend u 2.16.0 namjerno odbija SFTP password/passphrase prije mrežnog pokušaja
+- process-level FTP smoke dokazuje da se aktivna tajna može koristiti u mrežnom adapteru i više nije dostupna nakon `Close()`
+- terminalni frontend namjerno odbija SFTP password/passphrase prije mrežnog pokušaja dok Unix AskPass broker nije sigurnosno dovršen
 - FTP/FTPS terminalni unos ne prikazuje lozinku (`stty -echo`)
 
 ## Profili i trust

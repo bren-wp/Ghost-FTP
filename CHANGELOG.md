@@ -1,5 +1,17 @@
 # Povijest promjena
 
+## 2.16.1 — Process-level connect provjera i stabilnija platformna matrica
+
+- dodani su process-level FTP/FTPS i SFTP connect smoke testovi koji stvarno pokreću child proces preko istog `exec.CommandContext`, stdin/config i parser puta koji koristi produkcijski adapter
+- FTP/FTPS smoke potvrđuje da unesena lozinka prolazi kroz kratkotrajni runtime-secret token, stiže u curl konfiguraciju preko standardnog ulaza, da se MLSD odgovor stvarno parsira i da `Close()` uklanja aktivnu tajnu
+- SFTP smoke potvrđuje da proces ne dobiva `-b`, da `BatchMode=no` ostaje aktivan, da `ls -la` naredba stvarno stiže kroz stdin te da se povratni listing parsira kroz produkcijski parser
+- Linux CI prije izrade amd64, arm64 i i386 DEB paketa sada izvršava `go test ./...` i `go vet ./...` na stvarnom Linux runneru
+- macOS CI prije izrade Universal Intel+Apple Silicon PKG-a sada izvršava `go test ./...` i `go vet ./...` na stvarnom macOS runneru
+- `audit_security.py` zahtijeva process-level connect smoke regresije pa budući refaktor ne može zadržati samo površinski unit test i ukloniti dokaz stvarnog child-process puta
+- dokumentacija sada eksplicitno objašnjava da Windows stanje `POVEZANO` nastaje tek nakon uspješne autentikacije i stvarnog udaljenog `List` probea, a ne nakon samog pokretanja curl/OpenSSH procesa
+- 2.16.1 zadržava javni release ugovor 2.16 linije: Windows x64/x86 Setup, Portable i ZIP; Linux amd64/arm64/i386 DEB; macOS Universal PKG; `SHA256.txt`, `RELEASE-NOTES.txt` i `BUILD-METADATA.txt`
+- `verification.txt`, dodatni `ByFTP-<verzija>-Source.zip` i standalone `Uninstall-*.exe` nisu javni ByFTP release asseti; interni verifier i uninstaller ostaju u CI/Setup sloju gdje su potrebni
+
 ## 2.16.0 — Pouzdanije povezivanje, Windows x86, Linux i macOS
 
 - ispravljen je stvarni SFTP authentication bug: uklonjen je `sftp -b`, jer aktualni OpenSSH pri obradi `-b` prisilno uključuje `BatchMode=yes` i time može onemogućiti password/passphrase AskPass autentikaciju

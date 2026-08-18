@@ -21,9 +21,9 @@
 
 ## Prenosite datoteke. Zadržite kontrolu.
 
-ByFTP koristi isti tipizirani `Engine`, remote adaptere, transfer queue i sigurnosne granice na svim podržanim sustavima. Windows izdanje ima puni Win32 dvopanelni GUI; Linux i macOS izdanje u 2.16.0 imaju stvarno funkcionalno terminalno sučelje, a ne lažni launcher ili statički paket.
+ByFTP koristi isti tipizirani `Engine`, remote adaptere, transfer queue i sigurnosne granice na svim podržanim sustavima. Windows izdanje ima puni Win32 dvopanelni GUI; Linux i macOS izdanje imaju funkcionalno terminalno sučelje nad istim engineom i stvarnim mrežnim adapterima.
 
-**Trenutačno izdanje: 2.16.0**
+**Trenutačno izdanje: 2.16.1**
 
 ## Platforme
 
@@ -39,15 +39,15 @@ ByFTP koristi isti tipizirani `Engine`, remote adaptere, transfer queue i sigurn
 |---|---|---|
 | FTP/FTPS lozinka | da | da |
 | SFTP privatni ključ bez passphrasea | da | da |
-| SFTP lozinka | da | još nije omogućeno u 2.16.0 |
-| SFTP privatni ključ s passphraseom | da | još nije omogućeno u 2.16.0 |
+| SFTP lozinka | da | trenutačno nije omogućeno |
+| SFTP privatni ključ s passphraseom | da | trenutačno nije omogućeno |
 | SFTP host-key provjera i potvrda | da | da |
 
-Linux/macOS terminalno izdanje namjerno odbija nepodržani SFTP način **prije mrežnog pokušaja** umjesto da prikaže lažno stanje „povezano”. Unix AskPass broker za password/passphrase SFTP ostaje sljedeći sigurnosni korak.
+Linux/macOS terminalno izdanje namjerno odbija nepodržani SFTP način **prije mrežnog pokušaja** umjesto da prikaže lažno stanje „povezano”. Unix AskPass broker za password/passphrase SFTP ostaje zaseban sigurnosni korak.
 
 ## Preuzimanje
 
-Preporučeni kanal su [GitHub izdanja](https://github.com/bren-wp/by-ftp/releases). ByFTP 2.16.0 javno objavljuje samo korisne pakete i zajedničke metapodatke:
+Preporučeni kanal su [GitHub izdanja](https://github.com/bren-wp/by-ftp/releases). ByFTP 2.16.1 javno objavljuje samo korisne instalacijske/portable pakete i zajedničke metapodatke.
 
 ### Windows
 
@@ -74,29 +74,31 @@ Preporučeni kanal su [GitHub izdanja](https://github.com/bren-wp/by-ftp/release
 - `RELEASE-NOTES.txt`
 - `BUILD-METADATA.txt`
 
-**Standalone Uninstaller, interni `verification.txt` i dodatni `ByFTP-<verzija>-Source.zip` više nisu javni ByFTP release asseti.** Windows uninstaller ostaje ugrađen u Setup paket. GitHub automatski prikazuje vlastite „Source code (zip)” i „Source code (tar.gz)” poveznice za svaki tag; to je GitHubova ugrađena funkcija i nije dodatni ByFTP asset.
+**Standalone Uninstaller, interni `verification.txt` i dodatni `ByFTP-<verzija>-Source.zip` nisu javni ByFTP release asseti.** Windows uninstaller ostaje ugrađen u Setup paket. GitHub automatski prikazuje vlastite „Source code (zip)” i „Source code (tar.gz)” poveznice za svaki tag; to je ugrađena GitHub funkcija, a ne dodatni ByFTP asset.
 
 Detaljne upute: [Instalacija](docs/INSTALACIJA.md).
 
-## Što donosi 2.16.0
+## Što donosi 2.16.1
 
-### Pouzdanije stvarno povezivanje
+### Stvarno provjeren connect put
 
-- ispravljen je stvarni SFTP authentication bug: ByFTP više ne pokreće `sftp.exe` s `-b`, jer OpenSSH `-b` prisilno uključuje `BatchMode=yes` i može onemogućiti password/passphrase AskPass
-- `BatchMode=no` ostaje eksplicitno postavljen, a SFTP naredbe se i dalje šalju kroz standardni ulaz bez vidljive konzole
-- Windows unesena lozinka/passphrase ostaje u zaključanom polju dok spajanje stvarno ne uspije; tek potvrđeni `Connected` briše osjetljivi unos iz kontrole
-- dvostupanjska SFTP host-key potvrda može ponovno koristiti upravo unesenu vjerodajnicu bez traženja ponovnog upisa
-- curl/OpenSSH timeout i korisničko otkazivanje propagiraju se kao pravi `context` uzroci, pa UI razlikuje timeout, odbijeni port, autentikaciju i otkazivanje
-- bracketirani IPv6 host (`[2001:db8::1]`) pravilno se normalizira za OpenSSH `HostName` i `ssh-keyscan`
-- AskPass je fail-closed: spremljena tajna daje se samo jasno prepoznatom `password` ili `passphrase` promptu, nikada proizvoljnom MFA/OTP/security-key upitu
+- 2.16.1 zadržava 2.16.0 ispravku OpenSSH `sftp -b` problema: `-b` se ne koristi jer uključuje `BatchMode=yes` i može blokirati password/passphrase AskPass
+- dodani su **process-level connect smoke testovi** koji stvarno pokreću child procese preko istog `exec.CommandContext`, stdin/config i parser puta koji koristi produkcija
+- FTP/FTPS smoke potvrđuje da unesena lozinka ide kroz kratkotrajni runtime secret, zatim u curl config preko standardnog ulaza, da se listing stvarno parsira i da `Close()` uklanja runtime tajnu
+- SFTP smoke potvrđuje da child proces ne dobiva `-b`, da dobiva `ls` naredbu preko stdin-a i da se vraćeni listing stvarno parsira
+- Linux CI sada izvršava Go testove i `go vet` na Linux runneru **prije** izrade amd64/arm64/i386 DEB paketa
+- macOS CI sada izvršava Go testove i `go vet` na stvarnom macOS runneru **prije** izrade Universal PKG paketa
+- sigurnosni audit zahtijeva postojanje process-level connect smoke regresija pa se taj dokaz ne može slučajno ukloniti budućim refaktorom
 
-### Stabilnost i više platformi
+### Pouzdanije povezivanje iz 2.16 linije
 
-- Windows produkcijski build sada proizvodi i provjerava x64 i x86 PE binarije, resurse, manifest i mitigacije
-- Linux paket koristi isti ByFTP engine te stvarno podržava `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd` i host-key potvrdu
-- macOS Universal paket kombinira Intel i Apple Silicon binarij i instalira Finder `ByFTP.app` launcher te `/usr/local/bin/byftp`
-- ne-Windows FTP/FTPS aktivna lozinka čuva se samo u procesnom memorijskom runtime spremištu iza kriptografski nasumičnog tokena; ne zapisuje se na disk niti u argumente procesa
-- release CI sada stvarno gradi Windows x64/x86, Linux DEB i macOS PKG prije objave
+- Windows unesena lozinka/passphrase ostaje u zaključanom polju dok spajanje stvarno ne uspije; tek potvrđeni `Connected` briše osjetljivi unos
+- dvostupanjska SFTP host-key potvrda ponovno koristi upravo unesenu vjerodajnicu bez traženja ponovnog unosa
+- `remote.Manager.Connect()` ne vraća `Connected=true` dok adapter ne napravi stvarni udaljeni `List()` probe
+- curl/OpenSSH timeout i korisničko otkazivanje propagiraju se kao pravi `context` uzroci
+- bracketirani IPv6 host pravilno se normalizira za OpenSSH `HostName` i `ssh-keyscan`
+- AskPass je fail-closed i ne šalje tajnu nepoznatom MFA/OTP/security-key promptu
+- ne-Windows FTP/FTPS aktivna lozinka čuva se samo u procesnoj memoriji iza kriptografski nasumičnog tokena i briše se pri zatvaranju sesije
 
 ## Mogućnosti
 
@@ -134,6 +136,7 @@ Ključne zaštite uključuju:
 - profilne vjerodajnice vezane uz točan endpoint/račun/ključ prije automatskog korištenja
 - SFTP host-key pin vezan uz protokol, host i port
 - OpenSSH `-b`/BatchMode regresijski guard
+- process-level FTP/SFTP connect smoke testove na Unix runnerima
 - AskPass koji odbija nepoznate autentikacijske promptove
 - Windows DPAPI za spremljene profilne tajne i aktivne Windows credential blobove
 - procesno memorijsko runtime spremište aktivne FTP/FTPS tajne na Linuxu/macOS-u
@@ -202,10 +205,10 @@ python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go test -race ./...
 go vet ./...
-python scripts/release_notes.py --version 2.16.0 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.16.1 --output RELEASE-NOTES.test.txt
 ```
 
-GitHub Actions dodatno gradi puni Windows x64+x86 paket, sva tri Linux DEB paketa i macOS Universal PKG. Release workflow verificira Windows ZIP-ove nakon stvarnog pakiranja i tek tada može objaviti GitHub Release.
+GitHub Actions dodatno izvršava Go testove na Linuxu i macOS-u, gradi puni Windows x64+x86 paket, sva tri Linux DEB paketa i macOS Universal PKG. Release workflow objavljuje izdanje tek nakon prolaska cijele platformne matrice.
 
 ## Struktura repozitorija
 

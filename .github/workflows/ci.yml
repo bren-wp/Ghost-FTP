@@ -121,6 +121,12 @@ jobs:
           go-version: '1.26.5'
           check-latest: false
           cache: false
+      - name: Linux connect smoke, unit i vet
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./...
+          go vet ./...
       - name: Izgradi Linux instalacijske pakete
         run: bash scripts/BUILD-LINUX.sh
       - name: Provjeri DEB metapodatke
@@ -149,6 +155,12 @@ jobs:
           go-version: '1.26.5'
           check-latest: false
           cache: false
+      - name: macOS connect smoke, unit i vet
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./...
+          go vet ./...
       - name: Izgradi macOS Universal installer
         run: bash scripts/BUILD-MACOS.sh
       - name: Provjeri PKG strukturu

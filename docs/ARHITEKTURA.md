@@ -27,9 +27,9 @@ Windows koristi puni Win32 GUI s dvopanelnim local/remote prikazom, profilima, t
 
 ### Linux i macOS
 
-Ne-Windows `internal/desktop/other.go` više nije stub. Pokreće terminalni ByFTP klijent nad istim `api.Engine` objektom. `ls`, `cd`, remote operacije i `get`/`put` pozivaju iste metode i transfer queue kao Windows UI.
+Ne-Windows `internal/desktop/other.go` pokreće terminalni ByFTP klijent nad istim `api.Engine` objektom. `ls`, `cd`, remote operacije i `get`/`put` pozivaju iste metode i transfer queue kao Windows UI.
 
-Linux/macOS frontend u 2.16.0 podržava FTP/FTPS lozinku i SFTP privatni ključ bez passphrasea. Nepodržani SFTP password/passphrase način odbija se prije mrežnog pokušaja. To je namjerno fail-closed ograničenje dok se ne uvede Unix AskPass broker.
+Linux/macOS frontend podržava FTP/FTPS lozinku i SFTP privatni ključ bez passphrasea. Nepodržani SFTP password/passphrase način odbija se prije mrežnog pokušaja. To je namjerno fail-closed ograničenje dok se ne uvede Unix AskPass broker.
 
 ## Povezivanje
 
@@ -51,6 +51,22 @@ ByFTP **ne koristi `sftp -b`**. Aktualni OpenSSH `-b` uključuje `BatchMode=yes`
 
 IPv6 URL-style uglate zagrade uklanjaju se prije OpenSSH `HostName` i `ssh-keyscan` unosa.
 
+## Process-level connect dokaz
+
+Od 2.16.1 adapter arhitektura ima dodatni testni sloj između čistih unit testova i stvarnog mrežnog poslužitelja. `internal/remote/process_connect_smoke_other_test.go` stvara lokalne kratkotrajne fake `curl` i `sftp` executable datoteke te ih pokreće kroz isti production `exec.CommandContext` put.
+
+Time se zajedno provjeravaju:
+
+- executable discovery preko `PATH`-a
+- stdin/config transport prema child procesu
+- aktivni runtime-secret token i njegovo čišćenje
+- zabrana OpenSSH `-b`
+- SFTP command stream
+- MLSD/Unix listing parser
+- adapter `Close()` cleanup
+
+Testovi nemaju vanjski mrežni promet niti stvarne vjerodajnice. Izvršavaju se na Linux i macOS CI runnerima prije pakiranja.
+
 ## Vjerodajnice
 
 ### Windows
@@ -63,7 +79,7 @@ AskPass je fail-closed: tajna se vraća samo ako prompt jasno sadrži `password`
 
 FTP/FTPS lozinka aktivne sesije sprema se u procesnu mapu iza kriptografski nasumičnog tokena. Adapter drži token, ne plaintext. `run()` dobiva kratkotrajnu kopiju, briše je nakon izrade curl konfiguracije, a `Close()` uklanja i briše procesnu vrijednost.
 
-ByFTP 2.16.0 ne sprema terminalne profile ni terminalne vjerodajnice na disk.
+ByFTP ne sprema terminalne profile ni terminalne vjerodajnice na disk.
 
 ## Profilni identitet
 
@@ -102,8 +118,8 @@ CI prije mergea ima četiri gatea:
 
 1. quality: auditi + Python regresije + Go unit/race/vet
 2. Windows: x64 + x86 production build
-3. Linux: amd64 + arm64 + i386 DEB build
-4. macOS: Universal Intel+Apple Silicon PKG build
+3. Linux: Go test/vet na Linux runneru + amd64 + arm64 + i386 DEB build
+4. macOS: Go test/vet na macOS runneru + Universal Intel+Apple Silicon PKG build
 
 Release workflow ponovno gradi sve platforme, preuzima njihove Actions artefakte u završni publish job, generira `SHA256.txt`, `RELEASE-NOTES.txt` i `BUILD-METADATA.txt` te koristi centralni `publish_release.ps1`.
 
