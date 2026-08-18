@@ -1,0 +1,47 @@
+name: Privremeno očisti v2.15.0 assete
+
+on:
+  push:
+    branches:
+      - agent/byftp-2.16.0-connect-reliability
+    paths:
+      - '.github/workflows/cleanup-v2.15-assets.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: windows-latest
+    steps:
+      - name: Ukloni neželjene v2.15.0 assete
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo = '${{ github.repository }}'
+          $tag = 'v2.15.0'
+          $remove = @(
+            'verification.txt',
+            'ByFTP-2.15.0-Source.zip',
+            'ByFTP-2.15.0-Uninstall-x64.exe'
+          )
+          $release = (& gh release view $tag --repo $repo --json assets) | ConvertFrom-Json
+          foreach ($name in $remove) {
+            $found = @($release.assets | Where-Object { $_.name -eq $name })
+            if ($found.Count -eq 0) {
+              Write-Host "Asset već nije prisutan: $name"
+              continue
+            }
+            & gh release delete-asset $tag $name --repo $repo --yes
+            if ($LASTEXITCODE -ne 0) {
+              throw "Nije moguće ukloniti release asset: $name"
+            }
+          }
+          $after = (& gh release view $tag --repo $repo --json assets) | ConvertFrom-Json
+          foreach ($name in $remove) {
+            if (@($after.assets | Where-Object { $_.name -eq $name }).Count -ne 0) {
+              throw "Asset je i dalje prisutan nakon čišćenja: $name"
+            }
+          }
+          Write-Host 'V2_15_RELEASE_ASSET_CLEANUP=PASS'
