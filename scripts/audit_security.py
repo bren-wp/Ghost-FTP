@@ -34,7 +34,13 @@ def main() -> int:
     ))
     if not curl: fail("CurlFTP runtime credential ugovor nije dostupan")
 
-    require("cmd/byftp/main.go", ("func selectAskpassSecret(", "nepoznat ili nepodržan zahtjev za vjerodajnicu"))
+    # AskPass je od 1.0.0 centraliziran u zajedničkom startup sloju kako zasebni
+    # Suite/SFTP EXE-ovi ne bi imali divergirane kopije credential politike.
+    require("internal/appstart/start.go", (
+        "func ValidAskpassInvocation(", "func SelectAskpassSecret(",
+        "nepoznat ili nepodržan zahtjev za vjerodajnicu", "platform.TrustedAskPassParent()",
+        'os.Unsetenv(key)', "security.WipeBytes(password)", "security.WipeBytes(passphrase)",
+    ))
     require("cmd/byftp/askpass_test.go", ("TestSelectAskpassSecretOnlyUsesRecognizedPrompts", "Verification code", "One-time password token"))
     require("internal/remote/sftp_stream_test.go", ("TestSFTPCommandArgsKeepAskPassEnabled", "sftp -b"))
     require("internal/remote/connect_regression_test.go", ("TestSSHSessionConfigNormalizesBracketedIPv6Host", "TestFindOpenSSHUsesNativeExecutableNameOutsideWindows"))
@@ -44,6 +50,40 @@ def main() -> int:
         "security.UnprotectRuntimeBytes(token)",
         'if [ "$arg" = "-b" ]',
         "ls -la \".\"",
+    ))
+
+    # Odvojeni klijenti moraju dijeliti sigurnosni core, ali imati zaseban
+    # procesni/profilni identitet i strogi protocol allowlist.
+    require("internal/clientmode/mode.go", (
+        "func (m Mode) AllowsProtocol", "return protocol == \"ftp\" || protocol == \"ftps\" || protocol == \"ftpsi\"",
+        "return protocol == \"sftp\"", "func (m Mode) InstanceKey() string",
+    ))
+    require("internal/clientmode/mode_test.go", ("TestParseAndProtocolIsolation", "TestModeIdentityIsSeparated"))
+    require("internal/appstart/start.go", ("filepath.Join(base, \"clients\", mode.Slug())", "platform.AcquireSingleInstance(mode.InstanceKey())"))
+
+    # SSH terminal koristi sistemski OpenSSH i privatni privremeni config. ByFTP
+    # ne presreće password/MFA/passphrase i ne dopušta agent/port forwarding.
+    require("internal/sshclient/client.go", (
+        "StrictHostKeyChecking ask", "BatchMode no", "ForwardAgent no", "ClearAllForwardings yes",
+        "RequestTTY force", "f.Chmod(0600)", "os.CreateTemp(dir, \".byftp-ssh-*.conf\")",
+        'exec.CommandContext(ctx, ssh, "-F", cfgPath, "byftp-session")',
+    ))
+    require("cmd/sshclient/main.go", ("platform.HardenProcessPrivacy()", "platform.AcquireSingleInstance(mode.InstanceKey())", "sshclient.Run"))
+
+    # S3 je vlastita standard-library SigV4 implementacija: remote HTTP je
+    # zabranjen, secret nije URL parametar, transferi su streaming i download
+    # završava bez tihog prepisivanja postojeće lokalne datoteke.
+    require("internal/s3client/s3.go", (
+        'u.Scheme != "https" && !loopbackHTTP(u)', "AWS4-HMAC-SHA256", "x-amz-content-sha256",
+        "hashReader(f)", "io.Copy(f, resp.Body)", "platform.RenameNoReplace(tmp, localPath)",
+        "S3 upload veći od 5 GiB zahtijeva multipart podršku", "x-amz-copy-source",
+    ))
+    require("internal/s3client/s3_test.go", (
+        "TestNewRejectsInsecureRemoteHTTP", "TestSignedRequestDoesNotLeakSecret", "TestCanonicalQuerySortsAndUsesPercent20",
+    ))
+    require("cmd/s3client/main.go", (
+        "platform.HardenProcessPrivacy()", "platform.AcquireSingleInstance(mode.InstanceKey())", "secretKey = \"\"",
+        "context.WithTimeout(context.Background(), 2*time.Hour)",
     ))
 
     require("internal/security/runtime_secret_windows.go", ("ProtectRuntimeString", "UnprotectRuntimeBytes", "ForgetRuntimeSecret"))
@@ -92,6 +132,12 @@ def main() -> int:
     print("SECURITY_AUDIT=PASS")
     print("SFTP_ASKPASS_BATCHMODE_CONFLICT=BLOCKED")
     print("ASKPASS_UNKNOWN_PROMPT_SECRET=BLOCKED")
+    print("CLIENT_MODE_PROTOCOL_ISOLATION=ENFORCED")
+    print("SSH_FORWARDING=DISABLED_BY_DEFAULT")
+    print("SSH_CREDENTIAL_PROMPT=OPENSSH_DIRECT")
+    print("S3_SIGV4=ENFORCED")
+    print("S3_REMOTE_PLAINTEXT_HTTP=BLOCKED")
+    print("S3_DOWNLOAD_NO_REPLACE=ENFORCED")
     print("CONNECT_PROCESS_SMOKE=ENFORCED_ON_UNIX")
     print("CONNECT_CONTEXT_CAUSE=PROPAGATED")
     print("IPV6_SFTP_HOST_NORMALIZATION=ENABLED")
