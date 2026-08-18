@@ -32,6 +32,12 @@ def main() -> int:
     workflow = require(
         ".github/workflows/release.yml",
         (
+            "group: byftp-release",
+            "quality:",
+            "Produkccijski" if False else "Produkcijski quality, race, sigurnost i privatnost",
+            "needs: [quality, windows, linux, macos]",
+            "go test -race ./...",
+            "go telemetry off",
             "Windows x64 i x86",
             "Linux amd64 arm64 i i386",
             "macOS Universal",
@@ -40,8 +46,8 @@ def main() -> int:
             "publish_release.ps1",
             "scripts/verify_bundle.py",
             "--arch $arch",
-            "Očisti neželjene custom assete iz v2.15.0",
-            "V2_15_CUSTOM_ASSET_CLEANUP=PASS",
+            "Provjeri staging javnih paketa",
+            "RELEASE_QUALITY_GATE=passed",
             "ByFTP-$env:VERSION-Setup-x86.exe",
             "ByFTP-$env:VERSION-Portable-x86.exe",
             "ByFTP-$env:VERSION-Linux-amd64.deb",
@@ -52,6 +58,10 @@ def main() -> int:
     )
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", workflow):
         fail("release workflow ponovno hardkodira zadanu produkcijsku verziju")
+    if re.search(r"(?m)^\s*tags:\s*$", workflow):
+        fail("release workflow ponovno reagira na vlastiti tag i može stvoriti paralelni publisher")
+    if "v2.15.0" in workflow or "release delete-asset" in workflow:
+        fail("release workflow ponovno sadrži jednokratni migracijski cleanup stare verzije")
     if "gh release create" in workflow or "gh release upload" in workflow:
         fail("release.yml ne smije zaobići centralni publish_release.ps1")
 
@@ -59,9 +69,18 @@ def main() -> int:
     if not asset_match:
         fail("nije pronađen eksplicitni javni $assets skup")
     public_assets = asset_match.group(1)
+    expected_asset_markers = (
+        "Portable-x64.exe", "Setup-x64.exe", "Windows-x64.zip",
+        "Portable-x86.exe", "Setup-x86.exe", "Windows-x86.zip",
+        "Linux-amd64.deb", "Linux-arm64.deb", "Linux-i386.deb",
+        "macOS-Universal.pkg", "SHA256.txt", "RELEASE-NOTES.txt", "BUILD-METADATA.txt",
+    )
+    for marker in expected_asset_markers:
+        if marker not in public_assets:
+            fail(f"javni release asset skup nema: {marker}")
     for forbidden in ("Source.zip", "Uninstall-", "verification.txt"):
         if forbidden in public_assets:
-            fail(f"javni release asseti ponovno sadrže zabranjeni tip: {forbidden}")
+            fail(f"javni release asseti ponovno sadrže interni/stari tip: {forbidden}")
 
     publisher = require(
         "scripts/publish_release.ps1",
@@ -79,25 +98,38 @@ def main() -> int:
 
     windows = require(
         "BUILD-WINDOWS.ps1",
-        ("Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'", "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'", "--arch $Label"),
+        ("Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'", "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'", "go telemetry").
+        if False else ("Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'", "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'", "$telemetryMode = (go telemetry).Trim()"),
     )
-    linux = require("scripts/BUILD-LINUX.sh", ("build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386", "dpkg-deb"))
-    macos = require("scripts/BUILD-MACOS.sh", ('GOARCH="$arch"', "lipo -create", "pkgbuild", "ByFTP.app"))
+    linux = require("scripts/BUILD-LINUX.sh", ("build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386", "dpkg-deb", 'telemetry="$(go telemetry)"'))
+    macos = require("scripts/BUILD-MACOS.sh", ('GOARCH="$arch"', "lipo -create", "pkgbuild", "ByFTP.app", 'telemetry="$(go telemetry)"'))
     if not windows or not linux or not macos:
         fail("platformski build ugovor nije dostupan")
 
-    notes = require("scripts/release_notes.py", ("Setup x86", "Linux amd64", "Linux arm64", "Linux i386", "macOS Universal", "nisu javni release asseti"))
+    notes = require("scripts/release_notes.py", ("Setup x86", "Linux amd64", "Linux arm64", "Linux i386", "macOS Universal", "SHA256.txt"))
     if not notes:
         fail("release notes ugovor nije dostupan")
 
     ci = require(
         ".github/workflows/ci.yml",
-        ("python scripts/audit_docs.py", "python scripts/audit_security.py", "python scripts/audit_release.py", "python -m unittest discover -s scripts -p 'test_*.py'"),
+        ("go telemetry off", "python scripts/audit_docs.py", "python scripts/audit_security.py", "python scripts/audit_release.py", "python -m unittest discover -s scripts -p 'test_*.py'"),
     )
     if "BUILD-WINDOWS.ps1" not in ci:
         fail("CI mora koristiti kanonski Windows produkcijski build")
 
+    # Korisnički dokumenti i release notes opisuju samo aktualne javne pakete.
+    # Povijesni CHANGELOG smije zadržati stare nazive radi točne povijesti.
+    for rel in ("README.md", "docs/INSTALACIJA.md", "scripts/release_notes.py"):
+        text = read(rel)
+        for forbidden in ("verification.txt", "Source.zip", "Uninstall-"):
+            if forbidden in text:
+                fail(f"{rel} ponovno oglašava zastarjeli/interne release naziv: {forbidden}")
+
     print("RELEASE_AUDIT=PASS")
+    print("RELEASE_SINGLE_TRIGGER=ENABLED")
+    print("RELEASE_SERIALIZATION=ENABLED")
+    print("RELEASE_QUALITY_RACE_GATE=ENABLED")
+    print("RELEASE_STAGING_ALLOWLIST=ENABLED")
     print("RELEASE_RERUN_REPAIR=ENABLED")
     print("RELEASE_TAG_COMMIT_BINDING=ENABLED")
     print("RELEASE_ASSET_DIGEST_FAIL_CLOSED=ENABLED")
