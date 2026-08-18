@@ -22,6 +22,10 @@ func Message(err error, fallback string) string {
 
 	s := strings.ToLower(strings.Join(strings.Fields(err.Error()), " "))
 	switch {
+	case strings.Contains(s, "prethodna veza se još sigurno zatvara"):
+		return "Prethodna veza još se sigurno zatvara. Pokušajte ponovno za nekoliko trenutaka."
+	case strings.Contains(s, "sigurno zatvaranje veze još traje"):
+		return "Prekid veze još se sigurno dovršava. Ponovno povezivanje bit će dostupno čim se stara sesija zatvori."
 	case strings.Contains(s, "fingerprint se promijenio") || strings.Contains(s, "host key verification failed"):
 		return "Sigurnosni ključ poslužitelja promijenio se. Veza je blokirana radi vaše zaštite."
 	case strings.Contains(s, "openssh client nije instaliran") || strings.Contains(s, "nedostaje sftp.exe") || strings.Contains(s, "nedostaje ssh-keyscan.exe") || strings.Contains(s, "nedostaje ssh-keygen.exe"):
