@@ -3,13 +3,13 @@
 </p>
 
 <p align="center">
-  <strong>Brz, privatan i izvorni FTP / FTPS / SFTP klijent za Windows.</strong><br>
-  ByFTP je fokusirani desktop alat tvrtke Brendigo bez browser sučelja, telemetrije ili obaveznog cloud računa.
+  <strong>Privatan FTP / FTPS / SFTP klijent za Windows, Linux i macOS.</strong><br>
+  ByFTP je fokusirani alat tvrtke Brendigo bez telemetrije, oglašavanja, obaveznog cloud računa ili skrivenog mrežnog servisa.
 </p>
 
 <p align="center">
   <a href="https://github.com/bren-wp/by-ftp/releases"><strong>Izdanja</strong></a> ·
-  <a href="https://github.com/users/bren-wp/packages?repo_name=by-ftp"><strong>Paketi</strong></a> ·
+  <a href="docs/INSTALACIJA.md"><strong>Instalacija</strong></a> ·
   <a href="LICENSE"><strong>Licenca</strong></a> ·
   <a href="docs/PRIVATNOST.md"><strong>Privatnost</strong></a> ·
   <a href="docs/SIGURNOST.md"><strong>Sigurnost</strong></a>
@@ -21,25 +21,82 @@
 
 ## Prenosite datoteke. Zadržite kontrolu.
 
-ByFTP je izvorni Windows x64 klijent za **FTP, FTPS i SFTP**. Spaja dvopanelni upravitelj datotekama s učvršćenim transfer engineom, skupnim operacijama i arhitekturom usmjerenom na privatnost.
+ByFTP koristi isti tipizirani `Engine`, remote adaptere, transfer queue i sigurnosne granice na svim podržanim sustavima. Windows izdanje ima puni Win32 dvopanelni GUI; Linux i macOS izdanje u 2.16.0 imaju stvarno funkcionalno terminalno sučelje, a ne lažni launcher ili statički paket.
 
-**Trenutačno izdanje: 2.15.0**
+**Trenutačno izdanje: 2.16.0**
+
+## Platforme
+
+| Platforma | Paket | Arhitekture | Sučelje |
+|---|---|---|---|
+| Windows 10/11 | Setup EXE, Portable EXE, ZIP | x64, x86 | puni Win32 GUI |
+| Linux | DEB | amd64, arm64, i386 | terminalni klijent |
+| macOS | Universal PKG | Intel x86_64 + Apple Silicon arm64 | Finder launcher + terminalni klijent |
+
+### Autentikacija
+
+| Način | Windows | Linux / macOS |
+|---|---|---|
+| FTP/FTPS lozinka | da | da |
+| SFTP privatni ključ bez passphrasea | da | da |
+| SFTP lozinka | da | još nije omogućeno u 2.16.0 |
+| SFTP privatni ključ s passphraseom | da | još nije omogućeno u 2.16.0 |
+| SFTP host-key provjera i potvrda | da | da |
+
+Linux/macOS terminalno izdanje namjerno odbija nepodržani SFTP način **prije mrežnog pokušaja** umjesto da prikaže lažno stanje „povezano”. Unix AskPass broker za password/passphrase SFTP ostaje sljedeći sigurnosni korak.
 
 ## Preuzimanje
 
-Preporučeni kanal su [GitHub izdanja](https://github.com/bren-wp/by-ftp/releases). Službeno izdanje sadrži:
+Preporučeni kanal su [GitHub izdanja](https://github.com/bren-wp/by-ftp/releases). ByFTP 2.16.0 javno objavljuje samo korisne pakete i zajedničke metapodatke:
+
+### Windows
 
 - `ByFTP-<verzija>-Setup-x64.exe`
 - `ByFTP-<verzija>-Portable-x64.exe`
-- `ByFTP-<verzija>-Uninstall-x64.exe`
 - `ByFTP-<verzija>-Windows-x64.zip`
-- `ByFTP-<verzija>-Source.zip`
+- `ByFTP-<verzija>-Setup-x86.exe`
+- `ByFTP-<verzija>-Portable-x86.exe`
+- `ByFTP-<verzija>-Windows-x86.zip`
+
+### Linux
+
+- `ByFTP-<verzija>-Linux-amd64.deb`
+- `ByFTP-<verzija>-Linux-arm64.deb`
+- `ByFTP-<verzija>-Linux-i386.deb`
+
+### macOS
+
+- `ByFTP-<verzija>-macOS-Universal.pkg`
+
+### Zajedničko
+
 - `SHA256.txt`
-- `verification.txt`
 - `RELEASE-NOTES.txt`
 - `BUILD-METADATA.txt`
 
-GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenjena izdanja koja Brendigo objavi kroz službeni ByFTP/Brendigo kanal.
+**Standalone Uninstaller, interni `verification.txt` i dodatni `ByFTP-<verzija>-Source.zip` više nisu javni ByFTP release asseti.** Windows uninstaller ostaje ugrađen u Setup paket. GitHub automatski prikazuje vlastite „Source code (zip)” i „Source code (tar.gz)” poveznice za svaki tag; to je GitHubova ugrađena funkcija i nije dodatni ByFTP asset.
+
+Detaljne upute: [Instalacija](docs/INSTALACIJA.md).
+
+## Što donosi 2.16.0
+
+### Pouzdanije stvarno povezivanje
+
+- ispravljen je stvarni SFTP authentication bug: ByFTP više ne pokreće `sftp.exe` s `-b`, jer OpenSSH `-b` prisilno uključuje `BatchMode=yes` i može onemogućiti password/passphrase AskPass
+- `BatchMode=no` ostaje eksplicitno postavljen, a SFTP naredbe se i dalje šalju kroz standardni ulaz bez vidljive konzole
+- Windows unesena lozinka/passphrase ostaje u zaključanom polju dok spajanje stvarno ne uspije; tek potvrđeni `Connected` briše osjetljivi unos iz kontrole
+- dvostupanjska SFTP host-key potvrda može ponovno koristiti upravo unesenu vjerodajnicu bez traženja ponovnog upisa
+- curl/OpenSSH timeout i korisničko otkazivanje propagiraju se kao pravi `context` uzroci, pa UI razlikuje timeout, odbijeni port, autentikaciju i otkazivanje
+- bracketirani IPv6 host (`[2001:db8::1]`) pravilno se normalizira za OpenSSH `HostName` i `ssh-keyscan`
+- AskPass je fail-closed: spremljena tajna daje se samo jasno prepoznatom `password` ili `passphrase` promptu, nikada proizvoljnom MFA/OTP/security-key upitu
+
+### Stabilnost i više platformi
+
+- Windows produkcijski build sada proizvodi i provjerava x64 i x86 PE binarije, resurse, manifest i mitigacije
+- Linux paket koristi isti ByFTP engine te stvarno podržava `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd` i host-key potvrdu
+- macOS Universal paket kombinira Intel i Apple Silicon binarij i instalira Finder `ByFTP.app` launcher te `/usr/local/bin/byftp`
+- ne-Windows FTP/FTPS aktivna lozinka čuva se samo u procesnom memorijskom runtime spremištu iza kriptografski nasumičnog tokena; ne zapisuje se na disk niti u argumente procesa
+- release CI sada stvarno gradi Windows x64/x86, Linux DEB i macOS PKG prije objave
 
 ## Mogućnosti
 
@@ -48,86 +105,75 @@ GitHub Packages je dodatni paketni/arhivski kanal. Službena su samo neizmijenje
 - FTP
 - FTPS — eksplicitni i implicitni način
 - SFTP
-- autentikacija lozinkom ili privatnim ključem
 - potvrda i pinning SFTP host ključa
 - podesivo vrijeme čekanja veze
-- lokalni profili zaštićeni Windows DPAPI mehanizmom
-- eksplicitno zadržavanje ili uklanjanje već spremljenih vjerodajnica profila
+- Windows profilne vjerodajnice zaštićene DPAPI mehanizmom
+- profilne tajne vezane uz točan endpoint, korisnika i privatni ključ
+- fail-closed AskPass i sanitizirano okruženje vanjskih mrežnih alata
 
-### Upravitelj datotekama
+### Upravitelj i prijenosi
 
-- dvopanelni lokalni/udaljeni prikaz
-- višestruki odabir, dvoklik i brzi prijenos
-- pojedinačne datoteke i cijela stabla mapa
+- Windows: dvopanelni lokalni/udaljeni prikaz i višestruki odabir
+- Linux/macOS: terminalne remote i transfer naredbe nad istim engineom
+- pojedinačne datoteke i cijela stabla mapa u zajedničkom transfer sloju
 - stvaranje mapa, preimenovanje, brisanje, osvježavanje i CHMOD
-- zaštita od traversal putanja, Windows rezerviranih naziva, symlinkova, junctiona i reparse-point izlaza
-- kontrolirana lokalna i udaljena enumeracija do 50.000 stavki
-
-### Red prijenosa
-
 - 1–8 paralelnih prijenosa
-- pause/resume, skupni cancel i retry
+- pause/resume, skupni cancel i retry u engineu
 - automatski retry samo prolaznih mrežnih grešaka
 - preskakanje postojećih datoteka
-- cross-server retry blokada
-- runtime revalidacija lokalnog korijena
-- zaštita rekurzivnog uploada od kasne zamjene roota
-- autoritativni završni status koji late cancel ne može prepisati nakon stvarnog uspjeha
-
-## Što donosi 2.15.0
-
-- uveden je zajednički `internal/profilebinding` modul koji jednom definira identitet endpointa, računa i privatnog ključa za remote, config i Windows UI sloj
-- spremljena lozinka profila automatski se koristi samo za isti `protokol + host + port + korisničko ime`; privremena promjena servera ili računa više ne može naslijediti staru lozinku
-- spremljeni passphrase koristi se samo za isti endpoint, korisnika i isti privatni ključ; promjena ili brisanje ključa ne može ponovno aktivirati staru zaporku ključa
-- prazna putanja privatnog ključa u odabranom profilu sada je autoritativna i stvarno znači „bez privatnog ključa“ umjesto implicitnog vraćanja spremljene putanje
-- SFTP host-key fingerprint vezan je samo uz isti `protokol + host + port`; privremeno izmijenjen endpoint ne nasljeđuje stari pin i ne može svoj novi pin upisati natrag u originalni profil
-- obično uređivanje istog SFTP endpointa čuva postojeći fingerprint, dok promjena hosta, porta ili protokola resetira pin i zahtijeva novu potvrdu
-- promjena identiteta spremljenog profila automatski uklanja stare password/passphrase blobove koji više ne pripadaju tom endpointu, korisniku ili ključu
-- Windows profilni UI jasno nudi „zadrži“ ili „ukloni“ za postojeće spremljene vjerodajnice i odmah osvježava oznake polja bez prikazivanja stvarne tajne
-- privremeno promijenjeni endpoint više ne preuzima spremljene lokalne/udaljene početne putanje starog profila
-- sigurnosni audit i nove regresije zaključavaju sva navedena pravila, uključujući normalizaciju hosta, promjenu korisnika, promjenu ključa, pin reset i uklanjanje mrtvog passphrase bloba
+- transakcijski staging/backup/rollback
+- zaštita od traversal putanja, symlinkova, junctiona i reparse-point izlaza
+- kontrolirana enumeracija do 50.000 stavki
 
 ## Sigurnost i privatnost
 
-ByFTP namjerno nema telemetriju, analitiku, oglašavanje, automatski update API, trajni runtime log ni browser/localhost upravljački server. Normalan mrežni promet usmjeren je prema FTP/FTPS/SFTP poslužitelju koji korisnik odabere.
+ByFTP namjerno nema telemetriju, analitiku, oglašavanje, skriveni update API, trajni runtime log ni browser/localhost upravljački server. Normalan mrežni promet usmjeren je prema FTP/FTPS/SFTP poslužitelju koji korisnik odabere.
 
 Ključne zaštite uključuju:
 
 - profilne vjerodajnice vezane uz točan endpoint/račun/ključ prije automatskog korištenja
-- SFTP host-key pin vezan uz točan protokol, host i port
-- eksplicitno uklanjanje spremljenih vjerodajnica i automatsko uklanjanje tajni koje više ne pripadaju izmijenjenom profilu
-- SFTP host-key pinning i izolirani session trust
-- Windows curl/OpenSSH iz System32
-- DPAPI zaštitu spremljenih osjetljivih podataka
-- sanitizirani AskPass bez credential datoteke
-- private-key regular-file/symlink/reparse provjeru
-- session lifecycle zaštitu koja otkazuje aktivne remote kontekste, čeka njihov release i tek tada zatvara adapter
-- bounded disconnect koji vraća kontrolu UI-u/shutdownu bez prisilnog zatvaranja adaptera ispod aktivne operacije
-- reconnect blokadu dok se prethodna sesija još sigurno zatvara
-- state safe-open provjeru stvarno otvorenog regularnog objekta
-- kriptografski nasumične staging nazive
-- download `Lstat`/regular-file/reparse provjeru prije atomske aktivacije
+- SFTP host-key pin vezan uz protokol, host i port
+- OpenSSH `-b`/BatchMode regresijski guard
+- AskPass koji odbija nepoznate autentikacijske promptove
+- Windows DPAPI za spremljene profilne tajne i aktivne Windows credential blobove
+- procesno memorijsko runtime spremište aktivne FTP/FTPS tajne na Linuxu/macOS-u
+- sanitizirano okruženje curl/OpenSSH procesa bez naslijeđenog proxyja, SSH agenta ili TLS overridea
+- regular-file/symlink/reparse provjeru privatnog ključa i download staging datoteke
+- session lifecycle zaštitu s bounded disconnectom i reconnect blokadom tijekom sigurnog zatvaranja
 - no-follow rekurzivno brisanje s filesystem-root, depth i item granicama
-- transakcijski staging/rollback i no-replace rename
 - connection-generation i cross-server retry izolaciju
-- duboke kopije transfer događaja
-- offline produkcijske buildove bez vanjskih Go modula
+- offline Go build bez vanjskih Go modula
 
 Detalji: [Sigurnost](docs/SIGURNOST.md) i [Privatnost](docs/PRIVATNOST.md).
 
 ## Zahtjevi
 
-### Pokretanje
+### Windows
 
-- Windows 10 ili Windows 11 x64
+- Windows 10 ili Windows 11
+- x64 ili x86 paket koji odgovara sustavu
 - sistemski `curl.exe` za FTP/FTPS
 - Windows OpenSSH Client za SFTP
+
+### Linux
+
+- distribucija s `dpkg`/DEB paketima za službeni installer
+- `curl`, `openssh-client`, `ca-certificates` i `stty`
+- amd64, arm64 ili i386
+
+### macOS
+
+- Intel ili Apple Silicon Mac
+- sistemski `curl`, OpenSSH i Terminal
+- Universal PKG paket
 
 ### Izgradnja
 
 - Go **1.26.5+**
-- Python 3
-- Windows x64 za puni produkcijski build
+- Python 3 za Windows/release audite
+- Windows za `BUILD-WINDOWS.ps1`
+- Linux s `dpkg-deb` za `scripts/BUILD-LINUX.sh`
+- macOS s `lipo`, `pkgbuild`, `sips` i `iconutil` za `scripts/BUILD-MACOS.sh`
 
 Kanonska verzija nalazi se isključivo u [`VERSION`](VERSION).
 
@@ -135,13 +181,12 @@ Kanonska verzija nalazi se isključivo u [`VERSION`](VERSION).
 .\BUILD-WINDOWS.ps1
 ```
 
-Lokalna Unix/Linux Windows cross-build provjera:
-
 ```bash
-./scripts/BUILD-LOCAL.sh
+bash scripts/BUILD-LINUX.sh
+bash scripts/BUILD-MACOS.sh   # na macOS-u
 ```
 
-Produkcijski build koristi `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off` i `GOTELEMETRY=off`.
+Produkcijski buildovi koriste `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off` i `GOTELEMETRY=off`.
 
 ## Provjere kvalitete
 
@@ -157,10 +202,10 @@ python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go test -race ./...
 go vet ./...
-python scripts/release_notes.py --version 2.15.0 --output RELEASE-NOTES.test.txt
+python scripts/release_notes.py --version 2.16.0 --output RELEASE-NOTES.test.txt
 ```
 
-GitHub Actions dodatno izvršava puni Windows produkcijski build. Release workflow nakon kompresije verificira i konačni Windows ZIP.
+GitHub Actions dodatno gradi puni Windows x64+x86 paket, sva tri Linux DEB paketa i macOS Universal PKG. Release workflow verificira Windows ZIP-ove nakon stvarnog pakiranja i tek tada može objaviti GitHub Release.
 
 ## Struktura repozitorija
 
@@ -171,16 +216,17 @@ CHANGELOG.md            povijest izdanja
 VERSION                 jedini izvor release verzije
 BUILD-WINDOWS.*         produkcijski Windows entrypointi
 cmd/                    aplikacija, instalacija i uklanjanje
-internal/               tipizirani runtime moduli i zajedničke sigurnosne granice
+internal/               tipizirani runtime moduli i sigurnosne granice
 build/                  službeni PNG/ICO resursi
-scripts/                build, audit, bundle, release i PE alati
+scripts/                Windows/Linux/macOS build, audit i release alati
 docs/                   detaljna dokumentacija i slike
-.github/                CI, release workflow i hrvatski GitHub predlošci
+.github/                CI, cross-platform release workflow i GitHub predlošci
 ```
 
 ## Dokumentacija
 
 - [Indeks dokumentacije](docs/README.md)
+- [Instalacija](docs/INSTALACIJA.md)
 - [Arhitektura](docs/ARHITEKTURA.md)
 - [Sigurnost](docs/SIGURNOST.md)
 - [Privatnost](docs/PRIVATNOST.md)

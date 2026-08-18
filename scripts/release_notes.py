@@ -26,7 +26,7 @@ def extract_section(changelog: str, version: str) -> str:
 def build_notes(version: str, section: str) -> str:
     return f"""ByFTP {version}
 
-Izvorni Windows FTP / FTPS / SFTP klijent tvrtke Brendigo.
+FTP / FTPS / SFTP klijent tvrtke Brendigo za Windows, Linux i macOS.
 
 Najvažnije promjene
 -------------------
@@ -34,16 +34,30 @@ Najvažnije promjene
 
 Datoteke za preuzimanje
 -----------------------
-- Setup x64 EXE: preporučena instalacija
-- Portable x64 EXE: pokretanje bez instalacije
-- Uninstaller x64 EXE: samostalni program za uklanjanje
-- Windows x64 ZIP: kompletan spreman Windows paket
-- Source ZIP: točna snimka praćenog izvornog koda ovog izdanja
-- SHA256.txt: kontrolni sažeci javnih artefakata
-- verification.txt: izvještaj PE/sigurnosne provjere
-- BUILD-METADATA.txt: podrijetlo izvornog commita i build alata
+Windows:
+- Setup x64 EXE: preporučena 64-bitna instalacija
+- Portable x64 EXE: 64-bitno pokretanje bez instalacije
+- Windows x64 ZIP: provjereni 64-bitni paket s dokumentacijom
+- Setup x86 EXE: 32-bitna instalacija za kompatibilne Windows sustave
+- Portable x86 EXE: 32-bitno pokretanje bez instalacije
+- Windows x86 ZIP: provjereni 32-bitni paket s dokumentacijom
 
-Prije distribucije provjerite SHA-256 vrijednosti. Javni produkcijski binariji trebaju biti Authenticode potpisani stvarnim Brendigo potpisnim identitetom.
+Linux:
+- Linux amd64 DEB
+- Linux arm64 DEB
+- Linux i386 DEB
+
+macOS:
+- macOS Universal PKG: Intel + Apple Silicon
+
+Zajedničko:
+- SHA256.txt: kontrolni sažeci objavljenih paketa
+- RELEASE-NOTES.txt: ove bilješke izdanja
+- BUILD-METADATA.txt: podrijetlo commita i buildova
+
+Standalone Uninstaller, interni verification izvještaj i dodatni ByFTP Source ZIP nisu javni release asseti. GitHub i dalje automatski prikazuje vlastite Source code ZIP/TAR poveznice za svaki tag.
+
+Windows binariji nisu Authenticode potpisani bez stvarnog Brendigo code-signing certifikata, a macOS paket nije Developer ID potpisan bez stvarnog Apple certifikata. Provjerite SHA-256 prije distribucije.
 """
 
 
@@ -58,7 +72,6 @@ def main() -> int:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         print(f"neispravna verzija izdanja: {version}", file=sys.stderr)
         return 2
-
     try:
         changelog = Path(args.changelog).read_text(encoding="utf-8")
         section = extract_section(changelog, version)

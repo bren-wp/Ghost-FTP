@@ -1,49 +1,83 @@
 # ByFTP — izdavanje na GitHubu
 
-Službena automatizacija nalazi se u `.github/workflows/release.yml`. Kanonski broj izdanja uvijek je u root datoteci `VERSION`.
+Kanonski workflow je `.github/workflows/release.yml`, a broj verzije dolazi isključivo iz root datoteke `VERSION`.
 
-## Tijek
+## Platform buildovi
 
-1. `VERSION` određuje broj izdanja; ručni `workflow_dispatch` može opcionalno navesti isti broj, a prazno polje ponovno koristi `VERSION`.
-2. CI provjerava kod, race, vet, privatnost, sigurnosne invarijante, hrvatski sadržaj, dokumentaciju, brand resurse, verzijsku konzistentnost i release ugovor.
-3. Python release regresije provjeravaju ZIP verifier bez mreže i vanjskih paketa.
-4. Windows job pokreće isti `BUILD-WINDOWS.ps1` koji se koristi za produkciju.
-5. Release workflow izrađuje Portable, Setup i Uninstaller te generira hrvatske `RELEASE-NOTES.txt` i `BUILD-METADATA.txt`.
-6. Izrađuje se uređeni Windows ZIP koji sadrži cijelu `docs/*.md` dokumentaciju i rekurzivni `BUNDLE-SHA256.txt`.
-7. `scripts/verify_bundle.py` ponovno otvara konačni ZIP, bez raspakiravanja na disk, i provjerava putanje, duplikate, obavezne datoteke, potpunost manifesta i svaki SHA-256.
-8. Source ZIP nastaje isključivo iz `git archive HEAD`.
-9. Generira se release `SHA256.txt` za javne artefakte.
-10. `scripts/publish_release.ps1` stvara novo izdanje ili sigurno dovršava postojeće djelomično izdanje.
-11. Isti skup provjerenih artefakata ide u verzionirani Actions artefakt.
-12. Izrađuje se i objavljuje `ByFTP.Windows` GitHub Package s release bilješkama i kompletnom Markdown dokumentacijom.
+Release workflow prvo ponovno gradi tri platform grupe:
 
-## Siguran rerun
+1. **Windows** — x64 i x86 Setup/Portable + provjereni ZIP za svaku arhitekturu
+2. **Linux** — DEB za amd64, arm64 i i386
+3. **macOS** — Universal Intel+Apple Silicon PKG
 
-Release job namjerno je idempotentan. Ponovno pokretanje nakon prekida ne koristi slijepi overwrite:
+Svaki job sprema samo platform-specific javne pakete kao privremeni Actions artefakt. Završni `publish` job preuzima sve tri grupe i tek tada smije stvarati GitHub Release.
 
-- ako release/tag već postoji, tag se razrješava do stvarnog Git commita i mora odgovarati `GITHUB_SHA`
-- postojeći asset mora imati isti naziv, veličinu i GitHub `sha256:` digest kao lokalno ponovno izgrađeni artefakt
-- potvrđeni postojeći asset ostaje netaknut
-- nedostajući asset ponovno se uploadira
-- neočekivani asset ili isti naziv s drugim sadržajem zaustavlja pipeline
-- nakon uploada ponovno se čita GitHub Release i zahtijeva točan skup svih očekivanih asseta
+## Windows ZIP
 
-Ovaj model omogućuje popravak djelomične objave bez automatskog `--clobber` prepisivanja već javno objavljenog binarnog sadržaja.
+Za x64 i x86 zasebno:
 
-## Ugovor javnog izdanja
+- Setup i Portable ulaze u bundle
+- kompletna `docs/*.md` dokumentacija ide u `Dokumentacija/`
+- `RELEASE-NOTES.txt`, `BUILD-METADATA.txt`, README, CHANGELOG i LICENSE ulaze u bundle
+- generira se rekurzivni `BUNDLE-SHA256.txt`
+- `verify_bundle.py --arch <x64|x86>` ponovno otvara konačni ZIP bez ekstrakcije na disk
+- traversal, absolute/drive putanje, duplikati, encrypted entries, nepotpun manifest i hash mismatch zaustavljaju release
+- standalone Uninstaller i verification report ne smiju biti u javnom ZIP-u
 
-GitHub Release mora sadržavati:
+## Završni javni asseti
 
-- `ByFTP-<verzija>-Portable-x64.exe`
-- `ByFTP-<verzija>-Setup-x64.exe`
-- `ByFTP-<verzija>-Uninstall-x64.exe`
-- `ByFTP-<verzija>-Windows-x64.zip`
-- `ByFTP-<verzija>-Source.zip`
+ByFTP 2.16 release ugovor ima točno 13 custom asseta:
+
+- Windows x64: Setup EXE, Portable EXE, ZIP
+- Windows x86: Setup EXE, Portable EXE, ZIP
+- Linux: amd64 DEB, arm64 DEB, i386 DEB
+- macOS: Universal PKG
 - `SHA256.txt`
-- `verification.txt`
 - `RELEASE-NOTES.txt`
 - `BUILD-METADATA.txt`
 
-GitHub Releases je preporučeni kanal za krajnje Windows korisnike. GitHub Packages je dodatni paketni/arhivski kanal.
+Ne objavljuju se kao custom asseti:
 
-Šira javna distribucija treba koristiti stvarni Brendigo Authenticode identitet; repozitorij ne generira lažni publisher certifikat.
+- `verification.txt`
+- `ByFTP-<verzija>-Source.zip`
+- `ByFTP-<verzija>-Uninstall-*.exe`
+
+Windows uninstaller ostaje interni dio Setup payload-a.
+
+GitHub automatski generira vlastite `Source code (zip)` i `Source code (tar.gz)` poveznice za tag. To nije ByFTP custom asset i workflow ih ne može ukloniti.
+
+## Migracija v2.15.0
+
+Prvi 2.16 publish job prije nove objave provjerava v2.15.0 i uklanja tri stara custom asseta ako postoje:
+
+- `verification.txt`
+- `ByFTP-2.15.0-Source.zip`
+- `ByFTP-2.15.0-Uninstall-x64.exe`
+
+Nakon brisanja ponovno čita release i zahtijeva da nijedan od njih više nije prisutan. Tek tada nastavlja s 2.16 objavom.
+
+## Siguran rerun
+
+`scripts/publish_release.ps1` ostaje fail-closed i idempotentan:
+
+- tag se razrješava do stvarnog Git commita i mora odgovarati release SHA-u
+- postojeći asset uspoređuje se po nazivu, veličini i GitHub SHA-256 digestu
+- identičan asset ostaje netaknut
+- nedostajući asset može se dopuniti
+- isti naziv s drugačijim sadržajem zaustavlja izdanje
+- neočekivani asset zaustavlja izdanje
+- nakon svakog uploada ponovno se zahtijeva točan kompletan asset set
+
+Ne koristi se slijepi `--clobber`.
+
+## Metapodaci
+
+`RELEASE-NOTES.txt` generira se iz odgovarajućeg CHANGELOG odjeljka. `BUILD-METADATA.txt` bilježi verziju, commit/ref, platforme i Actions run. `SHA256.txt` pokriva javne platform pakete i zajedničke metapodatke.
+
+## GitHub Package
+
+`ByFTP.Windows` package ostaje dodatni distribucijski kanal samo za Windows. Sadrži x64+x86 Setup/Portable/ZIP, SHA256, release notes, build metadata, licencu i dokumentaciju; ne sadrži standalone Uninstaller ni interni verification report.
+
+## Potpisivanje
+
+Workflow ne fabricira publisher identitet. Windows Authenticode zahtijeva stvarni Brendigo code-signing certifikat. macOS Developer ID/notarizacija zahtijeva stvarni Apple certifikat i odgovarajuće secrets. Bez njih paketi se objavljuju kao provjereni, ali nepotpisani, uz jasnu napomenu.

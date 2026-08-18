@@ -12,15 +12,17 @@ if ($version -notmatch '^\d+\.\d+\.\d+$') {
 
 $minimumGo = [Version]'1.26.5'
 $dist = Join-Path $PWD 'dist'
+$internalDist = Join-Path $dist 'internal'
 $payload = Join-Path $PWD 'cmd\installer\payload'
 $icon = Join-Path $PWD 'build\icon.ico'
 
-# Produkcijski build namjerno je offline: ByFTP nema vanjske Go module i ne
-# smije automatski preuzimati toolchain ili module tijekom produkcijske izgradnje.
-$env:GOTOOLCHAIN='local'
-$env:GOPROXY='off'
-$env:GOSUMDB='off'
-$env:GOTELEMETRY='off'
+# Produkcijski build je offline: ByFTP nema vanjske Go module i ne smije
+# automatski preuzimati toolchain ili module tijekom produkcijske izgradnje.
+$env:GOTOOLCHAIN = 'local'
+$env:GOPROXY = 'off'
+$env:GOSUMDB = 'off'
+$env:GOTELEMETRY = 'off'
+$env:CGO_ENABLED = '0'
 
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) { throw 'Go nije instaliran.' }
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) { throw 'Python 3 nije instaliran.' }
@@ -36,94 +38,125 @@ if ($goVersion -lt $minimumGo) {
 }
 
 Write-Host "ByFTP $version"
-Write-Host '[1/16] Provjera slikovnih resursa'
+Write-Host '[1/10] Slikovni resursi, hrvatski sadržaj i verzija'
 python scripts/generate_brand_assets.py --check
 if ($LASTEXITCODE -ne 0) { throw 'Slikovni resursi nisu prošli provjeru.' }
-
-Write-Host '[2/16] Provjera hrvatskog korisničkog sadržaja i verzije'
 python scripts/audit_croatian.py
 if ($LASTEXITCODE -ne 0) { throw 'Provjera hrvatskog sadržaja nije prošla.' }
 python scripts/audit_version.py
 if ($LASTEXITCODE -ne 0) { throw 'Provjera verzijske konzistentnosti nije prošla.' }
 
-Write-Host '[3/16] Provjera dokumentacije'
+Write-Host '[2/10] Dokumentacija, sigurnost, privatnost i release ugovor'
 python scripts/audit_docs.py
 if ($LASTEXITCODE -ne 0) { throw 'Provjera dokumentacije nije prošla.' }
-
-Write-Host '[4/16] Provjera sigurnosnih invarijanti'
 python scripts/audit_security.py
 if ($LASTEXITCODE -ne 0) { throw 'Sigurnosni audit nije prošao.' }
-
-Write-Host '[5/16] Provjera privatnosti i mrežne politike'
 python scripts/audit_privacy.py
 if ($LASTEXITCODE -ne 0) { throw 'Provjera privatnosti nije prošla.' }
-
-Write-Host '[6/16] Provjera release pipelinea'
 python scripts/audit_release.py
 if ($LASTEXITCODE -ne 0) { throw 'Release audit nije prošao.' }
 
-Write-Host '[7/16] Python regresije release alata'
+Write-Host '[3/10] Python regresije release alata'
 python -m unittest discover -s scripts -p 'test_*.py'
 if ($LASTEXITCODE -ne 0) { throw 'Python regresije release alata nisu prošle.' }
 
-Write-Host "[8/16] Go testovi i statička provjera ($rawGoVersion)"
+Write-Host "[4/10] Go testovi i statička provjera ($rawGoVersion)"
 go test ./...
 if ($LASTEXITCODE -ne 0) { throw 'Go testovi nisu prošli.' }
 go vet ./...
 if ($LASTEXITCODE -ne 0) { throw 'Go vet nije prošao.' }
 
-Write-Host '[9/16] Čišćenje izlaznih datoteka'
+Write-Host '[5/10] Čišćenje izlaznih datoteka'
 Remove-Item -Recurse -Force $dist -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $dist,$payload | Out-Null
+New-Item -ItemType Directory -Force -Path $dist, $internalDist, $payload | Out-Null
 Remove-Item "$payload\payload.zip" -Force -ErrorAction SilentlyContinue
-$env:GOOS='windows'; $env:GOARCH='amd64'; $env:CGO_ENABLED='0'
 
-$portable = Join-Path $dist "ByFTP-$version-Portable-x64.exe"
-$uninstall = Join-Path $dist 'ByFTP-Uninstall.exe'
-$setup = Join-Path $dist "ByFTP-$version-Setup-x64.exe"
 $ldflags = "-s -w -H=windowsgui -X main.version=$version"
+$publicFiles = New-Object System.Collections.Generic.List[string]
+$verificationFiles = New-Object System.Collections.Generic.List[string]
 
-Write-Host '[10/16] Portable'
-go build -trimpath -buildvcs=false -ldflags $ldflags -o $portable ./cmd/byftp
-if ($LASTEXITCODE -ne 0) { throw 'Portable build nije uspio.' }
-python scripts/pe_resources.py $portable --ico $icon --version $version --role portable --original-filename "ByFTP-$version-Portable-x64.exe"
-if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada Portable builda nije uspjela.' }
+function Build-ByFTPArchitecture {
+    param(
+        [Parameter(Mandatory = $true)][string]$GoArch,
+        [Parameter(Mandatory = $true)][ValidateSet('x64','x86')][string]$Label
+    )
 
-Write-Host '[11/16] Program za uklanjanje'
-go build -trimpath -buildvcs=false -ldflags $ldflags -o $uninstall ./cmd/uninstaller
-if ($LASTEXITCODE -ne 0) { throw 'Build programa za uklanjanje nije uspio.' }
-python scripts/pe_resources.py $uninstall --ico $icon --version $version --role uninstaller --original-filename 'ByFTP-Uninstall.exe'
-if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada programa za uklanjanje nije uspjela.' }
+    $env:GOOS = 'windows'
+    $env:GOARCH = $GoArch
 
-Write-Host '[12/16] Komprimirani instalacijski paket'
-python scripts/make_payload.py --app $portable --uninstaller $uninstall --output "$payload\payload.zip"
-if ($LASTEXITCODE -ne 0) { throw 'Kompresija instalacijskog payloada nije uspjela.' }
+    $portable = Join-Path $dist "ByFTP-$version-Portable-$Label.exe"
+    $uninstall = Join-Path $internalDist "ByFTP-$version-Uninstall-$Label.exe"
+    $setup = Join-Path $dist "ByFTP-$version-Setup-$Label.exe"
+    $verification = Join-Path $internalDist "verification-$Label.txt"
 
-Write-Host '[13/16] Instalacijski program'
-try {
-    go build -trimpath -buildvcs=false -ldflags $ldflags -o $setup ./cmd/installer
-    if ($LASTEXITCODE -ne 0) { throw 'Setup build nije uspio.' }
-} finally {
-    Remove-Item "$payload\payload.zip" -Force -ErrorAction SilentlyContinue
+    Write-Host "      [$Label] Portable"
+    go build -trimpath -buildvcs=false -ldflags $ldflags -o $portable ./cmd/byftp
+    if ($LASTEXITCODE -ne 0) { throw "Portable $Label build nije uspio." }
+    python scripts/pe_resources.py $portable --ico $icon --version $version --role portable --original-filename "ByFTP-$version-Portable-$Label.exe"
+    if ($LASTEXITCODE -ne 0) { throw "PE resource obrada Portable $Label builda nije uspjela." }
+
+    Write-Host "      [$Label] Interni program za uklanjanje"
+    go build -trimpath -buildvcs=false -ldflags $ldflags -o $uninstall ./cmd/uninstaller
+    if ($LASTEXITCODE -ne 0) { throw "Uninstaller $Label build nije uspio." }
+    python scripts/pe_resources.py $uninstall --ico $icon --version $version --role uninstaller --original-filename 'Uninstall.exe'
+    if ($LASTEXITCODE -ne 0) { throw "PE resource obrada Uninstaller $Label builda nije uspjela." }
+
+    Write-Host "      [$Label] Instalacijski payload"
+    python scripts/make_payload.py --app $portable --uninstaller $uninstall --output "$payload\payload.zip"
+    if ($LASTEXITCODE -ne 0) { throw "Kompresija $Label instalacijskog payloada nije uspjela." }
+
+    Write-Host "      [$Label] Setup"
+    try {
+        go build -trimpath -buildvcs=false -ldflags $ldflags -o $setup ./cmd/installer
+        if ($LASTEXITCODE -ne 0) { throw "Setup $Label build nije uspio." }
+    } finally {
+        Remove-Item "$payload\payload.zip" -Force -ErrorAction SilentlyContinue
+    }
+    python scripts/pe_resources.py $setup --ico $icon --version $version --role setup --original-filename "ByFTP-$version-Setup-$Label.exe"
+    if ($LASTEXITCODE -ne 0) { throw "PE resource obrada Setup $Label builda nije uspjela." }
+
+    Write-Host "      [$Label] PE, sigurnost i privatnost"
+    python scripts/verify_release.py $setup $portable $uninstall --arch $Label | Tee-Object -FilePath $verification
+    if ($LASTEXITCODE -ne 0) { throw "Provjera $Label izdanja nije prošla." }
+
+    $script:publicFiles.Add($portable)
+    $script:publicFiles.Add($setup)
+    $script:verificationFiles.Add($verification)
 }
-python scripts/pe_resources.py $setup --ico $icon --version $version --role setup --original-filename "ByFTP-$version-Setup-x64.exe"
-if ($LASTEXITCODE -ne 0) { throw 'PE resource obrada Setup builda nije uspjela.' }
 
-Write-Host '[14/16] PE i sigurnosna provjera'
-python scripts/verify_release.py $setup $portable $uninstall | Tee-Object -FilePath "$dist\verification.txt"
-if ($LASTEXITCODE -ne 0) { throw 'Provjera izdanja nije prošla.' }
+Write-Host '[6/10] Windows x64 produkcijski build'
+Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'
 
-Write-Host '[15/16] SHA-256'
-$hashLines = foreach ($file in @($setup,$portable,$uninstall)) {
+Write-Host '[7/10] Windows x86 produkcijski build'
+Build-ByFTPArchitecture -GoArch '386' -Label 'x86'
+
+Write-Host '[8/10] SHA-256 javnih binarija'
+$hashLines = foreach ($file in ($publicFiles | Sort-Object)) {
     $item = Get-Item -LiteralPath $file
     $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $($item.Name)"
 }
 $hashLines | Set-Content "$dist\SHA256.txt" -Encoding ascii
 
-Write-Host '[16/16] Status digitalnog potpisa'
-$verification = Get-Content "$dist\verification.txt" -Raw
-if ($verification -match 'AUTHENTICODE_SIGNED=NO') {
-    Write-Warning 'Binariji nisu Authenticode potpisani. Za širu javnu distribuciju potpišite Portable, Uninstaller i Setup nakon PE resource obrade pa ponovno pokrenite provjeru.'
+Write-Host '[9/10] Status digitalnog potpisa'
+$unsigned = $false
+foreach ($verification in $verificationFiles) {
+    $text = Get-Content -LiteralPath $verification -Raw
+    if ($text -match 'AUTHENTICODE_SIGNED=NO') {
+        $unsigned = $true
+    }
 }
-Write-Host "ByFTP $version build dovršen: $dist"
+if ($unsigned) {
+    Write-Warning 'Binariji nisu Authenticode potpisani. Za Verified Publisher potreban je pravi Brendigo code-signing certifikat.'
+}
+
+Write-Host '[10/10] Završna kontrola izlaza'
+foreach ($file in $publicFiles) {
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+        throw "Nedostaje produkcijski izlaz: $file"
+    }
+}
+if (Test-Path -LiteralPath "$payload\payload.zip") {
+    throw 'Privremeni instalacijski payload nije uklonjen.'
+}
+Write-Host "ByFTP $version Windows x64+x86 build dovršen: $dist"

@@ -1,112 +1,115 @@
 # ByFTP — sigurnost
 
+## Cilj
+
+ByFTP je klijent kojem korisnik izričito daje endpoint i vjerodajnicu. Sigurnosni model zato prioritet daje pravilnom vezivanju tajni uz endpoint, strogoj SFTP host-key provjeri, no-follow datotečnim operacijama i fail-closed release procesu.
+
+## Pouzdano povezivanje
+
+Veza nije „uspješna” kada je samo pokrenut curl/OpenSSH proces. `remote.Manager.Connect` mora dovršiti autentikaciju i početni remote `List` probe. Tek tada vraća `Connected=true`.
+
+### OpenSSH BatchMode regresija
+
+ByFTP 2.16.0 više ne koristi `sftp -b`. Aktualni OpenSSH pri `-b` postavlja batch način rada i dodaje `BatchMode=yes`, što može onemogućiti password/passphrase AskPass čak i ako je ranije naveden `BatchMode=no`.
+
+Sigurnosna invarijanta zato zahtijeva:
+
+- `-oBatchMode=no`
+- zabranu `-b` u SFTP command args
+- naredbe preko stdin-a
+- regresijski test koji pada čim se `-b` ponovno uvede
+
+### Timeout i otkazivanje
+
+`curl`, `sftp`, `ssh-keyscan` i `ssh-keygen` vraćaju stvarni `context.Canceled` ili `context.DeadlineExceeded` kada ih context prekine. UI tako ne mora zaključivati uzrok samo iz teksta vanjskog alata.
+
+### IPv6
+
+Bracketirani IPv6 unos prihvaća se kao korisnički host, ali se `[]` uklanjaju prije OpenSSH `HostName` i `ssh-keyscan` ulaza.
+
 ## Vjerodajnice
 
-- spremljene lozinke i zaporke privatnog ključa koriste Windows DPAPI
-- plaintext lozinka/passphrase ne ulazi u command-line argumente
-- AskPass ne sprema credential datoteku; DPAPI blob predaje se kratkoživućem child procesu kroz sanitizirani environment
-- AskPass prihvaća samo vlastiti ByFTP executable, jednokratni token i očekivani System32 OpenSSH parent proces
-- spremljeni credential blob ne dešifrira se rano u connection manageru
-- spremljena profilna lozinka koristi se automatski samo za isti protokol, host, port i korisničko ime
-- spremljeni passphrase dodatno zahtijeva isti privatni ključ
-- promjena endpointa, korisnika ili ključa pri spremanju profila automatski uklanja stare blobove koji više ne pripadaju novom identitetu
-- uklanjanje privatnog ključa automatski uklanja spremljeni passphrase; profil ne zadržava mrtvu tajnu
-- Windows UI omogućuje eksplicitno zadržavanje ili uklanjanje postojećih spremljenih vjerodajnica bez prikazivanja stvarnih vrijednosti
-- SFTP trust credential je DPAPI-zaštićen, vezan uz točan host/port/user/key/fingerprint i vremenski ograničen
-- privremeni trust blob briše se nakon svake završene trust sekvence, uključujući grešku ili otkaz
-- privatni SFTP ključ mora biti regularna lokalna datoteka; symlink i Windows reparse-point objekt se odbijaju
+### Windows
 
-## Profilni identitet i host-key pin
+- profilne lozinke/passphrase koriste Windows DPAPI
+- aktivni Windows adapteri koriste DPAPI runtime blob
+- plaintext se ne stavlja u command line
+- AskPass helper provjerava vlastiti executable, jednokratni token i očekivani System32 OpenSSH parent
+- AskPass daje password samo `password` promptu, passphrase samo `passphrase` promptu
+- MFA, OTP, security-key i nepoznati promptovi ne dobivaju spremljenu tajnu
+- UI ne briše upravo unesenu tajnu prije rezultata spajanja; kontrola je zaključana tijekom pokušaja, a sadržaj se briše nakon potvrđenog `Connected` stanja
 
-`internal/profilebinding` je zajednička sigurnosna granica za remote, config i desktop sloj. Endpoint identitet je `protokol + normalizirani host + port`; account identitet dodaje točno korisničko ime; private-key identitet dodatno veže lokalnu Windows putanju ključa.
+### Linux/macOS
 
-Privremena izmjena hosta/porta/korisnika u odabranom profilu ne smije naslijediti spremljenu lozinku drugog account identiteta. Promjena ili brisanje privatnog ključa ne smije naslijediti stari passphrase. Prazna key putanja u aktualnom UI-u je autoritativna i ne smije biti zamijenjena starom profilnom vrijednošću.
+FTP/FTPS aktivna lozinka ne sprema se u profil ili datoteku. `ProtectRuntimeString` stvara kriptografski nasumični token i čuva vrijednost samo u procesu. Adapter drži token, `run()` dobiva kratkotrajnu kopiju i briše je, a `Close()` uklanja i briše spremljenu procesnu vrijednost.
 
-SFTP host-key fingerprint pripada samo endpointu. Spremljeni pin koristi se samo za isti protokol, host i port. Privremeno izmijenjeni endpoint može dobiti potvrdu za svoju sesiju, ali ne može prepisati pin originalnog profila. Obično uređivanje istog endpointa čuva postojeći pin; promjena hosta, porta ili protokola automatski ga resetira i zahtijeva novu trust potvrdu.
+SFTP u 2.16.0 na Linuxu/macOS-u namjerno je ograničen na eksplicitni privatni ključ bez passphrasea. Password/passphrase SFTP odbija se prije mrežnog pokušaja dok Unix AskPass broker nije dovršen. To je sigurnije od privremenog slanja tajne kroz argument ili običan environment.
 
-## Mrežni procesi
+## Profilni identitet
 
-- Windows build koristi stvarni System32 `curl.exe` i OpenSSH otkriven preko sistemskih API-ja
-- nema proizvoljnog PATH/WINDIR fallbacka za mrežne alate
-- curl ne učitava `.curlrc`, ne nasljeđuje proxy/TLS override varijable i dobiva izričiti no-proxy
-- SFTP blokira ProxyCommand, ProxyJump, agent, PKCS#11/security-key provider, KnownHostsCommand, PermitLocalCommand i forwarding
-- bez izričito odabranog ključa postavljaju se `IdentitiesOnly=yes` i `IdentityFile=none`
-- host ključ provjerava se kroz session-temporary ByFTP known_hosts i sesija se veže uz potvrđeni algoritam
-- host/user/private-key metapodaci nisu na OpenSSH command lineu
+Windows profilne tajne koriste `internal/profilebinding`:
 
-## Životni ciklus udaljene sesije
+- endpoint: protokol + normalizirani host + port
+- account: endpoint + korisničko ime
+- private-key identitet: account + privatni ključ
 
-Svaka uspješna remote `Operation` registracija drži aktivnu referencu na sesiju do poziva idempotentnog `release()`. Disconnect pod ekskluzivnim lockom najprije uklanja sesiju iz managera, čime blokira nove operacije, zatim otkazuje session context. Zaseban cleanup put čeka postojeće reference i tek kada svi aktivni pozivi završe smije pozvati `Session.Close()`.
+Lozinka se ne prenosi na drugi account, passphrase na drugi ključ, a SFTP host-key pin na drugi endpoint. Prazna key putanja je autoritativna i ne smije vratiti stari spremljeni ključ.
 
-Ova granica sprječava da se curl/OpenSSH adapter zatvori, osjetljivi session state očisti ili SFTP config/known_hosts datoteke izbrišu dok ih paralelni list/rename/chmod/transfer poziv još koristi.
+## SFTP host-key trust
 
-`Disconnect(ctx)` istodobno je bounded: UI i shutdown deadline mogu vratiti kontrolu pozivatelju prije završetka cleanup-a. Timeout namjerno ne poziva prisilni `Close()` nad adapterom koji je još u uporabi. Manager zadržava jedan close-state, čeka zadnji `release()` i potom zatvara adapter. Dok close-state traje, novi `Connect` vraća `ErrSessionClosing`, a ponovljeni `Disconnect` čeka isti state umjesto dvostrukog zatvaranja.
+SFTP spajanje prvo skenira host key, računa SHA-256 fingerprint i veže sesiju uz konkretni odabrani algoritam. `known_hosts` i OpenSSH session config kratkotrajni su i privatni.
 
-`ErrDisconnectTimeout` je odvojen od mrežnog `context.DeadlineExceeded`, pa korisničko sučelje ne prikazuje netočnu poruku da poslužitelj nije odgovorio kada se zapravo lokalno dovršava sigurno zatvaranje stare sesije.
+Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta/porta ne može prepisati pin originalnog profila.
+
+## Vanjski mrežni alati
+
+- Windows koristi sistemski System32 curl/OpenSSH
+- Linux/macOS koriste nativni `curl`, `sftp`, `ssh-keyscan` i `ssh-keygen`
+- curl ne nasljeđuje proxy/TLS override varijable i dobiva izričiti no-proxy
+- OpenSSH blokira ProxyCommand, ProxyJump, agent, PKCS#11 provider, KnownHostsCommand, local command i forwarding
+- bez eksplicitnog SFTP ključa koristi se `IdentitiesOnly yes` i `IdentityFile none`
+- host, korisnik i private-key putanja nisu na OpenSSH command lineu
 
 ## Datoteke i putanje
 
-- lokalni i udaljeni nazivi imaju traversal/control-character validaciju
-- server-controlled lokalni naziv prolazi Windows rezervirane nazive i sigurnu child-path provjeru
-- download ne smije izaći kroz nested symlink/junction
-- upload ne prati lokalne symlinkove
-- rekurzivno brisanje ne prolazi kroz symlink/reparse/junction točke
-- `RemoveTreeNoFollow` ima depth/item limite i samostalno blokira filesystem root, uključujući Windows drive i UNC root
-- atomski upload/download koristi privremenu datoteku i rollback prije zamjene originala
-- download `.byftp-part-*` staging objekt prije aktivacije prolazi `Lstat`, regular-file i Windows reparse-point provjeru
-- ciljni lokalni replace odbija nepouzdani reparse objekt i ne prepisuje postojeću stavku kroz check-then-rename utrku
-- temp datoteke imaju nepredvidive nazive i stvaraju se ekskluzivno
-- rekurzivni upload root ponovno se validira prije svakog queued pokušaja
+- udaljene i lokalne putanje prolaze traversal/control-character validaciju
+- upload ne prati symlink/reparse objekt
+- download staging mora biti regularna datoteka i ne smije biti reparse/symlink
+- atomska zamjena koristi no-replace i rollback
+- `RemoveTreeNoFollow` ne prati symlink/junction/reparse točke i blokira filesystem root
+- rekurzivne operacije imaju depth/item limite
+- queued transfer ponovno validira lokalni root prije svakog pokušaja
 
-## Udaljeni listing
+## Session lifecycle
 
-Tekstualni fallback listing tretira ` -> ` kao symlink separator samo ako permissions/type polje stvarno označava simboličku poveznicu. Time ime obične datoteke ostaje netaknuto. Veličina se pretvara provjerenim `strconv.ParseInt` pozivom; prevelik, negativan ili neispravan broj ne može wrapati `int64`.
+Svaka `Operation` registrira aktivnu referencu. Disconnect prvo blokira nove operacije, zatim otkazuje session context i čeka postojeće reference. Adapter se ne zatvara ispod aktivnog `List`, rename, chmod ili transfer poziva.
 
-FTP MLSD ostaje preferirani strojno čitljivi format. Udaljeni i lokalni prikaz dijele isti bounded/stable sorter, testiran na 50.000 stavki.
-
-## State/config
-
-State safe-open odbija ne-regularni objekt i provjerava identitet/stabilnost stvarno otvorene datoteke. Ako current zapis nije siguran ili valjan, store koristi provjerenu prethodnu generaciju ili zadane vrijednosti.
+Ako caller deadline istekne, cleanup nastavlja odvojeno. Reconnect je blokiran dok prethodna sesija nije stvarno očišćena. Ponovljeni disconnect koristi isti close-state.
 
 ## Transfer izolacija
 
-`Events` vraća duboke kopije event struktura. Pozivatelj ne može mutirati pokazivač/slice spremljen u event povijesti i tako utjecati na kasnije event odgovore.
+Transfer posao pamti connection generation i opaque connection identity. Retry na drugi server/account nije dopušten. Event API vraća duboke kopije. Kasni cancel nakon uspješnog ili preskočenog transfera ne mijenja autoritativni završni status.
 
-Transfer posao pamti identitet veze i ne može se ručno retryati na drugi server/account. Queued posao ponovno validira lokalni root pri svakom pokušaju. Završni status koristi stvarni rezultat adaptera pa kasni cancel nakon uspješnog/preskočenog transfera ne može lažno promijeniti rezultat u `cancelled`.
+## State/config
 
-## Installer i uninstaller
+State safe-open provjerava regularnost i stabilnost stvarno otvorene datoteke. Nepouzdani current zapis ne mora srušiti startup: koristi se provjerena prethodna generacija ili zadane vrijednosti.
 
-- payload ima manifest s veličinama i SHA-256 vrijednostima
-- instalacija radi samo u kanonskoj per-user ByFTP putanji
-- nadogradnja ima rollback datoteka i Registry vrijednosti
-- postojeći executable symlink/reparse scenariji odbijaju se
-- uninstaller se mora pokretati iz očekivane instalirane lokacije i ne briše proizvoljne putanje
+## Release sigurnost
 
-## Procesne zaštite
+- `VERSION` je jedini kanonski broj
+- quality job: docs/security/privacy/release auditi + Python testovi + Go unit/race/vet
+- Windows job: x64 i x86 production build
+- Linux job: amd64, arm64 i i386 DEB
+- macOS job: Universal Intel+Apple Silicon PKG
+- Windows ZIP se verificira nakon kompresije i ne smije sadržavati interni uninstaller/verification report
+- centralni publisher veže tag uz točan commit i uspoređuje postojeći asset po veličini i SHA-256 digestu
+- release rerun smije nadopuniti samo nedostajući potvrđeni asset
+- custom Source ZIP, standalone Uninstaller i `verification.txt` nisu javni asseti
 
-- Windows Error Reporting onemogućen je za ByFTP proces
-- current-directory DLL search uklonjen je prije GUI starta
-- production GUI ne prikazuje razvojni Go stack trace korisniku
-- nema trajnog runtime activity/error loga
+## Potpisivanje
 
-## Release zaštite
+Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brendigo code-signing certifikat. macOS PKG nije Developer ID potpisan/notariziran bez stvarnog Apple certifikata. Certifikati i privatni ključevi ne smiju biti pohranjeni u repozitoriju.
 
-- CI izvršava unit, race, vet, privacy, security, hrvatski-content, docs, version, release i asset audit
-- Windows build provjerava PE32+ GUI strukturu, resurse i sigurnosne mitigacije
-- Setup, Portable i Uninstaller moraju biti različiti binariji
-- SHA-256 se objavljuje uz release
-- Windows ZIP ima zaseban rekurzivni `BUNDLE-SHA256.txt`
-- konačni ZIP ponovno se čita i hashira nakon kompresije; ne raspakirava se na filesystem tijekom provjere
-- build metadata veže izdanje uz commit/ref/toolchain bez korisničkih podataka
-- Source ZIP dolazi iz točnog `git archive HEAD`
-- postojeći release tag mora pokazivati na očekivani commit
-- rerun releasea smije dopuniti samo nedostajuće assete
-- postojeći asset s drugom veličinom ili SHA-256 digestom zaustavlja izdanje umjesto automatskog prepisivanja
+## Automatizirani gate
 
-## Automatizirani sigurnosni gate
-
-`scripts/audit_security.py` čuva ključne source invarijante i prisutnost odgovarajućih regresijskih testova. Izričito čuva profile endpoint/account/private-key binding, pin scope, autoritativno brisanje privatnog ključa, credential cleanup pri promjeni identiteta, private-key reparse blokadu, active-operation/session-close lifecycle, bounded disconnect timeout, deferred cleanup i engine propagaciju lifecycle konteksta. `scripts/audit_release.py` zasebno čuva release/tag/asset/bundle ugovor.
-
-## Ograničenje
-
-Automatizirana provjera ne zamjenjuje Authenticode potpis i runtime smoke-test na stvarnom Windows 10/11 sustavu sa stvarnim FTP/FTPS/SFTP poslužiteljima. Produkcijski Brendigo certifikat ne smije biti pohranjen u repozitoriju.
+`scripts/audit_security.py` zaključava SFTP BatchMode, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem granice. `scripts/audit_release.py` zasebno zaključava platforme i javni asset ugovor.

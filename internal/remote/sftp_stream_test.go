@@ -26,23 +26,24 @@ func TestBuildSFTPCommandStreamRejectsInjection(t *testing.T) {
 	}
 }
 
-func TestSFTPCommandArgsKeepAskPassCompatibleBatchSemantics(t *testing.T) {
+func TestSFTPCommandArgsKeepAskPassEnabled(t *testing.T) {
 	s := &SFTP{host: "example.test", port: 22, sshConfig: `C:\\data\\ssh.conf`, sessionHost: "byftp-session"}
 	args := s.commandArgs()
-	batchNo, batchFlag := -1, -1
+	batchNo := false
 	for i, arg := range args {
 		if arg == "-oBatchMode=no" {
-			batchNo = i
+			batchNo = true
 		}
-		if arg == "-b" && i+1 < len(args) && args[i+1] == "-" {
-			batchFlag = i
+		if arg == "-b" {
+			next := ""
+			if i+1 < len(args) {
+				next = args[i+1]
+			}
+			t.Fatalf("sftp -b prisilno uključuje OpenSSH BatchMode=yes i gasi password/passphrase AskPass; args=%#v next=%q", args, next)
 		}
 	}
-	if batchNo < 0 || batchFlag < 0 {
-		t.Fatalf("missing controlled batch arguments: %#v", args)
-	}
-	if batchNo > batchFlag {
-		t.Fatalf("BatchMode=no must precede -b so AskPass remains usable: %#v", args)
+	if !batchNo {
+		t.Fatalf("nedostaje eksplicitni BatchMode=no: %#v", args)
 	}
 }
 

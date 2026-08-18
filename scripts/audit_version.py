@@ -27,8 +27,6 @@ def main() -> int:
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION nije semantička verzija: {version!r}")
 
-    # Izravno pokretanje `go run`/`go build` bez produkcijskih ldflags mora
-    # jasno pokazati razvojni build, a ne zastarjelu produkcijsku verziju.
     for rel in ("cmd/byftp/main.go", "cmd/installer/main.go"):
         text = read(rel)
         if 'var version = "dev"' not in text:
@@ -49,18 +47,23 @@ def main() -> int:
     if "Get-Content -LiteralPath $versionFile" not in windows_build or "-X main.version=$version" not in windows_build:
         fail("Windows build ne povezuje VERSION u runtime verziju")
 
-    local_build = read("scripts/BUILD-LOCAL.sh")
-    if "VERSION=\"$(tr -d '\\r\\n' < VERSION)\"" not in local_build or "-X main.version=$VERSION" not in local_build:
-        fail("lokalni build ne koristi VERSION kao runtime verziju")
+    for rel in ("scripts/BUILD-LOCAL.sh", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh"):
+        text = read(rel)
+        if "< VERSION" not in text:
+            fail(f"{rel} ne čita kanonski VERSION")
+    if "-X main.version=$VERSION" not in read("scripts/BUILD-LOCAL.sh"):
+        fail("lokalni build ne povezuje VERSION u runtime verziju")
+    if "-X main.version=${VERSION}" not in read("scripts/BUILD-LINUX.sh"):
+        fail("Linux build ne povezuje VERSION u runtime verziju")
+    if "-X main.version=${VERSION}" not in read("scripts/BUILD-MACOS.sh"):
+        fail("macOS build ne povezuje VERSION u runtime verziju")
 
-    # Operativne površine ne smiju ponovno uvoditi ručno sinkronizirane brojeve
-    # verzije. Workflow može primiti ručni broj, ali zadani slučaj mora čitati VERSION.
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow ima hardkodiranu zadanu produkcijsku verziju")
     if re.search(r"(?i)primjer\s+\d+\.\d+\.\d+", release_workflow):
         fail("release workflow ima hardkodirani verzijski primjer")
-    for marker in ("$manualVersion", "Get-Content -LiteralPath 'VERSION' -Raw"):
+    for marker in ("$manual", "Get-Content -LiteralPath 'VERSION' -Raw"):
         if marker not in release_workflow:
             fail(f"release workflow nema VERSION fallback marker: {marker}")
 
@@ -75,6 +78,7 @@ def main() -> int:
         fail("hrvatski audit ne čita VERSION dinamički")
 
     print(f"VERSION_AUDIT=PROSAO ({version})")
+    print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS")
     return 0
 
 

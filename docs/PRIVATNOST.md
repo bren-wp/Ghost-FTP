@@ -1,55 +1,61 @@
 # ByFTP — privatnost
 
-ByFTP je projektiran da prenosi korisničke datoteke prema poslužitelju koji korisnik sam odabere, bez paralelnog slanja podataka Brendigu ili analitičkim servisima.
+ByFTP prenosi datoteke prema poslužitelju koji korisnik sam odabere. Runtime nema paralelno slanje Brendigu, analitičkim servisima ili oglašivačkim mrežama.
 
-## ByFTP ne sadrži
+## ByFTP nema
 
-- telemetriju
-- analitiku korištenja
+- telemetriju i analitiku korištenja
 - oglašavanje
 - third-party crash reporting
-- cloud korisnički račun
-- automatski update API
-- skriveni HTTP/HTTPS runtime endpoint
-- trajni activity/error log
-- browser ili localhost upravljačko sučelje
+- obavezni cloud račun
+- skriveni update API
+- browser/localhost upravljački server
+- trajni runtime activity/error log
 
 ## Mrežni promet
 
-Mrežni adapteri razgovaraju s FTP/FTPS/SFTP odredištem koje korisnik odabere. Sistem može zasebno raditi DNS, firewall, antivirus/EDR, proxy politiku ili druge OS funkcije koje nisu dio ByFTP telemetrije.
+ByFTP mrežni adapteri razgovaraju s korisnički odabranim FTP/FTPS/SFTP endpointom. Operativni sustav, DNS, firewall, antivirus/EDR ili sam poslužitelj mogu imati vlastito zapisivanje koje nije ByFTP telemetrija.
 
-curl se pokreće bez naslijeđenih proxy/TLS override postavki. OpenSSH se pokreće s ByFTP-managed konfiguracijom koja blokira helper routing, forwarding i globalne trust izvore koji bi mogli nenamjerno promijeniti odredište ili izložiti metapodatke.
+curl dobiva sanitizirano okruženje bez naslijeđenog proxy/TLS overridea. OpenSSH dobiva ByFTP-managed session config koji blokira ProxyCommand, ProxyJump, agent, PKCS#11 provider, KnownHostsCommand i forwarding.
 
-## Lokalni podaci i profili
+## Windows podaci
 
-Profili i postavke ostaju u korisničkoj ByFTP data mapi. Osjetljivi profilni podaci zaštićeni su Windows DPAPI mehanizmom. ByFTP nema persistent runtime log koji bi bilježio servere, putanje, nazive datoteka ili greške iz svakodnevnog rada.
+Windows profili i postavke ostaju u ByFTP korisničkoj data mapi. Profilne tajne koriste DPAPI. UI prikazuje samo činjenicu da tajna postoji, ne vraća stvarnu spremljenu vrijednost u edit kontrolu.
 
-Spremljena lozinka ne koristi se automatski izvan istog protokola, hosta, porta i korisničkog imena za koje je profil spremljen. Spremljeni passphrase dodatno je vezan uz isti privatni ključ. Privremena izmjena odredišta ili korisnika stoga ne može nenamjerno poslati staru profilnu lozinku drugom serveru ili računu.
+Lozinka se automatski koristi samo za isti endpoint i korisnika; passphrase dodatno za isti privatni ključ. Promjena identiteta briše stale blob koji više ne pripada novom profilu.
 
-Kada se profil trajno promijeni na drugi endpoint, korisnika ili ključ, ByFTP uklanja stare credential blobove koji više ne pripadaju tom identitetu. Ako se privatni ključ ukloni, uklanja se i njegova spremljena zaporka. Novi identitet dobiva spremljenu tajnu samo nakon ponovnog izričitog unosa i korisničke odluke da je spremi.
+Unesena lozinka/passphrase tijekom povezivanja ostaje samo u zaključanoj edit kontroli dok pokušaj traje i briše se nakon stvarno uspješnog povezivanja. To omogućuje retry bez ponovnog unosa, ali ne uvodi trajno spremanje.
 
-Windows UI za uređivanje profila prikazuje samo činjenicu da spremljena vjerodajnica postoji; nikada ne vraća stvarnu lozinku/passphrase u edit kontrolu. Pri spremanju korisnik može zadržati ili ukloniti vjerodajnice koje još pripadaju istom identitetu. Promijenjeni identitet jasno se označava i stare vrijednosti se ne prenose.
+## Linux i macOS
 
-Windows Error Reporting isključen je za ByFTP proces kako rušenje aplikacije ne bi pokrenulo automatsko slanje memorijskog izvještaja kroz WER.
+Terminalni frontend u 2.16.0 ne sprema profile ni terminalne vjerodajnice na disk.
 
-State/config zapis koristi ograničeno, provjereno čitanje regularne datoteke i sigurnu prethodnu generaciju. ByFTP-owned direktoriji ne smiju biti preusmjereni symlinkom/junctionom ispod kanonske korisničke mape.
+FTP/FTPS aktivna lozinka pohranjuje se samo u procesu iza kriptografski nasumičnog runtime tokena. Adapter ne drži plaintext; kratkotrajna kopija nastaje neposredno prije curl poziva i briše se nakon uporabe. `Close()` uklanja i briše procesnu vrijednost.
 
-## SFTP
+SFTP password/passphrase na Linuxu/macOS-u nije uključen u 2.16.0. Umjesto privremenog slanja tajne kroz argument ili običan environment, terminalno izdanje fail-closed zahtijeva eksplicitni privatni ključ bez passphrasea dok se ne uvede siguran Unix AskPass broker.
 
-Host, korisnik i privatni ključ nisu na OpenSSH command lineu. Kratkoživa session konfiguracija koristi nasumični alias i uklanja se nakon sesije/startup cleanupa. AskPass dobiva samo DPAPI-zaštićene vrijednosti kroz child environment i ne stvara credential datoteku.
+## SFTP metapodaci
 
-Spremljeni host-key fingerprint koristi se samo kada se protokol, host i port podudaraju sa spremljenim profilom. Privremeno promijenjeni endpoint može biti prihvaćen za svoju sesiju, ali njegov fingerprint ne prepisuje originalni profil. Promjena spremljenog endpointa resetira stari pin i traži novu potvrdu.
+Host, korisnik i private-key putanja nisu na OpenSSH command lineu. Session koristi nasumični lokalni alias, privatni `known_hosts` i kratkotrajnu config datoteku. Bracketirani IPv6 host normalizira se prije OpenSSH unosa.
 
-Pending trust vjerodajnice ostaju u memoriji samo između prikaza novog host ključa i korisničke odluke. Nakon potvrde, greške, otkaza ili uspješnog spajanja brišu se.
+Windows AskPass dobiva samo zaštićene vrijednosti kroz kontrolirani child environment i daje tajnu isključivo prepoznatom password/passphrase promptu. MFA/OTP/nepoznati prompt ne dobiva spremljenu tajnu.
 
-## Release i CI podaci
+Host-key fingerprint pripada endpointu. Privremeni endpoint ne može naslijediti ili prepisati pin drugog profila.
 
-`BUILD-METADATA.txt` sadrži samo verziju, Git commit/ref, Go verziju, platformu i GitHub Actions run identifikatore. Ne uključuje profile, hostove, korisnička imena, lokalne putanje ni vjerodajnice.
+## Lokalno stanje
 
-Release bilješke nastaju iz `CHANGELOG.md`. Asset, hrvatski, dokumentacijski, security, privacy i release auditi čitaju samo datoteke repozitorija i ne dodaju runtime mrežne pozive aplikaciji.
+ByFTP nema trajni runtime log servera, putanja i transfer pogrešaka. State/config čitanje koristi bounded safe-open model i provjerenu prethodnu generaciju. ByFTP-owned direktoriji ne smiju biti preusmjereni ispod kanonske podatkovne lokacije.
 
-Javni release rerun provjerava Git tag i digest već objavljenih asseta. To je build/release integritetska provjera; ne uvodi telemetriju u ByFTP runtime.
+Windows podatkovni korijen je stvarni LocalAppData. macOS koristi `~/Library/Application Support`, a Linux apsolutni `XDG_DATA_HOME` ili `~/.local/share`.
+
+## Build i release podaci
+
+`BUILD-METADATA.txt` sadrži samo verziju, release commit/ref, platforme i GitHub Actions identifikatore. Ne sadrži hostove, profile, lokalne putanje ni vjerodajnice.
+
+`SHA256.txt` sadrži samo hash javnih paketa/metapodataka. Interni verification report nije javni release asset.
+
+GitHub automatski `Source code` ZIP/TAR linkovi nastaju iz taga na GitHub platformi; ByFTP workflow ne objavljuje dodatni custom Source ZIP.
 
 ## Što ByFTP ne može kontrolirati
 
-Odredišni poslužitelj nužno vidi podatke potrebne za uspostavu veze i izvršenje transfera. Windows, antivirus/EDR, firewall, backup/sync softver ili sam poslužitelj mogu imati vlastita pravila zapisivanja. Lokalno brisanje datoteke nije isto što i forenzičko brisanje fizičkih SSD blokova niti može povući kopiju koju je drugi backup sustav već napravio.
+Odredišni poslužitelj nužno vidi mrežne i autentikacijske podatke potrebne za vezu. OS, firewall, EDR, backup/sync sustavi ili udaljeni poslužitelj mogu imati vlastita pravila zapisivanja. Lokalno brisanje nije isto što i forenzičko brisanje fizičkih SSD blokova.

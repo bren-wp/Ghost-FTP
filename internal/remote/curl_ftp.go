@@ -27,7 +27,7 @@ type CurlFTP struct {
 	port           int
 	connectTimeout int
 	curl           string
-	mlsdState      atomic.Int32 // 0 unknown, 1 supported, -1 unsupported for this session
+	mlsdState      atomic.Int32
 }
 
 func NewCurlFTP(protocol, host string, port int, username, password string) (*CurlFTP, error) {
@@ -49,7 +49,7 @@ func newCurlFTPWithProtectedSecret(protocol, host string, port int, username, pa
 		return nil, err
 	}
 	if password != "" {
-		passwordBlob, err = security.ProtectString(password)
+		passwordBlob, err = security.ProtectRuntimeString(password)
 		if err != nil {
 			return nil, err
 		}
@@ -61,13 +61,13 @@ func (c *CurlFTP) Protocol() string { return c.protocol }
 func (c *CurlFTP) Host() string     { return c.host }
 func (c *CurlFTP) Port() int        { return c.port }
 func (c *CurlFTP) Close() error {
+	security.ForgetRuntimeSecret(c.passwordBlob)
 	c.passwordBlob = ""
 	c.username = ""
 	c.host = ""
 	return nil
 }
 
-// curl config values are quoted and CR/LF/NUL are rejected by validation before this point.
 func cfgQuote(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
 	s = strings.ReplaceAll(s, `"`, `\"`)
@@ -135,9 +135,9 @@ func (c *CurlFTP) configFor(password []byte, lines []string) []byte {
 }
 
 func (c *CurlFTP) run(ctx context.Context, lines []string) ([]byte, error) {
-	password, err := security.UnprotectBytes(c.passwordBlob)
+	password, err := security.UnprotectRuntimeBytes(c.passwordBlob)
 	if err != nil {
-		return nil, errors.New("spremljenu vjerodajnicu aktivne veze nije moguće otključati")
+		return nil, errors.New("vjerodajnicu aktivne veze nije moguće otključati")
 	}
 	defer security.WipeBytes(password)
 	cfg := c.configFor(password, lines)
@@ -153,6 +153,9 @@ func (c *CurlFTP) run(ctx context.Context, lines []string) ([]byte, error) {
 	cmd.Stdout = out
 	cmd.Stderr = er
 	if err := cmd.Run(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		if overflowErr := er.Err("dijagnostički odgovor"); overflowErr != nil {
 			return nil, overflowErr
 		}
@@ -259,9 +262,6 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 		p += "/"
 	}
 	urlLine := "url = " + cfgQuote(c.baseURL(p))
-	// Prefer RFC 3659 MLSD. Once a server explicitly reports that MLSD is not
-	// implemented, remember that capability for this connection so every folder
-	// refresh does not pay for an avoidable failed network round-trip.
 	if c.mlsdState.Load() != -1 {
 		out, err := c.run(ctx, []string{urlLine, `request = "MLSD"`})
 		if err == nil {
@@ -360,7 +360,6 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 	if st.IsDir() {
 		return errors.New("upload očekuje datoteku")
 	}
-
 	dir, base, tempName, savedName, err := remoteTransferNames(remotePath)
 	if err != nil {
 		return err
@@ -378,22 +377,14 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 		}
 	}
 	tempPath := remoteJoin(dir, tempName)
-	lines := []string{
-		"url = " + cfgQuote(c.baseURL(tempPath)),
-		"upload-file = " + cfgQuote(local),
-		"speed-time = 30",
-		"speed-limit = 1",
-	}
+	lines := []string{"url = " + cfgQuote(c.baseURL(tempPath)), "upload-file = " + cfgQuote(local), "speed-time = 30", "speed-limit = 1"}
 	if _, err = c.run(ctx, lines); err != nil {
 		cleanupCtx, cancel := cleanupContext()
 		_ = c.Delete(cleanupCtx, dir, tempName, false)
 		cancel()
 		return err
 	}
-	return commitRemoteTemp(ctx, items, dir, base, tempName, savedName, options.KeepBackup, remoteCommitOps{
-		rename: c.Rename,
-		delete: c.Delete,
-	})
+	return commitRemoteTemp(ctx, items, dir, base, tempName, savedName, options.KeepBackup, remoteCommitOps{rename: c.Rename, delete: c.Delete})
 }
 
 func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, options TransferOptions) error {
@@ -417,12 +408,7 @@ func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, option
 	if err != nil {
 		return err
 	}
-	lines := []string{
-		"url = " + cfgQuote(c.baseURL(remotePath)),
-		"output = " + cfgQuote(part),
-		"speed-time = 30",
-		"speed-limit = 1",
-	}
+	lines := []string{"url = " + cfgQuote(c.baseURL(remotePath)), "output = " + cfgQuote(part), "speed-time = 30", "speed-limit = 1"}
 	if _, err := c.run(ctx, lines); err != nil {
 		_ = os.Remove(part)
 		return err

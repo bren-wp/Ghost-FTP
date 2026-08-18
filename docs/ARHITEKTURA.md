@@ -1,94 +1,112 @@
 # ByFTP — arhitektura
 
-ByFTP je jedan izvorni Win32 desktop proces. Nema browser UI, localhost HTTP server ni mrežni IPC između korisničkog sučelja i enginea.
+ByFTP je jedan Go kodni sustav s **zajedničkim tipiziranim engineom** i platform-specific korisničkim sučeljima. Nema browser UI, localhost HTTP server, cloud kontrolni kanal ni mrežni IPC između sučelja i enginea.
 
-## Moduli
+## Slojevi
 
-- `cmd/byftp` — startup i strogo ograničen SFTP AskPass način rada
-- `cmd/installer` — per-user Windows instalacija s integritetom payloada i rollbackom
-- `cmd/uninstaller` — kontrolirano uklanjanje iz kanonske instalacijske putanje
-- `internal/desktop` — izvorni Win32 dark/Fluent UI i transfer-event prikaz
-- `internal/api` — tipizirani in-process engine i planiranje tree transfera
-- `internal/remote` — FTP/FTPS preko Windows curl i SFTP preko Windows OpenSSH
-- `internal/transfer` — red prijenosa, rezervacije, retry, cancellation, event stream i worker lifecycle
-- `internal/config` — atomsko lokalno stanje, DPAPI profili i settings cache
-- `internal/profilebinding` — zajednički endpoint/account/private-key identity ugovor za profile
-- `internal/itemlist` — zajedničko stabilno directory-first sortiranje velikih lokalnih i udaljenih popisa
+- `cmd/byftp` — startup, verzija i strogo ograničen Windows AskPass način rada
+- `internal/api` — tipizirani in-process Engine; jedina javna granica prema UI sloju
+- `internal/remote` — FTP/FTPS preko curl i SFTP preko OpenSSH
+- `internal/transfer` — red prijenosa, retry/cancel, event stream, generation i worker lifecycle
 - `internal/localfs` — lokalne file operacije i bounded enumeracija
-- `internal/security` — validacija unosa/putanja, no-follow filesystem granice i Windows DPAPI zaštita
-- `internal/platform` — Win32 dijalozi, Known Folder/System Directory API-ji, Registry, shortcut, replace i single-instance pomoćne funkcije
-- `scripts` — reproducibilni build, audit, PE, bundle i release alati
+- `internal/config` — atomsko lokalno stanje; Windows profilne tajne koriste DPAPI
+- `internal/profilebinding` — endpoint/account/private-key identitet profila
+- `internal/security` — validacija, filesystem granice, DPAPI i procesno runtime spremište tajni
+- `internal/platform` — OS-specifične putanje i Win32 integracija
+- `internal/desktop` — Windows Win32 GUI ili Linux/macOS terminalni frontend
+- `cmd/installer` / `cmd/uninstaller` — Windows Setup lifecycle
+- `scripts` — Windows/Linux/macOS build, PE, bundle, audit i release alati
 
-Runtime nema vanjske Go dependencies.
+Runtime nema vanjske Go module.
 
-## Granica profila i vjerodajnica
+## Platform-specific frontend
 
-Lozinka i zaporka privatnog ključa ne prolaze kroz generički JSON dispatcher. Spremljeni DPAPI blob ostaje zaštićen kroz profile/manager sloj i otključava se tek neposredno prije sistemskog curl/OpenSSH poziva.
+### Windows
 
-`internal/profilebinding` centralizira tri identitetske razine. Endpoint je `protokol + normalizirani host + port`; account dodaje točno korisničko ime; private-key identitet dodatno dodaje case-insensitive Windows putanju privatnog ključa. Remote, config i desktop sloj koriste isti ugovor kako se sigurnosna pravila ne bi razišla.
+Windows koristi puni Win32 GUI s dvopanelnim local/remote prikazom, profilima, transfer queueom, toolbarom i dijalozima. Vanjski `curl.exe`, `sftp.exe`, `ssh-keyscan.exe` i `ssh-keygen.exe` uzimaju se iz stvarnog Windows System32/OpenSSH direktorija.
 
-Spremljena lozinka automatski se nasljeđuje samo kada account identitet ostaje isti. Spremljeni passphrase dodatno zahtijeva isti privatni ključ. Ako korisnik privremeno promijeni host, port, korisnika ili ključ bez spremanja profila, stari DPAPI blob ne prelazi na novi identitet.
+### Linux i macOS
 
-Spremanje izmijenjenog profila također je fail-closed. Password blob automatski se uklanja kada se promijeni account identitet, a passphrase blob kada se promijeni endpoint/korisnik/ključ ili kada privatnog ključa više nema. Novi identitet dobiva spremljenu tajnu samo ako je korisnik ponovno izričito upiše i odobri spremanje.
+Ne-Windows `internal/desktop/other.go` više nije stub. Pokreće terminalni ByFTP klijent nad istim `api.Engine` objektom. `ls`, `cd`, remote operacije i `get`/`put` pozivaju iste metode i transfer queue kao Windows UI.
 
-Prazno polje privatnog ključa je autoritativno: odabrani profil ne smije ponovno vratiti staru key putanju samo zato što je spremljena u profilu.
+Linux/macOS frontend u 2.16.0 podržava FTP/FTPS lozinku i SFTP privatni ključ bez passphrasea. Nepodržani SFTP password/passphrase način odbija se prije mrežnog pokušaja. To je namjerno fail-closed ograničenje dok se ne uvede Unix AskPass broker.
 
-## Granica SFTP host-key pina
+## Povezivanje
 
-Host-key fingerprint pripada endpointu, ne login računu. Spremljeni pin koristi se samo kada se aktualni `protokol + host + port` podudara sa spremljenim profilom.
+`desktop -> api.Engine.Connect -> remote.Manager.Connect -> adapter -> probe`
 
-Obično uređivanje naziva, korisnika, lokalne/udaljene putanje ili privatnog ključa na istom endpointu čuva pin. Promjena hosta, porta ili protokola čisti stari pin i traži novu trust potvrdu. Privremeno promijenjeni endpoint može biti prihvaćen samo za svoju sesiju i ne smije svoj fingerprint upisati u originalni profil.
+Veza se smatra uspostavljenom tek nakon što adapter uspješno napravi početni remote `List` nad `/` ili `.`. UI zato ne prikazuje „Povezano” samo zato što je mrežni proces pokrenut.
 
-Kod potvrde novog SFTP host ključa ByFTP može privremeno zadržati DPAPI-zaštićene credential blobove najviše do isteka trust prozora. Podaci se brišu nakon potvrde, greške, otkaza ili uspješnog spajanja; jedina grana koja ih namjerno zadržava jest povrat `RequiresTrust` dok korisnik odlučuje o ključu.
+### SFTP
 
-Privatni SFTP ključ mora biti stvarna regularna lokalna datoteka. Symlink i Windows reparse-point objekti odbijaju se prije izrade session konfiguracije kako OpenSSH ne bi potrošio preusmjereni objekt koji ByFTP nije namjerno odabrao.
+1. validacija endpointa i vjerodajnica
+2. `ssh-keyscan` i SHA-256 fingerprint
+3. endpoint-scoped host-key pin/trust odluka
+4. privatni `known_hosts` + privatni session config
+5. stvarni `sftp` authentication
+6. početni `List` probe
+7. tek tada `ConnectResult{Connected:true}`
 
-## Granica reda prijenosa
+ByFTP **ne koristi `sftp -b`**. Aktualni OpenSSH `-b` uključuje `BatchMode=yes`, što je nespojivo s password/passphrase AskPass tokom. Naredbe se i dalje šalju preko stdin-a, ali uz eksplicitni `BatchMode=no`.
 
-Transfer manager drži poslove u memoriji i emitira inkrementalne događaje. Desktop event batch primjenjuje preko mape `job ID -> indeks` kako veliki burst ne bi radio puni scan reda za svaki event.
+IPv6 URL-style uglate zagrade uklanjaju se prije OpenSSH `HostName` i `ssh-keyscan` unosa.
 
-`Events` vraća duboku snimku događaja. `Event.Job` i `Event.Jobs` ne dijele mutabilni backing state s internom event poviješću.
+## Vjerodajnice
 
-Završni rezultat protokolarnog adaptera autoritativan je za posao. Kasni cancel/disconnect nakon stvarno dovršenog ili preskočenog transfera ne smije naknadno promijeniti završni status u `cancelled`.
+### Windows
 
-## Granica lokalnih prijenosa
+Spremljene profilne tajne i aktivni adapter blobovi koriste Windows DPAPI. AskPass helper dobiva DPAPI blob samo u kontroliranom child-process okruženju i provjerava vlastiti executable, token i trusted OpenSSH parent.
 
-Queued posao ponovno validira `LocalRoot` prije svakog pokušaja. Rekurzivni upload namjerno veže odabrani root uz roditeljsku granicu kako bi i kasna zamjena samog roota symlinkom/junctionom bila otkrivena.
+AskPass je fail-closed: tajna se vraća samo ako prompt jasno sadrži `password` ili `passphrase`. MFA/OTP/security-key prompt ne dobiva spremljenu tajnu.
 
-Download se izvodi kroz kriptografski nasumičnu `.byftp-part-*` datoteku. Prije atomske aktivacije staging objekt mora proći `Lstat`, biti regularna datoteka i ne smije biti Windows reparse point. Ciljni replace put dodatno čuva no-follow/no-replace granice i rollback.
+### Linux/macOS
 
-`RemoveTreeNoFollow` ne prati symlink/junction/reparse točke, ima depth/item limite i samostalno odbija filesystem root, uključujući Windows drive i UNC root.
+FTP/FTPS lozinka aktivne sesije sprema se u procesnu mapu iza kriptografski nasumičnog tokena. Adapter drži token, ne plaintext. `run()` dobiva kratkotrajnu kopiju, briše je nakon izrade curl konfiguracije, a `Close()` uklanja i briše procesnu vrijednost.
 
-## Granica udaljenog prikaza
+ByFTP 2.16.0 ne sprema terminalne profile ni terminalne vjerodajnice na disk.
 
-FTP/FTPS preferira strojno čitljivi MLSD. Kada poslužitelj to ne podržava, tekstualni Unix/DOS listing prolazi ograničeni parser: veličine se pretvaraju provjerenim `int64` parserom, a ` -> ` se tretira kao symlink separator samo kod zapisa koji je stvarno označen kao symlink.
+## Profilni identitet
 
-Lokalni i udaljeni prikaz koriste zajednički `internal/itemlist.Sort`. Case-fold ključ računa se jedanput po stavci, pa limit od 50.000 unosa ne stvara lowercase kopiju u svakoj usporedbi sortiranja.
+`internal/profilebinding` definira:
 
-## Granica lokalnog stanja
+- endpoint = `protokol + normalizirani host + port`
+- account = endpoint + korisničko ime
+- private-key identitet = account + putanja privatnog ključa
 
-State/config čitanje provjerava regularnu datoteku prije otvaranja, stvarno otvoreni objekt i stabilnost identiteta, veličine i modification metapodataka tijekom čitanja. Oštećeni ili nepouzdani current zapis ne blokira startup: koristi se provjerena `.previous` generacija ili sigurne zadane vrijednosti.
+Spremljena lozinka ne prelazi na drugi account, passphrase ne prelazi na drugi ključ, a SFTP fingerprint ne prelazi na drugi endpoint.
 
-ByFTP data/install/SFTP direktoriji stvaraju se kroz no-redirect provjere ispod kanonskih Windows putanja.
+## Session lifecycle
 
-## Granica sesije
+`remote.Manager.Operation` registrira aktivnu operaciju i daje joj context koji se otkazuje kada pozivatelj odustane ili kada veza ide u disconnect. `release()` je idempotentan.
 
-Remote operacije dobivaju context koji se otkazuje i kada pozivatelj prekine posao i kada se aktivna ByFTP veza disconnecta. Svaka uspješna `Operation` registracija drži active-operation referencu sve do idempotentnog `release()` poziva.
+Disconnect:
 
-Disconnect pod write lockom najprije uklanja aktivnu sesiju iz managera pa novi pozivi više ne mogu dobiti adapter. Zatim otkazuje session context. Stvarna cleanup rutina čeka da postojeći pozivi vrate svoje reference i tek tada poziva `Session.Close()`, čime curl/OpenSSH adapter i SFTP privremene config/known_hosts datoteke ne mogu biti uklonjeni dok ih paralelni `List`, rename, chmod ili transfer još koristi.
+1. uklanja aktivnu session referencu pa novi pozivi više ne ulaze
+2. otkazuje session context
+3. čeka postojeće operacije
+4. zatvara adapter tek nakon zadnjeg `release()`
+5. ako caller deadline istekne, cleanup se nastavlja odvojeno bez zatvaranja adaptera ispod aktivne operacije
+6. reconnect ostaje blokiran dok stara sesija nije stvarno zatvorena
 
-Pozivatelj ne čeka taj cleanup neograničeno. `Disconnect(ctx)` koristi isti deadline koji postavlja UI ili shutdown. Ako deadline istekne, manager vraća kontrolu pozivatelju, ali ne ruši sigurnosnu granicu prisilnim `Close()` pozivom. Close-state ostaje živ dok zadnja operacija ne preda `release()`, nakon čega se stari adapter automatski zatvara.
+## Transfer lifecycle
 
-Dok close-state postoji, novi `Connect` fail-closed vraća `ErrSessionClosing`. Ponovljeni `Disconnect` veže se uz isti close-state, pa isti adapter ne može biti zatvoren dvaput. Tek nakon završnog cleanup-a dopušten je novi session lifecycle.
+Transfer queue koristi connection generation i opaque connection identity. Stari posao ne može nakon reconnecta neprimjetno prijeći na drugi server/account.
 
-Transfer batch rezervacija dodatno pamti generation i opaque identitet veze kako stale posao ne bi nakon reconnecta završio na drugom endpointu.
+Download koristi kriptografski nasumični staging sibling, `Lstat`/regular-file/reparse provjeru te no-replace backup/rollback. Rekurzivni upload ponovno validira lokalni root prije izvršenja.
 
-## Release granica
+## Release arhitektura
 
-`VERSION` je jedini kanonski broj izdanja. Windows i lokalni build čitaju ga iz iste datoteke. CI provjerava brand resurse, hrvatski sadržaj, dokumentaciju, verziju, sigurnosne invarijante, privatnost, release ugovor, Python release regresije, Go unit/race/vet i puni Windows production build.
+`VERSION` je jedini kanonski broj izdanja.
 
-`RELEASE-NOTES.txt` nastaje iz odgovarajućeg `CHANGELOG.md` odjeljka. `BUILD-METADATA.txt` sadrži samo verziju, source commit/ref, Go toolchain, platformu i GitHub Actions identifikatore. Source ZIP nastaje iz `git archive HEAD`.
+CI prije mergea ima četiri gatea:
 
-Windows bundle nastaje iz provjerenih binarija i kompletne Markdown dokumentacije. `BUNDLE-SHA256.txt` pokriva svaku payload datoteku, a `verify_bundle.py` ponovno čita konačni ZIP bez raspakiravanja na disk i provjerava putanje, duplikate, ugovoreni sadržaj i svaki SHA-256.
+1. quality: auditi + Python regresije + Go unit/race/vet
+2. Windows: x64 + x86 production build
+3. Linux: amd64 + arm64 + i386 DEB build
+4. macOS: Universal Intel+Apple Silicon PKG build
 
-Objava GitHub Releasea je idempotentna i fail-closed: postojeći tag mora razriješiti na točan release commit, postojeći asset mora imati istu veličinu i SHA-256 digest, a rerun smije samo nadopuniti nedostajući potvrđeni asset. Neočekivani ili izmijenjeni postojeći asset zaustavlja objavu.
+Release workflow ponovno gradi sve platforme, preuzima njihove Actions artefakte u završni publish job, generira `SHA256.txt`, `RELEASE-NOTES.txt` i `BUILD-METADATA.txt` te koristi centralni `publish_release.ps1`.
+
+Javni release ne uključuje standalone Uninstaller, interni verification report ni custom Source ZIP. Windows ZIP sadrži Setup, Portable i dokumentaciju, a `verify_bundle.py` provjerava manifest i SHA-256 nakon kompresije.
+
+GitHub automatski Source code ZIP/TAR nije ByFTP build artefakt i postoji za svaki tag neovisno o workflowu.

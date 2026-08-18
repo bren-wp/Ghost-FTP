@@ -6,23 +6,29 @@ ByFTP je vlasnički/source-available softver tvrtke Brendigo. Objava izvornog ko
 
 Issuei, prijave grešaka i prijedlozi funkcija su dobrodošli. Izmjene izvornog koda i pull requestovi dopušteni su samo kada ih Brendigo izričito zatraži ili odobri.
 
-Otvaranje forka ili pull requesta samo po sebi ne daje pravo uporabe izvan ograničenih GitHub platformskih prava i [LICENSE](../LICENSE) uvjeta.
-
 ## Pravila za ovlaštene doprinose
 
-- zadržati izvorni Win32 desktop; ne vraćati browser/localhost UI
-- ne dodavati telemetriju, analitiku, oglašavanje, remote crash reporting ili automatske vanjske API pozive
+- Windows Win32 GUI mora ostati izvorni desktop; ne vraćati browser/localhost UI
+- Linux/macOS terminalni frontend mora koristiti isti `api.Engine`, remote i transfer core; ne stvarati paralelni FTP engine
+- ne dodavati telemetriju, analitiku, oglašavanje, remote crash reporting ili skrivene vanjske API pozive
 - ne dodavati vanjski Go modul bez zasebne arhitekturne/sigurnosne provjere
-- ne stavljati lozinke, passphrase ili privatni ključ u command-line argumente ili trajne logove
-- očuvati SFTP host-key provjeru i lokalne path/reparse zaštite
-- očuvati download staging, filesystem-root, state safe-open i cross-server retry granice
+- ne stavljati plaintext lozinke/passphrase u command line, trajne logove ili privremene datoteke
+- na Windowsu očuvati DPAPI i trusted-parent AskPass granicu
+- na Linuxu/macOS-u aktivne tajne držati samo u procesnom runtime spremištu ili budućem jednako jakom brokeru
+- SFTP `commandArgs()` ne smije koristiti `sftp -b`; mora ostati kompatibilan s `BatchMode=no` AskPass tokom
+- AskPass ne smije automatski odgovoriti na nepoznat MFA/OTP/security-key prompt
+- očuvati SFTP host-key provjeru, endpoint binding i IPv6 normalizaciju
+- očuvati download staging, filesystem-root, reparse/symlink i state safe-open granice
+- očuvati connection generation, connection identity i cross-server retry blokadu
 - preferirati tipizirane Go interfacee umjesto generičkog JSON dispatcha
 - korisničke poruke i dokumentaciju pisati na hrvatskom
 - novu detaljnu dokumentaciju dodati u `docs/README.md` i glavni README
-- ne hardkodirati aktualni broj izdanja izvan `VERSION`, README/CHANGELOG prikaza koji audit izričito provjerava
-- ne zaobilaziti `publish_release.ps1` ili `verify_bundle.py` u release workflowu
+- aktualni broj izdanja ne hardkodirati izvan kanonskog `VERSION`/auditiranih prikaza
+- Windows, Linux i macOS build moraju čitati isti `VERSION`
+- ne zaobilaziti `publish_release.ps1`, `verify_bundle.py` ili platform CI gateove
+- javni release ne smije ponovno dodati custom Source ZIP, standalone Uninstaller ili `verification.txt`
 - ne uklanjati ByFTP/Brendigo identitet bez pisanog odobrenja
-- ne uključivati kod treće strane bez potvrde licencne kompatibilnosti
+- kod treće strane zahtijeva potvrdu licencne kompatibilnosti
 
 ## Prije ovlaštenog pull requesta
 
@@ -40,4 +46,15 @@ go test -race ./...
 go vet ./...
 ```
 
-Na Windowsu pokrenite i `BUILD-WINDOWS.ps1`. Merge nije spreman ako bilo koji quality gate ili Windows produkcijski build nije zelen.
+Platform-specific provjere:
+
+```powershell
+.\BUILD-WINDOWS.ps1
+```
+
+```bash
+bash scripts/BUILD-LINUX.sh
+bash scripts/BUILD-MACOS.sh   # macOS
+```
+
+Merge nije spreman dok quality, Windows x64+x86, Linux DEB i macOS Universal PKG GitHub Actions jobovi nisu zeleni.

@@ -102,8 +102,9 @@ func (a *app) connectNow() {
 		platform.ErrorDialog("ByFTP", "Nedostaju podaci", "Upišite poslužitelj i korisničko ime.")
 		return
 	}
-	setText(a.pass, "")
-	setText(a.passphrase, "")
+	// Unesene tajne ostaju u zaključanim edit kontrolama dok veza stvarno ne
+	// uspije. Time korisnik nakon mrežne/port greške može ponoviti pokušaj bez
+	// ponovnog upisa, a onConnected ih briše odmah nakon potvrđenog spajanja.
 	a.setConnectionBusy(true)
 	a.setStatus("Povezivanje s " + host + "…")
 	profileID := a.selectedProfileID
@@ -137,6 +138,16 @@ func (a *app) connectNow() {
 }
 
 func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, fingerprint string) {
+	// Brzi SFTP spoj ne ovisi samo o kratkotrajnom pending-trust cacheu.
+	// Kontrole su tijekom pokušaja zaključane pa se upravo unesena tajna može
+	// sigurno ponovno uzeti. Za spremljeni profil prazno polje i dalje dopušta
+	// Resolveu korištenje pravilno vezane spremljene vjerodajnice.
+	if cfg.Password == "" {
+		cfg.Password = getText(a.pass)
+	}
+	if cfg.Passphrase == "" {
+		cfg.Passphrase = getText(a.passphrase)
+	}
 	a.setStatus("Provjera SFTP ključa i povezivanje…")
 	ctx, cancel := a.connectionContext(75 * time.Second)
 	a.goSafe(func() {
