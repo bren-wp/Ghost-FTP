@@ -43,7 +43,7 @@ Testni procesi ne kontaktiraju vanjsku mrežu i ne koriste stvarne vjerodajnice.
 
 ### IPv6
 
-Bracketirani IPv6 unos prihvaća se kao korisnički host, ali se `[]` uklanjaju prije OpenSSH `HostName` i `ssh-keyscan` ulaza.
+Bracketirani IPv6 unos prihvaća se kao korisnički host, ali samo kada postoji točno jedan ispravno uparen par `[]`. Nepotpune ili višestruke zagrade i bracketirani IPv4 odbijaju se prije mrežnog pokušaja. Ispravne IPv6 zagrade uklanjaju se prije OpenSSH `HostName` i `ssh-keyscan` ulaza.
 
 ## Vjerodajnice
 
@@ -98,6 +98,8 @@ Spremljeni pin koristi se samo za isti endpoint. Privremena promjena hosta ili p
 - rekurzivne operacije imaju depth/item limite
 - queued transfer ponovno validira lokalni root prije svakog pokušaja
 
+Path-based provjere znatno smanjuju traversal i link rizik, ali stdlib operacije koje rade po imenima putanja ne mogu dokazati potpunu otpornost na namjerno, istodobno preimenovanje komponenti od drugog procesa istog korisnika između provjere i operacije. Potpuno zatvaranje takve TOCTOU klase zahtijeva platform-specific handle-relative filesystem primitive; dokumentacija zato ne tvrdi jaču garanciju od one koju kod stvarno daje.
+
 ## Session lifecycle
 
 Svaka `Operation` registrira aktivnu referencu. Disconnect prvo blokira nove operacije, zatim otkazuje session context i čeka postojeće reference. Adapter se ne zatvara ispod aktivnog `List`, rename, chmod ili transfer poziva.
@@ -107,6 +109,8 @@ Ako caller deadline istekne, cleanup nastavlja odvojeno. Reconnect je blokiran d
 ## Transfer izolacija
 
 Transfer posao pamti connection generation i opaque connection identity. Retry na drugi server/account nije dopušten. Event API vraća duboke kopije. Kasni cancel nakon uspješnog ili preskočenog transfera ne mijenja autoritativni završni status.
+
+Terminal koristi autoritativni snapshot transfer reda za završni status, pa ne ovisi o tome je li završni event još prisutan u ograničenoj event povijesti.
 
 ## State/config
 
@@ -130,7 +134,7 @@ Ovo se odnosi na Go **build toolchain**, ne na ByFTP runtime. ByFTP aplikacija s
 
 ## Release sigurnost
 
-2.16.2 dodatno učvršćuje release granicu:
+Aktualna produkcijska bazna linija dodatno učvršćuje release granicu:
 
 - `VERSION` je jedini kanonski broj
 - automatski release okidač je samo promjena `VERSION` na `main`
@@ -145,6 +149,7 @@ Ovo se odnosi na Go **build toolchain**, ne na ByFTP runtime. ByFTP aplikacija s
 - centralni publisher veže tag uz točan commit i uspoređuje postojeći asset po veličini i SHA-256 digestu
 - rerun smije nadopuniti samo nedostajući potvrđeni asset
 - dodatni ili neočekivani javni asset zaustavlja izdanje
+- GitHub Windows Package mora koristiti isti kanonski `VERSION` kao aplikacija i GitHub Release
 
 ## Potpisivanje
 
@@ -157,3 +162,5 @@ Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brend
 `scripts/audit_privacy.py` zaključava runtime mrežnu politiku i stvarno gašenje Go build telemetrije.
 
 `scripts/audit_release.py` zaključava single-trigger/serialized release model, production quality gate, platformsku matricu, staging allowlist i završni javni asset ugovor.
+
+`scripts/audit_version.py` dodatno blokira drift trenutačne verzije u README/CHANGELOG i verzionirane aktualne tvrdnje u produkcijskoj dokumentaciji.
