@@ -2,6 +2,24 @@ package remote
 
 import "testing"
 
+func TestProtocolNeedsRevokeCapability(t *testing.T) {
+	tests := []struct {
+		protocol string
+		want     bool
+	}{
+		{"ftp", false},
+		{"ftps", true},
+		{"ftpsi", true},
+		{"sftp", false},
+		{"", false},
+	}
+	for _, tc := range tests {
+		if got := protocolNeedsRevokeCapability(tc.protocol); got != tc.want {
+			t.Fatalf("protocolNeedsRevokeCapability(%q) = %v, want %v", tc.protocol, got, tc.want)
+		}
+	}
+}
+
 func TestCurlVersionSupportsRevokeBestEffort(t *testing.T) {
 	tests := []struct {
 		name   string
