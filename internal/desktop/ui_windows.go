@@ -47,7 +47,7 @@ func (a *app) createControls(hinst uintptr) error {
 
 	// Branded application header.
 	a.brandTitle = mk("STATIC", brand.ProductName, 0, 0)
-	a.brandSubtitle = mk("STATIC", "FTP • FTPS • SFTP  ·  Siguran prijenos datoteka  ·  "+brand.Company, 0, 0)
+	a.brandSubtitle = mk("STATIC", "FTP • FTPS • SFTP  ·  Brzo upravljanje hostingom  ·  "+brand.Company, 0, 0)
 	a.connectionBadge = mk("STATIC", "● NIJE POVEZANO", 0, 0)
 	setFont(a.brandTitle, a.titleFont)
 	setFont(a.brandSubtitle, a.smallFont)
@@ -75,9 +75,9 @@ func (a *app) createControls(hinst uintptr) error {
 	a.connect = mkButton("Poveži", iconConnect, buttonAccent, idConnect)
 	a.disconnect = mkButton("Prekini", iconDisconnect, buttonDanger, idDisconnect)
 	enableWindow.Call(a.disconnect, 0)
-	cue(a.host, "Poslužitelj")
-	cue(a.user, "Korisničko ime")
-	cue(a.pass, "Lozinka")
+	cue(a.host, "FTP poslužitelj, npr. ftp.domena.hr")
+	cue(a.user, "Korisničko ime, može korisnik@domena")
+	cue(a.pass, "FTP / SFTP lozinka")
 
 	// SFTP authentication row. Disabled for FTP/FTPS.
 	a.keyPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, idKeyPath)
@@ -321,14 +321,14 @@ func (a *app) layout(width, height int) {
 	x := margin
 	a.move(a.protocol, x, y, 118, rowH)
 	x += 118 + gap
-	a.move(a.host, x, y, 300, rowH)
-	x += 300 + gap
+	a.move(a.host, x, y, 280, rowH)
+	x += 280 + gap
 	a.move(a.port, x, y, 70, rowH)
 	x += 70 + gap
-	a.move(a.user, x, y, 190, rowH)
-	x += 190 + gap
-	a.move(a.pass, x, y, 190, rowH)
-	x += 190 + gap
+	a.move(a.user, x, y, 230, rowH)
+	x += 230 + gap
+	a.move(a.pass, x, y, 170, rowH)
+	x += 170 + gap
 	a.move(a.connect, x, y, 106, rowH)
 	x += 106 + gap
 	a.move(a.disconnect, x, y, 106, rowH)
