@@ -4,135 +4,179 @@ package remote
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
+	"unsafe"
 )
 
 var (
-	processKernel32          = syscall.NewLazyDLL("kernel32.dll")
-	createJobObjectW         = processKernel32.NewProc("CreateJobObjectW")
-	assignProcessToJobObject = processKernel32.NewProc("AssignProcessToJobObject")
-	terminateJobObject       = processKernel32.NewProc("TerminateJobObject")
-	openProcessForJob        = processKernel32.NewProc("OpenProcess")
-	closeProcessHandle       = processKernel32.NewProc("CloseHandle")
+	processKernel32              = syscall.NewLazyDLL("kernel32.dll")
+	createToolhelp32SnapshotProc = processKernel32.NewProc("CreateToolhelp32Snapshot")
+	process32FirstWProc          = processKernel32.NewProc("Process32FirstW")
+	process32NextWProc           = processKernel32.NewProc("Process32NextW")
+	openProcessForTerminateProc  = processKernel32.NewProc("OpenProcess")
+	terminateProcessProc         = processKernel32.NewProc("TerminateProcess")
+	closeProcessHandleProc       = processKernel32.NewProc("CloseHandle")
 )
 
 const (
-	createNoWindow     = 0x08000000
-	processTerminate   = 0x0001
-	processSetQuota    = 0x0100
-	toolProcessAccess  = processTerminate | processSetQuota
+	createNoWindow       = 0x08000000
+	th32csSnapProcess    = 0x00000002
+	processTerminate     = 0x0001
+	windowsNoMoreFiles   = syscall.Errno(18)
+	windowsInvalidParam  = syscall.Errno(87)
 )
+
+type processEntry32 struct {
+	Size              uint32
+	Usage             uint32
+	ProcessID         uint32
+	DefaultHeapID     uintptr
+	ModuleID          uint32
+	Threads           uint32
+	ParentProcessID   uint32
+	PriClassBase      int32
+	Flags             uint32
+	ExeFile           [260]uint16
+}
 
 func configureToolCommand(cmd *exec.Cmd) {
 	if cmd == nil {
 		return
 	}
 	// External Windows networking tools are implementation details of the GUI.
-	// Keep them detached from a visible console window while preserving the
-	// standard handles required for stdin/stdout/stderr and AskPass.
+	// Keep them detached from a visible console window while preserving standard
+	// handles required for stdin/stdout/stderr and SSH_ASKPASS.
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
-}
-
-func callWindowsProcessAPI(ok uintptr, callErr error, fallback string) error {
-	if ok != 0 {
-		return nil
-	}
-	if callErr != nil && callErr != syscall.Errno(0) {
-		return callErr
-	}
-	return errors.New(fallback)
-}
-
-func createToolJob() (syscall.Handle, error) {
-	h, _, callErr := createJobObjectW.Call(0, 0)
-	if h == 0 {
-		return 0, callWindowsProcessAPI(h, callErr, "Windows Job Object nije dostupan")
-	}
-	return syscall.Handle(h), nil
-}
-
-func closeToolHandle(h syscall.Handle) {
-	if h != 0 {
-		_, _, _ = closeProcessHandle.Call(uintptr(h))
-	}
-}
-
-func openToolProcess(pid int) (syscall.Handle, error) {
-	if pid <= 0 {
-		return 0, errors.New("vanjski proces nema ispravan PID")
-	}
-	h, _, callErr := openProcessForJob.Call(toolProcessAccess, 0, uintptr(uint32(pid)))
-	if h == 0 {
-		return 0, callWindowsProcessAPI(h, callErr, "vanjski proces nije moguće otvoriti za lifecycle zaštitu")
-	}
-	return syscall.Handle(h), nil
-}
-
-func assignToolProcess(job, process syscall.Handle) error {
-	r, _, callErr := assignProcessToJobObject.Call(uintptr(job), uintptr(process))
-	return callWindowsProcessAPI(r, callErr, "vanjski proces nije moguće vezati uz Windows Job Object")
-}
-
-func terminateToolJob(job syscall.Handle) error {
-	if job == 0 {
-		return os.ErrProcessDone
-	}
-	r, _, callErr := terminateJobObject.Call(uintptr(job), 1)
-	return callWindowsProcessAPI(r, callErr, "Windows Job Object nije moguće prekinuti")
-}
-
-func runToolCommand(cmd *exec.Cmd) error {
-	if cmd == nil {
-		return errors.New("vanjski proces nije postavljen")
-	}
-	job, err := createToolJob()
-	if err != nil {
-		return fmt.Errorf("siguran lifecycle vanjskog procesa nije dostupan: %w", err)
-	}
-	defer closeToolHandle(job)
 
 	originalCancel := cmd.Cancel
 	cmd.Cancel = func() error {
-		jobErr := terminateToolJob(job)
-		var directErr error
+		if cmd.Process == nil || cmd.Process.Pid <= 0 {
+			if originalCancel != nil {
+				return originalCancel()
+			}
+			return os.ErrProcessDone
+		}
+		rootPID := uint32(cmd.Process.Pid)
+
+		// Snapshot before killing the parent closes the case where an AskPass child
+		// already exists. Kill the direct process immediately afterwards so it can
+		// no longer create additional descendants while cleanup proceeds.
+		parents, snapshotErr := snapshotProcessTree()
+		directErr := error(nil)
 		if originalCancel != nil {
 			directErr = originalCancel()
-		} else if cmd.Process != nil {
+		} else {
 			directErr = cmd.Process.Kill()
 		}
-		// Either path is sufficient to wake Wait. The Job Object is preferred
-		// because it owns descendants; direct kill closes the tiny Start->Assign
-		// race before the process has been attached to the job.
-		if jobErr == nil || directErr == nil || errors.Is(directErr, os.ErrProcessDone) {
+		if errors.Is(directErr, os.ErrProcessDone) {
+			directErr = nil
+		}
+
+		firstTreeErr := terminateDescendantsFromSnapshot(rootPID, parents)
+		// A second fresh snapshot catches a descendant created in the tiny interval
+		// between the first snapshot and termination of the trusted parent process.
+		secondTreeErr := terminateProcessDescendants(rootPID)
+		return errors.Join(snapshotErr, directErr, firstTreeErr, secondTreeErr)
+	}
+}
+
+func windowsProcessAPIError(callErr error, fallback error) error {
+	if callErr != nil && callErr != syscall.Errno(0) {
+		return callErr
+	}
+	return fallback
+}
+
+func closeWindowsProcessHandle(h uintptr) {
+	if h != 0 && h != ^uintptr(0) {
+		_, _, _ = closeProcessHandleProc.Call(h)
+	}
+}
+
+func snapshotProcessTree() (map[uint32][]uint32, error) {
+	h, _, callErr := createToolhelp32SnapshotProc.Call(th32csSnapProcess, 0)
+	if h == ^uintptr(0) {
+		return nil, windowsProcessAPIError(callErr, errors.New("Windows popis procesa nije dostupan"))
+	}
+	defer closeWindowsProcessHandle(h)
+
+	parents := make(map[uint32][]uint32)
+	entry := processEntry32{Size: uint32(unsafe.Sizeof(processEntry32{}))}
+	r, _, firstErr := process32FirstWProc.Call(h, uintptr(unsafe.Pointer(&entry)))
+	if r == 0 {
+		if errno, ok := firstErr.(syscall.Errno); ok && errno == windowsNoMoreFiles {
+			return parents, nil
+		}
+		return nil, windowsProcessAPIError(firstErr, errors.New("Windows popis procesa nije moguće pročitati"))
+	}
+	for {
+		if entry.ProcessID != 0 && entry.ProcessID != entry.ParentProcessID {
+			parents[entry.ParentProcessID] = append(parents[entry.ParentProcessID], entry.ProcessID)
+		}
+		entry = processEntry32{Size: uint32(unsafe.Sizeof(processEntry32{}))}
+		r, _, nextErr := process32NextWProc.Call(h, uintptr(unsafe.Pointer(&entry)))
+		if r != 0 {
+			continue
+		}
+		if errno, ok := nextErr.(syscall.Errno); ok && errno == windowsNoMoreFiles {
+			break
+		}
+		return nil, windowsProcessAPIError(nextErr, errors.New("Windows popis procesa nije moguće dovršiti"))
+	}
+	return parents, nil
+}
+
+func terminateProcessPID(pid uint32) error {
+	if pid == 0 {
+		return nil
+	}
+	h, _, openErr := openProcessForTerminateProc.Call(processTerminate, 0, uintptr(pid))
+	if h == 0 {
+		if errno, ok := openErr.(syscall.Errno); ok && errno == windowsInvalidParam {
 			return nil
 		}
-		return errors.Join(jobErr, directErr)
+		return windowsProcessAPIError(openErr, errors.New("child proces nije moguće otvoriti za prekid"))
 	}
+	defer closeWindowsProcessHandle(h)
+	r, _, terminateErr := terminateProcessProc.Call(h, 1)
+	if r == 0 {
+		if errno, ok := terminateErr.(syscall.Errno); ok && errno == windowsInvalidParam {
+			return nil
+		}
+		return windowsProcessAPIError(terminateErr, errors.New("child proces nije moguće prekinuti"))
+	}
+	return nil
+}
 
-	if err := cmd.Start(); err != nil {
+func terminateDescendantsFromSnapshot(root uint32, parents map[uint32][]uint32) error {
+	if root == 0 || len(parents) == 0 {
+		return nil
+	}
+	visited := make(map[uint32]bool)
+	var errs []error
+	var visit func(uint32)
+	visit = func(parent uint32) {
+		for _, child := range parents[parent] {
+			if child == 0 || visited[child] {
+				continue
+			}
+			visited[child] = true
+			visit(child)
+			if err := terminateProcessPID(child); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	visit(root)
+	return errors.Join(errs...)
+}
+
+func terminateProcessDescendants(root uint32) error {
+	parents, err := snapshotProcessTree()
+	if err != nil {
 		return err
 	}
-	process, openErr := openToolProcess(cmd.Process.Pid)
-	if openErr != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
-		return fmt.Errorf("vanjski proces nije pokrenut bez lifecycle zaštite: %w", openErr)
-	}
-	assignErr := assignToolProcess(job, process)
-	closeToolHandle(process)
-	if assignErr != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
-		return fmt.Errorf("vanjski proces nije pokrenut bez process-tree zaštite: %w", assignErr)
-	}
-
-	waitErr := cmd.Wait()
-	// TerminateJobObject is also called after a normal parent exit. This removes
-	// any helper that failed to exit with curl/OpenSSH before secrets and temp
-	// session files are released by the caller.
-	cleanupErr := terminateToolJob(job)
-	return errors.Join(waitErr, cleanupErr)
+	return terminateDescendantsFromSnapshot(root, parents)
 }
