@@ -1,7 +1,6 @@
 package remote
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -44,6 +43,13 @@ func (e *remoteResidualArtifactError) Unwrap() []error {
 func isRemoteResidualArtifactError(err error) bool {
 	var residual *remoteResidualArtifactError
 	return errors.As(err, &residual)
+}
+
+// HasUncertainRemoteState lets the transfer lifecycle distinguish an ordinary
+// cancel/skip from a cancel/skip whose remote staging cleanup could not be
+// confirmed. The latter must surface as failed instead of looking harmless.
+func HasUncertainRemoteState(err error) bool {
+	return isRemoteResidualArtifactError(err)
 }
 
 // A failed upload can legitimately fail before the remote staging object is
@@ -99,8 +105,3 @@ func committedCleanupFailure(operationErr error, dir, name string, delete remote
 		committed:    true,
 	}
 }
-
-// Keep context imported here intentionally: remoteDeleteFunc is context-based
-// and the compile-time assertion below prevents this helper file from silently
-// drifting to a different cleanup contract.
-var _ remoteDeleteFunc = func(context.Context, string, string, bool) error { return nil }
