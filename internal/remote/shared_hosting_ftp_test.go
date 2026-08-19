@@ -24,7 +24,7 @@ func TestFTPURLPathCannotSwitchToServerAbsoluteNamespace(t *testing.T) {
 		"/public_html":                  "/public_html",
 		"//public_html":                 "/public_html",
 		"///public_html/site/index.php": "/public_html/site/index.php",
-		`\\public_html\\assets`:        "/public_html/assets",
+		`\public_html\assets`:           "/public_html/assets",
 	}
 	for input, want := range tests {
 		if got := ftpURLPath(input); got != want {
