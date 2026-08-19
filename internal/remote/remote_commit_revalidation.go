@@ -24,33 +24,27 @@ func revalidateRemoteCommit(
 	if list == nil || delete == nil {
 		return nil, errors.New("remote revalidacija nije dostupna")
 	}
-	cleanupTemp := func() {
-		cleanupCtx, cancel := cleanupContext()
-		defer cancel()
-		_ = delete(cleanupCtx, dir, tempName, false)
-	}
 
 	items, err := list(ctx, dir)
 	if err != nil {
-		cleanupTemp()
-		return nil, fmt.Errorf("nije moguće ponovno provjeriti remote odredište prije aktivacije: %w", err)
+		revalidationErr := fmt.Errorf("nije moguće ponovno provjeriti remote odredište prije aktivacije: %w", err)
+		return nil, cleanupFailure(revalidationErr, dir, tempName, delete)
 	}
 	// Neki FTP LIST fallbackovi ne prikazuju skrivene .byftp-part-* datoteke,
 	// zato odsutnost staging stavke u listingu sama po sebi nije dokaz greške.
 	// Ako je server ipak vrati, ona mora ostati obična datoteka; direktorij ili
 	// symlink pod našim nasumičnim staging nazivom nikada se ne smije aktivirati.
 	if staged, ok := remoteEntry(items, tempName); ok && (staged.IsDirectory || staged.IsSymlink) {
-		cleanupTemp()
-		return nil, errors.New("remote privremena stavka se promijenila i nije obična datoteka")
+		err := errors.New("remote privremena stavka se promijenila i nije obična datoteka")
+		return nil, cleanupFailure(err, dir, tempName, delete)
 	}
 	if existing, ok := remoteEntry(items, base); ok {
 		if existing.IsDirectory || existing.IsSymlink {
-			cleanupTemp()
-			return nil, errors.New("remote odredište se promijenilo tijekom prijenosa i više nije obična datoteka")
+			err := errors.New("remote odredište se promijenilo tijekom prijenosa i više nije obična datoteka")
+			return nil, cleanupFailure(err, dir, tempName, delete)
 		}
 		if skipExisting {
-			cleanupTemp()
-			return nil, ErrSkipped
+			return nil, cleanupFailure(ErrSkipped, dir, tempName, delete)
 		}
 	}
 	return items, nil
