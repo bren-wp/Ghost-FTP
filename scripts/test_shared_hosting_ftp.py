@@ -42,6 +42,22 @@ class SharedHostingFTPTests(unittest.TestCase):
         self.assertIn('{Value: "ftps", Label: "FTPS (eksplicitni)", Port: "21"}', protocols)
         self.assertIn('{Value: "ftpsi", Label: "FTPS (implicitni)", Port: "990"}', protocols)
 
+    def test_windows_ui_explains_shared_hosting_credentials(self) -> None:
+        ui = (ROOT / "internal/desktop/ui_windows.go").read_text(encoding="utf-8")
+        self.assertIn("Brzo upravljanje hostingom", ui)
+        self.assertIn("FTP poslužitelj, npr. ftp.domena.hr", ui)
+        self.assertIn("Korisničko ime, može korisnik@domena", ui)
+        self.assertIn("a.move(a.user, x, y, 230, rowH)", ui)
+
+    def test_marketing_docs_include_shared_hosting_path(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        guide = (ROOT / "docs/SHARED-HOSTING.md").read_text(encoding="utf-8")
+        docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
+        self.assertIn("Shared hosting — spojite se u nekoliko koraka", readme)
+        self.assertIn("ByFTP za shared hosting", guide)
+        self.assertIn("korisnik@domena", guide)
+        self.assertIn("SHARED-HOSTING.md", docs)
+
 
 if __name__ == "__main__":
     unittest.main()
