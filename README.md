@@ -157,15 +157,16 @@ Detalji: [Privatnost](docs/PRIVATNOST.md).
 
 ## Što donosi 1.0.6
 
-1.0.6 dodatno učvršćuje **stabilnost runtimea i lifecycle veze** bez oduzimanja shared-hosting poboljšanja iz 1.0.5:
+1.0.6 dodatno učvršćuje **stabilnost runtimea, oporavak stanja i lifecycle veze** bez oduzimanja shared-hosting poboljšanja iz 1.0.5:
 
 - Engine više ne dohvaća sirovu remote sesiju samo radi provjere veze; transfer queue koristi postojeći connection-identity i generation guard;
 - uklonjen je nepotreban javni `Session()` izlaz iz remote managera, čime se smanjuje mogućnost da budući kod zaobiđe referentno brojanje aktivnih operacija;
-- `nil` context na ključnim remote i transfer shutdown granicama normalizira se u siguran background context umjesto mogućeg panica;
+- `nil` context na ključnim remote, lokalnim listing i transfer shutdown granicama normalizira se u siguran background context umjesto mogućeg panica;
+- state recovery dekodira current, previous i fallback generacije transakcijski, pa oštećeni JSON više ne može ostaviti hibrid postavki koji nikada nije bio spremljen;
 - cancel i retry koriste jednu zajedničku validaciju odabranih transfer ID-eva umjesto dupliciranog koda;
 - read-only queue operacije koriste read lock, pa UI polling manje blokira worker i event write putanje;
 - panic recovery za tipizirane engine pozive centraliziran je u jednu provjerenu granicu;
-- nove regresije zaključavaju nil-context sigurnost, odabir transfera i lifecycle ponašanje, a puni race/build gate ostaje obavezan prije objave.
+- nove regresije zaključavaju nil-context sigurnost, atomski state recovery, odabir transfera i lifecycle ponašanje, a puni race/build gate ostaje obavezan prije objave.
 
 ## Provjera SHA-256
 
