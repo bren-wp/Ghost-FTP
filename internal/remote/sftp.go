@@ -613,7 +613,7 @@ func (s *SFTP) Chmod(ctx context.Context, base, name, mode string) error {
 }
 
 func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options TransferOptions) error {
-	if err := security.ValidateRemotePath(remotePath); err != nil {
+	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
 		return err
 	}
 	if st, err := os.Lstat(local); err != nil {
@@ -647,16 +647,10 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 	defer source.Close()
 	tempPath := remoteJoin(dir, tempName)
 	if _, err = s.run(ctx, "put "+sftpQuote(source.Path())+" "+sftpQuote(tempPath)); err != nil {
-		cleanupCtx, cancel := cleanupContext()
-		_ = s.Delete(cleanupCtx, dir, tempName, false)
-		cancel()
-		return err
+		return cleanupFailure(err, dir, tempName, s.Delete)
 	}
 	if err = source.Verify(); err != nil {
-		cleanupCtx, cancel := cleanupContext()
-		_ = s.Delete(cleanupCtx, dir, tempName, false)
-		cancel()
-		return err
+		return cleanupFailure(err, dir, tempName, s.Delete)
 	}
 	items, err = revalidateRemoteCommit(ctx, dir, base, tempName, options.SkipExisting, s.List, s.Delete)
 	if err != nil {
@@ -669,7 +663,7 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 }
 
 func (s *SFTP) Download(ctx context.Context, remotePath, local string, options TransferOptions) error {
-	if err := security.ValidateRemotePath(remotePath); err != nil {
+	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
 		return err
 	}
 	if options.SkipExisting {
