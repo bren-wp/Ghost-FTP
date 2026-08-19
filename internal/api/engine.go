@@ -51,6 +51,16 @@ func New(dataDir, exePath string) (*Engine, error) {
 	return e, nil
 }
 
+// recoverTypedCall converts an unexpected panic at a typed UI/engine boundary
+// into one stable user-safe error. Keeping this logic in one helper prevents
+// individual secret-bearing entry points from drifting to different recovery
+// behavior while still allowing lower layers to use ordinary Go errors.
+func recoverTypedCall(callErr *error) {
+	if recover() != nil {
+		*callErr = errors.New("interna greška aplikacije")
+	}
+}
+
 // The desktop UI and engine live in the same process. All public operations are
 // typed calls: there is no JSON dispatcher, localhost server, browser IPC or
 // generic string channel between the UI and the transfer engine.
@@ -70,22 +80,14 @@ func (e *Engine) SetSettings(v model.Settings) (model.Settings, error) {
 // SaveProfile is typed so profile secrets never pass through a generic
 // serializer and do not create avoidable password/passphrase copies.
 func (e *Engine) SaveProfile(in model.ProfileInput) (saved model.PublicProfile, callErr error) {
-	defer func() {
-		if recover() != nil {
-			callErr = errors.New("interna greška aplikacije")
-		}
-	}()
+	defer recoverTypedCall(&callErr)
 	return e.profiles.Save(in)
 }
 
 // Connect is typed for the same reason as SaveProfile: connection secrets stay
 // inside the process and are not serialized into an intermediate payload.
 func (e *Engine) Connect(ctx context.Context, profileID string, cfg model.ConnectionConfig, trustFingerprint string, rememberFingerprint bool) (result remote.ConnectResult, callErr error) {
-	defer func() {
-		if recover() != nil {
-			callErr = errors.New("interna greška aplikacije")
-		}
-	}()
+	defer recoverTypedCall(&callErr)
 	result, callErr = e.remote.Connect(ctx, profileID, cfg, trustFingerprint, rememberFingerprint)
 	if callErr == nil && result.Connected {
 		e.transfers.Enable()
@@ -154,9 +156,6 @@ func (e *Engine) RemoteChmod(ctx context.Context, base, name, mode string) error
 }
 
 func (e *Engine) AddTransfer(direction, localPath, remotePath, localRoot string) (model.TransferJob, error) {
-	if _, err := e.remote.Session(); err != nil {
-		return model.TransferJob{}, err
-	}
 	return e.transfers.AddBatchOne(transfer.Request{Direction: direction, LocalPath: localPath, RemotePath: remotePath, LocalRoot: localRoot})
 }
 
@@ -168,9 +167,6 @@ type TransferRequest struct {
 }
 
 func (e *Engine) AddTransfers(requests []TransferRequest) ([]model.TransferJob, error) {
-	if _, err := e.remote.Session(); err != nil {
-		return nil, err
-	}
 	batch := make([]transfer.Request, 0, len(requests))
 	for _, r := range requests {
 		batch = append(batch, transfer.Request{Direction: r.Direction, LocalPath: r.LocalPath, RemotePath: r.RemotePath, LocalRoot: r.LocalRoot})
@@ -188,9 +184,6 @@ func (e *Engine) RetryTransfer(id string) error {
 	return e.RetryTransfers([]string{id})
 }
 func (e *Engine) RetryTransfers(ids []string) error {
-	if _, err := e.remote.Session(); err != nil {
-		return err
-	}
 	return e.transfers.RetryBatch(ids)
 }
 func (e *Engine) ClearFinishedTransfers() { e.transfers.ClearFinished() }
