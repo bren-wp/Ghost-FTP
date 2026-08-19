@@ -1,161 +1,151 @@
-# ByFTP — podrška
+# Podrška i rješavanje problema
 
-Za ponovljivu programsku grešku koristite GitHub predložak **Prijava greške** i navedite samo sanitizirane tehničke podatke.
+**Kada se ByFTP ne spoji, cilj nije nagađati — cilj je brzo utvrditi je li problem u hostu, portu, vjerodajnicama, TLS-u ili pravilima hostinga.**
 
-## Podržane platforme
+## Najbrža provjera za shared hosting
 
-- Windows 10/11 x64 — puni Win32 GUI
-- Windows 10/11 x86 — puni Win32 GUI
-- Linux amd64/arm64/i386 — terminalni DEB paket
-- macOS Intel/Apple Silicon — Universal PKG, Finder launcher + terminalni klijent
+Prije svega usporedite podatke iz ByFTP-a s hosting panelom:
 
-## Podržana autentikacija
+- **Host** mora biti FTP/FTPS hostname koji je dao provider;
+- **Korisničko ime** mora biti potpuno, uključujući `@domena` ako ga hosting koristi;
+- **Lozinka** mora pripadati tom FTP računu, ne nužno glavnom hosting korisniku;
+- **Port** mora odgovarati protokolu;
+- ako provider traži TLS, koristite FTPS umjesto plain FTP-a.
 
-| Način | Windows | Linux/macOS |
-|---|---|---|
-| FTP lozinka | da | da |
-| FTPS lozinka | da | da |
-| SFTP privatni ključ bez passphrasea | da | da |
-| SFTP lozinka | da | trenutačno ne |
-| SFTP ključ s passphraseom | da | trenutačno ne |
-| SFTP host-key potvrda | da | da |
+Najčešće kombinacije:
 
-Linux/macOS nepodržani SFTP način odbija prije mrežnog pokušaja. ByFTP ne prikazuje lažno stanje „povezano”.
+- FTP — port 21;
+- FTPS (eksplicitni) — port 21;
+- FTPS (implicitni) — port 990;
+- SFTP — port 22.
 
-## Ako se veza ne uspostavi
+Ako provider navodi drugačiji port, koristite njegovu vrijednost.
 
-Provjerite redom:
+## “Povezivanje nije uspjelo”
 
-1. protokol — FTP, eksplicitni FTPS, implicitni FTPS ili SFTP
-2. adresu poslužitelja
-3. port
-4. korisničko ime
-5. lozinku ili privatni ključ
-6. je li odgovarajući servis stvarno pokrenut na serveru
-7. firewall/NAT pravila ako koristite FTP/FTPS
-8. za Windows SFTP — je li instaliran Windows OpenSSH Client
-9. za SFTP — potvrđujete li očekivani host-key fingerprint
-10. koristi li Linux/macOS podržani SFTP način s privatnim ključem bez passphrasea
+ByFTP stanje **POVEZANO** postavlja tek nakon autentikacije i početnog udaljenog listinga. Zbog toga poruka o grešci može značiti jednu od nekoliko stvari.
 
-ByFTP čuva timeout/cancel kao tipizirani uzrok i razlikuje autentikacijsku grešku, DNS/host problem, odbijeni port, timeout, host-key scan i sigurnosni pin problem.
-
-Windows nakon neuspjelog pokušaja ne briše upravo unesenu vjerodajnicu; možete ispraviti podatke i pokušati ponovno. Tajna se briše iz edit kontrole nakon potvrđenog uspješnog spajanja.
-
-## ByFTP kaže „Povezano”, ali ne vidim datoteke
-
-Stanje **POVEZANO** nastaje tek nakon uspješne autentikacije i početnog `List` probea. Ako se kasnije prikaz udaljene mape ne osvježava:
-
-- provjerite dozvole korisničkog računa na udaljenoj putanji
-- provjerite je li putanja još dostupna
-- pokušajte ručno osvježavanje
-- zabilježite točan hrvatski tekst greške
-- ne šaljite stvarne povjerljive nazive datoteka u javni issue
-
-## FTP/FTPS problemi
-
-Kod FTP/FTPS provjerite:
-
-- odgovara li eksplicitni/implicitni FTPS način konfiguraciji servera
-- je li port točan
-- dopušta li firewall pasivne FTP veze
-- je li TLS certifikat poslužitelja valjan u sistemskom trust storeu
-
-ByFTP ne nasljeđuje proizvoljne proxy/TLS override varijable za curl adapter.
-
-## SFTP problemi
-
-Kod SFTP-a provjerite:
-
-- port i korisnika
-- postoji li podržani privatni ključ
-- odgovara li host-key fingerprint očekivanoj vrijednosti
-- je li se host ključ poslužitelja promijenio nakon administratorske promjene
-- postoji li sistemski OpenSSH alat
-
-Promijenjeni spremljeni host-key pin ByFTP tretira kao sigurnosni problem i ne bi ga trebalo automatski prihvatiti bez neovisne provjere.
-
-## Instalacijski problemi
-
-### Windows
-
-Za klasičnu instalaciju koristite Setup paket koji odgovara arhitekturi. Za uklanjanje koristite standardni Windows **Postavke → Aplikacije → Instalirane aplikacije → ByFTP** lifecycle.
-
-Ako Setup ne pokreće aplikaciju nakon nadogradnje, navedite:
-
-- ByFTP verziju
-- x64 ili x86
-- Windows verziju
-- je li postojeća ByFTP instanca bila pokrenuta tijekom nadogradnje
-- točan tekst instalacijske poruke
-
-### Linux
+### 1. Host se ne može pronaći
 
 Provjerite:
 
-```bash
-dpkg --print-architecture
-```
+- jeste li slučajno upisali `https://` ili `ftp://` umjesto samog hosta;
+- postoji li tipfeler u nazivu servera;
+- radi li DNS i internet veza;
+- koristi li hosting poseban FTP hostname koji se razlikuje od domene web stranice.
 
-i koristite odgovarajući DEB. Paket zahtijeva sistemski `curl`, `openssh-client` i `ca-certificates`.
+### 2. Connection refused / timeout
 
-### macOS
+Najčešći uzroci:
 
-Universal PKG podržava Intel i Apple Silicon. Trenutačni paket nije Developer ID potpisan/notariziran bez stvarnog Brendigo Apple identiteta, pa korisnik treba posebno paziti da paket dolazi iz službenog izdanja i da SHA-256 odgovara.
+- pogrešan port;
+- pogrešan protokol;
+- firewall ili antivirus blokira izlaznu vezu;
+- hosting privremeno blokira IP;
+- FTP servis nije aktivan na tom hostu.
 
-## Provjera preuzetog paketa
+### 3. Login denied / authentication failed
 
-Prije prijave da je paket oštećen, usporedite SHA-256 s `SHA256.txt` iz istog izdanja.
+Provjerite:
 
-Windows:
+- korisničko ime u cijelosti;
+- je li FTP lozinka promijenjena u hostingu;
+- postoji li račun i ima li pristup traženom direktoriju;
+- koristi li provider zasebnu FTP lozinku.
 
-```powershell
-Get-FileHash .\ByFTP-<verzija>-Setup-x64.exe -Algorithm SHA256
-```
+## Spoji se, ali ne vidim `public_html`
 
-Linux:
+To ne mora biti greška.
 
-```bash
-sha256sum ByFTP-<verzija>-Linux-amd64.deb
-```
+Shared hosting može koristiti:
 
-macOS:
+- `public_html`;
+- `www`;
+- `httpdocs`;
+- `htdocs`;
+- direktorij domene;
+- home direktorij FTP subračuna ograničen samo na jednu mapu.
 
-```bash
-shasum -a 256 ByFTP-<verzija>-macOS-Universal.pkg
-```
+ByFTP poštuje direktorij u koji vas server smjesti nakon prijave. Ako FTP subaccount ima root postavljen izravno na web mapu, možda uopće nećete vidjeti `public_html` — već ćete odmah vidjeti sadržaj web stranice.
 
-## Podaci za bug report
+## Listing ne radi ili server je stariji
 
-Korisno je navesti:
+ByFTP preferira MLSD kada ga server pravilno podržava jer daje strukturiraniji listing.
 
-- ByFTP verziju
-- platformu i arhitekturu
-- odabrani protokol
-- vrstu paketa: Setup, Portable, DEB ili PKG
-- je li problem nastao prije ili poslije host-key potvrde
-- točan hrvatski tekst poruke greške
-- je li problem reproducibilan s testnim serverom
-- korake za reprodukciju bez osjetljivih podataka
+Ako server ne podržava MLSD ili vraća neupotrebljiv odgovor, ByFTP 1.0.5 prelazi na klasični LIST i taj fallback zadržava do kraja sesije. Time se izbjegava ponavljanje iste neuspjele MLSD naredbe pri svakom refreshu.
 
-Ne objavljujte:
+## Upload počne, ali završna aktivacija ne uspije
 
-- lozinke ili zaporke privatnog ključa
-- SSH privatne ključeve
-- povjerljive produkcijske hostove i korisnička imena
-- podatke klijenata
-- povjerljive putanje ili nazive datoteka
-- sadržaj DPAPI/runtime credential vrijednosti
+ByFTP upload nije samo “pošalji datoteku pod finalnim imenom”. Koristi temp objekt, provjeru izvora i završni remote commit.
 
-## Build problem pri vlastitoj izgradnji
+Završna faza može pasti ako:
 
-Produkcijski build zahtijeva Go 1.26.5+ i stvarno ugašenu Go toolchain telemetriju. Prije builda pokrenite:
+- hosting ne dopušta rename u toj mapi;
+- drugi klijent je u međuvremenu stvorio datoteku ili direktorij istog imena;
+- račun nema write prava;
+- server prekine vezu;
+- shared hosting ograničava pojedine FTP naredbe.
 
-```bash
-go telemetry off
-```
+U 1.0.5 `RNFR/RNTO`, `DELE`, `MKD`, `RMD` i `SITE CHMOD` koriste isti login-home namespace kao listing i upload/download, što uklanja klasu pogrešaka na non-chrooted shared-hosting računima.
 
-Ako skripta odbije build jer `go telemetry` nije `off`, to je namjerni fail-closed privacy gate.
+## CHMOD ne radi
 
-## Sigurnosna prijava
+Neki hosting provideri:
 
-Za sigurnosno osjetljiv problem slijedite [SIGURNOST.md](SIGURNOST.md) umjesto javnog issuea. U javni issue ne stavljajte exploit detalje koji otkrivaju aktivne produkcijske tajne ili stvarne podatke klijenata.
+- ne podržavaju `SITE CHMOD`;
+- dopuštaju ga samo na određenim računima;
+- ignoriraju ga jer permission model nije klasični Unix.
+
+Ako upload/download rade, a samo CHMOD ne radi, problem je vrlo često ograničenje servera, ne problem veze.
+
+## FTPS certifikat ili TLS greška
+
+Provjerite da:
+
+- koristite hostname za koji je certifikat izdan;
+- niste zamijenili explicit i implicit FTPS;
+- port odgovara načinu rada;
+- vrijeme i certifikacijska infrastruktura operativnog sustava rade ispravno.
+
+ByFTP ne koristi globalno `ssl-no-revoke` za “popravljanje” certifikata. Sigurnosna provjera se ne isključuje samo da bi veza izgledala uspješna.
+
+## SFTP fingerprint se promijenio
+
+Ako spremljeni fingerprint više ne odgovara serveru, ByFTP blokira vezu.
+
+To može biti legitimna promjena host ključa nakon migracije servera, ali može značiti i da endpoint nije onaj koji očekujete. Fingerprint provjerite s hosting providerom prije prihvaćanja nove vrijednosti.
+
+## Datoteka se ne može preuzeti ili prepisati lokalno
+
+ByFTP blokira neke lokalne putanje kada otkrije:
+
+- symlink;
+- junction;
+- reparse-point preusmjeravanje;
+- cilj koji je direktorij umjesto obične datoteke;
+- konkurentno zauzeto no-replace odredište.
+
+Ovo je namjerno ponašanje radi zaštite od neželjenog prepisivanja izvan odabrane mape.
+
+## Što pripremiti za kvalitetan bug report
+
+Ne šaljite lozinku, private key ni druge tajne.
+
+Pošaljite:
+
+- verziju ByFTP-a;
+- operativni sustav i arhitekturu;
+- protokol i port;
+- opći tip hostinga, primjerice shared hosting/VPS;
+- točnu poruku greške bez vjerodajnica;
+- radnju koja je prethodila grešci;
+- radi li isti FTP račun u drugom klijentu;
+- događa li se problem samo na uploadu, listingu, renameu, downloadu ili svemu.
+
+## Što ByFTP namjerno ne radi
+
+ByFTP ne šalje runtime activity log na Brendigo server, nema aplikacijsku telemetriju i nema vanjski crash-reporting servis iz kojeg bi podrška mogla “sama dohvatiti” vašu sesiju. To štiti privatnost, ali znači da kvalitetan opis problema ostaje važan.
+
+---
+
+**Za većinu shared-hosting problema prvo provjerite host + puni username + protokol + port. Ako login prođe, ByFTP 1.0.5 je posebno pooštren za home-relative FTP rad nakon prijave.**
