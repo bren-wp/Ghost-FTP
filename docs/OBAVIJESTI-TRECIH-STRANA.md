@@ -1,12 +1,26 @@
-# ByFTP — obavijesti o komponentama trećih strana
+# Obavijesti trećih strana
 
-ByFTP 2.14.0 runtime ne ugrađuje vanjske Go module ni web/runtime SDK-ove.
+**ByFTP želi biti jasan o alatima na koje se oslanja — bez skrivanja mrežnih komponenti iza vlastitog brenda.**
 
-Koristi sistemske komponente operacijskog sustava Windows:
+## Mrežni alati
 
-- Windows `curl.exe` za FTP/FTPS
-- Windows OpenSSH Client za SFTP
-- Segoe Fluent Icons na Windowsu 11 i Segoe MDL2 Assets kao fallback na Windowsu 10
-- standardne Win32, Shell, Registry, Common Controls, DWM i DPAPI API-je
+ByFTP koristi provjerene sistemske alate za određene protokole:
 
-Te komponente ostaju dio Windows sustava i podliježu odgovarajućim Microsoftovim uvjetima. ByFTP ih ne redistribuira kao vanjske Go dependencies.
+- `curl` za FTP/FTPS operacije;
+- OpenSSH alate za SFTP.
+
+ByFTP ih ne predstavlja kao vlastite komponente. Njihove licence i autorska prava pripadaju njihovim autorima i projektima.
+
+## Go standardna biblioteka
+
+Glavni ByFTP engine pisan je u Go-u i projekt namjerno ne koristi vanjske Go module u runtime dependency grafu. CI to provjerava kao dio privacy/supply-chain politike.
+
+## Operativni sustav
+
+ByFTP koristi platformske API-je operativnog sustava, uključujući Windows DPAPI i datotečne primitive potrebne za sigurniji lifecycle.
+
+## Zašto je ova transparentnost važna
+
+Korisnik treba znati koji dio sustava obavlja mrežni protokol, koji dio pripada ByFTP-u i koji dio dolazi iz operativnog sustava.
+
+**Manje skrivenih slojeva znači lakšu provjeru, jasniju odgovornost i bolju kontrolu nad proizvodom koji koristite.**
