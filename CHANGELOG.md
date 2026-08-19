@@ -1,5 +1,23 @@
 # Povijest promjena
 
+## 1.0.10 — Stabilniji cancel i lifecycle vanjskih procesa
+
+**Fokus izdanja:** spriječiti da `curl` ili OpenSSH helper proces ostane živ nakon timeouta ili korisničkog cancela, posebno tijekom SFTP AskPass autentikacije.
+
+- Linux i macOS vanjski mrežni/helper procesi sada se pokreću u zasebnoj process groupi (`Setpgid`), pa context cancel šalje `SIGKILL` cijeloj grupi umjesto samo glavnom procesu
+- postojeći direct-process `CommandContext` cancel zadržan je kao fallback ako group kill ne uspije
+- Windows više ne ovisi samo o `Process.Kill` glavnog `curl.exe`/`sftp.exe` procesa; cancel radi sistemski process snapshot i rekurzivno pronalazi potomke prema parent PID-u
+- Windows najprije snima postojeće potomke, zatim prekida glavni proces da on više ne može stvarati nove child procese, pa uklanja prethodno pronađene potomke
+- nakon toga radi se drugi svježi process snapshot kako bi se uhvatio child koji je mogao nastati u kratkom intervalu između prvog snapshota i gašenja roditelja
+- descendant cleanup koristi Windows `CreateToolhelp32Snapshot`, `Process32FirstW`, `Process32NextW`, `OpenProcess` i `TerminateProcess` bez nove vanjske ovisnosti
+- Windows `CREATE_NO_WINDOW` ponašanje ostaje aktivno, pa lifecycle hardening ne uvodi vidljive konzolne prozore i ne uklanja standardne handleove potrebne za SSH AskPass
+- postojeći `curl`, `curl --version`, `ssh-keyscan`, `ssh-keygen` i `sftp` `exec.CommandContext` ulazi ostaju obavezno vezani uz zajednički `configureToolCommand`
+- dodan je cross-platform funkcionalni Go test koji pokreće pravi parent helper i njegov child, čeka dokaz da je child nastao, cancelira parent i potvrđuje da child nije preživio dovoljno dugo da ostavi marker
+- dodan je normal-completion regresijski test kako lifecycle konfiguracija ne bi lomila kratke uspješne procese
+- dodan je Python source-level guard koji zaključava Unix process-group zaštitu, Windows rekurzivni descendant cleanup i konfiguriranje svakog postojećeg remote `CommandContext` call-sitea
+- README marketinški objašnjava korisničku korist 1.0.10: čišći cancel/timeout i manji rizik od zaostalih OpenSSH/AskPass procesa
+- verzija je povećana na `1.0.10`; objavljeni `v1.0.9` ostaje nepromjenjiv
+
 ## 1.0.9 — Sigurnija Windows instalacijska transakcija
 
 **Fokus izdanja:** spriječiti da installer backup, fresh aktivacija ili rollback diraju datoteku čiji identitet i sadržaj više ne odgovaraju objektu koji je installer stvarno provjerio ili postavio.

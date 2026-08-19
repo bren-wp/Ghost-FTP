@@ -24,7 +24,7 @@
 
 ByFTP je klijent za korisnike koji žele otvoriti hosting, pronaći `public_html`, prenijeti datoteke i nastaviti raditi bez nepotrebnih koraka. Windows izdanje koristi izvorni dvopanelni Win32 GUI, dok Linux i macOS koriste terminalno sučelje nad istim Go engineom.
 
-**Trenutačno izdanje: 1.0.9**
+**Trenutačno izdanje: 1.0.10**
 
 ## Što ByFTP radi
 
@@ -103,6 +103,14 @@ Kod svježe instalacije novi `ByFTP.exe` i `Uninstall.exe` aktiviraju se no-repl
 
 Ove provjere namjerno daju prednost očuvanju podataka pred pokušajem “popravka pod svaku cijenu”. Potpuno uklanjanje svakog mogućeg same-user path race prozora na Windowsu zahtijevalo bi dodatne handle-relative platformske primitive; ByFTP ne tvrdi da ih ova promjena univerzalno eliminira.
 
+## Stabilniji cancel i timeout u 1.0.10
+
+ByFTP za FTP/FTPS koristi `curl`, a za SFTP sistemski OpenSSH. Prekid mrežne operacije više se ne oslanja samo na gašenje jednog glavnog procesa ako taj alat ima potomke. Na Linuxu i macOS-u svaki mrežni/helper proces dobiva vlastitu process group i cancel prekida cijelu grupu. Na Windowsu se pri cancelu zaustavlja glavni proces, zatim se preko sistemskog popisa procesa rekurzivno uklanjaju njegovi potomci, uz dodatni svježi prolaz nakon gašenja roditelja.
+
+To je posebno važno za SFTP autentikaciju: OpenSSH može pokrenuti ByFTP AskPass helper za lozinku ili passphrase. Timeout, korisnički cancel ili gašenje aktivne operacije sada imaju process-tree zaštitu kako helper ne bi nastavio živjeti nakon prekinute SFTP radnje. Zaštita se primjenjuje i na `ssh-keyscan`, `ssh-keygen`, `curl --version` capability provjeru i redovne FTP/FTPS/SFTP operacije jer svi postojeći `exec.CommandContext` ulazi prolaze kroz isti lifecycle konfigurator.
+
+Regresijski test u stvarnom procesu pokreće parent i child helper, čeka dokaz da je child nastao, cancelira parent te potvrđuje da child nije preživio dovoljno dugo da ostavi marker. Time CI provjerava ponašanje, a ne samo prisutnost zaštitnog koda.
+
 ## Upravljanje datotekama
 
 Windows GUI podržava pregled lokalnih i udaljenih datoteka, višestruki odabir, upload/download, stvaranje mapa, preimenovanje, rekurzivno brisanje uz zaštitne limite, CHMOD gdje ga server podržava, profile i transfer queue.
@@ -127,7 +135,7 @@ ByFTP je projektiran tako da greška ne izgleda kao uspjeh. Ključne zaštite uk
 - blokiranje automatskog retryja dok prethodni remote pokušaj možda ima zaostali privremeni objekt;
 - vezanje retry/batch poslova uz istu connection identity i transfer generation;
 - bounded stdout/stderr mrežnih child procesa;
-- timeout i cancel propagaciju;
+- timeout i cancel propagaciju s process-tree zaštitom za vanjske mrežne/helper procese;
 - FTPS certificate-revocation zaštitu bez globalnog `ssl-no-revoke` gašenja;
 - SFTP SHA-256 fingerprint pinning i privatni `known_hosts` lifecycle.
 
