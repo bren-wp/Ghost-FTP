@@ -1,5 +1,18 @@
 # Povijest promjena
 
+## 1.0.2 — Remote commit revalidacija
+
+- FTP/FTPS i SFTP upload više ne donose završnu overwrite/backup odluku prema remote direktorijskom snapshotu snimljenom prije potencijalno dugog prijenosa
+- nakon uspješnog prijenosa u kriptografski nasumični `.byftp-part-*` objekt ByFTP ponovno lista odredišni direktorij neposredno prije commit/rename faze
+- ako se cilj tijekom uploada pretvori u direktorij ili simboličku poveznicu, commit se blokira, privremeni upload briše i postojeći objekt se ne dira
+- ako se obična ciljna datoteka pojavi tijekom uploada i uključen je `SkipExisting`, ByFTP briše temp objekt i vraća `ErrSkipped` umjesto da prepiše novonastalu datoteku
+- ako je overwrite dopušten, `commitRemoteTemp` dobiva svježi remote snapshot pa backup/rollback odluku donosi prema stvarnom stanju neposredno prije aktivacije
+- ako završna revalidacija direktorija ne uspije, temp objekt se fail-closed čisti i završni rename se ne pokušava
+- FTP/FTPS i SFTP koriste isti `revalidateRemoteCommit` helper kako sigurnosna logika ne bi divergirala između adaptera
+- dodani su Go regresijski testovi za novonastalu datoteku, direktorij, symlink, listing grešku, overwrite i još-nepostojeći cilj
+- dodan je Python source-ordering regression koji potvrđuje da oba upload adaptera pozivaju revalidaciju prije `commitRemoteTemp`
+- verzija se povećava na `1.0.2` umjesto mijenjanja već objavljenog i nepromjenjivog `v1.0.1`
+
 ## 1.0.1 — Filesystem i SFTP hardening
 
 - ispravljena je Unix no-replace semantika koja je ranije radila `Lstat(dst)` pa obični `rename`, što je ostavljalo TOCTOU prozor u kojem je konkurentno odredište moglo biti prepisano

@@ -23,7 +23,7 @@
 
 ByFTP koristi jedan tipizirani Go engine za FTP, FTPS i SFTP, zajednički transfer queue, provjeru putanja, kontrolirani lifecycle veze i fail-closed sigurnosne granice. Windows izdanje ima puni izvorni Win32 dvopanelni GUI. Linux i macOS koriste funkcionalni terminalni frontend nad istim engineom.
 
-**Trenutačno izdanje: 1.0.1**
+**Trenutačno izdanje: 1.0.2**
 
 ## Produkcijska podrška
 
@@ -113,6 +113,8 @@ ByFTP koristi obrambeni, transakcijski pristup:
 - stabilno otvaranje direktorija prije rekurzivnog lokalnog brisanja i ponovnu provjeru identiteta direktorija prije nastavka/finalnog uklanjanja;
 - zaštitu od symlink, junction i reparse traversal izlaza;
 - ponovnu validaciju lokalnog root-a prije queued transfera;
+- ponovnu provjeru remote odredišta nakon završetka temp uploada i neposredno prije rename/backup commit faze;
+- `SkipExisting` ponovno se primjenjuje na svježe remote stanje, a novonastali direktorij/symlink blokira commit i čisti temp upload;
 - vezanje retry posla uz identitet iste veze;
 - ograničenu rekurziju i broj stavki;
 - validaciju udaljenih putanja i command-stream separatora;
@@ -154,6 +156,16 @@ Rezultat usporedite s odgovarajućim retkom u službenom `SHA256.txt`.
 ## Potpisivanje i ograničenja
 
 Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS paket nije Developer ID potpisan/notariziran bez stvarnog Apple identiteta i potrebnih secrets. Release workflow ne fabricira publisher status.
+
+## Što donosi 1.0.2
+
+1.0.2 dodatno učvršćuje završnu fazu FTP/FTPS/SFTP uploada u okruženjima gdje više klijenata može mijenjati isti remote direktorij:
+
+- nakon prijenosa u `.byftp-part-*` ByFTP ponovno lista odredišni direktorij neposredno prije aktivacije;
+- novonastali direktorij ili symlink pod finalnim imenom blokira commit i uzrokuje cleanup temp objekta;
+- `SkipExisting` poštuje i datoteku koja se pojavila tijekom samog uploada;
+- overwrite/backup/rollback odluke koriste svježi remote snapshot umjesto stanja snimljenog prije dugog prijenosa;
+- FTP/FTPS i SFTP dijele isti revalidation helper i regresijske testove.
 
 ## Što donosi 1.0.1
 
