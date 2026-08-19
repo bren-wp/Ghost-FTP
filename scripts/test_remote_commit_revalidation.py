@@ -24,13 +24,21 @@ class RemoteCommitRevalidationTests(unittest.TestCase):
     def test_revalidation_helper_cleans_temporary_upload(self) -> None:
         text = (ROOT / "internal/remote/remote_commit_revalidation.go").read_text(encoding="utf-8")
         for marker in (
-            "cleanupContext()",
-            "delete(cleanupCtx, dir, tempName, false)",
+            "cleanupFailure(revalidationErr, dir, tempName, delete)",
             "remoteEntry(items, base)",
             "existing.IsDirectory || existing.IsSymlink",
-            "return nil, ErrSkipped",
+            "cleanupFailure(ErrSkipped, dir, tempName, delete)",
         ):
             self.assertIn(marker, text)
+
+        cleanup = (ROOT / "internal/remote/remote_cleanup_hardening.go").read_text(encoding="utf-8")
+        for marker in (
+            "cleanupContext()",
+            "delete(cleanupCtx, dir, name, false)",
+            "remoteCleanupConfirmsMissing(err)",
+            "remoteResidualArtifactError",
+        ):
+            self.assertIn(marker, cleanup)
 
 
 if __name__ == "__main__":
