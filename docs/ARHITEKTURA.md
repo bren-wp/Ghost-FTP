@@ -1,191 +1,163 @@
-# ByFTP — arhitektura
+# Arhitektura
 
-ByFTP je jedan Go kodni sustav sa **zajedničkim tipiziranim engineom**, platform-specific korisničkim sučeljima i odvojenim produkcijskim build/release slojem. Runtime nema browser UI, localhost HTTP server, cloud kontrolni kanal ni mrežni IPC između sučelja i enginea.
+**ByFTP arhitektura je napravljena s jednim praktičnim ciljem: korisnik ne bi trebao dobiti potpuno drukčije ponašanje samo zato što koristi FTP, FTPS, SFTP, Windows ili terminal.**
 
-## Slojevi
+Zato projekt koristi jedan zajednički Go engine, a platforme i protokoli se priključuju kroz jasno odvojene slojeve.
 
-- `cmd/byftp` — startup, verzija i strogo ograničen Windows AskPass način rada
-- `internal/api` — tipizirani in-process `Engine`; javna granica prema UI sloju
-- `internal/remote` — FTP/FTPS preko sistemskog curl-a i SFTP preko sistemskog OpenSSH-a
-- `internal/transfer` — red prijenosa, retry/cancel, event stream, generation i worker lifecycle
-- `internal/localfs` — lokalne datotečne operacije i bounded enumeracija
-- `internal/config` — atomsko lokalno stanje; Windows profilne tajne koriste DPAPI
-- `internal/profilebinding` — endpoint/account/private-key identitet profila
-- `internal/security` — validacija, filesystem granice, DPAPI i procesno runtime spremište tajni
-- `internal/platform` — OS-specifične putanje i Win32 integracija
-- `internal/desktop` — Windows Win32 GUI ili Linux/macOS terminalni frontend
-- `cmd/installer` / `cmd/uninstaller` — interni Windows Setup lifecycle
-- `scripts` — Windows/Linux/macOS build, PE, bundle, audit i release alati
-- `.github/workflows` — PR CI i odvojeni produkcijski release gateovi
+## Zašto je to važno korisniku
 
-Runtime nema vanjske Go module.
+Zajednički engine omogućuje da ključna pravila budu ista:
 
-## Platform-specific frontend
+- validacija putanja;
+- transfer queue;
+- retry/cancel pravila;
+- remote staging i commit;
+- sigurnosne granice;
+- session lifecycle;
+- profile i connection identity model.
 
-### Windows
+To smanjuje mogućnost da se primjerice upload na FTP-u ponaša potpuno drukčije od SFTP-a u dijelovima koji ne ovise o samom protokolu.
 
-Windows koristi puni Win32 GUI s dvopanelnim lokalnim/udaljenim prikazom, profilima, transfer queueom, toolbarom i dijalozima. Vanjski `curl.exe`, `sftp.exe`, `ssh-keyscan.exe` i `ssh-keygen.exe` uzimaju se iz stvarnog Windows System32/OpenSSH direktorija.
+## Glavni slojevi
 
-### Linux i macOS
+### 1. Desktop / terminal sučelje
 
-`internal/desktop/other.go` pokreće terminalni ByFTP klijent nad istim `api.Engine` objektom. `ls`, `cd`, udaljene operacije i `get`/`put` pozivaju iste engine/transfer granice kao Windows UI.
+Windows koristi izvorni Win32 GUI s dvopanelnim prikazom.
 
-Linux/macOS frontend podržava FTP/FTPS lozinku i SFTP privatni ključ bez passphrasea. Nepodržani SFTP password/passphrase način odbija se prije mrežnog pokušaja.
+Linux i macOS koriste terminalno sučelje.
 
-## Tipizirani pozivni put
+Oba pristupa komuniciraju s istim aplikacijskim engineom umjesto da svaki frontend implementira vlastitu mrežnu logiku.
 
-UI ne šalje generičke JSON naredbe prema runtimeu. Glavni put izgleda ovako:
+### 2. API engine
 
-```text
-desktop -> api.Engine -> remote / transfer / localfs -> platform adapter
-```
+Engine koordinira:
 
-Time se argumenti i greške provjeravaju kroz Go tipove, a ne kroz runtime string dispatcher.
+- profile;
+- postavke;
+- remote manager;
+- local filesystem servis;
+- transfer manager;
+- operacije nad datotekama.
 
-## Povezivanje
+Nema generički skriveni web servis ili browser backend. Aplikacija ostaje lokalni desktop/terminal alat.
 
-```text
-desktop -> api.Engine.Connect -> remote.Manager.Connect -> adapter -> početni List probe
-```
+### 3. Remote manager
 
-Veza se smatra uspostavljenom tek nakon što adapter uspješno dovrši autentikaciju i pročita početni udaljeni direktorij. UI ne prikazuje „Povezano” samo zato što je mrežni child proces pokrenut.
+Remote manager upravlja aktivnom sesijom i povezuje korisničke postavke s odgovarajućim adapterom.
 
-### SFTP tijek
+Veza se ne smatra uspostavljenom samo zato što je napravljen adapter. Nakon kreiranja sesije izvodi se početni `List` probe; tek uspješan rezultat vodi u stanje povezano.
 
-1. validacija endpointa i vjerodajnica
-2. `ssh-keyscan` i SHA-256 fingerprint
-3. endpoint-scoped host-key pin/trust odluka
-4. privatni `known_hosts` i session config
-5. stvarna SFTP autentikacija
-6. početni `List` probe
-7. tek tada `ConnectResult{Connected:true}`
+Disconnect prekida session context, blokira novi rad dok se prethodna veza sigurno zatvara i čeka aktivne operacije prije konačnog `Close()` adaptera.
 
-ByFTP ne koristi SFTP batch način koji bi prisilno uključio `BatchMode=yes` i mogao blokirati Windows AskPass. Naredbe se šalju preko stdin-a, uz eksplicitni `BatchMode=no` na Windows credential putu.
+### 4. FTP / FTPS adapter
 
-IPv6 URL-style uglate zagrade uklanjaju se prije OpenSSH `HostName` i `ssh-keyscan` unosa.
+FTP/FTPS koristi pouzdani sistemski curl koji ByFTP pokreće s kontroliranom konfiguracijom preko standardnog inputa.
 
-## Process-level connect dokaz
+Adapter vodi računa o:
 
-`internal/remote/process_connect_smoke_other_test.go` stvara kratkotrajne lokalne fake `curl` i `sftp` izvršne datoteke i pokreće ih kroz isti produkcijski `exec.CommandContext` put.
+- FTP/FTPS URL-ovima;
+- passive EPSV/PASV radu;
+- TLS konfiguraciji;
+- MLSD/LIST kompatibilnosti;
+- upload/downloadu;
+- raw control naredbama;
+- remote staging i commit modelu.
 
-Time se zajedno provjeravaju:
+U 1.0.5 URL i raw control naredbe dijele istu login-home semantiku, što je posebno važno za shared hosting.
 
-- executable discovery preko `PATH`-a
-- stdin/config transport prema child procesu
-- aktivni runtime-secret token i njegovo čišćenje
-- SFTP process argumenti i command stream
-- MLSD/Unix listing parser
-- adapter `Close()` cleanup
+### 5. SFTP adapter
 
-Testovi nemaju vanjski mrežni promet niti stvarne vjerodajnice. Izvršavaju se na Linux i macOS CI runnerima prije pakiranja.
+SFTP koristi OpenSSH alate uz privatnu session konfiguraciju.
 
-## Vjerodajnice
+ByFTP postavlja vlastiti `known_hosts`, ograničava implicitne helper mehanizme, provjerava fingerprint i kontrolira private-key lifecycle.
 
-### Windows
+### 6. Transfer manager
 
-Spremljene profilne tajne i aktivni adapter blobovi koriste Windows DPAPI. AskPass helper dobiva zaštićeni blob samo u kontroliranom child-process okruženju i provjerava vlastiti executable, token i trusted OpenSSH parent.
+Transfer manager je centralno mjesto za:
 
-AskPass je fail-closed: tajna se vraća samo ako prompt jasno traži `password` ili `passphrase`. MFA/OTP/security-key prompt ne dobiva spremljenu tajnu.
+- queue;
+- batch rezervaciju;
+- concurrency;
+- pause/resume;
+- cancel;
+- retry;
+- vezanje posla uz connection identity/generation;
+- obradu retryable i non-retryable grešaka.
 
-### Linux/macOS
+To odvaja korisnički workflow od detalja konkretnog mrežnog protokola.
 
-FTP/FTPS lozinka aktivne sesije sprema se u procesnu mapu iza kriptografski nasumičnog tokena. Adapter drži token, ne plaintext. `run()` dobiva kratkotrajnu kopiju, briše je nakon izrade curl konfiguracije, a `Close()` uklanja procesnu vrijednost.
+### 7. Security sloj
 
-Terminalni frontend trenutačno ne sprema profilne vjerodajnice na disk.
+Security paket sadrži zajedničke primitive za:
 
-## Profilni identitet
+- host/port/protokol validaciju;
+- remote path i filename validaciju;
+- lokalne root granice;
+- symlink/junction/reparse zaštitu;
+- DPAPI i runtime secrets;
+- sigurno rekurzivno brisanje.
 
-`internal/profilebinding` definira:
+### 8. Platform sloj
 
-- endpoint = `protokol + normalizirani host + port`
-- account = endpoint + korisničko ime
-- private-key identitet = account + putanja privatnog ključa
+Platform-specific kod sadrži operacije koje nije korektno simulirati generičkim Go kodom.
 
-Spremljena lozinka ne prelazi na drugi account, passphrase ne prelazi na drugi ključ, a SFTP fingerprint ne prelazi na drugi endpoint.
+Primjeri:
 
-## Session lifecycle
+- Windows `MoveFileExW` no-replace/write-through ponašanje;
+- Linux `renameat2(RENAME_NOREPLACE)`;
+- macOS exclusive activation fallback;
+- Windows UI i OS integracija.
 
-`remote.Manager.Operation` registrira aktivnu operaciju i daje joj context koji se otkazuje kada pozivatelj odustane ili veza ulazi u disconnect. `release()` je idempotentan.
+## Shared-hosting FTP putanja
 
-Disconnect:
+ByFTP logički prikazuje FTP putanje s vodećim `/` jer je to korisniku prirodan root prikaza.
 
-1. uklanja aktivnu session referencu pa novi pozivi više ne ulaze
-2. otkazuje session context
-3. čeka postojeće operacije
-4. zatvara adapter tek nakon zadnjeg `release()`
-5. ako caller deadline istekne, cleanup nastavlja odvojeno bez zatvaranja adaptera ispod aktivne operacije
-6. reconnect ostaje blokiran dok stara sesija nije stvarno zatvorena
+Ipak, FTP URL s jednom početnom kosom crtom u curlu predstavlja putanju unutar direktorija u koji je server smjestio korisnika nakon logina. Raw `QUOTE` naredbe šalju se ranije u protokolskom toku, pa vodeći `/` na non-chrooted hostingu može imati drukčije značenje.
 
-## Transfer lifecycle
+1.0.5 zato mapira logički `/public_html/site` u control operand `public_html/site`, kako bi listing, upload, rename, delete i mkdir govorili o istom objektu.
 
-Transfer queue koristi connection generation i opaque connection identity. Stari posao ne može nakon reconnecta neprimjetno prijeći na drugi server ili account.
+## MLSD i LIST strategija
 
-Download koristi kriptografski nasumični staging sibling, `Lstat`/regular-file/reparse provjeru i no-replace backup/rollback. Rekurzivni upload ponovno validira lokalni root prije izvršenja.
+Moderniji FTP serveri često nude MLSD. ByFTP ga preferira jer je strukturiraniji.
 
-## Build arhitektura
+Ako MLSD nije podržan ili server vrati odgovor koji nije stvarni MLSD listing, obični LIST se koristi kao kompatibilni fallback. Nakon uspješnog fallbacka adapter pamti odluku za ostatak sesije.
 
-Produkcijski buildovi koriste jedan kanonski `VERSION` i minimalni Go **1.26.5+**.
+To smanjuje nepotrebne neuspjele naredbe na starijim i shared-hosting FTP servisima.
 
-Standardna build politika je:
+## Upload arhitektura
 
-```text
-GOTOOLCHAIN=local
-GOPROXY=off
-GOSUMDB=off
-CGO_ENABLED=0
-```
+Upload prolazi kroz više slojeva:
 
-Prije produkcijskog testa/builda `go telemetry` mora biti `off`. GitHub Actions to stanje eksplicitno postavlja naredbom `go telemetry off`, a build skripte ponovno provjeravaju rezultat i odbijaju build u drugom načinu.
+1. lokalni source se verificira;
+2. izrađuje se privatni snapshot;
+3. snapshot se sadržajno potvrđuje;
+4. adapter šalje remote temp objekt;
+5. source snapshot se ponovno provjerava i uklanja;
+6. remote odredište se ponovno lista;
+7. staging objekt se transakcijski aktivira kroz rename/backup/rollback logiku.
 
-### Windows build
+Ta arhitektura je skuplja od običnog direktnog overwritea, ali daje jaču kontrolu nad sadržajem i konkurentnim promjenama.
 
-`BUILD-WINDOWS.ps1` gradi x64 i x86. Javni `dist/` izlazi su Setup i Portable; tehničke instalacijske komponente i verification dokazi odvojeni su u internu build lokaciju.
+## Download arhitektura
 
-### Linux build
+Download ide u lokalni `part` sibling, zatim se part validira i aktivira no-replace/backup logikom.
 
-`scripts/BUILD-LINUX.sh` cross-builda amd64, arm64 i i386 binarije i pakira ih u DEB s deklariranim sistemskim ovisnostima.
+Cilj je spriječiti da djelomično preuzeta datoteka bude predstavljena kao završna datoteka.
 
-### macOS build
+## Privatnost u arhitekturi
 
-`scripts/BUILD-MACOS.sh` gradi amd64 i arm64, spaja ih `lipo` alatom, izrađuje `.icns`, `ByFTP.app` i Universal PKG.
+Projekt nema vanjske Go module u runtime engineu i CI to provjerava.
 
-## PR CI arhitektura
+Child procesi dobivaju sanitizirani environment, bez naslijeđenih proxy/TLS/SSH helper varijabli koje bi mogle promijeniti mrežnu politiku.
 
-Prije mergea postoje četiri neovisna gatea:
+## Release arhitektura
 
-1. quality: auditi + Python regresije + Go unit/race/vet
-2. Windows: x64 + x86 produkcijski build
-3. Linux: test/vet na Linux runneru + amd64/arm64/i386 DEB
-4. macOS: test/vet na macOS runneru + Universal Intel/Apple Silicon PKG
+`VERSION` je jedini produkcijski izvor verzije.
 
-## Produkcijska release arhitektura
+CI provjerava kod, testove, race detector, vet, sigurnosne audite i platformske buildove. Produkcijski release tek nakon toga izrađuje platform packages, checksumove, release assets i GitHub Package.
 
-2.16.2 odvaja release validaciju od pretpostavke da je PR CI već bio zelen.
+## Dizajnersko načelo
 
-Automatski release okidač je samo promjena `VERSION` na `main`; dostupan je i manualni rerun. Publisher-created tag ne pokreće drugi workflow. Svi release runovi dijele jednu `byftp-release` concurrency grupu.
+**Jedan engine, jasno odvojene platforme, što manje implicitnog ponašanja.**
 
-Release ponovno izvršava četiri gatea:
-
-1. **quality** — auditi, Python regresije, unit, race, vet i release-note provjera
-2. **Windows** — x64/x86 build + ZIP bundle verifikacija
-3. **Linux** — Linux test/vet + tri DEB paketa i metadata provjera
-4. **macOS** — macOS test/vet + Universal PKG i strukturalna provjera
-
-`publish` ovisi o sva četiri joba.
-
-Prije generiranja zajedničkih metapodataka `release/` staging mora sadržavati točno 10 očekivanih platformskih paketa. Zatim se dodaju `SHA256.txt`, `RELEASE-NOTES.txt` i `BUILD-METADATA.txt`, čime nastaje završni ugovor od 13 custom asseta.
-
-`scripts/publish_release.ps1` jedini smije stvarati/nadopunjavati GitHub Release. Tag mora pokazivati na release commit, postojeći asset mora odgovarati po veličini i SHA-256 digestu, a neočekivani sadržaj zaustavlja izdanje.
-
-## GitHub Package
-
-`ByFTP.Windows` je dodatni Windows-only distribucijski paket. On nije runtime ovisnost ByFTP-a i ne utječe na Linux/macOS distribuciju.
-
-## Digitalni identitet
-
-Build/release arhitektura ne fabricira potpis:
-
-- Windows Verified Publisher zahtijeva stvarni Brendigo Authenticode certifikat
-- macOS Developer ID/notarizacija zahtijeva stvarni Apple identitet i secrets
-
-Bez toga release ostaje tehnički testiran i SHA-verificiran, ali nepotpisan u smislu tih platformskih publisher identiteta.
+ByFTP arhitektura nije optimizirana za najmanje linija koda, nego za to da kritična pravila budu dovoljno centralizirana da ih je moguće testirati i braniti od regresija.
