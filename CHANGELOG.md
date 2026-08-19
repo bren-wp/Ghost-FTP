@@ -1,5 +1,16 @@
 # Povijest promjena
 
+## 1.0.4 — Transfer generation binding
+
+- `ReserveBatch` više ne dohvaća `ConnectionIdentity()` pa tek nakon toga uzima aktualnu transfer generation; generation se sada capturea pod `Manager.mu` prije identity lookup-a i ponovno provjerava nakon povratka
+- ako disconnect/reconnect ili drugo lifecycle prebacivanje promijeni generation tijekom `ConnectionIdentity()` poziva, batch rezervacija se fail-closed odbija prije rezerviranja kapaciteta ili dodavanja poslova
+- time stari connection ID više ne može biti uparen s novom generation i kasnije pokrenuti upload/download na pogrešnoj sesiji
+- `RetryBatch` koristi isti dvostruki generation guard prije bilo kakve promjene statusa failed/cancelled posla u `queued`
+- `ConnectionIdentity()` se namjerno poziva bez držanja `transfer.Manager.mu`, pa hardening ne uvodi lock-order/deadlock ovisnost između transfer i remote managera
+- dodani su deterministički Go testovi koji inkrementiraju generation iz samog `ConnectionIdentity()` callbacka; rezervacija mora ostati bez kapaciteta/poslova, a retry mora ostaviti posao potpuno nepromijenjenim
+- dodan je Python `unittest` koji zaključava ordering `capture generation → unlock → ConnectionIdentity → lock → generation recheck → mutation`
+- verzija se povećava na `1.0.4` umjesto mijenjanja već objavljenog i nepromjenjivog `v1.0.3`
+
 ## 1.0.3 — Stabilni lokalni upload snapshot
 
 - FTP/FTPS i SFTP upload više ne predaju vanjskom `curl`/OpenSSH procesu izvornu korisničku lokalnu putanju nakon zasebnog `Lstat` checka

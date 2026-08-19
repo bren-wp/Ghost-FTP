@@ -23,7 +23,7 @@
 
 ByFTP koristi jedan tipizirani Go engine za FTP, FTPS i SFTP, zajednički transfer queue, provjeru putanja, kontrolirani lifecycle veze i fail-closed sigurnosne granice. Windows izdanje ima puni izvorni Win32 dvopanelni GUI. Linux i macOS koriste funkcionalni terminalni frontend nad istim engineom.
 
-**Trenutačno izdanje: 1.0.3**
+**Trenutačno izdanje: 1.0.4**
 
 ## Produkcijska podrška
 
@@ -118,6 +118,7 @@ ByFTP koristi obrambeni, transakcijski pristup:
 - snapshot se uklanja prije remote revalidation/commit faze; cleanup failure blokira aktivaciju remote temp objekta;
 - ponovnu provjeru remote odredišta nakon završetka temp uploada i neposredno prije rename/backup commit faze;
 - `SkipExisting` ponovno se primjenjuje na svježe remote stanje, a novonastali direktorij/symlink blokira commit i čisti temp upload;
+- batch rezervacija i retry vežu `ConnectionIdentity()` uz istu monotonu transfer generation prije i poslije identity poziva; reconnect tijekom te granice odbija mutaciju umjesto da stari identity završi na novoj sesiji;
 - vezanje retry posla uz identitet iste veze;
 - ograničenu rekurziju i broj stavki;
 - validaciju udaljenih putanja i command-stream separatora;
@@ -161,6 +162,16 @@ Rezultat usporedite s odgovarajućim retkom u službenom `SHA256.txt`.
 ## Potpisivanje i ograničenja
 
 Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS paket nije Developer ID potpisan/notariziran bez stvarnog Apple identiteta i potrebnih secrets. Release workflow ne fabricira publisher status.
+
+## Što donosi 1.0.4
+
+1.0.4 zatvara generation/connection-identity race u transfer queueu:
+
+- `ReserveBatch` capturea aktualnu generation prije `ConnectionIdentity()` i ponovno je provjerava prije rezerviranja kapaciteta;
+- `RetryBatch` radi isti dvostruki guard prije promjene failed/cancelled posla u `queued`;
+- disconnect/reconnect tijekom identity lookup-a više ne može spojiti stari connection ID s novom generation;
+- identity lookup se i dalje izvršava izvan `transfer.Manager.mu`, pa se sigurnosna provjera ne plaća novim lock-order/deadlock rizikom;
+- deterministički testovi mijenjaju generation iz samog identity callbacka i potvrđuju da queue/job stanje ostaje nepromijenjeno.
 
 ## Što donosi 1.0.3
 
