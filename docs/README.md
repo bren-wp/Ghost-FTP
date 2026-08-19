@@ -6,7 +6,7 @@ ByFTP dokumentacija organizirana je tako da prvo odgovori na korisničko pitanje
 
 ## Želim se odmah spojiti na hosting
 
-Otvorite [Instalaciju i prvi spoj](INSTALACIJA.md).
+Za najbrži početak otvorite [ByFTP za shared hosting](SHARED-HOSTING.md), a za instalaciju i platformske detalje [Instalaciju i prvi spoj](INSTALACIJA.md).
 
 Za tipični shared hosting trebat će vam:
 
@@ -48,4 +48,4 @@ Ako koristite shared hosting, WordPress, statičnu web stranicu, PHP aplikaciju 
 
 ---
 
-**Najbrži put:** [Instalacija → prvi FTP spoj → `public_html`](INSTALACIJA.md)
+**Najbrži put:** [Shared hosting → prvi FTP spoj → `public_html`](SHARED-HOSTING.md)
