@@ -391,9 +391,20 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 			return ErrSkipped
 		}
 	}
+	source, err := prepareUploadSource(local)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
 	tempPath := remoteJoin(dir, tempName)
-	lines := []string{"url = " + cfgQuote(c.baseURL(tempPath)), "upload-file = " + cfgQuote(local), "speed-time = 30", "speed-limit = 1"}
+	lines := []string{"url = " + cfgQuote(c.baseURL(tempPath)), "upload-file = " + cfgQuote(source.Path()), "speed-time = 30", "speed-limit = 1"}
 	if _, err = c.run(ctx, lines); err != nil {
+		cleanupCtx, cancel := cleanupContext()
+		_ = c.Delete(cleanupCtx, dir, tempName, false)
+		cancel()
+		return err
+	}
+	if err = source.Verify(); err != nil {
 		cleanupCtx, cancel := cleanupContext()
 		_ = c.Delete(cleanupCtx, dir, tempName, false)
 		cancel()

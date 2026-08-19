@@ -1,5 +1,22 @@
 # Povijest promjena
 
+## 1.0.3 — Stabilni lokalni upload snapshot
+
+- FTP/FTPS i SFTP upload više ne predaju vanjskom `curl`/OpenSSH procesu izvornu korisničku lokalnu putanju nakon zasebnog `Lstat` checka
+- neposredno prije stvarnog uploada ByFTP otvara validirani regularni izvor i provjerava da otvoreni handle pripada istom filesystem objektu kao prethodni `Lstat`
+- izvor se kopira byte-for-byte u kriptografski nasumični privatni `byftp-upload-*` direktorij; child proces dobiva samo snapshot putanju
+- tijekom izrade kopije računa se SHA-256 digest, a isti već otvoreni izvor se zatim ponovno čita u cijelosti i njegov digest mora biti identičan snapshotu
+- ako se izvor tijekom izrade snapshota promijeni po identitetu, veličini, mtimeu, broju pročitanih bajtova ili SHA-256 sadržaju, upload se blokira prije mrežnog prijenosa
+- nakon što `curl`/OpenSSH završi čitanje snapshota ByFTP ponovno provjerava njegov filesystem identitet, veličinu, mtime i puni SHA-256 prije remote revalidation/commit faze
+- promjena originalne putanje nakon pripreme snapshota više ne može preusmjeriti sadržaj koji child proces šalje
+- same-size/same-mtime izmjena snapshota više ne prolazi samo kroz metadata provjeru jer završni SHA-256 mora odgovarati početnom digestu
+- privremeni snapshot direktorij briše se kroz postojeći no-follow `RemoveTreeNoFollow`, a ne nekontrolirani `RemoveAll`
+- sigurnija kopija namjerno zahtijeva dodatni lokalni privremeni prostor približno veličini datoteke koja se šalje i dodatno lokalno čitanje radi sadržajne stabilnosti
+- oba adaptera zadržavaju 1.0.2 post-upload remote revalidaciju, pa se lokalni source snapshot provjerava prije fresh remote provjere i transakcijskog `commitRemoteTemp`
+- dodani su Go testovi za zamjenu originalne putanje, snapshot tampering, same-size/same-mtime tampering, cleanup i symlink izvor
+- dodan je Python `unittest` koji zaključava da oba adaptera koriste `source.Path()` i `source.Verify()` prije remote commit faze te da helper ostaje copy+SHA-256, a ne hard-link pristup
+- verzija se povećava na `1.0.3` umjesto mijenjanja već objavljenog i nepromjenjivog `v1.0.2`
+
 ## 1.0.2 — Remote commit revalidacija
 
 - FTP/FTPS i SFTP upload više ne donose završnu overwrite/backup odluku prema remote direktorijskom snapshotu snimljenom prije potencijalno dugog prijenosa
