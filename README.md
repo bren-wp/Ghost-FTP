@@ -24,7 +24,7 @@
 
 ByFTP je klijent za korisnike koji žele otvoriti hosting, pronaći `public_html`, prenijeti datoteke i nastaviti raditi bez nepotrebnih koraka. Windows izdanje koristi izvorni dvopanelni Win32 GUI, dok Linux i macOS koriste terminalno sučelje nad istim Go engineom.
 
-**Trenutačno izdanje: 1.0.8**
+**Trenutačno izdanje: 1.0.9**
 
 ## Što ByFTP radi
 
@@ -94,6 +94,14 @@ Svako izdanje uključuje SHA-256 i release metapodatke za provjeru distribucije.
 Za instalaciju, prvi spoj, nadogradnju i uklanjanje otvorite [Vodič za instalaciju i brzi početak](docs/INSTALACIJA.md).
 
 Windows korisnicima preporučujemo Setup x64 paket. Portable izdanje je prikladno kada ne želite klasičnu instalaciju. Linux koristi DEB paket prema arhitekturi, a macOS Universal PKG pokriva Intel i Apple Silicon.
+
+### Sigurnija Windows instalacijska transakcija u 1.0.9
+
+Windows installer više ne smatra zasebni `Lstat` dovoljnim dokazom za backup postojeće instalacije. Otvoreni file handle mora odgovarati istom filesystem objektu, veličini i vremenu izmjene, a sadržaj se tijekom backupa provjerava dvostrukim SHA-256 čitanjem preko istog otvorenog handlea. Zamjena putanje ili in-place promjena tijekom kopiranja blokira nadogradnju prije aktivacije novih binarija.
+
+Kod svježe instalacije novi `ByFTP.exe` i `Uninstall.exe` aktiviraju se no-replace semantikom. Ako se ciljna datoteka pojavi nakon početne provjere, installer je neće pregaziti. Rollback dodatno pamti je li installer stvarno aktivirao vlastitu datoteku te prije uklanjanja ili vraćanja stare verzije ponovno provjerava identitet i SHA-256 aktiviranog objekta. Ako je datoteku u međuvremenu promijenio drugi proces, rollback se zaustavlja umjesto da briše ili prepisuje nepoznat sadržaj.
+
+Ove provjere namjerno daju prednost očuvanju podataka pred pokušajem “popravka pod svaku cijenu”. Potpuno uklanjanje svakog mogućeg same-user path race prozora na Windowsu zahtijevalo bi dodatne handle-relative platformske primitive; ByFTP ne tvrdi da ih ova promjena univerzalno eliminira.
 
 ## Upravljanje datotekama
 

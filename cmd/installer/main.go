@@ -181,16 +181,32 @@ func stageVerified(path string, data []byte) (string, error) {
 	return tmp, nil
 }
 
-func installFile(path string, data []byte) error {
+func installFile(path string, data []byte, backup *fileBackup) error {
+	if backup == nil || backup.target != path {
+		return errors.New("instalacijska transakcija ne odgovara ciljnoj datoteci")
+	}
 	tmp, err := stageVerified(path, data)
 	if err != nil {
 		return err
 	}
-	if err := platform.ReplaceFile(tmp, path); err != nil {
+	if err := backup.verifyBeforeInstall(); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}
-	return nil
+
+	// A fresh install must never overwrite a file that appeared after the
+	// transaction snapshot. Upgrades intentionally use ReplaceFile only after
+	// the previous object was backed up and revalidated immediately above.
+	if backup.existed() {
+		err = platform.ReplaceFile(tmp, path)
+	} else {
+		err = platform.RenameNoReplace(tmp, path)
+	}
+	if err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return backup.recordActivated(sha256.Sum256(data))
 }
 
 func register(appPath, uninstallPath, dir string) error {
@@ -304,12 +320,12 @@ func main() {
 		}
 		return ""
 	}
-	if err = installFile(appPath, app); err != nil {
+	if err = installFile(appPath, app, &appBackup); err != nil {
 		extra := rollbackMessage()
 		platform.ErrorDialog("ByFTP — Instalacija", "ByFTP nije moguće instalirati", "Zatvorite pokrenuti ByFTP i pokušajte ponovno."+extra)
 		return
 	}
-	if err = installFile(unPath, un); err != nil {
+	if err = installFile(unPath, un, &unBackup); err != nil {
 		extra := rollbackMessage()
 		platform.ErrorDialog("ByFTP — Instalacija", "Instalacija nije dovršena", "Potrebne datoteke nije moguće spremiti. Pokušajte ponovno."+extra)
 		return
