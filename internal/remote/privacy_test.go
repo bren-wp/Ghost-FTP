@@ -99,6 +99,9 @@ func TestSFTPCommandArgsHideConnectionMetadataAndDisableExternalRouting(t *testi
 }
 
 func TestFindCurlPrefersWindowsSystemBinary(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows system curl trust policy is Windows-specific")
+	}
 	system32 := filepath.Join(t.TempDir(), "System32")
 	if err := os.MkdirAll(system32, 0700); err != nil {
 		t.Fatal(err)
