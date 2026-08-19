@@ -37,7 +37,7 @@ class UploadSourceSnapshotTests(unittest.TestCase):
         self.assertIn('sftpQuote(source.Path())', sftp_block)
         self.assertNotIn('"put "+sftpQuote(local)', sftp_block)
 
-    def test_snapshot_helper_uses_open_handle_copy_and_content_digests(self) -> None:
+    def test_snapshot_helper_uses_open_handle_copy_digests_and_cleanup(self) -> None:
         text = (ROOT / "internal/remote/upload_source_snapshot.go").read_text(encoding="utf-8")
         for marker in (
             "os.Open(local)",
@@ -47,6 +47,8 @@ class UploadSourceSnapshotTests(unittest.TestCase):
             "sha256.New()",
             "bytes.Equal(copyHash.Sum(nil), verifyHash.Sum(nil))",
             "bytes.Equal(h.Sum(nil), s.digest[:])",
+            "if closeErr := s.Close(); closeErr != nil",
+            "nije moguće ukloniti lokalni upload snapshot",
             "security.RemoveTreeNoFollow(s.dir)",
         ):
             self.assertIn(marker, text)
