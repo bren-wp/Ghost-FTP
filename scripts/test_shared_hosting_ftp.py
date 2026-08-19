@@ -21,6 +21,14 @@ class SharedHostingFTPTests(unittest.TestCase):
             self.assertIn(marker, text)
         self.assertIn('strings.TrimPrefix(strings.ReplaceAll(p, "\\\\", "/"), "/")', text)
 
+    def test_ftp_urls_cannot_switch_to_server_absolute_namespace(self) -> None:
+        text = (ROOT / "internal/remote/curl_ftp.go").read_text(encoding="utf-8")
+        block = text[text.index("func ftpURLPath"):text.index("func (c *CurlFTP) baseURL")]
+        self.assertIn('strings.ReplaceAll(p, "\\\\", "/")', block)
+        self.assertIn('"/" + strings.TrimLeft(p, "/")', block)
+        base = text[text.index("func (c *CurlFTP) baseURL"):text.index("func (c *CurlFTP) configFor")]
+        self.assertIn("escapeURLPath(ftpURLPath(p))", base)
+
     def test_quote_is_control_channel_only(self) -> None:
         text = (ROOT / "internal/remote/curl_ftp.go").read_text(encoding="utf-8")
         quote = text[text.index("func (c *CurlFTP) quote"):text.index("func (c *CurlFTP) Mkdir")]
