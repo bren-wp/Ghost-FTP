@@ -129,7 +129,30 @@ Regresijski Go testovi i `audit_privacy.py` zajedno moraju odbiti ponovno uvođe
 - rekurzivne operacije imaju depth/item limite
 - queued transfer ponovno validira lokalni root prije svakog pokušaja
 
-Nove handle/identity provjere i platformske no-replace primitive zatvaraju najopasnije ranije check→follow/overwrite prozore. Dio stdlib operacija i dalje na kraju mora imenovati putanju, pa kod ne tvrdi apsolutnu otpornost na svaki namjerni same-user filesystem race. Potpuna takva garancija tražila bi platform-specific handle-relative operacije za cijeli traversal/destructive lifecycle.
+### Lokalni upload source snapshot
+
+FTP/FTPS i SFTP child procesi više ne dobivaju originalnu lokalnu korisničku putanju nakon zasebnog path checka. Za stvarni upload ByFTP:
+
+- `Lstat`-om zahtijeva običnu datoteku bez symlink/junction/reparse preusmjeravanja
+- otvara izvor i pomoću `os.SameFile` potvrđuje da handle pripada istom filesystem objektu
+- iz otvorenog handlea izrađuje byte-for-byte kopiju u privatnom nasumičnom `byftp-upload-*` direktoriju
+- tijekom kopiranja računa SHA-256, zatim isti otvoreni izvor ponovno čita od početka i zahtijeva isti broj bajtova i isti SHA-256
+- `curl`/OpenSSH-u predaje samo privatnu snapshot putanju, ne originalni lokalni pathname
+- nakon mrežnog čitanja ponovno provjerava filesystem identitet, veličinu, mtime i puni SHA-256 snapshota
+- `Verify()` uvijek zatvara handle i uklanja snapshot prije remote revalidation/commit faze; cleanup failure blokira commit i adapter čisti remote temp objekt
+
+Ovaj model zatvara path-replacement/symlink TOCTOU između ByFTP validacije i child-process opena te detektira normalne in-place/torn-copy promjene sadržaja. Ne tvrdi apsolutnu otpornost protiv proizvoljnog privilegiranog procesa koji može istodobno mijenjati kernel/filesystem stanje mimo korisničkih dozvola. Sigurnosni tradeoff je dodatni privremeni disk prostor približno veličini upload datoteke i dodatna lokalna čitanja radi sadržajne stabilnosti; nedostatak prostora završava fail-closed prije finalnog remote commit-a.
+
+### Remote upload commit
+
+Nakon što se lokalni snapshot verificira i ukloni, temp upload još nije automatski finalna datoteka. ByFTP ponovno lista remote direktorij neposredno prije `commitRemoteTemp`:
+
+- novonastali direktorij ili symlink pod finalnim imenom blokira commit i čisti remote temp
+- `SkipExisting` ponovno se primjenjuje na svježe remote stanje
+- overwrite/backup/rollback koristi svježi remote snapshot, ne listing napravljen prije dugog uploada
+- završni listing failure blokira commit i čisti temp objekt
+
+Nove handle/identity/content provjere i platformske no-replace primitive zatvaraju najopasnije ranije check→follow/overwrite prozore. Dio stdlib operacija i dalje na kraju mora imenovati putanju, pa kod ne tvrdi apsolutnu otpornost na svaki namjerni same-user filesystem race. Potpuna takva garancija tražila bi platform-specific handle-relative operacije za cijeli traversal/destructive lifecycle.
 
 ## Session lifecycle
 
@@ -192,6 +215,10 @@ Windows paketi nisu Authenticode/Verified Publisher dok ne postoji stvarni Brend
 `scripts/audit_security.py` zaključava SFTP procesne granice, connect smoke, AskPass prompt, context propagation, IPv6 normalizaciju, runtime tajne, profile binding, session lifecycle i filesystem zaštite.
 
 `scripts/test_filesystem_hardening.py` dodatno zaključava Linux kernel no-replace, macOS exclusive-link aktivaciju, stable-directory delete, private-key snapshot i SFTP cleanup redoslijed.
+
+`scripts/test_remote_commit_revalidation.py` zaključava da FTP/FTPS i SFTP nakon temp uploada osvježavaju remote stanje prije `commitRemoteTemp`.
+
+`scripts/test_upload_source_snapshot.py` zaključava open-handle byte-copy, dvostruku source SHA-256 provjeru, post-upload snapshot SHA-256, cleanup u `Verify()` i adapter ordering `prepare → child snapshot path → verify/cleanup → remote revalidation → commit`.
 
 `scripts/audit_privacy.py` zaključava runtime mrežnu politiku, FTPS revocation pravilo i stvarno gašenje Go build telemetrije.
 
