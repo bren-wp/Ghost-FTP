@@ -1,5 +1,21 @@
 # Povijest promjena
 
+## 1.0.6 — Stabilniji runtime i čišći lifecycle veze
+
+**Fokus izdanja:** dodatno smanjiti mogućnost race/lifecycle grešaka, ukloniti suvišan pristup raw sesiji i optimizirati transfer queue bez promjene sigurnosnih jamstava iz 1.0.5.
+
+- Engine više ne radi redundantni `remote.Session()` pre-check prije dodavanja ili ponavljanja prijenosa; queue već koristi connection identity i transfer generation kao autoritativnu lifecycle granicu
+- uklonjen je sirovi `Manager.Session()` getter iz remote managera, pa novi kod ne može slučajno zadržati `Session` izvan `Operation()`/active-operation zaštite
+- `Connect`, `Disconnect`, `Operation` i session-close čekanje normaliziraju `nil` context u siguran background context umjesto mogućeg runtime panica
+- početni remote probe i naknadni `Probe()` koriste zajednički FTP/SFTP probe-path helper umjesto duplicirane protokolske grane
+- ponovljena validacija transfer ID-eva u cancel/retry putanjama konsolidirana je u jedan `selectedIDs` helper koji trimma, deduplicira i fail-closed odbija neispravan odabir
+- transfer manager koristi `RWMutex`; čiste read operacije `List`, `Events`, `ActiveCount` i `jobSnapshot` više ne uzimaju ekskluzivni write lock
+- `waitWorkers(nil)` više ne dereferencira nil context tijekom disconnect/shutdown lifecyclea
+- duplicirani panic recovery u tipiziranim `SaveProfile` i `Connect` engine ulazima centraliziran je u jednu user-safe recovery granicu
+- dodane su Go regresije za nil-context remote lifecycle, FTP/SFTP probe namespace, transfer selection normalizaciju i nil-context worker wait
+- README zadržava marketinški benefit-first format, dodaje izravnu GitHub Packages poveznicu i jasno objašnjava što 1.0.6 donosi korisniku
+- verzija je povećana na `1.0.6`; objavljena 1.0.5 linija ostaje nepromjenjiva
+
 ## 1.0.5 — Shared hosting bez putanjskih iznenađenja
 
 **Fokus izdanja:** jednostavnije i pouzdanije spajanje na tipične shared-hosting FTP/FTPS račune te jasnija komunikacija prema korisniku.

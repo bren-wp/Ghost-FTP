@@ -24,6 +24,20 @@ var (
 	ErrDisconnectTimeout = errors.New("sigurno zatvaranje veze još traje")
 )
 
+func nonNilContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
+func probePathForSession(s Session) string {
+	if s != nil && s.Protocol() == "sftp" {
+		return "."
+	}
+	return "/"
+}
+
 type sessionCloseState struct {
 	done chan struct{}
 	err  error
@@ -195,6 +209,7 @@ func (m *Manager) applyPendingTrust(cfg model.ConnectionConfig, resolved *resolv
 }
 
 func (m *Manager) Connect(ctx context.Context, profileID string, in model.ConnectionConfig, trust string, remember bool) (ConnectResult, error) {
+	ctx = nonNilContext(ctx)
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 
@@ -297,11 +312,7 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 
 	cctx, cancel := context.WithTimeout(ctx, time.Duration(connectTimeout+5)*time.Second)
 	defer cancel()
-	probePath := "/"
-	if s.Protocol() == "sftp" {
-		probePath = "."
-	}
-	if _, err = s.List(cctx, probePath); err != nil {
+	if _, err = s.List(cctx, probePathForSession(s)); err != nil {
 		_ = s.Close()
 		return ConnectResult{}, err
 	}
@@ -324,9 +335,7 @@ func waitForSessionClose(ctx context.Context, state *sessionCloseState) error {
 	if state == nil {
 		return nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = nonNilContext(ctx)
 	select {
 	case <-state.done:
 		return state.err
@@ -352,9 +361,7 @@ func (m *Manager) finishSessionClose(state *sessionCloseState, s Session) {
 }
 
 func (m *Manager) Disconnect(ctx context.Context) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = nonNilContext(ctx)
 	m.opMu.Lock()
 	defer m.opMu.Unlock()
 	m.clearPendingTrustLocked()
@@ -388,15 +395,12 @@ func (m *Manager) Probe(ctx context.Context) error {
 		return err
 	}
 	defer release()
-	probePath := "/"
-	if s.Protocol() == "sftp" {
-		probePath = "."
-	}
-	_, err = s.List(opCtx, probePath)
+	_, err = s.List(opCtx, probePathForSession(s))
 	return err
 }
 
 func (m *Manager) Operation(ctx context.Context) (Session, context.Context, func(), error) {
+	ctx = nonNilContext(ctx)
 	m.mu.RLock()
 	s := m.session
 	sessionCtx := m.sessionCtx
@@ -433,15 +437,6 @@ func (m *Manager) ConnectionIdentity() (string, error) {
 		return "", errors.New("nije uspostavljena veza")
 	}
 	return connectionIdentity(m.cfg), nil
-}
-
-func (m *Manager) Session() (Session, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.session == nil {
-		return nil, errors.New("nije uspostavljena veza")
-	}
-	return m.session, nil
 }
 
 func (m *Manager) Config() (model.ConnectionConfig, bool) {

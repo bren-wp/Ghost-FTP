@@ -27,6 +27,9 @@ func (s *Service) List(p string) (string, []model.Item, error) {
 }
 
 func (s *Service) ListContext(ctx context.Context, p string) (string, []model.Item, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := ctx.Err(); err != nil {
 		return "", nil, err
 	}

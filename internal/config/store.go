@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 )
@@ -30,12 +31,30 @@ func validateStateName(name string) error {
 	return nil
 }
 
+// decodeState is transactional with respect to out. encoding/json may modify a
+// destination before returning an error; decoding current and previous state
+// directly into the same object can therefore create a hybrid generation that
+// was never written to disk. Decode into a fresh value and publish it only after
+// the complete JSON document has been accepted.
+func decodeState(data []byte, out any) error {
+	rv := reflect.ValueOf(out)
+	if !rv.IsValid() || rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return errors.New("odredište state podataka mora biti neprazan pokazivač")
+	}
+	tmp := reflect.New(rv.Elem().Type())
+	if err := json.Unmarshal(data, tmp.Interface()); err != nil {
+		return err
+	}
+	rv.Elem().Set(tmp.Elem())
+	return nil
+}
+
 func copyFallback(fallback, out any) error {
 	b, err := json.Marshal(fallback)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(b, out)
+	return decodeState(b, out)
 }
 
 func (s *Store) Read(name string, fallback any, out any) (string, error) {
@@ -50,12 +69,12 @@ func (s *Store) Read(name string, fallback any, out any) (string, error) {
 
 	path := filepath.Join(s.dir, name)
 	if data, err := readLimited(path); err == nil {
-		if err = json.Unmarshal(data, out); err == nil {
+		if err = decodeState(data, out); err == nil {
 			return "current", nil
 		}
 	}
 	if data, err := readLimited(path + ".previous"); err == nil {
-		if err = json.Unmarshal(data, out); err == nil {
+		if err = decodeState(data, out); err == nil {
 			return "previous", nil
 		}
 	}
