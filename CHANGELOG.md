@@ -1,5 +1,20 @@
 # Povijest promjena
 
+## 1.0.7 — SFTP RSA/SHA-2 i strože transfer granice
+
+**Fokus izdanja:** dodatno učvrstiti SFTP host-key pregovaranje, remote staging i single-file transfer putanje bez slabljenja fingerprint pinninga ili shared-hosting kompatibilnosti.
+
+- skenirani RSA host ključ `ssh-rsa` više se ne šalje kao prisilni `HostKeyAlgorithms ssh-rsa`; SHA-256 fingerprint i `known_hosts` i dalje pinaju isti RSA javni ključ, dok moderni OpenSSH za session može pregovarati RSA/SHA-2 potpis
+- Ed25519 i ECDSA host-key tipovi zadržavaju eksplicitni session constraint i postojeći fingerprint/pinning model
+- post-upload remote revalidacija sada, kada listing prikazuje `.byftp-part-*` staging objekt, zahtijeva da staging nije direktorij ni symlink prije završne aktivacije
+- odsutnost skrivene `.byftp-part-*` stavke iz klasičnog FTP `LIST` odgovora ostaje dopuštena kako sigurnosna provjera ne bi razbila kompatibilnost servera koji skrivaju dotfileove
+- Linux i macOS `findCurl()` više ne pokušavaju `curl.exe`; koriste native `curl`, dok Windows i dalje fail-closed koristi sistemsku `curl.exe`
+- pojedinačni upload/download sada zahtijeva konkretnu remote datoteku; root, `.` i putanje koje završavaju direktorijskim separatorom odbijaju se prije transfer reda i mrežnog rada
+- folder/tree transfer ostaje zasebna operacija i zadržava podršku za remote direktorijske root putanje
+- dodane su regresije za RSA host-key policy, Unix native curl izbor, staging directory/symlink zamjenu i ranu validaciju single-file remote cilja na security i Engine granici
+- README je pojednostavljen za korisnika, ali zadržava sve instalacijske, sigurnosne, platformске i razvojne ulaze te izravni GitHub Packages link
+- verzija je povećana na `1.0.7`; objavljeni `v1.0.6` ostaje nepromjenjiv
+
 ## 1.0.6 — Stabilniji runtime i čišći lifecycle veze
 
 **Fokus izdanja:** dodatno smanjiti mogućnost race/lifecycle grešaka, ukloniti suvišan pristup raw sesiji i optimizirati transfer queue bez promjene sigurnosnih jamstava iz 1.0.5.
