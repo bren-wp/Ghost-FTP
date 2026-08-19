@@ -101,13 +101,22 @@ func appendConfigLine(dst []byte, line string) []byte {
 	return append(dst, '\n')
 }
 
+// ftpURLPath keeps every ByFTP FTP/FTPS URL inside the login/home namespace.
+// Curl treats a double leading slash as an absolute server-root path, so user
+// input such as //public_html must collapse to the same logical path as
+// /public_html instead of changing namespace semantics.
+func ftpURLPath(p string) string {
+	p = strings.ReplaceAll(p, "\\", "/")
+	return "/" + strings.TrimLeft(p, "/")
+}
+
 func (c *CurlFTP) baseURL(p string) string {
 	scheme := "ftp"
 	if c.protocol == "ftpsi" {
 		scheme = "ftps"
 	}
 	hostport := net.JoinHostPort(strings.Trim(c.host, "[]"), strconv.Itoa(c.port))
-	return fmt.Sprintf("%s://%s%s", scheme, hostport, escapeURLPath(p))
+	return fmt.Sprintf("%s://%s%s", scheme, hostport, escapeURLPath(ftpURLPath(p)))
 }
 
 func (c *CurlFTP) configFor(password []byte, lines []string) []byte {
