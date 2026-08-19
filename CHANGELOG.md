@@ -1,5 +1,21 @@
 # Povijest promjena
 
+## 1.0.5 — Shared hosting bez putanjskih iznenađenja
+
+**Fokus izdanja:** jednostavnije i pouzdanije spajanje na tipične shared-hosting FTP/FTPS račune te jasnija komunikacija prema korisniku.
+
+- FTP raw control naredbe (`MKD`, `RNFR`, `RNTO`, `DELE`, `RMD`, `SITE CHMOD`) sada koriste login/home relativnu putanju, isti logički namespace koji korisnik vidi kroz listing i URL upload/download
+- time logička `/public_html/...` putanja više ne postaje pogrešno server-absolute `/public_html/...` operand na non-chrooted shared-hosting serverima
+- quote-only FTP operacije koriste `no-body`, pa uspješan mkdir/rename/delete/chmod više ne ovisi o nepotrebnom naknadnom directory data-channel transferu
+- MLSD kompatibilnost je poboljšana: ako MLSD ne radi ili vrati neprepoznatljiv format, a obični LIST uspije, ByFTP pamti LIST fallback do kraja sesije i ne ponavlja neuspjeli MLSD pri svakom refreshu
+- dodani su process-smoke testovi za shared-hosting username oblika `account@example.com`, home-relative `public_html` i control-only quote ponašanje
+- dodan je MLSD→LIST regresijski test koji zahtijeva slijed jednog MLSD pokušaja i daljnjih LIST poziva
+- korisničke FTP greške sada jasnije objašnjavaju `530` login problem, uključujući puni `korisnik@domena` username, `421` limit konekcija i `425/426` data-channel problem
+- Windows connect ekran koristi konkretnije host/username cueove i šire polje za shared-hosting korisničko ime
+- glavni README i kompletna `docs/` dokumentacija preuređeni su u benefit-first, marketinški jasniji hrvatski stil bez uklanjanja tehničkih ograničenja i sigurnosnih činjenica
+- dodan je zaseban `docs/SHARED-HOSTING.md` vodič za prvi FTP/FTPS spoj, `public_html`, MLSD/LIST fallback, pasivni FTP, WordPress workflow i najčešće hosting greške
+- verzija je povećana na `1.0.5`; već objavljeni `v1.0.4` ostaje nepromjenjiv
+
 ## 1.0.4 — Transfer generation binding
 
 - `ReserveBatch` više ne dohvaća `ConnectionIdentity()` pa tek nakon toga uzima aktualnu transfer generation; generation se sada capturea pod `Manager.mu` prije identity lookup-a i ponovno provjerava nakon povratka
