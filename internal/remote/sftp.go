@@ -640,8 +640,19 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 			return ErrSkipped
 		}
 	}
+	source, err := prepareUploadSource(local)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
 	tempPath := remoteJoin(dir, tempName)
-	if _, err = s.run(ctx, "put "+sftpQuote(local)+" "+sftpQuote(tempPath)); err != nil {
+	if _, err = s.run(ctx, "put "+sftpQuote(source.Path())+" "+sftpQuote(tempPath)); err != nil {
+		cleanupCtx, cancel := cleanupContext()
+		_ = s.Delete(cleanupCtx, dir, tempName, false)
+		cancel()
+		return err
+	}
+	if err = source.Verify(); err != nil {
 		cleanupCtx, cancel := cleanupContext()
 		_ = s.Delete(cleanupCtx, dir, tempName, false)
 		cancel()
