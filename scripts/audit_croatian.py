@@ -19,6 +19,7 @@ REQUIRED = [
     ROOT / "docs" / "TESTIRANJE.md",
     ROOT / "docs" / "OBAVIJESTI-TRECIH-STRANA.md",
     ROOT / "docs" / "IZDAVANJE-NA-GITHUBU.md",
+    ROOT / "docs" / "SHARED-HOSTING.md",
 ]
 
 LEGACY_ROOT_DOCS = [

@@ -1,53 +1,56 @@
-# ByFTP — potpisivanje
+# Potpisivanje distribucija
 
-ByFTP build namjerno **ne fabricira** Verified Publisher, Developer ID ili notarizacijski identitet.
+**Digitalni potpis ima vrijednost samo ako pripada stvarnom izdavaču. ByFTP zato ne simulira Verified Publisher ili notarized status.**
+
+Potpisivanje nije marketinška oznaka nego kriptografska veza između paketa i identiteta izdavača.
 
 ## Windows Authenticode
 
-Za javnu produkcijsku distribuciju, kada postoji stvarni Brendigo code-signing identitet:
+Kada je dostupan stvarni Brendigo code-signing certifikat, Windows distribucije trebaju biti potpisane Authenticode mehanizmom.
 
-1. potpisati x64 i x86 Portable i Setup binarije nakon završne PE/resource obrade;
-2. potpisati i internu Windows komponentu uklanjanja koja se ugrađuje u Setup lifecycle, jer će završiti na korisničkom sustavu nakon instalacije;
-3. koristiti SHA-256 i pouzdani timestamp prema pravilima izdavatelja certifikata ili potpisne usluge;
-4. na čistom Windows računalu provjeriti sve instalirane/javne binarije s `signtool verify /pa /v`;
-5. ponovno izgraditi Windows ZIP-ove iz potpisanih javnih binarija;
-6. ponovno generirati `BUNDLE-SHA256.txt` i završni `SHA256.txt`.
+To korisniku omogućuje provjeru:
 
-Korisnik za normalno uklanjanje koristi standardni Windows **Postavke → Aplikacije → Instalirane aplikacije → ByFTP** lifecycle. Interna komponenta uklanjanja nije zaseban korisnički distribucijski paket.
+- tko je potpisao binarij;
+- je li sadržaj promijenjen nakon potpisa;
+- je li certifikat valjan prema Windows trust modelu.
+
+Dok stvarni certifikat nije dostupan, release ne smije prikazivati lažni `Verified Publisher` status.
 
 ## macOS Developer ID i notarizacija
 
-macOS paket je Universal Intel+Apple Silicon PKG. Bez stvarnog Brendigo Apple certifikata ne smije se tvrditi da je Developer ID potpisan ili notariziran.
+Za puni macOS trust lifecycle potreban je stvarni Apple Developer identitet.
 
-Kada identitet bude dostupan:
+Ciljani proces je:
 
-1. potpisati Universal CLI binarij i `ByFTP.app` sadržaj odgovarajućim Developer ID Application identitetom;
-2. provjeriti `codesign --verify --deep --strict --verbose=2`;
-3. izgraditi PKG i potpisati ga Developer ID Installer identitetom;
-4. poslati paket Apple notarizacijskoj usluzi;
-5. nakon uspješne notarizacije napraviti `stapler staple`;
-6. provjeriti `spctl` i `pkgutil` rezultat na čistom Macu;
-7. tek tada generirati završni SHA-256 i objaviti paket.
+1. potpisivanje aplikacijskih/paketnih komponenti;
+2. izrada finalnog PKG-a;
+3. Apple notarizacija;
+4. stapling gdje je primjenjivo;
+5. provjera prije objave.
 
-## Linux
+Bez stvarnih Apple credentials release ne smije tvrditi da je notariziran.
 
-Linux DEB trenutačno nema zaseban Brendigo paketni repository-signing kanal. Integritet GitHub Release DEB-a provjerava se preko službenog `SHA256.txt` i release provenance podataka.
+## Zašto checksum nije zamjena za potpis
 
-Ako se kasnije uvede vlastiti APT/RPM repozitorij, repository metadata i signing key lifecycle moraju biti zasebno sigurnosno dizajnirani; nije dovoljno samo potpisati jednu paketnu datoteku.
+SHA-256 potvrđuje da je datoteka identična očekivanoj datoteci iz releasea, ali sam po sebi ne dokazuje identitet izdavača ako checksum dolazi iz nepouzdanog izvora.
 
-## Tajne za potpisivanje
+Digitalni potpis i checksum rješavaju različite probleme i najbolje rade zajedno.
 
-Privatni certifikat, P12, keychain password, Apple API/app-specific credential, Windows signing secret ili hardware-token credential **ne smije biti u repozitoriju, javnom Actions artefaktu ni GitHub Releaseu**.
+## Što ByFTP već daje bez certifikata
 
-Potpisni secrets moraju koristiti odgovarajući GitHub/organizacijski secret management ili vanjski hardware/cloud signing mehanizam s minimalnim ovlastima.
+I bez publisher certifikata release proces koristi:
 
-## Fail-closed pravilo
+- kanonski VERSION;
+- nepromjenjive tagove;
+- CI gateove;
+- SHA-256 checksumove;
+- build metadata;
+- kontrolirani skup release asseta.
 
-CI bez pravog signing identiteta mora jasno prijaviti nepotpisano stanje umjesto stvaranja self-signed zamjene ili lažnog publishera.
+To ne zamjenjuje code signing, ali daje provjerljivu release disciplinu dok stvarni signing identitet nije dostupan.
 
-Dokumentacija smije tvrditi:
+## Pravilo za budućnost
 
-- **Verified Publisher** tek kada Windows provjera stvarno uspije s pravim Brendigo Authenticode identitetom;
-- **Developer ID/notarized** tek kada Apple provjere stvarno uspiju za objavljeni PKG.
+Potpisivanje se smije uključiti tek kada se tajne mogu sigurno držati u CI/release okruženju i kada pipeline može dokazati da je finalni artefakt stvarno potpisan.
 
-SHA-256 i tehnički build testovi dokazuju integritet artefakta, ali nisu zamjena za platformni identitet izdavača.
+**ByFTP će radije jasno napisati “nije potpisano” nego korisniku prikazati povjerenje koje tehnički ne postoji.**

@@ -1,38 +1,51 @@
-# ByFTP dokumentacija
+# ByFTP dokumentacijski centar
 
-Ova mapa je jedino mjesto za detaljnu projektnu dokumentaciju. Root repozitorija ostaje fokusiran na produkcijski pregled, licencu, povijest promjena, kanonsku verziju i glavne build ulaze.
+**Od prvog spajanja do sigurnog svakodnevnog rada — sve na jednom mjestu.**
 
-## Sadržaj
+ByFTP dokumentacija organizirana je tako da prvo odgovori na korisničko pitanje **“kako da se spojim i napravim posao?”**, a tek zatim ulazi u tehničke detalje.
 
-- [INSTALACIJA.md](INSTALACIJA.md) — odabir paketa, Windows x64/x86, Linux DEB, macOS Universal PKG, instalacija, nadogradnja, uklanjanje, prvi spoj i SHA-256 provjera
-- [ARHITEKTURA.md](ARHITEKTURA.md) — zajednički Engine, platformni frontendovi, remote/transfer/session lifecycle, build i release arhitektura
-- [SIGURNOST.md](SIGURNOST.md) — model povezivanja, SFTP/AskPass, vjerodajnice, filesystem, build i release sigurnosne granice
-- [PRIVATNOST.md](PRIVATNOST.md) — runtime mrežna politika, lokalne tajne, Go build telemetrija i release provenance podaci
-- [TESTIRANJE.md](TESTIRANJE.md) — unit/race/vet, process-level connect smoke, auditi, platformni CI i production release quality gate
-- [PROVJERA-IZDANJA.md](PROVJERA-IZDANJA.md) — fail-closed kontrolna lista za produkcijsku matricu, staging, 13 javnih custom asseta, checksumove i potpise
-- [POTPISIVANJE.md](POTPISIVANJE.md) — Windows Authenticode i macOS Developer ID/notarization granice
-- [PLAN-RAZVOJA.md](PLAN-RAZVOJA.md) — završene cjeline i sljedeći prioriteti bez lažnog označavanja nedovršenih platformnih značajki
-- [PODRSKA.md](PODRSKA.md) — podržane platforme, auth matrica, dijagnostika, instalacijski problemi i sigurna prijava greške
-- [DOPRINOS.md](DOPRINOS.md) — pravila ovlaštenih doprinosa i obavezni quality gateovi
-- [OBAVIJESTI-TRECIH-STRANA.md](OBAVIJESTI-TRECIH-STRANA.md) — sistemski curl/OpenSSH i ostale komponente trećih strana
-- [IZDAVANJE-NA-GITHUBU.md](IZDAVANJE-NA-GITHUBU.md) — jedan release okidač, serijalizacija, production quality/race gate, platformski artefakti i fail-closed publisher
-- [slike/](slike/) — službeni dokumentacijski vizualni resursi
+## Želim se odmah spojiti na hosting
 
-## Produkcijska načela dokumentacije
+Za najbrži početak otvorite [ByFTP za shared hosting](SHARED-HOSTING.md), a za instalaciju i platformske detalje [Instalaciju i prvi spoj](INSTALACIJA.md).
 
-Dokumentacija mora opisivati ono što stvarni kod, CI i release ugovor doista podržavaju. Posebno:
+Za tipični shared hosting trebat će vam:
 
-- Windows, Linux i macOS imaju različite UI/auth granice koje se ne skrivaju
-- stanje `Connected` znači uspješnu autentikaciju i početni udaljeni probe
-- interni build dokazi nisu predstavljeni kao korisnički distribucijski paketi
-- digitalni publisher identitet se ne tvrdi bez stvarnog certifikata
-- Go build telemetrija mora biti stvarno `off` u produkcijskom build/release okruženju
-- javni release nastaje tek nakon vlastitog production quality/race gatea i svih platformskih buildova
+- FTP host koji je dao hosting provider;
+- korisničko ime, uključujući oblik `korisnik@domena` ako ga hosting koristi;
+- FTP lozinka;
+- protokol i port — najčešće FTP ili explicit FTPS na portu 21.
 
-## Automatizirana konzistentnost
+Ako se ne možete spojiti, prije promjene postavki otvorite [Podršku i rješavanje problema](PODRSKA.md).
 
-`scripts/audit_docs.py` provjerava lokalne Markdown/HTML poveznice, zahtijeva da svaki detaljni dokument bude indeksiran ovdje i u glavnom README-u te blokira verzionirane naslove za dokumente koji moraju ostati aktualni između izdanja.
+## Želim znati zašto je ByFTP siguran izbor
 
-`scripts/audit_security.py`, `scripts/audit_privacy.py` i `scripts/audit_release.py` dodatno zaključavaju da dokumentirani runtime, build-privacy i release model ne mogu neprimjetno odstupiti od stvarnog koda i workflowa.
+- [Sigurnost](SIGURNOST.md) — transfer staging, SFTP host-key zaštita, FTPS, no-follow datotečne granice i fail-closed ponašanje.
+- [Privatnost](PRIVATNOST.md) — što ByFTP ne prikuplja, kako se tretiraju vjerodajnice i zašto nema aplikacijske telemetrije.
+- [Testiranje i kvaliteta](TESTIRANJE.md) — što CI provjerava prije produkcijskog izdanja.
+- [Provjera izdanja](PROVJERA-IZDANJA.md) — kako se potvrđuju paket, verzija i checksum.
 
-Povijest izdanja ostaje u root datoteci [`CHANGELOG.md`](../CHANGELOG.md), a licenca u [`LICENSE`](../LICENSE).
+## Želim razumjeti tehnologiju
+
+- [Arhitektura](ARHITEKTURA.md) — zašto FTP/FTPS/SFTP dijele jedan engine i kako su slojevi odvojeni.
+- [Plan razvoja](PLAN-RAZVOJA.md) — završene cjeline i smjer budućih poboljšanja.
+- [Potpisivanje](POTPISIVANJE.md) — Authenticode, Apple Developer ID i stvarni status potpisivanja.
+
+## Želim sudjelovati u razvoju
+
+- [Doprinos projektu](DOPRINOS.md) — pravila, kvaliteta i sigurnosni standardi.
+- [Izdavanje na GitHubu](IZDAVANJE-NA-GITHUBU.md) — kontrolirani release proces.
+- [Obavijesti trećih strana](OBAVIJESTI-TRECIH-STRANA.md) — transparentnost o alatima i komponentama.
+
+## Što ByFTP želi biti
+
+ByFTP nije zamišljen kao “još jedan FTP prozor”. Cilj je spojiti tri stvari koje korisnicima hostinga stvarno trebaju:
+
+1. **brzo spajanje** bez nepotrebne konfiguracije;
+2. **jasno upravljanje datotekama** bez skrivanja što se događa;
+3. **stroža zaštita transfera i vjerodajnica** nego kod običnog copy/overwrite modela.
+
+Ako koristite shared hosting, WordPress, statičnu web stranicu, PHP aplikaciju ili vlastite servere, dokumentacija je organizirana tako da vas vodi od pristupnih podataka do stvarnog rada nad datotekama.
+
+---
+
+**Najbrži put:** [Shared hosting → prvi FTP spoj → `public_html`](SHARED-HOSTING.md)

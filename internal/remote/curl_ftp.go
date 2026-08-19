@@ -101,13 +101,22 @@ func appendConfigLine(dst []byte, line string) []byte {
 	return append(dst, '\n')
 }
 
+// ftpURLPath keeps every ByFTP FTP/FTPS URL inside the login/home namespace.
+// Curl treats a double leading slash as an absolute server-root path, so user
+// input such as //public_html must collapse to the same logical path as
+// /public_html instead of changing namespace semantics.
+func ftpURLPath(p string) string {
+	p = strings.ReplaceAll(p, "\\", "/")
+	return "/" + strings.TrimLeft(p, "/")
+}
+
 func (c *CurlFTP) baseURL(p string) string {
 	scheme := "ftp"
 	if c.protocol == "ftpsi" {
 		scheme = "ftps"
 	}
 	hostport := net.JoinHostPort(strings.Trim(c.host, "[]"), strconv.Itoa(c.port))
-	return fmt.Sprintf("%s://%s%s", scheme, hostport, escapeURLPath(p))
+	return fmt.Sprintf("%s://%s%s", scheme, hostport, escapeURLPath(ftpURLPath(p)))
 }
 
 func (c *CurlFTP) configFor(password []byte, lines []string) []byte {
@@ -277,6 +286,7 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 		p += "/"
 	}
 	urlLine := "url = " + cfgQuote(c.baseURL(p))
+	mlsdFallback := false
 	if c.mlsdState.Load() != -1 {
 		out, err := c.run(ctx, []string{urlLine, `request = "MLSD"`})
 		if err == nil {
@@ -288,13 +298,24 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 				c.mlsdState.Store(1)
 				return items, nil
 			}
-		} else if ftpCommandUnsupported(err) {
-			c.mlsdState.Store(-1)
+			mlsdFallback = true
+		} else {
+			mlsdFallback = true
+			if ftpCommandUnsupported(err) {
+				c.mlsdState.Store(-1)
+			}
 		}
 	}
 	out, err := c.run(ctx, []string{urlLine})
 	if err != nil {
 		return nil, err
+	}
+	if mlsdFallback {
+		// Ako obični LIST radi nakon MLSD greške ili neprepoznatljivog MLSD
+		// odgovora, ta sesija koristi kompatibilni LIST ostatak vremena. Time
+		// stari/shared-hosting serveri ne dobivaju isti neuspjeli MLSD pri svakom
+		// refreshu direktorija.
+		c.mlsdState.Store(-1)
 	}
 	var items []model.Item
 	for _, line := range strings.Split(strings.ReplaceAll(string(out), "\r\n", "\n"), "\n") {
@@ -309,8 +330,25 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 	return items, nil
 }
 
+// ftpCommandPath maps ByFTP's logical FTP namespace to the server command
+// namespace. Curl FTP URLs with a single leading slash are relative to the
+// directory entered after login; raw QUOTE commands are sent immediately after
+// PWD and therefore must not be given a leading slash that would turn them into
+// server-absolute paths on non-chrooted shared hosting accounts.
+func ftpCommandPath(p string) string {
+	p = strings.TrimPrefix(strings.ReplaceAll(p, "\\", "/"), "/")
+	if p == "" {
+		return "."
+	}
+	return p
+}
+
 func (c *CurlFTP) quote(ctx context.Context, cmds ...string) error {
-	lines := []string{"url = " + cfgQuote(c.baseURL("/"))}
+	// Quote-only operations must stay on the control channel. Without no-body,
+	// curl can continue with a directory transfer after the mutation; a later
+	// data-channel failure would then be reported as if MKD/RNFR/DELE itself had
+	// failed even though the server had already applied it.
+	lines := []string{"url = " + cfgQuote(c.baseURL("/")), "no-body"}
 	for _, q := range cmds {
 		if strings.ContainsAny(q, "\x00\r\n") {
 			return errors.New("neispravna FTP naredba")
@@ -325,7 +363,7 @@ func (c *CurlFTP) Mkdir(ctx context.Context, base, name string) error {
 	if err := security.ValidateRemoteName(name); err != nil {
 		return err
 	}
-	return c.quote(ctx, "MKD "+remoteJoin(base, name))
+	return c.quote(ctx, "MKD "+ftpCommandPath(remoteJoin(base, name)))
 }
 
 func (c *CurlFTP) Rename(ctx context.Context, base, oldName, newName string) error {
@@ -335,17 +373,20 @@ func (c *CurlFTP) Rename(ctx context.Context, base, oldName, newName string) err
 	if err := security.ValidateRemoteName(newName); err != nil {
 		return err
 	}
-	return c.quote(ctx, "RNFR "+remoteJoin(base, oldName), "RNTO "+remoteJoin(base, newName))
+	return c.quote(ctx,
+		"RNFR "+ftpCommandPath(remoteJoin(base, oldName)),
+		"RNTO "+ftpCommandPath(remoteJoin(base, newName)),
+	)
 }
 
 func (c *CurlFTP) Delete(ctx context.Context, base, name string, isDir bool) error {
 	ops := recursiveDeleteOps{
 		list: c.List,
 		removeFile: func(ctx context.Context, target string) error {
-			return c.quote(ctx, "DELE "+target)
+			return c.quote(ctx, "DELE "+ftpCommandPath(target))
 		},
 		removeDir: func(ctx context.Context, target string) error {
-			return c.quote(ctx, "RMD "+target)
+			return c.quote(ctx, "RMD "+ftpCommandPath(target))
 		},
 	}
 	return recursiveDelete(ctx, base, name, isDir, 0, &deleteGuard{}, ops)
@@ -358,7 +399,7 @@ func (c *CurlFTP) Chmod(ctx context.Context, base, name, mode string) error {
 	if err := validateChmod(mode); err != nil {
 		return err
 	}
-	return c.quote(ctx, "SITE CHMOD "+mode+" "+remoteJoin(base, name))
+	return c.quote(ctx, "SITE CHMOD "+mode+" "+ftpCommandPath(remoteJoin(base, name)))
 }
 
 func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options TransferOptions) error {

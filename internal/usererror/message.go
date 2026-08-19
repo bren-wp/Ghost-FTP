@@ -41,7 +41,11 @@ func Message(err error, fallback string) string {
 	case containsAny(s, "nije moguće dohvatiti sftp host ključ", "poslužitelj nije vratio ssh host ključ"):
 		return "SFTP poslužitelj nije vratio sigurnosni host ključ. Provjerite adresu, port i je li SSH/SFTP servis pokrenut."
 	case containsAny(s, "authentication failed", "permission denied (publickey", "permission denied (password", "permission denied, please try again", "login incorrect", "access denied", "530 login", "530 user", "530 not logged", "authentication rejected"):
-		return "Prijava nije prihvaćena. Provjerite korisničko ime, lozinku, SSH ključ ili zaporku ključa."
+		return "Prijava nije prihvaćena. Provjerite puni korisnički naziv i lozinku; na shared hostingu FTP korisnik često ima oblik korisnik@domena."
+	case containsAny(s, "421 too many connections", "421 service not available", "421 connection", "too many connections"):
+		return "FTP poslužitelj trenutačno ne prihvaća novu sesiju ili je dosegnut limit veza. Zatvorite druge FTP veze i pokušajte ponovno."
+	case containsAny(s, "425 can't open data connection", "425 cannot open data connection", "425 failed to establish connection", "426 connection closed", "426 transfer aborted"):
+		return "FTP podatkovna veza nije uspostavljena ili je prekinuta. Provjerite firewall/mrežu; ako se problem ponavlja, hosting treba provjeriti pasivne FTP portove."
 	case containsAny(s, "could not resolve host", "name or service not known", "temporary failure in name resolution", "no such host", "host not found"):
 		return "Poslužitelj nije pronađen. Provjerite adresu poslužitelja."
 	case containsAny(s, "connection refused", "actively refused"):

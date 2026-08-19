@@ -8,11 +8,28 @@ import (
 
 func TestMessageHidesToolDetails(t *testing.T) {
 	got := Message(errors.New(`curl: (67) Login denied; server said: 530 Login incorrect`), "Povezivanje nije uspjelo.")
-	if got != "Prijava nije prihvaćena. Provjerite korisničko ime, lozinku, SSH ključ ili zaporku ključa." {
+	want := "Prijava nije prihvaćena. Provjerite puni korisnički naziv i lozinku; na shared hostingu FTP korisnik često ima oblik korisnik@domena."
+	if got != want {
 		t.Fatalf("unexpected message: %q", got)
 	}
 	if got == "" || got == `curl: (67) Login denied; server said: 530 Login incorrect` {
 		t.Fatal("low-level details leaked")
+	}
+}
+
+func TestMessageFTPTooManyConnections(t *testing.T) {
+	got := Message(errors.New("421 Too many connections from this IP"), "x")
+	want := "FTP poslužitelj trenutačno ne prihvaća novu sesiju ili je dosegnut limit veza. Zatvorite druge FTP veze i pokušajte ponovno."
+	if got != want {
+		t.Fatalf("unexpected 421 message: %q", got)
+	}
+}
+
+func TestMessageFTPDataConnectionFailure(t *testing.T) {
+	got := Message(errors.New("425 Can't open data connection"), "x")
+	want := "FTP podatkovna veza nije uspostavljena ili je prekinuta. Provjerite firewall/mrežu; ako se problem ponavlja, hosting treba provjeriti pasivne FTP portove."
+	if got != want {
+		t.Fatalf("unexpected 425 message: %q", got)
 	}
 }
 

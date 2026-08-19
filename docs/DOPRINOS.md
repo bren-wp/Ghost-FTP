@@ -1,93 +1,101 @@
-# Doprinos projektu ByFTP
+# Doprinos projektu
 
-ByFTP je vlasnički/source-available softver tvrtke Brendigo. Objava izvornog koda ne daje opće pravo izmjene, redistribucije, rebrandinga ili izrade izvedenica.
+**Dobar doprinos ByFTP-u nije onaj koji samo dodaje opciju — nego onaj koji korisniku uklanja stvaran problem bez spuštanja sigurnosti i stabilnosti.**
 
-## Potrebno je odobrenje
+ByFTP je Brendigo vlasnički/source-available projekt. Prije izmjena pročitajte `LICENSE` i poštujte prava koja su tamo izričito dana.
 
-Issuei, prijave grešaka i prijedlozi funkcija su dobrodošli. Izmjene izvornog koda i pull requestovi dopušteni su samo kada ih Brendigo izričito zatraži ili odobri.
+## Kakve doprinose posebno cijenimo
 
-## Pravila za ovlaštene doprinose
+- reprodukciju stvarnog FTP/FTPS/SFTP problema;
+- shared-hosting kompatibilnost;
+- jasnije poruke o greškama;
+- regresijske testove za postojeće bugove;
+- sigurnosno učvršćivanje bez “disable verification” prečaca;
+- poboljšanje dostupnosti i UX-a;
+- kvalitetniju hrvatsku dokumentaciju;
+- smanjenje dupliciranog koda kada ne mijenja sigurnosne granice.
 
-- Windows Win32 GUI mora ostati izvorni desktop; ne vraćati browser/localhost UI
-- Linux/macOS terminalni frontend mora koristiti isti `api.Engine`, remote i transfer core; ne stvarati paralelni FTP engine
-- ne dodavati runtime telemetriju, analitiku, oglašavanje, remote crash reporting ili skrivene vanjske API pozive
-- produkcijski build/release mora stvarno provjeriti `go telemetry=off`
-- ne dodavati vanjski Go modul bez zasebne arhitekturne/sigurnosne provjere
-- ne stavljati plaintext lozinke/passphrase u command line, trajne logove ili credential datoteke
-- na Windowsu očuvati DPAPI i trusted-parent AskPass granicu
-- na Linuxu/macOS-u aktivne tajne držati samo u procesnom runtime spremištu ili budućem jednako jakom brokeru
-- SFTP child-process put ne smije vratiti batch način koji gasi password/passphrase AskPass
-- AskPass ne smije automatski odgovoriti na nepoznat MFA/OTP/security-key prompt
-- očuvati SFTP host-key provjeru, endpoint binding i IPv6 normalizaciju
-- očuvati download staging, filesystem-root, reparse/symlink i state safe-open granice
-- očuvati connection generation, connection identity i cross-server retry blokadu
-- preferirati tipizirane Go interfacee umjesto generičkog JSON dispatcha
-- korisničke poruke i dokumentaciju pisati na hrvatskom
-- novu detaljnu dokumentaciju dodati u `docs/README.md` i glavni README
-- aktualni broj izdanja ne hardkodirati izvan kanonskog `VERSION`/auditiranih prikaza
-- Windows, Linux i macOS build moraju čitati isti `VERSION` i zahtijevati podržani Go sigurnosni patch
-- ne zaobilaziti `publish_release.ps1`, `verify_bundle.py`, staging allowlist ili platform CI gateove
-- release workflow ne smije ponovno dobiti tag-trigger koji može sam pokrenuti drugi publisher
-- javni distribucijski skup mora ostati točno definiran allowlistom; interne build komponente i verifikacijski dokazi ne smiju postati korisnički release paketi
-- ne uklanjati ByFTP/Brendigo identitet bez pisanog odobrenja
-- kod treće strane zahtijeva potvrdu licencne kompatibilnosti
+## Prije pisanja koda
 
-## Prije ovlaštenog pull requesta
+Dobro definirajte problem:
 
-Produkcijski Go telemetry mode mora biti `off`:
+1. što korisnik pokušava napraviti;
+2. što ByFTP trenutno radi;
+3. na kojoj platformi/protokolu;
+4. je li problem reproduktibilan;
+5. može li popravak utjecati na vjerodajnice, path handling ili overwrite semantiku.
+
+Kod mrežnog klijenta “mala” promjena može imati velik sigurnosni učinak.
+
+## Pravila arhitekture
+
+Doprinos ne bi trebao:
+
+- dodati fiksni vanjski runtime API bez jasnog product/security razloga;
+- uključiti telemetry/analytics SDK;
+- staviti lozinku u command-line argument;
+- isključiti TLS ili SFTP host-key provjeru radi kompatibilnosti;
+- vratiti `RemoveAll` na sigurnosno osjetljive ByFTP temp/state putanje;
+- zaobići transfer staging samo radi kraćeg koda;
+- dodati vanjski Go modul bez arhitekturne i sigurnosne provjere.
+
+## Shared-hosting promjene
+
+FTP kompatibilnost treba promatrati kroz stvarni login/home model.
+
+Ako mijenjate URL, raw `QUOTE` naredbu, MLSD/LIST parser ili passive-mode ponašanje, test mora pokriti barem jedan realan hosting scenarij.
+
+Posebno pazite da raw FTP control operand ne dobije drukčiji root semantički model od listing/upload putanje.
+
+## Obavezna kvaliteta
+
+Prije PR-a očekuje se prolaz sljedećih provjera gdje su dostupne:
 
 ```bash
-go telemetry off
-```
-
-Zatim pokrenite:
-
-```text
-python scripts/generate_brand_assets.py --check
-python scripts/audit_croatian.py
-python scripts/audit_version.py
-python scripts/audit_docs.py
-python scripts/audit_security.py
-python scripts/audit_privacy.py
-python scripts/audit_release.py
-python -m unittest discover -s scripts -p 'test_*.py'
 go test ./...
 go test -race ./...
 go vet ./...
 ```
 
-Platformne provjere:
+Uz to projekt koristi Python audite iz `scripts/` i platformske CI buildove.
 
-```powershell
-.\BUILD-WINDOWS.ps1
-```
+## Regresijski test je dio popravka
 
-```bash
-bash scripts/BUILD-LINUX.sh
-bash scripts/BUILD-MACOS.sh   # macOS
-```
+Ako popravljate bug koji se može deterministički reproducirati, dodajte test koji bi pao na starom kodu.
 
-Merge nije spreman dok quality, Windows x64+x86, Linux DEB i macOS Universal PKG GitHub Actions jobovi nisu zeleni.
+Dobri primjeri postojećih regresija uključuju:
 
-## Release promjene
+- IPv6 bracket validaciju;
+- MLSD→LIST fallback;
+- shared-hosting home-relative `MKD`;
+- upload source SHA-256 stabilnost;
+- remote revalidation;
+- transfer generation reconnect race;
+- filesystem no-replace.
 
-Promjena `VERSION` nije obična dokumentacijska promjena. Nakon mergea na `main` pokreće se produkcijski release workflow koji ponovno izvršava quality/race i sve platformne buildove.
+## Hrvatski korisnički sadržaj
 
-Zbog toga PR koji mijenja `VERSION` mora uključiti:
+Korisničke poruke, dokumentacija, issue/PR predlošci i release površine trebaju ostati na hrvatskom jeziku.
 
-- CHANGELOG odjeljak
-- README aktualnu verziju
-- sve relevantne dokumentacijske promjene
-- test/audit promjene ako se mijenja sigurnosna ili release granica
+Tehnički nazivi protokola, API-ja i standardnih naredbi mogu ostati u izvornom obliku kada je to jasnije.
 
-## Testni podaci
+## Pull request
 
-Fixturei, screenshotovi, issuei i PR-ovi ne smiju sadržavati:
+PR treba jasno navesti:
 
-- produkcijske lozinke ili passphrase
-- privatne ključeve
-- povjerljive hostove ili račune
-- podatke klijenata
-- stvarne signing secrets
+- problem;
+- rješenje;
+- sigurnosni utjecaj;
+- testove;
+- platforme koje su pogođene;
+- postoji li promjena produkcijskog sadržaja koja zahtijeva novu verziju.
 
-Process-level connect smoke mora koristiti isključivo lokalne fake procese i testne vrijednosti.
+## Release disciplina
+
+Ako je `v$VERSION` već objavljen, novi produkcijski kod ne smije tiho ući pod istim brojem verzije. CI release-version guard to namjerno blokira.
+
+## Cilj doprinosa
+
+**ByFTP treba postati jednostavniji za korisnika, a ne nepredvidljiviji ispod površine.**
+
+Ako doprinos smanjuje trenje, dodaje dokaz kroz test i poštuje postojeće granice privatnosti/sigurnosti, ide u pravom smjeru.

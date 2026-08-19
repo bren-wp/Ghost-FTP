@@ -1,181 +1,104 @@
-# ByFTP — izdavanje na GitHubu
+# Izdavanje na GitHubu
 
-Kanonski workflow je `.github/workflows/release.yml`, a broj verzije dolazi isključivo iz root datoteke `VERSION`.
+**Korisnik ne preuzima samo EXE ili DEB — preuzima povjerenje da verzija, kod, checksum i paket pripadaju istom izdanju.**
 
-## Osnovno pravilo
+ByFTP release proces je zato namjerno stroži od ručnog “upload file” postupka.
 
-Javno izdanje ne nastaje ručnim preslagivanjem datoteka. Release workflow mora ponovno izvesti produkcijske provjere, ponovno izgraditi sve podržane platforme, provjeriti staging, generirati zajedničke metapodatke i tek tada pozvati centralni publisher.
+## Jedan broj verzije
 
-## Okidač izdanja
+Datoteka `VERSION` je kanonski izvor produkcijskog broja.
 
-Automatsko izdanje pokreće se kada se `VERSION` promijeni na `main` grani. Dostupan je i `workflow_dispatch` za kontrolirani idempotentni rerun iste kanonske verzije.
+Isti broj mora završiti u:
 
-Tag koji publisher izradi **ne pokreće novi release workflow**. Time se uklanja mogućnost da isti release sam sebi pokrene drugi paralelni publisher.
+- runtime aplikaciji;
+- README-u;
+- CHANGELOG-u;
+- Windows/Linux/macOS paketima;
+- GitHub Releaseu;
+- GitHub Packageu `ByFTP.Windows`.
 
-Svi release runovi koriste jednu concurrency grupu `byftp-release` uz `cancel-in-progress: false`, pa se dva release procesa ne izvršavaju paralelno.
+Ako se ti slojevi raziđu, CI treba pasti prije objave.
 
-## Produkcijski gateovi
+## Zašto se stari tag ne prepisuje
 
-Prije `publish` joba moraju uspjeti četiri neovisna joba.
+Objavljeni `vX.Y.Z` predstavlja konkretan sadržaj.
 
-### 1. Quality
+Ako nakon taga nastane novi produkcijski popravak, ispravan put je nova semantička verzija — ne pomicanje starog taga na drugi commit.
 
-Quality job na Linux runneru izvršava:
+Release-version guard to provjerava prije mergea.
 
-- stvarno `go telemetry off` i provjeru da `go telemetry` vraća `off`
-- provjeru slikovnih resursa
-- hrvatski audit
-- version audit
-- docs audit
-- security audit
-- privacy audit
-- release audit
-- Python release regresije
-- `go test ./...`
-- `go test -race ./...`
-- `go vet ./...`
-- probno generiranje release bilješki iz aktualnog CHANGELOG odjeljka
+## Što se provjerava prije objave
 
-Release se ne može objaviti samo zato što su se platformni binariji uspjeli kompilirati.
+Produkcijski tok uključuje:
 
-### 2. Windows
+- sigurnosne i privacy audite;
+- hrvatski audit;
+- version audit;
+- Python regresije;
+- `go test ./...`;
+- `go test -race ./...`;
+- `go vet ./...`;
+- Windows x64/x86 build;
+- Linux amd64/arm64/i386 build;
+- macOS Universal build.
 
-Windows job:
+Tek nakon zelenih gateova publisher smije nastaviti.
 
-- eksplicitno gasi Go toolchain telemetriju
-- pokreće kanonski `BUILD-WINDOWS.ps1`
-- gradi x64 i x86 Setup i Portable
-- provjerava PE format, resurse, manifest i mitigacije
-- izrađuje zasebni Windows ZIP za svaku arhitekturu
-- dodaje README, CHANGELOG, LICENSE, kompletnu Markdown dokumentaciju, release bilješke i build metapodatke
-- generira rekurzivni `BUNDLE-SHA256.txt`
-- ponovno otvara konačni ZIP s `verify_bundle.py` i provjerava sadržaj bez ekstrakcije nepouzdanih putanja na disk
+## Produkcijski paketi
 
-### 3. Linux
+### Windows
 
-Linux job:
+Release može sadržavati:
 
-- eksplicitno gasi Go toolchain telemetriju
-- izvršava unit/process smoke testove i `go vet`
-- gradi DEB za amd64, arm64 i i386
-- preko `dpkg-deb` potvrđuje package ID, verziju i arhitekturu svakog paketa
+- Setup x64/x86;
+- Portable x64/x86;
+- ZIP distribucije;
+- GitHub Package `ByFTP.Windows`.
 
-### 4. macOS
+### Linux
 
-macOS job:
+DEB paketi za:
 
-- eksplicitno gasi Go toolchain telemetriju
-- izvršava unit/process smoke testove i `go vet` na stvarnom macOS runneru
-- gradi Intel i Apple Silicon binarij
-- spaja ih s `lipo` u Universal binarij
-- izrađuje ByFTP.app resurse i Universal PKG
-- širi završni PKG s `pkgutil --expand` i potvrđuje strukturu prije uploada artefakta
+- amd64;
+- arm64;
+- i386.
 
-## Go toolchain telemetrija
+### macOS
 
-`GOTELEMETRY` je read-only Go environment vrijednost i nije valjan način za gašenje telemetrije običnim OS env postavljanjem. GitHub Actions zato izvršava:
+Universal PKG za Intel i Apple Silicon.
 
-```text
-go telemetry off
-```
+## Checksum i metapodaci
 
-i zatim provjerava rezultat prije testova ili builda.
+Release uključuje `SHA256.txt` i build/release metapodatke.
 
-Produkcijske build skripte dodatno fail-closed odbijaju rad ako aktualni `go telemetry` način nije `off`. Lokalne skripte namjerno ne mijenjaju globalnu Go postavku bez znanja korisnika.
+Publisher nakon uploada ponovno provjerava očekivani skup artefakata i njihove digest vrijednosti. Cilj je da “upload je uspio” ne bude jedini dokaz ispravnog izdanja.
 
-## Javni platformni staging
+## GitHub Packages
 
-`publish` job prvo preuzima tri platformna Actions artefakta u `release/` i prije generiranja zajedničkih metapodataka zahtijeva **točno 10 platformskih datoteka**:
+`ByFTP.Windows` paket koristi isti `VERSION` izvor kao GitHub Release.
 
-1. Windows x64 Setup
-2. Windows x64 Portable
-3. Windows x64 ZIP
-4. Windows x86 Setup
-5. Windows x86 Portable
-6. Windows x86 ZIP
-7. Linux amd64 DEB
-8. Linux arm64 DEB
-9. Linux i386 DEB
-10. macOS Universal PKG
+Publish koristi `--skip-duplicate`, čime ponovni run iste verzije ne pokušava stvoriti nepotrebnu duplikaciju.
 
-Nedostajući, dodatni ili pogrešno imenovani paket zaustavlja release prije stvaranja `SHA256.txt`.
+## 1.0.5 release fokus
 
-## Završni javni asseti
+1.0.5 je shared-hosting kompatibilnosno izdanje i treba sadržavati zajedno:
 
-Nakon dodavanja zajedničkih release metapodataka, izdanje ima točno 13 custom asseta:
+- home-relative FTP control naredbe;
+- control-only quote operacije;
+- MLSD→LIST session fallback;
+- shared-hosting regresijske testove;
+- marketinški preuređenu korisničku dokumentaciju.
 
-- šest Windows paketa
-- tri Linux DEB paketa
-- jedan macOS Universal PKG
-- `SHA256.txt`
-- `RELEASE-NOTES.txt`
-- `BUILD-METADATA.txt`
-
-Tehničke datoteke koje služe samo build/verifikacijskom sloju ne ulaze u javni asset allowlist.
-
-GitHub za svaki tag može prikazati vlastite ugrađene source archive poveznice. One nisu ByFTP build artefakti i ne ulaze u ovaj custom asset ugovor.
-
-## SHA-256 i metapodaci
-
-`RELEASE-NOTES.txt` generira se iz točno odgovarajućeg `CHANGELOG.md` odjeljka.
-
-`BUILD-METADATA.txt` bilježi:
-
-- verziju
-- release commit
-- izvorni ref
-- podržane platforme/arhitekture
-- činjenicu da je release quality gate prošao
-- GitHub Actions run ID i attempt
-
-`SHA256.txt` obuhvaća svih 10 platformskih paketa, release bilješke i build metapodatke.
-
-## Centralni publisher
-
-`scripts/publish_release.ps1` ostaje jedino mjesto koje smije stvarati ili nadopunjavati GitHub Release.
-
-Publisher je fail-closed:
-
-- tag se razrješava do stvarnog Git commita
-- tag mora odgovarati release SHA-u
-- postojeći asset uspoređuje se po nazivu, veličini i GitHub SHA-256 digestu
-- identičan asset ostaje netaknut
-- nedostajući asset može se nadopuniti
-- isti naziv s drugačijim sadržajem zaustavlja izdanje
-- neočekivani asset zaustavlja izdanje
-- nakon uploada ponovno se čita GitHub stanje i zahtijeva točan završni skup
-
-Slijepi overwrite nije dopušten.
-
-## Rerun nakon djelomičnog pada
-
-Ako platformni build ili upload djelomično padne, `workflow_dispatch` može ponovno pokrenuti kanonsku verziju.
-
-Siguran rerun:
-
-1. ponovno izvršava quality i sve platformne buildove;
-2. ponovno generira lokalne očekivane assete;
-3. uspoređuje već objavljene assete po veličini i digestu;
-4. nadopunjuje samo ono što nedostaje;
-5. odbija svaki mismatch.
-
-## Kompletni Actions artefakt
-
-Nakon uspješne objave `release/*` sprema se i kao verzionirani GitHub Actions artefakt s duljim retentionom. To nije zamjena za GitHub Release, nego build/provenance dokaz iste objave.
-
-## GitHub Windows Package
-
-`ByFTP.Windows` ostaje dodatni distribucijski kanal samo za Windows. Paket sadrži javne x64/x86 Windows distribucijske datoteke, checksumove, release bilješke, build metapodatke, licencu i dokumentaciju.
+Ti elementi ne smiju biti objavljeni pod starim `v1.0.4` tagom.
 
 ## Potpisivanje
 
-Workflow ne fabricira publisher identitet.
+Release pipeline ne smije tvrditi da je paket Verified Publisher ili Apple notarized ako stvarni certifikat/identitet nije dostupan.
 
-- Windows Authenticode zahtijeva stvarni Brendigo code-signing certifikat.
-- macOS Developer ID/notarizacija zahtijeva stvarni Apple certifikat i odgovarajuće secrets.
+Detalji su u [POTPISIVANJE.md](POTPISIVANJE.md).
 
-Bez tih identiteta release smije biti tehnički provjeren i hash-verificiran, ali dokumentacija ne smije tvrditi Verified Publisher, Developer ID ili notarizaciju.
+## Načelo izdanja
 
-## Kontrolna lista
+**Jedna verzija, jedan sadržaj, provjerljivi artefakti.**
 
-Prije promjene `VERSION` provjerite [PROVJERA-IZDANJA.md](PROVJERA-IZDANJA.md). Za detalje platformnih buildova pogledajte [TESTIRANJE.md](TESTIRANJE.md), a za sigurnosne granice [SIGURNOST.md](SIGURNOST.md).
+To korisniku daje jednostavniji odgovor na pitanje: “Je li paket koji sam preuzeo zaista ByFTP izdanje koje README opisuje?”
