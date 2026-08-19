@@ -1,5 +1,24 @@
 # Povijest promjena
 
+## 1.0.9 — Sigurnija Windows instalacijska transakcija
+
+**Fokus izdanja:** spriječiti da installer backup, fresh aktivacija ili rollback diraju datoteku čiji identitet i sadržaj više ne odgovaraju objektu koji je installer stvarno provjerio ili postavio.
+
+- backup postojeće `ByFTP.exe` / `Uninstall.exe` datoteke više ne vjeruje zasebnom `Lstat` pa kasnijem `Open`; otvoreni handle mora odgovarati istom filesystem objektu kroz `os.SameFile`
+- prije prihvaćanja backupa ponovno se provjeravaju veličina, mtime i aktualni path identitet, pa zamjena datoteke tijekom pripreme nadogradnje blokira instalaciju
+- backup sadržaj se tijekom kopiranja SHA-256 hashira, zatim se isti već otvoreni source handle vraća na početak i čita drugi put; digest i broj bajtova moraju biti identični
+- time in-place promjena tijekom backupa ne može proći samo zato što su veličina i vrijeme izmjene kasnije vraćeni na stare vrijednosti
+- neposredno prije upgrade aktivacije postojeća datoteka ponovno se čita kroz stabilni handle i njezin identitet, metadata i SHA-256 moraju odgovarati originalnom backup snapshotu
+- fresh instalacija koristi `RenameNoReplace` umjesto overwrite semantike; datoteka koja se pojavi nakon početnog “target ne postoji” snapshota neće biti prepisana
+- installer nakon uspješne aktivacije zapisuje identitet i SHA-256 vlastite datoteke; rollback se izvršava samo ako taj isti objekt još postoji nepromijenjen
+- rollback prije stvarne installer aktivacije više je no-op i ne može bezuvjetno obrisati konkurentno nastalu datoteku
+- ako drugi proces promijeni aktiviranu datoteku prije rollbacka, rollback fail-closed odbija uklanjanje ili vraćanje backupa umjesto prepisivanja nepoznatog sadržaja
+- nakon vraćanja upgrade backupa installer ponovno provjerava SHA-256 vraćene datoteke
+- dodani su deterministički Go testovi za `Lstat→Open` zamjenu, fresh-target race, pre-activation rollback, promjenu originala prije upgradea, promjenu instalirane datoteke prije rollbacka i normalni fresh/upgrade rollback
+- dodan je Python source-level guard koji zaključava `SameFile`, drugi SHA-256 read, fresh `RenameNoReplace`, ownership-bound rollback i produkcijske transaction-bound pozive za oba EXE-a
+- README jasno dokumentira fail-closed installer ponašanje i preostalo ograničenje: potpuna eliminacija svakog same-user Windows path racea zahtijevala bi dodatne handle-relative platformske primitive
+- verzija je povećana na `1.0.9`; objavljena 1.0.8 linija ostaje nepromijenjena
+
 ## 1.0.8 — Fail-closed cleanup i stabilniji transfer lifecycle
 
 **Fokus izdanja:** spriječiti da neuspjeli cleanup remote staging/rollback objekta izgleda kao običan transfer kvar, skip ili cancel te ukloniti nepotrebne waiter goroutine pri timeoutanom shutdownu.
