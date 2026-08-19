@@ -172,11 +172,22 @@ func (s *uploadSourceSnapshot) Path() string {
 	return s.path
 }
 
-// Verify confirms both filesystem identity and byte content after curl/OpenSSH
-// has finished reading the snapshot. A changed snapshot is never allowed to
-// reach the remote rename/backup commit phase.
-func (s *uploadSourceSnapshot) Verify() error {
-	if s == nil || s.handle == nil || s.path == "" {
+// Verify is the final local-source boundary. It confirms filesystem identity and
+// byte content after curl/OpenSSH has finished reading the snapshot, then always
+// removes the local snapshot before returning. A cleanup failure is an error, so
+// the caller can delete the remote temp object instead of committing while a
+// sensitive local copy remains unexpectedly behind.
+func (s *uploadSourceSnapshot) Verify() (retErr error) {
+	if s == nil {
+		return errors.New("upload snapshot nije dostupan")
+	}
+	defer func() {
+		if closeErr := s.Close(); closeErr != nil {
+			cleanupErr := fmt.Errorf("nije moguće ukloniti lokalni upload snapshot: %w", closeErr)
+			retErr = errors.Join(retErr, cleanupErr)
+		}
+	}()
+	if s.handle == nil || s.path == "" {
 		return errors.New("upload snapshot nije dostupan")
 	}
 	pathInfo, err := os.Lstat(s.path)
