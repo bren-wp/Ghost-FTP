@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/bren-wp/by-ftp/releases"><strong>⬇ Preuzmi ByFTP</strong></a> ·
+  <a href="https://github.com/users/bren-wp/packages?repo_name=by-ftp"><strong>Packages</strong></a> ·
   <a href="docs/SHARED-HOSTING.md"><strong>Shared hosting</strong></a> ·
   <a href="docs/INSTALACIJA.md"><strong>Brzi početak</strong></a> ·
   <a href="docs/PODRSKA.md"><strong>Pomoć pri spajanju</strong></a> ·
@@ -25,7 +26,7 @@ ByFTP je klijent za ljude koji žele **jednostavno otvoriti hosting, pronaći `p
 
 Windows izdanje nudi izvorni dvopanelni Win32 GUI za lokalne i udaljene datoteke. Linux i macOS koriste terminalno sučelje nad istim Go engineom.
 
-**Trenutačno izdanje: 1.0.5**
+**Trenutačno izdanje: 1.0.6**
 
 ## Zašto koristiti ByFTP
 
@@ -82,7 +83,7 @@ Linux/macOS SFTP lozinka i passphrase nisu umjetno provedeni kroz nesigurne comm
 
 ## Preuzimanje
 
-Službena izdanja dostupna su na GitHub Releases stranici projekta.
+Službena izdanja dostupna su na GitHub Releases stranici projekta. GitHub Packages koristi isti kanonski broj verzije iz `VERSION`, tako da paket i izdanje ostaju vezani uz isti release ciklus.
 
 ### Windows
 
@@ -154,16 +155,17 @@ Na Windowsu spremljene profilne tajne koriste DPAPI. Aktivne vjerodajnice se ne 
 
 Detalji: [Privatnost](docs/PRIVATNOST.md).
 
-## Što donosi 1.0.5
+## Što donosi 1.0.6
 
-1.0.5 je izdanje usmjereno na **stvarni shared-hosting FTP/FTPS rad**:
+1.0.6 dodatno učvršćuje **stabilnost runtimea i lifecycle veze** bez oduzimanja shared-hosting poboljšanja iz 1.0.5:
 
-- FTP control naredbe (`MKD`, `RNFR/RNTO`, `DELE`, `RMD`, `SITE CHMOD`) koriste isti login/home namespace kao URL listing i upload/download;
-- uklonjena je mogućnost da početni `/` u raw FTP naredbi ode prema fizičkom server rootu na non-chrooted hostingu;
-- quote-only operacije koriste control-channel-only `no-body`, pa uspješna mutacija više ne ovisi o nepotrebnom naknadnom directory data transferu;
-- MLSD fallback se nakon uspješnog `LIST`-a pamti za ostatak sesije, što smanjuje ponavljanje neuspjelih naredbi na starijim/shared FTP serverima;
-- regresijski testovi uključuju shared-hosting username oblika `account@domain`, login-home `public_html` putanju i MLSD→LIST fallback ponašanje;
-- README i kompletna dokumentacija preuređeni su u jasniji, korisnički i benefit-first format.
+- Engine više ne dohvaća sirovu remote sesiju samo radi provjere veze; transfer queue koristi postojeći connection-identity i generation guard;
+- uklonjen je nepotreban javni `Session()` izlaz iz remote managera, čime se smanjuje mogućnost da budući kod zaobiđe referentno brojanje aktivnih operacija;
+- `nil` context na ključnim remote i transfer shutdown granicama normalizira se u siguran background context umjesto mogućeg panica;
+- cancel i retry koriste jednu zajedničku validaciju odabranih transfer ID-eva umjesto dupliciranog koda;
+- read-only queue operacije koriste read lock, pa UI polling manje blokira worker i event write putanje;
+- panic recovery za tipizirane engine pozive centraliziran je u jednu provjerenu granicu;
+- nove regresije zaključavaju nil-context sigurnost, odabir transfera i lifecycle ponašanje, a puni race/build gate ostaje obavezan prije objave.
 
 ## Provjera SHA-256
 
