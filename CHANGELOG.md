@@ -1,5 +1,22 @@
 # Povijest promjena
 
+## 1.0.8 — Fail-closed cleanup i stabilniji transfer lifecycle
+
+**Fokus izdanja:** spriječiti da neuspjeli cleanup remote staging/rollback objekta izgleda kao običan transfer kvar, skip ili cancel te ukloniti nepotrebne waiter goroutine pri timeoutanom shutdownu.
+
+- FTP/FTPS i SFTP upload više ne ignoriraju grešku brisanja `.byftp-part-*` objekta nakon neuspjelog mrežnog prijenosa ili neuspjele lokalne snapshot provjere
+- remote revalidacija sada propagira cleanup neuspjeh nakon listing greške, opasne staging stavke, promijenjenog cilja ili `SkipExisting` odluke
+- uvedena je eksplicitna remote-state-uncertain greška koja identificira mogući zaostali artefakt i blokira automatski retry dok prethodno remote stanje nije potvrđeno
+- transfer queue daje cleanup nesigurnosti prednost pred `skipped` i `cancelled`, pa korisnik ne dobiva bezazlen status kada staging možda ostaje na serveru
+- ako je nova datoteka već aktivirana, ali brisanje starog rollback objekta ne uspije, transfer više ne vraća lažni potpuni uspjeh niti pokreće novi overwrite retry
+- cleanup odgovor koji precizno potvrđuje da staging objekt ne postoji zadržava izvornu transfer grešku i ne stvara lažnu cleanup nesigurnost
+- pojedinačni remote cilj sada se dodatno validira kao konkretna datoteka u transfer queueu te izravno u FTP/FTPS i SFTP upload/download adapterima
+- lokalni download `.byftp-part-*` objekt briše se i kada završni no-replace rename zakaže na ranije nepostojećem cilju
+- `waitWorkers` više ne stvara zaseban goroutine za svaki timeoutani disconnect/shutdown poziv; transfer manager koristi zajednički worker-idle signal koji se zatvara nakon zadnjeg stvarno završenog workera
+- dodane su Go regresije za cleanup uspjeh/not-found/uncertainty, post-commit cleanup kvar, retry blokadu, revalidation cleanup, lokalni part cleanup, queue file-target validaciju i worker-idle timeout lifecycle
+- dodan je Python source-level guard koji zaključava cleanup propagaciju u oba adaptera, queue status ordering i worker-idle implementaciju
+- verzija je povećana na `1.0.8`; objavljeni `v1.0.7` ostaje nepromjenjiv
+
 ## 1.0.7 — SFTP RSA/SHA-2 i strože transfer granice
 
 **Fokus izdanja:** dodatno učvrstiti SFTP host-key pregovaranje, remote staging i single-file transfer putanje bez slabljenja fingerprint pinninga ili shared-hosting kompatibilnosti.
@@ -12,7 +29,7 @@
 - pojedinačni upload/download sada zahtijeva konkretnu remote datoteku; root, `.` i putanje koje završavaju direktorijskim separatorom odbijaju se prije transfer reda i mrežnog rada
 - folder/tree transfer ostaje zasebna operacija i zadržava podršku za remote direktorijske root putanje
 - dodane su regresije za RSA host-key policy, Unix native curl izbor, staging directory/symlink zamjenu i ranu validaciju single-file remote cilja na security i Engine granici
-- README je pojednostavljen za korisnika, ali zadržava sve instalacijske, sigurnosne, platformске i razvojne ulaze te izravni GitHub Packages link
+- README je pojednostavljen za korisnika, ali zadržava sve instalacijske, sigurnosne, platformske i razvojne ulaze te izravni GitHub Packages link
 - verzija je povećana na `1.0.7`; objavljeni `v1.0.6` ostaje nepromjenjiv
 
 ## 1.0.6 — Stabilniji runtime i čišći lifecycle veze
