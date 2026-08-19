@@ -647,6 +647,10 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 		cancel()
 		return err
 	}
+	items, err = revalidateRemoteCommit(ctx, dir, base, tempName, options.SkipExisting, s.List, s.Delete)
+	if err != nil {
+		return err
+	}
 	return commitRemoteTemp(ctx, items, dir, base, tempName, savedName, options.KeepBackup, remoteCommitOps{
 		rename: s.Rename,
 		delete: s.Delete,
