@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/bren-wp/by-ftp/releases"><strong>⬇ Preuzmi ByFTP</strong></a> ·
+  <a href="docs/SHARED-HOSTING.md"><strong>Shared hosting</strong></a> ·
   <a href="docs/INSTALACIJA.md"><strong>Brzi početak</strong></a> ·
   <a href="docs/PODRSKA.md"><strong>Pomoć pri spajanju</strong></a> ·
   <a href="docs/SIGURNOST.md"><strong>Sigurnost</strong></a>
@@ -49,6 +50,8 @@ Za tipični shared hosting najčešće su potrebna samo četiri podatka iz hosti
 Nakon klika na **Poveži**, ByFTP ne prikazuje stanje **POVEZANO** samo zato što je pokrenut mrežni alat. Veza mora proći autentikaciju i početni udaljeni listing.
 
 Za FTP/FTPS ByFTP zadržava login/home semantiku servera. To je važno na shared hostingu: logička putanja `/public_html` predstavlja `public_html` unutar direktorija u koji vas je server smjestio nakon prijave, a ne proizvoljni fizički root poslužitelja.
+
+Za detaljan vodič otvorite [ByFTP za shared hosting](docs/SHARED-HOSTING.md).
 
 ### Kompatibilnost sa starijim FTP serverima
 
@@ -149,7 +152,7 @@ ByFTP runtime nema oglase, analytics SDK, vanjski crash-reporting servis, obavez
 
 Na Windowsu spremljene profilne tajne koriste DPAPI. Aktivne vjerodajnice se ne stavljaju u command-line argumente mrežnih alata. Produkcijski build dodatno zahtijeva isključenu Go telemetriju.
 
-Detalji: [PRIVATNOST.md](docs/PRIVATNOST.md).
+Detalji: [Privatnost](docs/PRIVATNOST.md).
 
 ## Što donosi 1.0.5
 
@@ -186,14 +189,28 @@ shasum -a 256 ByFTP-<verzija>-macOS-Universal.pkg
 
 ## Dokumentacija
 
+**Za korisnike i hosting rad:**
+
 - [Dokumentacijski centar](docs/README.md)
+- [ByFTP za shared hosting](docs/SHARED-HOSTING.md)
 - [Instalacija i prvi spoj](docs/INSTALACIJA.md)
 - [Podrška i rješavanje problema](docs/PODRSKA.md)
 - [Sigurnost](docs/SIGURNOST.md)
 - [Privatnost](docs/PRIVATNOST.md)
-- [Arhitektura](docs/ARHITEKTURA.md)
+
+**Za provjeru kvalitete i proizvoda:**
+
 - [Testiranje i kvaliteta](docs/TESTIRANJE.md)
+- [Provjera izdanja](docs/PROVJERA-IZDANJA.md)
+- [Potpisivanje distribucija](docs/POTPISIVANJE.md)
+- [Obavijesti trećih strana](docs/OBAVIJESTI-TRECIH-STRANA.md)
+
+**Za razvoj i tehnički uvid:**
+
+- [Arhitektura](docs/ARHITEKTURA.md)
 - [Plan razvoja](docs/PLAN-RAZVOJA.md)
+- [Doprinos projektu](docs/DOPRINOS.md)
+- [Izdavanje na GitHubu](docs/IZDAVANJE-NA-GITHUBU.md)
 
 ## Važna ograničenja
 
