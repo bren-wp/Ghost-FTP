@@ -14,6 +14,7 @@ import (
 	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/remote"
+	"brendigo.com/byftp/internal/security"
 	"brendigo.com/byftp/internal/transfer"
 )
 
@@ -156,6 +157,9 @@ func (e *Engine) RemoteChmod(ctx context.Context, base, name, mode string) error
 }
 
 func (e *Engine) AddTransfer(direction, localPath, remotePath, localRoot string) (model.TransferJob, error) {
+	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
+		return model.TransferJob{}, err
+	}
 	return e.transfers.AddBatchOne(transfer.Request{Direction: direction, LocalPath: localPath, RemotePath: remotePath, LocalRoot: localRoot})
 }
 
@@ -169,6 +173,9 @@ type TransferRequest struct {
 func (e *Engine) AddTransfers(requests []TransferRequest) ([]model.TransferJob, error) {
 	batch := make([]transfer.Request, 0, len(requests))
 	for _, r := range requests {
+		if err := security.ValidateRemoteFilePath(r.RemotePath); err != nil {
+			return nil, err
+		}
 		batch = append(batch, transfer.Request{Direction: r.Direction, LocalPath: r.LocalPath, RemotePath: r.RemotePath, LocalRoot: r.LocalRoot})
 	}
 	return e.transfers.AddBatch(batch)

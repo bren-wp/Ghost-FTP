@@ -35,6 +35,14 @@ func revalidateRemoteCommit(
 		cleanupTemp()
 		return nil, fmt.Errorf("nije moguće ponovno provjeriti remote odredište prije aktivacije: %w", err)
 	}
+	// Neki FTP LIST fallbackovi ne prikazuju skrivene .byftp-part-* datoteke,
+	// zato odsutnost staging stavke u listingu sama po sebi nije dokaz greške.
+	// Ako je server ipak vrati, ona mora ostati obična datoteka; direktorij ili
+	// symlink pod našim nasumičnim staging nazivom nikada se ne smije aktivirati.
+	if staged, ok := remoteEntry(items, tempName); ok && (staged.IsDirectory || staged.IsSymlink) {
+		cleanupTemp()
+		return nil, errors.New("remote privremena stavka se promijenila i nije obična datoteka")
+	}
 	if existing, ok := remoteEntry(items, base); ok {
 		if existing.IsDirectory || existing.IsSymlink {
 			cleanupTemp()

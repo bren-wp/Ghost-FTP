@@ -297,7 +297,8 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 				return ConnectResult{}, err
 			}
 		}
-		s, err = newSFTPWithProtectedSecrets(cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, cfg.PrivateKeyPath, cfg.Passphrase, resolved.PassphraseBlob, kh, keyAlgorithm, m.exePath, connectTimeout)
+		hostKeyConstraint := hostKeyConstraintForScannedKey(keyAlgorithm)
+		s, err = newSFTPWithProtectedSecrets(cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, cfg.PrivateKeyPath, cfg.Passphrase, resolved.PassphraseBlob, kh, hostKeyConstraint, m.exePath, connectTimeout)
 		if err != nil {
 			_ = os.Remove(kh)
 			return ConnectResult{}, err
