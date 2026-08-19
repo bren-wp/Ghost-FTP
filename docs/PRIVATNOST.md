@@ -1,130 +1,84 @@
-# ByFTP — privatnost
+# Privatnost
 
-ByFTP prenosi datoteke prema poslužitelju koji korisnik sam odabere. Aplikacijski runtime nema paralelno slanje Brendigu, analitičkim servisima, oglašivačkim mrežama ili skrivenom cloud backendu.
+**Vaši FTP podaci služe za spajanje na vaš server — ne za izgradnju marketinškog profila.**
 
-## ByFTP runtime nema
+Privatnost u ByFTP-u nije dodatna postavka koju treba uključiti. Projekt je oblikovan tako da runtime nema tipične mehanizme za praćenje korištenja aplikacije.
 
-- telemetriju korištenja
-- analitiku
-- oglašavanje
-- vanjski crash-reporting servis
-- obavezni cloud račun
-- skriveni update API
-- browser/localhost upravljački server
-- trajni runtime activity/error log
+## Što korisnik dobiva
 
-## Mrežni promet aplikacije
+ByFTP runtime nema:
 
-ByFTP mrežni adapteri razgovaraju s korisnički odabranim FTP/FTPS/SFTP endpointom. Operativni sustav, DNS resolver, firewall, antivirus/EDR ili sam udaljeni poslužitelj mogu imati vlastito zapisivanje koje nije ByFTP telemetrija.
+- aplikacijsku analitiku korištenja;
+- oglase i oglašivačke SDK-ove;
+- obavezni Brendigo cloud račun;
+- vanjski crash-reporting servis;
+- fiksni Brendigo HTTP API kojem se šalju aktivnosti;
+- trajni activity/error log koji bilježi FTP sesije.
 
-curl dobiva sanitizirano okruženje bez naslijeđenog proxy/TLS overridea. OpenSSH dobiva ByFTP-managed session config koji blokira ProxyCommand, ProxyJump, agent, PKCS#11 provider, KnownHostsCommand i forwarding.
+Mrežni promet aplikacije namijenjen je serveru koji je korisnik odabrao, uz standardne OS/certifikacijske provjere potrebne za siguran TLS rad.
 
-### FTPS provjera opoziva certifikata
+## Vjerodajnice nisu command-line argument
 
-ByFTP više ne koristi curl opciju `ssl-no-revoke`, jer bi ona na Windows Schannelu potpuno isključila provjeru opoziva certifikata.
+FTP/FTPS lozinke ne predaju se curlu kao običan command-line argument.
 
-Na Windowsu ByFTP lokalno pokreće bounded `curl --version` capability provjeru bez mrežnog prometa. Ako curl podržava `ssl-revoke-best-effort`, ByFTP uključuje tu opciju: Schannel smije provjeriti status opoziva certifikata, ali nedostupan ili offline distribution point sam po sebi ne ruši vezu. Ako je curl prestar ili capability provjera ne uspije, ta se opcija ne šalje i ostaje zadano Schannel ponašanje; revocation provjera se ne isključuje.
+ByFTP generira curl konfiguraciju kroz standardni input procesa, a memorijske buffer-e nakon upotrebe pokušava očistiti. Vanjske proxy i TLS environment postavke koje bi mogle preusmjeriti promet ili izvesti TLS session tajne uklanjaju se iz child-process okruženja.
 
-Takvu provjeru može izvršiti Windows TLS/certificate infrastruktura i ona može kontaktirati CA/CRL infrastrukturu navedenu u certifikatu. To nije ByFTP telemetrija niti Brendigo API, ali jest mogući OS-vođeni sigurnosni mrežni promet izvan korisnički odabranog FTP endpointa. Linux/macOS ne dobivaju Schannel-specifičnu curl opciju i koriste ponašanje vlastitog TLS backend-a.
+## Windows spremljeni profili
 
-## Windows podaci
+Na Windowsu spremljene profilne tajne koriste DPAPI zaštitu.
 
-Windows profili i postavke ostaju u ByFTP korisničkoj podatkovnoj mapi. Profilne tajne koriste DPAPI. UI prikazuje samo činjenicu da je spremljena tajna dostupna, ne vraća stvarnu spremljenu vrijednost u edit kontrolu.
+Dodatno se primjenjuje identity binding:
 
-Lozinka se automatski koristi samo za isti endpoint i korisnika; passphrase dodatno za isti privatni ključ. Promjena identiteta profila čisti credential vrijednost koja više ne pripada novom profilu.
+- FTP/FTPS lozinka vrijedi samo za isti protokol, host, port i korisničko ime;
+- SFTP passphrase dodatno mora pripadati istom private-key identitetu;
+- promjena endpointa ili računa ne prenosi staru tajnu na novu konfiguraciju.
 
-Unesena lozinka/passphrase tijekom povezivanja ostaje u zaključanoj kontroli dok pokušaj traje i briše se nakon stvarno uspješnog povezivanja. To omogućuje retry bez ponovnog unosa, ali ne uvodi trajno spremanje.
+To smanjuje rizik da korisnik uredi profil, promijeni host, a aplikacija tiho pošalje staru spremljenu lozinku drugom serveru.
 
-## Linux i macOS
+## Aktivne tajne tijekom sesije
 
-Terminalni frontend trenutačno ne sprema terminalne profile ni vjerodajnice na disk.
+Na Windowsu runtime tajne koriste zaštitne mehanizme platforme. Na Linuxu/macOS-u FTP/FTPS aktivne lozinke drže se samo u memoriji procesa kroz kratkotrajni runtime-secret model i brišu se pri zatvaranju sesije.
 
-FTP/FTPS aktivna lozinka pohranjuje se samo u procesu iza kriptografski nasumičnog runtime tokena. Adapter drži token umjesto plaintext vrijednosti; kratkotrajna kopija nastaje neposredno prije curl poziva i briše se nakon uporabe. `Close()` uklanja i briše procesnu vrijednost.
+Linux/macOS terminal ne nudi trajno spremanje tih tajni.
 
-SFTP password/passphrase na Linuxu/macOS-u trenutačno nije uključen. Umjesto slanja tajne kroz argument naredbenog retka ili običan environment, terminalno izdanje fail-closed zahtijeva eksplicitni privatni ključ bez passphrasea dok siguran Unix credential broker nije dovršen.
+## SFTP i AskPass
 
-## Connect smoke testovi i privatnost
+Windows SFTP password/passphrase tok koristi kontrolirani AskPass model. Tajna se ne zapisuje u običnu privremenu datoteku samo zato da bi je OpenSSH mogao pročitati.
 
-Process-level connect smoke testovi nemaju vanjski mrežni promet. Testovi stvaraju lokalni kratkotrajni fake `curl` ili `sftp` proces i koriste isključivo testne vrijednosti vjerodajnica.
+OpenSSH child proces dodatno ne nasljeđuje SSH agent, proxy helper, PKCS#11 provider ili slične implicitne mehanizme iz korisničkog environmenta ako ByFTP nije namjerno konfigurirao takav tok.
 
-Time se provjerava produkcijski child-process/stdin/parser put bez:
+## Privatni ključevi
 
-- stvarnog udaljenog poslužitelja
-- stvarnih korisničkih računa
-- produkcijskih tajni
-- zapisivanja credentiala u repozitorij
+ByFTP ne predaje OpenSSH-u originalnu private-key putanju nakon jednostavnog path checka.
 
-FTP smoke dodatno potvrđuje da runtime token više nije moguće razriješiti nakon `Close()`.
+Ključ se prije korištenja verificira i kopira u privatni session snapshot. Time kasnija zamjena izvorne putanje ne mijenja ključ aktivne sesije.
 
-## SFTP metapodaci
+## Upload datoteke
 
-Host, korisnik i private-key putanja nisu na OpenSSH command lineu. Sesija koristi nasumični lokalni alias, privatni `known_hosts` i kratkotrajnu config datoteku. Bracketirani IPv6 host normalizira se prije OpenSSH unosa.
+Za FTP/FTPS/SFTP upload child proces ne dobiva originalnu lokalnu korisničku putanju. ByFTP izrađuje privatni byte-for-byte snapshot iz verificiranog otvorenog handlea i provjerava sadržaj SHA-256 digestom.
 
-Windows AskPass dobiva samo zaštićene vrijednosti kroz kontrolirani child environment i daje tajnu isključivo prepoznatom password/passphrase promptu. MFA, OTP, security-key i nepoznati prompt ne dobivaju spremljenu tajnu.
+To je sigurnosni i privatnosni izbor: vanjski mrežni alat vidi samo ByFTP-ov session snapshot, ne promjenjivu izvornu putanju korisnika.
 
-Host-key fingerprint pripada endpointu. Privremeni endpoint ne može naslijediti ili prepisati pin drugog profila.
+## Go telemetrija u produkcijskom buildu
 
-## Lokalno stanje
+Produkcijski CI i build skripte zahtijevaju stvarno stanje `go telemetry off` i odbijaju build ako taj uvjet nije potvrđen.
 
-ByFTP nema trajni runtime log servera, putanja i transfer pogrešaka. State/config čitanje koristi bounded safe-open model i provjerenu prethodnu generaciju. ByFTP-owned direktoriji ne smiju biti preusmjereni izvan kanonske podatkovne lokacije.
+Projekt se ne oslanja na marketinšku tvrdnju “telemetrija je isključena”; to je provjerljiv build gate.
 
-Platformne podatkovne lokacije koriste OS-specifični model:
+## TLS certificate provjere nisu telemetrija
 
-- Windows: stvarni LocalAppData
-- macOS: `~/Library/Application Support`
-- Linux: apsolutni `XDG_DATA_HOME` ili `~/.local/share`
+Kod FTPS-a operativni sustav ili CA infrastruktura može provjeravati opoziv certifikata prema podacima ugrađenim u certifikat. To nije ByFTP analitika niti Brendigo tracking — to je dio sigurnosne provjere certifikata.
 
-## Go toolchain telemetrija nije ByFTP runtime telemetrija
+ByFTP ne koristi `ssl-no-revoke` kako bi potpuno isključio tu zaštitu.
 
-Go alatni lanac ima vlastitu telemetry postavku odvojenu od ByFTP aplikacije. Produkcijski build zbog privatnosti ne smije ostati u zadanom lokalnom prikupljanju.
+## Što korisnik i dalje šalje
 
-ByFTP GitHub Actions prije Go testova/builda izvršava:
+Kada se spojite na FTP/FTPS/SFTP server, tom serveru nužno šaljete podatke potrebne za protokol, uključujući korisničko ime i odgovarajuću autentikacijsku informaciju.
 
-```text
-go telemetry off
-```
+ByFTP ne može kontrolirati što vaš hosting provider radi sa svojim server logovima. Politiku privatnosti hostinga treba promatrati odvojeno od privatnosti samog ByFTP klijenta.
 
-i zahtijeva da `go telemetry` vrati `off`.
+## Načelo proizvoda
 
-Produkcijske build skripte ponovno čitaju stvarni način rada i fail-closed odbijaju build ako nije `off`; ne oslanjaju se na običnu istoimenu OS environment varijablu koja ne predstavlja stvarno stanje Go telemetry postavke.
+**Manje skrivenih servisa, manje nepotrebnog prikupljanja, jasnija mrežna granica.**
 
-Lokalna skripta ne mijenja globalnu Go postavku potajno. Ako telemetry nije `off`, build se prekida i korisniku se navodi potrebna naredba.
-
-## Offline Go build
-
-ByFTP nema vanjske Go module. Produkcijski build koristi:
-
-- `GOTOOLCHAIN=local`
-- `GOPROXY=off`
-- `GOSUMDB=off`
-- `CGO_ENABLED=0`
-
-Time standardni ByFTP build ne preuzima module ili zamjenski Go toolchain tijekom izgradnje.
-
-## Build i release metapodaci
-
-`BUILD-METADATA.txt` sadrži samo informacije potrebne za provenance:
-
-- ByFTP verziju
-- release commit/ref
-- platformsku matricu
-- činjenicu da je release quality gate prošao
-- GitHub Actions run/attempt identifikatore
-
-Ne sadrži hostove, profile, lokalne korisničke putanje ni vjerodajnice.
-
-`SHA256.txt` sadrži samo kriptografske sažetke javnih paketa i zajedničkih release metapodataka.
-
-Tehnički verification output i instalacijske interne komponente ostaju unutar build/CI sloja gdje su potrebni; glavni javni distribucijski ugovor sastoji se samo od službenih platformskih paketa i zajedničkih release metapodataka.
-
-## Release privatnost i stabilnost
-
-Release workflow ima jedan automatski okidač: promjenu `VERSION` na `main`. Tag koji publisher izradi ne pokreće drugi release proces. Svi release runovi dijele jednu serijaliziranu concurrency grupu.
-
-To smanjuje istodobne publish operacije i čini provenance jednog izdanja jednostavnijim za provjeru.
-
-## Što ByFTP ne može kontrolirati
-
-Odredišni poslužitelj nužno vidi mrežne i autentikacijske podatke potrebne za vezu. OS, DNS, certificate revocation infrastruktura, firewall, EDR, backup/sync sustavi ili udaljeni poslužitelj mogu imati vlastita pravila zapisivanja.
-
-Lokalno brisanje datoteke ili procesne tajne nije isto što i forenzičko brisanje fizičkih SSD blokova ili svih kopija koje je napravio operativni sustav, backup ili sigurnosni proizvod.
+ByFTP je namijenjen korisnicima koji žele alat za upravljanje datotekama, a ne dodatni cloud ekosustav oko običnog FTP zadatka.
