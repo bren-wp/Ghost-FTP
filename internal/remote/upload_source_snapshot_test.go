@@ -56,6 +56,32 @@ func TestUploadSourceSnapshotDetectsSnapshotMutation(t *testing.T) {
 	}
 }
 
+func TestUploadSourceSnapshotDigestRejectsSameSizeAndMtimeTampering(t *testing.T) {
+	local := filepath.Join(t.TempDir(), "source.txt")
+	if err := os.WriteFile(local, []byte("original-content"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := prepareUploadSource(local)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer snap.Close()
+	originalMtime := snap.initial.ModTime()
+	replacement := []byte("changed-content?")
+	if int64(len(replacement)) != snap.initial.Size() {
+		t.Fatalf("test replacement size mismatch: got=%d want=%d", len(replacement), snap.initial.Size())
+	}
+	if err := os.WriteFile(snap.Path(), replacement, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(snap.Path(), originalMtime, originalMtime); err != nil {
+		t.Fatal(err)
+	}
+	if err := snap.Verify(); err == nil {
+		t.Fatal("SHA-256 verification must reject same-size/same-mtime content tampering")
+	}
+}
+
 func TestUploadSourceSnapshotCloseRemovesTempDirectory(t *testing.T) {
 	local := filepath.Join(t.TempDir(), "source.txt")
 	if err := os.WriteFile(local, []byte("content"), 0600); err != nil {
