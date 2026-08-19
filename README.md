@@ -1,18 +1,17 @@
 <p align="center">
-  <img src="docs/slike/byftp-zaglavlje.png" alt="ByFTP — siguran prijenos datoteka" width="900">
+  <img src="docs/slike/byftp-zaglavlje.png" alt="ByFTP — FTP, FTPS i SFTP klijent" width="900">
 </p>
 
 <p align="center">
-  <strong>Privatan FTP / FTPS / SFTP klijent tvrtke Brendigo.</strong><br>
-  Bez telemetrije aplikacije, oglasa, obaveznog cloud računa i skrivenog lokalnog web servisa.
+  <strong>FTP bez komplikacija. Više kontrole nad vašim hostingom.</strong><br>
+  ByFTP je Brendigo klijent za FTP, FTPS i SFTP napravljen za brzo upravljanje web datotekama, shared hosting računima i svakodnevnim prijenosima — bez oglasa, obaveznog cloud računa i aplikacijske telemetrije.
 </p>
 
 <p align="center">
-  <a href="https://github.com/bren-wp/by-ftp/releases"><strong>Izdanja</strong></a> ·
-  <a href="docs/INSTALACIJA.md"><strong>Instalacija</strong></a> ·
-  <a href="docs/SIGURNOST.md"><strong>Sigurnost</strong></a> ·
-  <a href="docs/PRIVATNOST.md"><strong>Privatnost</strong></a> ·
-  <a href="LICENSE"><strong>Licenca</strong></a>
+  <a href="https://github.com/bren-wp/by-ftp/releases"><strong>⬇ Preuzmi ByFTP</strong></a> ·
+  <a href="docs/INSTALACIJA.md"><strong>Brzi početak</strong></a> ·
+  <a href="docs/PODRSKA.md"><strong>Pomoć pri spajanju</strong></a> ·
+  <a href="docs/SIGURNOST.md"><strong>Sigurnost</strong></a>
 </p>
 
 <p align="center">
@@ -21,17 +20,49 @@
 
 # ByFTP
 
-ByFTP koristi jedan tipizirani Go engine za FTP, FTPS i SFTP, zajednički transfer queue, provjeru putanja, kontrolirani lifecycle veze i fail-closed sigurnosne granice. Windows izdanje ima puni izvorni Win32 dvopanelni GUI. Linux i macOS koriste funkcionalni terminalni frontend nad istim engineom.
+ByFTP je klijent za ljude koji žele **jednostavno otvoriti hosting, pronaći `public_html`, prenijeti web stranicu i nastaviti raditi** — bez nepotrebnih koraka i bez skrivanja važnih sigurnosnih odluka.
 
-**Trenutačno izdanje: 1.0.4**
+Windows izdanje nudi izvorni dvopanelni Win32 GUI za lokalne i udaljene datoteke. Linux i macOS koriste terminalno sučelje nad istim Go engineom.
+
+**Trenutačno izdanje: 1.0.5**
+
+## Zašto koristiti ByFTP
+
+- **Shared hosting na prvom mjestu** — FTP/FTPS rad je usklađen s login/home direktorijem kakav je uobičajen na hosting računima.
+- **FTP, explicit FTPS, implicit FTPS i SFTP** — jedan alat za više vrsta poslužitelja.
+- **Dvopanelni Windows rad** — lokalne datoteke lijevo, hosting desno.
+- **Upload i download s kontroliranim stagingom** — prijenos se ne tretira kao završen dok završna faza nije provjerena.
+- **Backup i rollback logika** — sigurniji overwrite kada je uključen backup.
+- **Transfer queue** — više prijenosa, pause/resume, cancel i retry.
+- **SFTP host-key provjera** — prvi kontakt traži potvrdu fingerprinta, a promjena ključa blokira vezu.
+- **Bez aplikacijske telemetrije i oglasa** — ByFTP runtime nema analitiku korištenja ni obavezni Brendigo cloud račun.
+
+## Shared hosting — spojite se u nekoliko koraka
+
+Za tipični shared hosting najčešće su potrebna samo četiri podatka iz hosting panela:
+
+1. **Poslužitelj / Host** — npr. `ftp.vasadomena.hr` ili hostname koji je dao hosting provider.
+2. **Korisničko ime** — može biti klasično korisničko ime ili oblik poput `korisnik@domena.hr`.
+3. **Lozinka** — FTP lozinka za taj račun.
+4. **Port i protokol** — najčešće FTP ili explicit FTPS na portu `21`; implicit FTPS najčešće koristi `990` kada ga hosting izričito nudi.
+
+Nakon klika na **Poveži**, ByFTP ne prikazuje stanje **POVEZANO** samo zato što je pokrenut mrežni alat. Veza mora proći autentikaciju i početni udaljeni listing.
+
+Za FTP/FTPS ByFTP zadržava login/home semantiku servera. To je važno na shared hostingu: logička putanja `/public_html` predstavlja `public_html` unutar direktorija u koji vas je server smjestio nakon prijave, a ne proizvoljni fizički root poslužitelja.
+
+### Kompatibilnost sa starijim FTP serverima
+
+ByFTP prvo koristi strukturirani `MLSD` listing kada ga server pravilno podržava. Ako shared-hosting FTP servis ne podržava MLSD ili vraća neupotrebljiv format, ByFTP prelazi na klasični `LIST` i taj fallback pamti za ostatak sesije.
+
+Pasivni FTP rad koristi curlov EPSV/PASV mehanizam, uz zaštitu od pogrešne privatne PASV adrese koju pojedini NAT/shared-hosting sustavi vraćaju klijentu.
 
 ## Produkcijska podrška
 
-| Platforma | Službeni paket | Arhitekture | Sučelje |
+| Platforma | Paket | Arhitekture | Sučelje |
 |---|---|---|---|
-| Windows 10/11 | Setup EXE, Portable EXE, ZIP | x64, x86 | puni Win32 GUI |
-| Linux | DEB | amd64, arm64, i386 | terminalni klijent |
-| macOS | Universal PKG | Intel x86_64 + Apple Silicon arm64 | terminalni klijent |
+| Windows 10/11 | Setup EXE, Portable EXE, ZIP | x64, x86 | puni dvopanelni GUI |
+| Linux | DEB | amd64, arm64, i386 | terminal |
+| macOS | Universal PKG | Intel + Apple Silicon | terminal |
 
 ### Autentikacija
 
@@ -42,22 +73,20 @@ ByFTP koristi jedan tipizirani Go engine za FTP, FTPS i SFTP, zajednički transf
 | SFTP privatni ključ bez passphrasea | da | da |
 | SFTP lozinka | da | ne, fail-closed |
 | SFTP privatni ključ s passphraseom | da | ne, fail-closed |
-| SFTP host-key fingerprint provjera | da | da |
+| SFTP fingerprint provjera | da | da |
 
-Linux/macOS SFTP namjerno ne šalje lozinku ili passphrase kroz argument naredbenog retka ili običnu environment varijablu samo radi prividnog pariteta. Dok siguran Unix credential broker nije implementiran i testiran, ti načini ostaju blokirani.
+Linux/macOS SFTP lozinka i passphrase nisu umjetno provedeni kroz nesigurne command-line ili obične environment varijable. Dok siguran Unix credential broker nije implementiran i testiran, ti načini ostaju blokirani.
 
 ## Preuzimanje
 
-Službeni distribucijski kanal su GitHub izdanja repozitorija. Svako produkcijsko izdanje koristi verziju iz datoteke [`VERSION`](VERSION).
+Službena izdanja dostupna su na GitHub Releases stranici projekta.
 
 ### Windows
 
-- `ByFTP-<verzija>-Setup-x64.exe` — preporučena x64 instalacija
-- `ByFTP-<verzija>-Portable-x64.exe` — x64 bez instalacije
-- `ByFTP-<verzija>-Windows-x64.zip` — x64 paket s dokumentacijom i checksumovima
-- `ByFTP-<verzija>-Setup-x86.exe` — x86 instalacija
-- `ByFTP-<verzija>-Portable-x86.exe` — x86 bez instalacije
-- `ByFTP-<verzija>-Windows-x86.zip` — x86 paket s dokumentacijom i checksumovima
+- `ByFTP-<verzija>-Setup-x64.exe` — preporučeno za većinu Windows računala
+- `ByFTP-<verzija>-Portable-x64.exe` — pokretanje bez instalacije
+- `ByFTP-<verzija>-Windows-x64.zip` — ZIP distribucija
+- dostupne su i x86 varijante za podržane 32-bitne sustave
 
 ### Linux
 
@@ -69,75 +98,73 @@ Službeni distribucijski kanal su GitHub izdanja repozitorija. Svako produkcijsk
 
 - `ByFTP-<verzija>-macOS-Universal.pkg`
 
-Uz platformske pakete izdanje sadrži `SHA256.txt`, `RELEASE-NOTES.txt` i `BUILD-METADATA.txt`.
+Svako izdanje uključuje checksum i release metapodatke kako biste mogli provjeriti što ste preuzeli.
 
 ## Instalacija, nadogradnja i uklanjanje
 
-Detaljni postupci nalaze se u [INSTALACIJA.md](docs/INSTALACIJA.md).
+Za instalaciju i prvi spoj otvorite [Vodič za instalaciju i brzi početak](docs/INSTALACIJA.md).
 
-Windows Setup koristi standardni korisnički instalacijski lifecycle i čuva ByFTP korisničke podatke u predviđenoj podatkovnoj mapi. Portable izdanje pokreće se bez klasične instalacije.
-
-Linux DEB instalira terminalni klijent prema arhitekturi sustava. macOS Universal PKG sadrži Intel i Apple Silicon varijantu te pokreće terminalni ByFTP frontend.
-
-## Povezivanje i stabilnost
-
-Veza se smatra uspješnom tek nakon stvarne autentikacije i početnog udaljenog `List` probea. Samo uspješno pokretanje `curl` ili OpenSSH procesa nije dovoljno za stanje **POVEZANO**.
-
-Session lifecycle je referentno brojan. Prekid veze najprije zaustavlja prihvat novih transfera i otkazuje aktivne operacije, zatim čeka sigurno završavanje adaptera. Reconnect je blokiran dok se prethodna sesija još zatvara, čime se sprječava zatvaranje adaptera ispod aktivnog transfera.
-
-### SFTP host-key zaštita
-
-ByFTP:
-
-- dohvaća i prikazuje SHA-256 fingerprint prije prvog povjerenja;
-- veže spremljeni fingerprint uz točan endpoint;
-- blokira vezu ako se očekivani host ključ promijeni;
-- koristi privatni kratkotrajni `known_hosts`;
-- ograničava OpenSSH proxy, agent, forwarding i slične implicitne helper putove;
-- validira bracketirani i sirovi IPv6 oblik bez prihvaćanja neispravno uparenih zagrada;
-- privatni ključ prije OpenSSH korištenja kopira iz stabilno verificiranog file handlea u privatni `0600` session snapshot, pa kasnija zamjena izvorne putanje ne mijenja ključ aktivne sesije.
+Windows korisnicima preporučujemo Setup x64 paket. Portable izdanje je praktično kada ne želite klasičnu instalaciju. Linux koristi DEB paket prema arhitekturi, a macOS Universal PKG pokriva Intel i Apple Silicon.
 
 ## Upravljanje datotekama
 
-Windows GUI podržava dvopanelni lokalni/udaljeni prikaz, višestruki odabir, upload, download, stvaranje mapa, preimenovanje, brisanje, osvježavanje, CHMOD gdje je podržan te transfer queue s pause/resume, cancel i retry funkcijama.
+Windows GUI podržava:
 
-Linux/macOS terminal koristi isti engine i podržava `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd`, host-key potvrdu i transfer queue.
+- pregled lokalnih i remote datoteka u dva panela;
+- upload i download;
+- višestruki odabir;
+- stvaranje direktorija;
+- preimenovanje;
+- rekurzivno brisanje uz zaštitne limite;
+- CHMOD gdje ga server podržava;
+- transfer queue s pause/resume, cancel i retry funkcijama;
+- profile za brže ponovno spajanje.
+
+Linux/macOS terminal koristi isti engine za `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd` i transfer queue.
 
 ## Sigurnost transfera
 
-ByFTP koristi obrambeni, transakcijski pristup:
+ByFTP je projektiran tako da **greška ne izgleda kao uspjeh** i da završna aktivacija datoteke bude stroža od običnog “copy pa se nadamo”.
 
-- kriptografski nasumične staging nazive;
-- provjeru regularne datoteke prije aktivacije downloada;
-- stvarnu no-replace aktivaciju: Windows koristi exclusive `MoveFileExW`, Linux kernel `renameat2(RENAME_NOREPLACE)`, a macOS regularne staging datoteke aktivira ekskluzivnim hard-link korakom bez check-then-overwrite prozora;
-- stabilno otvaranje direktorija prije rekurzivnog lokalnog brisanja i ponovnu provjeru identiteta direktorija prije nastavka/finalnog uklanjanja;
-- zaštitu od symlink, junction i reparse traversal izlaza;
-- ponovnu validaciju lokalnog root-a prije queued transfera;
-- FTP/FTPS/SFTP upload koristi privatni lokalni byte-for-byte snapshot izrađen iz verificiranog otvorenog file handlea, a vanjski child proces ne dobiva originalnu korisničku putanju;
-- lokalni upload snapshot SHA-256 provjerava se tijekom izrade, uspoređuje s drugim punim čitanjem izvora te ponovno provjerava nakon mrežnog čitanja i prije remote commit-a;
-- snapshot se uklanja prije remote revalidation/commit faze; cleanup failure blokira aktivaciju remote temp objekta;
-- ponovnu provjeru remote odredišta nakon završetka temp uploada i neposredno prije rename/backup commit faze;
-- `SkipExisting` ponovno se primjenjuje na svježe remote stanje, a novonastali direktorij/symlink blokira commit i čisti temp upload;
-- batch rezervacija i retry vežu `ConnectionIdentity()` uz istu monotonu transfer generation prije i poslije identity poziva; reconnect tijekom te granice odbija mutaciju umjesto da stari identity završi na novoj sesiji;
-- vezanje retry posla uz identitet iste veze;
-- ograničenu rekurziju i broj stavki;
-- validaciju udaljenih putanja i command-stream separatora;
-- bounded stdout/stderr za vanjske mrežne alate;
-- context timeout/cancel propagaciju kroz adaptere i transfer queue.
+Ključne zaštite uključuju:
 
-Sigurniji lokalni upload snapshot namjerno zahtijeva privremeni lokalni prostor približno veličini datoteke koja se šalje i dodatna lokalna čitanja radi sadržajne stabilnosti. Ako nema dovoljno privremenog prostora ili snapshot nije moguće sigurno izraditi/ukloniti, upload se zaustavlja fail-closed prije finalnog remote commit-a.
+- kriptografski nasumične privremene/staging nazive;
+- provjeru lokalnih symlink/junction/reparse preusmjeravanja;
+- no-replace lokalnu aktivaciju gdje platforma to podržava;
+- privatni byte-for-byte snapshot lokalnog upload izvora;
+- SHA-256 provjeru upload snapshota prije i nakon mrežnog čitanja;
+- ponovno provjeravanje remote odredišta neposredno prije finalnog rename/backup commita;
+- fresh `SkipExisting` odluku nakon dugog uploada;
+- vezanje retry/batch poslova uz istu connection identity i transfer generation;
+- bounded stdout/stderr mrežnih child procesa;
+- timeout i cancel propagaciju;
+- FTPS certificate revocation zaštitu bez globalnog `ssl-no-revoke` gašenja;
+- SFTP host-key pinning i privatni `known_hosts` lifecycle.
 
-## Vjerodajnice i privatnost
+Sigurniji upload snapshot koristi dodatni privremeni lokalni prostor približno veličini datoteke koja se šalje. To je namjeran tradeoff: ByFTP daje prednost stabilnom sadržaju ispred slabije, ali jeftinije path-only provjere.
 
-Na Windowsu spremljene profilne tajne koriste DPAPI. Lozinka se ponovno koristi samo za isti protokol, host, port i korisničko ime; SFTP passphrase dodatno mora pripadati istom privatnom ključu. Promjena identiteta profila čisti tajne koje više ne pripadaju novoj konfiguraciji.
+## Privatnost koja je dio proizvoda
 
-Aktivne Linux/macOS FTP/FTPS lozinke drže se samo u memoriji procesa kroz kratkotrajni runtime-secret token i brišu se pri zatvaranju sesije. Terminalni frontend ne nudi trajno spremanje tih tajni.
+ByFTP runtime nema oglase, analytics SDK, vanjski crash-reporting servis, obavezni cloud račun ni fiksni Brendigo API kojem bi slao vaše aktivnosti.
 
-ByFTP runtime nema analitiku korištenja, oglase, vanjski crash-reporting servis, obavezni cloud račun, browser upravljanje ni trajni runtime activity/error log.
+Na Windowsu spremljene profilne tajne koriste DPAPI. Aktivne vjerodajnice se ne stavljaju u command-line argumente mrežnih alata. Produkcijski build dodatno zahtijeva isključenu Go telemetriju.
 
-Produkcijski CI i build skripte eksplicitno izvršavaju `go telemetry off` i provjeravaju rezultat prije produkcijskog builda.
+Detalji: [PRIVATNOST.md](docs/PRIVATNOST.md).
+
+## Što donosi 1.0.5
+
+1.0.5 je izdanje usmjereno na **stvarni shared-hosting FTP/FTPS rad**:
+
+- FTP control naredbe (`MKD`, `RNFR/RNTO`, `DELE`, `RMD`, `SITE CHMOD`) koriste isti login/home namespace kao URL listing i upload/download;
+- uklonjena je mogućnost da početni `/` u raw FTP naredbi ode prema fizičkom server rootu na non-chrooted hostingu;
+- quote-only operacije koriste control-channel-only `no-body`, pa uspješna mutacija više ne ovisi o nepotrebnom naknadnom directory data transferu;
+- MLSD fallback se nakon uspješnog `LIST`-a pamti za ostatak sesije, što smanjuje ponavljanje neuspjelih naredbi na starijim/shared FTP serverima;
+- regresijski testovi uključuju shared-hosting username oblika `account@domain`, login-home `public_html` putanju i MLSD→LIST fallback ponašanje;
+- README i kompletna dokumentacija preuređeni su u jasniji, korisnički i benefit-first format.
 
 ## Provjera SHA-256
+
+Prije instalacije možete provjeriti preuzeti paket prema službenom `SHA256.txt`.
 
 Windows PowerShell:
 
@@ -157,148 +184,23 @@ macOS:
 shasum -a 256 ByFTP-<verzija>-macOS-Universal.pkg
 ```
 
-Rezultat usporedite s odgovarajućim retkom u službenom `SHA256.txt`.
-
-## Potpisivanje i ograničenja
-
-Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS paket nije Developer ID potpisan/notariziran bez stvarnog Apple identiteta i potrebnih secrets. Release workflow ne fabricira publisher status.
-
-## Što donosi 1.0.4
-
-1.0.4 zatvara generation/connection-identity race u transfer queueu:
-
-- `ReserveBatch` capturea aktualnu generation prije `ConnectionIdentity()` i ponovno je provjerava prije rezerviranja kapaciteta;
-- `RetryBatch` radi isti dvostruki guard prije promjene failed/cancelled posla u `queued`;
-- disconnect/reconnect tijekom identity lookup-a više ne može spojiti stari connection ID s novom generation;
-- identity lookup se i dalje izvršava izvan `transfer.Manager.mu`, pa se sigurnosna provjera ne plaća novim lock-order/deadlock rizikom;
-- deterministički testovi mijenjaju generation iz samog identity callbacka i potvrđuju da queue/job stanje ostaje nepromijenjeno.
-
-## Što donosi 1.0.3
-
-1.0.3 zatvara lokalni source-path TOCTOU i sadržajnu nestabilnost tijekom uploada:
-
-- originalna lokalna putanja više se ne predaje `curl`/OpenSSH child procesu nakon odvojenog path checka;
-- ByFTP kopira verificirani otvoreni izvor u privatni `byftp-upload-*` snapshot i child procesu daje samo snapshot putanju;
-- SHA-256 snapshota mora odgovarati drugom punom čitanju istog otvorenog izvora prije početka mrežnog prijenosa;
-- nakon mrežnog čitanja snapshot se ponovno hashira, pa i same-size/same-mtime sadržajna izmjena blokira remote commit;
-- lokalni snapshot se uklanja prije 1.0.2 fresh remote revalidacije i transakcijskog rename/backup commit-a;
-- sigurnosni tradeoff je dodatni lokalni disk prostor i lokalni I/O, što je namjerno odabrano umjesto slabije hard-link semantike.
-
-## Što donosi 1.0.2
-
-1.0.2 dodatno učvršćuje završnu fazu FTP/FTPS/SFTP uploada u okruženjima gdje više klijenata može mijenjati isti remote direktorij:
-
-- nakon prijenosa u `.byftp-part-*` ByFTP ponovno lista odredišni direktorij neposredno prije aktivacije;
-- novonastali direktorij ili symlink pod finalnim imenom blokira commit i uzrokuje cleanup temp objekta;
-- `SkipExisting` poštuje i datoteku koja se pojavila tijekom samog uploada;
-- overwrite/backup/rollback odluke koriste svježi remote snapshot umjesto stanja snimljenog prije dugog prijenosa;
-- FTP/FTPS i SFTP dijele isti revalidation helper i regresijske testove.
-
-## Što donosi 1.0.1
-
-1.0.1 je sigurnosno/stabilnosno izdanje koje nadograđuje nepromjenjivi 1.0.0 tag bez prepisivanja već objavljenog sadržaja:
-
-- Linux lokalna aktivacija/rollback više nema `Lstat` → `rename` overwrite race nego koristi kernel `RENAME_NOREPLACE`;
-- macOS regularne staging datoteke koriste ekskluzivno hard-link + unlink premještanje, pa konkurentno odredište ne može biti tiho prepisano;
-- rekurzivno lokalno brisanje direktorije čita kroz verificirani otvoreni handle i ponovno provjerava filesystem identitet prije svake destruktivne faze;
-- privatni SFTP ključ dobiva bounded, stabilno provjeren `0600` session snapshot prije nego ga OpenSSH koristi;
-- Linux/macOS novi manager više ne briše startup artefakte druge aktivne SFTP terminalske instance;
-- Windows crash-cleanup SFTP artefakata pomaknut je iza provjere sigurnog/no-redirect session direktorija;
-- CI regresije zaključavaju filesystem hardening invarijante, a postojeći release-version guard zahtijeva novi semantički broj za produkcijske promjene nakon taga.
-
-## Izgradnja iz izvornog koda
-
-Za produkcijski build potreban je podržani Go toolchain koji zadovoljava build skripte, Python 3 za audite te platformski alati za odgovarajući paket. Produkcijski buildovi koriste lokalni toolchain, `GOPROXY=off`, `GOSUMDB=off` i ne preuzimaju vanjske Go module.
-
-Prije produkcijskog builda:
-
-```bash
-go telemetry off
-```
-
-Windows:
-
-```powershell
-.\BUILD-WINDOWS.ps1
-```
-
-Linux:
-
-```bash
-bash scripts/BUILD-LINUX.sh
-```
-
-macOS:
-
-```bash
-bash scripts/BUILD-MACOS.sh
-```
-
-## Automatizirane provjere
-
-Glavni quality skup uključuje:
-
-```text
-python scripts/generate_brand_assets.py --check
-python scripts/audit_croatian.py
-python scripts/audit_version.py
-python scripts/audit_docs.py
-python scripts/audit_security.py
-python scripts/audit_privacy.py
-python scripts/audit_release.py
-python -m unittest discover -s scripts -p 'test_*.py'
-go test ./...
-go test -race ./...
-go vet ./...
-```
-
-GitHub Actions dodatno gradi i verificira Windows x64/x86, Linux amd64/arm64/i386 te macOS Universal pakete. Javno izdanje nastaje tek nakon prolaska produkcijskih gateova.
-
-## Release integritet i GitHub Packages
-
-`scripts/publish_release.ps1` provjerava vezu taga i commita, dopušteni skup asseta, veličinu i SHA-256 digest te odbija slijepi overwrite različitog sadržaja.
-
-Promjena `VERSION` na `main` pokreće produkcijski release workflow. Nakon uspješnih quality/platformskih gateova isti workflow izrađuje `ByFTP.Windows` NuGet paket i objavljuje ga u GitHub Packages s istom semantičkom verzijom. Ponovno izvođenje iste verzije koristi sigurno ponašanje bez dupliciranja paketa.
-
-## Struktura repozitorija
-
-```text
-README.md              glavni produkcijski pregled
-LICENSE                vlasnička ByFTP licenca
-CHANGELOG.md            javna povijest stabilnih izdanja
-VERSION                 jedini izvor produkcijske verzije
-BUILD-WINDOWS.*         Windows build ulazi
-cmd/                    aplikacija i instalacijski lifecycle
-internal/               engine, remote, transfer, config i sigurnosni moduli
-build/                  službeni resursi
-scripts/                build, audit, bundle i release alati
-docs/                   detaljna dokumentacija
-.github/                CI, release workflow i GitHub predlošci
-```
-
 ## Dokumentacija
 
-- [Indeks dokumentacije](docs/README.md)
-- [Instalacija](docs/INSTALACIJA.md)
-- [Arhitektura](docs/ARHITEKTURA.md)
+- [Dokumentacijski centar](docs/README.md)
+- [Instalacija i prvi spoj](docs/INSTALACIJA.md)
+- [Podrška i rješavanje problema](docs/PODRSKA.md)
 - [Sigurnost](docs/SIGURNOST.md)
 - [Privatnost](docs/PRIVATNOST.md)
-- [Testiranje](docs/TESTIRANJE.md)
-- [Provjera izdanja](docs/PROVJERA-IZDANJA.md)
-- [Potpisivanje](docs/POTPISIVANJE.md)
+- [Arhitektura](docs/ARHITEKTURA.md)
+- [Testiranje i kvaliteta](docs/TESTIRANJE.md)
 - [Plan razvoja](docs/PLAN-RAZVOJA.md)
-- [Podrška](docs/PODRSKA.md)
-- [Doprinos](docs/DOPRINOS.md)
-- [Obavijesti trećih strana](docs/OBAVIJESTI-TRECIH-STRANA.md)
-- [Izdavanje na GitHubu](docs/IZDAVANJE-NA-GITHUBU.md)
-- [Povijest promjena](CHANGELOG.md)
 
-## Licenca
+## Važna ograničenja
 
-**Copyright © 2026 Brendigo. Sva prava pridržana.**
+ByFTP ne može jamčiti kompatibilnost sa svakom nestandardnom FTP implementacijom ili pravilima svakog hosting providera. Hosting može zasebno ograničiti write, rename, CHMOD, broj konekcija, TLS verzije ili pristup pojedinim direktorijima.
 
-ByFTP je vlasnički/source-available softver. Objavljeni izvorni kod može se pregledavati radi transparentnosti, sigurnosne provjere i evaluacije, ali prava izmjene, redistribucije, rebrandinga, prodaje ili sublicenciranja uređena su datotekom [LICENSE](LICENSE).
+Windows binariji neće imati Verified Publisher status bez stvarnog Authenticode certifikata, a macOS paket neće biti Developer ID notariziran bez stvarnog Apple signing identiteta. Projekt te statuse ne simulira.
 
-## Podrška i sigurnosne prijave
+---
 
-Za uobičajene probleme pogledajte [PODRSKA.md](docs/PODRSKA.md). Za osjetljive sigurnosne probleme slijedite [SIGURNOST.md](docs/SIGURNOST.md). U javni issue ne stavljajte lozinke, privatne ključeve, stvarne produkcijske hostove ili druge povjerljive podatke.
+<p align="center"><strong>ByFTP — otvorite hosting, pronađite datoteke i nastavite raditi.</strong></p>
