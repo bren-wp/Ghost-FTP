@@ -34,12 +34,13 @@ type operationProvider interface {
 
 type Manager struct {
 	mu             sync.RWMutex
-	wg             sync.WaitGroup
 	jobs           []model.TransferJob
 	paused         bool
 	accepting      bool
 	closed         bool
 	running        int
+	workers        int
+	workersIdle    chan struct{}
 	reserved       int
 	generation     uint64
 	cancels        map[string]context.CancelFunc
@@ -51,7 +52,13 @@ type Manager struct {
 }
 
 func New(r operationProvider, s *config.SettingsStore) *Manager {
-	return &Manager{remote: r, settings: s, accepting: true, cancels: map[string]context.CancelFunc{}, jobConnections: map[string]string{}}
+	idle := make(chan struct{})
+	close(idle)
+	return &Manager{
+		remote: r, settings: s, accepting: true,
+		cancels: map[string]context.CancelFunc{}, jobConnections: map[string]string{},
+		workersIdle: idle,
+	}
 }
 
 func id() (string, error) {
@@ -126,7 +133,7 @@ func validateRequest(r Request) error {
 			return errors.New("neispravan lokalni korijen prijenosa")
 		}
 	}
-	if err := security.ValidateRemotePath(r.RemotePath); err != nil {
+	if err := security.ValidateRemoteFilePath(r.RemotePath); err != nil {
 		return err
 	}
 	return nil
@@ -513,12 +520,26 @@ func (m *Manager) pump() {
 		ctx, cancel := context.WithCancel(context.Background())
 		m.cancels[j.ID] = cancel
 		m.emitLocked(Event{Type: "job", Job: &j})
-		m.wg.Add(1)
+		if m.workers == 0 {
+			m.workersIdle = make(chan struct{})
+		}
+		m.workers++
 		go func(jobID string) {
-			defer m.wg.Done()
+			defer m.workerExited()
 			m.execute(ctx, jobID)
 		}(j.ID)
 	}
+}
+
+func (m *Manager) workerExited() {
+	m.mu.Lock()
+	if m.workers > 0 {
+		m.workers--
+		if m.workers == 0 {
+			close(m.workersIdle)
+		}
+	}
+	m.mu.Unlock()
 }
 
 func (m *Manager) jobSnapshot(id string) (model.TransferJob, bool) {
@@ -539,11 +560,14 @@ func (m *Manager) finishJob(ctx context.Context, id string, err error) {
 		if m.jobs[i].ID != id {
 			continue
 		}
-		// The transfer result is authoritative. A disconnect/cancel can race with
-		// worker completion after the remote adapter has already returned success.
-		// In that narrow window the completed file must stay marked as done instead
-		// of being rewritten to cancelled merely because ctx was cancelled later.
-		if errors.Is(err, remote.ErrSkipped) {
+		// Remote cleanup uncertainty is authoritative even when the operation was
+		// originally skipped or cancelled. Hiding a residual staging/rollback
+		// object behind a harmless queue status would make the remote state look
+		// cleaner than we can actually prove.
+		if remote.HasUncertainRemoteState(err) {
+			m.jobs[i].Status = "failed"
+			m.jobs[i].Error = usererror.Message(err, "Prijenos nije sigurno očišćen na poslužitelju. Provjerite udaljene privremene datoteke prije ponavljanja.")
+		} else if errors.Is(err, remote.ErrSkipped) {
 			m.jobs[i].Status = "skipped"
 			m.jobs[i].Progress = 100
 			m.jobs[i].Error = "Datoteka već postoji"
@@ -678,11 +702,13 @@ func (m *Manager) waitWorkers(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	done := make(chan struct{})
-	go func() {
-		m.wg.Wait()
-		close(done)
-	}()
+	m.mu.RLock()
+	if m.workers == 0 {
+		m.mu.RUnlock()
+		return nil
+	}
+	done := m.workersIdle
+	m.mu.RUnlock()
 	select {
 	case <-done:
 		return nil

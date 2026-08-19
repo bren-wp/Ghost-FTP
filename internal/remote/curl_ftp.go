@@ -403,7 +403,7 @@ func (c *CurlFTP) Chmod(ctx context.Context, base, name, mode string) error {
 }
 
 func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options TransferOptions) error {
-	if err := security.ValidateRemotePath(remotePath); err != nil {
+	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
 		return err
 	}
 	st, err := os.Lstat(local)
@@ -440,16 +440,10 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 	tempPath := remoteJoin(dir, tempName)
 	lines := []string{"url = " + cfgQuote(c.baseURL(tempPath)), "upload-file = " + cfgQuote(source.Path()), "speed-time = 30", "speed-limit = 1"}
 	if _, err = c.run(ctx, lines); err != nil {
-		cleanupCtx, cancel := cleanupContext()
-		_ = c.Delete(cleanupCtx, dir, tempName, false)
-		cancel()
-		return err
+		return cleanupFailure(err, dir, tempName, c.Delete)
 	}
 	if err = source.Verify(); err != nil {
-		cleanupCtx, cancel := cleanupContext()
-		_ = c.Delete(cleanupCtx, dir, tempName, false)
-		cancel()
-		return err
+		return cleanupFailure(err, dir, tempName, c.Delete)
 	}
 	items, err = revalidateRemoteCommit(ctx, dir, base, tempName, options.SkipExisting, c.List, c.Delete)
 	if err != nil {
@@ -459,7 +453,7 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 }
 
 func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, options TransferOptions) error {
-	if err := security.ValidateRemotePath(remotePath); err != nil {
+	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
 		return err
 	}
 	if options.SkipExisting {
@@ -528,5 +522,9 @@ func replaceLocalFileAtomic(local, part string, keepBackup bool) error {
 		_ = os.Remove(part)
 		return err
 	}
-	return platform.RenameNoReplace(part, local)
+	if err := platform.RenameNoReplace(part, local); err != nil {
+		_ = os.Remove(part)
+		return err
+	}
+	return nil
 }

@@ -24,7 +24,7 @@
 
 ByFTP je klijent za korisnike koji žele otvoriti hosting, pronaći `public_html`, prenijeti datoteke i nastaviti raditi bez nepotrebnih koraka. Windows izdanje koristi izvorni dvopanelni Win32 GUI, dok Linux i macOS koriste terminalno sučelje nad istim Go engineom.
 
-**Trenutačno izdanje: 1.0.7**
+**Trenutačno izdanje: 1.0.8**
 
 ## Što ByFTP radi
 
@@ -101,7 +101,7 @@ Windows GUI podržava pregled lokalnih i udaljenih datoteka, višestruki odabir,
 
 Linux/macOS terminal koristi isti engine za `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd` i transfere.
 
-Pojedinačni upload/download u 1.0.7 zahtijeva konkretnu remote datoteku. Root, `.` i putanja koja završava direktorijskim separatorom odbijaju se prije dodavanja posla u red, dok prijenos cijele mape ostaje zasebna tree-transfer operacija.
+Od 1.0.7 pojedinačni upload/download zahtijeva konkretnu remote datoteku. Root, `.` i putanja koja završava direktorijskim separatorom odbijaju se prije dodavanja posla u red, dok prijenos cijele mape ostaje zasebna tree-transfer operacija. U 1.0.8 ista provjera postoji i u transfer queueu te neposredno u FTP/SFTP adapterima kao defense-in-depth zaštita.
 
 ## Sigurnost transfera
 
@@ -112,9 +112,11 @@ ByFTP je projektiran tako da greška ne izgleda kao uspjeh. Ključne zaštite uk
 - no-replace lokalnu aktivaciju gdje je platformski dostupna;
 - privatni byte-for-byte snapshot lokalnog upload izvora;
 - SHA-256 provjeru upload snapshota prije i nakon mrežnog čitanja;
-- novu provjeru da vidljivi remote `.byftp-part-*` staging objekt nije direktorij ili symlink;
+- provjeru da vidljivi remote `.byftp-part-*` staging objekt nije direktorij ili symlink;
 - ponovnu provjeru finalnog remote odredišta neposredno prije rename/backup commita;
 - fresh `SkipExisting` odluku nakon dugog uploada;
+- fail-closed prijavu ako se remote staging/rollback cleanup ne može potvrditi;
+- blokiranje automatskog retryja dok prethodni remote pokušaj možda ima zaostali privremeni objekt;
 - vezanje retry/batch poslova uz istu connection identity i transfer generation;
 - bounded stdout/stderr mrežnih child procesa;
 - timeout i cancel propagaciju;
@@ -122,6 +124,14 @@ ByFTP je projektiran tako da greška ne izgleda kao uspjeh. Ključne zaštite uk
 - SFTP SHA-256 fingerprint pinning i privatni `known_hosts` lifecycle.
 
 Sigurniji upload snapshot zahtijeva dodatni privremeni lokalni prostor približno veličini datoteke koja se šalje. To je namjeran tradeoff u korist stabilnog sadržaja.
+
+## Cleanup i lifecycle hardening u 1.0.8
+
+1.0.8 razlikuje običnu mrežnu grešku od situacije u kojoj ByFTP **ne može potvrditi da je vlastiti privremeni remote objekt uklonjen**. U tom drugom slučaju transfer završava kao greška i automatsko ponavljanje se blokira, jer novi pokušaj ne smije stvarati dodatne `.byftp-part-*` ili rollback ostatke dok prethodno stanje nije sigurno poznato.
+
+Ako je nova datoteka već uspješno aktivirana, ali brisanje starog rollback objekta zakaže, poruka to izričito navodi umjesto da transfer prijavi kao potpuno uspješan ili da ponovno pokrene overwrite. `SkipExisting` i korisnički cancel također više ne mogu sakriti cleanup nesigurnost iza statusa “preskočeno” ili “otkazano”.
+
+Lokalni download staging sada se uklanja i kada završni no-replace rename zakaže na ranije nepostojećem cilju. Transfer worker shutdown koristi jedan dijeljeni idle signal umjesto stvaranja dodatnog waiter goroutina pri svakom timeoutanom čekanju.
 
 ## SFTP RSA sigurnost u 1.0.7
 

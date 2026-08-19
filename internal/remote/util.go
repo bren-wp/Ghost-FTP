@@ -73,6 +73,12 @@ func IsRetryable(err error) bool {
 	if err == nil || errors.Is(err, ErrSkipped) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
+	// A cleanup failure means the previous attempt may have left a staging or
+	// rollback object on the server. Retrying automatically would create a new
+	// random artifact while the previous remote state is still uncertain.
+	if isRemoteResidualArtifactError(err) {
+		return false
+	}
 	var te *toolError
 	if errors.As(err, &te) && te.tool == "curl" {
 		switch te.code {
@@ -397,43 +403,34 @@ func commitRemoteTemp(
 		return errors.New("remote commit operacije nisu dostupne")
 	}
 
-	cleanupTemp := func() {
-		cleanupCtx, cancel := cleanupContext()
-		defer cancel()
-		_ = ops.delete(cleanupCtx, dir, tempName, false)
-	}
-
 	existing, existed := remoteEntry(items, base)
 	if existed && (existing.IsDirectory || existing.IsSymlink) {
-		cleanupTemp()
-		return errors.New("odredište nije obična datoteka i neće biti prepisano")
+		err := errors.New("odredište nije obična datoteka i neće biti prepisano")
+		return cleanupFailure(err, dir, tempName, ops.delete)
 	}
 	savedName := backupName(base, rollbackName, keepBackup)
 	if existed {
 		if err := ops.rename(ctx, dir, base, savedName); err != nil {
-			cleanupTemp()
-			return errors.New("nije moguće zaštititi postojeću remote datoteku: " + err.Error())
+			protectErr := fmt.Errorf("nije moguće zaštititi postojeću remote datoteku: %w", err)
+			return cleanupFailure(protectErr, dir, tempName, ops.delete)
 		}
 	}
 
 	if err := ops.rename(ctx, dir, tempName, base); err != nil {
-		var restoreErr error
+		activationErr := fmt.Errorf("nije moguće aktivirati prenesenu datoteku: %w", err)
 		if existed {
 			restoreCtx, cancel := cleanupContext()
-			restoreErr = ops.rename(restoreCtx, dir, savedName, base)
+			restoreErr := ops.rename(restoreCtx, dir, savedName, base)
 			cancel()
+			if restoreErr != nil {
+				activationErr = fmt.Errorf("aktivacija nove datoteke nije uspjela, a vraćanje izvorne datoteke iz sigurnosne kopije %s također nije uspjelo: %w", savedName, restoreErr)
+			}
 		}
-		cleanupTemp()
-		if restoreErr != nil {
-			return fmt.Errorf("aktivacija nove datoteke nije uspjela, a vraćanje izvorne datoteke iz sigurnosne kopije %s također nije uspjelo: %w", savedName, restoreErr)
-		}
-		return fmt.Errorf("nije moguće aktivirati prenesenu datoteku: %w", err)
+		return cleanupFailure(activationErr, dir, tempName, ops.delete)
 	}
 
 	if existed && !keepBackup {
-		cleanupCtx, cancel := cleanupContext()
-		_ = ops.delete(cleanupCtx, dir, savedName, false)
-		cancel()
+		return committedCleanupFailure(nil, dir, savedName, ops.delete)
 	}
 	return nil
 }
