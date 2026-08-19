@@ -1,6 +1,8 @@
 package remote
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +17,7 @@ type uploadSourceSnapshot struct {
 	path    string
 	handle  *os.File
 	initial os.FileInfo
+	digest  [sha256.Size]byte
 }
 
 func sameUploadSourceInfo(before, after os.FileInfo) bool {
@@ -39,12 +42,18 @@ func validateUploadSourcePath(local string) error {
 	return validateUploadSourceInfo(local, st)
 }
 
-func copyUploadSnapshot(source *os.File, destination string, original os.FileInfo) error {
+// copyUploadSnapshot copies one already-verified open source object into a
+// private file and proves that a second full read of the same source handle has
+// exactly the same SHA-256 digest. This detects ordinary concurrent in-place
+// writes and prevents a torn local read from becoming a committed remote file.
+func copyUploadSnapshot(source *os.File, destination string, original os.FileInfo) ([sha256.Size]byte, error) {
+	var zero [sha256.Size]byte
 	out, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
-		return err
+		return zero, err
 	}
-	copied, copyErr := io.Copy(out, source)
+	copyHash := sha256.New()
+	copied, copyErr := io.Copy(io.MultiWriter(out, copyHash), source)
 	if copyErr == nil {
 		copyErr = out.Sync()
 	}
@@ -54,24 +63,45 @@ func copyUploadSnapshot(source *os.File, destination string, original os.FileInf
 	}
 	if copyErr != nil {
 		_ = os.Remove(destination)
-		return copyErr
+		return zero, copyErr
 	}
-	after, err := source.Stat()
+	afterCopy, err := source.Stat()
 	if err != nil {
 		_ = os.Remove(destination)
-		return err
+		return zero, err
 	}
-	if !sameUploadSourceInfo(original, after) || copied != original.Size() {
+	if !sameUploadSourceInfo(original, afterCopy) || copied != original.Size() {
 		_ = os.Remove(destination)
-		return errors.New("lokalni upload izvor se promijenio tijekom izrade sigurnog snapshota")
+		return zero, errors.New("lokalni upload izvor se promijenio tijekom izrade sigurnog snapshota")
 	}
-	return nil
+	if _, err := source.Seek(0, io.SeekStart); err != nil {
+		_ = os.Remove(destination)
+		return zero, err
+	}
+	verifyHash := sha256.New()
+	verifiedBytes, err := io.Copy(verifyHash, source)
+	if err != nil {
+		_ = os.Remove(destination)
+		return zero, err
+	}
+	afterVerify, err := source.Stat()
+	if err != nil {
+		_ = os.Remove(destination)
+		return zero, err
+	}
+	if !sameUploadSourceInfo(original, afterVerify) || verifiedBytes != original.Size() || !bytes.Equal(copyHash.Sum(nil), verifyHash.Sum(nil)) {
+		_ = os.Remove(destination)
+		return zero, errors.New("lokalni upload izvor nije ostao sadržajno stabilan tijekom izrade snapshota")
+	}
+	var digest [sha256.Size]byte
+	copy(digest[:], copyHash.Sum(nil))
+	return digest, nil
 }
 
 // prepareUploadSource binds an upload to one verified local filesystem object.
-// It prefers a zero-copy hard-link inside a private temporary directory. When
-// the system temp directory is on another volume or hard links are unavailable,
-// it falls back to a byte copy read from the already verified open file handle.
+// The child network tool never reopens the user-controlled original pathname.
+// Instead, ByFTP creates a byte-for-byte private snapshot from the verified open
+// handle and validates its content before it can be used for a remote commit.
 func prepareUploadSource(local string) (*uploadSourceSnapshot, error) {
 	before, err := os.Lstat(local)
 	if err != nil {
@@ -104,26 +134,10 @@ func prepareUploadSource(local string) (*uploadSourceSnapshot, error) {
 		return nil, err
 	}
 	snapshotPath := filepath.Join(tempDir, "source")
-
-	if linkErr := os.Link(local, snapshotPath); linkErr == nil {
-		linked, statErr := os.Lstat(snapshotPath)
-		if statErr != nil || validateUploadSourceInfo(snapshotPath, linked) != nil || !sameUploadSourceInfo(opened, linked) {
-			cleanup()
-			return nil, errors.New("lokalni upload izvor se promijenio tijekom izrade hard-link snapshota")
-		}
-	} else {
-		// A link failure is a normal cross-volume/unsupported-filesystem case only
-		// while the original pathname still names the verified object. If it was
-		// swapped, fail closed instead of silently copying a stale handle.
-		pathNow, statErr := os.Lstat(local)
-		if statErr != nil || validateUploadSourceInfo(local, pathNow) != nil || !sameUploadSourceInfo(opened, pathNow) {
-			cleanup()
-			return nil, errors.New("lokalni upload izvor se promijenio prije izrade sigurnog snapshota")
-		}
-		if err := copyUploadSnapshot(source, snapshotPath, opened); err != nil {
-			cleanup()
-			return nil, fmt.Errorf("nije moguće izraditi sigurni upload snapshot: %w", err)
-		}
+	digest, err := copyUploadSnapshot(source, snapshotPath, opened)
+	if err != nil {
+		cleanup()
+		return nil, fmt.Errorf("nije moguće izraditi sigurni upload snapshot: %w", err)
 	}
 
 	handle, err := os.Open(snapshotPath)
@@ -143,12 +157,12 @@ func prepareUploadSource(local string) (*uploadSourceSnapshot, error) {
 		cleanup()
 		return nil, err
 	}
-	if validateUploadSourceInfo(snapshotPath, pathInfo) != nil || !sameUploadSourceInfo(pathInfo, handleInfo) {
+	if validateUploadSourceInfo(snapshotPath, pathInfo) != nil || !sameUploadSourceInfo(pathInfo, handleInfo) || handleInfo.Size() != opened.Size() {
 		_ = handle.Close()
 		cleanup()
 		return nil, errors.New("sigurni upload snapshot nije stabilna obična datoteka")
 	}
-	return &uploadSourceSnapshot{dir: tempDir, path: snapshotPath, handle: handle, initial: handleInfo}, nil
+	return &uploadSourceSnapshot{dir: tempDir, path: snapshotPath, handle: handle, initial: handleInfo, digest: digest}, nil
 }
 
 func (s *uploadSourceSnapshot) Path() string {
@@ -158,9 +172,9 @@ func (s *uploadSourceSnapshot) Path() string {
 	return s.path
 }
 
-// Verify confirms that the pathname handed to curl/OpenSSH still resolves to
-// the exact open snapshot and that its ordinary size/mtime state did not change
-// while the external process was reading it.
+// Verify confirms both filesystem identity and byte content after curl/OpenSSH
+// has finished reading the snapshot. A changed snapshot is never allowed to
+// reach the remote rename/backup commit phase.
 func (s *uploadSourceSnapshot) Verify() error {
 	if s == nil || s.handle == nil || s.path == "" {
 		return errors.New("upload snapshot nije dostupan")
@@ -178,6 +192,21 @@ func (s *uploadSourceSnapshot) Verify() error {
 	}
 	if !sameUploadSourceInfo(pathInfo, handleInfo) || !sameUploadSourceInfo(s.initial, handleInfo) {
 		return errors.New("sigurni upload snapshot se promijenio tijekom prijenosa")
+	}
+	if _, err := s.handle.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	h := sha256.New()
+	readBytes, err := io.Copy(h, s.handle)
+	if err != nil {
+		return err
+	}
+	afterHash, err := s.handle.Stat()
+	if err != nil {
+		return err
+	}
+	if !sameUploadSourceInfo(s.initial, afterHash) || readBytes != s.initial.Size() || !bytes.Equal(h.Sum(nil), s.digest[:]) {
+		return errors.New("sigurni upload snapshot se sadržajno promijenio tijekom prijenosa")
 	}
 	return nil
 }
@@ -201,5 +230,6 @@ func (s *uploadSourceSnapshot) Close() error {
 	s.path = ""
 	s.dir = ""
 	s.initial = nil
+	s.digest = [sha256.Size]byte{}
 	return errors.Join(errs...)
 }
