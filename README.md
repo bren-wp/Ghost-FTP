@@ -36,7 +36,7 @@ ByFTP je klijent za korisnike koji žele otvoriti hosting, pronaći `public_html
 - **SFTP host-key pinning** — prvi kontakt traži potvrdu SHA-256 fingerprinta, a promjena pina blokira vezu.
 - **Bez aplikacijske telemetrije i oglasa** — ByFTP nema analytics SDK ni obavezni Brendigo cloud račun.
 
-## Shared hosting
+## Shared hosting — spojite se u nekoliko koraka
 
 Za tipični shared-hosting račun obično su potrebni host, korisničko ime, lozinka te protokol/port. Korisničko ime može biti i u obliku `korisnik@domena.hr`.
 
