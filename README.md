@@ -23,7 +23,7 @@
 
 ByFTP koristi jedan tipizirani Go engine za FTP, FTPS i SFTP, zajednički transfer queue, provjeru putanja, kontrolirani lifecycle veze i fail-closed sigurnosne granice. Windows izdanje ima puni izvorni Win32 dvopanelni GUI. Linux i macOS koriste funkcionalni terminalni frontend nad istim engineom.
 
-**Trenutačno izdanje: 1.0.2**
+**Trenutačno izdanje: 1.0.3**
 
 ## Produkcijska podrška
 
@@ -113,6 +113,9 @@ ByFTP koristi obrambeni, transakcijski pristup:
 - stabilno otvaranje direktorija prije rekurzivnog lokalnog brisanja i ponovnu provjeru identiteta direktorija prije nastavka/finalnog uklanjanja;
 - zaštitu od symlink, junction i reparse traversal izlaza;
 - ponovnu validaciju lokalnog root-a prije queued transfera;
+- FTP/FTPS/SFTP upload koristi privatni lokalni byte-for-byte snapshot izrađen iz verificiranog otvorenog file handlea, a vanjski child proces ne dobiva originalnu korisničku putanju;
+- lokalni upload snapshot SHA-256 provjerava se tijekom izrade, uspoređuje s drugim punim čitanjem izvora te ponovno provjerava nakon mrežnog čitanja i prije remote commit-a;
+- snapshot se uklanja prije remote revalidation/commit faze; cleanup failure blokira aktivaciju remote temp objekta;
 - ponovnu provjeru remote odredišta nakon završetka temp uploada i neposredno prije rename/backup commit faze;
 - `SkipExisting` ponovno se primjenjuje na svježe remote stanje, a novonastali direktorij/symlink blokira commit i čisti temp upload;
 - vezanje retry posla uz identitet iste veze;
@@ -120,6 +123,8 @@ ByFTP koristi obrambeni, transakcijski pristup:
 - validaciju udaljenih putanja i command-stream separatora;
 - bounded stdout/stderr za vanjske mrežne alate;
 - context timeout/cancel propagaciju kroz adaptere i transfer queue.
+
+Sigurniji lokalni upload snapshot namjerno zahtijeva privremeni lokalni prostor približno veličini datoteke koja se šalje i dodatna lokalna čitanja radi sadržajne stabilnosti. Ako nema dovoljno privremenog prostora ili snapshot nije moguće sigurno izraditi/ukloniti, upload se zaustavlja fail-closed prije finalnog remote commit-a.
 
 ## Vjerodajnice i privatnost
 
@@ -156,6 +161,17 @@ Rezultat usporedite s odgovarajućim retkom u službenom `SHA256.txt`.
 ## Potpisivanje i ograničenja
 
 Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS paket nije Developer ID potpisan/notariziran bez stvarnog Apple identiteta i potrebnih secrets. Release workflow ne fabricira publisher status.
+
+## Što donosi 1.0.3
+
+1.0.3 zatvara lokalni source-path TOCTOU i sadržajnu nestabilnost tijekom uploada:
+
+- originalna lokalna putanja više se ne predaje `curl`/OpenSSH child procesu nakon odvojenog path checka;
+- ByFTP kopira verificirani otvoreni izvor u privatni `byftp-upload-*` snapshot i child procesu daje samo snapshot putanju;
+- SHA-256 snapshota mora odgovarati drugom punom čitanju istog otvorenog izvora prije početka mrežnog prijenosa;
+- nakon mrežnog čitanja snapshot se ponovno hashira, pa i same-size/same-mtime sadržajna izmjena blokira remote commit;
+- lokalni snapshot se uklanja prije 1.0.2 fresh remote revalidacije i transakcijskog rename/backup commit-a;
+- sigurnosni tradeoff je dodatni lokalni disk prostor i lokalni I/O, što je namjerno odabrano umjesto slabije hard-link semantike.
 
 ## Što donosi 1.0.2
 
