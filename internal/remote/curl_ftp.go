@@ -399,6 +399,10 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 		cancel()
 		return err
 	}
+	items, err = revalidateRemoteCommit(ctx, dir, base, tempName, options.SkipExisting, c.List, c.Delete)
+	if err != nil {
+		return err
+	}
 	return commitRemoteTemp(ctx, items, dir, base, tempName, savedName, options.KeepBackup, remoteCommitOps{rename: c.Rename, delete: c.Delete})
 }
 
