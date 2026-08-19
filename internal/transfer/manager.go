@@ -33,7 +33,7 @@ type operationProvider interface {
 }
 
 type Manager struct {
-	mu             sync.Mutex
+	mu             sync.RWMutex
 	wg             sync.WaitGroup
 	jobs           []model.TransferJob
 	paused         bool
@@ -72,6 +72,21 @@ func cloneEvent(e Event) Event {
 		out.Jobs = append([]model.TransferJob(nil), e.Jobs...)
 	}
 	return out
+}
+
+func selectedIDs(ids []string) (map[string]struct{}, error) {
+	if len(ids) == 0 {
+		return nil, errors.New("nije odabran nijedan prijenos")
+	}
+	wanted := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return nil, errors.New("neispravan prijenos u odabiru")
+		}
+		wanted[id] = struct{}{}
+	}
+	return wanted, nil
 }
 
 func (m *Manager) emitLocked(e Event) {
@@ -273,14 +288,14 @@ func (m *Manager) AddBatch(requests []Request) ([]model.TransferJob, error) {
 }
 
 func (m *Manager) List() []model.TransferJob {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return append([]model.TransferJob(nil), m.jobs...)
 }
 
 func (m *Manager) Events(since int64) ([]Event, int64) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if since > 0 && len(m.events) > 0 && since < m.events[0].Seq-1 {
 		jobs := append([]model.TransferJob(nil), m.jobs...)
 		return []Event{{Seq: m.seq, Type: "state", Jobs: jobs, Paused: m.paused}}, m.seq
@@ -327,16 +342,9 @@ func (m *Manager) Cancel(id string) error {
 }
 
 func (m *Manager) CancelBatch(ids []string) error {
-	if len(ids) == 0 {
-		return errors.New("nije odabran nijedan prijenos")
-	}
-	wanted := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			return errors.New("neispravan prijenos u odabiru")
-		}
-		wanted[id] = struct{}{}
+	wanted, err := selectedIDs(ids)
+	if err != nil {
+		return err
 	}
 
 	m.mu.Lock()
@@ -371,8 +379,8 @@ func (m *Manager) CancelBatch(ids []string) error {
 }
 
 func (m *Manager) ActiveCount() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	n := 0
 	for _, job := range m.jobs {
 		if job.Status == "queued" || job.Status == "running" {
@@ -387,16 +395,9 @@ func (m *Manager) Retry(id string) error {
 }
 
 func (m *Manager) RetryBatch(ids []string) error {
-	if len(ids) == 0 {
-		return errors.New("nije odabran nijedan prijenos")
-	}
-	wanted := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			return errors.New("neispravan prijenos u odabiru")
-		}
-		wanted[id] = struct{}{}
+	wanted, err := selectedIDs(ids)
+	if err != nil {
+		return err
 	}
 
 	// Retry must bind the remote identity to the same queue generation. A
@@ -521,8 +522,8 @@ func (m *Manager) pump() {
 }
 
 func (m *Manager) jobSnapshot(id string) (model.TransferJob, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	for _, job := range m.jobs {
 		if job.ID == id {
 			return job, true
@@ -674,6 +675,9 @@ func (m *Manager) Enable() {
 }
 
 func (m *Manager) waitWorkers(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	done := make(chan struct{})
 	go func() {
 		m.wg.Wait()
