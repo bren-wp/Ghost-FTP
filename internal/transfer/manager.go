@@ -167,12 +167,33 @@ func (m *Manager) ReserveBatch(requests []Request) (*BatchReservation, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Capture the queue generation before asking the remote manager for its
+	// connection identity. The identity lookup deliberately runs without m.mu to
+	// avoid lock-order coupling with the remote manager. After the lookup we must
+	// prove the generation is still identical before reserving any capacity.
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return nil, errors.New("transfer manager je zatvoren")
+	}
+	if !m.accepting {
+		m.mu.Unlock()
+		return nil, errors.New("red prijenosa trenutačno ne prima nove poslove")
+	}
+	generation := m.generation
+	m.mu.Unlock()
+
 	connectionID, err := m.remote.ConnectionIdentity()
 	if err != nil {
 		return nil, err
 	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.generation != generation {
+		return nil, errors.New("veza se promijenila tijekom pripreme prijenosa")
+	}
 	if m.closed {
 		return nil, errors.New("transfer manager je zatvoren")
 	}
@@ -183,7 +204,7 @@ func (m *Manager) ReserveBatch(requests []Request) (*BatchReservation, error) {
 		return nil, errors.New("red prijenosa je prevelik; očistite završene prijenose prije dodavanja novih")
 	}
 	m.reserved += len(jobs)
-	return &BatchReservation{m: m, jobs: jobs, generation: m.generation, connectionID: connectionID}, nil
+	return &BatchReservation{m: m, jobs: jobs, generation: generation, connectionID: connectionID}, nil
 }
 
 func (b *BatchReservation) Cancel() {
@@ -369,10 +390,6 @@ func (m *Manager) RetryBatch(ids []string) error {
 	if len(ids) == 0 {
 		return errors.New("nije odabran nijedan prijenos")
 	}
-	currentConnectionID, err := m.remote.ConnectionIdentity()
-	if err != nil {
-		return err
-	}
 	wanted := make(map[string]struct{}, len(ids))
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
@@ -382,7 +399,31 @@ func (m *Manager) RetryBatch(ids []string) error {
 		wanted[id] = struct{}{}
 	}
 
+	// Retry must bind the remote identity to the same queue generation. A
+	// disconnect/reconnect can otherwise return the old connection ID and then
+	// let us mutate jobs after generation already advanced to the new session.
 	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return errors.New("transfer manager je zatvoren")
+	}
+	if !m.accepting {
+		m.mu.Unlock()
+		return errors.New("povežite se s poslužiteljem prije ponavljanja prijenosa")
+	}
+	generation := m.generation
+	m.mu.Unlock()
+
+	currentConnectionID, err := m.remote.ConnectionIdentity()
+	if err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	if m.generation != generation {
+		m.mu.Unlock()
+		return errors.New("veza se promijenila tijekom pripreme ponavljanja prijenosa")
+	}
 	if m.closed {
 		m.mu.Unlock()
 		return errors.New("transfer manager je zatvoren")
