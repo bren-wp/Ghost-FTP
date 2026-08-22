@@ -24,18 +24,18 @@ type app struct {
 	brush                                uintptr
 
 	brandTitle, brandSubtitle, connectionBadge, sectionLocal, sectionRemote, sectionTransfers uintptr
-	profilesCombo, saveProfile, removeProfile, settingsBtn, aboutBtn                          uintptr
-	protocol, host, port, user, pass                                                          uintptr
-	keyPath, chooseKey, passphrase                                                            uintptr
-	connect, disconnect                                                                       uintptr
-	localPath, localUp, localRefresh, localChoose, localList                                  uintptr
-	localMkdir, localRename, localDelete                                                      uintptr
-	remotePath, remoteUp, remoteRefresh, remoteList                                           uintptr
-	remoteMkdir, remoteRename, remoteDelete, remoteChmod                                      uintptr
-	upload, download                                                                          uintptr
-	transferList, pauseQueue, resumeQueue, cancelJob, retryJob, clearQueue                    uintptr
-	status, statusVersion, transferSummary                                                    uintptr
-	buttons                                                                                   map[uintptr]buttonVisual
+	profilesCombo, languageCombo, saveProfile, removeProfile, settingsBtn, aboutBtn           uintptr
+	protocol, host, port, user, pass                                                           uintptr
+	keyPath, chooseKey, passphrase                                                             uintptr
+	connect, disconnect                                                                        uintptr
+	localPath, localUp, localRefresh, localChoose, localList                                   uintptr
+	localMkdir, localRename, localDelete                                                       uintptr
+	remotePath, remoteUp, remoteRefresh, remoteList                                            uintptr
+	remoteMkdir, remoteRename, remoteDelete, remoteChmod                                       uintptr
+	upload, download                                                                           uintptr
+	transferList, pauseQueue, resumeQueue, cancelJob, retryJob, clearQueue                     uintptr
+	status, statusVersion, transferSummary                                                     uintptr
+	buttons                                                                                    map[uintptr]buttonVisual
 
 	mu                   sync.Mutex
 	dispatchQ            []func()
@@ -92,10 +92,10 @@ func Run(engine *api.Engine, version string) error {
 		if brush != 0 {
 			deleteObject.Call(brush)
 		}
-		return fmt.Errorf("nije moguće registrirati ByFTP prozor: %v", err)
+		return fmt.Errorf("unable to register ByFTP window: %v", err)
 	}
 
-	a := &app{engine: engine, version: version, remoteCurrent: "/", seenDone: map[string]bool{}, brush: brush, buttons: make(map[uintptr]buttonVisual)}
+	a := &app{engine: engine, version: version, remoteCurrent: "/", seenDone: map[string]bool{}, brush: brush, buttons: make(map[uintptr]buttonVisual), settings: model.Settings{Language: "en"}}
 	hwnd, _, err := createWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
@@ -108,7 +108,7 @@ func Run(engine *api.Engine, version string) error {
 		if brush != 0 {
 			deleteObject.Call(brush)
 		}
-		return fmt.Errorf("nije moguće otvoriti ByFTP prozor: %v", err)
+		return fmt.Errorf("unable to open ByFTP window: %v", err)
 	}
 	a.hwnd = hwnd
 	a.dpi = windowDPI(hwnd)
@@ -150,16 +150,16 @@ func Run(engine *api.Engine, version string) error {
 	a.loadProfiles()
 	a.loadSettings()
 	a.refreshLocal("")
-	a.setStatus("Spremno. Odaberite spremljeni profil ili unesite podatke poslužitelja.")
+	a.setStatus(a.tr("status.ready"))
 
 	var m msg
 	for {
 		r, _, callErr := getMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
 		if int32(r) == -1 {
 			if callErr != nil && callErr != syscall.Errno(0) {
-				return fmt.Errorf("ByFTP poruke prozora nisu dostupne: %w", callErr)
+				return fmt.Errorf("ByFTP window messages are unavailable: %w", callErr)
 			}
-			return fmt.Errorf("ByFTP poruke prozora nisu dostupne")
+			return fmt.Errorf("ByFTP window messages are unavailable")
 		}
 		if r == 0 {
 			break
@@ -228,6 +228,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.selectProfile()
 			return 0
 		}
+		if id == idLanguage && notify == cbnSelChange {
+			a.changeLanguageFromUI()
+			return 0
+		}
 		if notify == bnClicked {
 			a.command(id)
 			return 0
@@ -282,7 +286,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		return 0
 	case wmClose:
 		if a.connected || a.connectionBusy || a.hasActiveTransfers() {
-			if !platform.ConfirmDialog("ByFTP", "Zatvoriti ByFTP?", "Veza, povezivanje ili prijenosi još su aktivni. Zatvaranje će prekinuti aktivne operacije.") {
+			if !platform.ConfirmDialog("ByFTP", closeQuestion(a.languageCode()), closeBody(a.languageCode())) {
 				return 0
 			}
 		}
