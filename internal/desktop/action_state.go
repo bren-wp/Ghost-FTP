@@ -22,8 +22,8 @@ func deriveTransferActionState(jobs []model.TransferJob, selected []int, connect
 			hasTerminal = true
 		}
 	}
-	state.Pause = hasActive && !paused
-	state.Resume = paused
+	state.Pause = connected && hasActive && !paused
+	state.Resume = connected && hasActive && paused
 	state.Clear = hasTerminal
 	if len(selected) == 0 {
 		return state

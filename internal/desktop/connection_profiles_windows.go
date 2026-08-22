@@ -6,6 +6,7 @@ import (
 	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/profilebinding"
+	"brendigo.com/byftp/internal/security"
 	"brendigo.com/byftp/internal/usererror"
 	"context"
 	"strconv"
@@ -19,6 +20,23 @@ func (a *app) cancelConnectionAttempt() {
 		a.connectionCancel()
 		a.connectionCancel = nil
 	}
+}
+
+func (a *app) cancelHealthCheck() {
+	if a.healthCheckCancel != nil {
+		a.healthCheckCancel()
+		a.healthCheckCancel = nil
+	}
+	a.healthCheckRunning = false
+}
+
+// beginConnectionTransition invalidates every asynchronous callback that was
+// created for an older session. The counter is UI-thread owned and is checked
+// again when asynchronous work dispatches its result back to the window.
+func (a *app) beginConnectionTransition() uint64 {
+	a.connectionGeneration++
+	a.cancelHealthCheck()
+	return a.connectionGeneration
 }
 
 func (a *app) connectionContext(timeout time.Duration) (context.Context, context.CancelFunc) {
@@ -51,36 +69,40 @@ func (a *app) setConnectionBusy(busy bool) {
 	}
 	for _, h := range []uintptr{
 		a.connect, a.disconnect, a.profilesCombo, a.protocol, a.host, a.port, a.user, a.pass,
-		a.keyPath, a.chooseKey, a.passphrase,
+		a.keyPath, a.chooseKey, a.passphrase, a.saveProfile, a.removeProfile, a.settingsBtn,
 	} {
-		enableWindow.Call(h, 0)
+		setControlEnabled(h, false)
 	}
 	a.setRemoteControls(false)
+	a.updateActionControls()
 }
 
 func (a *app) setConnectionUI(connected bool) {
 	a.connected = connected
 	a.connectionBusy = false
-	connectedVal, disconnectedVal := uintptr(0), uintptr(1)
-	if connected {
-		connectedVal, disconnectedVal = 1, 0
+	setControlEnabled(a.connect, !connected)
+	setControlEnabled(a.disconnect, connected)
+	for _, h := range []uintptr{a.profilesCombo, a.protocol, a.host, a.port, a.user, a.pass} {
+		setControlEnabled(h, !connected)
 	}
-	enableWindow.Call(a.connect, disconnectedVal)
-	enableWindow.Call(a.disconnect, connectedVal)
-	for _, h := range []uintptr{a.profilesCombo, a.protocol, a.host, a.port, a.user, a.pass, a.keyPath, a.chooseKey, a.passphrase} {
-		enableWindow.Call(h, disconnectedVal)
-	}
-	a.setRemoteControls(connected)
 	if connected {
+		for _, h := range []uintptr{a.keyPath, a.chooseKey, a.passphrase} {
+			setControlEnabled(h, false)
+		}
 		setText(a.connectionBadge, "● POVEZANO")
 	} else {
 		setText(a.connectionBadge, "● NIJE POVEZANO")
 		a.updateProtocolControls()
 	}
+	a.setRemoteControls(connected)
+	a.updateActionControls()
 	invalidateRect.Call(a.hwnd, 0, 1)
 }
 
 func (a *app) connectNow() {
+	if a.connectionBusy || a.connected {
+		return
+	}
 	host := strings.TrimSpace(getText(a.host))
 	user := strings.TrimSpace(getText(a.user))
 	password := getText(a.pass)
@@ -89,8 +111,13 @@ func (a *app) connectNow() {
 		platform.ErrorDialog("ByFTP", "Neispravan port", "Port mora biti broj između 1 i 65535.")
 		return
 	}
+	protocol := a.protocolValue()
+	if err := security.ValidateConnection(protocol, host, user, port); err != nil {
+		platform.ErrorDialog("ByFTP — povezivanje", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+		return
+	}
 	cfg := model.ConnectionConfig{
-		Protocol:       a.protocolValue(),
+		Protocol:       protocol,
 		Host:           host,
 		Port:           port,
 		Username:       user,
@@ -98,10 +125,7 @@ func (a *app) connectNow() {
 		PrivateKeyPath: strings.TrimSpace(getText(a.keyPath)),
 		Passphrase:     getText(a.passphrase),
 	}
-	if host == "" || user == "" {
-		platform.ErrorDialog("ByFTP", "Nedostaju podaci", "Upišite poslužitelj i korisničko ime.")
-		return
-	}
+	generation := a.beginConnectionTransition()
 	// Unesene tajne ostaju u zaključanim edit kontrolama dok veza stvarno ne
 	// uspije. Time korisnik nakon mrežne/port greške može ponoviti pokušaj bez
 	// ponovnog upisa, a onConnected ih briše odmah nakon potvrđenog spajanja.
@@ -115,6 +139,9 @@ func (a *app) connectNow() {
 		cfg.Password = ""
 		cfg.Passphrase = ""
 		a.dispatch(func() {
+			if generation != a.connectionGeneration {
+				return
+			}
 			a.connectionCancel = nil
 			if err != nil {
 				a.setConnectionUI(false)
@@ -129,7 +156,7 @@ func (a *app) connectNow() {
 					a.setStatus("SFTP povezivanje otkazano.")
 					return
 				}
-				a.connectTrusted(profileID, cfg, r.Fingerprint)
+				a.connectTrusted(profileID, cfg, r.Fingerprint, generation)
 				return
 			}
 			a.onConnected(host)
@@ -137,7 +164,10 @@ func (a *app) connectNow() {
 	})
 }
 
-func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, fingerprint string) {
+func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, fingerprint string, generation uint64) {
+	if generation != a.connectionGeneration {
+		return
+	}
 	// Brzi SFTP spoj ne ovisi samo o kratkotrajnom pending-trust cacheu.
 	// Kontrole su tijekom pokušaja zaključane pa se upravo unesena tajna može
 	// sigurno ponovno uzeti. Za spremljeni profil prazno polje i dalje dopušta
@@ -156,6 +186,9 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 		cfg.Password = ""
 		cfg.Passphrase = ""
 		a.dispatch(func() {
+			if generation != a.connectionGeneration {
+				return
+			}
 			a.connectionCancel = nil
 			if err != nil {
 				a.setConnectionUI(false)
@@ -182,6 +215,7 @@ func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
 func (a *app) onConnected(host string) {
 	setText(a.pass, "")
 	setText(a.passphrase, "")
+	a.queuePaused = false
 	a.setConnectionUI(true)
 	a.setStatus("Povezano: " + host)
 	remoteStart := "/"
@@ -199,14 +233,35 @@ func (a *app) onConnected(host string) {
 		a.refreshLocal(localStart)
 	}
 	a.refreshRemote(remoteStart)
+	a.refreshTransfers()
+}
+
+func (a *app) finishDisconnected(status string) {
+	if a.remoteNavCancel != nil {
+		a.remoteNavCancel()
+		a.remoteNavCancel = nil
+	}
+	a.remoteNavSeq++
+	a.queuePaused = true
+	a.setConnectionUI(false)
+	clearList(a.remoteList)
+	a.remoteItems = nil
+	a.updateActionControls()
+	if strings.TrimSpace(status) != "" {
+		a.setStatus(status)
+	}
 }
 
 func (a *app) disconnectNow() {
+	if a.connectionBusy || !a.connected {
+		return
+	}
 	if a.hasActiveTransfers() {
 		if !platform.ConfirmDialog("ByFTP — prekid veze", "Prekinuti vezu i aktivne prijenose?", "Svi prijenosi koji su na čekanju ili u tijeku bit će otkazani prije prekida veze.") {
 			return
 		}
 	}
+	generation := a.beginConnectionTransition()
 	a.setConnectionBusy(true)
 	a.setStatus("Prekid veze…")
 	a.goSafe(func() {
@@ -214,18 +269,13 @@ func (a *app) disconnectNow() {
 		defer cancel()
 		err := a.engine.Disconnect(ctx)
 		a.dispatch(func() {
-			if a.remoteNavCancel != nil {
-				a.remoteNavCancel()
-				a.remoteNavCancel = nil
+			if generation != a.connectionGeneration {
+				return
 			}
-			a.remoteNavSeq++
-			a.setConnectionUI(false)
-			clearList(a.remoteList)
-			a.remoteItems = nil
 			if err != nil {
-				a.setStatus(usererror.Message(err, "Veza je zatvorena uz upozorenje."))
+				a.finishDisconnected(usererror.Message(err, "Veza je zatvorena uz upozorenje."))
 			} else {
-				a.setStatus("Veza prekinuta.")
+				a.finishDisconnected("Veza prekinuta.")
 			}
 		})
 	})
@@ -243,7 +293,7 @@ func (a *app) choosePrivateKey() {
 }
 
 func (a *app) resetProfileCredentialCues() {
-	cue(a.pass, "Lozinka")
+	cue(a.pass, "FTP / SFTP lozinka")
 	cue(a.passphrase, "Zaporka privatnog ključa")
 }
 
@@ -251,7 +301,7 @@ func (a *app) setProfileCredentialCues(p model.PublicProfile) {
 	if p.HasPassword {
 		cue(a.pass, "Spremljena lozinka — prazno koristi spremljenu")
 	} else {
-		cue(a.pass, "Lozinka")
+		cue(a.pass, "FTP / SFTP lozinka")
 	}
 	if p.HasPassphrase && p.PrivateKeyPath != "" {
 		cue(a.passphrase, "Spremljena zaporka ključa — prazno koristi spremljenu")
@@ -300,6 +350,7 @@ func (a *app) applyProfiles(profiles []model.PublicProfile, loadErr error) {
 		a.setProfileCredentialCues(selectedProfile)
 	}
 	sendMessageW.Call(a.profilesCombo, cbSetCurSel, uintptr(selected), 0)
+	a.updateActionControls()
 }
 
 func (a *app) currentProfile() (model.PublicProfile, bool) {
@@ -315,12 +366,16 @@ func (a *app) currentProfile() (model.PublicProfile, bool) {
 }
 
 func (a *app) selectProfile() {
+	if a.connectionBusy || a.connected {
+		return
+	}
 	idx, _, _ := sendMessageW.Call(a.profilesCombo, cbGetCurSel, 0, 0)
 	if idx == 0 || int(idx) > len(a.profiles) {
 		a.selectedProfileID = ""
 		setText(a.pass, "")
 		setText(a.passphrase, "")
 		a.resetProfileCredentialCues()
+		a.updateActionControls()
 		return
 	}
 	p := a.profiles[int(idx)-1]
@@ -339,11 +394,12 @@ func (a *app) selectProfile() {
 		setText(a.remotePath, p.RemotePath)
 	}
 	a.setProfileCredentialCues(p)
+	a.updateActionControls()
 }
 
 func (a *app) saveCurrentProfile() {
-	if a.connected {
-		platform.InfoDialog("ByFTP", "Profil nije moguće mijenjati tijekom veze", "Prekinite vezu pa spremite promjene profila.")
+	if a.connected || a.connectionBusy {
+		platform.InfoDialog("ByFTP", "Profil nije moguće mijenjati tijekom veze", "Pričekajte završetak povezivanja ili prekinite vezu pa spremite promjene profila.")
 		return
 	}
 	existing, editing := a.currentProfile()
@@ -355,11 +411,24 @@ func (a *app) saveCurrentProfile() {
 	if !ok {
 		return
 	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		platform.ErrorDialog("ByFTP — profil", "Naziv profila nedostaje", "Upišite naziv po kojem ćete prepoznati ovu vezu.")
+		return
+	}
 	protocol := a.protocolValue()
 	host := strings.TrimSpace(getText(a.host))
 	username := strings.TrimSpace(getText(a.user))
+	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
+	if err != nil || port < 1 || port > 65535 {
+		platform.ErrorDialog("ByFTP — profil", "Neispravan port", "Port mora biti broj između 1 i 65535.")
+		return
+	}
+	if err := security.ValidateConnection(protocol, host, username, port); err != nil {
+		platform.ErrorDialog("ByFTP — profil", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+		return
+	}
 	keyPath := strings.TrimSpace(getText(a.keyPath))
-	port, _ := strconv.Atoi(strings.TrimSpace(getText(a.port)))
 	password := getText(a.pass)
 	passphrase := getText(a.passphrase)
 	clearPassword := false
@@ -424,7 +493,7 @@ func (a *app) saveCurrentProfile() {
 
 	payload := model.ProfileInput{
 		ID:              a.selectedProfileID,
-		Name:            strings.TrimSpace(name),
+		Name:            name,
 		Protocol:        protocol,
 		Host:            host,
 		Port:            port,
@@ -461,6 +530,9 @@ func (a *app) saveCurrentProfile() {
 }
 
 func (a *app) removeCurrentProfile() {
+	if a.connectionBusy {
+		return
+	}
 	p, ok := a.currentProfile()
 	if !ok {
 		platform.InfoDialog("ByFTP", "Nije odabran spremljeni profil", "Odaberite profil koji želite obrisati.")
@@ -485,6 +557,7 @@ func (a *app) removeCurrentProfile() {
 			a.resetProfileCredentialCues()
 			a.loadProfiles()
 			a.setStatus("Profil obrisan.")
+			a.updateActionControls()
 		})
 	})
 }
