@@ -45,7 +45,9 @@ def main() -> int:
     if not curl:
         fail("CurlFTP runtime credential contract is unavailable")
 
-    require("cmd/byftp/main.go", ("func selectAskpassSecret(", "nepoznat ili nepodržan zahtjev za vjerodajnicu"))
+    require("cmd/byftp/main.go", (
+        "func selectAskpassSecret(", "verification code", "one-time", "authentication code", "return nil, false",
+    ))
     require("cmd/byftp/askpass_test.go", ("TestSelectAskpassSecretOnlyUsesRecognizedPrompts", "Verification code", "One-time password token"))
     require("internal/remote/sftp_stream_test.go", ("TestSFTPCommandArgsKeepAskPassEnabled", "sftp -b"))
     require("internal/remote/connect_regression_test.go", ("TestSSHSessionConfigNormalizesBracketedIPv6Host", "TestFindOpenSSHUsesNativeExecutableNameOutsideWindows"))
@@ -71,7 +73,7 @@ def main() -> int:
     ))
     require("internal/config/profiles.go", (
         "sameProfileAccount(previous, x)", "sameProfilePrivateKey(previous, x)", "sameSFTPEndpoint(previous, x)",
-        "x.PasswordBlob = \"\"", "x.PassphraseBlob = \"\"", "zaporka privatnog ključa zahtijeva odabran privatni ključ",
+        "x.PasswordBlob = \"\"", "x.PassphraseBlob = \"\"", "x.PrivateKeyPath = strings.TrimSpace(in.PrivateKeyPath)",
     ))
     require("internal/desktop/profiles_windows.go", (
         "profilebinding.AccountMatches", "profilebinding.PrivateKeyMatches", "currentEndpointMatchesProfile",
@@ -82,7 +84,11 @@ def main() -> int:
         "beginConnectionTransition", "connectionGeneration", 'a.tr("sftp.trust_body", result.Fingerprint)',
     ))
     require("internal/desktop/other.go", (
-        "Linux/macOS SFTP izdanje zahtijeva eksplicitni privatni ključ", "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
+        'if protocol == "sftp" {',
+        "cfg.PrivateKeyPath = strings.TrimSpace(keyPath)",
+        'i18n.T(language, "terminal.sftp_key_required")',
+        'i18n.T(language, "terminal.sftp_passphrase_unsupported")',
+        "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
     ))
     require("internal/api/engine.go", ("e.remote.Disconnect(ctx)", "context.WithTimeout(context.Background(), 4*time.Second)"))
 
@@ -113,6 +119,8 @@ def main() -> int:
     print("PROFILE_ENDPOINT_PIN_BINDING=ENABLED")
     print("PROFILE_CREDENTIAL_CROSS_ENDPOINT=BLOCKED")
     print("PROFILE_PRIVATE_KEY_CLEAR=AUTHORITATIVE")
+    print("TERMINAL_SFTP_PRIVATE_KEY_REQUIRED=ENFORCED")
+    print("TERMINAL_SFTP_PASSPHRASE_UNSUPPORTED=FAIL_CLOSED")
     print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
