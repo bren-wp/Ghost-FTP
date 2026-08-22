@@ -1,26 +1,9 @@
-# Obavijesti trećih strana
+# Third-party notices
 
-**ByFTP želi biti jasan o alatima na koje se oslanja — bez skrivanja mrežnih komponenti iza vlastitog brenda.**
+ByFTP production Go code is intentionally built without external Go module dependencies. CI sets the Go proxy/checksum database to off so an unnoticed module download cannot become part of the release build.
 
-## Mrežni alati
+The application relies on operating-system or bundled command-line tooling for protocols: curl for FTP/FTPS and OpenSSH for SFTP. Those tools remain subject to their own licenses and platform distribution terms.
 
-ByFTP koristi provjerene sistemske alate za određene protokole:
+GitHub Actions used for CI/release are pinned to immutable commit SHAs. Packaging environments include Microsoft, Linux distribution and Apple tooling supplied by the corresponding hosted runner images.
 
-- `curl` za FTP/FTPS operacije;
-- OpenSSH alate za SFTP.
-
-ByFTP ih ne predstavlja kao vlastite komponente. Njihove licence i autorska prava pripadaju njihovim autorima i projektima.
-
-## Go standardna biblioteka
-
-Glavni ByFTP engine pisan je u Go-u i projekt namjerno ne koristi vanjske Go module u runtime dependency grafu. CI to provjerava kao dio privacy/supply-chain politike.
-
-## Operativni sustav
-
-ByFTP koristi platformske API-je operativnog sustava, uključujući Windows DPAPI i datotečne primitive potrebne za sigurniji lifecycle.
-
-## Zašto je ova transparentnost važna
-
-Korisnik treba znati koji dio sustava obavlja mrežni protokol, koji dio pripada ByFTP-u i koji dio dolazi iz operativnog sustava.
-
-**Manje skrivenih slojeva znači lakšu provjeru, jasniju odgovornost i bolju kontrolu nad proizvodom koji koristite.**
+Brand names such as Windows, macOS, GitHub, curl and OpenSSH belong to their respective owners. Their mention describes compatibility and does not imply endorsement.

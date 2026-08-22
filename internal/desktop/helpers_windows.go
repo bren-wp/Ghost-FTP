@@ -3,7 +3,6 @@
 package desktop
 
 import (
-	"brendigo.com/byftp/internal/model"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"brendigo.com/byftp/internal/model"
 )
 
 func (a *app) goSafe(fn func()) {
@@ -18,7 +19,7 @@ func (a *app) goSafe(fn func()) {
 		defer func() {
 			if recover() != nil {
 				a.dispatch(func() {
-					a.setStatus("Radnja nije dovršena. Pokušajte ponovno.")
+					a.setStatus(a.tr("action.failed_retry"))
 				})
 			}
 		}()
@@ -39,14 +40,14 @@ func (a *app) dispatch(f func()) {
 
 func (a *app) runDispatch() {
 	a.mu.Lock()
-	q := append([]func(){}, a.dispatchQ...)
+	queue := append([]func(){}, a.dispatchQ...)
 	a.dispatchQ = nil
 	a.mu.Unlock()
-	for _, f := range q {
+	for _, f := range queue {
 		func() {
 			defer func() {
 				if recover() != nil {
-					a.setStatus("Radnja nije dovršena. Pokušajte ponovno.")
+					a.setStatus(a.tr("action.failed_retry"))
 				}
 			}()
 			f()
@@ -66,13 +67,13 @@ func getText(hwnd uintptr) string {
 	if hwnd == 0 {
 		return ""
 	}
-	n, _, _ := getWindowTextLengthW.Call(hwnd)
+	length, _, _ := getWindowTextLengthW.Call(hwnd)
 	// Defensive cap: UI controls have stricter per-field limits, but never trust
 	// a window message enough to allocate an unbounded buffer here.
-	if n > 65535 {
+	if length > 65535 {
 		return ""
 	}
-	buf := make([]uint16, int(n)+2)
+	buf := make([]uint16, int(length)+2)
 	if len(buf) == 0 {
 		return ""
 	}
@@ -81,8 +82,8 @@ func getText(hwnd uintptr) string {
 }
 
 func selectedIndex(list uintptr) int {
-	r, _, _ := sendMessageW.Call(list, lvmGetNextItem, ^uintptr(0), lvniSelected)
-	return int(r)
+	result, _, _ := sendMessageW.Call(list, lvmGetNextItem, ^uintptr(0), lvniSelected)
+	return int(result)
 }
 
 func selectedIndices(list uintptr) []int {
@@ -98,8 +99,8 @@ func selectedIndices(list uintptr) []int {
 		} else {
 			start = uintptr(idx)
 		}
-		r, _, _ := sendMessageW.Call(list, lvmGetNextItem, start, lvniSelected)
-		next := int(r)
+		result, _, _ := sendMessageW.Call(list, lvmGetNextItem, start, lvniSelected)
+		next := int(result)
 		if next < 0 || next == idx {
 			break
 		}
@@ -138,9 +139,9 @@ func restoreItemSelection(list uintptr, items []model.Item, selected map[string]
 	if len(selected) == 0 {
 		return
 	}
-	for i, item := range items {
+	for index, item := range items {
 		if _, ok := selected[item.Name]; ok {
-			setListRowSelected(list, i, true)
+			setListRowSelected(list, index, true)
 		}
 	}
 }
@@ -158,64 +159,6 @@ func setListRedraw(list uintptr, enabled bool) {
 	sendMessageW.Call(list, wmSetRedraw, value, 0)
 	if enabled {
 		invalidateRect.Call(list, 0, 1)
-	}
-}
-
-func fillItems(list uintptr, items []model.Item) {
-	setListRedraw(list, false)
-	defer setListRedraw(list, true)
-	clearList(list)
-	for i, it := range items {
-		insertListRowWithImage(list, i, []string{it.Name, formatItemType(it), formatSize(it.Size, it.IsDirectory), formatTime(it.Modified)}, systemIconIndex(it.Name, it.IsDirectory))
-	}
-}
-
-func fillTransfers(list uintptr, jobs []model.TransferJob) {
-	setListRedraw(list, false)
-	defer setListRedraw(list, true)
-	clearList(list)
-	for i, j := range jobs {
-		dir := "Preuzimanje"
-		if j.Direction == "upload" {
-			dir = "Slanje"
-		}
-		status := transferStatusLabel(j.Status)
-		if j.Status == "running" && j.Attempts > 1 {
-			status += fmt.Sprintf(" — pokušaj %d", j.Attempts)
-		}
-		if j.Error != "" {
-			status += ": " + j.Error
-		}
-		progress := j.Progress
-		if progress > 0 && progress <= 1 {
-			progress *= 100
-		}
-		if progress < 0 {
-			progress = 0
-		}
-		if progress > 100 {
-			progress = 100
-		}
-		insertListRow(list, i, []string{dir, j.LocalPath, j.RemotePath, status, fmt.Sprintf("%.0f%%", progress)})
-	}
-}
-
-func transferStatusLabel(status string) string {
-	switch status {
-	case "queued":
-		return "Na čekanju"
-	case "running":
-		return "U tijeku"
-	case "done":
-		return "Završeno"
-	case "failed":
-		return "Greška"
-	case "cancelled":
-		return "Otkazano"
-	case "skipped":
-		return "Preskočeno"
-	default:
-		return status
 	}
 }
 
@@ -247,12 +190,12 @@ func attachSystemImageList(list uintptr) {
 	}
 	var info shFileInfo
 	probe := wstr("byftp.file")
-	h, _, _ := shGetFileInfoW.Call(
+	handle, _, _ := shGetFileInfoW.Call(
 		uintptr(unsafe.Pointer(probe)), fileAttributeNormal, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info),
 		shgfiUseFileAttributes|shgfiSysIconIndex|shgfiSmallIcon,
 	)
-	if h != 0 {
-		sendMessageW.Call(list, lvmSetImageList, lvsilSmall, h)
+	if handle != 0 {
+		sendMessageW.Call(list, lvmSetImageList, lvsilSmall, handle)
 	}
 }
 
@@ -275,55 +218,38 @@ func systemIconIndex(name string, directory bool) int32 {
 		return cached.(int32)
 	}
 	var info shFileInfo
-	p := wstr(probe)
-	r, _, _ := shGetFileInfoW.Call(
-		uintptr(unsafe.Pointer(p)), attr, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info),
+	pointer := wstr(probe)
+	result, _, _ := shGetFileInfoW.Call(
+		uintptr(unsafe.Pointer(pointer)), attr, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info),
 		shgfiUseFileAttributes|shgfiSysIconIndex|shgfiSmallIcon,
 	)
-	if r == 0 {
+	if result == 0 {
 		return -1
 	}
 	systemIconCache.Store(key, info.IconIndex)
 	return info.IconIndex
 }
 
-func formatItemType(it model.Item) string {
-	if it.IsSymlink {
-		return "Veza"
-	}
-	if it.IsDirectory {
-		return "Mapa"
-	}
-	ext := strings.TrimPrefix(strings.ToUpper(filepath.Ext(it.Name)), ".")
-	if ext == "" {
-		return "Datoteka"
-	}
-	if len(ext) > 8 {
-		ext = ext[:8]
-	}
-	return ext
-}
-
-func formatSize(n int64, dir bool) string {
-	if dir {
-		return "Mapa"
-	}
-	const kb = 1024
-	if n < kb {
-		return fmt.Sprintf("%d B", n)
-	}
-	if n < kb*kb {
-		return fmt.Sprintf("%.1f KB", float64(n)/kb)
-	}
-	if n < kb*kb*kb {
-		return fmt.Sprintf("%.1f MB", float64(n)/(kb*kb))
-	}
-	return fmt.Sprintf("%.2f GB", float64(n)/(kb*kb*kb))
-}
-
-func formatTime(t time.Time) string {
-	if t.IsZero() {
+func formatSize(size int64, directory bool) string {
+	if directory {
 		return ""
 	}
-	return t.Local().Format("02.01.2006 15:04")
+	const kb = 1024
+	if size < kb {
+		return fmt.Sprintf("%d B", size)
+	}
+	if size < kb*kb {
+		return fmt.Sprintf("%.1f KB", float64(size)/kb)
+	}
+	if size < kb*kb*kb {
+		return fmt.Sprintf("%.1f MB", float64(size)/(kb*kb))
+	}
+	return fmt.Sprintf("%.2f GB", float64(size)/(kb*kb*kb))
+}
+
+func formatTime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.Local().Format("2006-01-02 15:04")
 }

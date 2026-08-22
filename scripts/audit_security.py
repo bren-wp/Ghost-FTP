@@ -1,38 +1,49 @@
 #!/usr/bin/env python3
-"""Provjerava ključne ByFTP sigurnosne invarijante koje ne smiju regresirati."""
+"""Verify ByFTP security invariants that must not regress."""
 
 from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-def fail(message: str) -> None: raise SystemExit("SECURITY_AUDIT_NIJE_PROSAO: " + message)
+
+
+def fail(message: str) -> None:
+    raise SystemExit("SECURITY_AUDIT_FAILED: " + message)
+
+
 def read(path: str) -> str:
     target = ROOT / path
-    if not target.is_file(): fail(f"nedostaje {path}")
+    if not target.is_file():
+        fail(f"missing {path}")
     return target.read_text(encoding="utf-8")
+
+
 def require(path: str, markers: tuple[str, ...]) -> str:
     text = read(path)
     for marker in markers:
-        if marker not in text: fail(f"{path} nema obaveznu sigurnosnu invarijantu: {marker}")
+        if marker not in text:
+            fail(f"{path} is missing required security invariant: {marker}")
     return text
 
 
 def main() -> int:
     require("internal/remote/util.go", ("func validateDownloadedPart(part string) error", "os.Lstat(part)", "security.IsReparsePoint(part)"))
-    for path in ("internal/remote/curl_ftp.go", "internal/remote/sftp.go"): require(path, ("validateDownloadedPart(part)",))
+    for path in ("internal/remote/curl_ftp.go", "internal/remote/sftp.go"):
+        require(path, ("validateDownloadedPart(part)",))
 
     sftp = require("internal/remote/sftp.go", (
         "func validatePrivateKeyPath(keyPath string) error", "os.Lstat(keyPath)", "security.IsReparsePoint(keyPath)",
         '"-oBatchMode=no"', "ctxErr := ctx.Err()", "scanHost := strings.Trim(host, \"[]\")",
     ))
     if '"-b"' in sftp or '"-b", "-"' in sftp:
-        fail("SFTP command args ponovno koriste -b; OpenSSH time prisilno uključuje BatchMode=yes i gasi AskPass")
+        fail("SFTP command args use -b again; OpenSSH forces BatchMode=yes there and disables AskPass")
 
     curl = require("internal/remote/curl_ftp.go", (
         "security.ProtectRuntimeString(password)", "security.UnprotectRuntimeBytes(c.passwordBlob)",
         "security.ForgetRuntimeSecret(c.passwordBlob)", "ctxErr := ctx.Err()",
     ))
-    if not curl: fail("CurlFTP runtime credential ugovor nije dostupan")
+    if not curl:
+        fail("CurlFTP runtime credential contract is unavailable")
 
     require("cmd/byftp/main.go", ("func selectAskpassSecret(", "nepoznat ili nepodržan zahtjev za vjerodajnicu"))
     require("cmd/byftp/askpass_test.go", ("TestSelectAskpassSecretOnlyUsesRecognizedPrompts", "Verification code", "One-time password token"))
@@ -62,10 +73,13 @@ def main() -> int:
         "sameProfileAccount(previous, x)", "sameProfilePrivateKey(previous, x)", "sameSFTPEndpoint(previous, x)",
         "x.PasswordBlob = \"\"", "x.PassphraseBlob = \"\"", "zaporka privatnog ključa zahtijeva odabran privatni ključ",
     ))
-    require("internal/desktop/connection_profiles_windows.go", (
-        "profilebinding.AccountMatches", "profilebinding.PrivateKeyMatches", "Stare vjerodajnice neće se prenijeti",
-        "Zadržati spremljene vjerodajnice?", "currentEndpointMatchesProfile", "Unesene tajne ostaju u zaključanim edit kontrolama",
+    require("internal/desktop/profiles_windows.go", (
+        "profilebinding.AccountMatches", "profilebinding.PrivateKeyMatches", "currentEndpointMatchesProfile",
+        'a.tr("profile.store_credentials_title")', 'a.tr("profile.retain_credentials_title")',
+    ))
+    require("internal/desktop/connection_windows.go", (
         "cfg.Password = getText(a.pass)", "cfg.Passphrase = getText(a.passphrase)",
+        "beginConnectionTransition", "connectionGeneration", 'a.tr("sftp.trust_body", result.Fingerprint)',
     ))
     require("internal/desktop/other.go", (
         "Linux/macOS SFTP izdanje zahtijeva eksplicitni privatni ključ", "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
@@ -108,4 +122,5 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()

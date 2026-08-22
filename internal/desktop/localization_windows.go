@@ -219,7 +219,7 @@ func (a *app) applyLanguage(code string) {
 	a.updateTransferSummary()
 	var client rect
 	if r, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); r != 0 {
-		a.layout(int(client.Right-client.Left), int(client.Bottom-client.Top))
+		a.layoutResponsive(int(client.Right-client.Left), int(client.Bottom-client.Top))
 	}
 	invalidateRect.Call(a.hwnd, 0, 1)
 }

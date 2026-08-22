@@ -1,4 +1,4 @@
-name: Objavi ByFTP
+name: Publish ByFTP
 
 on:
   push:
@@ -8,15 +8,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Opcionalna verzija bez prefiksa v; prazno koristi kanonski VERSION'
+        description: 'Optional semantic version without the v prefix; empty uses canonical VERSION'
         required: false
 
 permissions:
   contents: write
   packages: write
 
-# Jedan release kanal sprječava paralelne publishere nad istim ili susjednim
-# verzijama. Tag koji publisher izradi ne pokreće novi release workflow.
+# One release channel prevents concurrent publishers from mutating the same or
+# adjacent versions. A tag created by the publisher does not retrigger this workflow.
 concurrency:
   group: byftp-release
   cancel-in-progress: false
@@ -28,38 +28,38 @@ env:
 
 jobs:
   quality:
-    name: Produkcijski quality, race, sigurnost i privatnost
+    name: Production quality, race, security and privacy
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Postavi Go
+      - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
-      - name: Postavi Python
+      - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Isključi i potvrdi Go telemetriju
+      - name: Disable and verify Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Provjeri resurse, sadržaj i verziju
+      - name: Verify brand assets, localization and version
         shell: bash
         run: |
           set -euo pipefail
           python scripts/generate_brand_assets.py --check
-          python scripts/audit_croatian.py
+          python scripts/audit_localization.py
           python scripts/audit_version.py
-      - name: Provjeri dokumentaciju, sigurnost, privatnost i release ugovor
+      - name: Verify documentation, security, privacy and release contract
         shell: bash
         run: |
           set -euo pipefail
@@ -67,16 +67,16 @@ jobs:
           python scripts/audit_security.py
           python scripts/audit_privacy.py
           python scripts/audit_release.py
-      - name: Python regresije release alata
+      - name: Run Python release-tool regressions
         run: python -m unittest discover -s scripts -p 'test_*.py'
-      - name: Go unit, race i vet
+      - name: Run Go unit, race and vet
         shell: bash
         run: |
           set -euo pipefail
           go test ./...
           go test -race ./...
           go vet ./...
-      - name: Provjeri generiranje release bilješki
+      - name: Verify release-note generation
         shell: bash
         run: |
           set -euo pipefail
@@ -86,39 +86,39 @@ jobs:
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
 
   windows:
-    name: Windows x64 i x86
+    name: Windows x64 and x86
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Postavi Go
+      - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
-      - name: Postavi Python
+      - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Isključi i potvrdi Go telemetriju
+      - name: Disable and verify Go telemetry
         shell: pwsh
         run: |
           go telemetry off
-          if ($LASTEXITCODE -ne 0) { throw 'Nije moguće isključiti Go telemetriju.' }
-          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetrija nije isključena.' }
-      - name: Izgradi Windows x64 i x86
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to disable Go telemetry.' }
+          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
+      - name: Build and verify Windows x64 and x86
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
-      - name: Izradi provjerene Windows ZIP pakete
+      - name: Build verified Windows ZIP bundles
         shell: pwsh
         run: |
           $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
           python scripts/release_notes.py --version $version --output 'dist\RELEASE-NOTES.txt'
-          if ($LASTEXITCODE -ne 0) { throw 'Generiranje bilješki nije uspjelo.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Release-note generation failed.' }
           @"
           VERSION=$version
           COMMIT=$env:GITHUB_SHA
@@ -133,13 +133,13 @@ jobs:
           foreach ($arch in @('x64','x86')) {
             $root = "dist\ByFTP-$version-Windows-$arch"
             Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
-            New-Item -ItemType Directory -Force -Path $root, (Join-Path $root 'Dokumentacija') | Out-Null
+            New-Item -ItemType Directory -Force -Path $root, (Join-Path $root 'Documentation') | Out-Null
             Copy-Item "dist\ByFTP-$version-Portable-$arch.exe" $root -Force
             Copy-Item "dist\ByFTP-$version-Setup-$arch.exe" $root -Force
             Copy-Item 'dist\RELEASE-NOTES.txt' $root -Force
             Copy-Item 'dist\BUILD-METADATA-WINDOWS.txt' (Join-Path $root 'BUILD-METADATA.txt') -Force
             Copy-Item 'README.md','CHANGELOG.md','LICENSE' $root -Force
-            Copy-Item 'docs\*.md' (Join-Path $root 'Dokumentacija') -Force
+            Copy-Item 'docs\*.md' (Join-Path $root 'Documentation') -Force
             $lines = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName) {
               $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
               $relative = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\','/')
@@ -150,9 +150,9 @@ jobs:
             Remove-Item -Force $zip -ErrorAction SilentlyContinue
             Compress-Archive -Path "$root\*" -DestinationPath $zip -CompressionLevel Optimal
             python scripts/verify_bundle.py $zip --version $version --arch $arch
-            if ($LASTEXITCODE -ne 0) { throw "Provjera Windows $arch ZIP-a nije prošla." }
+            if ($LASTEXITCODE -ne 0) { throw "Windows $arch ZIP verification failed." }
           }
-      - name: Spremi Windows release pakete
+      - name: Store Windows release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-windows-release
@@ -167,34 +167,34 @@ jobs:
             dist/ByFTP-*-Windows-x86.zip
 
   linux:
-    name: Linux amd64 arm64 i i386
+    name: Linux amd64 arm64 and i386
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Postavi Go
+      - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
-      - name: Isključi i potvrdi Go telemetriju
+      - name: Disable and verify Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Provjeri Linux core
+      - name: Verify Linux core
         shell: bash
         run: |
           set -euo pipefail
           go test ./...
           go vet ./...
-      - name: Izgradi DEB pakete
+      - name: Build DEB packages
         shell: bash
         run: bash scripts/BUILD-LINUX.sh
-      - name: Provjeri DEB metapodatke
+      - name: Verify DEB metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -206,7 +206,7 @@ jobs:
             test "$(dpkg-deb -f "$pkg" Version)" = "$version"
             test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
           done
-      - name: Spremi Linux pakete
+      - name: Store Linux release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-linux-release
@@ -219,30 +219,30 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 30
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Postavi Go
+      - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.5'
           check-latest: false
           cache: false
-      - name: Isključi i potvrdi Go telemetriju
+      - name: Disable and verify Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Cross-platform testovi na macOS-u
+      - name: Run macOS unit and vet
         shell: bash
         run: |
           set -euo pipefail
           go test ./...
           go vet ./...
-      - name: Izgradi Universal PKG
+      - name: Build Universal PKG
         shell: bash
         run: bash scripts/BUILD-MACOS.sh
-      - name: Provjeri PKG strukturu
+      - name: Verify PKG structure
         shell: bash
         run: |
           set -euo pipefail
@@ -251,7 +251,7 @@ jobs:
           test -s "$pkg"
           pkgutil --expand "$pkg" "$RUNNER_TEMP/byftp-pkg"
           test -f "$RUNNER_TEMP/byftp-pkg/PackageInfo"
-      - name: Spremi macOS paket
+      - name: Store macOS release artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-macos-release
@@ -260,20 +260,20 @@ jobs:
           path: dist/ByFTP-*-macOS-Universal.pkg
 
   publish:
-    name: Provjeri i objavi izdanje
+    name: Verify and publish release
     needs: [quality, windows, linux, macos]
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
-      - name: Dohvati izvorni kod
+      - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Postavi Python
+      - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Odredi i provjeri verziju
+      - name: Resolve and verify version
         id: version
         shell: pwsh
         run: |
@@ -283,27 +283,27 @@ jobs:
           } else {
             $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
           }
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Neispravna verzija: $version" }
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid version: $version" }
           $source = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
-          if ($source -ne $version) { throw "Release verzija $version ne odgovara VERSION=$source" }
+          if ($source -ne $version) { throw "Release version $version does not match VERSION=$source" }
           "VERSION=$version" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-      - name: Preuzmi Windows pakete
+      - name: Download Windows artifacts
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with:
           name: byftp-windows-release
           path: release
-      - name: Preuzmi Linux pakete
+      - name: Download Linux artifacts
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with:
           name: byftp-linux-release
           path: release
-      - name: Preuzmi macOS paket
+      - name: Download macOS artifact
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with:
           name: byftp-macos-release
           path: release
-      - name: Provjeri staging javnih paketa
+      - name: Verify public package staging
         shell: pwsh
         run: |
           $expected = @(
@@ -320,13 +320,13 @@ jobs:
           )
           $actual = @(Get-ChildItem -LiteralPath 'release' -File | ForEach-Object Name | Sort-Object)
           $wanted = @($expected | Sort-Object)
-          if ($actual.Count -ne $wanted.Count) { throw "Release staging ima $($actual.Count) datoteka umjesto $($wanted.Count)." }
-          if (Compare-Object -ReferenceObject $wanted -DifferenceObject $actual) { throw 'Release staging ne odgovara ugovorenom skupu platformskih paketa.' }
-      - name: Generiraj zajedničke metapodatke i SHA-256
+          if ($actual.Count -ne $wanted.Count) { throw "Release staging contains $($actual.Count) files; expected $($wanted.Count)." }
+          if (Compare-Object -ReferenceObject $wanted -DifferenceObject $actual) { throw 'Release staging does not match the exact public platform package contract.' }
+      - name: Generate common metadata and SHA-256
         shell: pwsh
         run: |
           python scripts/release_notes.py --version $env:VERSION --output 'release\RELEASE-NOTES.txt'
-          if ($LASTEXITCODE -ne 0) { throw 'Generiranje release notes nije uspjelo.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Release-note generation failed.' }
           @"
           VERSION=$env:VERSION
           COMMIT=$env:GITHUB_SHA
@@ -344,7 +344,7 @@ jobs:
             "$hash  $($item.Name)"
           }
           $lines | Set-Content 'release\SHA256.txt' -Encoding ascii
-      - name: Objavi ili sigurno nadopuni GitHub izdanje
+      - name: Publish or safely complete GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -365,17 +365,17 @@ jobs:
             'release\BUILD-METADATA.txt'
           )
           foreach ($asset in $assets) {
-            if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Nedostaje release asset: $asset" }
+            if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Missing release asset: $asset" }
           }
           & .\scripts\publish_release.ps1 -Repository $env:GITHUB_REPOSITORY -Version $env:VERSION -Commit $env:GITHUB_SHA -NotesFile 'release\RELEASE-NOTES.txt' -Assets $assets
-      - name: Spremi kompletni release artefakt
+      - name: Store complete release evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-${{ steps.version.outputs.version }}-complete-release
           if-no-files-found: error
           retention-days: 30
           path: release/*
-      - name: Izgradi GitHub Windows paket
+      - name: Build GitHub Windows package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path 'package\assets','package-out' | Out-Null
@@ -388,17 +388,19 @@ jobs:
           @"
           # ByFTP.Windows $env:VERSION
 
-          Službeni ByFTP Windows distribucijski paket tvrtke Brendigo za x64 i x86. Sadrži samo javne Windows pakete i provjerene release metapodatke.
+          Official Brendigo ByFTP Windows distribution package for x64 and x86. It contains only public Windows packages and verified release metadata.
           "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
           @"
-          <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><PackageId>ByFTP.Windows</PackageId><Version>$env:VERSION</Version><Authors>Brendigo</Authors><Company>Brendigo</Company><Description>ByFTP Windows x64 i x86 FTP/FTPS/SFTP distribucijski paket.</Description><PackageTags>byftp;ftp;ftps;sftp;windows;brendigo;privacy</PackageTags><PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl><RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl><RepositoryType>git</RepositoryType><PackageLicenseFile>LICENSE</PackageLicenseFile><PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance><SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup><ItemGroup><None Include="assets\**\*" Pack="true" PackagePath="tools\" /><None Include="PACKAGE-README.md" Pack="true" PackagePath="\" /><None Include="..\LICENSE" Pack="true" PackagePath="\" /><None Include="..\docs\*.md" Pack="true" PackagePath="docs\" /></ItemGroup></Project>
+          <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><PackageId>ByFTP.Windows</PackageId><Version>$env:VERSION</Version><Authors>Brendigo</Authors><Company>Brendigo</Company><Description>ByFTP Windows x64 and x86 FTP/FTPS/SFTP distribution package.</Description><PackageTags>byftp;ftp;ftps;sftp;windows;brendigo;privacy</PackageTags><PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl><RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl><RepositoryType>git</RepositoryType><PackageLicenseFile>LICENSE</PackageLicenseFile><PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance><SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup><ItemGroup><None Include="assets\**\*" Pack="true" PackagePath="tools\" /><None Include="PACKAGE-README.md" Pack="true" PackagePath="\" /><None Include="..\LICENSE" Pack="true" PackagePath="\" /><None Include="..\docs\*.md" Pack="true" PackagePath="docs\" /></ItemGroup></Project>
           "@ | Set-Content 'package\ByFTP.Windows.csproj' -Encoding UTF8
           dotnet pack 'package\ByFTP.Windows.csproj' -c Release -o 'package-out'
-      - name: Objavi GitHub Windows paket
+      - name: Publish GitHub Windows package
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          $pkg = Get-ChildItem 'package-out\ByFTP.Windows.*.nupkg' | Select-Object -First 1
-          if (-not $pkg) { throw 'ByFTP.Windows paket nije izrađen.' }
-          dotnet nuget push $pkg.FullName --api-key "$env:GITHUB_TOKEN" --source 'https://nuget.pkg.github.com/bren-wp/index.json' --skip-duplicate
+          $expectedName = "ByFTP.Windows.$env:VERSION.nupkg"
+          $packages = @(Get-ChildItem -LiteralPath 'package-out' -File -Filter '*.nupkg')
+          if ($packages.Count -ne 1) { throw "Expected exactly one NuGet package, found $($packages.Count)." }
+          if ($packages[0].Name -ne $expectedName) { throw "Unexpected NuGet package name: $($packages[0].Name); expected $expectedName" }
+          dotnet nuget push $packages[0].FullName --api-key "$env:GITHUB_TOKEN" --source 'https://nuget.pkg.github.com/bren-wp/index.json' --skip-duplicate

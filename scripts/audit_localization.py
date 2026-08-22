@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate ByFTP's English-first localization contract."""
+"""Validate ByFTP's English-first localization and responsive-UI contract."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SUPPORTED = ("en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja")
+SECONDARY = ("de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja")
 
 
 def fail(message: str) -> None:
@@ -41,6 +42,13 @@ def main() -> int:
         "internal/i18n/locale_el_pt.go",
         "internal/i18n/locale_zh_ru.go",
         "internal/i18n/locale_hi_ja.go",
+        "internal/i18n/action_catalogs.go",
+        "internal/i18n/action_locale_registry.go",
+        "internal/i18n/action_locale_de_fr.go",
+        "internal/i18n/action_locale_es_tr.go",
+        "internal/i18n/action_locale_el_pt.go",
+        "internal/i18n/action_locale_zh_ru.go",
+        "internal/i18n/action_locale_hi_ja.go",
         "internal/i18n/i18n_test.go",
     )
     for rel in required_catalog_files:
@@ -49,8 +57,16 @@ def main() -> int:
     catalog = read("internal/i18n/catalogs.go")
     if '"en": {' not in catalog or '"hr": {' not in catalog:
         fail("canonical English and Croatian catalogs must be explicit")
+    registry = read("internal/i18n/action_locale_registry.go")
+    for code in SECONDARY:
+        if f'"{code}": actionLocale(' not in registry:
+            fail(f"missing complete action workflow catalog registration for {code}")
+    for marker in ("actionLocaleKeys", "key/value count mismatch", "registerSecondaryActionCatalogs"):
+        if marker not in registry:
+            fail(f"action-localization registry is missing invariant: {marker}")
+
     test_text = read("internal/i18n/i18n_test.go")
-    for marker in ("ValidateCatalogs()", "expected 12 supported languages", "format verbs differ"):
+    for marker in ("ValidateCatalogs()", "expected 12 supported languages", "format verbs differ", "fall back to English too often"):
         if marker not in test_text:
             fail(f"localization regression test is missing marker: {marker}")
 
@@ -63,20 +79,48 @@ def main() -> int:
             fail(f"settings language migration/validation is missing: {marker}")
 
     windows = read("internal/desktop/localization_windows.go")
-    for marker in ("changeLanguageFromUI", "applyLanguage", "setButtonLabel", "reloadProtocolLabels", "applyColumnLanguage"):
+    for marker in ("changeLanguageFromUI", "applyLanguage", "setButtonLabel", "reloadProtocolLabels", "applyColumnLanguage", "layoutResponsive"):
         if marker not in windows:
             fail(f"Windows live localization is missing: {marker}")
 
-    # Root product documentation is canonical English. Localized docs may live
-    # below docs/i18n and are intentionally excluded from this English check.
+    measured = read("internal/desktop/button_measure_windows.go")
+    flow = read("internal/desktop/button_flow_windows.go")
+    responsive = read("internal/desktop/layout_responsive_windows.go")
+    renderer = read("internal/desktop/button_draw_windows.go")
+    for marker in ("GetTextExtentPoint32W", "preferredButtonWidth"):
+        if marker not in measured:
+            fail(f"localized button measurement is missing: {marker}")
+    for marker in ("placeButtonFlow", "buttonFlowRows"):
+        if marker not in flow:
+            fail(f"responsive button-flow layout is missing: {marker}")
+    for marker in ("preferredButtonWidth", "placeButtonFlow", "resizeListColumns"):
+        if marker not in responsive:
+            fail(f"responsive multilingual layout is missing: {marker}")
+    if "dtEndEllipsis" in renderer:
+        fail("owner-drawn buttons must show the complete localized label; ellipsis is forbidden")
+
     readme = read("README.md")
     for marker in (f"Current release: {version}", "## Languages", "English"):
         if marker not in readme:
             fail(f"README is missing English-first marker: {marker}")
 
+    primary_docs = (
+        "docs/README.md", "docs/INSTALACIJA.md", "docs/ARHITEKTURA.md", "docs/SIGURNOST.md",
+        "docs/PRIVATNOST.md", "docs/TESTIRANJE.md", "docs/PODRSKA.md", "docs/PROVJERA-IZDANJA.md",
+        "docs/POTPISIVANJE.md", "docs/DOPRINOS.md", "docs/IZDAVANJE-NA-GITHUBU.md",
+        "docs/PLAN-RAZVOJA.md", "docs/OBAVIJESTI-TRECIH-STRANA.md", "docs/SHARED-HOSTING.md",
+    )
+    croatian_only_markers = ("# Instalacija", "# Sigurnost", "# Privatnost", "# Podrška", "## Preuzimanje", "Trenutačno izdanje")
+    for rel in primary_docs:
+        text = read(rel)
+        for phrase in croatian_only_markers:
+            if phrase in text:
+                fail(f"canonical documentation is not English-first: {rel} contains {phrase!r}")
+
     forbidden_primary = {
         "README.md": ("Trenutačno izdanje:", "## Preuzimanje", "## Dokumentacija"),
         ".github/pull_request_template.md": ("## Ovlaštenje", "## Sažetak"),
+        ".github/workflows/release.yml": ("Objavi ByFTP", "audit_croatian.py", "Dohvati izvorni kod", "Dokumentacija"),
     }
     for rel, phrases in forbidden_primary.items():
         text = read(rel)
@@ -87,6 +131,7 @@ def main() -> int:
     print(f"LOCALIZATION_AUDIT=PASS ({version})")
     print("PRIMARY_LANGUAGE=en")
     print("SUPPORTED_LANGUAGES=" + ",".join(SUPPORTED))
+    print("FULL_BUTTON_LABELS=ENFORCED")
     return 0
 
 

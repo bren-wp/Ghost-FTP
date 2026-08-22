@@ -87,7 +87,10 @@ func (a *app) drawButton(dis *drawItemStruct) bool {
 	}
 	if visual.Label != "" {
 		old, _, _ := selectObject.Call(dis.HDC, a.font)
-		drawText(dis.HDC, visual.Label, &content, dtLeft|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
+		// Layout guarantees enough width for the complete localized label.
+		// Do not hide meaning behind an ellipsis: a button must say exactly what
+		// it does in every supported language.
+		drawText(dis.HDC, visual.Label, &content, dtLeft|dtVCenter|dtSingleLine|dtNoPrefix)
 		selectObject.Call(dis.HDC, old)
 	}
 	if dis.ItemState&odsFocus != 0 && !disabled {
