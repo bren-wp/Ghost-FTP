@@ -27,7 +27,13 @@ func (a *app) loadSettings() {
 
 func (a *app) promptNumber(instructionKey string, current, min, max int) (int, bool) {
 	title := a.tr("settings.title")
-	value, ok := platform.PromptDialog(title, a.tr(instructionKey), strconv.Itoa(current))
+	value, ok := platform.PromptDialogWithLabels(
+		title,
+		a.tr(instructionKey),
+		strconv.Itoa(current),
+		okLabel(a.languageCode()),
+		a.tr("common.cancel"),
+	)
 	if !ok {
 		return current, false
 	}
@@ -100,9 +106,16 @@ func (a *app) openSettings() {
 }
 
 func (a *app) openAbout() {
+	// Keep company/brand metadata out of the working FTP surface. The About
+	// task dialog is the single deliberate brand card: product identity first,
+	// then privacy/security promise, then developer and support metadata.
+	content := a.tr("about.heading") + "\n\n" +
+		"────────────────────────\n" +
+		a.tr("about.body", brand.Website, brand.Support) + "\n\n" +
+		"FTP • FTPS • SFTP  ·  " + brand.ProductName + " " + a.version
 	platform.InfoDialog(
 		brand.ProductName+" — "+a.tr("about.title"),
 		brand.ProductFull+" "+a.version,
-		a.tr("about.heading")+"\n\n"+a.tr("about.body", brand.Website, brand.Support),
+		content,
 	)
 }
