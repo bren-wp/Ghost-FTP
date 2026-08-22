@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed provjera sadržaja ByFTP Windows release ZIP-a."""
+"""Fail-closed verification for a ByFTP Windows release ZIP bundle."""
 
 from __future__ import annotations
 
@@ -17,20 +17,20 @@ MANIFEST = "BUNDLE-SHA256.txt"
 
 
 def fail(message: str) -> None:
-    raise ValueError("BUNDLE_PROVJERA_NIJE_PROSLA: " + message)
+    raise ValueError("BUNDLE_VERIFICATION_FAILED: " + message)
 
 
 def normalize_member(name: str) -> str:
     if "\x00" in name:
-        fail("ZIP sadrži NUL u nazivu stavke")
+        fail("ZIP member name contains NUL")
     normalized = name.replace("\\", "/").rstrip("/")
     if not normalized:
-        fail("ZIP sadrži praznu putanju")
+        fail("ZIP contains an empty path")
     path = PurePosixPath(normalized)
     if path.is_absolute() or any(part in ("", ".", "..") for part in path.parts):
-        fail(f"ZIP sadrži nesigurnu putanju: {name!r}")
+        fail(f"ZIP contains an unsafe path: {name!r}")
     if path.parts and ":" in path.parts[0]:
-        fail(f"ZIP sadrži apsolutnu/drive putanju: {name!r}")
+        fail(f"ZIP contains an absolute/drive path: {name!r}")
     return path.as_posix()
 
 
@@ -43,10 +43,10 @@ def required_members(version: str, arch: str) -> set[str]:
         "README.md",
         "CHANGELOG.md",
         "LICENSE",
-        "Dokumentacija/PRIVATNOST.md",
-        "Dokumentacija/SIGURNOST.md",
-        "Dokumentacija/PODRSKA.md",
-        "Dokumentacija/TESTIRANJE.md",
+        "Documentation/PRIVATNOST.md",
+        "Documentation/SIGURNOST.md",
+        "Documentation/PODRSKA.md",
+        "Documentation/TESTIRANJE.md",
         MANIFEST,
     }
 
@@ -61,19 +61,19 @@ def sha256_member(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> str:
 
 def verify_bundle(zip_path: Path, version: str, arch: str) -> None:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-        fail(f"neispravna verzija: {version!r}")
+        fail(f"invalid version: {version!r}")
     if arch not in {"x64", "x86"}:
-        fail(f"neispravna Windows arhitektura: {arch!r}")
+        fail(f"invalid Windows architecture: {arch!r}")
     if not zip_path.is_file():
-        fail(f"ZIP ne postoji: {zip_path}")
+        fail(f"ZIP does not exist: {zip_path}")
 
     with zipfile.ZipFile(zip_path, "r") as zf:
         infos = zf.infolist()
         if len(infos) > MAX_ENTRIES:
-            fail(f"ZIP ima previše stavki: {len(infos)}")
+            fail(f"ZIP contains too many entries: {len(infos)}")
         total = sum(info.file_size for info in infos)
         if total > MAX_UNCOMPRESSED_BYTES:
-            fail(f"ZIP je prevelik nakon raspakiravanja: {total} B")
+            fail(f"ZIP is too large after extraction: {total} B")
 
         files: dict[str, zipfile.ZipInfo] = {}
         for info in infos:
@@ -81,14 +81,14 @@ def verify_bundle(zip_path: Path, version: str, arch: str) -> None:
             if info.is_dir():
                 continue
             if info.flag_bits & 0x1:
-                fail(f"ZIP sadrži šifriranu stavku: {normalized}")
+                fail(f"ZIP contains an encrypted entry: {normalized}")
             if normalized in files:
-                fail(f"ZIP sadrži dupliciranu putanju: {normalized}")
+                fail(f"ZIP contains a duplicate path: {normalized}")
             files[normalized] = info
 
         missing_required = sorted(required_members(version, arch) - files.keys())
         if missing_required:
-            fail("nedostaju obavezne stavke: " + ", ".join(missing_required))
+            fail("required entries are missing: " + ", ".join(missing_required))
         forbidden = {
             f"ByFTP-{version}-Uninstall-{arch}.exe",
             "verification.txt",
@@ -96,15 +96,15 @@ def verify_bundle(zip_path: Path, version: str, arch: str) -> None:
         }
         present_forbidden = sorted(forbidden & files.keys())
         if present_forbidden:
-            fail("bundle sadrži interni/neželjeni artefakt: " + ", ".join(present_forbidden))
+            fail("bundle contains an internal/forbidden artifact: " + ", ".join(present_forbidden))
 
         manifest_info = files.get(MANIFEST)
         if manifest_info is None:
-            fail(f"nedostaje {MANIFEST}")
+            fail(f"missing {MANIFEST}")
         try:
             manifest_text = zf.read(manifest_info).decode("ascii")
         except UnicodeDecodeError as exc:
-            fail(f"{MANIFEST} nije ASCII")
+            fail(f"{MANIFEST} is not ASCII")
             raise AssertionError from exc
 
         expected: dict[str, str] = {}
@@ -113,13 +113,13 @@ def verify_bundle(zip_path: Path, version: str, arch: str) -> None:
                 continue
             match = HASH_LINE_RE.fullmatch(raw)
             if not match:
-                fail(f"neispravan redak {MANIFEST}:{line_number}")
+                fail(f"invalid {MANIFEST} line {line_number}")
             digest, member = match.groups()
             member = normalize_member(member)
             if member == MANIFEST:
-                fail(f"{MANIFEST} ne smije hashirati samoga sebe")
+                fail(f"{MANIFEST} must not hash itself")
             if member in expected:
-                fail(f"duplicirana stavka u {MANIFEST}: {member}")
+                fail(f"duplicate entry in {MANIFEST}: {member}")
             expected[member] = digest.lower()
 
         actual_payload = set(files) - {MANIFEST}
@@ -128,15 +128,15 @@ def verify_bundle(zip_path: Path, version: str, arch: str) -> None:
             extra = sorted(set(expected) - actual_payload)
             details = []
             if missing:
-                details.append("bez hasha: " + ", ".join(missing))
+                details.append("missing hash: " + ", ".join(missing))
             if extra:
-                details.append("hash bez datoteke: " + ", ".join(extra))
-            fail("manifest i ZIP se ne podudaraju (" + "; ".join(details) + ")")
+                details.append("hash without file: " + ", ".join(extra))
+            fail("manifest and ZIP differ (" + "; ".join(details) + ")")
 
         for member in sorted(actual_payload):
             actual = sha256_member(zf, files[member])
             if actual != expected[member]:
-                fail(f"SHA-256 se ne podudara za {member}")
+                fail(f"SHA-256 mismatch for {member}")
 
 
 def main() -> int:
