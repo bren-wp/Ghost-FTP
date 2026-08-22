@@ -37,10 +37,14 @@ func (a *app) updateTransferSummary() {
 }
 
 func (a *app) addTransfer(direction, local, remotePath, localRoot string) {
+	generation := a.connectionGeneration
 	a.setStatus("Dodavanje prijenosa…")
 	a.goSafe(func() {
 		_, err := a.engine.AddTransfer(direction, local, remotePath, localRoot)
 		a.dispatch(func() {
+			if generation != a.connectionGeneration {
+				return
+			}
 			if err != nil {
 				a.setStatus(usererror.Message(err, "Prijenos nije moguće pokrenuti."))
 				platform.ErrorDialog("ByFTP — prijenos", "Prijenos nije pokrenut", usererror.Message(err, "Provjerite vezu i odabrane datoteke."))
@@ -58,14 +62,39 @@ func (a *app) applyTransferEvents(events []transfer.Event) bool {
 	return changed
 }
 
+func (a *app) selectedTransferIDSet() map[string]struct{} {
+	selected := make(map[string]struct{})
+	for _, index := range selectedIndices(a.transferList) {
+		if index >= 0 && index < len(a.transferJobs) {
+			selected[a.transferJobs[index].ID] = struct{}{}
+		}
+	}
+	return selected
+}
+
+func (a *app) restoreTransferSelection(selected map[string]struct{}) {
+	if len(selected) == 0 {
+		return
+	}
+	for i, job := range a.transferJobs {
+		if _, ok := selected[job.ID]; ok {
+			setListRowSelected(a.transferList, i, true)
+		}
+	}
+}
+
 func (a *app) refreshTransfers() {
+	selected := a.selectedTransferIDSet()
 	events, seq := a.engine.TransferEvents(a.transferSeq)
 	a.transferSeq = seq
 	if !a.applyTransferEvents(events) {
+		a.updateActionControls()
 		return
 	}
 	fillTransfers(a.transferList, a.transferJobs)
+	a.restoreTransferSelection(selected)
 	a.updateTransferSummary()
+	a.updateActionControls()
 	refreshPanels := false
 	for _, j := range a.transferJobs {
 		if j.Status == "done" && !a.seenDone[j.ID] {
@@ -83,14 +112,20 @@ func (a *app) refreshTransfers() {
 
 func (a *app) pauseTransfers() {
 	a.engine.PauseTransfers()
-	a.setStatus("Red prijenosa pauziran.")
+	a.queuePaused = true
+	a.setStatus("Red prijenosa pauziran. Aktivni prijenosi mogu dovršiti trenutačni rad; novi čekaju nastavak.")
 	a.refreshTransfers()
+	a.updateActionControls()
 }
+
 func (a *app) resumeTransfers() {
 	a.engine.ResumeTransfers()
+	a.queuePaused = false
 	a.setStatus("Red prijenosa nastavljen.")
 	a.refreshTransfers()
+	a.updateActionControls()
 }
+
 func (a *app) clearFinishedTransfers() {
 	a.engine.ClearFinishedTransfers()
 	// IDs are used only to avoid refreshing both file panels repeatedly for the
@@ -98,6 +133,7 @@ func (a *app) clearFinishedTransfers() {
 	a.seenDone = make(map[string]bool)
 	a.setStatus("Završeni prijenosi uklonjeni iz reda.")
 	a.refreshTransfers()
+	a.updateActionControls()
 }
 
 func (a *app) selectedTransferIDs(validStatus func(string) bool) ([]string, error) {
@@ -148,9 +184,13 @@ func (a *app) retrySelectedTransfer() {
 		a.setStatus("Povežite se s poslužiteljem prije ponavljanja prijenosa.")
 		return
 	}
+	generation := a.connectionGeneration
 	a.goSafe(func() {
 		err := a.engine.RetryTransfers(ids)
 		a.dispatch(func() {
+			if generation != a.connectionGeneration {
+				return
+			}
 			if err != nil {
 				platform.ErrorDialog("ByFTP — prijenosi", "Radnja nije uspjela", usererror.Message(err, "Odabrane prijenose trenutačno nije moguće ponoviti."))
 				return

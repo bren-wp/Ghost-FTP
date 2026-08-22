@@ -31,17 +31,19 @@ const (
 	lvsilSmall         = 1
 
 	wmDestroy        = 0x0002
-	wmDrawItem       = 0x002B
-	wmClose          = 0x0010
 	wmSize           = 0x0005
-	wmDpiChanged     = 0x02E0
+	wmSetRedraw      = 0x000B
+	wmClose          = 0x0010
+	wmGetMinMaxInfo  = 0x0024
+	wmDrawItem       = 0x002B
 	wmSetFont        = 0x0030
+	wmNotify         = 0x004E
 	wmCommand        = 0x0111
 	wmTimer          = 0x0113
-	wmNotify         = 0x004E
 	wmCtlColorEdit   = 0x0133
 	wmCtlColorBtn    = 0x0135
 	wmCtlColorStatic = 0x0138
+	wmDpiChanged     = 0x02E0
 	wmAppDispatch    = 0x8001
 
 	swShow   = 5
@@ -59,18 +61,20 @@ const (
 	emSetLimitText = 0x00C5
 
 	lvmFirst                    = 0x1000
+	lvmSetBkColor               = lvmFirst + 1
 	lvmSetImageList             = lvmFirst + 3
 	lvmDeleteAllItems           = lvmFirst + 9
 	lvmGetNextItem              = lvmFirst + 12
-	lvmSetExtendedListViewStyle = lvmFirst + 54
 	lvmSetColumnWidth           = lvmFirst + 30
-	lvmInsertColumnW            = lvmFirst + 97
-	lvmInsertItemW              = lvmFirst + 77
-	lvmSetItemTextW             = lvmFirst + 116
-	lvmSetBkColor               = lvmFirst + 1
-	lvmSetTextBkColor           = lvmFirst + 38
 	lvmSetTextColor             = lvmFirst + 36
+	lvmSetTextBkColor           = lvmFirst + 38
+	lvmSetItemState             = lvmFirst + 43
+	lvmSetExtendedListViewStyle = lvmFirst + 54
+	lvmInsertItemW              = lvmFirst + 77
+	lvmInsertColumnW            = lvmFirst + 97
+	lvmSetItemTextW             = lvmFirst + 116
 	lvniSelected                = 0x0002
+	lvisSelected                = 0x0002
 	lvcfFmt                     = 0x0001
 	lvcfWidth                   = 0x0002
 	lvcfText                    = 0x0004
@@ -83,7 +87,8 @@ const (
 	fileAttributeDirectory = 0x00000010
 	fileAttributeNormal    = 0x00000080
 
-	nmDblClk = 0xFFFFFFFD
+	nmDblClk       = 0xFFFFFFFD
+	lvnItemChanged = 0xFFFFFF9B
 
 	odsSelected = 0x0001
 	odsDisabled = 0x0004
@@ -97,6 +102,9 @@ const (
 	dtNoPrefix        = 0x00000800
 	dtEndEllipsis     = 0x00008000
 	dtLeft            = 0x00000000
+
+	smCxScreen = 0
+	smCyScreen = 1
 
 	idProfiles      = 91
 	idSaveProfile   = 92
@@ -165,6 +173,7 @@ var (
 	updateWindow            = user32.NewProc("UpdateWindow")
 	getMessageW             = user32.NewProc("GetMessageW")
 	getClientRect           = user32.NewProc("GetClientRect")
+	getSystemMetrics        = user32.NewProc("GetSystemMetrics")
 	translateMessage        = user32.NewProc("TranslateMessage")
 	dispatchMessageW        = user32.NewProc("DispatchMessageW")
 	postQuitMessage         = user32.NewProc("PostQuitMessage")
@@ -242,6 +251,15 @@ type rtlOsVersionInfo struct {
 }
 
 type point struct{ X, Y int32 }
+
+type minMaxInfo struct {
+	Reserved     point
+	MaxSize      point
+	MaxPosition  point
+	MinTrackSize point
+	MaxTrackSize point
+}
+
 type msg struct {
 	Hwnd    uintptr
 	Message uint32

@@ -112,9 +112,58 @@ func selectedIndices(list uintptr) []int {
 	return out
 }
 
+func selectedItemNames(list uintptr, items []model.Item) map[string]struct{} {
+	selected := make(map[string]struct{})
+	for _, index := range selectedIndices(list) {
+		if index >= 0 && index < len(items) {
+			selected[items[index].Name] = struct{}{}
+		}
+	}
+	return selected
+}
+
+func setListRowSelected(list uintptr, row int, selected bool) {
+	if list == 0 || row < 0 {
+		return
+	}
+	state := uint32(0)
+	if selected {
+		state = lvisSelected
+	}
+	item := lvItem{State: state, StateMask: lvisSelected}
+	sendMessageW.Call(list, lvmSetItemState, uintptr(row), uintptr(unsafe.Pointer(&item)))
+}
+
+func restoreItemSelection(list uintptr, items []model.Item, selected map[string]struct{}) {
+	if len(selected) == 0 {
+		return
+	}
+	for i, item := range items {
+		if _, ok := selected[item.Name]; ok {
+			setListRowSelected(list, i, true)
+		}
+	}
+}
+
 func clearList(list uintptr) { sendMessageW.Call(list, lvmDeleteAllItems, 0, 0) }
 
+func setListRedraw(list uintptr, enabled bool) {
+	if list == 0 {
+		return
+	}
+	value := uintptr(0)
+	if enabled {
+		value = 1
+	}
+	sendMessageW.Call(list, wmSetRedraw, value, 0)
+	if enabled {
+		invalidateRect.Call(list, 0, 1)
+	}
+}
+
 func fillItems(list uintptr, items []model.Item) {
+	setListRedraw(list, false)
+	defer setListRedraw(list, true)
 	clearList(list)
 	for i, it := range items {
 		insertListRowWithImage(list, i, []string{it.Name, formatItemType(it), formatSize(it.Size, it.IsDirectory), formatTime(it.Modified)}, systemIconIndex(it.Name, it.IsDirectory))
@@ -122,6 +171,8 @@ func fillItems(list uintptr, items []model.Item) {
 }
 
 func fillTransfers(list uintptr, jobs []model.TransferJob) {
+	setListRedraw(list, false)
+	defer setListRedraw(list, true)
 	clearList(list)
 	for i, j := range jobs {
 		dir := "Preuzimanje"

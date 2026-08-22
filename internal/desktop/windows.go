@@ -37,28 +37,30 @@ type app struct {
 	status, statusVersion, transferSummary                                                    uintptr
 	buttons                                                                                   map[uintptr]buttonVisual
 
-	mu                 sync.Mutex
-	dispatchQ          []func()
-	localItems         []model.Item
-	remoteItems        []model.Item
-	transferJobs       []model.TransferJob
-	profiles           []model.PublicProfile
-	settings           model.Settings
-	localCurrent       string
-	remoteCurrent      string
-	selectedProfileID  string
-	connected          bool
-	connectionBusy     bool
-	healthCheckRunning bool
-	connectionCancel   context.CancelFunc
-	healthCheckCancel  context.CancelFunc
-	localNavCancel     context.CancelFunc
-	remoteNavCancel    context.CancelFunc
-	transferSeq        int64
-	seenDone           map[string]bool
-	closing            bool
-	localNavSeq        uint64
-	remoteNavSeq       uint64
+	mu                   sync.Mutex
+	dispatchQ            []func()
+	localItems           []model.Item
+	remoteItems          []model.Item
+	transferJobs         []model.TransferJob
+	profiles             []model.PublicProfile
+	settings             model.Settings
+	localCurrent         string
+	remoteCurrent        string
+	selectedProfileID    string
+	connected            bool
+	connectionBusy       bool
+	connectionGeneration uint64
+	healthCheckRunning   bool
+	connectionCancel     context.CancelFunc
+	healthCheckCancel    context.CancelFunc
+	localNavCancel       context.CancelFunc
+	remoteNavCancel      context.CancelFunc
+	transferSeq          int64
+	seenDone             map[string]bool
+	queuePaused          bool
+	closing              bool
+	localNavSeq          uint64
+	remoteNavSeq         uint64
 }
 
 var apps sync.Map
@@ -99,7 +101,7 @@ func Run(engine *api.Engine, version string) error {
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(wstr(brand.ProductName+" "+version+" — "+brand.Company))),
 		wsOverlappedWindow,
-		60, 35, 1500, 960,
+		40, 30, 1200, 780,
 		0, 0, hinst, 0,
 	)
 	if hwnd == 0 {
@@ -111,9 +113,8 @@ func Run(engine *api.Engine, version string) error {
 	a.hwnd = hwnd
 	a.dpi = windowDPI(hwnd)
 	apps.Store(hwnd, a)
-	// The process is per-monitor DPI aware, so size the initial native window in
-	// device pixels using the monitor DPI instead of assuming 96 DPI.
-	moveWindow.Call(hwnd, uintptr(a.scale(60)), uintptr(a.scale(35)), uintptr(a.scale(1500)), uintptr(a.scale(960)), 0)
+	x, y, w, h := a.preferredWindowBounds()
+	moveWindow.Call(hwnd, uintptr(a.scale(x)), uintptr(a.scale(y)), uintptr(a.scale(w)), uintptr(a.scale(h)), 0)
 	applyDarkTitleBar(hwnd)
 	if err := a.createControls(hinst); err != nil {
 		apps.Delete(hwnd)
@@ -132,8 +133,9 @@ func Run(engine *api.Engine, version string) error {
 	if r, _, _ := getClientRect.Call(hwnd, uintptr(unsafe.Pointer(&client))); r != 0 {
 		a.layout(int(client.Right-client.Left), int(client.Bottom-client.Top))
 	} else {
-		a.layout(a.scale(1460), a.scale(890))
+		a.layout(a.scale(1180), a.scale(760))
 	}
+	a.updateActionControls()
 	showWindow.Call(hwnd, swShow)
 	updateWindow.Call(hwnd)
 	setTimer.Call(hwnd, 1, 1000, 0)
@@ -190,6 +192,13 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	}
 	a := v.(*app)
 	switch message {
+	case wmGetMinMaxInfo:
+		if lParam != 0 {
+			info := (*minMaxInfo)(unsafe.Pointer(lParam))
+			info.MinTrackSize.X = int32(a.scale(940))
+			info.MinTrackSize.Y = int32(a.scale(680))
+		}
+		return 0
 	case wmSize:
 		w := int(lParam & 0xffff)
 		h := int((lParam >> 16) & 0xffff)
@@ -232,6 +241,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmNotify:
 		if lParam != 0 {
 			h := nmhdrFromLParam(lParam)
+			if h.Code == lvnItemChanged && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList || h.HwndFrom == a.transferList) {
+				a.updateActionControls()
+				return 0
+			}
 			if h.Code == nmDblClk {
 				if h.HwndFrom == a.localList {
 					a.openSelectedLocal()
@@ -267,8 +280,8 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		a.runDispatch()
 		return 0
 	case wmClose:
-		if a.connected || a.hasActiveTransfers() {
-			if !platform.ConfirmDialog("ByFTP", "Zatvoriti ByFTP?", "Veza ili prijenosi su još aktivni. Zatvaranje će prekinuti aktivne operacije.") {
+		if a.connected || a.connectionBusy || a.hasActiveTransfers() {
+			if !platform.ConfirmDialog("ByFTP", "Zatvoriti ByFTP?", "Veza, povezivanje ili prijenosi još su aktivni. Zatvaranje će prekinuti aktivne operacije.") {
 				return 0
 			}
 		}
@@ -276,6 +289,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		return 0
 	case wmDestroy:
 		a.cancelConnectionAttempt()
+		a.cancelHealthCheck()
 		if a.localNavCancel != nil {
 			a.localNavCancel()
 			a.localNavCancel = nil
@@ -283,10 +297,6 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		if a.remoteNavCancel != nil {
 			a.remoteNavCancel()
 			a.remoteNavCancel = nil
-		}
-		if a.healthCheckCancel != nil {
-			a.healthCheckCancel()
-			a.healthCheckCancel = nil
 		}
 		a.mu.Lock()
 		a.closing = true
