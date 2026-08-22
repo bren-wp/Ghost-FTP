@@ -124,8 +124,23 @@ func promptWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr
 	return r
 }
 
-// PromptDialog displays a small native edit dialog and returns the entered value.
+// PromptDialog displays a small native edit dialog using English action labels.
+// Localized UI call sites should use PromptDialogWithLabels.
 func PromptDialog(title, instruction, defaultValue string) (string, bool) {
+	return PromptDialogWithLabels(title, instruction, defaultValue, "OK", "Cancel")
+}
+
+// PromptDialogWithLabels displays a native edit dialog whose action labels are
+// supplied by the caller. Keeping the labels outside the platform package lets
+// the application use one selected runtime locale without introducing a second
+// localization system in the Win32 helper layer.
+func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLabel string) (string, bool) {
+	if okLabel == "" {
+		okLabel = "OK"
+	}
+	if cancelLabel == "" {
+		cancelLabel = "Cancel"
+	}
 	hinst, _, _ := promptGetModuleHandleW.Call(0)
 	promptOnce.Do(func() {
 		cursor, _, _ := promptLoadCursorW.Call(0, 32512)
@@ -174,8 +189,8 @@ func PromptDialog(title, instruction, defaultValue string) (string, bool) {
 	if state.edit != 0 {
 		promptSendMessageW.Call(state.edit, promptEMSetLimitText, 1024, 0)
 	}
-	mk("BUTTON", "U redu", wsTabStop, 310, 108, 86, 30, promptIDOK)
-	mk("BUTTON", "Odustani", wsTabStop, 402, 108, 86, 30, promptIDCancel)
+	mk("BUTTON", okLabel, wsTabStop, 310, 108, 86, 30, promptIDOK)
+	mk("BUTTON", cancelLabel, wsTabStop, 402, 108, 86, 30, promptIDCancel)
 	promptSetFocus.Call(state.edit)
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)
