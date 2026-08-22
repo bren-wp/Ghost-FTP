@@ -194,9 +194,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	switch message {
 	case wmGetMinMaxInfo:
 		if lParam != 0 {
-			info := (*minMaxInfo)(unsafe.Pointer(lParam))
+			info := minMaxInfoFromLParam(lParam)
 			info.MinTrackSize.X = int32(a.scale(940))
 			info.MinTrackSize.Y = int32(a.scale(680))
+			minMaxInfoToLParam(lParam, info)
 		}
 		return 0
 	case wmSize:
