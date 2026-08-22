@@ -6,6 +6,7 @@ import (
 	"brendigo.com/byftp/internal/desktop"
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/security"
+	"brendigo.com/byftp/internal/userdata"
 	"brendigo.com/byftp/internal/usererror"
 	"encoding/hex"
 	"errors"
@@ -69,9 +70,6 @@ func askpassMode() (bool, error) {
 	passphraseBlob := os.Getenv("BYFTP_PASSPHRASE_BLOB")
 	askpassExe := os.Getenv("SSH_ASKPASS")
 	require := os.Getenv("SSH_ASKPASS_REQUIRE")
-	// Remove inherited protected credential material from this helper's own
-	// environment immediately. The values remain local to this short-lived
-	// process and are never persisted or sent anywhere else.
 	for _, key := range []string{"BYFTP_ASKPASS_TOKEN", "BYFTP_PASSWORD_BLOB", "BYFTP_PASSPHRASE_BLOB"} {
 		_ = os.Unsetenv(key)
 	}
@@ -125,7 +123,7 @@ func main() {
 			platform.MessageBox(brand.ProductFull, "ByFTP closed unexpectedly. Restart the application and try again.", 0x10)
 		}
 	}()
-	release, ok := platform.AcquireSingleInstance(brand.Company + "." + brand.ProductName + ".Client")
+	release, ok := platform.AcquireSingleInstance("ByFTP.Client")
 	if !ok {
 		platform.MessageBox(brand.ProductFull, brand.ProductName+" is already running.", 0x40)
 		return
@@ -137,13 +135,21 @@ func main() {
 		platform.MessageBox("ByFTP", "ByFTP could not start. Restart the computer and try again.", 0x10)
 		return
 	}
+	localAppData, err := platform.LocalAppData()
+	if err != nil {
+		platform.MessageBox("ByFTP", "ByFTP could not access the user data folder.", 0x10)
+		return
+	}
+	if err := userdata.MigrateLegacy(localAppData, brand.ProductName); err != nil {
+		platform.MessageBox("ByFTP", usererror.Message(err, "ByFTP could not safely migrate the existing user data folder."), 0x10)
+		return
+	}
 	dataDir, err := api.DataDir()
 	if err != nil {
 		platform.MessageBox("ByFTP", usererror.Message(err, "ByFTP could not start. Check the user-folder permissions and try again."), 0x10)
 		return
 	}
-	localAppData, err := platform.LocalAppData()
-	if err != nil || security.EnsureNoRedirectDirectory(localAppData, dataDir) != nil {
+	if security.EnsureNoRedirectDirectory(localAppData, dataDir) != nil {
 		platform.MessageBox("ByFTP", "The ByFTP data folder is not safe to use. Remove the folder redirection and try again.", 0x10)
 		return
 	}
