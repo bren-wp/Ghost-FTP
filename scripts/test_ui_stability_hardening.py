@@ -57,11 +57,15 @@ class UIStabilityHardeningTests(unittest.TestCase):
     def test_windows_layout_and_actions_follow_current_context(self) -> None:
         ui = self.read("internal/desktop/ui_windows.go")
         windows = self.read("internal/desktop/windows.go")
+        win32 = self.read("internal/desktop/win32_defs_windows.go")
         actions = self.read("internal/desktop/action_state_windows.go")
         for marker in ("preferredWindowBounds", "compact := width < 1180", "resizeListColumns", "layoutPanelWidth"):
             self.assertIn(marker, ui)
-        for marker in ("wmGetMinMaxInfo", "lvnItemChanged", "updateActionControls()"):
+        for marker in ("wmGetMinMaxInfo", "lvnItemChanged", "updateActionControls()", "minMaxInfoFromLParam", "minMaxInfoToLParam"):
             self.assertIn(marker, windows)
+        self.assertNotIn("(*minMaxInfo)(unsafe.Pointer(lParam))", windows)
+        for marker in ("func minMaxInfoFromLParam", "func minMaxInfoToLParam", "rtlMoveMemory.Call"):
+            self.assertIn(marker, win32)
         for marker in ("localSelected == 1", "remoteSelected == 1", "deriveTransferActionState"):
             self.assertIn(marker, actions)
 
