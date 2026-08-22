@@ -4,9 +4,11 @@ package desktop
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
 	"unsafe"
 
+	"brendigo.com/byftp/internal/brand"
 	"brendigo.com/byftp/internal/i18n"
 	"brendigo.com/byftp/internal/model"
 	"brendigo.com/byftp/internal/platform"
@@ -14,7 +16,7 @@ import (
 )
 
 const (
-	idLanguage   = 96
+	idLanguage     = 96
 	cbResetContent = 0x014B
 	lvmSetColumnW  = lvmFirst + 96
 )
@@ -36,6 +38,19 @@ func (a *app) userMessage(err error, fallbackKey string) string {
 		fallback = a.tr(fallbackKey)
 	}
 	return usererror.MessageFor(a.languageCode(), err, fallback)
+}
+
+// workspaceSubtitle deliberately excludes company branding from the working
+// FTP surface. Brand/company metadata is presented in the dedicated About card
+// instead, keeping the primary workspace focused on files and connections.
+func (a *app) workspaceSubtitle() string {
+	text := a.tr("app.subtitle")
+	if separator := strings.LastIndex(text, "·"); separator >= 0 {
+		if strings.EqualFold(strings.TrimSpace(text[separator+len("·"):]), brand.Company) {
+			return strings.TrimSpace(text[:separator])
+		}
+	}
+	return text
 }
 
 func (a *app) setButtonLabel(hwnd uintptr, label string) {
@@ -160,7 +175,8 @@ func (a *app) applyLanguage(code string) {
 	}
 	a.settings.Language = i18n.Normalize(code)
 	a.populateLanguageCombo()
-	setText(a.brandSubtitle, a.tr("app.subtitle"))
+	setText(a.brandSubtitle, a.workspaceSubtitle())
+	setText(a.statusVersion, brand.ProductName+" "+a.version)
 	if a.connected {
 		setText(a.connectionBadge, a.tr("badge.connected"))
 	} else {
@@ -176,7 +192,10 @@ func (a *app) applyLanguage(code string) {
 	setText(a.sectionLocal, a.tr("section.local"))
 	setText(a.sectionRemote, a.tr("section.remote"))
 	setText(a.sectionTransfers, a.tr("section.transfers"))
-	for _, pair := range []struct{ hwnd uintptr; key string }{
+	for _, pair := range []struct {
+		hwnd uintptr
+		key  string
+	}{
 		{a.localUp, "common.up"}, {a.localChoose, "common.folder"}, {a.localRefresh, "common.refresh"},
 		{a.localMkdir, "common.new_folder"}, {a.localRename, "common.rename"}, {a.localDelete, "common.delete"},
 		{a.remoteUp, "common.up"}, {a.remoteRefresh, "common.refresh"}, {a.remoteMkdir, "common.new_folder"},
