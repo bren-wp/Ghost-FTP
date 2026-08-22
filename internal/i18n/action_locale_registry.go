@@ -46,3 +46,12 @@ var secondaryActionCatalogs = map[string]map[string]string{
 	"hi": actionLocale(actionHIValues),
 	"ja": actionLocale(actionJAValues),
 }
+
+var _ = registerSecondaryActionCatalogs()
+
+func registerSecondaryActionCatalogs() bool {
+	for code, entries := range secondaryActionCatalogs {
+		actionCatalogs[code] = entries
+	}
+	return true
+}
