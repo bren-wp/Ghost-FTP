@@ -63,6 +63,6 @@ func (a *app) command(id int) {
 		if a.connected {
 			a.refreshRemote(getText(a.remotePath))
 		}
-		a.setStatus("Osvježavanje lokalnog i udaljenog prikaza…")
+		a.setStatus(a.tr("status.refresh_all"))
 	}
 }
