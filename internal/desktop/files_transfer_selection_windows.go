@@ -7,7 +7,6 @@ import (
 	"errors"
 	"path"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"brendigo.com/byftp/internal/api"
@@ -222,5 +221,3 @@ func (a *app) checkConnectionAfterError() {
 		})
 	})
 }
-
-func queuedCountText(value int) string { return strconv.Itoa(value) }
