@@ -1,5 +1,25 @@
 # Povijest promjena
 
+## 1.0.11 — Responzivniji Windows UI i stabilniji session state
+
+**Fokus izdanja:** učiniti svakodnevni Windows rad jasnijim i otpornijim na stale callbackove, automatske refreshe i parcijalne remote operacije bez promjene FTP/FTPS/SFTP sigurnosnog modela.
+
+- Windows layout se prilagođava stvarnom client area prostoru i na užim prozorima koristi kompaktniji raspored connection forme umjesto iscrtavanja desnih kontrola izvan vidljivog područja
+- širine lokalnih, udaljenih i transfer stupaca računaju se iz dostupne širine panela, a prozor dobiva jasan minimalni tracking size
+- navigacijski gumbi prema nadređenoj mapi imaju vidljivu oznaku `Gore`, transfer lista prima keyboard focus, a action gumbi se uključuju samo kada trenutačni odabir i lifecycle stanje dopuštaju radnju
+- lokalni, udaljeni i transfer popisi čuvaju selekciju kroz automatski refresh kada ista stavka još postoji; redraw se privremeno gasi tijekom ponovnog punjenja kako bi bilo manje treperenja
+- transfer Pause/Resume/Cancel/Retry/Clear stanje izvodi se iz stvarnih statusa poslova, aktivne veze i autoritativnog `Paused` state eventa transfer managera
+- connect/disconnect/retry/health callbackovi u Windows UI-u vezani su uz `connectionGeneration`, pa rezultat stare sesije više ne može naknadno promijeniti novu vezu ili njezin UI
+- profilne i settings akcije zaključane su tijekom povezivanja, a profil validira protokol, host, port i korisničko ime prije obrade unesenih vjerodajnica
+- health check više ne poziva `Disconnect` iz pozadinskog goroutina prije provjere generationa; odluka o prekidu prvo se vraća na UI thread i ponovno potvrđuje aktualnu sesiju
+- višestruko remote brisanje i CHMOD koriste zajednički batch rezultat s brojem uspjelih i neuspjelih stavki; parcijalni uspjeh odmah osvježava remote listu umjesto ostavljanja stale prikaza
+- CHMOD u Windows UI-u preskače simboličke poveznice kao defense-in-depth zaštitu
+- queue dodavanje više ne prekida sve preostale odabrane mape nakon prve neovisne greške; uspjesi, neuspjeli odabiri i preskočene poveznice prikazuju se zasebno
+- korisni host hint više se ne prepisuje generičkim tekstom nakon učitavanja postavki
+- dodani su čisti Go testovi za batch partial-success/cancel accounting i transfer action state te Python source-level guard za generation binding, partial remote refresh, selection preservation, responzivni layout i profile-validation ordering
+- README je skraćen i usmjeren na stvarne 1.0.11 korisničke koristi uz zadržavanje svih sigurnosnih, platformski i razvojno važnih dokumentacijskih ulaza
+- verzija ostaje `1.0.11`; `v1.0.10` ostaje nepromjenjiv, a parcijalni međukorak 1.0.11 nije dobio release tag prije završnog CI-a
+
 ## 1.0.10 — Stabilniji cancel i lifecycle vanjskih procesa
 
 **Fokus izdanja:** spriječiti da `curl` ili OpenSSH helper proces ostane živ nakon timeouta ili korisničkog cancela, posebno tijekom SFTP AskPass autentikacije.
