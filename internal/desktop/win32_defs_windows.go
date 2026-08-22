@@ -358,3 +358,17 @@ func drawItemFromLParam(p uintptr) drawItemStruct {
 	}
 	return d
 }
+
+func minMaxInfoFromLParam(p uintptr) minMaxInfo {
+	var info minMaxInfo
+	if p != 0 {
+		rtlMoveMemory.Call(uintptr(unsafe.Pointer(&info)), p, unsafe.Sizeof(info))
+	}
+	return info
+}
+
+func minMaxInfoToLParam(p uintptr, info minMaxInfo) {
+	if p != 0 {
+		rtlMoveMemory.Call(p, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info))
+	}
+}
