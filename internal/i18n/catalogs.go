@@ -99,12 +99,11 @@ var catalogs = map[string]map[string]string{
 	"de": makeDE(), "fr": makeFR(), "es": makeES(), "tr": makeTR(), "el": makeEL(), "pt": makePT(), "zh": makeZH(), "ru": makeRU(), "hi": makeHI(), "ja": makeJA(),
 }
 
-// localizedFromEnglish starts from the complete English key set, then applies a
-// complete locale-specific override map. ValidateCatalogs guarantees that no
-// locale can silently omit or invent keys.
+// Each non-English locale file provides a complete map. Keeping this helper
+// independent of catalogs avoids package-initialization cycles; ValidateCatalogs
+// enforces exact key parity with the canonical English catalog.
 func localizedFromEnglish(overrides map[string]string) map[string]string {
-	out := make(map[string]string, len(catalogs["en"]))
-	for key, value := range catalogs["en"] { out[key] = value }
+	out := make(map[string]string, len(overrides))
 	for key, value := range overrides { out[key] = value }
 	return out
 }
