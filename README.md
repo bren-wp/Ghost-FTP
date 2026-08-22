@@ -60,17 +60,11 @@ Windows can switch language from the main window without restarting. The selecte
 
 ## What changes in 1.0.12
 
-1.0.12 is an English-first production cleanup, localization and UX release. It centralizes user-facing text instead of maintaining duplicated language-specific strings throughout the UI, adds twelve tested runtime languages, persists the selected locale, and adapts the Windows layout for longer translated labels.
+1.0.12 is an English-first production cleanup and localization release. It centralizes user-facing text instead of maintaining duplicated language-specific strings throughout the UI, adds twelve tested runtime languages, persists the selected locale, and adapts the Windows layout for longer translated labels.
 
-The primary workspace is now focused on FTP work rather than company branding. Product/company/support metadata is kept in the dedicated About surface. Native prompt labels, connection controls, list columns, transfer state and terminal interaction participate in the same language model instead of silently falling back to Croatian.
+The localization layer validates catalog completeness and formatting placeholders in tests. Known protocol/tool errors are mapped to one semantic user-error layer and translated there, so changing language does not change connection, security or transfer logic.
 
-The UX keeps the proven dual-pane + saved-session + background-queue model while reducing protocol-irrelevant clutter. The release continues the 1.0.11 stability work: responsive Windows sizing, selection preservation during refresh, connection-generation guards against stale callbacks, honest partial-success reporting and context-aware transfer controls.
-
-### Real FTP protocol regression
-
-The Linux CI suite includes a local real-protocol FTP integration test. It starts a loopback-only authenticated FTP server, then drives the production curl-backed adapter through actual TCP control and passive data channels. The tested workflow covers login, listing, folder creation/removal, upload, listing/revalidation, rename, byte-for-byte download, delete and final cleanup. A separate negative test verifies that an incorrect password does not establish a usable session.
-
-This test is deliberately local and deterministic: it does not embed public/shared-hosting credentials, contact an external test provider, require Docker, or weaken the no-extra-production-dependency policy. Live compatibility with a specific hosting provider still depends on that provider's FTP/FTPS policy.
+The release also continues the 1.0.11 UI/stability work: responsive Windows sizing, selection preservation during refresh, connection-generation guards against stale callbacks, honest partial-success reporting for remote batch operations and context-aware transfer controls.
 
 ## Shared hosting
 
@@ -171,30 +165,18 @@ shasum -a 256 ByFTP-<version>-macOS-Universal.pkg
 
 ## Documentation
 
-English is the canonical project language. Existing Croatian document filenames remain stable during the 1.0.12 migration so bookmarks and release links are not silently broken; their content is being migrated while localized user guides are layered on top of the same technical source of truth.
-
-**Getting started and everyday use**
+The repository is being standardized on English as the canonical documentation language. Existing document paths remain linked during the 1.0.12 migration so external links are not broken before their replacements are committed.
 
 - [Documentation center](docs/README.md)
 - [Installation and first connection](docs/INSTALACIJA.md)
 - [Shared hosting](docs/SHARED-HOSTING.md)
 - [Support and troubleshooting](docs/PODRSKA.md)
-
-**Security, privacy and quality**
-
 - [Security](docs/SIGURNOST.md)
 - [Privacy](docs/PRIVATNOST.md)
 - [Testing and quality](docs/TESTIRANJE.md)
 - [Release verification](docs/PROVJERA-IZDANJA.md)
-- [Distribution signing](docs/POTPISIVANJE.md)
-- [Third-party notices](docs/OBAVIJESTI-TRECIH-STRANA.md)
-
-**Development and release maintenance**
-
 - [Architecture](docs/ARHITEKTURA.md)
-- [Roadmap](docs/PLAN-RAZVOJA.md)
 - [Contribution policy](docs/DOPRINOS.md)
-- [Publishing on GitHub](docs/IZDAVANJE-NA-GITHUBU.md)
 
 ## Important limitations
 
