@@ -57,6 +57,11 @@ func (a *app) addTransfer(direction, local, remotePath, localRoot string) {
 }
 
 func (a *app) applyTransferEvents(events []transfer.Event) bool {
+	for _, event := range events {
+		if event.Type == "state" {
+			a.queuePaused = event.Paused
+		}
+	}
 	jobs, changed := applyTransferEventsToJobs(a.transferJobs, events)
 	a.transferJobs = jobs
 	return changed
