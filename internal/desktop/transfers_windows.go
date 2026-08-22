@@ -7,7 +7,6 @@ import (
 
 	"brendigo.com/byftp/internal/platform"
 	"brendigo.com/byftp/internal/transfer"
-	"brendigo.com/byftp/internal/usererror"
 )
 
 func (a *app) updateTransferSummary() {
@@ -26,19 +25,19 @@ func (a *app) updateTransferSummary() {
 			skipped++
 		}
 	}
-	text := fmt.Sprintf("%d aktivnih  •  %d na čekanju  •  %d završeno", running, queued, done)
+	text := a.tr("transfer.summary", running, queued, done)
 	if skipped > 0 {
-		text += fmt.Sprintf("  •  %d preskočeno", skipped)
+		text += a.tr("transfer.summary_skipped", skipped)
 	}
 	if failed > 0 {
-		text += fmt.Sprintf("  •  %d greška/otkazano", failed)
+		text += a.tr("transfer.summary_failed", failed)
 	}
 	setText(a.transferSummary, text)
 }
 
 func (a *app) addTransfer(direction, local, remotePath, localRoot string) {
 	generation := a.connectionGeneration
-	a.setStatus("Dodavanje prijenosa…")
+	a.setStatus(a.tr("transfer.adding"))
 	a.goSafe(func() {
 		_, err := a.engine.AddTransfer(direction, local, remotePath, localRoot)
 		a.dispatch(func() {
@@ -46,11 +45,11 @@ func (a *app) addTransfer(direction, local, remotePath, localRoot string) {
 				return
 			}
 			if err != nil {
-				a.setStatus(usererror.Message(err, "Prijenos nije moguće pokrenuti."))
-				platform.ErrorDialog("ByFTP — prijenos", "Prijenos nije pokrenut", usererror.Message(err, "Provjerite vezu i odabrane datoteke."))
+				a.setStatus(a.userMessage(err, "transfer.start_failed_status"))
+				platform.ErrorDialog(a.tr("transfer.tree_title"), a.tr("transfer.start_failed_title"), a.userMessage(err, "transfer.start_failed_body"))
 				return
 			}
-			a.setStatus("Prijenos dodan u red čekanja.")
+			a.setStatus(a.tr("transfer.queued"))
 			a.refreshTransfers()
 		})
 	})
@@ -81,9 +80,9 @@ func (a *app) restoreTransferSelection(selected map[string]struct{}) {
 	if len(selected) == 0 {
 		return
 	}
-	for i, job := range a.transferJobs {
+	for index, job := range a.transferJobs {
 		if _, ok := selected[job.ID]; ok {
-			setListRowSelected(a.transferList, i, true)
+			setListRowSelected(a.transferList, index, true)
 		}
 	}
 }
@@ -96,14 +95,14 @@ func (a *app) refreshTransfers() {
 		a.updateActionControls()
 		return
 	}
-	fillTransfers(a.transferList, a.transferJobs)
+	a.fillTransferList(a.transferList, a.transferJobs)
 	a.restoreTransferSelection(selected)
 	a.updateTransferSummary()
 	a.updateActionControls()
 	refreshPanels := false
-	for _, j := range a.transferJobs {
-		if j.Status == "done" && !a.seenDone[j.ID] {
-			a.seenDone[j.ID] = true
+	for _, job := range a.transferJobs {
+		if job.Status == "done" && !a.seenDone[job.ID] {
+			a.seenDone[job.ID] = true
 			refreshPanels = true
 		}
 	}
@@ -118,7 +117,7 @@ func (a *app) refreshTransfers() {
 func (a *app) pauseTransfers() {
 	a.engine.PauseTransfers()
 	a.queuePaused = true
-	a.setStatus("Red prijenosa pauziran. Aktivni prijenosi mogu dovršiti trenutačni rad; novi čekaju nastavak.")
+	a.setStatus(a.tr("transfer.pause_status"))
 	a.refreshTransfers()
 	a.updateActionControls()
 }
@@ -126,17 +125,17 @@ func (a *app) pauseTransfers() {
 func (a *app) resumeTransfers() {
 	a.engine.ResumeTransfers()
 	a.queuePaused = false
-	a.setStatus("Red prijenosa nastavljen.")
+	a.setStatus(a.tr("transfer.resume_status"))
 	a.refreshTransfers()
 	a.updateActionControls()
 }
 
 func (a *app) clearFinishedTransfers() {
 	a.engine.ClearFinishedTransfers()
-	// IDs are used only to avoid refreshing both file panels repeatedly for the
-	// same completed job. Once terminal jobs are removed, retain no stale IDs.
+	// IDs are only used to avoid refreshing both file panels repeatedly for the
+	// same completed job. Once terminal jobs are removed, keep no stale IDs.
 	a.seenDone = make(map[string]bool)
-	a.setStatus("Završeni prijenosi uklonjeni iz reda.")
+	a.setStatus(a.tr("transfer.clear_status"))
 	a.refreshTransfers()
 	a.updateActionControls()
 }
@@ -144,16 +143,16 @@ func (a *app) clearFinishedTransfers() {
 func (a *app) selectedTransferIDs(validStatus func(string) bool) ([]string, error) {
 	indices := selectedIndices(a.transferList)
 	if len(indices) == 0 {
-		return nil, fmt.Errorf("nije odabran nijedan prijenos")
+		return nil, fmt.Errorf("no transfer selected")
 	}
 	ids := make([]string, 0, len(indices))
 	for _, idx := range indices {
 		if idx < 0 || idx >= len(a.transferJobs) {
-			return nil, fmt.Errorf("odabir prijenosa više nije važeći")
+			return nil, fmt.Errorf("transfer selection is stale")
 		}
 		job := a.transferJobs[idx]
 		if !validStatus(job.Status) {
-			return nil, fmt.Errorf("jedan od odabranih prijenosa nema odgovarajući status")
+			return nil, fmt.Errorf("selected transfer has an incompatible status")
 		}
 		ids = append(ids, job.ID)
 	}
@@ -163,17 +162,17 @@ func (a *app) selectedTransferIDs(validStatus func(string) bool) ([]string, erro
 func (a *app) cancelSelectedTransfer() {
 	ids, err := a.selectedTransferIDs(func(status string) bool { return status == "queued" || status == "running" })
 	if err != nil {
-		a.setStatus("Odaberite jedan ili više aktivnih prijenosa za otkazivanje.")
+		a.setStatus(a.tr("transfer.select_active_cancel"))
 		return
 	}
 	a.goSafe(func() {
 		err := a.engine.CancelTransfers(ids)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("ByFTP — prijenosi", "Radnja nije uspjela", usererror.Message(err, "Odabrane prijenose trenutačno nije moguće otkazati."))
+				platform.ErrorDialog(a.tr("section.transfers"), a.tr("action.failed_title"), a.userMessage(err, "transfer.cancel_failed_body"))
 				return
 			}
-			a.setStatus(fmt.Sprintf("Otkazano prijenosa: %d", len(ids)))
+			a.setStatus(a.tr("transfer.cancelled_count", len(ids)))
 			a.refreshTransfers()
 		})
 	})
@@ -182,11 +181,11 @@ func (a *app) cancelSelectedTransfer() {
 func (a *app) retrySelectedTransfer() {
 	ids, err := a.selectedTransferIDs(func(status string) bool { return status == "failed" || status == "cancelled" })
 	if err != nil {
-		a.setStatus("Odaberite jedan ili više neuspjelih ili otkazanih prijenosa za ponavljanje.")
+		a.setStatus(a.tr("transfer.select_retry"))
 		return
 	}
 	if !a.connected {
-		a.setStatus("Povežite se s poslužiteljem prije ponavljanja prijenosa.")
+		a.setStatus(a.tr("transfer.retry_requires_connection"))
 		return
 	}
 	generation := a.connectionGeneration
@@ -197,10 +196,10 @@ func (a *app) retrySelectedTransfer() {
 				return
 			}
 			if err != nil {
-				platform.ErrorDialog("ByFTP — prijenosi", "Radnja nije uspjela", usererror.Message(err, "Odabrane prijenose trenutačno nije moguće ponoviti."))
+				platform.ErrorDialog(a.tr("section.transfers"), a.tr("action.failed_title"), a.userMessage(err, "transfer.retry_failed_body"))
 				return
 			}
-			a.setStatus(fmt.Sprintf("Ponovno dodano u red: %d", len(ids)))
+			a.setStatus(a.tr("transfer.requeued_count", len(ids)))
 			a.refreshTransfers()
 		})
 	})
