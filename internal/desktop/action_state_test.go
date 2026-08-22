@@ -38,3 +38,13 @@ func TestDeriveTransferActionStateRequiresConnectionForRetry(t *testing.T) {
 		t.Fatal("terminal job should allow clear")
 	}
 }
+
+func TestDeriveTransferActionStateDisablesQueueControlsWhileDisconnected(t *testing.T) {
+	jobs := []model.TransferJob{{ID: "q", Status: "queued"}}
+	for _, paused := range []bool{false, true} {
+		state := deriveTransferActionState(jobs, nil, false, paused)
+		if state.Pause || state.Resume {
+			t.Fatalf("queue pause/resume must be disabled while disconnected: %+v", state)
+		}
+	}
+}
