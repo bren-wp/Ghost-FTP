@@ -31,10 +31,10 @@ func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 	return err == nil && strings.EqualFold(filepath.Clean(exeAbs), filepath.Clean(askAbs))
 }
 
-// selectAskpassSecret je namjerno fail-closed. OpenSSH AskPass može se pozvati
-// i za keyboard-interactive/MFA upite. ByFTP ne smije automatski poslati
-// spremljenu lozinku na nepoznati prompt, nego samo na jasno prepoznati
-// password/passphrase upit.
+// selectAskpassSecret is intentionally fail-closed. OpenSSH AskPass may also
+// be invoked for keyboard-interactive or MFA challenges. ByFTP must never send
+// a stored secret to an unknown prompt; only explicit password/passphrase
+// prompts are eligible.
 func selectAskpassSecret(prompt string, password, passphrase []byte) ([]byte, bool) {
 	normalized := strings.ToLower(strings.Join(strings.Fields(prompt), " "))
 	for _, blocked := range []string{
@@ -80,10 +80,10 @@ func askpassMode() (bool, error) {
 		return true, err
 	}
 	if !validAskpassInvocation(exe, askpassExe, require, token) || !platform.TrustedAskPassParent() {
-		return true, errors.New("neispravan zahtjev za prijavu")
+		return true, errors.New("invalid sign-in request")
 	}
 	if passwordBlob == "" && passphraseBlob == "" {
-		return true, errors.New("vjerodajnica nije dostupna")
+		return true, errors.New("credential is unavailable")
 	}
 	var password, passphrase []byte
 	if passwordBlob != "" {
@@ -103,7 +103,7 @@ func askpassMode() (bool, error) {
 	prompt := strings.Join(os.Args[1:], " ")
 	secret, ok := selectAskpassSecret(prompt, password, passphrase)
 	if !ok {
-		return true, errors.New("nepoznat ili nepodržan zahtjev za vjerodajnicu")
+		return true, errors.New("unknown or unsupported credential request")
 	}
 	if _, err = os.Stdout.Write(secret); err != nil {
 		return true, err
@@ -122,39 +122,39 @@ func main() {
 	}
 	defer func() {
 		if recover() != nil {
-			platform.MessageBox(brand.ProductFull, "ByFTP je neočekivano zatvoren. Ponovno pokrenite aplikaciju.", 0x10)
+			platform.MessageBox(brand.ProductFull, "ByFTP closed unexpectedly. Restart the application and try again.", 0x10)
 		}
 	}()
 	release, ok := platform.AcquireSingleInstance(brand.Company + "." + brand.ProductName + ".Client")
 	if !ok {
-		platform.MessageBox(brand.ProductFull, brand.ProductName+" je već pokrenut.", 0x40)
+		platform.MessageBox(brand.ProductFull, brand.ProductName+" is already running.", 0x40)
 		return
 	}
 	defer release()
 
 	exe, err := os.Executable()
 	if err != nil {
-		platform.MessageBox("ByFTP", "ByFTP se ne može pokrenuti. Ponovno pokrenite računalo i pokušajte ponovno.", 0x10)
+		platform.MessageBox("ByFTP", "ByFTP could not start. Restart the computer and try again.", 0x10)
 		return
 	}
 	dataDir, err := api.DataDir()
 	if err != nil {
-		platform.MessageBox("ByFTP", usererror.Message(err, "ByFTP se ne može pokrenuti. Provjerite dopuštenja korisničke mape i pokušajte ponovno."), 0x10)
+		platform.MessageBox("ByFTP", usererror.Message(err, "ByFTP could not start. Check the user-folder permissions and try again."), 0x10)
 		return
 	}
 	localAppData, err := platform.LocalAppData()
 	if err != nil || security.EnsureNoRedirectDirectory(localAppData, dataDir) != nil {
-		platform.MessageBox("ByFTP", "ByFTP podatkovna mapa nije sigurna. Uklonite preusmjeravanje te mape i pokušajte ponovno.", 0x10)
+		platform.MessageBox("ByFTP", "The ByFTP data folder is not safe to use. Remove the folder redirection and try again.", 0x10)
 		return
 	}
 	engine, err := api.New(dataDir, exe)
 	if err != nil {
-		platform.MessageBox("ByFTP", usererror.Message(err, "ByFTP se ne može pokrenuti. Pokušajte ponovno."), 0x10)
+		platform.MessageBox("ByFTP", usererror.Message(err, "ByFTP could not start. Try again."), 0x10)
 		return
 	}
 	defer engine.Close()
 
 	if err := desktop.Run(engine, version); err != nil {
-		platform.MessageBox("ByFTP", usererror.Message(err, "ByFTP prozor nije moguće otvoriti. Pokušajte ponovno."), 0x10)
+		platform.MessageBox("ByFTP", usererror.Message(err, "The ByFTP window could not be opened. Try again."), 0x10)
 	}
 }
