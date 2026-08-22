@@ -45,43 +45,49 @@ func (a *app) createControls(hinst uintptr) error {
 		return a.registerButton(h, icon, label, variant)
 	}
 
-	// Branded application header.
+	// English is the canonical startup locale. loadSettings applies the saved
+	// locale immediately after the controls exist.
 	a.brandTitle = mk("STATIC", brand.ProductName, 0, 0)
-	a.brandSubtitle = mk("STATIC", "FTP • FTPS • SFTP  ·  Brzo upravljanje hostingom  ·  "+brand.Company, 0, 0)
-	a.connectionBadge = mk("STATIC", "● NIJE POVEZANO", 0, 0)
+	a.brandSubtitle = mk("STATIC", a.tr("app.subtitle"), 0, 0)
+	a.connectionBadge = mk("STATIC", a.tr("badge.disconnected"), 0, 0)
 	setFont(a.brandTitle, a.titleFont)
 	setFont(a.brandSubtitle, a.smallFont)
 	setFont(a.connectionBadge, a.smallFont)
 
+	// Language is placed in the header so long translated toolbar labels never
+	// compete with the profile/action row on smaller laptops.
+	a.languageCombo = mk("COMBOBOX", "", cbsDropDownList|wsTabStop|wsVScroll, idLanguage)
+	a.populateLanguageCombo()
+
 	// Profile / application toolbar.
 	a.profilesCombo = mk("COMBOBOX", "", cbsDropDownList|wsTabStop|wsVScroll, idProfiles)
-	sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr("Brzi spoj (bez profila)"))))
+	sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr(a.tr("profile.quick")))))
 	sendMessageW.Call(a.profilesCombo, cbSetCurSel, 0, 0)
-	a.saveProfile = mkButton("Spremi profil", iconSave, buttonDefault, idSaveProfile)
-	a.removeProfile = mkButton("Obriši profil", iconDelete, buttonDanger, idRemoveProfile)
-	a.settingsBtn = mkButton("Postavke", iconSettings, buttonSubtle, idSettings)
-	a.aboutBtn = mkButton("O programu", iconInfo, buttonSubtle, idAbout)
+	a.saveProfile = mkButton(a.tr("profile.save"), iconSave, buttonDefault, idSaveProfile)
+	a.removeProfile = mkButton(a.tr("profile.delete"), iconDelete, buttonDanger, idRemoveProfile)
+	a.settingsBtn = mkButton(a.tr("common.settings"), iconSettings, buttonSubtle, idSettings)
+	a.aboutBtn = mkButton(a.tr("common.about"), iconInfo, buttonSubtle, idAbout)
 
 	// Connection row.
 	a.protocol = mk("COMBOBOX", "", cbsDropDownList|wsTabStop|wsVScroll, idProtocol)
 	for _, spec := range protocolSpecs {
-		sendMessageW.Call(a.protocol, cbAddString, 0, uintptr(unsafe.Pointer(wstr(spec.Label))))
+		sendMessageW.Call(a.protocol, cbAddString, 0, uintptr(unsafe.Pointer(wstr(protocolLabel(a.languageCode(), spec.Value)))))
 	}
 	sendMessageW.Call(a.protocol, cbSetCurSel, 0, 0)
 	a.host = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, idHost)
 	a.port = mk("EDIT", protocolSpecs[0].Port, wsBorder|wsTabStop|esAutoHScroll, idPort)
 	a.user = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, idUser)
 	a.pass = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, idPass)
-	a.connect = mkButton("Poveži", iconConnect, buttonAccent, idConnect)
-	a.disconnect = mkButton("Prekini", iconDisconnect, buttonDanger, idDisconnect)
+	a.connect = mkButton(a.tr("common.connect"), iconConnect, buttonAccent, idConnect)
+	a.disconnect = mkButton(a.tr("common.disconnect"), iconDisconnect, buttonDanger, idDisconnect)
 	enableWindow.Call(a.disconnect, 0)
-	cue(a.host, "FTP/SFTP poslužitelj, npr. ftp.domena.hr")
-	cue(a.user, "Korisničko ime, može korisnik@domena")
-	cue(a.pass, "FTP / SFTP lozinka")
+	cue(a.host, a.tr("cue.host"))
+	cue(a.user, a.tr("cue.user"))
+	cue(a.pass, a.tr("cue.password"))
 
 	// SFTP authentication row. Disabled for FTP/FTPS.
 	a.keyPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, idKeyPath)
-	a.chooseKey = mkButton("Privatni ključ…", iconPermissions, buttonDefault, idChooseKey)
+	a.chooseKey = mkButton(a.tr("auth.private_key"), iconPermissions, buttonDefault, idChooseKey)
 	a.passphrase = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, idPassphrase)
 	limitEdit(a.host, 253)
 	limitEdit(a.port, 5)
@@ -89,52 +95,52 @@ func (a *app) createControls(hinst uintptr) error {
 	limitEdit(a.pass, 8192)
 	limitEdit(a.keyPath, 32767)
 	limitEdit(a.passphrase, 8192)
-	cue(a.keyPath, "Privatni ključ za SFTP (opcionalno)")
-	cue(a.passphrase, "Zaporka privatnog ključa")
+	cue(a.keyPath, a.tr("cue.private_key"))
+	cue(a.passphrase, a.tr("cue.passphrase"))
 
 	// Section labels.
-	a.sectionLocal = mk("STATIC", "LOKALNO RAČUNALO", 0, 0)
-	a.sectionRemote = mk("STATIC", "POSLUŽITELJ", 0, 0)
-	a.sectionTransfers = mk("STATIC", "PRIJENOSI", 0, 0)
+	a.sectionLocal = mk("STATIC", a.tr("section.local"), 0, 0)
+	a.sectionRemote = mk("STATIC", a.tr("section.remote"), 0, 0)
+	a.sectionTransfers = mk("STATIC", a.tr("section.transfers"), 0, 0)
 	setFont(a.sectionLocal, a.smallFont)
 	setFont(a.sectionRemote, a.smallFont)
 	setFont(a.sectionTransfers, a.smallFont)
 
 	// Local panel.
 	a.localPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, idLocalPath)
-	a.localUp = mkButton("Gore", iconUp, buttonSubtle, idLocalUp)
-	a.localChoose = mkButton("Mapa…", iconOpenLocal, buttonDefault, idLocalChoose)
-	a.localRefresh = mkButton("Osvježi", iconRefresh, buttonSubtle, idLocalRefresh)
-	a.localMkdir = mkButton("Nova mapa", iconNewFolder, buttonDefault, idLocalMkdir)
-	a.localRename = mkButton("Preimenuj", iconRename, buttonDefault, idLocalRename)
-	a.localDelete = mkButton("Obriši", iconDelete, buttonDanger, idLocalDelete)
+	a.localUp = mkButton(a.tr("common.up"), iconUp, buttonSubtle, idLocalUp)
+	a.localChoose = mkButton(a.tr("common.folder"), iconOpenLocal, buttonDefault, idLocalChoose)
+	a.localRefresh = mkButton(a.tr("common.refresh"), iconRefresh, buttonSubtle, idLocalRefresh)
+	a.localMkdir = mkButton(a.tr("common.new_folder"), iconNewFolder, buttonDefault, idLocalMkdir)
+	a.localRename = mkButton(a.tr("common.rename"), iconRename, buttonDefault, idLocalRename)
+	a.localDelete = mkButton(a.tr("common.delete"), iconDelete, buttonDanger, idLocalDelete)
 	a.localList = mk("SysListView32", "", wsBorder|wsTabStop|lvsReport|lvsShowSelAlways, idLocalList)
 
 	// Remote panel.
 	a.remotePath = mk("EDIT", "/", wsBorder|wsTabStop|esAutoHScroll, idRemotePath)
 	limitEdit(a.localPath, 32767)
 	limitEdit(a.remotePath, 4096)
-	a.remoteUp = mkButton("Gore", iconUp, buttonSubtle, idRemoteUp)
-	a.remoteRefresh = mkButton("Osvježi", iconRefresh, buttonSubtle, idRemoteRefresh)
-	a.remoteMkdir = mkButton("Nova mapa", iconNewFolder, buttonDefault, idRemoteMkdir)
-	a.remoteRename = mkButton("Preimenuj", iconRename, buttonDefault, idRemoteRename)
-	a.remoteDelete = mkButton("Obriši", iconDelete, buttonDanger, idRemoteDelete)
-	a.remoteChmod = mkButton("Dozvole", iconPermissions, buttonDefault, idRemoteChmod)
+	a.remoteUp = mkButton(a.tr("common.up"), iconUp, buttonSubtle, idRemoteUp)
+	a.remoteRefresh = mkButton(a.tr("common.refresh"), iconRefresh, buttonSubtle, idRemoteRefresh)
+	a.remoteMkdir = mkButton(a.tr("common.new_folder"), iconNewFolder, buttonDefault, idRemoteMkdir)
+	a.remoteRename = mkButton(a.tr("common.rename"), iconRename, buttonDefault, idRemoteRename)
+	a.remoteDelete = mkButton(a.tr("common.delete"), iconDelete, buttonDanger, idRemoteDelete)
+	a.remoteChmod = mkButton(a.tr("common.permissions"), iconPermissions, buttonDefault, idRemoteChmod)
 	a.remoteList = mk("SysListView32", "", wsBorder|wsTabStop|lvsReport|lvsShowSelAlways, idRemoteList)
 
-	a.upload = mkButton("Pošalji", iconUpload, buttonAccent, idUpload)
-	a.download = mkButton("Preuzmi", iconDownload, buttonAccent, idDownload)
+	a.upload = mkButton(a.tr("transfer.upload"), iconUpload, buttonAccent, idUpload)
+	a.download = mkButton(a.tr("transfer.download"), iconDownload, buttonAccent, idDownload)
 
 	// Transfer queue.
-	a.pauseQueue = mkButton("Pauziraj", iconPause, buttonDefault, idPauseQueue)
-	a.resumeQueue = mkButton("Nastavi", iconPlay, buttonDefault, idResumeQueue)
-	a.cancelJob = mkButton("Otkaži", iconCancel, buttonDanger, idCancelJob)
-	a.retryJob = mkButton("Ponovi", iconSync, buttonDefault, idRetryJob)
-	a.clearQueue = mkButton("Očisti završene", iconClear, buttonSubtle, idClearQueue)
+	a.pauseQueue = mkButton(a.tr("transfer.pause"), iconPause, buttonDefault, idPauseQueue)
+	a.resumeQueue = mkButton(a.tr("transfer.resume"), iconPlay, buttonDefault, idResumeQueue)
+	a.cancelJob = mkButton(a.tr("common.cancel"), iconCancel, buttonDanger, idCancelJob)
+	a.retryJob = mkButton(a.tr("transfer.retry"), iconSync, buttonDefault, idRetryJob)
+	a.clearQueue = mkButton(a.tr("transfer.clear"), iconClear, buttonSubtle, idClearQueue)
 	a.transferList = mk("SysListView32", "", wsBorder|wsTabStop|lvsReport|lvsShowSelAlways, idTransferList)
 	a.status = mk("STATIC", "", 0, idStatus)
 	a.statusVersion = mk("STATIC", brand.ProductName+" "+a.version+"  •  "+brand.Company, 0, 0)
-	a.transferSummary = mk("STATIC", "0 aktivnih  •  0 na čekanju  •  0 završeno", 0, 0)
+	a.transferSummary = mk("STATIC", a.tr("transfer.summary", 0, 0, 0), 0, 0)
 	setFont(a.status, a.smallFont)
 	setFont(a.statusVersion, a.smallFont)
 	setFont(a.transferSummary, a.smallFont)
@@ -153,6 +159,7 @@ func (a *app) createControls(hinst uintptr) error {
 	a.setRemoteControls(false)
 	a.updateProtocolControls()
 	a.updateActionControls()
+	a.applyLanguage(a.languageCode())
 	return a.validateControls()
 }
 
@@ -255,7 +262,7 @@ func (a *app) applyDPI(dpi uint32) {
 
 func (a *app) defaultFontControls() []uintptr {
 	return []uintptr{
-		a.profilesCombo, a.saveProfile, a.removeProfile, a.settingsBtn, a.aboutBtn,
+		a.profilesCombo, a.languageCombo, a.saveProfile, a.removeProfile, a.settingsBtn, a.aboutBtn,
 		a.protocol, a.host, a.port, a.user, a.pass, a.keyPath, a.chooseKey, a.passphrase, a.connect, a.disconnect,
 		a.localPath, a.localUp, a.localRefresh, a.localChoose, a.localList, a.localMkdir, a.localRename, a.localDelete,
 		a.remotePath, a.remoteUp, a.remoteRefresh, a.remoteList, a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod,
@@ -287,7 +294,9 @@ func (a *app) resizeListColumns() {
 		logicalWidth = 900
 	}
 	panelW := layoutPanelWidth(logicalWidth)
-	typeW, sizeW, modifiedW := 70, 86, 128
+	// Type/status text can be longer in German/French/Portuguese; reserve a
+	// little more room while keeping the filename column elastic.
+	typeW, sizeW, modifiedW := 82, 92, 132
 	nameW := panelW - typeW - sizeW - modifiedW - 8
 	if nameW < 120 {
 		nameW = 120
@@ -302,10 +311,10 @@ func (a *app) resizeListColumns() {
 	}
 
 	available := logicalWidth - 28
-	directionW, statusW, progressW := 96, 160, 88
+	directionW, statusW, progressW := 108, 184, 92
 	pathsW := available - directionW - statusW - progressW - 8
-	if pathsW < 360 {
-		pathsW = 360
+	if pathsW < 340 {
+		pathsW = 340
 	}
 	localW := pathsW / 2
 	remoteW := pathsW - localW
@@ -319,7 +328,6 @@ func (a *app) resizeListColumns() {
 
 func applyDarkTitleBar(hwnd uintptr) {
 	value := int32(1)
-	// DWMWA_USE_IMMERSIVE_DARK_MODE is 20 on current Windows 10/11.
 	_, _, _ = dwmSetWindowAttribute.Call(hwnd, 20, uintptr(unsafe.Pointer(&value)), unsafe.Sizeof(value))
 }
 
@@ -343,18 +351,18 @@ func limitEdit(hwnd uintptr, maxChars uintptr) {
 }
 
 func (a *app) setupFileColumns(list uintptr) {
-	a.insertColumn(list, 0, "Naziv", 300)
-	a.insertColumn(list, 1, "Vrsta", 92)
-	a.insertColumn(list, 2, "Veličina", 104)
-	a.insertColumn(list, 3, "Izmijenjeno", 150)
+	a.insertColumn(list, 0, a.tr("column.name"), 300)
+	a.insertColumn(list, 1, a.tr("column.type"), 92)
+	a.insertColumn(list, 2, a.tr("column.size"), 104)
+	a.insertColumn(list, 3, a.tr("column.modified"), 150)
 }
 
 func (a *app) setupTransferColumns(list uintptr) {
-	a.insertColumn(list, 0, "Smjer", 100)
-	a.insertColumn(list, 1, "Lokalno", 325)
-	a.insertColumn(list, 2, "Poslužitelj", 325)
-	a.insertColumn(list, 3, "Status", 180)
-	a.insertColumn(list, 4, "Napredak", 92)
+	a.insertColumn(list, 0, a.tr("column.direction"), 100)
+	a.insertColumn(list, 1, a.tr("column.local"), 325)
+	a.insertColumn(list, 2, a.tr("column.remote"), 325)
+	a.insertColumn(list, 3, a.tr("column.status"), 180)
+	a.insertColumn(list, 4, a.tr("column.progress"), 92)
 }
 
 func (a *app) insertColumn(list uintptr, idx int, title string, width int) {
@@ -385,63 +393,75 @@ func (a *app) layout(width, height int) {
 	margin, gap, rowH := 14, 8, 29
 	compact := width < 1180
 
-	// Branded header and compact application toolbar.
+	// Header keeps the locale selector visible at every supported width without
+	// stealing space from file-transfer actions.
 	headerY := 10
-	badgeW := 142
-	a.move(a.brandTitle, margin, headerY, 145, 35)
-	subtitleW := width - (margin + 152) - badgeW - 2*margin
-	if subtitleW < 260 {
-		subtitleW = 260
+	badgeW, languageW := 142, 170
+	if compact {
+		languageW = 142
 	}
-	a.move(a.brandSubtitle, margin+152, headerY+8, subtitleW, 22)
+	a.move(a.brandTitle, margin, headerY, 145, 35)
+	subtitleX := margin + 152
+	languageX := width - margin - badgeW - gap - languageW
+	subtitleW := languageX - gap - subtitleX
+	if subtitleW < 180 {
+		subtitleW = 180
+	}
+	a.move(a.brandSubtitle, subtitleX, headerY+8, subtitleW, 22)
+	a.move(a.languageCombo, languageX, headerY+3, languageW, rowH)
 	a.move(a.connectionBadge, width-margin-badgeW, headerY+8, badgeW, 22)
 
 	toolbarY := 51
-	a.move(a.profilesCombo, margin, toolbarY, 300, rowH)
-	a.move(a.saveProfile, margin+308, toolbarY, 126, rowH)
-	a.move(a.removeProfile, margin+442, toolbarY, 126, rowH)
-	a.move(a.settingsBtn, margin+576, toolbarY, 110, rowH)
-	a.move(a.aboutBtn, margin+694, toolbarY, 112, rowH)
+	availableToolbar := width - 2*margin
+	profileW := clampInt(availableToolbar-126-126-110-112-4*gap, 220, 360)
+	x := margin
+	a.move(a.profilesCombo, x, toolbarY, profileW, rowH)
+	x += profileW + gap
+	buttonWidths := []int{126, 126, 110, 112}
+	if compact {
+		buttonWidths = []int{118, 118, 104, 104}
+	}
+	for index, h := range []uintptr{a.saveProfile, a.removeProfile, a.settingsBtn, a.aboutBtn} {
+		a.move(h, x, toolbarY, buttonWidths[index], rowH)
+		x += buttonWidths[index] + gap
+	}
 
 	sectionY := 168
 	if !compact {
-		// Connection row.
 		y := 89
 		x := margin
-		a.move(a.protocol, x, y, 118, rowH)
-		x += 118 + gap
-		a.move(a.host, x, y, 280, rowH)
-		x += 280 + gap
+		a.move(a.protocol, x, y, 138, rowH)
+		x += 138 + gap
+		a.move(a.host, x, y, 270, rowH)
+		x += 270 + gap
 		a.move(a.port, x, y, 70, rowH)
 		x += 70 + gap
-		a.move(a.user, x, y, 230, rowH)
-		x += 230 + gap
-		a.move(a.pass, x, y, 170, rowH)
-		x += 170 + gap
-		a.move(a.connect, x, y, 106, rowH)
-		x += 106 + gap
-		a.move(a.disconnect, x, y, 106, rowH)
+		a.move(a.user, x, y, 220, rowH)
+		x += 220 + gap
+		a.move(a.pass, x, y, 166, rowH)
+		x += 166 + gap
+		a.move(a.connect, x, y, 116, rowH)
+		x += 116 + gap
+		a.move(a.disconnect, x, y, 116, rowH)
 
-		// SFTP authentication row.
 		y = 126
 		a.move(a.keyPath, margin, y, 500, rowH)
-		a.move(a.chooseKey, margin+508, y, 112, rowH)
-		a.move(a.passphrase, margin+628, y, 240, rowH)
+		a.move(a.chooseKey, margin+508, y, 136, rowH)
+		a.move(a.passphrase, margin+652, y, 240, rowH)
 	} else {
-		// Compact layout keeps all connection fields usable on common laptop
-		// resolutions instead of letting the right side fall outside the client.
 		available := width - 2*margin
 		y := 89
-		hostW := clampInt(available-118-70-2*gap, 300, 500)
+		protocolW := 138
+		hostW := clampInt(available-protocolW-70-2*gap, 280, 480)
 		x := margin
-		a.move(a.protocol, x, y, 118, rowH)
-		x += 118 + gap
+		a.move(a.protocol, x, y, protocolW, rowH)
+		x += protocolW + gap
 		a.move(a.host, x, y, hostW, rowH)
 		x += hostW + gap
 		a.move(a.port, x, y, 70, rowH)
 
 		y = 126
-		buttonW := 100
+		buttonW := 112
 		fieldSpace := available - 2*buttonW - 3*gap
 		userW := fieldSpace * 55 / 100
 		passW := fieldSpace - userW
@@ -455,10 +475,10 @@ func (a *app) layout(width, height int) {
 		a.move(a.disconnect, x, y, buttonW, rowH)
 
 		y = 163
-		chooseW, passphraseW := 112, 240
+		chooseW, passphraseW := 136, 220
 		keyW := available - chooseW - passphraseW - 2*gap
-		if keyW < 280 {
-			passphraseW = 190
+		if keyW < 260 {
+			passphraseW = 180
 			keyW = available - chooseW - passphraseW - 2*gap
 		}
 		a.move(a.keyPath, margin, y, keyW, rowH)
@@ -467,7 +487,6 @@ func (a *app) layout(width, height int) {
 		sectionY = 204
 	}
 
-	// File panels.
 	centerW, panelGap := 126, 12
 	if compact {
 		centerW, panelGap = 96, 10
@@ -482,10 +501,16 @@ func (a *app) layout(width, height int) {
 
 	pathY := sectionY + 24
 	buttonGap := 6
-	upW, chooseW, refreshW := 64, 82, 78
+	upW, chooseW, refreshW := 70, 94, 92
+	if compact {
+		upW, chooseW, refreshW = 64, 82, 84
+	}
 	localPathW := panelW - upW - chooseW - refreshW - 3*buttonGap
+	if localPathW < 80 {
+		localPathW = 80
+	}
 	a.move(a.localPath, leftX, pathY, localPathW, rowH)
-	x := leftX + localPathW + buttonGap
+	x = leftX + localPathW + buttonGap
 	a.move(a.localUp, x, pathY, upW, rowH)
 	x += upW + buttonGap
 	a.move(a.localChoose, x, pathY, chooseW, rowH)
@@ -493,6 +518,9 @@ func (a *app) layout(width, height int) {
 	a.move(a.localRefresh, x, pathY, refreshW, rowH)
 
 	remotePathW := panelW - upW - refreshW - 2*buttonGap
+	if remotePathW < 80 {
+		remotePathW = 80
+	}
 	a.move(a.remotePath, rightX, pathY, remotePathW, rowH)
 	x = rightX + remotePathW + buttonGap
 	a.move(a.remoteUp, x, pathY, upW, rowH)
@@ -500,9 +528,9 @@ func (a *app) layout(width, height int) {
 	a.move(a.remoteRefresh, x, pathY, refreshW, rowH)
 
 	actionY := pathY + rowH + 7
-	mkdirW, renameW, deleteW, chmodW, actionGap := 92, 112, 94, 96, 8
+	mkdirW, renameW, deleteW, chmodW, actionGap := 104, 124, 104, 112, 8
 	if compact {
-		mkdirW, renameW, deleteW, chmodW, actionGap = 82, 98, 82, 90, 6
+		mkdirW, renameW, deleteW, chmodW, actionGap = 88, 102, 86, 96, 6
 	}
 	a.move(a.localMkdir, leftX, actionY, mkdirW, rowH)
 	a.move(a.localRename, leftX+mkdirW+actionGap, actionY, renameW, rowH)
@@ -536,20 +564,21 @@ func (a *app) layout(width, height int) {
 	a.move(a.download, centerX, listY+clampInt(listH/3+47, 92, 145), centerW, 38)
 
 	queueLabelY := listY + listH + 10
-	a.move(a.sectionTransfers, margin, queueLabelY, 160, 18)
-	summaryW := width - margin - (margin + 160)
-	if summaryW > 520 {
-		summaryW = 520
+	a.move(a.sectionTransfers, margin, queueLabelY, 180, 18)
+	summaryW := width - margin - (margin + 180)
+	if summaryW > 580 {
+		summaryW = 580
 	}
-	a.move(a.transferSummary, margin+160, queueLabelY, summaryW, 18)
+	a.move(a.transferSummary, margin+180, queueLabelY, summaryW, 18)
 	queueButtonsY := queueLabelY + 22
 	qx := margin
-	for _, item := range []struct {
-		h uintptr
-		w int
-	}{{a.pauseQueue, 108}, {a.resumeQueue, 108}, {a.cancelJob, 96}, {a.retryJob, 96}, {a.clearQueue, 146}} {
-		a.move(item.h, qx, queueButtonsY, item.w, queueButtonsH)
-		qx += item.w + gap
+	queueWidths := []int{118, 118, 108, 108, 164}
+	if compact {
+		queueWidths = []int{108, 108, 100, 100, 150}
+	}
+	for index, h := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob, a.clearQueue} {
+		a.move(h, qx, queueButtonsY, queueWidths[index], queueButtonsH)
+		qx += queueWidths[index] + gap
 	}
 	queueY := queueButtonsY + queueButtonsH + 7
 	a.move(a.transferList, margin, queueY, width-2*margin, queueH)
@@ -585,21 +614,21 @@ func (a *app) validateControls() error {
 		name string
 		h    uintptr
 	}{
-		{"naslov", a.brandTitle}, {"podnaslov", a.brandSubtitle}, {"status veze", a.connectionBadge},
-		{"profili", a.profilesCombo}, {"spremi profil", a.saveProfile}, {"obriši profil", a.removeProfile}, {"postavke", a.settingsBtn}, {"o programu", a.aboutBtn},
-		{"protokol", a.protocol}, {"poslužitelj", a.host}, {"port", a.port}, {"korisnik", a.user}, {"lozinka", a.pass},
-		{"privatni ključ", a.keyPath}, {"odabir ključa", a.chooseKey}, {"zaporka ključa", a.passphrase}, {"poveži", a.connect}, {"prekini", a.disconnect},
-		{"lokalna putanja", a.localPath}, {"lokalno gore", a.localUp}, {"lokalni odabir", a.localChoose}, {"lokalno osvježi", a.localRefresh},
-		{"lokalna lista", a.localList}, {"lokalna nova mapa", a.localMkdir}, {"lokalno preimenuj", a.localRename}, {"lokalno obriši", a.localDelete},
-		{"udaljena putanja", a.remotePath}, {"udaljeno gore", a.remoteUp}, {"udaljeno osvježi", a.remoteRefresh}, {"udaljena lista", a.remoteList},
-		{"udaljena nova mapa", a.remoteMkdir}, {"udaljeno preimenuj", a.remoteRename}, {"udaljeno obriši", a.remoteDelete}, {"udaljene dozvole", a.remoteChmod},
-		{"pošalji", a.upload}, {"preuzmi", a.download}, {"lista prijenosa", a.transferList}, {"pauziraj", a.pauseQueue}, {"nastavi", a.resumeQueue},
-		{"otkaži prijenos", a.cancelJob}, {"ponovi prijenos", a.retryJob}, {"očisti prijenose", a.clearQueue},
-		{"status", a.status}, {"verzija", a.statusVersion}, {"sažetak prijenosa", a.transferSummary},
+		{"title", a.brandTitle}, {"subtitle", a.brandSubtitle}, {"connection badge", a.connectionBadge}, {"language", a.languageCombo},
+		{"profiles", a.profilesCombo}, {"save profile", a.saveProfile}, {"delete profile", a.removeProfile}, {"settings", a.settingsBtn}, {"about", a.aboutBtn},
+		{"protocol", a.protocol}, {"server", a.host}, {"port", a.port}, {"username", a.user}, {"password", a.pass},
+		{"private key", a.keyPath}, {"choose key", a.chooseKey}, {"key passphrase", a.passphrase}, {"connect", a.connect}, {"disconnect", a.disconnect},
+		{"local path", a.localPath}, {"local up", a.localUp}, {"local choose", a.localChoose}, {"local refresh", a.localRefresh},
+		{"local list", a.localList}, {"local new folder", a.localMkdir}, {"local rename", a.localRename}, {"local delete", a.localDelete},
+		{"remote path", a.remotePath}, {"remote up", a.remoteUp}, {"remote refresh", a.remoteRefresh}, {"remote list", a.remoteList},
+		{"remote new folder", a.remoteMkdir}, {"remote rename", a.remoteRename}, {"remote delete", a.remoteDelete}, {"remote permissions", a.remoteChmod},
+		{"upload", a.upload}, {"download", a.download}, {"transfer list", a.transferList}, {"pause", a.pauseQueue}, {"resume", a.resumeQueue},
+		{"cancel transfer", a.cancelJob}, {"retry transfer", a.retryJob}, {"clear transfers", a.clearQueue},
+		{"status", a.status}, {"version", a.statusVersion}, {"transfer summary", a.transferSummary},
 	}
 	for _, control := range controls {
 		if control.h == 0 {
-			return fmt.Errorf("nije moguće inicijalizirati kontrolu: %s", control.name)
+			return fmt.Errorf("unable to initialize control: %s", control.name)
 		}
 	}
 	return nil

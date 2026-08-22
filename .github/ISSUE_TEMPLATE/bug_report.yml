@@ -1,69 +1,71 @@
-name: Prijava greške
-description: Prijavite ponovljiv problem u ByFTP-u
-title: "[Greška] "
+name: Bug report
+description: Report a reproducible problem in ByFTP
+title: "[Bug] "
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Hvala na prijavi. Nemojte uključivati lozinke, zaporke privatnog ključa, privatne ključeve ni povjerljive podatke poslužitelja ili klijenta.
+        Thanks for reporting a problem. Do not include passwords, private-key passphrases, private keys, or confidential server/customer data.
   - type: input
     id: version
     attributes:
-      label: ByFTP verzija
-      description: Upišite broj verzije prikazan u ByFTP-u ili naziv preuzetog službenog izdanja.
-      placeholder: "npr. verzija prikazana u aplikaciji"
+      label: ByFTP version
+      description: Enter the version shown in ByFTP or the name of the downloaded official release.
+      placeholder: "e.g. the version shown in the application"
     validations:
       required: true
   - type: dropdown
     id: protocol
     attributes:
-      label: Protokol
+      label: Protocol
       options:
         - FTP
-        - FTPS — eksplicitni
-        - FTPS — implicitni
+        - FTPS — explicit
+        - FTPS — implicit
         - SFTP
-        - Problem nije vezan uz povezivanje
+        - Not connection-related
     validations:
       required: true
   - type: dropdown
     id: windows
     attributes:
-      label: Windows verzija
+      label: Operating system
       options:
         - Windows 11
         - Windows 10
-        - Drugo
+        - Linux
+        - macOS
+        - Other
     validations:
       required: true
   - type: textarea
     id: problem
     attributes:
-      label: Što se dogodilo?
-      description: Koristite samo sanitizirane primjere hosta, korisnika i putanja.
+      label: What happened?
+      description: Use only sanitized host, username, and path examples.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Koraci za reprodukciju
+      label: Steps to reproduce
       placeholder: |
-        1. Otvorite ByFTP
-        2. Povežite se na sanitizirani.example
+        1. Open ByFTP
+        2. Connect to sanitized.example
         3. ...
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Očekivano ponašanje
+      label: Expected behavior
     validations:
       required: true
   - type: checkboxes
     id: privacy
     attributes:
-      label: Provjera privatnosti
+      label: Privacy check
       options:
-        - label: Uklonio/la sam lozinke, zaporke, privatne ključeve i povjerljive podatke poslužitelja/klijenta iz ove prijave.
+        - label: I removed passwords, passphrases, private keys, and confidential server/customer data from this report.
           required: true

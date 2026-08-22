@@ -1,207 +1,191 @@
 <p align="center">
-  <img src="docs/slike/byftp-zaglavlje.png" alt="ByFTP — FTP, FTPS i SFTP klijent" width="900">
+  <img src="docs/slike/byftp-zaglavlje.png" alt="ByFTP — FTP, FTPS and SFTP client" width="900">
 </p>
 
 <p align="center">
-  <strong>FTP bez komplikacija. Više kontrole nad vašim hostingom.</strong><br>
-  ByFTP je Brendigo klijent za FTP, FTPS i SFTP namijenjen brzom i sigurnom upravljanju web datotekama i shared-hosting računima — bez oglasa, obaveznog cloud računa i aplikacijske telemetrije.
+  <strong>FTP without the friction. More control over your hosting.</strong><br>
+  ByFTP is Brendigo's FTP, FTPS and SFTP client for fast, private and secure website file management — with no advertising, mandatory cloud account or application telemetry.
 </p>
 
 <p align="center">
-  <a href="https://github.com/bren-wp/by-ftp/releases"><strong>⬇ Preuzmi ByFTP</strong></a> ·
+  <a href="https://github.com/bren-wp/by-ftp/releases"><strong>Download ByFTP</strong></a> ·
   <a href="https://github.com/users/bren-wp/packages?repo_name=by-ftp"><strong>Packages</strong></a> ·
   <a href="docs/SHARED-HOSTING.md"><strong>Shared hosting</strong></a> ·
-  <a href="docs/INSTALACIJA.md"><strong>Brzi početak</strong></a> ·
-  <a href="docs/PODRSKA.md"><strong>Pomoć</strong></a> ·
-  <a href="docs/SIGURNOST.md"><strong>Sigurnost</strong></a>
+  <a href="docs/INSTALACIJA.md"><strong>Installation</strong></a> ·
+  <a href="docs/PODRSKA.md"><strong>Support</strong></a> ·
+  <a href="docs/SIGURNOST.md"><strong>Security</strong></a>
 </p>
 
 <p align="center">
-  <a href="../../actions/workflows/ci.yml"><img alt="Provjere" src="../../actions/workflows/ci.yml/badge.svg"></a>
+  <a href="../../actions/workflows/ci.yml"><img alt="Checks" src="../../actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
 # ByFTP
 
-ByFTP je klijent za korisnike koji žele otvoriti hosting, pronaći `public_html`, prenijeti datoteke i nastaviti raditi bez nepotrebnih koraka. Windows izdanje koristi izvorni dvopanelni Win32 GUI, dok Linux i macOS koriste terminalno sučelje nad istim Go engineom.
+ByFTP is designed for the everyday hosting workflow: connect, find `public_html`, manage files, transfer folders and keep working without unnecessary accounts, telemetry or browser-based middleware. Windows uses a native two-panel Win32 interface. Linux and macOS use a terminal interface over the same Go engine.
 
-**Trenutačno izdanje: 1.0.11**
+**Current release: 1.0.12**
 
-## Što ByFTP radi
+## Languages
 
-- **FTP, eksplicitni FTPS, implicitni FTPS i SFTP** u jednom klijentu.
-- **Shared hosting bez putanjskih iznenađenja** — FTP/FTPS rad zadržava login/home semantiku servera.
-- **Dvopanelni Windows rad** — lokalne datoteke lijevo, udaljene desno.
-- **Transfer queue** — više prijenosa, pauziranje, nastavak, otkazivanje i ponavljanje.
-- **Sigurniji overwrite** — privremeni upload, ponovna provjera odredišta, backup i rollback.
-- **SFTP host-key pinning** — prvi kontakt traži potvrdu SHA-256 fingerprinta, a promjena pina blokira vezu.
-- **Bez aplikacijske telemetrije i oglasa** — nema analytics SDK-a ni obaveznog Brendigo cloud računa.
+English is the canonical and default product language. ByFTP 1.0.12 also includes runtime localization for:
 
-## Što donosi 1.0.11
+- Croatian — Hrvatski (`hr`)
+- German — Deutsch (`de`)
+- French — Français (`fr`)
+- Spanish — Español (`es`)
+- Turkish — Türkçe (`tr`)
+- Greek — Ελληνικά (`el`)
+- Portuguese — Português (`pt`)
+- Simplified Chinese — 简体中文 (`zh`)
+- Russian — Русский (`ru`)
+- Hindi — हिन्दी (`hi`)
+- Japanese — 日本語 (`ja`)
 
-1.0.11 fokusira se na svakodnevni Windows rad i uklanjanje stale-UI rubova koji se pojavljuju tijekom refresha, parcijalnih mrežnih operacija i brzog disconnect/reconnect slijeda.
+Windows can switch language from the main window without restarting. The selected language is stored in the existing local settings file. Linux/macOS use the same localization catalog and settings model. Unknown or legacy-empty locale values fall back safely to English.
 
-- Windows prozor se prilagođava dostupnoj veličini zaslona, a uži prikaz prebacuje connection formu u kompaktniji raspored umjesto da desne kontrole izlaze iz vidljivog područja.
-- Širine file i transfer stupaca računaju se prema stvarnom client area prostoru, pa veliki i mali prozori bolje koriste dostupnu širinu.
-- Lokalni, udaljeni i transfer popisi čuvaju odabir kroz automatski refresh gdje je ista stavka još prisutna; punjenje liste privremeno gasi redraw kako bi bilo manje treperenja.
-- Akcijski gumbi prate stvarni kontekst: preimenovanje traži jednu stavku, brisanje/prijenos valjan odabir, a cancel/retry status odgovaraju odabranim transferima i aktualnoj vezi.
-- Profilne i connection kontrole zaključane su tijekom aktivnog pokušaja povezivanja, a asinkroni callbackovi vezani su uz connection generation kako stari rezultat ne bi mijenjao novu sesiju.
-- Health-check stare veze više ne može naknadno prekinuti novu sesiju nakon brzog reconnecta.
-- Višestruko remote brisanje i CHMOD prikazuju koliko je stavki stvarno uspjelo i koliko nije; ako je dio operacije uspio, remote lista odmah se osvježava umjesto da prikazuje zastarjelo stanje.
-- CHMOD preskače simboličke poveznice u Windows UI-u kao defense-in-depth zaštitu.
-- Red prijenosa koristi autoritativno paused stanje koje emitira transfer manager, pa gumbi Pauziraj/Nastavi ne ovise samo o lokalnoj pretpostavci UI-a.
-- Profil se validira prije obrade upisanih vjerodajnica, pa neispravan host/port/username završava ranom, jasnom porukom.
+## Features
 
-## Shared hosting — spojite se u nekoliko koraka
+- FTP, explicit FTPS, implicit FTPS and SFTP in one client.
+- Native two-panel Windows file management with multi-selection.
+- Upload/download of files and directory trees.
+- Transfer queue with pause, resume, cancel and retry.
+- Local and remote folder creation, rename and delete operations.
+- CHMOD where the server supports it.
+- Saved Windows profiles with DPAPI-protected secrets.
+- SFTP SHA-256 host-key fingerprint verification and pinning.
+- Shared-hosting-friendly FTP path semantics and MLSD → LIST fallback.
+- Safer overwrite flow with staging, revalidation, backup and rollback.
+- No application telemetry, analytics SDK, advertising or required Brendigo cloud account.
 
-Za tipični shared-hosting račun obično su potrebni host, korisničko ime, lozinka te protokol i port. Korisničko ime može biti i u obliku `korisnik@domena.hr`.
+## What changes in 1.0.12
 
-Za FTP/FTPS logička putanja `/public_html` predstavlja `public_html` unutar direktorija u koji je server smjestio korisnika nakon prijave. ByFTP raw FTP naredbe koriste isti login/home namespace kao listing i upload/download.
+1.0.12 is an English-first production cleanup and localization release. It centralizes user-facing text instead of maintaining duplicated language-specific strings throughout the UI, adds twelve tested runtime languages, persists the selected locale, and adapts the Windows layout for longer translated labels.
 
-ByFTP prvo pokušava strojno čitljiv `MLSD`. Ako ga stariji ili nestandardni shared-hosting FTP servis ne podržava ili vrati neupotrebljiv format, klijent prelazi na `LIST` i taj fallback pamti do kraja sesije.
+The localization layer validates catalog completeness and formatting placeholders in tests. Known protocol/tool errors are mapped to one semantic user-error layer and translated there, so changing language does not change connection, security or transfer logic.
 
-Detalji i primjeri: [ByFTP za shared hosting](docs/SHARED-HOSTING.md).
+The release also continues the 1.0.11 UI/stability work: responsive Windows sizing, selection preservation during refresh, connection-generation guards against stale callbacks, honest partial-success reporting for remote batch operations and context-aware transfer controls.
 
-## Produkcijska podrška
+## Shared hosting
 
-| Platforma | Distribucija | Arhitekture | Sučelje |
+A typical shared-hosting account needs a server name, username, password, protocol and port. The username may be in an email-like form such as `account@example.com`.
+
+For FTP/FTPS, logical `/public_html` stays within the login/home namespace exposed by the hosting server. ByFTP first attempts machine-readable `MLSD`; when a legacy or non-standard server cannot provide a usable MLSD listing, the client falls back to `LIST` and remembers that choice for the session.
+
+See [Shared hosting](docs/SHARED-HOSTING.md) for practical examples and troubleshooting.
+
+## Platform support
+
+| Platform | Distribution | Architectures | Interface |
 |---|---|---|---|
-| Windows 10/11 | Setup EXE, Portable EXE, ZIP | x64, x86 | puni dvopanelni GUI |
-| Linux | DEB | amd64, arm64, i386 | terminal |
-| macOS | Universal PKG | Intel + Apple Silicon | terminal |
+| Windows 10/11 | Setup EXE, Portable EXE, ZIP | x64, x86 | Native two-panel GUI |
+| Linux | DEB | amd64, arm64, i386 | Terminal |
+| macOS | Universal PKG | Intel + Apple Silicon | Terminal |
 
-### Autentikacija
+### Authentication
 
-| Način | Windows | Linux / macOS |
+| Method | Windows | Linux / macOS |
 |---|---|---|
-| FTP/FTPS lozinka | da | da |
-| SFTP privatni ključ bez passphrasea | da | da |
-| SFTP lozinka | da | ne, fail-closed |
-| SFTP privatni ključ s passphraseom | da | ne, fail-closed |
-| SFTP fingerprint provjera | da | da |
+| FTP/FTPS password | Yes | Yes |
+| SFTP private key without passphrase | Yes | Yes |
+| SFTP password | Yes | No — fail closed |
+| SFTP private key with passphrase | Yes | No — fail closed |
+| SFTP host-key fingerprint verification | Yes | Yes |
 
-Linux/macOS SFTP lozinka i passphrase ne provode se kroz nesigurne command-line argumente ili obične environment varijable. Dok siguran Unix credential broker nije implementiran i testiran, ti načini ostaju namjerno blokirani.
+Linux/macOS deliberately do not pass SFTP passwords or encrypted-key passphrases through unsafe command-line arguments or ordinary environment variables. Those authentication modes remain blocked until a tested secure Unix credential broker exists.
 
-## Preuzimanje
+## Downloads
 
-Službene distribucije dostupne su kroz GitHub Releases. GitHub Packages koristi isti kanonski broj verzije iz `VERSION`, tako da runtime, release i Windows paket ostaju u istom release ciklusu.
+Official builds are published through GitHub Releases. `VERSION` is the canonical version source for runtime binaries, release artifacts and the Windows GitHub Package.
 
 ### Windows
 
-- `ByFTP-<verzija>-Setup-x64.exe` — preporučeno za većinu Windows računala
-- `ByFTP-<verzija>-Portable-x64.exe` — pokretanje bez instalacije
-- `ByFTP-<verzija>-Windows-x64.zip` — provjereni distribucijski ZIP
-- dostupne su i x86 varijante za podržane 32-bitne sustave
+- `ByFTP-<version>-Setup-x64.exe` — recommended for most Windows systems
+- `ByFTP-<version>-Portable-x64.exe` — no installation required
+- `ByFTP-<version>-Windows-x64.zip` — verified Windows bundle
+- corresponding x86 packages are produced for supported 32-bit systems
 
 ### Linux
 
-- `ByFTP-<verzija>-Linux-amd64.deb`
-- `ByFTP-<verzija>-Linux-arm64.deb`
-- `ByFTP-<verzija>-Linux-i386.deb`
+- `ByFTP-<version>-Linux-amd64.deb`
+- `ByFTP-<version>-Linux-arm64.deb`
+- `ByFTP-<version>-Linux-i386.deb`
 
 ### macOS
 
-- `ByFTP-<verzija>-macOS-Universal.pkg`
+- `ByFTP-<version>-macOS-Universal.pkg`
 
-Svako izdanje uključuje SHA-256 i release metapodatke za provjeru distribucije.
+Every release includes SHA-256 metadata and release/build metadata used by the publication verification flow.
 
-## Instalacija, nadogradnja i uklanjanje
+## Transfer safety
 
-Za instalaciju, prvi spoj, nadogradnju i uklanjanje otvorite [Vodič za instalaciju i brzi početak](docs/INSTALACIJA.md).
+ByFTP is designed so that an uncertain cleanup or commit state does not look like success. Current protections include:
 
-Windows installer koristi transakcijski backup i rollback s provjerom identiteta i SHA-256 sadržaja datoteka. Svježa instalacija koristi no-replace aktivaciju, a rollback odbija dirati datoteku ako više ne može dokazati da je to isti objekt koji je installer postavio.
+- cryptographically random staging and temporary names;
+- local symlink/junction/reparse-point validation;
+- no-replace activation where the platform provides a suitable primitive;
+- private byte-for-byte local upload snapshots;
+- SHA-256 validation of upload snapshots before and after network reads;
+- remote staging type checks when the server exposes the staging entry;
+- fresh destination revalidation immediately before remote commit/rename;
+- fail-closed reporting when remote staging/rollback cleanup cannot be confirmed;
+- retry binding to connection identity and transfer generation;
+- bounded child-process output;
+- timeout/cancel propagation with process-tree cleanup for external curl/OpenSSH processes;
+- FTPS certificate-revocation protection without a global revocation bypass;
+- SFTP SHA-256 fingerprint pinning and private `known_hosts` lifecycle.
 
-Windows korisnicima preporučujemo Setup x64 paket. Portable izdanje je prikladno kada ne želite klasičnu instalaciju. Linux koristi DEB paket prema arhitekturi, a macOS Universal PKG pokriva Intel i Apple Silicon.
+The safer local upload snapshot intentionally uses additional temporary disk space approximately equal to the uploaded file size.
 
-## Upravljanje datotekama
+## Privacy
 
-Windows GUI podržava pregled lokalnih i udaljenih datoteka, višestruki odabir, upload/download, prijenos mapa, stvaranje mapa, preimenovanje, rekurzivno brisanje uz zaštitne limite, CHMOD gdje ga server podržava, profile i transfer queue.
+ByFTP has no advertising, analytics SDK, external crash-reporting service, mandatory cloud account or fixed Brendigo API receiving user activity. Windows saved profile secrets use DPAPI. Active credentials are not placed in network-tool command-line arguments. Production builds require Go telemetry to be disabled.
 
-Linux/macOS terminal koristi isti engine za `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd` i transfere.
+See [Privacy](docs/PRIVATNOST.md) and [Security](docs/SIGURNOST.md).
 
-Pojedinačni upload/download zahtijeva konkretnu remote datoteku. Root, `.` i putanje koje završavaju direktorijskim separatorom odbijaju se prije transfer reda i mrežnog rada. Folder/tree transfer ostaje zasebna operacija.
-
-## Sigurnost transfera
-
-ByFTP je projektiran tako da greška ne izgleda kao uspjeh. Ključne zaštite uključuju:
-
-- kriptografski nasumične privremene i staging nazive;
-- provjeru lokalnih symlink/junction/reparse preusmjeravanja;
-- no-replace lokalnu aktivaciju gdje je platformski dostupna;
-- privatni byte-for-byte snapshot lokalnog upload izvora;
-- SHA-256 provjeru upload snapshota prije i nakon mrežnog čitanja;
-- provjeru da vidljivi remote `.byftp-part-*` staging objekt nije direktorij ili symlink;
-- ponovnu provjeru finalnog remote odredišta neposredno prije rename/backup commita;
-- fail-closed prijavu kada cleanup remote staging/rollback objekta nije moguće potvrditi;
-- blokiranje automatskog retryja dok prethodno remote stanje možda nije čisto;
-- vezanje transfera i retryja uz connection identity i transfer generation;
-- bounded stdout/stderr mrežnih child procesa;
-- timeout i cancel propagaciju s process-tree zaštitom za vanjske `curl` i OpenSSH procese;
-- FTPS certificate-revocation zaštitu bez globalnog gašenja revocation provjere;
-- SFTP SHA-256 fingerprint pinning i privatni `known_hosts` lifecycle.
-
-Sigurniji upload snapshot zahtijeva dodatni privremeni lokalni prostor približno veličini datoteke koja se šalje. To je namjeran tradeoff u korist stabilnog sadržaja.
-
-## Privatnost
-
-ByFTP runtime nema oglase, analytics SDK, vanjski crash-reporting servis, obavezni cloud račun ni fiksni Brendigo API kojem bi slao korisničke aktivnosti.
-
-Na Windowsu spremljene profilne tajne koriste DPAPI. Aktivne vjerodajnice ne stavljaju se u command-line argumente mrežnih alata. Produkcijski build zahtijeva isključenu Go telemetriju.
-
-Detalji: [Privatnost](docs/PRIVATNOST.md).
-
-## Provjera SHA-256
+## Verify SHA-256
 
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\ByFTP-<verzija>-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\ByFTP-<version>-Setup-x64.exe -Algorithm SHA256
 ```
 
 Linux:
 
 ```bash
-sha256sum ByFTP-<verzija>-Linux-amd64.deb
+sha256sum ByFTP-<version>-Linux-amd64.deb
 ```
 
 macOS:
 
 ```bash
-shasum -a 256 ByFTP-<verzija>-macOS-Universal.pkg
+shasum -a 256 ByFTP-<version>-macOS-Universal.pkg
 ```
 
-## Dokumentacija
+## Documentation
 
-**Početak i svakodnevni rad:**
+The repository is being standardized on English as the canonical documentation language. Existing document paths remain linked during the 1.0.12 migration so external links are not broken before their replacements are committed.
 
-- [Dokumentacijski centar](docs/README.md)
-- [ByFTP za shared hosting](docs/SHARED-HOSTING.md)
-- [Instalacija i prvi spoj](docs/INSTALACIJA.md)
-- [Podrška i rješavanje problema](docs/PODRSKA.md)
+- [Documentation center](docs/README.md)
+- [Installation and first connection](docs/INSTALACIJA.md)
+- [Shared hosting](docs/SHARED-HOSTING.md)
+- [Support and troubleshooting](docs/PODRSKA.md)
+- [Security](docs/SIGURNOST.md)
+- [Privacy](docs/PRIVATNOST.md)
+- [Testing and quality](docs/TESTIRANJE.md)
+- [Release verification](docs/PROVJERA-IZDANJA.md)
+- [Architecture](docs/ARHITEKTURA.md)
+- [Contribution policy](docs/DOPRINOS.md)
 
-**Sigurnost, privatnost i kvaliteta:**
+## Important limitations
 
-- [Sigurnost](docs/SIGURNOST.md)
-- [Privatnost](docs/PRIVATNOST.md)
-- [Testiranje i kvaliteta](docs/TESTIRANJE.md)
-- [Provjera izdanja](docs/PROVJERA-IZDANJA.md)
-- [Potpisivanje distribucija](docs/POTPISIVANJE.md)
-- [Obavijesti trećih strana](docs/OBAVIJESTI-TRECIH-STRANA.md)
+No desktop FTP/SFTP client can guarantee compatibility with every non-standard server or hosting policy. A provider may restrict writes, rename, CHMOD, connection count, TLS/SSH algorithms, passive data ports or particular directories.
 
-**Razvoj i održavanje projekta:**
+Windows binaries require a real Brendigo Authenticode certificate for Verified Publisher status. macOS Developer ID signing/notarization requires real Apple credentials; the project does not simulate those trust states.
 
-- [Arhitektura](docs/ARHITEKTURA.md)
-- [Plan razvoja](docs/PLAN-RAZVOJA.md)
-- [Doprinos projektu](docs/DOPRINOS.md)
-- [Izdavanje na GitHubu](docs/IZDAVANJE-NA-GITHUBU.md)
-
-## Važna ograničenja
-
-ByFTP ne može jamčiti kompatibilnost sa svakom nestandardnom FTP/SFTP implementacijom ili pravilima svakog hosting providera. Hosting može zasebno ograničiti write, rename, CHMOD, broj konekcija, TLS/SSH algoritme ili pristup pojedinim direktorijima.
-
-Windows binariji neće imati Verified Publisher status bez stvarnog Authenticode certifikata, a macOS paket neće biti Developer ID notariziran bez stvarnog Apple signing identiteta. Projekt te statuse ne simulira.
-
-Sigurnosni hardening smanjuje i fail-closed obrađuje poznate race/lifecycle rubove, ali nijedna desktop aplikacija ne može razumno jamčiti da ne postoji nijedan nepoznati bug na svakoj kombinaciji OS-a, servera i mreže. Produkcijska izdanja zato ostaju vezana uz regresije, race detector, vet i platformske build gateove.
+The security hardening reduces and fail-closed handles known race/lifecycle classes, but it does not claim that no unknown bug can exist on every OS/server/network combination. Production releases therefore remain gated by regression tests, the race detector, `go vet`, security/privacy audits and platform builds.
 
 ---
 
-<p align="center"><strong>ByFTP — otvorite hosting, pronađite datoteke i nastavite raditi.</strong></p>
+<p align="center"><strong>ByFTP — connect to your hosting, find your files, and keep working.</strong></p>

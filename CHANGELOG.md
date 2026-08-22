@@ -1,203 +1,130 @@
-# Povijest promjena
+# Changelog
 
-## 1.0.11 — Responzivniji Windows UI i stabilniji session state
+## 1.0.12 — English-first localization and production cleanup
 
-**Fokus izdanja:** učiniti svakodnevni Windows rad jasnijim i otpornijim na stale callbackove, automatske refreshe i parcijalne remote operacije bez promjene FTP/FTPS/SFTP sigurnosnog modela.
+**Focus:** make English the canonical product/repository language, add tested runtime localization, reduce duplicated user-facing text, and continue the Windows UI/stability cleanup without changing the FTP/FTPS/SFTP security model.
 
-- Windows layout se prilagođava stvarnom client area prostoru i na užim prozorima koristi kompaktniji raspored connection forme umjesto iscrtavanja desnih kontrola izvan vidljivog područja
-- širine lokalnih, udaljenih i transfer stupaca računaju se iz dostupne širine panela, a prozor dobiva jasan minimalni tracking size
-- navigacijski gumbi prema nadređenoj mapi imaju vidljivu oznaku `Gore`, transfer lista prima keyboard focus, a action gumbi se uključuju samo kada trenutačni odabir i lifecycle stanje dopuštaju radnju
-- lokalni, udaljeni i transfer popisi čuvaju selekciju kroz automatski refresh kada ista stavka još postoji; redraw se privremeno gasi tijekom ponovnog punjenja kako bi bilo manje treperenja
-- transfer Pause/Resume/Cancel/Retry/Clear stanje izvodi se iz stvarnih statusa poslova, aktivne veze i autoritativnog `Paused` state eventa transfer managera
-- connect/disconnect/retry/health callbackovi u Windows UI-u vezani su uz `connectionGeneration`, pa rezultat stare sesije više ne može naknadno promijeniti novu vezu ili njezin UI
-- profilne i settings akcije zaključane su tijekom povezivanja, a profil validira protokol, host, port i korisničko ime prije obrade unesenih vjerodajnica
-- health check više ne poziva `Disconnect` iz pozadinskog goroutina prije provjere generationa; odluka o prekidu prvo se vraća na UI thread i ponovno potvrđuje aktualnu sesiju
-- višestruko remote brisanje i CHMOD koriste zajednički batch rezultat s brojem uspjelih i neuspjelih stavki; parcijalni uspjeh odmah osvježava remote listu umjesto ostavljanja stale prikaza
-- CHMOD u Windows UI-u preskače simboličke poveznice kao defense-in-depth zaštitu
-- queue dodavanje više ne prekida sve preostale odabrane mape nakon prve neovisne greške; uspjesi, neuspjeli odabiri i preskočene poveznice prikazuju se zasebno
-- korisni host hint više se ne prepisuje generičkim tekstom nakon učitavanja postavki
-- dodani su čisti Go testovi za batch partial-success/cancel accounting i transfer action state te Python source-level guard za generation binding, partial remote refresh, selection preservation, responzivni layout i profile-validation ordering
-- README je skraćen i usmjeren na stvarne 1.0.11 korisničke koristi uz zadržavanje svih sigurnosnih, platformski i razvojno važnih dokumentacijskih ulaza
-- verzija ostaje `1.0.11`; `v1.0.10` ostaje nepromjenjiv, a parcijalni međukorak 1.0.11 nije dobio release tag prije završnog CI-a
+- English is the canonical/default runtime language and persisted locale fallback.
+- Added runtime catalogs for Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi and Japanese.
+- Added catalog parity and formatting-placeholder regression tests so missing or incompatible translations fail CI instead of silently mixing languages.
+- Added a live Windows language selector that updates owner-drawn buttons, cues, protocol labels, list columns and localized transfer/file rendering without restarting.
+- Windows layout reserves space for longer translated labels and keeps the language selector available on smaller laptop widths.
+- Settings now persist the selected locale and migrate legacy files without a language field to English.
+- End-user error mapping is centralized and locale-aware instead of duplicating Croatian-only protocol/tool messages at each call site.
+- Repository README, release history and build/audit policy are being standardized on English as the canonical source while localized user documentation remains available separately.
+- `v1.0.11` remains immutable; 1.0.12 is a new semantic release line.
 
-## 1.0.10 — Stabilniji cancel i lifecycle vanjskih procesa
+## 1.0.11 — Responsive Windows UI and safer session state
 
-**Fokus izdanja:** spriječiti da `curl` ili OpenSSH helper proces ostane živ nakon timeouta ili korisničkog cancela, posebno tijekom SFTP AskPass autentikacije.
+- Made the Windows layout adapt to actual client area and compact connection fields on narrower windows.
+- Rebalanced local, remote and transfer list columns according to available width.
+- Preserved file and transfer selections across automatic refreshes when the selected items still exist.
+- Temporarily disabled list redraw while repopulating to reduce flicker.
+- Derived action-button state from real selection, connection and transfer status instead of allowing invalid clicks and reporting errors afterwards.
+- Bound connection, retry and health-check callbacks to a connection generation so stale callbacks cannot modify a newer session.
+- Blocked profile/settings actions while a connection attempt is active and validated endpoint fields before processing typed credentials.
+- Prevented an old-session health check from disconnecting a newly reconnected session.
+- Added honest partial-success accounting for remote multi-delete and CHMOD operations and refreshed the remote view whenever at least one mutation succeeded.
+- Skipped symlinks for Windows CHMOD as defense in depth.
+- Synced Pause/Resume UI state to the transfer manager's authoritative paused state.
+- Added regression coverage for batch accounting, action-state derivation, selection preservation and session-generation ordering.
 
-- Linux i macOS vanjski mrežni/helper procesi sada se pokreću u zasebnoj process groupi (`Setpgid`), pa context cancel šalje `SIGKILL` cijeloj grupi umjesto samo glavnom procesu
-- postojeći direct-process `CommandContext` cancel zadržan je kao fallback ako group kill ne uspije
-- Windows više ne ovisi samo o `Process.Kill` glavnog `curl.exe`/`sftp.exe` procesa; cancel radi sistemski process snapshot i rekurzivno pronalazi potomke prema parent PID-u
-- Windows najprije snima postojeće potomke, zatim prekida glavni proces da on više ne može stvarati nove child procese, pa uklanja prethodno pronađene potomke
-- nakon toga radi se drugi svježi process snapshot kako bi se uhvatio child koji je mogao nastati u kratkom intervalu između prvog snapshota i gašenja roditelja
-- descendant cleanup koristi Windows `CreateToolhelp32Snapshot`, `Process32FirstW`, `Process32NextW`, `OpenProcess` i `TerminateProcess` bez nove vanjske ovisnosti
-- Windows `CREATE_NO_WINDOW` ponašanje ostaje aktivno, pa lifecycle hardening ne uvodi vidljive konzolne prozore i ne uklanja standardne handleove potrebne za SSH AskPass
-- postojeći `curl`, `curl --version`, `ssh-keyscan`, `ssh-keygen` i `sftp` `exec.CommandContext` ulazi ostaju obavezno vezani uz zajednički `configureToolCommand`
-- dodan je cross-platform funkcionalni Go test koji pokreće pravi parent helper i njegov child, čeka dokaz da je child nastao, cancelira parent i potvrđuje da child nije preživio dovoljno dugo da ostavi marker
-- dodan je normal-completion regresijski test kako lifecycle konfiguracija ne bi lomila kratke uspješne procese
-- dodan je Python source-level guard koji zaključava Unix process-group zaštitu, Windows rekurzivni descendant cleanup i konfiguriranje svakog postojećeg remote `CommandContext` call-sitea
-- README marketinški objašnjava korisničku korist 1.0.10: čišći cancel/timeout i manji rizik od zaostalih OpenSSH/AskPass procesa
-- verzija je povećana na `1.0.10`; objavljeni `v1.0.9` ostaje nepromjenjiv
+## 1.0.10 — External process lifecycle hardening
 
-## 1.0.9 — Sigurnija Windows instalacijska transakcija
+- Linux/macOS network/helper processes run in a dedicated process group so cancellation terminates descendants rather than only the direct process.
+- Windows cancellation snapshots and recursively terminates descendants of curl/OpenSSH processes, including potential AskPass helpers.
+- Kept Windows `CREATE_NO_WINDOW` behavior while preserving handles required for SSH AskPass.
+- Applied the shared lifecycle configuration to curl, curl capability probes, ssh-keyscan, ssh-keygen and sftp.
+- Added a cross-platform functional test that creates a real parent/child process tree and proves the descendant does not survive cancellation long enough to leave its marker.
+- Added source-level regressions that prevent future remote process call sites from bypassing lifecycle protection.
 
-**Fokus izdanja:** spriječiti da installer backup, fresh aktivacija ili rollback diraju datoteku čiji identitet i sadržaj više ne odgovaraju objektu koji je installer stvarno provjerio ili postavio.
+## 1.0.9 — Windows installer transaction hardening
 
-- backup postojeće `ByFTP.exe` / `Uninstall.exe` datoteke više ne vjeruje zasebnom `Lstat` pa kasnijem `Open`; otvoreni handle mora odgovarati istom filesystem objektu kroz `os.SameFile`
-- prije prihvaćanja backupa ponovno se provjeravaju veličina, mtime i aktualni path identitet, pa zamjena datoteke tijekom pripreme nadogradnje blokira instalaciju
-- backup sadržaj se tijekom kopiranja SHA-256 hashira, zatim se isti već otvoreni source handle vraća na početak i čita drugi put; digest i broj bajtova moraju biti identični
-- time in-place promjena tijekom backupa ne može proći samo zato što su veličina i vrijeme izmjene kasnije vraćeni na stare vrijednosti
-- neposredno prije upgrade aktivacije postojeća datoteka ponovno se čita kroz stabilni handle i njezin identitet, metadata i SHA-256 moraju odgovarati originalnom backup snapshotu
-- fresh instalacija koristi `RenameNoReplace` umjesto overwrite semantike; datoteka koja se pojavi nakon početnog “target ne postoji” snapshota neće biti prepisana
-- installer nakon uspješne aktivacije zapisuje identitet i SHA-256 vlastite datoteke; rollback se izvršava samo ako taj isti objekt još postoji nepromijenjen
-- rollback prije stvarne installer aktivacije više je no-op i ne može bezuvjetno obrisati konkurentno nastalu datoteku
-- ako drugi proces promijeni aktiviranu datoteku prije rollbacka, rollback fail-closed odbija uklanjanje ili vraćanje backupa umjesto prepisivanja nepoznatog sadržaja
-- nakon vraćanja upgrade backupa installer ponovno provjerava SHA-256 vraćene datoteke
-- dodani su deterministički Go testovi za `Lstat→Open` zamjenu, fresh-target race, pre-activation rollback, promjenu originala prije upgradea, promjenu instalirane datoteke prije rollbacka i normalni fresh/upgrade rollback
-- dodan je Python source-level guard koji zaključava `SameFile`, drugi SHA-256 read, fresh `RenameNoReplace`, ownership-bound rollback i produkcijske transaction-bound pozive za oba EXE-a
-- README jasno dokumentira fail-closed installer ponašanje i preostalo ograničenje: potpuna eliminacija svakog same-user Windows path racea zahtijevala bi dodatne handle-relative platformske primitive
-- verzija je povećana na `1.0.9`; objavljena 1.0.8 linija ostaje nepromijenjena
+- Bound upgrade backup to the same opened filesystem object verified with `os.SameFile` instead of trusting a separate check-then-open path.
+- Re-read and SHA-256 verified the same backup source handle to detect in-place changes during backup.
+- Revalidated identity, metadata and content before activating an upgrade.
+- Used no-replace activation for fresh installs so a newly appearing target is not overwritten.
+- Tracked whether the installer actually activated its own target before rollback may delete or replace anything.
+- Verified installed object identity/content before rollback and verified restored backup content afterwards.
+- Added deterministic tests for path replacement, fresh-target races, pre-activation rollback and tampering before rollback.
 
-## 1.0.8 — Fail-closed cleanup i stabilniji transfer lifecycle
+## 1.0.8 — Fail-closed remote cleanup and transfer lifecycle
 
-**Fokus izdanja:** spriječiti da neuspjeli cleanup remote staging/rollback objekta izgleda kao običan transfer kvar, skip ili cancel te ukloniti nepotrebne waiter goroutine pri timeoutanom shutdownu.
+- Propagated FTP/FTPS and SFTP staging-cleanup failures instead of hiding them behind ordinary transfer errors.
+- Added an explicit uncertain-remote-state error and blocked automatic retry while a previous temporary/rollback object may remain.
+- Prevented cleanup uncertainty from being downgraded to skipped/cancelled status.
+- Reported post-commit rollback cleanup failure instead of returning false full success or retrying the overwrite.
+- Added defense-in-depth validation that a single-file remote target is a concrete file path in the queue and both network adapters.
+- Cleaned local download staging after a final no-replace activation failure.
+- Replaced per-timeout waiter goroutines with a shared worker-idle signal.
 
-- FTP/FTPS i SFTP upload više ne ignoriraju grešku brisanja `.byftp-part-*` objekta nakon neuspjelog mrežnog prijenosa ili neuspjele lokalne snapshot provjere
-- remote revalidacija sada propagira cleanup neuspjeh nakon listing greške, opasne staging stavke, promijenjenog cilja ili `SkipExisting` odluke
-- uvedena je eksplicitna remote-state-uncertain greška koja identificira mogući zaostali artefakt i blokira automatski retry dok prethodno remote stanje nije potvrđeno
-- transfer queue daje cleanup nesigurnosti prednost pred `skipped` i `cancelled`, pa korisnik ne dobiva bezazlen status kada staging možda ostaje na serveru
-- ako je nova datoteka već aktivirana, ali brisanje starog rollback objekta ne uspije, transfer više ne vraća lažni potpuni uspjeh niti pokreće novi overwrite retry
-- cleanup odgovor koji precizno potvrđuje da staging objekt ne postoji zadržava izvornu transfer grešku i ne stvara lažnu cleanup nesigurnost
-- pojedinačni remote cilj sada se dodatno validira kao konkretna datoteka u transfer queueu te izravno u FTP/FTPS i SFTP upload/download adapterima
-- lokalni download `.byftp-part-*` objekt briše se i kada završni no-replace rename zakaže na ranije nepostojećem cilju
-- `waitWorkers` više ne stvara zaseban goroutine za svaki timeoutani disconnect/shutdown poziv; transfer manager koristi zajednički worker-idle signal koji se zatvara nakon zadnjeg stvarno završenog workera
-- dodane su Go regresije za cleanup uspjeh/not-found/uncertainty, post-commit cleanup kvar, retry blokadu, revalidation cleanup, lokalni part cleanup, queue file-target validaciju i worker-idle timeout lifecycle
-- dodan je Python source-level guard koji zaključava cleanup propagaciju u oba adaptera, queue status ordering i worker-idle implementaciju
-- verzija je povećana na `1.0.8`; objavljeni `v1.0.7` ostaje nepromjenjiv
+## 1.0.7 — SFTP RSA/SHA-2 and stricter transfer boundaries
 
-## 1.0.7 — SFTP RSA/SHA-2 i strože transfer granice
+- Stopped forcing scanned RSA host keys into `HostKeyAlgorithms ssh-rsa`; the same pinned RSA public key can use modern RSA/SHA-2 signatures negotiated by OpenSSH.
+- Kept Ed25519/ECDSA host-key constraints and SHA-256 fingerprint pinning.
+- Rejected a visible remote upload staging entry when it is a directory or symlink.
+- Preserved compatibility with legacy FTP LIST servers that hide dotfiles.
+- Made Linux/macOS use native `curl` rather than preferring `curl.exe`.
+- Required single-file upload/download requests to target a concrete remote file; directory-tree transfer remains a separate operation.
 
-**Fokus izdanja:** dodatno učvrstiti SFTP host-key pregovaranje, remote staging i single-file transfer putanje bez slabljenja fingerprint pinninga ili shared-hosting kompatibilnosti.
+## 1.0.6 — Runtime and connection lifecycle cleanup
 
-- skenirani RSA host ključ `ssh-rsa` više se ne šalje kao prisilni `HostKeyAlgorithms ssh-rsa`; SHA-256 fingerprint i `known_hosts` i dalje pinaju isti RSA javni ključ, dok moderni OpenSSH za session može pregovarati RSA/SHA-2 potpis
-- Ed25519 i ECDSA host-key tipovi zadržavaju eksplicitni session constraint i postojeći fingerprint/pinning model
-- post-upload remote revalidacija sada, kada listing prikazuje `.byftp-part-*` staging objekt, zahtijeva da staging nije direktorij ni symlink prije završne aktivacije
-- odsutnost skrivene `.byftp-part-*` stavke iz klasičnog FTP `LIST` odgovora ostaje dopuštena kako sigurnosna provjera ne bi razbila kompatibilnost servera koji skrivaju dotfileove
-- Linux i macOS `findCurl()` više ne pokušavaju `curl.exe`; koriste native `curl`, dok Windows i dalje fail-closed koristi sistemsku `curl.exe`
-- pojedinačni upload/download sada zahtijeva konkretnu remote datoteku; root, `.` i putanje koje završavaju direktorijskim separatorom odbijaju se prije transfer reda i mrežnog rada
-- folder/tree transfer ostaje zasebna operacija i zadržava podršku za remote direktorijske root putanje
-- dodane su regresije za RSA host-key policy, Unix native curl izbor, staging directory/symlink zamjenu i ranu validaciju single-file remote cilja na security i Engine granici
-- README je pojednostavljen za korisnika, ali zadržava sve instalacijske, sigurnosne, platformske i razvojne ulaze te izravni GitHub Packages link
-- verzija je povećana na `1.0.7`; objavljeni `v1.0.6` ostaje nepromjenjiv
+- Removed redundant raw-session prechecks before queueing/retrying transfers.
+- Removed the raw remote `Session()` getter so new code uses operation-scoped session access.
+- Normalized nil contexts across remote connection/disconnection and worker-wait paths.
+- Centralized FTP/SFTP probe-path behavior.
+- Deduplicated transfer ID normalization/validation.
+- Switched read-only transfer-manager operations to `RWMutex` read locking.
+- Centralized typed engine panic recovery and added lifecycle regressions.
 
-## 1.0.6 — Stabilniji runtime i čišći lifecycle veze
+## 1.0.5 — Shared-hosting compatibility
 
-**Fokus izdanja:** dodatno smanjiti mogućnost race/lifecycle grešaka, ukloniti suvišan pristup raw sesiji i optimizirati transfer queue bez promjene sigurnosnih jamstava iz 1.0.5.
-
-- Engine više ne radi redundantni `remote.Session()` pre-check prije dodavanja ili ponavljanja prijenosa; queue već koristi connection identity i transfer generation kao autoritativnu lifecycle granicu
-- uklonjen je sirovi `Manager.Session()` getter iz remote managera, pa novi kod ne može slučajno zadržati `Session` izvan `Operation()`/active-operation zaštite
-- `Connect`, `Disconnect`, `Operation` i session-close čekanje normaliziraju `nil` context u siguran background context umjesto mogućeg runtime panica
-- početni remote probe i naknadni `Probe()` koriste zajednički FTP/SFTP probe-path helper umjesto duplicirane protokolske grane
-- ponovljena validacija transfer ID-eva u cancel/retry putanjama konsolidirana je u jedan `selectedIDs` helper koji trimma, deduplicira i fail-closed odbija neispravan odabir
-- transfer manager koristi `RWMutex`; čiste read operacije `List`, `Events`, `ActiveCount` i `jobSnapshot` više ne uzimaju ekskluzivni write lock
-- `waitWorkers(nil)` više ne dereferencira nil context tijekom disconnect/shutdown lifecyclea
-- duplicirani panic recovery u tipiziranim `SaveProfile` i `Connect` engine ulazima centraliziran je u jednu user-safe recovery granicu
-- dodane su Go regresije za nil-context remote lifecycle, FTP/SFTP probe namespace, transfer selection normalizaciju i nil-context worker wait
-- README zadržava marketinški benefit-first format, dodaje izravnu GitHub Packages poveznicu i jasno objašnjava što 1.0.6 donosi korisniku
-- verzija je povećana na `1.0.6`; objavljena 1.0.5 linija ostaje nepromjenjiva
-
-## 1.0.5 — Shared hosting bez putanjskih iznenađenja
-
-**Fokus izdanja:** jednostavnije i pouzdanije spajanje na tipične shared-hosting FTP/FTPS račune te jasnija komunikacija prema korisniku.
-
-- FTP raw control naredbe (`MKD`, `RNFR`, `RNTO`, `DELE`, `RMD`, `SITE CHMOD`) sada koriste login/home relativnu putanju, isti logički namespace koji korisnik vidi kroz listing i URL upload/download
-- time logička `/public_html/...` putanja više ne postaje pogrešno server-absolute `/public_html/...` operand na non-chrooted shared-hosting serverima
-- quote-only FTP operacije koriste `no-body`, pa uspješan mkdir/rename/delete/chmod više ne ovisi o nepotrebnom naknadnom directory data-channel transferu
-- MLSD kompatibilnost je poboljšana: ako MLSD ne radi ili vrati neprepoznatljiv format, a obični LIST uspije, ByFTP pamti LIST fallback do kraja sesije i ne ponavlja neuspjeli MLSD pri svakom refreshu
-- dodani su process-smoke testovi za shared-hosting username oblika `account@example.com`, home-relative `public_html` i control-only quote ponašanje
-- dodan je MLSD→LIST regresijski test koji zahtijeva slijed jednog MLSD pokušaja i daljnjih LIST poziva
-- korisničke FTP greške sada jasnije objašnjavaju `530` login problem, uključujući puni `korisnik@domena` username, `421` limit konekcija i `425/426` data-channel problem
-- Windows connect ekran koristi konkretnije host/username cueove i šire polje za shared-hosting korisničko ime
-- glavni README i kompletna `docs/` dokumentacija preuređeni su u benefit-first, marketinški jasniji hrvatski stil bez uklanjanja tehničkih ograničenja i sigurnosnih činjenica
-- dodan je zaseban `docs/SHARED-HOSTING.md` vodič za prvi FTP/FTPS spoj, `public_html`, MLSD/LIST fallback, pasivni FTP, WordPress workflow i najčešće hosting greške
-- verzija je povećana na `1.0.5`; već objavljeni `v1.0.4` ostaje nepromjenjiv
+- Made raw FTP control commands use the login/home-relative namespace consistently with listing and upload/download.
+- Avoided unnecessary data-channel transfers after control-only FTP operations such as mkdir/rename/delete/CHMOD.
+- Added MLSD → LIST fallback and remembered the working listing mode for the session.
+- Added shared-hosting process-smoke tests for email-style usernames and `public_html` semantics.
+- Improved user-facing handling of common FTP 530, 421 and 425/426 failures.
 
 ## 1.0.4 — Transfer generation binding
 
-- `ReserveBatch` više ne dohvaća `ConnectionIdentity()` pa tek nakon toga uzima aktualnu transfer generation; generation se sada capturea pod `Manager.mu` prije identity lookup-a i ponovno provjerava nakon povratka
-- ako disconnect/reconnect ili drugo lifecycle prebacivanje promijeni generation tijekom `ConnectionIdentity()` poziva, batch rezervacija se fail-closed odbija prije rezerviranja kapaciteta ili dodavanja poslova
-- time stari connection ID više ne može biti uparen s novom generation i kasnije pokrenuti upload/download na pogrešnoj sesiji
-- `RetryBatch` koristi isti dvostruki generation guard prije bilo kakve promjene statusa failed/cancelled posla u `queued`
-- `ConnectionIdentity()` se namjerno poziva bez držanja `transfer.Manager.mu`, pa hardening ne uvodi lock-order/deadlock ovisnost između transfer i remote managera
-- dodani su deterministički Go testovi koji inkrementiraju generation iz samog `ConnectionIdentity()` callbacka; rezervacija mora ostati bez kapaciteta/poslova, a retry mora ostaviti posao potpuno nepromijenjenim
-- dodan je Python `unittest` koji zaključava ordering `capture generation → unlock → ConnectionIdentity → lock → generation recheck → mutation`
-- verzija se povećava na `1.0.4` umjesto mijenjanja već objavljenog i nepromjenjivog `v1.0.3`
+- Captured transfer generation before connection-identity lookup and revalidated it before queue mutation.
+- Prevented a stale connection identity from being combined with a newer transfer generation during reserve/retry races.
+- Kept connection identity lookup outside the transfer-manager lock to avoid lock-order coupling.
+- Added deterministic generation-race tests.
 
-## 1.0.3 — Stabilni lokalni upload snapshot
+## 1.0.3 — Stable local upload snapshot
 
-- FTP/FTPS i SFTP upload više ne predaju vanjskom `curl`/OpenSSH procesu izvornu korisničku lokalnu putanju nakon zasebnog `Lstat` checka
-- neposredno prije stvarnog uploada ByFTP otvara validirani regularni izvor i provjerava da otvoreni handle pripada istom filesystem objektu kao prethodni `Lstat`
-- izvor se kopira byte-for-byte u kriptografski nasumični privatni `byftp-upload-*` direktorij; child proces dobiva samo snapshot putanju
-- tijekom izrade kopije računa se SHA-256 digest, a isti već otvoreni izvor se zatim ponovno čita u cijelosti i njegov digest mora biti identičan snapshotu
-- ako se izvor tijekom izrade snapshota promijeni po identitetu, veličini, mtimeu, broju pročitanih bajtova ili SHA-256 sadržaju, upload se blokira prije mrežnog prijenosa
-- nakon što `curl`/OpenSSH završi čitanje snapshota ByFTP ponovno provjerava njegov filesystem identitet, veličinu, mtime i puni SHA-256 prije remote revalidation/commit faze
-- promjena originalne putanje nakon pripreme snapshota više ne može preusmjeriti sadržaj koji child proces šalje
-- same-size/same-mtime izmjena snapshota više ne prolazi samo kroz metadata provjeru jer završni SHA-256 mora odgovarati početnom digestu
-- privremeni snapshot direktorij briše se kroz postojeći no-follow `RemoveTreeNoFollow`, a ne nekontrolirani `RemoveAll`
-- sigurnija kopija namjerno zahtijeva dodatni lokalni privremeni prostor približno veličini datoteke koja se šalje i dodatno lokalno čitanje radi sadržajne stabilnosti
-- oba adaptera zadržavaju 1.0.2 post-upload remote revalidaciju, pa se lokalni source snapshot provjerava prije fresh remote provjere i transakcijskog `commitRemoteTemp`
-- dodani su Go testovi za zamjenu originalne putanje, snapshot tampering, same-size/same-mtime tampering, cleanup i symlink izvor
-- dodan je Python `unittest` koji zaključava da oba adaptera koriste `source.Path()` i `source.Verify()` prije remote commit faze te da helper ostaje copy+SHA-256, a ne hard-link pristup
-- verzija se povećava na `1.0.3` umjesto mijenjanja već objavljenog i nepromjenjivog `v1.0.2`
+- Opened and identity-checked the upload source, copied it byte-for-byte into a private random temporary snapshot and passed only that snapshot to the network child process.
+- SHA-256 verified source stability while creating the snapshot and verified snapshot identity/content after the network read.
+- Blocked path replacement and same-size/same-mtime tampering before remote commit.
+- Used no-follow cleanup for the private snapshot directory.
 
-## 1.0.2 — Remote commit revalidacija
+## 1.0.2 — Remote commit revalidation
 
-- FTP/FTPS i SFTP upload više ne donose završnu overwrite/backup odluku prema remote direktorijskom snapshotu snimljenom prije potencijalno dugog prijenosa
-- nakon uspješnog prijenosa u kriptografski nasumični `.byftp-part-*` objekt ByFTP ponovno lista odredišni direktorij neposredno prije commit/rename faze
-- ako se cilj tijekom uploada pretvori u direktorij ili simboličku poveznicu, commit se blokira, privremeni upload briše i postojeći objekt se ne dira
-- ako se obična ciljna datoteka pojavi tijekom uploada i uključen je `SkipExisting`, ByFTP briše temp objekt i vraća `ErrSkipped` umjesto da prepiše novonastalu datoteku
-- ako je overwrite dopušten, `commitRemoteTemp` dobiva svježi remote snapshot pa backup/rollback odluku donosi prema stvarnom stanju neposredno prije aktivacije
-- ako završna revalidacija direktorija ne uspije, temp objekt se fail-closed čisti i završni rename se ne pokušava
-- FTP/FTPS i SFTP koriste isti `revalidateRemoteCommit` helper kako sigurnosna logika ne bi divergirala između adaptera
-- dodani su Go regresijski testovi za novonastalu datoteku, direktorij, symlink, listing grešku, overwrite i još-nepostojeći cilj
-- dodan je Python source-ordering regression koji potvrđuje da oba upload adaptera pozivaju revalidaciju prije `commitRemoteTemp`
-- verzija se povećava na `1.0.2` umjesto mijenjanja već objavljenog i nepromjenjivog `v1.0.1`
+- Re-listed the destination directory after upload staging and immediately before the final commit/rename.
+- Blocked directory/symlink target replacement and respected a fresh SkipExisting decision.
+- Used the fresh target snapshot for overwrite backup/rollback decisions.
+- Failed closed and cleaned staging when final revalidation failed.
+- Shared the same revalidation helper between FTP/FTPS and SFTP.
 
-## 1.0.1 — Filesystem i SFTP hardening
+## 1.0.1 — Filesystem and SFTP hardening
 
-- ispravljena je Unix no-replace semantika koja je ranije radila `Lstat(dst)` pa obični `rename`, što je ostavljalo TOCTOU prozor u kojem je konkurentno odredište moglo biti prepisano
-- Linux lokalna aktivacija i rollback sada koriste kernel `renameat2(RENAME_NOREPLACE)` umjesto check-then-rename obrasca
-- macOS regularne staging datoteke koriste ekskluzivno hard-link + unlink premještanje; ako odredište već postoji, ono se ne prepisuje
-- generički ne-Windows fallback također koristi exclusive hard-link semantiku za obične datoteke umjesto neatomskog destination checka
-- rekurzivno lokalno brisanje više ne radi `os.ReadDir(target)` nakon zasebnog path checka; direktorij se otvara, verificira s `os.SameFile`, čita preko stabilnog handlea i ponovno provjerava prije destruktivnih koraka
-- dodana je regresija koja zamijeni provjereni direktorij symlinkom i potvrđuje da se vanjski sadržaj ne obilazi niti briše
-- privatni SFTP ključ sada ima maksimalnu veličinu od 1 MiB i prije OpenSSH korištenja se čita iz stabilno verificiranog regularnog file handlea
-- sadržaj privatnog ključa kopira se u kriptografski nasumično imenovan privatni `0600` session snapshot; memorijska kopija se briše nakon stvaranja, a session snapshot pri `Close()`
-- kasnija zamjena ili izmjena izvorne private-key putanje ne mijenja ključ koji koristi aktivna SFTP sesija
-- Linux/macOS `NewManager` više pri pokretanju ne briše zajedničke SFTP temp artefakte, pa paralelni terminalski proces ne može srušiti konfiguraciju druge aktivne sesije
-- Windows startup cleanup privremenih SFTP datoteka premješten je iza `EnsureNoRedirectDirectory`, nakon potvrde da ByFTP session mapa nije symlink/junction/reparse preusmjeravanje
-- novi Python filesystem-hardening regression zaključava Linux `RENAME_NOREPLACE`, macOS exclusive link, stable-directory delete, private-key snapshot i siguran SFTP cleanup redoslijed
-- postojeći release-version guard osigurava da se 1.0.1 objavi kao novi nepromjenjivi semantički release umjesto prepisivanja već objavljenog `v1.0.0`
+- Replaced non-atomic destination-check/rename fallbacks with no-replace platform primitives where available.
+- Hardened recursive local deletion around stable directory handles and identity revalidation.
+- Added a size limit and stable private snapshot for SFTP private keys.
+- Removed unsafe shared startup cleanup of SFTP temporary artifacts on Unix and moved Windows cleanup behind redirect-directory validation.
 
-## 1.0.0 — Stabilna produkcijska bazna linija
+## 1.0.0 — Stable production baseline
 
-- produkcijska semantička verzija resetirana je na `1.0.0`; `VERSION` je jedini autoritativni izvor verzije za aplikaciju, platformske pakete, GitHub Release i `ByFTP.Windows` GitHub Package
-- pooštrena je validacija hosta: bracketirani IPv6 sada mora imati točno jedan ispravno uparen par uglatih zagrada, bracketirani IPv4 se odbija, a host s priključenim portom ne prolazi kao hostname
-- dodane su regresije za nepotpune i višestruke IPv6 zagrade kako se sigurnosni propust ne bi vratio budućim refaktorom
-- zadržan je fail-closed SFTP host-key model s SHA-256 fingerprintom, endpoint bindingom, privatnim kratkotrajnim `known_hosts` zapisom i blokiranjem promijenjenog pina
-- zadržano je credential binding pravilo: spremljena lozinka vrijedi samo za isti protokol, host, port i korisnika, a passphrase dodatno za isti privatni ključ
-- Windows profilne tajne ostaju zaštićene DPAPI-jem; Linux/macOS terminal ne nudi trajno spremanje vjerodajnica
-- Linux/macOS FTP/FTPS lozinke ostaju samo u memoriji procesa; SFTP password/passphrase na tim platformama ostaje fail-closed dok ne postoji siguran Unix credential broker
-- transfer queue zadržava batch validaciju prije mutacije, connection-identity zaštitu za retry, cancel/pause/resume, kontrolirani broj paralelnih radnika i bounded event history
-- disconnect/reconnect lifecycle ostaje referentno brojan i ne zatvara remote adapter ispod aktivne operacije; cleanup se nastavlja sigurno i nakon isteka korisničkog deadlinea
-- lokalni download putovi ponovno se provjeravaju protiv symlink, junction i reparse traversal izlaza prije stvarnog transfera
-- vanjski `curl` i OpenSSH procesi koriste sanitizirani environment, ograničeni stdout/stderr, context timeout/cancel i kontrolirane argumente/standardni ulaz
-- state spremište zadržava ograničenje veličine, privatne dozvole, fsync privremene datoteke, atomsku zamjenu i prethodnu generaciju za oporavak
-- Windows x64/x86, Linux amd64/arm64/i386 i macOS Universal paketi ostaju zasebni produkcijski build gateovi
-- release workflow ostaje serijaliziran i fail-closed: prije javne objave ponovno izvršava audite, Python regresije, `go test`, `go test -race`, `go vet` i platformske build provjere
-- javni release staging dopušta samo ugovoreni skup platformskih paketa i zajedničkih metapodataka; postojeći asset pod istim nazivom mora imati istu veličinu i SHA-256 digest
-- GitHub Packages objava koristi istu `VERSION` vrijednost i `--skip-duplicate`, pa ne postoji zasebna ručno održavana verzija paketa
-- README je ponovno usklađen s realnim mogućnostima platformi, sigurnosnim ograničenjima, build/release modelom i verzijom `1.0.0`
+- Established `VERSION` as the single semantic version source for runtime binaries, platform packages, GitHub Release and `ByFTP.Windows` package metadata.
+- Hardened host validation, including bracketed IPv6 handling.
+- Kept fail-closed SFTP host-key pinning and endpoint-bound saved credentials.
+- Kept Windows DPAPI profile secrets and fail-closed unsupported Unix SFTP password/passphrase modes.
+- Preserved bounded transfer queue/event history, connection-identity retry protection and reference-counted remote session close behavior.
+- Preserved path traversal, symlink/junction/reparse validation and external process environment/output restrictions.
+- Required Windows x64/x86, Linux amd64/arm64/i386 and macOS Universal production build gates.
+- Kept release publication serialized, allowlisted and digest-verified.
 
-### Razvoj prije 1.0.0
+### Pre-1.0 development
 
-Prije stabilne 1.0.0 bazne linije projekt je prolazio kroz interne razvojne 2.x oznake tijekom intenzivnog hardeninga, cross-platform build rada i sigurnosnih revizija. Detaljna povijest tih razvojnih commitova ostaje dostupna u Git povijesti repozitorija; od `1.0.0` nadalje ovaj CHANGELOG prati javnu stabilnu semantičku liniju proizvoda.
+Before the stable 1.0.0 line, the project used internal development versioning during architecture, packaging and security-hardening work. The detailed pre-1.0 history remains available in Git history; this changelog tracks the public stable semantic line from 1.0.0 onward.

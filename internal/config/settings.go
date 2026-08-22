@@ -1,6 +1,7 @@
 package config
 
 import (
+	"brendigo.com/byftp/internal/i18n"
 	"brendigo.com/byftp/internal/model"
 	"errors"
 	"sync"
@@ -17,6 +18,7 @@ func NewSettings(s *Store) *SettingsStore { return &SettingsStore{store: s} }
 
 func defaults() model.Settings {
 	return model.Settings{
+		Language:                 i18n.DefaultLanguage,
 		Parallelism:              2,
 		BackupBeforeOverwrite:    true,
 		ConfirmDelete:            true,
@@ -27,13 +29,13 @@ func defaults() model.Settings {
 }
 
 func normalizeSettings(v model.Settings) model.Settings {
+	v.Language = i18n.Normalize(v.Language)
 	if v.Parallelism < 1 || v.Parallelism > 8 {
 		v.Parallelism = 2
 	}
 	if v.AutoRetryCount < 0 || v.AutoRetryCount > 3 {
 		v.AutoRetryCount = 0
 	}
-	// Zero is a legacy/missing value for retry delay, not a useful runtime delay.
 	if v.RetryDelaySeconds < 1 || v.RetryDelaySeconds > 30 {
 		v.RetryDelaySeconds = 3
 	}
@@ -44,17 +46,20 @@ func normalizeSettings(v model.Settings) model.Settings {
 }
 
 func validateSettings(v model.Settings) error {
+	if !i18n.IsSupported(v.Language) {
+		return errors.New("unsupported language")
+	}
 	if v.Parallelism < 1 || v.Parallelism > 8 {
-		return errors.New("paralelni prijenosi moraju biti između 1 i 8")
+		return errors.New("parallel transfers must be between 1 and 8")
 	}
 	if v.AutoRetryCount < 0 || v.AutoRetryCount > 3 {
-		return errors.New("automatska ponavljanja moraju biti između 0 i 3")
+		return errors.New("automatic retries must be between 0 and 3")
 	}
 	if v.RetryDelaySeconds < 1 || v.RetryDelaySeconds > 30 {
-		return errors.New("pauza između pokušaja mora biti između 1 i 30 sekundi")
+		return errors.New("retry delay must be between 1 and 30 seconds")
 	}
 	if v.ConnectionTimeoutSeconds < 5 || v.ConnectionTimeoutSeconds > 60 {
-		return errors.New("vrijeme čekanja spajanja mora biti između 5 i 60 sekundi")
+		return errors.New("connection timeout must be between 5 and 60 seconds")
 	}
 	return nil
 }
@@ -78,8 +83,10 @@ func (s *SettingsStore) Get() (model.Settings, error) {
 func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Zero is accepted only for newly introduced fields so callers compiled
-	// against an older settings shape migrate safely to the production default.
+	// Missing values from older settings files migrate to current safe defaults.
+	if v.Language == "" {
+		v.Language = i18n.DefaultLanguage
+	}
 	if v.ConnectionTimeoutSeconds == 0 {
 		v.ConnectionTimeoutSeconds = 15
 	}
@@ -89,6 +96,7 @@ func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 	if err := validateSettings(v); err != nil {
 		return v, err
 	}
+	v.Language = i18n.Normalize(v.Language)
 	if err := s.store.Write("settings.json", v); err != nil {
 		return v, err
 	}

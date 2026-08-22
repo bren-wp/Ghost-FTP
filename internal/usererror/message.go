@@ -4,85 +4,90 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"brendigo.com/byftp/internal/i18n"
 )
 
-// Message converts low-level protocol/OS/tooling errors into concise end-user
-// messages. Low-level tooling details are intentionally not exposed in the
-// normal desktop UI.
+// Message keeps source compatibility for callers that do not yet carry an
+// explicit locale. English is the canonical/default user-facing language.
 func Message(err error, fallback string) string {
+	return MessageFor(i18n.DefaultLanguage, err, fallback)
+}
+
+// MessageFor converts low-level protocol/OS/tooling errors into concise,
+// localized end-user messages without exposing command-line or library detail.
+func MessageFor(language string, err error, fallback string) string {
 	if err == nil {
 		return ""
 	}
-
-	// Specifični lokalni lifecycle status mora imati prednost nad generičkim
-	// context errorom. Engine može errors.Join-ati transfer deadline i remote
-	// close timeout; u tom slučaju korisnik treba vidjeti što se stvarno događa
-	// sa sesijom, a ne pogrešnu poruku da poslužitelj nije odgovorio.
+	language = i18n.Normalize(language)
 	s := strings.ToLower(strings.Join(strings.Fields(err.Error()), " "))
-	if strings.Contains(s, "prethodna veza se još sigurno zatvara") {
-		return "Prethodna veza još se sigurno zatvara. Pokušajte ponovno za nekoliko trenutaka."
-	}
-	if strings.Contains(s, "sigurno zatvaranje veze još traje") {
-		return "Prekid veze još se sigurno dovršava. Ponovno povezivanje bit će dostupno čim se stara sesija zatvori."
-	}
 
+	// Specific connection lifecycle states must win over a joined generic
+	// context deadline so the UI describes what is actually still happening.
+	if containsAny(s, "prethodna veza se još sigurno zatvara", "previous connection is still closing safely") {
+		return i18n.T(language, "error.session_closing")
+	}
+	if containsAny(s, "sigurno zatvaranje veze još traje", "connection is still closing safely") {
+		return i18n.T(language, "error.disconnect_closing")
+	}
 	if errors.Is(err, context.Canceled) {
-		return "Povezivanje ili operacija je otkazana."
+		return i18n.T(language, "error.cancelled")
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return "Poslužitelj nije odgovorio na vrijeme. Provjerite adresu, port i mrežnu vezu pa pokušajte ponovno."
+		return i18n.T(language, "error.timeout")
 	}
 
 	switch {
-	case strings.Contains(s, "otisak sftp host ključa se promijenio") || strings.Contains(s, "fingerprint se promijenio") || strings.Contains(s, "host key verification failed"):
-		return "Sigurnosni ključ poslužitelja promijenio se. Veza je blokirana radi vaše zaštite."
-	case containsAny(s, "sftp podrška nije dostupna u sustavu windows", "sftp komponenta nije pronađena", "openssh client nije instaliran", "nedostaje sftp.exe", "nedostaje ssh-keyscan.exe", "nedostaje ssh-keygen.exe"):
-		return "SFTP podrška nije dostupna. U postavkama sustava Windows uključite značajku OpenSSH Client."
-	case containsAny(s, "nije moguće dohvatiti sftp host ključ", "poslužitelj nije vratio ssh host ključ"):
-		return "SFTP poslužitelj nije vratio sigurnosni host ključ. Provjerite adresu, port i je li SSH/SFTP servis pokrenut."
+	case containsAny(s, "otisak sftp host ključa se promijenio", "fingerprint se promijenio", "host key verification failed", "sftp host-key fingerprint changed"):
+		return i18n.T(language, "error.hostkey_changed")
+	case containsAny(s, "sftp podrška nije dostupna u sustavu windows", "sftp komponenta nije pronađena", "openssh client nije instaliran", "nedostaje sftp.exe", "nedostaje ssh-keyscan.exe", "nedostaje ssh-keygen.exe", "sftp support is unavailable", "openssh client is not installed", "missing sftp.exe", "missing ssh-keyscan.exe", "missing ssh-keygen.exe"):
+		return i18n.T(language, "error.sftp_unavailable")
+	case containsAny(s, "nije moguće dohvatiti sftp host ključ", "poslužitelj nije vratio ssh host ključ", "could not retrieve sftp host key", "server did not return an ssh host key"):
+		return i18n.T(language, "error.sftp_hostkey_missing")
 	case containsAny(s, "authentication failed", "permission denied (publickey", "permission denied (password", "permission denied, please try again", "login incorrect", "access denied", "530 login", "530 user", "530 not logged", "authentication rejected"):
-		return "Prijava nije prihvaćena. Provjerite puni korisnički naziv i lozinku; na shared hostingu FTP korisnik često ima oblik korisnik@domena."
+		return i18n.T(language, "error.auth")
 	case containsAny(s, "421 too many connections", "421 service not available", "421 connection", "too many connections"):
-		return "FTP poslužitelj trenutačno ne prihvaća novu sesiju ili je dosegnut limit veza. Zatvorite druge FTP veze i pokušajte ponovno."
+		return i18n.T(language, "error.ftp_limit")
 	case containsAny(s, "425 can't open data connection", "425 cannot open data connection", "425 failed to establish connection", "426 connection closed", "426 transfer aborted"):
-		return "FTP podatkovna veza nije uspostavljena ili je prekinuta. Provjerite firewall/mrežu; ako se problem ponavlja, hosting treba provjeriti pasivne FTP portove."
+		return i18n.T(language, "error.ftp_data")
 	case containsAny(s, "could not resolve host", "name or service not known", "temporary failure in name resolution", "no such host", "host not found"):
-		return "Poslužitelj nije pronađen. Provjerite adresu poslužitelja."
+		return i18n.T(language, "error.resolve")
 	case containsAny(s, "connection refused", "actively refused"):
-		return "Poslužitelj odbija vezu na odabranom portu. Provjerite protokol i port."
+		return i18n.T(language, "error.refused")
 	case containsAny(s, "timed out", "timeout", "operation timed out"):
-		return "Poslužitelj nije odgovorio na vrijeme. Provjerite adresu, port i mrežnu vezu pa pokušajte ponovno."
+		return i18n.T(language, "error.timeout")
 	case containsAny(s, "connection reset", "connection closed", "broken pipe", "connection aborted", "network is unreachable", "no route to host"):
-		return "Veza s poslužiteljem je prekinuta. Povežite se ponovno i ponovite operaciju."
+		return i18n.T(language, "error.connection_lost")
 	case containsAny(s, "certificate", "ssl certificate", "tls", "schannel"):
-		return "Sigurnu vezu nije moguće potvrditi. Provjerite certifikat i FTPS postavke poslužitelja."
+		return i18n.T(language, "error.tls")
 	case containsAny(s, "disk full", "no space left", "insufficient disk space", "quota exceeded", "552"):
-		return "Nema dovoljno prostora za dovršetak operacije."
+		return i18n.T(language, "error.disk")
 	case containsAny(s, "permission denied", "access is denied", "550 permission", "553 permission"):
-		return "Nemate dopuštenje za ovu datoteku ili mapu."
+		return i18n.T(language, "error.permission")
 	case containsAny(s, "no such file", "not found", "550 file unavailable", "550 failed to open"):
-		return "Datoteka ili mapa više nije dostupna. Osvježite prikaz i pokušajte ponovno."
-	case containsAny(s, "already exists", "file exists", "ciljna stavka već postoji"):
-		return "Stavka s tim nazivom već postoji."
-	case strings.Contains(s, "nije uspostavljena veza"):
-		return "Niste povezani s poslužiteljem."
-	case strings.Contains(s, "red prijenosa je prevelik"):
-		return "Red prijenosa je pun. Očistite završene prijenose pa pokušajte ponovno."
-	case strings.Contains(s, "previše stavki") || strings.Contains(s, "predubok"):
-		return "Odabrana struktura je prevelika za jednu sigurnu operaciju."
-	case strings.Contains(s, "neispravan port") || strings.Contains(s, "port mora biti"):
-		return "Port mora biti broj između 1 i 65535."
-	case strings.Contains(s, "neispravan poslužitelj"):
-		return "Adresa poslužitelja nije ispravna."
-	case strings.Contains(s, "neispravno korisničko ime"):
-		return "Korisničko ime nije ispravno."
-	case strings.Contains(s, "neispravan naziv datoteke ili mape"):
-		return "Naziv datoteke ili mape nije dopušten."
+		return i18n.T(language, "error.not_found")
+	case containsAny(s, "already exists", "file exists", "ciljna stavka već postoji", "target item already exists"):
+		return i18n.T(language, "error.exists")
+	case containsAny(s, "nije uspostavljena veza", "not connected", "connection is not established"):
+		return i18n.T(language, "error.not_connected")
+	case containsAny(s, "red prijenosa je prevelik", "transfer queue is full", "transfer queue is too large"):
+		return i18n.T(language, "error.queue_full")
+	case containsAny(s, "previše stavki", "predubok", "too many items", "too deep"):
+		return i18n.T(language, "error.structure_large")
+	case containsAny(s, "neispravan port", "port mora biti", "invalid port", "port must be"):
+		return i18n.T(language, "error.invalid_port")
+	case containsAny(s, "neispravan poslužitelj", "invalid server", "invalid host"):
+		return i18n.T(language, "error.invalid_host")
+	case containsAny(s, "neispravno korisničko ime", "invalid username"):
+		return i18n.T(language, "error.invalid_user")
+	case containsAny(s, "neispravan naziv datoteke ili mape", "invalid file or folder name"):
+		return i18n.T(language, "error.invalid_name")
 	}
 
 	fallback = strings.TrimSpace(fallback)
 	if fallback == "" {
-		fallback = "Operacija nije uspjela. Provjerite vezu i pokušajte ponovno."
+		fallback = i18n.T(language, "error.generic")
 	}
 	return fallback
 }
