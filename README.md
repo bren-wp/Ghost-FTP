@@ -24,11 +24,11 @@
 
 ByFTP is designed for the everyday hosting workflow: connect, find `public_html`, manage files, transfer folders and keep working without unnecessary accounts, telemetry or browser-based middleware. Windows uses a native two-panel Win32 interface. Linux and macOS use a terminal interface over the same Go engine.
 
-**Current release: 1.0.12**
+**Current release: 1.0.11**
 
 ## Languages
 
-English is the canonical and default product language. ByFTP 1.0.12 also includes runtime localization for:
+English is the canonical and default product language. ByFTP 1.0.11 also includes runtime localization for:
 
 - Croatian — Hrvatski (`hr`)
 - German — Deutsch (`de`)
