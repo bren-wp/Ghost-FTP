@@ -11,14 +11,16 @@ import (
 )
 
 func (a *app) loadSettings() {
-	// Osiguraj hrvatski cue tekst i kod nadogradnje sa starijeg UI resursa.
-	cue(a.host, "Poslužitelj")
 	a.goSafe(func() {
 		settings, err := a.engine.Settings()
-		if err != nil {
-			return
-		}
-		a.dispatch(func() { a.settings = settings })
+		a.dispatch(func() {
+			if err != nil {
+				a.setStatus(usererror.Message(err, "Postavke nisu učitane; koriste se sigurne zadane vrijednosti."))
+				return
+			}
+			a.settings = settings
+			a.updateActionControls()
+		})
 	})
 }
 
@@ -36,6 +38,9 @@ func promptNumber(title, instruction string, current, min, max int) (int, bool) 
 }
 
 func (a *app) openSettings() {
+	if a.connectionBusy {
+		return
+	}
 	settings := a.settings
 	if settings.Parallelism < 1 {
 		settings.Parallelism = 2
@@ -104,6 +109,7 @@ func (a *app) openSettings() {
 				overwriteText = "postojeće datoteke se preskaču"
 			}
 			a.setStatus("Postavke spremljene. Paralelni prijenosi: " + strconv.Itoa(saved.Parallelism) + " • spajanje: " + strconv.Itoa(saved.ConnectionTimeoutSeconds) + " s • " + retryText + " • " + overwriteText)
+			a.updateActionControls()
 		})
 	})
 }

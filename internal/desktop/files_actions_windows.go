@@ -33,6 +33,10 @@ func (a *app) chooseLocalDirectory() {
 }
 
 func (a *app) refreshLocal(p string) {
+	selected := map[string]struct{}{}
+	if strings.TrimSpace(p) != "" && a.localCurrent != "" && filepath.Clean(p) == filepath.Clean(a.localCurrent) {
+		selected = selectedItemNames(a.localList, a.localItems)
+	}
 	if a.localNavCancel != nil {
 		a.localNavCancel()
 	}
@@ -50,18 +54,21 @@ func (a *app) refreshLocal(p string) {
 			a.localNavCancel = nil
 			if err != nil {
 				a.setStatus(usererror.Message(err, "Lokalnu mapu nije moguće otvoriti."))
+				a.updateActionControls()
 				return
 			}
 			a.localCurrent = resolvedPath
 			a.localItems = items
 			setText(a.localPath, resolvedPath)
 			fillItems(a.localList, items)
+			restoreItemSelection(a.localList, items, selected)
+			a.updateActionControls()
 		})
 	})
 }
 
 func (a *app) refreshRemote(p string) {
-	if !a.connected {
+	if !a.connected || a.connectionBusy {
 		return
 	}
 	if strings.TrimSpace(p) == "" {
@@ -72,11 +79,16 @@ func (a *app) refreshRemote(p string) {
 		}
 	}
 	p = cleanRemote(p)
+	selected := map[string]struct{}{}
+	if p == a.remoteCurrent {
+		selected = selectedItemNames(a.remoteList, a.remoteItems)
+	}
 	if a.remoteNavCancel != nil {
 		a.remoteNavCancel()
 	}
 	a.remoteNavSeq++
 	seq := a.remoteNavSeq
+	generation := a.connectionGeneration
 	target := p
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	a.remoteNavCancel = cancel
@@ -84,7 +96,7 @@ func (a *app) refreshRemote(p string) {
 		defer cancel()
 		items, err := a.engine.RemoteList(ctx, target)
 		a.dispatch(func() {
-			if seq != a.remoteNavSeq || !a.connected {
+			if seq != a.remoteNavSeq || generation != a.connectionGeneration || !a.connected {
 				return
 			}
 			a.remoteNavCancel = nil
@@ -100,6 +112,8 @@ func (a *app) refreshRemote(p string) {
 			a.remoteItems = items
 			setText(a.remotePath, a.remoteCurrent)
 			fillItems(a.remoteList, items)
+			restoreItemSelection(a.remoteList, items, selected)
+			a.updateActionControls()
 		})
 	})
 }
@@ -118,14 +132,14 @@ func (a *app) openSelectedLocal() {
 		a.refreshLocal(filepath.Join(a.localCurrent, it.Name))
 		return
 	}
-	if a.connected {
+	if a.connected && !a.connectionBusy {
 		a.addTransfer("upload", filepath.Join(a.localCurrent, it.Name), path.Join(a.remoteCurrent, it.Name), a.localCurrent)
 	}
 }
 
 func (a *app) openSelectedRemote() {
 	idx := selectedIndex(a.remoteList)
-	if idx < 0 || idx >= len(a.remoteItems) {
+	if idx < 0 || idx >= len(a.remoteItems) || !a.connected || a.connectionBusy {
 		return
 	}
 	it := a.remoteItems[idx]
@@ -135,6 +149,10 @@ func (a *app) openSelectedRemote() {
 	}
 	if it.IsDirectory {
 		a.refreshRemote(path.Join(a.remoteCurrent, it.Name))
+		return
+	}
+	if it.IsSymlink {
+		a.setStatus("Simbolička poveznica nije automatski preuzeta radi sigurnosti.")
 		return
 	}
 	local, err := security.SafeLocalChild(a.localCurrent, it.Name)
@@ -231,13 +249,13 @@ func (a *app) localDeleteAction() {
 				platform.ErrorDialog("ByFTP", "Nisu obrisane sve stavke", usererror.Message(err, "Dio odabranih stavki nije moguće obrisati."))
 			}
 			a.refreshLocal(a.localCurrent)
-			a.setStatus("Obrisano lokalnih stavki: " + strconv.Itoa(deleted))
+			a.setStatus("Obrisano lokalnih stavki: " + strconv.Itoa(deleted) + " • neuspjelo: " + strconv.Itoa(len(items)-deleted))
 		})
 	})
 }
 
 func (a *app) remoteMkdirAction() {
-	if !a.connected {
+	if !a.connected || a.connectionBusy {
 		return
 	}
 	name, ok := platform.PromptDialog("ByFTP — nova mapa na poslužitelju", "Naziv nove mape:", "Nova mapa")
@@ -251,7 +269,7 @@ func (a *app) remoteMkdirAction() {
 
 func (a *app) remoteRenameAction() {
 	indices := selectedIndices(a.remoteList)
-	if len(indices) != 1 || indices[0] < 0 || indices[0] >= len(a.remoteItems) {
+	if len(indices) != 1 || indices[0] < 0 || indices[0] >= len(a.remoteItems) || a.connectionBusy {
 		a.setStatus("Za preimenovanje odaberite točno jednu udaljenu stavku.")
 		return
 	}
@@ -268,7 +286,7 @@ func (a *app) remoteRenameAction() {
 
 func (a *app) remoteDeleteAction() {
 	indices := selectedIndices(a.remoteList)
-	if len(indices) == 0 {
+	if len(indices) == 0 || a.connectionBusy {
 		a.setStatus("Odaberite jednu ili više udaljenih stavki za brisanje.")
 		return
 	}
@@ -291,20 +309,15 @@ func (a *app) remoteDeleteAction() {
 		}
 	}
 	base := a.remoteCurrent
-	a.runRemoteMutationWithTimeout("Brisanje", remoteBatchTimeout(len(items)), func(ctx context.Context) error {
-		var errs []error
-		for _, item := range items {
-			if err := a.engine.RemoteDelete(ctx, base, item.Name, item.IsDirectory); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		return errors.Join(errs...)
-	}, "Udaljene stavke obrisane: "+strconv.Itoa(len(items)))
+	a.runRemoteBatchMutationWithTimeout("Brisanje", remoteBatchTimeout(len(items)), len(items), func(ctx context.Context, index int) error {
+		item := items[index]
+		return a.engine.RemoteDelete(ctx, base, item.Name, item.IsDirectory)
+	}, "Obrisano udaljenih stavki: ", 0)
 }
 
 func (a *app) remoteChmodAction() {
 	indices := selectedIndices(a.remoteList)
-	if len(indices) == 0 {
+	if len(indices) == 0 || a.connectionBusy {
 		a.setStatus("Odaberite jednu ili više stavki za promjenu dozvola.")
 		return
 	}
@@ -313,12 +326,20 @@ func (a *app) remoteChmodAction() {
 		return
 	}
 	items := make([]model.Item, 0, len(indices))
+	skippedLinks := 0
 	for _, idx := range indices {
-		if idx >= 0 && idx < len(a.remoteItems) {
-			items = append(items, a.remoteItems[idx])
+		if idx < 0 || idx >= len(a.remoteItems) {
+			continue
 		}
+		item := a.remoteItems[idx]
+		if item.IsSymlink {
+			skippedLinks++
+			continue
+		}
+		items = append(items, item)
 	}
 	if len(items) == 0 {
+		a.setStatus("Dozvole nisu mijenjane: simboličke poveznice preskaču se radi sigurnosti.")
 		return
 	}
 	base := a.remoteCurrent
@@ -327,15 +348,9 @@ func (a *app) remoteChmodAction() {
 		return
 	}
 	mode = strings.TrimSpace(mode)
-	a.runRemoteMutationWithTimeout("Promjena dozvola", remoteBatchTimeout(len(items)), func(ctx context.Context) error {
-		var errs []error
-		for _, item := range items {
-			if err := a.engine.RemoteChmod(ctx, base, item.Name, mode); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		return errors.Join(errs...)
-	}, "Dozvole promijenjene za stavki: "+strconv.Itoa(len(items)))
+	a.runRemoteBatchMutationWithTimeout("Promjena dozvola", remoteBatchTimeout(len(items)), len(items), func(ctx context.Context, index int) error {
+		return a.engine.RemoteChmod(ctx, base, items[index].Name, mode)
+	}, "Dozvole promijenjene za stavki: ", skippedLinks)
 }
 
 func remoteBatchTimeout(count int) time.Duration {
@@ -354,16 +369,20 @@ func (a *app) runRemoteMutation(label string, operation func(context.Context) er
 }
 
 func (a *app) runRemoteMutationWithTimeout(label string, timeout time.Duration, operation func(context.Context) error, success string) {
-	if !a.connected {
+	if !a.connected || a.connectionBusy {
 		return
 	}
-	baseGeneration := a.remoteNavSeq
+	baseNavGeneration := a.remoteNavSeq
+	connectionGeneration := a.connectionGeneration
 	a.setStatus(label + "…")
 	a.goSafe(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		err := operation(ctx)
 		a.dispatch(func() {
+			if connectionGeneration != a.connectionGeneration || !a.connected {
+				return
+			}
 			if err != nil {
 				if a.suppressExpectedDisconnectError(err) {
 					return
@@ -374,8 +393,47 @@ func (a *app) runRemoteMutationWithTimeout(label string, timeout time.Duration, 
 				return
 			}
 			a.setStatus(success)
-			if baseGeneration == a.remoteNavSeq {
+			if baseNavGeneration == a.remoteNavSeq {
 				a.refreshRemote(a.remoteCurrent)
+			}
+		})
+	})
+}
+
+func (a *app) runRemoteBatchMutationWithTimeout(label string, timeout time.Duration, count int, operation func(context.Context, int) error, successPrefix string, skipped int) {
+	if !a.connected || a.connectionBusy || count <= 0 {
+		return
+	}
+	baseNavGeneration := a.remoteNavSeq
+	connectionGeneration := a.connectionGeneration
+	a.setStatus(label + "…")
+	a.goSafe(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		result := executeBatchMutation(ctx, count, operation)
+		a.dispatch(func() {
+			if connectionGeneration != a.connectionGeneration || !a.connected {
+				return
+			}
+			status := successPrefix + strconv.Itoa(result.Succeeded)
+			if result.Failed > 0 {
+				status += " • neuspjelo: " + strconv.Itoa(result.Failed)
+			}
+			if skipped > 0 {
+				status += " • preskočeno poveznica: " + strconv.Itoa(skipped)
+			}
+			a.setStatus(status)
+			if result.Err != nil && !a.suppressExpectedDisconnectError(result.Err) {
+				platform.ErrorDialog("ByFTP — poslužitelj", label+" nije dovršeno za sve stavke", usererror.Message(result.Err, "Dio odabranih stavki nije moguće promijeniti."))
+			}
+			if result.Succeeded > 0 && baseNavGeneration == a.remoteNavSeq {
+				// Refresh itself proves whether the connection is still usable, so do
+				// not start a redundant probe in parallel after partial success.
+				a.refreshRemote(a.remoteCurrent)
+				return
+			}
+			if result.Err != nil && !a.suppressExpectedDisconnectError(result.Err) {
+				a.checkConnectionAfterError()
 			}
 		})
 	})
@@ -395,40 +453,54 @@ func (a *app) queueSelection(direction string, files []api.TransferRequest, tree
 		}
 		return
 	}
+	generation := a.connectionGeneration
 	a.setStatus("Dodavanje odabranih stavki u red prijenosa…")
 	a.goSafe(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
 		queuedFiles := 0
 		queuedDirs := 0
-		var firstErr error
+		failedSelections := 0
+		var errs []error
 		if len(files) > 0 {
 			jobs, err := a.engine.AddTransfers(files)
 			if err != nil {
-				firstErr = err
+				failedSelections += len(files)
+				errs = append(errs, err)
 			} else {
 				queuedFiles += len(jobs)
 			}
 		}
-		if firstErr == nil {
-			for _, tree := range trees {
-				result, err := a.engine.AddTreeTransfer(ctx, direction, tree.localPath, tree.remotePath)
-				if err != nil {
-					firstErr = err
-					break
-				}
-				queuedFiles += result.Queued
-				queuedDirs += result.Directories
-				skipped += result.SkippedSymlinks
+		for _, tree := range trees {
+			if ctx.Err() != nil {
+				failedSelections++
+				errs = append(errs, ctx.Err())
+				continue
 			}
+			result, err := a.engine.AddTreeTransfer(ctx, direction, tree.localPath, tree.remotePath)
+			if err != nil {
+				failedSelections++
+				errs = append(errs, err)
+				continue
+			}
+			queuedFiles += result.Queued
+			queuedDirs += result.Directories
+			skipped += result.SkippedSymlinks
 		}
+		err := errors.Join(errs...)
 		a.dispatch(func() {
-			if firstErr != nil {
-				platform.ErrorDialog("ByFTP — prijenos", "Nisu dodane sve odabrane stavke", usererror.Message(firstErr, "Dio odabranih stavki nije moguće dodati u prijenos."))
+			if generation != a.connectionGeneration {
+				return
+			}
+			if err != nil && !a.suppressExpectedDisconnectError(err) {
+				platform.ErrorDialog("ByFTP — prijenos", "Nisu dodane sve odabrane stavke", usererror.Message(err, "Dio odabranih stavki nije moguće dodati u prijenos."))
 			}
 			text := "Dodano u red: " + strconv.Itoa(queuedFiles) + " datoteka"
 			if queuedDirs > 0 {
 				text += ", " + strconv.Itoa(queuedDirs) + " mapa"
+			}
+			if failedSelections > 0 {
+				text += " • neuspjelo odabira: " + strconv.Itoa(failedSelections)
 			}
 			if skipped > 0 {
 				text += " • preskočeno poveznica: " + strconv.Itoa(skipped)
@@ -508,12 +580,16 @@ func (a *app) downloadSelected() {
 }
 
 func (a *app) addTreeTransfer(direction, local, remotePath string) {
+	generation := a.connectionGeneration
 	a.setStatus("Priprema prijenosa cijele mape…")
 	a.goSafe(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		result, err := a.engine.AddTreeTransfer(ctx, direction, local, remotePath)
 		a.dispatch(func() {
+			if generation != a.connectionGeneration {
+				return
+			}
 			if err != nil {
 				if a.suppressExpectedDisconnectError(err) {
 					return
@@ -529,37 +605,47 @@ func (a *app) addTreeTransfer(direction, local, remotePath string) {
 }
 
 func (a *app) checkConnectionAfterError() {
-	if a.healthCheckRunning || !a.connected {
+	if a.healthCheckRunning || !a.connected || a.connectionBusy {
 		return
 	}
+	generation := a.connectionGeneration
 	a.healthCheckRunning = true
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	a.healthCheckCancel = cancel
 	a.goSafe(func() {
 		err := a.engine.Probe(ctx)
 		cancel()
-		if err == nil {
-			a.dispatch(func() {
-				a.healthCheckRunning = false
-				a.healthCheckCancel = nil
-			})
-			return
-		}
-		disconnectCtx, disconnectCancel := context.WithTimeout(context.Background(), 10*time.Second)
-		_ = a.engine.Disconnect(disconnectCtx)
-		disconnectCancel()
 		a.dispatch(func() {
+			if generation != a.connectionGeneration || !a.connected {
+				return
+			}
 			a.healthCheckRunning = false
 			a.healthCheckCancel = nil
-			if a.remoteNavCancel != nil {
-				a.remoteNavCancel()
-				a.remoteNavCancel = nil
+			if err == nil {
+				return
 			}
-			a.remoteNavSeq++
-			a.setConnectionUI(false)
-			clearList(a.remoteList)
-			a.remoteItems = nil
-			a.setStatus("Veza više nije dostupna. Aktivni prijenosi su zaustavljeni; poslužitelj i korisničko ime ostali su uneseni.")
+			if a.suppressExpectedDisconnectError(err) {
+				return
+			}
+
+			disconnectGeneration := a.beginConnectionTransition()
+			a.setConnectionBusy(true)
+			a.setStatus("Veza više nije dostupna. Zaustavljanje prijenosa…")
+			a.goSafe(func() {
+				disconnectCtx, disconnectCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				disconnectErr := a.engine.Disconnect(disconnectCtx)
+				disconnectCancel()
+				a.dispatch(func() {
+					if disconnectGeneration != a.connectionGeneration {
+						return
+					}
+					status := "Veza više nije dostupna. Aktivni prijenosi su zaustavljeni; poslužitelj i korisničko ime ostali su uneseni."
+					if disconnectErr != nil {
+						status = usererror.Message(disconnectErr, status)
+					}
+					a.finishDisconnected(status)
+				})
+			})
 		})
 	})
 }
