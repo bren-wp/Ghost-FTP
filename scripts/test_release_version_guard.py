@@ -43,7 +43,7 @@ class ReleaseVersionGuardTests(unittest.TestCase):
         head = self.commit(root, "runtime change")
         ok, message = GUARD.validate_release_version(base, head, root)
         self.assertFalse(ok)
-        self.assertIn("povećajte VERSION", message)
+        self.assertIn("bump VERSION", message)
 
     def test_version_bump_allows_production_change(self) -> None:
         root, base = self.make_repo()
@@ -66,7 +66,7 @@ class ReleaseVersionGuardTests(unittest.TestCase):
         head = self.commit(root, "start unreleased line")
         ok, message = GUARD.validate_release_version(base, head, root)
         self.assertTrue(ok, message)
-        self.assertIn("još nije tagiran", message)
+        self.assertIn("has not been tagged yet", message)
 
     def test_public_docs_are_release_content(self) -> None:
         self.assertTrue(GUARD.is_production_path("docs/SIGURNOST.md"))
