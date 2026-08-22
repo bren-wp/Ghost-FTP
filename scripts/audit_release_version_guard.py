@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Blokira produkcijske promjene nakon objavljenog taga bez novog VERSION-a."""
+"""Block production changes to an already published version unless VERSION changes."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Datoteke koje mijenjaju runtime, instalacijske pakete ili javni sadržaj
-# izdanja. CI/audit skripte i sami workflowi namjerno nisu ovdje: njih se mora
-# moći ojačati bez izmišljanja nove korisničke verzije proizvoda.
+# Files that change runtime behavior, installation packages, or public release
+# content. CI/audit scripts and workflows are intentionally excluded so their
+# safety checks can be strengthened without inventing a new product version.
 PRODUCTION_PREFIXES = (
     "cmd/",
     "internal/",
@@ -66,36 +66,36 @@ def changed_paths(base: str, head: str, root: Path = ROOT) -> list[str]:
 def validate_release_version(base: str, head: str, root: Path = ROOT) -> tuple[bool, str]:
     version_path = root / "VERSION"
     if not version_path.is_file():
-        return False, "nedostaje VERSION"
+        return False, "VERSION is missing"
     version = version_path.read_text(encoding="utf-8").strip()
     if not version:
-        return False, "VERSION je prazan"
+        return False, "VERSION is empty"
 
     released = tag_commit(version, root)
     if released is None:
-        return True, f"v{version} još nije tagiran; produkcijske promjene su dopuštene prije prvog izdanja"
+        return True, f"v{version} has not been tagged yet; production changes are allowed before the first release"
 
     if not base or not head or set(base) == {"0"}:
-        return True, "nema pouzdanog event base SHA; verzijski guard nije primijenjen na ovaj ručni/početni run"
+        return True, "no reliable event base SHA is available; the version guard is not applied to this manual/initial run"
 
     try:
         paths = changed_paths(base, head, root)
     except subprocess.CalledProcessError as exc:
-        return False, f"nije moguće izračunati diff {base}..{head}: {exc.stderr.strip()}"
+        return False, f"unable to calculate diff {base}..{head}: {exc.stderr.strip()}"
 
     if "VERSION" in paths:
-        return True, "VERSION je promijenjen u ovom skupu promjena"
+        return True, "VERSION changed in this change set"
 
     production = sorted(path for path in paths if is_production_path(path))
     if not production:
-        return True, "promjene ne mijenjaju runtime/pakete/javni sadržaj izdanja"
+        return True, "changes do not modify runtime, packages, or public release content"
 
     preview = ", ".join(production[:12])
     if len(production) > 12:
         preview += f", ... (+{len(production) - 12})"
     return False, (
-        f"v{version} već postoji na {released[:12]}, ali ovaj skup mijenja produkcijski sadržaj bez promjene VERSION: "
-        f"{preview}. Objavljena verzija je nepromjenjiva; povećajte VERSION prije spajanja novih produkcijskih promjena."
+        f"v{version} already exists at {released[:12]}, but this change set modifies production content without changing VERSION: "
+        f"{preview}. Published versions are immutable; bump VERSION before merging new production changes."
     )
 
 
