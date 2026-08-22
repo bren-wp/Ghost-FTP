@@ -1,21 +1,26 @@
-# ByFTP build i verifikacijski alati
+# ByFTP build and verification tools
 
-Ova mapa sadrži pomoćne alate produkcijskog pipelinea. Svi alati koriste standardne mogućnosti Go/Python/PowerShell okruženja i ne dodaju runtime ovisnosti ByFTP aplikaciji.
+This directory contains the helper tools used by the production pipeline. They use standard Go, Python, PowerShell and platform tooling and do not add runtime dependencies to ByFTP.
 
-- `BUILD-LOCAL.sh` — lokalna offline Windows cross-build provjera
-- `generate_brand_assets.py` — reproducibilno generiranje i provjera PNG/ICO resursa
-- `audit_croatian.py` — provjera hrvatskih korisničkih/GitHub/release površina
-- `audit_version.py` — provjera `VERSION` kao jedinog produkcijskog izvora broja verzije
-- `audit_docs.py` — lokalne dokumentacijske poveznice, indeks i verzijski neutralni naslovi
-- `audit_security.py` — ključne filesystem/transfer/state sigurnosne invarijante i regresijski testovi
-- `audit_privacy.py` — privacy/network-policy provjera
-- `audit_release.py` — statički ugovor release workflowa, bundlea i idempotentnog publishera
-- `test_release_tools.py` — stdlib regresijski testovi release ZIP verifikacije
-- `make_payload.py` — izrada i integritet instalacijskog payloada
-- `pe_resources.py` — PE ikona i VERSIONINFO resursi
-- `verify_release.py` — PE i sigurnosna verifikacija binarija
-- `verify_bundle.py` — provjera konačnog Windows ZIP-a, putanja i `BUNDLE-SHA256.txt`
-- `release_notes.py` — hrvatske bilješke iz točnog CHANGELOG odjeljka
-- `publish_release.ps1` — idempotentna GitHub Release objava s tag/commit i asset SHA-256 provjerom
+- `BUILD-LOCAL.sh` — local offline Windows x64 cross-build verification
+- `BUILD-LINUX.sh` — Linux amd64/arm64/i386 DEB production builds
+- `BUILD-MACOS.sh` — macOS Universal PKG production build
+- `generate_brand_assets.py` — reproducible PNG/ICO asset generation and verification
+- `audit_localization.py` — English-first runtime/localization contract and full-label UI guards
+- `audit_version.py` — verifies `VERSION` as the canonical production version source
+- `audit_release_version_guard.py` — blocks production changes to an already published version without a VERSION bump
+- `audit_docs.py` — local documentation links, index coverage and version-neutral titles
+- `audit_security.py` — filesystem, connection, credential, transfer and lifecycle security invariants
+- `audit_privacy.py` — telemetry, runtime network-policy and secret-handling invariants
+- `audit_release.py` — static contract for the release workflow, bundles and fail-closed publisher
+- `test_release_tools.py` — standard-library regression tests for release ZIP verification
+- `make_payload.py` — installer payload creation and integrity
+- `pe_resources.py` — PE icon and VERSIONINFO resources
+- `verify_release.py` — Windows PE/security verification
+- `verify_bundle.py` — final Windows ZIP path, manifest and SHA-256 verification
+- `release_notes.py` — release notes generated from the exact matching CHANGELOG section
+- `publish_release.ps1` — idempotent GitHub Release publisher with tag/commit and asset SHA-256 verification
 
-Puni proces izdavanja dokumentiran je u [`docs/IZDAVANJE-NA-GITHUBU.md`](../docs/IZDAVANJE-NA-GITHUBU.md), kontrolna lista u [`docs/PROVJERA-IZDANJA.md`](../docs/PROVJERA-IZDANJA.md), a testni slojevi u [`docs/TESTIRANJE.md`](../docs/TESTIRANJE.md).
+The full publishing process is documented in [`docs/IZDAVANJE-NA-GITHUBU.md`](../docs/IZDAVANJE-NA-GITHUBU.md), the release checklist in [`docs/PROVJERA-IZDANJA.md`](../docs/PROVJERA-IZDANJA.md), and the quality layers in [`docs/TESTIRANJE.md`](../docs/TESTIRANJE.md).
+
+Historical script names and documentation paths may remain stable when renaming them would break existing automation or links; English is the canonical content language for current production tooling.
