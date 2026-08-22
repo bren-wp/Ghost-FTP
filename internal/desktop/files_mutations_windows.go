@@ -5,7 +5,6 @@ package desktop
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -292,8 +291,4 @@ func (a *app) runRemoteBatchMutationWithTimeout(label string, timeout time.Durat
 			}
 		})
 	})
-}
-
-func batchSummary(prefix string, count int) string {
-	return fmt.Sprintf("%s%d", prefix, count)
 }
