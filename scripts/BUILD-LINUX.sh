@@ -6,13 +6,13 @@ VERSION="$(tr -d '\r\n' < VERSION)"
 MIN_GO_MAJOR=1
 MIN_GO_MINOR=26
 MIN_GO_PATCH=5
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Neispravan VERSION.' >&2; exit 1; }
-command -v go >/dev/null || { echo 'Go nije instaliran.' >&2; exit 1; }
-command -v dpkg-deb >/dev/null || { echo 'dpkg-deb nije instaliran.' >&2; exit 1; }
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid VERSION.' >&2; exit 1; }
+command -v go >/dev/null || { echo 'Go is not installed.' >&2; exit 1; }
+command -v dpkg-deb >/dev/null || { echo 'dpkg-deb is not installed.' >&2; exit 1; }
 
 raw_go="$(go env GOVERSION)"
 if [[ ! "$raw_go" =~ ^go([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
-  echo "Nije moguće provjeriti Go verziju: $raw_go" >&2
+  echo "Unable to verify Go version: $raw_go" >&2
   exit 1
 fi
 go_major="${BASH_REMATCH[1]}"
@@ -21,13 +21,13 @@ go_patch="${BASH_REMATCH[4]:-0}"
 if (( go_major < MIN_GO_MAJOR ||
       (go_major == MIN_GO_MAJOR && go_minor < MIN_GO_MINOR) ||
       (go_major == MIN_GO_MAJOR && go_minor == MIN_GO_MINOR && go_patch < MIN_GO_PATCH) )); then
-  echo "Za produkcijski ByFTP build potreban je Go 1.26.5+; trenutačno: $raw_go" >&2
+  echo "ByFTP production builds require Go 1.26.5+; current: $raw_go" >&2
   exit 1
 fi
 
 telemetry="$(go telemetry)"
 [[ "$telemetry" == "off" ]] || {
-  echo "Go telemetrija mora biti isključena prije produkcijskog builda. Pokrenite: go telemetry off (trenutačno: $telemetry)" >&2
+  echo "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetry)" >&2
   exit 1
 }
 
@@ -41,7 +41,7 @@ build_arch() {
   rm -rf "$root" "$out"
   mkdir -p "$root/DEBIAN" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/icons/hicolor/512x512/apps"
 
-  echo "[Linux ${debarch}] Izgradnja ByFTP-a"
+  echo "[Linux ${debarch}] Building ByFTP"
   GOARCH="$goarch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$root/usr/bin/byftp" ./cmd/byftp
   chmod 0755 "$root/usr/bin/byftp"
   cp build/icon.png "$root/usr/share/icons/hicolor/512x512/apps/byftp.png"
@@ -50,12 +50,12 @@ build_arch() {
 [Desktop Entry]
 Type=Application
 Name=ByFTP
-Comment=Siguran FTP, FTPS i SFTP klijent tvrtke Brendigo
+Comment=Secure FTP, FTPS and SFTP client
 Exec=/usr/bin/byftp
 Icon=byftp
 Terminal=true
 Categories=Network;FileTransfer;
-Keywords=FTP;FTPS;SFTP;Brendigo;
+Keywords=FTP;FTPS;SFTP;ByFTP;
 EOF
 
   cat > "$root/DEBIAN/control" <<EOF
@@ -67,9 +67,10 @@ Architecture: ${debarch}
 Maintainer: Brendigo <info@brendigo.com>
 Depends: ca-certificates, curl, openssh-client
 Homepage: https://github.com/bren-wp/by-ftp
-Description: ByFTP terminalni FTP, FTPS i SFTP klijent
- ByFTP je privatnosti usmjeren klijent bez telemetrije. Linux izdanje koristi
- terminalno sučelje i isti sigurnosni/transfer core kao Windows izdanje.
+Description: ByFTP terminal FTP, FTPS and SFTP client
+ ByFTP is a privacy-focused, telemetry-free file-transfer client. The Linux
+ edition uses a terminal interface and the same security and transfer core as
+ the Windows edition.
 EOF
 
   dpkg-deb --root-owner-group --build "$root" "$out" >/dev/null
@@ -82,4 +83,4 @@ build_arch amd64 amd64
 build_arch arm64 arm64
 build_arch 386 i386
 
-echo "ByFTP ${VERSION} Linux paketi su izgrađeni (Go ${raw_go}, telemetry=${telemetry})."
+echo "ByFTP ${VERSION} Linux packages built successfully (Go ${raw_go}, telemetry=${telemetry})."
