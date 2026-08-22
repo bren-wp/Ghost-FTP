@@ -2,7 +2,7 @@ package i18n
 
 var catalogs = map[string]map[string]string{
 	"en": {
-		"app.subtitle": "FTP • FTPS • SFTP  ·  Fast hosting management  ·  Brendigo",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Fast hosting management",
 		"badge.connected": "● CONNECTED", "badge.disconnected": "● DISCONNECTED",
 		"profile.quick": "Quick connect (no profile)", "profile.save": "Save profile", "profile.delete": "Delete profile",
 		"common.settings": "Settings", "common.about": "About", "common.connect": "Connect", "common.disconnect": "Disconnect",
@@ -82,7 +82,7 @@ var catalogs = map[string]map[string]string{
 		"terminal.language_usage": "Usage: language <en|hr|de|fr|es|tr|el|pt|zh|ru|hi|ja>", "terminal.language_saved": "Language changed to %s.",
 	},
 	"hr": {
-		"app.subtitle": "FTP • FTPS • SFTP  ·  Brzo upravljanje hostingom  ·  Brendigo",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Brzo upravljanje hostingom",
 		"badge.connected": "● POVEZANO", "badge.disconnected": "● NIJE POVEZANO", "profile.quick": "Brzi spoj (bez profila)", "profile.save": "Spremi profil", "profile.delete": "Obriši profil",
 		"common.settings": "Postavke", "common.about": "O programu", "common.connect": "Poveži", "common.disconnect": "Prekini", "common.up": "Gore", "common.folder": "Mapa…", "common.refresh": "Osvježi", "common.new_folder": "Nova mapa", "common.rename": "Preimenuj", "common.delete": "Obriši", "common.permissions": "Dozvole", "common.cancel": "Otkaži",
 		"auth.private_key": "Privatni ključ…", "section.local": "LOKALNO RAČUNALO", "section.remote": "POSLUŽITELJ", "section.transfers": "PRIJENOSI", "transfer.upload": "Pošalji", "transfer.download": "Preuzmi", "transfer.pause": "Pauziraj", "transfer.resume": "Nastavi", "transfer.retry": "Ponovi", "transfer.clear": "Očisti završene",
