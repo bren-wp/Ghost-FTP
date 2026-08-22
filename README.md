@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>FTP bez komplikacija. Više kontrole nad vašim hostingom.</strong><br>
-  ByFTP je Brendigo klijent za FTP, FTPS i SFTP namijenjen brzom i sigurnom upravljanju web datotekama, shared-hosting računima i svakodnevnim prijenosima — bez oglasa, obaveznog cloud računa i aplikacijske telemetrije.
+  ByFTP je Brendigo klijent za FTP, FTPS i SFTP namijenjen brzom i sigurnom upravljanju web datotekama i shared-hosting računima — bez oglasa, obaveznog cloud računa i aplikacijske telemetrije.
 </p>
 
 <p align="center">
@@ -24,27 +24,42 @@
 
 ByFTP je klijent za korisnike koji žele otvoriti hosting, pronaći `public_html`, prenijeti datoteke i nastaviti raditi bez nepotrebnih koraka. Windows izdanje koristi izvorni dvopanelni Win32 GUI, dok Linux i macOS koriste terminalno sučelje nad istim Go engineom.
 
-**Trenutačno izdanje: 1.0.10**
+**Trenutačno izdanje: 1.0.11**
 
 ## Što ByFTP radi
 
 - **FTP, eksplicitni FTPS, implicitni FTPS i SFTP** u jednom klijentu.
 - **Shared hosting bez putanjskih iznenađenja** — FTP/FTPS rad zadržava login/home semantiku servera.
 - **Dvopanelni Windows rad** — lokalne datoteke lijevo, udaljene desno.
-- **Transfer queue** — više prijenosa, pause/resume, cancel i retry.
+- **Transfer queue** — više prijenosa, pauziranje, nastavak, otkazivanje i ponavljanje.
 - **Sigurniji overwrite** — privremeni upload, ponovna provjera odredišta, backup i rollback.
 - **SFTP host-key pinning** — prvi kontakt traži potvrdu SHA-256 fingerprinta, a promjena pina blokira vezu.
-- **Bez aplikacijske telemetrije i oglasa** — ByFTP nema analytics SDK ni obavezni Brendigo cloud račun.
+- **Bez aplikacijske telemetrije i oglasa** — nema analytics SDK-a ni obaveznog Brendigo cloud računa.
+
+## Što donosi 1.0.11
+
+1.0.11 fokusira se na svakodnevni Windows rad i uklanjanje stale-UI rubova koji se pojavljuju tijekom refresha, parcijalnih mrežnih operacija i brzog disconnect/reconnect slijeda.
+
+- Windows prozor se prilagođava dostupnoj veličini zaslona, a uži prikaz prebacuje connection formu u kompaktniji raspored umjesto da desne kontrole izlaze iz vidljivog područja.
+- Širine file i transfer stupaca računaju se prema stvarnom client area prostoru, pa veliki i mali prozori bolje koriste dostupnu širinu.
+- Lokalni, udaljeni i transfer popisi čuvaju odabir kroz automatski refresh gdje je ista stavka još prisutna; punjenje liste privremeno gasi redraw kako bi bilo manje treperenja.
+- Akcijski gumbi prate stvarni kontekst: preimenovanje traži jednu stavku, brisanje/prijenos valjan odabir, a cancel/retry status odgovaraju odabranim transferima i aktualnoj vezi.
+- Profilne i connection kontrole zaključane su tijekom aktivnog pokušaja povezivanja, a asinkroni callbackovi vezani su uz connection generation kako stari rezultat ne bi mijenjao novu sesiju.
+- Health-check stare veze više ne može naknadno prekinuti novu sesiju nakon brzog reconnecta.
+- Višestruko remote brisanje i CHMOD prikazuju koliko je stavki stvarno uspjelo i koliko nije; ako je dio operacije uspio, remote lista odmah se osvježava umjesto da prikazuje zastarjelo stanje.
+- CHMOD preskače simboličke poveznice u Windows UI-u kao defense-in-depth zaštitu.
+- Red prijenosa koristi autoritativno paused stanje koje emitira transfer manager, pa gumbi Pauziraj/Nastavi ne ovise samo o lokalnoj pretpostavci UI-a.
+- Profil se validira prije obrade upisanih vjerodajnica, pa neispravan host/port/username završava ranom, jasnom porukom.
 
 ## Shared hosting — spojite se u nekoliko koraka
 
-Za tipični shared-hosting račun obično su potrebni host, korisničko ime, lozinka te protokol/port. Korisničko ime može biti i u obliku `korisnik@domena.hr`.
+Za tipični shared-hosting račun obično su potrebni host, korisničko ime, lozinka te protokol i port. Korisničko ime može biti i u obliku `korisnik@domena.hr`.
 
-Za FTP/FTPS logička putanja `/public_html` predstavlja `public_html` unutar direktorija u koji je server smjestio korisnika nakon prijave. ByFTP raw FTP naredbe koriste isti login/home namespace kao listing i upload/download, pa početni `/` ne pretvara korisničku putanju u proizvoljni fizički root servera.
+Za FTP/FTPS logička putanja `/public_html` predstavlja `public_html` unutar direktorija u koji je server smjestio korisnika nakon prijave. ByFTP raw FTP naredbe koriste isti login/home namespace kao listing i upload/download.
 
 ByFTP prvo pokušava strojno čitljiv `MLSD`. Ako ga stariji ili nestandardni shared-hosting FTP servis ne podržava ili vrati neupotrebljiv format, klijent prelazi na `LIST` i taj fallback pamti do kraja sesije.
 
-Detaljni vodič: [ByFTP za shared hosting](docs/SHARED-HOSTING.md).
+Detalji i primjeri: [ByFTP za shared hosting](docs/SHARED-HOSTING.md).
 
 ## Produkcijska podrška
 
@@ -93,31 +108,17 @@ Svako izdanje uključuje SHA-256 i release metapodatke za provjeru distribucije.
 
 Za instalaciju, prvi spoj, nadogradnju i uklanjanje otvorite [Vodič za instalaciju i brzi početak](docs/INSTALACIJA.md).
 
+Windows installer koristi transakcijski backup i rollback s provjerom identiteta i SHA-256 sadržaja datoteka. Svježa instalacija koristi no-replace aktivaciju, a rollback odbija dirati datoteku ako više ne može dokazati da je to isti objekt koji je installer postavio.
+
 Windows korisnicima preporučujemo Setup x64 paket. Portable izdanje je prikladno kada ne želite klasičnu instalaciju. Linux koristi DEB paket prema arhitekturi, a macOS Universal PKG pokriva Intel i Apple Silicon.
-
-### Sigurnija Windows instalacijska transakcija u 1.0.9
-
-Windows installer više ne smatra zasebni `Lstat` dovoljnim dokazom za backup postojeće instalacije. Otvoreni file handle mora odgovarati istom filesystem objektu, veličini i vremenu izmjene, a sadržaj se tijekom backupa provjerava dvostrukim SHA-256 čitanjem preko istog otvorenog handlea. Zamjena putanje ili in-place promjena tijekom kopiranja blokira nadogradnju prije aktivacije novih binarija.
-
-Kod svježe instalacije novi `ByFTP.exe` i `Uninstall.exe` aktiviraju se no-replace semantikom. Ako se ciljna datoteka pojavi nakon početne provjere, installer je neće pregaziti. Rollback dodatno pamti je li installer stvarno aktivirao vlastitu datoteku te prije uklanjanja ili vraćanja stare verzije ponovno provjerava identitet i SHA-256 aktiviranog objekta. Ako je datoteku u međuvremenu promijenio drugi proces, rollback se zaustavlja umjesto da briše ili prepisuje nepoznat sadržaj.
-
-Ove provjere namjerno daju prednost očuvanju podataka pred pokušajem “popravka pod svaku cijenu”. Potpuno uklanjanje svakog mogućeg same-user path race prozora na Windowsu zahtijevalo bi dodatne handle-relative platformske primitive; ByFTP ne tvrdi da ih ova promjena univerzalno eliminira.
-
-## Stabilniji cancel i timeout u 1.0.10
-
-ByFTP za FTP/FTPS koristi `curl`, a za SFTP sistemski OpenSSH. Prekid mrežne operacije više se ne oslanja samo na gašenje jednog glavnog procesa ako taj alat ima potomke. Na Linuxu i macOS-u svaki mrežni/helper proces dobiva vlastitu process group i cancel prekida cijelu grupu. Na Windowsu se pri cancelu zaustavlja glavni proces, zatim se preko sistemskog popisa procesa rekurzivno uklanjaju njegovi potomci, uz dodatni svježi prolaz nakon gašenja roditelja.
-
-To je posebno važno za SFTP autentikaciju: OpenSSH može pokrenuti ByFTP AskPass helper za lozinku ili passphrase. Timeout, korisnički cancel ili gašenje aktivne operacije sada imaju process-tree zaštitu kako helper ne bi nastavio živjeti nakon prekinute SFTP radnje. Zaštita se primjenjuje i na `ssh-keyscan`, `ssh-keygen`, `curl --version` capability provjeru i redovne FTP/FTPS/SFTP operacije jer svi postojeći `exec.CommandContext` ulazi prolaze kroz isti lifecycle konfigurator.
-
-Regresijski test u stvarnom procesu pokreće parent i child helper, čeka dokaz da je child nastao, cancelira parent te potvrđuje da child nije preživio dovoljno dugo da ostavi marker. Time CI provjerava ponašanje, a ne samo prisutnost zaštitnog koda.
 
 ## Upravljanje datotekama
 
-Windows GUI podržava pregled lokalnih i udaljenih datoteka, višestruki odabir, upload/download, stvaranje mapa, preimenovanje, rekurzivno brisanje uz zaštitne limite, CHMOD gdje ga server podržava, profile i transfer queue.
+Windows GUI podržava pregled lokalnih i udaljenih datoteka, višestruki odabir, upload/download, prijenos mapa, stvaranje mapa, preimenovanje, rekurzivno brisanje uz zaštitne limite, CHMOD gdje ga server podržava, profile i transfer queue.
 
 Linux/macOS terminal koristi isti engine za `ls`, `cd`, `mkdir`, `rename`, `delete`, `chmod`, `get`, `put`, `pwd` i transfere.
 
-Od 1.0.7 pojedinačni upload/download zahtijeva konkretnu remote datoteku. Root, `.` i putanja koja završava direktorijskim separatorom odbijaju se prije dodavanja posla u red, dok prijenos cijele mape ostaje zasebna tree-transfer operacija. U 1.0.8 ista provjera postoji i u transfer queueu te neposredno u FTP/SFTP adapterima kao defense-in-depth zaštita.
+Pojedinačni upload/download zahtijeva konkretnu remote datoteku. Root, `.` i putanje koje završavaju direktorijskim separatorom odbijaju se prije transfer reda i mrežnog rada. Folder/tree transfer ostaje zasebna operacija.
 
 ## Sigurnost transfera
 
@@ -130,34 +131,15 @@ ByFTP je projektiran tako da greška ne izgleda kao uspjeh. Ključne zaštite uk
 - SHA-256 provjeru upload snapshota prije i nakon mrežnog čitanja;
 - provjeru da vidljivi remote `.byftp-part-*` staging objekt nije direktorij ili symlink;
 - ponovnu provjeru finalnog remote odredišta neposredno prije rename/backup commita;
-- fresh `SkipExisting` odluku nakon dugog uploada;
-- fail-closed prijavu ako se remote staging/rollback cleanup ne može potvrditi;
-- blokiranje automatskog retryja dok prethodni remote pokušaj možda ima zaostali privremeni objekt;
-- vezanje retry/batch poslova uz istu connection identity i transfer generation;
+- fail-closed prijavu kada cleanup remote staging/rollback objekta nije moguće potvrditi;
+- blokiranje automatskog retryja dok prethodno remote stanje možda nije čisto;
+- vezanje transfera i retryja uz connection identity i transfer generation;
 - bounded stdout/stderr mrežnih child procesa;
-- timeout i cancel propagaciju s process-tree zaštitom za vanjske mrežne/helper procese;
-- FTPS certificate-revocation zaštitu bez globalnog `ssl-no-revoke` gašenja;
+- timeout i cancel propagaciju s process-tree zaštitom za vanjske `curl` i OpenSSH procese;
+- FTPS certificate-revocation zaštitu bez globalnog gašenja revocation provjere;
 - SFTP SHA-256 fingerprint pinning i privatni `known_hosts` lifecycle.
 
 Sigurniji upload snapshot zahtijeva dodatni privremeni lokalni prostor približno veličini datoteke koja se šalje. To je namjeran tradeoff u korist stabilnog sadržaja.
-
-## Cleanup i lifecycle hardening u 1.0.8
-
-1.0.8 razlikuje običnu mrežnu grešku od situacije u kojoj ByFTP **ne može potvrditi da je vlastiti privremeni remote objekt uklonjen**. U tom drugom slučaju transfer završava kao greška i automatsko ponavljanje se blokira, jer novi pokušaj ne smije stvarati dodatne `.byftp-part-*` ili rollback ostatke dok prethodno stanje nije sigurno poznato.
-
-Ako je nova datoteka već uspješno aktivirana, ali brisanje starog rollback objekta zakaže, poruka to izričito navodi umjesto da transfer prijavi kao potpuno uspješan ili da ponovno pokrene overwrite. `SkipExisting` i korisnički cancel također više ne mogu sakriti cleanup nesigurnost iza statusa “preskočeno” ili “otkazano”.
-
-Lokalni download staging sada se uklanja i kada završni no-replace rename zakaže na ranije nepostojećem cilju. Transfer worker shutdown koristi jedan dijeljeni idle signal umjesto stvaranja dodatnog waiter goroutina pri svakom timeoutanom čekanju.
-
-## SFTP RSA sigurnost u 1.0.7
-
-RSA host ključ i algoritam kojim server potpisuje SSH handshake nisu ista stvar. ByFTP i dalje pin-a isti RSA javni ključ kroz `known_hosts` i SHA-256 fingerprint, ali više ne pretvara skenirani tip ključa `ssh-rsa` u prisilni session `HostKeyAlgorithms ssh-rsa`.
-
-Time moderni OpenSSH može za isti pinani RSA ključ pregovarati moderni RSA/SHA-2 potpis. Ed25519 i ECDSA ostaju eksplicitno vezani uz skenirani tip ključa.
-
-## Unix runtime cleanup u 1.0.7
-
-Na Linuxu i macOS-u ByFTP sada traži native executable `curl`. Windows-specifični naziv `curl.exe` više nema prednost u Unix PATH-u, a Windows i dalje koristi fail-closed sistemsku `curl.exe` putanju.
 
 ## Privatnost
 
@@ -217,6 +199,8 @@ shasum -a 256 ByFTP-<verzija>-macOS-Universal.pkg
 ByFTP ne može jamčiti kompatibilnost sa svakom nestandardnom FTP/SFTP implementacijom ili pravilima svakog hosting providera. Hosting može zasebno ograničiti write, rename, CHMOD, broj konekcija, TLS/SSH algoritme ili pristup pojedinim direktorijima.
 
 Windows binariji neće imati Verified Publisher status bez stvarnog Authenticode certifikata, a macOS paket neće biti Developer ID notariziran bez stvarnog Apple signing identiteta. Projekt te statuse ne simulira.
+
+Sigurnosni hardening smanjuje i fail-closed obrađuje poznate race/lifecycle rubove, ali nijedna desktop aplikacija ne može razumno jamčiti da ne postoji nijedan nepoznati bug na svakoj kombinaciji OS-a, servera i mreže. Produkcijska izdanja zato ostaju vezana uz regresije, race detector, vet i platformske build gateove.
 
 ---
 
