@@ -9,9 +9,9 @@ import (
 const DefaultLanguage = "en"
 
 type Language struct {
-	Code       string
+	Code        string
 	EnglishName string
-	NativeName string
+	NativeName  string
 }
 
 var supportedLanguages = []Language{
@@ -35,25 +35,29 @@ func Languages() []Language {
 	return out
 }
 
-func IsSupported(code string) bool {
-	code = Normalize(code)
-	_, ok := catalogs[code]
-	return ok
-}
-
-func Normalize(code string) string {
+func canonical(code string) string {
 	code = strings.ToLower(strings.TrimSpace(code))
 	code = strings.ReplaceAll(code, "_", "-")
 	if code == "" {
-		return DefaultLanguage
+		return ""
 	}
 	if _, ok := catalogs[code]; ok {
 		return code
 	}
 	if i := strings.IndexByte(code, '-'); i > 0 {
-		if primary := code[:i]; catalogs[primary] != nil {
+		primary := code[:i]
+		if _, ok := catalogs[primary]; ok {
 			return primary
 		}
+	}
+	return ""
+}
+
+func IsSupported(code string) bool { return canonical(code) != "" }
+
+func Normalize(code string) string {
+	if normalized := canonical(code); normalized != "" {
+		return normalized
 	}
 	return DefaultLanguage
 }
@@ -86,6 +90,33 @@ func T(language, key string, args ...any) string {
 	return fmt.Sprintf(template, args...)
 }
 
+func IsAffirmative(language, answer string) bool {
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	if answer == "y" || answer == "yes" {
+		return true
+	}
+	accepted := map[string][]string{
+		"en": {"yes"},
+		"hr": {"da", "d"},
+		"de": {"ja", "j"},
+		"fr": {"oui", "o"},
+		"es": {"sí", "si", "s"},
+		"tr": {"evet", "e"},
+		"el": {"ναι", "ν"},
+		"pt": {"sim", "s"},
+		"zh": {"是", "是的"},
+		"ru": {"да", "д"},
+		"hi": {"हाँ", "हां", "ह"},
+		"ja": {"はい"},
+	}
+	for _, value := range accepted[Normalize(language)] {
+		if answer == value {
+			return true
+		}
+	}
+	return false
+}
+
 func ValidateCatalogs() error {
 	english := catalogs[DefaultLanguage]
 	if len(english) == 0 {
@@ -100,6 +131,9 @@ func ValidateCatalogs() error {
 		catalog := catalogs[language.Code]
 		if catalog == nil {
 			return fmt.Errorf("missing catalog for %s", language.Code)
+		}
+		if len(catalog) != len(english) {
+			return fmt.Errorf("catalog %s has %d keys; English has %d", language.Code, len(catalog), len(english))
 		}
 		for key, englishValue := range english {
 			if strings.TrimSpace(englishValue) == "" {
