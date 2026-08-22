@@ -99,7 +99,7 @@ func Run(engine *api.Engine, version string) error {
 	hwnd, _, err := createWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(wstr(brand.ProductName+" "+version+" — "+brand.Company))),
+		uintptr(unsafe.Pointer(wstr(brand.ProductName+" "+version))),
 		wsOverlappedWindow,
 		40, 30, 1200, 780,
 		0, 0, hinst, 0,
@@ -131,9 +131,9 @@ func Run(engine *api.Engine, version string) error {
 	}
 	var client rect
 	if r, _, _ := getClientRect.Call(hwnd, uintptr(unsafe.Pointer(&client))); r != 0 {
-		a.layout(int(client.Right-client.Left), int(client.Bottom-client.Top))
+		a.layoutResponsive(int(client.Right-client.Left), int(client.Bottom-client.Top))
 	} else {
-		a.layout(a.scale(1180), a.scale(760))
+		a.layoutResponsive(a.scale(1180), a.scale(760))
 	}
 	a.updateActionControls()
 	showWindow.Call(hwnd, swShow)
@@ -203,7 +203,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmSize:
 		w := int(lParam & 0xffff)
 		h := int((lParam >> 16) & 0xffff)
-		a.layout(w, h)
+		a.layoutResponsive(w, h)
 		return 0
 	case wmDpiChanged:
 		newDPI := uint32((wParam >> 16) & 0xffff)
@@ -222,6 +222,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		if id == idProtocol && notify == cbnSelChange {
 			a.syncDefaultPort()
 			a.updateProtocolControls()
+			var client rect
+			if r, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); r != 0 {
+				a.layoutResponsive(int(client.Right-client.Left), int(client.Bottom-client.Top))
+			}
 			return 0
 		}
 		if id == idProfiles && notify == cbnSelChange {
