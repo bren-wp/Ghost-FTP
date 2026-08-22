@@ -2,8 +2,8 @@ package brand
 
 const (
 	ProductName = "ByFTP"
-	ProductFull = "ByFTP klijent"
-	Company     = "Brendigo"
-	Website     = "brendigo.com"
-	Support     = "info@brendigo.com"
+	ProductFull = "ByFTP"
+	Company     = ""
+	Website     = "github.com/bren-wp/by-ftp"
+	Support     = "github.com/bren-wp/by-ftp/issues"
 )
