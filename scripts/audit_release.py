@@ -58,8 +58,9 @@ def main() -> int:
             "$expected = @(",
             "$assets = @(",
             "Compare-Object -ReferenceObject $wanted -DifferenceObject $actual",
-            "$expectedPackage = \"ByFTP.Windows.$env:VERSION.nupkg\"",
+            "$expectedName = \"ByFTP.Windows.$env:VERSION.nupkg\"",
             "$packages.Count -ne 1",
+            "$packages[0].Name -ne $expectedName",
         ),
     )
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", workflow):
