@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provjerava cross-platform ByFTP release ugovor i fail-closed objavu."""
+"""Verify ByFTP's cross-platform release contract and fail-closed publisher."""
 
 from __future__ import annotations
 
@@ -10,13 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def fail(message: str) -> None:
-    raise SystemExit("RELEASE_AUDIT_NIJE_PROSAO: " + message)
+    raise SystemExit("RELEASE_AUDIT_FAILED: " + message)
 
 
 def read(path: str) -> str:
     target = ROOT / path
     if not target.is_file():
-        fail(f"nedostaje {path}")
+        fail(f"missing {path}")
     return target.read_text(encoding="utf-8")
 
 
@@ -24,7 +24,7 @@ def require(path: str, markers: tuple[str, ...]) -> str:
     text = read(path)
     for marker in markers:
         if marker not in text:
-            fail(f"{path} nema obavezni release guard: {marker}")
+            fail(f"{path} is missing required release invariant: {marker}")
     return text
 
 
@@ -32,21 +32,22 @@ def main() -> int:
     workflow = require(
         ".github/workflows/release.yml",
         (
+            "name: Publish ByFTP",
             "group: byftp-release",
+            "cancel-in-progress: false",
             "quality:",
-            "Produkcijski quality, race, sigurnost i privatnost",
+            "Production quality, race, security and privacy",
             "needs: [quality, windows, linux, macos]",
             "go test -race ./...",
             "go telemetry off",
-            "Windows x64 i x86",
-            "Linux amd64 arm64 i i386",
+            "Windows x64 and x86",
+            "Linux amd64 arm64 and i386",
             "macOS Universal",
             "scripts/BUILD-LINUX.sh",
             "scripts/BUILD-MACOS.sh",
             "publish_release.ps1",
             "scripts/verify_bundle.py",
             "--arch $arch",
-            "Provjeri staging javnih paketa",
             "RELEASE_QUALITY_GATE=passed",
             "ByFTP-$env:VERSION-Setup-x86.exe",
             "ByFTP-$env:VERSION-Portable-x86.exe",
@@ -54,20 +55,25 @@ def main() -> int:
             "ByFTP-$env:VERSION-Linux-arm64.deb",
             "ByFTP-$env:VERSION-Linux-i386.deb",
             "ByFTP-$env:VERSION-macOS-Universal.pkg",
+            "$expected = @(",
+            "$assets = @(",
+            "Compare-Object -ReferenceObject $wanted -DifferenceObject $actual",
+            "$expectedPackage = \"ByFTP.Windows.$env:VERSION.nupkg\"",
+            "$packages.Count -ne 1",
         ),
     )
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", workflow):
-        fail("release workflow ponovno hardkodira zadanu produkcijsku verziju")
+        fail("release workflow must not hard-code a default production version")
     if re.search(r"(?m)^\s*tags:\s*$", workflow):
-        fail("release workflow ponovno reagira na vlastiti tag i može stvoriti paralelni publisher")
+        fail("release workflow must not retrigger itself from its own tag")
     if "v2.15.0" in workflow or "release delete-asset" in workflow:
-        fail("release workflow ponovno sadrži jednokratni migracijski cleanup stare verzije")
+        fail("release workflow contains obsolete one-off migration cleanup")
     if "gh release create" in workflow or "gh release upload" in workflow:
-        fail("release.yml ne smije zaobići centralni publish_release.ps1")
+        fail("release.yml must not bypass the centralized publish_release.ps1 publisher")
 
     asset_match = re.search(r"\$assets\s*=\s*@\((.*?)\)\s*\n\s*foreach", workflow, re.S)
     if not asset_match:
-        fail("nije pronađen eksplicitni javni $assets skup")
+        fail("explicit public $assets allowlist was not found")
     public_assets = asset_match.group(1)
     expected_asset_markers = (
         "Portable-x64.exe", "Setup-x64.exe", "Windows-x64.zip",
@@ -77,32 +83,33 @@ def main() -> int:
     )
     for marker in expected_asset_markers:
         if marker not in public_assets:
-            fail(f"javni release asset skup nema: {marker}")
+            fail(f"public release asset allowlist is missing: {marker}")
     for forbidden in ("Source.zip", "Uninstall-", "verification.txt"):
         if forbidden in public_assets:
-            fail(f"javni release asseti ponovno sadrže interni/stari tip: {forbidden}")
+            fail(f"public release asset allowlist contains internal/obsolete artifact: {forbidden}")
 
     publisher = require(
         "scripts/publish_release.ps1",
         (
             "Resolve-TagCommit", "Assert-TagCommit", "Assert-RemoteAsset",
-            "Get-FileHash", "sha256:", "gh release upload", "neočekivani asset",
+            "Get-FileHash", "sha256:", "gh release upload",
             "RELEASE_PUBLISH_VERIFICATION=PASS",
+            "$finalByName.Count -ne $localAssets.Count",
         ),
     )
     if "--clobber" in publisher:
-        fail("publisher ne smije automatski prepisivati postojeći release asset")
+        fail("publisher must not overwrite an existing release asset automatically")
 
     verifier = require(
         "scripts/verify_bundle.py",
         (
-            "BUNDLE-SHA256.txt", "x64", "x86", "dupliciranu putanju",
-            "nesigurnu putanju", "SHA-256 se ne podudara",
-            "BUNDLE_VERIFICATION=PASS", "forbidden",
+            "BUNDLE-SHA256.txt", "x64", "x86", "duplicate path",
+            "unsafe path", "SHA-256 mismatch", "BUNDLE_VERIFICATION=PASS", "forbidden",
+            "MAX_ENTRIES", "MAX_UNCOMPRESSED_BYTES",
         ),
     )
     if "extractall(" in verifier or ".extract(" in verifier:
-        fail("ZIP verifier ne smije raspakiravati nepouzdane putanje na disk")
+        fail("ZIP verifier must not extract untrusted paths to disk")
 
     windows = require(
         "BUILD-WINDOWS.ps1",
@@ -110,6 +117,7 @@ def main() -> int:
             "Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'",
             "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'",
             "$telemetryMode = (go telemetry).Trim()",
+            "python scripts/verify_release.py",
         ),
     )
     linux = require(
@@ -121,33 +129,34 @@ def main() -> int:
         ('GOARCH="$arch"', "lipo -create", "pkgbuild", "ByFTP.app", 'telemetry="$(go telemetry)"'),
     )
     if not windows or not linux or not macos:
-        fail("platformski build ugovor nije dostupan")
+        fail("platform build contract is unavailable")
 
     notes = require(
         "scripts/release_notes.py",
         ("Setup x86", "Linux amd64", "Linux arm64", "Linux i386", "macOS Universal", "SHA256.txt"),
     )
     if not notes:
-        fail("release notes ugovor nije dostupan")
+        fail("release-note contract is unavailable")
 
     ci = require(
         ".github/workflows/ci.yml",
         (
-            "go telemetry off", "python scripts/audit_docs.py",
-            "python scripts/audit_security.py", "python scripts/audit_release.py",
-            "python -m unittest discover -s scripts -p 'test_*.py'",
+            "go telemetry off", "python scripts/audit_localization.py", "python scripts/audit_docs.py",
+            "python scripts/audit_security.py", "python scripts/audit_privacy.py", "python scripts/audit_release.py",
+            "python -m unittest discover -s scripts -p 'test_*.py'", "go test -race ./...", "go vet ./...",
+            "Windows x64 and x86 production build", "Linux DEB amd64 arm64 and i386", "macOS Universal PKG",
         ),
     )
     if "BUILD-WINDOWS.ps1" not in ci:
-        fail("CI mora koristiti kanonski Windows produkcijski build")
+        fail("CI must use the canonical Windows production build")
 
-    # Korisnički dokumenti i release notes opisuju samo aktualne javne pakete.
-    # Povijesni CHANGELOG smije zadržati stare nazive radi točne povijesti.
+    # User-facing docs and generated release notes must describe only current
+    # public packages. CHANGELOG may retain historical names for accurate history.
     for rel in ("README.md", "docs/INSTALACIJA.md", "scripts/release_notes.py"):
         text = read(rel)
         for forbidden in ("verification.txt", "Source.zip", "Uninstall-"):
             if forbidden in text:
-                fail(f"{rel} ponovno oglašava zastarjeli/interne release naziv: {forbidden}")
+                fail(f"{rel} advertises obsolete/internal release artifact: {forbidden}")
 
     print("RELEASE_AUDIT=PASS")
     print("RELEASE_SINGLE_TRIGGER=ENABLED")
