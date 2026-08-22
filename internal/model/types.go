@@ -58,13 +58,14 @@ type ProfileInput struct {
 }
 
 type Settings struct {
-	Parallelism              int  `json:"parallelism"`
-	BackupBeforeOverwrite    bool `json:"backupBeforeOverwrite"`
-	ConfirmDelete            bool `json:"confirmDelete"`
-	AutoRetryCount           int  `json:"autoRetryCount,omitempty"`
-	RetryDelaySeconds        int  `json:"retryDelaySeconds,omitempty"`
-	SkipExisting             bool `json:"skipExisting,omitempty"`
-	ConnectionTimeoutSeconds int  `json:"connectionTimeoutSeconds,omitempty"`
+	Language                 string `json:"language,omitempty"`
+	Parallelism              int    `json:"parallelism"`
+	BackupBeforeOverwrite    bool   `json:"backupBeforeOverwrite"`
+	ConfirmDelete            bool   `json:"confirmDelete"`
+	AutoRetryCount           int    `json:"autoRetryCount,omitempty"`
+	RetryDelaySeconds        int    `json:"retryDelaySeconds,omitempty"`
+	SkipExisting             bool   `json:"skipExisting,omitempty"`
+	ConnectionTimeoutSeconds int    `json:"connectionTimeoutSeconds,omitempty"`
 }
 
 type ConnectionConfig struct {
