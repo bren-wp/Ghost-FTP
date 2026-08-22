@@ -1,56 +1,19 @@
-# Potpisivanje distribucija
+# Distribution signing
 
-**Digitalni potpis ima vrijednost samo ako pripada stvarnom izdavaču. ByFTP zato ne simulira Verified Publisher ili notarized status.**
+ByFTP separates build correctness from publisher signing.
 
-Potpisivanje nije marketinška oznaka nego kriptografska veza između paketa i identiteta izdavača.
+## Windows
 
-## Windows Authenticode
+Authenticode can provide publisher identity and tamper detection for Windows executables. A real Brendigo code-signing certificate and protected private key are required. Without those credentials, Windows may not display a Verified Publisher identity even when the executable passed all project tests and SHA-256 verification.
 
-Kada je dostupan stvarni Brendigo code-signing certifikat, Windows distribucije trebaju biti potpisane Authenticode mehanizmom.
+## macOS
 
-To korisniku omogućuje provjeru:
+Developer ID signing and Apple notarization require a valid Apple Developer identity and notarization credentials. The macOS Universal package can be structurally validated without those credentials, but the project must not claim notarization unless Apple actually accepted the submitted package.
 
-- tko je potpisao binarij;
-- je li sadržaj promijenjen nakon potpisa;
-- je li certifikat valjan prema Windows trust modelu.
+## CI secret handling
 
-Dok stvarni certifikat nije dostupan, release ne smije prikazivati lažni `Verified Publisher` status.
+Signing keys, certificate passwords and notarization credentials must be stored only in protected CI secret facilities. They must never be committed to the repository, printed to logs or placed in release metadata.
 
-## macOS Developer ID i notarizacija
+## Verification
 
-Za puni macOS trust lifecycle potreban je stvarni Apple Developer identitet.
-
-Ciljani proces je:
-
-1. potpisivanje aplikacijskih/paketnih komponenti;
-2. izrada finalnog PKG-a;
-3. Apple notarizacija;
-4. stapling gdje je primjenjivo;
-5. provjera prije objave.
-
-Bez stvarnih Apple credentials release ne smije tvrditi da je notariziran.
-
-## Zašto checksum nije zamjena za potpis
-
-SHA-256 potvrđuje da je datoteka identična očekivanoj datoteci iz releasea, ali sam po sebi ne dokazuje identitet izdavača ako checksum dolazi iz nepouzdanog izvora.
-
-Digitalni potpis i checksum rješavaju različite probleme i najbolje rade zajedno.
-
-## Što ByFTP već daje bez certifikata
-
-I bez publisher certifikata release proces koristi:
-
-- kanonski VERSION;
-- nepromjenjive tagove;
-- CI gateove;
-- SHA-256 checksumove;
-- build metadata;
-- kontrolirani skup release asseta.
-
-To ne zamjenjuje code signing, ali daje provjerljivu release disciplinu dok stvarni signing identitet nije dostupan.
-
-## Pravilo za budućnost
-
-Potpisivanje se smije uključiti tek kada se tajne mogu sigurno držati u CI/release okruženju i kada pipeline može dokazati da je finalni artefakt stvarno potpisan.
-
-**ByFTP će radije jasno napisati “nije potpisano” nego korisniku prikazati povjerenje koje tehnički ne postoji.**
+Signing is an additional trust signal; it does not replace source, build, test and SHA-256 integrity checks.

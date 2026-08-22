@@ -1,117 +1,25 @@
-# Provjera izdanja
+# Release verification
 
-**Prije objave ByFTP-a cilj nije samo dobiti paket, nego dokazati da taj paket odgovara kodu, verziji i dokumentaciji koju korisnik vidi.**
+Use this checklist before trusting a ByFTP release.
 
-Ovaj dokument je završna kontrolna lista za produkcijsko izdanje.
+## Version and source
 
-## 1. Verzija
+Confirm the release tag is `v<version>` and that the tagged `VERSION` file contains the same semantic version. The intended release commit should match the publisher metadata. Published tags are not moved.
 
-Provjeriti:
+## Hashes
 
-- `VERSION` sadrži semantičku verziju;
-- README prikazuje isti broj kao trenutačno izdanje;
-- CHANGELOG ima odjeljak za tu verziju;
-- GitHub Package koristi isti VERSION;
-- tag `vX.Y.Z` ne postoji na drugom commitu.
+Download `SHA256.txt` from the release and calculate SHA-256 for the selected artifact with a trusted local tool. The digest must match exactly.
 
-## 2. Kvaliteta koda
+Windows ZIP bundles contain their own `BUNDLE-SHA256.txt`. The build workflow validates every payload entry against that manifest and rejects duplicate, unsafe, encrypted or unexpected internal entries.
 
-Moraju proći:
+## Platform artifacts
 
-```bash
-go test ./...
-go test -race ./...
-go vet ./...
-```
+Expected public artifacts include Windows x64/x86 portable and setup executables plus ZIP bundles, Linux amd64/arm64/i386 DEBs and a macOS Universal PKG. Build metadata and release notes are published alongside them.
 
-Uz njih prolaze Python auditi/regresije iz `scripts/`.
+## Signatures
 
-## 3. Privatnost i sigurnost
+A cryptographic hash proves file identity relative to the published manifest; it does not by itself prove publisher identity. Verify Authenticode or Apple signing/notarization only when the release explicitly claims those credentials are configured.
 
-Provjeriti da release nije uveo:
+## If verification fails
 
-- aplikacijsku telemetriju;
-- fiksni runtime HTTP API;
-- lozinku u command-line argumentima;
-- nasljeđivanje proxy/TLS/SSH helper okruženja koje ruši postojeću politiku;
-- `ssl-no-revoke`;
-- zaobilaženje SFTP fingerprint zaštite;
-- nezaštićeni overwrite ili `RemoveAll` na sigurnosno osjetljivim ByFTP putanjama.
-
-## 4. Shared-hosting FTP
-
-Za 1.0.5 i kasnije provjeriti:
-
-- login username može sadržavati `@`;
-- FTP listing `/public_html` ostaje u login/home namespaceu;
-- raw `MKD`, rename, delete i CHMOD operandi ne postaju server-absolute samo zbog vodećeg `/` u UI putanji;
-- quote-only operacije koriste `no-body`;
-- MLSD fallback na LIST radi;
-- nakon uspješnog LIST fallbacka MLSD se ne ponavlja pri svakom refreshu.
-
-## 5. Windows build
-
-Provjeriti:
-
-- x64 build;
-- x86 build;
-- Setup;
-- Portable;
-- ZIP sadržaj;
-- runtime verziju;
-- installer/uninstaller osnovni lifecycle.
-
-## 6. Linux build
-
-Provjeriti DEB za:
-
-- amd64;
-- arm64;
-- i386.
-
-Paket mora sadržavati očekivanu verziju i izvršni program.
-
-## 7. macOS build
-
-Provjeriti Universal PKG i očekivane Intel/Apple Silicon komponente.
-
-Ne tvrditi Developer ID/notarized status ako stvarna provjera nije moguća.
-
-## 8. Release asseti
-
-Očekuju se:
-
-- platformski paketi;
-- `SHA256.txt`;
-- `RELEASE-NOTES.txt`;
-- `BUILD-METADATA.txt`;
-- GitHub Package gdje je definiran.
-
-Broj i digest asseta trebaju biti provjereni nakon uploada.
-
-## 9. Dokumentacija
-
-Prije objave korisnik mora moći iz README-a doći do:
-
-- instalacije;
-- prvog shared-hosting spoja;
-- podrške;
-- sigurnosti;
-- privatnosti;
-- ograničenja izdanja.
-
-Dokumentacija ne smije obećavati “radi na svakom hostingu” ako takva garancija tehnički nije moguća.
-
-## 10. Završno pitanje
-
-Prije publish koraka treba moći odgovoriti **da** na tri pitanja:
-
-1. Je li kod prošao sve produkcijske gateove?
-2. Jesu li svi paketi vezani uz isti VERSION i commit?
-3. Može li korisnik provjeriti što je preuzeo?
-
-Ako je odgovor na bilo koje pitanje “ne”, izdanje nije spremno.
-
----
-
-**Dobar release je onaj koji korisniku daje i proizvod i dokaz da je dobio pravi proizvod.**
+Do not run the artifact. Re-download from the official repository and compare again. Report reproducible mismatches without posting sensitive credentials.

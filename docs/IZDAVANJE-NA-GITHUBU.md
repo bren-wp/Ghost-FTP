@@ -1,104 +1,25 @@
-# Izdavanje na GitHubu
+# GitHub release process
 
-**Korisnik ne preuzima samo EXE ili DEB — preuzima povjerenje da verzija, kod, checksum i paket pripadaju istom izdanju.**
+ByFTP releases are produced by the repository release workflow, not by manually uploading arbitrary binaries.
 
-ByFTP release proces je zato namjerno stroži od ručnog “upload file” postupka.
+## Preconditions
 
-## Jedan broj verzije
+The canonical `VERSION` must use `major.minor.patch`. README, CHANGELOG and platform metadata must agree. A published `v<version>` tag is immutable. If a tag already exists, production-sensitive changes require the next version.
 
-Datoteka `VERSION` je kanonski izvor produkcijskog broja.
+## Quality gates
 
-Isti broj mora završiti u:
+The publisher depends on successful quality, Windows, Linux and macOS jobs. These run localization/version/docs/security/privacy/release audits, Python regressions, Go unit/race/vet checks and platform packaging.
 
-- runtime aplikaciji;
-- README-u;
-- CHANGELOG-u;
-- Windows/Linux/macOS paketima;
-- GitHub Releaseu;
-- GitHub Packageu `ByFTP.Windows`.
+## Public artifacts
 
-Ako se ti slojevi raziđu, CI treba pasti prije objave.
+The publisher expects an exact set of Windows x64/x86 executables and ZIPs, Linux DEBs and the macOS Universal PKG. It rejects missing or extra platform artifacts before generating common SHA-256 metadata.
 
-## Zašto se stari tag ne prepisuje
+The GitHub release publisher validates existing asset identity/digests and fails closed on mismatches rather than silently replacing a different release file.
 
-Objavljeni `vX.Y.Z` predstavlja konkretan sadržaj.
+## GitHub Windows package
 
-Ako nakon taga nastane novi produkcijski popravak, ispravan put je nova semantička verzija — ne pomicanje starog taga na drugi commit.
+`ByFTP.Windows` is built only after release assets pass staging. The workflow requires exactly one NuGet package with the expected versioned filename before pushing it to GitHub Packages.
 
-Release-version guard to provjerava prije mergea.
+## Signing
 
-## Što se provjerava prije objave
-
-Produkcijski tok uključuje:
-
-- sigurnosne i privacy audite;
-- hrvatski audit;
-- version audit;
-- Python regresije;
-- `go test ./...`;
-- `go test -race ./...`;
-- `go vet ./...`;
-- Windows x64/x86 build;
-- Linux amd64/arm64/i386 build;
-- macOS Universal build.
-
-Tek nakon zelenih gateova publisher smije nastaviti.
-
-## Produkcijski paketi
-
-### Windows
-
-Release može sadržavati:
-
-- Setup x64/x86;
-- Portable x64/x86;
-- ZIP distribucije;
-- GitHub Package `ByFTP.Windows`.
-
-### Linux
-
-DEB paketi za:
-
-- amd64;
-- arm64;
-- i386.
-
-### macOS
-
-Universal PKG za Intel i Apple Silicon.
-
-## Checksum i metapodaci
-
-Release uključuje `SHA256.txt` i build/release metapodatke.
-
-Publisher nakon uploada ponovno provjerava očekivani skup artefakata i njihove digest vrijednosti. Cilj je da “upload je uspio” ne bude jedini dokaz ispravnog izdanja.
-
-## GitHub Packages
-
-`ByFTP.Windows` paket koristi isti `VERSION` izvor kao GitHub Release.
-
-Publish koristi `--skip-duplicate`, čime ponovni run iste verzije ne pokušava stvoriti nepotrebnu duplikaciju.
-
-## 1.0.5 release fokus
-
-1.0.5 je shared-hosting kompatibilnosno izdanje i treba sadržavati zajedno:
-
-- home-relative FTP control naredbe;
-- control-only quote operacije;
-- MLSD→LIST session fallback;
-- shared-hosting regresijske testove;
-- marketinški preuređenu korisničku dokumentaciju.
-
-Ti elementi ne smiju biti objavljeni pod starim `v1.0.4` tagom.
-
-## Potpisivanje
-
-Release pipeline ne smije tvrditi da je paket Verified Publisher ili Apple notarized ako stvarni certifikat/identitet nije dostupan.
-
-Detalji su u [POTPISIVANJE.md](POTPISIVANJE.md).
-
-## Načelo izdanja
-
-**Jedna verzija, jedan sadržaj, provjerljivi artefakti.**
-
-To korisniku daje jednostavniji odgovor na pitanje: “Je li paket koji sam preuzeo zaista ByFTP izdanje koje README opisuje?”
+Authenticode Verified Publisher and Apple Developer ID/notarization require real organization credentials. CI must not claim those properties when signing credentials are not configured.

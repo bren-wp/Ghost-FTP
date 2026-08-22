@@ -1,51 +1,33 @@
-# ByFTP dokumentacijski centar
+# ByFTP documentation
 
-**Od prvog spajanja do sigurnog svakodnevnog rada — sve na jednom mjestu.**
+English is the canonical language for ByFTP source documentation and repository maintenance. Runtime user-facing text is localized independently and currently supports English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi and Japanese.
 
-ByFTP dokumentacija organizirana je tako da prvo odgovori na korisničko pitanje **“kako da se spojim i napravim posao?”**, a tek zatim ulazi u tehničke detalje.
+The historical Croatian filenames in this directory are intentionally kept stable for 1.0.12 so existing links and packaged documentation do not break. Their contents are English-first.
 
-## Želim se odmah spojiti na hosting
+## Start here
 
-Za najbrži početak otvorite [ByFTP za shared hosting](SHARED-HOSTING.md), a za instalaciju i platformske detalje [Instalaciju i prvi spoj](INSTALACIJA.md).
+- [Installation and first connection](INSTALACIJA.md)
+- [Shared hosting](SHARED-HOSTING.md)
+- [Support and troubleshooting](PODRSKA.md)
 
-Za tipični shared hosting trebat će vam:
+## Security and privacy
 
-- FTP host koji je dao hosting provider;
-- korisničko ime, uključujući oblik `korisnik@domena` ako ga hosting koristi;
-- FTP lozinka;
-- protokol i port — najčešće FTP ili explicit FTPS na portu 21.
+- [Security model](SIGURNOST.md)
+- [Privacy model](PRIVATNOST.md)
+- [Testing and quality gates](TESTIRANJE.md)
+- [Release verification](PROVJERA-IZDANJA.md)
+- [Distribution signing](POTPISIVANJE.md)
 
-Ako se ne možete spojiti, prije promjene postavki otvorite [Podršku i rješavanje problema](PODRSKA.md).
+## Development and maintenance
 
-## Želim znati zašto je ByFTP siguran izbor
+- [Architecture](ARHITEKTURA.md)
+- [Contribution policy](DOPRINOS.md)
+- [GitHub release process](IZDAVANJE-NA-GITHUBU.md)
+- [Development roadmap](PLAN-RAZVOJA.md)
+- [Third-party notices](OBAVIJESTI-TRECIH-STRANA.md)
 
-- [Sigurnost](SIGURNOST.md) — transfer staging, SFTP host-key zaštita, FTPS, no-follow datotečne granice i fail-closed ponašanje.
-- [Privatnost](PRIVATNOST.md) — što ByFTP ne prikuplja, kako se tretiraju vjerodajnice i zašto nema aplikacijske telemetrije.
-- [Testiranje i kvaliteta](TESTIRANJE.md) — što CI provjerava prije produkcijskog izdanja.
-- [Provjera izdanja](PROVJERA-IZDANJA.md) — kako se potvrđuju paket, verzija i checksum.
+## Product scope
 
-## Želim razumjeti tehnologiju
+ByFTP is a telemetry-free FTP, FTPS and SFTP client. Windows provides the native dual-pane desktop interface. Linux and macOS provide a terminal interface backed by the same engine. The codebase intentionally keeps protocol execution, transfer management, security validation, profile storage and presentation separated so UI changes cannot silently weaken transfer or credential invariants.
 
-- [Arhitektura](ARHITEKTURA.md) — zašto FTP/FTPS/SFTP dijele jedan engine i kako su slojevi odvojeni.
-- [Plan razvoja](PLAN-RAZVOJA.md) — završene cjeline i smjer budućih poboljšanja.
-- [Potpisivanje](POTPISIVANJE.md) — Authenticode, Apple Developer ID i stvarni status potpisivanja.
-
-## Želim sudjelovati u razvoju
-
-- [Doprinos projektu](DOPRINOS.md) — pravila, kvaliteta i sigurnosni standardi.
-- [Izdavanje na GitHubu](IZDAVANJE-NA-GITHUBU.md) — kontrolirani release proces.
-- [Obavijesti trećih strana](OBAVIJESTI-TRECIH-STRANA.md) — transparentnost o alatima i komponentama.
-
-## Što ByFTP želi biti
-
-ByFTP nije zamišljen kao “još jedan FTP prozor”. Cilj je spojiti tri stvari koje korisnicima hostinga stvarno trebaju:
-
-1. **brzo spajanje** bez nepotrebne konfiguracije;
-2. **jasno upravljanje datotekama** bez skrivanja što se događa;
-3. **stroža zaštita transfera i vjerodajnica** nego kod običnog copy/overwrite modela.
-
-Ako koristite shared hosting, WordPress, statičnu web stranicu, PHP aplikaciju ili vlastite servere, dokumentacija je organizirana tako da vas vodi od pristupnih podataka do stvarnog rada nad datotekama.
-
----
-
-**Najbrži put:** [Shared hosting → prvi FTP spoj → `public_html`](SHARED-HOSTING.md)
+For release-specific changes, see the root [CHANGELOG](../CHANGELOG.md).
