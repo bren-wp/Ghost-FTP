@@ -105,7 +105,12 @@ def main() -> int:
     require("internal/remote/download_security_test.go", ("validateDownloadedPart", "Symlink"))
     require("internal/remote/private_key_validation_test.go", ("TestValidatePrivateKeyPathAcceptsRegularFile", "TestValidatePrivateKeyPathRejectsSymlink"))
     require("internal/remote/manager_test.go", ("TestDisconnectWaitsForActiveOperationRelease", "TestDisconnectTimeoutDefersCloseAndBlocksReconnect", "TestDisconnectCancellationDefersClose", "TestSecondDisconnectWaitsForExistingCloseState", "TestOperationReleaseIsIdempotent"))
-    require("internal/usererror/message_test.go", ("TestMessageSessionStillClosing", "TestMessageDisconnectCleanupStillRunning", "TestMessageDisconnectLifecycleWinsJoinedDeadline", "TestMessageSFTPHostKeyScanFailure"))
+    require("internal/usererror/message_test.go", (
+        "TestMessageDefaultsToEnglishAndHidesToolDetails",
+        "TestMessageForLocalizesKnownErrors",
+        "TestMessageMissingSFTPComponent",
+        "TestMessageDisconnectLifecycleWinsJoinedDeadline",
+    ))
     require("internal/security/remove_tree_root_test.go", ("RemoveTreeNoFollow",))
     require("internal/security/remove_tree_root_windows_test.go", ("TestIsFilesystemRootRejectsWindowsVolumeRoots", "server\\share"))
 
