@@ -39,7 +39,7 @@ def main() -> int:
         "python scripts/audit_localization.py", "python scripts/audit_version.py", "python scripts/audit_android.py",
         "python scripts/audit_docs.py", "python scripts/audit_security.py", "python scripts/audit_privacy.py", "python scripts/audit_release.py",
         ".\\BUILD-WINDOWS.ps1", "bash scripts/BUILD-LINUX.sh", "bash scripts/BUILD-MACOS.sh",
-        "gradle-version: '9.5.0'", "platforms;android-37", ":app:testDebugUnitTest", ":app:lintDebug", ":app:assembleDebug",
+        "gradle-version: '9.5.0'", "android-37*", "build-tools/36.0.0", ":app:testDebugUnitTest", ":app:lintDebug", ":app:assembleDebug",
         "python scripts/verify_bundle.py $zip --version $version --arch $arch", "scripts\\publish_release.ps1",
         "Verify public release staging", "ByFTP-$env:VERSION-Windows-x64.zip", "ByFTP-$env:VERSION-Windows-x86.zip",
         "ByFTP-$env:VERSION-Linux-amd64.deb", "ByFTP-$env:VERSION-Linux-arm64.deb", "ByFTP-$env:VERSION-Linux-i386.deb",
