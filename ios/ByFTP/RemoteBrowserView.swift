@@ -102,7 +102,7 @@ struct RemoteBrowserView: View {
         .navigationTitle("ByFTP")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
+            ToolbarItemGroup(placement: .navigationBarLeading) {
                 Button {
                     store.goUp()
                 } label: {
@@ -110,7 +110,7 @@ struct RemoteBrowserView: View {
                 }
                 .disabled(store.busy || store.currentPath == "/")
             }
-            ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
                     store.refresh()
                 } label: {
