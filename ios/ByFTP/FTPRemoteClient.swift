@@ -1,34 +1,45 @@
 import Foundation
 
 actor FTPRemoteClient {
-    private let config: ConnectionConfig
+    private let protocolKind: TransferProtocol
+    private let host: String
+    private let port: UInt16
+    private let username: String
+    private var password: String
     private var control: SocketConnection?
     private var loginRoot = ""
 
     init(config: ConnectionConfig) {
-        self.config = config
+        protocolKind = config.protocolKind
+        host = config.host
+        port = config.port
+        username = config.username
+        password = config.password
     }
 
     func connect() async throws {
         guard control == nil else { return }
-        let next = try SocketConnection(host: config.host, port: config.port, tls: config.protocolKind.usesTLS)
+        let loginPassword = password
+        defer { password = "" }
+
+        let next = try SocketConnection(host: host, port: port, tls: protocolKind.usesTLS)
         do {
             try await next.start()
             let greeting = try await readResponse(from: next)
             guard greeting.code == 220 else { throw FTPError.unexpected(greeting) }
 
-            let user = try await command("USER", config.username, on: next)
+            let user = try await command("USER", username, on: next)
             switch user.code {
             case 230:
                 break
             case 331, 332:
-                let passwordReply = try await command("PASS", config.password, on: next)
+                let passwordReply = try await command("PASS", loginPassword, on: next)
                 guard passwordReply.code == 230 else { throw FTPError.unexpected(passwordReply) }
             default:
                 throw FTPError.unexpected(user)
             }
 
-            if config.protocolKind.usesTLS {
+            if protocolKind.usesTLS {
                 try expect2xx(try await command("PBSZ", "0", on: next))
                 try expect2xx(try await command("PROT", "P", on: next))
             }
@@ -47,6 +58,7 @@ actor FTPRemoteClient {
     }
 
     func close() async {
+        password = ""
         guard let current = control else { return }
         _ = try? await command("QUIT", nil, on: current)
         current.cancel()
@@ -131,8 +143,8 @@ actor FTPRemoteClient {
     }
 
     private func openPassiveDataSocket() async throws -> SocketConnection {
-        let port = try await passivePort()
-        let socket = try SocketConnection(host: config.host, port: port, tls: config.protocolKind.usesTLS)
+        let dataPort = try await passivePort()
+        let socket = try SocketConnection(host: host, port: dataPort, tls: protocolKind.usesTLS)
         do {
             try await socket.start()
             return socket
@@ -253,9 +265,9 @@ actor FTPRemoteClient {
               let range = Range(match.range, in: text) else { return nil }
         let values = text[range].split(separator: ",").compactMap { Int($0) }
         guard values.count == 6, values.allSatisfy({ (0...255).contains($0) }) else { return nil }
-        let port = values[4] * 256 + values[5]
-        guard (1...65535).contains(port) else { return nil }
-        return UInt16(port)
+        let parsedPort = values[4] * 256 + values[5]
+        guard (1...65535).contains(parsedPort) else { return nil }
+        return UInt16(parsedPort)
     }
 
     private func parseMLSD(_ data: Data) -> [RemoteEntry] {
@@ -364,7 +376,9 @@ private enum FTPError: LocalizedError {
     case unexpected(FTPResponse)
 
     var isUnsupportedCommand: Bool {
-        if case .unexpected(let response) = self { return response.code == 500 || response.code == 501 || response.code == 502 || response.code == 504 }
+        if case .unexpected(let response) = self {
+            return response.code == 500 || response.code == 501 || response.code == 502 || response.code == 504
+        }
         return false
     }
 
@@ -380,7 +394,9 @@ private enum FTPError: LocalizedError {
     }
 
     private func sanitize(_ value: String) -> String {
-        let clean = value.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        let clean = value.replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         return String(clean.prefix(240))
     }
 }
