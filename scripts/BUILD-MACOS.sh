@@ -2,17 +2,17 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-[[ "$(uname -s)" == "Darwin" ]] || { echo 'BUILD-MACOS.sh mora se pokrenuti na macOS-u.' >&2; exit 1; }
+[[ "$(uname -s)" == "Darwin" ]] || { echo 'BUILD-MACOS.sh must run on macOS.' >&2; exit 1; }
 VERSION="$(tr -d '\r\n' < VERSION)"
 MIN_GO_MAJOR=1
 MIN_GO_MINOR=26
 MIN_GO_PATCH=5
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Neispravan VERSION.' >&2; exit 1; }
-for tool in go lipo pkgbuild sips iconutil; do command -v "$tool" >/dev/null || { echo "Nedostaje $tool." >&2; exit 1; }; done
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid VERSION.' >&2; exit 1; }
+for tool in go lipo pkgbuild sips iconutil; do command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }; done
 
 raw_go="$(go env GOVERSION)"
 if [[ ! "$raw_go" =~ ^go([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
-  echo "Nije moguće provjeriti Go verziju: $raw_go" >&2
+  echo "Unable to verify Go version: $raw_go" >&2
   exit 1
 fi
 go_major="${BASH_REMATCH[1]}"
@@ -21,13 +21,13 @@ go_patch="${BASH_REMATCH[4]:-0}"
 if (( go_major < MIN_GO_MAJOR ||
       (go_major == MIN_GO_MAJOR && go_minor < MIN_GO_MINOR) ||
       (go_major == MIN_GO_MAJOR && go_minor == MIN_GO_MINOR && go_patch < MIN_GO_PATCH) )); then
-  echo "Za produkcijski ByFTP build potreban je Go 1.26.5+; trenutačno: $raw_go" >&2
+  echo "ByFTP production builds require Go 1.26.5 or newer; current: $raw_go" >&2
   exit 1
 fi
 
 telemetry="$(go telemetry)"
 [[ "$telemetry" == "off" ]] || {
-  echo "Go telemetrija mora biti isključena prije produkcijskog builda. Pokrenite: go telemetry off (trenutačno: $telemetry)" >&2
+  echo "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetry)" >&2
   exit 1
 }
 
@@ -39,7 +39,7 @@ rm -rf "$work" "dist/ByFTP-${VERSION}-macOS-Universal.pkg"
 mkdir -p "$work/bin" "$root/usr/local/bin" "$root/Applications/ByFTP.app/Contents/MacOS" "$root/Applications/ByFTP.app/Contents/Resources"
 
 for arch in amd64 arm64; do
-  echo "[macOS ${arch}] Izgradnja"
+  echo "[macOS ${arch}] Building ByFTP"
   GOARCH="$arch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$work/bin/byftp-${arch}" ./cmd/byftp
 done
 lipo -create "$work/bin/byftp-amd64" "$work/bin/byftp-arm64" -output "$root/usr/local/bin/byftp"
@@ -97,5 +97,5 @@ pkgbuild --root "$root" --identifier io.github.bren-wp.byftp --version "$VERSION
 test -s "$pkg"
 rm -rf "$work"
 echo "MACOS_PACKAGE_OK=$pkg"
-echo "ByFTP ${VERSION} macOS paket izgrađen je s ${raw_go} i telemetry=${telemetry}."
-echo 'Napomena: paket nije Developer ID potpisan dok nije dostupan pravi Apple certifikat.'
+echo "ByFTP ${VERSION} macOS package built with ${raw_go} and telemetry=${telemetry}."
+echo 'Note: the package is not Developer ID signed until a valid Apple signing certificate is configured.'
