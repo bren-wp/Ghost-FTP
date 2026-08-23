@@ -2,12 +2,10 @@
 <resources>
     <string name="app_name">ByFTP</string>
     <string name="app_subtitle">Secure file transfer</string>
-    <string name="protocol">Protocol</string>
     <string name="host">Host</string>
     <string name="port">Port</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
-    <string name="fingerprint">SFTP SHA-256 fingerprint</string>
     <string name="fingerprint_hint">Required for SFTP, e.g. SHA256:…</string>
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
@@ -29,7 +27,6 @@
     <string name="status_disconnected">Disconnected</string>
     <string name="status_working">Working…</string>
     <string name="ftp_warning">FTP is unencrypted. Prefer FTPS or SFTP when available.</string>
-    <string name="select_file_action">File action</string>
     <string name="delete_confirm">Delete “%1$s”?</string>
     <string name="error_prefix">Error: %1$s</string>
     <string name="selected_file">Selected: %1$s</string>
