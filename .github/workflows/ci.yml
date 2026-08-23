@@ -79,9 +79,9 @@ jobs:
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
 
   android-build:
-    name: Android unit, lint and debug APK
+    name: Android unit, lint and APK builds
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -106,24 +106,32 @@ jobs:
           test -d "$sdk_root/build-tools/36.0.0"
       - name: Audit Android source
         run: python scripts/audit_android.py
-      - name: Test, lint and build Android
+      - name: Test, lint and build Android APKs
         shell: bash
-        run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
-      - name: Store Android lint report
+        run: |
+          set -euo pipefail
+          gradle -p android :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
+          python scripts/package_android.py \
+            --debug android/app/build/outputs/apk/debug/app-debug.apk \
+            --release android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            --output-dir dist
+      - name: Store Android lint reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-android-lint
           if-no-files-found: warn
           retention-days: 7
-          path: android/app/build/reports/lint-results-debug.*
-      - name: Store Android build evidence
+          path: android/app/build/reports/lint-results-*.*
+      - name: Store Android APK build evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-android-ci
           if-no-files-found: error
           retention-days: 7
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            dist/ByFTP-*-Android-debug.apk
+            dist/ByFTP-*-Android-release-unsigned.apk
 
   windows-build:
     name: Windows x64 and x86 production build
