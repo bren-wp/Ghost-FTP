@@ -1,12 +1,14 @@
 name: Checks
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   GOTOOLCHAIN: local
@@ -14,16 +16,14 @@ env:
   GOSUMDB: off
 
 jobs:
-  integrate-installer:
-    name: One-time installer integration
-    if: github.actor != 'github-actions[bot]'
+  test:
+    name: Tests, race, vet, security, privacy, docs and release integrity
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
-      - name: Checkout PR branch
+      - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.head_ref }}
           fetch-depth: 0
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -35,25 +35,170 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Apply installer integration
+      - name: Disable and verify Go telemetry
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/apply_installer_integration.py
-          rm -f scripts/apply_installer_integration.py
-          gofmt -w cmd/installer internal/api/engine.go cmd/uninstaller/main.go internal/platform/language_*.go
-          git diff --check
-          go test ./cmd/installer ./internal/platform ./internal/api ./cmd/uninstaller
-      - name: Commit integrated source
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+      - name: Verify generated brand assets
+        run: python scripts/generate_brand_assets.py --check
+      - name: Verify English-first localization contract
+        run: python scripts/audit_localization.py
+      - name: Verify version consistency
+        run: python scripts/audit_version.py
+      - name: Verify published-version immutability
+        env:
+          BYFTP_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BYFTP_HEAD_SHA: ${{ github.sha }}
+        run: python scripts/audit_release_version_guard.py --base "$BYFTP_BASE_SHA" --head "$BYFTP_HEAD_SHA"
+      - name: Verify documentation
+        run: python scripts/audit_docs.py
+      - name: Verify security invariants
+        run: python scripts/audit_security.py
+      - name: Verify privacy and network policy
+        run: python scripts/audit_privacy.py
+      - name: Verify release pipeline
+        run: python scripts/audit_release.py
+      - name: Python release-tool regressions
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Go unit and integration tests
+        run: go test ./...
+      - name: Race detector
+        run: go test -race ./...
+      - name: Go vet
+        run: go vet ./...
+      - name: Verify release metadata generation
+        shell: bash
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+
+  windows-build:
+    name: Windows x64 and x86 production build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Disable and verify Go telemetry
+        shell: pwsh
+        run: |
+          go telemetry off
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to disable Go telemetry.' }
+          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
+      - name: Validate release-publisher syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path '.\scripts\publish_release.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw 'publish_release.ps1 contains a PowerShell syntax error.'
+          }
+      - name: Build and verify x64 and x86
+        shell: pwsh
+        run: .\BUILD-WINDOWS.ps1
+      - name: Store internal build evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-windows-ci
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/ByFTP-*-Portable-x64.exe
+            dist/ByFTP-*-Setup-x64.exe
+            dist/ByFTP-*-Portable-x86.exe
+            dist/ByFTP-*-Setup-x86.exe
+            dist/internal/verification-x64.txt
+            dist/internal/verification-x86.txt
+
+  linux-build:
+    name: Linux DEB amd64 arm64 and i386
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Disable and verify Go telemetry
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          if git diff --cached --quiet; then
-            echo 'No installer integration changes were required.'
-            exit 0
-          fi
-          git commit -m 'feat: integrate setup language selection and canonical data path'
-          git push origin HEAD:${{ github.head_ref }}
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+      - name: Linux unit, integration and vet
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./...
+          go vet ./...
+      - name: Build Linux installation packages
+        run: bash scripts/BUILD-LINUX.sh
+      - name: Verify DEB metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          for arch in amd64 arm64 i386; do
+            pkg="dist/ByFTP-${version}-Linux-${arch}.deb"
+            test -s "$pkg"
+            test "$(dpkg-deb -f "$pkg" Package)" = 'byftp'
+            test "$(dpkg-deb -f "$pkg" Version)" = "$version"
+            test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
+          done
+
+  macos-build:
+    name: macOS Universal PKG
+    runs-on: macos-14
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.26.5'
+          check-latest: false
+          cache: false
+      - name: Disable and verify Go telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+      - name: macOS unit and vet
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./...
+          go vet ./...
+      - name: Build macOS Universal installer
+        run: bash scripts/BUILD-MACOS.sh
+      - name: Verify PKG structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          pkg="dist/ByFTP-${version}-macOS-Universal.pkg"
+          test -s "$pkg"
+          pkgutil --expand "$pkg" "$RUNNER_TEMP/byftp-pkg"
+          test -f "$RUNNER_TEMP/byftp-pkg/PackageInfo"
