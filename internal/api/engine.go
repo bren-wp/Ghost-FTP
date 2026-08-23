@@ -58,7 +58,7 @@ func New(dataDir, exePath string) (*Engine, error) {
 // behavior while still allowing lower layers to use ordinary Go errors.
 func recoverTypedCall(callErr *error) {
 	if recover() != nil {
-		*callErr = errors.New("interna greška aplikacije")
+		*callErr = errors.New("internal application error")
 	}
 }
 
@@ -99,7 +99,7 @@ func (e *Engine) Connect(ctx context.Context, profileID string, cfg model.Connec
 func (e *Engine) CancelPendingTrust() { e.remote.CancelPendingTrust() }
 
 func (e *Engine) Disconnect(ctx context.Context) error {
-	transferErr := e.transfers.DisableAndCancel(ctx, "Otkazano prekidom veze")
+	transferErr := e.transfers.DisableAndCancel(ctx, "Cancelled by disconnect")
 	remoteErr := e.remote.Disconnect(ctx)
 	return errors.Join(transferErr, remoteErr)
 }
@@ -212,5 +212,5 @@ func DataDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(base, brand.Company, brand.ProductName), nil
+	return filepath.Join(base, brand.ProductName), nil
 }

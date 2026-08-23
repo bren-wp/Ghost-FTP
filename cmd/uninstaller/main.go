@@ -16,7 +16,7 @@ const (
 	uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
 	appPathsKey  = `Software\Microsoft\Windows\CurrentVersion\App Paths\ByFTP.exe`
 
-	messageBoxTitleActionFailed = "Radnja nije dovršena"
+	messageBoxTitleActionFailed = "Action did not finish"
 )
 
 func normalizeWindowsPath(path string) (string, error) {
@@ -165,7 +165,7 @@ func userDataDir() (string, error) {
 
 func removeUserData(path string) error {
 	if strings.TrimSpace(path) == "" {
-		return errors.New("korisnička mapa nije dostupna")
+		return errors.New("user data folder is unavailable")
 	}
 
 	return security.RemoveTreeNoFollow(path)
@@ -184,7 +184,7 @@ func runUninstaller() (exitCode int) {
 		if recover() != nil {
 			showUninstallError(
 				messageBoxTitleActionFailed,
-				"Uklanjanje nije dovršeno. Ponovno pokrenite računalo i pokušajte ponovno.",
+				"Uninstall did not finish. Restart Windows and try again.",
 			)
 			exitCode = 1
 		}
@@ -193,8 +193,8 @@ func runUninstaller() (exitCode int) {
 	exe, err := os.Executable()
 	if err != nil {
 		showUninstallError(
-			"Deinstalacija nije pokrenuta",
-			"ByFTP trenutačno nije moguće ukloniti. Ponovno pokrenite računalo i pokušajte ponovno.",
+			"Uninstall was not started",
+			"ByFTP cannot be removed right now. Restart Windows and try again.",
 		)
 		return 1
 	}
@@ -202,7 +202,7 @@ func runUninstaller() (exitCode int) {
 	exe, err = filepath.Abs(exe)
 	if err != nil {
 		showUninstallError(
-			"Deinstalacija nije pokrenuta",
+			"Uninstall was not started",
 			"Lokaciju programa za deinstalaciju nije moguće potvrditi.",
 		)
 		return 1
@@ -211,7 +211,7 @@ func runUninstaller() (exitCode int) {
 	installDir, err := platform.InstallDir()
 	if err != nil {
 		showUninstallError(
-			"Deinstalacija nije pokrenuta",
+			"Uninstall was not started",
 			"ByFTP instalacijsku mapu nije moguće potvrditi.",
 		)
 		return 1
@@ -220,7 +220,7 @@ func runUninstaller() (exitCode int) {
 	installDir, err = filepath.Abs(installDir)
 	if err != nil {
 		showUninstallError(
-			"Deinstalacija nije pokrenuta",
+			"Uninstall was not started",
 			"ByFTP instalacijsku mapu nije moguće potvrditi.",
 		)
 		return 1
@@ -229,15 +229,15 @@ func runUninstaller() (exitCode int) {
 	expectedUninstaller := filepath.Join(installDir, "Uninstall.exe")
 	if !sameWindowsPath(exe, expectedUninstaller) {
 		showUninstallError(
-			"Deinstalacija nije pokrenuta",
-			"Pokrenite uklanjanje ByFTP-a iz njegove instalirane lokacije ili iz Windows postavki aplikacija.",
+			"Uninstall was not started",
+			"Start the ByFTP uninstaller from its installed location or from Windows Installed apps.",
 		)
 		return 1
 	}
 
 	if err := validateInstallDir(installDir); err != nil {
 		showUninstallError(
-			"Deinstalacija nije pokrenuta",
+			"Uninstall was not started",
 			"ByFTP instalacijska mapa nije sigurna ili je preusmjerena. Uklanjanje je zaustavljeno.",
 		)
 		return 1
@@ -245,7 +245,7 @@ func runUninstaller() (exitCode int) {
 
 	if err := validateUninstallFile(exe, installDir); err != nil {
 		showUninstallError(
-			"Deinstalacija nije pokrenuta",
+			"Uninstall was not started",
 			"Program za deinstalaciju nije moguće sigurno potvrditi.",
 		)
 		return 1
@@ -253,16 +253,16 @@ func runUninstaller() (exitCode int) {
 
 	if !platform.ConfirmDialog(
 		dialogTitle(),
-		"Ukloniti "+brand.ProductFull+"?",
-		"Aplikacija će biti uklonjena. Nakon toga možete odlučiti želite li zadržati spremljene profile i postavke.",
+		"Remove "+brand.ProductFull+"?",
+		"The application will be removed. You can then choose whether to keep saved profiles and settings.",
 	) {
 		return 0
 	}
 
 	deleteUserData := platform.ConfirmDialog(
 		dialogTitle(),
-		"Obrisati i spremljene profile i postavke?",
-		"Da = brišu se lokalni ByFTP profili i postavke s ovog računala.\nNe = ostaju sačuvani za moguću ponovnu instalaciju.",
+		"Delete saved profiles and settings too?",
+		"Yes = delete local ByFTP profiles and settings from this computer.\nNo = keep them for a possible reinstall.",
 	)
 
 	deferred := false
@@ -290,7 +290,7 @@ func runUninstaller() (exitCode int) {
 	// uninstall entry allows the user to retry from Windows Settings.
 	if len(cleanupErrs) != 0 {
 		showUninstallError(
-			"Uklanjanje nije potpuno dovršeno",
+			"Uninstall did not fully finish",
 			"Neke ByFTP datoteke nije bilo moguće ukloniti. Ponovno pokrenite računalo pa ponovno pokrenite uklanjanje iz Windows postavki aplikacija.",
 		)
 		return 1
@@ -316,7 +316,7 @@ func runUninstaller() (exitCode int) {
 	// something fails.
 	if err := platform.DeleteRegistryKey(appPathsKey); err != nil {
 		showUninstallError(
-			"Uklanjanje nije potpuno dovršeno",
+			"Uninstall did not fully finish",
 			"Windows registraciju ByFTP-a nije bilo moguće potpuno ukloniti. Ponovno pokrenite računalo i pokušajte ponovno.",
 		)
 		return 1
@@ -324,7 +324,7 @@ func runUninstaller() (exitCode int) {
 
 	if err := platform.DeleteRegistryKey(uninstallKey); err != nil {
 		showUninstallError(
-			"Uklanjanje nije potpuno dovršeno",
+			"Uninstall did not fully finish",
 			"Windows zapis za deinstalaciju nije bilo moguće ukloniti. Ponovno pokrenite računalo i pokušajte ponovno.",
 		)
 		return 1
@@ -334,7 +334,7 @@ func runUninstaller() (exitCode int) {
 	// validated canonical uninstaller and canonical installation directory.
 	if err := platform.ScheduleDeleteOnReboot(exe); err != nil {
 		showUninstallError(
-			"Uklanjanje nije potpuno dovršeno",
+			"Uninstall did not fully finish",
 			"Program za deinstalaciju nije moguće označiti za završno uklanjanje nakon ponovnog pokretanja sustava Windows.",
 		)
 		return 1
@@ -348,22 +348,22 @@ func runUninstaller() (exitCode int) {
 		)
 	}
 
-	message := "Korisnički profili i postavke ostali su sačuvani na ovom računalu."
+	message := "User profiles and settings were kept on this computer."
 	if deleteUserData {
-		message = "Lokalni ByFTP profili i postavke su obrisani."
+		message = "Local ByFTP profiles and settings were deleted."
 	}
 
 	if deferred {
-		message += " Završno čišćenje dovršit će se nakon ponovnog pokretanja sustava Windows."
+		message += " Final cleanup will finish after Windows restarts."
 	}
 
 	if len(warnings) != 0 {
-		message += "\n\nByFTP je uklonjen, ali neke pomoćne stavke nije bilo moguće potpuno očistiti."
+		message += "\n\nByFTP was removed, ali neke pomoćne stavke nije bilo moguće potpuno očistiti."
 	}
 
 	platform.InfoDialog(
 		dialogTitle(),
-		"ByFTP je uklonjen",
+		"ByFTP was removed",
 		message,
 	)
 
