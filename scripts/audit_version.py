@@ -43,14 +43,10 @@ def main() -> int:
     if f"## {version}" not in changelog:
         fail("CHANGELOG does not contain a section for VERSION")
 
-    # Long-lived documentation must not advertise a stale current release.
     for path in sorted((ROOT / "docs").rglob("*.md")):
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(ROOT)
-        for pattern in (
-            r"Current release:\s*(\d+\.\d+\.\d+)",
-            r"Trenutačno izdanje:\s*(\d+\.\d+\.\d+)",
-        ):
+        for pattern in (r"Current release:\s*(\d+\.\d+\.\d+)", r"Trenutačno izdanje:\s*(\d+\.\d+\.\d+)"):
             for match in re.finditer(pattern, text):
                 if match.group(1) != version:
                     fail(f"{rel} advertises stale current release {match.group(1)}")
@@ -60,8 +56,7 @@ def main() -> int:
         fail("Windows build does not inject VERSION into the runtime")
 
     for rel in ("scripts/BUILD-LOCAL.sh", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh"):
-        text = read(rel)
-        if "< VERSION" not in text:
+        if "< VERSION" not in read(rel):
             fail(f"{rel} does not read canonical VERSION")
     if "-X main.version=$VERSION" not in read("scripts/BUILD-LOCAL.sh"):
         fail("local build does not inject VERSION")
@@ -70,6 +65,13 @@ def main() -> int:
     if "-X main.version=${VERSION}" not in read("scripts/BUILD-MACOS.sh"):
         fail("macOS build does not inject VERSION")
 
+    android = read("android/app/build.gradle.kts")
+    for marker in ('rootProject.file("../VERSION")', "versionName = canonicalVersion", "versionCode = canonicalVersionCode"):
+        if marker not in android:
+            fail(f"Android build is not bound to canonical VERSION: missing {marker}")
+    if re.search(r'versionName\s*=\s*"\d+\.\d+\.\d+', android):
+        fail("Android build hard-codes a production version")
+
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded default production version")
@@ -77,14 +79,13 @@ def main() -> int:
         if marker not in release_workflow:
             fail(f"release workflow lacks VERSION fallback marker: {marker}")
 
-    package_markers = (
+    for marker in (
         "<PackageId>ByFTP.Windows</PackageId>",
         "<Version>$env:VERSION</Version>",
         "dotnet nuget push",
         "nuget.pkg.github.com/bren-wp/index.json",
         "--skip-duplicate",
-    )
-    for marker in package_markers:
+    ):
         if marker not in release_workflow:
             fail(f"GitHub Package is not bound to VERSION: missing {marker}")
 
@@ -99,7 +100,7 @@ def main() -> int:
         fail("localization audit hard-codes a release version")
 
     print(f"VERSION_AUDIT=PASS ({version})")
-    print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS")
+    print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
     print("PRODUCTION_DOC_VERSION_DRIFT=BLOCKED")
     return 0

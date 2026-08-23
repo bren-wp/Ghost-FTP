@@ -10,25 +10,27 @@ class ReleaseNotesTests(unittest.TestCase):
     def test_extracts_exact_version_section(self) -> None:
         changelog = """# Changelog
 
-## 1.0.13 — Current
+## 1.1.0 — Current
 
 - current change
 
-## 1.0.12 — Previous
+## 1.0.13 — Previous
 
 - previous change
 """
-        section = extract_section(changelog, "1.0.13")
+        section = extract_section(changelog, "1.1.0")
         self.assertIn("current change", section)
         self.assertNotIn("previous change", section)
 
     def test_public_notes_are_english_first(self) -> None:
-        notes = build_notes("1.0.13", "- Verified release pipeline.")
+        notes = build_notes("1.1.0", "- Native Android release-quality gate.")
         for marker in (
-            "ByFTP 1.0.13",
+            "ByFTP 1.1.0",
             "Privacy-focused FTP / FTPS / SFTP client",
             "Highlights",
-            "Official packages",
+            "Official desktop packages",
+            "Android",
+            "required release-quality gate",
             "Release verification",
             "Before installing",
             "Signing status",

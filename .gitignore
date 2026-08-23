@@ -7,6 +7,8 @@
 *.exe
 *.zip
 *.sha256
+*.apk
+*.aab
 
 # Temporary/runtime files
 *.tmp
