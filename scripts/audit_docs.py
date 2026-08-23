@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provjerava lokalne poveznice, indeks i verzijsku neutralnost ByFTP dokumentacije."""
+"""Validate ByFTP documentation links, indexing, and version-neutral titles."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 
 
 def fail(message: str) -> None:
-    raise SystemExit("DOCS_AUDIT_NIJE_PROSAO: " + message)
+    raise SystemExit("DOCS_AUDIT_FAILED: " + message)
 
 
 def markdown_files() -> list[Path]:
@@ -31,8 +31,9 @@ def clean_destination(raw: str) -> str:
     if value.startswith("<") and ">" in value:
         value = value[1 : value.index(">")]
     else:
-        # Markdown naslov nakon odredišta nije dio putanje. ByFTP lokalne putanje
-        # nemaju razmake, pa je prvi token dovoljan i ne mijenja stvarne linkove.
+        # A Markdown title after the destination is not part of the path. ByFTP
+        # repository-relative document paths do not contain spaces, so the first
+        # token is sufficient without altering valid local links.
         value = value.split(maxsplit=1)[0] if value else value
     value = unquote(value)
     value = value.split("#", 1)[0].split("?", 1)[0]
@@ -43,30 +44,30 @@ def check_link(source: Path, raw: str) -> None:
     destination = clean_destination(raw)
     if not destination or destination.lower().startswith(IGNORED_PREFIXES):
         return
-    # Root README koristi GitHub UI-relativnu Actions poveznicu koja namjerno
-    # izlazi iz repozitorijskog filesystema; ona nije lokalni dokument.
+    # The root README uses a GitHub UI-relative Actions link that intentionally
+    # leaves the repository filesystem; it is not a local document path.
     if source == ROOT / "README.md" and destination.startswith("../../actions/"):
         return
     target = (source.parent / destination).resolve()
     try:
         target.relative_to(ROOT.resolve())
     except ValueError:
-        fail(f"poveznica izlazi iz repozitorija: {source.relative_to(ROOT)} -> {raw}")
+        fail(f"link escapes the repository: {source.relative_to(ROOT)} -> {raw}")
     if not target.exists():
-        fail(f"nepostojeća lokalna poveznica: {source.relative_to(ROOT)} -> {raw}")
+        fail(f"missing local link: {source.relative_to(ROOT)} -> {raw}")
 
 
 def main() -> int:
     files = markdown_files()
     if not files:
-        fail("nisu pronađeni Markdown dokumenti")
+        fail("no Markdown documents were found")
     if not INDEX.is_file():
-        fail("nedostaje docs/README.md")
+        fail("docs/README.md is missing")
 
     for path in files:
         text = path.read_text(encoding="utf-8")
         if path.parent == DOCS and VERSIONED_DOC_TITLE_RE.search(text):
-            fail(f"dokument ima zastarjeli verzionirani naslov: {path.relative_to(ROOT)}")
+            fail(f"long-lived document has a versioned title: {path.relative_to(ROOT)}")
         for match in MARKDOWN_LINK_RE.finditer(text):
             check_link(path, match.group(1))
         for match in HTML_LINK_RE.finditer(text):
@@ -77,11 +78,11 @@ def main() -> int:
     detailed_docs = sorted(path for path in DOCS.glob("*.md") if path.name != "README.md")
     for path in detailed_docs:
         if path.name not in index_text:
-            fail(f"docs/README.md ne indeksira {path.name}")
+            fail(f"docs/README.md does not index {path.name}")
         if f"docs/{path.name}" not in root_readme:
-            fail(f"glavni README ne povezuje dokument docs/{path.name}")
+            fail(f"root README does not link docs/{path.name}")
 
-    print(f"DOCS_AUDIT=PROSAO ({len(files)} Markdown datoteka, {len(detailed_docs)} detaljnih dokumenata)")
+    print(f"DOCS_AUDIT=PASS ({len(files)} Markdown files, {len(detailed_docs)} detailed documents)")
     return 0
 
 
