@@ -2,16 +2,19 @@
 """One-time deterministic repository normalization for ByFTP 1.0.12."""
 
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+SELF = Path(__file__).resolve()
 TEXT_EXT = {'.go', '.py', '.md', '.yml', '.yaml', '.ps1', '.sh', '.cmd', '.mod', '.sum', '.txt', '.json', '.xml'}
 REPL = {
     'brendigo.com/byftp': 'github.com/bren-wp/by-ftp',
     'info@brendigo.com': 'https://github.com/bren-wp/by-ftp/issues',
     'https://brendigo.com': 'https://github.com/bren-wp/by-ftp',
     'brendigo.com': 'github.com/bren-wp/by-ftp',
+    'com.brendigo.byftp': 'io.github.bren-wp.byftp',
     'Brendigo.ByFTP': 'ByFTP',
     "Brendigo's": "ByFTP's",
     'Brendigo': 'ByFTP',
@@ -21,6 +24,7 @@ for path in ROOT.rglob('*'):
     if (
         not path.is_file()
         or path.name == 'LICENSE'
+        or path.resolve() == SELF
         or '.git' in path.parts
         or path.suffix.lower() not in TEXT_EXT
     ):
@@ -32,6 +36,9 @@ for path in ROOT.rglob('*'):
     updated = current
     for old, new in REPL.items():
         updated = updated.replace(old, new)
+    # Catch case variants left in identifiers, tests or comments after the
+    # structured replacements above. Legal attribution is excluded separately.
+    updated = re.sub(r'brendigo', 'ByFTP', updated, flags=re.IGNORECASE)
     if updated != current:
         path.write_text(updated, encoding='utf-8', newline='\n')
 
@@ -46,8 +53,6 @@ if curl_ftp.exists():
         text = text.replace(broken, fixed, 1)
         curl_ftp.write_text(text, encoding='utf-8', newline='\n')
 
-# VERSION is the single production version source. 1.0.12 already has a
-# changelog section and is the release line documented by this cleanup.
 (ROOT / 'VERSION').write_text('1.0.12\n', encoding='utf-8', newline='\n')
 
 renames = {
@@ -112,15 +117,13 @@ go_files = [str(path) for path in ROOT.rglob('*.go')]
 if go_files:
     subprocess.run(['gofmt', '-w', *go_files], cwd=ROOT, check=True)
 
-# Fail the cleanup if the legacy product/vendor token remains in tracked text
-# outside the legal license attribution. This is case-insensitive and catches
-# comments, documentation, import paths and UI strings alike.
 legacy = 'brendigo'
 remaining = []
 for path in ROOT.rglob('*'):
     if (
         not path.is_file()
         or path.name == 'LICENSE'
+        or path.resolve() == SELF
         or '.git' in path.parts
         or path.suffix.lower() not in TEXT_EXT
     ):
