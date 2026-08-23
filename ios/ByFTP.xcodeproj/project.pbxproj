@@ -6,35 +6,35 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B001 /* ByFTPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F001 /* ByFTPApp.swift */; };
-		B002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F002 /* ContentView.swift */; };
-		B003 /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F003 /* ConnectionView.swift */; };
-		B004 /* RemoteBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F004 /* RemoteBrowserView.swift */; };
-		B005 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F005 /* SessionStore.swift */; };
-		B006 /* ConnectionConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = F006 /* ConnectionConfig.swift */; };
-		B007 /* RemoteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F007 /* RemoteModels.swift */; };
-		B008 /* SocketConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F008 /* SocketConnection.swift */; };
-		B009 /* FTPRemoteClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F009 /* FTPRemoteClient.swift */; };
-		B00A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F00A /* Assets.xcassets */; };
+		000000000000000000000020 /* ByFTPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000010 /* ByFTPApp.swift */; };
+		000000000000000000000021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* ContentView.swift */; };
+		000000000000000000000022 /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000012 /* ConnectionView.swift */; };
+		000000000000000000000023 /* RemoteBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000013 /* RemoteBrowserView.swift */; };
+		000000000000000000000024 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000014 /* SessionStore.swift */; };
+		000000000000000000000025 /* ConnectionConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000015 /* ConnectionConfig.swift */; };
+		000000000000000000000026 /* RemoteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* RemoteModels.swift */; };
+		000000000000000000000027 /* SocketConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000017 /* SocketConnection.swift */; };
+		000000000000000000000028 /* FTPRemoteClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000018 /* FTPRemoteClient.swift */; };
+		000000000000000000000029 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000019 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		F001 /* ByFTPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ByFTPApp.swift; sourceTree = "<group>"; };
-		F002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		F003 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
-		F004 /* RemoteBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteBrowserView.swift; sourceTree = "<group>"; };
-		F005 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
-		F006 /* ConnectionConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionConfig.swift; sourceTree = "<group>"; };
-		F007 /* RemoteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteModels.swift; sourceTree = "<group>"; };
-		F008 /* SocketConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocketConnection.swift; sourceTree = "<group>"; };
-		F009 /* FTPRemoteClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FTPRemoteClient.swift; sourceTree = "<group>"; };
-		F00A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		F00B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		P001 /* ByFTP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ByFTP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000010 /* ByFTPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ByFTPApp.swift; sourceTree = "<group>"; };
+		000000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		000000000000000000000012 /* ConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
+		000000000000000000000013 /* RemoteBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteBrowserView.swift; sourceTree = "<group>"; };
+		000000000000000000000014 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		000000000000000000000015 /* ConnectionConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionConfig.swift; sourceTree = "<group>"; };
+		000000000000000000000016 /* RemoteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteModels.swift; sourceTree = "<group>"; };
+		000000000000000000000017 /* SocketConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocketConnection.swift; sourceTree = "<group>"; };
+		000000000000000000000018 /* FTPRemoteClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FTPRemoteClient.swift; sourceTree = "<group>"; };
+		000000000000000000000019 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		00000000000000000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		000000000000000000000006 /* ByFTP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ByFTP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		PHF1 /* Frameworks */ = {
+		000000000000000000000008 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = ();
@@ -43,36 +43,36 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		G001 = {
+		000000000000000000000003 = {
 			isa = PBXGroup;
 			children = (
-				G002 /* ByFTP */,
-				G003 /* Products */,
+				000000000000000000000004 /* ByFTP */,
+				000000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		G002 /* ByFTP */ = {
+		000000000000000000000004 /* ByFTP */ = {
 			isa = PBXGroup;
 			children = (
-				F001 /* ByFTPApp.swift */,
-				F002 /* ContentView.swift */,
-				F003 /* ConnectionView.swift */,
-				F004 /* RemoteBrowserView.swift */,
-				F005 /* SessionStore.swift */,
-				F006 /* ConnectionConfig.swift */,
-				F007 /* RemoteModels.swift */,
-				F008 /* SocketConnection.swift */,
-				F009 /* FTPRemoteClient.swift */,
-				F00A /* Assets.xcassets */,
-				F00B /* Info.plist */,
+				000000000000000000000010 /* ByFTPApp.swift */,
+				000000000000000000000011 /* ContentView.swift */,
+				000000000000000000000012 /* ConnectionView.swift */,
+				000000000000000000000013 /* RemoteBrowserView.swift */,
+				000000000000000000000014 /* SessionStore.swift */,
+				000000000000000000000015 /* ConnectionConfig.swift */,
+				000000000000000000000016 /* RemoteModels.swift */,
+				000000000000000000000017 /* SocketConnection.swift */,
+				000000000000000000000018 /* FTPRemoteClient.swift */,
+				000000000000000000000019 /* Assets.xcassets */,
+				00000000000000000000001A /* Info.plist */,
 			);
 			path = ByFTP;
 			sourceTree = "<group>";
 		};
-		G003 /* Products */ = {
+		000000000000000000000005 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				P001 /* ByFTP.app */,
+				000000000000000000000006 /* ByFTP.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -80,37 +80,37 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		T001 /* ByFTP */ = {
+		000000000000000000000002 /* ByFTP */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = L002 /* Build configuration list for PBXNativeTarget "ByFTP" */;
+			buildConfigurationList = 00000000000000000000000B /* Build configuration list for PBXNativeTarget "ByFTP" */;
 			buildPhases = (
-				PHS1 /* Sources */,
-				PHF1 /* Frameworks */,
-				PHR1 /* Resources */,
+				000000000000000000000007 /* Sources */,
+				000000000000000000000008 /* Frameworks */,
+				000000000000000000000009 /* Resources */,
 			);
 			buildRules = ();
 			dependencies = ();
 			name = ByFTP;
 			productName = ByFTP;
-			productReference = P001 /* ByFTP.app */;
+			productReference = 000000000000000000000006 /* ByFTP.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		PRJ1 /* Project object */ = {
+		000000000000000000000001 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
-					T001 = {
+					000000000000000000000002 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
-			buildConfigurationList = L001 /* Build configuration list for PBXProject "ByFTP" */;
+			buildConfigurationList = 00000000000000000000000A /* Build configuration list for PBXProject "ByFTP" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -118,48 +118,48 @@
 				en,
 				Base,
 			);
-			mainGroup = G001;
-			productRefGroup = G003 /* Products */;
+			mainGroup = 000000000000000000000003;
+			productRefGroup = 000000000000000000000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				T001 /* ByFTP */,
+				000000000000000000000002 /* ByFTP */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		PHR1 /* Resources */ = {
+		000000000000000000000009 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B00A /* Assets.xcassets in Resources */,
+				000000000000000000000029 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		PHS1 /* Sources */ = {
+		000000000000000000000007 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B001 /* ByFTPApp.swift in Sources */,
-				B002 /* ContentView.swift in Sources */,
-				B003 /* ConnectionView.swift in Sources */,
-				B004 /* RemoteBrowserView.swift in Sources */,
-				B005 /* SessionStore.swift in Sources */,
-				B006 /* ConnectionConfig.swift in Sources */,
-				B007 /* RemoteModels.swift in Sources */,
-				B008 /* SocketConnection.swift in Sources */,
-				B009 /* FTPRemoteClient.swift in Sources */,
+				000000000000000000000020 /* ByFTPApp.swift in Sources */,
+				000000000000000000000021 /* ContentView.swift in Sources */,
+				000000000000000000000022 /* ConnectionView.swift in Sources */,
+				000000000000000000000023 /* RemoteBrowserView.swift in Sources */,
+				000000000000000000000024 /* SessionStore.swift in Sources */,
+				000000000000000000000025 /* ConnectionConfig.swift in Sources */,
+				000000000000000000000026 /* RemoteModels.swift in Sources */,
+				000000000000000000000027 /* SocketConnection.swift in Sources */,
+				000000000000000000000028 /* FTPRemoteClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		C001 /* Debug */ = {
+		00000000000000000000000C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -175,7 +175,7 @@
 			};
 			name = Debug;
 		};
-		C002 /* Release */ = {
+		00000000000000000000000D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -191,7 +191,7 @@
 			};
 			name = Release;
 		};
-		C101 /* Debug */ = {
+		00000000000000000000000E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -208,7 +208,7 @@
 			};
 			name = Debug;
 		};
-		C102 /* Release */ = {
+		00000000000000000000000F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -228,25 +228,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		L001 /* Build configuration list for PBXProject "ByFTP" */ = {
+		00000000000000000000000A /* Build configuration list for PBXProject "ByFTP" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				C001 /* Debug */,
-				C002 /* Release */,
+				00000000000000000000000C /* Debug */,
+				00000000000000000000000D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		L002 /* Build configuration list for PBXNativeTarget "ByFTP" */ = {
+		00000000000000000000000B /* Build configuration list for PBXNativeTarget "ByFTP" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				C101 /* Debug */,
-				C102 /* Release */,
+				00000000000000000000000E /* Debug */,
+				00000000000000000000000F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = PRJ1 /* Project object */;
+	rootObject = 000000000000000000000001 /* Project object */;
 }
