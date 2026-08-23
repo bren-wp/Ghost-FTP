@@ -32,8 +32,8 @@ Highlights
 ----------
 {section}
 
-Official desktop packages
--------------------------
+Official packages
+-----------------
 Windows:
 - Setup x64 EXE: recommended installer for 64-bit Windows 10/11
 - Portable x64 EXE: 64-bit build that runs without installation
@@ -50,26 +50,28 @@ Linux:
 macOS:
 - macOS Universal PKG: Intel x86_64 + Apple Silicon arm64
 
-Android
--------
-The native Android source is under android/ and is a required release-quality gate starting with 1.1.0. CI verifies Android unit tests, lint and APK compilation. A public production Android APK is not published until a stable private Android signing identity is configured outside the repository; debug-signed CI artifacts are not production packages.
+Android:
+- Android debug APK: installable development/test build signed with the standard Android debug identity
+- Android release-unsigned APK: optimized/minified release build intended for verification or external production signing
+
+The Android APKs are generated from the same canonical VERSION and gated source as the desktop packages. Neither APK is represented as a production store-signed build. A production Android distribution still requires a stable private signing identity held outside this repository.
 
 Release verification
 --------------------
-- SHA256.txt: SHA-256 checksums for every public desktop package and shared release metadata file
+- SHA256.txt: SHA-256 checksums for every public package and shared release metadata file
 - RELEASE-NOTES.txt: these release notes generated from the matching CHANGELOG section
 - BUILD-METADATA.txt: version, release commit and production workflow provenance
 
 Before installing
 -----------------
 1. Download the package that matches your operating system and architecture.
-2. Compare the downloaded desktop package SHA-256 hash with the official SHA256.txt file.
+2. Compare the downloaded package SHA-256 hash with the official SHA256.txt file.
 3. On Windows, use Setup for a normal installation; use Portable when installation is not required.
-4. Do not treat Android CI debug APK artifacts as a production-signed release.
+4. On Android, use the debug APK only for testing/development installs. The release-unsigned APK must be signed with a trusted external production identity before production distribution.
 
 Signing status
 --------------
-Windows binaries do not show Verified Publisher until a real ByFTP Authenticode certificate is available. The macOS PKG is not Developer ID signed/notarized without a real Apple signing identity. Android production distribution likewise requires a stable private signing identity. The workflow never fabricates a publisher identity; SHA-256 verification and release provenance remain mandatory parts of public desktop releases.
+Windows binaries do not show Verified Publisher until a real ByFTP Authenticode certificate is available. The macOS PKG is not Developer ID signed/notarized without a real Apple signing identity. Android production distribution likewise requires a stable private signing identity. The workflow never fabricates a publisher identity; SHA-256 verification and release provenance remain mandatory parts of public releases.
 """
 
 
