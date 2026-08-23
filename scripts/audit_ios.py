@@ -143,11 +143,19 @@ def main() -> int:
         "generic/platform=iOS",
         "CODE_SIGNING_ALLOWED=NO",
         "ARCHS=arm64",
-        "IOS_MODEL_TESTS=PASS",
         "scripts/package_ios.py",
     ):
         if marker not in build:
             fail(f"iOS build script is missing: {marker}")
+
+    model_tests = require("ios/Tests/ModelTests.swift", (
+        "IOS_MODEL_TESTS=PASS",
+        "path traversal was accepted",
+        "CRLF username injection was accepted",
+        "CRLF password injection was accepted",
+    ))
+    if not model_tests:
+        fail("iOS model/path tests are unavailable")
 
     packager = read("scripts/package_ios.py")
     for marker in (
