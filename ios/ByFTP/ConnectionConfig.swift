@@ -28,18 +28,20 @@ struct ConnectionConfig: Equatable, Sendable {
         host rawHost: String,
         port rawPort: String,
         username rawUsername: String,
-        password: String
+        password rawPassword: String
     ) throws -> ConnectionConfig {
         let host = try normalizeHost(rawHost)
         let username = rawUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !username.isEmpty else { throw ValidationError("Username is required.") }
+        try rejectControlCharacters(username, field: "Username")
+        try rejectControlCharacters(rawPassword, field: "Password")
 
         return ConnectionConfig(
             protocolKind: protocolKind,
             host: host,
             port: try parsePort(rawPort, fallback: protocolKind.defaultPort),
             username: username,
-            password: password
+            password: rawPassword
         )
     }
 
@@ -67,6 +69,12 @@ struct ConnectionConfig: Equatable, Sendable {
             throw ValidationError("Port must be between 1 and 65535.")
         }
         return parsed
+    }
+
+    private static func rejectControlCharacters(_ value: String, field: String) throws {
+        guard !value.contains("\r"), !value.contains("\n"), !value.contains("\0") else {
+            throw ValidationError("\(field) contains an unsafe control character.")
+        }
     }
 }
 
