@@ -1,24 +1,35 @@
 # Code signing
 
-ByFTP separates build integrity from publisher identity. CI can prove what source and version produced an artifact, but it must not fabricate a trusted operating-system publisher identity.
+ByFTP separates build integrity from publisher identity. CI can prove what source/version produced an artifact, but it must not fabricate a trusted operating-system publisher identity.
 
 ## Windows
 
-Windows Verified Publisher status requires a real Authenticode certificate controlled by the legitimate publisher. Until such a certificate is configured in protected CI secrets, release verification relies on the gated build, release provenance and SHA-256 checksums rather than a simulated publisher identity.
+Verified Publisher requires a real Authenticode certificate controlled by the legitimate publisher. Until configured in protected CI, verification relies on the gated build, provenance and SHA-256 checksums.
 
 ## macOS
 
-macOS trust requires a real Developer ID identity and Apple notarization credentials. The project must not claim notarized status without completing the actual Apple signing/notarization flow.
+macOS trust requires a real Developer ID identity and Apple notarization credentials. The project must not claim signed/notarized status without completing the actual Apple flow.
 
 ## Android
 
-The official release workflow produces two Android artifacts:
+The release workflow produces:
 
-- `ByFTP-<version>-Android-debug.apk` — signed with the standard Android debug identity and suitable only for development/testing installation.
+- `ByFTP-<version>-Android-debug.apk` — standard Android debug identity, development/testing only.
 - `ByFTP-<version>-Android-release-unsigned.apk` — optimized/minified release output without a production signature.
 
-A production Android package must be signed with a stable private Android signing identity managed outside the repository, then verified as part of a dedicated signing gate. The debug key is not a production identity and the unsigned release artifact must never be presented as store-ready software.
+Production Android distribution requires a stable private signing identity managed outside the repository.
+
+## iOS
+
+The release workflow produces:
+
+- `ByFTP-<version>-iOS-arm64-unsigned.ipa` — a real arm64 iPhoneOS application packaged under `Payload/ByFTP.app`, built with code signing disabled.
+- `ByFTP-<version>-iOS-arm64-unsigned-app.zip` — the same unsigned `.app` bundle for verification or an external signing workflow.
+
+These artifacts are reproducible pre-signing evidence, **not** App Store/TestFlight packages and not normally installable on a stock iPhone/iPad. Production distribution requires a valid Apple signing certificate/private key plus an appropriate provisioning profile and, for store distribution, the corresponding App Store/TestFlight process.
+
+The public workflow intentionally does not invent a development team, ad-hoc production identity or fake provisioning profile. A future protected signing stage may consume real Apple credentials after the unsigned build has passed the existing package integrity gate.
 
 ## Secret handling
 
-Signing certificates, private keys, keystores, passwords and notarization credentials belong in protected CI secret storage. They must never be committed to the repository, embedded in build scripts or generated as fake production identities.
+Authenticode/Developer ID/Apple Distribution certificates, private keys, Android keystores, `.p12` files, mobile provisioning profiles, passwords and notarization credentials belong in protected signing infrastructure. They must never be committed to the repository, embedded in build scripts or generated as fake production identities.
