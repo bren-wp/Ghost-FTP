@@ -57,9 +57,10 @@ public final class MainActivity extends Activity {
     private ListView list;
     private ArrayAdapter<String> listAdapter;
 
-    private RemoteClient client;
+    private volatile RemoteClient client;
+    private volatile RemoteClient connectingClient;
+    private volatile boolean destroyed;
     private String currentPath = "/";
-    private RemoteEntry selected;
     private String pendingDownloadPath;
     private boolean busy;
 
@@ -155,13 +156,11 @@ public final class MainActivity extends Activity {
         newFolder.setOnClickListener(v -> promptNewFolder());
         list.setOnItemClickListener((parent, view, position, id) -> {
             RemoteEntry entry = entries.get(position);
-            selected = entry;
             if (entry.directory()) openDirectory(RemotePaths.child(currentPath, entry.name()));
             else status.setText(getString(R.string.selected_file, entry.name()));
         });
         list.setOnItemLongClickListener((parent, view, position, id) -> {
-            selected = entries.get(position);
-            showEntryActions(selected);
+            showEntryActions(entries.get(position));
             return true;
         });
     }
@@ -178,11 +177,12 @@ public final class MainActivity extends Activity {
         setBusy(true, R.string.status_connecting);
         io.execute(() -> {
             RemoteClient next = RemoteClientFactory.create(config);
+            connectingClient = next;
             try {
                 next.connect();
                 List<RemoteEntry> initial = next.list("/");
-                main.post(() -> {
-                    closeClient();
+                postToMain(() -> {
+                    connectingClient = null;
                     client = next;
                     currentPath = "/";
                     replaceEntries(initial);
@@ -190,8 +190,9 @@ public final class MainActivity extends Activity {
                     setBusy(false, R.string.status_connected);
                 });
             } catch (Exception error) {
+                connectingClient = null;
                 next.close();
-                main.post(() -> { setBusy(false, R.string.status_ready); showError(error); });
+                postToMain(() -> { setBusy(false, R.string.status_ready); showError(error); });
             }
         });
     }
@@ -203,8 +204,8 @@ public final class MainActivity extends Activity {
         setBusy(true, R.string.status_working);
         io.execute(() -> {
             if (current != null) current.close();
-            main.post(() -> {
-                entries.clear(); listAdapter.clear(); currentPath = "/"; path.setText(currentPath); selected = null;
+            postToMain(() -> {
+                entries.clear(); listAdapter.clear(); currentPath = "/"; path.setText(currentPath);
                 updateConnectionUi(false); setBusy(false, R.string.status_disconnected);
             });
         });
@@ -220,9 +221,9 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             try {
                 List<RemoteEntry> next = current.list(normalized);
-                main.post(() -> { currentPath = normalized; selected = null; replaceEntries(next); setBusy(false, R.string.status_connected); });
+                postToMain(() -> { currentPath = normalized; replaceEntries(next); setBusy(false, R.string.status_connected); });
             } catch (Exception error) {
-                main.post(() -> { setBusy(false, R.string.status_connected); showError(error); });
+                postToMain(() -> { setBusy(false, R.string.status_connected); showError(error); });
             }
         });
     }
@@ -255,6 +256,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_DOWNLOAD && resultCode != RESULT_OK) pendingDownloadPath = null;
         if (resultCode != RESULT_OK || data == null || data.getData() == null || client == null) return;
         Uri uri = data.getData();
         if (requestCode == REQUEST_UPLOAD) uploadUri(uri);
@@ -336,9 +338,9 @@ public final class MainActivity extends Activity {
             try {
                 action.run();
                 List<RemoteEntry> next = refreshAfter ? requireClient().list(currentPath) : null;
-                main.post(() -> { if (next != null) replaceEntries(next); setBusy(false, R.string.status_connected); });
+                postToMain(() -> { if (next != null) replaceEntries(next); setBusy(false, R.string.status_connected); });
             } catch (Exception error) {
-                main.post(() -> { setBusy(false, R.string.status_connected); showError(error); });
+                postToMain(() -> { setBusy(false, R.string.status_connected); showError(error); });
             }
         });
     }
@@ -358,6 +360,10 @@ public final class MainActivity extends Activity {
         }
         String last = uri.getLastPathSegment();
         return last == null || last.isBlank() ? "upload.bin" : last.substring(last.lastIndexOf('/') + 1);
+    }
+
+    private void postToMain(Runnable action) {
+        main.post(() -> { if (!destroyed) action.run(); });
     }
 
     private void setBusy(boolean value, int statusText) {
@@ -385,7 +391,6 @@ public final class MainActivity extends Activity {
         status.setText(getString(R.string.error_prefix, message));
     }
 
-    private void closeClient() { if (client != null) { client.close(); client = null; } }
     private String text(EditText value) { return value.getText().toString(); }
     private EditText input(int hint, int inputType) { EditText e = new EditText(this); e.setHint(hint); e.setInputType(inputType); e.setSingleLine(true); e.setLayoutParams(matchWrap()); return e; }
     private Button button(int text) { Button b = new Button(this); b.setText(text); b.setAllCaps(false); return b; }
@@ -394,10 +399,20 @@ public final class MainActivity extends Activity {
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 
     @Override protected void onDestroy() {
+        destroyed = true;
+        main.removeCallbacksAndMessages(null);
         RemoteClient current = client;
+        RemoteClient pending = connectingClient;
         client = null;
-        io.execute(() -> { if (current != null) current.close(); });
-        io.shutdown();
+        connectingClient = null;
+        io.shutdownNow();
+        if (current != null || pending != null) {
+            Thread closeThread = new Thread(() -> {
+                if (current != null) current.close();
+                if (pending != null && pending != current) pending.close();
+            }, "byftp-close");
+            closeThread.start();
+        }
         super.onDestroy();
     }
 
