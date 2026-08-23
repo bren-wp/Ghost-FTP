@@ -129,6 +129,11 @@ def main() -> int:
         "getContentResolver().openInputStream",
         "getContentResolver().openOutputStream",
         "Executors.newSingleThreadExecutor()",
+        "connectingClient",
+        "destroyed",
+        "main.removeCallbacksAndMessages(null)",
+        "io.shutdownNow()",
+        'new Thread(() ->',
     ))
     for forbidden in ("SharedPreferences", "getSharedPreferences", "FirebaseAnalytics", "AdvertisingId"):
         if forbidden in activity:
@@ -151,6 +156,7 @@ def main() -> int:
     print("ANDROID_GENERIC_CLEARTEXT_NETWORK=BLOCKED")
     print("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED")
     print("ANDROID_BACKUP_AND_DEVICE_TRANSFER=BLOCKED")
+    print("ANDROID_ACTIVITY_LIFECYCLE_CLEANUP=ENFORCED")
     print("ANDROID_PASSWORD_PERSISTENCE=BLOCKED")
     print("ANDROID_VERSION_SOURCE=ROOT_VERSION")
     return 0
