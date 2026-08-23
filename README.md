@@ -4,7 +4,7 @@
 
 ByFTP is a privacy-focused desktop file-transfer client for **FTP, FTPS and SFTP** on Windows, Linux and macOS. It is built for shared hosting, website deployment and routine server file management while keeping credentials local and avoiding advertising, analytics SDKs and mandatory cloud services.
 
-**Current release: 1.0.12**
+**Current release: 1.0.13**
 
 [Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
