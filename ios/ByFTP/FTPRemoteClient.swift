@@ -29,10 +29,10 @@ actor FTPRemoteClient {
             }
 
             if config.protocolKind.usesTLS {
-                try expect2xx(awaiting: command("PBSZ", "0", on: next))
-                try expect2xx(awaiting: command("PROT", "P", on: next))
+                try expect2xx(try await command("PBSZ", "0", on: next))
+                try expect2xx(try await command("PROT", "P", on: next))
             }
-            try expect2xx(awaiting: command("TYPE", "I", on: next))
+            try expect2xx(try await command("TYPE", "I", on: next))
             _ = try? await command("OPTS", "UTF8 ON", on: next)
 
             let pwd = try? await command("PWD", nil, on: next)
@@ -74,7 +74,7 @@ actor FTPRemoteClient {
             try await dataSocket.sendFile(localURL)
             try await dataSocket.finishSending()
             dataSocket.cancel()
-            try expect2xx(awaiting: readResponse())
+            try expect2xx(try await readResponse())
         } catch {
             dataSocket.cancel()
             throw error
@@ -89,7 +89,7 @@ actor FTPRemoteClient {
             try expectPreliminary(preliminary)
             try await dataSocket.receiveToFile(localURL)
             dataSocket.cancel()
-            try expect2xx(awaiting: readResponse())
+            try expect2xx(try await readResponse())
         } catch {
             dataSocket.cancel()
             try? FileManager.default.removeItem(at: localURL)
@@ -99,7 +99,7 @@ actor FTPRemoteClient {
 
     func makeDirectory(_ remotePath: String) async throws {
         let path = try FTPPathMapper.map(loginRoot: loginRoot, uiPath: remotePath)
-        try expect2xx(awaiting: command("MKD", path))
+        try expect2xx(try await command("MKD", path))
     }
 
     func rename(from: String, to: String) async throws {
@@ -107,12 +107,12 @@ actor FTPRemoteClient {
         let destination = try FTPPathMapper.map(loginRoot: loginRoot, uiPath: to)
         let first = try await command("RNFR", source)
         guard first.code == 350 else { throw FTPError.unexpected(first) }
-        try expect2xx(awaiting: command("RNTO", destination))
+        try expect2xx(try await command("RNTO", destination))
     }
 
     func delete(_ remotePath: String, directory: Bool) async throws {
         let path = try FTPPathMapper.map(loginRoot: loginRoot, uiPath: remotePath)
-        try expect2xx(awaiting: command(directory ? "RMD" : "DELE", path))
+        try expect2xx(try await command(directory ? "RMD" : "DELE", path))
     }
 
     private func receiveData(commandName: String, argument: String, maxBytes: Int) async throws -> Data {
@@ -122,7 +122,7 @@ actor FTPRemoteClient {
             try expectPreliminary(preliminary)
             let data = try await dataSocket.receiveAll(maxBytes: maxBytes)
             dataSocket.cancel()
-            try expect2xx(awaiting: readResponse())
+            try expect2xx(try await readResponse())
             return data
         } catch {
             dataSocket.cancel()
@@ -205,8 +205,7 @@ actor FTPRemoteClient {
         guard response.code == 125 || response.code == 150 else { throw FTPError.unexpected(response) }
     }
 
-    private func expect2xx(awaiting operation: @autoclosure () async throws -> FTPResponse) async throws {
-        let response = try await operation()
+    private func expect2xx(_ response: FTPResponse) throws {
         guard (200..<300).contains(response.code) else { throw FTPError.unexpected(response) }
     }
 
