@@ -2,8 +2,27 @@
 
 ByFTP releases are produced by the repository release workflow. The workflow reads root `VERSION`; no platform maintains a second current-version constant.
 
-Windows Setup/Portable artifacts, Linux packages, the macOS package, checksums and release metadata resolve to the same canonical version. Starting with 1.1.0 the workflow also requires the Android source module to pass its static audit, JUnit tests, Android lint and APK compilation before publication may proceed.
+## Gated matrix
 
-The Android debug APK produced by CI/release validation is **not** a public production asset. Android distribution requires a stable private signing identity managed outside this repository. The workflow must not fabricate a signing identity or publish a debug-signed APK as production software.
+Publication waits for all of these independent jobs:
 
-Published releases are immutable; corrections require a new semantic release rather than silently replacing existing artifacts.
+- production quality/security/privacy/release audits and Go unit/race/vet checks,
+- Windows x64/x86 production builds,
+- Linux amd64/arm64/i386 DEB builds,
+- macOS Universal PKG build,
+- Android JUnit, debug/release lint, debug/release APK compilation and structural APK validation.
+
+## Android artifacts
+
+Starting with 1.1.1, Android is part of the public artifact contract rather than source-validation only:
+
+- `ByFTP-<version>-Android-debug.apk` is debug-signed and installable for development/testing.
+- `ByFTP-<version>-Android-release-unsigned.apk` is optimized/minified but intentionally unsigned.
+
+The workflow must never present either artifact as a production store-signed package. Production Android distribution still requires a stable private signing identity managed outside the repository.
+
+## Publication integrity
+
+The publish job downloads only the named platform artifacts and compares them with an exact allowlist before generating release metadata. `SHA256.txt` covers all public platform packages and shared metadata. `scripts/publish_release.ps1` is the only GitHub Release mutation path and validates the release tag/commit plus final remote asset sizes/digests.
+
+Published semantic releases are treated as immutable. Corrections require a new version rather than silently replacing artifacts under an existing release tag.
