@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 
+	"github.com/bren-wp/by-ftp/internal/appdata"
 	"github.com/bren-wp/by-ftp/internal/brand"
 	"github.com/bren-wp/by-ftp/internal/config"
 	"github.com/bren-wp/by-ftp/internal/i18n"
@@ -40,12 +40,11 @@ func persistInstallerLanguage(language string) error {
 	if !i18n.IsSupported(language) {
 		return fmt.Errorf("unsupported installer language %q", language)
 	}
-	base, err := platform.LocalAppData()
+	dataDir, err := appdata.Dir()
 	if err != nil {
 		return err
 	}
-	store := config.New(filepath.Join(base, brand.ProductName))
-	settings := config.NewSettings(store)
+	settings := config.NewSettings(config.New(dataDir))
 	current, err := settings.Get()
 	if err != nil {
 		return err
