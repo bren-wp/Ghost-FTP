@@ -23,12 +23,18 @@ public final class FtpRemoteClientPathTest {
         assertEquals("/public_html", FtpRemoteClient.mapLoginRelativePath("/", "/public_html"));
     }
 
-    @Test public void rejectsTraversalAndNonCanonicalPaths() {
+    @Test public void rejectsTraversalAndNonCanonicalUiPaths() {
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example", "public_html"));
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example", "/../etc"));
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example", "/public_html/../etc"));
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example", "/public_html//assets"));
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example", "/public_html\\assets"));
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example", "/public_html/\0secret"));
+    }
+
+    @Test public void rejectsUnsafeServerLoginDirectory() {
+        assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/../etc", "/"));
+        assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home//example", "/"));
+        assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/\0example", "/"));
     }
 }
