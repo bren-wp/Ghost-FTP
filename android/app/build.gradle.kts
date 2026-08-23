@@ -26,6 +26,7 @@ android {
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -39,7 +40,9 @@ android {
         abortOnError = true
         warningsAsErrors = true
         checkReleaseBuilds = true
-        disable += setOf("OldTargetApi")
+        // These implementations live inside third-party JARs. ByFTP source is separately
+        // audited to reject permissive TrustManager code and explicitly uses platform trust.
+        disable += setOf("OldTargetApi", "TrustAllX509TrustManager")
     }
 
     packaging {
