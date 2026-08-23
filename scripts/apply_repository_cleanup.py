@@ -35,6 +35,17 @@ for path in ROOT.rglob('*'):
     if updated != current:
         path.write_text(updated, encoding='utf-8', newline='\n')
 
+# PR #51 introduced a missing closing brace in CurlFTP.List. Repair that exact
+# malformed block before gofmt so the repository can be parsed again.
+curl_ftp = ROOT / 'internal' / 'remote' / 'curl_ftp.go'
+if curl_ftp.exists():
+    text = curl_ftp.read_text(encoding='utf-8')
+    broken = '''\tfor _, line := range strings.Split(strings.ReplaceAll(string(out), "\\r\\n", "\\n"), "\\n") {\n\t\tif item, ok := parseListLine(line); ok {\n\t\t\titems = append(items, item)\n\t\t\tif len(items) > maxDirectoryItems {\n\t\t\t\treturn nil, errors.New("folder contains too many items for safe display")\n\t\t\t}\n\t\t}\n\tsortItems(items)\n'''
+    fixed = '''\tfor _, line := range strings.Split(strings.ReplaceAll(string(out), "\\r\\n", "\\n"), "\\n") {\n\t\tif item, ok := parseListLine(line); ok {\n\t\t\titems = append(items, item)\n\t\t\tif len(items) > maxDirectoryItems {\n\t\t\t\treturn nil, errors.New("folder contains too many items for safe display")\n\t\t\t}\n\t\t}\n\t}\n\tsortItems(items)\n'''
+    if broken in text:
+        text = text.replace(broken, fixed, 1)
+        curl_ftp.write_text(text, encoding='utf-8', newline='\n')
+
 # VERSION is the single production version source. 1.0.12 already has a
 # changelog section and is the release line documented by this cleanup.
 (ROOT / 'VERSION').write_text('1.0.12\n', encoding='utf-8', newline='\n')
