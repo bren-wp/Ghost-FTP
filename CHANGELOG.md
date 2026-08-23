@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.13 — Release pipeline and packaging finalization
+
+**Focus:** publish the completed English-first 1.0.x line with reproducible cross-platform assets, stricter release verification and verified Windows/Linux/macOS production packages.
+
+- Expanded the primary README with protocol, shared-hosting, security, privacy, localization, build, release-integrity and repository-structure documentation.
+- Standardized build and release-facing documentation on English while retaining all supported runtime languages.
+- Made generated PNG/ICO verification deterministic across Windows, Linux and macOS by validating PNG structure, CRCs, dimensions, filters and decoded RGBA pixels instead of depending on zlib byte-for-byte compression output.
+- Updated security, privacy and release audits to follow the current localized/runtime implementations without weakening the underlying fail-closed controls.
+- Restored lifecycle and SFTP user-error regression coverage and modernized shared-hosting/UI regressions to validate i18n-backed behavior instead of obsolete hard-coded Croatian text.
+- Fixed Windows production Go/Python executable discovery on GitHub-hosted runners and aligned the production build baseline with Go 1.26.5.
+- Fixed the native Windows setup-language dialog font-height conversion so x64/x86 production builds compile correctly under Go 1.26.5.
+- Standardized Linux DEB and macOS package build output/metadata on English-first release text.
+- Public release notes are now generated in English from the exact matching changelog section.
+- The release workflow builds and verifies Windows x64/x86 Setup, Portable and ZIP packages; Linux amd64/arm64/i386 DEB packages; macOS Universal PKG; SHA-256 checksums; release notes; build provenance metadata; and the `ByFTP.Windows` GitHub Package.
+
 ## 1.0.12 — English-first localization and production cleanup
 
 **Focus:** make English the canonical product/repository language, add tested runtime localization, reduce duplicated user-facing text, and continue the Windows UI/stability cleanup without changing the FTP/FTPS/SFTP security model.
