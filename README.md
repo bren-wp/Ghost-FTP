@@ -58,7 +58,7 @@ Windows can switch language from the main window without restarting. The selecte
 - Safer overwrite flow with staging, revalidation, backup and rollback.
 - No application telemetry, analytics SDK, advertising or required Brendigo cloud account.
 
-## What changes in 1.0.12
+## What changes in 1.0.11
 
 1.0.12 is an English-first production cleanup and localization release. It centralizes user-facing text instead of maintaining duplicated language-specific strings throughout the UI, adds twelve tested runtime languages, persists the selected locale, and adapts the Windows layout for longer translated labels.
 
