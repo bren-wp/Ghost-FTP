@@ -1,41 +1,49 @@
 #!/usr/bin/env python3
-"""Provjerava ključne ByFTP sigurnosne invarijante koje ne smiju regresirati."""
+"""Validate security invariants that must not regress."""
 
 from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-def fail(message: str) -> None: raise SystemExit("SECURITY_AUDIT_NIJE_PROSAO: " + message)
+
+def fail(message: str) -> None:
+    raise SystemExit("SECURITY_AUDIT_FAILED: " + message)
+
 def read(path: str) -> str:
     target = ROOT / path
-    if not target.is_file(): fail(f"nedostaje {path}")
+    if not target.is_file():
+        fail(f"missing {path}")
     return target.read_text(encoding="utf-8")
+
 def require(path: str, markers: tuple[str, ...]) -> str:
     text = read(path)
     for marker in markers:
-        if marker not in text: fail(f"{path} nema obaveznu sigurnosnu invarijantu: {marker}")
+        if marker not in text:
+            fail(f"{path} is missing required security invariant: {marker}")
     return text
 
 
 def main() -> int:
     require("internal/remote/util.go", ("func validateDownloadedPart(part string) error", "os.Lstat(part)", "security.IsReparsePoint(part)"))
-    for path in ("internal/remote/curl_ftp.go", "internal/remote/sftp.go"): require(path, ("validateDownloadedPart(part)",))
+    for path in ("internal/remote/curl_ftp.go", "internal/remote/sftp.go"):
+        require(path, ("validateDownloadedPart(part)",))
 
     sftp = require("internal/remote/sftp.go", (
         "func validatePrivateKeyPath(keyPath string) error", "os.Lstat(keyPath)", "security.IsReparsePoint(keyPath)",
         '"-oBatchMode=no"', "ctxErr := ctx.Err()", "scanHost := strings.Trim(host, \"[]\")",
     ))
     if '"-b"' in sftp or '"-b", "-"' in sftp:
-        fail("SFTP command args ponovno koriste -b; OpenSSH time prisilno uključuje BatchMode=yes i gasi AskPass")
+        fail("SFTP command args use -b; OpenSSH would force BatchMode=yes and disable AskPass")
 
     curl = require("internal/remote/curl_ftp.go", (
         "security.ProtectRuntimeString(password)", "security.UnprotectRuntimeBytes(c.passwordBlob)",
         "security.ForgetRuntimeSecret(c.passwordBlob)", "ctxErr := ctx.Err()",
     ))
-    if not curl: fail("CurlFTP runtime credential ugovor nije dostupan")
+    if not curl:
+        fail("CurlFTP runtime credential contract is unavailable")
 
     require("cmd/byftp/main.go", ("func selectAskpassSecret(", "nepoznat ili nepodržan zahtjev za vjerodajnicu"))
-    require("cmd/byftp/askpass_test.go", ("TestSelectAskpassSecretOnlyUsesRecognizedPrompts", "Verification code", "One-time password token"))
+    require("cmd/byftp/askpass_test.go", ("TestSelectAskpassSecret", "Verification code", "One-time password token"))
     require("internal/remote/sftp_stream_test.go", ("TestSFTPCommandArgsKeepAskPassEnabled", "sftp -b"))
     require("internal/remote/connect_regression_test.go", ("TestSSHSessionConfigNormalizesBracketedIPv6Host", "TestFindOpenSSHUsesNativeExecutableNameOutsideWindows"))
     require("internal/remote/process_connect_smoke_other_test.go", (
@@ -68,7 +76,7 @@ def main() -> int:
         "cfg.Password = getText(a.pass)", "cfg.Passphrase = getText(a.passphrase)",
     ))
     require("internal/desktop/other.go", (
-        "Linux/macOS SFTP izdanje zahtijeva eksplicitni privatni ključ", "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
+        'i18n.T(language, "terminal.sftp_key_required")', "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
     ))
     require("internal/api/engine.go", ("e.remote.Disconnect(ctx)", "context.WithTimeout(context.Background(), 4*time.Second)"))
 
@@ -108,4 +116,5 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()

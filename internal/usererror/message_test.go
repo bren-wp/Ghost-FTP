@@ -44,11 +44,32 @@ func TestMessageMissingSFTPComponent(t *testing.T) {
 	}
 }
 
+func TestMessageSessionStillClosing(t *testing.T) {
+	got := MessageFor("en", errors.New("previous connection is still closing safely"), "x")
+	if want := i18n.T("en", "error.session_closing"); got != want {
+		t.Fatalf("unexpected session-closing message: %q", got)
+	}
+}
+
+func TestMessageDisconnectCleanupStillRunning(t *testing.T) {
+	got := MessageFor("en", errors.New("connection is still closing safely"), "x")
+	if want := i18n.T("en", "error.disconnect_closing"); got != want {
+		t.Fatalf("unexpected disconnect-closing message: %q", got)
+	}
+}
+
 func TestMessageDisconnectLifecycleWinsJoinedDeadline(t *testing.T) {
 	err := errors.Join(context.DeadlineExceeded, errors.New("sigurno zatvaranje veze još traje"))
 	got := MessageFor("hr", err, "x")
 	if want := i18n.T("hr", "error.disconnect_closing"); got != want {
 		t.Fatalf("unexpected joined-error message: %q", got)
+	}
+}
+
+func TestMessageSFTPHostKeyScanFailure(t *testing.T) {
+	got := MessageFor("en", errors.New("could not retrieve sftp host key"), "x")
+	if want := i18n.T("en", "error.sftp_hostkey_missing"); got != want {
+		t.Fatalf("unexpected SFTP host-key scan message: %q", got)
 	}
 }
 

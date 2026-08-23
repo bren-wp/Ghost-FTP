@@ -1,21 +1,48 @@
-# ByFTP build i verifikacijski alati
+# ByFTP build and verification tools
 
-Ova mapa sadrži pomoćne alate produkcijskog pipelinea. Svi alati koriste standardne mogućnosti Go/Python/PowerShell okruženja i ne dodaju runtime ovisnosti ByFTP aplikaciji.
+This directory contains the repository's build, audit, release and verification utilities. They are development and CI tools only; they do not add runtime dependencies to the ByFTP application.
 
-- `BUILD-LOCAL.sh` — lokalna offline Windows cross-build provjera
-- `generate_brand_assets.py` — reproducibilno generiranje i provjera PNG/ICO resursa
-- `audit_croatian.py` — provjera hrvatskih korisničkih/GitHub/release površina
-- `audit_version.py` — provjera `VERSION` kao jedinog produkcijskog izvora broja verzije
-- `audit_docs.py` — lokalne dokumentacijske poveznice, indeks i verzijski neutralni naslovi
-- `audit_security.py` — ključne filesystem/transfer/state sigurnosne invarijante i regresijski testovi
-- `audit_privacy.py` — privacy/network-policy provjera
-- `audit_release.py` — statički ugovor release workflowa, bundlea i idempotentnog publishera
-- `test_release_tools.py` — stdlib regresijski testovi release ZIP verifikacije
-- `make_payload.py` — izrada i integritet instalacijskog payloada
-- `pe_resources.py` — PE ikona i VERSIONINFO resursi
-- `verify_release.py` — PE i sigurnosna verifikacija binarija
-- `verify_bundle.py` — provjera konačnog Windows ZIP-a, putanja i `BUNDLE-SHA256.txt`
-- `release_notes.py` — hrvatske bilješke iz točnog CHANGELOG odjeljka
-- `publish_release.ps1` — idempotentna GitHub Release objava s tag/commit i asset SHA-256 provjerom
+## Build tools
 
-Puni proces izdavanja dokumentiran je u [`docs/IZDAVANJE-NA-GITHUBU.md`](../docs/IZDAVANJE-NA-GITHUBU.md), kontrolna lista u [`docs/PROVJERA-IZDANJA.md`](../docs/PROVJERA-IZDANJA.md), a testni slojevi u [`docs/TESTIRANJE.md`](../docs/TESTIRANJE.md).
+- `BUILD-LOCAL.sh` — local/offline cross-build smoke check.
+- `BUILD-LINUX.sh` — production Linux DEB builds for amd64, arm64 and i386.
+- `BUILD-MACOS.sh` — production macOS Universal application/package build.
+- `make_payload.py` — creates the verified Windows installer payload.
+- `pe_resources.py` — writes Windows PE icon and VERSIONINFO resources.
+- `generate_brand_assets.py` — reproducibly generates and verifies PNG/ICO brand assets.
+
+The canonical Windows production build is [`BUILD-WINDOWS.ps1`](../BUILD-WINDOWS.ps1) in the repository root.
+
+## Audit tools
+
+- `audit_localization.py` — verifies the English-first localization contract, supported language catalogs and version binding.
+- `audit_version.py` — verifies that `VERSION` is the single production version source.
+- `audit_docs.py` — checks local documentation links, the documentation index and version-neutral document titles.
+- `audit_security.py` — protects important filesystem, credential, transfer and session security invariants.
+- `audit_privacy.py` — enforces the privacy and network policy.
+- `audit_release.py` — validates the production release workflow, platform matrix, bundle contract and centralized publisher.
+- `audit_release_version_guard.py` — prevents mutation of already-published version lines.
+
+## Release and verification tools
+
+- `verify_release.py` — validates Windows PE files and release security properties.
+- `verify_bundle.py` — fail-closed validation of Windows release ZIP contents, paths and `BUNDLE-SHA256.txt`.
+- `release_notes.py` — generates release notes from the matching `CHANGELOG.md` section.
+- `publish_release.ps1` — centralized GitHub Release publication with tag/commit and asset integrity checks.
+- `test_release_tools.py` — Python standard-library regression tests for release tooling.
+
+## Production rules
+
+The build and release pipeline is intentionally fail-closed:
+
+1. `VERSION` is the only production version source.
+2. Go telemetry must be disabled before a production build.
+3. Production builds run with `GOPROXY=off` and `GOSUMDB=off`.
+4. The current module graph must contain no unexpected external Go modules.
+5. Security, privacy, localization, documentation and release audits must pass.
+6. Windows bundles are checked against an explicit allowlist and SHA-256 manifest.
+7. GitHub Release publication is performed only through `publish_release.ps1`.
+
+## Documentation
+
+See [GitHub releases](../docs/GITHUB-RELEASES.md) for the release workflow, [Release verification](../docs/RELEASE-VERIFICATION.md) for verification requirements, [Testing](../docs/TESTING.md) for the test matrix and [Security](../docs/SECURITY.md) for the security model.

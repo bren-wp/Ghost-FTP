@@ -71,7 +71,19 @@ def main() -> int:
     # Release publication must remain centralized in the reviewed PowerShell
     # publisher rather than duplicating tag/release mutation logic in YAML.
     publisher = read("scripts/publish_release.ps1")
-    for marker in ("gh release", "gh api", "SHA256"):
+    for marker in (
+        "function Invoke-GhJson",
+        "function Try-GhJson",
+        "@('api',",
+        "gh release create",
+        "gh release edit",
+        "gh release upload",
+        "Get-FileHash",
+        "SHA256",
+        "Assert-TagCommit",
+        "Assert-RemoteAsset",
+        "RELEASE_PUBLISH_VERIFICATION=PASS",
+    ):
         require(publisher, marker, "scripts/publish_release.ps1")
 
     for rel in ("BUILD-WINDOWS.ps1", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh"):
@@ -105,6 +117,7 @@ def main() -> int:
     print(f"RELEASE_AUDIT=PASS ({version})")
     print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL")
     print("PUBLISHER=CENTRALIZED")
+    print("RELEASE_GITHUB_API=WRAPPED_AND_AUDITED")
     return 0
 
 

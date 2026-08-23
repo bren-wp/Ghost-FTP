@@ -3,7 +3,7 @@ Set-StrictMode -Version 3.0
 
 Set-Location -LiteralPath $PSScriptRoot
 
-$minimumGo = [Version]'1.26.7'
+$minimumGo = [Version]'1.26.5'
 $versionFile = Join-Path $PSScriptRoot 'VERSION'
 $dist = Join-Path $PSScriptRoot 'dist'
 $internalDist = Join-Path $dist 'internal'
@@ -142,17 +142,20 @@ foreach ($name in @(
     Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
 }
 
-$goCommand = Get-Command go -CommandType Application -ErrorAction SilentlyContinue
+# GitHub-hosted Windows images can expose more than one executable with the
+# same command name. Select one concrete application explicitly so helper
+# parameters always receive a scalar path instead of a String[] value.
+$goCommand = @(Get-Command go -CommandType Application -ErrorAction SilentlyContinue)[0]
 if (-not $goCommand) {
     throw 'Go is not installed or is not available in PATH.'
 }
-$go = $goCommand.Source
+[string]$go = $goCommand.Source
 
-$pythonCommand = Get-Command python -CommandType Application -ErrorAction SilentlyContinue
+$pythonCommand = @(Get-Command python -CommandType Application -ErrorAction SilentlyContinue)[0]
 if (-not $pythonCommand) {
     throw 'Python 3 is not installed or is not available in PATH.'
 }
-$python = $pythonCommand.Source
+[string]$python = $pythonCommand.Source
 
 $pythonVersionText = Invoke-NativeCapture `
     -FilePath $python `
