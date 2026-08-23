@@ -402,127 +402,129 @@ func (c *CurlFTP) Chmod(ctx context.Context, base, name, mode string) error {
 	return c.quote(ctx, "SITE CHMOD "+mode+" "+ftpCommandPath(remoteJoin(base, name)))
 }
 
-func (c *CurlFTP) Probe(ctx context.Context) error {
-	_, err := c.List(ctx, "/")
-	return err
+func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options TransferOptions) error {
+	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
+		return err
+	}
+	st, err := os.Lstat(local)
+	if err != nil {
+		return err
+	}
+	if st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
+		return errors.New("symbolic links and junctions cannot be transferred")
+	}
+	if st.IsDir() {
+		return errors.New("upload requires a file")
+	}
+	dir, base, tempName, savedName, err := remoteTransferNames(remotePath)
+	if err != nil {
+		return err
+	}
+	items, err := c.List(ctx, dir)
+	if err != nil {
+		return fmt.Errorf("unable to verify destination directory: %w", err)
+	}
+	if existing, ok := remoteEntry(items, base); ok {
+		if existing.IsDirectory || existing.IsSymlink {
+			return errors.New("destination is not a regular file and will not be overwritten")
+		}
+		if options.SkipExisting {
+			return ErrSkipped
+		}
+	}
+	source, err := prepareUploadSource(local)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+	tempPath := remoteJoin(dir, tempName)
+	lines := []string{"url = " + cfgQuote(c.baseURL(tempPath)), "upload-file = " + cfgQuote(source.Path()), "speed-time = 30", "speed-limit = 1"}
+	if _, err = c.run(ctx, lines); err != nil {
+		return cleanupFailure(err, dir, tempName, c.Delete)
+	}
+	if err = source.Verify(); err != nil {
+		return cleanupFailure(err, dir, tempName, c.Delete)
+	}
+	items, err = revalidateRemoteCommit(ctx, dir, base, tempName, options.SkipExisting, c.List, c.Delete)
+	if err != nil {
+		return err
+	}
+	return commitRemoteTemp(ctx, items, dir, base, tempName, savedName, options.KeepBackup, remoteCommitOps{rename: c.Rename, delete: c.Delete})
 }
 
-func (c *CurlFTP) Upload(ctx context.Context, local, remote string, opt TransferOptions) error {
-	return c.uploadWithTransaction(ctx, local, remote, opt)
+func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, options TransferOptions) error {
+	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
+		return err
+	}
+	if options.SkipExisting {
+		if st, err := os.Lstat(local); err == nil {
+			if st.IsDir() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
+				return errors.New("target path is not a regular file")
+			}
+			return ErrSkipped
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(local), 0755); err != nil {
+		return err
+	}
+	part, err := localTransferSibling(local, "part", false)
+	if err != nil {
+		return err
+	}
+	lines := []string{"url = " + cfgQuote(c.baseURL(remotePath)), "output = " + cfgQuote(part), "speed-time = 30", "speed-limit = 1"}
+	if _, err := c.run(ctx, lines); err != nil {
+		_ = os.Remove(part)
+		return err
+	}
+	if err := validateDownloadedPart(part); err != nil {
+		_ = os.Remove(part)
+		return err
+	}
+	return replaceLocalFileAtomic(local, part, options.KeepBackup)
 }
 
-func (c *CurlFTP) uploadRaw(ctx context.Context, local, remote string) error {
-	f, info, err := security.OpenStableRegularFile(local)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if err := security.ValidateRemoteFilePath(remote); err != nil {
-		return err
-	}
-	lines := []string{
-		"url = " + cfgQuote(c.baseURL(remote)),
-		"upload-file = " + cfgQuote("-"),
-	}
-	password, err := security.UnprotectRuntimeBytes(c.passwordBlob)
-	if err != nil {
-		return err
-	}
-	defer security.WipeBytes(password)
-	cfg := c.configFor(password, lines)
-	defer security.WipeBytes(cfg)
-	cmd := exec.CommandContext(ctx, c.curl, "-q", "--config", "-")
-	configureToolCommand(cmd)
-	cmd.WaitDelay = 5 * time.Second
-	cmd.Dir = filepath.Dir(c.curl)
-	cmd.Env = sanitizedToolEnv(os.Environ())
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-	out := newBoundedOutput(maxCommandStdout)
-	er := newBoundedOutput(maxCommandStderr)
-	cmd.Stdout = out
-	cmd.Stderr = er
-	if err := cmd.Start(); err != nil {
-		_ = stdin.Close()
-		return err
-	}
-	_, configErr := stdin.Write(cfg)
-	security.WipeBytes(cfg)
-	if configErr == nil {
-		_, configErr = stdin.Write([]byte("\n"))
-	}
-	if configErr == nil {
-		_, configErr = ioCopyContext(ctx, stdin, f)
-	}
-	closeErr := stdin.Close()
-	waitErr := cmd.Wait()
-	if err := security.RevalidateOpenedRegularFile(local, f, info); err != nil {
-		return err
-	}
-	if configErr != nil {
-		return configErr
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	if waitErr != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
+func replaceLocalFileAtomic(local, part string, keepBackup bool) error {
+	if st, err := os.Lstat(local); err == nil {
+		if st.IsDir() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
+			_ = os.Remove(part)
+			return errors.New("target path is not a regular file")
 		}
-		if overflowErr := er.Err("diagnostic output"); overflowErr != nil {
-			return overflowErr
+		kind := "rollback"
+		preserveBase := false
+		if keepBackup {
+			kind = "backup"
+			preserveBase = true
 		}
-		msg := strings.TrimSpace(er.String())
-		if msg == "" {
-			msg = waitErr.Error()
+		bak, err := localTransferSibling(local, kind, preserveBase)
+		if err != nil {
+			_ = os.Remove(part)
+			return err
 		}
-		return newToolError("curl", waitErr, msg)
+		if err = platform.RenameNoReplace(local, bak); err != nil {
+			_ = os.Remove(part)
+			return err
+		}
+		if err = platform.RenameNoReplace(part, local); err != nil {
+			restoreErr := platform.RenameNoReplace(bak, local)
+			_ = os.Remove(part)
+			if restoreErr != nil {
+				return fmt.Errorf("new file was not activated and the original could not be restored; backup remains at %s: %w", bak, restoreErr)
+			}
+			return err
+		}
+		if !keepBackup {
+			_ = os.Remove(bak)
+		}
+		return nil
+	} else if !os.IsNotExist(err) {
+		_ = os.Remove(part)
+		return err
 	}
-	if err := out.Err("output"); err != nil {
+	if err := platform.RenameNoReplace(part, local); err != nil {
+		_ = os.Remove(part)
 		return err
 	}
 	return nil
-}
-
-func (c *CurlFTP) Download(ctx context.Context, remote, local string, opt TransferOptions) error {
-	if err := security.ValidateRemoteFilePath(remote); err != nil {
-		return err
-	}
-	return downloadAtomic(ctx, local, opt, func(tmp string) error {
-		password, err := security.UnprotectRuntimeBytes(c.passwordBlob)
-		if err != nil {
-			return err
-		}
-		defer security.WipeBytes(password)
-		lines := []string{
-			"url = " + cfgQuote(c.baseURL(remote)),
-			"output = " + cfgQuote(tmp),
-		}
-		cfg := c.configFor(password, lines)
-		defer security.WipeBytes(cfg)
-		cmd := exec.CommandContext(ctx, c.curl, "-q", "--config", "-")
-		configureToolCommand(cmd)
-		cmd.WaitDelay = 5 * time.Second
-		cmd.Stdin = bytes.NewReader(cfg)
-		cmd.Dir = filepath.Dir(c.curl)
-		cmd.Env = sanitizedToolEnv(os.Environ())
-		er := newBoundedOutput(maxCommandStderr)
-		cmd.Stderr = er
-		if err := cmd.Run(); err != nil {
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
-			}
-			if overflowErr := er.Err("diagnostic output"); overflowErr != nil {
-				return overflowErr
-			}
-			msg := strings.TrimSpace(er.String())
-			if msg == "" {
-				msg = err.Error()
-			}
-			return newToolError("curl", err, msg)
-		}
-		return nil
-	})
 }
