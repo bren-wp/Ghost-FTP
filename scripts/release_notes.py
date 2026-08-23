@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generira hrvatske ByFTP bilješke iz točno odgovarajućeg CHANGELOG odjeljka."""
+"""Generate English ByFTP release notes from the exact matching CHANGELOG section."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def extract_section(changelog: str, version: str) -> str:
     header = re.compile(rf"^##\s+{re.escape(version)}(?:\s|$).*$", re.MULTILINE)
     match = header.search(changelog)
     if not match:
-        raise ValueError(f"CHANGELOG odjeljak za verziju {version} nije pronađen")
+        raise ValueError(f"CHANGELOG section for version {version} was not found")
     start = changelog.find("\n", match.end())
     if start < 0:
         return ""
@@ -26,21 +26,21 @@ def extract_section(changelog: str, version: str) -> str:
 def build_notes(version: str, section: str) -> str:
     return f"""ByFTP {version}
 
-Privatan FTP / FTPS / SFTP klijent tvrtke ByFTP za Windows, Linux i macOS.
+Privacy-focused FTP / FTPS / SFTP client for Windows, Linux and macOS.
 
-Najvažnije promjene
--------------------
+Highlights
+----------
 {section}
 
-Službeni paketi
----------------
+Official packages
+-----------------
 Windows:
-- Setup x64 EXE: preporučena instalacija za 64-bitni Windows 10/11
-- Portable x64 EXE: 64-bitno pokretanje bez instalacije
-- Windows x64 ZIP: Setup + Portable + dokumentacija i bundle checksumovi
-- Setup x86 EXE: instalacija za podržani 32-bitni Windows
-- Portable x86 EXE: 32-bitno pokretanje bez instalacije
-- Windows x86 ZIP: Setup + Portable + dokumentacija i bundle checksumovi
+- Setup x64 EXE: recommended installer for 64-bit Windows 10/11
+- Portable x64 EXE: 64-bit build that runs without installation
+- Windows x64 ZIP: Setup + Portable + documentation + bundle checksums
+- Setup x86 EXE: installer for supported 32-bit Windows systems
+- Portable x86 EXE: 32-bit build that runs without installation
+- Windows x86 ZIP: Setup + Portable + documentation + bundle checksums
 
 Linux:
 - Linux amd64 DEB
@@ -50,26 +50,27 @@ Linux:
 macOS:
 - macOS Universal PKG: Intel x86_64 + Apple Silicon arm64
 
-Provjera izdanja:
-- SHA256.txt: SHA-256 svih javnih paketa i zajedničkih release metapodataka
-- RELEASE-NOTES.txt: ove bilješke izdanja
-- BUILD-METADATA.txt: verzija, release commit i podaci produkcijskog build runa
+Release verification
+--------------------
+- SHA256.txt: SHA-256 checksums for every public package and shared release metadata file
+- RELEASE-NOTES.txt: these release notes generated from the matching CHANGELOG section
+- BUILD-METADATA.txt: version, release commit and production workflow provenance
 
-Preporuka prije instalacije
----------------------------
-1. Preuzmite paket koji odgovara operacijskom sustavu i arhitekturi.
-2. Usporedite SHA-256 preuzetog paketa sa službenim SHA256.txt.
-3. Windows korisnici za uobičajenu instalaciju trebaju odabrati Setup paket; Portable je namijenjen radu bez instalacije.
-4. Linux i macOS izdanje koriste terminalno sučelje nad istim ByFTP engineom i sigurnosnim transfer slojem.
-
-Sigurnost potpisa
+Before installing
 -----------------
-Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni ByFTP Authenticode certifikat. macOS PKG nije Developer ID potpisan/notariziran bez stvarnog Apple certifikata. Workflow ne fabricira publisher identitet; SHA-256 i release provenance ostaju obavezni dio izdanja.
+1. Download the package that matches your operating system and architecture.
+2. Compare the downloaded package SHA-256 hash with the official SHA256.txt file.
+3. On Windows, use Setup for a normal installation; use Portable when installation is not required.
+4. Linux and macOS packages expose the terminal interface backed by the same ByFTP engine and hardened transfer layer.
+
+Signing status
+--------------
+Windows binaries do not show Verified Publisher until a real ByFTP Authenticode certificate is available. The macOS PKG is not Developer ID signed/notarized without a real Apple signing identity. The workflow never fabricates a publisher identity; SHA-256 verification and release provenance remain mandatory parts of the release.
 """
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generiranje hrvatskih ByFTP bilješki iz CHANGELOG-a")
+    parser = argparse.ArgumentParser(description="Generate ByFTP release notes from CHANGELOG.md")
     parser.add_argument("--version", required=True)
     parser.add_argument("--changelog", default="CHANGELOG.md")
     parser.add_argument("--output", required=True)
@@ -77,13 +78,13 @@ def main() -> int:
 
     version = args.version.strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-        print(f"neispravna verzija izdanja: {version}", file=sys.stderr)
+        print(f"invalid release version: {version}", file=sys.stderr)
         return 2
     try:
         changelog = Path(args.changelog).read_text(encoding="utf-8")
         section = extract_section(changelog, version)
         if not section:
-            raise ValueError(f"CHANGELOG odjeljak za verziju {version} je prazan")
+            raise ValueError(f"CHANGELOG section for version {version} is empty")
         Path(args.output).write_text(build_notes(version, section), encoding="utf-8", newline="\n")
     except (OSError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
