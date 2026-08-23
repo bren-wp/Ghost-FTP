@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0 — Native Android client and mobile release gate
+
+**Focus:** add a real native Android FTP/FTPS/SFTP client while keeping the existing desktop security, privacy and release contracts fail-closed.
+
+- Added an isolated native Android application under `android/` rather than embedding a web view or hidden local service.
+- Added FTP, explicit FTPS, implicit FTPS and SFTP connections for Android.
+- Added passive/binary FTP behavior and FTPS endpoint/hostname certificate checking.
+- Made the expected OpenSSH-style `SHA256:` host-key fingerprint mandatory for Android SFTP and delegated verification to SSHJ's native fingerprint verifier.
+- Added remote directory browsing/navigation, refresh, upload, download, create directory, rename and delete operations.
+- Added Android Storage Access Framework upload/download so the application does not request broad filesystem/storage permission.
+- Kept Android passwords session-only; the initial mobile client does not write passwords or SSH secrets to preferences, files or a ByFTP backend.
+- Deliberately deferred Android private-key import until Android Keystore-backed key handling and migration semantics are implemented and audited.
+- Added Android connection/path unit tests plus static mobile security/privacy invariants.
+- Added a dedicated Android CI job using JDK 17, Gradle 9.5.0, Android Gradle Plugin 9.3.0 and API 37.
+- Bound Android `versionName` and `versionCode` to the repository root `VERSION` source.
+- Added Android source validation as a production release gate; a public production APK is intentionally withheld until a stable private signing identity exists.
+- Updated root documentation, installation, architecture, security, privacy, testing and release documentation for the new platform.
+
 ## 1.0.13 — Release pipeline and packaging finalization
 
 **Focus:** publish the completed English-first 1.0.x line with reproducible cross-platform assets, stricter release verification and verified Windows/Linux/macOS production packages.

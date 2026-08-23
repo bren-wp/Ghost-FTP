@@ -33,89 +33,47 @@ def main() -> int:
 
     workflow = read(".github/workflows/release.yml")
     for marker in (
-        "group: byftp-release",
-        "quality:",
-        "windows:",
-        "linux:",
-        "macos:",
-        "publish:",
-        "needs: [quality, windows, linux, macos]",
-        "go telemetry off",
-        "go test ./...",
-        "go test -race ./...",
-        "go vet ./...",
-        "python scripts/audit_localization.py",
-        "python scripts/audit_version.py",
-        "python scripts/audit_docs.py",
-        "python scripts/audit_security.py",
-        "python scripts/audit_privacy.py",
-        "python scripts/audit_release.py",
-        ".\\BUILD-WINDOWS.ps1",
-        "bash scripts/BUILD-LINUX.sh",
-        "bash scripts/BUILD-MACOS.sh",
-        "python scripts/verify_bundle.py $zip --version $version --arch $arch",
-        "scripts\\publish_release.ps1",
-        "Verify public release staging",
-        "ByFTP-$env:VERSION-Windows-x64.zip",
-        "ByFTP-$env:VERSION-Windows-x86.zip",
-        "ByFTP-$env:VERSION-Linux-amd64.deb",
-        "ByFTP-$env:VERSION-Linux-arm64.deb",
-        "ByFTP-$env:VERSION-Linux-i386.deb",
-        "ByFTP-$env:VERSION-macOS-Universal.pkg",
-        "<PackageId>ByFTP.Windows</PackageId>",
-        "dotnet nuget push",
-        "--skip-duplicate",
+        "group: byftp-release", "quality:", "windows:", "linux:", "macos:", "android:", "publish:",
+        "needs: [quality, windows, linux, macos, android]",
+        "go telemetry off", "go test ./...", "go test -race ./...", "go vet ./...",
+        "python scripts/audit_localization.py", "python scripts/audit_version.py", "python scripts/audit_android.py",
+        "python scripts/audit_docs.py", "python scripts/audit_security.py", "python scripts/audit_privacy.py", "python scripts/audit_release.py",
+        ".\\BUILD-WINDOWS.ps1", "bash scripts/BUILD-LINUX.sh", "bash scripts/BUILD-MACOS.sh",
+        "gradle-version: '9.5.0'", "platforms;android-37", ":app:testDebugUnitTest", ":app:lintDebug", ":app:assembleDebug",
+        "python scripts/verify_bundle.py $zip --version $version --arch $arch", "scripts\\publish_release.ps1",
+        "Verify public release staging", "ByFTP-$env:VERSION-Windows-x64.zip", "ByFTP-$env:VERSION-Windows-x86.zip",
+        "ByFTP-$env:VERSION-Linux-amd64.deb", "ByFTP-$env:VERSION-Linux-arm64.deb", "ByFTP-$env:VERSION-Linux-i386.deb",
+        "ByFTP-$env:VERSION-macOS-Universal.pkg", "<PackageId>ByFTP.Windows</PackageId>", "dotnet nuget push", "--skip-duplicate",
     ):
         require(workflow, marker, ".github/workflows/release.yml")
 
-    # Release publication must remain centralized in the reviewed PowerShell
-    # publisher rather than duplicating tag/release mutation logic in YAML.
     publisher = read("scripts/publish_release.ps1")
     for marker in (
-        "function Invoke-GhJson",
-        "function Try-GhJson",
-        "@('api',",
-        "gh release create",
-        "gh release edit",
-        "gh release upload",
-        "Get-FileHash",
-        "SHA256",
-        "Assert-TagCommit",
-        "Assert-RemoteAsset",
-        "RELEASE_PUBLISH_VERIFICATION=PASS",
+        "function Invoke-GhJson", "function Try-GhJson", "@('api',", "gh release create", "gh release edit",
+        "gh release upload", "Get-FileHash", "SHA256", "Assert-TagCommit", "Assert-RemoteAsset", "RELEASE_PUBLISH_VERIFICATION=PASS",
     ):
         require(publisher, marker, "scripts/publish_release.ps1")
 
     for rel in ("BUILD-WINDOWS.ps1", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh"):
-        text = read(rel)
-        require(text, "VERSION", rel)
+        require(read(rel), "VERSION", rel)
 
     verifier = read("scripts/verify_bundle.py")
     for marker in ("BUNDLE_VERIFICATION_FAILED", "BUNDLE-SHA256.txt", "Documentation/SECURITY.md"):
         require(verifier, marker, "scripts/verify_bundle.py")
 
     for rel in (
-        "README.md",
-        "CHANGELOG.md",
-        "docs/INSTALLATION.md",
-        "docs/RELEASE-VERIFICATION.md",
-        "docs/SECURITY.md",
-        "docs/PRIVACY.md",
+        "README.md", "CHANGELOG.md", "android/README.md", "docs/INSTALLATION.md", "docs/RELEASE-VERIFICATION.md",
+        "docs/SECURITY.md", "docs/PRIVACY.md",
     ):
         read(rel)
 
-    # No release surface may reintroduce the retired vendor branding. LICENSE
-    # is the sole intentional legal-attribution exception and is not read here.
-    for rel in (
-        ".github/workflows/release.yml",
-        "scripts/publish_release.ps1",
-        "scripts/verify_bundle.py",
-    ):
+    for rel in (".github/workflows/release.yml", "scripts/publish_release.ps1", "scripts/verify_bundle.py"):
         if "brendigo" in read(rel).lower():
             fail(f"legacy branding remains in release surface: {rel}")
 
     print(f"RELEASE_AUDIT=PASS ({version})")
-    print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL")
+    print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_SOURCE_GATE")
+    print("ANDROID_PUBLIC_APK=REQUIRES_EXTERNAL_PRODUCTION_SIGNING_IDENTITY")
     print("PUBLISHER=CENTRALIZED")
     print("RELEASE_GITHUB_API=WRAPPED_AND_AUDITED")
     return 0

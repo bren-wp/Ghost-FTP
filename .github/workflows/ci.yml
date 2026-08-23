@@ -47,6 +47,8 @@ jobs:
         run: python scripts/audit_localization.py
       - name: Verify version consistency
         run: python scripts/audit_version.py
+      - name: Verify Android invariants
+        run: python scripts/audit_android.py
       - name: Verify published-version immutability
         env:
           BYFTP_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -75,6 +77,44 @@ jobs:
           python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
           test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+
+  android-build:
+    name: Android unit, lint and debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          check-latest: false
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        with:
+          gradle-version: '9.5.0'
+          cache-disabled: true
+      - name: Install Android SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v sdkmanager
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-37' 'build-tools;36.0.0'
+      - name: Audit Android source
+        run: python scripts/audit_android.py
+      - name: Test, lint and build Android
+        shell: bash
+        run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+      - name: Store Android build evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-android-ci
+          if-no-files-found: error
+          retention-days: 7
+          path: android/app/build/outputs/apk/debug/app-debug.apk
 
   windows-build:
     name: Windows x64 and x86 production build

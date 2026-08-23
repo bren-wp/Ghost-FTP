@@ -15,8 +15,6 @@ permissions:
   contents: write
   packages: write
 
-# A single release lane prevents concurrent publishers from racing on the same
-# or adjacent versions. Tags created by the publisher do not retrigger this job.
 concurrency:
   group: byftp-release
   cancel-in-progress: false
@@ -52,13 +50,14 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Verify assets, localization and version
+      - name: Verify assets, localization, version and Android invariants
         shell: bash
         run: |
           set -euo pipefail
           python scripts/generate_brand_assets.py --check
           python scripts/audit_localization.py
           python scripts/audit_version.py
+          python scripts/audit_android.py
       - name: Verify docs, security, privacy and release contract
         shell: bash
         run: |
@@ -84,6 +83,44 @@ jobs:
           python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
           test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+
+  android:
+    name: Android source quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          check-latest: false
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        with:
+          gradle-version: '9.5.0'
+          cache-disabled: true
+      - name: Install Android SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v sdkmanager
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-37' 'build-tools;36.0.0'
+      - name: Audit Android source
+        run: python scripts/audit_android.py
+      - name: Test, lint and compile Android APK
+        shell: bash
+        run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+      - name: Store Android validation artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-android-release-gate
+          if-no-files-found: error
+          retention-days: 7
+          path: android/app/build/outputs/apk/debug/app-debug.apk
 
   windows:
     name: Windows x64 and x86
@@ -261,7 +298,7 @@ jobs:
 
   publish:
     name: Verify and publish release
-    needs: [quality, windows, linux, macos]
+    needs: [quality, windows, linux, macos, android]
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -334,6 +371,7 @@ jobs:
           WINDOWS=x64,x86
           LINUX=amd64,arm64,i386
           MACOS=universal-amd64-arm64
+          ANDROID=source-gate-only
           RELEASE_QUALITY_GATE=passed
           GITHUB_RUN_ID=$env:GITHUB_RUN_ID
           GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT

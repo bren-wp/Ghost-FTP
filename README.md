@@ -2,164 +2,153 @@
 
 ![ByFTP — Secure File Transfer](docs/images/byftp-header.png)
 
-ByFTP is a privacy-focused desktop file-transfer client for **FTP, FTPS and SFTP** on Windows, Linux and macOS. It is built for shared hosting, website deployment and routine server file management while keeping credentials local and avoiding advertising, analytics SDKs and mandatory cloud services.
+ByFTP is a privacy-focused **FTP, FTPS and SFTP** client for Windows, Linux, macOS and Android. It is designed for shared hosting, website deployment and routine server file management while keeping credentials local and avoiding advertising, analytics SDKs and mandatory cloud services.
 
-**Current release: 1.0.13**
+**Current release: 1.1.0**
 
-[Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+[Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Android source](android/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
-## Why ByFTP
+## Highlights
 
-ByFTP focuses on the workflows that matter when managing websites and shared-hosting accounts:
-
-- FTP, explicit FTPS, implicit FTPS and SFTP connections.
+- FTP, explicit FTPS, implicit FTPS and SFTP.
 - Shared-hosting friendly `public_html` navigation and login-relative FTP paths.
-- Passive FTP with MLSD → LIST compatibility fallback for older hosting servers.
-- Local and remote file browsing, folder creation, rename, delete and CHMOD operations.
-- Upload and download queues with pause, resume, cancel and retry.
-- Safe overwrite staging with rollback/backup handling rather than direct destructive replacement.
-- Protection against unsafe local paths, symlinks, junctions and reparse points.
-- SFTP host-key verification and fingerprint pinning.
-- No application telemetry, advertising SDKs or mandatory remote account system.
+- Passive FTP/FTPS with compatibility handling for hosting servers.
+- Remote browse, upload, download, create directory, rename and delete operations.
+- Desktop transfer queue with pause, resume, cancel and retry.
+- Fail-closed SFTP host-key verification and SHA-256 fingerprint pinning.
+- TLS endpoint verification for FTPS.
+- Android uploads/downloads through the Storage Access Framework without broad storage permissions.
+- Session-only Android passwords; no Android credential database or plaintext secret persistence.
+- No application telemetry, advertising SDK or mandatory ByFTP cloud account.
 
 ## Supported platforms
 
-| Platform | Production package |
+| Platform | Build / distribution |
 | --- | --- |
-| Windows x64 | Portable EXE, Setup EXE and release ZIP |
-| Windows x86 | Portable EXE, Setup EXE and release ZIP |
+| Windows x64 | Portable EXE, Setup EXE and verified release ZIP |
+| Windows x86 | Portable EXE, Setup EXE and verified release ZIP |
 | Linux amd64 | DEB package |
 | Linux arm64 | DEB package |
 | Linux i386 | DEB package |
 | macOS | Universal PKG |
+| Android 8.0+ (API 26+) | Native source in `android/`; CI-tested debug APK evidence |
 
-Exact release assets are produced by the repository release workflow and verified before publication. See [GitHub releases](docs/GITHUB-RELEASES.md) and [Release verification](docs/RELEASE-VERIFICATION.md).
+Windows, Linux and macOS public packages are produced by the gated release workflow. Android source is a required release-quality gate starting with 1.1.0, but a public Android production APK is intentionally not published until a stable private Android signing identity is available. The project never commits or fabricates a production signing key.
 
-## Supported protocols
+## Protocols
 
 ### FTP
 
-Standard FTP support is intended primarily for compatibility with hosting environments that still require it. Credentials and content are not encrypted by the FTP protocol itself, so FTPS or SFTP should be preferred whenever the server supports them.
+FTP remains available for compatibility with servers that require it. FTP does **not** encrypt credentials or file content. Prefer FTPS or SFTP whenever the server supports them.
 
 ### FTPS
 
-ByFTP supports both explicit and implicit FTPS. TLS is used for the FTP connection while retaining familiar shared-hosting FTP semantics.
+ByFTP supports explicit and implicit FTPS. TLS protects the FTP session and endpoint/hostname certificate verification remains enabled.
 
 ### SFTP
 
-SFTP support uses SSH host-key verification and fingerprint pinning. Private-key based authentication is supported, and secret handling is designed so passwords and passphrases do not need to be persisted in plaintext or exposed through generic command-line arguments.
+SFTP uses SSH host-key verification. Desktop builds preserve the established host-key pinning and credential-hardening model. The Android client requires the expected OpenSSH-style `SHA256:` host-key fingerprint before connecting and uses SSHJ's native fingerprint verifier. Android 1.1.0 supports SFTP password authentication; private-key import is deferred until Android Keystore-backed handling is designed and audited.
 
-## Shared-hosting workflow
+## Shared hosting
 
-ByFTP is designed to behave predictably on typical shared hosting:
+A typical workflow is:
 
-1. Connect using the host, port and credentials supplied by the hosting provider.
-2. Open the account's web root, commonly `public_html`.
-3. Upload website files or folders through the transfer queue.
-4. Use rename, delete, folder creation and CHMOD operations where the server allows them.
-5. Keep FTP paths relative to the authenticated account namespace instead of accidentally switching to the server root.
+1. Enter the host, port and hosting-account username.
+2. Prefer FTPS or SFTP where available.
+3. Open the account web root, commonly `public_html`.
+4. Upload or download files and perform supported remote management operations.
+5. Keep paths inside the authenticated account namespace.
 
-For hosting-specific behavior and compatibility notes, see [Shared hosting](docs/SHARED-HOSTING.md).
+See [Shared hosting](docs/SHARED-HOSTING.md).
 
-## Safer transfers
+## Security and safer transfers
 
-The transfer layer is deliberately conservative around destructive operations.
+The desktop transfer engine is deliberately conservative around destructive operations: uploads use staging, destinations are revalidated before commit, cleanup uncertainty is surfaced, local filesystem boundaries reject unsafe links/reparse points and stale session generations cannot mutate newer connections.
 
-- Uploads use temporary remote staging before the final commit/rename.
-- Existing targets are revalidated before overwrite commit.
-- Skip-existing decisions are rechecked against fresh remote state.
-- Downloads are staged locally and validated before activation.
-- Local symbolic links, junctions and Windows reparse points are rejected at security-sensitive boundaries.
-- Cleanup failures that can leave uncertain remote state are surfaced instead of being silently treated as success.
-- Connection/session generations prevent stale work from mutating a newer session.
+Android uses a smaller native protocol boundary appropriate to the mobile lifecycle. It validates host/port input, requires SFTP SHA-256 host-key pinning, enables FTPS endpoint checking, uses passive/binary FTP mode and obtains local files through Android document providers instead of requesting unrestricted storage access.
 
-The detailed threat model and invariants are documented in [Security](docs/SECURITY.md).
+Passwords must never be logged. Android passwords are held only for the active in-memory connection configuration and are not written to preferences, files or a project backend.
+
+See [Security](docs/SECURITY.md).
 
 ## Privacy
 
-ByFTP is designed to work without a project-controlled runtime backend. The application does not require analytics, advertising or a mandatory ByFTP cloud account.
+ByFTP has no project-controlled runtime API, analytics SDK, advertising SDK or mandatory account service. Connections are initiated only to hosts selected by the user. Desktop saved-state behavior remains platform-specific and documented; the Android 1.1.0 client does not persist connection passwords.
 
-Network traffic is limited to the servers and protocol helpers required for the connection or transfer initiated by the user. Go telemetry is explicitly disabled in production build and CI workflows.
-
-See [Privacy](docs/PRIVACY.md) for the complete policy and technical boundaries.
+See [Privacy](docs/PRIVACY.md).
 
 ## Languages
 
-English is the canonical source and fallback language. Runtime localization is available for:
+The established desktop runtime supports 18 languages with English as the canonical fallback: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish.
 
-- English
-- Croatian
-- German
-- French
-- Spanish
-- Turkish
-- Greek
-- Portuguese
-- Simplified Chinese
-- Russian
-- Hindi
-- Japanese
-- Italian
-- Polish
-- Dutch
-- Czech
-- Ukrainian
-- Swedish
+The initial Android module is English-first. Additional Android resource translations should be added only as complete, reviewed resource sets so the mobile app does not ship partially translated screens.
 
-The Windows setup wizard asks for a language before installation and stores that choice as the initial application language. Language can later be changed from Settings.
-
-## Installation and upgrades
+## Installation
 
 ### Windows
 
-Use the Setup EXE for a normal per-user installation or the Portable EXE when an installed copy is not required. Windows builds are produced for x64 and x86.
-
-The installer validates its embedded payload before modifying files or registry state and uses transactional rollback for failed upgrades. Existing ByFTP user data is preserved across the data-directory normalization introduced in 1.0.12.
+Use Setup for a normal per-user installation or Portable when installation is not required. Windows builds are produced for x64 and x86. The installer validates its payload and preserves transactional rollback behavior during upgrades.
 
 ### Linux
 
-Install the DEB package matching the machine architecture. Production packages are built for amd64, arm64 and i386.
+Install the DEB matching the machine architecture: amd64, arm64 or i386.
 
 ### macOS
 
-Use the Universal PKG from the official release. The package contains a Universal application build for supported Intel/Apple Silicon environments.
+Use the Universal PKG from the official release.
 
-Detailed instructions are in [Installation](docs/INSTALLATION.md).
+### Android
+
+The Android app is located entirely under `android/`. Version 1.1.0 requires Android 8.0 (API 26) or newer and targets API 37. CI builds a debug APK as verification evidence. A signed public production APK is not yet distributed because release signing must use a stable private key that is never committed to this repository.
+
+See [Android source documentation](android/README.md) and [Installation](docs/INSTALLATION.md).
 
 ## Build from source
 
-ByFTP uses Go and intentionally keeps the production module graph minimal. The canonical module path is:
+### Desktop core
+
+ByFTP's desktop implementation uses Go. The canonical module path is:
 
 ```text
 github.com/bren-wp/by-ftp
 ```
 
-The repository `VERSION` file is the **single production version source**. Runtime binaries, installers, platform packages, release notes and GitHub Package metadata must derive the release number from it.
+`VERSION` is the single production version source. Desktop binaries/packages and Android `versionName` derive from it.
 
-### Windows production build
+Windows:
 
 ```powershell
 go telemetry off
 .\BUILD-WINDOWS.ps1
 ```
 
-The Windows production build performs asset, localization, version, documentation, security, privacy and release audits before compiling x64 and x86 artifacts.
-
-### Linux production build
+Linux:
 
 ```bash
 go telemetry off
 bash scripts/BUILD-LINUX.sh
 ```
 
-### macOS production build
+macOS:
 
 ```bash
 go telemetry off
 bash scripts/BUILD-MACOS.sh
 ```
 
-### Tests and audits
+### Android
+
+The Android module uses Java 17, Android Gradle Plugin 9.3.0, Gradle 9.5.0, compile/target SDK 37, Apache Commons Net 3.13.0 and SSHJ 0.40.0.
+
+From the repository root with JDK 17, Gradle 9.5.0 and Android SDK 37 installed:
+
+```bash
+gradle -p android :app:clean :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
+```
+
+## Tests and audits
+
+Core gates include:
 
 ```bash
 go test ./...
@@ -168,6 +157,7 @@ go vet ./...
 python scripts/generate_brand_assets.py --check
 python scripts/audit_localization.py
 python scripts/audit_version.py
+python scripts/audit_android.py
 python scripts/audit_docs.py
 python scripts/audit_security.py
 python scripts/audit_privacy.py
@@ -175,49 +165,51 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-See [Testing](docs/TESTING.md) for the complete verification matrix.
+Android additionally runs JUnit, Android lint and `assembleDebug` in a separate CI job. See [Testing](docs/TESTING.md).
 
 ## Release integrity
 
-The release pipeline is fail-closed and designed to prevent accidental publication of incomplete or mismatched artifacts.
+The release lane is fail-closed:
 
-- Production builds run with Go telemetry disabled.
-- `VERSION` is checked for consistency before release.
-- Already-published version lines are protected by the release-version guard.
-- Windows, Linux and macOS platform jobs must succeed before publication.
-- Windows ZIP bundles use an explicit file allowlist and `BUNDLE-SHA256.txt`.
-- Public release staging must match the expected artifact set exactly.
-- GitHub Release mutation is centralized in `scripts/publish_release.ps1`.
-- SHA-256 manifests are generated for published assets.
+- `VERSION` consistency is checked before publication.
+- Published semantic versions cannot be silently reused.
+- Security, privacy, documentation and release-contract audits are mandatory.
+- Windows, Linux, macOS **and Android source validation** must pass before publication.
+- Android validation includes unit tests, lint and APK compilation.
+- Public desktop release staging uses an exact allowlist and SHA-256 checksums.
+- GitHub Release mutation remains centralized in `scripts/publish_release.ps1`.
+- Android production distribution is kept separate until a real signing identity is configured.
 
-See [Release verification](docs/RELEASE-VERIFICATION.md) and [Signing](docs/SIGNING.md).
+See [GitHub releases](docs/GITHUB-RELEASES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Signing](docs/SIGNING.md).
 
 ## Repository structure
 
 ```text
+android/          Native Android application, tests and mobile build configuration
 cmd/
   byftp/          Desktop application entry point
   installer/      Windows installer
   uninstaller/    Windows uninstaller
 internal/
-  api/            Typed application/engine boundary
+  api/            Typed desktop application/engine boundary
   appdata/        Canonical and legacy user-data resolution
   config/         Profiles and settings persistence
   desktop/        Desktop UI
-  i18n/           Runtime localization catalogs
+  i18n/           Desktop runtime localization catalogs
   localfs/        Local filesystem operations
   platform/       OS-specific primitives
-  remote/         FTP/FTPS/SFTP implementations
-  security/       Path, secret and filesystem safety helpers
-  transfer/       Transfer queue and lifecycle
+  remote/         Desktop FTP/FTPS/SFTP implementations
+  security/       Desktop path, secret and filesystem safety helpers
+  transfer/       Desktop transfer queue and lifecycle
 scripts/          Build, audit, verification and release tools
 docs/             Project documentation
-build/            Generated/static build resources
+build/            Generated/static desktop build resources
 ```
 
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Android](android/README.md)
 - [Installation](docs/INSTALLATION.md)
 - [Shared hosting](docs/SHARED-HOSTING.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -235,14 +227,12 @@ build/            Generated/static build resources
 
 ## Contributing
 
-Changes should preserve the project's security, privacy and release invariants. New canonical user-facing text is English-first and runtime UI strings belong in the localization system rather than being hard-coded into platform logic.
-
-Before proposing a change, read [Contributing](docs/CONTRIBUTING.md) and run the relevant tests/audits listed above.
+Changes must preserve security, privacy and release invariants. Android networking code belongs under `android/`; do not route mobile secrets through the desktop process model or introduce hidden backend dependencies. New canonical user-facing text is English-first.
 
 ## Security reports
 
-Do not publish passwords, private keys, production hostnames, customer data or other sensitive material in public issues. Follow the repository [security policy](.github/SECURITY.md) for security-sensitive reports.
+Do not publish passwords, private keys, production hostnames, customer data or other sensitive material in public issues. Follow the repository [security policy](.github/SECURITY.md).
 
 ## License
 
-See [LICENSE](LICENSE). The license file is intentionally preserved as the authoritative legal attribution source.
+See [LICENSE](LICENSE). The license remains the authoritative legal attribution source.
