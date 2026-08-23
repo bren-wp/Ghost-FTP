@@ -101,12 +101,9 @@ jobs:
         run: |
           set -euo pipefail
           sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null || true
-          "$sdkmanager" 'platforms;android-37' 'build-tools;37.0.0'
-          test -d "$sdk_root/platforms/android-37"
-          test -d "$sdk_root/build-tools/37.0.0"
+          test -d "$sdk_root/platforms"
+          find "$sdk_root/platforms" -maxdepth 1 -type d -name 'android-37*' -print -quit | grep -q .
+          test -d "$sdk_root/build-tools/36.0.0"
       - name: Audit Android source
         run: python scripts/audit_android.py
       - name: Test, lint and build Android
