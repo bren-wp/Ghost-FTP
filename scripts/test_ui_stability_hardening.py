@@ -72,8 +72,14 @@ class UIStabilityHardeningTests(unittest.TestCase):
     def test_settings_do_not_replace_helpful_host_hint(self) -> None:
         settings = self.read("internal/desktop/settings_windows.go")
         ui = self.read("internal/desktop/ui_windows.go")
-        self.assertNotIn('cue(a.host, "Poslužitelj")', settings)
-        self.assertIn("FTP/SFTP poslužitelj, npr. ftp.domena.hr", ui)
+        catalogs = self.read("internal/i18n/catalogs.go")
+        # Settings must not replace the connection form's localized cue text.
+        self.assertNotIn("cue(a.host", settings)
+        self.assertIn('cue(a.host, a.tr("cue.host"))', ui)
+        # The canonical English hint remains useful for shared-hosting users,
+        # while other locales can provide their own equivalent cue text.
+        self.assertIn('"cue.host":           "FTP/SFTP server, e.g. ftp.example.com"', catalogs)
+        self.assertIn('"cue.user": "Username, may be user@example.com"', catalogs)
 
 
 if __name__ == "__main__":
