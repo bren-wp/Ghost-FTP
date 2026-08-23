@@ -44,6 +44,8 @@ def main() -> int:
         'commons-net:commons-net:3.13.0',
         'com.hierynomus:sshj:0.40.0',
         "warningsAsErrors = true",
+        "isShrinkResources = true",
+        'disable += setOf("OldTargetApi", "TrustAllX509TrustManager")',
     ))
     if re.search(r'versionName\s*=\s*"\d+\.\d+\.\d+', build):
         fail("Android build hard-codes a production version")
@@ -51,6 +53,8 @@ def main() -> int:
     manifest = require("android/app/src/main/AndroidManifest.xml", (
         "android.permission.INTERNET",
         'android:allowBackup="false"',
+        'android:dataExtractionRules="@xml/data_extraction_rules"',
+        'android:fullBackupContent="@xml/backup_rules"',
         'android:exported="true"',
         'android:usesCleartextTraffic="false"',
     ))
@@ -72,6 +76,15 @@ def main() -> int:
     if 'cleartextTrafficPermitted="true"' in network:
         fail("Android network security config permits generic cleartext traffic")
 
+    for rel in (
+        "android/app/src/main/res/xml/data_extraction_rules.xml",
+        "android/app/src/main/res/xml/backup_rules.xml",
+    ):
+        backup = read(rel)
+        for domain in ("root", "file", "database", "sharedpref", "external"):
+            if f'domain="{domain}" path="."' not in backup:
+                fail(f"{rel} does not exclude the {domain} backup domain")
+
     connection = require("android/app/src/main/java/com/byftp/client/model/ConnectionConfig.java", (
         "SFTP requires an expected SHA-256 host-key fingerprint",
         "Port must be between 1 and 65535",
@@ -88,13 +101,27 @@ def main() -> int:
         fail("Android SFTP permits unverified host keys")
 
     ftp = require("android/app/src/main/java/com/byftp/client/remote/FtpRemoteClient.java", (
-        "setEndpointCheckingEnabled(true)",
+        "ftps.setTrustManager(null)",
+        "ftps.setEndpointCheckingEnabled(true)",
         'ftps.execPROT("P")',
         "enterLocalPassiveMode()",
         "FTP.BINARY_FILE_TYPE",
     ))
-    if "TrustManager" in ftp or "TrustManagerUtils" in ftp:
-        fail("Android FTPS overrides normal certificate trust")
+    if "TrustManagerUtils" in ftp:
+        fail("Android FTPS must not use Commons Net permissive/custom trust helpers")
+
+    java_root = ROOT / "android/app/src/main/java"
+    java_source = "\n".join(path.read_text(encoding="utf-8") for path in java_root.rglob("*.java"))
+    for forbidden in (
+        "X509TrustManager",
+        "checkServerTrusted",
+        "checkClientTrusted",
+        "PromiscuousVerifier",
+        "NoopHostnameVerifier",
+        "ALLOW_ALL_HOSTNAME_VERIFIER",
+    ):
+        if forbidden in java_source:
+            fail(f"Android source contains forbidden permissive TLS/SSH marker: {forbidden}")
 
     activity = require("android/app/src/main/java/com/byftp/client/MainActivity.java", (
         "Intent.ACTION_OPEN_DOCUMENT",
@@ -120,9 +147,10 @@ def main() -> int:
 
     print(f"ANDROID_AUDIT=PASS ({version})")
     print("ANDROID_SFTP_HOST_KEY_PINNING=REQUIRED")
-    print("ANDROID_FTPS_ENDPOINT_CHECKING=ENABLED")
+    print("ANDROID_FTPS_PLATFORM_TRUST_AND_ENDPOINT_CHECKING=ENABLED")
     print("ANDROID_GENERIC_CLEARTEXT_NETWORK=BLOCKED")
     print("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED")
+    print("ANDROID_BACKUP_AND_DEVICE_TRANSFER=BLOCKED")
     print("ANDROID_PASSWORD_PERSISTENCE=BLOCKED")
     print("ANDROID_VERSION_SOURCE=ROOT_VERSION")
     return 0
