@@ -1,37 +1,41 @@
 package i18n
 
-import "strings"
-
 var additionalLocaleOverrides = map[string]map[string]string{
 	"it": {
-		"app.title": "ByFTP", "app.subtitle": "Trasferimento file sicuro", "section.local": "LOCALE", "section.remote": "SERVER", "section.transfers": "TRASFERIMENTI",
-		"button.connect": "Connetti", "button.disconnect": "Disconnetti", "button.refresh": "Aggiorna", "button.upload": "Carica", "button.download": "Scarica", "button.cancel": "Annulla",
-		"status.ready": "Pronto", "status.connecting": "Connessione…", "status.connected": "Connesso", "settings.title": "Impostazioni", "settings.language": "Lingua",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Gestione hosting rapida", "section.local": "COMPUTER LOCALE", "section.remote": "SERVER", "section.transfers": "TRASFERIMENTI",
+		"common.settings": "Impostazioni", "common.connect": "Connetti", "common.disconnect": "Disconnetti", "common.refresh": "Aggiorna", "common.cancel": "Annulla",
+		"transfer.upload": "Carica", "transfer.download": "Scarica", "transfer.pause": "Pausa", "transfer.resume": "Riprendi", "transfer.retry": "Riprova", "transfer.clear": "Cancella completati",
+		"status.ready": "Pronto. Seleziona un profilo salvato o inserisci i dati del server.", "settings.title": "ByFTP — Impostazioni", "profile.save": "Salva profilo", "profile.delete": "Elimina profilo",
 	},
 	"pl": {
-		"app.title": "ByFTP", "app.subtitle": "Bezpieczny transfer plików", "section.local": "LOKALNE", "section.remote": "SERWER", "section.transfers": "TRANSFERY",
-		"button.connect": "Połącz", "button.disconnect": "Rozłącz", "button.refresh": "Odśwież", "button.upload": "Wyślij", "button.download": "Pobierz", "button.cancel": "Anuluj",
-		"status.ready": "Gotowe", "status.connecting": "Łączenie…", "status.connected": "Połączono", "settings.title": "Ustawienia", "settings.language": "Język",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Szybkie zarządzanie hostingiem", "section.local": "KOMPUTER LOKALNY", "section.remote": "SERWER", "section.transfers": "TRANSFER",
+		"common.settings": "Ustawienia", "common.connect": "Połącz", "common.disconnect": "Rozłącz", "common.refresh": "Odśwież", "common.cancel": "Anuluj",
+		"transfer.upload": "Wyślij", "transfer.download": "Pobierz", "transfer.pause": "Wstrzymaj", "transfer.resume": "Wznów", "transfer.retry": "Ponów", "transfer.clear": "Wyczyść zakończone",
+		"status.ready": "Gotowe. Wybierz zapisany profil lub wprowadź dane serwera.", "settings.title": "ByFTP — Ustawienia", "profile.save": "Zapisz profil", "profile.delete": "Usuń profil",
 	},
 	"nl": {
-		"app.title": "ByFTP", "app.subtitle": "Veilige bestandsoverdracht", "section.local": "LOKAAL", "section.remote": "SERVER", "section.transfers": "OVERDRACHTEN",
-		"button.connect": "Verbinden", "button.disconnect": "Verbreken", "button.refresh": "Vernieuwen", "button.upload": "Uploaden", "button.download": "Downloaden", "button.cancel": "Annuleren",
-		"status.ready": "Gereed", "status.connecting": "Verbinden…", "status.connected": "Verbonden", "settings.title": "Instellingen", "settings.language": "Taal",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Snel hostingbeheer", "section.local": "LOKALE COMPUTER", "section.remote": "SERVER", "section.transfers": "OVERDRACHTEN",
+		"common.settings": "Instellingen", "common.connect": "Verbinden", "common.disconnect": "Verbreken", "common.refresh": "Vernieuwen", "common.cancel": "Annuleren",
+		"transfer.upload": "Uploaden", "transfer.download": "Downloaden", "transfer.pause": "Pauzeren", "transfer.resume": "Hervatten", "transfer.retry": "Opnieuw", "transfer.clear": "Voltooide wissen",
+		"status.ready": "Gereed. Kies een opgeslagen profiel of voer servergegevens in.", "settings.title": "ByFTP — Instellingen", "profile.save": "Profiel opslaan", "profile.delete": "Profiel verwijderen",
 	},
 	"cs": {
-		"app.title": "ByFTP", "app.subtitle": "Bezpečný přenos souborů", "section.local": "MÍSTNÍ", "section.remote": "SERVER", "section.transfers": "PŘENOSY",
-		"button.connect": "Připojit", "button.disconnect": "Odpojit", "button.refresh": "Obnovit", "button.upload": "Nahrát", "button.download": "Stáhnout", "button.cancel": "Zrušit",
-		"status.ready": "Připraveno", "status.connecting": "Připojování…", "status.connected": "Připojeno", "settings.title": "Nastavení", "settings.language": "Jazyk",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Rychlá správa hostingu", "section.local": "MÍSTNÍ POČÍTAČ", "section.remote": "SERVER", "section.transfers": "PŘENOSY",
+		"common.settings": "Nastavení", "common.connect": "Připojit", "common.disconnect": "Odpojit", "common.refresh": "Obnovit", "common.cancel": "Zrušit",
+		"transfer.upload": "Nahrát", "transfer.download": "Stáhnout", "transfer.pause": "Pozastavit", "transfer.resume": "Pokračovat", "transfer.retry": "Opakovat", "transfer.clear": "Vymazat dokončené",
+		"status.ready": "Připraveno. Vyberte uložený profil nebo zadejte údaje serveru.", "settings.title": "ByFTP — Nastavení", "profile.save": "Uložit profil", "profile.delete": "Smazat profil",
 	},
 	"uk": {
-		"app.title": "ByFTP", "app.subtitle": "Безпечне передавання файлів", "section.local": "ЛОКАЛЬНО", "section.remote": "СЕРВЕР", "section.transfers": "ПЕРЕДАВАННЯ",
-		"button.connect": "Підключити", "button.disconnect": "Відключити", "button.refresh": "Оновити", "button.upload": "Вивантажити", "button.download": "Завантажити", "button.cancel": "Скасувати",
-		"status.ready": "Готово", "status.connecting": "Підключення…", "status.connected": "Підключено", "settings.title": "Налаштування", "settings.language": "Мова",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Швидке керування хостингом", "section.local": "ЛОКАЛЬНИЙ КОМП'ЮТЕР", "section.remote": "СЕРВЕР", "section.transfers": "ПЕРЕДАВАННЯ",
+		"common.settings": "Налаштування", "common.connect": "Підключити", "common.disconnect": "Відключити", "common.refresh": "Оновити", "common.cancel": "Скасувати",
+		"transfer.upload": "Вивантажити", "transfer.download": "Завантажити", "transfer.pause": "Призупинити", "transfer.resume": "Продовжити", "transfer.retry": "Повторити", "transfer.clear": "Очистити завершені",
+		"status.ready": "Готово. Виберіть збережений профіль або введіть дані сервера.", "settings.title": "ByFTP — Налаштування", "profile.save": "Зберегти профіль", "profile.delete": "Видалити профіль",
 	},
 	"sv": {
-		"app.title": "ByFTP", "app.subtitle": "Säker filöverföring", "section.local": "LOKALT", "section.remote": "SERVER", "section.transfers": "ÖVERFÖRINGAR",
-		"button.connect": "Anslut", "button.disconnect": "Koppla från", "button.refresh": "Uppdatera", "button.upload": "Ladda upp", "button.download": "Ladda ner", "button.cancel": "Avbryt",
-		"status.ready": "Klar", "status.connecting": "Ansluter…", "status.connected": "Ansluten", "settings.title": "Inställningar", "settings.language": "Språk",
+		"app.subtitle": "FTP • FTPS • SFTP  ·  Snabb hostinghantering", "section.local": "LOKAL DATOR", "section.remote": "SERVER", "section.transfers": "ÖVERFÖRINGAR",
+		"common.settings": "Inställningar", "common.connect": "Anslut", "common.disconnect": "Koppla från", "common.refresh": "Uppdatera", "common.cancel": "Avbryt",
+		"transfer.upload": "Ladda upp", "transfer.download": "Ladda ner", "transfer.pause": "Pausa", "transfer.resume": "Fortsätt", "transfer.retry": "Försök igen", "transfer.clear": "Rensa slutförda",
+		"status.ready": "Klar. Välj en sparad profil eller ange serveruppgifter.", "settings.title": "ByFTP — Inställningar", "profile.save": "Spara profil", "profile.delete": "Ta bort profil",
 	},
 }
 
@@ -54,11 +58,6 @@ func init() {
 	for _, catalog := range catalogs {
 		if _, ok := catalog["terminal.language_usage"]; ok {
 			catalog["terminal.language_usage"] = "Usage: language <" + codes + ">"
-		}
-		for key, value := range catalog {
-			value = strings.ReplaceAll(value, "ByFTP", "ByFTP")
-			value = strings.ReplaceAll(value, "github.com/bren-wp/by-ftp", "github.com/bren-wp/by-ftp")
-			catalog[key] = value
 		}
 	}
 }
