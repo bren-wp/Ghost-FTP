@@ -6,7 +6,7 @@ Use the full FTP username provided by the host, including forms such as `account
 
 ## Desktop
 
-The desktop FTP/FTPS implementation uses login/home-relative control and transfer paths, supports MLSD with LIST fallback for older servers and remembers the usable listing mode for the session. Passive-mode compatibility avoids trusting unsafe private PASV addresses in common NAT/shared-hosting scenarios.
+The desktop FTP/FTPS implementation uses login/home-relative control and transfer paths, supports **MLSD to LIST fallback** for older servers and remembers the usable listing mode for the session. **Passive connections** include compatibility handling that avoids trusting unsafe private PASV addresses in common NAT/shared-hosting scenarios.
 
 ## Android
 
