@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed ByFTP provjera privatnosti i mrežne politike."""
+"""Fail-closed ByFTP privacy and network-policy audit."""
 
 from __future__ import annotations
 
@@ -15,6 +15,17 @@ FORBIDDEN_VENDOR_MARKERS = {
     "appcenter", "telemetrydeck",
 }
 
+# These are display/support metadata only. The brand package has no networking
+# code and these constants do not cause a request. Every other fixed HTTP(S)
+# URL in runtime Go source remains forbidden.
+ALLOWED_RUNTIME_URLS = {
+    Path("internal/brand/brand.go"): {
+        "https://github.com/bren-wp/by-ftp",
+        "https://github.com/bren-wp/by-ftp/issues",
+    },
+}
+URL_RE = re.compile(r"https?://[^\s\"'`]+", re.IGNORECASE)
+
 
 def fail(message: str) -> None:
     raise SystemExit("PRIVACY_AUDIT_FAILED: " + message)
@@ -23,7 +34,7 @@ def fail(message: str) -> None:
 def read(rel: str) -> str:
     path = ROOT / rel
     if not path.is_file():
-        fail(f"nedostaje {rel}")
+        fail(f"missing {rel}")
     return path.read_text(encoding="utf-8")
 
 
@@ -31,7 +42,7 @@ def require(rel: str, markers: tuple[str, ...]) -> str:
     text = read(rel)
     for marker in markers:
         if marker not in text:
-            fail(f"{rel} nema privacy guard: {marker}")
+            fail(f"{rel} is missing privacy guard: {marker}")
     return text
 
 
@@ -40,37 +51,46 @@ def main() -> None:
     for base in RUNTIME_ROOTS:
         runtime_files.extend(path for path in base.rglob("*.go") if not path.name.endswith("_test.go"))
     if not runtime_files:
-        fail("runtime Go source nije pronađen")
+        fail("runtime Go source was not found")
 
     for path in sorted(runtime_files):
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(ROOT)
         for imp in FORBIDDEN_IMPORTS:
             if re.search(rf'["`]'+re.escape(imp)+r'["`]', text):
-                fail(f"zabranjeni mrežni import {imp!r} u {rel}")
-        if re.search(r"https?://", text, re.IGNORECASE):
-            fail(f"fiksni HTTP(S) URL pronađen je u runtime sourceu: {rel}")
+                fail(f"forbidden network import {imp!r} in {rel}")
+
+        urls = set(URL_RE.findall(text))
+        allowed_urls = ALLOWED_RUNTIME_URLS.get(rel, set())
+        unexpected_urls = sorted(urls - allowed_urls)
+        if unexpected_urls:
+            fail(f"fixed HTTP(S) URL found in runtime source {rel}: {unexpected_urls[0]}")
+        if allowed_urls and urls != allowed_urls:
+            missing = sorted(allowed_urls - urls)
+            if missing:
+                fail(f"expected static project metadata URL is missing from {rel}: {missing[0]}")
+
         lower = text.lower()
         for marker in FORBIDDEN_VENDOR_MARKERS:
             if marker in lower:
-                fail(f"telemetry/vendor marker {marker!r} pronađen je u {rel}")
+                fail(f"telemetry/vendor marker {marker!r} found in {rel}")
 
     gomod = read("go.mod")
     if re.search(r"(?m)^\s*(require|replace|exclude|retract)\b", gomod):
-        fail("go.mod mora ostati bez vanjskih Go ovisnosti")
+        fail("go.mod must remain free of external Go dependencies")
 
     engine = require("internal/api/engine.go", ('func (e *Engine) SaveProfile(', 'func (e *Engine) Connect('))
     if "encoding/json" in engine or "func (e *Engine) Call(" in engine:
-        fail("engine ne smije vraćati generički JSON dispatcher")
+        fail("engine must not expose a generic JSON dispatcher")
     if '"log"' in engine or "log.New(" in engine:
-        fail("trajni runtime logging mora ostati isključen")
+        fail("persistent runtime logging must remain disabled")
 
     require("internal/platform/windows.go", ("SetErrorMode", "semNoGPFaultErrorBox", "SetDllDirectoryW", 'UTF16PtrFromString("")', "ofnDontAddToRecent"))
     require("internal/config/profile_crypto_windows.go", ("security.ProtectBytes", "security.UnprotectBytes"))
 
     manager = require("internal/remote/manager.go", ("PasswordBlob", "PassphraseBlob", "newCurlFTPWithProtectedSecret", "newSFTPWithProtectedSecrets"))
     if "UnprotectString" in manager or "UnprotectBytes" in manager:
-        fail("connection manager ne smije rano dekriptirati spremljene vjerodajnice")
+        fail("connection manager must not decrypt saved credentials early")
 
     curl = require(
         "internal/remote/curl_ftp.go",
@@ -88,9 +108,9 @@ def main() -> None:
         ),
     )
     if "HTTP_PROXY" in curl or "HTTPS_PROXY" in curl:
-        fail("CurlFTP ne smije izravno nasljeđivati proxy varijable")
+        fail("CurlFTP must not directly inherit proxy variables")
     if "ssl-no-revoke" in curl:
-        fail("FTPS ne smije potpuno isključiti provjeru opoziva certifikata")
+        fail("FTPS must not fully disable certificate-revocation checking")
 
     require(
         "internal/remote/curl_capability.go",
@@ -121,20 +141,23 @@ def main() -> None:
     )
     for forbidden in ("BYFTP_ASKPASS_FILE", "askpassFile", "os.WriteFile(askpass"):
         if forbidden in sftp:
-            fail(f"SFTP ne smije zapisivati AskPass tajnu na disk: {forbidden}")
+            fail(f"SFTP must not write AskPass secrets to disk: {forbidden}")
 
     askpass = require(
         "cmd/byftp/main.go",
         ("BYFTP_ASKPASS_TOKEN", "BYFTP_PASSWORD_BLOB", "BYFTP_PASSPHRASE_BLOB", "TrustedAskPassParent", "selectAskpassSecret"),
     )
     if "BYFTP_ASKPASS_FILE" in askpass:
-        fail("AskPass ne smije ovisiti o disk credential artefaktu")
+        fail("AskPass must not depend on a disk credential artifact")
 
     require("internal/security/runtime_secret_windows.go", ("ProtectString", "UnprotectBytes", "ProtectRuntimeString"))
     require("internal/security/runtime_secret_other.go", ("crypto/rand", "runtimeValues", "WipeBytes(value)", "ForgetRuntimeSecret"))
-    terminal = require("internal/desktop/other.go", ("promptSecret", "stty", "engine.Connect", "Linux/macOS SFTP izdanje zahtijeva eksplicitni privatni ključ"))
+    terminal = require(
+        "internal/desktop/other.go",
+        ("promptSecret", "stty", "engine.Connect", 'i18n.T(language, "terminal.sftp_key_required")'),
+    )
     if "Password:" in terminal:
-        fail("terminalni source ne smije hardkodirati plaintext vjerodajnicu")
+        fail("terminal source must not hard-code a plaintext credential prompt")
 
     require("internal/remote/util.go", (
         '"http_proxy"', '"https_proxy"', '"ftp_proxy"', '"all_proxy"', '"no_proxy"',
@@ -145,7 +168,7 @@ def main() -> None:
 
     tools = require("internal/remote/tools.go", ("systemDirectory()", 'runtime.GOOS == "windows"'))
     if 'os.Getenv("WINDIR")' in tools or 'os.Getenv("WINDIR")' in sftp:
-        fail("Windows mrežni alati ne smiju vjerovati WINDIR-u")
+        fail("Windows network-tool discovery must not trust WINDIR")
 
     require("internal/transfer/manager.go", (
         "recover() != nil", "interna greška tijekom prijenosa", "type operationProvider interface",
@@ -160,21 +183,33 @@ def main() -> None:
     installer = read("cmd/installer/main.go")
     for marker in ("URLInfoAbout", "HelpLink"):
         if marker in installer:
-            fail(f"installer sadrži vanjski URL hook {marker}")
+            fail(f"installer contains external URL hook {marker}")
 
-    # GOTELEMETRY je read-only vrijednost koju `go env` samo prijavljuje; postavljanje
-    # istoimene OS env varijable nije valjan privacy guard. CI/release moraju stvarno
-    # izvršiti `go telemetry off`, a produkcijske skripte moraju odbiti drugi način.
-    ci = require(".github/workflows/ci.yml", ("go telemetry off", "Go telemetrija nije isključena"))
+    # GOTELEMETRY is a reported Go setting, not a valid environment-only
+    # privacy guard. CI/release must execute `go telemetry off`; production
+    # build scripts must independently reject any mode other than `off`.
+    ci = require(".github/workflows/ci.yml", ("go telemetry off", "Go telemetry is not disabled."))
     release = require(".github/workflows/release.yml", ("go telemetry off", "test \"$(go telemetry)\" = 'off'"))
     for rel, text in ((".github/workflows/ci.yml", ci), (".github/workflows/release.yml", release)):
         if re.search(r"(?m)^\s*GOTELEMETRY:\s*off\s*$", text):
-            fail(f"{rel} koristi neučinkoviti GOTELEMETRY env guard umjesto `go telemetry off`")
+            fail(f"{rel} uses ineffective GOTELEMETRY env-only guard instead of `go telemetry off`")
 
-    windows_build = require("BUILD-WINDOWS.ps1", ("$telemetryMode = (go telemetry).Trim()", "go telemetry off", "Go telemetrija mora biti isključena"))
-    linux_build = require("scripts/BUILD-LINUX.sh", ('telemetry="$(go telemetry)"', "go telemetry off", "Go telemetrija mora biti isključena"))
-    macos_build = require("scripts/BUILD-MACOS.sh", ('telemetry="$(go telemetry)"', "go telemetry off", "Go telemetrija mora biti isključena"))
-    local_build = require("scripts/BUILD-LOCAL.sh", ('GO_TELEMETRY="$(go telemetry)"', "go telemetry off", "Go telemetrija mora biti isključena"))
+    windows_build = require(
+        "BUILD-WINDOWS.ps1",
+        ("$telemetryMode = Invoke-NativeCapture", "-ArgumentList @('telemetry')", "Go telemetry must be disabled before a production build"),
+    )
+    linux_build = require(
+        "scripts/BUILD-LINUX.sh",
+        ('telemetry="$(go telemetry)"', "Go telemetry must be disabled before a production build"),
+    )
+    macos_build = require(
+        "scripts/BUILD-MACOS.sh",
+        ('telemetry="$(go telemetry)"', "Go telemetry must be disabled before a production build"),
+    )
+    local_build = require(
+        "scripts/BUILD-LOCAL.sh",
+        ('GO_TELEMETRY="$(go telemetry)"', "Go telemetry must be disabled before a production build"),
+    )
     for rel, text in (
         ("BUILD-WINDOWS.ps1", windows_build),
         ("scripts/BUILD-LINUX.sh", linux_build),
@@ -182,12 +217,13 @@ def main() -> None:
         ("scripts/BUILD-LOCAL.sh", local_build),
     ):
         if "GOTELEMETRY=off" in text or "$env:GOTELEMETRY = 'off'" in text:
-            fail(f"{rel} se ponovno oslanja na neučinkovitu GOTELEMETRY env varijablu")
+            fail(f"{rel} relies on an ineffective GOTELEMETRY environment variable")
 
     print("PRIVACY_AUDIT=PASS")
     print("TELEMETRY=ABSENT")
     print("GO_BUILD_TELEMETRY=OFF_REQUIRED_AND_CI_VERIFIED")
-    print("FIXED_HTTP_API_ENDPOINTS=ABSENT")
+    print("FIXED_RUNTIME_API_ENDPOINTS=ABSENT")
+    print("STATIC_PROJECT_SUPPORT_URLS=ALLOWLISTED_METADATA_ONLY")
     print("EXTERNAL_GO_MODULES=ABSENT")
     print("CURL_EXTERNAL_ENV_INHERITANCE=DISABLED")
     print("FTPS_CERTIFICATE_REVOCATION=NOT_DISABLED")
