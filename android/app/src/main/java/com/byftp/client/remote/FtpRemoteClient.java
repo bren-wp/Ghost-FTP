@@ -126,7 +126,18 @@ public final class FtpRemoteClient implements RemoteClient {
         if (raw == null) return "";
         String root = raw.trim().replace('\\', '/');
         if (root.isEmpty() || root.equals(".")) return "";
+        if (root.indexOf('\0') >= 0 || root.contains("//")) {
+            throw new IllegalArgumentException("FTP server returned a noncanonical login directory.");
+        }
         while (root.length() > 1 && root.endsWith("/")) root = root.substring(0, root.length() - 1);
+        if (root.equals("/")) return root;
+
+        String check = root.startsWith("/") ? root.substring(1) : root;
+        for (String part : check.split("/", -1)) {
+            if (part.isEmpty() || part.equals(".") || part.equals("..")) {
+                throw new IllegalArgumentException("FTP server returned an unsafe login directory.");
+            }
+        }
         return root;
     }
 
