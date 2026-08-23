@@ -1,5 +1,7 @@
-# Doprinos projektu ByFTP
+# Contributing to ByFTP
 
-ByFTP je vlasnički/source-available projekt tvrtke ByFTP. Issuei i prijedlozi su dobrodošli, ali izmjene izvornog koda i pull requestovi dopušteni su samo kada ih ByFTP izričito zatraži ili odobri.
+ByFTP is a source-available project. Bug reports and feature proposals are welcome. Source-code changes and pull requests should be submitted only when they are explicitly requested or approved for the project.
 
-Potpuna pravila nalaze se u [`docs/DOPRINOS.md`](../docs/DOPRINOS.md), a uvjeti uporabe u [`LICENSE`](../LICENSE).
+Before proposing a change, read the complete [contribution policy](../docs/CONTRIBUTING.md), the [security policy](../docs/SECURITY.md), and the repository [license](../LICENSE).
+
+When a pull request is requested, keep the change focused, preserve the existing FTP/FTPS/SFTP security boundaries, add regression coverage where practical, and ensure the full CI matrix passes before merge.
