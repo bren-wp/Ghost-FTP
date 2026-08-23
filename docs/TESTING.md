@@ -10,7 +10,7 @@ Installer changes require regression coverage for payload validation, transactio
 
 ## Android gates
 
-Android has an independent CI job so mobile build failures cannot hide inside desktop tests. The gate provisions JDK 17 and Gradle 9.5.0, verifies the preinstalled Android SDK platform 37/build-tools 37.0.0 through the runner's canonical `$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager`, then runs:
+Android has an independent CI job so mobile build failures cannot hide inside desktop tests. The gate provisions JDK 17 and Gradle 9.5.0, verifies a preinstalled Android API 37 platform and AGP 9.3's supported/default build-tools 36.0.0, then runs:
 
 ```bash
 gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
