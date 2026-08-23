@@ -1,13 +1,10 @@
 package com.byftp.client.remote;
 
-import android.util.Base64;
 import com.byftp.client.model.ConnectionConfig;
 import com.byftp.client.model.RemoteEntry;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.MessageDigest;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -29,7 +26,7 @@ public final class SftpRemoteClient implements RemoteClient {
         SSHClient next = new SSHClient();
         next.setConnectTimeout(15_000);
         next.setTimeout(30_000);
-        next.addHostKeyVerifier((hostname, port, key) -> config.fingerprint().equals(fingerprint(key)));
+        next.addHostKeyVerifier(config.fingerprint());
         try {
             next.connect(config.host(), config.port());
             next.authPassword(config.username(), config.password());
@@ -40,15 +37,6 @@ public final class SftpRemoteClient implements RemoteClient {
             try { next.disconnect(); } catch (Exception ignored) {}
             try { next.close(); } catch (Exception ignored) {}
             throw error;
-        }
-    }
-
-    static String fingerprint(PublicKey key) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(key.getEncoded());
-            return "SHA256:" + Base64.encodeToString(digest, Base64.NO_WRAP | Base64.NO_PADDING);
-        } catch (Exception error) {
-            throw new IllegalStateException("Unable to calculate SFTP host-key fingerprint.", error);
         }
     }
 
