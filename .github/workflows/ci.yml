@@ -49,6 +49,8 @@ jobs:
         run: python scripts/audit_version.py
       - name: Verify Android invariants
         run: python scripts/audit_android.py
+      - name: Verify iOS invariants
+        run: python scripts/audit_ios.py
       - name: Verify published-version immutability
         env:
           BYFTP_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -132,6 +134,31 @@ jobs:
           path: |
             dist/ByFTP-*-Android-debug.apk
             dist/ByFTP-*-Android-release-unsigned.apk
+
+  ios-build:
+    name: iOS arm64 app and unsigned IPA
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Audit iOS source and packaging contract
+        run: python3 scripts/audit_ios.py
+      - name: Build and validate native iOS artifacts
+        run: bash scripts/BUILD-IOS.sh
+      - name: Store iOS build evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-ios-ci
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/ByFTP-*-iOS-arm64-unsigned.ipa
+            dist/ByFTP-*-iOS-arm64-unsigned-app.zip
 
   windows-build:
     name: Windows x64 and x86 production build
