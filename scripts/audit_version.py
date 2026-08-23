@@ -38,9 +38,7 @@ def main() -> int:
     readme = read("README.md")
     if f"Current release: {version}" not in readme:
         fail("README does not expose VERSION as the current release")
-
-    changelog = read("CHANGELOG.md")
-    if f"## {version}" not in changelog:
+    if f"## {version}" not in read("CHANGELOG.md"):
         fail("CHANGELOG does not contain a section for VERSION")
 
     for path in sorted((ROOT / "docs").rglob("*.md")):
@@ -55,7 +53,7 @@ def main() -> int:
     if "Get-Content -LiteralPath $versionFile" not in windows_build or "-X main.version=$version" not in windows_build:
         fail("Windows build does not inject VERSION into the runtime")
 
-    for rel in ("scripts/BUILD-LOCAL.sh", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh"):
+    for rel in ("scripts/BUILD-LOCAL.sh", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh"):
         if "< VERSION" not in read(rel):
             fail(f"{rel} does not read canonical VERSION")
     if "-X main.version=$VERSION" not in read("scripts/BUILD-LOCAL.sh"):
@@ -72,6 +70,18 @@ def main() -> int:
     if re.search(r'versionName\s*=\s*"\d+\.\d+\.\d+', android):
         fail("Android build hard-codes a production version")
 
+    ios_build = read("scripts/BUILD-IOS.sh")
+    for marker in ('MARKETING_VERSION="$VERSION"', 'CURRENT_PROJECT_VERSION="$BUILD_NUMBER"', "scripts/package_ios.py"):
+        if marker not in ios_build:
+            fail(f"iOS build is not bound to VERSION: missing {marker}")
+    ios_project = read("ios/ByFTP.xcodeproj/project.pbxproj")
+    if "MARKETING_VERSION = 0.0.0" not in ios_project:
+        fail("iOS project does not keep the safe development marketing-version fallback")
+    if re.search(r"MARKETING_VERSION = (?!0\.0\.0)\d+\.\d+\.\d+", ios_project):
+        fail("iOS project hard-codes a production version")
+    if "CFBundleShortVersionString" not in read("scripts/package_ios.py"):
+        fail("iOS packager does not verify the production version")
+
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded default production version")
@@ -80,11 +90,8 @@ def main() -> int:
             fail(f"release workflow lacks VERSION fallback marker: {marker}")
 
     for marker in (
-        "<PackageId>ByFTP.Windows</PackageId>",
-        "<Version>$env:VERSION</Version>",
-        "dotnet nuget push",
-        "nuget.pkg.github.com/bren-wp/index.json",
-        "--skip-duplicate",
+        "<PackageId>ByFTP.Windows</PackageId>", "<Version>$env:VERSION</Version>", "dotnet nuget push",
+        "nuget.pkg.github.com/bren-wp/index.json", "--skip-duplicate",
     ):
         if marker not in release_workflow:
             fail(f"GitHub Package is not bound to VERSION: missing {marker}")
@@ -100,7 +107,7 @@ def main() -> int:
         fail("localization audit hard-codes a release version")
 
     print(f"VERSION_AUDIT=PASS ({version})")
-    print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID")
+    print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID,IOS")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
     print("PRODUCTION_DOC_VERSION_DRIFT=BLOCKED")
     return 0
