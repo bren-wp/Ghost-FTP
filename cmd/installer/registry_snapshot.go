@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"brendigo.com/byftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/platform"
 )
 
 type registryStringSnapshot struct {

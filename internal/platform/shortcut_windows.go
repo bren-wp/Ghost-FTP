@@ -3,8 +3,8 @@
 package platform
 
 import (
-	"brendigo.com/byftp/internal/brand"
 	"errors"
+	"github.com/bren-wp/by-ftp/internal/brand"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -157,7 +157,7 @@ func RemoveShortcuts() error {
 	startDir := filepath.Dir(start)
 	if err := os.Remove(startDir); err != nil && !errors.Is(err, os.ErrNotExist) {
 		// A non-empty company Start Menu folder is normal; do not remove
-		// unrelated shortcuts that may belong to other Brendigo products.
+		// unrelated shortcuts that may belong to other ByFTP products.
 		if entries, readErr := os.ReadDir(startDir); readErr != nil || len(entries) == 0 {
 			errs = append(errs, err)
 		}

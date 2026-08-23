@@ -1,6 +1,6 @@
 package desktop
 
-import "brendigo.com/byftp/internal/model"
+import "github.com/bren-wp/by-ftp/internal/model"
 
 type transferActionState struct {
 	Pause  bool

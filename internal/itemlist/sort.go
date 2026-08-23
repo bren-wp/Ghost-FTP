@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 // Sort orders directories before files and then compares names

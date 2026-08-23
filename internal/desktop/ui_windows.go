@@ -3,8 +3,8 @@
 package desktop
 
 import (
-	"brendigo.com/byftp/internal/brand"
 	"fmt"
+	"github.com/bren-wp/by-ftp/internal/brand"
 	"syscall"
 	"unsafe"
 )

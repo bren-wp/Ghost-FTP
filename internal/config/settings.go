@@ -1,9 +1,9 @@
 package config
 
 import (
-	"brendigo.com/byftp/internal/i18n"
-	"brendigo.com/byftp/internal/model"
 	"errors"
+	"github.com/bren-wp/by-ftp/internal/i18n"
+	"github.com/bren-wp/by-ftp/internal/model"
 	"sync"
 )
 

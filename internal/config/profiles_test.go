@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 func TestSFTPProfileDefaultsToHomeDirectory(t *testing.T) {

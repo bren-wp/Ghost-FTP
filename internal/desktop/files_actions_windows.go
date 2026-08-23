@@ -3,13 +3,13 @@
 package desktop
 
 import (
-	"brendigo.com/byftp/internal/api"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/security"
-	"brendigo.com/byftp/internal/usererror"
 	"context"
 	"errors"
+	"github.com/bren-wp/by-ftp/internal/api"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/usererror"
 	"path"
 	"path/filepath"
 	"strconv"

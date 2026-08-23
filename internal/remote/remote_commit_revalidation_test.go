@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 func TestRevalidateRemoteCommitSkipNewExistingFile(t *testing.T) {

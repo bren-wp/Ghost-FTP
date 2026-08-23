@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 func TestCleanupFailureReturnsOriginalWhenCleanupSucceeds(t *testing.T) {

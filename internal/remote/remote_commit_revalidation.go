@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 type remoteListFunc func(context.Context, string) ([]model.Item, error)

@@ -136,7 +136,7 @@ func TestRemoveTreeNoFollowDoesNotTraverseSymlink(t *testing.T) {
 func TestEnsureNoRedirectPathRejectsNestedSymlink(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()
-	link := filepath.Join(root, "Brendigo")
+	link := filepath.Join(root, "ByFTP")
 	if err := os.Symlink(outside, link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
@@ -147,14 +147,14 @@ func TestEnsureNoRedirectPathRejectsNestedSymlink(t *testing.T) {
 
 func TestEnsureNoRedirectPathAllowsMissingNormalDescendants(t *testing.T) {
 	root := t.TempDir()
-	if err := EnsureNoRedirectPath(root, filepath.Join(root, "Brendigo", "ByFTP")); err != nil {
+	if err := EnsureNoRedirectPath(root, filepath.Join(root, "ByFTP", "ByFTP")); err != nil {
 		t.Fatalf("normal missing descendants should be allowed: %v", err)
 	}
 }
 
 func TestEnsureNoRedirectDirectoryCreatesNormalDescendants(t *testing.T) {
 	root := t.TempDir()
-	target := filepath.Join(root, "Brendigo", "ByFTP", "known_hosts")
+	target := filepath.Join(root, "ByFTP", "ByFTP", "known_hosts")
 	if err := EnsureNoRedirectDirectory(root, target); err != nil {
 		t.Fatal(err)
 	}
@@ -167,10 +167,10 @@ func TestEnsureNoRedirectDirectoryCreatesNormalDescendants(t *testing.T) {
 func TestEnsureNoRedirectDirectoryRejectsNestedSymlink(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()
-	if err := os.Symlink(outside, filepath.Join(root, "Brendigo")); err != nil {
+	if err := os.Symlink(outside, filepath.Join(root, "ByFTP")); err != nil {
 		t.Skipf("symlink not available: %v", err)
 	}
-	if err := EnsureNoRedirectDirectory(root, filepath.Join(root, "Brendigo", "ByFTP")); err == nil {
+	if err := EnsureNoRedirectDirectory(root, filepath.Join(root, "ByFTP", "ByFTP")); err == nil {
 		t.Fatal("redirected directory unexpectedly accepted")
 	}
 }

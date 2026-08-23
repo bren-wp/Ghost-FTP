@@ -77,7 +77,7 @@ type promptState struct {
 var (
 	promptStates sync.Map
 	promptOnce   sync.Once
-	promptClass  = "Brendigo.ByFTP.PromptDialog"
+	promptClass  = "ByFTP.PromptDialog"
 	promptProc   = syscall.NewCallback(promptWndProc)
 )
 

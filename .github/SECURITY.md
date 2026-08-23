@@ -4,4 +4,4 @@ Za sigurnosno osjetljive prijave nemojte koristiti javni issue i nemojte objavlj
 
 Potpuni sigurnosni model i upute nalaze se u [`docs/SIGURNOST.md`](../docs/SIGURNOST.md).
 
-Kontakt za odgovornu prijavu: **info@brendigo.com**
+Kontakt za odgovornu prijavu: **https://github.com/bren-wp/by-ftp/issues**

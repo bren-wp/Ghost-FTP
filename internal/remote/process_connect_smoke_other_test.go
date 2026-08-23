@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 func prependTestToolDirectory(t *testing.T, dir string) {

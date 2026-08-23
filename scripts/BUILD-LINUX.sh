@@ -50,12 +50,12 @@ build_arch() {
 [Desktop Entry]
 Type=Application
 Name=ByFTP
-Comment=Siguran FTP, FTPS i SFTP klijent tvrtke Brendigo
+Comment=Siguran FTP, FTPS i SFTP klijent tvrtke ByFTP
 Exec=/usr/bin/byftp
 Icon=byftp
 Terminal=true
 Categories=Network;FileTransfer;
-Keywords=FTP;FTPS;SFTP;Brendigo;
+Keywords=FTP;FTPS;SFTP;ByFTP;
 EOF
 
   cat > "$root/DEBIAN/control" <<EOF
@@ -64,7 +64,7 @@ Version: ${VERSION}
 Section: net
 Priority: optional
 Architecture: ${debarch}
-Maintainer: Brendigo <info@brendigo.com>
+Maintainer: ByFTP <https://github.com/bren-wp/by-ftp/issues>
 Depends: ca-certificates, curl, openssh-client
 Homepage: https://github.com/bren-wp/by-ftp
 Description: ByFTP terminalni FTP, FTPS i SFTP klijent

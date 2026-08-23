@@ -16,8 +16,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 const maxPrivateKeySize = 1 << 20

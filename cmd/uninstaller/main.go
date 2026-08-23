@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 const (

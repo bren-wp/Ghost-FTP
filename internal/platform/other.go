@@ -24,10 +24,14 @@ func LocalAppData() (string, error) {
 }
 
 func SystemDirectory() (string, error) { return "", errors.New("Windows sistemska mapa nije dostupna") }
-func HardenProcessPrivacy()             {}
-func TrustedAskPassParent() bool        { return false }
-func ChoosePrivateKey() (string, error) { return "", errors.New("odabir privatnog ključa dostupan je iz terminalnog unosa") }
-func ChooseDirectory() (string, error)  { return "", errors.New("odabir direktorija dostupan je iz terminalnog unosa") }
+func HardenProcessPrivacy()            {}
+func TrustedAskPassParent() bool       { return false }
+func ChoosePrivateKey() (string, error) {
+	return "", errors.New("odabir privatnog ključa dostupan je iz terminalnog unosa")
+}
+func ChooseDirectory() (string, error) {
+	return "", errors.New("odabir direktorija dostupan je iz terminalnog unosa")
+}
 func MessageBox(title, text string, flags uintptr) int {
 	_, _ = os.Stderr.WriteString(title + ": " + text + "\n")
 	return 0

@@ -1,15 +1,15 @@
 package transfer
 
 import (
-	"brendigo.com/byftp/internal/config"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/remote"
-	"brendigo.com/byftp/internal/security"
-	"brendigo.com/byftp/internal/usererror"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"github.com/bren-wp/by-ftp/internal/config"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/usererror"
 	"path/filepath"
 	"strconv"
 	"strings"

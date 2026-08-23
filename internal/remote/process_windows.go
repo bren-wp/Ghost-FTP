@@ -21,24 +21,24 @@ var (
 )
 
 const (
-	createNoWindow       = 0x08000000
-	th32csSnapProcess    = 0x00000002
-	processTerminate     = 0x0001
-	windowsNoMoreFiles   = syscall.Errno(18)
-	windowsInvalidParam  = syscall.Errno(87)
+	createNoWindow      = 0x08000000
+	th32csSnapProcess   = 0x00000002
+	processTerminate    = 0x0001
+	windowsNoMoreFiles  = syscall.Errno(18)
+	windowsInvalidParam = syscall.Errno(87)
 )
 
 type processEntry32 struct {
-	Size              uint32
-	Usage             uint32
-	ProcessID         uint32
-	DefaultHeapID     uintptr
-	ModuleID          uint32
-	Threads           uint32
-	ParentProcessID   uint32
-	PriClassBase      int32
-	Flags             uint32
-	ExeFile           [260]uint16
+	Size            uint32
+	Usage           uint32
+	ProcessID       uint32
+	DefaultHeapID   uintptr
+	ModuleID        uint32
+	Threads         uint32
+	ParentProcessID uint32
+	PriClassBase    int32
+	Flags           uint32
+	ExeFile         [260]uint16
 }
 
 func configureToolCommand(cmd *exec.Cmd) {

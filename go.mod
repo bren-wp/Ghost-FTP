@@ -1,3 +1,3 @@
-module brendigo.com/byftp
+module github.com/bren-wp/by-ftp
 
 go 1.23.0

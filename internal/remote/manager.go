@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"brendigo.com/byftp/internal/config"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/profilebinding"
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/config"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/profilebinding"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 var (

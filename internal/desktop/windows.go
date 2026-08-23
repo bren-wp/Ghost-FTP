@@ -3,12 +3,12 @@
 package desktop
 
 import (
-	"brendigo.com/byftp/internal/api"
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/platform"
 	"context"
 	"fmt"
+	"github.com/bren-wp/by-ftp/internal/api"
+	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/platform"
 	"runtime"
 	"sync"
 	"syscall"
@@ -25,17 +25,17 @@ type app struct {
 
 	brandTitle, brandSubtitle, connectionBadge, sectionLocal, sectionRemote, sectionTransfers uintptr
 	profilesCombo, languageCombo, saveProfile, removeProfile, settingsBtn, aboutBtn           uintptr
-	protocol, host, port, user, pass                                                           uintptr
-	keyPath, chooseKey, passphrase                                                             uintptr
-	connect, disconnect                                                                        uintptr
-	localPath, localUp, localRefresh, localChoose, localList                                   uintptr
-	localMkdir, localRename, localDelete                                                       uintptr
-	remotePath, remoteUp, remoteRefresh, remoteList                                            uintptr
-	remoteMkdir, remoteRename, remoteDelete, remoteChmod                                       uintptr
-	upload, download                                                                           uintptr
-	transferList, pauseQueue, resumeQueue, cancelJob, retryJob, clearQueue                     uintptr
-	status, statusVersion, transferSummary                                                     uintptr
-	buttons                                                                                    map[uintptr]buttonVisual
+	protocol, host, port, user, pass                                                          uintptr
+	keyPath, chooseKey, passphrase                                                            uintptr
+	connect, disconnect                                                                       uintptr
+	localPath, localUp, localRefresh, localChoose, localList                                  uintptr
+	localMkdir, localRename, localDelete                                                      uintptr
+	remotePath, remoteUp, remoteRefresh, remoteList                                           uintptr
+	remoteMkdir, remoteRename, remoteDelete, remoteChmod                                      uintptr
+	upload, download                                                                          uintptr
+	transferList, pauseQueue, resumeQueue, cancelJob, retryJob, clearQueue                    uintptr
+	status, statusVersion, transferSummary                                                    uintptr
+	buttons                                                                                   map[uintptr]buttonVisual
 
 	mu                   sync.Mutex
 	dispatchQ            []func()
@@ -77,7 +77,7 @@ func Run(engine *api.Engine, version string) error {
 	cursor, _, _ := loadCursorW.Call(0, 32512)
 	icon, _, _ := loadIconW.Call(hinst, 1)
 	brush, _, _ := createSolidBrush.Call(windowColor())
-	className := wstr("Brendigo.ByFTP.NativeWindow")
+	className := wstr("ByFTP.NativeWindow")
 	wc := wndClassEx{
 		CbSize:     uint32(unsafe.Sizeof(wndClassEx{})),
 		WndProc:    wndProcPtr,

@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/config"
-	"brendigo.com/byftp/internal/localfs"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/remote"
-	"brendigo.com/byftp/internal/security"
-	"brendigo.com/byftp/internal/transfer"
+	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/config"
+	"github.com/bren-wp/by-ftp/internal/localfs"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/transfer"
 )
 
 type Engine struct {

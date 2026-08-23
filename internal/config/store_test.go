@@ -1,8 +1,8 @@
 package config
 
 import (
-	"brendigo.com/byftp/internal/model"
 	"encoding/json"
+	"github.com/bren-wp/by-ftp/internal/model"
 	"os"
 	"path/filepath"
 	"sync"

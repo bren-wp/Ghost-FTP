@@ -56,8 +56,8 @@ func init() {
 			catalog["terminal.language_usage"] = "Usage: language <" + codes + ">"
 		}
 		for key, value := range catalog {
-			value = strings.ReplaceAll(value, "Brendigo", "ByFTP")
-			value = strings.ReplaceAll(value, "brendigo.com", "github.com/bren-wp/by-ftp")
+			value = strings.ReplaceAll(value, "ByFTP", "ByFTP")
+			value = strings.ReplaceAll(value, "github.com/bren-wp/by-ftp", "github.com/bren-wp/by-ftp")
 			catalog[key] = value
 		}
 	}

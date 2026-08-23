@@ -1,9 +1,9 @@
 package remote
 
 import (
-	"brendigo.com/byftp/internal/model"
 	"context"
 	"errors"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 var ErrSkipped = errors.New("prijenos je preskočen jer odredišna datoteka već postoji")

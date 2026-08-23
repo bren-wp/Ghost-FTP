@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 type uploadSourceSnapshot struct {

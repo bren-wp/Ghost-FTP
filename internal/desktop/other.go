@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"brendigo.com/byftp/internal/api"
-	"brendigo.com/byftp/internal/i18n"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/usererror"
+	"github.com/bren-wp/by-ftp/internal/api"
+	"github.com/bren-wp/by-ftp/internal/i18n"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/usererror"
 )
 
 func prompt(reader *bufio.Reader, label, fallback string) (string, error) {
