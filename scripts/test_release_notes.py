@@ -10,28 +10,31 @@ class ReleaseNotesTests(unittest.TestCase):
     def test_extracts_exact_version_section(self) -> None:
         changelog = """# Changelog
 
-## 1.1.1 — Current
+## 1.2.0 — Current
 
 - current change
 
-## 1.1.0 — Previous
+## 1.1.1 — Previous
 
 - previous change
 """
-        section = extract_section(changelog, "1.1.1")
+        section = extract_section(changelog, "1.2.0")
         self.assertIn("current change", section)
         self.assertNotIn("previous change", section)
 
-    def test_public_notes_are_english_first_and_describe_android_artifacts(self) -> None:
-        notes = build_notes("1.1.1", "- Android APK release packaging.")
+    def test_public_notes_are_english_first_and_describe_mobile_artifacts(self) -> None:
+        notes = build_notes("1.2.0", "- Native iOS release packaging.")
         for marker in (
-            "ByFTP 1.1.1",
-            "Privacy-focused FTP / FTPS / SFTP client",
+            "ByFTP 1.2.0",
+            "Privacy-focused file-transfer client",
+            "Windows, Linux, macOS, Android and iOS",
             "Highlights",
             "Official packages",
             "Android debug APK",
             "Android release-unsigned APK",
-            "production store-signed build",
+            "iOS arm64 unsigned IPA",
+            "iOS arm64 unsigned app ZIP",
+            "valid Apple signing identity",
             "Release verification",
             "Before installing",
             "Signing status",
