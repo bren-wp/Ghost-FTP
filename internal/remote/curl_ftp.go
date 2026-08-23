@@ -15,9 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 type CurlFTP struct {
@@ -161,7 +161,7 @@ func (c *CurlFTP) configFor(password []byte, lines []string) []byte {
 func (c *CurlFTP) run(ctx context.Context, lines []string) ([]byte, error) {
 	password, err := security.UnprotectRuntimeBytes(c.passwordBlob)
 	if err != nil {
-		return nil, errors.New("vjerodajnicu aktivne veze nije moguće otključati")
+		return nil, errors.New("active connection credential could not be unlocked")
 	}
 	defer security.WipeBytes(password)
 	cfg := c.configFor(password, lines)
@@ -180,7 +180,7 @@ func (c *CurlFTP) run(ctx context.Context, lines []string) ([]byte, error) {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		if overflowErr := er.Err("dijagnostički odgovor"); overflowErr != nil {
+		if overflowErr := er.Err("diagnostic output"); overflowErr != nil {
 			return nil, overflowErr
 		}
 		msg := strings.TrimSpace(er.String())
@@ -189,7 +189,7 @@ func (c *CurlFTP) run(ctx context.Context, lines []string) ([]byte, error) {
 		}
 		return nil, newToolError("curl", err, msg)
 	}
-	if err := out.Err("odgovor"); err != nil {
+	if err := out.Err("output"); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -254,7 +254,7 @@ func parseMLSD(data []byte) ([]model.Item, bool, error) {
 		if item, ok := parseMLSDLine(line); ok {
 			items = append(items, item)
 			if len(items) > maxDirectoryItems {
-				return nil, true, errors.New("mapa sadrži previše stavki za siguran prikaz")
+				return nil, true, errors.New("folder contains too many items for safe display")
 			}
 		}
 	}
@@ -311,10 +311,10 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 		return nil, err
 	}
 	if mlsdFallback {
-		// Ako obični LIST radi nakon MLSD greške ili neprepoznatljivog MLSD
-		// odgovora, ta sesija koristi kompatibilni LIST ostatak vremena. Time
-		// stari/shared-hosting serveri ne dobivaju isti neuspjeli MLSD pri svakom
-		// refreshu direktorija.
+		// If plain LIST succeeds after an MLSD error or unrecognized MLSD
+		// output, keep the session on the compatible LIST fallback for its lifetime. This
+		// prevents legacy/shared-hosting servers from receiving the same failing MLSD on every
+		// directory refresh.
 		c.mlsdState.Store(-1)
 	}
 	var items []model.Item
@@ -322,10 +322,9 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 		if item, ok := parseListLine(line); ok {
 			items = append(items, item)
 			if len(items) > maxDirectoryItems {
-				return nil, errors.New("mapa sadrži previše stavki za siguran prikaz")
+				return nil, errors.New("folder contains too many items for safe display")
 			}
 		}
-	}
 	sortItems(items)
 	return items, nil
 }
@@ -348,10 +347,10 @@ func (c *CurlFTP) quote(ctx context.Context, cmds ...string) error {
 	// curl can continue with a directory transfer after the mutation; a later
 	// data-channel failure would then be reported as if MKD/RNFR/DELE itself had
 	// failed even though the server had already applied it.
-	lines := []string{"url = " + cfgQuote(c.baseURL("/")), "no-body"}
+	lines := []string{"url = " + cfgQuote(c.baseURL("/")), "head"}
 	for _, q := range cmds {
 		if strings.ContainsAny(q, "\x00\r\n") {
-			return errors.New("neispravna FTP naredba")
+			return errors.New("invalid FTP command")
 		}
 		lines = append(lines, "quote = "+cfgQuote(q))
 	}
@@ -411,10 +410,10 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 		return err
 	}
 	if st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
-		return errors.New("simboličke poveznice i junctione nije dopušteno prenositi")
+		return errors.New("symbolic links and junctions cannot be transferred")
 	}
 	if st.IsDir() {
-		return errors.New("upload očekuje datoteku")
+		return errors.New("upload requires a file")
 	}
 	dir, base, tempName, savedName, err := remoteTransferNames(remotePath)
 	if err != nil {
@@ -422,11 +421,11 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 	}
 	items, err := c.List(ctx, dir)
 	if err != nil {
-		return fmt.Errorf("nije moguće provjeriti odredišni direktorij: %w", err)
+		return fmt.Errorf("unable to verify destination directory: %w", err)
 	}
 	if existing, ok := remoteEntry(items, base); ok {
 		if existing.IsDirectory || existing.IsSymlink {
-			return errors.New("odredište nije obična datoteka i neće biti prepisano")
+			return errors.New("destination is not a regular file and will not be overwritten")
 		}
 		if options.SkipExisting {
 			return ErrSkipped
@@ -459,7 +458,7 @@ func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, option
 	if options.SkipExisting {
 		if st, err := os.Lstat(local); err == nil {
 			if st.IsDir() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
-				return errors.New("ciljna putanja nije obična datoteka")
+				return errors.New("target path is not a regular file")
 			}
 			return ErrSkipped
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -489,7 +488,7 @@ func replaceLocalFileAtomic(local, part string, keepBackup bool) error {
 	if st, err := os.Lstat(local); err == nil {
 		if st.IsDir() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
 			_ = os.Remove(part)
-			return errors.New("ciljna putanja nije obična datoteka")
+			return errors.New("target path is not a regular file")
 		}
 		kind := "rollback"
 		preserveBase := false
@@ -510,7 +509,7 @@ func replaceLocalFileAtomic(local, part string, keepBackup bool) error {
 			restoreErr := platform.RenameNoReplace(bak, local)
 			_ = os.Remove(part)
 			if restoreErr != nil {
-				return fmt.Errorf("nova datoteka nije aktivirana, a izvorna nije mogla biti vraćena; sigurnosna kopija ostala je na %s: %w", bak, restoreErr)
+				return fmt.Errorf("new file was not activated and the original could not be restored; backup remains at %s: %w", bak, restoreErr)
 			}
 			return err
 		}
