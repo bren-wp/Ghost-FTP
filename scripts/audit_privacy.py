@@ -176,7 +176,10 @@ def main() -> None:
         "security.EnsureLocalWithinRoot(job.LocalRoot, job.LocalPath)", "remote.IsRetryable(err)",
     ))
     require("internal/localfs/service.go", ("security.IsReparsePoint", "platform.RenameNoReplace"))
-    require("cmd/byftp/main.go", ("security.EnsureNoRedirectDirectory(localAppData, dataDir)",))
+    require(
+        "cmd/byftp/main.go",
+        ("security.EnsureNoRedirectDirectory(", "localAppData,", "dataDir,"),
+    )
     require("internal/security/remove_tree.go", ("func RemoveTreeNoFollow(", "isReparsePoint", "os.ModeSymlink"))
     require("internal/desktop/ui_windows.go", ("limitEdit(a.host, 253)", "limitEdit(a.user, 1024)", "limitEdit(a.pass, 8192)", "limitEdit(a.passphrase, 8192)", "limitEdit(a.remotePath, 4096)"))
 
