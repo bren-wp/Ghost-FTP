@@ -42,7 +42,16 @@ def main() -> int:
     if not curl:
         fail("CurlFTP runtime credential contract is unavailable")
 
-    require("cmd/byftp/main.go", ("func selectAskpassSecret(", "nepoznat ili nepodržan zahtjev za vjerodajnicu"))
+    require("cmd/byftp/main.go", (
+        "func selectAskpassSecret(",
+        "unknown or unsupported credential request",
+        "invalid authentication request",
+        "untrusted parent process",
+        "clearAskpassEnvironment()",
+        "platform.TrustedAskPassParent()",
+        "security.WipeBytes(password)",
+        "security.WipeBytes(passphrase)",
+    ))
     require("cmd/byftp/askpass_test.go", ("TestSelectAskpassSecret", "Verification code", "One-time password token"))
     require("internal/remote/sftp_stream_test.go", ("TestSFTPCommandArgsKeepAskPassEnabled", "sftp -b"))
     require("internal/remote/connect_regression_test.go", ("TestSSHSessionConfigNormalizesBracketedIPv6Host", "TestFindOpenSSHUsesNativeExecutableNameOutsideWindows"))
