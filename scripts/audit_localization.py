@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SUPPORTED = ("en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja")
+SUPPORTED = ("en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja", "it", "pl", "nl", "cs", "uk", "sv")
 
 
 def fail(message: str) -> None:
@@ -41,6 +41,7 @@ def main() -> int:
         "internal/i18n/locale_el_pt.go",
         "internal/i18n/locale_zh_ru.go",
         "internal/i18n/locale_hi_ja.go",
+        "internal/i18n/locale_additional.go",
         "internal/i18n/i18n_test.go",
     )
     for rel in required_catalog_files:
@@ -50,12 +51,12 @@ def main() -> int:
     if '"en": {' not in catalog or '"hr": {' not in catalog:
         fail("canonical English and Croatian catalogs must be explicit")
     test_text = read("internal/i18n/i18n_test.go")
-    for marker in ("ValidateCatalogs()", "expected 12 supported languages", "format verbs differ"):
+    for marker in ("ValidateCatalogs()", "expected 18 supported languages", "format verbs differ"):
         if marker not in test_text:
             fail(f"localization regression test is missing marker: {marker}")
 
     settings = read("internal/model/types.go")
-    if 'Language' not in settings or 'json:"language,omitempty"' not in settings:
+    if 'Language' not in settings or 'json:\"language,omitempty\"' not in settings:
         fail("language must be persisted in Settings")
     settings_store = read("internal/config/settings.go")
     for marker in ("i18n.DefaultLanguage", "i18n.Normalize", "i18n.IsSupported"):
@@ -67,8 +68,6 @@ def main() -> int:
         if marker not in windows:
             fail(f"Windows live localization is missing: {marker}")
 
-    # Root product documentation is canonical English. Localized docs may live
-    # below docs/i18n and are intentionally excluded from this English check.
     readme = read("README.md")
     for marker in (f"Current release: {version}", "## Languages", "English"):
         if marker not in readme:

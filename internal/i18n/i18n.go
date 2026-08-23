@@ -27,6 +27,12 @@ var supportedLanguages = []Language{
 	{Code: "ru", EnglishName: "Russian", NativeName: "Русский"},
 	{Code: "hi", EnglishName: "Hindi", NativeName: "हिन्दी"},
 	{Code: "ja", EnglishName: "Japanese", NativeName: "日本語"},
+	{Code: "it", EnglishName: "Italian", NativeName: "Italiano"},
+	{Code: "pl", EnglishName: "Polish", NativeName: "Polski"},
+	{Code: "nl", EnglishName: "Dutch", NativeName: "Nederlands"},
+	{Code: "cs", EnglishName: "Czech", NativeName: "Čeština"},
+	{Code: "uk", EnglishName: "Ukrainian", NativeName: "Українська"},
+	{Code: "sv", EnglishName: "Swedish", NativeName: "Svenska"},
 }
 
 func Languages() []Language {
@@ -96,18 +102,11 @@ func IsAffirmative(language, answer string) bool {
 		return true
 	}
 	accepted := map[string][]string{
-		"en": {"yes"},
-		"hr": {"da", "d"},
-		"de": {"ja", "j"},
-		"fr": {"oui", "o"},
-		"es": {"sí", "si", "s"},
-		"tr": {"evet", "e"},
-		"el": {"ναι", "ν"},
-		"pt": {"sim", "s"},
-		"zh": {"是", "是的"},
-		"ru": {"да", "д"},
-		"hi": {"हाँ", "हां", "ह"},
-		"ja": {"はい"},
+		"en": {"yes"}, "hr": {"da", "d"}, "de": {"ja", "j"}, "fr": {"oui", "o"},
+		"es": {"sí", "si", "s"}, "tr": {"evet", "e"}, "el": {"ναι", "ν"}, "pt": {"sim", "s"},
+		"zh": {"是", "是的"}, "ru": {"да", "д"}, "hi": {"हाँ", "हां", "ह"}, "ja": {"はい"},
+		"it": {"sì", "si", "s"}, "pl": {"tak", "t"}, "nl": {"ja", "j"}, "cs": {"ano", "a"},
+		"uk": {"так", "т"}, "sv": {"ja", "j"},
 	}
 	for _, value := range accepted[Normalize(language)] {
 		if answer == value {

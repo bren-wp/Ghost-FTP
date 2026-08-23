@@ -12,10 +12,11 @@ ByFTP is a privacy-focused FTP, FTPS and SFTP file-transfer client for Windows, 
 - Shared-hosting friendly `public_html` workflow, passive FTP and MLSD → LIST fallback.
 - Bounded transfer queue with pause, resume, cancel and retry.
 - Safe overwrite staging, backup/rollback and path/symlink protections.
-- English is the canonical and fallback language.
-- Runtime localization for English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish.
-- The Windows setup wizard asks for language before installation and persists that choice as the initial application language.
 - No application telemetry, ads or fixed project runtime API.
+
+## Languages
+
+English is the canonical and fallback language. Runtime localization is available for English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish. The Windows setup wizard asks for language before installation and persists that choice as the initial application language.
 
 ## Build and install
 
