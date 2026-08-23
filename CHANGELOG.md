@@ -6,17 +6,23 @@
 
 - Added an isolated native Android application under `android/` rather than embedding a web view or hidden local service.
 - Added FTP, explicit FTPS, implicit FTPS and SFTP connections for Android.
-- Added passive/binary FTP behavior and FTPS endpoint/hostname certificate checking.
+- Added passive/binary FTP behavior and FTPS private data-channel protection.
+- Android FTPS now explicitly uses the Android/JVM platform trust manager plus endpoint/hostname certificate checking; permissive/custom trust managers are rejected by the mobile source audit.
 - Made the expected OpenSSH-style `SHA256:` host-key fingerprint mandatory for Android SFTP and delegated verification to SSHJ's native fingerprint verifier.
 - Added remote directory browsing/navigation, refresh, upload, download, create directory, rename and delete operations.
 - Added Android Storage Access Framework upload/download so the application does not request broad filesystem/storage permission.
-- Kept Android passwords session-only; the initial mobile client does not write passwords or SSH secrets to preferences, files or a ByFTP backend.
+- Kept Android passwords session-only; the mobile client does not write passwords or SSH secrets to preferences, databases, files or a ByFTP backend.
+- Added Android backup and device-transfer exclusion rules for root, file, database, shared-preference and external app-data domains.
+- Disabled generic cleartext traffic for Android platform-aware networking while retaining explicit plain FTP only as a user-selected compatibility protocol.
+- Hardened Android Activity destruction: pending/active remote clients are tracked and closed, executor work is interrupted and late main-thread callbacks are ignored.
+- Removed dead Android UI/resources and enabled release resource shrinking alongside code minification.
 - Deliberately deferred Android private-key import until Android Keystore-backed key handling and migration semantics are implemented and audited.
-- Added Android connection/path unit tests plus static mobile security/privacy invariants.
+- Added Android connection/path/security/version tests plus static mobile security/privacy/lifecycle invariants.
 - Added a dedicated Android CI job using JDK 17, Gradle 9.5.0, Android Gradle Plugin 9.3.0 and API 37.
+- Android CI runs JUnit, lint with warnings treated as errors and debug APK compilation; lint reports and APKs are retained as validation evidence.
 - Bound Android `versionName` and `versionCode` to the repository root `VERSION` source.
 - Added Android source validation as a production release gate; a public production APK is intentionally withheld until a stable private signing identity exists.
-- Updated root documentation, installation, architecture, security, privacy, testing and release documentation for the new platform.
+- Updated root documentation, Android documentation, installation, architecture, security, privacy, testing and release documentation for the new platform.
 
 ## 1.0.13 — Release pipeline and packaging finalization
 
