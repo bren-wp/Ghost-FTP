@@ -9,6 +9,12 @@
 *.sha256
 *.apk
 *.aab
+*.ipa
+
+# Generated iOS/Xcode state
+/ios/ByFTP/Assets.xcassets/AppIcon.appiconset/*.png
+/ios/**/xcuserdata/
+*.xcuserstate
 
 # Temporary/runtime files
 *.tmp
