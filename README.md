@@ -16,9 +16,11 @@ ByFTP is a privacy-focused **FTP, FTPS and SFTP** client for Windows, Linux, mac
 - Remote browse, upload, download, create directory, rename and delete operations.
 - Desktop transfer queue with pause, resume, cancel and retry.
 - Fail-closed SFTP host-key verification and SHA-256 fingerprint pinning.
-- TLS endpoint verification for FTPS.
+- FTPS certificate-chain and endpoint/hostname verification.
+- Native Android application under `android/` — not a WebView wrapper.
 - Android uploads/downloads through the Storage Access Framework without broad storage permissions.
 - Session-only Android passwords; no Android credential database or plaintext secret persistence.
+- Android app data excluded from cloud-backup and device-transfer extraction rules.
 - No application telemetry, advertising SDK or mandatory ByFTP cloud account.
 
 ## Supported platforms
@@ -33,7 +35,7 @@ ByFTP is a privacy-focused **FTP, FTPS and SFTP** client for Windows, Linux, mac
 | macOS | Universal PKG |
 | Android 8.0+ (API 26+) | Native source in `android/`; CI-tested debug APK evidence |
 
-Windows, Linux and macOS public packages are produced by the gated release workflow. Android source is a required release-quality gate starting with 1.1.0, but a public Android production APK is intentionally not published until a stable private Android signing identity is available. The project never commits or fabricates a production signing key.
+Windows, Linux and macOS public packages are produced by the gated release workflow. Android source is a required release-quality gate starting with 1.1.0. A public Android production APK is intentionally not published until a stable private Android signing identity is configured outside the repository. The project never commits or fabricates a production signing key.
 
 ## Protocols
 
@@ -43,11 +45,13 @@ FTP remains available for compatibility with servers that require it. FTP does *
 
 ### FTPS
 
-ByFTP supports explicit and implicit FTPS. TLS protects the FTP session and endpoint/hostname certificate verification remains enabled.
+ByFTP supports explicit and implicit FTPS. On Android, the FTPS adapter explicitly selects the platform trust manager, enables endpoint/hostname checking and protects the FTP data channel with `PROT P`. ByFTP Android source is audited to reject custom trust-all TLS implementations.
 
 ### SFTP
 
-SFTP uses SSH host-key verification. Desktop builds preserve the established host-key pinning and credential-hardening model. The Android client requires the expected OpenSSH-style `SHA256:` host-key fingerprint before connecting and uses SSHJ's native fingerprint verifier. Android 1.1.0 supports SFTP password authentication; private-key import is deferred until Android Keystore-backed handling is designed and audited.
+SFTP uses SSH host-key verification. Desktop builds preserve the established host-key pinning and credential-hardening model. The Android client requires the expected OpenSSH-style `SHA256:` host-key fingerprint before connecting and uses SSHJ's native fingerprint verifier.
+
+Android 1.1.0 supports SFTP password authentication. Private-key import is deliberately deferred until Android Keystore-backed handling, import validation and migration semantics are designed and audited.
 
 ## Shared-hosting workflow
 
@@ -61,19 +65,43 @@ A typical workflow is:
 
 See [Shared hosting](docs/SHARED-HOSTING.md).
 
+## Android 1.1.0
+
+The Android application is isolated from the Go desktop runtime so mobile lifecycle, permissions and networking can be tested independently.
+
+The initial native Android client provides:
+
+- FTP, explicit FTPS, implicit FTPS and SFTP.
+- Remote directory listing and navigation.
+- Upload/download using Android document providers.
+- Create directory, rename and delete operations.
+- Mandatory SFTP SHA-256 host-key pinning.
+- FTPS platform certificate trust plus hostname verification.
+- No broad storage permission.
+- No password or SSH-secret persistence.
+- No analytics, advertising SDK or ByFTP runtime backend.
+- Explicit cloud-backup/device-transfer exclusions.
+- Connection cleanup when the Activity is destroyed and protection against late UI callbacks.
+
+See [ByFTP for Android](android/README.md).
+
 ## Security and safer transfers
 
 The desktop transfer engine is deliberately conservative around destructive operations: uploads use staging, destinations are revalidated before commit, cleanup uncertainty is surfaced, local filesystem boundaries reject unsafe links/reparse points and stale session generations cannot mutate newer connections.
 
-Android uses a smaller native protocol boundary appropriate to the mobile lifecycle. It validates host/port input, requires SFTP SHA-256 host-key pinning, enables FTPS endpoint checking, uses passive/binary FTP mode and obtains local files through Android document providers instead of requesting unrestricted storage access.
+Android uses a smaller native protocol boundary appropriate to the mobile lifecycle. It validates host/port input, requires SFTP SHA-256 host-key pinning, explicitly uses platform TLS trust for FTPS, enables endpoint checking, uses passive/binary FTP mode and obtains local files through Android document providers instead of requesting unrestricted storage access.
 
-Passwords must never be logged. Android passwords are held only for the active in-memory connection configuration and are not written to preferences, files or a project backend.
+Passwords must never be logged. Android passwords are held only for the active in-memory connection configuration and are not written to preferences, databases, files or a project backend.
+
+Android generic cleartext traffic is disabled for platform-aware network stacks. Application data is excluded from Android backup/device-transfer extraction rules.
 
 See [Security](docs/SECURITY.md).
 
 ## Privacy
 
-ByFTP has no project-controlled runtime API, analytics SDK, advertising SDK or mandatory account service. Connections are initiated only to hosts selected by the user. Desktop saved-state behavior remains platform-specific and documented; the Android 1.1.0 client does not persist connection passwords.
+ByFTP has no project-controlled runtime API, analytics SDK, advertising SDK or mandatory account service. Connections are initiated only to hosts selected by the user.
+
+Desktop saved-state behavior remains platform-specific and documented. Android 1.1.0 does not persist connection passwords or SSH secrets, does not request broad storage access and excludes app data from cloud-backup/device-transfer flows.
 
 See [Privacy](docs/PRIVACY.md).
 
@@ -113,7 +141,7 @@ ByFTP's desktop implementation uses Go. The canonical module path is:
 github.com/bren-wp/by-ftp
 ```
 
-`VERSION` is the single production version source. Desktop binaries/packages and Android `versionName` derive from it.
+`VERSION` is the single production version source. Desktop binaries/packages and Android `versionName`/`versionCode` derive from it.
 
 Windows:
 
@@ -146,6 +174,8 @@ From the repository root with JDK 17, Gradle 9.5.0 and Android SDK 37 installed:
 gradle -p android :app:clean :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
 ```
 
+Release builds enable code minification and resource shrinking.
+
 ## Tests and audits
 
 Core gates include:
@@ -165,7 +195,7 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Android additionally runs JUnit, Android lint and `assembleDebug` in a separate CI job. See [Testing](docs/TESTING.md).
+Android additionally runs JUnit, Android lint with warnings treated as errors, APK compilation and dedicated mobile security/privacy/version/lifecycle audits in a separate CI job. See [Testing](docs/TESTING.md).
 
 ## Release integrity
 
@@ -176,9 +206,10 @@ The release lane is fail-closed:
 - Security, privacy, documentation and release-contract audits are mandatory.
 - Windows, Linux, macOS **and Android source validation** must pass before publication.
 - Android validation includes unit tests, lint and APK compilation.
+- Android debug APKs are CI evidence and are not represented as production-signed packages.
 - Public desktop release staging uses an exact allowlist and SHA-256 checksums.
 - GitHub Release mutation remains centralized in `scripts/publish_release.ps1`.
-- Android production distribution is kept separate until a real signing identity is configured.
+- Android production distribution remains separate until a real private signing identity is configured.
 
 See [GitHub releases](docs/GITHUB-RELEASES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Signing](docs/SIGNING.md).
 
