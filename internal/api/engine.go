@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/appdata"
 	"github.com/bren-wp/by-ftp/internal/config"
 	"github.com/bren-wp/by-ftp/internal/localfs"
 	"github.com/bren-wp/by-ftp/internal/model"
@@ -208,9 +208,5 @@ func (e *Engine) Close() {
 }
 
 func DataDir() (string, error) {
-	base, err := platform.LocalAppData()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(base, brand.ProductName), nil
+	return appdata.Dir()
 }
