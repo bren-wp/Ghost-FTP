@@ -1,41 +1,53 @@
 # Architecture
 
-ByFTP has two intentionally separate runtime implementations that share product, security and release policy rather than process memory.
+ByFTP has three intentionally separate runtime implementations that share product, security and release policy rather than process memory: the Go desktop client, native Android client and native iOS client.
 
 ## Desktop core
 
-The Windows/Linux/macOS implementation is written in Go and split into small typed packages. `cmd/byftp` starts the client, `cmd/installer` and `cmd/uninstaller` own the Windows lifecycle, `internal/api` exposes the engine, `internal/desktop` contains presentation, `internal/remote` owns protocol sessions, `internal/transfer` owns queue state, `internal/config` owns durable settings/profiles, `internal/security` centralizes hardening, `internal/i18n` owns localization and `internal/platform` isolates operating-system primitives.
+Windows/Linux/macOS are implemented in Go. `cmd/byftp` starts the client, `cmd/installer` and `cmd/uninstaller` own the Windows lifecycle, `internal/api` exposes typed engine operations, `internal/desktop` contains presentation, `internal/remote` owns FTP/FTPS/SFTP sessions, `internal/transfer` owns queue state, `internal/config` owns durable settings/profiles, `internal/security` centralizes hardening, `internal/i18n` owns localization and `internal/platform` isolates operating-system primitives.
 
-The Windows entrypoint also contains the constrained OpenSSH AskPass helper path. AskPass parent/token validation, protected-secret handling and environment clearing remain security boundaries separate from localized desktop UI text.
+The constrained Windows OpenSSH AskPass path remains a separate security boundary with trusted-parent/token validation, protected runtime secrets and environment cleanup.
 
 ## Android runtime
 
-`android/` is a native Android application using Java 17 and Android platform APIs. It does not embed the Go desktop executable, start a localhost bridge or send credentials to a ByFTP service.
+`android/` is a native Java/Android application. It does not embed the Go executable, start a localhost bridge or send credentials through a ByFTP service.
 
-The Android module is separated into:
+- `model/` contains validated connection configuration, remote entries and strict remote-path helpers.
+- `remote/` contains FTP/FTPS and SFTP adapters behind the `RemoteClient` boundary.
+- `MainActivity` owns Android UI/lifecycle orchestration and Storage Access Framework interaction.
+- `res/` contains UI resources and network-security/backup/device-transfer policy.
+- `android/app/src/test` contains unit/security/path/version regressions.
 
-- `model/`: validated connection configuration, remote entries and remote-path helpers.
-- `remote/`: a small `RemoteClient` boundary with independent FTP/FTPS and SFTP adapters.
-- `MainActivity`: Android UI/lifecycle orchestration and Storage Access Framework interaction.
-- `res/`: UI resources plus network-security, backup and device-transfer policy.
-- `android/app/src/test`: unit/security/path/version regressions.
+Commons Net provides FTP/FTPS primitives. SSHJ provides SFTP primitives. Android 1.2.0 validates SFTP fingerprints as real 32-byte SHA-256 digests, rejects credential control characters and fails closed on traversal/noncanonical remote paths.
 
-Apache Commons Net provides FTP/FTPS primitives. The FTPS adapter explicitly uses platform trust, endpoint/hostname verification and `PROT P`. FTP/FTPS records the authenticated login working directory and maps the UI root to that account namespace, with a login-relative fallback when `PWD` is unavailable.
+## iOS runtime
 
-SSHJ provides SFTP/SSH primitives and its native SHA-256 fingerprint verifier is used for mandatory host-key pinning.
+`ios/` is a native SwiftUI application with a conventional Xcode project and shared scheme. It does not embed a WebView or hidden desktop process.
 
-Android connection passwords and SSH secrets are not persisted. Local file access is delegated to Android document providers through content URIs; broad storage permissions are not requested. Application data is excluded from Android cloud-backup and device-transfer flows.
+- `ConnectionConfig.swift` owns validated host/port/credential input and the intentionally limited first-release protocol set.
+- `RemoteModels.swift` owns canonical remote paths and shared-hosting login-root mapping.
+- `SocketConnection.swift` wraps Network.framework with bounded async I/O.
+- `FTPRemoteClient.swift` implements FTP and implicit FTPS, passive-mode safety, MLSD/LIST parsing and remote operations.
+- `SessionStore.swift` owns generation-bound async state so stale operations cannot update a disconnected/newer session.
+- `ConnectionView.swift`, `RemoteBrowserView.swift` and `ContentView.swift` keep presentation separate from transport/session logic.
+- `ios/Tests/ModelTests.swift` supplies dependency-free input/path regressions.
 
-Blocking network work stays on a dedicated executor. Pending and active remote clients are tracked separately; destruction detaches/closes both, interrupts queued work and discards late UI callbacks. Download-picker state is consumed/cleared when a result arrives so stale remote targets do not survive an incomplete picker flow.
+The first iOS release intentionally supports FTP and implicit FTPS only. Explicit FTPS and SFTP require separately audited native implementations before they can be exposed.
+
+Network.framework supplies TCP/TLS. FTPS uses platform TLS verification and `PROT P`. EPSV is preferred; PASV fallback accepts only the advertised port and keeps the data connection on the user-selected host. The authenticated FTP `PWD` becomes the UI account root. The transport password copy is cleared after connect and the UI disconnects when the app enters the background.
 
 ## Build and packaging boundary
 
-Root `VERSION` is shared across desktop and Android product metadata. Android Gradle produces a debug APK and an optimized unsigned release APK. `scripts/package_android.py` validates both APK containers and stages versioned release names. This packaging step does not create a production publisher identity.
+Root `VERSION` is shared by all platforms.
 
-The public GitHub Release can therefore contain build-valid Android APK artifacts while production Android signing remains a separate external trust boundary. The debug APK uses the standard debug identity; the release APK remains unsigned until a real private production identity is applied outside the repository.
+- Windows builds x64/x86 Setup, Portable and verified ZIP bundles.
+- Linux builds amd64/arm64/i386 DEBs.
+- macOS builds a Universal PKG.
+- Android builds debug-signed and optimized unsigned APKs; `scripts/package_android.py` validates/stages them.
+- iOS builds a generic arm64 iPhoneOS `.app`; `scripts/package_ios.py` validates the bundle and creates an unsigned IPA plus unsigned app ZIP.
+
+Android production signing and Apple iOS signing remain external trust boundaries. The repository never fabricates a production publisher identity.
 
 ## Shared invariants
 
-Both runtimes use the root `VERSION`, keep project telemetry/advertising absent, contact only endpoints selected by the user and must pass repository release gates.
-
-Desktop and Android controls are platform-specific rather than simulated through a shared hidden runtime. Android has dedicated audits for SFTP host-key pinning, FTPS trust/hostname checks, FTP login-root paths, cleartext policy, storage/backup rules, password persistence, picker/lifecycle cleanup, APK packaging and version binding. Windows/Linux/macOS keep their existing independent build and security gates.
+All runtimes use canonical versioning, contact only endpoints selected by the user, avoid application telemetry/advertising and participate in fail-closed CI/release gates. Platform-specific security controls remain native rather than being weakened to force a single shared implementation.
