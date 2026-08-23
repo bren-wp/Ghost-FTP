@@ -8,6 +8,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 SELF = Path(__file__).resolve()
+WORKFLOWS = ROOT / '.github' / 'workflows'
 TEXT_EXT = {'.go', '.py', '.md', '.yml', '.yaml', '.ps1', '.sh', '.cmd', '.mod', '.sum', '.txt', '.json', '.xml'}
 REPL = {
     'brendigo.com/byftp': 'github.com/bren-wp/by-ftp',
@@ -20,11 +21,19 @@ REPL = {
     'Brendigo': 'ByFTP',
 }
 
+def is_workflow(path: Path) -> bool:
+    try:
+        path.resolve().relative_to(WORKFLOWS.resolve())
+        return True
+    except ValueError:
+        return False
+
 for path in ROOT.rglob('*'):
     if (
         not path.is_file()
         or path.name == 'LICENSE'
         or path.resolve() == SELF
+        or is_workflow(path)
         or '.git' in path.parts
         or path.suffix.lower() not in TEXT_EXT
     ):
@@ -36,8 +45,6 @@ for path in ROOT.rglob('*'):
     updated = current
     for old, new in REPL.items():
         updated = updated.replace(old, new)
-    # Catch case variants left in identifiers, tests or comments after the
-    # structured replacements above. Legal attribution is excluded separately.
     updated = re.sub(r'brendigo', 'ByFTP', updated, flags=re.IGNORECASE)
     if updated != current:
         path.write_text(updated, encoding='utf-8', newline='\n')
@@ -56,17 +63,11 @@ if curl_ftp.exists():
 (ROOT / 'VERSION').write_text('1.0.12\n', encoding='utf-8', newline='\n')
 
 renames = {
-    'ARHITEKTURA.md': 'ARCHITECTURE.md',
-    'DOPRINOS.md': 'CONTRIBUTING.md',
-    'INSTALACIJA.md': 'INSTALLATION.md',
-    'IZDAVANJE-NA-GITHUBU.md': 'GITHUB-RELEASES.md',
-    'OBAVIJESTI-TRECIH-STRANA.md': 'THIRD-PARTY-NOTICES.md',
-    'PLAN-RAZVOJA.md': 'ROADMAP.md',
-    'PODRSKA.md': 'SUPPORT.md',
-    'POTPISIVANJE.md': 'SIGNING.md',
-    'PRIVATNOST.md': 'PRIVACY.md',
-    'PROVJERA-IZDANJA.md': 'RELEASE-VERIFICATION.md',
-    'SIGURNOST.md': 'SECURITY.md',
+    'ARHITEKTURA.md': 'ARCHITECTURE.md', 'DOPRINOS.md': 'CONTRIBUTING.md',
+    'INSTALACIJA.md': 'INSTALLATION.md', 'IZDAVANJE-NA-GITHUBU.md': 'GITHUB-RELEASES.md',
+    'OBAVIJESTI-TRECIH-STRANA.md': 'THIRD-PARTY-NOTICES.md', 'PLAN-RAZVOJA.md': 'ROADMAP.md',
+    'PODRSKA.md': 'SUPPORT.md', 'POTPISIVANJE.md': 'SIGNING.md', 'PRIVATNOST.md': 'PRIVACY.md',
+    'PROVJERA-IZDANJA.md': 'RELEASE-VERIFICATION.md', 'SIGURNOST.md': 'SECURITY.md',
     'TESTIRANJE.md': 'TESTING.md',
 }
 for old, new in renames.items():
@@ -102,13 +103,10 @@ if generator.exists():
     generator.write_text(text, encoding='utf-8', newline='\n')
 
 old_header = ROOT / 'docs' / 'slike' / 'byftp-zaglavlje.png'
-if old_header.exists():
-    old_header.unlink()
+if old_header.exists(): old_header.unlink()
 if old_header.parent.exists():
-    try:
-        old_header.parent.rmdir()
-    except OSError:
-        pass
+    try: old_header.parent.rmdir()
+    except OSError: pass
 
 if generator.exists():
     subprocess.run(['python', 'scripts/generate_brand_assets.py'], cwd=ROOT, check=True)
@@ -121,20 +119,14 @@ legacy = 'brendigo'
 remaining = []
 for path in ROOT.rglob('*'):
     if (
-        not path.is_file()
-        or path.name == 'LICENSE'
-        or path.resolve() == SELF
-        or '.git' in path.parts
-        or path.suffix.lower() not in TEXT_EXT
+        not path.is_file() or path.name == 'LICENSE' or path.resolve() == SELF
+        or is_workflow(path) or '.git' in path.parts or path.suffix.lower() not in TEXT_EXT
     ):
         continue
-    try:
-        text = path.read_text(encoding='utf-8')
-    except UnicodeDecodeError:
-        continue
-    if legacy in text.lower():
-        remaining.append(str(path.relative_to(ROOT)))
+    try: text = path.read_text(encoding='utf-8')
+    except UnicodeDecodeError: continue
+    if legacy in text.lower(): remaining.append(str(path.relative_to(ROOT)))
 if remaining:
-    raise SystemExit('Legacy branding remains outside LICENSE: ' + ', '.join(remaining))
+    raise SystemExit('Legacy branding remains outside LICENSE/workflows: ' + ', '.join(remaining))
 
 print('MECHANICAL_CLEANUP=PASS')
