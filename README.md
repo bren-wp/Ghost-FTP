@@ -49,7 +49,7 @@ ByFTP supports explicit and implicit FTPS. TLS protects the FTP session and endp
 
 SFTP uses SSH host-key verification. Desktop builds preserve the established host-key pinning and credential-hardening model. The Android client requires the expected OpenSSH-style `SHA256:` host-key fingerprint before connecting and uses SSHJ's native fingerprint verifier. Android 1.1.0 supports SFTP password authentication; private-key import is deferred until Android Keystore-backed handling is designed and audited.
 
-## Shared hosting
+## Shared-hosting workflow
 
 A typical workflow is:
 
