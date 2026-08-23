@@ -5,9 +5,9 @@ package desktop
 import (
 	"fmt"
 
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/transfer"
-	"brendigo.com/byftp/internal/usererror"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/transfer"
+	"github.com/bren-wp/by-ftp/internal/usererror"
 )
 
 func (a *app) updateTransferSummary() {

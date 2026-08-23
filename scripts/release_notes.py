@@ -26,7 +26,7 @@ def extract_section(changelog: str, version: str) -> str:
 def build_notes(version: str, section: str) -> str:
     return f"""ByFTP {version}
 
-Privatan FTP / FTPS / SFTP klijent tvrtke Brendigo za Windows, Linux i macOS.
+Privatan FTP / FTPS / SFTP klijent tvrtke ByFTP za Windows, Linux i macOS.
 
 Najvažnije promjene
 -------------------
@@ -64,7 +64,7 @@ Preporuka prije instalacije
 
 Sigurnost potpisa
 -----------------
-Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni Brendigo Authenticode certifikat. macOS PKG nije Developer ID potpisan/notariziran bez stvarnog Apple certifikata. Workflow ne fabricira publisher identitet; SHA-256 i release provenance ostaju obavezni dio izdanja.
+Windows binariji nemaju status Verified Publisher dok nije dostupan stvarni ByFTP Authenticode certifikat. macOS PKG nije Developer ID potpisan/notariziran bez stvarnog Apple certifikata. Workflow ne fabricira publisher identitet; SHA-256 i release provenance ostaju obavezni dio izdanja.
 """
 
 

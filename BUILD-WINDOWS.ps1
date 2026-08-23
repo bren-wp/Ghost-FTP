@@ -450,7 +450,7 @@ foreach ($verification in $verificationFiles) {
 }
 
 if ($unsigned) {
-    Write-Warning 'Binaries are not Authenticode-signed. Verified Publisher requires a valid Brendigo code-signing certificate.'
+    Write-Warning 'Binaries are not Authenticode-signed. Verified Publisher requires a valid ByFTP code-signing certificate.'
 }
 
 Write-Host '[10/10] Final output verification'

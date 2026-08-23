@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"brendigo.com/byftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/platform"
 )
 
 var systemDirectory = platform.SystemDirectory

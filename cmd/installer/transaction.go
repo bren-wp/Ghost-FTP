@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 var openInstallerBackupSource = os.Open

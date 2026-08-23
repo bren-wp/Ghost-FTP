@@ -1,9 +1,9 @@
 ## Authorization
 
-- [ ] This source-code change was explicitly requested or authorized by Brendigo.
+- [ ] This source-code change was explicitly requested or authorized by ByFTP.
 - [ ] I have read and will follow `LICENSE` and the contribution documentation.
 
-> ByFTP is proprietary/source-available software. Opening a pull request or fork does not by itself grant rights to modify, redistribute, rebrand, sell, sublicense, or create derivative distributions beyond rights explicitly granted by Brendigo and limited GitHub platform rights.
+> ByFTP is proprietary/source-available software. Opening a pull request or fork does not by itself grant rights to modify, redistribute, rebrand, sell, sublicense, or create derivative distributions beyond rights explicitly granted by ByFTP and limited GitHub platform rights.
 
 ## Summary
 

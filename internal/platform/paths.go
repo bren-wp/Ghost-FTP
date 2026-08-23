@@ -3,7 +3,7 @@ package platform
 import (
 	"path/filepath"
 
-	"brendigo.com/byftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/brand"
 )
 
 // InstallDir returns the canonical per-user ByFTP installation directory.

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync"
 
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/profilebinding"
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/profilebinding"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 type Profiles struct {

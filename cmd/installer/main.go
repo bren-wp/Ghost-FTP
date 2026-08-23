@@ -15,9 +15,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/security"
 )
 
 //go:embed all:payload
@@ -47,19 +47,19 @@ type payloadManifest struct {
 func readPayloadFiles() ([]byte, []byte, error) {
 	data, err := payload.ReadFile("payload/payload.zip")
 	if err != nil {
-		return nil, nil, errors.New("komprimirani instalacijski payload nije dostupan")
+		return nil, nil, errors.New("compressed installer payload is unavailable")
 	}
 	return parsePayload(data)
 }
 
 func parsePayload(data []byte) ([]byte, []byte, error) {
 	if len(data) == 0 {
-		return nil, nil, errors.New("instalacijski payload je prazan")
+		return nil, nil, errors.New("installer payload is empty")
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		return nil, nil, errors.New("instalacijski payload nije ispravan ZIP")
+		return nil, nil, errors.New("installer payload is not a valid ZIP archive")
 	}
 
 	files := make(map[string][]byte, 2)
@@ -69,7 +69,7 @@ func parsePayload(data []byte) ([]byte, []byte, error) {
 		switch f.Name {
 		case "ByFTP.exe", "Uninstall.exe":
 			if _, exists := files[f.Name]; exists {
-				return nil, nil, errors.New("instalacijski payload sadrži dupliciranu datoteku")
+				return nil, nil, errors.New("installer payload contains a duplicate file")
 			}
 
 			b, err := readZipEntry(f, maxPayloadFileSize)
@@ -80,7 +80,7 @@ func parsePayload(data []byte) ([]byte, []byte, error) {
 
 		case "manifest.json":
 			if manifestData != nil {
-				return nil, nil, errors.New("instalacijski payload sadrži duplicirani manifest")
+				return nil, nil, errors.New("installer payload contains a duplicate manifest")
 			}
 
 			manifestData, err = readZipEntry(f, maxPayloadManifestSize)
@@ -89,14 +89,14 @@ func parsePayload(data []byte) ([]byte, []byte, error) {
 			}
 
 		default:
-			return nil, nil, errors.New("instalacijski payload sadrži neočekivanu datoteku")
+			return nil, nil, errors.New("installer payload contains an unexpected file")
 		}
 	}
 
 	app, appOK := files["ByFTP.exe"]
 	uninstaller, uninstallOK := files["Uninstall.exe"]
 	if !appOK || !uninstallOK || manifestData == nil {
-		return nil, nil, errors.New("instalacijski payload ne sadrži sve obavezne datoteke")
+		return nil, nil, errors.New("installer payload is missing required files")
 	}
 
 	if err := validatePayloadManifest(manifestData, files); err != nil {
@@ -111,25 +111,25 @@ func parsePayload(data []byte) ([]byte, []byte, error) {
 // reading and may report checksum corruption only at the end of the stream.
 func readZipEntry(f *zip.File, maxSize uint64) ([]byte, error) {
 	if f == nil || f.UncompressedSize64 == 0 || f.UncompressedSize64 > maxSize {
-		return nil, errors.New("instalacijski payload ima neispravnu veličinu")
+		return nil, errors.New("installer payload has an invalid size")
 	}
 
 	r, err := f.Open()
 	if err != nil {
-		return nil, errors.New("instalacijsku datoteku nije moguće otvoriti")
+		return nil, errors.New("installer file could not be opened")
 	}
 
 	data, readErr := io.ReadAll(io.LimitReader(r, int64(maxSize)+1))
 	closeErr := r.Close()
 
 	if readErr != nil {
-		return nil, errors.New("instalacijski payload je oštećen ili nepotpun")
+		return nil, errors.New("installer payload is damaged or incomplete")
 	}
 	if closeErr != nil {
 		return nil, closeErr
 	}
 	if uint64(len(data)) != f.UncompressedSize64 || uint64(len(data)) > maxSize {
-		return nil, errors.New("instalacijski payload ima neispravnu veličinu")
+		return nil, errors.New("installer payload has an invalid size")
 	}
 
 	return data, nil
@@ -142,36 +142,36 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(&manifest); err != nil {
-		return errors.New("instalacijski manifest nije ispravan")
+		return errors.New("installer manifest is invalid")
 	}
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
-		return errors.New("instalacijski manifest sadrži višak podataka")
+		return errors.New("installer manifest contains trailing data")
 	}
 	if manifest.Schema != 1 || len(manifest.Files) != 2 {
-		return errors.New("instalacijski manifest nije podržan")
+		return errors.New("installer manifest is unsupported")
 	}
 
 	seen := make(map[string]bool, 2)
 	for _, item := range manifest.Files {
 		content, ok := files[item.Name]
 		if !ok || seen[item.Name] || (item.Name != "ByFTP.exe" && item.Name != "Uninstall.exe") {
-			return errors.New("instalacijski manifest ne odgovara paketu")
+			return errors.New("installer manifest does not match the package")
 		}
 		seen[item.Name] = true
 
 		expectedDigest, err := hex.DecodeString(item.SHA256)
 		if err != nil || len(expectedDigest) != sha256.Size {
-			return errors.New("instalacijski manifest sadrži neispravan SHA-256")
+			return errors.New("installer manifest contains an invalid SHA-256 digest")
 		}
 
 		actualDigest := sha256.Sum256(content)
 		if item.Size != len(content) || !bytes.Equal(expectedDigest, actualDigest[:]) {
-			return errors.New("provjera integriteta instalacijskog paketa nije uspjela")
+			return errors.New("installer package integrity verification failed")
 		}
 	}
 
 	if !seen["ByFTP.exe"] || !seen["Uninstall.exe"] {
-		return errors.New("instalacijski manifest nije potpun")
+		return errors.New("installer manifest is incomplete")
 	}
 
 	return nil
@@ -238,7 +238,7 @@ func verifyStagedFile(path string, expectedSize int64, expectedDigest [sha256.Si
 	}
 	if info.Size() != expectedSize {
 		_ = f.Close()
-		return errors.New("provjera veličine instalacijske datoteke nije uspjela")
+		return errors.New("installer file size verification failed")
 	}
 
 	h := sha256.New()
@@ -252,10 +252,10 @@ func verifyStagedFile(path string, expectedSize int64, expectedDigest [sha256.Si
 		return closeErr
 	}
 	if n != expectedSize {
-		return errors.New("provjera veličine instalacijske datoteke nije uspjela")
+		return errors.New("installer file size verification failed")
 	}
 	if !bytes.Equal(h.Sum(nil), expectedDigest[:]) {
-		return errors.New("provjera integriteta instalacijske datoteke nije uspjela")
+		return errors.New("installer file integrity verification failed")
 	}
 
 	return nil
@@ -263,7 +263,7 @@ func verifyStagedFile(path string, expectedSize int64, expectedDigest [sha256.Si
 
 func installFile(path string, data []byte, backup *fileBackup) error {
 	if backup == nil || backup.target != path {
-		return errors.New("instalacijska transakcija ne odgovara ciljnoj datoteci")
+		return errors.New("installer transaction does not match the target file")
 	}
 
 	tmp, err := stageVerified(path, data)
@@ -292,7 +292,7 @@ func installFile(path string, data []byte, backup *fileBackup) error {
 	return backup.recordActivated(sha256.Sum256(data))
 }
 
-func register(appPath, uninstallPath, dir string) error {
+func register(appPath, uninstallPath, dir, language string) error {
 	entries := [...]struct {
 		key   string
 		name  string
@@ -300,6 +300,7 @@ func register(appPath, uninstallPath, dir string) error {
 	}{
 		{uninstallKey, "DisplayName", brand.ProductFull},
 		{uninstallKey, "DisplayVersion", version},
+		{uninstallKey, "InstallLanguage", language},
 		{uninstallKey, "Publisher", brand.Company},
 		{uninstallKey, "InstallLocation", dir},
 		{uninstallKey, "DisplayIcon", appPath},
@@ -309,25 +310,25 @@ func register(appPath, uninstallPath, dir string) error {
 
 	for _, entry := range entries {
 		if err := platform.SetRegistryString(entry.key, entry.name, entry.value); err != nil {
-			return fmt.Errorf("Windows registracija nije uspjela (%s): %w", entry.name, err)
+			return fmt.Errorf("Windows registration failed (%s): %w", entry.name, err)
 		}
 	}
 
 	if err := platform.SetRegistryString(uninstallKey, "InstallDate", time.Now().Format("20060102")); err != nil {
-		return fmt.Errorf("Windows registracija nije uspjela (InstallDate): %w", err)
+		return fmt.Errorf("Windows registration failed (InstallDate): %w", err)
 	}
 	if err := platform.SetRegistryDWORD(uninstallKey, "NoModify", 1); err != nil {
-		return fmt.Errorf("Windows registracija nije uspjela (NoModify): %w", err)
+		return fmt.Errorf("Windows registration failed (NoModify): %w", err)
 	}
 	if err := platform.SetRegistryDWORD(uninstallKey, "NoRepair", 1); err != nil {
-		return fmt.Errorf("Windows registracija nije uspjela (NoRepair): %w", err)
+		return fmt.Errorf("Windows registration failed (NoRepair): %w", err)
 	}
 
 	return nil
 }
 
 func installerTitle() string {
-	return brand.ProductName + " — Instalacija"
+	return brand.ProductName + " Setup"
 }
 
 func showInstallError(title, message string) {
@@ -341,19 +342,24 @@ func runInstaller() (exitCode int) {
 		if recover() != nil {
 			platform.ErrorDialog(
 				brand.ProductFull+" — "+brand.Company,
-				"Radnja nije dovršena",
-				"Instalacija nije dovršena. Ponovno pokrenite računalo i pokušajte ponovno.",
+				"Setup did not finish",
+				"Setup did not finish. Restart Windows and try again.",
 			)
 			exitCode = 1
 		}
 	}()
 
-	content := brand.Company + "\n" + brand.Website + "\n" + brand.Support + "\n\n" +
-		"ByFTP će se instalirati za vaš Windows korisnički račun i bit će dostupan iz izbornika Start."
+	installLanguage, ok := selectInstallerLanguage()
+	if !ok {
+		return 0
+	}
+
+	content := brand.Website + "\n" + brand.Support + "\n\n" +
+		"ByFTP will be installed for your Windows user account and will be available from the Start menu."
 
 	if !platform.ConfirmDialog(
 		installerTitle(),
-		"Instalirati "+brand.ProductFull+" "+version+"?",
+		"Install "+brand.ProductFull+" "+version+"?",
 		content,
 	) {
 		return 0
@@ -363,8 +369,8 @@ func runInstaller() (exitCode int) {
 	app, uninstaller, err := readPayloadFiles()
 	if err != nil {
 		showInstallError(
-			"Instalacijski paket nije ispravan",
-			"Preuzmite novu kopiju instalacijskog paketa i pokušajte ponovno.",
+			"Installer package is invalid",
+			"Download a fresh copy of the installer and try again.",
 		)
 		return 1
 	}
@@ -372,8 +378,8 @@ func runInstaller() (exitCode int) {
 	dir, err := platform.InstallDir()
 	if err != nil {
 		showInstallError(
-			"Instalacija nije moguća",
-			"Korisnička mapa sustava Windows nije dostupna.",
+			"Setup cannot continue",
+			"The Windows user folder is unavailable.",
 		)
 		return 1
 	}
@@ -381,23 +387,23 @@ func runInstaller() (exitCode int) {
 	localAppData, err := platform.LocalAppData()
 	if err != nil {
 		showInstallError(
-			"Instalacija nije moguća",
-			"Lokalna korisnička mapa sustava Windows nije dostupna.",
+			"Setup cannot continue",
+			"The Windows local application-data folder is unavailable.",
 		)
 		return 1
 	}
 	if err := security.EnsureNoRedirectDirectory(localAppData, dir); err != nil {
 		showInstallError(
-			"Instalacijska mapa nije sigurna",
-			"Uklonite preusmjeravanje ByFTP instalacijske mape i pokušajte ponovno.",
+			"The installation folder is not safe",
+			"Remove any redirect from the ByFTP installation folder and try again.",
 		)
 		return 1
 	}
 
 	if err := ensureInstallDir(dir); err != nil {
 		showInstallError(
-			"Instalacija nije pokrenuta",
-			"Instalacijsku mapu nije moguće pripremiti. Provjerite slobodan prostor i dopuštenja pa pokušajte ponovno.",
+			"Setup was not started",
+			"The installation folder could not be prepared. Check free space and permissions, then try again.",
 		)
 		return 1
 	}
@@ -408,8 +414,8 @@ func runInstaller() (exitCode int) {
 	appBackup, err := backupExisting(appPath)
 	if err != nil {
 		showInstallError(
-			"Nadogradnja nije pokrenuta",
-			"Postojeću instalaciju nije moguće pripremiti za nadogradnju. Zatvorite ByFTP i pokušajte ponovno.",
+			"Upgrade was not started",
+			"The existing installation could not be prepared for upgrade. Close ByFTP and try again.",
 		)
 		return 1
 	}
@@ -418,8 +424,8 @@ func runInstaller() (exitCode int) {
 	if err != nil {
 		appBackup.cleanup()
 		showInstallError(
-			"Nadogradnja nije pokrenuta",
-			"Postojeću instalaciju nije moguće pripremiti za nadogradnju. Zatvorite ByFTP i pokušajte ponovno.",
+			"Upgrade was not started",
+			"The existing installation could not be prepared for upgrade. Close ByFTP and try again.",
 		)
 		return 1
 	}
@@ -429,8 +435,8 @@ func runInstaller() (exitCode int) {
 		appBackup.cleanup()
 		uninstallBackup.cleanup()
 		showInstallError(
-			"Nadogradnja nije pokrenuta",
-			"Postojeće postavke instalacije nije moguće sigurno pripremiti. Pokušajte ponovno.",
+			"Upgrade was not started",
+			"Existing installation settings could not be prepared safely. Try again.",
 		)
 		return 1
 	}
@@ -481,7 +487,7 @@ func runInstaller() (exitCode int) {
 
 	rollbackMessage := func() string {
 		if err := rollback(); err != nil {
-			return " Prethodnu instalaciju nije bilo moguće potpuno vratiti; ponovno pokrenite Windows prije novog pokušaja."
+			return " The previous installation could not be fully restored; restart Windows before trying again."
 		}
 		return ""
 	}
@@ -489,8 +495,8 @@ func runInstaller() (exitCode int) {
 	if err := installFile(appPath, app, &appBackup); err != nil {
 		extra := rollbackMessage()
 		showInstallError(
-			"ByFTP nije moguće instalirati",
-			"Zatvorite pokrenuti ByFTP i pokušajte ponovno."+extra,
+			"ByFTP could not be installed",
+			"Close ByFTP if it is running and try again."+extra,
 		)
 		return 1
 	}
@@ -498,39 +504,44 @@ func runInstaller() (exitCode int) {
 	if err := installFile(uninstallPath, uninstaller, &uninstallBackup); err != nil {
 		extra := rollbackMessage()
 		showInstallError(
-			"Instalacija nije dovršena",
-			"Potrebne datoteke nije moguće spremiti. Pokušajte ponovno."+extra,
+			"Setup did not finish",
+			"Required files could not be saved. Try again."+extra,
 		)
 		return 1
 	}
 
-	if err := register(appPath, uninstallPath, dir); err != nil {
+	if err := register(appPath, uninstallPath, dir, installLanguage); err != nil {
 		extra := rollbackMessage()
 		showInstallError(
-			"Instalacija nije dovršena",
-			"Windows nije uspio dovršiti postavljanje aplikacije. Pokušajte ponovno."+extra,
+			"Setup did not finish",
+			"Windows could not finish registering the application. Try again."+extra,
 		)
 		return 1
 	}
 
 	transactionCommitted = true
 
+	languageWarning := ""
+	if err := persistInstallerLanguage(installLanguage); err != nil {
+		languageWarning = "\n\nThe selected language could not be saved. ByFTP will start in English; you can change the language in Settings."
+	}
+
 	shortcutWarning := ""
 	if err := platform.CreateShortcuts(appPath); err != nil {
-		shortcutWarning = "\n\nPrečac nije moguće izraditi. ByFTP možete pokrenuti iz instalacijske mape."
+		shortcutWarning = "\n\nA shortcut could not be created. You can start ByFTP from its installation folder."
 	}
 
 	if platform.ConfirmDialog(
 		installerTitle(),
-		"Instalacija je uspješno dovršena",
-		"ByFTP je spreman za korištenje."+shortcutWarning+"\n\nPokrenuti ByFTP sada?",
+		"Setup completed successfully",
+		"ByFTP is ready to use."+languageWarning+shortcutWarning+"\n\nLaunch ByFTP now?",
 	) {
 		cmd := exec.Command(appPath)
 		if err := cmd.Start(); err != nil {
 			platform.ErrorDialog(
 				installerTitle(),
-				"ByFTP je instaliran",
-				"Aplikaciju nije moguće automatski pokrenuti. Pokrenite ByFTP iz izbornika Start.",
+				"ByFTP is installed",
+				"ByFTP could not be launched automatically. Start it from the Windows Start menu.",
 			)
 		}
 	}

@@ -1,8 +1,8 @@
 package desktop
 
 import (
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/transfer"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/transfer"
 )
 
 // applyTransferEventsToJobs applies an event batch in O(current jobs + events)

@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"brendigo.com/byftp/internal/api"
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/desktop"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/security"
-	"brendigo.com/byftp/internal/usererror"
+	"github.com/bren-wp/by-ftp/internal/api"
+	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/desktop"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/usererror"
 )
 
 var version = "dev"

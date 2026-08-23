@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/config"
-	"brendigo.com/byftp/internal/localfs"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/remote"
-	"brendigo.com/byftp/internal/security"
-	"brendigo.com/byftp/internal/transfer"
+	"github.com/bren-wp/by-ftp/internal/appdata"
+	"github.com/bren-wp/by-ftp/internal/config"
+	"github.com/bren-wp/by-ftp/internal/localfs"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/transfer"
 )
 
 type Engine struct {
@@ -58,7 +58,7 @@ func New(dataDir, exePath string) (*Engine, error) {
 // behavior while still allowing lower layers to use ordinary Go errors.
 func recoverTypedCall(callErr *error) {
 	if recover() != nil {
-		*callErr = errors.New("interna greška aplikacije")
+		*callErr = errors.New("internal application error")
 	}
 }
 
@@ -99,7 +99,7 @@ func (e *Engine) Connect(ctx context.Context, profileID string, cfg model.Connec
 func (e *Engine) CancelPendingTrust() { e.remote.CancelPendingTrust() }
 
 func (e *Engine) Disconnect(ctx context.Context) error {
-	transferErr := e.transfers.DisableAndCancel(ctx, "Otkazano prekidom veze")
+	transferErr := e.transfers.DisableAndCancel(ctx, "Cancelled by disconnect")
 	remoteErr := e.remote.Disconnect(ctx)
 	return errors.Join(transferErr, remoteErr)
 }
@@ -208,9 +208,5 @@ func (e *Engine) Close() {
 }
 
 func DataDir() (string, error) {
-	base, err := platform.LocalAppData()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(base, brand.Company, brand.ProductName), nil
+	return appdata.Dir()
 }

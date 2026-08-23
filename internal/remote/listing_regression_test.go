@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 func TestParseListLineKeepsArrowInRegularFilename(t *testing.T) {

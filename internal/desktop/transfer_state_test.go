@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/transfer"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/transfer"
 )
 
 func TestApplyTransferEventsToJobsUpdatesAndAppends(t *testing.T) {

@@ -18,8 +18,8 @@ func TestSameWindowsPath(t *testing.T) {
 	}{
 		{
 			name: "case insensitive",
-			a:    `C:\Users\A\AppData\Local\Programs\Brendigo\ByFTP\Uninstall.exe`,
-			b:    `c:\users\a\appdata\local\programs\brendigo\byftp\Uninstall.exe`,
+			a:    `C:\Users\A\AppData\Local\Programs\ByFTP\ByFTP\Uninstall.exe`,
+			b:    `c:\users\a\appdata\local\programs\ByFTP\byftp\Uninstall.exe`,
 			want: true,
 		},
 		{

@@ -2,7 +2,7 @@
 
 package desktop
 
-import "brendigo.com/byftp/internal/i18n"
+import "github.com/bren-wp/by-ftp/internal/i18n"
 
 func localizedPair(language string, values [12]string) string {
 	codes := []string{"en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja"}

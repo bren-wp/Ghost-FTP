@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 type managerTestSession struct {

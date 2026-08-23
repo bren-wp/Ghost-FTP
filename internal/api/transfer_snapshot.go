@@ -1,6 +1,6 @@
 package api
 
-import "brendigo.com/byftp/internal/model"
+import "github.com/bren-wp/by-ftp/internal/model"
 
 // Transfers vraća izolirani snapshot trenutnog reda prijenosa. Pozivatelj ne
 // dobiva interne sliceove transfer managera i zato ne može mutirati njegovo

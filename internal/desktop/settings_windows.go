@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/platform"
 )
 
 func (a *app) loadSettings() {

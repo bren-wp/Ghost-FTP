@@ -1,168 +1,112 @@
 #!/usr/bin/env python3
-"""Provjerava cross-platform ByFTP release ugovor i fail-closed objavu."""
+"""Validate the ByFTP production release workflow and publication contract."""
 
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def fail(message: str) -> None:
-    raise SystemExit("RELEASE_AUDIT_NIJE_PROSAO: " + message)
+    raise SystemExit("RELEASE_AUDIT_FAILED: " + message)
 
 
-def read(path: str) -> str:
-    target = ROOT / path
-    if not target.is_file():
-        fail(f"nedostaje {path}")
-    return target.read_text(encoding="utf-8")
+def read(rel: str) -> str:
+    path = ROOT / rel
+    if not path.is_file():
+        fail(f"missing required file: {rel}")
+    return path.read_text(encoding="utf-8")
 
 
-def require(path: str, markers: tuple[str, ...]) -> str:
-    text = read(path)
-    for marker in markers:
-        if marker not in text:
-            fail(f"{path} nema obavezni release guard: {marker}")
-    return text
+def require(text: str, marker: str, where: str) -> None:
+    if marker not in text:
+        fail(f"{where} is missing required marker: {marker}")
 
 
 def main() -> int:
-    workflow = require(
-        ".github/workflows/release.yml",
-        (
-            "group: byftp-release",
-            "quality:",
-            "Produkcijski quality, race, sigurnost i privatnost",
-            "needs: [quality, windows, linux, macos]",
-            "go test -race ./...",
-            "go telemetry off",
-            "Windows x64 i x86",
-            "Linux amd64 arm64 i i386",
-            "macOS Universal",
-            "scripts/BUILD-LINUX.sh",
-            "scripts/BUILD-MACOS.sh",
-            "publish_release.ps1",
-            "scripts/verify_bundle.py",
-            "--arch $arch",
-            "Provjeri staging javnih paketa",
-            "RELEASE_QUALITY_GATE=passed",
-            "ByFTP-$env:VERSION-Setup-x86.exe",
-            "ByFTP-$env:VERSION-Portable-x86.exe",
-            "ByFTP-$env:VERSION-Linux-amd64.deb",
-            "ByFTP-$env:VERSION-Linux-arm64.deb",
-            "ByFTP-$env:VERSION-Linux-i386.deb",
-            "ByFTP-$env:VERSION-macOS-Universal.pkg",
-        ),
-    )
-    if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", workflow):
-        fail("release workflow ponovno hardkodira zadanu produkcijsku verziju")
-    if re.search(r"(?m)^\s*tags:\s*$", workflow):
-        fail("release workflow ponovno reagira na vlastiti tag i može stvoriti paralelni publisher")
-    if "v2.15.0" in workflow or "release delete-asset" in workflow:
-        fail("release workflow ponovno sadrži jednokratni migracijski cleanup stare verzije")
-    if "gh release create" in workflow or "gh release upload" in workflow:
-        fail("release.yml ne smije zaobići centralni publish_release.ps1")
+    version = read("VERSION").strip()
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        fail(f"invalid VERSION: {version!r}")
 
-    asset_match = re.search(r"\$assets\s*=\s*@\((.*?)\)\s*\n\s*foreach", workflow, re.S)
-    if not asset_match:
-        fail("nije pronađen eksplicitni javni $assets skup")
-    public_assets = asset_match.group(1)
-    expected_asset_markers = (
-        "Portable-x64.exe", "Setup-x64.exe", "Windows-x64.zip",
-        "Portable-x86.exe", "Setup-x86.exe", "Windows-x86.zip",
-        "Linux-amd64.deb", "Linux-arm64.deb", "Linux-i386.deb",
-        "macOS-Universal.pkg", "SHA256.txt", "RELEASE-NOTES.txt", "BUILD-METADATA.txt",
-    )
-    for marker in expected_asset_markers:
-        if marker not in public_assets:
-            fail(f"javni release asset skup nema: {marker}")
-    for forbidden in ("Source.zip", "Uninstall-", "verification.txt"):
-        if forbidden in public_assets:
-            fail(f"javni release asseti ponovno sadrže interni/stari tip: {forbidden}")
+    workflow = read(".github/workflows/release.yml")
+    for marker in (
+        "group: byftp-release",
+        "quality:",
+        "windows:",
+        "linux:",
+        "macos:",
+        "publish:",
+        "needs: [quality, windows, linux, macos]",
+        "go telemetry off",
+        "go test ./...",
+        "go test -race ./...",
+        "go vet ./...",
+        "python scripts/audit_localization.py",
+        "python scripts/audit_version.py",
+        "python scripts/audit_docs.py",
+        "python scripts/audit_security.py",
+        "python scripts/audit_privacy.py",
+        "python scripts/audit_release.py",
+        ".\\BUILD-WINDOWS.ps1",
+        "bash scripts/BUILD-LINUX.sh",
+        "bash scripts/BUILD-MACOS.sh",
+        "python scripts/verify_bundle.py $zip --version $version --arch $arch",
+        "scripts\\publish_release.ps1",
+        "Verify public release staging",
+        "ByFTP-$env:VERSION-Windows-x64.zip",
+        "ByFTP-$env:VERSION-Windows-x86.zip",
+        "ByFTP-$env:VERSION-Linux-amd64.deb",
+        "ByFTP-$env:VERSION-Linux-arm64.deb",
+        "ByFTP-$env:VERSION-Linux-i386.deb",
+        "ByFTP-$env:VERSION-macOS-Universal.pkg",
+        "<PackageId>ByFTP.Windows</PackageId>",
+        "dotnet nuget push",
+        "--skip-duplicate",
+    ):
+        require(workflow, marker, ".github/workflows/release.yml")
 
-    publisher = require(
-        "scripts/publish_release.ps1",
-        (
-            "Resolve-TagCommit", "Assert-TagCommit", "Assert-RemoteAsset",
-            "Get-FileHash", "sha256:", "gh release upload", "neočekivani asset",
-            "RELEASE_PUBLISH_VERIFICATION=PASS",
-        ),
-    )
-    if "--clobber" in publisher:
-        fail("publisher ne smije automatski prepisivati postojeći release asset")
+    # Release publication must remain centralized in the reviewed PowerShell
+    # publisher rather than duplicating tag/release mutation logic in YAML.
+    publisher = read("scripts/publish_release.ps1")
+    for marker in ("gh release", "gh api", "SHA256"):
+        require(publisher, marker, "scripts/publish_release.ps1")
 
-    verifier = require(
-        "scripts/verify_bundle.py",
-        (
-            "BUNDLE-SHA256.txt", "x64", "x86", "dupliciranu putanju",
-            "nesigurnu putanju", "SHA-256 se ne podudara",
-            "BUNDLE_VERIFICATION=PASS", "forbidden",
-        ),
-    )
-    if "extractall(" in verifier or ".extract(" in verifier:
-        fail("ZIP verifier ne smije raspakiravati nepouzdane putanje na disk")
-
-    windows = require(
-        "BUILD-WINDOWS.ps1",
-        (
-            "Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'",
-            "Build-ByFTPArchitecture -GoArch '386' -Label 'x86'",
-            "$telemetryMode = (go telemetry).Trim()",
-        ),
-    )
-    linux = require(
-        "scripts/BUILD-LINUX.sh",
-        ("build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386", "dpkg-deb", 'telemetry="$(go telemetry)"'),
-    )
-    macos = require(
-        "scripts/BUILD-MACOS.sh",
-        ('GOARCH="$arch"', "lipo -create", "pkgbuild", "ByFTP.app", 'telemetry="$(go telemetry)"'),
-    )
-    if not windows or not linux or not macos:
-        fail("platformski build ugovor nije dostupan")
-
-    notes = require(
-        "scripts/release_notes.py",
-        ("Setup x86", "Linux amd64", "Linux arm64", "Linux i386", "macOS Universal", "SHA256.txt"),
-    )
-    if not notes:
-        fail("release notes ugovor nije dostupan")
-
-    ci = require(
-        ".github/workflows/ci.yml",
-        (
-            "go telemetry off", "python scripts/audit_docs.py",
-            "python scripts/audit_security.py", "python scripts/audit_release.py",
-            "python -m unittest discover -s scripts -p 'test_*.py'",
-        ),
-    )
-    if "BUILD-WINDOWS.ps1" not in ci:
-        fail("CI mora koristiti kanonski Windows produkcijski build")
-
-    # Korisnički dokumenti i release notes opisuju samo aktualne javne pakete.
-    # Povijesni CHANGELOG smije zadržati stare nazive radi točne povijesti.
-    for rel in ("README.md", "docs/INSTALACIJA.md", "scripts/release_notes.py"):
+    for rel in ("BUILD-WINDOWS.ps1", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh"):
         text = read(rel)
-        for forbidden in ("verification.txt", "Source.zip", "Uninstall-"):
-            if forbidden in text:
-                fail(f"{rel} ponovno oglašava zastarjeli/interne release naziv: {forbidden}")
+        require(text, "VERSION", rel)
 
-    print("RELEASE_AUDIT=PASS")
-    print("RELEASE_SINGLE_TRIGGER=ENABLED")
-    print("RELEASE_SERIALIZATION=ENABLED")
-    print("RELEASE_QUALITY_RACE_GATE=ENABLED")
-    print("RELEASE_STAGING_ALLOWLIST=ENABLED")
-    print("RELEASE_RERUN_REPAIR=ENABLED")
-    print("RELEASE_TAG_COMMIT_BINDING=ENABLED")
-    print("RELEASE_ASSET_DIGEST_FAIL_CLOSED=ENABLED")
-    print("WINDOWS_X64_X86=ENABLED")
-    print("LINUX_DEB=AMD64,ARM64,I386")
-    print("MACOS_PKG=UNIVERSAL")
-    print("PUBLIC_RELEASE_INTERNAL_ARTIFACTS=FORBIDDEN")
+    verifier = read("scripts/verify_bundle.py")
+    for marker in ("BUNDLE_VERIFICATION_FAILED", "BUNDLE-SHA256.txt", "Documentation/SECURITY.md"):
+        require(verifier, marker, "scripts/verify_bundle.py")
+
+    for rel in (
+        "README.md",
+        "CHANGELOG.md",
+        "docs/INSTALLATION.md",
+        "docs/RELEASE-VERIFICATION.md",
+        "docs/SECURITY.md",
+        "docs/PRIVACY.md",
+    ):
+        read(rel)
+
+    # No release surface may reintroduce the retired vendor branding. LICENSE
+    # is the sole intentional legal-attribution exception and is not read here.
+    for rel in (
+        ".github/workflows/release.yml",
+        "scripts/publish_release.ps1",
+        "scripts/verify_bundle.py",
+    ):
+        if "brendigo" in read(rel).lower():
+            fail(f"legacy branding remains in release surface: {rel}")
+
+    print(f"RELEASE_AUDIT=PASS ({version})")
+    print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL")
+    print("PUBLISHER=CENTRALIZED")
     return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"brendigo.com/byftp/internal/remote"
-	"brendigo.com/byftp/internal/security"
-	"brendigo.com/byftp/internal/transfer"
+	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/transfer"
 )
 
 const (

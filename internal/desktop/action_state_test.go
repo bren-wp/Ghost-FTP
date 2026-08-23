@@ -3,7 +3,7 @@ package desktop
 import (
 	"testing"
 
-	"brendigo.com/byftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/model"
 )
 
 func TestDeriveTransferActionState(t *testing.T) {

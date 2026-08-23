@@ -8,7 +8,7 @@ import (
 
 type partialRecoveryState struct {
 	CurrentOnly int `json:"currentOnly,omitempty"`
-	Previous   int `json:"previous,omitempty"`
+	Previous    int `json:"previous,omitempty"`
 }
 
 func TestStoreRecoveryDoesNotMixCorruptCurrentWithPrevious(t *testing.T) {

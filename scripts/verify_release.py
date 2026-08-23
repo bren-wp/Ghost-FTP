@@ -79,7 +79,7 @@ def read_pe(path: Path, expected_arch: str | None = None):
         names.append(data[off:off + 8].split(b"\0", 1)[0].decode("ascii", "replace"))
     if ".rsrc" not in names:
         raise ValueError(f"{path.name}: .rsrc section missing")
-    for text in ["CompanyName", "Brendigo", "ProductName", "ByFTP", "brendigo.com"]:
+    for text in ["CompanyName", "ByFTP", "ProductName", "ByFTP", "github.com/bren-wp/by-ftp"]:
         if text.encode("utf-16le") not in data:
             raise ValueError(f"{path.name}: VERSIONINFO field missing: {text}")
     if b'requestedExecutionLevel level="asInvoker"' not in data:
@@ -120,7 +120,7 @@ def main() -> None:
     print("PORTABLE_PE_OK=YES")
     print("UNINSTALLER_PE_OK=YES")
     print(f"WINDOWS_ARCH={arch}")
-    print("COMPANY_NAME=Brendigo")
+    print("COMPANY_NAME=ByFTP")
     print("EXECUTION_LEVEL=asInvoker")
     print("PE_MITIGATIONS=" + ",".join(mitigations.keys()))
     print(f"SETUP_AUTHENTICODE_SIGNED={'YES' if ssigned else 'NO'}")

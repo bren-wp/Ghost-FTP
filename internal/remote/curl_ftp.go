@@ -325,6 +325,7 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 				return nil, errors.New("folder contains too many items for safe display")
 			}
 		}
+	}
 	sortItems(items)
 	return items, nil
 }
@@ -347,7 +348,7 @@ func (c *CurlFTP) quote(ctx context.Context, cmds ...string) error {
 	// curl can continue with a directory transfer after the mutation; a later
 	// data-channel failure would then be reported as if MKD/RNFR/DELE itself had
 	// failed even though the server had already applied it.
-	lines := []string{"url = " + cfgQuote(c.baseURL("/")), "head"}
+	lines := []string{"url = " + cfgQuote(c.baseURL("/")), "no-body"}
 	for _, q := range cmds {
 		if strings.ContainsAny(q, "\x00\r\n") {
 			return errors.New("invalid FTP command")

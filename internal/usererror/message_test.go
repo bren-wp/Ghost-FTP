@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"brendigo.com/byftp/internal/i18n"
+	"github.com/bren-wp/by-ftp/internal/i18n"
 )
 
 func TestMessageDefaultsToEnglishAndHidesToolDetails(t *testing.T) {

@@ -8,11 +8,11 @@ import (
 	"syscall"
 	"unsafe"
 
-	"brendigo.com/byftp/internal/brand"
-	"brendigo.com/byftp/internal/i18n"
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/platform"
-	"brendigo.com/byftp/internal/usererror"
+	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/by-ftp/internal/i18n"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/usererror"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"brendigo.com/byftp/internal/i18n"
+	"github.com/bren-wp/by-ftp/internal/i18n"
 )
 
 // Message keeps source compatibility for callers that do not yet carry an

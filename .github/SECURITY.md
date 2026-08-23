@@ -1,7 +1,7 @@
-# Sigurnosna politika ByFTP-a
+# ByFTP security policy
 
-Za sigurnosno osjetljive prijave nemojte koristiti javni issue i nemojte objavljivati vjerodajnice, privatne ključeve, produkcijske hostove ni podatke klijenata.
+Do not use a public issue for security-sensitive reports, and never publish credentials, private keys, production host details, or customer data.
 
-Potpuni sigurnosni model i upute nalaze se u [`docs/SIGURNOST.md`](../docs/SIGURNOST.md).
+The complete security model, supported reporting process, and project security boundaries are documented in [`docs/SECURITY.md`](../docs/SECURITY.md).
 
-Kontakt za odgovornu prijavu: **info@brendigo.com**
+For responsible disclosure, use the repository's private security-reporting channel when available. If that is unavailable, contact the maintainers without including secrets in a public issue.

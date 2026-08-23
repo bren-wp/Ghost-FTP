@@ -67,7 +67,7 @@ cat > "$root/Applications/ByFTP.app/Contents/Info.plist" <<EOF
 <plist version="1.0"><dict>
 <key>CFBundleName</key><string>ByFTP</string>
 <key>CFBundleDisplayName</key><string>ByFTP</string>
-<key>CFBundleIdentifier</key><string>com.brendigo.byftp</string>
+<key>CFBundleIdentifier</key><string>io.github.bren-wp.byftp</string>
 <key>CFBundleVersion</key><string>${VERSION}</string>
 <key>CFBundleShortVersionString</key><string>${VERSION}</string>
 <key>CFBundleExecutable</key><string>ByFTP</string>
@@ -93,7 +93,7 @@ EOF
 chmod 0755 "$root/Applications/ByFTP.app/Contents/MacOS/ByFTP"
 
 pkg="dist/ByFTP-${VERSION}-macOS-Universal.pkg"
-pkgbuild --root "$root" --identifier com.brendigo.byftp --version "$VERSION" --install-location / "$pkg" >/dev/null
+pkgbuild --root "$root" --identifier io.github.bren-wp.byftp --version "$VERSION" --install-location / "$pkg" >/dev/null
 test -s "$pkg"
 rm -rf "$work"
 echo "MACOS_PACKAGE_OK=$pkg"

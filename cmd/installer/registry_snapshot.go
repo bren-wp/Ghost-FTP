@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"brendigo.com/byftp/internal/platform"
+	"github.com/bren-wp/by-ftp/internal/platform"
 )
 
 type registryStringSnapshot struct {
@@ -28,6 +28,7 @@ type registrySnapshot struct {
 var installerStringRegistryValues = []struct{ key, name string }{
 	{uninstallKey, "DisplayName"},
 	{uninstallKey, "DisplayVersion"},
+	{uninstallKey, "InstallLanguage"},
 	{uninstallKey, "Publisher"},
 	{uninstallKey, "InstallLocation"},
 	{uninstallKey, "DisplayIcon"},

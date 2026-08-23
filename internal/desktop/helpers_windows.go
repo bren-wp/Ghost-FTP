@@ -3,8 +3,8 @@
 package desktop
 
 import (
-	"brendigo.com/byftp/internal/model"
 	"fmt"
+	"github.com/bren-wp/by-ftp/internal/model"
 	"path/filepath"
 	"strings"
 	"sync"

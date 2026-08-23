@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"brendigo.com/byftp/internal/model"
-	"brendigo.com/byftp/internal/remote"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/remote"
 )
 
 type generationHookProvider struct {

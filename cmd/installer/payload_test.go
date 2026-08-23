@@ -63,7 +63,7 @@ func TestParsePayloadAcceptsExactlyRequiredFilesAndManifest(t *testing.T) {
 func TestParsePayloadRejectsDuplicateRequiredFile(t *testing.T) {
 	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"ByFTP.exe", "b"}, {"Uninstall.exe", "u"}}, true)
 	_, _, err := parsePayload(data)
-	if err == nil || !strings.Contains(err.Error(), "dupliciranu") {
+	if err == nil || !strings.Contains(err.Error(), "duplicate") {
 		t.Fatalf("expected duplicate rejection, got %v", err)
 	}
 }
@@ -71,7 +71,7 @@ func TestParsePayloadRejectsDuplicateRequiredFile(t *testing.T) {
 func TestParsePayloadRejectsUnexpectedFile(t *testing.T) {
 	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"Uninstall.exe", "u"}, {"extra.dll", "x"}}, true)
 	_, _, err := parsePayload(data)
-	if err == nil || !strings.Contains(err.Error(), "neočekivanu") {
+	if err == nil || !strings.Contains(err.Error(), "unexpected") {
 		t.Fatalf("expected unexpected-file rejection, got %v", err)
 	}
 }

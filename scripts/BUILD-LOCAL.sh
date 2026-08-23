@@ -105,7 +105,7 @@ sha256sum "$SETUP" "$PORTABLE" > "$DIST/SHA256.txt"
 
 echo "[16/16] Digital-signature status"
 if grep -q 'AUTHENTICODE_SIGNED=NO' "$INTERNAL_VERIFY"; then
-  echo 'WARNING: public Windows binaries are not Authenticode-signed; Verified Publisher requires a real Brendigo certificate.' >&2
+  echo 'WARNING: public Windows binaries are not Authenticode-signed; Verified Publisher requires a real ByFTP certificate.' >&2
 fi
 
 for public in "$SETUP" "$PORTABLE" "$DIST/SHA256.txt"; do

@@ -83,15 +83,15 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
     }
     description, internal_name = descriptions.get(role, descriptions["portable"])
     strings = [
-        ("CompanyName", "Brendigo"),
+        ("CompanyName", "ByFTP"),
         ("FileDescription", description),
         ("FileVersion", f"{major}.{minor}.{patch}.{build}"),
         ("InternalName", internal_name),
-        ("LegalCopyright", "Copyright © 2026 Brendigo"),
+        ("LegalCopyright", "Copyright © 2026 ByFTP"),
         ("OriginalFilename", original_filename),
         ("ProductName", "ByFTP"),
         ("ProductVersion", f"{major}.{minor}.{patch}.{build}"),
-        ("Comments", "Siguran FTP, FTPS i SFTP klijent — Brendigo — brendigo.com"),
+        ("Comments", "Siguran FTP, FTPS i SFTP klijent — ByFTP — github.com/bren-wp/by-ftp"),
     ]
     string_table = make_container_block("040904B0", [make_string_block(k, v) for k, v in strings], value_type=1)
     string_file_info = make_container_block("StringFileInfo", [string_table], value_type=1)
@@ -106,14 +106,14 @@ def make_manifest(version: tuple[int, int, int, int], role: str, processor_archi
     if processor_architecture not in {"amd64", "x86"}:
         raise ValueError(f"Nepodržana Windows arhitektura manifesta: {processor_architecture}")
     identity = {
-        "portable": "Brendigo.ByFTP.Client",
-        "setup": "Brendigo.ByFTP.Setup",
-        "uninstaller": "Brendigo.ByFTP.Uninstaller",
-    }.get(role, "Brendigo.ByFTP.Client")
+        "portable": "ByFTP.Client",
+        "setup": "ByFTP.Setup",
+        "uninstaller": "ByFTP.Uninstaller",
+    }.get(role, "ByFTP.Client")
     xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity version="{major}.{minor}.{patch}.{build}" processorArchitecture="{processor_architecture}" name="{identity}" type="win32"/>
-  <description>ByFTP klijent tvrtke Brendigo</description>
+  <description>ByFTP klijent tvrtke ByFTP</description>
   <dependency>
     <dependentAssembly>
       <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0" processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
