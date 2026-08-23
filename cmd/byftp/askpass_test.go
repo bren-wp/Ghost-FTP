@@ -5,55 +5,191 @@ import (
 	"testing"
 )
 
+const (
+	testExecutable = `C:\Program Files\ByFTP\ByFTP.exe`
+	validToken     = "0123456789abcdef0123456789abcdef"
+)
+
 func TestValidAskpassInvocation(t *testing.T) {
-	exe := `C:\\Program Files\\ByFTP\\ByFTP.exe`
-	token := "0123456789abcdef0123456789abcdef"
-	if !validAskpassInvocation(exe, exe, "force", token) {
-		t.Fatal("expected controlled AskPass invocation to validate")
-	}
-	for _, tc := range []struct {
-		name, askExe, require, token string
-	}{
-		{"wrong exe", `C:\\Other\\ByFTP.exe`, "force", token},
-		{"wrong require", exe, "prefer", token},
-		{"short token", exe, "force", "abc"},
-		{"nonhex token", exe, "force", "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"},
-	} {
-		if validAskpassInvocation(exe, tc.askExe, tc.require, tc.token) {
-			t.Fatalf("%s unexpectedly validated", tc.name)
+	t.Run("accepts controlled invocation", func(t *testing.T) {
+		if !validAskpassInvocation(
+			testExecutable,
+			testExecutable,
+			"force",
+			validToken,
+		) {
+			t.Fatal("expected controlled AskPass invocation to be valid")
 		}
+	})
+
+	tests := []struct {
+		name       string
+		askpassExe string
+		require    string
+		token      string
+	}{
+		{
+			name:       "rejects wrong executable",
+			askpassExe: `C:\Other\ByFTP.exe`,
+			require:    "force",
+			token:      validToken,
+		},
+		{
+			name:       "rejects wrong require mode",
+			askpassExe: testExecutable,
+			require:    "prefer",
+			token:      validToken,
+		},
+		{
+			name:       "rejects short token",
+			askpassExe: testExecutable,
+			require:    "force",
+			token:      "abc",
+		},
+		{
+			name:       "rejects non-hex token",
+			askpassExe: testExecutable,
+			require:    "force",
+			token:      "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+		},
+		{
+			name:       "rejects empty executable",
+			askpassExe: "",
+			require:    "force",
+			token:      validToken,
+		},
+		{
+			name:       "rejects empty require mode",
+			askpassExe: testExecutable,
+			require:    "",
+			token:      validToken,
+		},
+		{
+			name:       "rejects empty token",
+			askpassExe: testExecutable,
+			require:    "force",
+			token:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if validAskpassInvocation(
+				testExecutable,
+				tt.askpassExe,
+				tt.require,
+				tt.token,
+			) {
+				t.Fatal("invalid AskPass invocation unexpectedly validated")
+			}
+		})
 	}
 }
 
-func TestSelectAskpassSecretOnlyUsesRecognizedPrompts(t *testing.T) {
+func TestSelectAskpassSecret(t *testing.T) {
 	password := []byte("server-password")
 	passphrase := []byte("key-passphrase")
 
-	secret, ok := selectAskpassSecret("user@example.test's password:", password, passphrase)
-	if !ok || !bytes.Equal(secret, password) {
-		t.Fatalf("password prompt did not select password: ok=%v secret=%q", ok, secret)
+	tests := []struct {
+		name       string
+		prompt     string
+		password   []byte
+		passphrase []byte
+		expected   []byte
+		wantOK     bool
+	}{
+		{
+			name:       "selects password for password prompt",
+			prompt:     "user@example.test's password:",
+			password:   password,
+			passphrase: passphrase,
+			expected:   password,
+			wantOK:     true,
+		},
+		{
+			name:       "selects passphrase for key prompt",
+			prompt:     "Enter passphrase for key 'id_ed25519':",
+			password:   password,
+			passphrase: passphrase,
+			expected:   passphrase,
+			wantOK:     true,
+		},
+		{
+			name:       "rejects verification code prompt",
+			prompt:     "Verification code:",
+			password:   password,
+			passphrase: passphrase,
+		},
+		{
+			name:       "rejects one-time password prompt",
+			prompt:     "One-time password token:",
+			password:   password,
+			passphrase: passphrase,
+		},
+		{
+			name:       "rejects security key prompt",
+			prompt:     "Touch your security key",
+			password:   password,
+			passphrase: passphrase,
+		},
+		{
+			name:       "rejects empty prompt",
+			prompt:     "",
+			password:   password,
+			passphrase: passphrase,
+		},
+		{
+			name:       "password does not fall back to passphrase",
+			prompt:     "Password:",
+			password:   nil,
+			passphrase: passphrase,
+		},
+		{
+			name:       "passphrase does not fall back to password",
+			prompt:     "Passphrase:",
+			password:   password,
+			passphrase: nil,
+		},
+		{
+			name:       "password prompt rejects empty password",
+			prompt:     "Password:",
+			password:   []byte{},
+			passphrase: passphrase,
+		},
+		{
+			name:       "passphrase prompt rejects empty passphrase",
+			prompt:     "Passphrase:",
+			password:   password,
+			passphrase: []byte{},
+		},
 	}
-	secret, ok = selectAskpassSecret("Enter passphrase for key 'id_ed25519':", password, passphrase)
-	if !ok || !bytes.Equal(secret, passphrase) {
-		t.Fatalf("passphrase prompt did not select passphrase: ok=%v secret=%q", ok, secret)
-	}
-	for _, prompt := range []string{
-		"Verification code:",
-		"One-time password token:",
-		"Touch your security key",
-		"",
-	} {
-		if secret, ok := selectAskpassSecret(prompt, password, passphrase); ok || secret != nil {
-			t.Fatalf("unknown prompt %q unexpectedly received a secret", prompt)
-		}
-	}
-}
 
-func TestSelectAskpassSecretRequiresMatchingCredential(t *testing.T) {
-	if _, ok := selectAskpassSecret("Password:", nil, []byte("passphrase")); ok {
-		t.Fatal("password prompt must not fall back to passphrase")
-	}
-	if _, ok := selectAskpassSecret("Passphrase:", []byte("password"), nil); ok {
-		t.Fatal("passphrase prompt must not fall back to password")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secret, ok := selectAskpassSecret(
+				tt.prompt,
+				tt.password,
+				tt.passphrase,
+			)
+
+			if ok != tt.wantOK {
+				t.Fatalf(
+					"selectAskpassSecret() ok = %v, want %v",
+					ok,
+					tt.wantOK,
+				)
+			}
+
+			if !tt.wantOK {
+				if secret != nil {
+					t.Fatal("expected nil secret for rejected prompt")
+				}
+				return
+			}
+
+			if !bytes.Equal(secret, tt.expected) {
+				t.Fatal("selectAskpassSecret() returned unexpected secret")
+			}
+		})
 	}
 }
