@@ -85,9 +85,9 @@ jobs:
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
 
   android:
-    name: Android source quality gate
+    name: Android APK quality gate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,6 +97,10 @@ jobs:
           distribution: temurin
           java-version: '17'
           check-latest: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
@@ -112,16 +116,24 @@ jobs:
           test -d "$sdk_root/build-tools/36.0.0"
       - name: Audit Android source
         run: python scripts/audit_android.py
-      - name: Test, lint and compile Android APK
+      - name: Test, lint and compile Android APKs
         shell: bash
-        run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
-      - name: Store Android validation artifact
+        run: |
+          set -euo pipefail
+          gradle -p android :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
+          python scripts/package_android.py \
+            --debug android/app/build/outputs/apk/debug/app-debug.apk \
+            --release android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            --output-dir dist
+      - name: Store Android release packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-android-release-gate
+          name: byftp-android-release
           if-no-files-found: error
           retention-days: 7
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            dist/ByFTP-*-Android-debug.apk
+            dist/ByFTP-*-Android-release-unsigned.apk
 
   windows:
     name: Windows x64 and x86
@@ -341,6 +353,11 @@ jobs:
         with:
           name: byftp-macos-release
           path: release
+      - name: Download Android APK packages
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with:
+          name: byftp-android-release
+          path: release
       - name: Verify public release staging
         shell: pwsh
         run: |
@@ -354,7 +371,9 @@ jobs:
             "ByFTP-$env:VERSION-Linux-amd64.deb",
             "ByFTP-$env:VERSION-Linux-arm64.deb",
             "ByFTP-$env:VERSION-Linux-i386.deb",
-            "ByFTP-$env:VERSION-macOS-Universal.pkg"
+            "ByFTP-$env:VERSION-macOS-Universal.pkg",
+            "ByFTP-$env:VERSION-Android-debug.apk",
+            "ByFTP-$env:VERSION-Android-release-unsigned.apk"
           )
           $actual = @(Get-ChildItem -LiteralPath 'release' -File | ForEach-Object Name | Sort-Object)
           $wanted = @($expected | Sort-Object)
@@ -372,7 +391,7 @@ jobs:
           WINDOWS=x64,x86
           LINUX=amd64,arm64,i386
           MACOS=universal-amd64-arm64
-          ANDROID=source-gate-only
+          ANDROID=debug-signed,release-unsigned
           RELEASE_QUALITY_GATE=passed
           GITHUB_RUN_ID=$env:GITHUB_RUN_ID
           GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
@@ -399,6 +418,8 @@ jobs:
             "release\ByFTP-$env:VERSION-Linux-arm64.deb",
             "release\ByFTP-$env:VERSION-Linux-i386.deb",
             "release\ByFTP-$env:VERSION-macOS-Universal.pkg",
+            "release\ByFTP-$env:VERSION-Android-debug.apk",
+            "release\ByFTP-$env:VERSION-Android-release-unsigned.apk",
             'release\SHA256.txt',
             'release\RELEASE-NOTES.txt',
             'release\BUILD-METADATA.txt'

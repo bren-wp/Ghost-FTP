@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Android security, privacy, version and build invariants."""
+"""Validate Android security, privacy, version, lifecycle and build invariants."""
 
 from __future__ import annotations
 
@@ -106,6 +106,9 @@ def main() -> int:
         'ftps.execPROT("P")',
         "enterLocalPassiveMode()",
         "FTP.BINARY_FILE_TYPE",
+        "loginRoot = normalizeLoginRoot(next.printWorkingDirectory())",
+        "mapLoginRelativePath(loginRoot, directory)",
+        "Remote UI path contains an unsafe component.",
     ))
     if "TrustManagerUtils" in ftp:
         fail("Android FTPS must not use Commons Net permissive/custom trust helpers")
@@ -131,6 +134,8 @@ def main() -> int:
         "Executors.newSingleThreadExecutor()",
         "connectingClient",
         "destroyed",
+        "String remotePath = pendingDownloadPath;",
+        "pendingDownloadPath = null;",
         "main.removeCallbacksAndMessages(null)",
         "io.shutdownNow()",
         'new Thread(() ->',
@@ -146,6 +151,7 @@ def main() -> int:
     for rel in (
         "android/app/src/test/java/com/byftp/client/model/ConnectionConfigTest.java",
         "android/app/src/test/java/com/byftp/client/model/RemotePathsTest.java",
+        "android/app/src/test/java/com/byftp/client/remote/FtpRemoteClientPathTest.java",
         "android/README.md",
     ):
         read(rel)
@@ -153,10 +159,12 @@ def main() -> int:
     print(f"ANDROID_AUDIT=PASS ({version})")
     print("ANDROID_SFTP_HOST_KEY_PINNING=REQUIRED")
     print("ANDROID_FTPS_PLATFORM_TRUST_AND_ENDPOINT_CHECKING=ENABLED")
+    print("ANDROID_FTP_LOGIN_ROOT=ENFORCED")
     print("ANDROID_GENERIC_CLEARTEXT_NETWORK=BLOCKED")
     print("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED")
     print("ANDROID_BACKUP_AND_DEVICE_TRANSFER=BLOCKED")
     print("ANDROID_ACTIVITY_LIFECYCLE_CLEANUP=ENFORCED")
+    print("ANDROID_PICKER_PENDING_STATE=CLEARED")
     print("ANDROID_PASSWORD_PERSISTENCE=BLOCKED")
     print("ANDROID_VERSION_SOURCE=ROOT_VERSION")
     return 0

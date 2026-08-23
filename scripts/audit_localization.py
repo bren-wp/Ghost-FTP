@@ -68,6 +68,16 @@ def main() -> int:
         if marker not in windows:
             fail(f"Windows live localization is missing: {marker}")
 
+    entrypoint = read("cmd/byftp/main.go")
+    for marker in (
+        "credential is not available",
+        "invalid authentication request",
+        "ByFTP could not start.",
+        "The ByFTP window could not be opened.",
+    ):
+        if marker not in entrypoint:
+            fail(f"Windows English fallback marker is missing: {marker}")
+
     readme = read("README.md")
     for marker in (f"Current release: {version}", "## Languages", "English"):
         if marker not in readme:
@@ -76,6 +86,16 @@ def main() -> int:
     forbidden_primary = {
         "README.md": ("Trenutačno izdanje:", "## Preuzimanje", "## Dokumentacija"),
         ".github/pull_request_template.md": ("## Ovlaštenje", "## Sažetak"),
+        "cmd/byftp/main.go": (
+            "vjerodajnica nije dostupna",
+            "neispravan zahtjev za prijavu",
+            "nepouzdan nadređeni proces",
+            "ByFTP je neočekivano zatvoren",
+            "ByFTP je već pokrenut",
+            "ByFTP se ne može pokrenuti",
+            "ByFTP podatkovna mapa nije sigurna",
+            "ByFTP prozor nije moguće otvoriti",
+        ),
     }
     for rel, phrases in forbidden_primary.items():
         text = read(rel)
@@ -85,6 +105,7 @@ def main() -> int:
 
     print(f"LOCALIZATION_AUDIT=PASS ({version})")
     print("PRIMARY_LANGUAGE=en")
+    print("WINDOWS_STARTUP_FALLBACKS=en")
     print("SUPPORTED_LANGUAGES=" + ",".join(SUPPORTED))
     return 0
 

@@ -106,7 +106,11 @@ public final class MainActivity extends Activity {
         username = input(R.string.username, InputType.TYPE_CLASS_TEXT);
         password = input(R.string.password, InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         fingerprint = input(R.string.fingerprint_hint, InputType.TYPE_CLASS_TEXT);
-        form.addView(host); form.addView(port); form.addView(username); form.addView(password); form.addView(fingerprint);
+        form.addView(host);
+        form.addView(port);
+        form.addView(username);
+        form.addView(password);
+        form.addView(fingerprint);
 
         connect = button(R.string.connect);
         form.addView(connect, matchWrap());
@@ -114,8 +118,14 @@ public final class MainActivity extends Activity {
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setGravity(Gravity.CENTER_VERTICAL);
-        up = button(R.string.up); refresh = button(R.string.refresh); upload = button(R.string.upload); newFolder = button(R.string.new_folder);
-        actions.addView(up, weight()); actions.addView(refresh, weight()); actions.addView(upload, weight()); actions.addView(newFolder, weight());
+        up = button(R.string.up);
+        refresh = button(R.string.refresh);
+        upload = button(R.string.upload);
+        newFolder = button(R.string.new_folder);
+        actions.addView(up, weight());
+        actions.addView(refresh, weight());
+        actions.addView(upload, weight());
+        actions.addView(newFolder, weight());
         root.addView(actions, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         path = new TextView(this);
@@ -147,6 +157,7 @@ public final class MainActivity extends Activity {
                 if (value == ConnectionConfig.Protocol.FTP) status.setText(R.string.ftp_warning);
                 else if (client == null) status.setText(R.string.status_ready);
             }
+
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
         });
         connect.setOnClickListener(v -> { if (client == null) connect(); else disconnect(); });
@@ -169,11 +180,19 @@ public final class MainActivity extends Activity {
         if (busy) return;
         ConnectionConfig config;
         try {
-            config = ConnectionConfig.create((ConnectionConfig.Protocol) protocol.getSelectedItem(), text(host), text(port), text(username), password.getText().toString(), text(fingerprint));
+            config = ConnectionConfig.create(
+                (ConnectionConfig.Protocol) protocol.getSelectedItem(),
+                text(host),
+                text(port),
+                text(username),
+                password.getText().toString(),
+                text(fingerprint)
+            );
         } catch (IllegalArgumentException error) {
             showError(error);
             return;
         }
+
         setBusy(true, R.string.status_connecting);
         io.execute(() -> {
             RemoteClient next = RemoteClientFactory.create(config);
@@ -192,7 +211,10 @@ public final class MainActivity extends Activity {
             } catch (Exception error) {
                 connectingClient = null;
                 next.close();
-                postToMain(() -> { setBusy(false, R.string.status_ready); showError(error); });
+                postToMain(() -> {
+                    setBusy(false, R.string.status_ready);
+                    showError(error);
+                });
             }
         });
     }
@@ -201,12 +223,17 @@ public final class MainActivity extends Activity {
         if (busy) return;
         RemoteClient current = client;
         client = null;
+        pendingDownloadPath = null;
         setBusy(true, R.string.status_working);
         io.execute(() -> {
             if (current != null) current.close();
             postToMain(() -> {
-                entries.clear(); listAdapter.clear(); currentPath = "/"; path.setText(currentPath);
-                updateConnectionUi(false); setBusy(false, R.string.status_disconnected);
+                entries.clear();
+                listAdapter.clear();
+                currentPath = "/";
+                path.setText(currentPath);
+                updateConnectionUi(false);
+                setBusy(false, R.string.status_disconnected);
             });
         });
     }
@@ -221,18 +248,28 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             try {
                 List<RemoteEntry> next = current.list(normalized);
-                postToMain(() -> { currentPath = normalized; replaceEntries(next); setBusy(false, R.string.status_connected); });
+                postToMain(() -> {
+                    currentPath = normalized;
+                    replaceEntries(next);
+                    setBusy(false, R.string.status_connected);
+                });
             } catch (Exception error) {
-                postToMain(() -> { setBusy(false, R.string.status_connected); showError(error); });
+                postToMain(() -> {
+                    setBusy(false, R.string.status_connected);
+                    showError(error);
+                });
             }
         });
     }
 
     private void replaceEntries(List<RemoteEntry> next) {
-        entries.clear(); entries.addAll(next);
+        entries.clear();
+        entries.addAll(next);
         List<String> labels = new ArrayList<>();
         for (RemoteEntry entry : entries) labels.add(entry.displayLabel());
-        listAdapter.clear(); listAdapter.addAll(labels); listAdapter.notifyDataSetChanged();
+        listAdapter.clear();
+        listAdapter.addAll(labels);
+        listAdapter.notifyDataSetChanged();
         path.setText(currentPath);
     }
 
@@ -256,16 +293,29 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_DOWNLOAD && resultCode != RESULT_OK) pendingDownloadPath = null;
-        if (resultCode != RESULT_OK || data == null || data.getData() == null || client == null) return;
-        Uri uri = data.getData();
-        if (requestCode == REQUEST_UPLOAD) uploadUri(uri);
-        else if (requestCode == REQUEST_DOWNLOAD && pendingDownloadPath != null) downloadUri(uri, pendingDownloadPath);
+
+        if (requestCode == REQUEST_DOWNLOAD) {
+            String remotePath = pendingDownloadPath;
+            pendingDownloadPath = null;
+            if (resultCode != RESULT_OK || data == null || data.getData() == null || client == null || remotePath == null) return;
+            downloadUri(data.getData(), remotePath);
+            return;
+        }
+
+        if (requestCode == REQUEST_UPLOAD) {
+            if (resultCode != RESULT_OK || data == null || data.getData() == null || client == null) return;
+            uploadUri(data.getData());
+        }
     }
 
     private void uploadUri(Uri uri) {
         String name = displayName(uri);
-        try { RemotePaths.validateName(name); } catch (IllegalArgumentException error) { showError(error); return; }
+        try {
+            RemotePaths.validateName(name);
+        } catch (IllegalArgumentException error) {
+            showError(error);
+            return;
+        }
         String remotePath = RemotePaths.child(currentPath, name);
         runIo(() -> {
             try (InputStream source = getContentResolver().openInputStream(uri)) {
@@ -276,7 +326,6 @@ public final class MainActivity extends Activity {
     }
 
     private void downloadUri(Uri uri, String remotePath) {
-        pendingDownloadPath = null;
         runIo(() -> {
             try (OutputStream destination = getContentResolver().openOutputStream(uri, "w")) {
                 if (destination == null) throw new IllegalStateException("Unable to open destination file.");
@@ -288,7 +337,9 @@ public final class MainActivity extends Activity {
     private void promptNewFolder() {
         if (client == null || busy) return;
         EditText name = input(R.string.folder_name, InputType.TYPE_CLASS_TEXT);
-        new AlertDialog.Builder(this).setTitle(R.string.new_folder).setView(name)
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.new_folder)
+            .setView(name)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.create, (dialog, which) -> mutateName(name.getText().toString(), null, true))
             .show();
@@ -296,8 +347,11 @@ public final class MainActivity extends Activity {
 
     private void promptRename(RemoteEntry entry) {
         EditText name = input(R.string.new_name, InputType.TYPE_CLASS_TEXT);
-        name.setText(entry.name()); name.selectAll();
-        new AlertDialog.Builder(this).setTitle(R.string.rename).setView(name)
+        name.setText(entry.name());
+        name.selectAll();
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.rename)
+            .setView(name)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.save, (dialog, which) -> mutateName(name.getText().toString(), entry, false))
             .show();
@@ -305,7 +359,12 @@ public final class MainActivity extends Activity {
 
     private void mutateName(String rawName, RemoteEntry existing, boolean createDirectory) {
         String name = rawName == null ? "" : rawName.trim();
-        try { RemotePaths.validateName(name); } catch (IllegalArgumentException error) { showError(error); return; }
+        try {
+            RemotePaths.validateName(name);
+        } catch (IllegalArgumentException error) {
+            showError(error);
+            return;
+        }
         runIo(() -> {
             if (createDirectory) requireClient().mkdir(RemotePaths.child(currentPath, name));
             else requireClient().rename(RemotePaths.child(currentPath, existing.name()), RemotePaths.child(currentPath, name));
@@ -313,21 +372,31 @@ public final class MainActivity extends Activity {
     }
 
     private void showEntryActions(RemoteEntry entry) {
-        String[] actions = entry.directory()
-            ? new String[]{getString(R.string.rename), getString(R.string.delete)}
-            : new String[]{getString(R.string.download), getString(R.string.rename), getString(R.string.delete)};
+        if (entry.directory()) {
+            String[] actions = {getString(R.string.rename), getString(R.string.delete)};
+            new AlertDialog.Builder(this).setTitle(entry.name()).setItems(actions, (dialog, which) -> {
+                if (which == 0) promptRename(entry);
+                else confirmDelete(entry);
+            }).show();
+            return;
+        }
+
+        String[] actions = {getString(R.string.download), getString(R.string.rename), getString(R.string.delete)};
         new AlertDialog.Builder(this).setTitle(entry.name()).setItems(actions, (dialog, which) -> {
-            String action = actions[which];
-            if (action.equals(getString(R.string.download))) startDownload(entry);
-            else if (action.equals(getString(R.string.rename))) promptRename(entry);
+            if (which == 0) startDownload(entry);
+            else if (which == 1) promptRename(entry);
             else confirmDelete(entry);
         }).show();
     }
 
     private void confirmDelete(RemoteEntry entry) {
-        new AlertDialog.Builder(this).setMessage(getString(R.string.delete_confirm, entry.name()))
+        new AlertDialog.Builder(this)
+            .setMessage(getString(R.string.delete_confirm, entry.name()))
             .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.delete, (dialog, which) -> runIo(() -> requireClient().delete(RemotePaths.child(currentPath, entry.name()), entry.directory()), true))
+            .setPositiveButton(R.string.delete, (dialog, which) -> runIo(
+                () -> requireClient().delete(RemotePaths.child(currentPath, entry.name()), entry.directory()),
+                true
+            ))
             .show();
     }
 
@@ -338,9 +407,15 @@ public final class MainActivity extends Activity {
             try {
                 action.run();
                 List<RemoteEntry> next = refreshAfter ? requireClient().list(currentPath) : null;
-                postToMain(() -> { if (next != null) replaceEntries(next); setBusy(false, R.string.status_connected); });
+                postToMain(() -> {
+                    if (next != null) replaceEntries(next);
+                    setBusy(false, R.string.status_connected);
+                });
             } catch (Exception error) {
-                postToMain(() -> { setBusy(false, R.string.status_connected); showError(error); });
+                postToMain(() -> {
+                    setBusy(false, R.string.status_connected);
+                    showError(error);
+                });
             }
         });
     }
@@ -367,12 +442,19 @@ public final class MainActivity extends Activity {
     }
 
     private void setBusy(boolean value, int statusText) {
-        busy = value; status.setText(statusText); updateEnabled();
+        busy = value;
+        status.setText(statusText);
+        updateEnabled();
     }
 
     private void updateConnectionUi(boolean connected) {
         connect.setText(connected ? R.string.disconnect : R.string.connect);
-        protocol.setEnabled(!connected); host.setEnabled(!connected); port.setEnabled(!connected); username.setEnabled(!connected); password.setEnabled(!connected); fingerprint.setEnabled(!connected);
+        protocol.setEnabled(!connected);
+        host.setEnabled(!connected);
+        port.setEnabled(!connected);
+        username.setEnabled(!connected);
+        password.setEnabled(!connected);
+        fingerprint.setEnabled(!connected);
         updateEnabled();
     }
 
@@ -380,7 +462,10 @@ public final class MainActivity extends Activity {
         boolean connected = client != null;
         connect.setEnabled(!busy);
         up.setEnabled(connected && !busy && !currentPath.equals("/"));
-        refresh.setEnabled(connected && !busy); upload.setEnabled(connected && !busy); newFolder.setEnabled(connected && !busy); list.setEnabled(connected && !busy);
+        refresh.setEnabled(connected && !busy);
+        upload.setEnabled(connected && !busy);
+        newFolder.setEnabled(connected && !busy);
+        list.setEnabled(connected && !busy);
     }
 
     private void showError(Throwable error) {
@@ -392,14 +477,36 @@ public final class MainActivity extends Activity {
     }
 
     private String text(EditText value) { return value.getText().toString(); }
-    private EditText input(int hint, int inputType) { EditText e = new EditText(this); e.setHint(hint); e.setInputType(inputType); e.setSingleLine(true); e.setLayoutParams(matchWrap()); return e; }
-    private Button button(int text) { Button b = new Button(this); b.setText(text); b.setAllCaps(false); return b; }
-    private LinearLayout.LayoutParams matchWrap() { return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT); }
-    private LinearLayout.LayoutParams weight() { return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f); }
+
+    private EditText input(int hint, int inputType) {
+        EditText field = new EditText(this);
+        field.setHint(hint);
+        field.setInputType(inputType);
+        field.setSingleLine(true);
+        field.setLayoutParams(matchWrap());
+        return field;
+    }
+
+    private Button button(int text) {
+        Button value = new Button(this);
+        value.setText(text);
+        value.setAllCaps(false);
+        return value;
+    }
+
+    private LinearLayout.LayoutParams matchWrap() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    private LinearLayout.LayoutParams weight() {
+        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+    }
+
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 
     @Override protected void onDestroy() {
         destroyed = true;
+        pendingDownloadPath = null;
         main.removeCallbacksAndMessages(null);
         RemoteClient current = client;
         RemoteClient pending = connectingClient;

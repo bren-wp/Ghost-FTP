@@ -167,7 +167,7 @@ func writeAll(w io.Writer, data []byte) error {
 
 func writeAskpassSecret(secret []byte) error {
 	if len(secret) == 0 {
-		return errors.New("vjerodajnica nije dostupna")
+		return errors.New("credential is not available")
 	}
 
 	if err := writeAll(os.Stdout, secret); err != nil {
@@ -198,15 +198,15 @@ func askpassMode() (bool, error) {
 	}
 
 	if !validAskpassInvocation(exe, askpassExe, require, token) {
-		return true, errors.New("neispravan zahtjev za prijavu")
+		return true, errors.New("invalid authentication request")
 	}
 
 	if !platform.TrustedAskPassParent() {
-		return true, errors.New("nepouzdan nadređeni proces")
+		return true, errors.New("untrusted parent process")
 	}
 
 	if passwordBlob == "" && passphraseBlob == "" {
-		return true, errors.New("vjerodajnica nije dostupna")
+		return true, errors.New("credential is not available")
 	}
 
 	var (
@@ -241,7 +241,7 @@ func askpassMode() (bool, error) {
 	)
 	if !ok {
 		return true, errors.New(
-			"nepoznat ili nepodržan zahtjev za vjerodajnicu",
+			"unknown or unsupported credential request",
 		)
 	}
 
@@ -264,8 +264,8 @@ func runApplication() (exitCode int) {
 	defer func() {
 		if recover() != nil {
 			showError(
-				"ByFTP je neočekivano zatvoren. " +
-					"Ponovno pokrenite aplikaciju.",
+				"ByFTP closed unexpectedly. " +
+					"Restart the application and try again.",
 			)
 
 			exitCode = 1
@@ -278,7 +278,7 @@ func runApplication() (exitCode int) {
 	if !ok {
 		platform.MessageBox(
 			brand.ProductFull,
-			brand.ProductName+" je već pokrenut.",
+			brand.ProductName+" is already running.",
 			messageBoxInformation,
 		)
 
@@ -289,8 +289,8 @@ func runApplication() (exitCode int) {
 	exe, err := os.Executable()
 	if err != nil {
 		showError(
-			"ByFTP se ne može pokrenuti. " +
-				"Ponovno pokrenite računalo i pokušajte ponovno.",
+			"ByFTP could not start. " +
+				"Restart the computer and try again.",
 		)
 
 		return 1
@@ -301,9 +301,9 @@ func runApplication() (exitCode int) {
 		showError(
 			usererror.Message(
 				err,
-				"ByFTP se ne može pokrenuti. "+
-					"Provjerite dopuštenja korisničke mape "+
-					"i pokušajte ponovno.",
+				"ByFTP could not start. "+
+					"Check permissions for the user data folder "+
+					"and try again.",
 			),
 		)
 
@@ -313,7 +313,7 @@ func runApplication() (exitCode int) {
 	localAppData, err := platform.LocalAppData()
 	if err != nil {
 		showError(
-			"ByFTP ne može pristupiti lokalnoj podatkovnoj mapi.",
+			"ByFTP could not access the local application-data folder.",
 		)
 
 		return 1
@@ -324,9 +324,9 @@ func runApplication() (exitCode int) {
 		dataDir,
 	); err != nil {
 		showError(
-			"ByFTP podatkovna mapa nije sigurna. " +
-				"Uklonite preusmjeravanje te mape " +
-				"i pokušajte ponovno.",
+			"The ByFTP data folder is not safe to use. " +
+				"Remove filesystem redirection for that folder "+
+				"and try again.",
 		)
 
 		return 1
@@ -337,8 +337,7 @@ func runApplication() (exitCode int) {
 		showError(
 			usererror.Message(
 				err,
-				"ByFTP se ne može pokrenuti. "+
-					"Pokušajte ponovno.",
+				"ByFTP could not start. Please try again.",
 			),
 		)
 
@@ -350,8 +349,7 @@ func runApplication() (exitCode int) {
 		showError(
 			usererror.Message(
 				err,
-				"ByFTP prozor nije moguće otvoriti. "+
-					"Pokušajte ponovno.",
+				"The ByFTP window could not be opened. Please try again.",
 			),
 		)
 
