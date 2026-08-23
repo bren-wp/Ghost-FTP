@@ -1,6 +1,6 @@
 # Architecture
 
-ByFTP has two intentionally separate runtime implementations that share product/release policy rather than process memory.
+ByFTP has two intentionally separate runtime implementations that share product, security and release policy rather than process memory.
 
 ## Desktop core
 
@@ -12,15 +12,20 @@ The Windows/Linux/macOS implementation is written in Go and split into small typ
 
 The Android module is separated into:
 
-- `model/`: validated connection configuration, remote entries and remote path helpers.
-- `remote/`: a small `RemoteClient` boundary with FTP/FTPS and SFTP adapters.
-- `MainActivity`: Android lifecycle/UI orchestration and Storage Access Framework interaction.
+- `model/`: validated connection configuration, remote entries and remote-path helpers.
+- `remote/`: a small `RemoteClient` boundary with independent FTP/FTPS and SFTP adapters.
+- `MainActivity`: Android UI/lifecycle orchestration and Storage Access Framework interaction.
+- resource/security policy under `res/`, including network-security, backup and device-transfer rules.
 - unit tests under `android/app/src/test`.
 
-Apache Commons Net provides FTP/FTPS protocol primitives; SSHJ provides SFTP/SSH protocol primitives and its native SHA-256 fingerprint verifier is used for host-key pinning.
+Apache Commons Net provides FTP/FTPS protocol primitives. The FTPS adapter explicitly selects the Android/JVM platform trust manager, enables endpoint/hostname verification and protects private data channels with `PROT P`. SSHJ provides SFTP/SSH protocol primitives and its native SHA-256 fingerprint verifier is used for mandatory host-key pinning.
 
-Android connection passwords are not persisted. Local file access is delegated to Android document providers through content URIs.
+Android connection passwords and SSH secrets are not persisted. Local file access is delegated to Android document providers through content URIs, so the app does not request broad storage permissions. Application data is excluded from Android cloud-backup and device-transfer extraction rules.
+
+The Activity keeps blocking network work on a dedicated executor. A connection that is still being established is tracked separately from the active client. During Activity destruction, pending and active remote clients are detached and closed outside the UI thread, executor work is interrupted and queued main-thread callbacks are discarded/ignored. This prevents an obsolete Activity instance from adopting a late connection or mutating destroyed UI state.
 
 ## Shared invariants
 
-Both implementations use the root `VERSION` as the product version, keep project telemetry/advertising absent, contact only endpoints selected by the user and are required to pass repository release gates. The Android implementation does not weaken or bypass desktop security controls; it has its own mobile-specific audit surface.
+Both implementations use the root `VERSION` as the product version, keep project telemetry/advertising absent, contact only endpoints selected by the user and are required to pass repository release gates.
+
+Desktop and Android security controls are intentionally platform-specific rather than simulated through one runtime. Android has dedicated audits for SFTP host-key pinning, FTPS trust/hostname checking, cleartext policy, storage permissions, backup/device-transfer exclusions, password persistence, lifecycle cleanup and version binding. Android validation is a required production release dependency even though a public production APK remains withheld until a stable private signing identity exists outside the repository.
