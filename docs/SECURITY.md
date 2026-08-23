@@ -4,40 +4,54 @@ ByFTP keeps transport, credential, remote-path and filesystem checks fail-closed
 
 ## Desktop
 
-FTP over TLS validates certificates. SFTP pins and verifies the host key. Uploads use a stable local snapshot before network transfer, remote writes use temporary staging and destination revalidation, and overwrite paths use backup/rollback logic. Local recursive operations guard against symlinks, junctions and reparse-point traversal.
+FTP over TLS validates certificates. SFTP pins and verifies the host key. Uploads use stable local snapshots, remote writes use temporary staging and destination revalidation, and overwrite paths use backup/rollback logic. Local recursive operations guard against symlinks, junctions and reparse-point traversal.
 
-Credentials must never be logged. Windows saved profile secrets are protected by DPAPI. External processes receive a minimized environment and bounded output handling. AskPass invocation remains parent/token constrained and its inherited credential environment is cleared before secret use. Remaining startup/AskPass fallback text is English-first; localization cleanup does not alter these security checks.
+Credentials must never be logged. Windows saved profile secrets are DPAPI protected. External processes receive a minimized environment and bounded output. AskPass remains parent/token constrained and clears inherited credential state before secret use.
 
 ## Android
 
 Android uses a separate native protocol boundary:
 
-- SFTP refuses to connect without an expected OpenSSH-style `SHA256:` host-key fingerprint.
-- The expected fingerprint is passed to SSHJ's built-in host-key verifier; permissive/promiscuous verifiers are forbidden.
-- Explicit and implicit FTPS use the Android/JVM platform trust manager, enable TLS endpoint/hostname checking and protect the data channel with `PROT P`.
-- Android application source is audited to reject custom `X509TrustManager` implementations, empty trust callbacks, permissive hostname verifiers and Commons Net trust-all helpers.
-- Plain FTP is retained only for explicit server compatibility and is unencrypted; prefer FTPS or SFTP.
-- After FTP/FTPS login, the server working directory is treated as the UI account root. If `PWD` is unavailable, operations remain login-relative rather than forcing an arbitrary server `/`.
-- FTP UI paths reject traversal, empty components, backslashes, NUL characters and noncanonical absolute forms before remote operations.
-- Generic cleartext traffic is disabled in the Android network-security configuration for platform-aware networking.
-- Passwords are session-only and are not written to SharedPreferences, databases, files or a project backend.
-- Android local files are selected through the Storage Access Framework; the manifest does not request `MANAGE_EXTERNAL_STORAGE` or legacy broad read/write storage permissions.
-- Cloud-backup and device-transfer extraction rules exclude application data domains.
-- Host input rejects URLs/path forms and ports are restricted to 1–65535.
-- Remote operation names are required to be single path components.
-- Network work runs outside the UI thread; active and pending connections are closed during Activity destruction and late UI callbacks are ignored.
-- Pending download-picker state is cleared after every result, disconnect and Activity destruction.
+- SFTP requires an OpenSSH-style `SHA256:` host-key fingerprint.
+- 1.2.0 Base64-decodes that fingerprint and requires exactly a 32-byte SHA-256 digest before SSHJ receives the canonical value.
+- Permissive/promiscuous SFTP verifiers are forbidden.
+- Explicit/implicit FTPS use platform trust, endpoint/hostname checking and `PROT P`.
+- ByFTP Android source is audited against custom trust-all `X509TrustManager` and permissive hostname-verifier patterns.
+- Plain FTP is retained only for explicit compatibility and is unencrypted.
+- FTP/FTPS map UI `/` to the authenticated login/account root; unavailable `PWD` falls back to login-relative paths.
+- Remote paths now fail closed on traversal, `.`/`..`, duplicate separators, backslashes, NULs and noncanonical single-component names instead of rewriting them.
+- Host/port validation is bounded and username/password control characters are rejected.
+- Passwords remain session-only and are not persisted in preferences, databases, files or a project backend.
+- Storage Access Framework is used instead of broad storage permissions; backup/device-transfer rules exclude app data.
+- Active/pending clients and file-picker state are cleaned during lifecycle teardown.
 
-Android SFTP private-key import is not present. It must not be added until stable Android Keystore-backed secret/key handling, import validation and migration behavior have dedicated tests and audit coverage.
+Android SFTP private-key import remains deferred until Android Keystore-backed handling, import validation and migration semantics are implemented and audited.
 
-Android lint remains fail-closed with warnings treated as errors for debug and release variants. The `TrustAllX509TrustManager` lint detector is disabled only because current third-party dependency JARs contain unrelated implementations that trigger dependency-level findings; `scripts/audit_android.py` independently rejects those patterns anywhere in ByFTP Android source and requires explicit platform trust plus endpoint checking in the FTPS adapter.
+## iOS
 
-## APK integrity and signing
+The first native iOS release supports FTP and implicit FTPS through Apple Network.framework.
 
-`scripts/package_android.py` validates that Android build outputs are non-empty ZIP/APK containers with `AndroidManifest.xml`, `classes.dex` and `resources.arsc`, rejects duplicate/unsafe archive paths and stages only versioned artifact names.
+- Implicit FTPS uses platform TLS validation and protects the FTP data channel with `PBSZ 0` / `PROT P`.
+- No custom trust-all callback or global App Transport Security bypass is used.
+- FTP UI paths and server-reported login roots reject traversal, backslashes, duplicate separators, NULs and dot components.
+- EPSV is preferred. PASV fallback deliberately ignores the server-provided host and opens the data connection only to the user-selected endpoint, preventing passive-response host redirection and improving NAT/shared-hosting compatibility.
+- FTP command names are constrained and command arguments/credentials reject CR/LF/NUL control characters.
+- Network reads/listings are bounded; downloads are streamed to temporary files rather than accumulated unbounded in memory.
+- Session generation prevents stale asynchronous work from mutating a disconnected/newer session.
+- The UI password is cleared after each connect attempt; the FTP actor clears its own password copy after authentication; the app disconnects on background transition.
+- Upload uses security-scoped document access and downloaded temporary copies can be explicitly cleared.
+- No `UserDefaults` credential store, WebView wrapper, analytics SDK or fixed runtime service endpoint is part of the iOS application.
 
-The public debug APK is signed only with the standard Android debug identity and is for development/testing. The optimized release APK is intentionally unsigned. Production Android distribution requires a stable private signing identity kept outside the repository. See [Signing](SIGNING.md).
+Explicit FTPS and SFTP are not exposed on iOS until separately audited native implementations exist.
+
+## Mobile package integrity and signing
+
+`scripts/package_android.py` validates required APK structure and rejects unsafe/duplicate archive members before versioned staging.
+
+`scripts/package_ios.py` validates `ByFTP.app` bundle identifier/version, executable presence and Mach-O format, rejects symlinks and unsafe archive paths, then creates the normal `Payload/ByFTP.app` unsigned IPA plus an unsigned app ZIP.
+
+Android debug signing is for development/testing only; the optimized Android release APK is unsigned. iOS IPA/app ZIP artifacts are also unsigned. Production Android and Apple signing identities/provisioning material must stay outside the repository. See [Signing](SIGNING.md).
 
 ## Reporting
 
-Report security vulnerabilities through the repository Security policy rather than publishing working secrets, credentials, production endpoints or exploit details in a public issue.
+Report vulnerabilities through the repository Security policy. Never publish working secrets, signing credentials, production endpoints or customer data in a public issue.
