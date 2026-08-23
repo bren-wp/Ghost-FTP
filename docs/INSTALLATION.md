@@ -24,11 +24,13 @@ For development builds install JDK 17, Gradle 9.5.0 and Android SDK platform 37,
 gradle -p android :app:clean :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
 ```
 
-The debug APK is generated under `android/app/build/outputs/apk/debug/` and is intended for development/CI verification. Do not redistribute it as a production-signed application.
+The debug APK is generated under `android/app/build/outputs/apk/debug/` and is intended for development/CI verification. CI also stores lint-report evidence. Do not redistribute the debug APK as a production-signed application.
 
 A public production Android APK is intentionally withheld until a stable private Android signing identity is configured outside the repository. Signing keys, passwords and keystores must never be committed.
 
-The Android app uses the Storage Access Framework for local files and does not need broad storage permission. Connection passwords are session-only in version 1.1.0.
+The Android app uses the Storage Access Framework for local files and does not need broad storage permission. Connection passwords are session-only in version 1.1.0. App data is excluded from Android cloud-backup/device-transfer extraction rules, generic cleartext traffic is disabled for platform-aware stacks, and FTPS uses platform certificate trust plus endpoint/hostname verification.
+
+Release builds enable code minification and resource shrinking. Android lint warnings are treated as errors; dependency-level trust-manager false positives are covered by a dedicated source audit that rejects permissive TLS/SSH patterns in ByFTP code.
 
 ## Source builds
 
