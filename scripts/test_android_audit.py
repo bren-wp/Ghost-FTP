@@ -18,9 +18,19 @@ class AndroidAuditTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        self.assertIn("ANDROID_AUDIT=PASS", result.stdout)
-        self.assertIn("ANDROID_SFTP_HOST_KEY_PINNING=REQUIRED", result.stdout)
-        self.assertIn("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED", result.stdout)
+        for marker in (
+            "ANDROID_AUDIT=PASS",
+            "ANDROID_SFTP_HOST_KEY_PINNING=REQUIRED",
+            "ANDROID_FTPS_PLATFORM_TRUST_AND_ENDPOINT_CHECKING=ENABLED",
+            "ANDROID_FTP_LOGIN_ROOT=ENFORCED",
+            "ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED",
+            "ANDROID_BACKUP_AND_DEVICE_TRANSFER=BLOCKED",
+            "ANDROID_ACTIVITY_LIFECYCLE_CLEANUP=ENFORCED",
+            "ANDROID_PICKER_PENDING_STATE=CLEARED",
+            "ANDROID_PASSWORD_PERSISTENCE=BLOCKED",
+            "ANDROID_VERSION_SOURCE=ROOT_VERSION",
+        ):
+            self.assertIn(marker, result.stdout)
 
 
 if __name__ == "__main__":
