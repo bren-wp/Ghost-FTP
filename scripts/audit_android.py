@@ -52,16 +52,25 @@ def main() -> int:
         "android.permission.INTERNET",
         'android:allowBackup="false"',
         'android:exported="true"',
+        'android:usesCleartextTraffic="false"',
     ))
     for forbidden in (
         "MANAGE_EXTERNAL_STORAGE",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_NETWORK_STATE",
         "QUERY_ALL_PACKAGES",
         "REQUEST_INSTALL_PACKAGES",
     ):
         if forbidden in manifest:
-            fail(f"Android manifest requests forbidden broad permission: {forbidden}")
+            fail(f"Android manifest requests unnecessary or broad permission: {forbidden}")
+
+    network = require("android/app/src/main/res/xml/network_security_config.xml", (
+        'cleartextTrafficPermitted="false"',
+        '<certificates src="system" />',
+    ))
+    if 'cleartextTrafficPermitted="true"' in network:
+        fail("Android network security config permits generic cleartext traffic")
 
     connection = require("android/app/src/main/java/com/byftp/client/model/ConnectionConfig.java", (
         "SFTP requires an expected SHA-256 host-key fingerprint",
@@ -112,6 +121,7 @@ def main() -> int:
     print(f"ANDROID_AUDIT=PASS ({version})")
     print("ANDROID_SFTP_HOST_KEY_PINNING=REQUIRED")
     print("ANDROID_FTPS_ENDPOINT_CHECKING=ENABLED")
+    print("ANDROID_GENERIC_CLEARTEXT_NETWORK=BLOCKED")
     print("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED")
     print("ANDROID_PASSWORD_PERSISTENCE=BLOCKED")
     print("ANDROID_VERSION_SOURCE=ROOT_VERSION")
