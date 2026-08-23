@@ -49,7 +49,7 @@ struct ConnectionView: View {
                 .disabled(store.busy)
             }
 
-            Section("iOS 1.2.0 transport") {
+            Section("iOS transport") {
                 Text("This native iOS release supports FTP and implicit FTPS. Explicit FTPS and SFTP remain available on the other ByFTP platforms and are not falsely emulated on iOS.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
