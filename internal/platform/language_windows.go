@@ -110,7 +110,11 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 	languageStates.Store(hwnd, state)
 	defer languageStates.Delete(hwnd)
 
-	font, _, _ := promptCreateFontW.Call(uintptr(uint32(int32(-16))), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	// CreateFontW accepts a signed LONG height. syscall.Proc.Call takes uintptr,
+	// so preserve the signed 32-bit Win32 representation at runtime instead of
+	// attempting an invalid constant conversion from -16 to uint32.
+	fontHeight := int32(-16)
+	font, _, _ := promptCreateFontW.Call(uintptr(uint32(fontHeight)), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
 	if font != 0 {
 		defer promptDeleteObject.Call(font)
 	}
