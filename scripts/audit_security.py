@@ -76,7 +76,7 @@ def main() -> int:
         "cfg.Password = getText(a.pass)", "cfg.Passphrase = getText(a.passphrase)",
     ))
     require("internal/desktop/other.go", (
-        "Linux/macOS SFTP izdanje zahtijeva eksplicitni privatni ključ", "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
+        'i18n.T(language, "terminal.sftp_key_required")', "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
     ))
     require("internal/api/engine.go", ("e.remote.Disconnect(ctx)", "context.WithTimeout(context.Background(), 4*time.Second)"))
 
