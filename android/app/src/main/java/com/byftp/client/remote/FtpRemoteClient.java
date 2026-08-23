@@ -25,6 +25,8 @@ public final class FtpRemoteClient implements RemoteClient {
         FTPClient next;
         if (config.protocol() == ConnectionConfig.Protocol.FTPS_EXPLICIT || config.protocol() == ConnectionConfig.Protocol.FTPS_IMPLICIT) {
             FTPSClient ftps = new FTPSClient(config.protocol() == ConnectionConfig.Protocol.FTPS_IMPLICIT);
+            // null explicitly selects the Android/JVM platform trust manager; endpoint checking verifies the hostname.
+            ftps.setTrustManager(null);
             ftps.setEndpointCheckingEnabled(true);
             next = ftps;
         } else {
