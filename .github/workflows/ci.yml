@@ -109,6 +109,14 @@ jobs:
       - name: Test, lint and build Android
         shell: bash
         run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+      - name: Store Android lint report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-android-lint
+          if-no-files-found: warn
+          retention-days: 7
+          path: android/app/build/reports/lint-results-debug.*
       - name: Store Android build evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
