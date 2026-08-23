@@ -50,7 +50,7 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Verify assets, localization, version and Android invariants
+      - name: Verify assets, localization, version and mobile invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -58,6 +58,7 @@ jobs:
           python scripts/audit_localization.py
           python scripts/audit_version.py
           python scripts/audit_android.py
+          python scripts/audit_ios.py
       - name: Verify docs, security, privacy and release contract
         shell: bash
         run: |
@@ -134,6 +135,31 @@ jobs:
           path: |
             dist/ByFTP-*-Android-debug.apk
             dist/ByFTP-*-Android-release-unsigned.apk
+
+  ios:
+    name: iOS arm64 unsigned IPA and app bundle
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Audit iOS source and packaging contract
+        run: python3 scripts/audit_ios.py
+      - name: Build native iPhoneOS artifacts
+        run: bash scripts/BUILD-IOS.sh
+      - name: Store iOS release packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-ios-release
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/ByFTP-*-iOS-arm64-unsigned.ipa
+            dist/ByFTP-*-iOS-arm64-unsigned-app.zip
 
   windows:
     name: Windows x64 and x86
@@ -311,7 +337,7 @@ jobs:
 
   publish:
     name: Verify and publish release
-    needs: [quality, windows, linux, macos, android]
+    needs: [quality, windows, linux, macos, android, ios]
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
@@ -358,6 +384,11 @@ jobs:
         with:
           name: byftp-android-release
           path: release
+      - name: Download iOS packages
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with:
+          name: byftp-ios-release
+          path: release
       - name: Verify public release staging
         shell: pwsh
         run: |
@@ -373,7 +404,9 @@ jobs:
             "ByFTP-$env:VERSION-Linux-i386.deb",
             "ByFTP-$env:VERSION-macOS-Universal.pkg",
             "ByFTP-$env:VERSION-Android-debug.apk",
-            "ByFTP-$env:VERSION-Android-release-unsigned.apk"
+            "ByFTP-$env:VERSION-Android-release-unsigned.apk",
+            "ByFTP-$env:VERSION-iOS-arm64-unsigned.ipa",
+            "ByFTP-$env:VERSION-iOS-arm64-unsigned-app.zip"
           )
           $actual = @(Get-ChildItem -LiteralPath 'release' -File | ForEach-Object Name | Sort-Object)
           $wanted = @($expected | Sort-Object)
@@ -392,6 +425,7 @@ jobs:
           LINUX=amd64,arm64,i386
           MACOS=universal-amd64-arm64
           ANDROID=debug-signed,release-unsigned
+          IOS=arm64-unsigned-ipa,arm64-unsigned-app-zip
           RELEASE_QUALITY_GATE=passed
           GITHUB_RUN_ID=$env:GITHUB_RUN_ID
           GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
@@ -420,6 +454,8 @@ jobs:
             "release\ByFTP-$env:VERSION-macOS-Universal.pkg",
             "release\ByFTP-$env:VERSION-Android-debug.apk",
             "release\ByFTP-$env:VERSION-Android-release-unsigned.apk",
+            "release\ByFTP-$env:VERSION-iOS-arm64-unsigned.ipa",
+            "release\ByFTP-$env:VERSION-iOS-arm64-unsigned-app.zip",
             'release\SHA256.txt',
             'release\RELEASE-NOTES.txt',
             'release\BUILD-METADATA.txt'
