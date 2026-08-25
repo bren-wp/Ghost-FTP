@@ -22,22 +22,15 @@ final class SocketConnection {
 
     func start() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let lock = NSLock()
-            var pending: CheckedContinuation<Void, Error>? = continuation
+            let pending = StartContinuationBox(continuation)
             connection.stateUpdateHandler = { state in
-                lock.lock()
-                defer { lock.unlock() }
-                guard let current = pending else { return }
                 switch state {
                 case .ready:
-                    pending = nil
-                    current.resume()
+                    pending.resume(.success(()))
                 case .failed(let error):
-                    pending = nil
-                    current.resume(throwing: error)
+                    pending.resume(.failure(error))
                 case .cancelled:
-                    pending = nil
-                    current.resume(throwing: NetworkError.connectionClosed)
+                    pending.resume(.failure(NetworkError.connectionClosed))
                 default:
                     break
                 }
@@ -110,7 +103,9 @@ final class SocketConnection {
     }
 
     func receiveToFile(_ url: URL, maxBytes: Int64 = 4 * 1024 * 1024 * 1024) async throws {
-        FileManager.default.createFile(atPath: url.path, contents: nil)
+        guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
+            throw NetworkError.fileCreateFailed
+        }
         let handle = try FileHandle(forWritingTo: url)
         defer { try? handle.close() }
         var total: Int64 = 0
@@ -141,16 +136,42 @@ final class SocketConnection {
     }
 }
 
+private final class StartContinuationBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Error>?
+
+    init(_ continuation: CheckedContinuation<Void, Error>) {
+        self.continuation = continuation
+    }
+
+    func resume(_ result: Result<Void, Error>) {
+        lock.lock()
+        let current = continuation
+        continuation = nil
+        lock.unlock()
+
+        guard let current else { return }
+        switch result {
+        case .success:
+            current.resume()
+        case .failure(let error):
+            current.resume(throwing: error)
+        }
+    }
+}
+
 enum NetworkError: LocalizedError {
     case connectionClosed
     case encodingFailed
     case responseTooLarge
+    case fileCreateFailed
 
     var errorDescription: String? {
         switch self {
         case .connectionClosed: return "The server closed the connection."
         case .encodingFailed: return "The server returned text that could not be decoded."
         case .responseTooLarge: return "The server response exceeded the safety limit."
+        case .fileCreateFailed: return "The destination file could not be created."
         }
     }
 }
