@@ -15,9 +15,6 @@ FORBIDDEN_VENDOR_MARKERS = {
     "appcenter", "telemetrydeck",
 }
 
-# These are display/support metadata only. The brand package has no networking
-# code and these constants do not cause a request. Every other fixed HTTP(S)
-# URL in runtime Go source remains forbidden.
 ALLOWED_RUNTIME_URLS = {
     Path("internal/brand/brand.go"): {
         "https://github.com/bren-wp/by-ftp",
@@ -176,10 +173,7 @@ def main() -> None:
         "security.EnsureLocalWithinRoot(job.LocalRoot, job.LocalPath)", "remote.IsRetryable(err)",
     ))
     require("internal/localfs/service.go", ("security.IsReparsePoint", "platform.RenameNoReplace"))
-    require(
-        "cmd/byftp/main.go",
-        ("security.EnsureNoRedirectDirectory(", "localAppData,", "dataDir,"),
-    )
+    require("cmd/byftp/main.go", ("security.EnsureNoRedirectDirectory(", "localAppData,", "dataDir,"))
     require("internal/security/remove_tree.go", ("func RemoveTreeNoFollow(", "isReparsePoint", "os.ModeSymlink"))
     require("internal/desktop/ui_windows.go", ("limitEdit(a.host, 253)", "limitEdit(a.user, 1024)", "limitEdit(a.pass, 8192)", "limitEdit(a.passphrase, 8192)", "limitEdit(a.remotePath, 4096)"))
 
@@ -188,9 +182,6 @@ def main() -> None:
         if marker in installer:
             fail(f"installer contains external URL hook {marker}")
 
-    # GOTELEMETRY is a reported Go setting, not a valid environment-only
-    # privacy guard. CI/release must execute `go telemetry off`; production
-    # build scripts must independently reject any mode other than `off`.
     ci = require(".github/workflows/ci.yml", ("go telemetry off", "Go telemetry is not disabled."))
     release = require(".github/workflows/release.yml", ("go telemetry off", "test \"$(go telemetry)\" = 'off'"))
     for rel, text in ((".github/workflows/ci.yml", ci), (".github/workflows/release.yml", release)):
@@ -202,11 +193,11 @@ def main() -> None:
         ("$telemetryMode = Invoke-NativeCapture", "-ArgumentList @('telemetry')", "Go telemetry must be disabled before a production build"),
     )
     linux_build = require(
-        "scripts/BUILD-LINUX.sh",
+        "linux/BUILD.sh",
         ('telemetry="$(go telemetry)"', "Go telemetry must be disabled before a production build"),
     )
     macos_build = require(
-        "scripts/BUILD-MACOS.sh",
+        "macos/BUILD.sh",
         ('telemetry="$(go telemetry)"', "Go telemetry must be disabled before a production build"),
     )
     local_build = require(
@@ -215,16 +206,22 @@ def main() -> None:
     )
     for rel, text in (
         ("BUILD-WINDOWS.ps1", windows_build),
-        ("scripts/BUILD-LINUX.sh", linux_build),
-        ("scripts/BUILD-MACOS.sh", macos_build),
+        ("linux/BUILD.sh", linux_build),
+        ("macos/BUILD.sh", macos_build),
         ("scripts/BUILD-LOCAL.sh", local_build),
     ):
         if "GOTELEMETRY=off" in text or "$env:GOTELEMETRY = 'off'" in text:
             fail(f"{rel} relies on an ineffective GOTELEMETRY environment variable")
 
+    for wrapper, target in (("scripts/BUILD-LINUX.sh", "linux/BUILD.sh"), ("scripts/BUILD-MACOS.sh", "macos/BUILD.sh")):
+        text = require(wrapper, ("exec bash", target, "VERSION"))
+        if 'telemetry="$(go telemetry)"' in text or "go build" in text or "pkgbuild" in text or "dpkg-deb" in text:
+            fail(f"{wrapper} duplicates platform build/privacy logic instead of delegating")
+
     print("PRIVACY_AUDIT=PASS")
     print("TELEMETRY=ABSENT")
     print("GO_BUILD_TELEMETRY=OFF_REQUIRED_AND_CI_VERIFIED")
+    print("PLATFORM_BUILD_PRIVACY_GUARDS=LINUX_DIRECTORY,MACOS_DIRECTORY")
     print("FIXED_RUNTIME_API_ENDPOINTS=ABSENT")
     print("STATIC_PROJECT_SUPPORT_URLS=ALLOWLISTED_METADATA_ONLY")
     print("EXTERNAL_GO_MODULES=ABSENT")
