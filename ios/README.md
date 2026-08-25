@@ -1,6 +1,6 @@
 # ByFTP for iOS
 
-`ios/` contains the native SwiftUI iPhone/iPad application and its Xcode project. It is not a WebView wrapper and does not share Android UI/runtime code.
+`ios/` contains the native SwiftUI iPhone/iPad application, Xcode project, tests and canonical production build entry point. It is not a WebView wrapper and does not share Android UI/runtime code.
 
 ## Current capabilities
 
@@ -17,15 +17,11 @@
 
 Explicit FTPS and SFTP are **not** claimed by the iOS implementation yet. They remain available on the existing ByFTP desktop and Android clients. Adding either transport to iOS requires a separately audited implementation rather than a permissive compatibility shim.
 
-## 1.2.2 path and lifecycle hardening
+## 1.2.3 maintenance baseline
 
-ByFTP continues to validate raw host, port, username and password text for CR/LF/NUL protocol-control characters before trimming or canonicalization. Version 1.2.2 applies the same fail-closed principle to remote item names: leading/trailing whitespace and CR/LF/NUL are rejected rather than silently removed.
+The path/lifecycle hardening introduced in 1.2.2 remains unchanged: raw host, port, username and password input is checked for CR/LF/NUL controls before normalization; remote names reject edge whitespace and controls; server login roots reject unsafe content; pending connections are disconnectable; password UI state is cleared; and failed/stale download staging is removed.
 
-Server-reported FTP login roots reject CR/LF/NUL before normalization. Traversal, duplicate separators, backslashes, NULs and unsafe login-root components remain blocked.
-
-`SessionStore` now tracks both the established client and a client that is still connecting. Disconnect and background teardown invalidate the generation, drop both references and close both actors, so an in-flight connection does not continue merely because it has not yet become the active session.
-
-The UI password field is cleared even when local connection validation fails. Download staging now has an explicit discard path: failed transfers and stale async results remove their private temporary directory instead of leaving abandoned `ByFTP-<UUID>` folders.
+Version 1.2.3 moves the canonical build entry point into this platform directory as `ios/BUILD.sh`. CI and production release jobs invoke it directly, so the Swift source, Xcode project, tests and build contract live together instead of being split between `ios/` and a platform-specific wrapper under `scripts/`.
 
 ## Open in Xcode
 
@@ -37,14 +33,14 @@ ios/ByFTP.xcodeproj
 
 The checked-in project uses a safe development fallback `MARKETING_VERSION = 0.0.0`. Production/CI builds override it from the repository root `VERSION` file.
 
-The AppIcon asset catalog stores only `Contents.json`. `scripts/BUILD-IOS.sh` generates all required PNG sizes from the canonical repository `build/icon.png`; generated icon files are intentionally ignored by Git.
+The AppIcon asset catalog stores only `Contents.json`. `ios/BUILD.sh` generates all required PNG sizes from the canonical repository `build/icon.png`; generated icon files are intentionally ignored by Git.
 
 ## Build the unsigned release artifacts
 
 On macOS with Xcode installed:
 
 ```bash
-bash scripts/BUILD-IOS.sh
+bash ios/BUILD.sh
 ```
 
 The script performs model/path regressions, validates the Xcode project and shared scheme, builds a generic arm64 `iphoneos` Release application with signing disabled, verifies bundle version/identifier/architecture and then runs `scripts/package_ios.py`.
