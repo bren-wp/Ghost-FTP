@@ -21,7 +21,10 @@ enum RemotePath {
             throw ValidationError("Names cannot start or end with whitespace.")
         }
         guard raw != ".", raw != ".." else { throw ValidationError("That name is not allowed.") }
-        guard !raw.contains("/"), !raw.contains("\\"), !raw.contains("\0"), !raw.contains("\r"), !raw.contains("\n") else {
+        let hasProtocolControl = raw.unicodeScalars.contains { scalar in
+            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+        }
+        guard !raw.contains("/"), !raw.contains("\\"), !hasProtocolControl else {
             throw ValidationError("Names cannot contain path separators or protocol control characters.")
         }
         return raw
@@ -62,7 +65,10 @@ enum RemotePath {
 enum FTPPathMapper {
     static func normalizeLoginRoot(_ raw: String?) throws -> String {
         guard let raw else { return "" }
-        guard !raw.contains("\0"), !raw.contains("\r"), !raw.contains("\n") else {
+        let hasProtocolControl = raw.unicodeScalars.contains { scalar in
+            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+        }
+        guard !hasProtocolControl else {
             throw ValidationError("FTP server returned a noncanonical login directory.")
         }
         var root = raw.trimmingCharacters(in: .whitespacesAndNewlines)
