@@ -13,15 +13,19 @@
 - File upload through the iOS security-scoped document picker.
 - Download to an application temporary file followed by the system share/save sheet.
 - Session-only credentials. Password text is cleared from the UI after a connection attempt and no profile secret is written to `UserDefaults` or another persistent store.
-- Automatic disconnect when the app enters the background.
+- Automatic disconnect when the app enters the background, including a connection that is still being established.
 
 Explicit FTPS and SFTP are **not** claimed by the iOS implementation yet. They remain available on the existing ByFTP desktop and Android clients. Adding either transport to iOS requires a separately audited implementation rather than a permissive compatibility shim.
 
-## 1.2.1 input hardening
+## 1.2.2 path and lifecycle hardening
 
-ByFTP 1.2.1 validates raw host, port, username and password text for CR/LF/NUL protocol-control characters before trimming or canonicalization. This closes the edge case where a trailing control character could otherwise be removed during normalization before the value reached the transport checks.
+ByFTP continues to validate raw host, port, username and password text for CR/LF/NUL protocol-control characters before trimming or canonicalization. Version 1.2.2 applies the same fail-closed principle to remote item names: leading/trailing whitespace and CR/LF/NUL are rejected rather than silently removed.
 
-The same fail-closed model remains in place for remote paths: traversal, duplicate separators, backslashes, NULs and unsafe server-reported login roots are rejected rather than rewritten.
+Server-reported FTP login roots reject CR/LF/NUL before normalization. Traversal, duplicate separators, backslashes, NULs and unsafe login-root components remain blocked.
+
+`SessionStore` now tracks both the established client and a client that is still connecting. Disconnect and background teardown invalidate the generation, drop both references and close both actors, so an in-flight connection does not continue merely because it has not yet become the active session.
+
+The UI password field is cleared even when local connection validation fails. Download staging now has an explicit discard path: failed transfers and stale async results remove their private temporary directory instead of leaving abandoned `ByFTP-<UUID>` folders.
 
 ## Open in Xcode
 
@@ -66,7 +70,10 @@ Do not commit `.p12` files, private signing keys, provisioning profiles or passw
 - The iOS source contains no fixed telemetry/API endpoint and no advertising SDK.
 - Global App Transport Security weakening is not enabled.
 - Raw endpoint and credential input is checked for CR, LF and NUL before normalization.
+- Remote names reject edge whitespace and protocol control characters rather than rewriting them.
 - FTP command arguments independently reject CR, LF and NUL control characters.
 - Remote UI paths reject traversal and noncanonical components before a command is sent.
+- Pending and active connections are both invalidated and closed during disconnect/background teardown.
+- Failed or stale download staging directories are removed.
 - Server-provided passive-mode addresses are not trusted as alternative destinations.
 - App-bundle packaging rejects symlinks and validates the bundle identifier, version and Mach-O executable before creating release archives.
