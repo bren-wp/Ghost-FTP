@@ -2,10 +2,14 @@
 
 ## 1.2.2 — Cross-platform lifecycle, path and credential cleanup
 
-**Focus:** harden the already verified five-platform architecture without weakening compatibility, reduce duplicated mobile validation logic and generate a new complete desktop/Android/iOS release from one canonical version.
+**Focus:** harden the already verified five-platform architecture without weakening compatibility, reduce duplicated validation/build logic and generate a new complete desktop/Android/iOS release from one canonical version.
 
 - Desktop host validation now rejects leading/trailing whitespace and protocol control characters on raw direct-connect input instead of trimming before validation.
 - Added desktop regressions that keep noncanonical raw hosts fail-closed while preserving canonical DNS, IPv4 and IPv6 forms.
+- Moved canonical Linux application packaging into `linux/`: `linux/BUILD.sh`, `linux/byftp.desktop`, `linux/debian/control.in` and the Linux build guide now own DEB packaging for amd64, arm64 and i386.
+- Moved canonical macOS application packaging into `macos/`: `macos/BUILD.sh`, `macos/Info.plist.in`, `macos/launcher.zsh` and the macOS build guide now own the Universal application/PKG packaging surface.
+- Kept the shared Go desktop protocol/transfer/security core single-sourced under `cmd/` and `internal/`; Linux/macOS platform folders do not duplicate that runtime.
+- Reduced legacy `scripts/BUILD-LINUX.sh` and `scripts/BUILD-MACOS.sh` to version-guarded compatibility delegates and added release/privacy/version audits that reject duplicated platform build logic in those wrappers.
 - Android remote names now reject CR/LF/NUL plus leading/trailing whitespace consistently.
 - Android FTP and SFTP directory listings now share `RemotePaths.validateName` instead of maintaining weaker duplicated name filters.
 - Android FTP login-root parsing rejects CR/LF/NUL before trimming server-provided `PWD` data.
@@ -67,7 +71,7 @@
 - Android CI and release gates now run both `lintDebug` and `lintRelease`, plus `assembleDebug` and `assembleRelease`.
 - Hardened Android FTP/FTPS shared-hosting paths so the UI root maps to the authenticated login working directory instead of forcing an unrelated server filesystem root.
 - Added login-root path tests covering `public_html`, unavailable `PWD`, virtual-root servers and traversal/noncanonical path rejection.
-- Cleared pending Android download-picker state on every download result, disconnect and Activity destruction so stale remote paths cannot survive cancelled or incomplete document-provider flows.
+- Cleared pending Android download-picker state on every download result, disconnect and Activity destruction so stale remote paths cannot survive cancelled or incomplete picker results.
 - Simplified Android long-press file actions to use stable action indexes instead of comparing localized labels.
 - Standardized remaining Windows startup and AskPass fallback messages on English and added localization audit coverage that rejects a return of the retired Croatian-only fallbacks.
 - Expanded Android, localization and release audits so the new path, picker-state and APK-publication guarantees fail closed in CI.
@@ -89,7 +93,7 @@
 - Disabled generic cleartext traffic for Android platform-aware networking while retaining explicit plain FTP only as a user-selected compatibility protocol.
 - Hardened Android Activity destruction: pending/active remote clients are tracked and closed, executor work is interrupted and late UI callbacks are ignored.
 - Removed dead Android UI/resources and enabled release resource shrinking alongside code minification.
-- Deliberately deferred Android private-key import until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
+- Deliberately deferred Android private-key import until Android Keystore-backed handling and migration semantics are implemented and audited.
 - Added Android connection/path/security/version tests plus static mobile security/privacy/lifecycle invariants.
 - Added a dedicated Android CI job using JDK 17, Gradle 9.5.0, Android Gradle Plugin 9.3.0 and API 37.
 - Android CI runs JUnit, lint with warnings treated as errors and debug APK compilation; lint reports and APKs are retained as validation evidence.
