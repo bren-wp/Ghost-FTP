@@ -67,7 +67,11 @@ def main() -> int:
 
     socket = require("ios/ByFTP/SocketConnection.swift", (
         "import Network", "NWParameters(tls:", "responseTooLarge", "sendLine", "receiveToFile",
+        "StartContinuationBox", "@unchecked Sendable", "private let lock = NSLock()",
+        "guard FileManager.default.createFile",
     ))
+    if "var pending: CheckedContinuation" in socket:
+        fail("iOS NWConnection state handler captures a mutable local continuation")
     if "NWParameters(tls: nil" in socket:
         fail("iOS FTPS disables TLS")
 
@@ -147,6 +151,7 @@ def main() -> int:
     print("IOS_TRANSPORTS=FTP,FTPS_IMPLICIT")
     print("IOS_PASV_HOST_REDIRECT=BLOCKED")
     print("IOS_CREDENTIAL_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
+    print("IOS_NWCONNECTION_CONTINUATION=LOCKED_SINGLE_RESUME")
     print("IOS_CREDENTIAL_PERSISTENCE=BLOCKED")
     print("IOS_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY")
     print("IOS_BACKGROUND_SESSION=DISCONNECTED")
