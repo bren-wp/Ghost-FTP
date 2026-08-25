@@ -84,7 +84,22 @@ def main() -> int:
         "Base64.getDecoder().decode",
         "digest.length != 32",
         "rejectControlCharacters",
+        'rejectControlCharacters(rawHost, "Host")',
+        'rejectControlCharacters(rawPort, "Port")',
+        'rejectControlCharacters(rawUsername, "Username")',
+        'rejectControlCharacters(rawPassword, "Password")',
+        'rejectControlCharacters(rawFingerprint, "SFTP fingerprint")',
     ))
+    for raw_marker, normalization_marker in (
+        ('rejectControlCharacters(rawHost, "Host")', "normalizeHost(rawHost)"),
+        ('rejectControlCharacters(rawUsername, "Username")', "rawUsername.trim()"),
+        ('rejectControlCharacters(rawPort, "Port")', "parsePort(rawPort"),
+        ('rejectControlCharacters(rawFingerprint, "SFTP fingerprint")', "normalizeFingerprint(rawFingerprint)"),
+    ):
+        first = connection.find(raw_marker)
+        normalized = connection.find(normalization_marker)
+        if first < 0 or normalized < 0 or first > normalized:
+            fail(f"Android raw input is normalized before control-character rejection: {raw_marker}")
     if "PromiscuousVerifier" in connection:
         fail("connection validation references a permissive SFTP verifier")
 
@@ -139,7 +154,10 @@ def main() -> int:
 
     require("android/app/src/test/java/com/byftp/client/model/ConnectionConfigSecurityTest.java", (
         "validatesAndCanonicalizesSftpSha256Fingerprint",
-        "rejectsCredentialControlCharacters",
+        "rejectsRawEndpointAndCredentialControlCharactersBeforeTrimming",
+        '"example.com\\r\\n"',
+        '"21\\r\\n"',
+        'VALID_SHA256 + "\\r\\n"',
     ))
     require("android/app/src/test/java/com/byftp/client/model/RemotePathsTraversalTest.java", (
         "directoryRejectsTraversalAndSeparatorRewrites",
@@ -155,6 +173,7 @@ def main() -> int:
 
     print(f"ANDROID_AUDIT=PASS ({version})")
     print("ANDROID_SFTP_HOST_KEY_PINNING=REQUIRED_AND_SHA256_VALIDATED")
+    print("ANDROID_RAW_ENDPOINT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("ANDROID_FTPS_PLATFORM_TRUST_AND_ENDPOINT_CHECKING=ENABLED")
     print("ANDROID_REMOTE_PATH_NORMALIZATION=FAIL_CLOSED")
     print("ANDROID_FTP_LOGIN_ROOT=ENFORCED")
