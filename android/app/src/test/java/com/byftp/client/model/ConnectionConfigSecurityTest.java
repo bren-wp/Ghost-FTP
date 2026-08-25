@@ -12,8 +12,10 @@ public class ConnectionConfigSecurityTest {
         assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.FTP, "example.com", "65536", "u", "p", ""));
     }
 
-    @Test public void rejectsCredentialControlCharacters() {
-        assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.FTP, "example.com", "21", "user\r\nextra", "p", ""));
+    @Test public void rejectsRawEndpointAndCredentialControlCharactersBeforeTrimming() {
+        assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.FTP, "example.com\r\n", "21", "u", "p", ""));
+        assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.FTP, "example.com", "21\r\n", "u", "p", ""));
+        assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.FTP, "example.com", "21", "user\r\n", "p", ""));
         assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.FTP, "example.com", "21", "user", "p\nextra", ""));
     }
 
@@ -28,5 +30,6 @@ public class ConnectionConfigSecurityTest {
         assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.SFTP, "example.com", "22", "u", "p", "SHA256:not-base64***"));
         assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.SFTP, "example.com", "22", "u", "p", "SHA256:AAAA"));
         assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.SFTP, "example.com", "22", "u", "p", "SHA256:AAAA=BBBB"));
+        assertThrows(IllegalArgumentException.class, () -> ConnectionConfig.create(ConnectionConfig.Protocol.SFTP, "example.com", "22", "u", "p", VALID_SHA256 + "\r\n"));
     }
 }
