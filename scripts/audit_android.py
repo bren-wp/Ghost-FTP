@@ -107,15 +107,21 @@ def main() -> int:
         "Remote path is not canonical.",
         "Remote path contains an unsafe component.",
         "!name.equals(name.trim())",
+        "name.indexOf('\\r') >= 0",
+        "name.indexOf('\\n') >= 0",
     ))
     for forbidden in ("path.replace('\\\\', '/')", 'p.contains("//")'):
         if forbidden in remote_paths:
             fail("Android remote path handling still normalizes unsafe separators")
 
     sftp = require("android/app/src/main/java/com/byftp/client/remote/SftpRemoteClient.java", (
-        "next.addHostKeyVerifier(config.fingerprint())",
-        "next.authPassword(config.username(), config.password())",
+        "next.addHostKeyVerifier(fingerprint)",
+        "next.authPassword(username, loginPassword)",
+        "RemotePaths.validateName(name)",
+        'password = "";',
     ))
+    if "private final ConnectionConfig config;" in sftp:
+        fail("Android SFTP retains the complete credential configuration for the session")
     if "PromiscuousVerifier" in sftp or "new Promiscuous" in sftp:
         fail("Android SFTP permits unverified host keys")
 
@@ -124,7 +130,11 @@ def main() -> int:
         "enterLocalPassiveMode()", "FTP.BINARY_FILE_TYPE",
         "loginRoot = normalizeLoginRoot(next.printWorkingDirectory())",
         "mapLoginRelativePath(loginRoot, directory)", "Remote UI path contains an unsafe component.",
+        "RemotePaths.validateName(name)", "raw.indexOf('\\r') >= 0", "raw.indexOf('\\n') >= 0",
+        'password = "";',
     ))
+    if "private final ConnectionConfig config;" in ftp:
+        fail("Android FTP retains the complete credential configuration for the session")
     if "TrustManagerUtils" in ftp:
         fail("Android FTPS must not use Commons Net permissive/custom trust helpers")
 
@@ -159,14 +169,22 @@ def main() -> int:
         '"21\\r\\n"',
         'VALID_SHA256 + "\\r\\n"',
     ))
+    require("android/app/src/test/java/com/byftp/client/model/RemotePathsTest.java", (
+        "rejectsWhitespaceAndProtocolControlCharacters",
+        '"line\\nbreak.txt"',
+        '"line\\rbreak.txt"',
+    ))
     require("android/app/src/test/java/com/byftp/client/model/RemotePathsTraversalTest.java", (
         "directoryRejectsTraversalAndSeparatorRewrites",
         "public_html//assets",
     ))
+    require("android/app/src/test/java/com/byftp/client/remote/FtpRemoteClientPathTest.java", (
+        "rejectsUnsafeServerLoginDirectory",
+        '"/home/example\\r"',
+        '"/home/example\\n"',
+    ))
     for rel in (
         "android/app/src/test/java/com/byftp/client/model/ConnectionConfigTest.java",
-        "android/app/src/test/java/com/byftp/client/model/RemotePathsTest.java",
-        "android/app/src/test/java/com/byftp/client/remote/FtpRemoteClientPathTest.java",
         "android/README.md",
     ):
         read(rel)
@@ -176,7 +194,9 @@ def main() -> int:
     print("ANDROID_RAW_ENDPOINT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("ANDROID_FTPS_PLATFORM_TRUST_AND_ENDPOINT_CHECKING=ENABLED")
     print("ANDROID_REMOTE_PATH_NORMALIZATION=FAIL_CLOSED")
-    print("ANDROID_FTP_LOGIN_ROOT=ENFORCED")
+    print("ANDROID_REMOTE_NAMES=CANONICAL_SHARED_VALIDATOR")
+    print("ANDROID_FTP_LOGIN_ROOT=ENFORCED_AND_CONTROL_SAFE")
+    print("ANDROID_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY")
     print("ANDROID_GENERIC_CLEARTEXT_NETWORK=BLOCKED")
     print("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED")
     print("ANDROID_BACKUP_AND_DEVICE_TRANSFER=BLOCKED")

@@ -35,6 +35,15 @@ struct ModelTests {
         try expectThrows("unsafe server login root was accepted") {
             _ = try FTPPathMapper.normalizeLoginRoot("/home/../root")
         }
+        try expectThrows("leading whitespace remote name was normalized") {
+            _ = try RemotePath.validateName(" index.html")
+        }
+        try expectThrows("trailing whitespace remote name was normalized") {
+            _ = try RemotePath.validateName("index.html ")
+        }
+        try expectThrows("embedded LF remote name was accepted") {
+            _ = try RemotePath.validateName("index\n.html")
+        }
 
         let cr = String(UnicodeScalar(13)!)
         let lf = String(UnicodeScalar(10)!)
@@ -53,6 +62,9 @@ struct ModelTests {
         }
         try expectThrows("trailing CRLF port input was accepted") {
             _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21" + crlf, username: "user", password: "x")
+        }
+        try expectThrows("server login root CRLF was normalized") {
+            _ = try FTPPathMapper.normalizeLoginRoot("/home/account" + crlf)
         }
         let nul = String(UnicodeScalar(0)!)
         try expectThrows("NUL username injection was accepted") {

@@ -53,15 +53,27 @@ def main() -> int:
     if "Get-Content -LiteralPath $versionFile" not in windows_build or "-X main.version=$version" not in windows_build:
         fail("Windows build does not inject VERSION into the runtime")
 
-    for rel in ("scripts/BUILD-LOCAL.sh", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh"):
+    for rel in ("scripts/BUILD-LOCAL.sh", "scripts/BUILD-IOS.sh", "linux/BUILD.sh", "macos/BUILD.sh"):
         if "< VERSION" not in read(rel):
             fail(f"{rel} does not read canonical VERSION")
     if "-X main.version=$VERSION" not in read("scripts/BUILD-LOCAL.sh"):
         fail("local build does not inject VERSION")
-    if "-X main.version=${VERSION}" not in read("scripts/BUILD-LINUX.sh"):
+    if "-X main.version=${VERSION}" not in read("linux/BUILD.sh"):
         fail("Linux build does not inject VERSION")
-    if "-X main.version=${VERSION}" not in read("scripts/BUILD-MACOS.sh"):
+    if "-X main.version=${VERSION}" not in read("macos/BUILD.sh"):
         fail("macOS build does not inject VERSION")
+
+    for wrapper, target in (("scripts/BUILD-LINUX.sh", "linux/BUILD.sh"), ("scripts/BUILD-MACOS.sh", "macos/BUILD.sh")):
+        text = read(wrapper)
+        if "VERSION" not in text or target not in text or "exec bash" not in text:
+            fail(f"{wrapper} is not a version-guarded compatibility delegate to {target}")
+
+    linux_control = read("linux/debian/control.in")
+    if "@VERSION@" not in linux_control or re.search(r"(?m)^Version:\s*\d+\.\d+\.\d+", linux_control):
+        fail("Linux DEB metadata is not bound to canonical VERSION")
+    macos_plist = read("macos/Info.plist.in")
+    if "@VERSION@" not in macos_plist or re.search(r"<string>\d+\.\d+\.\d+</string>", macos_plist):
+        fail("macOS Info.plist template hard-codes a production version")
 
     android = read("android/app/build.gradle.kts")
     for marker in ('rootProject.file("../VERSION")', "versionName = canonicalVersion", "versionCode = canonicalVersionCode"):
@@ -108,6 +120,8 @@ def main() -> int:
 
     print(f"VERSION_AUDIT=PASS ({version})")
     print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID,IOS")
+    print("LINUX_VERSION_SOURCE=ROOT_VERSION_VIA_PLATFORM_BUILD")
+    print("MACOS_VERSION_SOURCE=ROOT_VERSION_VIA_PLATFORM_BUILD")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
     print("PRODUCTION_DOC_VERSION_DRIFT=BLOCKED")
     return 0

@@ -15,4 +15,13 @@ public class RemotePathsTest {
         assertThrows(IllegalArgumentException.class, () -> RemotePaths.validateName("a/b"));
         assertThrows(IllegalArgumentException.class, () -> RemotePaths.validateName(".."));
     }
+
+    @Test public void rejectsWhitespaceAndProtocolControlCharacters() {
+        assertThrows(IllegalArgumentException.class, () -> RemotePaths.validateName(" leading.txt"));
+        assertThrows(IllegalArgumentException.class, () -> RemotePaths.validateName("trailing.txt "));
+        assertThrows(IllegalArgumentException.class, () -> RemotePaths.validateName("line\nbreak.txt"));
+        assertThrows(IllegalArgumentException.class, () -> RemotePaths.validateName("line\rbreak.txt"));
+        assertThrows(IllegalArgumentException.class, () -> RemotePaths.validateName("nul\0name.txt"));
+        RemotePaths.validateName("normal file.txt");
+    }
 }

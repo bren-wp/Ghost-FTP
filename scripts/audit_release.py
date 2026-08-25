@@ -80,7 +80,29 @@ def main() -> int:
     ):
         require(ios_packager, marker, "scripts/package_ios.py")
 
-    for rel in ("BUILD-WINDOWS.ps1", "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh"):
+    # Platform packaging must live under the platform directories. The legacy
+    # scripts remain only as compatibility entry points and must delegate.
+    linux_build = read("linux/BUILD.sh")
+    for marker in ("VERSION", "linux/byftp.desktop", "linux/debian/control.in", "dpkg-deb", "build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386"):
+        require(linux_build, marker, "linux/BUILD.sh")
+    read("linux/byftp.desktop")
+    read("linux/debian/control.in")
+    read("linux/README.md")
+
+    macos_build = read("macos/BUILD.sh")
+    for marker in ("VERSION", "macos/Info.plist.in", "macos/launcher.zsh", "lipo -create", "pkgbuild", "ByFTP-${VERSION}-macOS-Universal.pkg"):
+        require(macos_build, marker, "macos/BUILD.sh")
+    for rel in ("macos/Info.plist.in", "macos/launcher.zsh", "macos/README.md"):
+        read(rel)
+
+    linux_wrapper = read("scripts/BUILD-LINUX.sh")
+    macos_wrapper = read("scripts/BUILD-MACOS.sh")
+    for marker in ("VERSION", "linux/BUILD.sh", "exec bash"):
+        require(linux_wrapper, marker, "scripts/BUILD-LINUX.sh")
+    for marker in ("VERSION", "macos/BUILD.sh", "exec bash"):
+        require(macos_wrapper, marker, "scripts/BUILD-MACOS.sh")
+
+    for rel in ("BUILD-WINDOWS.ps1", "scripts/BUILD-IOS.sh"):
         require(read(rel), "VERSION", rel)
 
     verifier = read("scripts/verify_bundle.py")
@@ -88,20 +110,22 @@ def main() -> int:
         require(verifier, marker, "scripts/verify_bundle.py")
 
     for rel in (
-        "README.md", "CHANGELOG.md", "android/README.md", "ios/README.md",
+        "README.md", "CHANGELOG.md", "linux/README.md", "macos/README.md", "android/README.md", "ios/README.md",
         "docs/INSTALLATION.md", "docs/RELEASE-VERIFICATION.md", "docs/SECURITY.md", "docs/PRIVACY.md",
     ):
         read(rel)
 
     for rel in (
         ".github/workflows/release.yml", "scripts/publish_release.ps1", "scripts/verify_bundle.py",
-        "scripts/package_android.py", "scripts/package_ios.py",
+        "scripts/package_android.py", "scripts/package_ios.py", "linux/BUILD.sh", "macos/BUILD.sh",
     ):
         if "brendigo" in read(rel).lower():
             fail(f"legacy branding remains in release surface: {rel}")
 
     print(f"RELEASE_AUDIT=PASS ({version})")
     print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP")
+    print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY")
+    print("LEGACY_PLATFORM_BUILD_WRAPPERS=DELEGATE_ONLY")
     print("ANDROID_APK_PUBLICATION=DEBUG_SIGNED_AND_RELEASE_UNSIGNED")
     print("ANDROID_PRODUCTION_SIGNING=EXTERNAL_IDENTITY_REQUIRED")
     print("IOS_IPA_PUBLICATION=UNSIGNED_ARM64_DEVICE_BUILD")

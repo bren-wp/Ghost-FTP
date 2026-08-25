@@ -18,6 +18,7 @@ final class SessionStore: ObservableObject {
     @Published private(set) var downloadedFile: URL?
 
     private var client: FTPRemoteClient?
+    private var connectingClient: FTPRemoteClient?
     private var generation: UInt64 = 0
 
     func connect() {
@@ -32,6 +33,7 @@ final class SessionStore: ObservableObject {
                 password: password
             )
         } catch {
+            password = ""
             present(error)
             return
         }
@@ -39,6 +41,7 @@ final class SessionStore: ObservableObject {
         generation &+= 1
         let token = generation
         let next = FTPRemoteClient(config: config)
+        connectingClient = next
         busy = true
         status = "Connecting…"
         errorMessage = nil
@@ -51,6 +54,7 @@ final class SessionStore: ObservableObject {
                     await next.close()
                     return
                 }
+                connectingClient = nil
                 client = next
                 password = ""
                 connected = true
@@ -61,6 +65,7 @@ final class SessionStore: ObservableObject {
             } catch {
                 await next.close()
                 guard token == generation else { return }
+                connectingClient = nil
                 password = ""
                 busy = false
                 status = "Ready"
@@ -72,7 +77,9 @@ final class SessionStore: ObservableObject {
     func disconnect() {
         generation &+= 1
         let current = client
+        let pending = connectingClient
         client = nil
+        connectingClient = nil
         connected = false
         busy = false
         currentPath = "/"
@@ -80,7 +87,10 @@ final class SessionStore: ObservableObject {
         password = ""
         clearDownloadedFile()
         status = "Disconnected"
-        Task { await current?.close() }
+        Task {
+            await current?.close()
+            await pending?.close()
+        }
     }
 
     func refresh() {
@@ -132,14 +142,18 @@ final class SessionStore: ObservableObject {
         let destination = FileManager.default.temporaryDirectory
             .appendingPathComponent("ByFTP-\(UUID().uuidString)", isDirectory: true)
             .appendingPathComponent(entry.name, isDirectory: false)
+        let temporaryParent = destination.deletingLastPathComponent()
         do {
-            try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: temporaryParent, withIntermediateDirectories: true)
         } catch {
             present(error)
             return
         }
 
-        perform(statusText: "Downloading…") {
+        perform(
+            statusText: "Downloading…",
+            discard: { try? FileManager.default.removeItem(at: temporaryParent) }
+        ) {
             try await client.download(remotePath: remotePath, localURL: destination)
             return { [weak self] in self?.downloadedFile = destination }
         }
@@ -194,6 +208,7 @@ final class SessionStore: ObservableObject {
     private func perform(
         statusText: String,
         refreshAfter: Bool = false,
+        discard: (() -> Void)? = nil,
         operation: @escaping () async throws -> (@MainActor () -> Void)?
     ) {
         guard !busy else { return }
@@ -206,16 +221,23 @@ final class SessionStore: ObservableObject {
         Task {
             do {
                 let apply = try await operation()
-                guard token == generation else { return }
+                guard token == generation else {
+                    discard?()
+                    return
+                }
                 apply?()
                 if refreshAfter, let client {
                     let refreshed = try await client.list(currentPath)
-                    guard token == generation else { return }
+                    guard token == generation else {
+                        discard?()
+                        return
+                    }
                     entries = refreshed
                 }
                 busy = false
                 status = connected ? "Connected" : "Ready"
             } catch {
+                discard?()
                 guard token == generation else { return }
                 busy = false
                 status = connected ? "Connected" : "Ready"

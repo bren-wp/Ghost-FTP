@@ -31,9 +31,6 @@ def clean_destination(raw: str) -> str:
     if value.startswith("<") and ">" in value:
         value = value[1 : value.index(">")]
     else:
-        # A Markdown title after the destination is not part of the path. ByFTP
-        # repository-relative document paths do not contain spaces, so the first
-        # token is sufficient without altering valid local links.
         value = value.split(maxsplit=1)[0] if value else value
     value = unquote(value)
     value = value.split("#", 1)[0].split("?", 1)[0]
@@ -44,8 +41,6 @@ def check_link(source: Path, raw: str) -> None:
     destination = clean_destination(raw)
     if not destination or destination.lower().startswith(IGNORED_PREFIXES):
         return
-    # The root README uses a GitHub UI-relative Actions link that intentionally
-    # leaves the repository filesystem; it is not a local document path.
     if source == ROOT / "README.md" and destination.startswith("../../actions/"):
         return
     target = (source.parent / destination).resolve()
@@ -82,7 +77,14 @@ def main() -> int:
         if f"docs/{path.name}" not in root_readme:
             fail(f"root README does not link docs/{path.name}")
 
+    for platform_readme in ("linux/README.md", "macos/README.md", "android/README.md", "ios/README.md"):
+        if not (ROOT / platform_readme).is_file():
+            fail(f"missing platform documentation: {platform_readme}")
+        if platform_readme not in root_readme:
+            fail(f"root README does not link {platform_readme}")
+
     print(f"DOCS_AUDIT=PASS ({len(files)} Markdown files, {len(detailed_docs)} detailed documents)")
+    print("PLATFORM_DOCS=LINUX,MACOS,ANDROID,IOS")
     return 0
 
 

@@ -6,6 +6,8 @@ Tests, audits and platform builds are release requirements rather than optional 
 
 Core checks include `go test ./...`, the race detector, `go vet`, Windows x64/x86 production builds, Linux DEB builds, macOS Universal PKG builds, deterministic brand-asset verification, localization/version/documentation checks and security/privacy/release audits.
 
+Linux packaging is tested through `linux/BUILD.sh`; macOS packaging is tested through `macos/BUILD.sh`. The compatibility wrappers under `scripts/` delegate to those platform directories and are audited to prevent build logic from drifting back into duplicated copies.
+
 Installer changes require payload/transaction/rollback regressions. Localization changes must preserve English fallback and formatting-placeholder compatibility.
 
 ## Android gates
@@ -20,7 +22,7 @@ python scripts/package_android.py \
   --output-dir dist
 ```
 
-Lint treats warnings as errors. The mobile audit independently rejects permissive TLS/SSH patterns, verifies FTPS platform trust/endpoint checking, validates real 32-byte SFTP SHA-256 fingerprints, enforces strict canonical remote paths, checks login-root mapping, backup/storage policy, password persistence, picker cleanup and lifecycle behavior.
+Lint treats warnings as errors. The mobile audit independently rejects permissive TLS/SSH patterns, verifies FTPS platform trust/endpoint checking, validates real 32-byte SFTP SHA-256 fingerprints, enforces strict canonical remote paths/names, checks login-root mapping, backup/storage policy, password persistence, picker cleanup and lifecycle behavior.
 
 JUnit coverage includes connection validation, credential-control rejection, fingerprint validation, traversal/noncanonical path rejection, version binding and FTP shared-hosting mapping.
 
@@ -41,13 +43,34 @@ The iOS build performs four stages:
 
 The app validation requires the expected bundle identifier/version, an executable arm64 Mach-O, a normal `Payload/ByFTP.app` IPA structure, no symlinks and no unsafe archive paths. Generated AppIcon PNG sizes are created from the canonical project icon for the build and removed afterwards instead of being duplicated in Git.
 
-The iOS source audit additionally enforces platform TLS use, PASV-host redirect blocking, bounded I/O, strict path/credential controls, session-generation cleanup, connect-only transport-password lifetime, no `UserDefaults` credential store, no WebView/analytics endpoint and no global ATS bypass.
+The iOS source audit additionally enforces platform TLS use, PASV-host redirect blocking, bounded I/O, strict path/credential controls, session-generation cleanup, pending-connect cleanup, connect-only transport-password lifetime, stale/failed temporary-download cleanup, no `UserDefaults` credential store, no WebView/analytics endpoint and no global ATS bypass.
+
+## Linux packaging gates
+
+Linux CI runs the shared Go tests/vet and then:
+
+```bash
+bash linux/BUILD.sh
+```
+
+The gate requires non-empty amd64, arm64 and i386 DEBs and verifies package name, canonical root `VERSION` and architecture metadata. `linux/byftp.desktop` and `linux/debian/control.in` are source-controlled packaging inputs.
+
+## macOS packaging gates
+
+macOS CI runs the shared Go tests/vet and then:
+
+```bash
+bash macos/BUILD.sh
+```
+
+The gate requires a non-empty Universal PKG and expands it with `pkgutil` to validate package structure. The application metadata and launcher come from `macos/Info.plist.in` and `macos/launcher.zsh` rather than inline generated source.
 
 ## Packaging regressions
 
 - `scripts/test_package_android.py` tests Android APK staging/structure/path safety.
 - `scripts/test_package_ios.py` tests iOS bundle validation, IPA/app ZIP structure, version mismatch rejection and symlink rejection.
 - `scripts/test_release_notes.py` ensures release notes describe all mobile artifacts and signing limitations.
+- `scripts/audit_release.py` requires Linux/macOS platform packaging directories and restricts the legacy build scripts to delegation.
 
 All Python tool regressions are run with:
 

@@ -68,9 +68,16 @@ def main() -> int:
 
     paths = require("ios/ByFTP/RemoteModels.swift", (
         "RemotePath.normalizeDirectory", "FTPPathMapper", "unsafe component", "noncanonical login directory",
+        "raw == trimmed", "scalar.value == 0", "scalar.value == 10", "scalar.value == 13",
+        "Names cannot start or end with whitespace.",
     ))
     if 'replacingOccurrences(of: ".."' in paths:
         fail("iOS path handling rewrites traversal instead of rejecting it")
+    login_fn = paths.find("static func normalizeLoginRoot")
+    login_guard = paths.find("let hasProtocolControl = raw.unicodeScalars.contains", login_fn)
+    login_trim = paths.find("var root = raw.trimmingCharacters", login_fn)
+    if login_fn < 0 or login_guard < 0 or login_trim < 0 or login_guard > login_trim:
+        fail("iOS server login-root controls are normalized before rejection")
 
     socket = require("ios/ByFTP/SocketConnection.swift", (
         "import Network", "NWParameters(tls:", "responseTooLarge", "sendLine", "receiveToFile",
@@ -96,6 +103,10 @@ def main() -> int:
     session = require("ios/ByFTP/SessionStore.swift", (
         "import Combine", "ObservableObject", "@Published", "generation &+= 1", 'password = ""',
         "startAccessingSecurityScopedResource", "clearDownloadedFile",
+        "private var connectingClient: FTPRemoteClient?", "connectingClient = next",
+        "let pending = connectingClient", "await pending?.close()",
+        "discard: (() -> Void)? = nil", "discard?()",
+        "temporaryParent", "FileManager.default.removeItem(at: temporaryParent)",
     ))
     app = require("ios/ByFTP/ByFTPApp.swift", ("scenePhase", "store.disconnect()"))
     combined_source = "\n".join(path.read_text(encoding="utf-8") for path in (IOS / "ByFTP").glob("*.swift"))
@@ -142,6 +153,8 @@ def main() -> int:
         "CRLF username injection was accepted", "trailing CRLF username injection was accepted",
         "CRLF password injection was accepted", "trailing CRLF host input was accepted",
         "trailing CRLF port input was accepted", "NUL username injection was accepted",
+        "leading whitespace remote name was normalized", "trailing whitespace remote name was normalized",
+        "embedded LF remote name was accepted", "server login root CRLF was normalized",
         "UnicodeScalar(13)", "UnicodeScalar(10)", "UnicodeScalar(0)",
     ))
     if not model_tests:
@@ -160,9 +173,13 @@ def main() -> int:
     print("IOS_TRANSPORTS=FTP,FTPS_IMPLICIT")
     print("IOS_PASV_HOST_REDIRECT=BLOCKED")
     print("IOS_RAW_ENDPOINT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
+    print("IOS_REMOTE_NAMES=CANONICAL_FAIL_CLOSED")
+    print("IOS_LOGIN_ROOT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("IOS_NWCONNECTION_CONTINUATION=LOCKED_SINGLE_RESUME")
     print("IOS_CREDENTIAL_PERSISTENCE=BLOCKED")
     print("IOS_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY")
+    print("IOS_PENDING_CONNECTION=DISCONNECTABLE")
+    print("IOS_TEMP_DOWNLOAD_CLEANUP=STALE_AND_FAILURE_SAFE")
     print("IOS_BACKGROUND_SESSION=DISCONNECTED")
     print("IOS_RELEASE_ARCH=ARM64_IPHONEOS")
     print("IOS_IPA_SIGNING=EXTERNAL_APPLE_IDENTITY_REQUIRED")

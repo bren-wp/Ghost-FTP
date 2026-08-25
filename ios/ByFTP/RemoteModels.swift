@@ -16,13 +16,18 @@ struct RemoteEntry: Identifiable, Hashable, Sendable {
 
 enum RemotePath {
     static func validateName(_ raw: String) throws -> String {
-        let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { throw ValidationError("A name is required.") }
-        guard name != ".", name != ".." else { throw ValidationError("That name is not allowed.") }
-        guard !name.contains("/"), !name.contains("\\"), !name.contains("\0") else {
-            throw ValidationError("Names cannot contain path separators or NUL characters.")
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty, raw == trimmed else {
+            throw ValidationError("Names cannot start or end with whitespace.")
         }
-        return name
+        guard raw != ".", raw != ".." else { throw ValidationError("That name is not allowed.") }
+        let hasProtocolControl = raw.unicodeScalars.contains { scalar in
+            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+        }
+        guard !raw.contains("/"), !raw.contains("\\"), !hasProtocolControl else {
+            throw ValidationError("Names cannot contain path separators or protocol control characters.")
+        }
+        return raw
     }
 
     static func normalizeDirectory(_ raw: String) throws -> String {
@@ -59,11 +64,17 @@ enum RemotePath {
 
 enum FTPPathMapper {
     static func normalizeLoginRoot(_ raw: String?) throws -> String {
-        guard var root = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !root.isEmpty, root != "." else {
-            return ""
+        guard let raw else { return "" }
+        let hasProtocolControl = raw.unicodeScalars.contains { scalar in
+            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
         }
+        guard !hasProtocolControl else {
+            throw ValidationError("FTP server returned a noncanonical login directory.")
+        }
+        var root = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !root.isEmpty, root != "." else { return "" }
         root = root.replacingOccurrences(of: "\\", with: "/")
-        guard !root.contains("\0"), !root.contains("//") else {
+        guard !root.contains("//") else {
             throw ValidationError("FTP server returned a noncanonical login directory.")
         }
         while root.count > 1, root.hasSuffix("/") { root.removeLast() }

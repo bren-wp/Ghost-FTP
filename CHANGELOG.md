@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.2 — Cross-platform lifecycle, path and credential cleanup
+
+**Focus:** harden the already verified five-platform architecture without weakening compatibility, reduce duplicated validation/build logic and generate a new complete desktop/Android/iOS release from one canonical version.
+
+- Desktop host validation now rejects leading/trailing whitespace and protocol control characters on raw direct-connect input instead of trimming before validation.
+- Added desktop regressions that keep noncanonical raw hosts fail-closed while preserving canonical DNS, IPv4 and IPv6 forms.
+- Moved canonical Linux application packaging into `linux/`: `linux/BUILD.sh`, `linux/byftp.desktop`, `linux/debian/control.in` and the Linux build guide now own DEB packaging for amd64, arm64 and i386.
+- Moved canonical macOS application packaging into `macos/`: `macos/BUILD.sh`, `macos/Info.plist.in`, `macos/launcher.zsh` and the macOS build guide now own the Universal application/PKG packaging surface.
+- Kept the shared Go desktop protocol/transfer/security core single-sourced under `cmd/` and `internal/`; Linux/macOS platform folders do not duplicate that runtime.
+- Reduced legacy `scripts/BUILD-LINUX.sh` and `scripts/BUILD-MACOS.sh` to version-guarded compatibility delegates and added release/privacy/version audits that reject duplicated platform build logic in those wrappers.
+- Android remote names now reject CR/LF/NUL plus leading/trailing whitespace consistently.
+- Android FTP and SFTP directory listings now share `RemotePaths.validateName` instead of maintaining weaker duplicated name filters.
+- Android FTP login-root parsing rejects CR/LF/NUL before trimming server-provided `PWD` data.
+- Android FTP and SFTP clients no longer retain the complete `ConnectionConfig` for the session; password references are cleared in `finally` immediately after authentication and again during close.
+- Added Android regressions for canonical remote names and server login-root control characters, and expanded the Android audit to enforce the shared validator and connect-only transport password lifetime.
+- iOS remote names now fail closed on leading/trailing whitespace and CR/LF/NUL instead of silently trimming user input.
+- iOS FTP login-root parsing rejects protocol controls before normalizing server-provided working directories.
+- iOS now tracks a client while it is still connecting so disconnect/background cleanup can close both established and pending connections immediately.
+- iOS clears the password field even when local connection validation fails.
+- iOS download operations now remove their private temporary directory after transfer failure or a stale async result instead of leaving abandoned staging folders.
+- Expanded iOS model tests and static audits for canonical names, login-root controls, pending-connection cleanup and temporary-download cleanup.
+- Advanced the canonical release version to 1.2.2 while preserving immutable 1.2.1 release assets and the exact Windows/Linux/macOS/Android/iOS packaging contract.
+
 ## 1.2.1 — Mobile raw-input hardening and five-platform maintenance
 
 **Focus:** preserve the verified 1.2.0 five-platform release model while tightening Android/iOS endpoint validation before normalization and keeping every desktop/mobile build gate mandatory.
@@ -70,7 +93,7 @@
 - Disabled generic cleartext traffic for Android platform-aware networking while retaining explicit plain FTP only as a user-selected compatibility protocol.
 - Hardened Android Activity destruction: pending/active remote clients are tracked and closed, executor work is interrupted and late UI callbacks are ignored.
 - Removed dead Android UI/resources and enabled release resource shrinking alongside code minification.
-- Deliberately deferred Android private-key import until Android Keystore-backed handling and migration semantics are implemented and audited.
+- Deliberately deferred Android private-key import until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
 - Added Android connection/path/security/version tests plus static mobile security/privacy/lifecycle invariants.
 - Added a dedicated Android CI job using JDK 17, Gradle 9.5.0, Android Gradle Plugin 9.3.0 and API 37.
 - Android CI runs JUnit, lint with warnings treated as errors and debug APK compilation; lint reports and APKs are retained as validation evidence.

@@ -19,6 +19,21 @@ func TestValidateHostRejectsMalformedIPv6Brackets(t *testing.T) {
 	}
 }
 
+func TestValidateHostRejectsRawEdgeWhitespaceAndControls(t *testing.T) {
+	invalid := []string{
+		" ftp.example.com",
+		"ftp.example.com ",
+		"ftp.example.com\n",
+		"ftp.example.com\r",
+		"\tftp.example.com",
+	}
+	for _, host := range invalid {
+		if err := ValidateHost(host); err == nil {
+			t.Fatalf("ValidateHost(%q) normalized unsafe raw input", host)
+		}
+	}
+}
+
 func TestValidateHostAcceptsCanonicalIPForms(t *testing.T) {
 	valid := []string{
 		"127.0.0.1",
