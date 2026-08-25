@@ -2,6 +2,7 @@ package com.byftp.client.remote;
 
 import com.byftp.client.model.ConnectionConfig;
 import com.byftp.client.model.RemoteEntry;
+import com.byftp.client.model.RemotePaths;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -44,7 +45,11 @@ public final class SftpRemoteClient implements RemoteClient {
         List<RemoteEntry> result = new ArrayList<>();
         for (RemoteResourceInfo info : requireSftp().ls(directory)) {
             String name = info.getName();
-            if (name == null || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\")) continue;
+            try {
+                RemotePaths.validateName(name);
+            } catch (IllegalArgumentException unsafeName) {
+                continue;
+            }
             long modified = Math.max(0L, info.getAttributes().getMtime()) * 1000L;
             result.add(new RemoteEntry(name, info.isDirectory(), Math.max(0L, info.getAttributes().getSize()), modified));
         }
