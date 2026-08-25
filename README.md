@@ -4,7 +4,7 @@
 
 ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
 
-**Current release: 1.2.2**
+**Current release: 1.2.3**
 
 [Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Linux](linux/README.md) · [macOS](macos/README.md) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
@@ -20,7 +20,8 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 - Mobile transport password references are shortened to authentication scope where the implementation permits it.
 - Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
 - One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
-- Linux packaging lives under `linux/` and macOS packaging lives under `macos/`; both build the single shared reviewed Go desktop core instead of copying it.
+- Linux packaging lives under `linux/`, macOS packaging under `macos/`, and the canonical iOS build entry point under `ios/`; platform build logic is not duplicated under `scripts/`.
+- CI and production builds are pinned to Go 1.27.0 and Gradle 9.7.0 for the 1.2.3 maintenance line.
 
 ## Supported platforms and release artifacts
 
@@ -55,7 +56,7 @@ Desktop and Android support SFTP with host-key verification. Android validates t
 
 The Android application under `android/` supports FTP, explicit/implicit FTPS and SFTP. It uses the Storage Access Framework instead of broad storage permissions, keeps passwords session-only, excludes app data from backup/device transfer, and cleans pending connection/file-picker state during lifecycle teardown.
 
-Version 1.2.2 makes FTP and SFTP directory listings share the same canonical remote-name validator, rejects CR/LF/NUL and edge-whitespace names consistently, rejects unsafe server login roots before normalization, and clears the transport password reference immediately after authentication instead of retaining the full credential configuration for the session. Raw host, port, username, password and SFTP fingerprint checks from 1.2.1 remain fail-closed.
+The 1.2.2 runtime hardening remains in 1.2.3: FTP and SFTP directory listings share the same canonical remote-name validator, CR/LF/NUL and edge-whitespace names are rejected consistently, unsafe server login roots are rejected before normalization, and transport password references are cleared immediately after authentication. Version 1.2.3 updates the reproducible Android build toolchain to Gradle 9.7.0 while retaining AGP 9.3.0, API 37 and the audited APK packaging contract.
 
 See [ByFTP for Android](android/README.md).
 
@@ -63,13 +64,13 @@ See [ByFTP for Android](android/README.md).
 
 The native SwiftUI application lives under `ios/` with a normal Xcode project and shared scheme. It provides FTP and implicit FTPS, remote browsing, upload/download, mkdir, rename/delete, MLSD-to-LIST fallback, shared-hosting login-root mapping and system document/share integration.
 
-Version 1.2.2 rejects noncanonical remote names instead of trimming them, rejects CR/LF/NUL in server login roots before normalization, tracks a connection that is still being established so disconnect/background can close it immediately, clears password UI state even after local validation failure, and removes temporary download directories after failed or stale async results. PASV host redirects remain blocked and the transport password copy remains connect-only.
+The 1.2.2 lifecycle/path hardening remains in 1.2.3. The maintenance release makes `ios/BUILD.sh` the canonical iOS build entry point so the platform source, Xcode project, tests and production build surface live together. PASV host redirects remain blocked, temporary downloads remain failure-safe, and the transport password copy remains connect-only.
 
 See [ByFTP for iOS](ios/README.md).
 
 ## Windows, Linux and macOS
 
-The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from the platform packaging surface under `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`, including its app-bundle metadata and launcher. The shared desktop engine remains under `cmd/` and `internal/` exactly once, preventing Linux/macOS code forks. Version 1.2.2 also makes direct desktop host validation reject leading/trailing whitespace and control characters instead of normalizing them before validation. All desktop production gates remain mandatory.
+The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`, including its app-bundle metadata and launcher. The shared desktop engine remains under `cmd/` and `internal/` exactly once, preventing Linux/macOS code forks. Version 1.2.3 advances the desktop CI/release toolchain to Go 1.27.0 and removes obsolete platform build wrappers and the retired 1.0.12 source-sync workflow.
 
 ## Shared-hosting workflow
 
@@ -120,8 +121,6 @@ go telemetry off
 bash macos/BUILD.sh
 ```
 
-The legacy `scripts/BUILD-LINUX.sh` and `scripts/BUILD-MACOS.sh` commands remain available as thin compatibility wrappers and delegate to the platform directories above.
-
 Android:
 
 ```bash
@@ -135,7 +134,7 @@ python scripts/package_android.py \
 iOS on macOS/Xcode:
 
 ```bash
-bash scripts/BUILD-IOS.sh
+bash ios/BUILD.sh
 ```
 
 The iOS script runs dependency-free Swift model/path regressions, validates the Xcode project, builds a generic arm64 `iphoneos` Release application with code signing disabled, verifies the application bundle, and creates versioned unsigned IPA and app ZIP artifacts.
@@ -181,12 +180,12 @@ See [GitHub releases](docs/GITHUB-RELEASES.md), [Release verification](docs/RELE
 
 ```text
 android/          Native Android application and tests
-ios/              Native SwiftUI iOS application and Xcode project
+ios/              Native SwiftUI iOS application, Xcode project, tests and build entry point
 linux/            Linux build, desktop entry and DEB packaging metadata
 macos/            macOS Universal build, app-bundle metadata and launcher
 cmd/              Shared desktop app, installer and uninstaller entry points
 internal/         Shared desktop engine, UI, protocols, security, persistence and transfers
-scripts/          Shared audits, packaging, verification, release tools and compatibility wrappers
+scripts/          Shared audits, packaging, verification and release tools
 docs/             Project documentation
 build/            Canonical/static build resources
 ```
