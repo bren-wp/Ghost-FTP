@@ -40,12 +40,16 @@ public final class ConnectionConfig {
 
     public static ConnectionConfig create(Protocol protocol, String rawHost, String rawPort, String rawUsername, String rawPassword, String rawFingerprint) {
         if (protocol == null) throw new IllegalArgumentException("Protocol is required.");
+        rejectControlCharacters(rawHost, "Host");
+        rejectControlCharacters(rawPort, "Port");
+        rejectControlCharacters(rawUsername, "Username");
+        rejectControlCharacters(rawPassword, "Password");
+        rejectControlCharacters(rawFingerprint, "SFTP fingerprint");
+
         String host = normalizeHost(rawHost);
         String username = rawUsername == null ? "" : rawUsername.trim();
         if (username.isEmpty()) throw new IllegalArgumentException("Username is required.");
-        rejectControlCharacters(username, "Username");
         String password = rawPassword == null ? "" : rawPassword;
-        rejectControlCharacters(password, "Password");
         int port = parsePort(rawPort, protocol.defaultPort());
         String fingerprint = normalizeFingerprint(rawFingerprint);
         if (protocol == Protocol.SFTP && fingerprint.isEmpty()) {
@@ -55,6 +59,7 @@ public final class ConnectionConfig {
     }
 
     static String normalizeHost(String rawHost) {
+        rejectControlCharacters(rawHost, "Host");
         String host = rawHost == null ? "" : rawHost.trim();
         if (host.isEmpty()) throw new IllegalArgumentException("Host is required.");
         String lower = host.toLowerCase(Locale.ROOT);
@@ -71,10 +76,11 @@ public final class ConnectionConfig {
     }
 
     static String normalizeFingerprint(String raw) {
+        rejectControlCharacters(raw, "SFTP fingerprint");
         String value = raw == null ? "" : raw.trim();
         if (value.isEmpty()) return "";
         if (value.regionMatches(true, 0, "SHA256:", 0, 7)) value = value.substring(7);
-        if (value.isEmpty() || value.indexOf('\0') >= 0 || value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+        if (value.isEmpty()) {
             throw new IllegalArgumentException("SFTP fingerprint must be an OpenSSH SHA256 fingerprint.");
         }
 
@@ -103,12 +109,14 @@ public final class ConnectionConfig {
     }
 
     private static void rejectControlCharacters(String value, String field) {
+        if (value == null) return;
         if (value.indexOf('\0') >= 0 || value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
             throw new IllegalArgumentException(field + " contains an unsafe control character.");
         }
     }
 
     private static int parsePort(String rawPort, int fallback) {
+        rejectControlCharacters(rawPort, "Port");
         String value = rawPort == null ? "" : rawPort.trim();
         if (value.isEmpty()) return fallback;
         try {
