@@ -2,7 +2,7 @@
 
 `ios/` contains the native SwiftUI iPhone/iPad application and its Xcode project. It is not a WebView wrapper and does not share Android UI/runtime code.
 
-## Supported in the first iOS release
+## Current capabilities
 
 - FTP on the user-selected server.
 - Implicit FTPS with Apple Network.framework TLS, platform trust and endpoint validation.
@@ -16,6 +16,12 @@
 - Automatic disconnect when the app enters the background.
 
 Explicit FTPS and SFTP are **not** claimed by the iOS implementation yet. They remain available on the existing ByFTP desktop and Android clients. Adding either transport to iOS requires a separately audited implementation rather than a permissive compatibility shim.
+
+## 1.2.1 input hardening
+
+ByFTP 1.2.1 validates raw host, port, username and password text for CR/LF/NUL protocol-control characters before trimming or canonicalization. This closes the edge case where a trailing control character could otherwise be removed during normalization before the value reached the transport checks.
+
+The same fail-closed model remains in place for remote paths: traversal, duplicate separators, backslashes, NULs and unsafe server-reported login roots are rejected rather than rewritten.
 
 ## Open in Xcode
 
@@ -59,7 +65,8 @@ Do not commit `.p12` files, private signing keys, provisioning profiles or passw
 - Plain FTP is unencrypted and is retained only for compatibility. Prefer implicit FTPS where available.
 - The iOS source contains no fixed telemetry/API endpoint and no advertising SDK.
 - Global App Transport Security weakening is not enabled.
-- FTP command arguments reject CR, LF and NUL control characters.
+- Raw endpoint and credential input is checked for CR, LF and NUL before normalization.
+- FTP command arguments independently reject CR, LF and NUL control characters.
 - Remote UI paths reject traversal and noncanonical components before a command is sent.
 - Server-provided passive-mode addresses are not trusted as alternative destinations.
 - App-bundle packaging rejects symlinks and validates the bundle identifier, version and Mach-O executable before creating release archives.
