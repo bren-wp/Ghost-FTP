@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.3 — Toolchain refresh and repository hygiene
+
+**Focus:** keep the verified five-platform runtime behavior intact while updating build toolchains, removing obsolete automation and making each platform directory the canonical build surface.
+
+- Updated desktop CI and production builds from Go 1.26.5 to Go 1.27.0 and raised the module baseline to `go 1.27.0`.
+- Updated Android CI and production builds from Gradle 9.5.0 to stable Gradle 9.7.0 while retaining AGP 9.3.0, API 37, Build Tools 36.0.0 and Java 17.
+- Added version-audit checks so CI fails if the reviewed Go/Gradle pins or canonical platform build entry points drift.
+- Made `ios/BUILD.sh` the canonical iOS build entry point alongside `linux/BUILD.sh` and `macos/BUILD.sh`.
+- Updated CI and production release workflows to invoke Linux, macOS and iOS builds directly from their platform directories.
+- Removed obsolete `scripts/BUILD-LINUX.sh`, `scripts/BUILD-MACOS.sh` and `scripts/BUILD-IOS.sh` compatibility wrappers.
+- Removed the retired `.github/workflows/__byftp_sync.yml` workflow that reconstructed the historical ByFTP 1.0.12 source tree from an obsolete sync branch.
+- Kept `scripts/` only for shared audits, local desktop build support, APK/IPA packaging, Windows bundle verification, release-note generation and the fail-closed central release publisher.
+- Preserved the exact Windows/Linux/macOS/Android/iOS public artifact contract and existing production-signing boundaries.
+
 ## 1.2.2 — Cross-platform lifecycle, path and credential cleanup
 
 **Focus:** harden the already verified five-platform architecture without weakening compatibility, reduce duplicated validation/build logic and generate a new complete desktop/Android/iOS release from one canonical version.
