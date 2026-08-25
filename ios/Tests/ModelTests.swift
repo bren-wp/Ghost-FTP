@@ -35,11 +35,19 @@ struct ModelTests {
         try expectThrows("unsafe server login root was accepted") {
             _ = try FTPPathMapper.normalizeLoginRoot("/home/../root")
         }
+
+        let cr = String(UnicodeScalar(13)!)
+        let lf = String(UnicodeScalar(10)!)
+        let crlf = cr + lf
         try expectThrows("CRLF username injection was accepted") {
-            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user\r\nNEXT", password: "x")
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user" + crlf + "NEXT", password: "x")
         }
         try expectThrows("CRLF password injection was accepted") {
-            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user", password: "x\r\nNEXT")
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user", password: "x" + crlf + "NEXT")
+        }
+        let nul = String(UnicodeScalar(0)!)
+        try expectThrows("NUL username injection was accepted") {
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user" + nul + "NEXT", password: "x")
         }
 
         print("IOS_MODEL_TESTS=PASS")
