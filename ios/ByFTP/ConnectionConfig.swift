@@ -32,9 +32,8 @@ struct ConnectionConfig: Equatable, Sendable {
     ) throws -> ConnectionConfig {
         let host = try normalizeHost(rawHost)
 
-        // Validate the raw credentials before normalization. Trimming first would
-        // silently remove CR/LF at the edges and turn an invalid FTP command
-        // argument into an accepted value instead of rejecting it fail-closed.
+        // Validate raw credentials before normalization. Otherwise CR/LF at an
+        // edge could be removed by trimming instead of being rejected.
         try rejectControlCharacters(rawUsername, field: "Username")
         try rejectControlCharacters(rawPassword, field: "Password")
 
@@ -53,7 +52,7 @@ struct ConnectionConfig: Equatable, Sendable {
     static func normalizeHost(_ raw: String) throws -> String {
         var host = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !host.isEmpty else { throw ValidationError("Host is required.") }
-        guard !host.contains("://"), !host.contains("/"), !host.contains("\\"), !host.contains("\0") else {
+        guard !host.contains("://"), !host.contains("/"), !host.contains("\\"), !host.unicodeScalars.contains(where: { $0.value == 0 }) else {
             throw ValidationError("Enter a host name or IP address, not a URL or path.")
         }
         guard host.unicodeScalars.allSatisfy({ !CharacterSet.whitespacesAndNewlines.contains($0) }) else {
@@ -77,7 +76,10 @@ struct ConnectionConfig: Equatable, Sendable {
     }
 
     private static func rejectControlCharacters(_ value: String, field: String) throws {
-        guard !value.contains("\r"), !value.contains("\n"), !value.contains("\0") else {
+        let hasProtocolControl = value.unicodeScalars.contains { scalar in
+            scalar.value == 0 || scalar.value == 10 || scalar.value == 13
+        }
+        guard !hasProtocolControl else {
             throw ValidationError("\(field) contains an unsafe control character.")
         }
     }
