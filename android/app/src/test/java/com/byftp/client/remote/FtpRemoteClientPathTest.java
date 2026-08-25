@@ -36,5 +36,7 @@ public final class FtpRemoteClientPathTest {
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/../etc", "/"));
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home//example", "/"));
         assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/\0example", "/"));
+        assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example\r", "/"));
+        assertThrows(IllegalArgumentException.class, () -> FtpRemoteClient.mapLoginRelativePath("/home/example\n", "/"));
     }
 }
