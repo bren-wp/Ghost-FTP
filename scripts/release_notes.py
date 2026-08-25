@@ -26,7 +26,7 @@ def extract_section(changelog: str, version: str) -> str:
 def build_notes(version: str, section: str) -> str:
     return f"""ByFTP {version}
 
-Privacy-focused FTP / FTPS / SFTP client for Windows, Linux, macOS and Android.
+Privacy-focused file-transfer client for Windows, Linux, macOS, Android and iOS.
 
 Highlights
 ----------
@@ -54,7 +54,11 @@ Android:
 - Android debug APK: installable development/test build signed with the standard Android debug identity
 - Android release-unsigned APK: optimized/minified release build intended for verification or external production signing
 
-The Android APKs are generated from the same canonical VERSION and gated source as the desktop packages. Neither APK is represented as a production store-signed build. A production Android distribution still requires a stable private signing identity held outside this repository.
+iOS:
+- iOS arm64 unsigned IPA: real iPhoneOS device application in the normal Payload/ByFTP.app IPA structure
+- iOS arm64 unsigned app ZIP: the same unsigned ByFTP.app bundle packaged for verification or an external Apple signing workflow
+
+Android and iOS artifacts are generated from the same canonical VERSION and gated source as the desktop packages. Android production distribution still requires a stable private Android signing identity. The iOS IPA/app ZIP require a valid Apple signing identity and provisioning configuration before normal device/App Store/TestFlight distribution. Unsigned/debug files are never represented as production store-signed builds.
 
 Release verification
 --------------------
@@ -68,10 +72,11 @@ Before installing
 2. Compare the downloaded package SHA-256 hash with the official SHA256.txt file.
 3. On Windows, use Setup for a normal installation; use Portable when installation is not required.
 4. On Android, use the debug APK only for testing/development installs. The release-unsigned APK must be signed with a trusted external production identity before production distribution.
+5. On iOS, treat the unsigned IPA/app ZIP as reproducible pre-signing evidence. Apply a valid Apple identity/provisioning profile externally before normal device or store distribution.
 
 Signing status
 --------------
-Windows binaries do not show Verified Publisher until a real ByFTP Authenticode certificate is available. The macOS PKG is not Developer ID signed/notarized without a real Apple signing identity. Android production distribution likewise requires a stable private signing identity. The workflow never fabricates a publisher identity; SHA-256 verification and release provenance remain mandatory parts of public releases.
+Windows binaries do not show Verified Publisher until a real ByFTP Authenticode certificate is available. The macOS PKG is not Developer ID signed/notarized without a real Apple signing identity. Android production distribution requires a stable private signing identity. iOS production distribution requires an Apple signing identity and provisioning profile outside this repository. The workflow never fabricates publisher identities; SHA-256 verification and release provenance remain mandatory parts of public releases.
 """
 
 

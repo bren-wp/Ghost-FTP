@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.2.0 — Native iOS client and five-platform release matrix
+
+**Focus:** add a real native iOS application and unsigned IPA/app-bundle release artifacts while tightening Android path/fingerprint validation and preserving the existing Windows, Linux and macOS stability gates.
+
+- Added a native SwiftUI iPhone/iPad application under `ios/` with a normal Xcode project and shared scheme; no WebView wrapper or hidden ByFTP backend is used.
+- Added iOS FTP and implicit FTPS connections using Apple Network.framework, including binary transfers, protected FTPS data channels, EPSV/PASV passive mode and bounded network reads.
+- Added iOS remote browse, upload, download, create-directory, rename and delete workflows with the system document picker and share/save sheet.
+- Added shared-hosting FTP login-root mapping on iOS so UI `/` represents the authenticated account namespace and `public_html` stays inside that account root.
+- iOS rejects traversal, duplicate separators, backslashes, NUL/control characters and unsafe server-reported login roots instead of silently rewriting paths.
+- iOS ignores server-supplied PASV host redirects and uses only the passive port with the endpoint selected by the user.
+- iOS credentials remain session-scoped: UI password state is cleared after connect attempts, the transport actor clears its password copy after authentication, and active sessions disconnect when the app enters the background.
+- Added dependency-free iOS Swift model/path regressions plus a real generic arm64 `iphoneos` Xcode Release build gate.
+- Added `scripts/BUILD-IOS.sh` to generate AppIcon sizes from the canonical project icon, bind Xcode marketing/build versions to `VERSION`, build with repository-side code signing disabled and verify the resulting arm64 application bundle.
+- Added `scripts/package_ios.py` and regressions to validate `Info.plist`, bundle identifier, version, Mach-O executable, symlink safety and archive paths before creating `ByFTP-<version>-iOS-arm64-unsigned.ipa` and `ByFTP-<version>-iOS-arm64-unsigned-app.zip`.
+- iOS production signing remains external: repository IPA/app ZIP artifacts are real unsigned device builds, not falsely labeled App Store/TestFlight packages.
+- Hardened Android `RemotePaths` so traversal, dot components, duplicate separators, backslashes and noncanonical names fail closed rather than being normalized.
+- Hardened Android SFTP fingerprint input by Base64-decoding it and requiring exactly a 32-byte SHA-256 digest before SSHJ receives the canonical OpenSSH fingerprint.
+- Android connection input now rejects CR/LF/NUL credential control characters before protocol libraries receive them.
+- Expanded Android and iOS audits so path, credential, TLS, lifecycle, signing and package structure guarantees fail closed in CI.
+- Expanded the cross-platform release contract to require Windows x64/x86, Linux amd64/arm64/i386, macOS Universal, Android debug/unsigned APK and iOS arm64 unsigned IPA/app ZIP artifacts from the same canonical `VERSION`.
+- Updated README, installation, architecture, security, privacy, shared-hosting, testing, signing, release-verification, GitHub Releases, roadmap and build-tool documentation for the five-platform 1.2.0 release.
+
 ## 1.1.1 — Android APK distribution and maintenance hardening
 
 **Focus:** make Android APK artifacts part of the verified release contract, improve shared-hosting compatibility, clean Android UI state and finish English-first Windows startup fallbacks without weakening existing desktop gates.

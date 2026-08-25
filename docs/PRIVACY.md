@@ -4,18 +4,28 @@ ByFTP contains no advertising, analytics SDK, application telemetry or mandatory
 
 ## Desktop
 
-Saved profiles and settings remain in the user's local application-data directory. Windows saved credentials use DPAPI. Production Go build gates keep Go telemetry disabled. External helper processes receive only the minimized environment required for the operation.
+Saved profiles/settings remain in the local application-data directory. Windows saved credentials use DPAPI. Production Go builds require Go telemetry to be disabled. External helper processes receive a minimized environment.
 
 ## Android
 
-The Android client does not persist connection passwords or SSH secrets. It uses Android document-provider URIs for user-selected upload/download files and does not request broad device-storage access.
+The Android client does not persist connection passwords or SSH secrets. It uses document-provider URIs for user-selected upload/download files and requests no broad device-storage permission.
 
-Cloud-backup and device-transfer extraction rules explicitly exclude the application's root, file, database, shared-preference and external app-data domains. This prevents future local state from silently entering Android backup/migration flows.
+Cloud-backup and device-transfer rules exclude root, file, database, shared-preference and external app-data domains. Generic cleartext traffic is disabled for platform-aware networking. No Firebase Analytics, advertising SDK, project-controlled runtime API or ByFTP backend service is included.
 
-The Android manifest disables generic cleartext traffic for platform-aware network stacks. ByFTP does not include Firebase Analytics, advertising SDKs, a project-controlled runtime API or a ByFTP backend service.
+Active/pending clients and picker state are cleaned during lifecycle teardown. Release APK packaging does not change this privacy model.
 
-Active/pending network clients are closed when the Activity is destroyed and late main-thread callbacks are ignored. Pending download-picker paths are cleared after every picker result, disconnect and Activity destruction so stale local UI state does not retain an unintended remote target.
+## iOS
 
-Release APK generation does not change the privacy model: the debug and unsigned release APKs are built from the same audited source, and neither introduces a ByFTP cloud service or telemetry endpoint.
+The native iOS client also has no ByFTP backend, analytics/advertising SDK or fixed runtime HTTP(S) endpoint.
 
-The product does not send usage events to the project repository or support endpoint.
+Connection credentials are session-only. The password field is cleared after each connection attempt, the FTP transport clears its own password copy after authentication and the app disconnects when it enters the background. The implementation does not store credentials in `UserDefaults` or another persistent profile store.
+
+Uploads use the system document picker and security-scoped access only for the selected file. Downloads are written to a private temporary directory for the system share/save workflow and can be explicitly cleared; the session store also removes the previous temporary download before creating a new one.
+
+The iOS bundle contains no global App Transport Security bypass. Network traffic is limited to the endpoint entered by the user; PASV response hosts are not trusted as alternative destinations.
+
+Unsigned IPA/app ZIP generation is a packaging/signing property only and does not introduce telemetry, cloud storage or credential persistence.
+
+## Project communication
+
+ByFTP does not send usage events to the repository, support endpoint or a project-operated service. Static repository/support URLs used as product metadata do not trigger automatic network requests.

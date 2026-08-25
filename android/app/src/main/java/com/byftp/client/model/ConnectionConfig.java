@@ -1,5 +1,6 @@
 package com.byftp.client.model;
 
+import java.util.Base64;
 import java.util.Locale;
 
 public final class ConnectionConfig {
@@ -37,17 +38,20 @@ public final class ConnectionConfig {
         this.fingerprint = fingerprint;
     }
 
-    public static ConnectionConfig create(Protocol protocol, String rawHost, String rawPort, String rawUsername, String password, String rawFingerprint) {
+    public static ConnectionConfig create(Protocol protocol, String rawHost, String rawPort, String rawUsername, String rawPassword, String rawFingerprint) {
         if (protocol == null) throw new IllegalArgumentException("Protocol is required.");
         String host = normalizeHost(rawHost);
         String username = rawUsername == null ? "" : rawUsername.trim();
         if (username.isEmpty()) throw new IllegalArgumentException("Username is required.");
+        rejectControlCharacters(username, "Username");
+        String password = rawPassword == null ? "" : rawPassword;
+        rejectControlCharacters(password, "Password");
         int port = parsePort(rawPort, protocol.defaultPort());
         String fingerprint = normalizeFingerprint(rawFingerprint);
         if (protocol == Protocol.SFTP && fingerprint.isEmpty()) {
             throw new IllegalArgumentException("SFTP requires an expected SHA-256 host-key fingerprint.");
         }
-        return new ConnectionConfig(protocol, host, port, username, password == null ? "" : password, fingerprint);
+        return new ConnectionConfig(protocol, host, port, username, password, fingerprint);
     }
 
     static String normalizeHost(String rawHost) {
@@ -67,12 +71,41 @@ public final class ConnectionConfig {
     }
 
     static String normalizeFingerprint(String raw) {
-        String fingerprint = raw == null ? "" : raw.trim();
-        if (fingerprint.isEmpty()) return "";
-        if (!fingerprint.regionMatches(true, 0, "SHA256:", 0, 7)) {
-            fingerprint = "SHA256:" + fingerprint;
+        String value = raw == null ? "" : raw.trim();
+        if (value.isEmpty()) return "";
+        if (value.regionMatches(true, 0, "SHA256:", 0, 7)) value = value.substring(7);
+        if (value.isEmpty() || value.indexOf('\0') >= 0 || value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+            throw new IllegalArgumentException("SFTP fingerprint must be an OpenSSH SHA256 fingerprint.");
         }
-        return "SHA256:" + fingerprint.substring(7).replace("=", "");
+
+        int firstPadding = value.indexOf('=');
+        if (firstPadding >= 0) {
+            for (int i = firstPadding; i < value.length(); i++) {
+                if (value.charAt(i) != '=') throw new IllegalArgumentException("SFTP fingerprint has invalid Base64 padding.");
+            }
+            value = value.substring(0, firstPadding);
+        }
+        if (value.isEmpty()) throw new IllegalArgumentException("SFTP fingerprint must be an OpenSSH SHA256 fingerprint.");
+
+        String padded = value;
+        int remainder = padded.length() % 4;
+        if (remainder == 1) throw new IllegalArgumentException("SFTP fingerprint is not valid Base64.");
+        if (remainder > 0) padded += "=".repeat(4 - remainder);
+
+        byte[] digest;
+        try {
+            digest = Base64.getDecoder().decode(padded);
+        } catch (IllegalArgumentException error) {
+            throw new IllegalArgumentException("SFTP fingerprint is not valid Base64.");
+        }
+        if (digest.length != 32) throw new IllegalArgumentException("SFTP fingerprint must contain a 32-byte SHA-256 digest.");
+        return "SHA256:" + Base64.getEncoder().withoutPadding().encodeToString(digest);
+    }
+
+    private static void rejectControlCharacters(String value, String field) {
+        if (value.indexOf('\0') >= 0 || value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+            throw new IllegalArgumentException(field + " contains an unsafe control character.");
+        }
     }
 
     private static int parsePort(String rawPort, int fallback) {

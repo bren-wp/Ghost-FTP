@@ -2,26 +2,22 @@
 
 ![ByFTP — Secure File Transfer](docs/images/byftp-header.png)
 
-ByFTP is a privacy-focused **FTP, FTPS and SFTP** client for Windows, Linux, macOS and Android. It is designed for shared hosting, website deployment and routine server file management while keeping credentials local and avoiding advertising, analytics SDKs and mandatory cloud services.
+ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The first native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
 
-**Current release: 1.1.1**
+**Current release: 1.2.0**
 
-[Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Android](android/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+[Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
 ## Highlights
 
-- FTP, explicit FTPS, implicit FTPS and SFTP.
-- Shared-hosting friendly `public_html` navigation and login/account-relative FTP paths.
-- Passive/binary FTP/FTPS with compatibility handling for hosting servers.
-- Remote browse, upload, download, create directory, rename and delete operations.
-- Desktop transfer queue with pause, resume, cancel and retry.
-- Fail-closed SFTP host-key verification and SHA-256 fingerprint pinning.
-- FTPS certificate-chain and endpoint/hostname verification.
-- Native Android application — not a WebView wrapper.
-- Android local file access through the Storage Access Framework without broad storage permissions.
-- Session-only Android passwords and explicit cloud-backup/device-transfer exclusions.
-- Verified Windows, Linux, macOS and Android release artifacts from one canonical `VERSION`.
-- No application telemetry, advertising SDK or mandatory ByFTP cloud account.
+- Native desktop, Android and iOS applications; no mobile WebView wrapper.
+- Shared-hosting friendly `public_html` navigation and authenticated-account FTP roots.
+- Remote browse, upload, download, create directory, rename and delete.
+- Fail-closed SFTP host-key verification where SFTP is available.
+- FTPS platform trust and endpoint/hostname verification.
+- Strict remote-path validation instead of silently rewriting traversal or unsafe separators.
+- Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
+- One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
 
 ## Supported platforms and release artifacts
 
@@ -33,61 +29,49 @@ ByFTP is a privacy-focused **FTP, FTPS and SFTP** client for Windows, Linux, mac
 | Linux arm64 | DEB |
 | Linux i386 | DEB |
 | macOS | Universal PKG |
-| Android 8.0+ / API 26+ | Debug-signed APK and optimized unsigned release APK |
+| Android 8.0+ / API 26+ | Debug-signed APK, optimized unsigned release APK |
+| iOS 16+ / arm64 | Unsigned IPA, unsigned `.app` ZIP |
 
-The Android artifacts deliberately distinguish build validity from production signing:
-
-- `ByFTP-<version>-Android-debug.apk` is an **installable debug-signed development/test build**.
-- `ByFTP-<version>-Android-release-unsigned.apk` is the **minified and resource-shrunk release build without a production signature**.
-
-A production Android distribution must sign the release APK with a stable private identity managed outside this repository. ByFTP does not commit or fabricate a production signing key.
+Android and iOS release files deliberately separate reproducible build evidence from production signing. `ByFTP-<version>-Android-debug.apk` is installable for development/testing, while the Android release APK requires an external production signing identity. The iOS IPA and app ZIP contain the real arm64 iPhoneOS application but remain unsigned until a valid Apple identity and provisioning configuration is applied outside the repository.
 
 ## Protocol behavior
 
 ### FTP
 
-FTP is retained for compatibility with servers that require it and does **not** encrypt credentials or file contents. Prefer FTPS or SFTP whenever the server supports them.
-
-Desktop and Android clients are designed around shared-hosting account namespaces. Android 1.1.1 records the server working directory after login and maps the UI `/` to that authenticated account root. If the server cannot report `PWD`, Android falls back to login-relative paths instead of forcing an unrelated filesystem `/`. Traversal and noncanonical path components are rejected before FTP operations are issued.
+FTP is retained for compatibility and does **not** encrypt credentials or file contents. Prefer a secure protocol whenever the server supports one. Desktop, Android and iOS map FTP UI `/` to the authenticated account namespace instead of assuming an unrelated server filesystem root. Traversal, NULs and noncanonical path components are rejected before remote operations.
 
 ### FTPS
 
-Explicit and implicit FTPS are supported. Android explicitly uses the platform trust manager, enables endpoint/hostname verification and protects the FTP data channel with `PROT P`. Project audits reject permissive/custom trust-manager patterns in ByFTP Android source.
+Desktop and Android support explicit and implicit FTPS. iOS 1.2.0 supports implicit FTPS through Apple Network.framework. Android uses platform trust plus endpoint checking; iOS uses the platform TLS stack. Protected FTPS data channels use `PROT P`.
 
 ### SFTP
 
-SFTP requires host-key verification. The Android client requires the expected OpenSSH-style `SHA256:` host-key fingerprint before connecting and uses SSHJ's native fingerprint verifier.
+Desktop and Android support SFTP with host-key verification. Android now validates the provided OpenSSH-style `SHA256:` fingerprint as a real 32-byte SHA-256 digest before SSHJ receives it. iOS does not claim SFTP yet; adding it requires an audited native implementation rather than a permissive compatibility layer.
 
-Android currently supports SFTP password authentication. Private-key import remains deferred until Android Keystore-backed handling, import validation and migration semantics are implemented and audited.
+## Android
 
-## Android 1.1.1
+The Android application under `android/` supports FTP, explicit/implicit FTPS and SFTP. It uses the Storage Access Framework instead of broad storage permissions, keeps passwords session-only, excludes app data from backup/device transfer, and cleans pending connection/file-picker state during lifecycle teardown.
 
-The Android implementation is isolated from the Go desktop runtime so lifecycle, permissions, networking and packaging can be tested independently. It provides:
-
-- FTP, explicit FTPS, implicit FTPS and SFTP.
-- Remote listing/navigation, refresh, upload, download, create directory, rename and delete.
-- Login-root-aware FTP/FTPS paths for shared hosting.
-- Mandatory SFTP SHA-256 host-key pinning.
-- FTPS platform trust and hostname verification.
-- Storage Access Framework upload/download without broad storage permission.
-- Session-only credentials; no password or SSH-secret persistence.
-- Cloud-backup and device-transfer exclusions.
-- Connection cleanup on Activity destruction and protection against late callbacks.
-- Immediate cleanup of pending download-picker state after any picker result, disconnect or Activity destruction.
-- Stable action dispatch that does not depend on translated UI labels.
+Version 1.2.0 additionally hardens remote paths so backslashes, duplicate separators, dot/traversal components and noncanonical names are rejected instead of normalized. SFTP fingerprints are Base64-decoded and must represent exactly 32 SHA-256 bytes.
 
 See [ByFTP for Android](android/README.md).
 
+## iOS
+
+The native SwiftUI application lives under `ios/` with a normal Xcode project and shared scheme. The first release provides FTP and implicit FTPS, remote browsing, upload/download, mkdir, rename/delete, MLSD-to-LIST fallback, shared-hosting login-root mapping and system document/share integration.
+
+The iOS transport ignores server-supplied PASV host redirects and reconnects data channels only to the host selected by the user. Credential control characters are rejected, the transport password copy is cleared after login, UI password state is cleared after a connection attempt and the app disconnects when entering the background.
+
+See [ByFTP for iOS](ios/README.md).
+
 ## Windows, Linux and macOS
 
-The desktop implementation remains written in Go. Windows keeps the transactional installer, x64/x86 Setup/Portable packages, DPAPI-backed saved secrets, live 18-language UI and hardened AskPass/process boundaries. In 1.1.1 the remaining startup and AskPass fallback messages were standardized on English so they match the repository's English-first contract while runtime-localized UI remains unchanged.
-
-Linux packages continue to be built for amd64, arm64 and i386. macOS continues to ship as a Universal Intel/Apple Silicon PKG. All desktop platforms remain part of the same gated test/build matrix.
+The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386. macOS ships a Universal Intel/Apple Silicon PKG. Existing desktop gates remain mandatory for 1.2.0.
 
 ## Shared-hosting workflow
 
 1. Enter the server host, port and hosting-account username.
-2. Prefer FTPS or SFTP where available.
+2. Prefer FTPS or SFTP where the selected platform/server supports it.
 3. Connect and open the account web root, commonly `public_html`.
 4. Upload/download files or use supported remote management operations.
 5. Keep operations inside the authenticated account namespace.
@@ -96,33 +80,21 @@ See [Shared hosting](docs/SHARED-HOSTING.md).
 
 ## Security and privacy
 
-ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. The desktop transfer engine uses staging/revalidation around destructive writes and protects against unsafe local links/reparse points and stale session generations. Android validates endpoint input, enforces SFTP host-key pinning, uses platform TLS trust for FTPS and rejects unsafe FTP account-path mappings.
+ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Desktop transfer code protects staging/activation and session generations. Android validates endpoints, fingerprints and canonical remote paths. iOS uses bounded Network.framework I/O, account-root path mapping, PASV-host redirect blocking, session-only credentials and background disconnect.
 
-Android does not persist connection passwords or SSH secrets, request unrestricted storage access, include analytics/advertising SDKs or depend on a ByFTP runtime backend. App data is excluded from cloud-backup/device-transfer flows. Connections are initiated only to endpoints selected by the user.
-
-See [Security](docs/SECURITY.md) and [Privacy](docs/PRIVACY.md).
+No mobile client includes analytics/advertising SDKs or requires a ByFTP backend. Connections target endpoints selected by the user. See [Security](docs/SECURITY.md) and [Privacy](docs/PRIVACY.md).
 
 ## Languages
 
-The desktop runtime supports 18 languages with English as the canonical fallback: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish.
-
-Android remains English-first. Additional Android translations should be added only as complete reviewed resource sets. Windows startup/AskPass fallback text is audited to remain English-first rather than silently reintroducing hard-coded Croatian strings.
+The desktop runtime supports 18 languages with English as the canonical fallback: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish. Android and iOS remain English-first until complete reviewed locale sets are added.
 
 ## Installation
 
-Use the package matching the operating system and architecture. Verify downloads against `SHA256.txt` before redistribution.
-
-For Android testing, install the versioned debug APK. The unsigned release APK is not a production-installable package until it has been signed with an external trusted identity. See [Installation](docs/INSTALLATION.md).
+Use the artifact matching the operating system and architecture and verify it against `SHA256.txt`. Android production signing and iOS Apple signing remain external to this public repository; unsigned files are never described as store-signed software. See [Installation](docs/INSTALLATION.md).
 
 ## Build from source
 
-The canonical desktop module is:
-
-```text
-github.com/bren-wp/by-ftp
-```
-
-`VERSION` is the single production version source for desktop binaries/packages, Android `versionName`/`versionCode`, release notes and GitHub Release artifact names.
+`VERSION` is the single production version source for desktop binaries/packages, Android version metadata, iOS marketing version/build packaging, release notes and GitHub Release artifact names.
 
 Windows:
 
@@ -155,7 +127,13 @@ python scripts/package_android.py \
   --output-dir dist
 ```
 
-The Android module uses Java 17, Android Gradle Plugin 9.3.0, Gradle 9.5.0, compile/target SDK 37, Apache Commons Net 3.13.0 and SSHJ 0.40.0.
+iOS on macOS/Xcode:
+
+```bash
+bash scripts/BUILD-IOS.sh
+```
+
+The iOS script runs dependency-free Swift model/path regressions, validates the Xcode project, builds a generic arm64 `iphoneos` Release application with code signing disabled, verifies the application bundle, and creates versioned unsigned IPA and app ZIP artifacts.
 
 ## Tests and audits
 
@@ -169,6 +147,7 @@ python scripts/generate_brand_assets.py --check
 python scripts/audit_localization.py
 python scripts/audit_version.py
 python scripts/audit_android.py
+python scripts/audit_ios.py
 python scripts/audit_docs.py
 python scripts/audit_security.py
 python scripts/audit_privacy.py
@@ -176,32 +155,33 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Android separately runs JUnit, `lintDebug`, `lintRelease`, `assembleDebug`, `assembleRelease` and APK structural validation. Windows x64/x86, Linux amd64/arm64/i386 and macOS Universal builds remain required gates. See [Testing](docs/TESTING.md).
+Android separately runs JUnit, `lintDebug`, `lintRelease`, `assembleDebug`, `assembleRelease` and APK validation. iOS separately builds real arm64 iPhoneOS output and validates/archives `ByFTP.app`. Windows x64/x86, Linux amd64/arm64/i386 and macOS Universal builds remain required. See [Testing](docs/TESTING.md).
 
 ## Release integrity
 
-The release lane is intentionally fail-closed:
+The release lane is fail-closed:
 
-- `VERSION` consistency and published-version immutability are checked before publication.
-- Security, privacy, localization, documentation and release-contract audits are mandatory.
-- Windows, Linux, macOS and Android builds must all succeed.
-- Android debug and unsigned release APKs are structurally validated and staged with versioned names.
+- `VERSION` consistency and published-version immutability are checked first.
+- Security, privacy, localization, documentation, Android, iOS and release-contract audits are mandatory.
+- Windows, Linux, macOS, Android and iOS build jobs must all succeed.
+- Android APKs and iOS IPA/app ZIP are structurally validated before staging.
 - Public staging uses an exact platform-asset allowlist.
 - `SHA256.txt` covers every public package plus release metadata.
-- GitHub Release mutation remains centralized in `scripts/publish_release.ps1`, which re-reads the release and validates final asset size/digest identity.
-- Android production signing remains external; unsigned/debug artifacts are never labeled as production store-signed software.
+- GitHub Release mutation stays centralized in `scripts/publish_release.ps1`, which re-reads the release and validates final asset identity.
+- Production mobile signing remains external; unsigned/debug files are never labeled as production store-signed software.
 
 See [GitHub releases](docs/GITHUB-RELEASES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Signing](docs/SIGNING.md).
 
 ## Repository structure
 
 ```text
-android/          Native Android application, tests and mobile build configuration
+android/          Native Android application and tests
+ios/              Native SwiftUI iOS application and Xcode project
 cmd/              Desktop app, installer and uninstaller entry points
 internal/         Desktop engine, UI, protocols, security, persistence and transfers
 scripts/          Build, audit, packaging, verification and release tools
 docs/             Project documentation
-build/            Generated/static desktop build resources
+build/            Canonical/static build resources
 ```
 
 ## Documentation
@@ -221,13 +201,12 @@ build/            Generated/static desktop build resources
 - [Testing](docs/TESTING.md)
 - [Third-party notices](docs/THIRD-PARTY-NOTICES.md)
 - [Android source and build guide](android/README.md)
+- [iOS source and build guide](ios/README.md)
 - [Build and verification tools](scripts/README.md)
 
 ## Contributing and security reports
 
-Changes must preserve security, privacy and release invariants. Android networking belongs under `android/`; mobile secrets must not be routed through hidden backend services or persisted without an explicitly reviewed security design. New canonical user-facing source text is English-first.
-
-Do not publish passwords, private keys, production hostnames, customer data or other sensitive material in public issues. Follow the repository [security policy](.github/SECURITY.md).
+Changes must preserve security, privacy and release invariants. Mobile secrets must not be routed through hidden backend services or persisted without an explicitly reviewed design. New canonical user-facing source text is English-first. Do not publish passwords, private keys, signing credentials, provisioning profiles, production hostnames or customer data in public issues. Follow the repository [security policy](.github/SECURITY.md).
 
 ## License
 

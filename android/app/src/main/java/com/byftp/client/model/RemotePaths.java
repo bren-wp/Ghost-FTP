@@ -5,11 +5,18 @@ public final class RemotePaths {
 
     public static String normalizeDirectory(String path) {
         if (path == null || path.isBlank() || path.equals("/")) return "/";
-        String p = path.replace('\\', '/');
-        if (!p.startsWith("/")) p = "/" + p;
-        while (p.contains("//")) p = p.replace("//", "/");
-        if (p.length() > 1 && p.endsWith("/")) p = p.substring(0, p.length() - 1);
-        return p;
+        if (!path.startsWith("/") || path.contains("\\") || path.indexOf('\0') >= 0 || path.contains("//")) {
+            throw new IllegalArgumentException("Remote path is not canonical.");
+        }
+        String value = path;
+        if (value.length() > 1 && value.endsWith("/")) value = value.substring(0, value.length() - 1);
+        String[] parts = value.substring(1).split("/", -1);
+        for (String part : parts) {
+            if (part.isEmpty() || part.equals(".") || part.equals("..")) {
+                throw new IllegalArgumentException("Remote path contains an unsafe component.");
+            }
+        }
+        return value;
     }
 
     public static String child(String directory, String name) {
@@ -26,8 +33,8 @@ public final class RemotePaths {
     }
 
     public static void validateName(String name) {
-        if (name == null || name.isBlank() || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\") || name.indexOf('\0') >= 0) {
-            throw new IllegalArgumentException("Name must be a single remote path component.");
+        if (name == null || name.isBlank() || !name.equals(name.trim()) || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\") || name.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException("Name must be one canonical remote path component.");
         }
     }
 }
