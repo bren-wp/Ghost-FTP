@@ -6,13 +6,13 @@ Tests, audits and platform builds are release requirements rather than optional 
 
 Core checks include `go test ./...`, the race detector, `go vet`, Windows x64/x86 production builds, Linux DEB builds, macOS Universal PKG builds, deterministic brand-asset verification, localization/version/documentation checks and security/privacy/release audits.
 
-Linux packaging is tested through `linux/BUILD.sh`; macOS packaging is tested through `macos/BUILD.sh`. The compatibility wrappers under `scripts/` delegate to those platform directories and are audited to prevent build logic from drifting back into duplicated copies.
+The 1.2.3 CI/release baseline uses Go 1.27.0. Linux packaging is tested directly through `linux/BUILD.sh`; macOS packaging is tested directly through `macos/BUILD.sh`. Obsolete platform wrappers under `scripts/` are rejected by the version/privacy/release audits rather than retained as duplicate entry points.
 
 Installer changes require payload/transaction/rollback regressions. Localization changes must preserve English fallback and formatting-placeholder compatibility.
 
 ## Android gates
 
-Android has an independent CI job with JDK 17, Gradle 9.5.0, API 37 and build-tools 36.0.0:
+Android has an independent CI job with JDK 17, Gradle 9.7.0, Android Gradle Plugin 9.3.0, API 37 and Build Tools 36.0.0:
 
 ```bash
 gradle -p android :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
@@ -28,10 +28,10 @@ JUnit coverage includes connection validation, credential-control rejection, fin
 
 ## iOS gates
 
-iOS has a dedicated `macos-14` job. The central quality job first runs `python scripts/audit_ios.py`; the platform job then runs:
+iOS has a dedicated `macos-14` job. The central quality job first runs `python scripts/audit_ios.py`; the platform job then runs the canonical platform entry point:
 
 ```bash
-bash scripts/BUILD-IOS.sh
+bash ios/BUILD.sh
 ```
 
 The iOS build performs four stages:
@@ -70,7 +70,8 @@ The gate requires a non-empty Universal PKG and expands it with `pkgutil` to val
 - `scripts/test_package_android.py` tests Android APK staging/structure/path safety.
 - `scripts/test_package_ios.py` tests iOS bundle validation, IPA/app ZIP structure, version mismatch rejection and symlink rejection.
 - `scripts/test_release_notes.py` ensures release notes describe all mobile artifacts and signing limitations.
-- `scripts/audit_release.py` requires Linux/macOS platform packaging directories and restricts the legacy build scripts to delegation.
+- `scripts/audit_version.py` enforces the reviewed Go/Gradle pins, canonical platform build entry points and root `VERSION` binding.
+- `scripts/audit_release.py` requires Linux/macOS/iOS platform build directories and rejects obsolete build wrappers/source-sync workflow files.
 
 All Python tool regressions are run with:
 

@@ -1,31 +1,28 @@
 # ByFTP build and verification tools
 
-This directory contains shared development/CI audit, packaging, release and verification utilities. Platform-specific Linux and macOS application packaging no longer lives here; it is isolated under `linux/` and `macos/`.
+This directory contains shared development/CI audit, packaging, release and verification utilities. Platform-specific production build entry points live with their applications under `linux/`, `macos/` and `ios/`; they are not duplicated here.
 
 ## Build and packaging tools
 
-- `BUILD-LOCAL.sh` — local/offline cross-build smoke check.
-- `BUILD-LINUX.sh` — compatibility wrapper that delegates to [`linux/BUILD.sh`](../linux/BUILD.sh).
-- `BUILD-MACOS.sh` — compatibility wrapper that delegates to [`macos/BUILD.sh`](../macos/BUILD.sh).
-- `BUILD-IOS.sh` — native iPhoneOS arm64 build, iOS model/path regressions, deterministic icon generation and unsigned IPA/app packaging.
+- `BUILD-LOCAL.sh` — local/offline cross-build smoke check for the shared desktop core.
 - `make_payload.py` — creates the verified Windows installer payload.
 - `pe_resources.py` — writes Windows PE icon and VERSIONINFO resources.
 - `generate_brand_assets.py` — reproducibly generates and verifies PNG/ICO brand assets.
 - `package_android.py` — validates debug/release APK structure and stages versioned Android release artifacts.
 - `package_ios.py` — validates the native iOS `.app`, version/bundle identity, Mach-O executable and archive paths before staging versioned unsigned IPA/app artifacts.
 
-The canonical Windows production build is [`BUILD-WINDOWS.ps1`](../BUILD-WINDOWS.ps1). The canonical Linux production build is [`linux/BUILD.sh`](../linux/BUILD.sh). The canonical macOS production build is [`macos/BUILD.sh`](../macos/BUILD.sh).
+Canonical production build entry points are [`BUILD-WINDOWS.ps1`](../BUILD-WINDOWS.ps1), [`linux/BUILD.sh`](../linux/BUILD.sh), [`macos/BUILD.sh`](../macos/BUILD.sh) and [`ios/BUILD.sh`](../ios/BUILD.sh).
 
 ## Audit tools
 
 - `audit_localization.py` — verifies English-first localization, supported desktop catalogs and Windows startup fallback policy.
-- `audit_version.py` — verifies that `VERSION` is the single production version source across desktop, Android and iOS packaging.
+- `audit_version.py` — verifies the single `VERSION`, reviewed Go/Gradle toolchain pins and canonical platform build entry points.
 - `audit_android.py` — verifies Android TLS/SSH, permissions, canonical names/login-root paths, lifecycle, credential lifetime, picker-state and version invariants.
 - `audit_ios.py` — verifies native iOS project structure, transport/path hardening, pending-session/temp-file cleanup, privacy/lifecycle rules, Xcode version binding and unsigned IPA packaging contract.
 - `audit_docs.py` — checks local documentation links, platform guides, the documentation index and version-neutral document titles.
 - `audit_security.py` — protects filesystem, credential, transfer and session security invariants.
 - `audit_privacy.py` — enforces privacy and network policy.
-- `audit_release.py` — validates the production Windows/Linux/macOS/Android/iOS matrix, canonical Linux/macOS platform packaging directories and centralized publisher.
+- `audit_release.py` — validates the production Windows/Linux/macOS/Android/iOS matrix, canonical platform build directories, obsolete-workflow removal and centralized publisher.
 - `audit_release_version_guard.py` — prevents mutation of already-published version lines.
 
 ## Release and verification tools
@@ -46,7 +43,7 @@ The canonical Windows production build is [`BUILD-WINDOWS.ps1`](../BUILD-WINDOWS
 2. Go telemetry must be disabled before production desktop builds.
 3. Production Go builds run with `GOPROXY=off` and `GOSUMDB=off`.
 4. Security, privacy, localization, documentation, Android, iOS and release audits must pass.
-5. Linux packaging source belongs under `linux/`; macOS packaging source belongs under `macos/`; compatibility scripts may only delegate.
+5. Linux packaging belongs under `linux/`, macOS packaging under `macos/`, and the iOS build entry point under `ios/`; obsolete platform wrappers under `scripts/` are rejected.
 6. Windows bundles are checked against an explicit allowlist and SHA-256 manifest.
 7. Android debug and unsigned release APKs must pass structural/path validation before staging.
 8. iOS must compile as a native arm64 iPhoneOS app and its unsigned IPA/app artifacts must pass bundle/version/Mach-O/path validation before staging.

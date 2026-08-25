@@ -19,7 +19,7 @@ The constrained Windows OpenSSH AskPass path remains a separate security boundar
 - `linux/debian/control.in` is the version/architecture-templated package metadata source.
 - `linux/README.md` documents the Linux build boundary.
 
-`scripts/BUILD-LINUX.sh` remains only as a compatibility wrapper that delegates to `linux/BUILD.sh`.
+CI and production releases invoke `linux/BUILD.sh` directly. No Linux production-build wrapper remains under `scripts/`.
 
 ## macOS packaging surface
 
@@ -30,7 +30,7 @@ The constrained Windows OpenSSH AskPass path remains a separate security boundar
 - `macos/launcher.zsh` is the application launcher installed into the bundle.
 - `macos/README.md` documents the macOS build/signing boundary.
 
-`scripts/BUILD-MACOS.sh` remains only as a compatibility wrapper that delegates to `macos/BUILD.sh`.
+CI and production releases invoke `macos/BUILD.sh` directly. No macOS production-build wrapper remains under `scripts/`.
 
 ## Android runtime
 
@@ -55,6 +55,7 @@ Commons Net provides FTP/FTPS primitives. SSHJ provides SFTP primitives. Android
 - `SessionStore.swift` owns generation-bound async state so stale operations cannot update a disconnected/newer session.
 - `ConnectionView.swift`, `RemoteBrowserView.swift` and `ContentView.swift` keep presentation separate from transport/session logic.
 - `ios/Tests/ModelTests.swift` supplies dependency-free input/path regressions.
+- `ios/BUILD.sh` is the canonical iPhoneOS build entry point used by CI and production releases.
 
 The first iOS release intentionally supports FTP and implicit FTPS only. Explicit FTPS and SFTP require separately audited native implementations before they can be exposed.
 
@@ -62,13 +63,15 @@ Network.framework supplies TCP/TLS. FTPS uses platform TLS verification and `PRO
 
 ## Build and packaging boundary
 
-Root `VERSION` is shared by all platforms.
+Root `VERSION` is shared by all platforms. The 1.2.3 reviewed build baseline uses Go 1.27.0 for the desktop matrix and Gradle 9.7.0 with AGP 9.3.0/JDK 17 for Android.
 
-- Windows builds x64/x86 Setup, Portable and verified ZIP bundles.
+- Windows builds x64/x86 Setup, Portable and verified ZIP bundles through root `BUILD-WINDOWS.ps1`.
 - `linux/BUILD.sh` builds amd64/arm64/i386 DEBs.
 - `macos/BUILD.sh` builds a Universal PKG.
 - Android builds debug-signed and optimized unsigned APKs; `scripts/package_android.py` validates/stages them.
-- iOS builds a generic arm64 iPhoneOS `.app`; `scripts/package_ios.py` validates the bundle and creates an unsigned IPA plus unsigned app ZIP.
+- `ios/BUILD.sh` builds a generic arm64 iPhoneOS `.app`; `scripts/package_ios.py` validates the bundle and creates an unsigned IPA plus unsigned app ZIP.
+
+`scripts/` contains shared audits, packaging, verification and release tooling rather than platform-specific production build wrappers. The obsolete historical source-sync workflow has also been removed from `.github/workflows/`.
 
 Android production signing and Apple iOS signing remain external trust boundaries. The repository never fabricates a production publisher identity.
 

@@ -9,6 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+GO_TOOLCHAIN = "1.27.0"
+GRADLE_TOOLCHAIN = "9.7.0"
 
 
 def fail(message: str) -> None:
@@ -26,6 +28,10 @@ def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
+
+    gomod = read("go.mod")
+    if f"go {GO_TOOLCHAIN}" not in gomod:
+        fail(f"go.mod must use Go {GO_TOOLCHAIN}")
 
     for rel in ("cmd/byftp/main.go", "cmd/installer/main.go"):
         text = read(rel)
@@ -53,7 +59,7 @@ def main() -> int:
     if "Get-Content -LiteralPath $versionFile" not in windows_build or "-X main.version=$version" not in windows_build:
         fail("Windows build does not inject VERSION into the runtime")
 
-    for rel in ("scripts/BUILD-LOCAL.sh", "scripts/BUILD-IOS.sh", "linux/BUILD.sh", "macos/BUILD.sh"):
+    for rel in ("scripts/BUILD-LOCAL.sh", "ios/BUILD.sh", "linux/BUILD.sh", "macos/BUILD.sh"):
         if "< VERSION" not in read(rel):
             fail(f"{rel} does not read canonical VERSION")
     if "-X main.version=$VERSION" not in read("scripts/BUILD-LOCAL.sh"):
@@ -63,10 +69,9 @@ def main() -> int:
     if "-X main.version=${VERSION}" not in read("macos/BUILD.sh"):
         fail("macOS build does not inject VERSION")
 
-    for wrapper, target in (("scripts/BUILD-LINUX.sh", "linux/BUILD.sh"), ("scripts/BUILD-MACOS.sh", "macos/BUILD.sh")):
-        text = read(wrapper)
-        if "VERSION" not in text or target not in text or "exec bash" not in text:
-            fail(f"{wrapper} is not a version-guarded compatibility delegate to {target}")
+    for legacy in ("scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh"):
+        if (ROOT / legacy).exists():
+            fail(f"legacy platform build wrapper must be removed: {legacy}")
 
     linux_control = read("linux/debian/control.in")
     if "@VERSION@" not in linux_control or re.search(r"(?m)^Version:\s*\d+\.\d+\.\d+", linux_control):
@@ -82,7 +87,7 @@ def main() -> int:
     if re.search(r'versionName\s*=\s*"\d+\.\d+\.\d+', android):
         fail("Android build hard-codes a production version")
 
-    ios_build = read("scripts/BUILD-IOS.sh")
+    ios_build = read("ios/BUILD.sh")
     for marker in ('MARKETING_VERSION="$VERSION"', 'CURRENT_PROJECT_VERSION="$BUILD_NUMBER"', "scripts/package_ios.py"):
         if marker not in ios_build:
             fail(f"iOS build is not bound to VERSION: missing {marker}")
@@ -90,9 +95,19 @@ def main() -> int:
     if "MARKETING_VERSION = 0.0.0" not in ios_project:
         fail("iOS project does not keep the safe development marketing-version fallback")
     if re.search(r"MARKETING_VERSION = (?!0\.0\.0)\d+\.\d+\.\d+", ios_project):
-        fail("iOS project hard-codes a production version")
+        fail("iOS project hard-codes a production release version")
     if "CFBundleShortVersionString" not in read("scripts/package_ios.py"):
         fail("iOS packager does not verify the production version")
+
+    for workflow_rel in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
+        workflow = read(workflow_rel)
+        if f"go-version: '{GO_TOOLCHAIN}'" not in workflow:
+            fail(f"{workflow_rel} does not pin Go {GO_TOOLCHAIN}")
+        if f"gradle-version: '{GRADLE_TOOLCHAIN}'" not in workflow:
+            fail(f"{workflow_rel} does not pin Gradle {GRADLE_TOOLCHAIN}")
+        for marker in ("bash linux/BUILD.sh", "bash macos/BUILD.sh", "bash ios/BUILD.sh"):
+            if marker not in workflow:
+                fail(f"{workflow_rel} is not using canonical platform build entry point: {marker}")
 
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
@@ -119,9 +134,10 @@ def main() -> int:
         fail("localization audit hard-codes a release version")
 
     print(f"VERSION_AUDIT=PASS ({version})")
+    print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
+    print(f"GRADLE_TOOLCHAIN={GRADLE_TOOLCHAIN}")
     print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID,IOS")
-    print("LINUX_VERSION_SOURCE=ROOT_VERSION_VIA_PLATFORM_BUILD")
-    print("MACOS_VERSION_SOURCE=ROOT_VERSION_VIA_PLATFORM_BUILD")
+    print("PLATFORM_BUILD_ENTRYPOINTS=ROOT_WINDOWS,LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
     print("PRODUCTION_DOC_VERSION_DRIFT=BLOCKED")
     return 0

@@ -25,6 +25,6 @@ go telemetry off
 bash linux/BUILD.sh
 ```
 
-Required production baseline: Go 1.26.5 or newer, `dpkg-deb`, and Go telemetry disabled. The build is dependency-locked (`GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local`) and uses the shared `build/icon.png` brand asset.
+The reviewed 1.2.3 production baseline is Go 1.27.0 plus `dpkg-deb`, with Go telemetry disabled. The build is dependency-locked (`GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local`) and uses the shared `build/icon.png` brand asset.
 
-The compatibility entry point `scripts/BUILD-LINUX.sh` delegates to this script so older automation can continue to work without maintaining a second Linux build implementation.
+CI and the production release workflow invoke `linux/BUILD.sh` directly. There is no second Linux production-build implementation or compatibility wrapper under `scripts/`.

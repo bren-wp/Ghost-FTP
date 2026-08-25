@@ -14,7 +14,7 @@ The package contains a Universal Intel/Apple Silicon ByFTP runtime and `/Applica
 
 ## Build
 
-From the repository root on macOS:
+From the repository root on macOS with the reviewed Go 1.27.0 toolchain:
 
 ```bash
 go telemetry off
@@ -23,7 +23,7 @@ bash macos/BUILD.sh
 
 The root `VERSION` file is the single release version source. `macos/Info.plist.in` is rendered with that version, `macos/launcher.zsh` is copied into the application bundle and the canonical `build/icon.png` is converted into the app icon set during the build.
 
-`scripts/BUILD-MACOS.sh` is retained only as a compatibility wrapper and delegates to `macos/BUILD.sh`.
+CI and the production release workflow invoke `macos/BUILD.sh` directly. There is no duplicate macOS production-build wrapper under `scripts/`.
 
 ## Shared desktop core
 
