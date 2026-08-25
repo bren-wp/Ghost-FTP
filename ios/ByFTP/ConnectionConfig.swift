@@ -31,10 +31,15 @@ struct ConnectionConfig: Equatable, Sendable {
         password rawPassword: String
     ) throws -> ConnectionConfig {
         let host = try normalizeHost(rawHost)
-        let username = rawUsername.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !username.isEmpty else { throw ValidationError("Username is required.") }
-        try rejectControlCharacters(username, field: "Username")
+
+        // Validate the raw credentials before normalization. Trimming first would
+        // silently remove CR/LF at the edges and turn an invalid FTP command
+        // argument into an accepted value instead of rejecting it fail-closed.
+        try rejectControlCharacters(rawUsername, field: "Username")
         try rejectControlCharacters(rawPassword, field: "Password")
+
+        let username = rawUsername.trimmingCharacters(in: .whitespaces)
+        guard !username.isEmpty else { throw ValidationError("Username is required.") }
 
         return ConnectionConfig(
             protocolKind: protocolKind,
