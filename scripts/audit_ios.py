@@ -50,6 +50,7 @@ def main() -> int:
         "case ftp", "case ftpsImplicit", "rejectControlCharacters", "Port must be between 1 and 65535",
         'rejectControlCharacters(rawUsername, field: "Username")',
         'rejectControlCharacters(rawPassword, field: "Password")',
+        "scalar.value == 0", "scalar.value == 10", "scalar.value == 13",
     ))
     username_check = config.find('rejectControlCharacters(rawUsername, field: "Username")')
     username_trim = config.find("rawUsername.trimmingCharacters")
@@ -82,7 +83,8 @@ def main() -> int:
             fail(f"unsafe iOS transport marker found: {forbidden}")
 
     session = require("ios/ByFTP/SessionStore.swift", (
-        "generation &+= 1", 'password = ""', "startAccessingSecurityScopedResource", "clearDownloadedFile",
+        "import Combine", "ObservableObject", "@Published", "generation &+= 1", 'password = ""',
+        "startAccessingSecurityScopedResource", "clearDownloadedFile",
     ))
     app = require("ios/ByFTP/ByFTPApp.swift", ("scenePhase", "store.disconnect()"))
     combined_source = "\n".join(path.read_text(encoding="utf-8") for path in (IOS / "ByFTP").glob("*.swift"))
@@ -127,6 +129,7 @@ def main() -> int:
     model_tests = require("ios/Tests/ModelTests.swift", (
         "IOS_MODEL_TESTS=PASS", "path traversal was accepted",
         "CRLF username injection was accepted", "CRLF password injection was accepted",
+        "NUL username injection was accepted", "UnicodeScalar(13)", "UnicodeScalar(10)", "UnicodeScalar(0)",
     ))
     if not model_tests:
         fail("iOS model/path tests are unavailable")
