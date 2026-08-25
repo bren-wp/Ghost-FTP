@@ -30,13 +30,12 @@ struct ConnectionConfig: Equatable, Sendable {
         username rawUsername: String,
         password rawPassword: String
     ) throws -> ConnectionConfig {
-        let host = try normalizeHost(rawHost)
-
-        // Validate raw credentials before normalization. Otherwise CR/LF at an
-        // edge could be removed by trimming instead of being rejected.
+        try rejectControlCharacters(rawHost, field: "Host")
+        try rejectControlCharacters(rawPort, field: "Port")
         try rejectControlCharacters(rawUsername, field: "Username")
         try rejectControlCharacters(rawPassword, field: "Password")
 
+        let host = try normalizeHost(rawHost)
         let username = rawUsername.trimmingCharacters(in: .whitespaces)
         guard !username.isEmpty else { throw ValidationError("Username is required.") }
 
@@ -50,7 +49,8 @@ struct ConnectionConfig: Equatable, Sendable {
     }
 
     static func normalizeHost(_ raw: String) throws -> String {
-        var host = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        try rejectControlCharacters(raw, field: "Host")
+        var host = raw.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else { throw ValidationError("Host is required.") }
         guard !host.contains("://"), !host.contains("/"), !host.contains("\\"), !host.unicodeScalars.contains(where: { $0.value == 0 }) else {
             throw ValidationError("Enter a host name or IP address, not a URL or path.")
@@ -67,7 +67,8 @@ struct ConnectionConfig: Equatable, Sendable {
     }
 
     private static func parsePort(_ raw: String, fallback: UInt16) throws -> UInt16 {
-        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        try rejectControlCharacters(raw, field: "Port")
+        let value = raw.trimmingCharacters(in: .whitespaces)
         if value.isEmpty { return fallback }
         guard let parsed = UInt16(value), parsed > 0 else {
             throw ValidationError("Port must be between 1 and 65535.")
