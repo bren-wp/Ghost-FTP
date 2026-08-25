@@ -68,14 +68,15 @@ def main() -> int:
 
     paths = require("ios/ByFTP/RemoteModels.swift", (
         "RemotePath.normalizeDirectory", "FTPPathMapper", "unsafe component", "noncanonical login directory",
-        "raw == trimmed", 'raw.contains("\\r")', 'raw.contains("\\n")',
-        'raw.contains("\\0")', "Names cannot start or end with whitespace.",
+        "raw == trimmed", "scalar.value == 0", "scalar.value == 10", "scalar.value == 13",
+        "Names cannot start or end with whitespace.",
     ))
     if 'replacingOccurrences(of: ".."' in paths:
         fail("iOS path handling rewrites traversal instead of rejecting it")
-    login_guard = paths.find('guard !raw.contains("\\0"), !raw.contains("\\r"), !raw.contains("\\n")')
-    login_trim = paths.find("var root = raw.trimmingCharacters")
-    if login_guard < 0 or login_trim < 0 or login_guard > login_trim:
+    login_fn = paths.find("static func normalizeLoginRoot")
+    login_guard = paths.find("let hasProtocolControl = raw.unicodeScalars.contains", login_fn)
+    login_trim = paths.find("var root = raw.trimmingCharacters", login_fn)
+    if login_fn < 0 or login_guard < 0 or login_trim < 0 or login_guard > login_trim:
         fail("iOS server login-root controls are normalized before rejection")
 
     socket = require("ios/ByFTP/SocketConnection.swift", (
