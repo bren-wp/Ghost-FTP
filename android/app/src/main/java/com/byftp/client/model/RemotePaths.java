@@ -33,7 +33,16 @@ public final class RemotePaths {
     }
 
     public static void validateName(String name) {
-        if (name == null || name.isBlank() || !name.equals(name.trim()) || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\") || name.indexOf('\0') >= 0) {
+        if (name == null
+            || name.isBlank()
+            || !name.equals(name.trim())
+            || name.equals(".")
+            || name.equals("..")
+            || name.contains("/")
+            || name.contains("\\")
+            || name.indexOf('\0') >= 0
+            || name.indexOf('\r') >= 0
+            || name.indexOf('\n') >= 0) {
             throw new IllegalArgumentException("Name must be one canonical remote path component.");
         }
     }
