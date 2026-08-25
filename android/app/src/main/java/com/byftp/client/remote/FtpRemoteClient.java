@@ -17,16 +17,26 @@ import org.apache.commons.net.ftp.FTPReply;
 import org.apache.commons.net.ftp.FTPSClient;
 
 public final class FtpRemoteClient implements RemoteClient {
-    private final ConnectionConfig config;
+    private final ConnectionConfig.Protocol protocol;
+    private final String host;
+    private final int port;
+    private final String username;
+    private String password;
     private FTPClient client;
     private String loginRoot = "";
 
-    public FtpRemoteClient(ConnectionConfig config) { this.config = config; }
+    public FtpRemoteClient(ConnectionConfig config) {
+        protocol = config.protocol();
+        host = config.host();
+        port = config.port();
+        username = config.username();
+        password = config.password();
+    }
 
     @Override public void connect() throws Exception {
         FTPClient next;
-        if (config.protocol() == ConnectionConfig.Protocol.FTPS_EXPLICIT || config.protocol() == ConnectionConfig.Protocol.FTPS_IMPLICIT) {
-            FTPSClient ftps = new FTPSClient(config.protocol() == ConnectionConfig.Protocol.FTPS_IMPLICIT);
+        if (protocol == ConnectionConfig.Protocol.FTPS_EXPLICIT || protocol == ConnectionConfig.Protocol.FTPS_IMPLICIT) {
+            FTPSClient ftps = new FTPSClient(protocol == ConnectionConfig.Protocol.FTPS_IMPLICIT);
             // null explicitly selects the Android/JVM platform trust manager; endpoint checking verifies the hostname.
             ftps.setTrustManager(null);
             ftps.setEndpointCheckingEnabled(true);
@@ -38,11 +48,12 @@ public final class FtpRemoteClient implements RemoteClient {
         next.setDefaultTimeout(15_000);
         next.setDataTimeout(Duration.ofSeconds(30));
         next.setControlEncoding("UTF-8");
+        String loginPassword = password;
         try {
-            next.connect(config.host(), config.port());
+            next.connect(host, port);
             if (!FTPReply.isPositiveCompletion(next.getReplyCode())) throw new IOException("FTP server rejected the connection.");
             next.setSoTimeout(30_000);
-            if (!next.login(config.username(), config.password())) throw new IOException("FTP login failed.");
+            if (!next.login(username, loginPassword)) throw new IOException("FTP login failed.");
             if (next instanceof FTPSClient ftps) {
                 ftps.execPBSZ(0);
                 ftps.execPROT("P");
@@ -59,6 +70,9 @@ public final class FtpRemoteClient implements RemoteClient {
         } catch (Exception error) {
             try { if (next.isConnected()) next.disconnect(); } catch (IOException ignored) {}
             throw error;
+        } finally {
+            password = "";
+            loginPassword = "";
         }
     }
 
@@ -162,6 +176,7 @@ public final class FtpRemoteClient implements RemoteClient {
     }
 
     @Override public void close() {
+        password = "";
         FTPClient current = client;
         client = null;
         loginRoot = "";
