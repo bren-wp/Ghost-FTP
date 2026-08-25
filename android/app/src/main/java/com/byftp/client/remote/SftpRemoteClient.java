@@ -17,20 +17,31 @@ import net.schmizz.sshj.sftp.RemoteResourceInfo;
 import net.schmizz.sshj.sftp.SFTPClient;
 
 public final class SftpRemoteClient implements RemoteClient {
-    private final ConnectionConfig config;
+    private final String host;
+    private final int port;
+    private final String username;
+    private final String fingerprint;
+    private String password;
     private SSHClient ssh;
     private SFTPClient sftp;
 
-    public SftpRemoteClient(ConnectionConfig config) { this.config = config; }
+    public SftpRemoteClient(ConnectionConfig config) {
+        host = config.host();
+        port = config.port();
+        username = config.username();
+        password = config.password();
+        fingerprint = config.fingerprint();
+    }
 
     @Override public void connect() throws Exception {
         SSHClient next = new SSHClient();
         next.setConnectTimeout(15_000);
         next.setTimeout(30_000);
-        next.addHostKeyVerifier(config.fingerprint());
+        next.addHostKeyVerifier(fingerprint);
+        String loginPassword = password;
         try {
-            next.connect(config.host(), config.port());
-            next.authPassword(config.username(), config.password());
+            next.connect(host, port);
+            next.authPassword(username, loginPassword);
             SFTPClient nextSftp = next.newSFTPClient();
             ssh = next;
             sftp = nextSftp;
@@ -38,6 +49,9 @@ public final class SftpRemoteClient implements RemoteClient {
             try { next.disconnect(); } catch (Exception ignored) {}
             try { next.close(); } catch (Exception ignored) {}
             throw error;
+        } finally {
+            password = "";
+            loginPassword = "";
         }
     }
 
@@ -97,6 +111,7 @@ public final class SftpRemoteClient implements RemoteClient {
     }
 
     @Override public void close() {
+        password = "";
         SFTPClient currentSftp = sftp;
         SSHClient currentSsh = ssh;
         sftp = null;
