@@ -2,6 +2,7 @@ package com.byftp.client.remote;
 
 import com.byftp.client.model.ConnectionConfig;
 import com.byftp.client.model.RemoteEntry;
+import com.byftp.client.model.RemotePaths;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -66,7 +67,11 @@ public final class FtpRemoteClient implements RemoteClient {
         List<RemoteEntry> result = new ArrayList<>();
         for (FTPFile file : files) {
             String name = file.getName();
-            if (name == null || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\")) continue;
+            try {
+                RemotePaths.validateName(name);
+            } catch (IllegalArgumentException unsafeName) {
+                continue;
+            }
             long modified = file.getTimestamp() == null ? 0L : file.getTimestamp().getTimeInMillis();
             result.add(new RemoteEntry(name, file.isDirectory(), Math.max(0L, file.getSize()), modified));
         }
@@ -124,9 +129,12 @@ public final class FtpRemoteClient implements RemoteClient {
 
     private static String normalizeLoginRoot(String raw) {
         if (raw == null) return "";
+        if (raw.indexOf('\0') >= 0 || raw.indexOf('\r') >= 0 || raw.indexOf('\n') >= 0) {
+            throw new IllegalArgumentException("FTP server returned a noncanonical login directory.");
+        }
         String root = raw.trim().replace('\\', '/');
         if (root.isEmpty() || root.equals(".")) return "";
-        if (root.indexOf('\0') >= 0 || root.contains("//")) {
+        if (root.contains("//")) {
             throw new IllegalArgumentException("FTP server returned a noncanonical login directory.");
         }
         while (root.length() > 1 && root.endsWith("/")) root = root.substring(0, root.length() - 1);
