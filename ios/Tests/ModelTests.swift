@@ -3,7 +3,8 @@ import Foundation
 @main
 struct ModelTests {
     static func main() throws {
-        try expect(ConnectionConfig.normalizeHost(" [2001:db8::1] ") == "2001:db8::1", "IPv6 brackets were not normalized")
+        let normalizedHost = try ConnectionConfig.normalizeHost(" [2001:db8::1] ")
+        try expect(normalizedHost == "2001:db8::1", "IPv6 brackets were not normalized")
 
         let config = try ConnectionConfig.make(
             protocolKind: .ftpsImplicit,
@@ -14,13 +15,19 @@ struct ModelTests {
         )
         try expect(config.port == 990, "implicit FTPS default port changed")
 
-        try expect(RemotePath.child("/", "public_html") == "/public_html", "root child path is wrong")
-        try expect(RemotePath.child("/public_html", "index.html") == "/public_html/index.html", "nested child path is wrong")
-        try expect(RemotePath.parent("/public_html/site") == "/public_html", "parent path is wrong")
+        let rootChild = try RemotePath.child("/", "public_html")
+        let nestedChild = try RemotePath.child("/public_html", "index.html")
+        let parent = try RemotePath.parent("/public_html/site")
+        try expect(rootChild == "/public_html", "root child path is wrong")
+        try expect(nestedChild == "/public_html/index.html", "nested child path is wrong")
+        try expect(parent == "/public_html", "parent path is wrong")
 
-        try expect(FTPPathMapper.map(loginRoot: "/home/account", uiPath: "/") == "/home/account", "login root mapping changed")
-        try expect(FTPPathMapper.map(loginRoot: "/home/account", uiPath: "/public_html") == "/home/account/public_html", "shared-hosting mapping changed")
-        try expect(FTPPathMapper.map(loginRoot: nil, uiPath: "/public_html") == "public_html", "login-relative fallback changed")
+        let mappedRoot = try FTPPathMapper.map(loginRoot: "/home/account", uiPath: "/")
+        let mappedWebRoot = try FTPPathMapper.map(loginRoot: "/home/account", uiPath: "/public_html")
+        let relativeFallback = try FTPPathMapper.map(loginRoot: nil, uiPath: "/public_html")
+        try expect(mappedRoot == "/home/account", "login root mapping changed")
+        try expect(mappedWebRoot == "/home/account/public_html", "shared-hosting mapping changed")
+        try expect(relativeFallback == "public_html", "login-relative fallback changed")
 
         try expectThrows("path traversal was accepted") {
             _ = try RemotePath.normalizeDirectory("/public_html/../etc")
@@ -29,10 +36,10 @@ struct ModelTests {
             _ = try FTPPathMapper.normalizeLoginRoot("/home/../root")
         }
         try expectThrows("CRLF username injection was accepted") {
-            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user\r\nDELE /", password: "x")
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user\r\nNEXT", password: "x")
         }
         try expectThrows("CRLF password injection was accepted") {
-            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user", password: "x\r\nQUIT")
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user", password: "x\r\nNEXT")
         }
 
         print("IOS_MODEL_TESTS=PASS")
