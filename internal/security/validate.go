@@ -73,8 +73,7 @@ func ValidateSecret(secret string) error {
 }
 
 func ValidateHost(host string) error {
-	host = strings.TrimSpace(host)
-	if host == "" || len(host) > 253 || !utf8.ValidString(host) || strings.ContainsAny(host, "\x00\r\n\t /\\@") {
+	if host == "" || host != strings.TrimSpace(host) || len(host) > 253 || !utf8.ValidString(host) || strings.ContainsAny(host, "\x00\r\n\t /\\@") {
 		return errors.New("neispravan poslužitelj")
 	}
 
