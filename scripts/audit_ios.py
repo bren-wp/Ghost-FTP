@@ -48,7 +48,13 @@ def main() -> int:
 
     config = require("ios/ByFTP/ConnectionConfig.swift", (
         "case ftp", "case ftpsImplicit", "rejectControlCharacters", "Port must be between 1 and 65535",
+        'rejectControlCharacters(rawUsername, field: "Username")',
+        'rejectControlCharacters(rawPassword, field: "Password")',
     ))
+    username_check = config.find('rejectControlCharacters(rawUsername, field: "Username")')
+    username_trim = config.find("rawUsername.trimmingCharacters")
+    if username_check < 0 or username_trim < 0 or username_check > username_trim:
+        fail("iOS username control characters are not rejected before normalization")
     if "case sftp" in config.lower() or "case ftpsExplicit" in config:
         fail("iOS claims an unimplemented transport in TransferProtocol")
 
@@ -137,6 +143,7 @@ def main() -> int:
     print("IOS_NATIVE_UI=SWIFTUI")
     print("IOS_TRANSPORTS=FTP,FTPS_IMPLICIT")
     print("IOS_PASV_HOST_REDIRECT=BLOCKED")
+    print("IOS_CREDENTIAL_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("IOS_CREDENTIAL_PERSISTENCE=BLOCKED")
     print("IOS_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY")
     print("IOS_BACKGROUND_SESSION=DISCONNECTED")
