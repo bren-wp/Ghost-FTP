@@ -4,7 +4,7 @@
 
 ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
 
-**Current release: 1.2.1**
+**Current release: 1.2.2**
 
 [Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
@@ -15,8 +15,9 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 - Remote browse, upload, download, create directory, rename and delete.
 - Fail-closed SFTP host-key verification where SFTP is available.
 - FTPS platform trust and endpoint/hostname verification.
-- Strict remote-path validation instead of silently rewriting traversal or unsafe separators.
-- Raw mobile endpoint and credential fields are validated before trimming so CR/LF/NUL control characters cannot be normalized away before protocol checks.
+- Strict remote-path and remote-name validation instead of silently rewriting traversal, separators, edge whitespace or protocol control characters.
+- Raw endpoint and credential fields are validated before unsafe normalization so CR/LF/NUL controls cannot disappear before protocol checks.
+- Mobile transport password references are shortened to authentication scope where the implementation permits it.
 - Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
 - One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
 
@@ -53,7 +54,7 @@ Desktop and Android support SFTP with host-key verification. Android validates t
 
 The Android application under `android/` supports FTP, explicit/implicit FTPS and SFTP. It uses the Storage Access Framework instead of broad storage permissions, keeps passwords session-only, excludes app data from backup/device transfer, and cleans pending connection/file-picker state during lifecycle teardown.
 
-Version 1.2.1 additionally validates raw host, port, username, password and SFTP fingerprint input before whitespace normalization. Remote paths continue to reject backslashes, duplicate separators, dot/traversal components and noncanonical names, and SFTP fingerprints must decode to exactly 32 SHA-256 bytes.
+Version 1.2.2 makes FTP and SFTP directory listings share the same canonical remote-name validator, rejects CR/LF/NUL and edge-whitespace names consistently, rejects unsafe server login roots before normalization, and clears the transport password reference immediately after authentication instead of retaining the full credential configuration for the session. Raw host, port, username, password and SFTP fingerprint checks from 1.2.1 remain fail-closed.
 
 See [ByFTP for Android](android/README.md).
 
@@ -61,13 +62,13 @@ See [ByFTP for Android](android/README.md).
 
 The native SwiftUI application lives under `ios/` with a normal Xcode project and shared scheme. It provides FTP and implicit FTPS, remote browsing, upload/download, mkdir, rename/delete, MLSD-to-LIST fallback, shared-hosting login-root mapping and system document/share integration.
 
-The iOS transport ignores server-supplied PASV host redirects and reconnects data channels only to the host selected by the user. Version 1.2.1 validates raw host/port/credential input before trimming, the transport password copy is cleared after login, UI password state is cleared after a connection attempt and the app disconnects when entering the background.
+Version 1.2.2 rejects noncanonical remote names instead of trimming them, rejects CR/LF/NUL in server login roots before normalization, tracks a connection that is still being established so disconnect/background can close it immediately, clears password UI state even after local validation failure, and removes temporary download directories after failed or stale async results. PASV host redirects remain blocked and the transport password copy remains connect-only.
 
 See [ByFTP for iOS](ios/README.md).
 
 ## Windows, Linux and macOS
 
-The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386. macOS ships a Universal Intel/Apple Silicon PKG. Existing desktop gates remain mandatory for 1.2.1.
+The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386. macOS ships a Universal Intel/Apple Silicon PKG. Version 1.2.2 also makes direct desktop host validation reject leading/trailing whitespace and control characters instead of normalizing them before validation. All desktop production gates remain mandatory.
 
 ## Shared-hosting workflow
 
@@ -81,7 +82,7 @@ See [Shared hosting](docs/SHARED-HOSTING.md).
 
 ## Security and privacy
 
-ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Desktop transfer code protects staging/activation and session generations. Android validates raw endpoint input, fingerprints and canonical remote paths. iOS uses bounded Network.framework I/O, raw-input validation, account-root path mapping, PASV-host redirect blocking, session-only credentials and background disconnect.
+ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Desktop connection validation rejects noncanonical raw hosts. Android centralizes remote-name validation across FTP/SFTP, validates fingerprints and shortens transport password lifetime. iOS uses bounded Network.framework I/O, canonical names, account-root path mapping, PASV-host redirect blocking, pending-connect cleanup, temporary-download cleanup and background disconnect.
 
 No mobile client includes analytics/advertising SDKs or requires a ByFTP backend. Connections target endpoints selected by the user. See [Security](docs/SECURITY.md) and [Privacy](docs/PRIVACY.md).
 
