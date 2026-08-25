@@ -1,0 +1,12 @@
+Package: byftp
+Version: @VERSION@
+Section: net
+Priority: optional
+Architecture: @ARCH@
+Maintainer: ByFTP <https://github.com/bren-wp/by-ftp/issues>
+Depends: ca-certificates, curl, openssh-client
+Homepage: https://github.com/bren-wp/by-ftp
+Description: Privacy-focused FTP, FTPS and SFTP client
+ ByFTP is a file-transfer client without application telemetry. The Linux
+ package uses a terminal interface and the same security and transfer core
+ as the other supported platforms.
