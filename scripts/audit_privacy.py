@@ -213,10 +213,9 @@ def main() -> None:
         if "GOTELEMETRY=off" in text or "$env:GOTELEMETRY = 'off'" in text:
             fail(f"{rel} relies on an ineffective GOTELEMETRY environment variable")
 
-    for wrapper, target in (("scripts/BUILD-LINUX.sh", "linux/BUILD.sh"), ("scripts/BUILD-MACOS.sh", "macos/BUILD.sh")):
-        text = require(wrapper, ("exec bash", target, "VERSION"))
-        if 'telemetry="$(go telemetry)"' in text or "go build" in text or "pkgbuild" in text or "dpkg-deb" in text:
-            fail(f"{wrapper} duplicates platform build/privacy logic instead of delegating")
+    for legacy in ("scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh"):
+        if (ROOT / legacy).exists():
+            fail(f"obsolete platform build wrapper still exists: {legacy}")
 
     print("PRIVACY_AUDIT=PASS")
     print("TELEMETRY=ABSENT")
