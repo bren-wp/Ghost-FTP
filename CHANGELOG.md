@@ -93,7 +93,7 @@
 - Disabled generic cleartext traffic for Android platform-aware networking while retaining explicit plain FTP only as a user-selected compatibility protocol.
 - Hardened Android Activity destruction: pending/active remote clients are tracked and closed, executor work is interrupted and late UI callbacks are ignored.
 - Removed dead Android UI/resources and enabled release resource shrinking alongside code minification.
-- Deliberately deferred Android private-key import until Android Keystore-backed handling and migration semantics are implemented and audited.
+- Deliberately deferred Android private-key import until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
 - Added Android connection/path/security/version tests plus static mobile security/privacy/lifecycle invariants.
 - Added a dedicated Android CI job using JDK 17, Gradle 9.5.0, Android Gradle Plugin 9.3.0 and API 37.
 - Android CI runs JUnit, lint with warnings treated as errors and debug APK compilation; lint reports and APKs are retained as validation evidence.
