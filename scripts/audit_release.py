@@ -37,12 +37,13 @@ def main() -> int:
         "quality:", "windows:", "linux:", "macos:", "android:", "ios:", "publish:",
         "needs: [quality, windows, linux, macos, android, ios]",
         "go telemetry off", "go test ./...", "go test -race ./...", "go vet ./...",
+        "go-version: '1.27.0'", "gradle-version: '9.7.0'",
         "python scripts/audit_localization.py", "python scripts/audit_version.py",
         "python scripts/audit_android.py", "python scripts/audit_ios.py",
         "python scripts/audit_docs.py", "python scripts/audit_security.py",
         "python scripts/audit_privacy.py", "python scripts/audit_release.py",
-        ".\\BUILD-WINDOWS.ps1", "bash scripts/BUILD-LINUX.sh", "bash scripts/BUILD-MACOS.sh", "bash scripts/BUILD-IOS.sh",
-        "gradle-version: '9.5.0'", "android-37*", "build-tools/36.0.0",
+        ".\\BUILD-WINDOWS.ps1", "bash linux/BUILD.sh", "bash macos/BUILD.sh", "bash ios/BUILD.sh",
+        "android-37*", "build-tools/36.0.0",
         ":app:testDebugUnitTest", ":app:lintDebug", ":app:lintRelease", ":app:assembleDebug", ":app:assembleRelease",
         "python scripts/package_android.py", "byftp-android-release", "byftp-ios-release",
         "python scripts/verify_bundle.py $zip --version $version --arch $arch",
@@ -56,6 +57,10 @@ def main() -> int:
         "<PackageId>ByFTP.Windows</PackageId>", "dotnet nuget push", "--skip-duplicate",
     ):
         require(workflow, marker, ".github/workflows/release.yml")
+
+    for legacy in ("scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh", ".github/workflows/__byftp_sync.yml"):
+        if (ROOT / legacy).exists():
+            fail(f"obsolete release/build surface still exists: {legacy}")
 
     publisher = read("scripts/publish_release.ps1")
     for marker in (
@@ -80,8 +85,6 @@ def main() -> int:
     ):
         require(ios_packager, marker, "scripts/package_ios.py")
 
-    # Platform packaging must live under the platform directories. The legacy
-    # scripts remain only as compatibility entry points and must delegate.
     linux_build = read("linux/BUILD.sh")
     for marker in ("VERSION", "linux/byftp.desktop", "linux/debian/control.in", "dpkg-deb", "build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386"):
         require(linux_build, marker, "linux/BUILD.sh")
@@ -95,15 +98,11 @@ def main() -> int:
     for rel in ("macos/Info.plist.in", "macos/launcher.zsh", "macos/README.md"):
         read(rel)
 
-    linux_wrapper = read("scripts/BUILD-LINUX.sh")
-    macos_wrapper = read("scripts/BUILD-MACOS.sh")
-    for marker in ("VERSION", "linux/BUILD.sh", "exec bash"):
-        require(linux_wrapper, marker, "scripts/BUILD-LINUX.sh")
-    for marker in ("VERSION", "macos/BUILD.sh", "exec bash"):
-        require(macos_wrapper, marker, "scripts/BUILD-MACOS.sh")
+    ios_build = read("ios/BUILD.sh")
+    for marker in ("VERSION", "xcodebuild", "generic/platform=iOS", "ARCHS=arm64", "scripts/package_ios.py"):
+        require(ios_build, marker, "ios/BUILD.sh")
 
-    for rel in ("BUILD-WINDOWS.ps1", "scripts/BUILD-IOS.sh"):
-        require(read(rel), "VERSION", rel)
+    require(read("BUILD-WINDOWS.ps1"), "VERSION", "BUILD-WINDOWS.ps1")
 
     verifier = read("scripts/verify_bundle.py")
     for marker in ("BUNDLE_VERIFICATION_FAILED", "BUNDLE-SHA256.txt", "Documentation/SECURITY.md"):
@@ -117,15 +116,16 @@ def main() -> int:
 
     for rel in (
         ".github/workflows/release.yml", "scripts/publish_release.ps1", "scripts/verify_bundle.py",
-        "scripts/package_android.py", "scripts/package_ios.py", "linux/BUILD.sh", "macos/BUILD.sh",
+        "scripts/package_android.py", "scripts/package_ios.py", "linux/BUILD.sh", "macos/BUILD.sh", "ios/BUILD.sh",
     ):
         if "brendigo" in read(rel).lower():
             fail(f"legacy branding remains in release surface: {rel}")
 
     print(f"RELEASE_AUDIT=PASS ({version})")
     print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP")
-    print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY")
-    print("LEGACY_PLATFORM_BUILD_WRAPPERS=DELEGATE_ONLY")
+    print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY")
+    print("OBSOLETE_PLATFORM_WRAPPERS=REMOVED")
+    print("OBSOLETE_SOURCE_SYNC_WORKFLOW=REMOVED")
     print("ANDROID_APK_PUBLICATION=DEBUG_SIGNED_AND_RELEASE_UNSIGNED")
     print("ANDROID_PRODUCTION_SIGNING=EXTERNAL_IDENTITY_REQUIRED")
     print("IOS_IPA_PUBLICATION=UNSIGNED_ARM64_DEVICE_BUILD")
