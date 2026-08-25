@@ -48,14 +48,21 @@ def main() -> int:
 
     config = require("ios/ByFTP/ConnectionConfig.swift", (
         "case ftp", "case ftpsImplicit", "rejectControlCharacters", "Port must be between 1 and 65535",
+        'rejectControlCharacters(rawHost, field: "Host")',
+        'rejectControlCharacters(rawPort, field: "Port")',
         'rejectControlCharacters(rawUsername, field: "Username")',
         'rejectControlCharacters(rawPassword, field: "Password")',
         "scalar.value == 0", "scalar.value == 10", "scalar.value == 13",
     ))
-    username_check = config.find('rejectControlCharacters(rawUsername, field: "Username")')
-    username_trim = config.find("rawUsername.trimmingCharacters")
-    if username_check < 0 or username_trim < 0 or username_check > username_trim:
-        fail("iOS username control characters are not rejected before normalization")
+    for raw_marker, normalization_marker in (
+        ('rejectControlCharacters(rawHost, field: "Host")', "normalizeHost(rawHost)"),
+        ('rejectControlCharacters(rawPort, field: "Port")', "parsePort(rawPort"),
+        ('rejectControlCharacters(rawUsername, field: "Username")', "rawUsername.trimmingCharacters"),
+    ):
+        first = config.find(raw_marker)
+        normalized = config.find(normalization_marker)
+        if first < 0 or normalized < 0 or first > normalized:
+            fail(f"iOS raw input is normalized before control-character rejection: {raw_marker}")
     if "case sftp" in config.lower() or "case ftpsExplicit" in config:
         fail("iOS claims an unimplemented transport in TransferProtocol")
 
@@ -132,8 +139,10 @@ def main() -> int:
 
     model_tests = require("ios/Tests/ModelTests.swift", (
         "IOS_MODEL_TESTS=PASS", "path traversal was accepted",
-        "CRLF username injection was accepted", "CRLF password injection was accepted",
-        "NUL username injection was accepted", "UnicodeScalar(13)", "UnicodeScalar(10)", "UnicodeScalar(0)",
+        "CRLF username injection was accepted", "trailing CRLF username injection was accepted",
+        "CRLF password injection was accepted", "trailing CRLF host input was accepted",
+        "trailing CRLF port input was accepted", "NUL username injection was accepted",
+        "UnicodeScalar(13)", "UnicodeScalar(10)", "UnicodeScalar(0)",
     ))
     if not model_tests:
         fail("iOS model/path tests are unavailable")
@@ -150,7 +159,7 @@ def main() -> int:
     print("IOS_NATIVE_UI=SWIFTUI")
     print("IOS_TRANSPORTS=FTP,FTPS_IMPLICIT")
     print("IOS_PASV_HOST_REDIRECT=BLOCKED")
-    print("IOS_CREDENTIAL_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
+    print("IOS_RAW_ENDPOINT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("IOS_NWCONNECTION_CONTINUATION=LOCKED_SINGLE_RESUME")
     print("IOS_CREDENTIAL_PERSISTENCE=BLOCKED")
     print("IOS_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY")

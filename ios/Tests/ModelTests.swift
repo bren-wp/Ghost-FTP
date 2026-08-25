@@ -42,8 +42,17 @@ struct ModelTests {
         try expectThrows("CRLF username injection was accepted") {
             _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user" + crlf + "NEXT", password: "x")
         }
+        try expectThrows("trailing CRLF username injection was accepted") {
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user" + crlf, password: "x")
+        }
         try expectThrows("CRLF password injection was accepted") {
             _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21", username: "user", password: "x" + crlf + "NEXT")
+        }
+        try expectThrows("trailing CRLF host input was accepted") {
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com" + crlf, port: "21", username: "user", password: "x")
+        }
+        try expectThrows("trailing CRLF port input was accepted") {
+            _ = try ConnectionConfig.make(protocolKind: .ftp, host: "example.com", port: "21" + crlf, username: "user", password: "x")
         }
         let nul = String(UnicodeScalar(0)!)
         try expectThrows("NUL username injection was accepted") {

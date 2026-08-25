@@ -27,7 +27,9 @@ Plain FTP remains available only for compatibility and does not encrypt credenti
 
 For FTPS, ByFTP explicitly uses the platform trust manager and endpoint checking. It does not install a permissive `X509TrustManager`, trust-all helper or hostname-verification bypass.
 
-For SFTP, supply the expected OpenSSH-style fingerprint such as `SHA256:AbCd...`. The connection fails closed if the fingerprint is absent or does not match the server key.
+For SFTP, supply the expected OpenSSH-style fingerprint such as `SHA256:AbCd...`. The fingerprint must decode to exactly a 32-byte SHA-256 digest before SSHJ receives it, and the connection fails closed if it is absent, malformed or does not match the server key.
+
+ByFTP 1.2.1 validates raw host, port, username, password and fingerprint text for CR/LF/NUL control characters **before** trimming or canonicalization. This prevents edge control characters from disappearing during normalization and then reaching the transport layer as apparently valid input.
 
 SFTP password authentication is supported. Private-key import remains intentionally deferred until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
 

@@ -2,9 +2,9 @@
 
 ![ByFTP — Secure File Transfer](docs/images/byftp-header.png)
 
-ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The first native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
+ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
 
-**Current release: 1.2.0**
+**Current release: 1.2.1**
 
 [Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
@@ -16,6 +16,7 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 - Fail-closed SFTP host-key verification where SFTP is available.
 - FTPS platform trust and endpoint/hostname verification.
 - Strict remote-path validation instead of silently rewriting traversal or unsafe separators.
+- Raw mobile endpoint and credential fields are validated before trimming so CR/LF/NUL control characters cannot be normalized away before protocol checks.
 - Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
 - One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
 
@@ -42,31 +43,31 @@ FTP is retained for compatibility and does **not** encrypt credentials or file c
 
 ### FTPS
 
-Desktop and Android support explicit and implicit FTPS. iOS 1.2.0 supports implicit FTPS through Apple Network.framework. Android uses platform trust plus endpoint checking; iOS uses the platform TLS stack. Protected FTPS data channels use `PROT P`.
+Desktop and Android support explicit and implicit FTPS. iOS supports implicit FTPS through Apple Network.framework. Android uses platform trust plus endpoint checking; iOS uses the platform TLS stack. Protected FTPS data channels use `PROT P`.
 
 ### SFTP
 
-Desktop and Android support SFTP with host-key verification. Android now validates the provided OpenSSH-style `SHA256:` fingerprint as a real 32-byte SHA-256 digest before SSHJ receives it. iOS does not claim SFTP yet; adding it requires an audited native implementation rather than a permissive compatibility layer.
+Desktop and Android support SFTP with host-key verification. Android validates the provided OpenSSH-style `SHA256:` fingerprint as a real 32-byte SHA-256 digest before SSHJ receives it. iOS does not claim SFTP yet; adding it requires an audited native implementation rather than a permissive compatibility layer.
 
 ## Android
 
 The Android application under `android/` supports FTP, explicit/implicit FTPS and SFTP. It uses the Storage Access Framework instead of broad storage permissions, keeps passwords session-only, excludes app data from backup/device transfer, and cleans pending connection/file-picker state during lifecycle teardown.
 
-Version 1.2.0 additionally hardens remote paths so backslashes, duplicate separators, dot/traversal components and noncanonical names are rejected instead of normalized. SFTP fingerprints are Base64-decoded and must represent exactly 32 SHA-256 bytes.
+Version 1.2.1 additionally validates raw host, port, username, password and SFTP fingerprint input before whitespace normalization. Remote paths continue to reject backslashes, duplicate separators, dot/traversal components and noncanonical names, and SFTP fingerprints must decode to exactly 32 SHA-256 bytes.
 
 See [ByFTP for Android](android/README.md).
 
 ## iOS
 
-The native SwiftUI application lives under `ios/` with a normal Xcode project and shared scheme. The first release provides FTP and implicit FTPS, remote browsing, upload/download, mkdir, rename/delete, MLSD-to-LIST fallback, shared-hosting login-root mapping and system document/share integration.
+The native SwiftUI application lives under `ios/` with a normal Xcode project and shared scheme. It provides FTP and implicit FTPS, remote browsing, upload/download, mkdir, rename/delete, MLSD-to-LIST fallback, shared-hosting login-root mapping and system document/share integration.
 
-The iOS transport ignores server-supplied PASV host redirects and reconnects data channels only to the host selected by the user. Credential control characters are rejected, the transport password copy is cleared after login, UI password state is cleared after a connection attempt and the app disconnects when entering the background.
+The iOS transport ignores server-supplied PASV host redirects and reconnects data channels only to the host selected by the user. Version 1.2.1 validates raw host/port/credential input before trimming, the transport password copy is cleared after login, UI password state is cleared after a connection attempt and the app disconnects when entering the background.
 
 See [ByFTP for iOS](ios/README.md).
 
 ## Windows, Linux and macOS
 
-The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386. macOS ships a Universal Intel/Apple Silicon PKG. Existing desktop gates remain mandatory for 1.2.0.
+The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386. macOS ships a Universal Intel/Apple Silicon PKG. Existing desktop gates remain mandatory for 1.2.1.
 
 ## Shared-hosting workflow
 
@@ -80,7 +81,7 @@ See [Shared hosting](docs/SHARED-HOSTING.md).
 
 ## Security and privacy
 
-ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Desktop transfer code protects staging/activation and session generations. Android validates endpoints, fingerprints and canonical remote paths. iOS uses bounded Network.framework I/O, account-root path mapping, PASV-host redirect blocking, session-only credentials and background disconnect.
+ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Desktop transfer code protects staging/activation and session generations. Android validates raw endpoint input, fingerprints and canonical remote paths. iOS uses bounded Network.framework I/O, raw-input validation, account-root path mapping, PASV-host redirect blocking, session-only credentials and background disconnect.
 
 No mobile client includes analytics/advertising SDKs or requires a ByFTP backend. Connections target endpoints selected by the user. See [Security](docs/SECURITY.md) and [Privacy](docs/PRIVACY.md).
 

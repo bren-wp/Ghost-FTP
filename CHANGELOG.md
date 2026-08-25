@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.1 — Mobile raw-input hardening and five-platform maintenance
+
+**Focus:** preserve the verified 1.2.0 five-platform release model while tightening Android/iOS endpoint validation before normalization and keeping every desktop/mobile build gate mandatory.
+
+- Android now rejects CR/LF/NUL control characters in raw host, port, username, password and SFTP fingerprint input before trimming or protocol-library handoff.
+- Android SFTP fingerprint canonicalization still requires a real 32-byte SHA-256 digest and now cannot silently trim trailing protocol-control characters.
+- Added Android regressions for trailing host/port/username control characters and fingerprint control-character rejection.
+- iOS now validates raw host, port, username and password fields before whitespace normalization so edge CR/LF values cannot disappear during trimming.
+- Added iOS model regressions for trailing CRLF host, port and username input while retaining existing traversal, login-root and credential-injection tests.
+- Preserved the native application layout: Android remains under `android/`; the SwiftUI/Xcode iOS application remains under `ios/`.
+- Preserved the public five-platform artifact contract, including Android APKs and real unsigned arm64 iPhoneOS IPA/app ZIP artifacts generated from the canonical `VERSION`.
+- Updated README and release metadata to 1.2.1 without modifying the immutable `v1.2.0` release.
+
 ## 1.2.0 — Native iOS client and five-platform release matrix
 
 **Focus:** add a real native iOS application and unsigned IPA/app-bundle release artifacts while tightening Android path/fingerprint validation and preserving the existing Windows, Linux and macOS stability gates.
@@ -55,9 +68,9 @@
 - Kept Android passwords session-only; the mobile client does not write passwords or SSH secrets to preferences, databases, files or a ByFTP backend.
 - Added Android backup and device-transfer exclusion rules for root, file, database, shared-preference and external app-data domains.
 - Disabled generic cleartext traffic for Android platform-aware networking while retaining explicit plain FTP only as a user-selected compatibility protocol.
-- Hardened Android Activity destruction: pending/active remote clients are tracked and closed, executor work is interrupted and late main-thread callbacks are ignored.
+- Hardened Android Activity destruction: pending/active remote clients are tracked and closed, executor work is interrupted and late UI callbacks are ignored.
 - Removed dead Android UI/resources and enabled release resource shrinking alongside code minification.
-- Deliberately deferred Android private-key import until Android Keystore-backed key handling and migration semantics are implemented and audited.
+- Deliberately deferred Android private-key import until Android Keystore-backed handling and migration semantics are implemented and audited.
 - Added Android connection/path/security/version tests plus static mobile security/privacy/lifecycle invariants.
 - Added a dedicated Android CI job using JDK 17, Gradle 9.5.0, Android Gradle Plugin 9.3.0 and API 37.
 - Android CI runs JUnit, lint with warnings treated as errors and debug APK compilation; lint reports and APKs are retained as validation evidence.
