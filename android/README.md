@@ -19,7 +19,7 @@ ByFTP Android is a native Java client isolated from the Go desktop runtime so mo
 
 Starting with 1.1.1, FTP/FTPS records the server working directory immediately after login and treats that directory as the Android UI root `/`. This keeps `public_html` and other account paths inside the authenticated login namespace instead of forcing an unrelated server filesystem root.
 
-If a server cannot report `PWD`, ByFTP falls back to login-relative FTP paths. UI paths are required to be canonical and reject traversal (`..`), empty components, backslashes and NUL characters before a remote operation is issued.
+If a server cannot report `PWD`, ByFTP falls back to login-relative FTP paths. UI paths are required to be canonical and reject traversal (`..`), empty components, backslashes and NUL characters before a remote operation is issued. Version 1.2.2 also rejects CR/LF/NUL in the raw server-reported login directory before trimming or path normalization.
 
 ## Security model
 
@@ -29,9 +29,9 @@ For FTPS, ByFTP explicitly uses the platform trust manager and endpoint checking
 
 For SFTP, supply the expected OpenSSH-style fingerprint such as `SHA256:AbCd...`. The fingerprint must decode to exactly a 32-byte SHA-256 digest before SSHJ receives it, and the connection fails closed if it is absent, malformed or does not match the server key.
 
-ByFTP 1.2.1 validates raw host, port, username, password and fingerprint text for CR/LF/NUL control characters **before** trimming or canonicalization. This prevents edge control characters from disappearing during normalization and then reaching the transport layer as apparently valid input.
+ByFTP validates raw host, port, username, password and fingerprint text for CR/LF/NUL control characters **before** trimming or canonicalization. Version 1.2.2 additionally routes FTP and SFTP directory entries through the same `RemotePaths.validateName` policy, so edge whitespace and protocol-control characters cannot be accepted by one transport and rejected later by another layer.
 
-SFTP password authentication is supported. Private-key import remains intentionally deferred until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
+The FTP/SFTP transport objects no longer retain the complete `ConnectionConfig` throughout an active session. Endpoint and trust data are copied separately, while the transport password reference is cleared in `finally` immediately after authentication and again on close. SFTP password authentication remains supported. Private-key import remains intentionally deferred until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
 
 ## Lifecycle and local files
 
