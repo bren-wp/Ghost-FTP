@@ -6,7 +6,7 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 
 **Current release: 1.2.2**
 
-[Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+[Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Linux](linux/README.md) · [macOS](macos/README.md) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
 ## Highlights
 
@@ -20,6 +20,7 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 - Mobile transport password references are shortened to authentication scope where the implementation permits it.
 - Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
 - One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
+- Linux packaging lives under `linux/` and macOS packaging lives under `macos/`; both build the single shared reviewed Go desktop core instead of copying it.
 
 ## Supported platforms and release artifacts
 
@@ -68,7 +69,7 @@ See [ByFTP for iOS](ios/README.md).
 
 ## Windows, Linux and macOS
 
-The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386. macOS ships a Universal Intel/Apple Silicon PKG. Version 1.2.2 also makes direct desktop host validation reject leading/trailing whitespace and control characters instead of normalizing them before validation. All desktop production gates remain mandatory.
+The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from the platform packaging surface under `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`, including its app-bundle metadata and launcher. The shared desktop engine remains under `cmd/` and `internal/` exactly once, preventing Linux/macOS code forks. Version 1.2.2 also makes direct desktop host validation reject leading/trailing whitespace and control characters instead of normalizing them before validation. All desktop production gates remain mandatory.
 
 ## Shared-hosting workflow
 
@@ -109,15 +110,17 @@ Linux:
 
 ```bash
 go telemetry off
-bash scripts/BUILD-LINUX.sh
+bash linux/BUILD.sh
 ```
 
 macOS:
 
 ```bash
 go telemetry off
-bash scripts/BUILD-MACOS.sh
+bash macos/BUILD.sh
 ```
+
+The legacy `scripts/BUILD-LINUX.sh` and `scripts/BUILD-MACOS.sh` commands remain available as thin compatibility wrappers and delegate to the platform directories above.
 
 Android:
 
@@ -179,9 +182,11 @@ See [GitHub releases](docs/GITHUB-RELEASES.md), [Release verification](docs/RELE
 ```text
 android/          Native Android application and tests
 ios/              Native SwiftUI iOS application and Xcode project
-cmd/              Desktop app, installer and uninstaller entry points
-internal/         Desktop engine, UI, protocols, security, persistence and transfers
-scripts/          Build, audit, packaging, verification and release tools
+linux/            Linux build, desktop entry and DEB packaging metadata
+macos/            macOS Universal build, app-bundle metadata and launcher
+cmd/              Shared desktop app, installer and uninstaller entry points
+internal/         Shared desktop engine, UI, protocols, security, persistence and transfers
+scripts/          Shared audits, packaging, verification, release tools and compatibility wrappers
 docs/             Project documentation
 build/            Canonical/static build resources
 ```
@@ -202,6 +207,8 @@ build/            Canonical/static build resources
 - [Support](docs/SUPPORT.md)
 - [Testing](docs/TESTING.md)
 - [Third-party notices](docs/THIRD-PARTY-NOTICES.md)
+- [Linux source and build guide](linux/README.md)
+- [macOS source and build guide](macos/README.md)
 - [Android source and build guide](android/README.md)
 - [iOS source and build guide](ios/README.md)
 - [Build and verification tools](scripts/README.md)
