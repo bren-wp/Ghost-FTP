@@ -29,9 +29,13 @@ For FTPS, ByFTP explicitly uses the platform trust manager and endpoint checking
 
 For SFTP, supply the expected OpenSSH-style fingerprint such as `SHA256:AbCd...`. The fingerprint must decode to exactly a 32-byte SHA-256 digest before SSHJ receives it, and the connection fails closed if it is absent, malformed or does not match the server key.
 
-ByFTP validates raw host, port, username, password and fingerprint text for CR/LF/NUL control characters **before** trimming or canonicalization. Version 1.2.2 additionally routes FTP and SFTP directory entries through the same `RemotePaths.validateName` policy, so edge whitespace and protocol-control characters cannot be accepted by one transport and rejected later by another layer.
+ByFTP validates raw host, port, username, password and fingerprint text for CR/LF/NUL control characters **before** trimming or canonicalization. FTP and SFTP directory entries use the same `RemotePaths.validateName` policy, so edge whitespace and protocol-control characters cannot be accepted by one transport and rejected later by another layer.
 
-The FTP/SFTP transport objects no longer retain the complete `ConnectionConfig` throughout an active session. Endpoint and trust data are copied separately, while the transport password reference is cleared in `finally` immediately after authentication and again on close. SFTP password authentication remains supported. Private-key import remains intentionally deferred until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
+The FTP/SFTP transport objects do not retain the complete `ConnectionConfig` throughout an active session. Endpoint and trust data are copied separately, while the transport password reference is cleared in `finally` immediately after authentication and again on close. SFTP password authentication remains supported. Private-key import remains intentionally deferred until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
+
+## 1.2.3 maintenance update
+
+Version 1.2.3 keeps the 1.2.2 runtime hardening and updates the reproducible Android build toolchain to stable Gradle 9.7.0. Android Gradle Plugin 9.3.0, JDK 17, API 37, Build Tools 36.0.0, Commons Net 3.13.0 and SSHJ 0.40.0 remain the reviewed dependency baseline.
 
 ## Lifecycle and local files
 
@@ -55,7 +59,7 @@ The unsigned release APK is **not** a production distribution until it is signed
 ## Toolchain
 
 - Android Gradle Plugin 9.3.0
-- Gradle 9.5.0
+- Gradle 9.7.0
 - JDK 17
 - compileSdk / targetSdk 37
 - minSdk 26 (Android 8.0)
@@ -64,7 +68,7 @@ The unsigned release APK is **not** a production distribution until it is signed
 
 ## Build and test
 
-From the repository root with JDK 17, Gradle 9.5.0 and Android SDK 37 installed:
+From the repository root with JDK 17, Gradle 9.7.0 and Android SDK 37 installed:
 
 ```bash
 gradle -p android :app:clean :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
