@@ -41,10 +41,12 @@ def main() -> int:
         "ios/ByFTP/RemoteModels.swift", "ios/ByFTP/SocketConnection.swift", "ios/ByFTP/FTPRemoteClient.swift",
         "ios/ByFTP/Info.plist", "ios/ByFTP/Assets.xcassets/AppIcon.appiconset/Contents.json",
         "ios/ByFTP.xcodeproj/project.pbxproj", "ios/ByFTP.xcodeproj/xcshareddata/xcschemes/ByFTP.xcscheme",
-        "ios/Tests/ModelTests.swift", "ios/README.md", "scripts/BUILD-IOS.sh", "scripts/package_ios.py",
+        "ios/Tests/ModelTests.swift", "ios/README.md", "ios/BUILD.sh", "scripts/package_ios.py",
     )
     for rel in required_files:
         read(rel)
+    if (ROOT / "scripts/BUILD-IOS.sh").exists():
+        fail("legacy scripts/BUILD-IOS.sh must not duplicate the canonical ios/BUILD.sh entry point")
 
     config = require("ios/ByFTP/ConnectionConfig.swift", (
         "case ftp", "case ftpsImplicit", "rejectControlCharacters", "Port must be between 1 and 65535",
@@ -140,7 +142,7 @@ def main() -> int:
     if 'BlueprintIdentifier="000000000000000000000002"' not in scheme:
         fail("shared Xcode scheme is not bound to the ByFTP target")
 
-    build = read("scripts/BUILD-IOS.sh")
+    build = read("ios/BUILD.sh")
     for marker in (
         "< VERSION", "xcodebuild", "-sdk iphoneos", "generic/platform=iOS",
         "CODE_SIGNING_ALLOWED=NO", "ARCHS=arm64", "scripts/package_ios.py",
@@ -170,6 +172,7 @@ def main() -> int:
 
     print(f"IOS_AUDIT=PASS ({version})")
     print("IOS_NATIVE_UI=SWIFTUI")
+    print("IOS_BUILD_ENTRYPOINT=IOS_DIRECTORY")
     print("IOS_TRANSPORTS=FTP,FTPS_IMPLICIT")
     print("IOS_PASV_HOST_REDIRECT=BLOCKED")
     print("IOS_RAW_ENDPOINT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
