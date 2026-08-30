@@ -5,6 +5,36 @@ struct ConnectionView: View {
 
     var body: some View {
         Form {
+            Section {
+                HStack(spacing: 12) {
+                    Image(systemName: "externaldrive.connected.to.line.below")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(.indigo)
+                        .frame(width: 44, height: 44)
+                        .background(.indigo.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("ByFTP")
+                            .font(.title2.bold())
+                        Text("Private, direct file transfer")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            if store.hasSavedConnection {
+                Section("Saved connection") {
+                    Label("Connection details restored from this device", systemImage: "checkmark.shield")
+                    Text("Your password is never stored in the saved connection preset.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Forget saved connection", role: .destructive) {
+                        store.forgetSavedConnection()
+                    }
+                }
+            }
+
             Section("Connection") {
                 Picker("Protocol", selection: $store.protocolKind) {
                     ForEach(TransferProtocol.allCases) { value in
@@ -26,6 +56,7 @@ struct ConnectionView: View {
 
                 SecureField("Password", text: $store.password)
                     .textContentType(.password)
+                    .privacySensitive()
             }
 
             if store.protocolKind == .ftp {
@@ -43,8 +74,10 @@ struct ConnectionView: View {
                         Spacer()
                         if store.busy { ProgressView().padding(.trailing, 8) }
                         Text(store.busy ? "Connecting…" : "Connect")
+                            .fontWeight(.semibold)
                         Spacer()
                     }
+                    .frame(minHeight: 34)
                 }
                 .disabled(store.busy)
             }
@@ -55,6 +88,6 @@ struct ConnectionView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("ByFTP")
+        .navigationTitle("Connect")
     }
 }

@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.3.0 — Mobile file-manager parity and secret-lifetime hardening
+
+**Focus:** turn the native Android and iOS clients into more practical everyday file managers while preserving ByFTP's fail-closed transport, path, privacy and release boundaries.
+
+- Added Android and iOS local filtering/search for the current remote directory plus deterministic directory-first, case-insensitive sorting.
+- Added direct **Go to path** navigation on both mobile platforms; user-supplied paths still pass through the existing canonical remote-path validators before any network operation.
+- Added multi-file upload on Android through `ACTION_OPEN_DOCUMENT`/`EXTRA_ALLOW_MULTIPLE` and on iOS through the security-scoped multi-selection document importer.
+- Batch uploads validate every remote name before transfer, reject duplicate target names in the same selection and refresh the listing once after the complete batch instead of after every file.
+- Reworked Android's connected-state UI into a compact mobile file-manager surface with a connection summary, Up / Refresh / Menu actions, a filter field and 48dp minimum touch targets.
+- Added a native iOS SwiftUI search surface, compact action menu, path navigation and an iOS-16-compatible empty/filter state without raising the deployment target.
+- Added optional restoration of the last successful **non-secret** connection metadata: Android stores protocol/host/port/username/SFTP fingerprint in app-private preferences, while iOS stores protocol/host/port/username in Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
+- Passwords and passphrases remain excluded from mobile persistent presets. Android backup/device transfer remains disabled, and iOS does not use `UserDefaults` for connection metadata or credentials.
+- Android now clears the password field after every connection attempt and on Activity teardown; iOS keeps its existing connect/background secret cleanup.
+- Shortened mobile secret lifetime further by ensuring persistence callbacks receive pre-extracted non-secret preset data instead of retaining credential-bearing connection configurations just for convenience.
+- Removed Android pre-validation trimming from create/rename remote-name flows so invalid edge whitespace is rejected by the canonical name validator instead of silently rewritten.
+- Extracted Android remote-entry sort/filter behavior from `MainActivity` into a small testable model helper and added JUnit regression coverage.
+- Added iOS model regressions proving serialized connection presets contain no password material and are revalidated before restoration.
+- Expanded `audit_android.py` and `audit_ios.py` so CI now requires the new mobile navigation/search/batch-upload behavior and fails if password/passphrase persistence is introduced.
+- Kept protocol claims exact: Android continues to support FTP, explicit FTPS, implicit FTPS and SFTP; iOS continues to support FTP and implicit FTPS only, with no permissive SFTP/explicit-FTPS compatibility shim.
+- Preserved the canonical five-platform build/release matrix, external production-signing boundaries, no-telemetry policy and the 1.2.9 desktop path-persistence hardening.
+
 ## 1.2.9 — Verbatim profile path persistence
 
 **Focus:** stop the saved-profile backend from silently rewriting valid remote, local and private-key paths before validation or persistence.

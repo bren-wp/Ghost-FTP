@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Android security, privacy, version, lifecycle and build invariants."""
+"""Validate Android security, privacy, version, lifecycle, mobile UX and build invariants."""
 
 from __future__ import annotations
 
@@ -114,6 +114,15 @@ def main() -> int:
         if forbidden in remote_paths:
             fail("Android remote path handling still normalizes unsafe separators")
 
+    entry_list = require("android/app/src/main/java/com/byftp/client/model/RemoteEntryList.java", (
+        "comparing(RemoteEntry::directory).reversed()",
+        "String.CASE_INSENSITIVE_ORDER",
+        "toLowerCase(Locale.ROOT)",
+        "new ArrayList<>(source)",
+    ))
+    if "source.sort(" in entry_list:
+        fail("Android list presentation must not mutate the transport-owned source list")
+
     sftp = require("android/app/src/main/java/com/byftp/client/remote/SftpRemoteClient.java", (
         "next.addHostKeyVerifier(fingerprint)",
         "next.authPassword(username, loginPassword)",
@@ -148,15 +157,28 @@ def main() -> int:
             fail(f"Android source contains forbidden permissive TLS/SSH marker: {forbidden}")
 
     activity = require("android/app/src/main/java/com/byftp/client/MainActivity.java", (
-        "Intent.ACTION_OPEN_DOCUMENT", "Intent.ACTION_CREATE_DOCUMENT",
+        "Intent.ACTION_OPEN_DOCUMENT", "Intent.ACTION_CREATE_DOCUMENT", "Intent.EXTRA_ALLOW_MULTIPLE",
         "getContentResolver().openInputStream", "getContentResolver().openOutputStream",
         "Executors.newSingleThreadExecutor()", "connectingClient", "destroyed",
         "String remotePath = pendingDownloadPath;", "pendingDownloadPath = null;",
         "main.removeCallbacksAndMessages(null)", "io.shutdownNow()", 'new Thread(() ->',
+        "filter.addTextChangedListener", "visibleEntries", "RemoteEntryList.sorted(next)",
+        "RemoteEntryList.filtered(entries, text(filter))", "promptGoToPath()", "uploadUris(new ArrayList<>(selected))",
+        "password.setText(\"\")", "presetStore.save(safeProtocol, safeHost, safePort, safeUsername, safeFingerprint)",
+        'String name = rawName == null ? "" : rawName;', "setMinHeight(dp(48))",
     ))
-    for forbidden in ("SharedPreferences", "getSharedPreferences", "FirebaseAnalytics", "AdvertisingId"):
+    for forbidden in ("SharedPreferences", "getSharedPreferences", "FirebaseAnalytics", "AdvertisingId", "presetStore.save(config)", "rawName.trim()"):
         if forbidden in activity:
-            fail(f"Android activity contains forbidden persistence/analytics marker: {forbidden}")
+            fail(f"Android activity contains forbidden persistence/normalization/analytics marker: {forbidden}")
+
+    preset = require("android/app/src/main/java/com/byftp/client/ConnectionPresetStore.java", (
+        "SharedPreferences", "Context.MODE_PRIVATE", "KEY_PROTOCOL", "KEY_HOST", "KEY_PORT", "KEY_USERNAME", "KEY_FINGERPRINT",
+        "void save(ConnectionConfig.Protocol protocol, String host, int port, String username, String fingerprint)",
+        "ConnectionConfig.create(", "preferences.edit().clear().apply()",
+    ))
+    for forbidden in ("KEY_PASSWORD", "KEY_PASSPHRASE", ".password()", ".passphrase()", "putString(\"password\"", "putString(\"passphrase\""):
+        if forbidden in preset:
+            fail(f"Android connection preset persists or reads a secret: {forbidden}")
 
     settings = read("android/settings.gradle.kts")
     if "mavenLocal()" in settings:
@@ -178,6 +200,10 @@ def main() -> int:
         "directoryRejectsTraversalAndSeparatorRewrites",
         "public_html//assets",
     ))
+    require("android/app/src/test/java/com/byftp/client/model/RemoteEntryListTest.java", (
+        "sortsDirectoriesFirstThenNamesCaseInsensitively",
+        "filtersWithoutMutatingSortedSource",
+    ))
     require("android/app/src/test/java/com/byftp/client/remote/FtpRemoteClientPathTest.java", (
         "rejectsUnsafeServerLoginDirectory",
         '"/home/example\\r"',
@@ -196,7 +222,11 @@ def main() -> int:
     print("ANDROID_REMOTE_PATH_NORMALIZATION=FAIL_CLOSED")
     print("ANDROID_REMOTE_NAMES=CANONICAL_SHARED_VALIDATOR")
     print("ANDROID_FTP_LOGIN_ROOT=ENFORCED_AND_CONTROL_SAFE")
-    print("ANDROID_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY")
+    print("ANDROID_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY_AND_UI_CLEARED")
+    print("ANDROID_NON_SECRET_CONNECTION_PRESET=APP_PRIVATE_AND_BACKUP_EXCLUDED")
+    print("ANDROID_MOBILE_FILE_FILTER_AND_SORT=TESTED")
+    print("ANDROID_MULTI_FILE_UPLOAD=STORAGE_ACCESS_FRAMEWORK")
+    print("ANDROID_GO_TO_PATH=CANONICAL_REMOTE_PATH_VALIDATION")
     print("ANDROID_GENERIC_CLEARTEXT_NETWORK=BLOCKED")
     print("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED")
     print("ANDROID_BACKUP_AND_DEVICE_TRANSFER=BLOCKED")
