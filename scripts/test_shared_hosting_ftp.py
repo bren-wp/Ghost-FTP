@@ -54,8 +54,6 @@ class SharedHostingFTPTests(unittest.TestCase):
             '{Value: "ftpsi", Port: "990"}',
         ):
             self.assertIn(marker, protocols)
-        # Protocol display labels are intentionally localized at render time;
-        # the protocol model must not drift back to hard-coded language text.
         self.assertNotIn("Label string", protocols)
         self.assertIn("protocolLabel(a.languageCode(), spec.Value)", ui)
 
@@ -75,7 +73,6 @@ class SharedHostingFTPTests(unittest.TestCase):
             '"cue.user": "Username, may be user@example.com"',
         ):
             self.assertIn(marker, catalogs)
-        # Preserve usable horizontal space for full shared-hosting usernames.
         self.assertIn("a.move(a.user, x, y, 220, rowH)", ui)
         self.assertIn("limitEdit(a.user, 1024)", ui)
 
@@ -84,7 +81,7 @@ class SharedHostingFTPTests(unittest.TestCase):
         guide = (ROOT / "docs/SHARED-HOSTING.md").read_text(encoding="utf-8")
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
         for marker in (
-            "## Shared-hosting workflow",
+            "## Shared hosting",
             "public_html",
             "[Shared hosting](docs/SHARED-HOSTING.md)",
         ):
