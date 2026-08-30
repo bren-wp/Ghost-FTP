@@ -123,6 +123,15 @@ def main() -> int:
     if "source.sort(" in entry_list:
         fail("Android list presentation must not mutate the transport-owned source list")
 
+    transfer_streams = require("android/app/src/main/java/com/byftp/client/remote/TransferStreams.java", (
+        "final class TransferStreams",
+        "FilterInputStream", "FilterOutputStream",
+        "void onBytesTransferred(long bytes)",
+        "transferred += bytes", "listener.onBytesTransferred(transferred)",
+    ))
+    if "Thread.interrupted" in transfer_streams or "close()" in transfer_streams:
+        fail("Android transfer progress wrapper must observe bytes without injecting transport cancellation")
+
     sftp = require("android/app/src/main/java/com/byftp/client/remote/SftpRemoteClient.java", (
         "next.addHostKeyVerifier(fingerprint)",
         "next.authPassword(username, loginPassword)",
@@ -166,10 +175,16 @@ def main() -> int:
         "RemoteEntryList.filtered(entries, text(filter))", "promptGoToPath()", "uploadUris(new ArrayList<>(selected))",
         "password.setText(\"\")", "presetStore.save(safeProtocol, safeHost, safePort, safeUsername, safeFingerprint)",
         'String name = rawName == null ? "" : rawName;', "setMinHeight(dp(48))",
+        "ProgressBar", "TransferStreams.monitor", "stopAfterCurrentRequested",
+        "status_stopping_after_current", "displaySize(Uri uri)", "beginTransferUi", "finishTransferUi",
+        "if (stopAfterCurrentRequested && i + 1 < items.size())",
     ))
-    for forbidden in ("SharedPreferences", "getSharedPreferences", "FirebaseAnalytics", "AdvertisingId", "presetStore.save(config)", "rawName.trim()"):
+    for forbidden in (
+        "SharedPreferences", "getSharedPreferences", "FirebaseAnalytics", "AdvertisingId",
+        "presetStore.save(config)", "rawName.trim()", "Thread.currentThread().interrupt()",
+    ):
         if forbidden in activity:
-            fail(f"Android activity contains forbidden persistence/normalization/analytics marker: {forbidden}")
+            fail(f"Android activity contains forbidden persistence/normalization/analytics/cancel marker: {forbidden}")
 
     preset = require("android/app/src/main/java/com/byftp/client/ConnectionPresetStore.java", (
         "SharedPreferences", "Context.MODE_PRIVATE", "KEY_PROTOCOL", "KEY_HOST", "KEY_PORT", "KEY_USERNAME", "KEY_FINGERPRINT",
@@ -204,6 +219,11 @@ def main() -> int:
         "sortsDirectoriesFirstThenNamesCaseInsensitively",
         "filtersWithoutMutatingSortedSource",
     ))
+    require("android/app/src/test/java/com/byftp/client/remote/TransferStreamsTest.java", (
+        "inputReportsCumulativeBytesWithoutChangingPayload",
+        "outputReportsCumulativeBytesWithoutChangingPayload",
+        "List.of(4L, 5L, 6L)", "List.of(3L, 4L)",
+    ))
     require("android/app/src/test/java/com/byftp/client/remote/FtpRemoteClientPathTest.java", (
         "rejectsUnsafeServerLoginDirectory",
         '"/home/example\\r"',
@@ -226,6 +246,8 @@ def main() -> int:
     print("ANDROID_NON_SECRET_CONNECTION_PRESET=APP_PRIVATE_AND_BACKUP_EXCLUDED")
     print("ANDROID_MOBILE_FILE_FILTER_AND_SORT=TESTED")
     print("ANDROID_MULTI_FILE_UPLOAD=STORAGE_ACCESS_FRAMEWORK")
+    print("ANDROID_TRANSFER_PROGRESS=LOCAL_STREAM_BYTE_BOUNDARY")
+    print("ANDROID_BATCH_STOP=AFTER_CURRENT_FILE_ONLY")
     print("ANDROID_GO_TO_PATH=CANONICAL_REMOTE_PATH_VALIDATION")
     print("ANDROID_GENERIC_CLEARTEXT_NETWORK=BLOCKED")
     print("ANDROID_BROAD_STORAGE_PERMISSION=BLOCKED")
