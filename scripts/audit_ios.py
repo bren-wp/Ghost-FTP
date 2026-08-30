@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate native iOS security, privacy, version and packaging invariants."""
+"""Validate native iOS security, privacy, mobile UX, version and packaging invariants."""
 
 from __future__ import annotations
 
@@ -55,6 +55,8 @@ def main() -> int:
         'rejectControlCharacters(rawUsername, field: "Username")',
         'rejectControlCharacters(rawPassword, field: "Password")',
         "scalar.value == 0", "scalar.value == 10", "scalar.value == 13",
+        "struct ConnectionPreset: Codable, Equatable, Sendable", "protocolRawValue", "validatedConfig()",
+        'password: ""',
     ))
     for raw_marker, normalization_marker in (
         ('rejectControlCharacters(rawHost, field: "Host")', "normalizeHost(rawHost)"),
@@ -67,6 +69,11 @@ def main() -> int:
             fail(f"iOS raw input is normalized before control-character rejection: {raw_marker}")
     if "case sftp" in config.lower() or "case ftpsExplicit" in config:
         fail("iOS claims an unimplemented transport in TransferProtocol")
+    preset_start = config.find("struct ConnectionPreset")
+    preset_end = config.find("struct ValidationError", preset_start)
+    preset_model = config[preset_start:preset_end]
+    if re.search(r"\b(?:let|var)\s+(?:password|passphrase|secret)\s*:", preset_model, re.IGNORECASE):
+        fail("iOS persistent connection preset contains a secret field")
 
     paths = require("ios/ByFTP/RemoteModels.swift", (
         "RemotePath.normalizeDirectory", "FTPPathMapper", "unsafe component", "noncanonical login directory",
@@ -103,13 +110,40 @@ def main() -> int:
             fail(f"unsafe iOS transport marker found: {forbidden}")
 
     session = require("ios/ByFTP/SessionStore.swift", (
-        "import Combine", "ObservableObject", "@Published", "generation &+= 1", 'password = ""',
+        "import Combine", "import Security", "ObservableObject", "@Published", "generation &+= 1", 'password = ""',
         "startAccessingSecurityScopedResource", "clearDownloadedFile",
         "private var connectingClient: FTPRemoteClient?", "connectingClient = next",
         "let pending = connectingClient", "await pending?.close()",
         "discard: (() -> Void)? = nil", "discard?()",
         "temporaryParent", "FileManager.default.removeItem(at: temporaryParent)",
+        "@Published private(set) var hasSavedConnection", "let preset = ConnectionPreset(config: config)",
+        "ConnectionPresetKeychain.save(preset)", "func forgetSavedConnection()",
+        "func upload(_ urls: [URL])", "var remoteNames = Set<String>()", "private func sortedEntries",
+        "SecItemCopyMatching", "SecItemAdd", "SecItemDelete", "kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
+        'service = "com.byftp.client.connection-preset"',
     ))
+    task_index = session.find("Task {", session.find("func connect()"))
+    preset_index = session.find("let preset = ConnectionPreset(config: config)", session.find("func connect()"))
+    if task_index < 0 or preset_index < 0 or preset_index > task_index:
+        fail("iOS async connect task retains the credential-bearing config solely for preset persistence")
+    if "ConnectionPresetKeychain.save(ConnectionPreset(config: config))" in session:
+        fail("iOS Keychain save reconstructs the preset from a credential-bearing config inside async completion")
+
+    browser = require("ios/ByFTP/RemoteBrowserView.swift", (
+        ".searchable(text: $searchText", "allowsMultipleSelection: true", "store.upload(urls)",
+        'Label("Go to path"', "store.openDirectory(goToPath)", "store.forgetSavedConnection()",
+        "visibleEntries", "safeAreaInset(edge: .bottom)",
+    ))
+    if "ContentUnavailableView" in browser:
+        fail("iOS mobile browser uses an API newer than the supported iOS 16 deployment target")
+
+    connection_view = require("ios/ByFTP/ConnectionView.swift", (
+        "store.hasSavedConnection", "Your password is never stored", "store.forgetSavedConnection()",
+        ".privacySensitive()",
+    ))
+    if not connection_view:
+        fail("iOS connection screen mobile privacy state is unavailable")
+
     app = require("ios/ByFTP/ByFTPApp.swift", ("scenePhase", "store.disconnect()"))
     combined_source = "\n".join(path.read_text(encoding="utf-8") for path in (IOS / "ByFTP").glob("*.swift"))
     for forbidden in ("UserDefaults", "WKWebView", "Analytics", "FirebaseAnalytics", "NSAllowsArbitraryLoads"):
@@ -157,6 +191,8 @@ def main() -> int:
         "trailing CRLF port input was accepted", "NUL username injection was accepted",
         "leading whitespace remote name was normalized", "trailing whitespace remote name was normalized",
         "embedded LF remote name was accepted", "server login root CRLF was normalized",
+        "connection preset serialized the session password", "restored connection preset contained a password",
+        "JSONEncoder().encode(preset)", "decodedPreset.validatedConfig()",
         "UnicodeScalar(13)", "UnicodeScalar(10)", "UnicodeScalar(0)",
     ))
     if not model_tests:
@@ -179,8 +215,11 @@ def main() -> int:
     print("IOS_REMOTE_NAMES=CANONICAL_FAIL_CLOSED")
     print("IOS_LOGIN_ROOT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("IOS_NWCONNECTION_CONTINUATION=LOCKED_SINGLE_RESUME")
-    print("IOS_CREDENTIAL_PERSISTENCE=BLOCKED")
-    print("IOS_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY")
+    print("IOS_SECRET_PERSISTENCE=BLOCKED")
+    print("IOS_NON_SECRET_CONNECTION_PRESET=KEYCHAIN_THIS_DEVICE_ONLY")
+    print("IOS_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY_AND_UI_CLEARED")
+    print("IOS_MULTI_FILE_UPLOAD=SECURITY_SCOPED")
+    print("IOS_SEARCH_AND_GO_TO_PATH=ENABLED")
     print("IOS_PENDING_CONNECTION=DISCONNECTABLE")
     print("IOS_TEMP_DOWNLOAD_CLEANUP=STALE_AND_FAILURE_SAFE")
     print("IOS_BACKGROUND_SESSION=DISCONNECTED")
