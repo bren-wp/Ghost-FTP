@@ -42,8 +42,6 @@ def main() -> int:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
 
-    # Release validation covers every tracked file and the complete maintained
-    # PHP/JS web client in addition to the native platform-specific audits.
     run_python_audit("scripts/audit_repository.py", "repository-wide tracked-file audit")
     run_python_audit("scripts/audit_web.py", "ByFTP WEB audit/runtime gate")
 
@@ -85,9 +83,16 @@ def main() -> int:
     for marker in (
         "function Invoke-GhJson", "function Try-GhJson", "@('api',", "gh release create", "gh release edit",
         "gh release upload", "Get-FileHash", "SHA256", "Assert-TagCommit", "Assert-RemoteAsset",
+        "function Assert-CurrentMainCommit", "repos/$Repository/branches/main",
+        "RELEASE_MAIN_HEAD_VERIFICATION=PASS", "Stale release run je blokiran",
         "RELEASE_PUBLISH_VERIFICATION=PASS",
     ):
         require(publisher, marker, "scripts/publish_release.ps1")
+
+    guard_call = publisher.find("Assert-CurrentMainCommit", publisher.find('$tag = "v$Version"'))
+    release_lookup = publisher.find("$release = Get-Release -Tag $tag")
+    if guard_call < 0 or release_lookup < 0 or guard_call > release_lookup:
+        fail("publisher must verify current main before release lookup/mutation")
 
     android_packager = read("scripts/package_android.py")
     for marker in (
@@ -145,6 +150,7 @@ def main() -> int:
     print(f"RELEASE_AUDIT=PASS ({version})")
     print("REPOSITORY_WIDE_TRACKED_FILE_AUDIT=REQUIRED")
     print("WEB_RUNTIME_AND_SECURITY_GATE=REQUIRED")
+    print("RELEASE_MAIN_HEAD_GUARD=REQUIRED")
     print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP,WEB_SOURCE_VALIDATED")
     print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY,WEB_SOURCE_DIRECTORY")
     print("OBSOLETE_PLATFORM_WRAPPERS=REMOVED")
@@ -153,7 +159,7 @@ def main() -> int:
     print("ANDROID_PRODUCTION_SIGNING=EXTERNAL_IDENTITY_REQUIRED")
     print("IOS_IPA_PUBLICATION=UNSIGNED_ARM64_DEVICE_BUILD")
     print("IOS_PRODUCTION_SIGNING=EXTERNAL_APPLE_IDENTITY_REQUIRED")
-    print("PUBLISHER=CENTRALIZED")
+    print("PUBLISHER=CENTRALIZED_AND_CURRENT_MAIN_BOUND")
     print("RELEASE_GITHUB_API=WRAPPED_AND_AUDITED")
     return 0
 

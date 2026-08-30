@@ -45,6 +45,18 @@ function Try-GhJson {
     return $text | ConvertFrom-Json
 }
 
+function Assert-CurrentMainCommit {
+    $branch = Invoke-GhJson -Arguments @('api', "repos/$Repository/branches/main")
+    if ($null -eq $branch -or $null -eq $branch.commit) {
+        throw 'Nije moguće potvrditi aktualni main prije objave izdanja.'
+    }
+    $mainCommit = [string]$branch.commit.sha
+    if (-not [string]::Equals($mainCommit, $Commit, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Stale release run je blokiran: main pokazuje na $mainCommit, a ovaj run na $Commit."
+    }
+    Write-Host "RELEASE_MAIN_HEAD_VERIFICATION=PASS ($Commit)"
+}
+
 function Resolve-TagCommit {
     param([Parameter(Mandatory = $true)][string]$Tag)
     $ref = Try-GhJson -Arguments @('api', "repos/$Repository/git/ref/tags/$Tag")
@@ -121,8 +133,14 @@ foreach ($assetPath in $Assets) {
     $localAssets[$info.Name] = $info
 }
 
+# A release run is valid only while its exact source commit is still the
+# repository's current main. This prevents a slower, older VERSION-triggered
+# workflow from publishing after a newer integration merge has landed.
+Assert-CurrentMainCommit
+
 $release = Get-Release -Tag $tag
 if ($null -ne $release) {
+    Assert-CurrentMainCommit
     Assert-TagCommit -Tag $tag
     & gh release edit $tag --repo $Repository --title "ByFTP $Version" --notes-file $NotesFile | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Ažuriranje metapodataka izdanja $tag nije uspjelo." }
@@ -132,8 +150,10 @@ if ($null -ne $release) {
         if (-not [string]::Equals($existingTagCommit, $Commit, [StringComparison]::OrdinalIgnoreCase)) {
             throw "Postojeći tag $tag pokazuje na $existingTagCommit umjesto $Commit."
         }
+        Assert-CurrentMainCommit
         & gh release create $tag --repo $Repository --title "ByFTP $Version" --notes-file $NotesFile --verify-tag | Out-Null
     } else {
+        Assert-CurrentMainCommit
         & gh release create $tag --repo $Repository --title "ByFTP $Version" --notes-file $NotesFile --target $Commit | Out-Null
     }
     if ($LASTEXITCODE -ne 0) { throw "Stvaranje izdanja $tag nije uspjelo." }
