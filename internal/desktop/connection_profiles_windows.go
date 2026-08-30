@@ -7,7 +7,6 @@ import (
 	"github.com/bren-wp/by-ftp/internal/model"
 	"github.com/bren-wp/by-ftp/internal/platform"
 	"github.com/bren-wp/by-ftp/internal/profilebinding"
-	"github.com/bren-wp/by-ftp/internal/security"
 	"github.com/bren-wp/by-ftp/internal/usererror"
 	"strconv"
 	"strings"
@@ -104,16 +103,16 @@ func (a *app) connectNow() {
 		return
 	}
 	host := getText(a.host)
-	user := strings.TrimSpace(getText(a.user))
+	user := getText(a.user)
 	password := getText(a.pass)
-	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
-	if err != nil || port < 1 || port > 65535 {
-		platform.ErrorDialog("ByFTP", "Neispravan port", "Port mora biti broj između 1 i 65535.")
-		return
-	}
 	protocol := a.protocolValue()
-	if err := security.ValidateConnection(protocol, host, user, port); err != nil {
-		platform.ErrorDialog("ByFTP — povezivanje", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+	port, err := validateRawConnectionInput(protocol, host, getText(a.port), user)
+	if err != nil {
+		if err == errInvalidConnectionPort {
+			platform.ErrorDialog("ByFTP", "Neispravan port", "Port mora biti broj između 1 i 65535.")
+		} else {
+			platform.ErrorDialog("ByFTP — povezivanje", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+		}
 		return
 	}
 	cfg := model.ConnectionConfig{
@@ -202,13 +201,13 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 }
 
 func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
-	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
+	port, err := strconv.Atoi(getText(a.port))
 	if err != nil {
 		return false
 	}
 	return profilebinding.EndpointMatches(
 		p.Protocol, p.Host, p.Port,
-		a.protocolValue(), strings.TrimSpace(getText(a.host)), port,
+		a.protocolValue(), getText(a.host), port,
 	)
 }
 
@@ -418,14 +417,14 @@ func (a *app) saveCurrentProfile() {
 	}
 	protocol := a.protocolValue()
 	host := getText(a.host)
-	username := strings.TrimSpace(getText(a.user))
-	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
-	if err != nil || port < 1 || port > 65535 {
-		platform.ErrorDialog("ByFTP — profil", "Neispravan port", "Port mora biti broj između 1 i 65535.")
-		return
-	}
-	if err := security.ValidateConnection(protocol, host, username, port); err != nil {
-		platform.ErrorDialog("ByFTP — profil", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+	username := getText(a.user)
+	port, err := validateRawConnectionInput(protocol, host, getText(a.port), username)
+	if err != nil {
+		if err == errInvalidConnectionPort {
+			platform.ErrorDialog("ByFTP — profil", "Neispravan port", "Port mora biti broj između 1 i 65535.")
+		} else {
+			platform.ErrorDialog("ByFTP — profil", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+		}
 		return
 	}
 	keyPath := strings.TrimSpace(getText(a.keyPath))
