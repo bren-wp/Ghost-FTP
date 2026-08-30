@@ -32,7 +32,7 @@ func prompt(reader *bufio.Reader, label, fallback string) (string, error) {
 	if err != nil && len(line) == 0 {
 		return "", err
 	}
-	line = strings.TrimSpace(line)
+	line = strings.TrimRight(line, "\r\n")
 	if line == "" {
 		return fallback, nil
 	}
@@ -168,7 +168,7 @@ func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) 
 		if err != nil {
 			return model.ConnectionConfig{}, err
 		}
-		cfg.PrivateKeyPath = strings.TrimSpace(keyPath)
+		cfg.PrivateKeyPath = keyPath
 		if cfg.PrivateKeyPath == "" {
 			return model.ConnectionConfig{}, errors.New(i18n.T(language, "terminal.sftp_key_required"))
 		}
