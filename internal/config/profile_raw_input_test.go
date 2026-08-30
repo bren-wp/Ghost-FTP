@@ -71,6 +71,20 @@ func TestProfileSaveRejectsNonCanonicalFingerprintBeforeNormalization(t *testing
 	}
 }
 
+func TestProfileUpdateFingerprintRejectsNonCanonicalRawInput(t *testing.T) {
+	canonical := "SHA256:" + strings.Repeat("A", 43)
+	for _, fingerprint := range []string{" " + canonical, canonical + " ", canonical + "\r\n", canonical + "\t"} {
+		profiles := NewProfiles(New(t.TempDir()))
+		saved, err := profiles.Save(rawProfileInput())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := profiles.UpdateFingerprint(saved.ID, fingerprint); err == nil {
+			t.Fatalf("non-canonical direct fingerprint %q unexpectedly accepted", fingerprint)
+		}
+	}
+}
+
 func TestProfileSaveAcceptsCanonicalConnectionAndFingerprint(t *testing.T) {
 	in := rawProfileInput()
 	in.Fingerprint = "SHA256:" + strings.Repeat("A", 43)
