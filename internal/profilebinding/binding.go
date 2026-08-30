@@ -34,6 +34,18 @@ func AccountMatches(protocolA, hostA string, portA int, usernameA, protocolB, ho
 	return EndpointMatches(protocolA, hostA, portA, protocolB, hostB, portB) && usernameA == usernameB
 }
 
+// PrivateKeyPathMatches compares user-selected private-key paths with native
+// platform semantics. Empty paths match only each other; callers that require a
+// key to exist must additionally reject an empty path.
+func PrivateKeyPathMatches(keyA, keyB string) bool {
+	keyA = strings.TrimSpace(keyA)
+	keyB = strings.TrimSpace(keyB)
+	if keyA == "" || keyB == "" {
+		return keyA == keyB
+	}
+	return privateKeyPathEqual(keyA, keyB)
+}
+
 // PrivateKeyMatches dodatno veže passphrase uz konkretan lokalni privatni ključ.
 // Semantika usporedbe putanje mora pratiti platformu: Windows putanje su
 // case-insensitive, dok na ostalim platformama koristimo strogu usporedbu kako
@@ -43,5 +55,5 @@ func PrivateKeyMatches(protocolA, hostA string, portA int, usernameA, keyA, prot
 	keyB = strings.TrimSpace(keyB)
 	return keyA != "" && keyB != "" &&
 		AccountMatches(protocolA, hostA, portA, usernameA, protocolB, hostB, portB, usernameB) &&
-		privateKeyPathEqual(keyA, keyB)
+		PrivateKeyPathMatches(keyA, keyB)
 }
