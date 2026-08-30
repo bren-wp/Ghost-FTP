@@ -421,7 +421,7 @@ func (m *Manager) Operation(ctx context.Context) (Session, context.Context, func
 }
 
 func connectionIdentity(cfg model.ConnectionConfig) string {
-	material := fmt.Sprintf("%s\x00%s\x00%d\x00%s\x00%s", strings.ToLower(strings.TrimSpace(cfg.Protocol)), strings.ToLower(strings.TrimSpace(cfg.Host)), cfg.Port, cfg.Username, cfg.Fingerprint)
+	material := fmt.Sprintf("%s\x00%s\x00%s", profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port), cfg.Username, cfg.Fingerprint)
 	sum := sha256.Sum256([]byte(material))
 	return hex.EncodeToString(sum[:])
 }
