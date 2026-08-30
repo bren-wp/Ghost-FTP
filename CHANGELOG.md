@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.9 — Verbatim profile path persistence
+
+**Focus:** stop the saved-profile backend from silently rewriting valid remote, local and private-key paths before validation or persistence.
+
+- `Profiles.Save` now preserves `RemotePath`, `LocalPath` and `PrivateKeyPath` exactly as supplied by the caller instead of applying `TrimSpace` first.
+- Valid leading/trailing spaces in Unix/local filesystem paths and server-side remote path components are no longer lost at the persistence boundary.
+- Existing CR/LF/NUL, UTF-8, length and remote-traversal validation remains fail-closed; removing normalization does not weaken path validation.
+- Empty remote paths still receive the existing protocol-aware default (`.` for SFTP and `/` for FTP/FTPS), while non-empty paths remain verbatim.
+- Added regressions that verify all three persisted path fields remain unchanged and that control-character input is still rejected.
+- Preserved Windows UI normalization where it is an explicit UX choice; the backend/API no longer depends on a caller performing that normalization.
+- Preserved the verified five-platform build, release, credential-binding and endpoint-identity contract from 1.2.8.
+
 ## 1.2.8 — Fail-closed profile persistence input
 
 **Focus:** make saved-profile persistence enforce the same raw connection and SFTP trust boundaries as the runtime/UI instead of silently normalizing caller input before validation.
