@@ -67,7 +67,10 @@ def run_runtime_checks() -> tuple[int, int]:
     if not node:
         fail("Node.js is required for ByFTP WEB JavaScript syntax validation")
 
-    run_checked([php, "-r", "if (PHP_VERSION_ID < 80100) { fwrite(STDERR, 'PHP 8.1+ required'); exit(2); }"], label="PHP version check")
+    run_checked(
+        [php, "-r", "if (PHP_VERSION_ID < 80100) { fwrite(STDERR, 'PHP 8.1+ required'); exit(2); }"],
+        label="PHP version check",
+    )
 
     php_files = sorted(WEB.rglob("*.php"))
     js_files = sorted((WEB / "assets" / "js").glob("*.js"))
@@ -81,8 +84,9 @@ def run_runtime_checks() -> tuple[int, int]:
     run_checked([php, str(WEB / "tests" / "unit.php")], label="ByFTP WEB unit tests")
     for path in js_files:
         run_checked([node, "--check", str(path)], label=f"JavaScript syntax: {path.relative_to(ROOT)}")
+    run_checked([node, "--check", str(WEB / "service-worker.js")], label="JavaScript syntax: ByFTP WEB/service-worker.js")
 
-    return len(php_files), len(js_files)
+    return len(php_files), len(js_files) + 1
 
 
 def main() -> int:
@@ -123,7 +127,11 @@ def main() -> int:
 
     service_worker = read("ByFTP WEB/service-worker.js")
     require(service_worker, f"byftp-static-v{version}", "ByFTP WEB/service-worker.js")
-    for marker in ("request.mode === 'navigate'", "api|login|logout|register|account|users|settings|setup|diagnostics|download|preview", "fetch(request)"):
+    for marker in (
+        "request.mode === 'navigate'",
+        "api|login|logout|register|account|users|settings|setup|diagnostics|download|preview",
+        "fetch(request)",
+    ):
         require(service_worker, marker, "ByFTP WEB/service-worker.js")
     if "cache.put(request" not in service_worker:
         fail("service worker has no explicit static-asset cache path")
@@ -132,8 +140,16 @@ def main() -> int:
     require(robots, "Disallow: /api", "ByFTP WEB/robots.txt")
     require(robots, "Disallow: /download/", "ByFTP WEB/robots.txt")
     require(robots, "Disallow: /preview/", "ByFTP WEB/robots.txt")
-    require(read("ByFTP WEB/app/Views/head.php"), "noindex,nofollow,noarchive,nosnippet,noimageindex", "ByFTP WEB/app/Views/head.php")
-    require(read("ByFTP WEB/app/bootstrap.php"), "X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex", "ByFTP WEB/app/bootstrap.php")
+    require(
+        read("ByFTP WEB/app/Views/head.php"),
+        "noindex,nofollow,noarchive,nosnippet,noimageindex",
+        "ByFTP WEB/app/Views/head.php",
+    )
+    require(
+        read("ByFTP WEB/app/bootstrap.php"),
+        "X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex",
+        "ByFTP WEB/app/bootstrap.php",
+    )
 
     path_guard = read("ByFTP WEB/app/Remote/PathGuard.php")
     for marker in ("str_contains($path, '\\\\')", "str_contains($path, '//')", "$part === '.' || $part === '..'", "ensureNotRoot"):
@@ -142,7 +158,12 @@ def main() -> int:
         fail("web path guard rewrites unsafe backslashes instead of rejecting them")
 
     profile_store = read("ByFTP WEB/app/Storage/ProfileStore.php")
-    for marker in ("$rawHost !== trim($rawHost)", "preg_match('/^[0-9]{1,5}$/', $rawPort)", "preg_match('/[\\r\\n\\x00]/', $username)", "PathGuard::normalizeRelative($basePath)"):
+    for marker in (
+        "$rawHost !== trim($rawHost)",
+        "preg_match('/^[0-9]{1,5}$/', $rawPort)",
+        "preg_match('/[\\r\\n\\x00]/', $username)",
+        "PathGuard::normalizeRelative($basePath)",
+    ):
         require(profile_store, marker, "ByFTP WEB/app/Storage/ProfileStore.php")
     if "trim((string)($input['host']" in profile_store:
         fail("profile host is normalized before fail-closed validation")
@@ -154,20 +175,23 @@ def main() -> int:
     ftp = read("ByFTP WEB/app/Remote/FtpClient.php")
     sftp = read("ByFTP WEB/app/Remote/SftpClient.php")
     require(ftp, "$this->profile['password'] = '';", "ByFTP WEB/app/Remote/FtpClient.php")
-    for marker in ("$this->profile['password'] = '';", "$this->profile['private_key'] = '';", "$this->profile['key_passphrase'] = '';", "verifyHostFingerprint"):
+    for marker in (
+        "$this->profile['password'] = '';",
+        "$this->profile['private_key'] = '';",
+        "$this->profile['key_passphrase'] = '';",
+        "verifyHostFingerprint",
+    ):
         require(sftp, marker, "ByFTP WEB/app/Remote/SftpClient.php")
 
     auth = read("ByFTP WEB/app/Security/Auth.php")
-    for marker in ("session_regenerate_id(true)", "user_session_version", "SameSite"):
-        if marker == "SameSite":
-            require(read("ByFTP WEB/app/bootstrap.php"), "'samesite' => 'Strict'", "ByFTP WEB/app/bootstrap.php")
-        else:
-            require(auth, marker, "ByFTP WEB/app/Security/Auth.php")
+    for marker in ("session_regenerate_id(true)", "user_session_version"):
+        require(auth, marker, "ByFTP WEB/app/Security/Auth.php")
+    require(read("ByFTP WEB/app/bootstrap.php"), "'samesite' => 'Strict'", "ByFTP WEB/app/bootstrap.php")
 
     index = read("ByFTP WEB/index.php")
     if "icon-192.png" in index or "icon-512.png" in index:
         fail("web UI references removed duplicate PNG PWA assets")
-    require(index, "assets/images/mark.svg", "ByFTP WEB/index.php")
+    require(index, "byftp_asset('images/mark.svg')", "ByFTP WEB/index.php")
     require(index, "webkitdirectory", "ByFTP WEB/index.php")
 
     tests = read("ByFTP WEB/tests/unit.php")
@@ -180,7 +204,9 @@ def main() -> int:
         "ByFTP WEB/storage/tmp/.gitkeep",
         "ByFTP WEB/storage/users/.gitkeep",
     }
-    unexpected_storage = sorted(path for path in tracked if path.startswith("ByFTP WEB/storage/") and path not in allowed_storage)
+    unexpected_storage = sorted(
+        path for path in tracked if path.startswith("ByFTP WEB/storage/") and path not in allowed_storage
+    )
     if unexpected_storage:
         fail("runtime/private web storage is tracked: " + ", ".join(unexpected_storage))
 
