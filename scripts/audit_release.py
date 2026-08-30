@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -26,10 +27,24 @@ def require(text: str, marker: str, where: str) -> None:
         fail(f"{where} is missing required marker: {marker}")
 
 
+def run_repository_audit() -> None:
+    audit = ROOT / "scripts" / "audit_repository.py"
+    if not audit.is_file():
+        fail("missing required file: scripts/audit_repository.py")
+    try:
+        subprocess.run([sys.executable, str(audit)], cwd=ROOT, check=True)
+    except subprocess.CalledProcessError as exc:
+        fail(f"repository-wide tracked-file audit failed with exit code {exc.returncode}")
+
+
 def main() -> int:
     version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
+
+    # Release validation must cover every tracked file, not only the files
+    # explicitly named by platform-specific audits below.
+    run_repository_audit()
 
     workflow = read(".github/workflows/release.yml")
     for marker in (
@@ -111,6 +126,7 @@ def main() -> int:
     for rel in (
         "README.md", "CHANGELOG.md", "linux/README.md", "macos/README.md", "android/README.md", "ios/README.md",
         "docs/INSTALLATION.md", "docs/RELEASE-VERIFICATION.md", "docs/SECURITY.md", "docs/PRIVACY.md",
+        "scripts/audit_repository.py", "scripts/test_audit_repository.py",
     ):
         read(rel)
 
@@ -122,6 +138,7 @@ def main() -> int:
             fail(f"legacy branding remains in release surface: {rel}")
 
     print(f"RELEASE_AUDIT=PASS ({version})")
+    print("REPOSITORY_WIDE_TRACKED_FILE_AUDIT=REQUIRED")
     print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP")
     print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY")
     print("OBSOLETE_PLATFORM_WRAPPERS=REMOVED")
