@@ -4,13 +4,22 @@ import UniformTypeIdentifiers
 struct RemoteBrowserView: View {
     @ObservedObject var store: SessionStore
 
+    @State private var searchText = ""
     @State private var showingImporter = false
     @State private var showingNewFolder = false
     @State private var newFolderName = ""
+    @State private var showingGoToPath = false
+    @State private var goToPath = ""
     @State private var showingRename = false
     @State private var renameEntry: RemoteEntry?
     @State private var renameName = ""
     @State private var deleteEntry: RemoteEntry?
+
+    private var visibleEntries: [RemoteEntry] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return store.entries }
+        return store.entries.filter { $0.name.lowercased().contains(query) }
+    }
 
     var body: some View {
         List {
@@ -38,12 +47,15 @@ struct RemoteBrowserView: View {
             }
 
             Section("Remote files") {
-                if store.entries.isEmpty, !store.busy {
-                    Text("This directory is empty.")
-                        .foregroundStyle(.secondary)
+                if visibleEntries.isEmpty, !store.busy {
+                    ContentUnavailableView(
+                        searchText.isEmpty ? "This directory is empty" : "No matching files",
+                        systemImage: searchText.isEmpty ? "folder" : "magnifyingglass",
+                        description: Text(searchText.isEmpty ? "Use the menu to upload files or create a folder." : "Change or clear the filter to see more files.")
+                    )
                 }
 
-                ForEach(store.entries) { entry in
+                ForEach(visibleEntries) { entry in
                     Button {
                         if entry.isDirectory {
                             do { store.openDirectory(try RemotePath.child(store.currentPath, entry.name)) }
@@ -73,7 +85,9 @@ struct RemoteBrowserView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                     .disabled(store.busy)
                     .contextMenu {
                         if !entry.isDirectory {
@@ -99,10 +113,11 @@ struct RemoteBrowserView: View {
                 }
             }
         }
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Filter files")
         .navigationTitle("ByFTP")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Button {
                     store.goUp()
                 } label: {
@@ -122,13 +137,27 @@ struct RemoteBrowserView: View {
                     Button {
                         showingImporter = true
                     } label: {
-                        Label("Upload file", systemImage: "arrow.up.doc")
+                        Label("Upload files", systemImage: "arrow.up.doc.on.clipboard")
                     }
                     Button {
                         newFolderName = ""
                         showingNewFolder = true
                     } label: {
                         Label("New folder", systemImage: "folder.badge.plus")
+                    }
+                    Button {
+                        goToPath = store.currentPath
+                        showingGoToPath = true
+                    } label: {
+                        Label("Go to path", systemImage: "arrow.right.doc.on.clipboard")
+                    }
+                    if store.hasSavedConnection {
+                        Divider()
+                        Button(role: .destructive) {
+                            store.forgetSavedConnection()
+                        } label: {
+                            Label("Forget saved connection", systemImage: "key.slash")
+                        }
                     }
                     Divider()
                     Button(role: .destructive) {
@@ -143,16 +172,25 @@ struct RemoteBrowserView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Text(store.status)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(.thinMaterial)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(store.busy ? Color.orange : Color.green)
+                    .frame(width: 7, height: 7)
+                Text(store.status)
+                    .lineLimit(1)
+                Spacer()
+                Text("\(visibleEntries.count) items")
+                    .foregroundStyle(.tertiary)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(.thinMaterial)
         }
-        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.data]) { result in
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
             switch result {
-            case .success(let url): store.upload(url)
+            case .success(let urls): store.upload(urls)
             case .failure(let error): store.errorMessage = error.localizedDescription
             }
         }
@@ -160,6 +198,15 @@ struct RemoteBrowserView: View {
             TextField("Folder name", text: $newFolderName)
             Button("Cancel", role: .cancel) {}
             Button("Create") { store.createFolder(named: newFolderName) }
+        }
+        .alert("Go to path", isPresented: $showingGoToPath) {
+            TextField("/public_html", text: $goToPath)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel) {}
+            Button("Open") { store.openDirectory(goToPath) }
+        } message: {
+            Text("Enter a canonical remote path beginning with '/'.")
         }
         .alert("Rename", isPresented: $showingRename) {
             TextField("New name", text: $renameName)
