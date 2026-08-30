@@ -14,6 +14,32 @@ struct RemoteEntry: Identifiable, Hashable, Sendable {
     }
 }
 
+struct SharedHostingDiagnostics: Equatable, Sendable {
+    let secure: Bool
+    let rootMode: String
+    let webRoot: String?
+    let rootEntryCount: Int
+
+    var webRootDetected: Bool { webRoot != nil }
+
+    static func analyze(protocolKind: TransferProtocol, entries: [RemoteEntry]) -> SharedHostingDiagnostics {
+        let priority = ["public_html", "httpdocs", "htdocs", "www", "web", "html"]
+        var directories: [String: String] = [:]
+        for entry in entries where entry.isDirectory {
+            let name = entry.name
+            guard !name.isEmpty else { continue }
+            directories[name.lowercased()] = name
+        }
+        let webRoot = priority.compactMap { directories[$0] }.first
+        return SharedHostingDiagnostics(
+            secure: protocolKind != .ftp,
+            rootMode: "account",
+            webRoot: webRoot,
+            rootEntryCount: entries.count
+        )
+    }
+}
+
 enum RemotePath {
     static func validateName(_ raw: String) throws -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)

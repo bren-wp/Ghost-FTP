@@ -28,6 +28,29 @@ struct ModelTests {
         try expect(restoredConfig.username == config.username, "saved username changed")
         try expect(restoredConfig.password.isEmpty, "restored connection preset contained a password")
 
+        let diagnostics = SharedHostingDiagnostics.analyze(
+            protocolKind: .ftpsImplicit,
+            entries: [
+                RemoteEntry(name: "www", isDirectory: true, size: 0, modifiedAt: nil),
+                RemoteEntry(name: "public_html", isDirectory: true, size: 0, modifiedAt: nil),
+                RemoteEntry(name: "index.php", isDirectory: false, size: 10, modifiedAt: nil)
+            ]
+        )
+        try expect(diagnostics.secure, "implicit FTPS diagnostics were marked insecure")
+        try expect(diagnostics.rootMode == "account", "iOS shared-hosting root mode changed")
+        try expect(diagnostics.webRoot == "public_html", "public_html did not win web-root priority")
+        try expect(diagnostics.rootEntryCount == 3, "diagnostic root entry count changed")
+
+        let plainFTPDiagnostics = SharedHostingDiagnostics.analyze(
+            protocolKind: .ftp,
+            entries: [
+                RemoteEntry(name: "public_html", isDirectory: false, size: 10, modifiedAt: nil),
+                RemoteEntry(name: "htdocs", isDirectory: true, size: 0, modifiedAt: nil)
+            ]
+        )
+        try expect(!plainFTPDiagnostics.secure, "plain FTP diagnostics were marked secure")
+        try expect(plainFTPDiagnostics.webRoot == "htdocs", "file was incorrectly treated as a web root")
+
         let rootChild = try RemotePath.child("/", "public_html")
         let nestedChild = try RemotePath.child("/public_html", "index.html")
         let parent = try RemotePath.parent("/public_html/site")

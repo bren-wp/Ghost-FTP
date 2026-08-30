@@ -4,17 +4,19 @@
 
 ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
 
-**Current release: 1.4.0**
+**Current release: 1.5.0**
 
 [Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Linux](linux/README.md) · [macOS](macos/README.md) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
 ## Highlights
 
 - Native desktop, Android and iOS applications; no mobile WebView wrapper.
-- Shared-hosting friendly `public_html` navigation and authenticated-account FTP roots.
+- Shared-hosting friendly authenticated-account roots plus non-secret connection diagnostics derived from the first root listing the client already performs.
+- Common hosting web roots are recognized in deterministic priority: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`.
+- Diagnostics distinguish secure FTPS/SFTP from plain unencrypted FTP and report account-root/SFTP-home context without persisting or automatically opening the detected path.
 - Remote browse, upload, download, create directory, rename and delete.
 - Android and iOS mobile browsers include local filtering/search, deterministic directory-first sorting, direct **Go to path** navigation and multi-file upload.
-- Android and iOS now expose byte-level transfer progress for the active upload/download without changing the underlying FTP/FTPS/SFTP protocol implementation.
+- Android and iOS expose byte-level transfer progress for the active upload/download without changing the underlying FTP/FTPS/SFTP trust model.
 - Multi-file uploads on both mobile platforms can be stopped safely **after the current file**; ByFTP deliberately avoids tearing down a socket in the middle of an FTP transaction just to implement a cancel button.
 - Android uses a compact connected-state mobile layout with a touch-friendly Up / Refresh / Menu action surface and 48dp minimum controls.
 - iOS uses native SwiftUI search, batch document import, a compact action menu and an iOS-16-compatible empty/filter state.
@@ -36,7 +38,7 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 - Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
 - One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
 - Linux packaging lives under `linux/`, macOS packaging under `macos/`, and the canonical iOS build entry point under `ios/`; platform build logic is not duplicated under `scripts/`.
-- CI and production builds remain pinned to Go 1.27.0 and Gradle 9.7.0 for the 1.4.0 release line.
+- CI and production builds remain pinned to Go 1.27.0 and Gradle 9.7.0 for the 1.5.0 release line.
 
 ## Supported platforms and release artifacts
 
@@ -57,7 +59,7 @@ Android and iOS release files deliberately separate reproducible build evidence 
 
 ### FTP
 
-FTP is retained for compatibility and does **not** encrypt credentials or file contents. Prefer a secure protocol whenever the server supports one. Desktop, Android and iOS map FTP UI `/` to the authenticated account namespace instead of assuming an unrelated server filesystem root. Traversal, NULs and noncanonical path components are rejected before remote operations. Desktop FTP/FTPS session state does not retain SFTP-only private-key or host-key fields.
+FTP is retained for compatibility and does **not** encrypt credentials or file contents. Prefer a secure protocol whenever the server supports one. Desktop, Android and iOS map FTP UI `/` to the authenticated account namespace instead of assuming an unrelated server filesystem root. Traversal, NULs and noncanonical path components are rejected before remote operations. Version 1.5.0 also labels plain FTP as unencrypted in shared-hosting diagnostics.
 
 ### FTPS
 
@@ -67,15 +69,21 @@ Desktop and Android support explicit and implicit FTPS. iOS supports implicit FT
 
 Desktop and Android support SFTP with host-key verification. Android validates the provided OpenSSH-style `SHA256:` fingerprint as a real 32-byte SHA-256 digest before SSHJ receives it. Desktop applies the same canonical digest requirement to saved profiles, direct fingerprint updates and direct-connect fingerprints, while saved key passphrases remain scoped to the selected account and private-key identity with platform-correct path comparison. iOS does not claim SFTP yet; adding it requires an audited native implementation rather than a permissive compatibility layer.
 
+## Shared-hosting diagnostics
+
+After a successful connection, ByFTP analyzes the root listing that was already required to establish the usable session. It does **not** scan ports, try alternate servers, fetch an external service or issue an extra diagnostic listing. The result can identify a common web-root directory and explain whether the current transport is encrypted.
+
+A detected `public_html`/`httpdocs`/`htdocs`/`www`/`web`/`html` directory is advisory only. ByFTP does not automatically navigate to it and does not save it into the selected profile. Existing saved paths and user navigation remain authoritative. Diagnostics intentionally exclude credentials, private-key material, usernames, fingerprints, certificate material and server banners.
+
+Common shared-hosting failures such as FTP data-channel errors, TLS/certificate failures, connection limits and quota errors continue through the safe localized user-error layer rather than exposing raw `curl`/server output.
+
+See [Shared hosting](docs/SHARED-HOSTING.md).
+
 ## Android
 
 The Android application under `android/` supports FTP, explicit/implicit FTPS and SFTP. It uses the Storage Access Framework instead of broad storage permissions, keeps passwords session-only, excludes app data from backup/device transfer, and cleans pending connection/file-picker state during lifecycle teardown.
 
-Version 1.4.0 adds transport-neutral byte progress around the existing local input/output streams, so FTP, FTPS and SFTP report transfer progress through one small audited helper instead of duplicating protocol logic. Known file sizes display percentage progress; document providers that cannot expose a stable size fall back to transferred-byte reporting. Batch upload adds **Stop after current file**, which completes the active remote file before ending the batch and refreshing the directory.
-
-The 1.3.0 mobile file-manager baseline remains intact: folders-first sorting, local filter/search, direct canonical path navigation, multi-file uploads, compact connection state and a menu-based action surface. The last successful protocol/host/port/username/fingerprint can be restored locally without storing the password. The presentation rules remain extracted from `MainActivity` into the JUnit-tested `RemoteEntryList` helper, and 1.4.0 adds dedicated `TransferStreamsTest` coverage for byte accounting.
-
-The prior runtime hardening remains intact: FTP and SFTP directory listings share the same canonical remote-name validator, CR/LF/NUL and edge-whitespace names are rejected consistently, unsafe server login roots are rejected before normalization, transport password references are cleared immediately after authentication, and Gradle remains pinned to 9.7.0 with AGP 9.3.0, API 37 and the audited APK packaging contract.
+Version 1.5.0 analyzes the existing first `list("/")` result and adds secure/plain transport plus detected web-root/account-home context to the connected summary. The diagnostic model has no network behavior and is not persisted. Version 1.4.0's transport-neutral byte progress and safe **Stop after current file** behavior remain intact.
 
 See [ByFTP for Android](android/README.md).
 
@@ -83,29 +91,27 @@ See [ByFTP for Android](android/README.md).
 
 The native SwiftUI application lives under `ios/` with a normal Xcode project and shared scheme. It provides FTP and implicit FTPS, remote browsing, batch upload/download, mkdir, rename/delete, MLSD-to-LIST fallback, shared-hosting login-root mapping and system document/share integration.
 
-Version 1.4.0 threads byte-progress callbacks through the existing Network.framework data sockets and FTP actor without adding a third-party transport dependency. The SwiftUI browser displays percentage progress when the local/remote size is known and transferred bytes otherwise. Multi-file uploads expose the same safe **Stop after file** behavior as Android: the current FTP transaction completes before the batch is stopped.
-
-The 1.3.0 mobile baseline remains intact: native search/filter, deterministic folders-first sorting, direct canonical path navigation, multi-file import and a Keychain-backed non-secret last-connection preset. The preset is deliberately password-free and model tests verify serialized preset data cannot contain the session password. `ios/BUILD.sh` remains the canonical iOS build entry point, PASV host redirects remain blocked, temporary downloads remain failure-safe, background sessions disconnect and the deployment target remains iOS 16.
+Version 1.5.0 derives diagnostics from the existing initial listing and displays a native **Shared hosting** section. It explicitly states that a detected web root is not opened or saved automatically. The password-free Keychain preset, PASV-host redirect blocking, background disconnect, temporary-download cleanup, transfer progress and safe batch-stop behavior remain unchanged.
 
 See [ByFTP for iOS](ios/README.md).
 
 ## Windows, Linux and macOS
 
-The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`, including its app-bundle metadata and launcher. The shared desktop engine remains under `cmd/` and `internal/` exactly once, preventing Linux/macOS code forks. The 1.4.0 mobile-transfer release retains the 1.2.7 shared raw Windows connection validator, the 1.2.8 fail-closed saved-profile endpoint/trust boundary and the 1.2.9 verbatim validated remote/local/private-key path persistence contract.
+The desktop application remains written in Go. The shared remote engine now returns a non-secret `ConnectionDiagnostics` object from the same initial connection probe it already performed. Windows surfaces that information in status while preserving the existing profile/user-selected `remoteStart` path. Linux and macOS retain the shared Go protocol/security core and their existing package formats.
+
+Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`.
 
 ## Shared-hosting workflow
 
 1. Enter the server host, port and hosting-account username.
 2. Prefer FTPS or SFTP where the selected platform/server supports it.
-3. Connect and open the account web root, commonly `public_html`.
-4. Upload/download files or use supported remote management operations.
-5. Keep operations inside the authenticated account namespace.
-
-See [Shared hosting](docs/SHARED-HOSTING.md).
+3. Connect and review the non-secret shared-hosting status.
+4. Open the account web root, commonly `public_html`, when appropriate for that hosting account.
+5. Upload/download files or use supported remote management operations while staying inside the authenticated account namespace.
 
 ## Security and privacy
 
-ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Windows desktop host and username input reaches validation without silent trimming, raw port text is parsed strictly, saved-profile persistence validates raw protocol/host/username/fingerprint before normalization, validated profile paths remain verbatim instead of changing filesystem identity, equivalent endpoints are canonicalized only for identity matching, SFTP host-key fingerprints are validated as real SHA-256 digests, SFTP-only state is removed from FTP/FTPS sessions and passphrases remain bound to the correct account/private-key identity across Windows, Linux and macOS path semantics.
+ByFTP keeps transport, credential, transfer, diagnostics and filesystem checks fail-closed. Shared-hosting diagnostics are derived only from already loaded remote entries and cannot introduce a second connection/listing path. Security audits reject secret-bearing diagnostic fields and automatic path changes.
 
 Android centralizes remote-name and file-list rules, validates fingerprints, shortens transport/UI password lifetime, persists only non-secret endpoint/trust metadata in app-private preferences excluded from backup, and measures transfer progress by wrapping local streams rather than weakening transport validation. iOS uses bounded Network.framework I/O, canonical names, account-root path mapping, PASV-host redirect blocking, pending-connect cleanup, temporary-download cleanup, background disconnect, a password-free Keychain preset with this-device-only accessibility and progress callbacks on the existing data sockets.
 
@@ -160,7 +166,7 @@ iOS on macOS/Xcode:
 bash ios/BUILD.sh
 ```
 
-The iOS script runs dependency-free Swift model/path/preset regressions, validates the Xcode project, builds a generic arm64 `iphoneos` Release application with code signing disabled, verifies the application bundle, and creates versioned unsigned IPA and app ZIP artifacts.
+The iOS script runs dependency-free Swift model/path/preset/diagnostic regressions, validates the Xcode project, builds a generic arm64 `iphoneos` Release application with code signing disabled, verifies the application bundle, and creates versioned unsigned IPA and app ZIP artifacts.
 
 ## Tests and audits
 
@@ -182,7 +188,7 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Android separately runs JUnit (including mobile filter/sort and transfer-stream byte-accounting regressions), `lintDebug`, `lintRelease`, `assembleDebug`, `assembleRelease` and APK validation. iOS separately runs dependency-free model/path/preset regressions, builds real arm64 iPhoneOS output and validates/archives `ByFTP.app`. Windows x64/x86, Linux amd64/arm64/i386 and macOS Universal builds remain required. See [Testing](docs/TESTING.md).
+Android separately runs JUnit including shared-hosting diagnostics, mobile filter/sort and transfer-stream byte-accounting regressions, plus `lintDebug`, `lintRelease`, `assembleDebug`, `assembleRelease` and APK validation. iOS runs dependency-free model/path/preset/diagnostic regressions and a real arm64 iPhoneOS build. Windows includes diagnostic-status regressions alongside the x64/x86 production build. Linux amd64/arm64/i386 and macOS Universal builds remain required. See [Testing](docs/TESTING.md).
 
 ## Release integrity
 
@@ -237,7 +243,7 @@ build/            Canonical/static build resources
 
 ## Contributing and security reports
 
-Changes must preserve security, privacy and release invariants. Mobile secrets must not be routed through hidden backend services or persisted without an explicitly reviewed design. New canonical user-facing source text and documentation are English-first. Do not publish passwords, private keys, signing credentials, provisioning profiles, production hostnames or customer data in public issues. Follow the repository [security policy](.github/SECURITY.md).
+Changes must preserve security, privacy and release invariants. Mobile secrets must not be routed through hidden backend services or persisted without an explicitly reviewed design. New canonical user-facing text and documentation are English-first. Do not publish passwords, private keys, signing credentials, provisioning profiles, production hostnames or customer data in public issues. Follow the repository [security policy](.github/SECURITY.md).
 
 ## License
 

@@ -35,6 +35,26 @@ struct RemoteBrowserView: View {
                 }
             }
 
+            if let diagnostics = store.hostingDiagnostics {
+                Section("Shared hosting") {
+                    Label(
+                        diagnostics.secure ? "Secure transport" : "Plain FTP · unencrypted",
+                        systemImage: diagnostics.secure ? "lock.shield" : "exclamationmark.triangle"
+                    )
+                    if let webRoot = diagnostics.webRoot {
+                        Label("Detected web root: \(webRoot)", systemImage: "globe")
+                        Text("Detected from the authenticated root listing. ByFTP does not open or save this path automatically.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Label("Authenticated account root ready", systemImage: "externaldrive.connected.to.line.below")
+                        Text("No common web-root directory was identified in the initial listing.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             if let download = store.downloadedFile {
                 Section("Downloaded file") {
                     ShareLink(item: download) {

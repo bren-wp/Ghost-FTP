@@ -21,6 +21,7 @@ final class SessionStore: ObservableObject {
     @Published private(set) var transferFraction: Double?
     @Published private(set) var transferDetail: String?
     @Published private(set) var canStopAfterCurrent = false
+    @Published private(set) var hostingDiagnostics: SharedHostingDiagnostics?
 
     private var client: FTPRemoteClient?
     private var connectingClient: FTPRemoteClient?
@@ -58,6 +59,7 @@ final class SessionStore: ObservableObject {
             return
         }
         let preset = ConnectionPreset(config: config)
+        let diagnosticProtocol = config.protocolKind
 
         generation &+= 1
         let token = generation
@@ -66,11 +68,13 @@ final class SessionStore: ObservableObject {
         busy = true
         status = "Connecting…"
         errorMessage = nil
+        hostingDiagnostics = nil
 
         Task {
             do {
                 try await next.connect()
                 let initial = try await next.list("/")
+                let diagnostics = SharedHostingDiagnostics.analyze(protocolKind: diagnosticProtocol, entries: initial)
                 guard token == generation else {
                     await next.close()
                     return
@@ -81,6 +85,7 @@ final class SessionStore: ObservableObject {
                 connected = true
                 currentPath = "/"
                 entries = sortedEntries(initial)
+                hostingDiagnostics = diagnostics
                 hasSavedConnection = ConnectionPresetKeychain.save(preset)
                 busy = false
                 status = "Connected"
@@ -89,6 +94,7 @@ final class SessionStore: ObservableObject {
                 guard token == generation else { return }
                 connectingClient = nil
                 password = ""
+                hostingDiagnostics = nil
                 busy = false
                 status = "Ready"
                 present(error)
@@ -106,6 +112,7 @@ final class SessionStore: ObservableObject {
         busy = false
         currentPath = "/"
         entries = []
+        hostingDiagnostics = nil
         password = ""
         finishTransfer()
         clearDownloadedFile()

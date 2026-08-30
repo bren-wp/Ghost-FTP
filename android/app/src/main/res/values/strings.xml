@@ -45,7 +45,12 @@
     <string name="delete_confirm">Delete “%1$s”?</string>
     <string name="error_prefix">Error: %1$s</string>
     <string name="selected_file">Selected: %1$s</string>
-    <string name="connected_to">%1$s · %2$s:%3$d · %4$s</string>
+    <string name="connected_with_diagnostics">%1$s · %2$s:%3$d · %4$s\n%5$s · %6$s</string>
+    <string name="diagnostic_secure">Secure transport</string>
+    <string name="diagnostic_plain_ftp">Plain FTP · unencrypted</string>
+    <string name="diagnostic_web_root">Web root: %1$s</string>
+    <string name="diagnostic_account_root">Authenticated account root ready</string>
+    <string name="diagnostic_sftp_home">SFTP home directory ready</string>
     <string name="empty_directory">This directory is empty.</string>
     <string name="no_filter_results">No files match the filter.</string>
     <string name="duplicate_upload_name">Two selected files have the same remote name: %1$s</string>

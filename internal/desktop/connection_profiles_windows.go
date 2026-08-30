@@ -7,6 +7,7 @@ import (
 	"github.com/bren-wp/by-ftp/internal/model"
 	"github.com/bren-wp/by-ftp/internal/platform"
 	"github.com/bren-wp/by-ftp/internal/profilebinding"
+	"github.com/bren-wp/by-ftp/internal/remote"
 	"github.com/bren-wp/by-ftp/internal/usererror"
 	"strconv"
 	"strings"
@@ -158,7 +159,7 @@ func (a *app) connectNow() {
 				a.connectTrusted(profileID, cfg, r.Fingerprint, generation)
 				return
 			}
-			a.onConnected(host)
+			a.onConnected(host, r.Diagnostics)
 		})
 	})
 }
@@ -181,7 +182,7 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 	ctx, cancel := a.connectionContext(75 * time.Second)
 	a.goSafe(func() {
 		defer cancel()
-		_, err := a.engine.Connect(ctx, profileID, cfg, fingerprint, profileID != "")
+		r, err := a.engine.Connect(ctx, profileID, cfg, fingerprint, profileID != "")
 		cfg.Password = ""
 		cfg.Passphrase = ""
 		a.dispatch(func() {
@@ -195,7 +196,7 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 				platform.ErrorDialog("ByFTP — SFTP", "Povezivanje nije uspjelo", usererror.Message(err, "Provjerite podatke za prijavu i SFTP postavke."))
 				return
 			}
-			a.onConnected(cfg.Host)
+			a.onConnected(cfg.Host, r.Diagnostics)
 		})
 	})
 }
@@ -211,12 +212,29 @@ func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
 	)
 }
 
-func (a *app) onConnected(host string) {
+func connectionDiagnosticStatus(host string, diagnostics remote.ConnectionDiagnostics) string {
+	parts := []string{"Povezano: " + host}
+	if diagnostics.Secure {
+		parts = append(parts, "siguran prijenos")
+	} else {
+		parts = append(parts, "FTP bez enkripcije")
+	}
+	if diagnostics.WebRootDetected {
+		parts = append(parts, "web root: "+diagnostics.WebRoot)
+	} else if diagnostics.RootMode == "home" {
+		parts = append(parts, "SFTP home spreman")
+	} else {
+		parts = append(parts, "account root spreman")
+	}
+	return strings.Join(parts, " • ")
+}
+
+func (a *app) onConnected(host string, diagnostics remote.ConnectionDiagnostics) {
 	setText(a.pass, "")
 	setText(a.passphrase, "")
 	a.queuePaused = false
 	a.setConnectionUI(true)
-	a.setStatus("Povezano: " + host)
+	a.setStatus(connectionDiagnosticStatus(host, diagnostics))
 	remoteStart := "/"
 	if a.protocolValue() == "sftp" {
 		remoteStart = "."
