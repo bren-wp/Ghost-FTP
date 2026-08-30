@@ -47,15 +47,16 @@ func TestProfileSaveClearsPasswordWhenAccountIdentityChanges(t *testing.T) {
 }
 
 func TestProfileSavePreservesPassphraseOnlyForSamePrivateKeyIdentity(t *testing.T) {
+	const keyPath = `/home/alice/.ssh/id_ed25519`
 	profiles := NewProfiles(New(t.TempDir()))
 	seedProfile(t, profiles, model.Profile{
 		ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "alice",
-		PrivateKeyPath: `C:\Keys\id_ed25519`, PassphraseBlob: "protected-passphrase", RemotePath: ".",
+		PrivateKeyPath: keyPath, PassphraseBlob: "protected-passphrase", RemotePath: ".",
 	})
 
 	saved, err := profiles.Save(model.ProfileInput{
 		ID: "p1", Name: "Preimenovan", Protocol: "sftp", Host: "example.test", Port: 22, Username: "alice",
-		PrivateKeyPath: `c:\keys\ID_ED25519`, RemotePath: ".",
+		PrivateKeyPath: keyPath, RemotePath: ".",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +67,7 @@ func TestProfileSavePreservesPassphraseOnlyForSamePrivateKeyIdentity(t *testing.
 
 	saved, err = profiles.Save(model.ProfileInput{
 		ID: "p1", Name: "Drugi ključ", Protocol: "sftp", Host: "example.test", Port: 22, Username: "alice",
-		PrivateKeyPath: `C:\Keys\other`, RemotePath: ".",
+		PrivateKeyPath: `/home/alice/.ssh/other`, RemotePath: ".",
 	})
 	if err != nil {
 		t.Fatal(err)

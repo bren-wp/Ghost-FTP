@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.4 — Cross-platform credential binding and runtime consistency
+
+**Focus:** keep the verified five-platform release contract intact while removing runtime-policy drift, fixing cross-platform SSH key identity semantics and reducing redundant queue state transitions.
+
+- Fixed desktop SFTP private-key passphrase binding so Windows keeps case-insensitive key-path identity while Linux/macOS use a strict fail-closed path comparison; a case-only path change on a case-sensitive filesystem can no longer inherit the saved passphrase of a different key.
+- Added platform-specific regressions for Windows and non-Windows private-key identity behavior while retaining exact endpoint and username credential boundaries.
+- Centralized transfer parallelism, retry and connection-timeout limits/defaults in the settings store instead of duplicating magic values across persistence and runtime layers.
+- Added one nil-safe `Effective` settings path so connection setup, transfer scheduling and transfer workers use the same conservative defaults if settings storage is temporarily unavailable.
+- Made transfer Pause/Resume transitions idempotent so repeated UI actions no longer emit redundant state snapshots or wake scheduling unnecessarily.
+- Removed a dead repeated colon condition from raw IPv6 host validation and added canonical IPv6 plus malformed host/port regression coverage.
+- Added settings recovery/migration tests for unavailable storage and legacy out-of-range state.
+- Preserved FTP/FTPS/SFTP staging, rollback, path-validation, host-key verification, secret-protection and five-platform packaging behavior from 1.2.3.
+
 ## 1.2.3 — Toolchain refresh and repository hygiene
 
 **Focus:** keep the verified five-platform runtime behavior intact while updating build toolchains, removing obsolete automation and making each platform directory the canonical build surface.

@@ -36,11 +36,9 @@ func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 	if exePath == "" || askpassExe == "" {
 		return false
 	}
-
 	if !strings.EqualFold(strings.TrimSpace(require), "force") {
 		return false
 	}
-
 	if !validAskpassToken(token) {
 		return false
 	}
@@ -49,7 +47,6 @@ func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 	if err != nil {
 		return false
 	}
-
 	askpassAbs, err := filepath.Abs(askpassExe)
 	if err != nil {
 		return false
@@ -57,7 +54,6 @@ func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 
 	exeAbs = filepath.Clean(exeAbs)
 	askpassAbs = filepath.Clean(askpassAbs)
-
 	return strings.EqualFold(exeAbs, askpassAbs)
 }
 
@@ -65,7 +61,6 @@ func validAskpassToken(token string) bool {
 	if len(token) != askpassTokenLength {
 		return false
 	}
-
 	_, err := hex.DecodeString(token)
 	return err == nil
 }
@@ -78,17 +73,9 @@ func validAskpassToken(token string) bool {
 //
 // Only clearly recognized password and private-key passphrase prompts are
 // accepted.
-func selectAskpassSecret(
-	prompt string,
-	password []byte,
-	passphrase []byte,
-) ([]byte, bool) {
+func selectAskpassSecret(prompt string, password, passphrase []byte) ([]byte, bool) {
 	normalized := normalizeAskpassPrompt(prompt)
-	if normalized == "" {
-		return nil, false
-	}
-
-	if isBlockedAskpassPrompt(normalized) {
+	if normalized == "" || isBlockedAskpassPrompt(normalized) {
 		return nil, false
 	}
 
@@ -98,25 +85,19 @@ func selectAskpassSecret(
 		if len(passphrase) == 0 {
 			return nil, false
 		}
-
 		return passphrase, true
 	}
-
 	if strings.Contains(normalized, "password") {
 		if len(password) == 0 {
 			return nil, false
 		}
-
 		return password, true
 	}
-
 	return nil, false
 }
 
 func normalizeAskpassPrompt(prompt string) string {
-	return strings.ToLower(
-		strings.Join(strings.Fields(prompt), " "),
-	)
+	return strings.ToLower(strings.Join(strings.Fields(prompt), " "))
 }
 
 func isBlockedAskpassPrompt(prompt string) bool {
@@ -132,13 +113,11 @@ func isBlockedAskpassPrompt(prompt string) bool {
 		"authentication code",
 		"token",
 	}
-
 	for _, blocked := range blockedPrompts {
 		if strings.Contains(prompt, blocked) {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -154,14 +133,11 @@ func writeAll(w io.Writer, data []byte) error {
 		if err != nil {
 			return err
 		}
-
 		if n <= 0 || n > len(data) {
 			return io.ErrShortWrite
 		}
-
 		data = data[n:]
 	}
-
 	return nil
 }
 
@@ -169,11 +145,9 @@ func writeAskpassSecret(secret []byte) error {
 	if len(secret) == 0 {
 		return errors.New("credential is not available")
 	}
-
 	if err := writeAll(os.Stdout, secret); err != nil {
 		return err
 	}
-
 	return writeAll(os.Stdout, []byte{'\n'})
 }
 
@@ -196,15 +170,12 @@ func askpassMode() (bool, error) {
 	if err != nil {
 		return true, err
 	}
-
 	if !validAskpassInvocation(exe, askpassExe, require, token) {
 		return true, errors.New("invalid authentication request")
 	}
-
 	if !platform.TrustedAskPassParent() {
 		return true, errors.New("untrusted parent process")
 	}
-
 	if passwordBlob == "" && passphraseBlob == "" {
 		return true, errors.New("credential is not available")
 	}
@@ -213,149 +184,83 @@ func askpassMode() (bool, error) {
 		password   []byte
 		passphrase []byte
 	)
-
 	if passwordBlob != "" {
 		password, err = security.UnprotectBytes(passwordBlob)
 		if err != nil {
 			return true, err
 		}
-
 		defer security.WipeBytes(password)
 	}
-
 	if passphraseBlob != "" {
 		passphrase, err = security.UnprotectBytes(passphraseBlob)
 		if err != nil {
 			return true, err
 		}
-
 		defer security.WipeBytes(passphrase)
 	}
 
 	prompt := strings.Join(os.Args[1:], " ")
-
-	secret, ok := selectAskpassSecret(
-		prompt,
-		password,
-		passphrase,
-	)
+	secret, ok := selectAskpassSecret(prompt, password, passphrase)
 	if !ok {
-		return true, errors.New(
-			"unknown or unsupported credential request",
-		)
+		return true, errors.New("unknown or unsupported credential request")
 	}
-
 	if err := writeAskpassSecret(secret); err != nil {
 		return true, err
 	}
-
 	return true, nil
 }
 
 func showError(message string) {
-	platform.MessageBox(
-		brand.ProductFull,
-		message,
-		messageBoxError,
-	)
+	platform.MessageBox(brand.ProductFull, message, messageBoxError)
 }
 
 func runApplication() (exitCode int) {
 	defer func() {
 		if recover() != nil {
-			showError(
-				"ByFTP closed unexpectedly. " +
-					"Restart the application and try again.",
-			)
-
+			showError("ByFTP closed unexpectedly. Restart the application and try again.")
 			exitCode = 1
 		}
 	}()
 
-	release, ok := platform.AcquireSingleInstance(
-		brand.Company + "." + brand.ProductName + ".Client",
-	)
+	release, ok := platform.AcquireSingleInstance(brand.Company + "." + brand.ProductName + ".Client")
 	if !ok {
-		platform.MessageBox(
-			brand.ProductFull,
-			brand.ProductName+" is already running.",
-			messageBoxInformation,
-		)
-
+		platform.MessageBox(brand.ProductFull, brand.ProductName+" is already running.", messageBoxInformation)
 		return 0
 	}
 	defer release()
 
 	exe, err := os.Executable()
 	if err != nil {
-		showError(
-			"ByFTP could not start. " +
-				"Restart the computer and try again.",
-		)
-
+		showError("ByFTP could not start. Restart the computer and try again.")
 		return 1
 	}
 
 	dataDir, err := api.DataDir()
 	if err != nil {
-		showError(
-			usererror.Message(
-				err,
-				"ByFTP could not start. "+
-					"Check permissions for the user data folder "+
-					"and try again.",
-			),
-		)
-
+		showError(usererror.Message(err, "ByFTP could not start. Check permissions for the user data folder and try again."))
 		return 1
 	}
-
 	localAppData, err := platform.LocalAppData()
 	if err != nil {
-		showError(
-			"ByFTP could not access the local application-data folder.",
-		)
-
+		showError("ByFTP could not access the local application-data folder.")
 		return 1
 	}
-
-	if err := security.EnsureNoRedirectDirectory(
-		localAppData,
-		dataDir,
-	); err != nil {
-		showError(
-			"The ByFTP data folder is not safe to use. " +
-				"Remove filesystem redirection for that folder "+
-				"and try again.",
-		)
-
+	if err := security.EnsureNoRedirectDirectory(localAppData, dataDir); err != nil {
+		showError("The ByFTP data folder is not safe to use. Remove filesystem redirection for that folder and try again.")
 		return 1
 	}
 
 	engine, err := api.New(dataDir, exe)
 	if err != nil {
-		showError(
-			usererror.Message(
-				err,
-				"ByFTP could not start. Please try again.",
-			),
-		)
-
+		showError(usererror.Message(err, "ByFTP could not start. Please try again."))
 		return 1
 	}
 	defer engine.Close()
 
 	if err := desktop.Run(engine, version); err != nil {
-		showError(
-			usererror.Message(
-				err,
-				"The ByFTP window could not be opened. Please try again.",
-			),
-		)
-
+		showError(usererror.Message(err, "The ByFTP window could not be opened. Please try again."))
 		return 1
 	}
-
 	return 0
 }
 
@@ -367,7 +272,6 @@ func main() {
 		if err != nil {
 			os.Exit(1)
 		}
-
 		return
 	}
 
