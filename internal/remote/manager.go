@@ -238,12 +238,7 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 	}
 	cfg := resolved.Config
 	profileEndpoint := profileEndpointMatches(profile, cfg)
-	connectTimeout := 15
-	if m.settings != nil {
-		if settings, settingsErr := m.settings.Get(); settingsErr == nil && settings.ConnectionTimeoutSeconds >= 5 && settings.ConnectionTimeoutSeconds <= 60 {
-			connectTimeout = settings.ConnectionTimeoutSeconds
-		}
-	}
+	connectTimeout := m.settings.Effective().ConnectionTimeoutSeconds
 	if trust == "" {
 		m.clearPendingTrustLocked()
 	}
