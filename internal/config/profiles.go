@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/bren-wp/by-ftp/internal/model"
 	"github.com/bren-wp/by-ftp/internal/profilebinding"
@@ -142,10 +143,6 @@ func sameProfilePrivateKey(a, b model.Profile) bool {
 	)
 }
 
-func validFingerprint(fp string) bool {
-	return fp != "" && strings.HasPrefix(fp, "SHA256:") && len(fp) <= 128 && !strings.ContainsAny(fp, "\x00\r\n ")
-}
-
 func (p *Profiles) List() ([]model.PublicProfile, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -221,20 +218,22 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 			x.RemotePath = "/"
 		}
 	}
-	if x.Name == "" || len(x.Name) > 120 || strings.ContainsAny(x.Name, "\x00\r\n") {
+	if x.Name == "" || len(x.Name) > 120 || !utf8.ValidString(x.Name) || strings.ContainsAny(x.Name, "\x00\r\n") {
 		return model.PublicProfile{}, errors.New("naziv profila je neispravan")
 	}
 	if err := security.ValidateRemotePath(x.RemotePath); err != nil {
 		return model.PublicProfile{}, err
 	}
-	if len(x.LocalPath) > 32767 || strings.ContainsAny(x.LocalPath, "\x00\r\n") {
+	if len(x.LocalPath) > 32767 || !utf8.ValidString(x.LocalPath) || strings.ContainsAny(x.LocalPath, "\x00\r\n") {
 		return model.PublicProfile{}, errors.New("lokalna putanja profila je neispravna")
 	}
-	if len(x.PrivateKeyPath) > 32767 || strings.ContainsAny(x.PrivateKeyPath, "\x00\r\n") {
+	if len(x.PrivateKeyPath) > 32767 || !utf8.ValidString(x.PrivateKeyPath) || strings.ContainsAny(x.PrivateKeyPath, "\x00\r\n") {
 		return model.PublicProfile{}, errors.New("putanja privatnog ključa je neispravna")
 	}
-	if requestedFingerprint != "" && !validFingerprint(requestedFingerprint) {
-		return model.PublicProfile{}, errors.New("SFTP fingerprint je neispravan")
+	if requestedFingerprint != "" {
+		if err := security.ValidateSFTPFingerprint(requestedFingerprint); err != nil {
+			return model.PublicProfile{}, err
+		}
 	}
 	if err := security.ValidateConnection(x.Protocol, x.Host, x.Username, x.Port); err != nil {
 		return model.PublicProfile{}, err
@@ -338,15 +337,16 @@ func (p *Profiles) UpdateFingerprint(id, fp string) error {
 	if err != nil {
 		return err
 	}
-	if !validFingerprint(strings.TrimSpace(fp)) {
-		return errors.New("SFTP fingerprint je neispravan")
+	fp = strings.TrimSpace(fp)
+	if err := security.ValidateSFTPFingerprint(fp); err != nil {
+		return err
 	}
 	for i := range items {
 		if items[i].ID == id {
 			if items[i].Protocol != "sftp" {
 				return errors.New("fingerprint je dopušten samo za SFTP profil")
 			}
-			items[i].Fingerprint = strings.TrimSpace(fp)
+			items[i].Fingerprint = fp
 			return p.saveAll(items)
 		}
 	}
