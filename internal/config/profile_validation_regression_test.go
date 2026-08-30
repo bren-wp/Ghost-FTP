@@ -9,10 +9,10 @@ import (
 
 func validFTPProfileInput() model.ProfileInput {
 	return model.ProfileInput{
-		Name: "Test",
+		Name:     "Test",
 		Protocol: "ftp",
-		Host: "example.test",
-		Port: 21,
+		Host:     "example.test",
+		Port:     21,
 		Username: "alice",
 	}
 }
