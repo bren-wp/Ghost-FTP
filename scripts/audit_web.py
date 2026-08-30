@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -37,6 +38,51 @@ def tracked_web_files() -> list[str]:
     except (OSError, subprocess.CalledProcessError) as exc:
         fail(f"git ls-files failed for ByFTP WEB: {exc}")
     return [line for line in output.splitlines() if line]
+
+
+def run_checked(command: list[str], *, label: str, cwd: Path = ROOT) -> None:
+    try:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+    except OSError as exc:
+        fail(f"{label} could not start: {exc}")
+    if result.returncode != 0:
+        output = (result.stdout or "").strip()
+        if len(output) > 5000:
+            output = output[-5000:]
+        fail(f"{label} failed with exit code {result.returncode}:\n{output}")
+
+
+def run_runtime_checks() -> tuple[int, int]:
+    php = shutil.which("php")
+    node = shutil.which("node")
+    if not php:
+        fail("PHP CLI is required for ByFTP WEB validation")
+    if not node:
+        fail("Node.js is required for ByFTP WEB JavaScript syntax validation")
+
+    run_checked([php, "-r", "if (PHP_VERSION_ID < 80100) { fwrite(STDERR, 'PHP 8.1+ required'); exit(2); }"], label="PHP version check")
+
+    php_files = sorted(WEB.rglob("*.php"))
+    js_files = sorted((WEB / "assets" / "js").glob("*.js"))
+    if not php_files:
+        fail("no PHP files found under ByFTP WEB")
+    if not js_files:
+        fail("no JavaScript files found under ByFTP WEB/assets/js")
+
+    for path in php_files:
+        run_checked([php, "-l", str(path)], label=f"PHP syntax: {path.relative_to(ROOT)}")
+    run_checked([php, str(WEB / "tests" / "unit.php")], label="ByFTP WEB unit tests")
+    for path in js_files:
+        run_checked([node, "--check", str(path)], label=f"JavaScript syntax: {path.relative_to(ROOT)}")
+
+    return len(php_files), len(js_files)
 
 
 def main() -> int:
@@ -146,8 +192,13 @@ def main() -> int:
         if legacy_version.search(text):
             fail(f"legacy/foreign active ByFTP version literal remains in {path}")
 
+    php_count, js_count = run_runtime_checks()
+
     print(f"WEB_AUDIT=PASS ({version})")
     print(f"WEB_TRACKED_FILES={len(tracked)}")
+    print(f"WEB_PHP_SYNTAX_FILES={php_count}")
+    print(f"WEB_JS_SYNTAX_FILES={js_count}")
+    print("WEB_UNIT_TESTS=PASS")
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")
     print("WEB_PWA_AUTHENTICATED_CACHE=BLOCKED")
     print("WEB_REMOTE_PATHS=FAIL_CLOSED")
