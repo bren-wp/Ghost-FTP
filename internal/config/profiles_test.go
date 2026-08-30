@@ -11,6 +11,8 @@ import (
 	"github.com/bren-wp/by-ftp/internal/model"
 )
 
+var canonicalTestFingerprint = "SHA256:" + strings.Repeat("A", 43)
+
 func TestSFTPProfileDefaultsToHomeDirectory(t *testing.T) {
 	profiles := NewProfiles(New(t.TempDir()))
 	saved, err := profiles.Save(model.ProfileInput{
@@ -107,7 +109,7 @@ func TestRemovingSFTPPrivateKeyClearsStoredPassphrase(t *testing.T) {
 	profiles := NewProfiles(New(t.TempDir()))
 	seedProfile(t, profiles, model.Profile{
 		ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester",
-		PrivateKeyPath: `C:\Keys\id_ed25519`, PassphraseBlob: "protected-passphrase", Fingerprint: "SHA256:test", RemotePath: ".",
+		PrivateKeyPath: `C:\Keys\id_ed25519`, PassphraseBlob: "protected-passphrase", Fingerprint: canonicalTestFingerprint, RemotePath: ".",
 	})
 
 	saved, err := profiles.Save(model.ProfileInput{
@@ -119,7 +121,7 @@ func TestRemovingSFTPPrivateKeyClearsStoredPassphrase(t *testing.T) {
 	if saved.PrivateKeyPath != "" || saved.HasPassphrase {
 		t.Fatalf("private key/passphrase not cleared: %#v", saved)
 	}
-	if saved.Fingerprint != "SHA256:test" {
+	if saved.Fingerprint != canonicalTestFingerprint {
 		t.Fatalf("same endpoint fingerprint was lost: %q", saved.Fingerprint)
 	}
 	stored, err := profiles.Get("p1")
@@ -174,7 +176,7 @@ func TestClearFlagsRemoveOnlyRequestedStoredSecrets(t *testing.T) {
 func TestProfileSavePreservesFingerprintForSameEndpoint(t *testing.T) {
 	profiles := NewProfiles(New(t.TempDir()))
 	seedProfile(t, profiles, model.Profile{
-		ID: "p1", Name: "Stari naziv", Protocol: "sftp", Host: "Example.TEST.", Port: 22, Username: "tester", Fingerprint: "SHA256:test", RemotePath: ".",
+		ID: "p1", Name: "Stari naziv", Protocol: "sftp", Host: "Example.TEST.", Port: 22, Username: "tester", Fingerprint: canonicalTestFingerprint, RemotePath: ".",
 	})
 
 	saved, err := profiles.Save(model.ProfileInput{
@@ -183,7 +185,7 @@ func TestProfileSavePreservesFingerprintForSameEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.Fingerprint != "SHA256:test" {
+	if saved.Fingerprint != canonicalTestFingerprint {
 		t.Fatalf("fingerprint=%q want preserved pin", saved.Fingerprint)
 	}
 }
@@ -196,7 +198,7 @@ func TestProfileSaveClearsFingerprintWhenEndpointChanges(t *testing.T) {
 	} {
 		profiles := NewProfiles(New(t.TempDir()))
 		seedProfile(t, profiles, model.Profile{
-			ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester", Fingerprint: "SHA256:test", RemotePath: ".",
+			ID: "p1", Name: "SFTP", Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester", Fingerprint: canonicalTestFingerprint, RemotePath: ".",
 		})
 		saved, err := profiles.Save(change)
 		if err != nil {
@@ -211,7 +213,7 @@ func TestProfileSaveClearsFingerprintWhenEndpointChanges(t *testing.T) {
 func TestUpdateFingerprintRejectsNonSFTPProfile(t *testing.T) {
 	profiles := NewProfiles(New(t.TempDir()))
 	seedProfile(t, profiles, model.Profile{ID: "p1", Name: "FTP", Protocol: "ftp", Host: "example.test", Port: 21, Username: "tester", RemotePath: "/"})
-	if err := profiles.UpdateFingerprint("p1", "SHA256:test"); err == nil {
+	if err := profiles.UpdateFingerprint("p1", canonicalTestFingerprint); err == nil {
 		t.Fatal("expected non-SFTP fingerprint update to fail")
 	}
 }
