@@ -14,6 +14,7 @@ ByFTP Android is a native Java client isolated from the Go desktop runtime so mo
 - Multi-file upload through Android's Storage Access Framework, plus document-provider downloads.
 - Byte-level upload/download progress for FTP, FTPS and SFTP using one transport-neutral local stream wrapper.
 - Safe **Stop after current file** for multi-file upload; the current remote write completes before the remaining batch is skipped.
+- Shared-hosting diagnostics derived from the existing initial root listing, including secure/plain transport and common web-root/account-home context.
 - Compact connected-state UI with a touch-friendly Up / Refresh / Menu action surface and 48dp minimum controls.
 - App-private persistence of the last **non-secret** connection metadata (protocol, host, port, username and SFTP fingerprint) for faster reconnects.
 - Session-only passwords; password/passphrase values are never stored in the connection preset and the password field is cleared after every connect attempt.
@@ -21,9 +22,19 @@ ByFTP Android is a native Java client isolated from the Go desktop runtime so mo
 - Generic cleartext traffic disabled for Android platform-aware networking.
 - No analytics, advertising SDK, telemetry backend or mandatory cloud account.
 
+## 1.5.0 shared-hosting diagnostics
+
+Version 1.5.0 adds a small `SharedHostingDiagnostics` model that analyzes the same `next.list("/")` result already used to render the first connected file list. No second diagnostic listing, port scan, external service or hidden network destination is added.
+
+The model recognizes common hosting document roots in deterministic priority: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Only directories qualify. Plain FTP is explicitly reported as unencrypted; FTPS and SFTP are reported as secure transports. SFTP uses home-root context while FTP/FTPS use authenticated account-root context.
+
+The connected summary displays the result, but diagnostics are advisory only. ByFTP does not call `openDirectory()` with the detected root and does not write diagnostic state into `ConnectionPresetStore`. A custom hosting document root therefore remains fully under user/profile control.
+
+The diagnostic model contains no password, passphrase, username, fingerprint or network-operation field. `SharedHostingDiagnosticsTest` verifies priority, secure/plain behavior and rejection of a file masquerading as a web-root name. `audit_android.py` independently blocks secret-bearing diagnostics, diagnostic network behavior, automatic navigation and persistence.
+
 ## 1.4.0 transfer update
 
-Version 1.4.0 makes long mobile transfers observable without changing the reviewed network dependencies or trust boundaries.
+Version 1.4.0 made long mobile transfers observable without changing the reviewed network dependencies or trust boundaries.
 
 `TransferStreams` wraps the existing local `InputStream` and `OutputStream` objects and reports cumulative bytes only after successful reads or writes. Because progress is measured at this common stream boundary, the existing FTP, explicit/implicit FTPS and SFTP clients do not need separate progress implementations. `TransferStreamsTest` verifies that monitored streams preserve payload bytes and report cumulative byte counts correctly.
 
@@ -45,9 +56,11 @@ The last successful connection can be restored locally without storing its passw
 
 ## Shared-hosting FTP paths
 
-Starting with 1.1.1, FTP/FTPS records the server working directory immediately after login and treats that directory as the Android UI root `/`. This keeps `public_html` and other account paths inside the authenticated login namespace instead of forcing an unrelated server filesystem root.
+FTP/FTPS records the server working directory immediately after login and treats that directory as the Android UI root `/`. This keeps `public_html` and other account paths inside the authenticated login namespace instead of forcing an unrelated server filesystem root.
 
-If a server cannot report `PWD`, ByFTP falls back to login-relative FTP paths. UI paths are required to be canonical and reject traversal (`..`), empty components, backslashes and NUL characters before a remote operation is issued. Version 1.2.2 also rejects CR/LF/NUL in the raw server-reported login directory before trimming or path normalization.
+If the server cannot report `PWD`, ByFTP falls back to login-relative FTP paths. UI paths are required to be canonical and reject traversal (`..`), empty components, backslashes and NUL characters before a remote operation is issued. Raw server-reported login directories reject CR/LF/NUL before trimming or path normalization.
+
+Diagnostics do not change these mapping rules. A detected root name is only shown in the summary and is never used to bypass `RemotePaths` or silently replace the active directory.
 
 ## Security model
 
@@ -61,7 +74,7 @@ ByFTP validates raw host, port, username, password and fingerprint text for CR/L
 
 The FTP/SFTP transport objects do not retain the complete `ConnectionConfig` throughout an active session. Endpoint and trust data are copied separately, while the transport password reference is cleared in `finally` immediately after authentication and again on close. The Activity also clears its password field on both validation failure and completed connection attempts. The post-authentication UI callback carries only explicitly extracted non-secret endpoint metadata, not the credential-bearing `ConnectionConfig`.
 
-Transfer progress is observational: `TransferStreams` does not own or close the transport, does not alter TLS/SSH verification and does not inject thread interruption. Batch stopping happens only at a completed-file boundary.
+Transfer progress is observational: `TransferStreams` does not own or close the transport, does not alter TLS/SSH verification and does not inject thread interruption. Batch stopping happens only at a completed-file boundary. Shared-hosting diagnostics are also observational and operate only on an already loaded listing.
 
 SFTP password authentication remains supported. Private-key import remains intentionally deferred until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
 
@@ -94,7 +107,7 @@ The unsigned release APK is **not** a production distribution until it is signed
 - Apache Commons Net 3.13.0
 - SSHJ 0.40.0
 
-No AndroidX/Compose framework was added for the 1.4.0 transfer-control work; the application continues to use the platform UI APIs plus the already reviewed network dependencies.
+No AndroidX/Compose framework was added for the 1.5.0 diagnostic work; the application continues to use platform UI APIs plus the already reviewed network dependencies.
 
 ## Build and test
 
@@ -108,4 +121,4 @@ python scripts/package_android.py \
   --output-dir dist
 ```
 
-Android lint warnings are treated as errors. The repository also runs `scripts/audit_android.py`, JUnit path/security/version regressions, `RemoteEntryListTest` for mobile filtering/sorting, `TransferStreamsTest` for byte-accounting integrity, and the general security/privacy/release audits.
+Android lint warnings are treated as errors. The repository also runs `scripts/audit_android.py`, JUnit path/security/version regressions, `SharedHostingDiagnosticsTest`, `RemoteEntryListTest`, `TransferStreamsTest`, and the general security/privacy/release audits.
