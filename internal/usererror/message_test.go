@@ -31,6 +31,27 @@ func TestMessageForLocalizesKnownErrors(t *testing.T) {
 	}
 }
 
+func TestMessageSharedHostingDataChannelFailure(t *testing.T) {
+	got := MessageFor("en", errors.New("425 Can't open data connection"), "x")
+	if want := i18n.T("en", "error.ftp_data"); got != want {
+		t.Fatalf("unexpected FTP data-channel message: %q", got)
+	}
+}
+
+func TestMessageSharedHostingTLSFailure(t *testing.T) {
+	got := MessageFor("en", errors.New("SSL certificate problem: certificate has expired"), "x")
+	if want := i18n.T("en", "error.tls"); got != want {
+		t.Fatalf("unexpected TLS message: %q", got)
+	}
+}
+
+func TestMessageSharedHostingQuotaFailure(t *testing.T) {
+	got := MessageFor("en", errors.New("552 Quota exceeded"), "x")
+	if want := i18n.T("en", "error.disk"); got != want {
+		t.Fatalf("unexpected quota message: %q", got)
+	}
+}
+
 func TestMessageDeadlineIsLocalized(t *testing.T) {
 	if got, want := MessageFor("de", context.DeadlineExceeded, "x"), i18n.T("de", "error.timeout"); got != want {
 		t.Fatalf("unexpected German deadline message: %q", got)
