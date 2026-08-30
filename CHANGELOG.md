@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.0 — Shared-hosting connection diagnostics
+
+**Focus:** make ByFTP explain the authenticated hosting environment immediately after connection without adding scanners, hidden probes, credential exposure or automatic path changes.
+
+- Added a transport-neutral `ConnectionDiagnostics` model derived from the same initial remote listing the desktop engine already performs to validate a new connection; no additional server request is issued for diagnostics.
+- Added deterministic common web-root detection in the order `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`, while ignoring desktop symlink candidates and never treating files as web roots.
+- Diagnostics report only non-secret derived facts: secure versus plain FTP transport, account-root versus SFTP-home mode, detected web-root name and initial root-entry count. Host, username, passwords, passphrases, fingerprints, certificate material and server banners are excluded.
+- Windows now surfaces secure/plain transport plus detected web-root/account-home status after a successful connection without changing the existing profile-selected or user-selected remote start path.
+- Android derives the same diagnostics from its existing first `list("/")` result and shows them in the connected summary; it does not persist diagnostics or automatically open a detected web root.
+- iOS derives diagnostics from its existing initial FTP/implicit-FTPS listing and shows a native SwiftUI **Shared hosting** section that explicitly states a detected path is not opened or saved automatically.
+- Added Go, Android JUnit, iOS model and Windows-only regressions for web-root priority, secure/plain transport reporting, account/home semantics and rejection of invalid web-root candidates.
+- Expanded Android, iOS and desktop security audits so diagnostics cannot silently gain secret fields, independent network activity, automatic web-root navigation or persistence behavior.
+- Added regression coverage for common shared-hosting failure classes already mapped by ByFTP's safe user-error layer: FTP 425 data-channel failures, TLS/certificate failures and 552 quota errors; low-level tool/server details remain hidden.
+- Preserved all 1.4.0 mobile transfer-progress and safe batch-stop behavior, Android SFTP host-key pinning, FTPS platform trust/endpoint checks, iOS PASV-host redirect blocking, canonical path validation and external production-signing boundaries.
+- Kept the canonical Windows/Linux/macOS/Android/iOS build and release matrix mandatory for 1.5.0.
+
 ## 1.4.0 — Mobile transfer progress and safe batch control
 
 **Focus:** make long Android and iOS transfers observable and controllable without weakening the existing FTP/FTPS/SFTP transport, trust, path or credential boundaries.
@@ -171,7 +187,7 @@
 - Added a native SwiftUI iPhone/iPad application under `ios/` with a normal Xcode project and shared scheme; no WebView wrapper or hidden ByFTP backend is used.
 - Added iOS FTP and implicit FTPS connections using Apple Network.framework, including binary transfers, protected FTPS data channels, EPSV/PASV passive mode and bounded network reads.
 - Added iOS remote browse, upload, download, create-directory, rename and delete workflows with the system document picker and share/save sheet.
-- Added shared-hosting FTP login-root mapping on iOS so UI `/` represents the authenticated account namespace and `public_html` stays inside that account root.
+- Added shared-hosting FTP login-root mapping on iOS so UI `/` represents the authenticated FTP account root and `public_html` stays inside that account root.
 - iOS rejects traversal, duplicate separators, backslashes, NUL/control characters and unsafe server-reported login roots instead of silently rewriting paths.
 - iOS ignores server-supplied PASV host redirects and uses only the passive port with the endpoint selected by the user.
 - iOS credentials remain session-scoped: UI password state is cleared after connect attempts, the transport actor clears its password copy after authentication, and active sessions disconnect when the app enters the background.
