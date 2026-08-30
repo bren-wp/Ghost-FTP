@@ -18,10 +18,14 @@ final class SessionStore: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var downloadedFile: URL?
     @Published private(set) var hasSavedConnection = false
+    @Published private(set) var transferFraction: Double?
+    @Published private(set) var transferDetail: String?
+    @Published private(set) var canStopAfterCurrent = false
 
     private var client: FTPRemoteClient?
     private var connectingClient: FTPRemoteClient?
     private var generation: UInt64 = 0
+    private var stopAfterCurrentRequested = false
 
     init() {
         guard let preset = ConnectionPresetKeychain.load() else { return }
@@ -103,6 +107,7 @@ final class SessionStore: ObservableObject {
         currentPath = "/"
         entries = []
         password = ""
+        finishTransfer()
         clearDownloadedFile()
         status = "Disconnected"
         Task {
@@ -148,7 +153,7 @@ final class SessionStore: ObservableObject {
 
     func upload(_ urls: [URL]) {
         guard let client, !busy, !urls.isEmpty else { return }
-        var jobs: [(url: URL, remotePath: String)] = []
+        var jobs: [(url: URL, remotePath: String, name: String)] = []
         var remoteNames = Set<String>()
         do {
             for url in urls {
@@ -156,22 +161,61 @@ final class SessionStore: ObservableObject {
                 guard remoteNames.insert(name).inserted else {
                     throw ValidationError("Two selected files have the same remote name: \(name)")
                 }
-                jobs.append((url, try RemotePath.child(currentPath, name)))
+                jobs.append((url, try RemotePath.child(currentPath, name), name))
             }
         } catch {
             present(error)
             return
         }
 
+        beginTransfer(canStop: jobs.count > 1)
         let statusText = jobs.count == 1 ? "Uploading…" : "Uploading \(jobs.count) files…"
-        perform(statusText: statusText, refreshAfter: true) {
-            for job in jobs {
+        perform(statusText: statusText, refreshAfter: true, endsTransfer: true) { [weak self] in
+            guard let self else { return nil }
+            for (index, job) in jobs.enumerated() {
                 let granted = job.url.startAccessingSecurityScopedResource()
                 defer { if granted { job.url.stopAccessingSecurityScopedResource() } }
-                try await client.upload(remotePath: job.remotePath, localURL: job.url)
+                let totalBytes = localFileSize(job.url)
+                renderTransferProgress(
+                    upload: true,
+                    fileIndex: index + 1,
+                    fileCount: jobs.count,
+                    name: job.name,
+                    transferred: 0,
+                    totalBytes: totalBytes
+                )
+                let progress: @Sendable (Int64) -> Void = { [weak self] bytes in
+                    Task { @MainActor [weak self] in
+                        self?.renderTransferProgress(
+                            upload: true,
+                            fileIndex: index + 1,
+                            fileCount: jobs.count,
+                            name: job.name,
+                            transferred: bytes,
+                            totalBytes: totalBytes
+                        )
+                    }
+                }
+                try await client.upload(remotePath: job.remotePath, localURL: job.url, progress: progress)
+                renderTransferProgress(
+                    upload: true,
+                    fileIndex: index + 1,
+                    fileCount: jobs.count,
+                    name: job.name,
+                    transferred: totalBytes ?? 0,
+                    totalBytes: totalBytes
+                )
+                if stopAfterCurrentRequested && index + 1 < jobs.count { break }
             }
             return nil
         }
+    }
+
+    func requestStopAfterCurrent() {
+        guard busy, canStopAfterCurrent else { return }
+        stopAfterCurrentRequested = true
+        canStopAfterCurrent = false
+        transferDetail = "Stopping after the current file…"
     }
 
     func download(_ entry: RemoteEntry) {
@@ -192,11 +236,35 @@ final class SessionStore: ObservableObject {
             return
         }
 
+        beginTransfer(canStop: false)
+        renderTransferProgress(
+            upload: false,
+            fileIndex: 1,
+            fileCount: 1,
+            name: entry.name,
+            transferred: 0,
+            totalBytes: max(0, entry.size)
+        )
         perform(
             statusText: "Downloading…",
-            discard: { try? FileManager.default.removeItem(at: temporaryParent) }
-        ) {
-            try await client.download(remotePath: remotePath, localURL: destination)
+            discard: { try? FileManager.default.removeItem(at: temporaryParent) },
+            endsTransfer: true
+        ) { [weak self] in
+            guard let self else { return nil }
+            let totalBytes = max(0, entry.size)
+            let progress: @Sendable (Int64) -> Void = { [weak self] bytes in
+                Task { @MainActor [weak self] in
+                    self?.renderTransferProgress(
+                        upload: false,
+                        fileIndex: 1,
+                        fileCount: 1,
+                        name: entry.name,
+                        transferred: bytes,
+                        totalBytes: totalBytes
+                    )
+                }
+            }
+            try await client.download(remotePath: remotePath, localURL: destination, progress: progress)
             return { [weak self] in self?.downloadedFile = destination }
         }
     }
@@ -257,10 +325,63 @@ final class SessionStore: ObservableObject {
         }
     }
 
+    private func beginTransfer(canStop: Bool) {
+        transferFraction = nil
+        transferDetail = nil
+        canStopAfterCurrent = canStop
+        stopAfterCurrentRequested = false
+    }
+
+    private func finishTransfer() {
+        transferFraction = nil
+        transferDetail = nil
+        canStopAfterCurrent = false
+        stopAfterCurrentRequested = false
+    }
+
+    private func localFileSize(_ url: URL) -> Int64? {
+        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return nil }
+        return Int64(max(0, size))
+    }
+
+    private func renderTransferProgress(
+        upload: Bool,
+        fileIndex: Int,
+        fileCount: Int,
+        name: String,
+        transferred: Int64,
+        totalBytes: Int64?
+    ) {
+        let safeTransferred = max(0, transferred)
+        if let totalBytes {
+            let safeTotal = max(0, totalBytes)
+            let fraction = safeTotal == 0 ? 1.0 : min(1.0, Double(safeTransferred) / Double(safeTotal))
+            transferFraction = fraction
+            let percent = Int((fraction * 100.0).rounded(.down))
+            if stopAfterCurrentRequested && upload {
+                transferDetail = "Stopping after the current file…"
+            } else if upload {
+                transferDetail = "Uploading \(fileIndex)/\(fileCount) · \(percent)% · \(name)"
+            } else {
+                transferDetail = "Downloading · \(percent)% · \(ByteCountFormatter.string(fromByteCount: safeTransferred, countStyle: .file))"
+            }
+        } else {
+            transferFraction = nil
+            if stopAfterCurrentRequested && upload {
+                transferDetail = "Stopping after the current file…"
+            } else if upload {
+                transferDetail = "Uploading \(fileIndex)/\(fileCount) · \(ByteCountFormatter.string(fromByteCount: safeTransferred, countStyle: .file)) transferred · \(name)"
+            } else {
+                transferDetail = "Downloading · \(ByteCountFormatter.string(fromByteCount: safeTransferred, countStyle: .file)) transferred"
+            }
+        }
+    }
+
     private func perform(
         statusText: String,
         refreshAfter: Bool = false,
         discard: (() -> Void)? = nil,
+        endsTransfer: Bool = false,
         operation: @escaping () async throws -> (@MainActor () -> Void)?
     ) {
         guard !busy else { return }
@@ -275,6 +396,7 @@ final class SessionStore: ObservableObject {
                 let apply = try await operation()
                 guard token == generation else {
                     discard?()
+                    if endsTransfer { finishTransfer() }
                     return
                 }
                 apply?()
@@ -282,15 +404,21 @@ final class SessionStore: ObservableObject {
                     let refreshed = try await client.list(currentPath)
                     guard token == generation else {
                         discard?()
+                        if endsTransfer { finishTransfer() }
                         return
                     }
                     entries = sortedEntries(refreshed)
                 }
+                if endsTransfer { finishTransfer() }
                 busy = false
                 status = connected ? "Connected" : "Ready"
             } catch {
                 discard?()
-                guard token == generation else { return }
+                guard token == generation else {
+                    if endsTransfer { finishTransfer() }
+                    return
+                }
+                if endsTransfer { finishTransfer() }
                 busy = false
                 status = connected ? "Connected" : "Ready"
                 present(error)
