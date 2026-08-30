@@ -465,14 +465,24 @@ private enum ConnectionPresetKeychain {
     @discardableResult
     static func save(_ preset: ConnectionPreset) -> Bool {
         guard let data = try? JSONEncoder().encode(preset) else { return false }
-        clear()
-        let attributes: [String: Any] = [
+        let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: account
+        ]
+        let update: [String: Any] = [
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecValueData as String: data
         ]
+        let updateStatus = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return true
+        }
+        guard updateStatus == errSecItemNotFound else { return false }
+
+        var attributes = query
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        attributes[kSecValueData as String] = data
         return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
     }
 
