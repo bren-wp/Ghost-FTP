@@ -59,6 +59,7 @@ final class SessionStore: ObservableObject {
             return
         }
         let preset = ConnectionPreset(config: config)
+        let diagnosticProtocol = config.protocolKind
 
         generation &+= 1
         let token = generation
@@ -73,7 +74,7 @@ final class SessionStore: ObservableObject {
             do {
                 try await next.connect()
                 let initial = try await next.list("/")
-                let diagnostics = SharedHostingDiagnostics.analyze(protocolKind: config.protocolKind, entries: initial)
+                let diagnostics = SharedHostingDiagnostics.analyze(protocolKind: diagnosticProtocol, entries: initial)
                 guard token == generation else {
                     await next.close()
                     return
