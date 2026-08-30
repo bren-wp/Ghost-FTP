@@ -27,16 +27,15 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import com.byftp.client.model.ConnectionConfig;
 import com.byftp.client.model.RemoteEntry;
+import com.byftp.client.model.RemoteEntryList;
 import com.byftp.client.model.RemotePaths;
 import com.byftp.client.remote.RemoteClient;
 import com.byftp.client.remote.RemoteClientFactory;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -345,31 +344,23 @@ public final class MainActivity extends Activity {
 
     private void replaceEntries(List<RemoteEntry> next) {
         entries.clear();
-        entries.addAll(next);
-        entries.sort(Comparator
-            .comparing(RemoteEntry::directory).reversed()
-            .thenComparing(RemoteEntry::name, String.CASE_INSENSITIVE_ORDER)
-            .thenComparing(RemoteEntry::name));
+        entries.addAll(RemoteEntryList.sorted(next));
         updateVisibleEntries();
         path.setText(currentPath);
     }
 
     private void updateVisibleEntries() {
         if (listAdapter == null || filter == null) return;
-        String query = text(filter).trim().toLowerCase(Locale.ROOT);
         visibleEntries.clear();
-        List<String> labels = new ArrayList<>();
-        for (RemoteEntry entry : entries) {
-            if (!query.isEmpty() && !entry.name().toLowerCase(Locale.ROOT).contains(query)) continue;
-            visibleEntries.add(entry);
-            labels.add(entry.displayLabel());
-        }
+        visibleEntries.addAll(RemoteEntryList.filtered(entries, text(filter)));
+        List<String> labels = new ArrayList<>(visibleEntries.size());
+        for (RemoteEntry entry : visibleEntries) labels.add(entry.displayLabel());
         listAdapter.clear();
         listAdapter.addAll(labels);
         listAdapter.notifyDataSetChanged();
         if (client != null && !busy) {
             if (visibleEntries.isEmpty()) {
-                status.setText(query.isEmpty() ? R.string.empty_directory : R.string.no_filter_results);
+                status.setText(text(filter).trim().isEmpty() ? R.string.empty_directory : R.string.no_filter_results);
             } else {
                 status.setText(R.string.status_connected);
             }
