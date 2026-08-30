@@ -53,6 +53,7 @@ final class SessionStore: ObservableObject {
             present(error)
             return
         }
+        let preset = ConnectionPreset(config: config)
 
         generation &+= 1
         let token = generation
@@ -76,7 +77,7 @@ final class SessionStore: ObservableObject {
                 connected = true
                 currentPath = "/"
                 entries = sortedEntries(initial)
-                hasSavedConnection = ConnectionPresetKeychain.save(ConnectionPreset(config: config))
+                hasSavedConnection = ConnectionPresetKeychain.save(preset)
                 busy = false
                 status = "Connected"
             } catch {
