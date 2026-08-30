@@ -147,13 +147,20 @@ def main() -> int:
         "client.download(remotePath: remotePath, localURL: destination, progress: progress)",
         "ByteCountFormatter.string",
         "@Published private(set) var hostingDiagnostics: SharedHostingDiagnostics?",
-        "SharedHostingDiagnostics.analyze(protocolKind: config.protocolKind, entries: initial)",
+        "let diagnosticProtocol = config.protocolKind",
+        "SharedHostingDiagnostics.analyze(protocolKind: diagnosticProtocol, entries: initial)",
         "hostingDiagnostics = diagnostics", "hostingDiagnostics = nil",
     ))
-    task_index = session.find("Task {", session.find("func connect()"))
-    preset_index = session.find("let preset = ConnectionPreset(config: config)", session.find("func connect()"))
+    connect_start = session.find("func connect()")
+    task_index = session.find("Task {", connect_start)
+    preset_index = session.find("let preset = ConnectionPreset(config: config)", connect_start)
+    diagnostic_protocol_index = session.find("let diagnosticProtocol = config.protocolKind", connect_start)
     if task_index < 0 or preset_index < 0 or preset_index > task_index:
         fail("iOS async connect task retains the credential-bearing config solely for preset persistence")
+    if diagnostic_protocol_index < 0 or diagnostic_protocol_index > task_index:
+        fail("iOS diagnostic protocol must be extracted before the async task")
+    if "SharedHostingDiagnostics.analyze(protocolKind: config.protocolKind" in session:
+        fail("iOS diagnostics retain the credential-bearing connection config inside async completion")
     if "ConnectionPresetKeychain.save(ConnectionPreset(config: config))" in session:
         fail("iOS Keychain save reconstructs the preset from a credential-bearing config inside async completion")
     for forbidden in ("client.close()", "dataSocket.cancel()"):
@@ -259,6 +266,7 @@ def main() -> int:
     print("IOS_NWCONNECTION_CONTINUATION=LOCKED_SINGLE_RESUME")
     print("IOS_SHARED_HOSTING_DIAGNOSTICS=INITIAL_LISTING_ONLY_NON_SECRET")
     print("IOS_SHARED_HOSTING_AUTO_NAVIGATION=BLOCKED")
+    print("IOS_DIAGNOSTIC_CONFIG_SECRET_LIFETIME=PRE_EXTRACTED_PROTOCOL_ONLY")
     print("IOS_TRANSFER_PROGRESS=NETWORK_DATA_SOCKET_BYTE_BOUNDARY")
     print("IOS_BATCH_STOP=AFTER_CURRENT_FILE_ONLY")
     print("IOS_SECRET_PERSISTENCE=BLOCKED")
