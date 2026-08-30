@@ -123,6 +123,18 @@ def main() -> int:
     if "source.sort(" in entry_list:
         fail("Android list presentation must not mutate the transport-owned source list")
 
+    diagnostics = require("android/app/src/main/java/com/byftp/client/model/SharedHostingDiagnostics.java", (
+        "record SharedHostingDiagnostics",
+        '"public_html", "httpdocs", "htdocs", "www", "web", "html"',
+        "protocol != ConnectionConfig.Protocol.FTP",
+        'protocol == ConnectionConfig.Protocol.SFTP ? "home" : "account"',
+        "if (entry == null || !entry.directory()) continue;",
+        "safeEntries.size()",
+    ))
+    for forbidden in ("String password", "String passphrase", "String username", "String fingerprint", "connect(", "list("):
+        if forbidden in diagnostics:
+            fail(f"Android shared-hosting diagnostics gained secret/network behavior: {forbidden}")
+
     transfer_streams = require("android/app/src/main/java/com/byftp/client/remote/TransferStreams.java", (
         "final class TransferStreams",
         "FilterInputStream", "FilterOutputStream",
@@ -178,13 +190,16 @@ def main() -> int:
         "ProgressBar", "TransferStreams.monitor", "stopAfterCurrentRequested",
         "status_stopping_after_current", "displaySize(Uri uri)", "beginTransferUi", "finishTransferUi",
         "if (stopAfterCurrentRequested && i + 1 < items.size())",
+        "SharedHostingDiagnostics.analyze(safeProtocol, initial)", "connected_with_diagnostics",
+        "diagnostics.webRootDetected()", "diagnostic_plain_ftp", "diagnostic_secure",
     ))
     for forbidden in (
         "SharedPreferences", "getSharedPreferences", "FirebaseAnalytics", "AdvertisingId",
         "presetStore.save(config)", "rawName.trim()", "Thread.currentThread().interrupt()",
+        "openDirectory(diagnostics.webRoot())", "presetStore.save(diagnostics",
     ):
         if forbidden in activity:
-            fail(f"Android activity contains forbidden persistence/normalization/analytics/cancel marker: {forbidden}")
+            fail(f"Android activity contains forbidden persistence/normalization/analytics/cancel/auto-navigation marker: {forbidden}")
 
     preset = require("android/app/src/main/java/com/byftp/client/ConnectionPresetStore.java", (
         "SharedPreferences", "Context.MODE_PRIVATE", "KEY_PROTOCOL", "KEY_HOST", "KEY_PORT", "KEY_USERNAME", "KEY_FINGERPRINT",
@@ -219,6 +234,13 @@ def main() -> int:
         "sortsDirectoriesFirstThenNamesCaseInsensitively",
         "filtersWithoutMutatingSortedSource",
     ))
+    require("android/app/src/test/java/com/byftp/client/model/SharedHostingDiagnosticsTest.java", (
+        "prefersPublicHtmlAndReportsSecureFtps",
+        "plainFtpRemainsVisibleAsInsecureAndFilesAreNotWebRoots",
+        "sftpUsesHomeRootWithoutInventingWebRoot",
+        'assertEquals("public_html", got.webRoot())',
+        'assertEquals("htdocs", got.webRoot())',
+    ))
     require("android/app/src/test/java/com/byftp/client/remote/TransferStreamsTest.java", (
         "inputReportsCumulativeBytesWithoutChangingPayload",
         "outputReportsCumulativeBytesWithoutChangingPayload",
@@ -242,6 +264,8 @@ def main() -> int:
     print("ANDROID_REMOTE_PATH_NORMALIZATION=FAIL_CLOSED")
     print("ANDROID_REMOTE_NAMES=CANONICAL_SHARED_VALIDATOR")
     print("ANDROID_FTP_LOGIN_ROOT=ENFORCED_AND_CONTROL_SAFE")
+    print("ANDROID_SHARED_HOSTING_DIAGNOSTICS=INITIAL_LISTING_ONLY_NON_SECRET")
+    print("ANDROID_SHARED_HOSTING_AUTO_NAVIGATION=BLOCKED")
     print("ANDROID_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY_AND_UI_CLEARED")
     print("ANDROID_NON_SECRET_CONNECTION_PRESET=APP_PRIVATE_AND_BACKUP_EXCLUDED")
     print("ANDROID_MOBILE_FILE_FILTER_AND_SORT=TESTED")
