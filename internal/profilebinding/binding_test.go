@@ -24,6 +24,23 @@ func TestEndpointMatchesNormalizesHost(t *testing.T) {
 	}
 }
 
+func TestEndpointKeyUsesSameCanonicalizationAsEndpointMatches(t *testing.T) {
+	pairs := [][2]string{
+		{"Example.TEST.", "example.test"},
+		{"[2001:db8::1]", "2001:db8::1"},
+	}
+	for _, pair := range pairs {
+		a := EndpointKey(" SFTP ", pair[0], 22)
+		b := EndpointKey("sftp", pair[1], 22)
+		if a != b {
+			t.Fatalf("equivalent endpoints produced different keys: %q != %q", a, b)
+		}
+	}
+	if EndpointKey("sftp", "example.test", 22) == EndpointKey("sftp", "example.test", 2222) {
+		t.Fatal("different ports produced the same endpoint key")
+	}
+}
+
 func TestAccountMatchesRequiresExactUsername(t *testing.T) {
 	if !AccountMatches("sftp", "example.test", 22, "alice", "sftp", "example.test", 22, "alice") {
 		t.Fatal("same account was not matched")
