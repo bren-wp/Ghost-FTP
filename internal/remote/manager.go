@@ -83,7 +83,7 @@ type resolvedConnection struct {
 // Keeping dead key/trust state on FTP/FTPS connections can otherwise leak into
 // public runtime config and create false connection-identity boundaries.
 func sanitizeProtocolState(cfg model.ConnectionConfig) model.ConnectionConfig {
-	if cfg.Protocol != "sftp" {
+	if !strings.EqualFold(strings.TrimSpace(cfg.Protocol), "sftp") {
 		cfg.PrivateKeyPath = ""
 		cfg.Passphrase = ""
 		cfg.Fingerprint = ""
