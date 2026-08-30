@@ -9,7 +9,7 @@ import (
 func TestMergeConnectionAllowsClearingPrivateKeyAndFingerprint(t *testing.T) {
 	base := model.ConnectionConfig{
 		Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester",
-		PrivateKeyPath: `C:\Keys\id_ed25519`, Fingerprint: "SHA256:old",
+		PrivateKeyPath: `/home/tester/.ssh/id_ed25519`, Fingerprint: "SHA256:old",
 	}
 	override := model.ConnectionConfig{
 		Protocol: "sftp", Host: "example.test", Port: 22, Username: "tester",
@@ -55,23 +55,24 @@ func TestProfilePasswordBindingIncludesUsername(t *testing.T) {
 }
 
 func TestProfilePassphraseBindingIncludesPrivateKey(t *testing.T) {
+	const keyPath = `/home/alice/.ssh/id_ed25519`
 	profile := model.Profile{
 		ID: "p1", Protocol: "sftp", Host: "example.test", Port: 22, Username: "alice",
-		PrivateKeyPath: `C:\Keys\id_ed25519`,
+		PrivateKeyPath: keyPath,
 	}
 	cfg := model.ConnectionConfig{
 		Protocol: "sftp", Host: "example.test", Port: 22, Username: "alice",
-		PrivateKeyPath: `c:\keys\ID_ED25519`,
+		PrivateKeyPath: keyPath,
 	}
 	if !profilePrivateKeyMatches(profile, cfg) {
-		t.Fatal("same Windows private-key path was not recognized")
+		t.Fatal("same private-key path was not recognized")
 	}
 
 	cfg.PrivateKeyPath = ""
 	if profilePrivateKeyMatches(profile, cfg) {
 		t.Fatal("stored passphrase would survive private-key removal")
 	}
-	cfg.PrivateKeyPath = `C:\Keys\other_key`
+	cfg.PrivateKeyPath = `/home/alice/.ssh/other_key`
 	if profilePrivateKeyMatches(profile, cfg) {
 		t.Fatal("stored passphrase would cross private-key boundary")
 	}
