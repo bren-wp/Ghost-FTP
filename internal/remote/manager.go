@@ -181,9 +181,10 @@ func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolved
 }
 
 type ConnectResult struct {
-	Connected     bool   `json:"connected"`
-	RequiresTrust bool   `json:"requiresTrust,omitempty"`
-	Fingerprint   string `json:"fingerprint,omitempty"`
+	Connected     bool                  `json:"connected"`
+	RequiresTrust bool                  `json:"requiresTrust,omitempty"`
+	Fingerprint   string                `json:"fingerprint,omitempty"`
+	Diagnostics   ConnectionDiagnostics `json:"diagnostics"`
 }
 
 func (m *Manager) clearPendingTrustLocked() {
@@ -342,10 +343,12 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 
 	cctx, cancel := context.WithTimeout(ctx, time.Duration(connectTimeout+5)*time.Second)
 	defer cancel()
-	if _, err = s.List(cctx, probePathForSession(s)); err != nil {
+	initial, err := s.List(cctx, probePathForSession(s))
+	if err != nil {
 		_ = s.Close()
 		return ConnectResult{}, err
 	}
+	diagnostics := diagnoseConnection(s.Protocol(), initial)
 
 	publicCfg := cfg
 	publicCfg.Password = ""
@@ -358,7 +361,7 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 	m.sessionCancel = sessionCancel
 	m.cfg = publicCfg
 	m.mu.Unlock()
-	return ConnectResult{Connected: true}, nil
+	return ConnectResult{Connected: true, Diagnostics: diagnostics}, nil
 }
 
 func waitForSessionClose(ctx context.Context, state *sessionCloseState) error {
