@@ -60,6 +60,17 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("SecItemAdd", save)
         self.assertNotIn("clear()", save)
 
+    def test_publisher_refuses_stale_main_commit(self) -> None:
+        src = read("scripts/publish_release.ps1")
+        guard = between(src, "function Assert-CurrentMainCommit", "function Resolve-TagCommit")
+        self.assertIn('repos/$Repository/branches/main', guard)
+        self.assertIn('$branch.commit.sha', guard)
+        self.assertIn('Stale release run je blokiran', guard)
+        self.assertIn('RELEASE_MAIN_HEAD_VERIFICATION=PASS', guard)
+        first_guard = src.index("Assert-CurrentMainCommit", src.index('$tag = "v$Version"'))
+        release_lookup = src.index("$release = Get-Release -Tag $tag")
+        self.assertLess(first_guard, release_lookup)
+
     def test_active_product_history_has_no_pre_1_3_byftp_line(self) -> None:
         tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).split(b"\0")
         patterns = (
