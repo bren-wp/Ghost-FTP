@@ -11,14 +11,22 @@
     <string name="disconnect">Disconnect</string>
     <string name="refresh">Refresh</string>
     <string name="up">Up</string>
+    <string name="menu">Menu</string>
     <string name="upload">Upload</string>
+    <string name="upload_files">Upload files</string>
     <string name="new_folder">New folder</string>
+    <string name="go_to_path">Go to path</string>
+    <string name="remote_path">Remote path</string>
+    <string name="filter_files">Filter files</string>
+    <string name="forget_connection">Forget saved connection</string>
+    <string name="saved_connection_forgotten">Saved connection cleared.</string>
     <string name="download">Download</string>
     <string name="rename">Rename</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
     <string name="create">Create</string>
     <string name="save">Save</string>
+    <string name="open">Open</string>
     <string name="folder_name">Folder name</string>
     <string name="new_name">New name</string>
     <string name="status_ready">Ready</string>
@@ -26,9 +34,14 @@
     <string name="status_connected">Connected</string>
     <string name="status_disconnected">Disconnected</string>
     <string name="status_working">Working…</string>
+    <string name="status_uploading_files">Uploading files…</string>
     <string name="ftp_warning">FTP is unencrypted. Prefer FTPS or SFTP when available.</string>
     <string name="delete_confirm">Delete “%1$s”?</string>
     <string name="error_prefix">Error: %1$s</string>
     <string name="selected_file">Selected: %1$s</string>
+    <string name="connected_to">%1$s · %2$s:%3$d · %4$s</string>
+    <string name="empty_directory">This directory is empty.</string>
+    <string name="no_filter_results">No files match the filter.</string>
+    <string name="duplicate_upload_name">Two selected files have the same remote name: %1$s</string>
     <string name="root_path">/</string>
 </resources>
