@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Security
 
 @MainActor
 final class SessionStore: ObservableObject {
@@ -16,10 +17,25 @@ final class SessionStore: ObservableObject {
     @Published private(set) var status = "Ready"
     @Published var errorMessage: String?
     @Published private(set) var downloadedFile: URL?
+    @Published private(set) var hasSavedConnection = false
 
     private var client: FTPRemoteClient?
     private var connectingClient: FTPRemoteClient?
     private var generation: UInt64 = 0
+
+    init() {
+        guard let preset = ConnectionPresetKeychain.load() else { return }
+        do {
+            let config = try preset.validatedConfig()
+            protocolKind = config.protocolKind
+            host = config.host
+            port = String(config.port)
+            username = config.username
+            hasSavedConnection = true
+        } catch {
+            ConnectionPresetKeychain.clear()
+        }
+    }
 
     func connect() {
         guard !busy, !connected else { return }
@@ -59,7 +75,8 @@ final class SessionStore: ObservableObject {
                 password = ""
                 connected = true
                 currentPath = "/"
-                entries = initial
+                entries = sortedEntries(initial)
+                hasSavedConnection = ConnectionPresetKeychain.save(ConnectionPreset(config: config))
                 busy = false
                 status = "Connected"
             } catch {
@@ -93,6 +110,12 @@ final class SessionStore: ObservableObject {
         }
     }
 
+    func forgetSavedConnection() {
+        ConnectionPresetKeychain.clear()
+        hasSavedConnection = false
+        status = connected ? "Connected · saved connection cleared" : "Saved connection cleared"
+    }
+
     func refresh() {
         openDirectory(currentPath)
     }
@@ -107,7 +130,7 @@ final class SessionStore: ObservableObject {
             let next = try await client.list(normalized)
             return { [weak self] in
                 self?.currentPath = normalized
-                self?.entries = next
+                self?.entries = self?.sortedEntries(next) ?? next
             }
         }
     }
@@ -119,15 +142,33 @@ final class SessionStore: ObservableObject {
     }
 
     func upload(_ url: URL) {
-        guard let client, !busy else { return }
-        let remotePath: String
-        do { remotePath = try RemotePath.child(currentPath, url.lastPathComponent) }
-        catch { present(error); return }
+        upload([url])
+    }
 
-        perform(statusText: "Uploading…", refreshAfter: true) {
-            let granted = url.startAccessingSecurityScopedResource()
-            defer { if granted { url.stopAccessingSecurityScopedResource() } }
-            try await client.upload(remotePath: remotePath, localURL: url)
+    func upload(_ urls: [URL]) {
+        guard let client, !busy, !urls.isEmpty else { return }
+        var jobs: [(url: URL, remotePath: String)] = []
+        var remoteNames = Set<String>()
+        do {
+            for url in urls {
+                let name = try RemotePath.validateName(url.lastPathComponent)
+                guard remoteNames.insert(name).inserted else {
+                    throw ValidationError("Two selected files have the same remote name: \(name)")
+                }
+                jobs.append((url, try RemotePath.child(currentPath, name)))
+            }
+        } catch {
+            present(error)
+            return
+        }
+
+        let statusText = jobs.count == 1 ? "Uploading…" : "Uploading \(jobs.count) files…"
+        perform(statusText: statusText, refreshAfter: true) {
+            for job in jobs {
+                let granted = job.url.startAccessingSecurityScopedResource()
+                defer { if granted { job.url.stopAccessingSecurityScopedResource() } }
+                try await client.upload(remotePath: job.remotePath, localURL: job.url)
+            }
             return nil
         }
     }
@@ -205,6 +246,16 @@ final class SessionStore: ObservableObject {
         try? FileManager.default.removeItem(at: parent)
     }
 
+    private func sortedEntries(_ values: [RemoteEntry]) -> [RemoteEntry] {
+        values.sorted { left, right in
+            if left.isDirectory != right.isDirectory { return left.isDirectory }
+            let lhs = left.name.lowercased()
+            let rhs = right.name.lowercased()
+            if lhs != rhs { return lhs < rhs }
+            return left.name < right.name
+        }
+    }
+
     private func perform(
         statusText: String,
         refreshAfter: Bool = false,
@@ -232,7 +283,7 @@ final class SessionStore: ObservableObject {
                         discard?()
                         return
                     }
-                    entries = refreshed
+                    entries = sortedEntries(refreshed)
                 }
                 busy = false
                 status = connected ? "Connected" : "Ready"
@@ -252,5 +303,49 @@ final class SessionStore: ObservableObject {
             .replacingOccurrences(of: "\n", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         errorMessage = String((clean.isEmpty ? "Unknown error." : clean).prefix(320))
+    }
+}
+
+private enum ConnectionPresetKeychain {
+    private static let service = "com.byftp.client.connection-preset"
+    private static let account = "last-connection"
+
+    static func load() -> ConnectionPreset? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecReturnData as String: true
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else {
+            return nil
+        }
+        return try? JSONDecoder().decode(ConnectionPreset.self, from: data)
+    }
+
+    @discardableResult
+    static func save(_ preset: ConnectionPreset) -> Bool {
+        guard let data = try? JSONEncoder().encode(preset) else { return false }
+        clear()
+        let attributes: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecValueData as String: data
+        ]
+        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
+    }
+
+    static func clear() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 }
