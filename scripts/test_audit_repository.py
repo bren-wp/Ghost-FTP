@@ -4,6 +4,8 @@ import unittest
 
 import audit_repository
 
+CURRENT_RELEASE_PREFIX = b"Current " + b"release: "
+
 
 class RepositoryAuditTests(unittest.TestCase):
     def test_rejects_case_insensitive_path_collision(self) -> None:
@@ -23,15 +25,15 @@ class RepositoryAuditTests(unittest.TestCase):
         self.assertTrue(any("tracked symlink" in item for item in errors))
 
     def test_text_rejects_bom_trailing_whitespace_and_missing_newline(self) -> None:
-        data = b"\xef\xbb\xbfCurrent release: 1.6.0  "
-        errors = audit_repository.validate_text("README.md", data, "1.6.0")
+        data = b"\xef\xbb\xbf" + CURRENT_RELEASE_PREFIX + b"9.9.9  "
+        errors = audit_repository.validate_text("README.md", data, "9.9.9")
         self.assertTrue(any("UTF-8 BOM" in item for item in errors))
         self.assertTrue(any("trailing whitespace" in item for item in errors))
         self.assertTrue(any("missing final newline" in item for item in errors))
 
     def test_text_rejects_stale_current_release(self) -> None:
         errors = audit_repository.validate_text(
-            "README.md", b"Current release: 1.5.0\n", "1.6.0"
+            "README.md", CURRENT_RELEASE_PREFIX + b"9.9.8\n", "9.9.9"
         )
         self.assertTrue(any("stale current-release" in item for item in errors))
 
@@ -39,7 +41,7 @@ class RepositoryAuditTests(unittest.TestCase):
         self.assertEqual(
             [],
             audit_repository.validate_text(
-                "README.md", b"Current release: 1.6.0\n", "1.6.0"
+                "README.md", CURRENT_RELEASE_PREFIX + b"9.9.9\n", "9.9.9"
             ),
         )
 
