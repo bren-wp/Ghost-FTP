@@ -47,6 +47,22 @@ def main() -> int:
     if f"## {version}" not in read("CHANGELOG.md"):
         fail("CHANGELOG does not contain a section for VERSION")
 
+    repository_audit = read("scripts/audit_repository.py")
+    for marker in (
+        '"git", "ls-files", "-s", "-z"',
+        "case-insensitive path collision",
+        "generated/cache path is tracked",
+        "stale current-release reference",
+        "MERGE_CONFLICT_RE",
+    ):
+        if marker not in repository_audit:
+            fail(f"repository-wide audit is missing invariant: {marker}")
+    read("scripts/test_audit_repository.py")
+    release_audit = read("scripts/audit_release.py")
+    for marker in ("def run_repository_audit()", "run_repository_audit()"):
+        if marker not in release_audit:
+            fail(f"release audit does not require repository-wide integrity: {marker}")
+
     for path in sorted((ROOT / "docs").rglob("*.md")):
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(ROOT)
@@ -139,6 +155,7 @@ def main() -> int:
     print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID,IOS")
     print("PLATFORM_BUILD_ENTRYPOINTS=ROOT_WINDOWS,LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
+    print("REPOSITORY_WIDE_AUDIT_VERSION_BOUND=YES")
     print("PRODUCTION_DOC_VERSION_DRIFT=BLOCKED")
     return 0
 

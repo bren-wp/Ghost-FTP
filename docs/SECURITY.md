@@ -49,6 +49,12 @@ The native iOS release supports FTP and implicit FTPS through Apple Network.fram
 
 Explicit FTPS and SFTP are not exposed on iOS until separately audited native implementations exist.
 
+## Repository integrity
+
+Version 1.6.0 adds a fail-closed audit across every tracked Git file. The audit rejects case-insensitive path collisions, Windows-reserved path components, tracked symlinks, committed build/cache artifacts, invalid UTF-8 or unexpected NUL content, BOMs, trailing whitespace, missing final newlines, unresolved merge-conflict markers and stale explicit current-release markers. This protects the release source tree itself before any platform build or signing stage begins.
+
+The repository audit is local and deterministic. It does not weaken runtime trust rules, execute tracked source files, scan network endpoints or upload repository content.
+
 ## Mobile package integrity and signing
 
 `scripts/package_android.py` validates required APK structure and rejects unsafe/duplicate archive members before versioned staging.

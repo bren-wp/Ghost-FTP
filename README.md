@@ -4,13 +4,14 @@
 
 ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
 
-**Current release: 1.5.0**
+**Current release: 1.6.0**
 
 [Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Linux](linux/README.md) · [macOS](macos/README.md) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
 ## Highlights
 
 - Native desktop, Android and iOS applications; no mobile WebView wrapper.
+- Repository-wide integrity validation now scans **every tracked Git file** for portable paths, case-insensitive collisions, accidental build/cache artifacts, symlinks, UTF-8/BOM issues, merge-conflict remnants, trailing whitespace and stale current-release markers.
 - Shared-hosting friendly authenticated-account roots plus non-secret connection diagnostics derived from the first root listing the client already performs.
 - Common hosting web roots are recognized in deterministic priority: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`.
 - Diagnostics distinguish secure FTPS/SFTP from plain unencrypted FTP and report account-root/SFTP-home context without persisting or automatically opening the detected path.
@@ -38,7 +39,7 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 - Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
 - One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
 - Linux packaging lives under `linux/`, macOS packaging under `macos/`, and the canonical iOS build entry point under `ios/`; platform build logic is not duplicated under `scripts/`.
-- CI and production builds remain pinned to Go 1.27.0 and Gradle 9.7.0 for the 1.5.0 release line.
+- CI and production builds remain pinned to Go 1.27.0 and Gradle 9.7.0 for the 1.6.0 release line.
 
 ## Supported platforms and release artifacts
 
@@ -85,6 +86,8 @@ The Android application under `android/` supports FTP, explicit/implicit FTPS an
 
 Version 1.5.0 analyzes the existing first `list("/")` result and adds secure/plain transport plus detected web-root/account-home context to the connected summary. The diagnostic model has no network behavior and is not persisted. Version 1.4.0's transport-neutral byte progress and safe **Stop after current file** behavior remain intact.
 
+Version 1.6.0 adds no weaker transport shortcut; Android source, resources and packaging are now also covered by the repository-wide tracked-file audit in addition to Android lint, JUnit and the dedicated mobile security audit.
+
 See [ByFTP for Android](android/README.md).
 
 ## iOS
@@ -93,13 +96,17 @@ The native SwiftUI application lives under `ios/` with a normal Xcode project an
 
 Version 1.5.0 derives diagnostics from the existing initial listing and displays a native **Shared hosting** section. It explicitly states that a detected web root is not opened or saved automatically. The password-free Keychain preset, PASV-host redirect blocking, background disconnect, temporary-download cleanup, transfer progress and safe batch-stop behavior remain unchanged.
 
+Version 1.6.0 extends release hygiene to every tracked iOS project, Swift, plist, scheme, documentation and packaging file without changing the reviewed protocol claims.
+
 See [ByFTP for iOS](ios/README.md).
 
 ## Windows, Linux and macOS
 
-The desktop application remains written in Go. The shared remote engine now returns a non-secret `ConnectionDiagnostics` object from the same initial connection probe it already performed. Windows surfaces that information in status while preserving the existing profile/user-selected `remoteStart` path. Linux and macOS retain the shared Go protocol/security core and their existing package formats.
+The desktop application remains written in Go. The shared remote engine returns a non-secret `ConnectionDiagnostics` object from the same initial connection probe it already performed. Windows surfaces that information in status while preserving the existing profile/user-selected `remoteStart` path. Linux and macOS retain the shared Go protocol/security core and their existing package formats.
 
 Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`.
+
+Version 1.6.0 adds repository-wide source/package hygiene checks around all three desktop platforms, including case-insensitive path-collision detection so a source layout that is valid only on one filesystem cannot silently enter the release line.
 
 ## Shared-hosting workflow
 
@@ -177,6 +184,7 @@ go test ./...
 go test -race ./...
 go vet ./...
 python scripts/generate_brand_assets.py --check
+python scripts/audit_repository.py
 python scripts/audit_localization.py
 python scripts/audit_version.py
 python scripts/audit_android.py
@@ -188,13 +196,14 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Android separately runs JUnit including shared-hosting diagnostics, mobile filter/sort and transfer-stream byte-accounting regressions, plus `lintDebug`, `lintRelease`, `assembleDebug`, `assembleRelease` and APK validation. iOS runs dependency-free model/path/preset/diagnostic regressions and a real arm64 iPhoneOS build. Windows includes diagnostic-status regressions alongside the x64/x86 production build. Linux amd64/arm64/i386 and macOS Universal builds remain required. See [Testing](docs/TESTING.md).
+`audit_repository.py` enumerates the checkout with `git ls-files` and validates every tracked path/file, not only files named by a feature-specific audit. Android separately runs JUnit including shared-hosting diagnostics, mobile filter/sort and transfer-stream byte-accounting regressions, plus `lintDebug`, `lintRelease`, `assembleDebug`, `assembleRelease` and APK validation. iOS runs dependency-free model/path/preset/diagnostic regressions and a real arm64 iPhoneOS build. Windows includes diagnostic-status regressions alongside the x64/x86 production build. Linux amd64/arm64/i386 and macOS Universal builds remain required. See [Testing](docs/TESTING.md).
 
 ## Release integrity
 
 The release lane is fail-closed:
 
-- `VERSION` consistency and published-version immutability are checked first.
+- Every tracked repository path/file passes the repository-wide integrity audit before platform packaging.
+- `VERSION` consistency and published-version immutability are checked before release publication.
 - Security, privacy, localization, documentation, Android, iOS and release-contract audits are mandatory.
 - Windows, Linux, macOS, Android and iOS build jobs must all succeed.
 - Android APKs and iOS IPA/app ZIP are structurally validated before staging.
@@ -214,7 +223,7 @@ linux/            Linux build, desktop entry and DEB packaging metadata
 macos/            macOS Universal build, app-bundle metadata and launcher
 cmd/              Shared desktop app, installer and uninstaller entry points
 internal/         Shared desktop engine, UI, protocols, security, persistence and transfers
-scripts/          Shared audits, packaging, verification and release tools
+scripts/          Shared audits, repository integrity, packaging, verification and release tools
 docs/             Project documentation
 build/            Canonical/static build resources
 ```
