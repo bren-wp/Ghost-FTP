@@ -67,7 +67,7 @@ def main() -> int:
     require("internal/security/runtime_secret_other.go", ("crypto/rand", "runtimeValues", "WipeBytes(value)", "ForgetRuntimeSecret"))
 
     require("internal/profilebinding/binding.go", ("func EndpointMatches(", "func AccountMatches(", "func PrivateKeyMatches(", "strings.TrimSuffix(host, \".\")"))
-    require("internal/remote/manager.go", (
+    manager = require("internal/remote/manager.go", (
         "profilebinding.EndpointMatches", "profilebinding.AccountMatches", "profilebinding.PrivateKeyMatches",
         "func sanitizeProtocolState(cfg model.ConnectionConfig) model.ConnectionConfig", "cfg.PrivateKeyPath = \"\"", "cfg.Passphrase = \"\"", "cfg.Fingerprint = \"\"",
         "base.PrivateKeyPath = override.PrivateKeyPath", "if in.Password == \"\" && profileAccountMatches", "if in.Passphrase == \"\" && profilePrivateKeyMatches",
@@ -75,7 +75,31 @@ def main() -> int:
         "ErrSessionClosing", "ErrDisconnectTimeout", "activeOps     sync.WaitGroup", "closing       *sessionCloseState",
         "m.activeOps.Add(1)", "m.activeOps.Wait()", "m.activeOps.Done()", "var once sync.Once", "go m.finishSessionClose(state, s)",
         "waitForSessionClose(ctx, state)", "errors.Is(ctx.Err(), context.Canceled)", "m.closing = nil",
+        "Diagnostics   ConnectionDiagnostics", "initial, err := s.List(cctx, probePathForSession(s))",
+        "diagnostics := diagnoseConnection(s.Protocol(), initial)",
+        "return ConnectResult{Connected: true, Diagnostics: diagnostics}, nil",
     ))
+    if manager.count("diagnoseConnection(s.Protocol(), initial)") != 1:
+        fail("desktop shared-hosting diagnostics must derive exactly once from the existing initial listing")
+
+    diagnostics = require("internal/remote/shared_hosting_diagnostics.go", (
+        "type ConnectionDiagnostics struct", "Secure          bool", "RootMode        string", "WebRoot         string",
+        "WebRootDetected bool", "RootEntryCount  int", "func diagnoseConnection(protocol string, items []model.Item)",
+        '"public_html"', '"httpdocs"', '"htdocs"', '"www"', '"web"', '"html"',
+        "if !item.IsDirectory || item.IsSymlink", "protocol != \"ftp\"", "protocol == \"sftp\"",
+    ))
+    for forbidden in (
+        "Password", "Passphrase", "PrivateKey", "Username", "Fingerprint", "Certificate", "ServerBanner",
+        "net.", "http.", "url.", ".List(", "Connect(", "Dial(", "os.Exec", "exec.Command",
+    ):
+        if forbidden in diagnostics:
+            fail(f"shared-hosting diagnostics gained secret or network behavior: {forbidden}")
+    require("internal/remote/shared_hosting_diagnostics_test.go", (
+        "TestDiagnoseConnectionFindsPreferredWebRoot",
+        "TestDiagnoseConnectionDoesNotTreatFilesOrSymlinksAsWebRoot",
+        "TestDiagnoseConnectionUsesSFTPHomeRootWithoutInventingWebRoot",
+    ))
+
     require("internal/remote/protocol_state_regression_test.go", (
         "TestResolveClearsSFTPOnlyStateForFTPFamily", "TestConnectionIdentityIgnoresSFTPOnlyStateForFTPFamily", "TestResolvePreservesSFTPStateForSFTP",
     ))
@@ -118,7 +142,13 @@ def main() -> int:
         "cfg.Password = getText(a.pass)", "cfg.Passphrase = getText(a.passphrase)",
         "validateRawConnectionInput(protocol, host, getText(a.port), user)",
         "validateRawConnectionInput(protocol, host, getText(a.port), username)",
+        "a.onConnected(host, r.Diagnostics)", "a.onConnected(cfg.Host, r.Diagnostics)",
+        "func connectionDiagnosticStatus(host string, diagnostics remote.ConnectionDiagnostics) string",
+        "remoteStart := \"/\"", "remoteStart = p.RemotePath",
     ))
+    for forbidden in ("remoteStart = diagnostics.WebRoot", "setText(a.remotePath, diagnostics.WebRoot)", "SaveProfile(diagnostics"):
+        if forbidden in desktop_connection:
+            fail(f"Windows shared-hosting diagnostics auto-navigate or persist derived state: {forbidden}")
     if "host := strings.TrimSpace(getText(a.host))" in desktop_connection:
         fail("Windows connection/profile UI trims raw host before fail-closed host validation")
     if desktop_connection.count("host := getText(a.host)") < 2:
@@ -127,6 +157,10 @@ def main() -> int:
         fail("Windows connection/profile UI trims raw username before fail-closed credential validation")
     if "strconv.Atoi(strings.TrimSpace(getText(a.port)))" in desktop_connection:
         fail("Windows connection/profile UI trims raw port text before strict parsing")
+    require("internal/desktop/connection_diagnostics_windows_test.go", (
+        "TestConnectionDiagnosticStatusShowsSecureWebRoot", "TestConnectionDiagnosticStatusShowsPlainFTPAccountRoot",
+        "TestConnectionDiagnosticStatusShowsSFTPHome", "web root: public_html", "FTP bez enkripcije",
+    ))
     require("internal/desktop/other.go", (
         'i18n.T(language, "terminal.sftp_key_required")', "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
     ))
@@ -148,7 +182,10 @@ def main() -> int:
     require("internal/remote/download_security_test.go", ("validateDownloadedPart", "Symlink"))
     require("internal/remote/private_key_validation_test.go", ("TestValidatePrivateKeyPathAcceptsRegularFile", "TestValidatePrivateKeyPathRejectsSymlink"))
     require("internal/remote/manager_test.go", ("TestDisconnectWaitsForActiveOperationRelease", "TestDisconnectTimeoutDefersCloseAndBlocksReconnect", "TestDisconnectCancellationDefersClose", "TestSecondDisconnectWaitsForExistingCloseState", "TestOperationReleaseIsIdempotent"))
-    require("internal/usererror/message_test.go", ("TestMessageSessionStillClosing", "TestMessageDisconnectCleanupStillRunning", "TestMessageDisconnectLifecycleWinsJoinedDeadline", "TestMessageSFTPHostKeyScanFailure"))
+    require("internal/usererror/message_test.go", (
+        "TestMessageSessionStillClosing", "TestMessageDisconnectCleanupStillRunning", "TestMessageDisconnectLifecycleWinsJoinedDeadline", "TestMessageSFTPHostKeyScanFailure",
+        "TestMessageSharedHostingDataChannelFailure", "TestMessageSharedHostingTLSFailure", "TestMessageSharedHostingQuotaFailure",
+    ))
     require("internal/security/remove_tree_root_test.go", ("RemoveTreeNoFollow",))
     require("internal/security/remove_tree_root_windows_test.go", ("TestIsFilesystemRootRejectsWindowsVolumeRoots", "server\\share"))
 
@@ -168,6 +205,9 @@ def main() -> int:
     print("WINDOWS_RAW_HOST_VALIDATION=FAIL_CLOSED")
     print("WINDOWS_RAW_USERNAME_VALIDATION=FAIL_CLOSED")
     print("WINDOWS_RAW_PORT_VALIDATION=FAIL_CLOSED")
+    print("SHARED_HOSTING_DIAGNOSTICS=EXISTING_INITIAL_LISTING_ONLY")
+    print("SHARED_HOSTING_DIAGNOSTIC_SECRETS=BLOCKED")
+    print("SHARED_HOSTING_AUTO_NAVIGATION=BLOCKED")
     print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
