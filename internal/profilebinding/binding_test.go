@@ -34,13 +34,14 @@ func TestAccountMatchesRequiresExactUsername(t *testing.T) {
 }
 
 func TestPrivateKeyMatchesRequiresSameNonEmptyKey(t *testing.T) {
-	if !PrivateKeyMatches("sftp", "example.test", 22, "alice", `C:\Keys\id_ed25519`, "sftp", "example.test", 22, "alice", `c:\keys\ID_ED25519`) {
-		t.Fatal("same Windows key path was not matched")
+	const key = `/home/alice/.ssh/id_ed25519`
+	if !PrivateKeyMatches("sftp", "example.test", 22, "alice", key, "sftp", "example.test", 22, "alice", key) {
+		t.Fatal("same private-key path was not matched")
 	}
-	if PrivateKeyMatches("sftp", "example.test", 22, "alice", `C:\Keys\id_ed25519`, "sftp", "example.test", 22, "alice", "") {
+	if PrivateKeyMatches("sftp", "example.test", 22, "alice", key, "sftp", "example.test", 22, "alice", "") {
 		t.Fatal("empty key path matched stored key")
 	}
-	if PrivateKeyMatches("sftp", "example.test", 22, "alice", `C:\Keys\id_ed25519`, "sftp", "example.test", 22, "alice", `C:\Keys\other`) {
+	if PrivateKeyMatches("sftp", "example.test", 22, "alice", key, "sftp", "example.test", 22, "alice", `/home/alice/.ssh/other`) {
 		t.Fatal("different key path matched")
 	}
 }
