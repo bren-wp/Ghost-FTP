@@ -4,7 +4,7 @@
 
 ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, Android and iOS**. Desktop and Android support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS while preserving the same shared-hosting and fail-closed path principles.
 
-**Current release: 1.2.7**
+**Current release: 1.2.8**
 
 [Download the latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Linux](linux/README.md) · [macOS](macos/README.md) · [Android](android/README.md) · [iOS](ios/README.md) · [Installation](docs/INSTALLATION.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
@@ -18,16 +18,17 @@ ByFTP is a privacy-focused file-transfer client for **Windows, Linux, macOS, And
 - Strict remote-path and remote-name validation instead of silently rewriting traversal, separators, edge whitespace or protocol control characters.
 - Raw endpoint and credential fields are validated before unsafe normalization so CR/LF/NUL controls cannot disappear before protocol checks.
 - Windows quick-connect and profile-save share one raw connection-input validator: host and username reach security checks verbatim, while port text is parsed strictly without trimming.
+- Saved-profile persistence independently validates raw protocol, host, username and SFTP fingerprint input before storing it, including direct fingerprint updates.
 - FTP/FTPS runtime configs strip SFTP-only private-key, passphrase and host-key fingerprint state before persistence in the active session or transfer identity.
 - Desktop SFTP passphrases remain bound to the exact private-key identity, using Windows path semantics only on Windows and fail-closed exact path matching on other desktop platforms.
 - Desktop profile matching, reconnect transfer identity and endpoint-scoped trust share one canonical DNS/IPv6 endpoint identity policy instead of duplicating host normalization.
-- Desktop SFTP fingerprints are validated as canonical OpenSSH `SHA256:` values that decode to exactly one 32-byte SHA-256 digest for both saved profiles and direct connections.
+- Desktop SFTP fingerprints are validated as canonical OpenSSH `SHA256:` values that decode to exactly one 32-byte SHA-256 digest for saved profiles, direct fingerprint updates and direct connections.
 - Runtime connection and transfer settings share one validated fallback policy instead of duplicating timeout/retry/parallelism defaults.
 - Mobile transport password references are shortened to authentication scope where the implementation permits it.
 - Session-scoped mobile credentials with no advertising, analytics SDK or mandatory ByFTP cloud account.
 - One canonical `VERSION` drives Windows, Linux, macOS, Android, iOS and public release metadata.
 - Linux packaging lives under `linux/`, macOS packaging under `macos/`, and the canonical iOS build entry point under `ios/`; platform build logic is not duplicated under `scripts/`.
-- CI and production builds are pinned to Go 1.27.0 and Gradle 9.7.0 for the 1.2.7 maintenance line.
+- CI and production builds are pinned to Go 1.27.0 and Gradle 9.7.0 for the 1.2.8 maintenance line.
 
 ## Supported platforms and release artifacts
 
@@ -56,13 +57,13 @@ Desktop and Android support explicit and implicit FTPS. iOS supports implicit FT
 
 ### SFTP
 
-Desktop and Android support SFTP with host-key verification. Android validates the provided OpenSSH-style `SHA256:` fingerprint as a real 32-byte SHA-256 digest before SSHJ receives it. Desktop applies the same canonical digest requirement to saved and direct-connect fingerprints, while saved key passphrases remain scoped to the selected account and private-key identity with platform-correct path comparison. iOS does not claim SFTP yet; adding it requires an audited native implementation rather than a permissive compatibility layer.
+Desktop and Android support SFTP with host-key verification. Android validates the provided OpenSSH-style `SHA256:` fingerprint as a real 32-byte SHA-256 digest before SSHJ receives it. Desktop applies the same canonical digest requirement to saved profiles, direct fingerprint updates and direct-connect fingerprints, while saved key passphrases remain scoped to the selected account and private-key identity with platform-correct path comparison. iOS does not claim SFTP yet; adding it requires an audited native implementation rather than a permissive compatibility layer.
 
 ## Android
 
 The Android application under `android/` supports FTP, explicit/implicit FTPS and SFTP. It uses the Storage Access Framework instead of broad storage permissions, keeps passwords session-only, excludes app data from backup/device transfer, and cleans pending connection/file-picker state during lifecycle teardown.
 
-The 1.2.2 runtime hardening and 1.2.3 reproducible build-toolchain refresh remain in 1.2.7: FTP and SFTP directory listings share the same canonical remote-name validator, CR/LF/NUL and edge-whitespace names are rejected consistently, unsafe server login roots are rejected before normalization, transport password references are cleared immediately after authentication, and Gradle remains pinned to 9.7.0 with AGP 9.3.0, API 37 and the audited APK packaging contract.
+The 1.2.2 runtime hardening and 1.2.3 reproducible build-toolchain refresh remain in 1.2.8: FTP and SFTP directory listings share the same canonical remote-name validator, CR/LF/NUL and edge-whitespace names are rejected consistently, unsafe server login roots are rejected before normalization, transport password references are cleared immediately after authentication, and Gradle remains pinned to 9.7.0 with AGP 9.3.0, API 37 and the audited APK packaging contract.
 
 See [ByFTP for Android](android/README.md).
 
@@ -70,13 +71,13 @@ See [ByFTP for Android](android/README.md).
 
 The native SwiftUI application lives under `ios/` with a normal Xcode project and shared scheme. It provides FTP and implicit FTPS, remote browsing, upload/download, mkdir, rename/delete, MLSD-to-LIST fallback, shared-hosting login-root mapping and system document/share integration.
 
-The 1.2.2 lifecycle/path hardening and 1.2.3 canonical platform build layout remain in 1.2.7. `ios/BUILD.sh` remains the canonical iOS build entry point, PASV host redirects remain blocked, temporary downloads remain failure-safe, and the transport password copy remains connect-only.
+The 1.2.2 lifecycle/path hardening and 1.2.3 canonical platform build layout remain in 1.2.8. `ios/BUILD.sh` remains the canonical iOS build entry point, PASV host redirects remain blocked, temporary downloads remain failure-safe, and the transport password copy remains connect-only.
 
 See [ByFTP for iOS](ios/README.md).
 
 ## Windows, Linux and macOS
 
-The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`, including its app-bundle metadata and launcher. The shared desktop engine remains under `cmd/` and `internal/` exactly once, preventing Linux/macOS code forks. Version 1.2.7 preserves the 1.2.6 protocol-state cleanup and raw-host boundary while extending fail-closed Windows input handling to username and port text through one shared connection-input validator used by quick-connect and profile-save.
+The desktop application remains written in Go. Windows retains transactional x64/x86 installers, portable packages, DPAPI-backed saved secrets, localized UI and hardened AskPass/process boundaries. Linux builds DEBs for amd64, arm64 and i386 from `linux/`. macOS builds a Universal Intel/Apple Silicon PKG from `macos/`, including its app-bundle metadata and launcher. The shared desktop engine remains under `cmd/` and `internal/` exactly once, preventing Linux/macOS code forks. Version 1.2.8 keeps the 1.2.7 shared raw Windows connection validator and extends the same fail-closed behavior into saved-profile persistence, including direct SFTP fingerprint updates, so backend API calls cannot bypass canonical connection/trust input rules.
 
 ## Shared-hosting workflow
 
@@ -90,7 +91,7 @@ See [Shared hosting](docs/SHARED-HOSTING.md).
 
 ## Security and privacy
 
-ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Windows desktop host and username input reaches validation without silent trimming, raw port text is parsed strictly, equivalent endpoints are canonicalized only for identity matching, SFTP host-key fingerprints are validated as real SHA-256 digests, SFTP-only state is removed from FTP/FTPS sessions and passphrases remain bound to the correct account/private-key identity across Windows, Linux and macOS path semantics. Android centralizes remote-name validation across FTP/SFTP, validates fingerprints and shortens transport password lifetime. iOS uses bounded Network.framework I/O, canonical names, account-root path mapping, PASV-host redirect blocking, pending-connect cleanup, temporary-download cleanup and background disconnect.
+ByFTP keeps transport, credential, transfer and filesystem checks fail-closed. Windows desktop host and username input reaches validation without silent trimming, raw port text is parsed strictly, saved-profile persistence validates raw protocol/host/username/fingerprint before normalization, equivalent endpoints are canonicalized only for identity matching, SFTP host-key fingerprints are validated as real SHA-256 digests, SFTP-only state is removed from FTP/FTPS sessions and passphrases remain bound to the correct account/private-key identity across Windows, Linux and macOS path semantics. Android centralizes remote-name validation across FTP/SFTP, validates fingerprints and shortens transport password lifetime. iOS uses bounded Network.framework I/O, canonical names, account-root path mapping, PASV-host redirect blocking, pending-connect cleanup, temporary-download cleanup and background disconnect.
 
 No mobile client includes analytics/advertising SDKs or requires a ByFTP backend. Connections target endpoints selected by the user. See [Security](docs/SECURITY.md) and [Privacy](docs/PRIVACY.md).
 
