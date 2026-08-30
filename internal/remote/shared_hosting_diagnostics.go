@@ -42,7 +42,7 @@ func diagnoseConnection(protocol string, items []model.Item) ConnectionDiagnosti
 		if !item.IsDirectory || item.IsSymlink {
 			continue
 		}
-		name := strings.TrimSpace(item.Name)
+		name := item.Name
 		if name == "" {
 			continue
 		}
