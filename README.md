@@ -6,7 +6,7 @@ ByFTP is a privacy-focused file-transfer suite for **Windows, Linux, macOS, Andr
 
 **Current release: 1.7.0**
 
-[Latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Windows/Linux/macOS](docs/INSTALLATION.md) · [Android](android/README.md) · [iOS](ios/README.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+[Latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Installation](docs/INSTALLATION.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
 
 ## 1.7.0 highlights
 
@@ -33,7 +33,7 @@ ByFTP is a privacy-focused file-transfer suite for **Windows, Linux, macOS, Andr
 | macOS Universal | FTP, explicit FTPS, implicit FTPS, SFTP | Universal PKG |
 | Android 8.0+ | FTP, explicit FTPS, implicit FTPS, SFTP | Debug-signed APK, unsigned optimized release APK |
 | iOS 16+ | FTP, implicit FTPS | Unsigned arm64 IPA and `.app` ZIP |
-| ByFTP WEB | FTP/FTPS; SFTP with PHP `ext-ssh2` | Shared-hosting PHP/PWA source and release ZIP |
+| ByFTP WEB | FTP/FTPS; SFTP with PHP `ext-ssh2` | Shared-hosting PHP/PWA source tree |
 
 Android production signing and Apple production signing remain external trust boundaries. Debug/unsigned artifacts are never described as store-signed production packages.
 
@@ -53,7 +53,7 @@ No official client includes an advertising SDK or requires a ByFTP telemetry bac
 
 Native clients map the visible FTP root to the authenticated account namespace and expose non-secret shared-hosting diagnostics derived from the first listing already needed for the session. Common web roots are recognized in this deterministic order: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Detection is advisory only: ByFTP never silently changes or saves the user's selected path because a common web-root name was found.
 
-ByFTP WEB can run directly on ordinary PHP shared hosting. It needs PHP 8.1+, a writable `storage/` directory, `ext-ftp` for FTP/FTPS, Sodium or OpenSSL for encrypted credential storage, optional `ext-ssh2` for SFTP and optional `ext-zip` for ZIP operations. Production deployments should use HTTPS. See [ByFTP WEB documentation](ByFTP%20WEB/README.md).
+ByFTP WEB can run directly on ordinary PHP shared hosting. It needs PHP 8.1+, a writable `storage/` directory, `ext-ftp` for FTP/FTPS, Sodium or OpenSSL for encrypted credential storage, optional `ext-ssh2` for SFTP and optional `ext-zip` for ZIP operations. Production deployments should use HTTPS. See [Shared hosting](docs/SHARED-HOSTING.md) and [ByFTP WEB documentation](ByFTP%20WEB/README.md).
 
 ## Mobile behavior
 
@@ -116,4 +116,10 @@ php 'ByFTP WEB/tests/unit.php'
 python scripts/audit_web.py
 ```
 
-See [Testing](docs/TESTING.md), [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Release verification](docs/RELEASE-VERIFICATION.md).
+## Documentation
+
+Core documentation:
+[Architecture](docs/ARCHITECTURE.md) · [Contributing](docs/CONTRIBUTING.md) · [GitHub releases](docs/GITHUB-RELEASES.md) · [Installation](docs/INSTALLATION.md) · [Privacy](docs/PRIVACY.md) · [Release verification](docs/RELEASE-VERIFICATION.md) · [Roadmap](docs/ROADMAP.md) · [Security](docs/SECURITY.md) · [Shared hosting](docs/SHARED-HOSTING.md) · [Signing](docs/SIGNING.md) · [Support](docs/SUPPORT.md) · [Testing](docs/TESTING.md) · [Third-party notices](docs/THIRD-PARTY-NOTICES.md).
+
+Platform/source guides:
+[Linux](linux/README.md) · [macOS](macos/README.md) · [Android](android/README.md) · [iOS](ios/README.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Build and verification tooling](scripts/README.md) · [Documentation index](docs/README.md).
