@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import sys
@@ -14,7 +13,7 @@ VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 CURRENT_RELEASE_RE = re.compile(
     r"(?im)\b(?:Current release|Trenutačno izdanje)\s*:\s*(\d+\.\d+\.\d+)\b"
 )
-MERGE_MARKERS = ("<<<<<<< ", "=======", ">>>>>>> ")
+MERGE_CONFLICT_RE = re.compile(r"(?m)^(?:<<<<<<< .+|=======|>>>>>>> .+)$")
 BINARY_EXTENSIONS = {
     ".a", ".apk", ".deb", ".dll", ".dylib", ".exe", ".gif", ".ico", ".icns",
     ".ipa", ".jar", ".jpeg", ".jpg", ".otf", ".pdf", ".pkg", ".png", ".so",
@@ -130,10 +129,8 @@ def validate_text(path: str, data: bytes, version: str) -> list[str]:
     if text and not text.endswith("\n"):
         errors.append(f"text file is missing final newline: {path}")
 
-    for marker in MERGE_MARKERS:
-        if marker in text:
-            errors.append(f"merge-conflict marker {marker!r} remains in {path}")
-            break
+    if MERGE_CONFLICT_RE.search(text):
+        errors.append(f"merge-conflict marker remains in {path}")
 
     for match in CURRENT_RELEASE_RE.finditer(text):
         if match.group(1) != version:
