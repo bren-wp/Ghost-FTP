@@ -22,13 +22,13 @@ final class ConnectionPresetStore {
         preferences = context.getSharedPreferences(STORE, Context.MODE_PRIVATE);
     }
 
-    void save(ConnectionConfig config) {
+    void save(ConnectionConfig.Protocol protocol, String host, int port, String username, String fingerprint) {
         preferences.edit()
-            .putString(KEY_PROTOCOL, config.protocol().name())
-            .putString(KEY_HOST, config.host())
-            .putInt(KEY_PORT, config.port())
-            .putString(KEY_USERNAME, config.username())
-            .putString(KEY_FINGERPRINT, config.fingerprint())
+            .putString(KEY_PROTOCOL, protocol.name())
+            .putString(KEY_HOST, host)
+            .putInt(KEY_PORT, port)
+            .putString(KEY_USERNAME, username)
+            .putString(KEY_FINGERPRINT, fingerprint)
             .apply();
     }
 
