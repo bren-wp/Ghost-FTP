@@ -28,8 +28,10 @@ class UIStabilityHardeningTests(unittest.TestCase):
     def test_profile_endpoint_is_validated_before_reading_typed_secrets(self) -> None:
         text = self.read("internal/desktop/connection_profiles_windows.go")
         save = text.split("func (a *app) saveCurrentProfile()", 1)[1]
-        self.assertLess(save.index("security.ValidateConnection("), save.index("password := getText(a.pass)"))
-        self.assertIn("port < 1 || port > 65535", save)
+        self.assertLess(save.index("validateRawConnectionInput("), save.index("password := getText(a.pass)"))
+        validator = self.read("internal/desktop/connection_input.go")
+        self.assertIn("strconv.Atoi(portText)", validator)
+        self.assertIn("security.ValidateConnection(protocol, host, username, port)", validator)
 
     def test_partial_remote_mutations_refresh_real_state(self) -> None:
         text = self.read("internal/desktop/files_actions_windows.go")
