@@ -1,0 +1,16 @@
+{
+  "name": "brendigo/byftp-web",
+  "version": "1.7.0",
+  "description": "ByFTP WEB 1.7.0 - hardened multi-user shared-hosting FTP/FTPS/SFTP PWA client",
+  "type": "project",
+  "require": {
+    "php": ">=8.1"
+  },
+  "suggest": {
+    "ext-ftp": "Required for FTP/FTPS support",
+    "ext-ssh2": "Required for SFTP support",
+    "ext-zip": "Required for ZIP create/extract and folder downloads",
+    "ext-sodium": "Preferred for credential encryption",
+    "ext-openssl": "Encryption fallback when sodium is unavailable"
+  }
+}

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -28,6 +29,18 @@ def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
+
+    web_version = read("ByFTP WEB/VERSION").strip()
+    if web_version != version:
+        fail(f"ByFTP WEB/VERSION must equal root VERSION: {web_version!r} != {version!r}")
+    try:
+        web_composer = json.loads(read("ByFTP WEB/composer.json"))
+    except json.JSONDecodeError as exc:
+        fail(f"ByFTP WEB/composer.json is invalid JSON: {exc}")
+    if web_composer.get("version") != version:
+        fail("ByFTP WEB composer version is not bound to canonical VERSION")
+    if f"byftp-static-v{version}" not in read("ByFTP WEB/service-worker.js"):
+        fail("ByFTP WEB service-worker cache version is not bound to canonical VERSION")
 
     gomod = read("go.mod")
     if f"go {GO_TOOLCHAIN}" not in gomod:
@@ -58,10 +71,23 @@ def main() -> int:
         if marker not in repository_audit:
             fail(f"repository-wide audit is missing invariant: {marker}")
     read("scripts/test_audit_repository.py")
+
+    web_audit = read("scripts/audit_web.py")
+    for marker in (
+        "WEB_AUDIT_FAILED", "run_runtime_checks", "PHP CLI is required",
+        "node", "--check", "ByFTP WEB unit tests", "WEB_RUNTIME_STORAGE=NOT_TRACKED",
+    ):
+        if marker not in web_audit:
+            fail(f"web audit is missing invariant: {marker}")
+
     release_audit = read("scripts/audit_release.py")
-    for marker in ("def run_repository_audit()", "run_repository_audit()"):
+    for marker in (
+        'run_python_audit("scripts/audit_repository.py",',
+        'run_python_audit("scripts/audit_web.py",',
+        "WEB_RUNTIME_AND_SECURITY_GATE=REQUIRED",
+    ):
         if marker not in release_audit:
-            fail(f"release audit does not require repository-wide integrity: {marker}")
+            fail(f"release audit does not require repository/web integrity: {marker}")
 
     for path in sorted((ROOT / "docs").rglob("*.md")):
         text = path.read_text(encoding="utf-8")
@@ -124,6 +150,8 @@ def main() -> int:
         for marker in ("bash linux/BUILD.sh", "bash macos/BUILD.sh", "bash ios/BUILD.sh"):
             if marker not in workflow:
                 fail(f"{workflow_rel} is not using canonical platform build entry point: {marker}")
+        if "python scripts/audit_release.py" not in workflow:
+            fail(f"{workflow_rel} does not invoke the release contract that includes ByFTP WEB")
 
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
@@ -152,10 +180,11 @@ def main() -> int:
     print(f"VERSION_AUDIT=PASS ({version})")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print(f"GRADLE_TOOLCHAIN={GRADLE_TOOLCHAIN}")
-    print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID,IOS")
-    print("PLATFORM_BUILD_ENTRYPOINTS=ROOT_WINDOWS,LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY")
+    print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID,IOS,WEB")
+    print("PLATFORM_BUILD_ENTRYPOINTS=ROOT_WINDOWS,LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY,WEB_SOURCE_DIRECTORY")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")
     print("REPOSITORY_WIDE_AUDIT_VERSION_BOUND=YES")
+    print("WEB_VERSION_BOUND_TO_ROOT_VERSION=YES")
     print("PRODUCTION_DOC_VERSION_DRIFT=BLOCKED")
     return 0
 

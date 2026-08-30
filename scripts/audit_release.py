@@ -27,14 +27,14 @@ def require(text: str, marker: str, where: str) -> None:
         fail(f"{where} is missing required marker: {marker}")
 
 
-def run_repository_audit() -> None:
-    audit = ROOT / "scripts" / "audit_repository.py"
+def run_python_audit(rel: str, label: str) -> None:
+    audit = ROOT / rel
     if not audit.is_file():
-        fail("missing required file: scripts/audit_repository.py")
+        fail(f"missing required file: {rel}")
     try:
         subprocess.run([sys.executable, str(audit)], cwd=ROOT, check=True)
     except subprocess.CalledProcessError as exc:
-        fail(f"repository-wide tracked-file audit failed with exit code {exc.returncode}")
+        fail(f"{label} failed with exit code {exc.returncode}")
 
 
 def main() -> int:
@@ -42,9 +42,10 @@ def main() -> int:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
 
-    # Release validation must cover every tracked file, not only the files
-    # explicitly named by platform-specific audits below.
-    run_repository_audit()
+    # Release validation covers every tracked file and the complete maintained
+    # PHP/JS web client in addition to the native platform-specific audits.
+    run_python_audit("scripts/audit_repository.py", "repository-wide tracked-file audit")
+    run_python_audit("scripts/audit_web.py", "ByFTP WEB audit/runtime gate")
 
     workflow = read(".github/workflows/release.yml")
     for marker in (
@@ -72,6 +73,9 @@ def main() -> int:
         "<PackageId>ByFTP.Windows</PackageId>", "dotnet nuget push", "--skip-duplicate",
     ):
         require(workflow, marker, ".github/workflows/release.yml")
+
+    ci = read(".github/workflows/ci.yml")
+    require(ci, "python scripts/audit_release.py", ".github/workflows/ci.yml")
 
     for legacy in ("scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh", ".github/workflows/__byftp_sync.yml"):
         if (ROOT / legacy).exists():
@@ -125,6 +129,7 @@ def main() -> int:
 
     for rel in (
         "README.md", "CHANGELOG.md", "linux/README.md", "macos/README.md", "android/README.md", "ios/README.md",
+        "ByFTP WEB/README.md", "ByFTP WEB/VERSION", "scripts/audit_web.py",
         "docs/INSTALLATION.md", "docs/RELEASE-VERIFICATION.md", "docs/SECURITY.md", "docs/PRIVACY.md",
         "scripts/audit_repository.py", "scripts/test_audit_repository.py",
     ):
@@ -139,8 +144,9 @@ def main() -> int:
 
     print(f"RELEASE_AUDIT=PASS ({version})")
     print("REPOSITORY_WIDE_TRACKED_FILE_AUDIT=REQUIRED")
-    print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP")
-    print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY")
+    print("WEB_RUNTIME_AND_SECURITY_GATE=REQUIRED")
+    print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP,WEB_SOURCE_VALIDATED")
+    print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY,WEB_SOURCE_DIRECTORY")
     print("OBSOLETE_PLATFORM_WRAPPERS=REMOVED")
     print("OBSOLETE_SOURCE_SYNC_WORKFLOW=REMOVED")
     print("ANDROID_APK_PUBLICATION=DEBUG_SIGNED_AND_RELEASE_UNSIGNED")

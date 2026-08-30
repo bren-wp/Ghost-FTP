@@ -21,7 +21,7 @@ class ReleaseVersionGuardTests(unittest.TestCase):
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
         subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
         subprocess.run(["git", "config", "user.name", "ByFTP Test"], cwd=root, check=True)
-        (root / "VERSION").write_text("1.0.0\n", encoding="utf-8")
+        (root / "VERSION").write_text("1.3.0\n", encoding="utf-8")
         (root / "internal").mkdir()
         (root / "internal" / "core.go").write_text("package internal\n", encoding="utf-8")
         (root / "scripts").mkdir()
@@ -29,7 +29,7 @@ class ReleaseVersionGuardTests(unittest.TestCase):
         subprocess.run(["git", "add", "."], cwd=root, check=True)
         subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
         base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-        subprocess.run(["git", "tag", "v1.0.0"], cwd=root, check=True)
+        subprocess.run(["git", "tag", "v1.3.0"], cwd=root, check=True)
         return root, base
 
     def commit(self, root: Path, message: str) -> str:
@@ -48,7 +48,7 @@ class ReleaseVersionGuardTests(unittest.TestCase):
     def test_version_bump_allows_production_change(self) -> None:
         root, base = self.make_repo()
         (root / "internal" / "core.go").write_text("package internal\n// hardened\n", encoding="utf-8")
-        (root / "VERSION").write_text("1.0.1\n", encoding="utf-8")
+        (root / "VERSION").write_text("1.4.0\n", encoding="utf-8")
         head = self.commit(root, "new version")
         ok, message = GUARD.validate_release_version(base, head, root)
         self.assertTrue(ok, message)
@@ -62,7 +62,7 @@ class ReleaseVersionGuardTests(unittest.TestCase):
 
     def test_unreleased_version_allows_production_work(self) -> None:
         root, base = self.make_repo()
-        (root / "VERSION").write_text("2.0.0\n", encoding="utf-8")
+        (root / "VERSION").write_text("1.7.0\n", encoding="utf-8")
         head = self.commit(root, "start unreleased line")
         ok, message = GUARD.validate_release_version(base, head, root)
         self.assertTrue(ok, message)

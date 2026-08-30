@@ -1,0 +1,56 @@
+{
+  "id": "./",
+  "name": "ByFTP Remote File Client",
+  "short_name": "ByFTP",
+  "description": "Siguran FTP, FTPS i SFTP klijent za vlastiti hosting.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#090b10",
+  "theme_color": "#090b10",
+  "categories": [
+    "productivity",
+    "utilities",
+    "developer"
+  ],
+  "icons": [
+    {
+      "src": "assets/images/mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Datoteke",
+      "short_name": "Datoteke",
+      "url": "./",
+      "icons": [
+        {
+          "src": "assets/images/mark.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Račun",
+      "short_name": "Račun",
+      "url": "./account",
+      "icons": [
+        {
+          "src": "assets/images/mark.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
