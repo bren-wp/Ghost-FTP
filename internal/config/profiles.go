@@ -202,12 +202,12 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 		}
 	}
 
-	requestedFingerprint := strings.TrimSpace(in.Fingerprint)
+	requestedFingerprint := in.Fingerprint
 	x.Name = strings.TrimSpace(in.Name)
-	x.Protocol = strings.ToLower(strings.TrimSpace(in.Protocol))
-	x.Host = strings.TrimSpace(in.Host)
+	x.Protocol = in.Protocol
+	x.Host = in.Host
 	x.Port = in.Port
-	x.Username = strings.TrimSpace(in.Username)
+	x.Username = in.Username
 	x.PrivateKeyPath = strings.TrimSpace(in.PrivateKeyPath)
 	x.RemotePath = strings.TrimSpace(in.RemotePath)
 	x.LocalPath = strings.TrimSpace(in.LocalPath)
@@ -337,7 +337,6 @@ func (p *Profiles) UpdateFingerprint(id, fp string) error {
 	if err != nil {
 		return err
 	}
-	fp = strings.TrimSpace(fp)
 	if err := security.ValidateSFTPFingerprint(fp); err != nil {
 		return err
 	}
