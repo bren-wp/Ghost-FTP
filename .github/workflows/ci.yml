@@ -41,6 +41,15 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
+      - name: Verify Go formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          unformatted="$(find cmd internal -type f -name '*.go' -print0 | xargs -0 -r gofmt -l)"
+          if [[ -n "$unformatted" ]]; then
+            printf 'Go source is not gofmt-clean:\n%s\n' "$unformatted" >&2
+            exit 1
+          fi
       - name: Verify generated brand assets
         run: python scripts/generate_brand_assets.py --check
       - name: Verify English-first localization contract
