@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.7 — Raw desktop account and port validation
+
+**Focus:** finish fail-closed Windows connection-field handling by ensuring username and port text reach validation without silent normalization while centralizing duplicated quick-connect/profile-save parsing.
+
+- Added one cross-platform-testable desktop raw connection-input validator shared by Windows quick-connect and profile-save.
+- Windows no longer trims username before validation; CR/LF/NUL cannot disappear before security checks, while backend-compatible usernames are preserved verbatim.
+- Windows now parses port text without `TrimSpace`, so edge whitespace, tabs and CR/LF are rejected instead of silently normalized into a valid port.
+- Preserved the 1.2.6 fail-closed raw-host boundary and canonical endpoint/connection-identity behavior.
+- Added regressions for canonical ports, noncanonical raw port text, username controls, verbatim usernames and raw-host rejection.
+- Extended the security audit so future Windows pre-validation username/port trimming fails CI.
+- Removed duplicated host/username/port validation logic from the two Windows connection-entry paths without changing their existing user-facing error behavior.
+- Preserved the verified five-platform build, signing, release and credential-boundary contract from 1.2.6.
+
 ## 1.2.6 — Protocol-state cleanup and raw host validation
 
 **Focus:** keep protocol-specific runtime state minimal and restore the intended fail-closed raw-host boundary in the Windows desktop UI.
