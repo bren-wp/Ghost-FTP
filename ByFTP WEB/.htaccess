@@ -1,0 +1,89 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Clean application routes. Relative rules keep ByFTP working in a shared-hosting subdirectory.
+    RewriteRule ^login/?$ login.php [L,QSA]
+    RewriteRule ^logout/?$ logout.php [L,QSA]
+    RewriteRule ^register/?$ register.php [L,QSA]
+    RewriteRule ^account/?$ account.php [L,QSA]
+    RewriteRule ^users/?$ users.php [L,QSA]
+    RewriteRule ^settings/?$ settings.php [L,QSA]
+    RewriteRule ^setup/?$ setup.php [L,QSA]
+    RewriteRule ^diagnostics/?$ diagnostics.php [L,QSA]
+    RewriteRule ^api/?$ api.php [L,QSA]
+    RewriteRule ^download/file/?$ download.php [L,QSA]
+    RewriteRule ^download/archive/?$ download-archive.php [L,QSA]
+    RewriteRule ^preview/file/?$ preview.php [L,QSA]
+
+    # Redirect direct browser requests for human-facing PHP pages to clean routes.
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.php(?:[?\s]) [NC]
+    RewriteRule ^index\.php$ ./ [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?login\.php(?:[?\s]) [NC]
+    RewriteRule ^login\.php$ login [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?logout\.php(?:[?\s]) [NC]
+    RewriteRule ^logout\.php$ logout [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?register\.php(?:[?\s]) [NC]
+    RewriteRule ^register\.php$ register [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?account\.php(?:[?\s]) [NC]
+    RewriteRule ^account\.php$ account [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?users\.php(?:[?\s]) [NC]
+    RewriteRule ^users\.php$ users [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?settings\.php(?:[?\s]) [NC]
+    RewriteRule ^settings\.php$ settings [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?setup\.php(?:[?\s]) [NC]
+    RewriteRule ^setup\.php$ setup [R=302,L,NE]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?diagnostics\.php(?:[?\s]) [NC]
+    RewriteRule ^diagnostics\.php$ diagnostics [R=302,L,NE]
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+    Header always set X-Permitted-Cross-Domain-Policies "none"
+    Header always set Origin-Agent-Cluster "?1"
+    Header always set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+<FilesMatch "(^\.|composer\.(json|lock)$|README\.md$|.*\.(log|json|key|bak|sql|lock)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# The PWA manifest is intentionally public to the browser but still receives X-Robots-Tag.
+<Files "manifest.webmanifest">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+</Files>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain text/html text/css text/javascript application/javascript application/json application/manifest+json application/xml image/svg+xml
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(?:css|js|svg|png|jpg|jpeg|gif|webp|ico)$">
+        Header set Cache-Control "public, max-age=604800, immutable"
+    </FilesMatch>
+    <Files "service-worker.js">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </Files>
+    <Files "manifest.webmanifest">
+        Header set Cache-Control "public, max-age=3600"
+    </Files>
+</IfModule>
