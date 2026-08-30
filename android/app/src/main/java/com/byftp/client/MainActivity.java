@@ -2,6 +2,7 @@ package com.byftp.client;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -9,13 +10,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
@@ -29,7 +33,11 @@ import com.byftp.client.remote.RemoteClientFactory;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,6 +48,7 @@ public final class MainActivity extends Activity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<RemoteEntry> entries = new ArrayList<>();
+    private final List<RemoteEntry> visibleEntries = new ArrayList<>();
 
     private Spinner protocol;
     private EditText host;
@@ -47,15 +56,18 @@ public final class MainActivity extends Activity {
     private EditText username;
     private EditText password;
     private EditText fingerprint;
+    private EditText filter;
     private Button connect;
     private Button up;
     private Button refresh;
-    private Button upload;
-    private Button newFolder;
+    private Button menu;
+    private ScrollView formScroll;
+    private TextView connectionSummary;
     private TextView path;
     private TextView status;
     private ListView list;
     private ArrayAdapter<String> listAdapter;
+    private ConnectionPresetStore presetStore;
 
     private volatile RemoteClient client;
     private volatile RemoteClient connectingClient;
@@ -66,32 +78,47 @@ public final class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        presetStore = new ConnectionPresetStore(this);
         setContentView(buildUi());
+        restoreSavedConnection();
         bindEvents();
         updateConnectionUi(false);
     }
 
     private View buildUi() {
-        int pad = dp(16);
+        int pad = dp(14);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(pad, pad, pad, pad);
         root.setBackgroundColor(0xFFF8FAFC);
 
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(0, 0, 0, dp(10));
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.ic_byftp);
+        logo.setContentDescription(getString(R.string.app_name));
+        header.addView(logo, new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.VERTICAL);
+        heading.setPadding(dp(10), 0, 0, 0);
         TextView title = new TextView(this);
         title.setText(getString(R.string.app_name));
-        title.setTextSize(26);
+        title.setTextSize(25);
         title.setTextColor(0xFF0F172A);
         title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        root.addView(title);
-
+        heading.addView(title);
         TextView subtitle = new TextView(this);
         subtitle.setText(getString(R.string.app_subtitle));
         subtitle.setTextColor(0xFF475569);
-        subtitle.setPadding(0, 0, 0, dp(12));
-        root.addView(subtitle);
+        heading.addView(subtitle);
+        header.addView(heading, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        root.addView(header);
 
-        ScrollView formScroll = new ScrollView(this);
+        formScroll = new ScrollView(this);
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
         formScroll.addView(form);
@@ -115,24 +142,37 @@ public final class MainActivity extends Activity {
         connect = button(R.string.connect);
         form.addView(connect, matchWrap());
 
+        connectionSummary = new TextView(this);
+        connectionSummary.setTextColor(0xFF334155);
+        connectionSummary.setTextSize(14);
+        connectionSummary.setPadding(dp(12), dp(10), dp(12), dp(10));
+        connectionSummary.setBackgroundColor(0xFFEFF6FF);
+        connectionSummary.setVisibility(View.GONE);
+        root.addView(connectionSummary, matchWrap());
+
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setGravity(Gravity.CENTER_VERTICAL);
         up = button(R.string.up);
         refresh = button(R.string.refresh);
-        upload = button(R.string.upload);
-        newFolder = button(R.string.new_folder);
+        menu = button(R.string.menu);
         actions.addView(up, weight());
         actions.addView(refresh, weight());
-        actions.addView(upload, weight());
-        actions.addView(newFolder, weight());
+        actions.addView(menu, weight());
         root.addView(actions, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         path = new TextView(this);
         path.setText(R.string.root_path);
         path.setTextColor(0xFF334155);
-        path.setPadding(0, dp(10), 0, dp(6));
+        path.setTypeface(android.graphics.Typeface.MONOSPACE);
+        path.setSingleLine(true);
+        path.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        path.setPadding(0, dp(8), 0, dp(4));
         root.addView(path);
+
+        filter = input(R.string.filter_files, InputType.TYPE_CLASS_TEXT);
+        filter.setVisibility(View.GONE);
+        root.addView(filter);
 
         list = new ListView(this);
         listAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_activated_1, new ArrayList<>());
@@ -160,24 +200,41 @@ public final class MainActivity extends Activity {
 
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
         });
-        connect.setOnClickListener(v -> { if (client == null) connect(); else disconnect(); });
+        connect.setOnClickListener(v -> connect());
         refresh.setOnClickListener(v -> refresh());
         up.setOnClickListener(v -> { if (!currentPath.equals("/")) openDirectory(RemotePaths.parent(currentPath)); });
-        upload.setOnClickListener(v -> pickUpload());
-        newFolder.setOnClickListener(v -> promptNewFolder());
+        menu.setOnClickListener(v -> showMainMenu());
+        filter.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateVisibleEntries(); }
+            @Override public void afterTextChanged(Editable s) {}
+        });
         list.setOnItemClickListener((parent, view, position, id) -> {
-            RemoteEntry entry = entries.get(position);
+            if (position < 0 || position >= visibleEntries.size()) return;
+            RemoteEntry entry = visibleEntries.get(position);
             if (entry.directory()) openDirectory(RemotePaths.child(currentPath, entry.name()));
             else status.setText(getString(R.string.selected_file, entry.name()));
         });
         list.setOnItemLongClickListener((parent, view, position, id) -> {
-            showEntryActions(entries.get(position));
+            if (position < 0 || position >= visibleEntries.size()) return true;
+            showEntryActions(visibleEntries.get(position));
             return true;
         });
     }
 
+    private void restoreSavedConnection() {
+        ConnectionPresetStore.Preset saved = presetStore.load();
+        if (saved == null) return;
+        protocol.setSelection(saved.protocol().ordinal());
+        host.setText(saved.host());
+        port.setText(Integer.toString(saved.port()));
+        username.setText(saved.username());
+        fingerprint.setText(saved.fingerprint());
+        password.setText("");
+    }
+
     private void connect() {
-        if (busy) return;
+        if (busy || client != null) return;
         ConnectionConfig config;
         try {
             config = ConnectionConfig.create(
@@ -189,9 +246,11 @@ public final class MainActivity extends Activity {
                 text(fingerprint)
             );
         } catch (IllegalArgumentException error) {
+            password.setText("");
             showError(error);
             return;
         }
+        password.setText("");
 
         setBusy(true, R.string.status_connecting);
         io.execute(() -> {
@@ -204,6 +263,11 @@ public final class MainActivity extends Activity {
                     connectingClient = null;
                     client = next;
                     currentPath = "/";
+                    presetStore.save(config);
+                    connectionSummary.setText(getString(
+                        R.string.connected_to,
+                        config.protocol().toString(), config.host(), config.port(), config.username()
+                    ));
                     replaceEntries(initial);
                     updateConnectionUi(true);
                     setBusy(false, R.string.status_connected);
@@ -212,6 +276,7 @@ public final class MainActivity extends Activity {
                 connectingClient = null;
                 next.close();
                 postToMain(() -> {
+                    password.setText("");
                     setBusy(false, R.string.status_ready);
                     showError(error);
                 });
@@ -220,18 +285,21 @@ public final class MainActivity extends Activity {
     }
 
     private void disconnect() {
-        if (busy) return;
+        if (busy || client == null) return;
         RemoteClient current = client;
         client = null;
         pendingDownloadPath = null;
         setBusy(true, R.string.status_working);
         io.execute(() -> {
-            if (current != null) current.close();
+            current.close();
             postToMain(() -> {
                 entries.clear();
+                visibleEntries.clear();
                 listAdapter.clear();
                 currentPath = "/";
                 path.setText(currentPath);
+                filter.setText("");
+                connectionSummary.setText("");
                 updateConnectionUi(false);
                 setBusy(false, R.string.status_disconnected);
             });
@@ -243,13 +311,20 @@ public final class MainActivity extends Activity {
     private void openDirectory(String nextPath) {
         RemoteClient current = client;
         if (current == null || busy) return;
-        String normalized = RemotePaths.normalizeDirectory(nextPath);
+        final String normalized;
+        try {
+            normalized = RemotePaths.normalizeDirectory(nextPath);
+        } catch (IllegalArgumentException error) {
+            showError(error);
+            return;
+        }
         setBusy(true, R.string.status_working);
         io.execute(() -> {
             try {
                 List<RemoteEntry> next = current.list(normalized);
                 postToMain(() -> {
                     currentPath = normalized;
+                    filter.setText("");
                     replaceEntries(next);
                     setBusy(false, R.string.status_connected);
                 });
@@ -265,12 +340,69 @@ public final class MainActivity extends Activity {
     private void replaceEntries(List<RemoteEntry> next) {
         entries.clear();
         entries.addAll(next);
+        entries.sort(Comparator
+            .comparing(RemoteEntry::directory).reversed()
+            .thenComparing(RemoteEntry::name, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(RemoteEntry::name));
+        updateVisibleEntries();
+        path.setText(currentPath);
+    }
+
+    private void updateVisibleEntries() {
+        if (listAdapter == null || filter == null) return;
+        String query = text(filter).trim().toLowerCase(Locale.ROOT);
+        visibleEntries.clear();
         List<String> labels = new ArrayList<>();
-        for (RemoteEntry entry : entries) labels.add(entry.displayLabel());
+        for (RemoteEntry entry : entries) {
+            if (!query.isEmpty() && !entry.name().toLowerCase(Locale.ROOT).contains(query)) continue;
+            visibleEntries.add(entry);
+            labels.add(entry.displayLabel());
+        }
         listAdapter.clear();
         listAdapter.addAll(labels);
         listAdapter.notifyDataSetChanged();
-        path.setText(currentPath);
+        if (client != null && !busy && visibleEntries.isEmpty()) {
+            status.setText(query.isEmpty() ? R.string.empty_directory : R.string.no_filter_results);
+        }
+    }
+
+    private void showMainMenu() {
+        if (busy || client == null) return;
+        String[] actions = {
+            getString(R.string.upload_files),
+            getString(R.string.new_folder),
+            getString(R.string.go_to_path),
+            getString(R.string.forget_connection),
+            getString(R.string.disconnect)
+        };
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.menu)
+            .setItems(actions, (dialog, which) -> {
+                switch (which) {
+                    case 0 -> pickUpload();
+                    case 1 -> promptNewFolder();
+                    case 2 -> promptGoToPath();
+                    case 3 -> {
+                        presetStore.clear();
+                        status.setText(R.string.saved_connection_forgotten);
+                    }
+                    case 4 -> disconnect();
+                    default -> { }
+                }
+            })
+            .show();
+    }
+
+    private void promptGoToPath() {
+        EditText target = input(R.string.remote_path, InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        target.setText(currentPath);
+        target.selectAll();
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.go_to_path)
+            .setView(target)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.open, (dialog, which) -> openDirectory(target.getText().toString()))
+            .show();
     }
 
     private void pickUpload() {
@@ -278,6 +410,7 @@ public final class MainActivity extends Activity {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         startActivityForResult(intent, REQUEST_UPLOAD);
     }
 
@@ -303,24 +436,42 @@ public final class MainActivity extends Activity {
         }
 
         if (requestCode == REQUEST_UPLOAD) {
-            if (resultCode != RESULT_OK || data == null || data.getData() == null || client == null) return;
-            uploadUri(data.getData());
+            if (resultCode != RESULT_OK || data == null || client == null) return;
+            Set<Uri> selected = new LinkedHashSet<>();
+            ClipData clip = data.getClipData();
+            if (clip != null) {
+                for (int i = 0; i < clip.getItemCount(); i++) selected.add(clip.getItemAt(i).getUri());
+            }
+            if (data.getData() != null) selected.add(data.getData());
+            if (!selected.isEmpty()) uploadUris(new ArrayList<>(selected));
         }
     }
 
-    private void uploadUri(Uri uri) {
-        String name = displayName(uri);
+    private void uploadUris(List<Uri> uris) {
+        List<String> names = new ArrayList<>(uris.size());
+        Set<String> remoteNames = new LinkedHashSet<>();
         try {
-            RemotePaths.validateName(name);
+            for (Uri uri : uris) {
+                String name = displayName(uri);
+                RemotePaths.validateName(name);
+                if (!remoteNames.add(name)) {
+                    throw new IllegalArgumentException(getString(R.string.duplicate_upload_name, name));
+                }
+                names.add(name);
+            }
         } catch (IllegalArgumentException error) {
             showError(error);
             return;
         }
-        String remotePath = RemotePaths.child(currentPath, name);
-        runIo(() -> {
-            try (InputStream source = getContentResolver().openInputStream(uri)) {
-                if (source == null) throw new IllegalStateException("Unable to open selected file.");
-                requireClient().upload(remotePath, source);
+
+        runIo(R.string.status_uploading_files, () -> {
+            for (int i = 0; i < uris.size(); i++) {
+                Uri uri = uris.get(i);
+                String remotePath = RemotePaths.child(currentPath, names.get(i));
+                try (InputStream source = getContentResolver().openInputStream(uri)) {
+                    if (source == null) throw new IllegalStateException("Unable to open selected file.");
+                    requireClient().upload(remotePath, source);
+                }
             }
         }, true);
     }
@@ -358,7 +509,7 @@ public final class MainActivity extends Activity {
     }
 
     private void mutateName(String rawName, RemoteEntry existing, boolean createDirectory) {
-        String name = rawName == null ? "" : rawName.trim();
+        String name = rawName == null ? "" : rawName;
         try {
             RemotePaths.validateName(name);
         } catch (IllegalArgumentException error) {
@@ -401,8 +552,12 @@ public final class MainActivity extends Activity {
     }
 
     private void runIo(ThrowingAction action, boolean refreshAfter) {
+        runIo(R.string.status_working, action, refreshAfter);
+    }
+
+    private void runIo(int statusText, ThrowingAction action, boolean refreshAfter) {
         if (busy || client == null) return;
-        setBusy(true, R.string.status_working);
+        setBusy(true, statusText);
         io.execute(() -> {
             try {
                 action.run();
@@ -448,7 +603,9 @@ public final class MainActivity extends Activity {
     }
 
     private void updateConnectionUi(boolean connected) {
-        connect.setText(connected ? R.string.disconnect : R.string.connect);
+        formScroll.setVisibility(connected ? View.GONE : View.VISIBLE);
+        connectionSummary.setVisibility(connected ? View.VISIBLE : View.GONE);
+        filter.setVisibility(connected ? View.VISIBLE : View.GONE);
         protocol.setEnabled(!connected);
         host.setEnabled(!connected);
         port.setEnabled(!connected);
@@ -460,11 +617,11 @@ public final class MainActivity extends Activity {
 
     private void updateEnabled() {
         boolean connected = client != null;
-        connect.setEnabled(!busy);
+        connect.setEnabled(!busy && !connected);
         up.setEnabled(connected && !busy && !currentPath.equals("/"));
         refresh.setEnabled(connected && !busy);
-        upload.setEnabled(connected && !busy);
-        newFolder.setEnabled(connected && !busy);
+        menu.setEnabled(connected && !busy);
+        filter.setEnabled(connected && !busy);
         list.setEnabled(connected && !busy);
     }
 
@@ -483,6 +640,7 @@ public final class MainActivity extends Activity {
         field.setHint(hint);
         field.setInputType(inputType);
         field.setSingleLine(true);
+        field.setMinHeight(dp(48));
         field.setLayoutParams(matchWrap());
         return field;
     }
@@ -491,6 +649,7 @@ public final class MainActivity extends Activity {
         Button value = new Button(this);
         value.setText(text);
         value.setAllCaps(false);
+        value.setMinHeight(dp(48));
         return value;
     }
 
@@ -507,6 +666,7 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         destroyed = true;
         pendingDownloadPath = null;
+        password.setText("");
         main.removeCallbacksAndMessages(null);
         RemoteClient current = client;
         RemoteClient pending = connectingClient;
