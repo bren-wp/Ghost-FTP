@@ -152,6 +152,11 @@ func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolved
 	if err := security.ValidateSecret(cfg.Passphrase); err != nil {
 		return resolved, profile, err
 	}
+	if cfg.Fingerprint != "" {
+		if err := security.ValidateSFTPFingerprint(cfg.Fingerprint); err != nil {
+			return resolved, profile, err
+		}
+	}
 	return resolved, profile, nil
 }
 
