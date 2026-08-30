@@ -93,7 +93,7 @@ func ValidateHost(host string) error {
 
 	// Dvotočka izvan zagrada dopuštena je samo u sirovoj IPv6 adresi.
 	if strings.Contains(host, ":") {
-		if net.ParseIP(host) == nil || !strings.Contains(host, ":") {
+		if net.ParseIP(host) == nil {
 			return errors.New("neispravan poslužitelj")
 		}
 		return nil
