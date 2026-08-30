@@ -15,6 +15,7 @@
 - Multi-file upload through the iOS security-scoped document picker with one directory refresh after the batch.
 - Byte-level upload/download progress reported by the existing Network.framework data-socket file loops.
 - Safe **Stop after file** for multi-file uploads; the active FTP transaction completes before remaining selected files are skipped.
+- Shared-hosting diagnostics derived from the existing initial FTP/FTPS root listing without an extra network probe.
 - Download to an isolated application temporary directory followed by the system share/save sheet.
 - Keychain storage of the last **non-secret** connection preset (protocol, host, port and username) using `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
 - Session-only credentials. Password text is cleared after connection attempts and password data is not part of the persistent preset model.
@@ -23,9 +24,19 @@
 
 Explicit FTPS and SFTP are **not** claimed by the iOS implementation yet. They remain available on the existing ByFTP desktop and Android clients. Adding either transport to iOS requires a separately audited implementation rather than a permissive compatibility shim.
 
+## 1.5.0 shared-hosting diagnostics
+
+Version 1.5.0 analyzes the same initial `list("/")` result that already populates the first remote browser view. `SharedHostingDiagnostics` recognizes common web-root directories in deterministic priority: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Only directories qualify.
+
+The SwiftUI browser displays a **Shared hosting** section after a successful connection. It shows whether the selected transport is secure and, when available, the detected web-root name. The UI explicitly states that ByFTP does **not** open or save that path automatically.
+
+Diagnostics remain session-only. They are cleared on failed connect and disconnect, never written into `ConnectionPresetKeychain`, and do not change the current remote path. The model has no password/passphrase/private-key field and no Network.framework connection behavior of its own.
+
+Model regressions verify implicit FTPS is reported as secure, plain FTP remains visibly insecure, `public_html` wins the documented priority and a file named `public_html` cannot masquerade as a directory web root. `audit_ios.py` blocks secret-bearing diagnostics, independent diagnostic network activity, automatic navigation and persistence.
+
 ## 1.4.0 transfer update
 
-Version 1.4.0 makes long iPhone/iPad transfers observable while keeping the native FTP/implicit-FTPS transport and trust model unchanged.
+Version 1.4.0 made long iPhone/iPad transfers observable while keeping the native FTP/implicit-FTPS transport and trust model unchanged.
 
 `SocketConnection.sendFile` and `receiveToFile` report cumulative bytes after successful Network.framework sends or local-file writes. Those callbacks are threaded through `FTPRemoteClient` into `SessionStore`; no third-party transfer SDK, WebView bridge, hidden backend or alternative network destination was added.
 
@@ -47,11 +58,11 @@ The connection screen clearly reports when safe metadata was restored and provid
 
 ## Transport and security baseline
 
-The path/lifecycle hardening introduced before 1.3.0 remains unchanged: raw host, port, username and password input is checked for CR/LF/NUL controls before normalization; remote names reject edge whitespace and controls; server login roots reject unsafe content; pending connections are disconnectable; password UI state is cleared; and failed/stale download staging is removed.
+Raw host, port, username and password input is checked for CR/LF/NUL controls before normalization; remote names reject edge whitespace and controls; server login roots reject unsafe content; pending connections are disconnectable; password UI state is cleared; and failed/stale download staging is removed.
 
 The connection task derives the non-secret `ConnectionPreset` before asynchronous network completion, so the credential-bearing `ConnectionConfig` is not retained merely for persistence after authentication.
 
-Transfer progress is observational. The progress closures receive only cumulative byte counts; the **Stop after file** request does not own or tear down the active socket. Protocol-aware true mid-file cancellation remains deferred until abort semantics and partial-file cleanup can be proven fail-safe.
+Transfer progress is observational. The progress closures receive only cumulative byte counts; the **Stop after file** request does not own or tear down the active socket. Shared-hosting diagnostics are also observational and consume only the already loaded root entries. Protocol-aware true mid-file cancellation remains deferred until abort semantics and partial-file cleanup can be proven fail-safe.
 
 `ios/BUILD.sh` remains the canonical build entry point. CI and production release jobs invoke it directly, so the Swift source, Xcode project, tests and build contract live together instead of being split between `ios/` and a platform-specific wrapper under `scripts/`.
 
@@ -67,7 +78,7 @@ The checked-in project uses a safe development fallback `MARKETING_VERSION = 0.0
 
 The AppIcon asset catalog stores only `Contents.json`. `ios/BUILD.sh` generates all required PNG sizes from the canonical repository `build/icon.png`; generated icon files are intentionally ignored by Git.
 
-The deployment target remains iOS 16.0. The 1.4.0 SwiftUI changes deliberately avoid newer-only APIs such as `ContentUnavailableView`, and the real iPhoneOS build gate continues to verify this source against the project deployment target.
+The deployment target remains iOS 16.0. The 1.5.0 SwiftUI diagnostics deliberately avoid newer-only APIs such as `ContentUnavailableView`, and the real iPhoneOS build gate verifies this source against the project deployment target.
 
 ## Build the unsigned release artifacts
 
@@ -77,7 +88,7 @@ On macOS with Xcode installed:
 bash ios/BUILD.sh
 ```
 
-The script performs model/path/preset regressions, validates the Xcode project and shared scheme, builds a generic arm64 `iphoneos` Release application with signing disabled, verifies bundle version/identifier/architecture and then runs `scripts/package_ios.py`.
+The script performs model/path/preset/diagnostic regressions, validates the Xcode project and shared scheme, builds a generic arm64 `iphoneos` Release application with signing disabled, verifies bundle version/identifier/architecture and then runs `scripts/package_ios.py`.
 
 Generated public build artifacts:
 
@@ -105,6 +116,7 @@ Do not commit `.p12` files, private signing keys, provisioning profiles or passw
 - Remote UI paths reject traversal and noncanonical components before a command is sent.
 - The persistent `ConnectionPreset` has no password/passphrase/secret field and is revalidated before use.
 - Preset data uses Keychain `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`; `UserDefaults` remains disallowed for connection state.
+- Shared-hosting diagnostics are session-only, non-secret and cannot trigger automatic navigation or persistence.
 - Pending and active connections are both invalidated and closed during disconnect/background teardown.
 - Failed or stale download staging directories are removed.
 - Server-provided passive-mode addresses are not trusted as alternative destinations.
