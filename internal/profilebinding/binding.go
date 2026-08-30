@@ -1,20 +1,32 @@
 package profilebinding
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
-func normalizeHost(host string) string {
+func canonicalProtocol(protocol string) string {
+	return strings.ToLower(strings.TrimSpace(protocol))
+}
+
+func canonicalHost(host string) string {
 	host = strings.TrimSpace(host)
 	host = strings.Trim(host, "[]")
 	host = strings.TrimSuffix(host, ".")
 	return strings.ToLower(host)
 }
 
+// EndpointKey returns the canonical identity of one network endpoint. Keeping
+// this representation in one package prevents profile binding, transfer retry
+// and connection lifecycle code from drifting to slightly different host rules.
+func EndpointKey(protocol, host string, port int) string {
+	return canonicalProtocol(protocol) + "\x00" + canonicalHost(host) + "\x00" + strconv.Itoa(port)
+}
+
 // EndpointMatches određuje pripadaju li dvije konfiguracije istom mrežnom
 // endpointu. Koristi se za SFTP host-key pin i druge server-scoped podatke.
 func EndpointMatches(protocolA, hostA string, portA int, protocolB, hostB string, portB int) bool {
-	return strings.EqualFold(strings.TrimSpace(protocolA), strings.TrimSpace(protocolB)) &&
-		normalizeHost(hostA) == normalizeHost(hostB) &&
-		portA == portB
+	return EndpointKey(protocolA, hostA, portA) == EndpointKey(protocolB, hostB, portB)
 }
 
 // AccountMatches je stroža granica za spremljene login vjerodajnice.
