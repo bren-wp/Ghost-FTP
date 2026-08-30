@@ -249,11 +249,21 @@ func TestOperationRejectsDisconnectedManager(t *testing.T) {
 
 func TestApplyPendingTrustUsesProtectedSecretsOnce(t *testing.T) {
 	m := &Manager{pendingTrust: pendingTrustState{
-		endpointKey: profilebinding.EndpointKey("sftp", "example.test", 22),
-		username: "user", keyPath: "key", fingerprint: managerTestFingerprint,
-		passwordBlob: "protected-password", passphraseBlob: "protected-passphrase", expires: time.Now().Add(time.Minute),
+		endpointKey:    profilebinding.EndpointKey("sftp", "example.test", 22),
+		username:       "user",
+		keyPath:        "key",
+		fingerprint:    managerTestFingerprint,
+		passwordBlob:   "protected-password",
+		passphraseBlob: "protected-passphrase",
+		expires:        time.Now().Add(time.Minute),
 	}}
-	resolved := resolvedConnection{Config: model.ConnectionConfig{Protocol: "sftp", Host: "example.test", Port: 22, Username: "user", PrivateKeyPath: "key"}}
+	resolved := resolvedConnection{Config: model.ConnectionConfig{
+		Protocol:       "sftp",
+		Host:           "example.test",
+		Port:           22,
+		Username:       "user",
+		PrivateKeyPath: "key",
+	}}
 	m.applyPendingTrust(resolved.Config, &resolved, managerTestFingerprint)
 	if resolved.PasswordBlob != "protected-password" || resolved.PassphraseBlob != "protected-passphrase" {
 		t.Fatalf("pending protected credentials were not applied: %#v", resolved)
@@ -265,11 +275,18 @@ func TestApplyPendingTrustUsesProtectedSecretsOnce(t *testing.T) {
 
 func TestApplyPendingTrustAcceptsEquivalentEndpointForm(t *testing.T) {
 	m := &Manager{pendingTrust: pendingTrustState{
-		endpointKey: profilebinding.EndpointKey("sftp", "Example.TEST.", 22),
-		username: "user", fingerprint: managerTestFingerprint,
-		passwordBlob: "protected-password", expires: time.Now().Add(time.Minute),
+		endpointKey:  profilebinding.EndpointKey("sftp", "Example.TEST.", 22),
+		username:     "user",
+		fingerprint:  managerTestFingerprint,
+		passwordBlob: "protected-password",
+		expires:      time.Now().Add(time.Minute),
 	}}
-	resolved := resolvedConnection{Config: model.ConnectionConfig{Protocol: "SFTP", Host: "example.test", Port: 22, Username: "user"}}
+	resolved := resolvedConnection{Config: model.ConnectionConfig{
+		Protocol: "SFTP",
+		Host:     "example.test",
+		Port:     22,
+		Username: "user",
+	}}
 	m.applyPendingTrust(resolved.Config, &resolved, managerTestFingerprint)
 	if resolved.PasswordBlob != "protected-password" {
 		t.Fatal("equivalent endpoint form lost pending protected credential")
@@ -278,11 +295,18 @@ func TestApplyPendingTrustAcceptsEquivalentEndpointForm(t *testing.T) {
 
 func TestApplyPendingTrustRejectsDifferentHost(t *testing.T) {
 	m := &Manager{pendingTrust: pendingTrustState{
-		endpointKey: profilebinding.EndpointKey("sftp", "first.example", 22),
-		username: "user", fingerprint: managerTestFingerprint,
-		passwordBlob: "protected-password", expires: time.Now().Add(time.Minute),
+		endpointKey:  profilebinding.EndpointKey("sftp", "first.example", 22),
+		username:     "user",
+		fingerprint:  managerTestFingerprint,
+		passwordBlob: "protected-password",
+		expires:      time.Now().Add(time.Minute),
 	}}
-	resolved := resolvedConnection{Config: model.ConnectionConfig{Protocol: "sftp", Host: "second.example", Port: 22, Username: "user"}}
+	resolved := resolvedConnection{Config: model.ConnectionConfig{
+		Protocol: "sftp",
+		Host:     "second.example",
+		Port:     22,
+		Username: "user",
+	}}
 	m.applyPendingTrust(resolved.Config, &resolved, managerTestFingerprint)
 	if resolved.PasswordBlob != "" {
 		t.Fatal("pending credential crossed connection identity boundary")
