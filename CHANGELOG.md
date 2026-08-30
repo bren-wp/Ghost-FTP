@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.8 — Fail-closed profile persistence input
+
+**Focus:** make saved-profile persistence enforce the same raw connection and SFTP trust boundaries as the runtime/UI instead of silently normalizing caller input before validation.
+
+- `Profiles.Save` now validates and stores `Protocol`, `Host` and `Username` exactly as provided; uppercase/edge-whitespace protocols and noncanonical raw hosts are rejected rather than rewritten.
+- Backend-compatible usernames are preserved verbatim, while CR/LF/NUL controls are rejected before they can disappear through normalization.
+- Saved SFTP fingerprints are validated in their original canonical OpenSSH `SHA256:` form; edge spaces, tabs and line controls are no longer trimmed into valid pins.
+- `Profiles.UpdateFingerprint` now applies the same fail-closed raw fingerprint rule instead of trimming before validation.
+- Added persistence regressions for raw protocol, host, username and fingerprint input plus canonical success cases.
+- Extended the security audit so future pre-validation normalization in either profile-save or direct fingerprint-update paths fails CI.
+- Preserved intentional normalization for profile display names/IDs and left local/remote/private-key path semantics unchanged for a separate audit cycle.
+- Preserved the verified five-platform build, signing, release, endpoint-identity and credential-binding contract from 1.2.7.
+
 ## 1.2.7 — Raw desktop account and port validation
 
 **Focus:** finish fail-closed Windows connection-field handling by ensuring username and port text reach validation without silent normalization while centralizing duplicated quick-connect/profile-save parsing.
