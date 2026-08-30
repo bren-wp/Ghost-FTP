@@ -262,7 +262,10 @@ func (a *app) remoteMkdirAction() {
 	if !ok {
 		return
 	}
-	name = strings.TrimSpace(name)
+	if err := security.ValidateRemoteName(name); err != nil {
+		platform.ErrorDialog("ByFTP", "Mapa nije stvorena", usererror.Message(err, "Naziv udaljene mape nije valjan."))
+		return
+	}
 	base := a.remoteCurrent
 	a.runRemoteMutation("Stvaranje mape", func(ctx context.Context) error { return a.engine.RemoteMkdir(ctx, base, name) }, "Mapa stvorena: "+name)
 }
@@ -276,11 +279,18 @@ func (a *app) remoteRenameAction() {
 	item := a.remoteItems[indices[0]]
 	base := a.remoteCurrent
 	name, ok := platform.PromptDialog("ByFTP — preimenuj na poslužitelju", "Novi naziv:", item.Name)
-	if !ok || strings.TrimSpace(name) == item.Name {
+	if !ok {
+		return
+	}
+	if err := security.ValidateRemoteName(name); err != nil {
+		platform.ErrorDialog("ByFTP", "Preimenovanje nije uspjelo", usererror.Message(err, "Novi naziv udaljene stavke nije valjan."))
+		return
+	}
+	if name == item.Name {
 		return
 	}
 	a.runRemoteMutation("Preimenovanje", func(ctx context.Context) error {
-		return a.engine.RemoteRename(ctx, base, item.Name, strings.TrimSpace(name))
+		return a.engine.RemoteRename(ctx, base, item.Name, name)
 	}, "Udaljena stavka preimenovana.")
 }
 

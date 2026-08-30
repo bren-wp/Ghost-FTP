@@ -27,6 +27,7 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import com.byftp.client.model.ConnectionConfig;
+import com.byftp.client.model.DocumentName;
 import com.byftp.client.model.RemoteEntry;
 import com.byftp.client.model.RemoteEntryList;
 import com.byftp.client.model.RemotePaths;
@@ -669,14 +670,14 @@ public final class MainActivity extends Activity {
     }
 
     private String displayName(Uri uri) {
+        String providerName = null;
         try (Cursor cursor = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
             if (cursor != null && cursor.moveToFirst()) {
                 int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                if (index >= 0) return cursor.getString(index);
+                if (index >= 0 && !cursor.isNull(index)) providerName = cursor.getString(index);
             }
         }
-        String last = uri.getLastPathSegment();
-        return last == null || last.isBlank() ? "upload.bin" : last.substring(last.lastIndexOf('/') + 1);
+        return DocumentName.resolve(providerName, uri.getLastPathSegment());
     }
 
     private long displaySize(Uri uri) {
