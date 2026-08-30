@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.5 — Canonical endpoint identity and profile input hardening
+
+**Focus:** remove the remaining endpoint-identity drift in the desktop runtime and make SFTP profile/direct-connect trust input fail closed on canonical SHA-256 and UTF-8 boundaries.
+
+- Added one canonical endpoint key in `profilebinding` and reused it for profile matching and transfer connection identity, so DNS trailing-dot, protocol case/whitespace and bracketed/raw IPv6 forms no longer become false "different connection" identities after reconnect.
+- Kept username, port and SFTP host-key fingerprint as strict connection-identity boundaries so retry isolation is not weakened while equivalent endpoint spelling is normalized consistently.
+- Centralized platform-correct private-key path identity for reuse by lifecycle/security code: Windows remains case-insensitive while Linux/macOS stay exact and fail closed.
+- Replaced the weak desktop SFTP fingerprint shape check with a canonical OpenSSH `SHA256:` validator that Base64-decodes the value and requires exactly one 32-byte SHA-256 digest.
+- Applied the same fingerprint validator to saved profiles, fingerprint updates and direct SFTP connection input instead of maintaining separate rules.
+- Added explicit UTF-8 rejection for profile names, local paths and private-key paths so invalid bytes cannot be silently rewritten by JSON serialization.
+- Replaced synthetic noncanonical fingerprint fixtures with real canonical digest fixtures and added regressions for malformed fingerprints, invalid UTF-8 and endpoint identity equivalence.
+- Preserved the verified Windows/Linux/macOS/Android/iOS build, signing and release contract from 1.2.4.
+
 ## 1.2.4 — Cross-platform credential binding and runtime consistency
 
 **Focus:** keep the verified five-platform release contract intact while removing runtime-policy drift, fixing cross-platform SSH key identity semantics and reducing redundant queue state transitions.
