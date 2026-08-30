@@ -76,10 +76,24 @@ def main() -> int:
         fail("iOS persistent connection preset contains a secret field")
 
     paths = require("ios/ByFTP/RemoteModels.swift", (
+        "struct SharedHostingDiagnostics: Equatable, Sendable",
+        'let priority = ["public_html", "httpdocs", "htdocs", "www", "web", "html"]',
+        "for entry in entries where entry.isDirectory",
+        "secure: protocolKind != .ftp",
+        'rootMode: "account"',
+        "rootEntryCount: entries.count",
         "RemotePath.normalizeDirectory", "FTPPathMapper", "unsafe component", "noncanonical login directory",
         "raw == trimmed", "scalar.value == 0", "scalar.value == 10", "scalar.value == 13",
         "Names cannot start or end with whitespace.",
     ))
+    diagnostics_start = paths.find("struct SharedHostingDiagnostics")
+    diagnostics_end = paths.find("enum RemotePath", diagnostics_start)
+    if diagnostics_start < 0 or diagnostics_end <= diagnostics_start:
+        fail("iOS shared-hosting diagnostic model boundary is unavailable")
+    diagnostic_model = paths[diagnostics_start:diagnostics_end]
+    for forbidden in ("password", "passphrase", "privateKey", "URLSession", "NWConnection", "connect(", "list("):
+        if forbidden in diagnostic_model:
+            fail(f"iOS shared-hosting diagnostics gained secret/network behavior: {forbidden}")
     if 'replacingOccurrences(of: ".."' in paths:
         fail("iOS path handling rewrites traversal instead of rejecting it")
     login_fn = paths.find("static func normalizeLoginRoot")
@@ -132,6 +146,9 @@ def main() -> int:
         "client.upload(remotePath: job.remotePath, localURL: job.url, progress: progress)",
         "client.download(remotePath: remotePath, localURL: destination, progress: progress)",
         "ByteCountFormatter.string",
+        "@Published private(set) var hostingDiagnostics: SharedHostingDiagnostics?",
+        "SharedHostingDiagnostics.analyze(protocolKind: config.protocolKind, entries: initial)",
+        "hostingDiagnostics = diagnostics", "hostingDiagnostics = nil",
     ))
     task_index = session.find("Task {", session.find("func connect()"))
     preset_index = session.find("let preset = ConnectionPreset(config: config)", session.find("func connect()"))
@@ -151,7 +168,12 @@ def main() -> int:
         "visibleEntries", "safeAreaInset(edge: .bottom)",
         "store.transferDetail", "ProgressView(value: fraction)", "store.canStopAfterCurrent",
         "store.requestStopAfterCurrent()", 'Label("Stop after file"',
+        "store.hostingDiagnostics", 'Section("Shared hosting")', "Detected web root:",
+        "does not open or save this path automatically",
     ))
+    for forbidden in ("store.openDirectory(diagnostics.webRoot", "store.openDirectory(store.hostingDiagnostics", "ConnectionPresetKeychain.save(diagnostics"):
+        if forbidden in browser or forbidden in session:
+            fail(f"iOS shared-hosting diagnostics auto-navigate or persist derived state: {forbidden}")
     if "ContentUnavailableView" in browser:
         fail("iOS mobile browser uses an API newer than the supported iOS 16 deployment target")
 
@@ -211,6 +233,8 @@ def main() -> int:
         "embedded LF remote name was accepted", "server login root CRLF was normalized",
         "connection preset serialized the session password", "restored connection preset contained a password",
         "JSONEncoder().encode(preset)", "decodedPreset.validatedConfig()",
+        "implicit FTPS diagnostics were marked insecure", "plain FTP diagnostics were marked secure",
+        "public_html did not win web-root priority", "file was incorrectly treated as a web root",
         "UnicodeScalar(13)", "UnicodeScalar(10)", "UnicodeScalar(0)",
     ))
     if not model_tests:
@@ -233,6 +257,8 @@ def main() -> int:
     print("IOS_REMOTE_NAMES=CANONICAL_FAIL_CLOSED")
     print("IOS_LOGIN_ROOT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("IOS_NWCONNECTION_CONTINUATION=LOCKED_SINGLE_RESUME")
+    print("IOS_SHARED_HOSTING_DIAGNOSTICS=INITIAL_LISTING_ONLY_NON_SECRET")
+    print("IOS_SHARED_HOSTING_AUTO_NAVIGATION=BLOCKED")
     print("IOS_TRANSFER_PROGRESS=NETWORK_DATA_SOCKET_BYTE_BOUNDARY")
     print("IOS_BATCH_STOP=AFTER_CURRENT_FILE_ONLY")
     print("IOS_SECRET_PERSISTENCE=BLOCKED")
