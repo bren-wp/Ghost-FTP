@@ -4,9 +4,17 @@
 
 ByFTP is a privacy-focused file-transfer suite for **Windows, Linux, macOS, Android, iOS and the web**. Native desktop and Android clients support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS. **ByFTP WEB** is a PHP shared-hosting PWA with FTP/FTPS and optional SFTP when the hosting environment provides `ext-ssh2`.
 
-**Current release: 1.7.0**
+**Current release: 1.7.1**
 
 [Latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Installation](docs/INSTALLATION.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+
+## 1.7.1 release integrity
+
+- Carries forward the complete 1.7.0 native cleanup and `ByFTP WEB/` integration from the verified final `main` tree.
+- Blocks stale release workflows before any tag or GitHub Release mutation: the publisher resolves the repository's current `main` SHA and requires it to equal the workflow's exact release commit.
+- Repeats the current-main check immediately before release creation/editing so an older VERSION-triggered run cannot publish after a newer integration merge lands.
+- Adds a permanent Python regression that requires the main-head guard to remain ahead of release lookup/mutation.
+- Keeps root `VERSION`, ByFTP WEB `VERSION`, composer metadata and the PWA cache namespace synchronized at 1.7.1.
 
 ## 1.7.0 highlights
 
@@ -79,7 +87,8 @@ Root `VERSION` is the single native release source. `ByFTP WEB/VERSION` must mat
 - macOS Universal PKG build;
 - Android JUnit, lintDebug, lintRelease, debug APK and unsigned release APK;
 - real arm64 iPhoneOS build plus unsigned IPA/app ZIP validation;
-- ByFTP WEB PHP syntax, JavaScript syntax, web unit tests and the dedicated web audit.
+- ByFTP WEB PHP syntax, JavaScript syntax, web unit tests and the dedicated web audit;
+- exact-current-`main` verification immediately before GitHub Release mutation.
 
 Only the active public development history from **1.3.0 onward** remains in the current changelog/documentation surface. Older Git history is not rewritten, but obsolete pre-1.3 product-version references are not allowed to re-enter active source or documentation.
 
