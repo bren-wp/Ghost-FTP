@@ -86,6 +86,35 @@ struct ConnectionConfig: Equatable, Sendable {
     }
 }
 
+/// A deliberately non-secret mobile convenience record. It is safe to persist
+/// only because it cannot contain a password or another authentication secret.
+struct ConnectionPreset: Codable, Equatable, Sendable {
+    let protocolRawValue: String
+    let host: String
+    let port: String
+    let username: String
+
+    init(config: ConnectionConfig) {
+        protocolRawValue = config.protocolKind.rawValue
+        host = config.host
+        port = String(config.port)
+        username = config.username
+    }
+
+    func validatedConfig() throws -> ConnectionConfig {
+        guard let protocolKind = TransferProtocol(rawValue: protocolRawValue) else {
+            throw ValidationError("Saved connection uses an unsupported protocol.")
+        }
+        return try ConnectionConfig.make(
+            protocolKind: protocolKind,
+            host: host,
+            port: port,
+            username: username,
+            password: ""
+        )
+    }
+}
+
 struct ValidationError: LocalizedError, Equatable, Sendable {
     let message: String
 
