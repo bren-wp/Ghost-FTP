@@ -60,10 +60,9 @@ type Manager struct {
 }
 
 type pendingTrustState struct {
-	host, username, keyPath, fingerprint string
-	port                                 int
-	passwordBlob, passphraseBlob         string
-	expires                              time.Time
+	endpointKey, username, keyPath, fingerprint string
+	passwordBlob, passphraseBlob                 string
+	expires                                      time.Time
 }
 
 func NewManager(p *config.Profiles, settings *config.SettingsStore, dataDir, exePath string) *Manager {
@@ -152,7 +151,7 @@ func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolved
 	if err := security.ValidateSecret(cfg.Passphrase); err != nil {
 		return resolved, profile, err
 	}
-	if cfg.Fingerprint != "" {
+	if cfg.Protocol == "sftp" && cfg.Fingerprint != "" {
 		if err := security.ValidateSFTPFingerprint(cfg.Fingerprint); err != nil {
 			return resolved, profile, err
 		}
@@ -193,7 +192,8 @@ func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolve
 		}
 	}
 	m.pendingTrust = pendingTrustState{
-		host: cfg.Host, port: cfg.Port, username: cfg.Username, keyPath: cfg.PrivateKeyPath, fingerprint: fingerprint,
+		endpointKey: profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port),
+		username: cfg.Username, keyPath: cfg.PrivateKeyPath, fingerprint: fingerprint,
 		passwordBlob: passwordBlob, passphraseBlob: passphraseBlob, expires: time.Now().Add(2 * time.Minute),
 	}
 	return nil
@@ -202,7 +202,11 @@ func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolve
 func (m *Manager) applyPendingTrust(cfg model.ConnectionConfig, resolved *resolvedConnection, fingerprint string) {
 	p := m.pendingTrust
 	m.clearPendingTrustLocked()
-	if time.Now().After(p.expires) || p.host != cfg.Host || p.port != cfg.Port || p.username != cfg.Username || p.keyPath != cfg.PrivateKeyPath || p.fingerprint != fingerprint {
+	if time.Now().After(p.expires) ||
+		p.endpointKey != profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port) ||
+		p.username != cfg.Username ||
+		!profilebinding.PrivateKeyPathMatches(p.keyPath, cfg.PrivateKeyPath) ||
+		p.fingerprint != fingerprint {
 		return
 	}
 	if cfg.Password == "" && resolved.PasswordBlob == "" {
