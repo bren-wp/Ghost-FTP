@@ -79,9 +79,29 @@ def main() -> int:
     require("internal/remote/protocol_state_regression_test.go", (
         "TestResolveClearsSFTPOnlyStateForFTPFamily", "TestConnectionIdentityIgnoresSFTPOnlyStateForFTPFamily", "TestResolvePreservesSFTPStateForSFTP",
     ))
-    require("internal/config/profiles.go", (
+    profile_store = require("internal/config/profiles.go", (
         "sameProfileAccount(previous, x)", "sameProfilePrivateKey(previous, x)", "sameSFTPEndpoint(previous, x)",
-        "x.PasswordBlob = \"\"", "x.PassphraseBlob = \"\"", "zaporka privatnog ključa zahtijeva odabran privatni ključ",
+        "requestedFingerprint := in.Fingerprint", "x.Protocol = in.Protocol", "x.Host = in.Host", "x.Username = in.Username",
+        "security.ValidateSFTPFingerprint(requestedFingerprint)", "security.ValidateConnection(x.Protocol, x.Host, x.Username, x.Port)",
+        "security.ValidateSFTPFingerprint(fp)", "x.PasswordBlob = \"\"", "x.PassphraseBlob = \"\"", "zaporka privatnog ključa zahtijeva odabran privatni ključ",
+    ))
+    for forbidden, label in (
+        ("strings.ToLower(strings.TrimSpace(in.Protocol))", "protocol"),
+        ("strings.TrimSpace(in.Host)", "host"),
+        ("strings.TrimSpace(in.Username)", "username"),
+        ("strings.TrimSpace(in.Fingerprint)", "fingerprint"),
+        ("fp = strings.TrimSpace(fp)", "direct fingerprint update"),
+    ):
+        if forbidden in profile_store:
+            fail(f"profile persistence normalizes raw {label} before fail-closed validation")
+    require("internal/config/profile_raw_input_test.go", (
+        "TestProfileSaveRejectsNonCanonicalRawProtocol",
+        "TestProfileSaveRejectsRawHostBeforeNormalization",
+        "TestProfileSaveRejectsUsernameControlsBeforeNormalization",
+        "TestProfileSavePreservesUsernameVerbatim",
+        "TestProfileSaveRejectsNonCanonicalFingerprintBeforeNormalization",
+        "TestProfileUpdateFingerprintRejectsNonCanonicalRawInput",
+        "TestProfileSaveAcceptsCanonicalConnectionAndFingerprint",
     ))
     require("internal/desktop/connection_input.go", (
         "func validateRawConnectionInput(", "strconv.Atoi(portText)", "security.ValidateConnection(protocol, host, username, port)",
@@ -110,7 +130,10 @@ def main() -> int:
     require("internal/desktop/other.go", (
         'i18n.T(language, "terminal.sftp_key_required")', "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
     ))
-    require("internal/api/engine.go", ("e.remote.Disconnect(ctx)", "context.WithTimeout(context.Background(), 4*time.Second)"))
+    require("internal/api/engine.go", (
+        "e.remote.Disconnect(ctx)", "context.WithTimeout(context.Background(), 4*time.Second)",
+        "return e.profiles.Save(in)",
+    ))
 
     require("internal/security/remove_tree.go", ("func isFilesystemRoot(target string) bool", "isFilesystemRoot(root)", "maxRemoveTreeDepth", "maxRemoveTreeItems", "isReparsePoint(target)", "os.ModeSymlink"))
     require("internal/transfer/manager.go", ("security.EnsureLocalWithinRoot(job.LocalRoot, job.LocalPath)", "errors.Is(err, remote.ErrSkipped)", "errors.Is(err, context.Canceled)", "ConnectionIdentity() (string, error)"))
@@ -139,6 +162,8 @@ def main() -> int:
     print("PROFILE_ENDPOINT_PIN_BINDING=ENABLED")
     print("PROFILE_CREDENTIAL_CROSS_ENDPOINT=BLOCKED")
     print("PROFILE_PRIVATE_KEY_CLEAR=AUTHORITATIVE")
+    print("PROFILE_RAW_CONNECTION_INPUT=FAIL_CLOSED")
+    print("PROFILE_RAW_FINGERPRINT_INPUT=FAIL_CLOSED")
     print("NON_SFTP_KEY_TRUST_STATE=STRIPPED")
     print("WINDOWS_RAW_HOST_VALIDATION=FAIL_CLOSED")
     print("WINDOWS_RAW_USERNAME_VALIDATION=FAIL_CLOSED")
