@@ -208,9 +208,9 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	x.Host = in.Host
 	x.Port = in.Port
 	x.Username = in.Username
-	x.PrivateKeyPath = strings.TrimSpace(in.PrivateKeyPath)
-	x.RemotePath = strings.TrimSpace(in.RemotePath)
-	x.LocalPath = strings.TrimSpace(in.LocalPath)
+	x.PrivateKeyPath = in.PrivateKeyPath
+	x.RemotePath = in.RemotePath
+	x.LocalPath = in.LocalPath
 	if x.RemotePath == "" {
 		if x.Protocol == "sftp" {
 			x.RemotePath = "."
