@@ -60,9 +60,13 @@ type Manager struct {
 }
 
 type pendingTrustState struct {
-	endpointKey, username, keyPath, fingerprint string
-	passwordBlob, passphraseBlob                 string
-	expires                                      time.Time
+	endpointKey    string
+	username       string
+	keyPath        string
+	fingerprint    string
+	passwordBlob   string
+	passphraseBlob string
+	expires        time.Time
 }
 
 func NewManager(p *config.Profiles, settings *config.SettingsStore, dataDir, exePath string) *Manager {
@@ -192,9 +196,13 @@ func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolve
 		}
 	}
 	m.pendingTrust = pendingTrustState{
-		endpointKey: profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port),
-		username: cfg.Username, keyPath: cfg.PrivateKeyPath, fingerprint: fingerprint,
-		passwordBlob: passwordBlob, passphraseBlob: passphraseBlob, expires: time.Now().Add(2 * time.Minute),
+		endpointKey:    profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port),
+		username:       cfg.Username,
+		keyPath:        cfg.PrivateKeyPath,
+		fingerprint:    fingerprint,
+		passwordBlob:   passwordBlob,
+		passphraseBlob: passphraseBlob,
+		expires:        time.Now().Add(2 * time.Minute),
 	}
 	return nil
 }
