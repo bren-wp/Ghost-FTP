@@ -30,6 +30,7 @@ import com.byftp.client.model.ConnectionConfig;
 import com.byftp.client.model.RemoteEntry;
 import com.byftp.client.model.RemoteEntryList;
 import com.byftp.client.model.RemotePaths;
+import com.byftp.client.model.SharedHostingDiagnostics;
 import com.byftp.client.remote.RemoteClient;
 import com.byftp.client.remote.RemoteClientFactory;
 import com.byftp.client.remote.TransferStreams;
@@ -287,14 +288,27 @@ public final class MainActivity extends Activity {
             try {
                 next.connect();
                 List<RemoteEntry> initial = next.list("/");
+                SharedHostingDiagnostics diagnostics = SharedHostingDiagnostics.analyze(safeProtocol, initial);
                 postToMain(() -> {
                     connectingClient = null;
                     client = next;
                     currentPath = "/";
                     presetStore.save(safeProtocol, safeHost, safePort, safeUsername, safeFingerprint);
+                    String transportDiagnostic = getString(
+                        diagnostics.secure() ? R.string.diagnostic_secure : R.string.diagnostic_plain_ftp
+                    );
+                    String rootDiagnostic;
+                    if (diagnostics.webRootDetected()) {
+                        rootDiagnostic = getString(R.string.diagnostic_web_root, diagnostics.webRoot());
+                    } else if (diagnostics.rootMode().equals("home")) {
+                        rootDiagnostic = getString(R.string.diagnostic_sftp_home);
+                    } else {
+                        rootDiagnostic = getString(R.string.diagnostic_account_root);
+                    }
                     connectionSummary.setText(getString(
-                        R.string.connected_to,
-                        safeProtocol.toString(), safeHost, safePort, safeUsername
+                        R.string.connected_with_diagnostics,
+                        safeProtocol.toString(), safeHost, safePort, safeUsername,
+                        transportDiagnostic, rootDiagnostic
                     ));
                     replaceEntries(initial);
                     updateConnectionUi(true);
