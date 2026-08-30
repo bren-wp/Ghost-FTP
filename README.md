@@ -83,6 +83,12 @@ Root `VERSION` is the single native release source. `ByFTP WEB/VERSION` must mat
 
 Only the active public development history from **1.3.0 onward** remains in the current changelog/documentation surface. Older Git history is not rewritten, but obsolete pre-1.3 product-version references are not allowed to re-enter active source or documentation.
 
+## Languages
+
+English is the canonical source and fallback language for the desktop runtime and repository documentation. The desktop application currently supports 18 runtime languages: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish.
+
+Android, iOS and ByFTP WEB remain English-first at the canonical source/documentation level while platform-specific UI localization is expanded only through reviewed, complete locale sets. New primary documentation and fallback/error text must be written in English first so every supported platform retains a deterministic fallback.
+
 ## Build from source
 
 Use the canonical platform entry points:
