@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.6.0 — Repository-wide integrity and release hygiene
+
+**Focus:** make every tracked repository file part of a fail-closed release-quality contract while preserving the verified transport, security, privacy and shared-hosting behavior from 1.5.0.
+
+- Added `scripts/audit_repository.py`, which enumerates the repository with `git ls-files` and validates every tracked path/file rather than relying only on feature-specific allowlists.
+- Added cross-platform path checks for case-insensitive collisions, Windows-reserved names, unsafe/control characters, overlong paths and tracked symlinks so a source tree cannot be valid only on one developer filesystem.
+- Added repository hygiene checks that reject committed build/cache outputs such as `dist/`, Android build output, Gradle state, iOS build output, coverage and temporary directories.
+- Added strict text-file checks for UTF-8, BOMs, unexpected NUL/binary content, trailing whitespace, missing final newlines and unresolved merge-conflict markers.
+- Extended current-release drift detection across all tracked text files for explicit `Current release:` / `Trenutačno izdanje:` markers, using root `VERSION` as the only production release source.
+- Added unit regressions for path collisions, generated/reserved paths, symlink modes, BOM/trailing-whitespace/final-newline handling and stale/current release markers.
+- Fixed the Android 1.5.0 release-candidate lint failure by removing the obsolete `R.string.connected_to` resource after the diagnostics-aware connection summary replaced it; no lint baseline or suppression was introduced.
+- Updated root release documentation and CI/release guidance so repository-wide integrity is a mandatory gate before packaging.
+- Preserved 1.5.0 shared-hosting diagnostics, no-auto-navigation behavior, Android/iOS transfer progress, safe batch-stop behavior, SFTP host-key verification, FTPS platform trust, PASV redirect protections and credential-lifetime boundaries.
+- Kept the canonical Windows x64/x86, Linux amd64/arm64/i386, macOS Universal, Android and iOS build/release matrix mandatory for 1.6.0.
+
 ## 1.5.0 — Shared-hosting connection diagnostics
 
 **Focus:** make ByFTP explain the authenticated hosting environment immediately after connection without adding scanners, hidden probes, credential exposure or automatic path changes.
