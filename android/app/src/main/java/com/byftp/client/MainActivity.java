@@ -22,6 +22,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -31,6 +32,7 @@ import com.byftp.client.model.RemoteEntryList;
 import com.byftp.client.model.RemotePaths;
 import com.byftp.client.remote.RemoteClient;
 import com.byftp.client.remote.RemoteClientFactory;
+import com.byftp.client.remote.TransferStreams;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -61,6 +63,8 @@ public final class MainActivity extends Activity {
     private Button up;
     private Button refresh;
     private Button menu;
+    private Button stopAfterCurrent;
+    private ProgressBar transferProgress;
     private ScrollView formScroll;
     private TextView connectionSummary;
     private TextView path;
@@ -72,9 +76,12 @@ public final class MainActivity extends Activity {
     private volatile RemoteClient client;
     private volatile RemoteClient connectingClient;
     private volatile boolean destroyed;
+    private volatile boolean stopAfterCurrentRequested;
     private String currentPath = "/";
     private String pendingDownloadPath;
+    private long pendingDownloadSize = -1L;
     private boolean busy;
+    private boolean transferActive;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -180,6 +187,15 @@ public final class MainActivity extends Activity {
         list.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
         root.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
+        transferProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        transferProgress.setMax(1000);
+        transferProgress.setVisibility(View.GONE);
+        root.addView(transferProgress, matchWrap());
+
+        stopAfterCurrent = button(R.string.stop_after_current);
+        stopAfterCurrent.setVisibility(View.GONE);
+        root.addView(stopAfterCurrent, matchWrap());
+
         status = new TextView(this);
         status.setText(R.string.status_ready);
         status.setTextColor(0xFF475569);
@@ -204,6 +220,12 @@ public final class MainActivity extends Activity {
         refresh.setOnClickListener(v -> refresh());
         up.setOnClickListener(v -> { if (!currentPath.equals("/")) openDirectory(RemotePaths.parent(currentPath)); });
         menu.setOnClickListener(v -> showMainMenu());
+        stopAfterCurrent.setOnClickListener(v -> {
+            if (!transferActive || !busy) return;
+            stopAfterCurrentRequested = true;
+            stopAfterCurrent.setEnabled(false);
+            status.setText(R.string.status_stopping_after_current);
+        });
         filter.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateVisibleEntries(); }
@@ -295,6 +317,8 @@ public final class MainActivity extends Activity {
         RemoteClient current = client;
         client = null;
         pendingDownloadPath = null;
+        pendingDownloadSize = -1L;
+        stopAfterCurrentRequested = false;
         setBusy(true, R.string.status_working);
         io.execute(() -> {
             current.close();
@@ -306,6 +330,7 @@ public final class MainActivity extends Activity {
                 path.setText(currentPath);
                 filter.setText("");
                 connectionSummary.setText("");
+                finishTransferUi();
                 updateConnectionUi(false);
                 setBusy(false, R.string.status_disconnected);
             });
@@ -419,6 +444,7 @@ public final class MainActivity extends Activity {
     private void startDownload(RemoteEntry entry) {
         if (entry.directory()) return;
         pendingDownloadPath = RemotePaths.child(currentPath, entry.name());
+        pendingDownloadSize = Math.max(0L, entry.size());
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("application/octet-stream");
@@ -431,9 +457,11 @@ public final class MainActivity extends Activity {
 
         if (requestCode == REQUEST_DOWNLOAD) {
             String remotePath = pendingDownloadPath;
+            long remoteSize = pendingDownloadSize;
             pendingDownloadPath = null;
+            pendingDownloadSize = -1L;
             if (resultCode != RESULT_OK || data == null || data.getData() == null || client == null || remotePath == null) return;
-            downloadUri(data.getData(), remotePath);
+            downloadUri(data.getData(), remotePath, remoteSize);
             return;
         }
 
@@ -450,7 +478,8 @@ public final class MainActivity extends Activity {
     }
 
     private void uploadUris(List<Uri> uris) {
-        List<String> names = new ArrayList<>(uris.size());
+        if (busy || client == null || uris.isEmpty()) return;
+        List<UploadItem> items = new ArrayList<>(uris.size());
         Set<String> remoteNames = new LinkedHashSet<>();
         try {
             for (Uri uri : uris) {
@@ -459,32 +488,74 @@ public final class MainActivity extends Activity {
                 if (!remoteNames.add(name)) {
                     throw new IllegalArgumentException(getString(R.string.duplicate_upload_name, name));
                 }
-                names.add(name);
+                items.add(new UploadItem(uri, name, displaySize(uri)));
             }
         } catch (IllegalArgumentException error) {
             showError(error);
             return;
         }
 
-        runIo(R.string.status_uploading_files, () -> {
-            for (int i = 0; i < uris.size(); i++) {
-                Uri uri = uris.get(i);
-                String remotePath = RemotePaths.child(currentPath, names.get(i));
-                try (InputStream source = getContentResolver().openInputStream(uri)) {
-                    if (source == null) throw new IllegalStateException("Unable to open selected file.");
-                    requireClient().upload(remotePath, source);
+        setBusy(true, R.string.status_uploading_files);
+        beginTransferUi(items.size() > 1);
+        io.execute(() -> {
+            boolean stopped = false;
+            try {
+                for (int i = 0; i < items.size(); i++) {
+                    UploadItem item = items.get(i);
+                    String remotePath = RemotePaths.child(currentPath, item.name());
+                    TransferReporter reporter = new TransferReporter(true, i + 1, items.size(), item.name(), item.size());
+                    try (InputStream raw = getContentResolver().openInputStream(item.uri())) {
+                        if (raw == null) throw new IllegalStateException("Unable to open selected file.");
+                        InputStream source = TransferStreams.monitor(raw, reporter::report);
+                        requireClient().upload(remotePath, source);
+                    }
+                    reporter.complete();
+                    if (stopAfterCurrentRequested && i + 1 < items.size()) {
+                        stopped = true;
+                        break;
+                    }
                 }
+                List<RemoteEntry> next = requireClient().list(currentPath);
+                boolean finalStopped = stopped;
+                postToMain(() -> {
+                    replaceEntries(next);
+                    finishTransferUi();
+                    setBusy(false, finalStopped ? R.string.status_upload_stopped : R.string.status_connected);
+                });
+            } catch (Exception error) {
+                postToMain(() -> {
+                    finishTransferUi();
+                    setBusy(false, R.string.status_connected);
+                    showError(error);
+                });
             }
-        }, true);
+        });
     }
 
-    private void downloadUri(Uri uri, String remotePath) {
-        runIo(() -> {
-            try (OutputStream destination = getContentResolver().openOutputStream(uri, "w")) {
-                if (destination == null) throw new IllegalStateException("Unable to open destination file.");
+    private void downloadUri(Uri uri, String remotePath, long remoteSize) {
+        if (busy || client == null) return;
+        setBusy(true, R.string.status_working);
+        beginTransferUi(false);
+        io.execute(() -> {
+            try (OutputStream raw = getContentResolver().openOutputStream(uri, "w")) {
+                if (raw == null) throw new IllegalStateException("Unable to open destination file.");
+                TransferReporter reporter = new TransferReporter(false, 1, 1, "", remoteSize);
+                OutputStream destination = TransferStreams.monitor(raw, reporter::report);
                 requireClient().download(remotePath, destination);
+                destination.flush();
+                reporter.complete();
+                postToMain(() -> {
+                    finishTransferUi();
+                    setBusy(false, R.string.status_connected);
+                });
+            } catch (Exception error) {
+                postToMain(() -> {
+                    finishTransferUi();
+                    setBusy(false, R.string.status_connected);
+                    showError(error);
+                });
             }
-        }, false);
+        });
     }
 
     private void promptNewFolder() {
@@ -594,6 +665,38 @@ public final class MainActivity extends Activity {
         return last == null || last.isBlank() ? "upload.bin" : last.substring(last.lastIndexOf('/') + 1);
     }
 
+    private long displaySize(Uri uri) {
+        try (Cursor cursor = getContentResolver().query(uri, new String[]{OpenableColumns.SIZE}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(OpenableColumns.SIZE);
+                if (index >= 0 && !cursor.isNull(index)) return Math.max(0L, cursor.getLong(index));
+            }
+        } catch (RuntimeException ignored) {
+            // Some document providers do not expose a stable size. Progress falls back to transferred bytes.
+        }
+        return -1L;
+    }
+
+    private void beginTransferUi(boolean canStopAfterCurrent) {
+        transferActive = true;
+        stopAfterCurrentRequested = false;
+        transferProgress.setIndeterminate(true);
+        transferProgress.setProgress(0);
+        transferProgress.setVisibility(View.VISIBLE);
+        stopAfterCurrent.setVisibility(canStopAfterCurrent ? View.VISIBLE : View.GONE);
+        stopAfterCurrent.setEnabled(canStopAfterCurrent);
+    }
+
+    private void finishTransferUi() {
+        transferActive = false;
+        stopAfterCurrentRequested = false;
+        transferProgress.setProgress(0);
+        transferProgress.setIndeterminate(false);
+        transferProgress.setVisibility(View.GONE);
+        stopAfterCurrent.setEnabled(false);
+        stopAfterCurrent.setVisibility(View.GONE);
+    }
+
     private void postToMain(Runnable action) {
         main.post(() -> { if (!destroyed) action.run(); });
     }
@@ -625,6 +728,9 @@ public final class MainActivity extends Activity {
         menu.setEnabled(connected && !busy);
         filter.setEnabled(connected && !busy);
         list.setEnabled(connected && !busy);
+        if (stopAfterCurrent != null && stopAfterCurrent.getVisibility() == View.VISIBLE) {
+            stopAfterCurrent.setEnabled(transferActive && busy && !stopAfterCurrentRequested);
+        }
     }
 
     private void showError(Throwable error) {
@@ -665,9 +771,22 @@ public final class MainActivity extends Activity {
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 
+    private String humanBytes(long bytes) {
+        if (bytes < 1024L) return bytes + " B";
+        double value = bytes;
+        String[] units = {"KB", "MB", "GB", "TB"};
+        for (String unit : units) {
+            value /= 1024.0;
+            if (value < 1024.0) return String.format(Locale.ROOT, "%.1f %s", value, unit);
+        }
+        return bytes + " B";
+    }
+
     @Override protected void onDestroy() {
         destroyed = true;
+        stopAfterCurrentRequested = true;
         pendingDownloadPath = null;
+        pendingDownloadSize = -1L;
         password.setText("");
         main.removeCallbacksAndMessages(null);
         RemoteClient current = client;
@@ -683,6 +802,71 @@ public final class MainActivity extends Activity {
             closeThread.start();
         }
         super.onDestroy();
+    }
+
+    private record UploadItem(Uri uri, String name, long size) {}
+
+    private final class TransferReporter {
+        private static final long POST_INTERVAL_NANOS = 100_000_000L;
+
+        private final boolean upload;
+        private final int fileIndex;
+        private final int fileCount;
+        private final String name;
+        private final long totalBytes;
+        private long transferred;
+        private long lastPostNanos;
+
+        private TransferReporter(boolean upload, int fileIndex, int fileCount, String name, long totalBytes) {
+            this.upload = upload;
+            this.fileIndex = fileIndex;
+            this.fileCount = fileCount;
+            this.name = name;
+            this.totalBytes = totalBytes;
+        }
+
+        private void report(long bytes) {
+            transferred = Math.max(transferred, bytes);
+            publish(false);
+        }
+
+        private void complete() {
+            if (totalBytes >= 0L) transferred = Math.max(transferred, totalBytes);
+            publish(true);
+        }
+
+        private void publish(boolean force) {
+            long now = System.nanoTime();
+            if (!force && lastPostNanos != 0L && now - lastPostNanos < POST_INTERVAL_NANOS) return;
+            lastPostNanos = now;
+            long current = transferred;
+            postToMain(() -> renderTransferProgress(upload, fileIndex, fileCount, name, current, totalBytes));
+        }
+    }
+
+    private void renderTransferProgress(boolean upload, int fileIndex, int fileCount, String name, long transferred, long totalBytes) {
+        if (!transferActive) return;
+        if (totalBytes >= 0L) {
+            int percent = totalBytes == 0L ? 100 : (int) Math.min(100L, (transferred * 100L) / Math.max(1L, totalBytes));
+            transferProgress.setIndeterminate(false);
+            transferProgress.setProgress(percent * 10);
+            if (stopAfterCurrentRequested && upload) {
+                status.setText(R.string.status_stopping_after_current);
+            } else if (upload) {
+                status.setText(getString(R.string.upload_progress_known, fileIndex, fileCount, percent, name));
+            } else {
+                status.setText(getString(R.string.download_progress_known, percent, humanBytes(transferred)));
+            }
+        } else {
+            transferProgress.setIndeterminate(true);
+            if (stopAfterCurrentRequested && upload) {
+                status.setText(R.string.status_stopping_after_current);
+            } else if (upload) {
+                status.setText(getString(R.string.upload_progress_unknown, fileIndex, fileCount, humanBytes(transferred), name));
+            } else {
+                status.setText(getString(R.string.download_progress_unknown, humanBytes(transferred)));
+            }
+        }
     }
 
     @FunctionalInterface private interface ThrowingAction { void run() throws Exception; }
