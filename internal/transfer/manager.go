@@ -5,16 +5,17 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"github.com/bren-wp/by-ftp/internal/config"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/remote"
-	"github.com/bren-wp/by-ftp/internal/security"
-	"github.com/bren-wp/by-ftp/internal/usererror"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bren-wp/by-ftp/internal/config"
+	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/by-ftp/internal/usererror"
 )
 
 type Event struct {
@@ -325,6 +326,10 @@ func (m *Manager) SettingsChanged() {
 
 func (m *Manager) Pause() {
 	m.mu.Lock()
+	if m.closed || m.paused {
+		m.mu.Unlock()
+		return
+	}
 	m.paused = true
 	jobs := append([]model.TransferJob(nil), m.jobs...)
 	m.emitLocked(Event{Type: "state", Jobs: jobs, Paused: true})
@@ -333,7 +338,7 @@ func (m *Manager) Pause() {
 
 func (m *Manager) Resume() {
 	m.mu.Lock()
-	if m.closed || !m.accepting {
+	if m.closed || !m.accepting || !m.paused {
 		m.mu.Unlock()
 		return
 	}
@@ -497,11 +502,7 @@ func (m *Manager) pump() {
 	if m.paused || m.closed || !m.accepting {
 		return
 	}
-	settings, _ := m.settings.Get()
-	limit := settings.Parallelism
-	if limit < 1 {
-		limit = 2
-	}
+	limit := m.settings.Effective().Parallelism
 	for m.running < limit {
 		idx := -1
 		for i := range m.jobs {
@@ -652,11 +653,7 @@ func (m *Manager) execute(ctx context.Context, id string) {
 		runErr = errors.New("transfer nije pronađen")
 		return
 	}
-	settings, err := m.settings.Get()
-	if err != nil {
-		runErr = err
-		return
-	}
+	settings := m.settings.Effective()
 	maxAttempts := 1 + settings.AutoRetryCount
 	delay := time.Duration(settings.RetryDelaySeconds) * time.Second
 
