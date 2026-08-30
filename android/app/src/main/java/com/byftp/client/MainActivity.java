@@ -250,6 +250,12 @@ public final class MainActivity extends Activity {
             showError(error);
             return;
         }
+
+        ConnectionConfig.Protocol safeProtocol = config.protocol();
+        String safeHost = config.host();
+        int safePort = config.port();
+        String safeUsername = config.username();
+        String safeFingerprint = config.fingerprint();
         password.setText("");
 
         setBusy(true, R.string.status_connecting);
@@ -263,10 +269,10 @@ public final class MainActivity extends Activity {
                     connectingClient = null;
                     client = next;
                     currentPath = "/";
-                    presetStore.save(config);
+                    presetStore.save(safeProtocol, safeHost, safePort, safeUsername, safeFingerprint);
                     connectionSummary.setText(getString(
                         R.string.connected_to,
-                        config.protocol().toString(), config.host(), config.port(), config.username()
+                        safeProtocol.toString(), safeHost, safePort, safeUsername
                     ));
                     replaceEntries(initial);
                     updateConnectionUi(true);
@@ -361,8 +367,12 @@ public final class MainActivity extends Activity {
         listAdapter.clear();
         listAdapter.addAll(labels);
         listAdapter.notifyDataSetChanged();
-        if (client != null && !busy && visibleEntries.isEmpty()) {
-            status.setText(query.isEmpty() ? R.string.empty_directory : R.string.no_filter_results);
+        if (client != null && !busy) {
+            if (visibleEntries.isEmpty()) {
+                status.setText(query.isEmpty() ? R.string.empty_directory : R.string.no_filter_results);
+            } else {
+                status.setText(R.string.status_connected);
+            }
         }
     }
 
