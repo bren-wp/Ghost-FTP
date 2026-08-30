@@ -8,10 +8,10 @@ import (
 
 func TestConnectionIdentityMatchesEquivalentEndpointForms(t *testing.T) {
 	base := model.ConnectionConfig{
-		Protocol: "sftp",
-		Host: "Example.TEST.",
-		Port: 22,
-		Username: "alice",
+		Protocol:    "sftp",
+		Host:        "Example.TEST.",
+		Port:        22,
+		Username:    "alice",
 		Fingerprint: "SHA256:test",
 	}
 	equivalent := base
@@ -32,10 +32,10 @@ func TestConnectionIdentityMatchesEquivalentEndpointForms(t *testing.T) {
 
 func TestConnectionIdentityStillSeparatesSecurityBoundaries(t *testing.T) {
 	base := model.ConnectionConfig{
-		Protocol: "sftp",
-		Host: "example.test",
-		Port: 22,
-		Username: "alice",
+		Protocol:    "sftp",
+		Host:        "example.test",
+		Port:        22,
+		Username:    "alice",
 		Fingerprint: "SHA256:first",
 	}
 	baseID := connectionIdentity(base)
