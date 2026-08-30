@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.6 — Protocol-state cleanup and raw host validation
+
+**Focus:** keep protocol-specific runtime state minimal and restore the intended fail-closed raw-host boundary in the Windows desktop UI.
+
+- Added one `sanitizeProtocolState` boundary in the desktop remote manager so FTP, explicit FTPS and implicit FTPS cannot retain SFTP-only private-key paths, passphrases or host-key fingerprints.
+- Applied the same sanitizer before transfer connection-identity hashing, preventing dead/stale SFTP fingerprint state from making an otherwise identical FTP/FTPS reconnect look like a different connection.
+- Kept SFTP private-key, passphrase and host-key state unchanged for real SFTP sessions.
+- Restored raw Windows host validation in both quick-connect and profile-save paths by passing the untrimmed host text to `ValidateConnection`; leading/trailing host whitespace can no longer disappear before the fail-closed `ValidateHost` check.
+- Kept trimming for profile display names, ports and other non-host UX fields where normalization is intentional.
+- Extended the security audit to block both protocol-state leakage and future reintroduction of pre-validation Windows host trimming.
+- Added regressions covering FTP/FTPS protocol-state stripping, connection-identity stability and preservation of SFTP state.
+- Preserved the verified five-platform build, signing, release and credential-boundary contract from 1.2.5.
+
 ## 1.2.5 — Canonical endpoint identity and profile input hardening
 
 **Focus:** remove the remaining endpoint-identity drift in the desktop runtime and make SFTP profile/direct-connect trust input fail closed on canonical SHA-256 and UTF-8 boundaries.
