@@ -36,6 +36,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -226,7 +227,7 @@ public final class MainActivity extends Activity {
         if (saved == null) return;
         protocol.setSelection(saved.protocol().ordinal());
         host.setText(saved.host());
-        port.setText(Integer.toString(saved.port()));
+        port.setText(String.format(Locale.ROOT, "%d", saved.port()));
         username.setText(saved.username());
         fingerprint.setText(saved.fingerprint());
         password.setText("");
