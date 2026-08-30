@@ -79,6 +79,18 @@ type resolvedConnection struct {
 	PassphraseBlob string
 }
 
+// sanitizeProtocolState removes fields that have no meaning outside SFTP.
+// Keeping dead key/trust state on FTP/FTPS connections can otherwise leak into
+// public runtime config and create false connection-identity boundaries.
+func sanitizeProtocolState(cfg model.ConnectionConfig) model.ConnectionConfig {
+	if !strings.EqualFold(strings.TrimSpace(cfg.Protocol), "sftp") {
+		cfg.PrivateKeyPath = ""
+		cfg.Passphrase = ""
+		cfg.Fingerprint = ""
+	}
+	return cfg
+}
+
 // mergeConnection koristi spremljeni profil samo kao početne connection podatke.
 // Polje privatnog ključa je autoritativno iz aktualnog UI unosa: prazna
 // vrijednost znači "bez privatnog ključa" i ne smije vratiti stari ključ.
@@ -100,7 +112,7 @@ func mergeConnection(base model.ConnectionConfig, override model.ConnectionConfi
 	base.Fingerprint = override.Fingerprint
 	base.Password = override.Password
 	base.Passphrase = override.Passphrase
-	return base
+	return sanitizeProtocolState(base)
 }
 
 func profileEndpointMatches(profile model.Profile, cfg model.ConnectionConfig) bool {
@@ -125,6 +137,7 @@ func profilePrivateKeyMatches(profile model.Profile, cfg model.ConnectionConfig)
 }
 
 func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolvedConnection, model.Profile, error) {
+	in = sanitizeProtocolState(in)
 	var profile model.Profile
 	resolved := resolvedConnection{Config: in}
 	if profileID != "" {
@@ -144,6 +157,10 @@ func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolved
 		if in.Passphrase == "" && profilePrivateKeyMatches(p, resolved.Config) {
 			resolved.PassphraseBlob = p.PassphraseBlob
 		}
+	}
+	resolved.Config = sanitizeProtocolState(resolved.Config)
+	if resolved.Config.Protocol != "sftp" {
+		resolved.PassphraseBlob = ""
 	}
 	cfg := resolved.Config
 	if err := security.ValidateConnection(cfg.Protocol, cfg.Host, cfg.Username, cfg.Port); err != nil {
@@ -438,6 +455,7 @@ func (m *Manager) Operation(ctx context.Context) (Session, context.Context, func
 }
 
 func connectionIdentity(cfg model.ConnectionConfig) string {
+	cfg = sanitizeProtocolState(cfg)
 	material := fmt.Sprintf("%s\x00%s\x00%s", profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port), cfg.Username, cfg.Fingerprint)
 	sum := sha256.Sum256([]byte(material))
 	return hex.EncodeToString(sum[:])

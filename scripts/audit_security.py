@@ -69,21 +69,29 @@ def main() -> int:
     require("internal/profilebinding/binding.go", ("func EndpointMatches(", "func AccountMatches(", "func PrivateKeyMatches(", "strings.TrimSuffix(host, \".\")"))
     require("internal/remote/manager.go", (
         "profilebinding.EndpointMatches", "profilebinding.AccountMatches", "profilebinding.PrivateKeyMatches",
+        "func sanitizeProtocolState(cfg model.ConnectionConfig) model.ConnectionConfig", "cfg.PrivateKeyPath = \"\"", "cfg.Passphrase = \"\"", "cfg.Fingerprint = \"\"",
         "base.PrivateKeyPath = override.PrivateKeyPath", "if in.Password == \"\" && profileAccountMatches", "if in.Passphrase == \"\" && profilePrivateKeyMatches",
         "profileEndpoint && profile.Fingerprint != \"\"", "remember && profileID != \"\" && profileEndpoint",
         "ErrSessionClosing", "ErrDisconnectTimeout", "activeOps     sync.WaitGroup", "closing       *sessionCloseState",
         "m.activeOps.Add(1)", "m.activeOps.Wait()", "m.activeOps.Done()", "var once sync.Once", "go m.finishSessionClose(state, s)",
         "waitForSessionClose(ctx, state)", "errors.Is(ctx.Err(), context.Canceled)", "m.closing = nil",
     ))
+    require("internal/remote/protocol_state_regression_test.go", (
+        "TestResolveClearsSFTPOnlyStateForFTPFamily", "TestConnectionIdentityIgnoresSFTPOnlyStateForFTPFamily", "TestResolvePreservesSFTPStateForSFTP",
+    ))
     require("internal/config/profiles.go", (
         "sameProfileAccount(previous, x)", "sameProfilePrivateKey(previous, x)", "sameSFTPEndpoint(previous, x)",
         "x.PasswordBlob = \"\"", "x.PassphraseBlob = \"\"", "zaporka privatnog ključa zahtijeva odabran privatni ključ",
     ))
-    require("internal/desktop/connection_profiles_windows.go", (
+    desktop_connection = require("internal/desktop/connection_profiles_windows.go", (
         "profilebinding.AccountMatches", "profilebinding.PrivateKeyMatches", "Stare vjerodajnice neće se prenijeti",
         "Zadržati spremljene vjerodajnice?", "currentEndpointMatchesProfile", "Unesene tajne ostaju u zaključanim edit kontrolama",
         "cfg.Password = getText(a.pass)", "cfg.Passphrase = getText(a.passphrase)",
     ))
+    if "host := strings.TrimSpace(getText(a.host))" in desktop_connection:
+        fail("Windows connection/profile UI trims raw host before fail-closed host validation")
+    if desktop_connection.count("host := getText(a.host)") < 2:
+        fail("Windows connection/profile UI must pass raw host input to validation")
     require("internal/desktop/other.go", (
         'i18n.T(language, "terminal.sftp_key_required")', "promptSecret", "engine.Connect", "engine.RemoteList", "engine.AddTransfer",
     ))
@@ -116,6 +124,8 @@ def main() -> int:
     print("PROFILE_ENDPOINT_PIN_BINDING=ENABLED")
     print("PROFILE_CREDENTIAL_CROSS_ENDPOINT=BLOCKED")
     print("PROFILE_PRIVATE_KEY_CLEAR=AUTHORITATIVE")
+    print("NON_SFTP_KEY_TRUST_STATE=STRIPPED")
+    print("WINDOWS_RAW_HOST_VALIDATION=FAIL_CLOSED")
     print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
