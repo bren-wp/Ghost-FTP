@@ -48,11 +48,19 @@ struct RemoteBrowserView: View {
 
             Section("Remote files") {
                 if visibleEntries.isEmpty, !store.busy {
-                    ContentUnavailableView(
-                        searchText.isEmpty ? "This directory is empty" : "No matching files",
-                        systemImage: searchText.isEmpty ? "folder" : "magnifyingglass",
-                        description: Text(searchText.isEmpty ? "Use the menu to upload files or create a folder." : "Change or clear the filter to see more files.")
-                    )
+                    VStack(spacing: 8) {
+                        Image(systemName: searchText.isEmpty ? "folder" : "magnifyingglass")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                        Text(searchText.isEmpty ? "This directory is empty" : "No matching files")
+                            .font(.headline)
+                        Text(searchText.isEmpty ? "Use the menu to upload files or create a folder." : "Change or clear the filter to see more files.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 22)
                 }
 
                 ForEach(visibleEntries) { entry in
@@ -79,7 +87,7 @@ struct RemoteBrowserView: View {
                             if entry.isDirectory {
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(.secondary)
                             } else {
                                 Image(systemName: "arrow.down.circle")
                                     .foregroundStyle(.secondary)
@@ -137,7 +145,7 @@ struct RemoteBrowserView: View {
                     Button {
                         showingImporter = true
                     } label: {
-                        Label("Upload files", systemImage: "arrow.up.doc.on.clipboard")
+                        Label("Upload files", systemImage: "square.and.arrow.up")
                     }
                     Button {
                         newFolderName = ""
@@ -149,14 +157,14 @@ struct RemoteBrowserView: View {
                         goToPath = store.currentPath
                         showingGoToPath = true
                     } label: {
-                        Label("Go to path", systemImage: "arrow.right.doc.on.clipboard")
+                        Label("Go to path", systemImage: "location")
                     }
                     if store.hasSavedConnection {
                         Divider()
                         Button(role: .destructive) {
                             store.forgetSavedConnection()
                         } label: {
-                            Label("Forget saved connection", systemImage: "key.slash")
+                            Label("Forget saved connection", systemImage: "trash")
                         }
                     }
                     Divider()
@@ -180,7 +188,7 @@ struct RemoteBrowserView: View {
                     .lineLimit(1)
                 Spacer()
                 Text("\(visibleEntries.count) items")
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
