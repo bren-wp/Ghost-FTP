@@ -45,7 +45,6 @@
     <string name="delete_confirm">Delete “%1$s”?</string>
     <string name="error_prefix">Error: %1$s</string>
     <string name="selected_file">Selected: %1$s</string>
-    <string name="connected_to">%1$s · %2$s:%3$d · %4$s</string>
     <string name="connected_with_diagnostics">%1$s · %2$s:%3$d · %4$s\n%5$s · %6$s</string>
     <string name="diagnostic_secure">Secure transport</string>
     <string name="diagnostic_plain_ftp">Plain FTP · unencrypted</string>
