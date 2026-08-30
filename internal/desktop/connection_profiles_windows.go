@@ -201,13 +201,13 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 }
 
 func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
-	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
+	port, err := strconv.Atoi(getText(a.port))
 	if err != nil {
 		return false
 	}
 	return profilebinding.EndpointMatches(
 		p.Protocol, p.Host, p.Port,
-		a.protocolValue(), strings.TrimSpace(getText(a.host)), port,
+		a.protocolValue(), getText(a.host), port,
 	)
 }
 
