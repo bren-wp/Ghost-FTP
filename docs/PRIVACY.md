@@ -30,6 +30,10 @@ The iOS bundle contains no global App Transport Security bypass. Network traffic
 
 Unsigned IPA/app ZIP generation is a packaging/signing property only and does not introduce telemetry, cloud storage or secret persistence.
 
+## Repository privacy gate
+
+Version 1.6.0 extends release hygiene across every tracked repository file. The repository-wide integrity audit is entirely local to the checked-out Git tree: it enumerates tracked paths and file contents only. It does not upload source, credentials, filenames or audit results to a ByFTP service and does not add a runtime endpoint or telemetry path.
+
 ## Project communication
 
 ByFTP does not send usage events to the repository, support endpoint or a project-operated service. Static repository/support URLs used as product metadata do not trigger automatic network requests.
