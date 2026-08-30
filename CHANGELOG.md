@@ -2,6 +2,18 @@
 
 The active product changelog intentionally starts at 1.3.0. Older development history remains available in Git history but is not part of the current maintained release documentation.
 
+## 1.7.1 — Release main-head integrity
+
+**Focus:** ensure a slower VERSION-triggered workflow cannot publish an older commit after a newer integration merge has already advanced `main`.
+
+- Added `Assert-CurrentMainCommit` to the centralized PowerShell publisher.
+- The publisher now resolves the repository's current `main` commit through the GitHub API and requires it to equal the exact workflow release commit before release lookup or mutation.
+- The guard is repeated immediately before `gh release create` / `gh release edit`, reducing the race window between initial validation and public release mutation.
+- A stale run fails closed with an explicit source/main mismatch instead of creating a tag that no longer represents the repository's current integrated source.
+- Added a maintenance regression that requires the main-head guard, `branches/main` lookup and pre-release ordering to remain in the publisher.
+- Synchronized root `VERSION`, ByFTP WEB `VERSION`, composer metadata and PWA cache namespace at 1.7.1.
+- Carries forward the complete 1.7.0 Windows/Linux/macOS/Android/iOS cleanup and maintained `ByFTP WEB/` integration without changing their transport/security contracts.
+
 ## 1.7.0 — Full cleanup, native hardening and ByFTP WEB integration
 
 **Focus:** clean the maintained repository surface, fix platform-specific edge cases and make the hardened shared-hosting web client a first-class ByFTP source/release target.
@@ -58,4 +70,3 @@ The active product changelog intentionally starts at 1.3.0. Older development hi
 - Added restoration of non-secret connection metadata while structurally excluding stored mobile passwords/passphrases.
 - Android app-private saved connection state remains excluded from backup/device transfer; iOS uses Keychain `WhenUnlockedThisDeviceOnly`.
 - Raw remote names are validated instead of trimmed into different names.
-- Added mobile model/security regressions and preserved exact protocol claims: Android supports FTP/explicit FTPS/implicit FTPS/SFTP; iOS supports FTP/implicit FTPS.
