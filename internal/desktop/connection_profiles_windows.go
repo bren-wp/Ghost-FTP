@@ -103,7 +103,7 @@ func (a *app) connectNow() {
 	if a.connectionBusy || a.connected {
 		return
 	}
-	host := strings.TrimSpace(getText(a.host))
+	host := getText(a.host)
 	user := strings.TrimSpace(getText(a.user))
 	password := getText(a.pass)
 	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
@@ -417,7 +417,7 @@ func (a *app) saveCurrentProfile() {
 		return
 	}
 	protocol := a.protocolValue()
-	host := strings.TrimSpace(getText(a.host))
+	host := getText(a.host)
 	username := strings.TrimSpace(getText(a.user))
 	port, err := strconv.Atoi(strings.TrimSpace(getText(a.port)))
 	if err != nil || port < 1 || port > 65535 {
