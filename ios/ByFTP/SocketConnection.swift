@@ -58,13 +58,20 @@ final class SocketConnection {
         }
     }
 
-    func sendFile(_ url: URL, chunkSize: Int = 64 * 1024) async throws {
+    func sendFile(
+        _ url: URL,
+        chunkSize: Int = 64 * 1024,
+        progress: @escaping @Sendable (Int64) -> Void = { _ in }
+    ) async throws {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
+        var total: Int64 = 0
         while true {
             let chunk = try handle.read(upToCount: chunkSize) ?? Data()
             if chunk.isEmpty { break }
             try await send(chunk)
+            total += Int64(chunk.count)
+            progress(total)
         }
     }
 
@@ -102,7 +109,11 @@ final class SocketConnection {
         }
     }
 
-    func receiveToFile(_ url: URL, maxBytes: Int64 = 4 * 1024 * 1024 * 1024) async throws {
+    func receiveToFile(
+        _ url: URL,
+        maxBytes: Int64 = 4 * 1024 * 1024 * 1024,
+        progress: @escaping @Sendable (Int64) -> Void = { _ in }
+    ) async throws {
         guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
             throw NetworkError.fileCreateFailed
         }
@@ -115,6 +126,7 @@ final class SocketConnection {
                 total += Int64(chunk.count)
                 guard total <= maxBytes else { throw NetworkError.responseTooLarge }
                 try handle.write(contentsOf: chunk)
+                progress(total)
             }
             if complete { return }
         }

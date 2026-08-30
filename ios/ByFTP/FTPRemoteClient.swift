@@ -77,13 +77,17 @@ actor FTPRemoteClient {
         }
     }
 
-    func upload(remotePath: String, localURL: URL) async throws {
+    func upload(
+        remotePath: String,
+        localURL: URL,
+        progress: @escaping @Sendable (Int64) -> Void = { _ in }
+    ) async throws {
         let path = try FTPPathMapper.map(loginRoot: loginRoot, uiPath: remotePath)
         let dataSocket = try await openPassiveDataSocket()
         do {
             let preliminary = try await command("STOR", path)
             try expectPreliminary(preliminary)
-            try await dataSocket.sendFile(localURL)
+            try await dataSocket.sendFile(localURL, progress: progress)
             try await dataSocket.finishSending()
             dataSocket.cancel()
             try expect2xx(try await readResponse())
@@ -93,13 +97,17 @@ actor FTPRemoteClient {
         }
     }
 
-    func download(remotePath: String, localURL: URL) async throws {
+    func download(
+        remotePath: String,
+        localURL: URL,
+        progress: @escaping @Sendable (Int64) -> Void = { _ in }
+    ) async throws {
         let path = try FTPPathMapper.map(loginRoot: loginRoot, uiPath: remotePath)
         let dataSocket = try await openPassiveDataSocket()
         do {
             let preliminary = try await command("RETR", path)
             try expectPreliminary(preliminary)
-            try await dataSocket.receiveToFile(localURL)
+            try await dataSocket.receiveToFile(localURL, progress: progress)
             dataSocket.cancel()
             try expect2xx(try await readResponse())
         } catch {

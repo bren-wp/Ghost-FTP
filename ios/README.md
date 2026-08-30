@@ -13,6 +13,8 @@
 - Native searchable remote file list with deterministic directory-first sorting.
 - **Go to path** navigation through the same canonical `RemotePath` validator used by file operations.
 - Multi-file upload through the iOS security-scoped document picker with one directory refresh after the batch.
+- Byte-level upload/download progress reported by the existing Network.framework data-socket file loops.
+- Safe **Stop after file** for multi-file uploads; the active FTP transaction completes before remaining selected files are skipped.
 - Download to an isolated application temporary directory followed by the system share/save sheet.
 - Keychain storage of the last **non-secret** connection preset (protocol, host, port and username) using `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
 - Session-only credentials. Password text is cleared after connection attempts and password data is not part of the persistent preset model.
@@ -21,23 +23,35 @@
 
 Explicit FTPS and SFTP are **not** claimed by the iOS implementation yet. They remain available on the existing ByFTP desktop and Android clients. Adding either transport to iOS requires a separately audited implementation rather than a permissive compatibility shim.
 
+## 1.4.0 transfer update
+
+Version 1.4.0 makes long iPhone/iPad transfers observable while keeping the native FTP/implicit-FTPS transport and trust model unchanged.
+
+`SocketConnection.sendFile` and `receiveToFile` report cumulative bytes after successful Network.framework sends or local-file writes. Those callbacks are threaded through `FTPRemoteClient` into `SessionStore`; no third-party transfer SDK, WebView bridge, hidden backend or alternative network destination was added.
+
+The browser's bottom activity area shows a determinate SwiftUI `ProgressView` when the source/remote size is known and an indeterminate progress indicator plus transferred-byte text when a stable size is unavailable. Progress reporting does not modify FTP commands, passive-host handling, TLS configuration or credential lifetime.
+
+For multi-file uploads, **Stop after file** sets a batch-boundary request. ByFTP completes the active `STOR` transaction and only then skips remaining selected files. It does not cancel the active data socket or close the FTP control connection from the stop-button handler just to create an apparently instant cancellation state.
+
 ## 1.3.0 mobile update
 
-Version 1.3.0 substantially improves daily phone/tablet use while preserving the existing native transport boundary.
+Version 1.3.0 substantially improved daily phone/tablet use while preserving the existing native transport boundary.
 
-The remote browser now exposes `.searchable` filtering, folders-first sorting, a direct canonical path dialog, multi-file import and a compact bottom connection/activity strip. Filtering is local to the currently loaded directory and does not issue a network request for every keystroke.
+The remote browser exposes `.searchable` filtering, folders-first sorting, a direct canonical path dialog, multi-file import and a compact bottom connection/activity strip. Filtering is local to the currently loaded directory and does not issue a network request for every keystroke.
 
 The document picker uses `allowsMultipleSelection: true`. All selected names are validated before the batch starts, duplicate destination names in one selection are rejected and every security-scoped URL is released after its upload attempt. The remote directory is refreshed once after a successful batch rather than after every file.
 
-ByFTP can now restore the last successful connection metadata without storing its password. `ConnectionPreset` deliberately contains only protocol, host, port and username. It round-trips through `Codable`, is revalidated through `ConnectionConfig` when loaded and is stored in the iOS Keychain with a this-device-only accessibility class. Model regressions verify that serialized preset data cannot contain the session password. `UserDefaults` remains forbidden by the iOS audit.
+ByFTP can restore the last successful connection metadata without storing its password. `ConnectionPreset` deliberately contains only protocol, host, port and username. It round-trips through `Codable`, is revalidated through `ConnectionConfig` when loaded and is stored in the iOS Keychain with a this-device-only accessibility class. Model regressions verify that serialized preset data cannot contain the session password. `UserDefaults` remains forbidden by the iOS audit.
 
-The connection screen now clearly reports when safe metadata was restored and provides a direct **Forget saved connection** control. The browser menu exposes the same removal action while connected.
+The connection screen clearly reports when safe metadata was restored and provides a direct **Forget saved connection** control. The browser menu exposes the same removal action while connected.
 
 ## Transport and security baseline
 
 The path/lifecycle hardening introduced before 1.3.0 remains unchanged: raw host, port, username and password input is checked for CR/LF/NUL controls before normalization; remote names reject edge whitespace and controls; server login roots reject unsafe content; pending connections are disconnectable; password UI state is cleared; and failed/stale download staging is removed.
 
-The connection task now derives the non-secret `ConnectionPreset` before asynchronous network completion, so the credential-bearing `ConnectionConfig` is not retained merely for persistence after authentication.
+The connection task derives the non-secret `ConnectionPreset` before asynchronous network completion, so the credential-bearing `ConnectionConfig` is not retained merely for persistence after authentication.
+
+Transfer progress is observational. The progress closures receive only cumulative byte counts; the **Stop after file** request does not own or tear down the active socket. Protocol-aware true mid-file cancellation remains deferred until abort semantics and partial-file cleanup can be proven fail-safe.
 
 `ios/BUILD.sh` remains the canonical build entry point. CI and production release jobs invoke it directly, so the Swift source, Xcode project, tests and build contract live together instead of being split between `ios/` and a platform-specific wrapper under `scripts/`.
 
@@ -53,7 +67,7 @@ The checked-in project uses a safe development fallback `MARKETING_VERSION = 0.0
 
 The AppIcon asset catalog stores only `Contents.json`. `ios/BUILD.sh` generates all required PNG sizes from the canonical repository `build/icon.png`; generated icon files are intentionally ignored by Git.
 
-The deployment target remains iOS 16.0. The 1.3.0 SwiftUI changes deliberately avoid newer-only APIs such as `ContentUnavailableView`, and the real iPhoneOS build gate continues to verify this source against the project deployment target.
+The deployment target remains iOS 16.0. The 1.4.0 SwiftUI changes deliberately avoid newer-only APIs such as `ContentUnavailableView`, and the real iPhoneOS build gate continues to verify this source against the project deployment target.
 
 ## Build the unsigned release artifacts
 
@@ -94,4 +108,5 @@ Do not commit `.p12` files, private signing keys, provisioning profiles or passw
 - Pending and active connections are both invalidated and closed during disconnect/background teardown.
 - Failed or stale download staging directories are removed.
 - Server-provided passive-mode addresses are not trusted as alternative destinations.
+- Transfer progress stays on the existing Network.framework data path; safe batch stopping does not close an active transport mid-file.
 - App-bundle packaging rejects symlinks and validates the bundle identifier, version and Mach-O executable before creating release archives.

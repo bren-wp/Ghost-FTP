@@ -180,19 +180,49 @@ struct RemoteBrowserView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(store.busy ? Color.orange : Color.green)
-                    .frame(width: 7, height: 7)
-                Text(store.status)
-                    .lineLimit(1)
-                Spacer()
-                Text("\(visibleEntries.count) items")
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                if let detail = store.transferDetail {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let fraction = store.transferFraction {
+                            ProgressView(value: fraction)
+                        } else {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        HStack(spacing: 8) {
+                            Text(detail)
+                                .lineLimit(2)
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 8)
+                            if store.canStopAfterCurrent {
+                                Button {
+                                    store.requestStopAfterCurrent()
+                                } label: {
+                                    Label("Stop after file", systemImage: "stop.circle")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
+                        .font(.caption)
+                    }
+                    .padding(.horizontal, 14)
+                }
+
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(store.busy ? Color.orange : Color.green)
+                        .frame(width: 7, height: 7)
+                    Text(store.status)
+                        .lineLimit(1)
+                    Spacer()
+                    Text("\(visibleEntries.count) items")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 14)
             .padding(.vertical, 9)
             .background(.thinMaterial)
         }

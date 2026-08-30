@@ -92,7 +92,10 @@ def main() -> int:
         "import Network", "NWParameters(tls:", "responseTooLarge", "sendLine", "receiveToFile",
         "StartContinuationBox", "@unchecked Sendable", "private let lock = NSLock()",
         "guard FileManager.default.createFile",
+        "progress: @escaping @Sendable (Int64) -> Void", "progress(total)",
     ))
+    if socket.count("progress(total)") < 2:
+        fail("iOS socket progress must cover both file send and receive boundaries")
     if "var pending: CheckedContinuation" in socket:
         fail("iOS NWConnection state handler captures a mutable local continuation")
     if "NWParameters(tls: nil" in socket:
@@ -102,6 +105,8 @@ def main() -> int:
         'command("EPSV")', 'command("PASV")', 'command("PBSZ", "0"', 'command("PROT", "P"',
         "FTPPathMapper.map", "Intentionally ignore the server-supplied PASV host", "MLSD", "LIST",
         "private var password: String", 'defer { password = "" }', 'password = ""',
+        "progress: @escaping @Sendable (Int64) -> Void", "sendFile(localURL, progress: progress)",
+        "receiveToFile(localURL, progress: progress)",
     ))
     if "private let config: ConnectionConfig" in ftp:
         fail("iOS FTP actor retains the complete credential configuration for the session")
@@ -121,6 +126,12 @@ def main() -> int:
         "func upload(_ urls: [URL])", "var remoteNames = Set<String>()", "private func sortedEntries",
         "SecItemCopyMatching", "SecItemAdd", "SecItemDelete", "kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
         'service = "com.byftp.client.connection-preset"',
+        "@Published private(set) var transferFraction", "@Published private(set) var transferDetail",
+        "@Published private(set) var canStopAfterCurrent", "func requestStopAfterCurrent()",
+        "stopAfterCurrentRequested", "if stopAfterCurrentRequested && index + 1 < jobs.count { break }",
+        "client.upload(remotePath: job.remotePath, localURL: job.url, progress: progress)",
+        "client.download(remotePath: remotePath, localURL: destination, progress: progress)",
+        "ByteCountFormatter.string",
     ))
     task_index = session.find("Task {", session.find("func connect()"))
     preset_index = session.find("let preset = ConnectionPreset(config: config)", session.find("func connect()"))
@@ -128,11 +139,18 @@ def main() -> int:
         fail("iOS async connect task retains the credential-bearing config solely for preset persistence")
     if "ConnectionPresetKeychain.save(ConnectionPreset(config: config))" in session:
         fail("iOS Keychain save reconstructs the preset from a credential-bearing config inside async completion")
+    for forbidden in ("client.close()", "dataSocket.cancel()"):
+        request_fn = session.find("func requestStopAfterCurrent()")
+        next_fn = session.find("func download(", request_fn)
+        if request_fn >= 0 and next_fn > request_fn and forbidden in session[request_fn:next_fn]:
+            fail("iOS batch-stop UI tears down the active transport mid-file")
 
     browser = require("ios/ByFTP/RemoteBrowserView.swift", (
         ".searchable(text: $searchText", "allowsMultipleSelection: true", "store.upload(urls)",
         'Label("Go to path"', "store.openDirectory(goToPath)", "store.forgetSavedConnection()",
         "visibleEntries", "safeAreaInset(edge: .bottom)",
+        "store.transferDetail", "ProgressView(value: fraction)", "store.canStopAfterCurrent",
+        "store.requestStopAfterCurrent()", 'Label("Stop after file"',
     ))
     if "ContentUnavailableView" in browser:
         fail("iOS mobile browser uses an API newer than the supported iOS 16 deployment target")
@@ -215,6 +233,8 @@ def main() -> int:
     print("IOS_REMOTE_NAMES=CANONICAL_FAIL_CLOSED")
     print("IOS_LOGIN_ROOT_CONTROL_CHARACTERS=REJECTED_BEFORE_NORMALIZATION")
     print("IOS_NWCONNECTION_CONTINUATION=LOCKED_SINGLE_RESUME")
+    print("IOS_TRANSFER_PROGRESS=NETWORK_DATA_SOCKET_BYTE_BOUNDARY")
+    print("IOS_BATCH_STOP=AFTER_CURRENT_FILE_ONLY")
     print("IOS_SECRET_PERSISTENCE=BLOCKED")
     print("IOS_NON_SECRET_CONNECTION_PRESET=KEYCHAIN_THIS_DEVICE_ONLY")
     print("IOS_LOGIN_PASSWORD_LIFETIME=CONNECT_ONLY_AND_UI_CLEARED")

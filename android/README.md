@@ -12,6 +12,8 @@ ByFTP Android is a native Java client isolated from the Go desktop runtime so mo
 - Mobile **Go to path** navigation through the same canonical remote-path validator used by file operations.
 - Case-insensitive local file filtering with deterministic directory-first sorting.
 - Multi-file upload through Android's Storage Access Framework, plus document-provider downloads.
+- Byte-level upload/download progress for FTP, FTPS and SFTP using one transport-neutral local stream wrapper.
+- Safe **Stop after current file** for multi-file upload; the current remote write completes before the remaining batch is skipped.
 - Compact connected-state UI with a touch-friendly Up / Refresh / Menu action surface and 48dp minimum controls.
 - App-private persistence of the last **non-secret** connection metadata (protocol, host, port, username and SFTP fingerprint) for faster reconnects.
 - Session-only passwords; password/passphrase values are never stored in the connection preset and the password field is cleared after every connect attempt.
@@ -19,15 +21,25 @@ ByFTP Android is a native Java client isolated from the Go desktop runtime so mo
 - Generic cleartext traffic disabled for Android platform-aware networking.
 - No analytics, advertising SDK, telemetry backend or mandatory cloud account.
 
+## 1.4.0 transfer update
+
+Version 1.4.0 makes long mobile transfers observable without changing the reviewed network dependencies or trust boundaries.
+
+`TransferStreams` wraps the existing local `InputStream` and `OutputStream` objects and reports cumulative bytes only after successful reads or writes. Because progress is measured at this common stream boundary, the existing FTP, explicit/implicit FTPS and SFTP clients do not need separate progress implementations. `TransferStreamsTest` verifies that monitored streams preserve payload bytes and report cumulative byte counts correctly.
+
+When the Android document provider exposes a stable file size, the UI displays percentage progress. If the provider cannot supply a reliable size, ByFTP switches to transferred-byte reporting instead of inventing a percentage. Downloads use the size already reported by the remote listing when available.
+
+Multi-file upload adds **Stop after current file**. The request is checked only after the active upload returns successfully; remaining files are then skipped and the directory is refreshed once. The button does not interrupt the transport thread, close the socket, issue a fabricated success state or leave the FTP/FTPS command sequence half-finished merely to simulate instant cancellation.
+
 ## 1.3.0 mobile update
 
-Version 1.3.0 turns the Android client into a more practical daily mobile file manager without adding a UI framework or broadening the dependency surface.
+Version 1.3.0 turned the Android client into a more practical daily mobile file manager without adding a UI framework or broadening the dependency surface.
 
 The connection form is hidden after a successful login and replaced by a compact server/account summary, leaving substantially more vertical space for files on phones. The main action row is reduced to the high-frequency **Up**, **Refresh** and **Menu** actions; upload, new folder, direct-path navigation, saved-connection removal and disconnect live in the menu instead of being squeezed into small buttons.
 
 Directory contents are sorted with folders first and then names case-insensitively. The filter field operates only on the already loaded directory, does not trigger network requests and does not mutate transport-owned lists. These rules live in `RemoteEntryList` instead of `MainActivity` and are covered by JUnit regressions.
 
-The document picker now supports selecting multiple files. ByFTP validates every remote name before starting the batch, rejects duplicate destination names in one selection and performs uploads sequentially on the existing dedicated I/O executor before refreshing the directory once.
+The document picker supports selecting multiple files. ByFTP validates every remote name before starting the batch, rejects duplicate destination names in one selection and performs uploads sequentially on the existing dedicated I/O executor before refreshing the directory once.
 
 The last successful connection can be restored locally without storing its password. `ConnectionPresetStore` is deliberately restricted to protocol, host, port, username and fingerprint. The store is app-private, application backup/device transfer remains disabled, and `audit_android.py` fails if password/passphrase persistence is introduced.
 
@@ -48,6 +60,8 @@ For SFTP, supply the expected OpenSSH-style fingerprint such as `SHA256:AbCd...`
 ByFTP validates raw host, port, username, password and fingerprint text for CR/LF/NUL control characters **before** trimming or canonicalization. FTP and SFTP directory entries use the same `RemotePaths.validateName` policy, so edge whitespace and protocol-control characters cannot be accepted by one transport and rejected later by another layer. Mobile rename/create operations pass the exact typed remote name to that validator instead of silently trimming it first.
 
 The FTP/SFTP transport objects do not retain the complete `ConnectionConfig` throughout an active session. Endpoint and trust data are copied separately, while the transport password reference is cleared in `finally` immediately after authentication and again on close. The Activity also clears its password field on both validation failure and completed connection attempts. The post-authentication UI callback carries only explicitly extracted non-secret endpoint metadata, not the credential-bearing `ConnectionConfig`.
+
+Transfer progress is observational: `TransferStreams` does not own or close the transport, does not alter TLS/SSH verification and does not inject thread interruption. Batch stopping happens only at a completed-file boundary.
 
 SFTP password authentication remains supported. Private-key import remains intentionally deferred until Android Keystore-backed handling, import validation and migration semantics have dedicated tests and audit coverage.
 
@@ -80,7 +94,7 @@ The unsigned release APK is **not** a production distribution until it is signed
 - Apache Commons Net 3.13.0
 - SSHJ 0.40.0
 
-No AndroidX/Compose framework was added for the 1.3.0 mobile overhaul; the application continues to use the platform UI APIs plus the already reviewed network dependencies.
+No AndroidX/Compose framework was added for the 1.4.0 transfer-control work; the application continues to use the platform UI APIs plus the already reviewed network dependencies.
 
 ## Build and test
 
@@ -94,4 +108,4 @@ python scripts/package_android.py \
   --output-dir dist
 ```
 
-Android lint warnings are treated as errors. The repository also runs `scripts/audit_android.py`, JUnit path/security/version regressions, `RemoteEntryListTest` for mobile filtering/sorting, and the general security/privacy/release audits.
+Android lint warnings are treated as errors. The repository also runs `scripts/audit_android.py`, JUnit path/security/version regressions, `RemoteEntryListTest` for mobile filtering/sorting, `TransferStreamsTest` for byte-accounting integrity, and the general security/privacy/release audits.

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.0 — Mobile transfer progress and safe batch control
+
+**Focus:** make long Android and iOS transfers observable and controllable without weakening the existing FTP/FTPS/SFTP transport, trust, path or credential boundaries.
+
+- Added byte-level upload/download progress to Android by wrapping the existing Storage Access Framework input/output streams in a transport-neutral `TransferStreams` helper.
+- The Android progress layer works with the existing FTP, explicit FTPS, implicit FTPS and SFTP clients without adding protocol-specific progress code or changing TLS/host-key verification.
+- Added Android progress UI with percentage reporting when the document provider exposes a stable size and transferred-byte fallback when it does not.
+- Added Android **Stop after current file** for multi-file uploads. The active file is allowed to complete before the remaining batch is skipped, avoiding mid-command FTP/FTPS socket teardown and partial protocol-state ambiguity.
+- Added JUnit regression coverage proving monitored input/output streams preserve payload bytes and report monotonically cumulative transfer counts.
+- Added byte-progress callbacks to the existing iOS Network.framework data-socket file send/receive loops and threaded those callbacks through the native FTP actor.
+- Added SwiftUI transfer progress to the iOS remote browser with percentage display for known sizes and transferred-byte fallback for unknown sizes.
+- Added the same safe **Stop after file** batch behavior on iOS: the current upload completes before the remaining selected files are skipped.
+- Preserved iOS protocol claims exactly: FTP and implicit FTPS only. No SFTP/explicit-FTPS shim or new network dependency was introduced.
+- Preserved the 1.3.0 password-free mobile connection presets, background/disconnect cleanup, path traversal rejection, PASV-host redirect protection, Android SFTP host-key pinning and external production-signing boundaries.
+- Kept the canonical Windows/Linux/macOS/Android/iOS build and release matrix mandatory for 1.4.0.
+
 ## 1.3.0 — Mobile file-manager parity and secret-lifetime hardening
 
 **Focus:** turn the native Android and iOS clients into more practical everyday file managers while preserving ByFTP's fail-closed transport, path, privacy and release boundaries.
