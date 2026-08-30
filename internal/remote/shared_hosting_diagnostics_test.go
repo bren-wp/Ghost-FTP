@@ -28,19 +28,20 @@ func TestDiagnoseConnectionFindsPreferredWebRoot(t *testing.T) {
 	}
 }
 
-func TestDiagnoseConnectionDoesNotTreatFilesOrSymlinksAsWebRoot(t *testing.T) {
+func TestDiagnoseConnectionDoesNotTreatFilesSymlinksOrTrimmedNamesAsWebRoot(t *testing.T) {
 	items := []model.Item{
 		{Name: "public_html", IsDirectory: false},
 		{Name: "www", IsDirectory: true, IsSymlink: true},
-		{Name: "htdocs", IsDirectory: true},
+		{Name: " htdocs ", IsDirectory: true},
+		{Name: "web", IsDirectory: true},
 	}
 
 	got := diagnoseConnection("ftp", items)
 	if got.Secure {
 		t.Fatal("plain FTP diagnostics must remain visibly insecure")
 	}
-	if !got.WebRootDetected || got.WebRoot != "htdocs" {
-		t.Fatalf("expected real directory htdocs, got %#v", got)
+	if !got.WebRootDetected || got.WebRoot != "web" {
+		t.Fatalf("expected exact real directory web without trimming unsafe candidates, got %#v", got)
 	}
 }
 
