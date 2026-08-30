@@ -23,10 +23,13 @@ func AccountMatches(protocolA, hostA string, portA int, usernameA, protocolB, ho
 }
 
 // PrivateKeyMatches dodatno veže passphrase uz konkretan lokalni privatni ključ.
-// ByFTP je Windows proizvod pa je usporedba putanje ključa case-insensitive.
+// Semantika usporedbe putanje mora pratiti platformu: Windows putanje su
+// case-insensitive, dok na ostalim platformama koristimo strogu usporedbu kako
+// passphrase nikad ne bi bio ponovno upotrijebljen za drugi case-sensitive ključ.
 func PrivateKeyMatches(protocolA, hostA string, portA int, usernameA, keyA, protocolB, hostB string, portB int, usernameB, keyB string) bool {
+	keyA = strings.TrimSpace(keyA)
 	keyB = strings.TrimSpace(keyB)
-	return keyB != "" &&
+	return keyA != "" && keyB != "" &&
 		AccountMatches(protocolA, hostA, portA, usernameA, protocolB, hostB, portB, usernameB) &&
-		strings.EqualFold(strings.TrimSpace(keyA), keyB)
+		privateKeyPathEqual(keyA, keyB)
 }
