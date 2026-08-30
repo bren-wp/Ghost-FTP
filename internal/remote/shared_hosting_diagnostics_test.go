@@ -28,7 +28,7 @@ func TestDiagnoseConnectionFindsPreferredWebRoot(t *testing.T) {
 	}
 }
 
-func TestDiagnoseConnectionDoesNotTreatFilesSymlinksOrTrimmedNamesAsWebRoot(t *testing.T) {
+func TestDiagnoseConnectionDoesNotTreatFilesOrSymlinksAsWebRoot(t *testing.T) {
 	items := []model.Item{
 		{Name: "public_html", IsDirectory: false},
 		{Name: "www", IsDirectory: true, IsSymlink: true},
