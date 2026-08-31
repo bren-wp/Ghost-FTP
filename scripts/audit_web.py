@@ -33,7 +33,11 @@ def require(text: str, marker: str, where: str) -> None:
 def tracked_web_files() -> list[str]:
     try:
         output = subprocess.check_output(
-            ["git", "ls-files", "--", "ByFTP WEB"], cwd=ROOT, text=True
+            ["git", "ls-files", "--", "ByFTP WEB"],
+            cwd=ROOT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
     except (OSError, subprocess.CalledProcessError) as exc:
         fail(f"git ls-files failed for ByFTP WEB: {exc}")
@@ -46,6 +50,8 @@ def run_checked(command: list[str], *, label: str, cwd: Path = ROOT) -> None:
             command,
             cwd=cwd,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=False,
@@ -282,6 +288,7 @@ def main() -> int:
     print("WEB_UNIT_TESTS=PASS")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_POST_AUTH_LIMITER_RESET=FAIL_SOFT")
+    print("WEB_SUBPROCESS_TEXT_ENCODING=UTF8_REPLACE")
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")
     print("WEB_PWA_AUTHENTICATED_CACHE=BLOCKED")
     print("WEB_REMOTE_PATHS=FAIL_CLOSED")
