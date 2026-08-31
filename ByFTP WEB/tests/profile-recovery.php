@@ -52,6 +52,10 @@ $userId = 'profile-recovery-user';
 $userDir = '';
 $profilePath = '';
 $preferencePath = '';
+$legacyUserId = 'legacy-recovery-user';
+$legacyUserDir = '';
+$legacySource = '';
+$legacyTarget = '';
 
 try {
     $profiles = new ProfileStore($userId);
@@ -178,12 +182,65 @@ try {
         fn() => (new PreferenceStore($userId))->clientState(),
         'PreferenceStore fails closed when only stale preferences.json.bak remains'
     );
+
+    // Legacy upgrade must not make a different recovery decision than the normal runtime.
+    // A stale root backup can contain a profile deleted before the upgrade started.
+    $legacyUserDir = UserWorkspace::directory($legacyUserId);
+    $legacySource = BYFTP_STORAGE . '/profiles.json';
+    $legacyTarget = UserWorkspace::file($legacyUserId, 'profiles.json');
+    $legacyStore = new JsonStore($legacySource);
+    $legacyStore->write([[
+        'id' => 'stale-deleted-profile',
+        'label' => 'Stale deleted legacy profile',
+        'protocol' => 'ftp',
+        'host' => 'legacy.example.com',
+        'port' => 21,
+        'base_path' => '/',
+        'username_enc' => 'stale-encrypted-username',
+        'password_enc' => 'stale-encrypted-password',
+    ]]);
+    $legacyStore->write([]);
+
+    $legacyBackupRaw = @file_get_contents($legacySource . '.bak');
+    $legacyBackup = is_string($legacyBackupRaw) ? json_decode($legacyBackupRaw, true) : null;
+    profile_recovery_check(
+        is_array($legacyBackup)
+            && (($legacyBackup[0]['id'] ?? '') === 'stale-deleted-profile'),
+        'legacy backup intentionally contains a deleted credential generation for the migration regression'
+    );
+
+    file_put_contents($legacySource, '{corrupt-legacy-profile-primary');
+    profile_recovery_throws(
+        fn() => UserWorkspace::migrateLegacy($legacyUserId),
+        'legacy migration fails closed instead of restoring stale profile credentials from backup'
+    );
+    profile_recovery_check(
+        !is_file($legacyTarget) && !is_file($legacyTarget . '.bak'),
+        'failed legacy recovery does not create a migrated profile registry'
+    );
+
+    @unlink($legacySource);
+    profile_recovery_throws(
+        fn() => UserWorkspace::migrateLegacy($legacyUserId),
+        'legacy migration fails closed when only stale root profiles.json.bak remains'
+    );
+    profile_recovery_check(
+        !is_file($legacyTarget) && !is_file($legacyTarget . '.bak'),
+        'backup-only legacy recovery still leaves the target profile registry absent'
+    );
 } finally {
-    if ($userDir !== '' && is_dir($userDir)) {
-        foreach (glob($userDir . '/*') ?: [] as $file) {
-            @unlink($file);
+    foreach ([$legacySource, $legacySource . '.bak', $legacySource . '.lock'] as $legacyPath) {
+        if ($legacyPath !== '') {
+            @unlink($legacyPath);
         }
-        @rmdir($userDir);
+    }
+    foreach ([$userDir, $legacyUserDir] as $directory) {
+        if ($directory !== '' && is_dir($directory)) {
+            foreach (glob($directory . '/*') ?: [] as $file) {
+                @unlink($file);
+            }
+            @rmdir($directory);
+        }
     }
     @rmdir(BYFTP_STORAGE . '/users');
     @rmdir(BYFTP_STORAGE);
