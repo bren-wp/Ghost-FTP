@@ -1,7 +1,7 @@
 {
   "name": "brendigo/byftp-web",
-  "version": "1.7.1",
-  "description": "ByFTP WEB 1.7.1 - hardened multi-user shared-hosting FTP/FTPS/SFTP PWA client",
+  "version": "1.8.0",
+  "description": "ByFTP WEB 1.8.0 - hardened multi-user shared-hosting FTP/FTPS/SFTP PWA client",
   "type": "project",
   "require": {
     "php": ">=8.1"

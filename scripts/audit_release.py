@@ -51,7 +51,7 @@ def main() -> int:
         "quality:", "windows:", "linux:", "macos:", "android:", "ios:", "publish:",
         "needs: [quality, windows, linux, macos, android, ios]",
         "go telemetry off", "go test ./...", "go test -race ./...", "go vet ./...",
-        "go-version: '1.27.0'", "gradle-version: '9.7.0'",
+        "go-version: '1.27.0'", "gradle-version: '9.7.1'",
         "python scripts/audit_localization.py", "python scripts/audit_version.py",
         "python scripts/audit_android.py", "python scripts/audit_ios.py",
         "python scripts/audit_docs.py", "python scripts/audit_security.py",
@@ -68,16 +68,54 @@ def main() -> int:
         "ByFTP-$env:VERSION-Android-debug.apk", "ByFTP-$env:VERSION-Android-release-unsigned.apk",
         "ByFTP-$env:VERSION-iOS-arm64-unsigned.ipa", "ByFTP-$env:VERSION-iOS-arm64-unsigned-app.zip",
         "ANDROID=debug-signed,release-unsigned", "IOS=arm64-unsigned-ipa,arm64-unsigned-app-zip",
+        "WINDOWS_UNINSTALLER=none",
         "<PackageId>ByFTP.Windows</PackageId>", "dotnet nuget push", "--skip-duplicate",
     ):
         require(workflow, marker, ".github/workflows/release.yml")
 
     ci = read(".github/workflows/ci.yml")
     require(ci, "python scripts/audit_release.py", ".github/workflows/ci.yml")
+    require(ci, "gradle-version: '9.7.1'", ".github/workflows/ci.yml")
 
-    for legacy in ("scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh", ".github/workflows/__byftp_sync.yml"):
+    for legacy in (
+        "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh",
+        ".github/workflows/__byftp_sync.yml", "cmd/uninstaller",
+    ):
         if (ROOT / legacy).exists():
             fail(f"obsolete release/build surface still exists: {legacy}")
+
+    windows_build = read("BUILD-WINDOWS.ps1")
+    for marker in (
+        "scripts/make_payload.py", "--app", "scripts/verify_release.py",
+        "UNINSTALLER_BINARY", "unexpectedly produced an uninstaller binary",
+    ):
+        require(windows_build, marker, "BUILD-WINDOWS.ps1")
+    for forbidden in ("./cmd/uninstaller", "--uninstaller", "-Uninstall-", "'uninstaller'"):
+        if forbidden in windows_build:
+            fail(f"Windows build still contains obsolete uninstaller path: {forbidden}")
+
+    payload = read("scripts/make_payload.py")
+    for marker in ("PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "ByFTP.exe")'):
+        require(payload, marker, "scripts/make_payload.py")
+    for forbidden in ("--uninstaller", '"Uninstall.exe"'):
+        if forbidden in payload:
+            fail(f"installer payload generator still contains obsolete uninstaller marker: {forbidden}")
+
+    installer = read("cmd/installer/main.go")
+    for marker in (
+        "payloadSchema          = 2", "func cleanupLegacyUninstaller(dir string) string",
+        'legacyPath := filepath.Join(dir, "Uninstall.exe")', "platform.DeleteRegistryKey(legacyUninstallKey)",
+        "transactionCommitted = true", "legacyCleanupWarning := cleanupLegacyUninstaller(dir)",
+    ):
+        require(installer, marker, "cmd/installer/main.go")
+    if "./cmd/uninstaller" in installer:
+        fail("installer still references the removed uninstaller command")
+
+    windows_verifier = read("scripts/verify_release.py")
+    for marker in ("UNINSTALLER_BINARY=ABSENT", "SETUP_PE_OK=YES", "PORTABLE_PE_OK=YES"):
+        require(windows_verifier, marker, "scripts/verify_release.py")
+    if 'add_argument("uninstaller"' in windows_verifier:
+        fail("Windows release verifier still accepts an uninstaller binary")
 
     publisher = read("scripts/publish_release.ps1")
     for marker in (
@@ -126,7 +164,7 @@ def main() -> int:
     for marker in ("VERSION", "xcodebuild", "generic/platform=iOS", "ARCHS=arm64", "scripts/package_ios.py"):
         require(ios_build, marker, "ios/BUILD.sh")
 
-    require(read("BUILD-WINDOWS.ps1"), "VERSION", "BUILD-WINDOWS.ps1")
+    require(windows_build, "VERSION", "BUILD-WINDOWS.ps1")
 
     verifier = read("scripts/verify_bundle.py")
     for marker in ("BUNDLE_VERIFICATION_FAILED", "BUNDLE-SHA256.txt", "Documentation/SECURITY.md"):
@@ -155,6 +193,8 @@ def main() -> int:
     print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY,WEB_SOURCE_DIRECTORY")
     print("OBSOLETE_PLATFORM_WRAPPERS=REMOVED")
     print("OBSOLETE_SOURCE_SYNC_WORKFLOW=REMOVED")
+    print("WINDOWS_STANDALONE_UNINSTALLER=REMOVED")
+    print("WINDOWS_INSTALLER_PAYLOAD=APP_ONLY_SCHEMA_2")
     print("ANDROID_APK_PUBLICATION=DEBUG_SIGNED_AND_RELEASE_UNSIGNED")
     print("ANDROID_PRODUCTION_SIGNING=EXTERNAL_IDENTITY_REQUIRED")
     print("IOS_IPA_PUBLICATION=UNSIGNED_ARM64_DEVICE_BUILD")

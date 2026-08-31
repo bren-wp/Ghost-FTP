@@ -4,9 +4,22 @@
 
 ByFTP is a privacy-focused file-transfer suite for **Windows, Linux, macOS, Android, iOS and the web**. Native desktop and Android clients support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS. **ByFTP WEB** is a PHP shared-hosting PWA with FTP/FTPS and optional SFTP when the hosting environment provides `ext-ssh2`.
 
-**Current release: 1.7.1**
+**Current release: 1.8.0**
 
 [Latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Installation](docs/INSTALLATION.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+
+## 1.8.0 highlights
+
+- Synchronizes Windows, Linux, macOS, Android, iOS and ByFTP WEB on the single canonical `VERSION` value `1.8.0`.
+- Removes the standalone Windows `Uninstall.exe` binary from source, build output and installer payload. Windows Setup now embeds only the verified `ByFTP.exe` payload plus its integrity manifest; upgrades best-effort clean the legacy uninstaller from older installations after the new application commit succeeds.
+- Upgrades the Android build chain to Android Gradle Plugin **9.3.2** and Gradle **9.7.1**, while retaining Android API 37, build-tools 36.0.0 and the current Go **1.27.0** toolchain used by native desktop builds.
+- Makes ByFTP WEB security state fail closed instead of silently rolling back from stale JSON backups: application policy, user registry, rate limits, encrypted connection profiles, preferences and legacy migration data now require explicit recovery when their primary generation is corrupt or missing.
+- Makes web login/registration rate limiting atomic and orders login gates IP-first so a blocked source cannot consume arbitrary account budgets.
+- Prevents stale FTP/SFTP credentials from being inherited when a saved endpoint/account/key identity changes.
+- Requires a pinned SHA-256 host fingerprint before any ByFTP WEB SFTP client can be created, preserving server-identity verification for both password and private-key authentication.
+- Makes web password writes and authentication completion generation-safe: concurrent requests that verified an older password hash cannot overwrite a newer password or publish a session after a parallel password change.
+- Makes user deletion retryable and symlink-safe, setup/config recovery fail closed, and profile/preference deletion semantics resistant to stale backup resurrection.
+- Preserves the complete release-quality matrix: tests, race detector, `go vet`, security/privacy/docs audits, Windows x64/x86, Linux amd64/arm64/i386, macOS Universal, Android APKs, iOS arm64 artifacts and ByFTP WEB runtime validation.
 
 ## 1.7.1 release integrity
 
@@ -36,7 +49,7 @@ ByFTP is a privacy-focused file-transfer suite for **Windows, Linux, macOS, Andr
 
 | Surface | Transport support | Release/build form |
 | --- | --- | --- |
-| Windows x64/x86 | FTP, explicit FTPS, implicit FTPS, SFTP | Portable EXE, Setup EXE, verified ZIP |
+| Windows x64/x86 | FTP, explicit FTPS, implicit FTPS, SFTP | Portable EXE, app-only Setup EXE, verified ZIP; no standalone uninstaller |
 | Linux amd64/arm64/i386 | FTP, explicit FTPS, implicit FTPS, SFTP | DEB |
 | macOS Universal | FTP, explicit FTPS, implicit FTPS, SFTP | Universal PKG |
 | Android 8.0+ | FTP, explicit FTPS, implicit FTPS, SFTP | Debug-signed APK, unsigned optimized release APK |
@@ -49,9 +62,9 @@ Android production signing and Apple production signing remain external trust bo
 
 ByFTP treats paths, endpoint identity, credentials and release metadata as security boundaries rather than UI conveniences.
 
-Remote path/name input is validated before protocol commands are sent. Saved profiles and direct-connect flows reject noncanonical endpoint input rather than silently trimming control characters or edge whitespace. SFTP host-key verification remains mandatory where the client exposes SFTP. Android and desktop use canonical SHA-256 host-key fingerprints; iOS does not claim SFTP until an audited native implementation exists.
+Remote path/name input is validated before protocol commands are sent. Saved profiles and direct-connect flows reject noncanonical endpoint input rather than silently trimming control characters or edge whitespace. SFTP host-key verification remains mandatory where the client exposes SFTP. Android and desktop use canonical SHA-256 host-key fingerprints; ByFTP WEB requires a pinned SHA-256 SFTP fingerprint before client creation; iOS does not claim SFTP until an audited native implementation exists.
 
-Plain FTP remains available for compatibility but does not encrypt credentials or content. Prefer SFTP or FTPS where supported. Android FTPS uses platform trust and endpoint checking; iOS implicit FTPS uses Apple Network.framework. The PHP web client documents the verification limitations of PHP `ext-ftp` and recommends SFTP fingerprint verification when a verifiable server identity is required.
+Plain FTP remains available for compatibility but does not encrypt credentials or content. Prefer SFTP or FTPS where supported. Android FTPS uses platform trust and endpoint checking; iOS implicit FTPS uses Apple Network.framework. PHP `ext-ftp` does not expose the same peer-verification controls as SFTP, so ByFTP WEB recommends fingerprint-pinned SFTP when a cryptographically verified server identity is required.
 
 Saved mobile connection presets intentionally exclude passwords/passphrases. Windows keeps saved secrets behind its existing platform credential boundary. ByFTP WEB encrypts saved remote credential material with an installation-specific 256-bit key and isolates profile/preference data per ByFTP user.
 
@@ -71,7 +84,7 @@ Android uses the Storage Access Framework and does not request broad storage acc
 
 ## Desktop behavior
 
-The desktop core is written in Go and shared by Windows, Linux and macOS. Windows has the native graphical shell and the verified x64/x86 build pipeline. Linux/macOS retain the shared transport/security core and canonical platform packaging under `linux/` and `macos/`.
+The desktop core is written in Go and shared by Windows, Linux and macOS. Windows has the native graphical shell and the verified x64/x86 build pipeline. The 1.8.0 Windows Setup installs only `ByFTP.exe`; it does not install or register a standalone `Uninstall.exe`. Linux/macOS retain the shared transport/security core and canonical platform packaging under `linux/` and `macos/`.
 
 The terminal client preserves raw host, account and filesystem identity input until central validation. Valid Unix paths are not altered by UI preprocessing.
 
@@ -82,10 +95,10 @@ Root `VERSION` is the single native release source. `ByFTP WEB/VERSION` must mat
 - repository-wide tracked-file audit;
 - localization/version/documentation/security/privacy/release audits;
 - Go formatting, unit/integration tests, race detector and `go vet`;
-- Windows x64/x86 production builds;
+- Windows x64/x86 production builds with an app-only Setup payload and an explicit no-uninstaller invariant;
 - Linux amd64/arm64/i386 DEB builds;
 - macOS Universal PKG build;
-- Android JUnit, lintDebug, lintRelease, debug APK and unsigned release APK;
+- Android JUnit, lintDebug, lintRelease, debug APK and unsigned release APK using AGP 9.3.2 / Gradle 9.7.1;
 - real arm64 iPhoneOS build plus unsigned IPA/app ZIP validation;
 - ByFTP WEB PHP syntax, JavaScript syntax, web unit tests and the dedicated web audit;
 - exact-current-`main` verification immediately before GitHub Release mutation.
@@ -106,7 +119,7 @@ Use the canonical platform entry points:
 Windows: BUILD-WINDOWS.ps1
 Linux:   linux/BUILD.sh
 macOS:   macos/BUILD.sh
-Android: Gradle project under android/
+Android: Gradle project under android/ (AGP 9.3.2 / Gradle 9.7.1)
 iOS:     ios/BUILD.sh
 Web:     ByFTP WEB/ (PHP 8.1+, no build step required)
 ```

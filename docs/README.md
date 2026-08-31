@@ -2,6 +2,8 @@
 
 English is the canonical documentation language. Runtime translations belong in `internal/i18n`; technical documentation stays English-first so code, CI and release instructions have one authoritative source.
 
+**Current release: 1.8.0**
+
 ## Core documentation
 
 - [Installation](INSTALLATION.md)
@@ -18,10 +20,16 @@ English is the canonical documentation language. Runtime translations belong in 
 - [Signing](SIGNING.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 
-## Platform guides
+## Platform and build guides
 
+- [Windows build/release overview](../README.md#build-from-source)
+- [Linux source and DEB build guide](../linux/README.md)
+- [macOS source and Universal PKG build guide](../macos/README.md)
 - [Android source and APK build guide](../android/README.md)
 - [iOS source, Xcode and unsigned IPA build guide](../ios/README.md)
-- [Build and verification tooling](../scripts/README.md)
+- [ByFTP WEB shared-hosting guide](../ByFTP%20WEB/README.md)
+- [Build, audit and release tooling](../scripts/README.md)
 
-The native mobile implementations intentionally live in separate top-level platform directories: Android under `android/` and iOS under `ios/`. Neither mobile app is a WebView wrapper around the desktop client.
+The maintained release surfaces are intentionally separated by platform while sharing the canonical release number from root `VERSION`. Windows/Linux/macOS use the reviewed Go desktop core; Android and iOS have native mobile projects; ByFTP WEB is an audited PHP/PWA shared-hosting application. None of the mobile/web applications is a WebView wrapper around the desktop client.
+
+Release 1.8.0 removes the standalone Windows `Uninstall.exe` from source, build and Setup payload. See [Installation](INSTALLATION.md), [GitHub releases](GITHUB-RELEASES.md) and [Release verification](RELEASE-VERIFICATION.md) for the app-only Windows Setup contract.

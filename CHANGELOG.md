@@ -2,6 +2,27 @@
 
 The active product changelog intentionally starts at 1.3.0. Older development history remains available in Git history but is not part of the current maintained release documentation.
 
+## 1.8.0 — Cross-platform security hardening and installer cleanup
+
+**Focus:** synchronize every maintained client on one release, close the remaining web authentication/storage rollback races, modernize Android tooling and remove the standalone Windows uninstaller binary.
+
+- Synchronized Windows, Linux, macOS, Android, iOS and ByFTP WEB on canonical release `1.8.0`.
+- Removed `cmd/uninstaller` and the generated Windows `Uninstall.exe` binary from the source/build/release contract.
+- Changed Windows Setup to a schema-2 payload containing only verified `ByFTP.exe` plus its integrity manifest; Setup and Portable remain the only public Windows executables.
+- Added a post-commit legacy cleanup path so upgrades can remove the old `Uninstall.exe` and Windows uninstall registry entry without making those legacy artifacts part of the new install transaction.
+- Added a release invariant that fails CI if an uninstaller source, build path or generated uninstall binary returns.
+- Upgraded Android to AGP 9.3.2 and Gradle 9.7.1 while retaining API 37/build-tools 36.0.0 and Go 1.27.0 for the native core.
+- Made ByFTP WEB rate limiting atomic before authentication and registration; blocked-IP requests short-circuit before consuming per-account login budgets.
+- Prevented rate-limit state, application security policy, the user registry, encrypted profiles, preferences and legacy migration data from silently rolling back to stale `.bak` generations after primary corruption or loss.
+- Made failed initial setup cleanup transactional so it cannot delete pre-existing recovery data or leave ghost user/config artifacts.
+- Made ByFTP WEB user deletion two-phase, retryable and symlink-safe so private workspaces cannot be orphaned or traversed outside their root.
+- Bound saved FTP/SFTP secrets to the exact endpoint/account/private-key identity so blank secret fields cannot inherit credentials across changed connections.
+- Required pinned SHA-256 host fingerprints before creating a ByFTP WEB SFTP client.
+- Made password changes and automatic password rehashes compare-and-swap against the exact verified hash generation.
+- Made authentication completion generation-safe so a request authenticated with an old password cannot publish a session after a concurrent password change/reset.
+- Added regressions for stale credential/profile/preference restoration, legacy migration recovery, rate-limit ordering, SFTP host-key pinning, password-write races and stale-login rejection.
+- Preserved the full six-job CI/release matrix across Windows, Linux, macOS, Android, iOS and the WEB security/runtime gate.
+
 ## 1.7.1 — Release main-head integrity
 
 **Focus:** ensure a slower VERSION-triggered workflow cannot publish an older commit after a newer integration merge has already advanced `main`.

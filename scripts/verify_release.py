@@ -98,39 +98,35 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("setup", type=Path)
     ap.add_argument("portable", type=Path)
-    ap.add_argument("uninstaller", type=Path)
     ap.add_argument("--arch", choices=("x64", "x86"), default=None)
     args = ap.parse_args()
 
-    results = [read_pe(p, args.arch) for p in (args.setup, args.portable, args.uninstaller)]
+    results = [read_pe(p, args.arch) for p in (args.setup, args.portable)]
     arches = {result[2] for result in results}
     if len(arches) != 1:
-        raise SystemExit("Setup, Portable and Uninstaller nisu iste arhitekture")
+        raise SystemExit("Setup and Portable nisu iste arhitekture")
     arch = next(iter(arches))
-    (sdat, ssigned, _, mitigations), (pdat, psigned, _, _), (udat, usigned, _, _) = results
+    (sdat, ssigned, _, mitigations), (pdat, psigned, _, _) = results
 
     assert_no_telemetry_markers(args.setup, sdat)
     assert_no_telemetry_markers(args.portable, pdat)
-    assert_no_telemetry_markers(args.uninstaller, udat)
-    hashes = {sha256(sdat), sha256(pdat), sha256(udat)}
-    if len(hashes) != 3:
-        raise SystemExit("Setup, Portable and Uninstaller must be distinct binaries")
+    hashes = {sha256(sdat), sha256(pdat)}
+    if len(hashes) != 2:
+        raise SystemExit("Setup and Portable must be distinct binaries")
 
     print("SETUP_PE_OK=YES")
     print("PORTABLE_PE_OK=YES")
-    print("UNINSTALLER_PE_OK=YES")
+    print("UNINSTALLER_BINARY=ABSENT")
     print(f"WINDOWS_ARCH={arch}")
     print("COMPANY_NAME=ByFTP")
     print("EXECUTION_LEVEL=asInvoker")
     print("PE_MITIGATIONS=" + ",".join(mitigations.keys()))
     print(f"SETUP_AUTHENTICODE_SIGNED={'YES' if ssigned else 'NO'}")
     print(f"PORTABLE_AUTHENTICODE_SIGNED={'YES' if psigned else 'NO'}")
-    print(f"UNINSTALLER_AUTHENTICODE_SIGNED={'YES' if usigned else 'NO'}")
     print("TELEMETRY_VENDOR_SIGNATURES=ABSENT")
     print("PRIVACY_POLICY=USER_SELECTED_SERVER_ONLY")
     print(f"SETUP_SHA256={sha256(sdat)}")
     print(f"PORTABLE_SHA256={sha256(pdat)}")
-    print(f"UNINSTALLER_SHA256={sha256(udat)}")
 
 
 if __name__ == "__main__":

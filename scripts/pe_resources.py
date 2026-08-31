@@ -79,7 +79,6 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
     descriptions = {
         "portable": ("ByFTP klijent", "ByFTP"),
         "setup": ("ByFTP instalacijski program", "ByFTPSetup"),
-        "uninstaller": ("ByFTP program za uklanjanje", "ByFTPUninstall"),
     }
     description, internal_name = descriptions.get(role, descriptions["portable"])
     strings = [
@@ -108,7 +107,6 @@ def make_manifest(version: tuple[int, int, int, int], role: str, processor_archi
     identity = {
         "portable": "ByFTP.Client",
         "setup": "ByFTP.Setup",
-        "uninstaller": "ByFTP.Uninstaller",
     }.get(role, "ByFTP.Client")
     xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
@@ -300,7 +298,7 @@ def main() -> None:
     ap.add_argument("exe", type=Path)
     ap.add_argument("--ico", required=True, type=Path)
     ap.add_argument("--version", required=True, type=parse_version)
-    ap.add_argument("--role", choices=("portable", "setup", "uninstaller"), required=True)
+    ap.add_argument("--role", choices=("portable", "setup"), required=True)
     ap.add_argument("--original-filename", required=True)
     args = ap.parse_args()
     patch_pe(args.exe, args.ico, args.version, args.role, args.original_filename)

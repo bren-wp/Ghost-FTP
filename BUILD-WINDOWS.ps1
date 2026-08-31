@@ -298,7 +298,6 @@ function Build-ByFTPArchitecture {
     }
 
     $portable = Join-Path $dist "ByFTP-$version-Portable-$Label.exe"
-    $uninstall = Join-Path $internalDist "ByFTP-$version-Uninstall-$Label.exe"
     $setup = Join-Path $dist "ByFTP-$version-Setup-$Label.exe"
     $verification = Join-Path $internalDist "verification-$Label.txt"
 
@@ -327,31 +326,6 @@ function Build-ByFTPArchitecture {
         ) `
         -FailureMessage "Portable $Label PE resource processing failed"
 
-    Write-Host "      [$Label] Internal uninstaller"
-
-    Invoke-Native -FilePath $go `
-        -ArgumentList @(
-            'build',
-            '-mod=readonly',
-            '-trimpath',
-            '-buildvcs=false',
-            '-ldflags', $ldflags,
-            '-o', $uninstall,
-            './cmd/uninstaller'
-        ) `
-        -FailureMessage "Internal $Label uninstaller build failed"
-
-    Invoke-Native -FilePath $python `
-        -ArgumentList @(
-            'scripts/pe_resources.py',
-            $uninstall,
-            '--ico', $icon,
-            '--version', $version,
-            '--role', 'uninstaller',
-            '--original-filename', 'Uninstall.exe'
-        ) `
-        -FailureMessage "Internal $Label uninstaller PE resource processing failed"
-
     Write-Host "      [$Label] Installer payload"
 
     try {
@@ -359,7 +333,6 @@ function Build-ByFTPArchitecture {
             -ArgumentList @(
                 'scripts/make_payload.py',
                 '--app', $portable,
-                '--uninstaller', $uninstall,
                 '--output', $payloadZip
             ) `
             -FailureMessage "$Label installer payload compression failed"
@@ -402,7 +375,6 @@ function Build-ByFTPArchitecture {
             'scripts/verify_release.py',
             $setup,
             $portable,
-            $uninstall,
             '--arch', $Label
         ) `
         -OutputFile $verification `
@@ -447,7 +419,7 @@ foreach ($verification in $verificationFiles) {
     Assert-File -Path $verification -Description 'Release verification report'
 
     $text = Get-Content -LiteralPath $verification -Raw
-    if ($text -match '(?m)^AUTHENTICODE_SIGNED=NO\s*$') {
+    if ($text -match '(?m)^(SETUP|PORTABLE)_AUTHENTICODE_SIGNED=NO\s*$') {
         $unsigned = $true
     }
 }
@@ -486,4 +458,9 @@ if ($missingNames.Count -ne 0) {
     throw "Missing final output(s): $($missingNames -join ', ')"
 }
 
+if (Get-ChildItem -LiteralPath $dist -Recurse -File | Where-Object { $_.Name -match '(?i)uninstall' }) {
+    throw 'Windows build unexpectedly produced an uninstaller binary.'
+}
+
+Write-Host 'UNINSTALLER_BINARY=ABSENT'
 Write-Host "ByFTP $version Windows x64+x86 build completed: $dist"
