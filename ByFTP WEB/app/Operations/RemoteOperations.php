@@ -400,9 +400,14 @@ final class RemoteOperations
             }
             if ($count === 0) throw new RuntimeException('Nema dostupnih stavki za ZIP.');
         } catch (\Throwable $e) {
-            $zip->close();
-            foreach ($temps as $temp) @unlink($temp);
-            @unlink($tmp);
+            try {
+                $zip->close();
+            } catch (\Throwable) {
+                // Preserve the original build error; cleanup still must run.
+            } finally {
+                foreach ($temps as $temp) @unlink($temp);
+                @unlink($tmp);
+            }
             throw $e;
         }
         try {
@@ -428,7 +433,7 @@ final class RemoteOperations
         $count++;
         if ($count > self::MAX_ARCHIVE_ITEMS) throw new RuntimeException('Odabir prelazi sigurnosni limit ZIP stavki.');
         if (($item['type'] ?? 'file') === 'dir') {
-            $zip->addEmptyDir(rtrim($archivePath, '/'));
+            if (!$zip->addEmptyDir(rtrim($archivePath, '/'))) throw new RuntimeException('Nije moguće dodati direktorij u ZIP.');
             foreach ($this->client->list($remote) as $child) {
                 $name = PathGuard::segment((string)$child['name']);
                 $this->addZipNode($zip, PathGuard::child($remote, $name), rtrim($archivePath,'/').'/'.$name, $count, $bytes, $temps, $depth + 1);
