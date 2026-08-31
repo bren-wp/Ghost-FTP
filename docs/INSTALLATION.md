@@ -2,11 +2,17 @@
 
 ## Verify the release first
 
-Use only artifacts produced by the gated ByFTP release workflow. Compare every downloaded file against `SHA256.txt` before installation or redistribution.
+Use only artifacts produced by the gated ByFTP release workflow. Compare every downloaded file against `SHA256.txt` before installation or redistribution. Release 1.8.0 is built from one canonical `VERSION` value across Windows, Linux, macOS, Android, iOS and ByFTP WEB.
 
 ## Windows
 
-Use Setup for a normal per-user installation or Portable when installation is not required. Windows packages are produced for x64 and x86. Setup validates its embedded payload, stages replacements, keeps rollback data during upgrades and creates Windows integration only after integrity checks succeed.
+Use Setup for a normal per-user installation or Portable when installation is not required. Windows packages are produced for x64 and x86.
+
+Starting with 1.8.0, Setup contains an **app-only schema-2 payload**: verified `ByFTP.exe` plus its integrity manifest. ByFTP no longer builds, installs or publishes a standalone `Uninstall.exe`. Setup validates the embedded application, stages replacements, keeps rollback data during upgrades and creates App Paths/shortcuts only after integrity checks succeed.
+
+When upgrading an older ByFTP installation, Setup performs a best-effort post-commit cleanup of the legacy `%LOCALAPPDATA%\ByFTP\Uninstall.exe` and old per-user Windows uninstall registry entry. Legacy cleanup is deliberately outside the new application transaction so failure to remove an old locked file cannot corrupt the newly committed ByFTP executable.
+
+Because there is no standalone uninstaller in 1.8.0, manual removal is straightforward: close ByFTP, remove the ByFTP shortcuts and delete the per-user ByFTP installation directory under Local AppData. User configuration should only be removed when you explicitly want to erase local settings as well.
 
 ## Linux
 
@@ -43,7 +49,7 @@ ByFTP supports Android 8.0/API 26 or newer and targets API 37. Official releases
 
 The unsigned release APK requires a stable private Android signing identity before production distribution. Never commit signing keys, passwords or keystores.
 
-For 1.2.3 source builds install JDK 17, Gradle 9.7.0 and Android SDK platform 37 / Build Tools 36.0.0, then run:
+For 1.8.0 source builds use **JDK 17, Android Gradle Plugin 9.3.2, Gradle 9.7.1, Android SDK platform 37 and Build Tools 36.0.0**, then run:
 
 ```bash
 gradle -p android :app:clean :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
@@ -74,6 +80,14 @@ The script generates required AppIcon sizes from the canonical project icon, run
 
 The iOS transport supports FTP and implicit FTPS. Explicit FTPS and SFTP remain intentionally unavailable on iOS until separately audited native implementations exist.
 
+## ByFTP WEB
+
+Copy `ByFTP WEB/` to a PHP 8.1+ shared-hosting location with writable `storage/`. `ext-ftp` is required for FTP/FTPS; Sodium or OpenSSL is required for encrypted saved credentials; `ext-ssh2` enables SFTP and `ext-zip` enables ZIP operations.
+
+For SFTP, release 1.8.0 requires a verified SHA-256 host fingerprint before the client can be created. Security-sensitive JSON state is fail-closed: if the primary config/user/profile/preference/rate-limit data is corrupt or missing while a backup exists, restore a verified primary explicitly instead of relying on automatic stale backup recovery.
+
+See [ByFTP WEB documentation](../ByFTP%20WEB/README.md) for setup, recovery and runtime tests.
+
 ## Source builds
 
-Root `VERSION` is the only current production version source. Desktop binaries/packages, Android `versionName`/`versionCode`, iOS marketing/build packaging, release notes and public artifact names are derived from it. Run the complete test/audit/build matrix before distributing a source build.
+Root `VERSION` is the only current production version source. Desktop binaries/packages, Android `versionName`/`versionCode`, iOS marketing/build packaging, ByFTP WEB metadata/cache namespace, release notes and public artifact names are derived from it. Run the complete test/audit/build matrix before distributing a source build.
