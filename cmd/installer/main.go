@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
+	"strings"
 
 	"github.com/bren-wp/by-ftp/internal/brand"
 	"github.com/bren-wp/by-ftp/internal/platform"
@@ -26,9 +26,10 @@ var payload embed.FS
 const (
 	maxPayloadFileSize     = 128 << 20
 	maxPayloadManifestSize = 64 << 10
+	payloadSchema          = 2
 
-	uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
-	appPathsKey  = `Software\Microsoft\Windows\CurrentVersion\App Paths\ByFTP.exe`
+	legacyUninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
+	appPathsKey         = `Software\Microsoft\Windows\CurrentVersion\App Paths\ByFTP.exe`
 )
 
 var version = "dev"
@@ -44,66 +45,65 @@ type payloadManifest struct {
 	Files  []payloadManifestFile `json:"files"`
 }
 
-func readPayloadFiles() ([]byte, []byte, error) {
+func readPayloadFile() ([]byte, error) {
 	data, err := payload.ReadFile("payload/payload.zip")
 	if err != nil {
-		return nil, nil, errors.New("compressed installer payload is unavailable")
+		return nil, errors.New("compressed installer payload is unavailable")
 	}
 	return parsePayload(data)
 }
 
-func parsePayload(data []byte) ([]byte, []byte, error) {
+func parsePayload(data []byte) ([]byte, error) {
 	if len(data) == 0 {
-		return nil, nil, errors.New("installer payload is empty")
+		return nil, errors.New("installer payload is empty")
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		return nil, nil, errors.New("installer payload is not a valid ZIP archive")
+		return nil, errors.New("installer payload is not a valid ZIP archive")
 	}
 
-	files := make(map[string][]byte, 2)
+	files := make(map[string][]byte, 1)
 	var manifestData []byte
 
 	for _, f := range zr.File {
 		switch f.Name {
-		case "ByFTP.exe", "Uninstall.exe":
+		case "ByFTP.exe":
 			if _, exists := files[f.Name]; exists {
-				return nil, nil, errors.New("installer payload contains a duplicate file")
+				return nil, errors.New("installer payload contains a duplicate file")
 			}
 
 			b, err := readZipEntry(f, maxPayloadFileSize)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			files[f.Name] = b
 
 		case "manifest.json":
 			if manifestData != nil {
-				return nil, nil, errors.New("installer payload contains a duplicate manifest")
+				return nil, errors.New("installer payload contains a duplicate manifest")
 			}
 
 			manifestData, err = readZipEntry(f, maxPayloadManifestSize)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 
 		default:
-			return nil, nil, errors.New("installer payload contains an unexpected file")
+			return nil, errors.New("installer payload contains an unexpected file")
 		}
 	}
 
 	app, appOK := files["ByFTP.exe"]
-	uninstaller, uninstallOK := files["Uninstall.exe"]
-	if !appOK || !uninstallOK || manifestData == nil {
-		return nil, nil, errors.New("installer payload is missing required files")
+	if !appOK || manifestData == nil {
+		return nil, errors.New("installer payload is missing required files")
 	}
 
 	if err := validatePayloadManifest(manifestData, files); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return app, uninstaller, nil
+	return app, nil
 }
 
 // readZipEntry always reads through EOF. Besides enforcing the size limit,
@@ -147,14 +147,14 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
 		return errors.New("installer manifest contains trailing data")
 	}
-	if manifest.Schema != 1 || len(manifest.Files) != 2 {
+	if manifest.Schema != payloadSchema || len(manifest.Files) != 1 {
 		return errors.New("installer manifest is unsupported")
 	}
 
-	seen := make(map[string]bool, 2)
+	seen := make(map[string]bool, 1)
 	for _, item := range manifest.Files {
 		content, ok := files[item.Name]
-		if !ok || seen[item.Name] || (item.Name != "ByFTP.exe" && item.Name != "Uninstall.exe") {
+		if !ok || seen[item.Name] || item.Name != "ByFTP.exe" {
 			return errors.New("installer manifest does not match the package")
 		}
 		seen[item.Name] = true
@@ -170,7 +170,7 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 		}
 	}
 
-	if !seen["ByFTP.exe"] || !seen["Uninstall.exe"] {
+	if !seen["ByFTP.exe"] {
 		return errors.New("installer manifest is incomplete")
 	}
 
@@ -190,9 +190,6 @@ func stageVerified(path string, data []byte) (string, error) {
 		_ = os.Remove(tmp)
 	}
 
-	// Restrict the temporary file to the current user where the platform
-	// honors POSIX-style mode bits. On Windows the effective protection is
-	// provided by the directory ACL and the platform security checks.
 	if err := f.Chmod(0700); err != nil {
 		cleanup()
 		return "", err
@@ -276,9 +273,6 @@ func installFile(path string, data []byte, backup *fileBackup) error {
 		return err
 	}
 
-	// A fresh install must never overwrite a file that appeared after the
-	// transaction snapshot. Upgrades use ReplaceFile only after the previous
-	// object was backed up and revalidated immediately above.
 	if backup.existed() {
 		err = platform.ReplaceFile(tmp, path)
 	} else {
@@ -292,39 +286,35 @@ func installFile(path string, data []byte, backup *fileBackup) error {
 	return backup.recordActivated(sha256.Sum256(data))
 }
 
-func register(appPath, uninstallPath, dir, language string) error {
-	entries := [...]struct {
-		key   string
-		name  string
-		value string
-	}{
-		{uninstallKey, "DisplayName", brand.ProductFull},
-		{uninstallKey, "DisplayVersion", version},
-		{uninstallKey, "InstallLanguage", language},
-		{uninstallKey, "Publisher", brand.Company},
-		{uninstallKey, "InstallLocation", dir},
-		{uninstallKey, "DisplayIcon", appPath},
-		{uninstallKey, "UninstallString", `"` + uninstallPath + `"`},
-		{appPathsKey, "", appPath},
+func register(appPath string) error {
+	if err := platform.SetRegistryString(appPathsKey, "", appPath); err != nil {
+		return fmt.Errorf("Windows application-path registration failed: %w", err)
 	}
-
-	for _, entry := range entries {
-		if err := platform.SetRegistryString(entry.key, entry.name, entry.value); err != nil {
-			return fmt.Errorf("Windows registration failed (%s): %w", entry.name, err)
-		}
-	}
-
-	if err := platform.SetRegistryString(uninstallKey, "InstallDate", time.Now().Format("20060102")); err != nil {
-		return fmt.Errorf("Windows registration failed (InstallDate): %w", err)
-	}
-	if err := platform.SetRegistryDWORD(uninstallKey, "NoModify", 1); err != nil {
-		return fmt.Errorf("Windows registration failed (NoModify): %w", err)
-	}
-	if err := platform.SetRegistryDWORD(uninstallKey, "NoRepair", 1); err != nil {
-		return fmt.Errorf("Windows registration failed (NoRepair): %w", err)
-	}
-
 	return nil
+}
+
+func cleanupLegacyUninstaller(dir string) string {
+	var warnings []string
+	legacyPath := filepath.Join(dir, "Uninstall.exe")
+	info, err := os.Lstat(legacyPath)
+	if err == nil {
+		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(legacyPath) {
+			warnings = append(warnings, "A legacy Uninstall.exe entry was not removed because it is not a safe regular file.")
+		} else if err := os.Remove(legacyPath); err != nil {
+			warnings = append(warnings, "The legacy Uninstall.exe file could not be removed. Close applications using it and delete it manually.")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		warnings = append(warnings, "The legacy Uninstall.exe path could not be checked safely.")
+	}
+
+	if err := platform.DeleteRegistryKey(legacyUninstallKey); err != nil {
+		warnings = append(warnings, "The legacy Windows uninstall registry entry could not be removed.")
+	}
+
+	if len(warnings) == 0 {
+		return ""
+	}
+	return "\n\n" + strings.Join(warnings, " ")
 }
 
 func installerTitle() string {
@@ -365,8 +355,7 @@ func runInstaller() (exitCode int) {
 		return 0
 	}
 
-	// Validate the embedded package before changing the filesystem or registry.
-	app, uninstaller, err := readPayloadFiles()
+	app, err := readPayloadFile()
 	if err != nil {
 		showInstallError(
 			"Installer package is invalid",
@@ -409,20 +398,8 @@ func runInstaller() (exitCode int) {
 	}
 
 	appPath := filepath.Join(dir, "ByFTP.exe")
-	uninstallPath := filepath.Join(dir, "Uninstall.exe")
-
 	appBackup, err := backupExisting(appPath)
 	if err != nil {
-		showInstallError(
-			"Upgrade was not started",
-			"The existing installation could not be prepared for upgrade. Close ByFTP and try again.",
-		)
-		return 1
-	}
-
-	uninstallBackup, err := backupExisting(uninstallPath)
-	if err != nil {
-		appBackup.cleanup()
 		showInstallError(
 			"Upgrade was not started",
 			"The existing installation could not be prepared for upgrade. Close ByFTP and try again.",
@@ -433,15 +410,14 @@ func runInstaller() (exitCode int) {
 	registryBackup, err := captureRegistrySnapshot()
 	if err != nil {
 		appBackup.cleanup()
-		uninstallBackup.cleanup()
 		showInstallError(
 			"Upgrade was not started",
-			"Existing installation settings could not be prepared safely. Try again.",
+			"Existing application-path settings could not be prepared safely. Try again.",
 		)
 		return 1
 	}
 
-	freshInstall := !appBackup.existed() && !uninstallBackup.existed()
+	freshInstall := !appBackup.existed()
 	transactionCommitted := false
 	rolledBack := false
 
@@ -452,9 +428,6 @@ func runInstaller() (exitCode int) {
 		rolledBack = true
 
 		var errs []error
-		if err := uninstallBackup.rollback(); err != nil {
-			errs = append(errs, err)
-		}
 		if err := appBackup.rollback(); err != nil {
 			errs = append(errs, err)
 		}
@@ -465,9 +438,6 @@ func runInstaller() (exitCode int) {
 			if err := platform.RemoveShortcuts(); err != nil {
 				errs = append(errs, err)
 			}
-			if err := platform.DeleteRegistryKey(uninstallKey); err != nil {
-				errs = append(errs, err)
-			}
 			if err := platform.DeleteRegistryKey(appPathsKey); err != nil {
 				errs = append(errs, err)
 			}
@@ -476,13 +446,11 @@ func runInstaller() (exitCode int) {
 		return errors.Join(errs...)
 	}
 
-	// From this point forward, an unexpected panic must also trigger rollback.
 	defer func() {
 		if !transactionCommitted && !rolledBack {
 			_ = rollback()
 		}
 		appBackup.cleanup()
-		uninstallBackup.cleanup()
 	}()
 
 	rollbackMessage := func() string {
@@ -501,16 +469,7 @@ func runInstaller() (exitCode int) {
 		return 1
 	}
 
-	if err := installFile(uninstallPath, uninstaller, &uninstallBackup); err != nil {
-		extra := rollbackMessage()
-		showInstallError(
-			"Setup did not finish",
-			"Required files could not be saved. Try again."+extra,
-		)
-		return 1
-	}
-
-	if err := register(appPath, uninstallPath, dir, installLanguage); err != nil {
+	if err := register(appPath); err != nil {
 		extra := rollbackMessage()
 		showInstallError(
 			"Setup did not finish",
@@ -520,6 +479,7 @@ func runInstaller() (exitCode int) {
 	}
 
 	transactionCommitted = true
+	legacyCleanupWarning := cleanupLegacyUninstaller(dir)
 
 	languageWarning := ""
 	if err := persistInstallerLanguage(installLanguage); err != nil {
@@ -534,7 +494,7 @@ func runInstaller() (exitCode int) {
 	if platform.ConfirmDialog(
 		installerTitle(),
 		"Setup completed successfully",
-		"ByFTP is ready to use."+languageWarning+shortcutWarning+"\n\nLaunch ByFTP now?",
+		"ByFTP is ready to use."+legacyCleanupWarning+languageWarning+shortcutWarning+"\n\nLaunch ByFTP now?",
 	) {
 		cmd := exec.Command(appPath)
 		if err := cmd.Start(); err != nil {
