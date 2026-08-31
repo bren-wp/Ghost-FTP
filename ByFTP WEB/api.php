@@ -112,21 +112,21 @@ try {
 
         case 'mkdir':
             $parent = PathGuard::normalizeRelative((string)($_POST['path'] ?? '/'));
-            $target = PathGuard::child($parent, PathGuard::basename((string)($_POST['name'] ?? '')));
+            $target = PathGuard::child($parent, PathGuard::segment((string)($_POST['name'] ?? '')));
             $client->makeDirectory($target);
             AppLogger::event('directory.create', ['profile_id'=>$profileId,'path'=>$target]);
             byftp_json(['ok'=>true,'path'=>$target]);
 
         case 'new_file':
             $parent = PathGuard::normalizeRelative((string)($_POST['path'] ?? '/'));
-            $target = PathGuard::child($parent, PathGuard::basename((string)($_POST['name'] ?? '')));
+            $target = PathGuard::child($parent, PathGuard::segment((string)($_POST['name'] ?? '')));
             $ops->createFile($target, (string)($_POST['content'] ?? ''));
             AppLogger::event('file.create', ['profile_id'=>$profileId,'path'=>$target]);
             byftp_json(['ok'=>true,'path'=>$target]);
 
         case 'rename':
             $from = PathGuard::ensureNotRoot((string)($_POST['from'] ?? ''));
-            $to = PathGuard::child(PathGuard::parent($from), PathGuard::basename((string)($_POST['name'] ?? '')));
+            $to = PathGuard::child(PathGuard::parent($from), PathGuard::segment((string)($_POST['name'] ?? '')));
             $client->rename($from, $to);
             AppLogger::event('item.rename', ['profile_id'=>$profileId,'from'=>$from,'to'=>$to]);
             byftp_json(['ok'=>true,'path'=>$to]);
