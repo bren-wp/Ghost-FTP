@@ -7,40 +7,45 @@ use ByFTP\Storage\JsonStore;
 
 final class RateLimiter
 {
-    public function __construct(private readonly int $maxAttempts = 5, private readonly int $window = 900)
-    {
-    }
-
-    private function path(string $key): string
-    {
-        return BYFTP_STORAGE . '/logs/rl-' . hash('sha256', $key) . '.json';
+    public function __construct(
+        private readonly string $root,
+        private readonly int $maxHits = 8,
+        private readonly int $windowSeconds = 900,
+    ) {
     }
 
     public function blocked(string $key): bool
     {
-        $data = (new JsonStore($this->path($key)))->read(['first' => time(), 'count' => 0]);
-        if ((int)($data['first'] ?? 0) + $this->window < time()) {
-            $this->clear($key);
-            return false;
-        }
-        return (int)($data['count'] ?? 0) >= $this->maxAttempts;
+        $cutoff = time() - $this->windowSeconds;
+        $store = new JsonStore($this->pathFor($key));
+        $data = $store->read(['hits' => []]);
+        $hits = array_values(array_filter((array)($data['hits'] ?? []), static fn($time): bool => is_int($time) && $time >= $cutoff));
+        return count($hits) >= $this->maxHits;
     }
 
     public function hit(string $key): void
     {
-        (new JsonStore($this->path($key)))->update(function (array $data): array {
-            if ((int)($data['first'] ?? 0) + $this->window < time()) {
-                $data = ['first' => time(), 'count' => 0];
-            }
-            $data['first'] = (int)($data['first'] ?? time());
-            $data['count'] = (int)($data['count'] ?? 0) + 1;
-            return $data;
-        }, ['first' => time(), 'count' => 0]);
+        $cutoff = time() - $this->windowSeconds;
+        $store = new JsonStore($this->pathFor($key));
+        $store->update(static function (array $data) use ($cutoff): array {
+            $hits = array_values(array_filter((array)($data['hits'] ?? []), static fn($time): bool => is_int($time) && $time >= $cutoff));
+            $hits[] = time();
+            return ['hits' => $hits];
+        }, ['hits' => []]);
     }
 
     public function clear(string $key): void
     {
-        @unlink($this->path($key));
-        @unlink($this->path($key) . '.lock');
+        // Reset through JsonStore instead of unlinking the primary/lock files.
+        // JsonStore may have a last-known-good .bak file, so deleting only the
+        // primary can resurrect stale hits on the next read. Keeping the same
+        // lock file also preserves cross-request serialization while clearing.
+        $store = new JsonStore($this->pathFor($key));
+        $store->write(['hits' => []]);
+    }
+
+    private function pathFor(string $key): string
+    {
+        return rtrim($this->root, '/\\') . '/rate-' . hash('sha256', $key) . '.json';
     }
 }
