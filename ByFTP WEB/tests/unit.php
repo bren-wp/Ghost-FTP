@@ -21,6 +21,7 @@ require __DIR__ . '/../app/Security/HostGuard.php';
 require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/Security/Crypto.php';
 require __DIR__ . '/../app/Storage/UserWorkspace.php';
+require __DIR__ . '/../app/Storage/UserStore.php';
 require __DIR__ . '/../app/Security/RateLimiter.php';
 require __DIR__ . '/../app/Storage/ProfileStore.php';
 
@@ -30,6 +31,7 @@ use ByFTP\Remote\RemoteClientInterface;
 use ByFTP\Security\HostGuard;
 use ByFTP\Security\RateLimiter;
 use ByFTP\Storage\ProfileStore;
+use ByFTP\Storage\UserStore;
 
 final class BatchRenameFakeClient implements RemoteClientInterface
 {
@@ -311,6 +313,28 @@ check(
     'non-SFTP profile strips SFTP-only state'
 );
 
+// Reproduce a shared-hosting workspace failure without relying on chmod semantics:
+// replace storage/users with a regular file so recursive user directory creation fails.
+$profileDir = BYFTP_STORAGE . '/users/profile-binding-test';
+foreach (glob($profileDir . '/*') ?: [] as $path) {
+    if (is_file($path)) {
+        @unlink($path);
+    }
+}
+@rmdir($profileDir);
+@rmdir(BYFTP_STORAGE . '/users');
+file_put_contents(BYFTP_STORAGE . '/users', 'workspace-blocker');
+$userStore = new UserStore();
+throws(
+    fn() => $userStore->create('Blocked User', 'blocked@example.com', 'strong-password-123', 'user'),
+    'user create fails before registry commit when workspace is unavailable'
+);
+check(
+    !is_file(BYFTP_STORAGE . '/users.json') && !is_file(BYFTP_STORAGE . '/users.json.bak'),
+    'failed user workspace leaves no registry or ghost backup generation'
+);
+@unlink(BYFTP_STORAGE . '/users');
+
 $renameClient = new BatchRenameFakeClient(['/a' => 'A', '/x-a' => 'B'], 4);
 $renameOps = new RemoteOperations($renameClient);
 throws(
@@ -350,7 +374,17 @@ try {
         }
     }
     @rmdir($profileDir);
+    if (is_file(BYFTP_STORAGE . '/users')) {
+        @unlink(BYFTP_STORAGE . '/users');
+    }
     @rmdir(BYFTP_STORAGE . '/users');
+    foreach ([
+        BYFTP_STORAGE . '/users.json',
+        BYFTP_STORAGE . '/users.json.bak',
+        BYFTP_STORAGE . '/users.json.lock',
+    ] as $path) {
+        @unlink($path);
+    }
     @rmdir(BYFTP_STORAGE);
 }
 
