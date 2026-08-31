@@ -203,6 +203,20 @@ def main() -> int:
         require(auth, marker, "ByFTP WEB/app/Security/Auth.php")
     require(read("ByFTP WEB/app/bootstrap.php"), "'samesite' => 'Strict'", "ByFTP WEB/app/bootstrap.php")
 
+    login = read("ByFTP WEB/login.php")
+    for marker in (
+        "function byftp_clear_login_rate_limiters(",
+        "auth.rate_limit_clear_failed",
+        "if (!Auth::attempt($email, $password))",
+        "$migrationFailed = false;",
+        "if (!$migrationFailed)",
+    ):
+        require(login, marker, "ByFTP WEB/login.php")
+    if "$accountLimiter->clear(" in login or "$ipLimiter->clear(" in login:
+        fail("login performs direct post-auth limiter cleanup outside the fail-soft helper")
+    if login.count("Auth::logout();") != 1:
+        fail("login must invalidate an authenticated session only for the actual legacy migration failure path")
+
     setup = read("ByFTP WEB/setup.php")
     rollback_match = re.search(r"\$rollbackArtifacts\s*=\s*\[(.*?)\];", setup, re.DOTALL)
     if rollback_match is None:
@@ -267,6 +281,7 @@ def main() -> int:
     print(f"WEB_JS_SYNTAX_FILES={js_count}")
     print("WEB_UNIT_TESTS=PASS")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
+    print("WEB_POST_AUTH_LIMITER_RESET=FAIL_SOFT")
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")
     print("WEB_PWA_AUTHENTICATED_CACHE=BLOCKED")
     print("WEB_REMOTE_PATHS=FAIL_CLOSED")

@@ -8,6 +8,29 @@ use ByFTP\Security\RateLimiter;
 use ByFTP\Storage\UserStore;
 use ByFTP\Storage\UserWorkspace;
 
+function byftp_clear_login_rate_limiters(
+    RateLimiter $accountLimiter,
+    string $accountKey,
+    RateLimiter $ipLimiter,
+    string $ipKey
+): void {
+    foreach ([
+        ['scope' => 'account', 'limiter' => $accountLimiter, 'key' => $accountKey],
+        ['scope' => 'ip', 'limiter' => $ipLimiter, 'key' => $ipKey],
+    ] as $entry) {
+        try {
+            $entry['limiter']->clear($entry['key']);
+        } catch (Throwable $e) {
+            // Authentication has already succeeded. A best-effort limiter reset must not
+            // turn a valid login into a false legacy-migration failure or destroy the session.
+            AppLogger::event('auth.rate_limit_clear_failed', [
+                'scope' => $entry['scope'],
+                'error' => byftp_truncate($e->getMessage(), 300),
+            ]);
+        }
+    }
+}
+
 if (!byftp_is_configured()) {
     byftp_redirect('setup');
 }
@@ -49,9 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $next['version'] = BYFTP_VERSION;
                 $next['allow_registration'] = (bool)($next['allow_registration'] ?? false);
                 byftp_write_config($next);
-                $accountLimiter->clear($accountKey);
-                $ipLimiter->clear($ipKey);
-                Auth::attempt($email, $password);
+                if (!Auth::attempt($email, $password)) {
+                    throw new RuntimeException('Račun je izrađen, ali automatska prijava nije dovršena. Pokušaj se ponovno prijaviti.');
+                }
+                byftp_clear_login_rate_limiters($accountLimiter, $accountKey, $ipLimiter, $ipKey);
                 AppLogger::event('auth.legacy_migrated', ['user_id' => $user['id']]);
                 byftp_redirect('app');
             } catch (Throwable $e) {
@@ -59,10 +83,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif (Auth::attempt($email, (string)($_POST['password'] ?? ''))) {
-        try {
-            // Recovery path for an interrupted legacy -> multi-user migration: the account may
-            // already exist while the legacy password marker/data still remain.
-            if (!empty($config['password_hash']) && Auth::isAdmin()) {
+        $migrationFailed = false;
+
+        // Recovery path for an interrupted legacy -> multi-user migration: the account may
+        // already exist while the legacy password marker/data still remain. Only this actual
+        // migration transaction is allowed to invalidate an otherwise successful login.
+        if (!empty($config['password_hash']) && Auth::isAdmin()) {
+            try {
                 UserWorkspace::migrateLegacy(Auth::id());
                 $next = $config;
                 unset($next['password_hash']);
@@ -70,15 +97,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $next['allow_registration'] = (bool)($next['allow_registration'] ?? false);
                 byftp_write_config($next);
                 AppLogger::event('auth.legacy_migration_recovered', ['user_id' => Auth::id()]);
+            } catch (Throwable $e) {
+                AppLogger::event('auth.legacy_migration_failed', [
+                    'user_id' => Auth::id(),
+                    'error' => byftp_truncate($e->getMessage(), 300),
+                ]);
+                Auth::logout();
+                $migrationFailed = true;
+                $error = 'Prijava je valjana, ali migracija starih ByFTP podataka nije dovršena. Provjeri dozvole storage direktorija i pokušaj ponovno.';
             }
-            $accountLimiter->clear($accountKey);
-            $ipLimiter->clear($ipKey);
+        }
+
+        if (!$migrationFailed) {
+            byftp_clear_login_rate_limiters($accountLimiter, $accountKey, $ipLimiter, $ipKey);
             AppLogger::event('auth.login', ['email' => $email, 'user_id' => Auth::id()]);
             byftp_redirect('app');
-        } catch (Throwable $e) {
-            AppLogger::event('auth.legacy_migration_failed', ['user_id' => Auth::id(), 'error' => byftp_truncate($e->getMessage(), 300)]);
-            Auth::logout();
-            $error = 'Prijava je valjana, ali migracija starih ByFTP podataka nije dovršena. Provjeri dozvole storage direktorija i pokušaj ponovno.';
         }
     } else {
         $accountLimiter->hit($accountKey);
