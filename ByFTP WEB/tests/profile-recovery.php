@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use ByFTP\Storage\JsonStore;
+use ByFTP\Storage\PreferenceStore;
 use ByFTP\Storage\ProfileStore;
 use ByFTP\Storage\UserWorkspace;
 
@@ -23,6 +24,7 @@ require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/Security/Crypto.php';
 require __DIR__ . '/../app/Storage/UserWorkspace.php';
 require __DIR__ . '/../app/Storage/ProfileStore.php';
+require __DIR__ . '/../app/Storage/PreferenceStore.php';
 
 $failed = false;
 
@@ -49,6 +51,7 @@ function profile_recovery_throws(callable $callback, string $label): void
 $userId = 'profile-recovery-user';
 $userDir = '';
 $profilePath = '';
+$preferencePath = '';
 
 try {
     $profiles = new ProfileStore($userId);
@@ -119,6 +122,61 @@ try {
     profile_recovery_throws(
         fn() => (new ProfileStore($userId))->all(true),
         'ProfileStore fails closed when only stale profiles.json.bak remains'
+    );
+
+    // Preferences are privacy state: a user may intentionally clear remembered remote paths.
+    // The previous generation can remain in .bak, but runtime recovery must not resurrect it.
+    $preferences = new PreferenceStore($userId);
+    $preferencePath = UserWorkspace::file($userId, 'preferences.json');
+    $preferences->saveClientState([
+        'lastProfile' => 'profile-a',
+        'showHidden' => true,
+        'compactRows' => false,
+        'uploadConflict' => 'rename',
+        'sort' => ['key' => 'name', 'direction' => 1],
+        'lastPaths' => ['profile-a' => '/clients/acme/private'],
+        'recentPaths' => ['profile-a' => ['/clients/acme/private', '/clients/acme/invoices']],
+    ]);
+    $clearedState = $preferences->saveClientState([
+        'lastProfile' => '',
+        'showHidden' => true,
+        'compactRows' => false,
+        'uploadConflict' => 'rename',
+        'sort' => ['key' => 'name', 'direction' => 1],
+        'lastPaths' => [],
+        'recentPaths' => [],
+    ]);
+    profile_recovery_check(
+        ($clearedState['lastPaths'] ?? []) === [] && ($clearedState['recentPaths'] ?? []) === [],
+        'user-cleared remote path history is absent from the valid preference primary generation'
+    );
+
+    $preferenceBackupRaw = @file_get_contents($preferencePath . '.bak');
+    $preferenceBackup = is_string($preferenceBackupRaw) ? json_decode($preferenceBackupRaw, true) : null;
+    profile_recovery_check(
+        is_array($preferenceBackup)
+            && (($preferenceBackup['client_state']['lastPaths']['profile-a'] ?? '') === '/clients/acme/private')
+            && in_array('/clients/acme/invoices', $preferenceBackup['client_state']['recentPaths']['profile-a'] ?? [], true),
+        'backup intentionally retains cleared remote path history for the preference regression scenario'
+    );
+
+    file_put_contents($preferencePath, '{corrupt-preference-primary');
+    profile_recovery_throws(
+        fn() => (new PreferenceStore($userId))->clientState(),
+        'PreferenceStore fails closed instead of resurrecting cleared remote path history from stale backup'
+    );
+
+    $manualPreferences = (new JsonStore($preferencePath))->read();
+    profile_recovery_check(
+        is_array($manualPreferences)
+            && (($manualPreferences['client_state']['lastPaths']['profile-a'] ?? '') === '/clients/acme/private'),
+        'generic JsonStore still exposes preference backup for explicit operator recovery'
+    );
+
+    @unlink($preferencePath);
+    profile_recovery_throws(
+        fn() => (new PreferenceStore($userId))->clientState(),
+        'PreferenceStore fails closed when only stale preferences.json.bak remains'
     );
 } finally {
     if ($userDir !== '' && is_dir($userDir)) {
