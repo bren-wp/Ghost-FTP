@@ -97,6 +97,10 @@ def run_runtime_checks() -> tuple[int, int]:
         label="ByFTP WEB ZIP creation error-path tests",
     )
     run_checked(
+        [php, str(WEB / "tests" / "archive-download-name.php")],
+        label="ByFTP WEB archive download filename tests",
+    )
+    run_checked(
         [php, str(WEB / "tests" / "user-registry.php")],
         label="ByFTP WEB user registry fail-closed tests",
     )
@@ -146,9 +150,9 @@ def main() -> int:
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
         "ByFTP WEB/tests/name-input.php", "ByFTP WEB/tests/zip-creation.php",
-        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
-        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/tests/profile-recovery.php",
-        "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/archive-download-name.php", "ByFTP WEB/tests/user-registry.php",
+        "ByFTP WEB/tests/config-security.php", "ByFTP WEB/tests/rate-limiter.php",
+        "ByFTP WEB/tests/profile-recovery.php", "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -249,8 +253,19 @@ def main() -> int:
         "if (isset($GLOBALS['byftp_config_error']))",
         "Konfiguracija aplikacije nema valjan encryption ključ",
         "unset($GLOBALS['byftp_config_error']);",
+        "function byftp_archive_download_name(string $value): string",
+        "return $base . '.zip';",
     ):
         require(helpers, marker, "ByFTP WEB/app/helpers.php")
+
+    archive_download = read("ByFTP WEB/download-archive.php")
+    require(
+        archive_download,
+        "$name = byftp_archive_download_name((string)($_POST['name'] ?? 'byftp-download.zip'));",
+        "ByFTP WEB/download-archive.php",
+    )
+    if "byftp_truncate($name, 120)" in archive_download:
+        fail("archive download truncates the full filename after adding .zip")
 
     rate_limiter = read("ByFTP WEB/app/Security/RateLimiter.php")
     for marker in (
@@ -368,6 +383,14 @@ def main() -> int:
     ):
         require(zip_creation_tests, marker, "ByFTP WEB/tests/zip-creation.php")
 
+    archive_name_tests = read("ByFTP WEB/tests/archive-download-name.php")
+    for marker in (
+        "long archive name preserves zip extension after truncation",
+        "existing ZIP extension is normalized without duplication",
+        "unsafe archive filename characters are sanitized before header use",
+    ):
+        require(archive_name_tests, marker, "ByFTP WEB/tests/archive-download-name.php")
+
     registry_tests = read("ByFTP WEB/tests/user-registry.php")
     for marker in (
         "old-password-123",
@@ -435,6 +458,7 @@ def main() -> int:
     print(f"WEB_JS_SYNTAX_FILES={js_count}")
     print("WEB_UNIT_TESTS=PASS")
     print("WEB_NAME_INPUTS=FAIL_CLOSED")
+    print("WEB_ARCHIVE_DOWNLOAD_NAME=PRESERVES_ZIP_EXTENSION")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
     print("WEB_PROFILE_CREDENTIAL_RECOVERY=FAIL_CLOSED")
