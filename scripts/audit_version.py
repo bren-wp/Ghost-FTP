@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.0"
-GRADLE_TOOLCHAIN = "9.7.0"
+GRADLE_TOOLCHAIN = "9.7.1"
 
 
 def fail(message: str) -> None:
