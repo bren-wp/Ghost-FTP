@@ -11,7 +11,10 @@ final class UserStore
 
     public function __construct()
     {
-        $this->store = new JsonStore(BYFTP_STORAGE . '/users.json');
+        // Authentication/authorization state must never silently roll back to the
+        // previous generation after primary corruption. Keep users.json.bak for
+        // explicit operator recovery, but fail closed for runtime reads/updates.
+        $this->store = new JsonStore(BYFTP_STORAGE . '/users.json', false);
     }
 
     public function all(): array
