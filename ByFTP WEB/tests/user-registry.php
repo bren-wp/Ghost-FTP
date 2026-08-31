@@ -79,6 +79,33 @@ try {
         'failed stale CAS does not increment session version a second time'
     );
 
+    // Authentication must be bound to the same generation too. A request that verified the
+    // old hash before the password change may not publish a session after the new hash wins.
+    $completeAuthentication = (new ReflectionClass(UserStore::class))->getMethod('completeAuthentication');
+    $completeAuthentication->setAccessible(true);
+    registry_throws(
+        fn() => $completeAuthentication->invoke($users, $casId, $casOldHash, null),
+        'authentication completion rejects a password hash generation changed after verification'
+    );
+    $afterStaleAuth = $users->findById($casId);
+    registry_check(
+        is_array($afterStaleAuth) && ($afterStaleAuth['last_login_at'] ?? null) === null,
+        'stale authentication generation is not published as a successful login'
+    );
+
+    $currentHash = is_array($afterStaleAuth) ? (string)($afterStaleAuth['password_hash'] ?? '') : '';
+    $authenticatedCurrent = $completeAuthentication->invoke($users, $casId, $currentHash, null);
+    registry_check(
+        is_array($authenticatedCurrent) && !empty($authenticatedCurrent['last_login_at']),
+        'current password generation can complete authentication'
+    );
+    $afterCurrentAuth = $users->findById($casId);
+    registry_check(
+        is_array($afterCurrentAuth)
+            && (int)($afterCurrentAuth['session_version'] ?? 0) === $casVersion + 1,
+        'authentication without rehash does not change the session generation'
+    );
+
     // These workspace deletion regressions intentionally exercise POSIX symlink and
     // directory-permission semantics used by shared-hosting deployments. Windows runners
     // still lint and execute the cross-platform registry tests below, but do not provide
