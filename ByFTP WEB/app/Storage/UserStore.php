@@ -122,6 +122,9 @@ final class UserStore
             }
             foreach ($rows as &$row) {
                 if (is_array($row) && hash_equals((string)($row['id'] ?? ''), $id)) {
+                    if (!empty($row['deleting'])) {
+                        throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Ponovi brisanje prije drugih izmjena.');
+                    }
                     $row['name'] = $name;
                     $row['email'] = $email;
                     $row['updated_at'] = gmdate('c');
@@ -144,6 +147,9 @@ final class UserStore
         $user = $this->findById($id);
         if (!$user) {
             throw new RuntimeException('Korisnik nije pronađen.');
+        }
+        if (!empty($user['deleting'])) {
+            throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Lozinku nije moguće mijenjati.');
         }
         if ($requireCurrent && !password_verify($currentPassword, (string)($user['password_hash'] ?? ''))) {
             throw new RuntimeException('Trenutačna lozinka nije točna.');
@@ -170,6 +176,9 @@ final class UserStore
                 if (!is_array($row) || !hash_equals((string)($row['id'] ?? ''), $id)) {
                     continue;
                 }
+                if (!empty($row['deleting'])) {
+                    throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Ponovi brisanje prije promjene prava.');
+                }
                 $wouldRemoveLastAdmin = ($row['role'] ?? '') === 'admin' && !empty($row['active']) && $admins <= 1 && ($role !== 'admin' || !$active);
                 if ($wouldRemoveLastAdmin) {
                     throw new RuntimeException('Mora ostati barem jedan aktivan administrator.');
@@ -194,10 +203,12 @@ final class UserStore
 
     public function delete(string $id): void
     {
-        $this->store->update(function (array $rows) use ($id): array {
+        $markedForDeletion = false;
+        $this->store->update(function (array $rows) use ($id, &$markedForDeletion): array {
+            $targetIndex = null;
             $target = null;
             $activeAdmins = 0;
-            foreach ($rows as $row) {
+            foreach ($rows as $index => $row) {
                 if (!is_array($row)) {
                     continue;
                 }
@@ -205,23 +216,71 @@ final class UserStore
                     $activeAdmins++;
                 }
                 if (hash_equals((string)($row['id'] ?? ''), $id)) {
+                    $targetIndex = $index;
                     $target = $row;
                 }
             }
-            if (!$target) {
+            if ($targetIndex === null || !is_array($target)) {
                 return $rows;
             }
             if (($target['role'] ?? '') === 'admin' && !empty($target['active']) && $activeAdmins <= 1) {
                 throw new RuntimeException('Nije moguće obrisati posljednjeg aktivnog administratora.');
             }
-            return array_values(array_filter($rows, static fn($row): bool => !is_array($row) || !hash_equals((string)($row['id'] ?? ''), $id)));
+
+            $row = $rows[$targetIndex];
+            if (empty($row['deleting'])) {
+                $row['deleting'] = true;
+                if (!empty($row['active'])) {
+                    $row['session_version'] = (int)($row['session_version'] ?? 1) + 1;
+                }
+                $row['active'] = false;
+                $row['updated_at'] = gmdate('c');
+                $rows[$targetIndex] = $row;
+            }
+            $markedForDeletion = true;
+            return array_values($rows);
         });
 
-        // User data deletion is explicit and complete; storage is never shared between users.
-        $directory = UserWorkspace::directory($id);
-        if (is_dir($directory)) {
-            $this->deleteDirectory($directory);
+        if (!$markedForDeletion) {
+            return;
         }
+
+        // Keep the inactive registry row until workspace cleanup is fully verified. If a
+        // filesystem operation fails, the administrator can safely retry deletion instead
+        // of losing the only registry reference to orphaned private data.
+        $directory = UserWorkspace::directory($id);
+        try {
+            if (is_link($directory)) {
+                // Never recurse through a workspace-root symlink. Only unlink the symlink
+                // itself so a manipulated workspace cannot delete an external directory.
+                if (!@unlink($directory) && is_link($directory)) {
+                    throw new RuntimeException('Nije moguće ukloniti simboličku poveznicu korisničkog workspacea.');
+                }
+            } elseif (is_dir($directory)) {
+                $this->deleteDirectory($directory);
+            } elseif (file_exists($directory)) {
+                if (!@unlink($directory) && file_exists($directory)) {
+                    throw new RuntimeException('Korisnički workspace nije direktorij i nije ga moguće ukloniti.');
+                }
+            }
+
+            if (is_link($directory) || is_dir($directory) || file_exists($directory)) {
+                throw new RuntimeException('Korisnički workspace nije u potpunosti uklonjen.');
+            }
+        } catch (\Throwable $e) {
+            throw new RuntimeException(
+                'Korisnički račun je deaktiviran, ali workspace nije moguće u potpunosti obrisati. Provjeri dozvole i ponovi brisanje: ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+
+        // Final registry removal happens only after the private workspace is gone. If this
+        // write fails, the inactive deleting row remains and a retry can finish safely.
+        $this->store->update(static fn(array $rows): array => array_values(array_filter(
+            $rows,
+            static fn($row): bool => !is_array($row) || !hash_equals((string)($row['id'] ?? ''), $id)
+        )));
     }
 
     public function count(): int
@@ -252,6 +311,9 @@ final class UserStore
         $this->store->update(function (array $rows) use ($id, $hash): array {
             foreach ($rows as &$row) {
                 if (is_array($row) && hash_equals((string)($row['id'] ?? ''), $id)) {
+                    if (!empty($row['deleting'])) {
+                        throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Lozinku nije moguće mijenjati.');
+                    }
                     $row['password_hash'] = $hash;
                     $row['session_version'] = (int)($row['session_version'] ?? 1) + 1;
                     $row['updated_at'] = gmdate('c');
@@ -267,6 +329,7 @@ final class UserStore
     {
         unset($user['password_hash']);
         $user['active'] = !empty($user['active']);
+        $user['deleting'] = !empty($user['deleting']);
         $user['role'] = ($user['role'] ?? 'user') === 'admin' ? 'admin' : 'user';
         return $user;
     }
@@ -304,9 +367,16 @@ final class UserStore
 
     private function deleteDirectory(string $directory): void
     {
+        if (is_link($directory)) {
+            if (!@unlink($directory) && is_link($directory)) {
+                throw new RuntimeException('Nije moguće ukloniti simboličku poveznicu iz korisničkog workspacea.');
+            }
+            return;
+        }
+
         $items = @scandir($directory);
         if (!is_array($items)) {
-            return;
+            throw new RuntimeException('Nije moguće pročitati korisnički workspace radi brisanja.');
         }
         foreach ($items as $item) {
             if ($item === '.' || $item === '..') {
@@ -316,9 +386,13 @@ final class UserStore
             if (is_dir($path) && !is_link($path)) {
                 $this->deleteDirectory($path);
             } else {
-                @unlink($path);
+                if (!@unlink($path) && (file_exists($path) || is_link($path))) {
+                    throw new RuntimeException('Nije moguće ukloniti stavku iz korisničkog workspacea.');
+                }
             }
         }
-        @rmdir($directory);
+        if (!@rmdir($directory) && is_dir($directory)) {
+            throw new RuntimeException('Nije moguće ukloniti korisnički workspace direktorij.');
+        }
     }
 }
