@@ -125,7 +125,7 @@ def main() -> int:
         "ByFTP WEB/app/Remote/FtpClient.php", "ByFTP WEB/app/Remote/SftpClient.php",
         "ByFTP WEB/app/Remote/PathGuard.php", "ByFTP WEB/app/Security/HostGuard.php",
         "ByFTP WEB/app/Security/Auth.php", "ByFTP WEB/app/Security/Crypto.php",
-        "ByFTP WEB/app/Security/RateLimiter.php",
+        "ByFTP WEB/app/Security/RateLimiter.php", "ByFTP WEB/app/Security/LoginRateLimitGate.php",
         "ByFTP WEB/app/Storage/JsonStore.php", "ByFTP WEB/app/Storage/ProfileStore.php",
         "ByFTP WEB/app/Storage/UserStore.php", "ByFTP WEB/app/Storage/UserWorkspace.php",
         "ByFTP WEB/assets/css/app.css", "ByFTP WEB/assets/css/brendigo.css",
@@ -217,6 +217,13 @@ def main() -> int:
     ):
         require(rate_limiter, marker, "ByFTP WEB/app/Security/RateLimiter.php")
 
+    login_gate = read("ByFTP WEB/app/Security/LoginRateLimitGate.php")
+    for marker in (
+        "if (!$ipLimiter->consume($ipKey))",
+        "return $accountLimiter->consume($accountKey);",
+    ):
+        require(login_gate, marker, "ByFTP WEB/app/Security/LoginRateLimitGate.php")
+
     host_guard = read("ByFTP WEB/app/Security/HostGuard.php")
     for marker in ("connectionTargets", "FILTER_FLAG_NO_PRIV_RANGE", "FILTER_FLAG_NO_RES_RANGE", "localhost", "dns_get_record"):
         require(host_guard, marker, "ByFTP WEB/app/Security/HostGuard.php")
@@ -241,8 +248,7 @@ def main() -> int:
     for marker in (
         "function byftp_clear_login_rate_limiters(",
         "auth.rate_limit_clear_failed",
-        "$ipLimiter->consume($ipKey)",
-        "$accountLimiter->consume($accountKey)",
+        "LoginRateLimitGate::consume($ipLimiter, $ipKey, $accountLimiter, $accountKey)",
         "auth.rate_limit_consume_failed",
         "if (!Auth::attempt($email, $password))",
         "$migrationFailed = false;",
@@ -251,6 +257,8 @@ def main() -> int:
         require(login, marker, "ByFTP WEB/login.php")
     if "$accountLimiter->clear(" in login or "$ipLimiter->clear(" in login:
         fail("login performs direct post-auth limiter cleanup outside the fail-soft helper")
+    if "$ipLimiter->consume(" in login or "$accountLimiter->consume(" in login:
+        fail("login bypasses the ordered IP-first rate-limit gate")
     if "->blocked(" in login or "->hit(" in login:
         fail("login uses split rate-limit check/hit operations instead of atomic pre-auth consume")
     if login.count("Auth::logout();") != 1:
@@ -325,6 +333,8 @@ def main() -> int:
         "first attempt is atomically admitted",
         "attempt after configured budget is atomically rejected",
         "rejected consume does not inflate persisted attempt count",
+        "blocked IP does not create or consume an account-specific rate-limit state",
+        "ordered login gate consumes account budget exactly once for admitted IP",
         "atomic consume fails closed when primary rate-limit state is corrupt",
     ):
         require(limiter_tests, marker, "ByFTP WEB/tests/rate-limiter.php")
@@ -359,6 +369,7 @@ def main() -> int:
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
     print("WEB_LOGIN_RATE_LIMIT_ATTEMPTS=ATOMIC_PRE_AUTH")
+    print("WEB_LOGIN_RATE_LIMIT_ORDER=IP_THEN_ACCOUNT_SHORT_CIRCUIT")
     print("WEB_POST_AUTH_LIMITER_RESET=FAIL_SOFT")
     print("WEB_SUBPROCESS_TEXT_ENCODING=UTF8_REPLACE")
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")

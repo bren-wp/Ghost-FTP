@@ -4,6 +4,7 @@ require __DIR__ . '/app/bootstrap.php';
 
 use ByFTP\Security\AppLogger;
 use ByFTP\Security\Auth;
+use ByFTP\Security\LoginRateLimitGate;
 use ByFTP\Security\RateLimiter;
 use ByFTP\Storage\UserStore;
 use ByFTP\Storage\UserWorkspace;
@@ -56,12 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $rateLimitState = 'allowed';
         try {
-            // Reserve both counters before any password verification. Each consume() is one
-            // locked check+increment transaction, preventing concurrent requests from all
-            // observing the same pre-increment count. Storage failure denies authentication.
-            $ipAllowed = $ipLimiter->consume($ipKey);
-            $accountAllowed = $accountLimiter->consume($accountKey);
-            if (!$ipAllowed || !$accountAllowed) {
+            // The IP budget is consumed first. A source that is already blocked must not
+            // be allowed to consume account-specific budgets for arbitrary e-mail addresses.
+            // Each individual consume remains an atomic check+increment transaction.
+            if (!LoginRateLimitGate::consume($ipLimiter, $ipKey, $accountLimiter, $accountKey)) {
                 $rateLimitState = 'blocked';
             }
         } catch (Throwable $e) {
