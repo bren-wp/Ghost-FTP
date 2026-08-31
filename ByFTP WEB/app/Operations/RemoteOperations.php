@@ -272,12 +272,24 @@ final class RemoteOperations
                 $this->client->rename($row['source'], $tmp);
                 $staged[] = ['tmp'=>$tmp,'source'=>$row['source'],'destination'=>$row['destination']];
             }
-            foreach ($staged as &$row) {
+            foreach ($staged as $index => $row) {
                 $this->client->rename($row['tmp'], $row['destination']);
-                $row['done'] = true;
+                $staged[$index]['done'] = true;
             }
-            unset($row);
         } catch (\Throwable $e) {
+            // A partially promoted cyclic plan cannot be restored directly because a
+            // destination can also be another row's source. Re-stage every promoted
+            // destination first, then restore all staging paths back to their sources.
+            foreach (array_reverse($staged, true) as $index => $row) {
+                if (empty($row['done'])) continue;
+                try {
+                    $this->client->rename($row['destination'], $row['tmp']);
+                    $staged[$index]['done'] = false;
+                } catch (\Throwable) {
+                    // Keep done=true so the second phase does not overwrite a path
+                    // when this row could not be safely returned to staging.
+                }
+            }
             foreach (array_reverse($staged) as $row) {
                 if (!empty($row['done'])) continue;
                 try { $this->client->rename($row['tmp'], $row['source']); } catch (\Throwable) {}
