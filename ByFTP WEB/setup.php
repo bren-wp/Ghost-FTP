@@ -98,10 +98,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 AppLogger::event('install.complete', ['email' => strtolower($email)]);
                 byftp_redirect('login', ['installed' => 1]);
             } catch (Throwable $e) {
-                @unlink(byftp_config_path());
-                @unlink(BYFTP_STORAGE . '/users.json');
-                @unlink(BYFTP_STORAGE . '/users.json.lock');
+                // existingDataDetected was false before this setup transaction. Therefore
+                // these config/user JSON generations and lock files can only be empty
+                // pre-existing scaffolding or artifacts created by this failed attempt.
+                // Remove the complete JsonStore generations so a stale users.json.bak
+                // cannot be mistaken for recoverable production data on the next request.
+                $rollbackArtifacts = [
+                    byftp_config_path(),
+                    byftp_config_path() . '.bak',
+                    byftp_config_path() . '.lock',
+                    BYFTP_STORAGE . '/users.json',
+                    BYFTP_STORAGE . '/users.json.bak',
+                    BYFTP_STORAGE . '/users.json.lock',
+                ];
+                foreach ($rollbackArtifacts as $artifact) {
+                    @unlink($artifact);
+                }
                 $GLOBALS['byftp_config_cache'] = [];
+                unset($GLOBALS['byftp_config_error']);
                 $error = $e->getMessage();
             } finally {
                 flock($setupLock, LOCK_UN);
