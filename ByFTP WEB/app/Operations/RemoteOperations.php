@@ -387,6 +387,54 @@ final class RemoteOperations
                     }
                 }
 
+                $requiredTypes = $plannedTypes;
+                foreach ($plannedTypes as $remote => $type) {
+                    $parent = PathGuard::parent($remote);
+                    while ($parent !== '/') {
+                        if (($requiredTypes[$parent] ?? null) === 'file') {
+                            throw new RuntimeException('ZIP sadrži konflikt datoteke i podređene putanje.');
+                        }
+                        $requiredTypes[$parent] ??= 'dir';
+                        $next = PathGuard::parent($parent);
+                        if ($next === $parent) break;
+                        $parent = $next;
+                    }
+                }
+                uksort($requiredTypes, static function (string $a, string $b): int {
+                    $depth = substr_count($a, '/') <=> substr_count($b, '/');
+                    return $depth !== 0 ? $depth : strcmp($a, $b);
+                });
+
+                $remoteState = ['/'=>'dir'];
+                $listingCache = [];
+                foreach ($requiredTypes as $remote => $requiredType) {
+                    $parent = PathGuard::parent($remote);
+                    if (($remoteState[$parent] ?? null) === 'missing') {
+                        $remoteState[$remote] = 'missing';
+                        continue;
+                    }
+                    if (!array_key_exists($parent, $listingCache)) {
+                        $entries = [];
+                        foreach ($this->client->list($parent) as $existing) {
+                            $name = PathGuard::segment((string)($existing['name'] ?? ''));
+                            $entries[$name] = (($existing['type'] ?? 'file') === 'dir') ? 'dir' : 'file';
+                        }
+                        $listingCache[$parent] = $entries;
+                    }
+                    $actualType = $listingCache[$parent][PathGuard::basename($remote)] ?? null;
+                    if ($actualType === null) {
+                        $remoteState[$remote] = 'missing';
+                        continue;
+                    }
+                    $remoteState[$remote] = $actualType;
+                    if ($requiredType === 'dir' && $actualType !== 'dir') {
+                        throw new RuntimeException('ZIP odredište blokira postojeća datoteka.');
+                    }
+                    if ($requiredType === 'file' && $actualType === 'dir') {
+                        throw new RuntimeException('ZIP datoteka ne može prepisati postojeći direktorij.');
+                    }
+                }
+
                 // Only a fully validated archive is allowed to mutate remote state.
                 foreach ($plan as $row) {
                     $remote = (string)$row['remote'];
