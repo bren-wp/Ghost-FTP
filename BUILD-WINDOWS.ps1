@@ -121,63 +121,151 @@ if ($version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Invalid ByFTP version in VERSION: $version"
 }
 
+# Production builds are intentionally offline. Do not permit Go to download
+# modules or a newer toolchain implicitly.
 $env:GOTOOLCHAIN = 'local'
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
 $env:CGO_ENABLED = '0'
 $env:GOWORK = 'off'
 
-foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386','GOARM64','GOEXPERIMENT','GOFLAGS')) {
+# Prevent inherited Go build settings from changing production artifacts.
+foreach ($name in @(
+    'GOOS',
+    'GOARCH',
+    'GOAMD64',
+    'GO386',
+    'GOARM64',
+    'GOEXPERIMENT',
+    'GOFLAGS'
+)) {
     Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
 }
 
+# GitHub-hosted Windows images can expose more than one executable with the
+# same command name. Select one concrete application explicitly so helper
+# parameters always receive a scalar path instead of a String[] value.
 $goCommand = @(Get-Command go -CommandType Application -ErrorAction SilentlyContinue)[0]
-if (-not $goCommand) { throw 'Go is not installed or is not available in PATH.' }
+if (-not $goCommand) {
+    throw 'Go is not installed or is not available in PATH.'
+}
 [string]$go = $goCommand.Source
 
 $pythonCommand = @(Get-Command python -CommandType Application -ErrorAction SilentlyContinue)[0]
-if (-not $pythonCommand) { throw 'Python 3 is not installed or is not available in PATH.' }
+if (-not $pythonCommand) {
+    throw 'Python 3 is not installed or is not available in PATH.'
+}
 [string]$python = $pythonCommand.Source
 
-$pythonVersionText = Invoke-NativeCapture -FilePath $python -ArgumentList @('--version') -FailureMessage 'Unable to verify Python version'
-if ($pythonVersionText -notmatch '^Python\s+3(?:\.|$)') { throw "Python 3 is required. Current: $pythonVersionText" }
+$pythonVersionText = Invoke-NativeCapture `
+    -FilePath $python `
+    -ArgumentList @('--version') `
+    -FailureMessage 'Unable to verify Python version'
 
-$rawGoVersion = Invoke-NativeCapture -FilePath $go -ArgumentList @('env', 'GOVERSION') -FailureMessage 'Unable to verify Go version'
+if ($pythonVersionText -notmatch '^Python\s+3(?:\.|$)') {
+    throw "Python 3 is required. Current: $pythonVersionText"
+}
+
+$rawGoVersion = Invoke-NativeCapture `
+    -FilePath $go `
+    -ArgumentList @('env', 'GOVERSION') `
+    -FailureMessage 'Unable to verify Go version'
+
 $goVersion = Get-NormalizedVersion -GoVersion $rawGoVersion
-if ($goVersion -lt $minimumGo) { throw "ByFTP production builds require Go $minimumGo or newer. Current: $rawGoVersion" }
+if ($goVersion -lt $minimumGo) {
+    throw "ByFTP production builds require Go $minimumGo or newer. Current: $rawGoVersion"
+}
 
-$activeGoMod = Invoke-NativeCapture -FilePath $go -ArgumentList @('env', 'GOMOD') -FailureMessage 'Unable to determine the active go.mod'
-if (-not (Test-SamePath -A $activeGoMod -B $goMod)) { throw "Unexpected Go module root. Expected: $goMod; active: $activeGoMod" }
+$activeGoMod = Invoke-NativeCapture `
+    -FilePath $go `
+    -ArgumentList @('env', 'GOMOD') `
+    -FailureMessage 'Unable to determine the active go.mod'
 
-$moduleGraph = Invoke-NativeCapture -FilePath $go -ArgumentList @('list', '-m', '-mod=readonly', 'all') -FailureMessage 'Unable to verify the Go module graph'
-$moduleLines = @($moduleGraph -split '\r?\n' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-if ($moduleLines.Count -ne 1) { throw "Production build contract permits no external Go modules. Found $($moduleLines.Count) modules." }
+if (-not (Test-SamePath -A $activeGoMod -B $goMod)) {
+    throw "Unexpected Go module root. Expected: $goMod; active: $activeGoMod"
+}
 
-$telemetryMode = Invoke-NativeCapture -FilePath $go -ArgumentList @('telemetry') -FailureMessage 'Unable to verify Go telemetry mode'
-if ($telemetryMode -ne 'off') { throw "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetryMode)" }
+# The release contract requires no external Go modules. With GOPROXY=off this
+# also guarantees the production build cannot silently fetch missing modules.
+$moduleGraph = Invoke-NativeCapture `
+    -FilePath $go `
+    -ArgumentList @('list', '-m', '-mod=readonly', 'all') `
+    -FailureMessage 'Unable to verify the Go module graph'
+
+$moduleLines = @(
+    $moduleGraph -split '\r?\n' |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+)
+if ($moduleLines.Count -ne 1) {
+    throw "Production build contract permits no external Go modules. Found $($moduleLines.Count) modules."
+}
+
+# Do not mutate global Go settings during a build. Builders and CI must disable
+# telemetry before invoking this script.
+$telemetryMode = Invoke-NativeCapture `
+    -FilePath $go `
+    -ArgumentList @('telemetry') `
+    -FailureMessage 'Unable to verify Go telemetry mode'
+
+if ($telemetryMode -ne 'off') {
+    throw "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetryMode)"
+}
 
 Write-Host "ByFTP $version"
 Write-Host "Go: $rawGoVersion | Python: $pythonVersionText | telemetry=$telemetryMode"
 
 Write-Host '[1/10] Assets, localization and version'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/generate_brand_assets.py', '--check') -FailureMessage 'Brand asset verification failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_localization.py') -FailureMessage 'Localization audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_version.py') -FailureMessage 'Version consistency audit failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('scripts/generate_brand_assets.py', '--check') `
+    -FailureMessage 'Brand asset verification failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('scripts/audit_localization.py') `
+    -FailureMessage 'Localization audit failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('scripts/audit_version.py') `
+    -FailureMessage 'Version consistency audit failed'
 
 Write-Host '[2/10] Documentation, security, privacy and release contract'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_docs.py') -FailureMessage 'Documentation audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_security.py') -FailureMessage 'Security audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_privacy.py') -FailureMessage 'Privacy audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_release.py') -FailureMessage 'Release audit failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('scripts/audit_docs.py') `
+    -FailureMessage 'Documentation audit failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('scripts/audit_security.py') `
+    -FailureMessage 'Security audit failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('scripts/audit_privacy.py') `
+    -FailureMessage 'Privacy audit failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('scripts/audit_release.py') `
+    -FailureMessage 'Release audit failed'
 
 Write-Host '[3/10] Python release-tool regressions'
-Invoke-Native -FilePath $python -ArgumentList @('-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'test_*.py') -FailureMessage 'Python release-tool regressions failed'
+
+Invoke-Native -FilePath $python `
+    -ArgumentList @('-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'test_*.py') `
+    -FailureMessage 'Python release-tool regressions failed'
 
 Write-Host "[4/10] Go tests and static analysis ($rawGoVersion, telemetry=$telemetryMode)"
-Invoke-Native -FilePath $go -ArgumentList @('test', '-count=1', '-mod=readonly', './...') -FailureMessage 'Go tests failed'
-Invoke-Native -FilePath $go -ArgumentList @('vet', '-mod=readonly', './...') -FailureMessage 'Go vet failed'
+
+# -count=1 prevents a production verification run from being satisfied by the
+# Go test cache.
+Invoke-Native -FilePath $go `
+    -ArgumentList @('test', '-count=1', '-mod=readonly', './...') `
+    -FailureMessage 'Go tests failed'
+
+Invoke-Native -FilePath $go `
+    -ArgumentList @('vet', '-mod=readonly', './...') `
+    -FailureMessage 'Go vet failed'
 
 Write-Host '[5/10] Clean output directories'
+
 Remove-Item -LiteralPath $dist -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
 New-Item -ItemType Directory -Force -Path $internalDist | Out-Null
@@ -185,6 +273,7 @@ New-Item -ItemType Directory -Force -Path $payloadDir | Out-Null
 Remove-Item -LiteralPath $payloadZip -Force -ErrorAction SilentlyContinue
 
 $ldflags = "-s -w -H=windowsgui -X main.version=$version"
+
 $publicFiles = [System.Collections.Generic.List[string]]::new()
 $verificationFiles = [System.Collections.Generic.List[string]]::new()
 
@@ -196,10 +285,14 @@ function Build-ByFTPArchitecture {
 
     $env:GOOS = 'windows'
     $env:GOARCH = $GoArch
+
+    # Pin architecture tuning so a caller's environment cannot alter release
+    # compatibility or generated machine code.
     if ($GoArch -eq 'amd64') {
         $env:GOAMD64 = 'v1'
         Remove-Item -LiteralPath 'Env:GO386' -ErrorAction SilentlyContinue
-    } else {
+    }
+    else {
         $env:GO386 = 'sse2'
         Remove-Item -LiteralPath 'Env:GOAMD64' -ErrorAction SilentlyContinue
     }
@@ -209,23 +302,83 @@ function Build-ByFTPArchitecture {
     $verification = Join-Path $internalDist "verification-$Label.txt"
 
     Write-Host "      [$Label] Portable"
-    Invoke-Native -FilePath $go -ArgumentList @('build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$ldflags,'-o',$portable,'./cmd/byftp') -FailureMessage "Portable $Label build failed"
-    Invoke-Native -FilePath $python -ArgumentList @('scripts/pe_resources.py',$portable,'--ico',$icon,'--version',$version,'--role','portable','--original-filename',"ByFTP-$version-Portable-$Label.exe") -FailureMessage "Portable $Label PE resource processing failed"
+
+    Invoke-Native -FilePath $go `
+        -ArgumentList @(
+            'build',
+            '-mod=readonly',
+            '-trimpath',
+            '-buildvcs=false',
+            '-ldflags', $ldflags,
+            '-o', $portable,
+            './cmd/byftp'
+        ) `
+        -FailureMessage "Portable $Label build failed"
+
+    Invoke-Native -FilePath $python `
+        -ArgumentList @(
+            'scripts/pe_resources.py',
+            $portable,
+            '--ico', $icon,
+            '--version', $version,
+            '--role', 'portable',
+            '--original-filename', "ByFTP-$version-Portable-$Label.exe"
+        ) `
+        -FailureMessage "Portable $Label PE resource processing failed"
 
     Write-Host "      [$Label] Installer payload"
+
     try {
-        Invoke-Native -FilePath $python -ArgumentList @('scripts/make_payload.py','--app',$portable,'--output',$payloadZip) -FailureMessage "$Label installer payload compression failed"
+        Invoke-Native -FilePath $python `
+            -ArgumentList @(
+                'scripts/make_payload.py',
+                '--app', $portable,
+                '--output', $payloadZip
+            ) `
+            -FailureMessage "$Label installer payload compression failed"
+
         Assert-File -Path $payloadZip -Description "$Label installer payload"
+
         Write-Host "      [$Label] Setup"
-        Invoke-Native -FilePath $go -ArgumentList @('build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$ldflags,'-o',$setup,'./cmd/installer') -FailureMessage "Setup $Label build failed"
-    } finally {
+
+        Invoke-Native -FilePath $go `
+            -ArgumentList @(
+                'build',
+                '-mod=readonly',
+                '-trimpath',
+                '-buildvcs=false',
+                '-ldflags', $ldflags,
+                '-o', $setup,
+                './cmd/installer'
+            ) `
+            -FailureMessage "Setup $Label build failed"
+    }
+    finally {
         Remove-Item -LiteralPath $payloadZip -Force -ErrorAction SilentlyContinue
     }
 
-    Invoke-Native -FilePath $python -ArgumentList @('scripts/pe_resources.py',$setup,'--ico',$icon,'--version',$version,'--role','setup','--original-filename',"ByFTP-$version-Setup-$Label.exe") -FailureMessage "Setup $Label PE resource processing failed"
+    Invoke-Native -FilePath $python `
+        -ArgumentList @(
+            'scripts/pe_resources.py',
+            $setup,
+            '--ico', $icon,
+            '--version', $version,
+            '--role', 'setup',
+            '--original-filename', "ByFTP-$version-Setup-$Label.exe"
+        ) `
+        -FailureMessage "Setup $Label PE resource processing failed"
 
     Write-Host "      [$Label] PE, security and privacy verification"
-    Invoke-NativeTee -FilePath $python -ArgumentList @('scripts/verify_release.py',$setup,$portable,'--arch',$Label) -OutputFile $verification -FailureMessage "$Label release verification failed"
+
+    Invoke-NativeTee -FilePath $python `
+        -ArgumentList @(
+            'scripts/verify_release.py',
+            $setup,
+            $portable,
+            '--arch', $Label
+        ) `
+        -OutputFile $verification `
+        -FailureMessage "$Label release verification failed"
 
     $script:publicFiles.Add($portable)
     $script:publicFiles.Add($setup)
@@ -234,35 +387,57 @@ function Build-ByFTPArchitecture {
 
 Write-Host '[6/10] Windows x64 production build'
 Build-ByFTPArchitecture -GoArch 'amd64' -Label 'x64'
+
 Write-Host '[7/10] Windows x86 production build'
 Build-ByFTPArchitecture -GoArch '386' -Label 'x86'
 
-foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386')) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+foreach ($name in @('GOOS', 'GOARCH', 'GOAMD64', 'GO386')) {
+    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+}
 
 Write-Host '[8/10] SHA-256 of public binaries'
-if ($publicFiles.Count -ne 4) { throw "Unexpected public binary count: $($publicFiles.Count); expected 4." }
+
+if ($publicFiles.Count -ne 4) {
+    throw "Unexpected public binary count: $($publicFiles.Count); expected 4."
+}
+
 $hashLines = foreach ($file in ($publicFiles | Sort-Object)) {
     Assert-File -Path $file -Description 'Production binary'
+
     $item = Get-Item -LiteralPath $file
     $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $($item.Name)"
 }
+
 $shaFile = Join-Path $dist 'SHA256.txt'
 $hashLines | Set-Content -LiteralPath $shaFile -Encoding ascii
 
 Write-Host '[9/10] Digital-signature status'
+
 $unsigned = $false
 foreach ($verification in $verificationFiles) {
     Assert-File -Path $verification -Description 'Release verification report'
+
     $text = Get-Content -LiteralPath $verification -Raw
-    if ($text -match '(?m)^(SETUP|PORTABLE)_AUTHENTICODE_SIGNED=NO\s*$') { $unsigned = $true }
+    if ($text -match '(?m)^(SETUP|PORTABLE)_AUTHENTICODE_SIGNED=NO\s*$') {
+        $unsigned = $true
+    }
 }
-if ($unsigned) { Write-Warning 'Binaries are not Authenticode-signed. Verified Publisher requires a valid ByFTP code-signing certificate.' }
+
+if ($unsigned) {
+    Write-Warning 'Binaries are not Authenticode-signed. Verified Publisher requires a valid ByFTP code-signing certificate.'
+}
 
 Write-Host '[10/10] Final output verification'
-foreach ($file in $publicFiles) { Assert-File -Path $file -Description 'Production output' }
+
+foreach ($file in $publicFiles) {
+    Assert-File -Path $file -Description 'Production output'
+}
 Assert-File -Path $shaFile -Description 'SHA-256 manifest'
-if (Test-Path -LiteralPath $payloadZip) { throw 'Temporary installer payload was not removed.' }
+
+if (Test-Path -LiteralPath $payloadZip) {
+    throw 'Temporary installer payload was not removed.'
+}
 
 $expectedNames = @(
     "ByFTP-$version-Portable-x64.exe",
@@ -271,10 +446,21 @@ $expectedNames = @(
     "ByFTP-$version-Setup-x86.exe",
     'SHA256.txt'
 )
-$actualNames = @(Get-ChildItem -LiteralPath $dist -File | Select-Object -ExpandProperty Name | Sort-Object)
+
+$actualNames = @(
+    Get-ChildItem -LiteralPath $dist -File |
+        Select-Object -ExpandProperty Name |
+        Sort-Object
+)
+
 $missingNames = @($expectedNames | Where-Object { $_ -notin $actualNames })
-if ($missingNames.Count -ne 0) { throw "Missing final output(s): $($missingNames -join ', ')" }
-if (Get-ChildItem -LiteralPath $dist -Recurse -File | Where-Object { $_.Name -match '(?i)uninstall' }) { throw 'Windows build unexpectedly produced an uninstaller binary.' }
+if ($missingNames.Count -ne 0) {
+    throw "Missing final output(s): $($missingNames -join ', ')"
+}
+
+if (Get-ChildItem -LiteralPath $dist -Recurse -File | Where-Object { $_.Name -match '(?i)uninstall' }) {
+    throw 'Windows build unexpectedly produced an uninstaller binary.'
+}
 
 Write-Host 'UNINSTALLER_BINARY=ABSENT'
 Write-Host "ByFTP $version Windows x64+x86 build completed: $dist"
