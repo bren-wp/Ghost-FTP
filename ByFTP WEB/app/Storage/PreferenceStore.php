@@ -13,7 +13,10 @@ final class PreferenceStore
     public function __construct(string $userId)
     {
         UserWorkspace::ensure($userId);
-        $this->store = new JsonStore(UserWorkspace::file($userId, 'preferences.json'));
+        // Preferences contain explicit user state such as favorites and recently visited
+        // remote paths. Keep preferences.json.bak for manual recovery only; runtime reads
+        // must not silently restore data the user already removed from the current state.
+        $this->store = new JsonStore(UserWorkspace::file($userId, 'preferences.json'), false);
     }
 
     public function favorites(string $profileId): array
