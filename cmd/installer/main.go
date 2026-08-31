@@ -29,7 +29,7 @@ const (
 	payloadSchema          = 2
 
 	legacyUninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
-	appPathsKey         = `Software\Microsoft\Windows\CurrentVersion\App Paths\ByFTP.exe`
+	appPathsKey        = `Software\Microsoft\Windows\CurrentVersion\App Paths\ByFTP.exe`
 )
 
 var version = "dev"
