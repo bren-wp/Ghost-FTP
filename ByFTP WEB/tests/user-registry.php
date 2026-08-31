@@ -38,64 +38,70 @@ function registry_throws(callable $callback, string $label): void
 try {
     $users = new UserStore();
 
-    // A workspace root is normally a real private directory. If another local process
-    // replaces it with a symlink, deletion must unlink only the symlink and never recurse
-    // into the external target.
-    $symlinkUser = $users->create(
-        'Symlink User',
-        'symlink@example.com',
-        'symlink-password-123',
-        'user'
-    );
-    $symlinkId = (string)($symlinkUser['id'] ?? '');
-    $symlinkWorkspace = UserWorkspace::directory($symlinkId);
-    @rmdir($symlinkWorkspace);
-    @mkdir($externalTarget, 0700, true);
-    $externalSentinel = $externalTarget . '/sentinel.txt';
-    file_put_contents($externalSentinel, 'must-survive-user-delete');
-    $linkCreated = @symlink($externalTarget, $symlinkWorkspace);
-    registry_check($linkCreated && is_link($symlinkWorkspace), 'test workspace root symlink is created');
-    if ($linkCreated) {
-        $users->delete($symlinkId);
-        registry_check(is_file($externalSentinel), 'user deletion never traverses workspace root symlink target');
-        registry_check(!is_link($symlinkWorkspace), 'workspace root symlink itself is removed');
-        registry_check($users->findById($symlinkId) === null, 'symlink workspace user is removed after safe cleanup');
-    }
+    // These workspace deletion regressions intentionally exercise POSIX symlink and
+    // directory-permission semantics used by shared-hosting deployments. Windows runners
+    // still lint and execute the cross-platform registry tests below, but do not provide
+    // deterministic symlink privileges or chmod-based unlink denial.
+    if (PHP_OS_FAMILY !== 'Windows') {
+        // A workspace root is normally a real private directory. If another local process
+        // replaces it with a symlink, deletion must unlink only the symlink and never recurse
+        // into the external target.
+        $symlinkUser = $users->create(
+            'Symlink User',
+            'symlink@example.com',
+            'symlink-password-123',
+            'user'
+        );
+        $symlinkId = (string)($symlinkUser['id'] ?? '');
+        $symlinkWorkspace = UserWorkspace::directory($symlinkId);
+        @rmdir($symlinkWorkspace);
+        @mkdir($externalTarget, 0700, true);
+        $externalSentinel = $externalTarget . '/sentinel.txt';
+        file_put_contents($externalSentinel, 'must-survive-user-delete');
+        $linkCreated = @symlink($externalTarget, $symlinkWorkspace);
+        registry_check($linkCreated && is_link($symlinkWorkspace), 'test workspace root symlink is created');
+        if ($linkCreated) {
+            $users->delete($symlinkId);
+            registry_check(is_file($externalSentinel), 'user deletion never traverses workspace root symlink target');
+            registry_check(!is_link($symlinkWorkspace), 'workspace root symlink itself is removed');
+            registry_check($users->findById($symlinkId) === null, 'symlink workspace user is removed after safe cleanup');
+        }
 
-    // Force a cleanup failure with a non-writable nested directory. The account must stay
-    // in the registry as inactive/deleting so an administrator has a deterministic retry
-    // path instead of an invisible orphaned private workspace.
-    $retryUser = $users->create(
-        'Retry Delete User',
-        'retry-delete@example.com',
-        'retry-password-123',
-        'user'
-    );
-    $retryId = (string)($retryUser['id'] ?? '');
-    $retryWorkspace = UserWorkspace::directory($retryId);
-    $lockedDir = $retryWorkspace . '/locked';
-    @mkdir($lockedDir, 0700, true);
-    file_put_contents($lockedDir . '/private.json', '{"private":true}');
-    @chmod($lockedDir, 0500);
+        // Force a cleanup failure with a non-writable nested directory. The account must stay
+        // in the registry as inactive/deleting so an administrator has a deterministic retry
+        // path instead of an invisible orphaned private workspace.
+        $retryUser = $users->create(
+            'Retry Delete User',
+            'retry-delete@example.com',
+            'retry-password-123',
+            'user'
+        );
+        $retryId = (string)($retryUser['id'] ?? '');
+        $retryWorkspace = UserWorkspace::directory($retryId);
+        $lockedDir = $retryWorkspace . '/locked';
+        @mkdir($lockedDir, 0700, true);
+        file_put_contents($lockedDir . '/private.json', '{"private":true}');
+        @chmod($lockedDir, 0500);
 
-    $deleteFailed = false;
-    try {
+        $deleteFailed = false;
+        try {
+            $users->delete($retryId);
+        } catch (Throwable) {
+            $deleteFailed = true;
+        }
+        @chmod($lockedDir, 0700);
+
+        registry_check($deleteFailed, 'workspace cleanup failure is surfaced to the caller');
+        $pendingDelete = $users->findById($retryId);
+        registry_check(
+            is_array($pendingDelete) && !empty($pendingDelete['deleting']) && empty($pendingDelete['active']),
+            'failed workspace cleanup keeps an inactive retryable deleting registry row'
+        );
+
         $users->delete($retryId);
-    } catch (Throwable) {
-        $deleteFailed = true;
+        registry_check($users->findById($retryId) === null, 'retry completes registry deletion after workspace cleanup succeeds');
+        registry_check(!is_dir($retryWorkspace) && !is_link($retryWorkspace), 'retry removes the complete private workspace');
     }
-    @chmod($lockedDir, 0700);
-
-    registry_check($deleteFailed, 'workspace cleanup failure is surfaced to the caller');
-    $pendingDelete = $users->findById($retryId);
-    registry_check(
-        is_array($pendingDelete) && !empty($pendingDelete['deleting']) && empty($pendingDelete['active']),
-        'failed workspace cleanup keeps an inactive retryable deleting registry row'
-    );
-
-    $users->delete($retryId);
-    registry_check($users->findById($retryId) === null, 'retry completes registry deletion after workspace cleanup succeeds');
-    registry_check(!is_dir($retryWorkspace) && !is_link($retryWorkspace), 'retry removes the complete private workspace');
 
     // Existing authentication-registry recovery regression: the generic JSON store may
     // recover a backup, but UserStore must fail closed so old credentials cannot return.
