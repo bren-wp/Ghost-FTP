@@ -104,6 +104,8 @@ final class ZipPreflightFakeClient implements RemoteClientInterface
     }
 }
 
+$failures = [];
+
 $archivePath = $testStorage . '/malicious.zip';
 $zip = new ZipArchive();
 if ($zip->open($archivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -137,8 +139,6 @@ try {
 } catch (Throwable) {
     $threw = true;
 }
-
-$failures = [];
 if (!$threw) {
     $failures[] = 'unsafe ZIP traversal entry was not rejected';
 }
@@ -146,10 +146,41 @@ if ($client->mutations() !== []) {
     $failures[] = 'unsafe ZIP is rejected before any remote mutation';
 }
 
+$topologyPath = $testStorage . '/topology.zip';
+$zip = new ZipArchive();
+if ($zip->open($topologyPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+    throw new RuntimeException('Unable to create ZIP topology regression fixture.');
+}
+if (!$zip->addFromString('safe.txt', 'safe')) {
+    throw new RuntimeException('Unable to add ZIP topology parent file.');
+}
+if (!$zip->addFromString('safe.txt/child.txt', 'child')) {
+    throw new RuntimeException('Unable to add ZIP topology child file.');
+}
+if (!$zip->close()) {
+    throw new RuntimeException('Unable to finalize ZIP topology regression fixture.');
+}
+
+$topologyClient = new ZipPreflightFakeClient($topologyPath);
+$topologyOps = new RemoteOperations($topologyClient);
+$topologyThrew = false;
+try {
+    $topologyOps->extractZip('/archive.zip', '/dest');
+} catch (Throwable) {
+    $topologyThrew = true;
+}
+if (!$topologyThrew) {
+    $failures[] = 'conflicting ZIP file/child topology was not rejected';
+}
+if ($topologyClient->mutations() !== []) {
+    $failures[] = 'conflicting ZIP topology is rejected before any remote mutation';
+}
+
 foreach (glob($testStorage . '/tmp/*') ?: [] as $path) {
     @unlink($path);
 }
 @unlink($archivePath);
+@unlink($topologyPath);
 @rmdir($testStorage . '/tmp');
 @rmdir($testStorage);
 

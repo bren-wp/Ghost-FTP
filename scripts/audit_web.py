@@ -232,16 +232,30 @@ def main() -> int:
         "$plan = [];",
         "// Validate the complete archive before creating directories or uploading files.",
         "$plan[] = [",
+        "$plannedTypes = [];",
+        "array_key_exists($remote, $plannedTypes)",
+        "($plannedTypes[$parent] ?? null) === 'file'",
+        "ZIP sadrži više stavki za isto odredište.",
+        "ZIP sadrži konflikt datoteke i podređene putanje.",
         "// Only a fully validated archive is allowed to mutate remote state.",
         "foreach ($plan as $row)",
     ):
         require(extract_zip, marker, "ByFTP WEB/app/Operations/RemoteOperations.php extractZip")
     plan_add = extract_zip.find("$plan[] = [")
-    execute_plan = extract_zip.find("foreach ($plan as $row)")
+    topology_types = extract_zip.find("$plannedTypes = [];")
+    topology_duplicate = extract_zip.find("array_key_exists($remote, $plannedTypes)", topology_types)
+    topology_parent = extract_zip.find("($plannedTypes[$parent] ?? null) === 'file'", topology_types)
+    execution_marker = extract_zip.find("// Only a fully validated archive is allowed to mutate remote state.")
+    execute_plan = extract_zip.find("foreach ($plan as $row)", execution_marker)
     ensure_directory = extract_zip.find("$this->ensureDirectory($remote);", execute_plan)
     upload_atomic = extract_zip.find("$this->uploadAtomic($entryTmp, $remote);", execute_plan)
-    if not (0 <= plan_add < execute_plan < ensure_directory and execute_plan < upload_atomic):
-        fail("WEB ZIP extraction can mutate remote state before complete archive preflight")
+    if not (
+        0 <= plan_add < topology_types < topology_duplicate < execution_marker
+        and topology_types < topology_parent < execution_marker
+        and execution_marker < execute_plan < ensure_directory
+        and execute_plan < upload_atomic
+    ):
+        fail("WEB ZIP extraction topology validation does not complete before remote mutation")
     if "$this->ensureDirectory($remote);" in extract_zip[:execute_plan] or "$this->uploadAtomic($entryTmp, $remote);" in extract_zip[:execute_plan]:
         fail("WEB ZIP extraction performs remote mutation during archive validation")
 
@@ -414,6 +428,9 @@ def main() -> int:
     for marker in (
         "../escape.txt",
         "unsafe ZIP is rejected before any remote mutation",
+        "safe.txt/child.txt",
+        "conflicting ZIP file/child topology was not rejected",
+        "conflicting ZIP topology is rejected before any remote mutation",
         "WEB_ZIP_EXTRACTION_PREFLIGHT_TEST=PASS",
     ):
         require(zip_extraction_tests, marker, "ByFTP WEB/tests/zip-extraction-preflight.php")
@@ -495,6 +512,7 @@ def main() -> int:
     print("WEB_NAME_INPUTS=FAIL_CLOSED")
     print("WEB_ARCHIVE_DOWNLOAD_NAME=PRESERVES_ZIP_EXTENSION")
     print("WEB_ZIP_EXTRACTION_PREFLIGHT=FAIL_CLOSED")
+    print("WEB_ZIP_EXTRACTION_TOPOLOGY=FAIL_CLOSED")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
     print("WEB_PROFILE_CREDENTIAL_RECOVERY=FAIL_CLOSED")
