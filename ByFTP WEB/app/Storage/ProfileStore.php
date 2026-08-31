@@ -41,8 +41,8 @@ final class ProfileStore
 
     /**
      * Build and validate a connection profile from the current form without persisting it.
-     * Blank secrets on an existing profile preserve the stored value unless the matching
-     * clear_* flag is explicitly set.
+     * Blank secrets preserve stored values only while the endpoint/account binding remains
+     * unchanged. Key passphrases are additionally bound to the same private key material.
      */
     public function connectionDraft(array $input): array
     {
@@ -55,24 +55,32 @@ final class ProfileStore
             }
         }
 
+        $sameAccount = is_array($old) && self::accountMatches($old, $draft);
+        $sameSftpAccount = $sameAccount && $draft['protocol'] === 'sftp';
+        $oldPrivateKey = $sameSftpAccount ? (string)($old['private_key'] ?? '') : '';
+
         $password = $this->resolvePlainSecret(
             $draft['password'],
-            is_array($old) ? (string)($old['password'] ?? '') : '',
+            $sameAccount ? (string)($old['password'] ?? '') : '',
             $draft['clear_password']
         );
         $publicKey = $this->resolvePlainSecret(
             $draft['public_key'],
-            is_array($old) ? (string)($old['public_key'] ?? '') : '',
+            $sameSftpAccount ? (string)($old['public_key'] ?? '') : '',
             $draft['clear_key_material']
         );
         $privateKey = $this->resolvePlainSecret(
             $draft['private_key'],
-            is_array($old) ? (string)($old['private_key'] ?? '') : '',
+            $oldPrivateKey,
             $draft['clear_key_material']
         );
+        $samePrivateKey = $sameSftpAccount
+            && $oldPrivateKey !== ''
+            && $privateKey !== ''
+            && hash_equals($oldPrivateKey, $privateKey);
         $keyPassphrase = $this->resolvePlainSecret(
             $draft['key_passphrase'],
-            is_array($old) ? (string)($old['key_passphrase'] ?? '') : '',
+            $samePrivateKey ? (string)($old['key_passphrase'] ?? '') : '',
             $draft['clear_key_passphrase'] || $draft['clear_key_material']
         );
 
@@ -120,25 +128,38 @@ final class ProfileStore
             }
 
             $old = $existingIndex !== null && is_array($rows[$existingIndex] ?? null) ? $rows[$existingIndex] : null;
+            $oldPlain = is_array($old) ? $this->hydrate($old, true) : null;
+            $sameAccount = is_array($oldPlain) && self::accountMatches($oldPlain, $normalized);
+            $sameSftpAccount = $sameAccount && $normalized['protocol'] === 'sftp';
+            $oldPrivateKey = $sameSftpAccount ? (string)($oldPlain['private_key'] ?? '') : '';
+
             $passwordEnc = $this->resolveEncryptedSecret(
                 $normalized['password'],
-                is_array($old) ? (string)($old['password_enc'] ?? '') : '',
+                $sameAccount && is_array($old) ? (string)($old['password_enc'] ?? '') : '',
                 $normalized['clear_password'],
                 true
             );
             $publicKeyEnc = $this->resolveEncryptedSecret(
                 $normalized['public_key'],
-                is_array($old) ? (string)($old['public_key_enc'] ?? '') : '',
+                $sameSftpAccount && is_array($old) ? (string)($old['public_key_enc'] ?? '') : '',
                 $normalized['clear_key_material']
             );
             $privateKeyEnc = $this->resolveEncryptedSecret(
                 $normalized['private_key'],
-                is_array($old) ? (string)($old['private_key_enc'] ?? '') : '',
+                $sameSftpAccount && is_array($old) ? (string)($old['private_key_enc'] ?? '') : '',
                 $normalized['clear_key_material']
             );
+            $finalPrivateKey = '';
+            if (!$normalized['clear_key_material']) {
+                $finalPrivateKey = $normalized['private_key'] !== '' ? $normalized['private_key'] : $oldPrivateKey;
+            }
+            $samePrivateKey = $sameSftpAccount
+                && $oldPrivateKey !== ''
+                && $finalPrivateKey !== ''
+                && hash_equals($oldPrivateKey, $finalPrivateKey);
             $keyPassphraseEnc = $this->resolveEncryptedSecret(
                 $normalized['key_passphrase'],
-                is_array($old) ? (string)($old['key_passphrase_enc'] ?? '') : '',
+                $samePrivateKey && is_array($old) ? (string)($old['key_passphrase_enc'] ?? '') : '',
                 $normalized['clear_key_passphrase'] || $normalized['clear_key_material']
             );
 
@@ -263,6 +284,15 @@ final class ProfileStore
         $passive = !isset($input['passive']) || filter_var($input['passive'], FILTER_VALIDATE_BOOLEAN);
         $utf8 = !isset($input['utf8']) || filter_var($input['utf8'], FILTER_VALIDATE_BOOLEAN);
 
+        if ($protocol !== 'sftp') {
+            // SFTP-only trust/key state must never survive a protocol switch. Keeping it
+            // hidden in an FTP/FTPS profile could resurrect stale credentials later.
+            $fingerprint = '';
+            $publicKey = '';
+            $privateKey = '';
+            $keyPassphrase = '';
+        }
+
         if ($label === '' || $host === '' || $username === '') {
             throw new RuntimeException('Naziv, host i korisničko ime su obavezni.');
         }
@@ -344,6 +374,27 @@ final class ProfileStore
             return '';
         }
         return $newValue !== '' ? $newValue : $oldValue;
+    }
+
+    private static function accountMatches(array $old, array $next): bool
+    {
+        return self::endpointMatches($old, $next)
+            && hash_equals((string)($old['username'] ?? ''), (string)($next['username'] ?? ''));
+    }
+
+    private static function endpointMatches(array $old, array $next): bool
+    {
+        return (string)($old['protocol'] ?? '') === (string)($next['protocol'] ?? '')
+            && (int)($old['port'] ?? 0) === (int)($next['port'] ?? 0)
+            && hash_equals(
+                self::canonicalBindingHost((string)($old['host'] ?? '')),
+                self::canonicalBindingHost((string)($next['host'] ?? ''))
+            );
+    }
+
+    private static function canonicalBindingHost(string $host): string
+    {
+        return strtolower(rtrim($host, '.'));
     }
 
     private function hydrate(array $row, bool $withSecrets): array
