@@ -98,15 +98,25 @@ final class UserStore
     public function authenticate(string $email, string $password): ?array
     {
         $user = $this->findByEmail($email);
-        if (!$user || empty($user['active']) || !password_verify($password, (string)($user['password_hash'] ?? ''))) {
+        $verifiedHash = is_array($user) ? (string)($user['password_hash'] ?? '') : '';
+        if (!$user || empty($user['active']) || !password_verify($password, $verifiedHash)) {
             return null;
         }
-        if (password_needs_rehash((string)$user['password_hash'], self::passwordAlgorithm())) {
-            $this->replacePasswordHash((string)$user['id'], password_hash($password, self::passwordAlgorithm()));
+
+        $rehash = null;
+        if (password_needs_rehash($verifiedHash, self::passwordAlgorithm())) {
+            $candidate = password_hash($password, self::passwordAlgorithm());
+            if (!is_string($candidate) || $candidate === '') {
+                throw new RuntimeException('Nije moguće sigurno obnoviti hash lozinke.');
+            }
+            $rehash = $candidate;
         }
-        $this->touchLogin((string)$user['id']);
-        $fresh = $this->findById((string)$user['id']);
-        return $fresh ? $this->publicUser($fresh) : null;
+
+        // Verification and session publication are two separate CPU/storage phases. Before
+        // returning an authenticated user, atomically prove the verified password generation
+        // is still current. This prevents an old password from winning a race with a reset.
+        $fresh = $this->completeAuthentication((string)$user['id'], $verifiedHash, $rehash);
+        return $this->publicUser($fresh);
     }
 
     public function updateProfile(string $id, string $name, string $email): array
@@ -151,14 +161,19 @@ final class UserStore
         if (!empty($user['deleting'])) {
             throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Lozinku nije moguće mijenjati.');
         }
-        if ($requireCurrent && !password_verify($currentPassword, (string)($user['password_hash'] ?? ''))) {
+        $expectedCurrentHash = (string)($user['password_hash'] ?? '');
+        if ($requireCurrent && !password_verify($currentPassword, $expectedCurrentHash)) {
             throw new RuntimeException('Trenutačna lozinka nije točna.');
         }
         $hash = password_hash($newPassword, self::passwordAlgorithm());
         if (!is_string($hash)) {
             throw new RuntimeException('Nije moguće sigurno spremiti novu lozinku.');
         }
-        $this->replacePasswordHash($id, $hash);
+
+        // Current-password verification happens outside the file lock because Argon2/bcrypt
+        // can be intentionally expensive. The write itself is compare-and-swap bound to the
+        // exact verified hash, so a concurrent password change invalidates this request.
+        $this->replacePasswordHash($id, $hash, $requireCurrent ? $expectedCurrentHash : null);
     }
 
     public function updateAdminFields(string $id, string $role, bool $active): array
@@ -288,31 +303,55 @@ final class UserStore
         return count(array_filter($this->store->read(), 'is_array'));
     }
 
-    private function touchLogin(string $id): void
+    private function completeAuthentication(string $id, string $verifiedHash, ?string $rehash): array
     {
-        $this->store->update(function (array $rows) use ($id): array {
+        $authenticated = null;
+        $this->store->update(function (array $rows) use ($id, $verifiedHash, $rehash, &$authenticated): array {
             foreach ($rows as &$row) {
-                if (is_array($row) && hash_equals((string)($row['id'] ?? ''), $id)) {
-                    $row['last_login_at'] = gmdate('c');
-                    $row['updated_at'] = gmdate('c');
-                    break;
+                if (!is_array($row) || !hash_equals((string)($row['id'] ?? ''), $id)) {
+                    continue;
                 }
+                if (empty($row['active']) || !empty($row['deleting'])) {
+                    throw new RuntimeException('Korisnički račun više nije aktivan.');
+                }
+                if (!hash_equals($verifiedHash, (string)($row['password_hash'] ?? ''))) {
+                    throw new RuntimeException('Lozinka je promijenjena tijekom prijave. Ponovi prijavu s aktualnom lozinkom.');
+                }
+                if ($rehash !== null) {
+                    if ($rehash === '') {
+                        throw new RuntimeException('Nije moguće sigurno obnoviti hash lozinke.');
+                    }
+                    $row['password_hash'] = $rehash;
+                    $row['session_version'] = (int)($row['session_version'] ?? 1) + 1;
+                }
+                $row['last_login_at'] = gmdate('c');
+                $row['updated_at'] = gmdate('c');
+                $authenticated = $row;
+                return $rows;
             }
             unset($row);
-            return $rows;
+            throw new RuntimeException('Korisnik nije pronađen.');
         });
+        if (!is_array($authenticated)) {
+            throw new RuntimeException('Prijava nije dovršena.');
+        }
+        return $authenticated;
     }
 
-    private function replacePasswordHash(string $id, string|false $hash): void
+    private function replacePasswordHash(string $id, string|false $hash, ?string $expectedCurrentHash = null): void
     {
         if (!is_string($hash) || $hash === '') {
             throw new RuntimeException('Nije moguće sigurno hashirati lozinku.');
         }
-        $this->store->update(function (array $rows) use ($id, $hash): array {
+        $this->store->update(function (array $rows) use ($id, $hash, $expectedCurrentHash): array {
             foreach ($rows as &$row) {
                 if (is_array($row) && hash_equals((string)($row['id'] ?? ''), $id)) {
                     if (!empty($row['deleting'])) {
                         throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Lozinku nije moguće mijenjati.');
+                    }
+                    if ($expectedCurrentHash !== null
+                        && !hash_equals($expectedCurrentHash, (string)($row['password_hash'] ?? ''))) {
+                        throw new RuntimeException('Lozinka je u međuvremenu promijenjena. Ponovi radnju s aktualnom lozinkom.');
                     }
                     $row['password_hash'] = $hash;
                     $row['session_version'] = (int)($row['session_version'] ?? 1) + 1;

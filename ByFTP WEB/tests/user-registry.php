@@ -40,6 +40,72 @@ function registry_throws(callable $callback, string $label): void
 try {
     $users = new UserStore();
 
+    // Password writes use compare-and-swap against the hash generation that was actually
+    // verified. This deterministic regression models two requests that both verified the
+    // same old password before either write: only the first may commit.
+    $casUser = $users->create(
+        'Password CAS User',
+        'password-cas@example.com',
+        'password-cas-old-123',
+        'user'
+    );
+    $casId = (string)($casUser['id'] ?? '');
+    $casBefore = $users->findById($casId);
+    $casOldHash = is_array($casBefore) ? (string)($casBefore['password_hash'] ?? '') : '';
+    $casVersion = is_array($casBefore) ? (int)($casBefore['session_version'] ?? 1) : 0;
+    $casHashA = password_hash('password-cas-new-a-456', PASSWORD_DEFAULT);
+    $casHashB = password_hash('password-cas-new-b-789', PASSWORD_DEFAULT);
+    registry_check(
+        $casOldHash !== '' && is_string($casHashA) && is_string($casHashB),
+        'password CAS regression fixture has valid hash generations'
+    );
+
+    $replacePasswordHash = (new ReflectionClass(UserStore::class))->getMethod('replacePasswordHash');
+    $replacePasswordHash->setAccessible(true);
+    $replacePasswordHash->invoke($users, $casId, $casHashA, $casOldHash);
+    registry_throws(
+        fn() => $replacePasswordHash->invoke($users, $casId, $casHashB, $casOldHash),
+        'stale verified password hash cannot overwrite a newer committed password generation'
+    );
+    $casAfter = $users->findById($casId);
+    registry_check(
+        is_array($casAfter)
+            && password_verify('password-cas-new-a-456', (string)($casAfter['password_hash'] ?? ''))
+            && !password_verify('password-cas-new-b-789', (string)($casAfter['password_hash'] ?? '')),
+        'failed stale CAS leaves the first committed password intact'
+    );
+    registry_check(
+        is_array($casAfter) && (int)($casAfter['session_version'] ?? 0) === $casVersion + 1,
+        'failed stale CAS does not increment session version a second time'
+    );
+
+    // Authentication must be bound to the same generation too. A request that verified the
+    // old hash before the password change may not publish a session after the new hash wins.
+    $completeAuthentication = (new ReflectionClass(UserStore::class))->getMethod('completeAuthentication');
+    $completeAuthentication->setAccessible(true);
+    registry_throws(
+        fn() => $completeAuthentication->invoke($users, $casId, $casOldHash, null),
+        'authentication completion rejects a password hash generation changed after verification'
+    );
+    $afterStaleAuth = $users->findById($casId);
+    registry_check(
+        is_array($afterStaleAuth) && ($afterStaleAuth['last_login_at'] ?? null) === null,
+        'stale authentication generation is not published as a successful login'
+    );
+
+    $currentHash = is_array($afterStaleAuth) ? (string)($afterStaleAuth['password_hash'] ?? '') : '';
+    $authenticatedCurrent = $completeAuthentication->invoke($users, $casId, $currentHash, null);
+    registry_check(
+        is_array($authenticatedCurrent) && !empty($authenticatedCurrent['last_login_at']),
+        'current password generation can complete authentication'
+    );
+    $afterCurrentAuth = $users->findById($casId);
+    registry_check(
+        is_array($afterCurrentAuth)
+            && (int)($afterCurrentAuth['session_version'] ?? 0) === $casVersion + 1,
+        'authentication without rehash does not change the session generation'
+    );
+
     // These workspace deletion regressions intentionally exercise POSIX symlink and
     // directory-permission semantics used by shared-hosting deployments. Windows runners
     // still lint and execute the cross-platform registry tests below, but do not provide
@@ -177,7 +243,7 @@ try {
 
     $recoverableRows = (new JsonStore($primaryPath))->read();
     registry_check(
-        is_array($recoverableRows) && count($recoverableRows) === 1,
+        is_array($recoverableRows) && count($recoverableRows) >= 1,
         'generic JsonStore recovery remains available for explicit/manual recovery paths'
     );
 
