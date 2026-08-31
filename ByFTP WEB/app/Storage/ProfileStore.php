@@ -15,7 +15,10 @@ final class ProfileStore
     public function __construct(string $userId)
     {
         UserWorkspace::ensure($userId);
-        $this->store = new JsonStore(UserWorkspace::file($userId, 'profiles.json'));
+        // Saved connection profiles contain encrypted passwords/private keys and explicit
+        // user deletion intent. Keep profiles.json.bak for manual recovery only; runtime
+        // reads must never resurrect a deleted credential generation automatically.
+        $this->store = new JsonStore(UserWorkspace::file($userId, 'profiles.json'), false);
         $this->crypto = new Crypto();
     }
 

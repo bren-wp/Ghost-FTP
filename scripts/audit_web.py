@@ -100,6 +100,10 @@ def run_runtime_checks() -> tuple[int, int]:
         [php, str(WEB / "tests" / "rate-limiter.php")],
         label="ByFTP WEB atomic rate-limiter tests",
     )
+    run_checked(
+        [php, str(WEB / "tests" / "profile-recovery.php")],
+        label="ByFTP WEB deleted-profile recovery tests",
+    )
     for path in js_files:
         run_checked([node, "--check", str(path)], label=f"JavaScript syntax: {path.relative_to(ROOT)}")
     run_checked([node, "--check", str(WEB / "service-worker.js")], label="JavaScript syntax: ByFTP WEB/service-worker.js")
@@ -134,7 +138,8 @@ def main() -> int:
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
         "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
-        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/tests/profile-recovery.php",
+        "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -183,6 +188,7 @@ def main() -> int:
         "preg_match('/^[0-9]{1,5}$/', $rawPort)",
         "preg_match('/[\\r\\n\\x00]/', $username)",
         "PathGuard::normalizeRelative($basePath)",
+        "new JsonStore(UserWorkspace::file($userId, 'profiles.json'), false)",
     ):
         require(profile_store, marker, "ByFTP WEB/app/Storage/ProfileStore.php")
     if "trim((string)($input['host']" in profile_store:
@@ -339,6 +345,15 @@ def main() -> int:
     ):
         require(limiter_tests, marker, "ByFTP WEB/tests/rate-limiter.php")
 
+    profile_recovery_tests = read("ByFTP WEB/tests/profile-recovery.php")
+    for marker in (
+        "backup intentionally contains the deleted encrypted profile",
+        "fails closed instead of resurrecting deleted credentials from stale backup",
+        "generic JsonStore still exposes profile backup for explicit operator recovery",
+        "fails closed when only stale profiles.json.bak remains",
+    ):
+        require(profile_recovery_tests, marker, "ByFTP WEB/tests/profile-recovery.php")
+
     allowed_storage = {
         "ByFTP WEB/storage/.htaccess",
         "ByFTP WEB/storage/logs/.gitkeep",
@@ -368,6 +383,7 @@ def main() -> int:
     print("WEB_UNIT_TESTS=PASS")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
+    print("WEB_PROFILE_CREDENTIAL_RECOVERY=FAIL_CLOSED")
     print("WEB_LOGIN_RATE_LIMIT_ATTEMPTS=ATOMIC_PRE_AUTH")
     print("WEB_LOGIN_RATE_LIMIT_ORDER=IP_THEN_ACCOUNT_SHORT_CIRCUIT")
     print("WEB_POST_AUTH_LIMITER_RESET=FAIL_SOFT")
