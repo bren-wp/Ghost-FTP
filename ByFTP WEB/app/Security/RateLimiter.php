@@ -24,6 +24,36 @@ final class RateLimiter
         return new JsonStore($this->path($key), false);
     }
 
+    /**
+     * Atomically reserve one authentication/registration attempt.
+     *
+     * Returns true while the caller is still within the configured limit and false once
+     * the limit was already exhausted. JsonStore::update() holds the exclusive store lock
+     * across both the threshold check and increment, so concurrent requests cannot all
+     * observe the same pre-increment count.
+     */
+    public function consume(string $key): bool
+    {
+        $allowed = false;
+        $now = time();
+        $this->store($key)->update(function (array $data) use (&$allowed, $now): array {
+            if ((int)($data['first'] ?? 0) + $this->window < $now) {
+                $data = ['first' => $now, 'count' => 0];
+            }
+            $data['first'] = (int)($data['first'] ?? $now);
+            $count = max(0, (int)($data['count'] ?? 0));
+            if ($count >= $this->maxAttempts) {
+                $allowed = false;
+                $data['count'] = $count;
+                return $data;
+            }
+            $data['count'] = $count + 1;
+            $allowed = true;
+            return $data;
+        }, ['first' => $now, 'count' => 0]);
+        return $allowed;
+    }
+
     public function blocked(string $key): bool
     {
         $data = $this->store($key)->read(['first' => time(), 'count' => 0]);
