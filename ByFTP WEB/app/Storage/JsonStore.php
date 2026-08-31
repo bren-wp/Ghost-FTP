@@ -11,11 +11,14 @@ use RuntimeException;
  * - adjacent flock file coordinates readers/writers
  * - temp + rename prevents partial primary writes
  * - one last-known-good .bak generation improves recovery from external corruption
+ * - security-sensitive stores may disable automatic backup recovery and fail closed
  */
 final class JsonStore
 {
-    public function __construct(private readonly string $path)
-    {
+    public function __construct(
+        private readonly string $path,
+        private readonly bool $recoverFromBackup = true
+    ) {
     }
 
     public function read(array $fallback = []): array
@@ -88,6 +91,9 @@ final class JsonStore
     {
         if (!is_file($this->path)) {
             if (is_file($this->backupPath())) {
+                if (!$this->recoverFromBackup) {
+                    throw new RuntimeException('Primarna JSON datoteka nedostaje. Automatski oporavak iz sigurnosne kopije nije dopušten za ove podatke.');
+                }
                 return [$this->decodeFile($this->backupPath()), true];
             }
             return [$fallback, false];
@@ -96,7 +102,7 @@ final class JsonStore
         try {
             return [$this->decodeFile($this->path), false];
         } catch (RuntimeException $primaryError) {
-            if (!is_file($this->backupPath())) {
+            if (!$this->recoverFromBackup || !is_file($this->backupPath())) {
                 throw $primaryError;
             }
             try {

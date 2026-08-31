@@ -82,6 +82,10 @@ def run_runtime_checks() -> tuple[int, int]:
     for path in php_files:
         run_checked([php, "-l", str(path)], label=f"PHP syntax: {path.relative_to(ROOT)}")
     run_checked([php, str(WEB / "tests" / "unit.php")], label="ByFTP WEB unit tests")
+    run_checked(
+        [php, str(WEB / "tests" / "user-registry.php")],
+        label="ByFTP WEB user registry fail-closed tests",
+    )
     for path in js_files:
         run_checked([node, "--check", str(path)], label=f"JavaScript syntax: {path.relative_to(ROOT)}")
     run_checked([node, "--check", str(WEB / "service-worker.js")], label="JavaScript syntax: ByFTP WEB/service-worker.js")
@@ -114,7 +118,7 @@ def main() -> int:
         "ByFTP WEB/assets/js/pwa.js", "ByFTP WEB/assets/js/settings.js",
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
-        "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -168,6 +172,17 @@ def main() -> int:
     if "trim((string)($input['host']" in profile_store:
         fail("profile host is normalized before fail-closed validation")
 
+    json_store = read("ByFTP WEB/app/Storage/JsonStore.php")
+    require(json_store, "private readonly bool $recoverFromBackup = true", "ByFTP WEB/app/Storage/JsonStore.php")
+    require(json_store, "if (!$this->recoverFromBackup)", "ByFTP WEB/app/Storage/JsonStore.php")
+
+    user_store = read("ByFTP WEB/app/Storage/UserStore.php")
+    require(
+        user_store,
+        "new JsonStore(BYFTP_STORAGE . '/users.json', false)",
+        "ByFTP WEB/app/Storage/UserStore.php",
+    )
+
     host_guard = read("ByFTP WEB/app/Security/HostGuard.php")
     for marker in ("connectionTargets", "FILTER_FLAG_NO_PRIV_RANGE", "FILTER_FLAG_NO_RES_RANGE", "localhost", "dns_get_record"):
         require(host_guard, marker, "ByFTP WEB/app/Security/HostGuard.php")
@@ -215,6 +230,15 @@ def main() -> int:
     for marker in ("22junk", "profile traversal rejected", "host edge whitespace rejected", "credential protocol controls rejected"):
         require(tests, marker, "ByFTP WEB/tests/unit.php")
 
+    registry_tests = read("ByFTP WEB/tests/user-registry.php")
+    for marker in (
+        "old-password-123",
+        "{corrupt-user-registry",
+        "fails closed instead of authenticating from stale backup",
+        "generic JsonStore recovery remains available",
+    ):
+        require(registry_tests, marker, "ByFTP WEB/tests/user-registry.php")
+
     allowed_storage = {
         "ByFTP WEB/storage/.htaccess",
         "ByFTP WEB/storage/logs/.gitkeep",
@@ -242,6 +266,7 @@ def main() -> int:
     print(f"WEB_PHP_SYNTAX_FILES={php_count}")
     print(f"WEB_JS_SYNTAX_FILES={js_count}")
     print("WEB_UNIT_TESTS=PASS")
+    print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")
     print("WEB_PWA_AUTHENTICATED_CACHE=BLOCKED")
     print("WEB_REMOTE_PATHS=FAIL_CLOSED")
