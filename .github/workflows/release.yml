@@ -105,7 +105,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
-          gradle-version: '9.7.0'
+          gradle-version: '9.7.1'
           cache-disabled: true
       - name: Verify Android SDK platform
         shell: bash
@@ -203,6 +203,7 @@ jobs:
           GO_TELEMETRY=$((go telemetry).Trim())
           BUILD_OS=windows
           BUILD_ARCH=x64,x86
+          WINDOWS_UNINSTALLER=none
           GITHUB_RUN_ID=$env:GITHUB_RUN_ID
           GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
           "@ | Set-Content 'dist\BUILD-METADATA-WINDOWS.txt' -Encoding ascii
@@ -422,6 +423,7 @@ jobs:
           COMMIT=$env:GITHUB_SHA
           SOURCE_REF=$env:GITHUB_REF
           WINDOWS=x64,x86
+          WINDOWS_UNINSTALLER=none
           LINUX=amd64,arm64,i386
           MACOS=universal-amd64-arm64
           ANDROID=debug-signed,release-unsigned
@@ -484,7 +486,7 @@ jobs:
           @"
           # ByFTP.Windows $env:VERSION
 
-          Official ByFTP Windows distribution package for x64 and x86. It contains only public Windows builds and verified release metadata.
+          Official ByFTP Windows distribution package for x64 and x86. It contains only public Windows builds and verified release metadata. The Setup payload does not contain a standalone uninstaller executable.
           "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
           @"
           <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><PackageId>ByFTP.Windows</PackageId><Version>$env:VERSION</Version><Authors>ByFTP</Authors><Company>ByFTP</Company><Description>ByFTP Windows x64 and x86 FTP/FTPS/SFTP distribution package.</Description><PackageTags>byftp;ftp;ftps;sftp;windows;privacy</PackageTags><PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl><RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl><RepositoryType>git</RepositoryType><PackageLicenseFile>LICENSE</PackageLicenseFile><PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance><SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup><ItemGroup><None Include="assets\**\*" Pack="true" PackagePath="tools\" /><None Include="PACKAGE-README.md" Pack="true" PackagePath="\" /><None Include="..\LICENSE" Pack="true" PackagePath="\" /><None Include="..\docs\*.md" Pack="true" PackagePath="docs\" /></ItemGroup></Project>
