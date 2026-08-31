@@ -96,6 +96,10 @@ def run_runtime_checks() -> tuple[int, int]:
         [php, str(WEB / "tests" / "config-security.php")],
         label="ByFTP WEB config fail-closed tests",
     )
+    run_checked(
+        [php, str(WEB / "tests" / "rate-limiter.php")],
+        label="ByFTP WEB atomic rate-limiter tests",
+    )
     for path in js_files:
         run_checked([node, "--check", str(path)], label=f"JavaScript syntax: {path.relative_to(ROOT)}")
     run_checked([node, "--check", str(WEB / "service-worker.js")], label="JavaScript syntax: ByFTP WEB/service-worker.js")
@@ -121,6 +125,7 @@ def main() -> int:
         "ByFTP WEB/app/Remote/FtpClient.php", "ByFTP WEB/app/Remote/SftpClient.php",
         "ByFTP WEB/app/Remote/PathGuard.php", "ByFTP WEB/app/Security/HostGuard.php",
         "ByFTP WEB/app/Security/Auth.php", "ByFTP WEB/app/Security/Crypto.php",
+        "ByFTP WEB/app/Security/RateLimiter.php",
         "ByFTP WEB/app/Storage/JsonStore.php", "ByFTP WEB/app/Storage/ProfileStore.php",
         "ByFTP WEB/app/Storage/UserStore.php", "ByFTP WEB/app/Storage/UserWorkspace.php",
         "ByFTP WEB/assets/css/app.css", "ByFTP WEB/assets/css/brendigo.css",
@@ -129,7 +134,7 @@ def main() -> int:
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
         "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
-        "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -203,6 +208,15 @@ def main() -> int:
     ):
         require(helpers, marker, "ByFTP WEB/app/helpers.php")
 
+    rate_limiter = read("ByFTP WEB/app/Security/RateLimiter.php")
+    for marker in (
+        "public function consume(string $key): bool",
+        "$this->store($key)->update(function (array $data)",
+        "if ($count >= $this->maxAttempts)",
+        "$data['count'] = $count + 1;",
+    ):
+        require(rate_limiter, marker, "ByFTP WEB/app/Security/RateLimiter.php")
+
     host_guard = read("ByFTP WEB/app/Security/HostGuard.php")
     for marker in ("connectionTargets", "FILTER_FLAG_NO_PRIV_RANGE", "FILTER_FLAG_NO_RES_RANGE", "localhost", "dns_get_record"):
         require(host_guard, marker, "ByFTP WEB/app/Security/HostGuard.php")
@@ -227,6 +241,9 @@ def main() -> int:
     for marker in (
         "function byftp_clear_login_rate_limiters(",
         "auth.rate_limit_clear_failed",
+        "$ipLimiter->consume($ipKey)",
+        "$accountLimiter->consume($accountKey)",
+        "auth.rate_limit_consume_failed",
         "if (!Auth::attempt($email, $password))",
         "$migrationFailed = false;",
         "if (!$migrationFailed)",
@@ -234,8 +251,20 @@ def main() -> int:
         require(login, marker, "ByFTP WEB/login.php")
     if "$accountLimiter->clear(" in login or "$ipLimiter->clear(" in login:
         fail("login performs direct post-auth limiter cleanup outside the fail-soft helper")
+    if "->blocked(" in login or "->hit(" in login:
+        fail("login uses split rate-limit check/hit operations instead of atomic pre-auth consume")
     if login.count("Auth::logout();") != 1:
         fail("login must invalidate an authenticated session only for the actual legacy migration failure path")
+
+    register = read("ByFTP WEB/register.php")
+    for marker in (
+        "$limiter->consume($key)",
+        "auth.registration_rate_limit_consume_failed",
+        "auth.registration_blocked",
+    ):
+        require(register, marker, "ByFTP WEB/register.php")
+    if "->blocked(" in register or "->hit(" in register:
+        fail("registration uses split rate-limit check/hit operations instead of atomic consume")
 
     setup = read("ByFTP WEB/setup.php")
     for marker in (
@@ -291,6 +320,15 @@ def main() -> int:
     ):
         require(config_tests, marker, "ByFTP WEB/tests/config-security.php")
 
+    limiter_tests = read("ByFTP WEB/tests/rate-limiter.php")
+    for marker in (
+        "first attempt is atomically admitted",
+        "attempt after configured budget is atomically rejected",
+        "rejected consume does not inflate persisted attempt count",
+        "atomic consume fails closed when primary rate-limit state is corrupt",
+    ):
+        require(limiter_tests, marker, "ByFTP WEB/tests/rate-limiter.php")
+
     allowed_storage = {
         "ByFTP WEB/storage/.htaccess",
         "ByFTP WEB/storage/logs/.gitkeep",
@@ -320,6 +358,7 @@ def main() -> int:
     print("WEB_UNIT_TESTS=PASS")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
+    print("WEB_LOGIN_RATE_LIMIT_ATTEMPTS=ATOMIC_PRE_AUTH")
     print("WEB_POST_AUTH_LIMITER_RESET=FAIL_SOFT")
     print("WEB_SUBPROCESS_TEXT_ENCODING=UTF8_REPLACE")
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")

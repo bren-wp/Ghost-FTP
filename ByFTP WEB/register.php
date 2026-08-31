@@ -21,20 +21,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirm = (string)($_POST['confirm'] ?? '');
     if (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
         $error = 'Sigurnosni token nije valjan.';
-    } elseif ($limiter->blocked($key)) {
-        $error = 'Previše registracija s ove adrese. Pokušaj ponovno kasnije.';
     } elseif ($password !== $confirm) {
         $error = 'Lozinke se ne podudaraju.';
     } else {
+        $attemptAllowed = false;
         try {
-            // Count every accepted registration attempt, including validation/duplicate failures,
-            // so password hashing and account enumeration cannot be abused without limits.
-            $limiter->hit($key);
-            $user = (new UserStore())->create($name, $email, $password, 'user');
-            AppLogger::event('auth.register', ['user_id' => $user['id']]);
-            byftp_redirect('login', ['registered' => 1]);
+            // Reserve the attempt before validation/hash work. The limiter performs the
+            // threshold check and increment under one exclusive JsonStore lock.
+            $attemptAllowed = $limiter->consume($key);
         } catch (Throwable $e) {
-            $error = $e->getMessage();
+            AppLogger::event('auth.registration_rate_limit_consume_failed', [
+                'error' => byftp_truncate($e->getMessage(), 300),
+            ]);
+            $error = 'Sigurnosna zaštita registracije trenutačno nije dostupna. Pokušaj ponovno kasnije.';
+        }
+
+        if ($error === '' && !$attemptAllowed) {
+            $error = 'Previše registracija s ove adrese. Pokušaj ponovno kasnije.';
+            AppLogger::event('auth.registration_blocked');
+        } elseif ($error === '' && $attemptAllowed) {
+            try {
+                // The attempt was already atomically counted, so validation/duplicate
+                // failures cannot be retried without consuming the configured budget.
+                $user = (new UserStore())->create($name, $email, $password, 'user');
+                AppLogger::event('auth.register', ['user_id' => $user['id']]);
+                byftp_redirect('login', ['registered' => 1]);
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
         }
     }
 }
