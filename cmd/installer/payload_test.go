@@ -12,11 +12,11 @@ import (
 
 type testPayloadFile struct{ name, body string }
 
-func makePayload(t *testing.T, files []testPayloadFile, includeManifest bool) []byte {
+func makePayload(t *testing.T, files []testPayloadFile, includeManifest bool, schema int) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
-	manifest := payloadManifest{Schema: 1}
+	manifest := payloadManifest{Schema: schema}
 	for _, item := range files {
 		w, err := zw.Create(item.name)
 		if err != nil {
@@ -25,7 +25,7 @@ func makePayload(t *testing.T, files []testPayloadFile, includeManifest bool) []
 		if _, err := w.Write([]byte(item.body)); err != nil {
 			t.Fatal(err)
 		}
-		if item.name == "ByFTP.exe" || item.name == "Uninstall.exe" {
+		if item.name == "ByFTP.exe" {
 			digest := fmt.Sprintf("%x", sha256.Sum256([]byte(item.body)))
 			manifest.Files = append(manifest.Files, struct {
 				Name   string `json:"name"`
@@ -49,43 +49,58 @@ func makePayload(t *testing.T, files []testPayloadFile, includeManifest bool) []
 	return buf.Bytes()
 }
 
-func TestParsePayloadAcceptsExactlyRequiredFilesAndManifest(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "app"}, {"Uninstall.exe", "un"}}, true)
-	app, un, err := parsePayload(data)
+func TestParsePayloadAcceptsAppOnlySchemaTwo(t *testing.T) {
+	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "app"}}, true, 2)
+	app, err := parsePayload(data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(app) != "app" || string(un) != "un" {
-		t.Fatalf("unexpected payload: app=%q un=%q", app, un)
+	if string(app) != "app" {
+		t.Fatalf("unexpected payload app=%q", app)
 	}
 }
 
 func TestParsePayloadRejectsDuplicateRequiredFile(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"ByFTP.exe", "b"}, {"Uninstall.exe", "u"}}, true)
-	_, _, err := parsePayload(data)
+	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"ByFTP.exe", "b"}}, true, 2)
+	_, err := parsePayload(data)
 	if err == nil || !strings.Contains(err.Error(), "duplicate") {
 		t.Fatalf("expected duplicate rejection, got %v", err)
 	}
 }
 
+func TestParsePayloadRejectsLegacyUninstallerEntry(t *testing.T) {
+	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"Uninstall.exe", "legacy"}}, true, 2)
+	_, err := parsePayload(data)
+	if err == nil || !strings.Contains(err.Error(), "unexpected") {
+		t.Fatalf("expected legacy uninstaller entry rejection, got %v", err)
+	}
+}
+
 func TestParsePayloadRejectsUnexpectedFile(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"Uninstall.exe", "u"}, {"extra.dll", "x"}}, true)
-	_, _, err := parsePayload(data)
+	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"extra.dll", "x"}}, true, 2)
+	_, err := parsePayload(data)
 	if err == nil || !strings.Contains(err.Error(), "unexpected") {
 		t.Fatalf("expected unexpected-file rejection, got %v", err)
 	}
 }
 
 func TestParsePayloadRequiresManifest(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"Uninstall.exe", "u"}}, false)
-	if _, _, err := parsePayload(data); err == nil {
+	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}}, false, 2)
+	if _, err := parsePayload(data); err == nil {
 		t.Fatal("expected missing manifest to be rejected")
 	}
 }
 
+func TestParsePayloadRejectsLegacySchemaOne(t *testing.T) {
+	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}}, true, 1)
+	if _, err := parsePayload(data); err == nil {
+		t.Fatal("expected legacy payload schema to be rejected")
+	}
+}
+
 func TestValidatePayloadManifestRejectsTamperedHash(t *testing.T) {
-	files := map[string][]byte{"ByFTP.exe": []byte("app"), "Uninstall.exe": []byte("un")}
-	manifest := []byte(`{"schema":1,"files":[{"name":"ByFTP.exe","size":3,"sha256":"00"},{"name":"Uninstall.exe","size":2,"sha256":"00"}]}`)
+	files := map[string][]byte{"ByFTP.exe": []byte("app")}
+	manifest := []byte(`{"schema":2,"files":[{"name":"ByFTP.exe","size":3,"sha256":"00"}]}`)
 	if err := validatePayloadManifest(manifest, files); err == nil {
 		t.Fatal("expected tampered manifest to be rejected")
 	}
