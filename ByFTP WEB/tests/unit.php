@@ -6,12 +6,18 @@ function byftp_truncate(string $value, int $length): string
     return substr($value, 0, $length);
 }
 
+$testStorage = sys_get_temp_dir() . '/byftp-web-unit-' . bin2hex(random_bytes(6));
+define('BYFTP_STORAGE', $testStorage);
+
 require __DIR__ . '/../app/Remote/PathGuard.php';
 require __DIR__ . '/../app/Security/HostGuard.php';
+require __DIR__ . '/../app/Storage/JsonStore.php';
+require __DIR__ . '/../app/Security/RateLimiter.php';
 require __DIR__ . '/../app/Storage/ProfileStore.php';
 
 use ByFTP\Remote\PathGuard;
 use ByFTP\Security\HostGuard;
+use ByFTP\Security\RateLimiter;
 use ByFTP\Storage\ProfileStore;
 
 $passed = 0;
@@ -69,6 +75,25 @@ $bad = $base; $bad['host_fingerprint'] = ' SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 throws(fn() => $method->invoke($store, $bad), 'fingerprint edge whitespace rejected');
 $bad = $base; $bad['username'] = "user\r\nnext";
 throws(fn() => $method->invoke($store, $bad), 'credential protocol controls rejected');
+
+try {
+    $limiter = new RateLimiter(1, 3600);
+    $rateKey = 'login:203.0.113.10';
+    $limiter->hit($rateKey);
+    $limiter->hit($rateKey); // Creates a last-known-good backup containing stale hits.
+    check($limiter->blocked($rateKey), 'rate limiter blocks at threshold');
+    $limiter->clear($rateKey);
+    check(!$limiter->blocked($rateKey), 'rate limiter clear removes stale backup hits');
+} finally {
+    $logDir = BYFTP_STORAGE . '/logs';
+    foreach (glob($logDir . '/*') ?: [] as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
+    @rmdir($logDir);
+    @rmdir(BYFTP_STORAGE);
+}
 
 if ($failed > 0) {
     fwrite(STDERR, "WEB_UNIT_TESTS=FAIL passed={$passed} failed={$failed}\n");

@@ -40,7 +40,10 @@ final class RateLimiter
 
     public function clear(string $key): void
     {
-        @unlink($this->path($key));
-        @unlink($this->path($key) . '.lock');
+        // Reset through JsonStore instead of unlinking the primary and lock files.
+        // JsonStore keeps a last-known-good .bak generation; deleting only the
+        // primary would make the next read restore stale failed-login attempts.
+        // Reusing the same lock file also preserves cross-request serialization.
+        (new JsonStore($this->path($key)))->write(['first' => time(), 'count' => 0]);
     }
 }
