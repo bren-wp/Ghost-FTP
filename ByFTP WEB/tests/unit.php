@@ -6,6 +6,9 @@ function byftp_truncate(string $value, int $length): string
     return substr($value, 0, $length);
 }
 
+$testStorage = sys_get_temp_dir() . '/byftp-web-unit-' . bin2hex(random_bytes(6));
+define('BYFTP_STORAGE', $testStorage);
+
 require __DIR__ . '/../app/Remote/PathGuard.php';
 require __DIR__ . '/../app/Security/HostGuard.php';
 require __DIR__ . '/../app/Storage/JsonStore.php';
@@ -73,12 +76,8 @@ throws(fn() => $method->invoke($store, $bad), 'fingerprint edge whitespace rejec
 $bad = $base; $bad['username'] = "user\r\nnext";
 throws(fn() => $method->invoke($store, $bad), 'credential protocol controls rejected');
 
-$rateRoot = sys_get_temp_dir() . '/byftp-rate-' . bin2hex(random_bytes(6));
-if (!mkdir($rateRoot, 0700, true) && !is_dir($rateRoot)) {
-    throw new RuntimeException('Unable to create rate limiter test directory.');
-}
 try {
-    $limiter = new RateLimiter($rateRoot, 1, 3600);
+    $limiter = new RateLimiter(1, 3600);
     $rateKey = 'login:203.0.113.10';
     $limiter->hit($rateKey);
     $limiter->hit($rateKey); // Creates a last-known-good backup containing stale hits.
@@ -86,12 +85,14 @@ try {
     $limiter->clear($rateKey);
     check(!$limiter->blocked($rateKey), 'rate limiter clear removes stale backup hits');
 } finally {
-    foreach (glob($rateRoot . '/*') ?: [] as $path) {
+    $logDir = BYFTP_STORAGE . '/logs';
+    foreach (glob($logDir . '/*') ?: [] as $path) {
         if (is_file($path)) {
             @unlink($path);
         }
     }
-    @rmdir($rateRoot);
+    @rmdir($logDir);
+    @rmdir(BYFTP_STORAGE);
 }
 
 if ($failed > 0) {
