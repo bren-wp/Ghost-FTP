@@ -16,9 +16,17 @@ final class RateLimiter
         return BYFTP_STORAGE . '/logs/rl-' . hash('sha256', $key) . '.json';
     }
 
+    private function store(string $key): JsonStore
+    {
+        // Login/registration attempt counters are security state. Never roll them back
+        // to an older .bak generation after primary corruption or loss because that can
+        // reduce the observed attempt count and weaken brute-force protection.
+        return new JsonStore($this->path($key), false);
+    }
+
     public function blocked(string $key): bool
     {
-        $data = (new JsonStore($this->path($key)))->read(['first' => time(), 'count' => 0]);
+        $data = $this->store($key)->read(['first' => time(), 'count' => 0]);
         if ((int)($data['first'] ?? 0) + $this->window < time()) {
             $this->clear($key);
             return false;
@@ -28,7 +36,7 @@ final class RateLimiter
 
     public function hit(string $key): void
     {
-        (new JsonStore($this->path($key)))->update(function (array $data): array {
+        $this->store($key)->update(function (array $data): array {
             if ((int)($data['first'] ?? 0) + $this->window < time()) {
                 $data = ['first' => time(), 'count' => 0];
             }
@@ -44,6 +52,6 @@ final class RateLimiter
         // JsonStore keeps a last-known-good .bak generation; deleting only the
         // primary would make the next read restore stale failed-login attempts.
         // Reusing the same lock file also preserves cross-request serialization.
-        (new JsonStore($this->path($key)))->write(['first' => time(), 'count' => 0]);
+        $this->store($key)->write(['first' => time(), 'count' => 0]);
     }
 }
