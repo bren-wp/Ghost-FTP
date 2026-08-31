@@ -56,6 +56,10 @@ jobs:
         run: python scripts/audit_localization.py
       - name: Verify version consistency
         run: python scripts/audit_version.py
+      - name: Verify repository hygiene
+        run: python scripts/audit_repository.py
+      - name: Verify ByFTP WEB
+        run: python scripts/audit_web.py
       - name: Verify Android invariants
         run: python scripts/audit_android.py
       - name: Verify iOS invariants
