@@ -7,7 +7,10 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
+import audit_web
 from verify_bundle import MANIFEST, required_members, verify_bundle
 
 VERSION = "9.8.7"
@@ -34,6 +37,36 @@ def write_bundle(path: Path, members: dict[str, bytes], *, manifest_override: st
         for name, data in members.items():
             zf.writestr(name, data)
         zf.writestr(MANIFEST, manifest.encode("ascii"))
+
+
+class AuditWebSubprocessTests(unittest.TestCase):
+    def test_run_checked_pins_utf8_decoding(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+            captured.update(kwargs)
+            return SimpleNamespace(returncode=0, stdout="Greška: čćžšđ")
+
+        with mock.patch.object(audit_web.subprocess, "run", side_effect=fake_run):
+            audit_web.run_checked(["fake-command"], label="UTF-8 regression")
+
+        self.assertEqual(captured.get("encoding"), "utf-8")
+        self.assertEqual(captured.get("errors"), "replace")
+        self.assertIs(captured.get("text"), True)
+
+    def test_tracked_files_pins_utf8_decoding(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_check_output(command: list[str], **kwargs: object) -> str:
+            captured.update(kwargs)
+            return "ByFTP WEB/README.md\n"
+
+        with mock.patch.object(audit_web.subprocess, "check_output", side_effect=fake_check_output):
+            self.assertEqual(audit_web.tracked_web_files(), ["ByFTP WEB/README.md"])
+
+        self.assertEqual(captured.get("encoding"), "utf-8")
+        self.assertEqual(captured.get("errors"), "replace")
+        self.assertIs(captured.get("text"), True)
 
 
 class VerifyBundleTests(unittest.TestCase):
