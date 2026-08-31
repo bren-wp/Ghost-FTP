@@ -405,8 +405,18 @@ final class RemoteOperations
             @unlink($tmp);
             throw $e;
         }
-        $zip->close();
-        foreach ($temps as $temp) @unlink($temp);
+        try {
+            $closed = $zip->close();
+        } catch (\Throwable $e) {
+            @unlink($tmp);
+            throw new RuntimeException('Nije moguće dovršiti ZIP arhivu.', 0, $e);
+        } finally {
+            foreach ($temps as $temp) @unlink($temp);
+        }
+        if (!$closed) {
+            @unlink($tmp);
+            throw new RuntimeException('Nije moguće dovršiti ZIP arhivu.');
+        }
         return $tmp;
     }
 

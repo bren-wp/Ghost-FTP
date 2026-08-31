@@ -182,6 +182,16 @@ def main() -> int:
     if "str_replace('\\\\', '/', $path)" in path_guard:
         fail("web path guard rewrites unsafe backslashes instead of rejecting them")
 
+    remote_operations = read("ByFTP WEB/app/Operations/RemoteOperations.php")
+    zip_finalization = re.search(
+        r"\$closed = \$zip->close\(\);.*?finally\s*\{\s*foreach \(\$temps as \$temp\) @unlink\(\$temp\);\s*\}\s*"
+        r"if \(!\$closed\)\s*\{\s*@unlink\(\$tmp\);\s*throw new RuntimeException\('Nije moguće dovršiti ZIP arhivu\.'\);",
+        remote_operations,
+        re.DOTALL,
+    )
+    if zip_finalization is None:
+        fail("WEB ZIP build does not fail closed when ZipArchive::close() fails")
+
     profile_store = read("ByFTP WEB/app/Storage/ProfileStore.php")
     for marker in (
         "$rawHost !== trim($rawHost)",
@@ -391,6 +401,7 @@ def main() -> int:
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")
     print("WEB_PWA_AUTHENTICATED_CACHE=BLOCKED")
     print("WEB_REMOTE_PATHS=FAIL_CLOSED")
+    print("WEB_ZIP_FINALIZATION=FAIL_CLOSED")
     print("WEB_PRIVATE_HOSTS=BLOCKED_BY_DEFAULT")
     print("WEB_CREDENTIAL_LIFETIME=POST_AUTH_CLEARED")
     print("WEB_SETUP_FAILED_TRANSACTION_ARTIFACTS=CLEANED")
