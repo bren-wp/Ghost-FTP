@@ -339,12 +339,16 @@ final class RemoteOperations
             if ($zip->open($tmp) !== true) throw new RuntimeException('ZIP arhivu nije moguće otvoriti.');
             $files = 0;
             $bytes = 0;
+            $plan = [];
             try {
                 if ($zip->numFiles > self::MAX_ARCHIVE_ITEMS) throw new RuntimeException('ZIP sadrži previše stavki.');
+
+                // Validate the complete archive before creating directories or uploading files.
                 for ($i = 0; $i < $zip->numFiles; $i++) {
                     $stat = $zip->statIndex($i);
                     if (!is_array($stat)) continue;
-                    $name = str_replace('\\', '/', (string)($stat['name'] ?? ''));
+                    $entryName = (string)($stat['name'] ?? '');
+                    $name = str_replace('\\', '/', $entryName);
                     if ($name === '' || str_starts_with($name, '/') || preg_match('/^[A-Za-z]:\//', $name)) throw new RuntimeException('ZIP sadrži nesigurnu apsolutnu putanju.');
                     $parts = explode('/', rtrim($name, '/'));
                     foreach ($parts as $part) {
@@ -355,13 +359,23 @@ final class RemoteOperations
                     if ($bytes > self::MAX_ARCHIVE_BYTES) throw new RuntimeException('ZIP prelazi sigurnosni limit od 512 MiB.');
                     $remote = $destination;
                     foreach ($parts as $part) $remote = PathGuard::child($remote, $part);
-                    if (str_ends_with($name, '/')) {
+                    $plan[] = [
+                        'name' => $entryName,
+                        'remote' => $remote,
+                        'directory' => str_ends_with($name, '/'),
+                    ];
+                }
+
+                // Only a fully validated archive is allowed to mutate remote state.
+                foreach ($plan as $row) {
+                    $remote = (string)$row['remote'];
+                    if (!empty($row['directory'])) {
                         $this->ensureDirectory($remote);
                         continue;
                     }
                     $parent = PathGuard::parent($remote);
                     $this->ensureDirectory($parent);
-                    $stream = $zip->getStream((string)$stat['name']);
+                    $stream = $zip->getStream((string)$row['name']);
                     if (!is_resource($stream)) throw new RuntimeException('ZIP stavku nije moguće pročitati.');
                     $entryTmp = $this->tempFile('zipentry-');
                     $out = @fopen($entryTmp, 'wb');
