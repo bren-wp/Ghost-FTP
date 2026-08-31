@@ -41,9 +41,10 @@ final class UserWorkspace
                 continue;
             }
 
-            // Read through JsonStore so a valid legacy .bak can recover a corrupt or
-            // missing primary file. Write through JsonStore to preserve atomicity.
-            $data = (new JsonStore($source))->read([]);
+            // Legacy profiles/preferences contain credential/privacy state and deletion intent.
+            // Keep .bak available for explicit operator recovery, but never migrate from an
+            // older generation automatically when the primary file is corrupt or missing.
+            $data = (new JsonStore($source, false))->read([]);
             (new JsonStore($target))->write($data);
 
             foreach ([$source, $source . '.bak'] as $legacyPath) {
