@@ -10,15 +10,116 @@ $testStorage = sys_get_temp_dir() . '/byftp-web-unit-' . bin2hex(random_bytes(6)
 define('BYFTP_STORAGE', $testStorage);
 
 require __DIR__ . '/../app/Remote/PathGuard.php';
+require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
+require __DIR__ . '/../app/Operations/RemoteOperations.php';
 require __DIR__ . '/../app/Security/HostGuard.php';
 require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/Security/RateLimiter.php';
 require __DIR__ . '/../app/Storage/ProfileStore.php';
 
+use ByFTP\Operations\RemoteOperations;
 use ByFTP\Remote\PathGuard;
+use ByFTP\Remote\RemoteClientInterface;
 use ByFTP\Security\HostGuard;
 use ByFTP\Security\RateLimiter;
 use ByFTP\Storage\ProfileStore;
+
+final class BatchRenameFakeClient implements RemoteClientInterface
+{
+    private int $renameCalls = 0;
+
+    /** @param array<string, string> $files */
+    public function __construct(private array $files, private readonly int $failRenameCall)
+    {
+    }
+
+    public function connect(): void
+    {
+    }
+
+    public function list(string $path): array
+    {
+        if ($path !== '/') {
+            return [];
+        }
+        $items = [];
+        foreach ($this->files as $remotePath => $content) {
+            if (PathGuard::parent($remotePath) !== '/') {
+                continue;
+            }
+            $items[] = [
+                'name' => PathGuard::basename($remotePath),
+                'type' => 'file',
+                'size' => strlen($content),
+                'modified' => null,
+                'permissions' => '',
+            ];
+        }
+        return $items;
+    }
+
+    public function makeDirectory(string $path): void
+    {
+        throw new RuntimeException('Unexpected makeDirectory in batch rename test.');
+    }
+
+    public function rename(string $from, string $to): void
+    {
+        $this->renameCalls++;
+        if ($this->renameCalls === $this->failRenameCall) {
+            throw new RuntimeException('Injected rename failure.');
+        }
+        if (!array_key_exists($from, $this->files)) {
+            throw new RuntimeException('Missing fake source: ' . $from);
+        }
+        if (array_key_exists($to, $this->files)) {
+            throw new RuntimeException('Fake destination exists: ' . $to);
+        }
+        $this->files[$to] = $this->files[$from];
+        unset($this->files[$from]);
+    }
+
+    public function delete(string $path, bool $directory = false): void
+    {
+        throw new RuntimeException('Unexpected delete in batch rename test.');
+    }
+
+    public function upload(string $localFile, string $remotePath): void
+    {
+        throw new RuntimeException('Unexpected upload in batch rename test.');
+    }
+
+    public function download(string $remotePath, string $localFile): void
+    {
+        throw new RuntimeException('Unexpected download in batch rename test.');
+    }
+
+    public function read(string $remotePath, int $maxBytes = 2097152): string
+    {
+        throw new RuntimeException('Unexpected read in batch rename test.');
+    }
+
+    public function write(string $remotePath, string $content): void
+    {
+        throw new RuntimeException('Unexpected write in batch rename test.');
+    }
+
+    public function chmod(string $path, int $mode): void
+    {
+        throw new RuntimeException('Unexpected chmod in batch rename test.');
+    }
+
+    public function disconnect(): void
+    {
+    }
+
+    /** @return array<string, string> */
+    public function files(): array
+    {
+        ksort($this->files);
+        return $this->files;
+    }
+}
 
 $passed = 0;
 $failed = 0;
@@ -75,6 +176,21 @@ $bad = $base; $bad['host_fingerprint'] = ' SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 throws(fn() => $method->invoke($store, $bad), 'fingerprint edge whitespace rejected');
 $bad = $base; $bad['username'] = "user\r\nnext";
 throws(fn() => $method->invoke($store, $bad), 'credential protocol controls rejected');
+
+$renameClient = new BatchRenameFakeClient(['/a' => 'A', '/x-a' => 'B'], 4);
+$renameOps = new RemoteOperations($renameClient);
+throws(
+    fn() => $renameOps->batchRename([['path' => '/a'], ['path' => '/x-a']], '', '', 'x-', ''),
+    'batch rename surfaces injected promotion failure'
+);
+check(
+    $renameClient->files() === ['/a' => 'A', '/x-a' => 'B'],
+    'batch rename rollback restores every original path after partial promotion'
+);
+check(
+    count(array_filter(array_keys($renameClient->files()), static fn(string $path): bool => str_contains($path, 'byftp-rename-'))) === 0,
+    'batch rename rollback leaves no staging path after recoverable failure'
+);
 
 try {
     $limiter = new RateLimiter(1, 3600);
