@@ -2,6 +2,8 @@
 
 `ios/` contains the native SwiftUI iPhone/iPad application, Xcode project, tests and canonical production build entry point. It is not a WebView wrapper and does not share Android UI/runtime code.
 
+**Current release: 1.8.0**
+
 ## Current capabilities
 
 - FTP on the user-selected server.
@@ -20,13 +22,15 @@
 
 Explicit FTPS and SFTP are **not** claimed by the iOS implementation. Adding either transport requires a separately audited native implementation rather than a permissive compatibility shim.
 
-## 1.6.0 repository integrity update
+## 1.8.0 release integration
 
-Version 1.6.0 leaves the reviewed iOS protocol surface unchanged while placing every tracked Swift, plist, Xcode project/scheme, build script and documentation file under the repository-wide integrity gate. The gate rejects non-portable paths, accidental build/cache output, invalid UTF-8/text hygiene, unresolved merge markers and stale explicit current-release metadata before the real iPhoneOS build begins.
+The iOS app continues to use the repository root `VERSION` for production `MARKETING_VERSION`, so release 1.8.0 is synchronized with Windows, Linux, macOS, Android and ByFTP WEB. The checked-in Xcode project deliberately keeps `MARKETING_VERSION = 0.0.0` as a safe development fallback; only the canonical build script injects a production release number.
+
+The six-job CI/release matrix still requires a real arm64 `iphoneos` Release build plus validation of both unsigned release artifacts before GitHub publication. No Apple signing identity, provisioning profile or private key is stored in the repository.
 
 ## Shared-hosting diagnostics
 
-Version 1.5.0 analyzes the same initial `list("/")` result that already populates the first remote browser view. `SharedHostingDiagnostics` recognizes common web-root directories in deterministic priority: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Only directories qualify.
+The application analyzes the same initial `list("/")` result that already populates the first remote browser view. `SharedHostingDiagnostics` recognizes common web-root directories in deterministic priority: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Only directories qualify.
 
 The SwiftUI browser displays a **Shared hosting** section after a successful connection. It shows whether the selected transport is secure and, when available, the detected web-root name. The UI explicitly states that ByFTP does **not** open or save that path automatically.
 
