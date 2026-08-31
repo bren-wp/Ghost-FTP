@@ -89,6 +89,10 @@ def run_runtime_checks() -> tuple[int, int]:
         run_checked([php, "-l", str(path)], label=f"PHP syntax: {path.relative_to(ROOT)}")
     run_checked([php, str(WEB / "tests" / "unit.php")], label="ByFTP WEB unit tests")
     run_checked(
+        [php, str(WEB / "tests" / "name-input.php")],
+        label="ByFTP WEB strict name-input tests",
+    )
+    run_checked(
         [php, str(WEB / "tests" / "user-registry.php")],
         label="ByFTP WEB user registry fail-closed tests",
     )
@@ -137,9 +141,9 @@ def main() -> int:
         "ByFTP WEB/assets/js/pwa.js", "ByFTP WEB/assets/js/settings.js",
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
-        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
-        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/tests/profile-recovery.php",
-        "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/name-input.php", "ByFTP WEB/tests/user-registry.php",
+        "ByFTP WEB/tests/config-security.php", "ByFTP WEB/tests/rate-limiter.php",
+        "ByFTP WEB/tests/profile-recovery.php", "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -191,6 +195,12 @@ def main() -> int:
     )
     if zip_finalization is None:
         fail("WEB ZIP build does not fail closed when ZipArchive::close() fails")
+
+    api = read("ByFTP WEB/api.php")
+    strict_name = "PathGuard::segment((string)($_POST['name'] ?? ''))"
+    legacy_name = "PathGuard::basename((string)($_POST['name'] ?? ''))"
+    if api.count(strict_name) != 3 or legacy_name in api:
+        fail("mkdir/new_file/rename must reject noncanonical explicit name fields instead of basename-normalizing them")
 
     profile_store = read("ByFTP WEB/app/Storage/ProfileStore.php")
     for marker in (
@@ -325,6 +335,13 @@ def main() -> int:
     for marker in ("22junk", "profile traversal rejected", "host edge whitespace rejected", "credential protocol controls rejected"):
         require(tests, marker, "ByFTP WEB/tests/unit.php")
 
+    name_input_tests = read("ByFTP WEB/tests/name-input.php")
+    for marker in (
+        "single-name validator rejects slash-separated input",
+        "API no longer silently canonicalizes explicit name fields with basename",
+    ):
+        require(name_input_tests, marker, "ByFTP WEB/tests/name-input.php")
+
     registry_tests = read("ByFTP WEB/tests/user-registry.php")
     for marker in (
         "old-password-123",
@@ -391,6 +408,7 @@ def main() -> int:
     print(f"WEB_PHP_SYNTAX_FILES={php_count}")
     print(f"WEB_JS_SYNTAX_FILES={js_count}")
     print("WEB_UNIT_TESTS=PASS")
+    print("WEB_NAME_INPUTS=FAIL_CLOSED")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
     print("WEB_PROFILE_CREDENTIAL_RECOVERY=FAIL_CLOSED")
