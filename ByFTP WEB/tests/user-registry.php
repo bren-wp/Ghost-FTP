@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use ByFTP\Security\RateLimiter;
 use ByFTP\Storage\JsonStore;
 use ByFTP\Storage\UserStore;
 use ByFTP\Storage\UserWorkspace;
@@ -12,6 +13,7 @@ define('BYFTP_STORAGE', $storage);
 require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/Storage/UserWorkspace.php';
 require __DIR__ . '/../app/Storage/UserStore.php';
+require __DIR__ . '/../app/Security/RateLimiter.php';
 
 $failed = false;
 
@@ -103,6 +105,33 @@ try {
         registry_check(!is_dir($retryWorkspace) && !is_link($retryWorkspace), 'retry removes the complete private workspace');
     }
 
+    // Rate-limit counters are security state too. Build a valid backup containing a lower
+    // attempt count, then corrupt/remove the primary. The limiter must never roll back to
+    // that older count because doing so would weaken brute-force protection.
+    $rateKey = 'login:203.0.113.50';
+    $limiter = new RateLimiter(3, 3600);
+    $limiter->hit($rateKey);
+    $limiter->hit($rateKey);
+    $ratePath = BYFTP_STORAGE . '/logs/rl-' . hash('sha256', $rateKey) . '.json';
+    $rateBackup = $ratePath . '.bak';
+    $rateBackupRaw = @file_get_contents($rateBackup);
+    $rateBackupData = is_string($rateBackupRaw) ? json_decode($rateBackupRaw, true) : null;
+    registry_check(
+        is_array($rateBackupData) && (int)($rateBackupData['count'] ?? 0) === 1,
+        'rate-limit backup contains the prior lower attempt count used by the regression scenario'
+    );
+
+    file_put_contents($ratePath, '{corrupt-rate-limit-state');
+    registry_throws(
+        fn() => $limiter->blocked($rateKey),
+        'rate limiter fails closed instead of recovering a lower stale attempt count after primary corruption'
+    );
+    @unlink($ratePath);
+    registry_throws(
+        fn() => $limiter->blocked($rateKey),
+        'rate limiter fails closed when only an older backup attempt count remains'
+    );
+
     // Existing authentication-registry recovery regression: the generic JSON store may
     // recover a backup, but UserStore must fail closed so old credentials cannot return.
     $created = $users->create(
@@ -161,6 +190,14 @@ try {
     if (is_dir($externalTarget)) {
         @unlink($externalTarget . '/sentinel.txt');
         @rmdir($externalTarget);
+    }
+
+    $logsDir = BYFTP_STORAGE . '/logs';
+    if (is_dir($logsDir)) {
+        foreach (glob($logsDir . '/*') ?: [] as $path) {
+            @unlink($path);
+        }
+        @rmdir($logsDir);
     }
 
     $usersDir = BYFTP_STORAGE . '/users';
