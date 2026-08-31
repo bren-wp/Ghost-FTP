@@ -6,6 +6,11 @@ function byftp_truncate(string $value, int $length): string
     return substr($value, 0, $length);
 }
 
+function byftp_config(bool $fresh = false): array
+{
+    return ['secret_key' => base64_encode(str_repeat('K', 32))];
+}
+
 $testStorage = sys_get_temp_dir() . '/byftp-web-unit-' . bin2hex(random_bytes(6));
 define('BYFTP_STORAGE', $testStorage);
 
@@ -14,6 +19,8 @@ require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
 require __DIR__ . '/../app/Operations/RemoteOperations.php';
 require __DIR__ . '/../app/Security/HostGuard.php';
 require __DIR__ . '/../app/Storage/JsonStore.php';
+require __DIR__ . '/../app/Security/Crypto.php';
+require __DIR__ . '/../app/Storage/UserWorkspace.php';
 require __DIR__ . '/../app/Security/RateLimiter.php';
 require __DIR__ . '/../app/Storage/ProfileStore.php';
 
@@ -177,6 +184,133 @@ throws(fn() => $method->invoke($store, $bad), 'fingerprint edge whitespace rejec
 $bad = $base; $bad['username'] = "user\r\nnext";
 throws(fn() => $method->invoke($store, $bad), 'credential protocol controls rejected');
 
+$profileStore = new ProfileStore('profile-binding-test');
+$ftpBase = [
+    'label' => 'FTP binding',
+    'protocol' => 'ftp',
+    'host' => 'ftp.example.com',
+    'port' => '21',
+    'base_path' => '/',
+    'username' => 'alice',
+    'password' => 'secret-one',
+    'timeout' => '30',
+    'auth_method' => 'password',
+];
+$ftpSaved = $profileStore->save($ftpBase);
+$ftpId = (string)($ftpSaved['id'] ?? '');
+$sameAccount = $ftpBase;
+$sameAccount['id'] = $ftpId;
+$sameAccount['password'] = '';
+$profileStore->save($sameAccount);
+check(
+    (string)($profileStore->find($ftpId, true)['password'] ?? '') === 'secret-one',
+    'profile password preserved for same account'
+);
+$draftSame = $profileStore->connectionDraft($sameAccount);
+check((string)($draftSame['password'] ?? '') === 'secret-one', 'connection draft preserves password for same account');
+
+$changedEndpoint = $sameAccount;
+$changedEndpoint['host'] = 'other.example.com';
+$draftChanged = $profileStore->connectionDraft($changedEndpoint);
+check((string)($draftChanged['password'] ?? '') === '', 'connection draft clears password when endpoint changes');
+$profileStore->save($changedEndpoint);
+check(
+    (string)($profileStore->find($ftpId, true)['password'] ?? '') === '',
+    'profile password cleared when endpoint changes'
+);
+
+$changedEndpoint['host'] = 'ftp.example.com';
+$changedEndpoint['username'] = 'bob';
+$changedEndpoint['password'] = 'secret-two';
+$profileStore->save($changedEndpoint);
+$usernameChange = $changedEndpoint;
+$usernameChange['username'] = 'carol';
+$usernameChange['password'] = '';
+check(
+    (string)($profileStore->connectionDraft($usernameChange)['password'] ?? '') === '',
+    'connection draft clears password when username changes'
+);
+$profileStore->save($usernameChange);
+check(
+    (string)($profileStore->find($ftpId, true)['password'] ?? '') === '',
+    'profile password cleared when username changes'
+);
+
+$sftpSaved = $profileStore->save([
+    'label' => 'SFTP binding',
+    'protocol' => 'sftp',
+    'host' => 'sftp.example.com',
+    'port' => '22',
+    'base_path' => '/',
+    'username' => 'deploy',
+    'password' => '',
+    'timeout' => '30',
+    'host_fingerprint' => str_repeat('a', 64),
+    'auth_method' => 'key',
+    'public_key' => 'public-key-a',
+    'private_key' => 'private-key-a',
+    'key_passphrase' => 'passphrase-a',
+]);
+$sftpId = (string)($sftpSaved['id'] ?? '');
+$sftpChangedKey = [
+    'id' => $sftpId,
+    'label' => 'SFTP binding',
+    'protocol' => 'sftp',
+    'host' => 'sftp.example.com',
+    'port' => '22',
+    'base_path' => '/',
+    'username' => 'deploy',
+    'password' => '',
+    'timeout' => '30',
+    'host_fingerprint' => str_repeat('a', 64),
+    'auth_method' => 'key',
+    'public_key' => 'public-key-b',
+    'private_key' => 'private-key-b',
+    'key_passphrase' => '',
+];
+$profileStore->save($sftpChangedKey);
+$sftpAfterKeyChange = $profileStore->find($sftpId, true);
+check(
+    (string)($sftpAfterKeyChange['private_key'] ?? '') === 'private-key-b'
+        && (string)($sftpAfterKeyChange['key_passphrase'] ?? '') === '',
+    'key passphrase cleared when private key changes'
+);
+
+$sftpOtherHost = $sftpChangedKey;
+$sftpOtherHost['host'] = 'new-sftp.example.com';
+$sftpOtherHost['public_key'] = '';
+$sftpOtherHost['private_key'] = '';
+throws(
+    fn() => $profileStore->connectionDraft($sftpOtherHost),
+    'SFTP key material is not inherited across endpoint changes'
+);
+
+$profileStore->save([
+    'id' => $sftpId,
+    'label' => 'FTP after SFTP',
+    'protocol' => 'ftp',
+    'host' => 'ftp-after-sftp.example.com',
+    'port' => '21',
+    'base_path' => '/',
+    'username' => 'deploy',
+    'password' => 'ftp-secret',
+    'timeout' => '30',
+    'host_fingerprint' => str_repeat('b', 64),
+    'auth_method' => 'key',
+    'public_key' => 'must-not-survive',
+    'private_key' => 'must-not-survive',
+    'key_passphrase' => 'must-not-survive',
+]);
+$ftpAfterSftp = $profileStore->find($sftpId, true);
+check(
+    ($ftpAfterSftp['protocol'] ?? '') === 'ftp'
+        && ($ftpAfterSftp['host_fingerprint'] ?? '') === ''
+        && ($ftpAfterSftp['public_key'] ?? '') === ''
+        && ($ftpAfterSftp['private_key'] ?? '') === ''
+        && ($ftpAfterSftp['key_passphrase'] ?? '') === '',
+    'non-SFTP profile strips SFTP-only state'
+);
+
 $renameClient = new BatchRenameFakeClient(['/a' => 'A', '/x-a' => 'B'], 4);
 $renameOps = new RemoteOperations($renameClient);
 throws(
@@ -208,6 +342,15 @@ try {
         }
     }
     @rmdir($logDir);
+
+    $profileDir = BYFTP_STORAGE . '/users/profile-binding-test';
+    foreach (glob($profileDir . '/*') ?: [] as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
+    @rmdir($profileDir);
+    @rmdir(BYFTP_STORAGE . '/users');
     @rmdir(BYFTP_STORAGE);
 }
 
