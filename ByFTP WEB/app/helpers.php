@@ -128,6 +128,19 @@ function byftp_truncate(string $value, int $length): string
     return function_exists('mb_substr') ? mb_substr($value, 0, $length) : substr($value, 0, $length);
 }
 
+function byftp_archive_download_name(string $value): string
+{
+    $name = trim($value);
+    $name = preg_replace('/[^\pL\pN._ -]+/u', '-', $name) ?: 'byftp-download';
+    $base = preg_replace('/\.zip$/i', '', $name);
+    $base = is_string($base) ? $base : '';
+    $base = rtrim(byftp_truncate($base, 116), " .");
+    if ($base === '') {
+        $base = 'byftp-download';
+    }
+    return $base . '.zip';
+}
+
 function byftp_client_ip(): string
 {
     // REMOTE_ADDR is intentionally used directly. Forwarded headers are not trusted by default.
