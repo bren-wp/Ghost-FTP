@@ -43,10 +43,13 @@ $hasStoredData = static function (): bool {
     }
     return false;
 };
-$existingDataDetected = $hasStoredData();
-$error = $existingDataDetected
-    ? 'Pronađeni su postojeći ByFTP korisnički podaci, ali nedostaje konfiguracija s encryption ključem. Vrati storage/app.json ili storage/app.json.bak iz sigurnosne kopije prije nastavka.'
-    : '';
+$configRecoveryRequired = isset($GLOBALS['byftp_config_error']);
+$existingDataDetected = $configRecoveryRequired || $hasStoredData();
+$error = $configRecoveryRequired
+    ? 'Konfiguracija aplikacije nije čitljiva. Automatski povratak na stariji app.json.bak je blokiran radi sigurnosti. Vrati provjereni storage/app.json prije nastavka.'
+    : ($existingDataDetected
+        ? 'Pronađeni su postojeći ByFTP korisnički podaci, ali nedostaje konfiguracija s encryption ključem. Vrati storage/app.json ili storage/app.json.bak iz sigurnosne kopije prije nastavka.'
+        : '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $appName = trim((string)($_POST['app_name'] ?? 'ByFTP')) ?: 'ByFTP';
@@ -57,8 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $allowRegistration = !empty($_POST['allow_registration']);
 
     if ($existingDataDetected) {
-        // Never rotate the encryption key while encrypted user/profile data still exists.
-        $error = 'Postavljanje je zaključano radi zaštite postojećih podataka. Vrati storage/app.json ili storage/app.json.bak iz sigurnosne kopije.';
+        // Never rotate the encryption key while encrypted user/profile data still exists
+        // or while the primary configuration requires explicit operator recovery.
+        $error = 'Postavljanje je zaključano radi zaštite postojećih podataka i sigurnosnih postavki. Vrati provjereni storage/app.json prije nastavka.';
     } elseif (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
         $error = 'Sigurnosni token nije valjan. Osvježi stranicu.';
     } elseif ($password !== $confirm) {
@@ -76,13 +80,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Nije moguće zaključati instalaciju. Provjeri dozvole storage direktorija i pokušaj ponovno.';
         } else {
             @chmod(BYFTP_STORAGE . '/setup.lock', 0600);
+            $setupTransactionStarted = false;
             try {
                 // Re-check under an exclusive lock so two simultaneous first-run requests
                 // cannot create different encryption keys or competing administrator accounts.
                 if (byftp_is_configured()) {
                     byftp_redirect('login');
                 }
+                if (isset($GLOBALS['byftp_config_error'])) {
+                    throw new RuntimeException('Konfiguracija aplikacije zahtijeva ručni oporavak. Novi setup nije pokrenut.');
+                }
 
+                $setupTransactionStarted = true;
                 $config = [
                     'app_name' => byftp_truncate($appName, 80),
                     'secret_key' => base64_encode(random_bytes(32)),
@@ -98,24 +107,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 AppLogger::event('install.complete', ['email' => strtolower($email)]);
                 byftp_redirect('login', ['installed' => 1]);
             } catch (Throwable $e) {
-                // existingDataDetected was false before this setup transaction. Therefore
-                // these config/user JSON generations and lock files can only be empty
-                // pre-existing scaffolding or artifacts created by this failed attempt.
-                // Remove the complete JsonStore generations so a stale users.json.bak
-                // cannot be mistaken for recoverable production data on the next request.
-                $rollbackArtifacts = [
-                    byftp_config_path(),
-                    byftp_config_path() . '.bak',
-                    byftp_config_path() . '.lock',
-                    BYFTP_STORAGE . '/users.json',
-                    BYFTP_STORAGE . '/users.json.bak',
-                    BYFTP_STORAGE . '/users.json.lock',
-                ];
-                foreach ($rollbackArtifacts as $artifact) {
-                    @unlink($artifact);
+                // Only a transaction that passed the recovery guards may remove setup
+                // artifacts. A pre-existing corrupt/missing primary config must be left
+                // untouched so an operator can restore it from a verified backup.
+                if ($setupTransactionStarted) {
+                    $rollbackArtifacts = [
+                        byftp_config_path(),
+                        byftp_config_path() . '.bak',
+                        byftp_config_path() . '.lock',
+                        BYFTP_STORAGE . '/users.json',
+                        BYFTP_STORAGE . '/users.json.bak',
+                        BYFTP_STORAGE . '/users.json.lock',
+                    ];
+                    foreach ($rollbackArtifacts as $artifact) {
+                        @unlink($artifact);
+                    }
+                    $GLOBALS['byftp_config_cache'] = [];
+                    unset($GLOBALS['byftp_config_error']);
                 }
-                $GLOBALS['byftp_config_cache'] = [];
-                unset($GLOBALS['byftp_config_error']);
                 $error = $e->getMessage();
             } finally {
                 flock($setupLock, LOCK_UN);
@@ -140,7 +149,7 @@ $pageTitle = 'Postavljanje ByFTP';
     <?php if ($error): ?><div class="alert error" role="alert"><?= byftp_e($error) ?></div><?php endif; ?>
     <?php if ($existingDataDetected): ?>
         <div class="stack">
-            <p class="muted">Novi setup bi izradio novi encryption ključ i postojeće spremljene FTP/SFTP vjerodajnice više se ne bi mogle dešifrirati. Ne briši <code>storage/users/</code> niti postojeće JSON datoteke dok ne vratiš konfiguraciju.</p>
+            <p class="muted">Novi setup bi mogao izraditi novi encryption ključ ili vratiti stariju sigurnosnu politiku. Ne briši <code>storage/users/</code> niti postojeće JSON datoteke. Vrati provjereni <code>storage/app.json</code> prije nastavka.</p>
         </div>
     <?php else: ?>
     <form method="post" class="stack auth-form" autocomplete="off">

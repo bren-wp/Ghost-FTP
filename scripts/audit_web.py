@@ -92,6 +92,10 @@ def run_runtime_checks() -> tuple[int, int]:
         [php, str(WEB / "tests" / "user-registry.php")],
         label="ByFTP WEB user registry fail-closed tests",
     )
+    run_checked(
+        [php, str(WEB / "tests" / "config-security.php")],
+        label="ByFTP WEB config fail-closed tests",
+    )
     for path in js_files:
         run_checked([node, "--check", str(path)], label=f"JavaScript syntax: {path.relative_to(ROOT)}")
     run_checked([node, "--check", str(WEB / "service-worker.js")], label="JavaScript syntax: ByFTP WEB/service-worker.js")
@@ -124,7 +128,8 @@ def main() -> int:
         "ByFTP WEB/assets/js/pwa.js", "ByFTP WEB/assets/js/settings.js",
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
-        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
+        "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -189,6 +194,15 @@ def main() -> int:
         "ByFTP WEB/app/Storage/UserStore.php",
     )
 
+    helpers = read("ByFTP WEB/app/helpers.php")
+    for marker in (
+        "new ByFTP\\Storage\\JsonStore($path, false)",
+        "if (isset($GLOBALS['byftp_config_error']))",
+        "Konfiguracija aplikacije nema valjan encryption ključ",
+        "unset($GLOBALS['byftp_config_error']);",
+    ):
+        require(helpers, marker, "ByFTP WEB/app/helpers.php")
+
     host_guard = read("ByFTP WEB/app/Security/HostGuard.php")
     for marker in ("connectionTargets", "FILTER_FLAG_NO_PRIV_RANGE", "FILTER_FLAG_NO_RES_RANGE", "localhost", "dns_get_record"):
         require(host_guard, marker, "ByFTP WEB/app/Security/HostGuard.php")
@@ -224,6 +238,14 @@ def main() -> int:
         fail("login must invalidate an authenticated session only for the actual legacy migration failure path")
 
     setup = read("ByFTP WEB/setup.php")
+    for marker in (
+        "$configRecoveryRequired = isset($GLOBALS['byftp_config_error']);",
+        "$existingDataDetected = $configRecoveryRequired || $hasStoredData();",
+        "$setupTransactionStarted = false;",
+        "if (isset($GLOBALS['byftp_config_error']))",
+        "if ($setupTransactionStarted)",
+    ):
+        require(setup, marker, "ByFTP WEB/setup.php")
     rollback_match = re.search(r"\$rollbackArtifacts\s*=\s*\[(.*?)\];", setup, re.DOTALL)
     if rollback_match is None:
         fail("ByFTP WEB/setup.php has no explicit failed-setup artifact rollback list")
@@ -259,6 +281,16 @@ def main() -> int:
     ):
         require(registry_tests, marker, "ByFTP WEB/tests/user-registry.php")
 
+    config_tests = read("ByFTP WEB/tests/config-security.php")
+    for marker in (
+        "{corrupt-app-config",
+        "runtime config does not recover stale app.json backup automatically",
+        "config update is blocked while the primary config is corrupt",
+        "generic JsonStore still exposes backup data for explicit operator recovery",
+        "backup-only stale config does not silently configure the application",
+    ):
+        require(config_tests, marker, "ByFTP WEB/tests/config-security.php")
+
     allowed_storage = {
         "ByFTP WEB/storage/.htaccess",
         "ByFTP WEB/storage/logs/.gitkeep",
@@ -287,6 +319,7 @@ def main() -> int:
     print(f"WEB_JS_SYNTAX_FILES={js_count}")
     print("WEB_UNIT_TESTS=PASS")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
+    print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
     print("WEB_POST_AUTH_LIMITER_RESET=FAIL_SOFT")
     print("WEB_SUBPROCESS_TEXT_ENCODING=UTF8_REPLACE")
     print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")

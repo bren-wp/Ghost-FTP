@@ -40,9 +40,13 @@ function byftp_config(bool $fresh = false): array
         $path = byftp_config_path();
         if (!is_file($path) && !is_file($path . '.bak')) {
             $GLOBALS['byftp_config_cache'] = [];
+            unset($GLOBALS['byftp_config_error']);
         } else {
             try {
-                $GLOBALS['byftp_config_cache'] = (new ByFTP\Storage\JsonStore($path))->read([]);
+                // app.json contains the encryption key and runtime security policy.
+                // Keep the adjacent .bak for explicit operator recovery, but never
+                // silently roll security settings back to an older generation.
+                $GLOBALS['byftp_config_cache'] = (new ByFTP\Storage\JsonStore($path, false))->read([]);
                 unset($GLOBALS['byftp_config_error']);
             } catch (Throwable $e) {
                 // Fail closed into recovery/setup instead of crashing every request.
@@ -59,11 +63,20 @@ function byftp_write_config(array $data): void
     $store = new ByFTP\Storage\JsonStore(byftp_config_path());
     $store->write($data);
     $GLOBALS['byftp_config_cache'] = $data;
+    unset($GLOBALS['byftp_config_error']);
 }
 
 function byftp_update_config(array $changes): array
 {
-    $next = array_replace(byftp_config(true), $changes);
+    $current = byftp_config(true);
+    if (isset($GLOBALS['byftp_config_error'])) {
+        throw new RuntimeException('Konfiguracija aplikacije nije čitljiva. Vrati storage/app.json iz provjerene sigurnosne kopije prije spremanja postavki.');
+    }
+    $key = base64_decode((string)($current['secret_key'] ?? ''), true);
+    if (!is_string($key) || strlen($key) !== 32) {
+        throw new RuntimeException('Konfiguracija aplikacije nema valjan encryption ključ. Postavke nisu spremljene.');
+    }
+    $next = array_replace($current, $changes);
     byftp_write_config($next);
     return $next;
 }
@@ -259,7 +272,6 @@ function byftp_upload_error_message(int $code, string $name = ''): string
     };
 }
 
-
 function byftp_assert_temp_capacity(int $expectedBytes, int $reserveBytes = 16777216): void
 {
     if ($expectedBytes <= 0) {
@@ -305,7 +317,6 @@ function byftp_cleanup_stale_temp_files(int $maxAgeSeconds = 86400, int $maxFile
     }
     return $removed;
 }
-
 
 function byftp_session_limits(?array $config = null): array
 {
