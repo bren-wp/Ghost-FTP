@@ -366,6 +366,27 @@ final class RemoteOperations
                     ];
                 }
 
+                $plannedTypes = [];
+                foreach ($plan as $row) {
+                    $remote = (string)$row['remote'];
+                    if (array_key_exists($remote, $plannedTypes)) {
+                        throw new RuntimeException('ZIP sadrži više stavki za isto odredište.');
+                    }
+                    $plannedTypes[$remote] = !empty($row['directory']) ? 'dir' : 'file';
+                }
+                foreach ($plannedTypes as $remote => $type) {
+                    $parent = PathGuard::parent($remote);
+                    while ($parent !== '/') {
+                        if (($plannedTypes[$parent] ?? null) === 'file') {
+                            throw new RuntimeException('ZIP sadrži konflikt datoteke i podređene putanje.');
+                        }
+                        if ($parent === $destination) break;
+                        $next = PathGuard::parent($parent);
+                        if ($next === $parent) break;
+                        $parent = $next;
+                    }
+                }
+
                 // Only a fully validated archive is allowed to mutate remote state.
                 foreach ($plan as $row) {
                     $remote = (string)$row['remote'];
