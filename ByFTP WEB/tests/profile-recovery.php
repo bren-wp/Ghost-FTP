@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use ByFTP\Remote\ClientFactory;
+use ByFTP\Remote\SftpClient;
 use ByFTP\Storage\JsonStore;
 use ByFTP\Storage\PreferenceStore;
 use ByFTP\Storage\ProfileStore;
@@ -20,6 +22,9 @@ $storage = sys_get_temp_dir() . '/byftp-profile-recovery-' . bin2hex(random_byte
 define('BYFTP_STORAGE', $storage);
 
 require __DIR__ . '/../app/Remote/PathGuard.php';
+require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
+require __DIR__ . '/../app/Remote/SftpClient.php';
+require __DIR__ . '/../app/Remote/ClientFactory.php';
 require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/Security/Crypto.php';
 require __DIR__ . '/../app/Storage/UserWorkspace.php';
@@ -58,6 +63,21 @@ $legacySource = '';
 $legacyTarget = '';
 
 try {
+    // PHP ssh2 does not supply a known_hosts trust decision. The central client factory
+    // must therefore reject SFTP before authentication whenever no pinned host key exists.
+    profile_recovery_throws(
+        fn() => ClientFactory::make(['protocol' => 'sftp', 'host_fingerprint' => '']),
+        'SFTP client creation fails closed when no host fingerprint is pinned'
+    );
+    $pinnedSftp = ClientFactory::make([
+        'protocol' => 'sftp',
+        'host_fingerprint' => str_repeat('A', 64),
+    ]);
+    profile_recovery_check(
+        $pinnedSftp instanceof SftpClient,
+        'SFTP client creation remains available when a host fingerprint is pinned'
+    );
+
     $profiles = new ProfileStore($userId);
     $userDir = UserWorkspace::directory($userId);
     $profilePath = UserWorkspace::file($userId, 'profiles.json');
