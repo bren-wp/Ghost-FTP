@@ -1,50 +1,73 @@
 # GitHub releases
 
-ByFTP releases are produced by the repository release workflow. The workflow reads root `VERSION`; no platform maintains a second current-version constant.
+ByFTP releases are built and published by `.github/workflows/release.yml`. The workflow is version-bound, serialized through the `byftp-release` concurrency group and will not publish until the complete quality/platform matrix passes.
 
-## Gated matrix
+**Current release target: 1.8.0**
 
-Publication waits for all of these independent jobs:
+## Trigger
 
-- production quality/security/privacy/release audits and Go unit/race/vet checks,
-- Windows x64/x86 production builds,
-- Linux amd64/arm64/i386 DEB builds,
-- macOS Universal PKG build,
-- Android JUnit, debug/release lint, debug/release APK compilation and structural APK validation,
-- iOS model/path regressions, native iPhoneOS arm64 Xcode build and structural unsigned IPA/app-bundle validation.
+The normal production path is a merge to `main` that changes root `VERSION`. A manual `workflow_dispatch` may also be used, but a supplied version must exactly match the canonical `VERSION` file.
 
-## Android artifacts
+The centralized publisher additionally verifies that the workflow commit is still the repository's current `main` commit immediately before public release mutation. A slower stale run therefore cannot publish an older source tree after `main` has advanced.
 
-Starting with 1.1.1, Android is part of the public artifact contract rather than source-validation only:
+## Quality matrix
 
-- `ByFTP-<version>-Android-debug.apk` is debug-signed and installable for development/testing.
-- `ByFTP-<version>-Android-release-unsigned.apk` is optimized/minified but intentionally unsigned.
+Publication depends on all of these jobs:
 
-The workflow must never present either artifact as a production store-signed package. Production Android distribution still requires a stable private signing identity managed outside the repository.
+1. production quality: repository, WEB, localization, version, docs, security, privacy and release audits; Python release-tool regressions; Go tests/race/vet;
+2. Windows x64/x86 Setup + Portable production build and bundle verification;
+3. Linux amd64/arm64/i386 DEB build and metadata verification;
+4. macOS Universal PKG build and structure verification;
+5. Android JUnit/lint/debug APK/unsigned release APK build using AGP 9.3.2 and Gradle 9.7.1;
+6. native arm64 iPhoneOS build plus unsigned IPA/app ZIP packaging;
+7. centralized staging verification and publication.
 
-## iOS artifacts
+ByFTP WEB does not invent a compiled web artifact; its source/runtime/security contract is enforced inside the quality job and its VERSION must match root VERSION.
 
-Starting with 1.2.0, iOS is an independent native release platform under `ios/` and part of the public artifact contract:
+## Windows 1.8.0 contract
 
-- `ByFTP-<version>-iOS-arm64-unsigned.ipa` contains the validated arm64 iPhoneOS application under `Payload/ByFTP.app`.
-- `ByFTP-<version>-iOS-arm64-unsigned-app.zip` contains the same validated unsigned `.app` bundle for inspection and external signing workflows.
+Windows publishes only:
 
-These artifacts prove source/build/package integrity only. They are not App Store, TestFlight, ad-hoc or enterprise distributions until a legitimate Apple signing identity and provisioning profile are applied outside this repository and separately verified.
+- `ByFTP-<version>-Portable-x64.exe`
+- `ByFTP-<version>-Setup-x64.exe`
+- `ByFTP-<version>-Windows-x64.zip`
+- `ByFTP-<version>-Portable-x86.exe`
+- `ByFTP-<version>-Setup-x86.exe`
+- `ByFTP-<version>-Windows-x86.zip`
 
-## Public asset contract
+Starting with 1.8.0 there is no standalone `Uninstall.exe` source, build output, embedded payload or release asset. Setup embeds only `ByFTP.exe` and a schema-2 integrity manifest. Release metadata records `WINDOWS_UNINSTALLER=none`, and CI fails if an uninstall-named binary appears.
 
-The 1.2.0+ workflow stages exactly 14 platform artifacts before shared metadata:
+The verified Windows ZIPs contain public binaries, release notes/build metadata, root README/CHANGELOG/LICENSE and documentation. Bundle SHA-256 is checked before publication.
 
-- six Windows packages,
-- three Linux DEBs,
-- one macOS PKG,
-- two Android APKs,
-- two iOS unsigned arm64 artifacts.
+## Other platform assets
 
-It then adds `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, producing 17 public release files in total.
+Linux publishes three DEBs: amd64, arm64 and i386. macOS publishes one Universal PKG. Android publishes a debug-signed APK and an optimized unsigned release APK. iOS publishes an unsigned arm64 IPA plus the corresponding unsigned `.app` ZIP.
 
-## Publication integrity
+The Android release APK and iOS artifacts are deliberately not described as store-signed production packages. Production Android/Apple signing material remains an external trust boundary.
 
-The publish job downloads only the named platform artifacts and compares them with an exact allowlist before generating release metadata. `SHA256.txt` covers all public platform packages and shared metadata. `scripts/publish_release.ps1` is the only GitHub Release mutation path and validates the release tag/commit plus final remote asset sizes/digests.
+## Public staging
 
-Published semantic releases are treated as immutable. Corrections require a new version rather than silently replacing artifacts under an existing release tag.
+Before publication, the workflow requires exactly 14 platform artifacts. It then generates:
+
+- `SHA256.txt`
+- `RELEASE-NOTES.txt`
+- `BUILD-METADATA.txt`
+
+That produces 17 final public release files. Unexpected/missing platform artifacts cause publication to fail closed.
+
+## Publication
+
+`scripts/publish_release.ps1` is the only maintained GitHub Release mutation path. It:
+
+- verifies the current `main` SHA still equals the exact release commit;
+- verifies/creates the `v<version>` tag at that commit;
+- creates or safely completes the GitHub Release;
+- uploads only the expected verified assets;
+- re-reads remote assets and verifies names, sizes and GitHub SHA-256 digests against local files;
+- emits release verification markers only after the remote state matches the local release evidence.
+
+The release workflow also packages the public Windows distribution as `ByFTP.Windows <version>` in GitHub Packages/NuGet. That package contains public Windows Setup/Portable/ZIP artifacts plus verified metadata; it does not contain a standalone uninstaller.
+
+## Verification
+
+Always verify downloaded artifacts against `SHA256.txt`. See [Release verification](RELEASE-VERIFICATION.md) for the full platform and Windows app-only Setup contract.
