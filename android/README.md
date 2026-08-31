@@ -1,6 +1,6 @@
 # ByFTP for Android
 
-ByFTP Android is a native Java client isolated from the Go desktop runtime so mobile lifecycle, permissions, networking, APK packaging and release signing boundaries remain explicit and independently testable.
+ByFTP Android is a native Java client isolated from the Go desktop runtime so mobile lifecycle, permissions, networking, APK packaging and release-signing boundaries remain explicit and independently testable. The Android app uses the repository root `VERSION`; release 1.8.0 therefore stays synchronized with Windows, Linux, macOS, iOS and ByFTP WEB.
 
 ## Current capabilities
 
@@ -18,15 +18,15 @@ ByFTP Android is a native Java client isolated from the Go desktop runtime so mo
 - Session-only passwords; backup/device-transfer exclusions for application data.
 - No analytics, advertising SDK, telemetry backend or mandatory cloud account.
 
-## 1.6.0 repository integrity update
+## 1.8.0 maintenance update
 
-Version 1.6.0 keeps the Android runtime and protocol behavior from 1.5.0 intact while placing every tracked Android source, resource, build and documentation file under the repository-wide integrity gate. The gate rejects non-portable tracked paths, generated build/cache output, invalid text encoding, unresolved merge markers, trailing whitespace and stale explicit current-release markers before release packaging begins.
+Release 1.8.0 moves the Android build to **Android Gradle Plugin 9.3.2** and **Gradle 9.7.1** while retaining JDK 17, compileSdk/targetSdk 37, build-tools 36.0.0 and minSdk 26. The application protocol/security behavior remains governed by the same fail-closed connection, path and host-key tests; the toolchain update does not relax lint or signing requirements.
 
-The 1.6.0 maintenance pass also removes the obsolete `connected_to` string resource that remained after the diagnostics-aware connection summary replaced it. Android lint therefore stays warning-as-error without adding a baseline or suppression.
+The root release workflow runs Android JUnit tests, `lintDebug`, `lintRelease`, debug/release assembly and APK structure validation before a GitHub Release can be published. The optimized release APK remains intentionally unsigned until an external production signing identity is supplied.
 
 ## Shared-hosting diagnostics
 
-Version 1.5.0 added `SharedHostingDiagnostics`, derived from the same `next.list("/")` result already used to render the first connected file list. No second diagnostic listing, port scan, external service or hidden network destination is introduced.
+`SharedHostingDiagnostics` is derived from the same `next.list("/")` result already used to render the first connected file list. No second diagnostic listing, port scan, external service or hidden network destination is introduced.
 
 Common hosting document roots are recognized in deterministic priority: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Only directories qualify. Plain FTP is explicitly reported as unencrypted; FTPS and SFTP are reported as secure transports. SFTP uses home-root context while FTP/FTPS use authenticated account-root context.
 
@@ -73,14 +73,15 @@ Root `VERSION` drives Android `versionName`, `versionCode` and public APK names:
 - `ByFTP-<version>-Android-debug.apk` — installable debug-signed development/test APK.
 - `ByFTP-<version>-Android-release-unsigned.apk` — optimized/minified release APK without a production signature.
 
-The unsigned release APK is not a production distribution until signed with a stable private Android identity held outside the repository. `scripts/package_android.py` validates APK ZIP structure and required entries before staging.
+The unsigned release APK is not a store-ready production distribution until signed with a stable private Android identity held outside the repository. `scripts/package_android.py` validates APK ZIP structure and required entries before staging.
 
 ## Toolchain
 
-- Android Gradle Plugin 9.3.0
-- Gradle 9.7.0
+- Android Gradle Plugin 9.3.2
+- Gradle 9.7.1
 - JDK 17
 - compileSdk / targetSdk 37
+- Android build-tools 36.0.0
 - minSdk 26 (Android 8.0)
 - Apache Commons Net 3.13.0
 - SSHJ 0.40.0
@@ -99,4 +100,4 @@ python scripts/package_android.py \
   --output-dir dist
 ```
 
-Android lint warnings are errors. CI additionally runs `scripts/audit_android.py`, `scripts/audit_repository.py` through the release-integrity gate, JUnit connection/path/security/diagnostic tests, APK packaging validation and the general security/privacy/release audits.
+Android lint warnings are errors. CI additionally runs `scripts/audit_android.py`, repository/release integrity checks, JUnit connection/path/security/diagnostic tests, APK packaging validation and the general security/privacy/release audits.
