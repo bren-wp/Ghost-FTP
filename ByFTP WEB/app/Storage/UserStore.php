@@ -102,7 +102,14 @@ final class UserStore
             return null;
         }
         if (password_needs_rehash((string)$user['password_hash'], self::passwordAlgorithm())) {
-            $this->replacePasswordHash((string)$user['id'], password_hash($password, self::passwordAlgorithm()));
+            // Rehash is still a password write. Bind it to the exact hash that was just
+            // verified so a concurrent password change cannot be overwritten by a login
+            // that authenticated against the previous generation.
+            $this->replacePasswordHash(
+                (string)$user['id'],
+                password_hash($password, self::passwordAlgorithm()),
+                (string)$user['password_hash']
+            );
         }
         $this->touchLogin((string)$user['id']);
         $fresh = $this->findById((string)$user['id']);
@@ -151,14 +158,19 @@ final class UserStore
         if (!empty($user['deleting'])) {
             throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Lozinku nije moguće mijenjati.');
         }
-        if ($requireCurrent && !password_verify($currentPassword, (string)($user['password_hash'] ?? ''))) {
+        $expectedCurrentHash = (string)($user['password_hash'] ?? '');
+        if ($requireCurrent && !password_verify($currentPassword, $expectedCurrentHash)) {
             throw new RuntimeException('Trenutačna lozinka nije točna.');
         }
         $hash = password_hash($newPassword, self::passwordAlgorithm());
         if (!is_string($hash)) {
             throw new RuntimeException('Nije moguće sigurno spremiti novu lozinku.');
         }
-        $this->replacePasswordHash($id, $hash);
+
+        // Current-password verification happens outside the file lock because Argon2/bcrypt
+        // can be intentionally expensive. The write itself is compare-and-swap bound to the
+        // exact verified hash, so a concurrent password change invalidates this request.
+        $this->replacePasswordHash($id, $hash, $requireCurrent ? $expectedCurrentHash : null);
     }
 
     public function updateAdminFields(string $id, string $role, bool $active): array
@@ -303,16 +315,20 @@ final class UserStore
         });
     }
 
-    private function replacePasswordHash(string $id, string|false $hash): void
+    private function replacePasswordHash(string $id, string|false $hash, ?string $expectedCurrentHash = null): void
     {
         if (!is_string($hash) || $hash === '') {
             throw new RuntimeException('Nije moguće sigurno hashirati lozinku.');
         }
-        $this->store->update(function (array $rows) use ($id, $hash): array {
+        $this->store->update(function (array $rows) use ($id, $hash, $expectedCurrentHash): array {
             foreach ($rows as &$row) {
                 if (is_array($row) && hash_equals((string)($row['id'] ?? ''), $id)) {
                     if (!empty($row['deleting'])) {
                         throw new RuntimeException('Brisanje korisničkog računa nije dovršeno. Lozinku nije moguće mijenjati.');
+                    }
+                    if ($expectedCurrentHash !== null
+                        && !hash_equals($expectedCurrentHash, (string)($row['password_hash'] ?? ''))) {
+                        throw new RuntimeException('Lozinka je u međuvremenu promijenjena. Ponovi radnju s aktualnom lozinkom.');
                     }
                     $row['password_hash'] = $hash;
                     $row['session_version'] = (int)($row['session_version'] ?? 1) + 1;
