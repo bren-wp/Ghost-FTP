@@ -93,6 +93,10 @@ def run_runtime_checks() -> tuple[int, int]:
         label="ByFTP WEB strict name-input tests",
     )
     run_checked(
+        [php, str(WEB / "tests" / "zip-creation.php")],
+        label="ByFTP WEB ZIP creation error-path tests",
+    )
+    run_checked(
         [php, str(WEB / "tests" / "user-registry.php")],
         label="ByFTP WEB user registry fail-closed tests",
     )
@@ -141,9 +145,10 @@ def main() -> int:
         "ByFTP WEB/assets/js/pwa.js", "ByFTP WEB/assets/js/settings.js",
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
-        "ByFTP WEB/tests/name-input.php", "ByFTP WEB/tests/user-registry.php",
-        "ByFTP WEB/tests/config-security.php", "ByFTP WEB/tests/rate-limiter.php",
-        "ByFTP WEB/tests/profile-recovery.php", "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/name-input.php", "ByFTP WEB/tests/zip-creation.php",
+        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
+        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/tests/profile-recovery.php",
+        "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -195,6 +200,19 @@ def main() -> int:
     )
     if zip_finalization is None:
         fail("WEB ZIP build does not fail closed when ZipArchive::close() fails")
+    for marker in (
+        "if (!$zip->addEmptyDir(rtrim($archivePath, '/'))) throw new RuntimeException('Nije moguće dodati direktorij u ZIP.');",
+        "// Preserve the original build error; cleanup still must run.",
+    ):
+        require(marker=marker, text=remote_operations, where="ByFTP WEB/app/Operations/RemoteOperations.php")
+    zip_error_cleanup = re.search(
+        r"catch \(\\Throwable\)\s*\{.*?\}\s*finally\s*\{\s*"
+        r"foreach \(\$temps as \$temp\) @unlink\(\$temp\);\s*@unlink\(\$tmp\);\s*\}\s*throw \$e;",
+        remote_operations,
+        re.DOTALL,
+    )
+    if zip_error_cleanup is None:
+        fail("WEB ZIP build failure cleanup can be skipped or mask the original error")
 
     api = read("ByFTP WEB/api.php")
     strict_name = "PathGuard::segment((string)($_POST['name'] ?? ''))"
@@ -342,6 +360,14 @@ def main() -> int:
     ):
         require(name_input_tests, marker, "ByFTP WEB/tests/name-input.php")
 
+    zip_creation_tests = read("ByFTP WEB/tests/zip-creation.php")
+    for marker in (
+        "ZIP directory insertion failure is checked explicitly",
+        "ZIP cleanup preserves the original build failure",
+        "ZIP build failure always cleans staged files and incomplete output",
+    ):
+        require(zip_creation_tests, marker, "ByFTP WEB/tests/zip-creation.php")
+
     registry_tests = read("ByFTP WEB/tests/user-registry.php")
     for marker in (
         "old-password-123",
@@ -420,6 +446,7 @@ def main() -> int:
     print("WEB_PWA_AUTHENTICATED_CACHE=BLOCKED")
     print("WEB_REMOTE_PATHS=FAIL_CLOSED")
     print("WEB_ZIP_FINALIZATION=FAIL_CLOSED")
+    print("WEB_ZIP_CREATION_ERROR_PATHS=FAIL_CLOSED")
     print("WEB_PRIVATE_HOSTS=BLOCKED_BY_DEFAULT")
     print("WEB_CREDENTIAL_LIFETIME=POST_AUTH_CLEARED")
     print("WEB_SETUP_FAILED_TRANSACTION_ARTIFACTS=CLEANED")
