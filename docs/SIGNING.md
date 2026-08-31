@@ -6,6 +6,8 @@ ByFTP separates build integrity from publisher identity. CI can prove what sourc
 
 Verified Publisher requires a real Authenticode certificate controlled by the legitimate publisher. Until configured in protected CI, verification relies on the gated build, provenance and SHA-256 checksums.
 
+ByFTP 1.8.0 signs/verifies only the public Windows `Setup` and `Portable` executables. The release pipeline no longer builds, embeds or publishes a separate `Uninstall.exe`, so no uninstaller signing identity or signing step exists in the current release contract.
+
 ## macOS
 
 macOS trust requires a real Developer ID identity and Apple notarization credentials. The project must not claim signed/notarized status without completing the actual Apple flow.
