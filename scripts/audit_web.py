@@ -188,6 +188,23 @@ def main() -> int:
         require(auth, marker, "ByFTP WEB/app/Security/Auth.php")
     require(read("ByFTP WEB/app/bootstrap.php"), "'samesite' => 'Strict'", "ByFTP WEB/app/bootstrap.php")
 
+    setup = read("ByFTP WEB/setup.php")
+    rollback_match = re.search(r"\$rollbackArtifacts\s*=\s*\[(.*?)\];", setup, re.DOTALL)
+    if rollback_match is None:
+        fail("ByFTP WEB/setup.php has no explicit failed-setup artifact rollback list")
+    rollback_artifacts = rollback_match.group(1)
+    for marker in (
+        "byftp_config_path()",
+        "byftp_config_path() . '.bak'",
+        "byftp_config_path() . '.lock'",
+        "BYFTP_STORAGE . '/users.json'",
+        "BYFTP_STORAGE . '/users.json.bak'",
+        "BYFTP_STORAGE . '/users.json.lock'",
+    ):
+        require(rollback_artifacts, marker, "ByFTP WEB/setup.php rollback artifacts")
+    require(setup, "foreach ($rollbackArtifacts as $artifact)", "ByFTP WEB/setup.php")
+    require(setup, "unset($GLOBALS['byftp_config_error']);", "ByFTP WEB/setup.php")
+
     index = read("ByFTP WEB/index.php")
     if "icon-192.png" in index or "icon-512.png" in index:
         fail("web UI references removed duplicate PNG PWA assets")
@@ -230,6 +247,7 @@ def main() -> int:
     print("WEB_REMOTE_PATHS=FAIL_CLOSED")
     print("WEB_PRIVATE_HOSTS=BLOCKED_BY_DEFAULT")
     print("WEB_CREDENTIAL_LIFETIME=POST_AUTH_CLEARED")
+    print("WEB_SETUP_FAILED_TRANSACTION_ARTIFACTS=CLEANED")
     print("WEB_RUNTIME_STORAGE=NOT_TRACKED")
     return 0
 
