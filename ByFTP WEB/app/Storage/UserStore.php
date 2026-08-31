@@ -54,49 +54,41 @@ final class UserStore
             throw new RuntimeException('Nije moguće sigurno hashirati lozinku.');
         }
 
-        $created = null;
-        $this->store->update(function (array $rows) use ($name, $email, $hash, $role, &$created): array {
-            foreach ($rows as $row) {
-                if (is_array($row) && hash_equals((string)($row['email'] ?? ''), $email)) {
-                    throw new RuntimeException('Korisnički račun s tom e-mail adresom već postoji.');
-                }
-            }
-            $created = [
-                'id' => bin2hex(random_bytes(12)),
-                'name' => $name,
-                'email' => $email,
-                'password_hash' => $hash,
-                'role' => $role,
-                'active' => true,
-                'created_at' => gmdate('c'),
-                'updated_at' => gmdate('c'),
-                'last_login_at' => null,
-                'session_version' => 1,
-            ];
-            $rows[] = $created;
-            return array_values($rows);
-        });
+        // Prepare the isolated workspace before publishing the account in users.json.
+        // This prevents a failed workspace creation from ever becoming a valid registry
+        // generation (or JsonStore backup) that could later resurrect a ghost account.
+        $created = [
+            'id' => bin2hex(random_bytes(12)),
+            'name' => $name,
+            'email' => $email,
+            'password_hash' => $hash,
+            'role' => $role,
+            'active' => true,
+            'created_at' => gmdate('c'),
+            'updated_at' => gmdate('c'),
+            'last_login_at' => null,
+            'session_version' => 1,
+        ];
+        $createdId = (string)$created['id'];
+        UserWorkspace::ensure($createdId);
 
-        if (!is_array($created)) {
-            throw new RuntimeException('Korisnički račun nije izrađen.');
-        }
         try {
-            UserWorkspace::ensure((string)$created['id']);
+            $this->store->update(function (array $rows) use ($email, $created): array {
+                foreach ($rows as $row) {
+                    if (is_array($row) && hash_equals((string)($row['email'] ?? ''), $email)) {
+                        throw new RuntimeException('Korisnički račun s tom e-mail adresom već postoji.');
+                    }
+                }
+                $rows[] = $created;
+                return array_values($rows);
+            });
         } catch (\Throwable $e) {
-            // Keep account persistence and its isolated workspace transactional enough
-            // for shared hosting: a failed workspace must not leave a ghost account.
-            try {
-                $createdId = (string)$created['id'];
-                $this->store->update(static fn(array $rows): array => array_values(array_filter(
-                    $rows,
-                    static fn($row): bool => !is_array($row) || !hash_equals((string)($row['id'] ?? ''), $createdId)
-                )));
-                @rmdir(UserWorkspace::directory($createdId));
-            } catch (\Throwable) {
-                // Preserve the original storage failure; the admin can retry after fixing permissions.
-            }
+            // The workspace is still empty at this point because the caller cannot use
+            // the account until the registry write succeeds. Remove only that new path.
+            @rmdir(UserWorkspace::directory($createdId));
             throw $e;
         }
+
         return $this->publicUser($created);
     }
 
