@@ -32,12 +32,7 @@ if (!$profile) {
 }
 
 $paths = byftp_string_paths((string)($_POST['paths'] ?? '[]'), 200);
-$name = trim((string)($_POST['name'] ?? 'byftp-download.zip'));
-$name = preg_replace('/[^\pL\pN._ -]+/u', '-', $name) ?: 'byftp-download.zip';
-if (!str_ends_with(strtolower($name), '.zip')) {
-    $name .= '.zip';
-}
-$name = byftp_truncate($name, 120);
+$name = byftp_archive_download_name((string)($_POST['name'] ?? 'byftp-download.zip'));
 
 $tmp = tempnam(BYFTP_STORAGE . '/tmp', 'archive-');
 if ($tmp === false) {
