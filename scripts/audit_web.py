@@ -97,6 +97,10 @@ def run_runtime_checks() -> tuple[int, int]:
         label="ByFTP WEB ZIP creation error-path tests",
     )
     run_checked(
+        [php, str(WEB / "tests" / "zip-extraction-preflight.php")],
+        label="ByFTP WEB ZIP extraction preflight tests",
+    )
+    run_checked(
         [php, str(WEB / "tests" / "archive-download-name.php")],
         label="ByFTP WEB archive download filename tests",
     )
@@ -150,9 +154,10 @@ def main() -> int:
         "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
         "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
         "ByFTP WEB/tests/name-input.php", "ByFTP WEB/tests/zip-creation.php",
-        "ByFTP WEB/tests/archive-download-name.php", "ByFTP WEB/tests/user-registry.php",
-        "ByFTP WEB/tests/config-security.php", "ByFTP WEB/tests/rate-limiter.php",
-        "ByFTP WEB/tests/profile-recovery.php", "ByFTP WEB/storage/.htaccess",
+        "ByFTP WEB/tests/zip-extraction-preflight.php", "ByFTP WEB/tests/archive-download-name.php",
+        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
+        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/tests/profile-recovery.php",
+        "ByFTP WEB/storage/.htaccess",
     }
     tracked = set(tracked_web_files())
     missing = sorted(required - tracked)
@@ -217,6 +222,28 @@ def main() -> int:
     )
     if zip_error_cleanup is None:
         fail("WEB ZIP build failure cleanup can be skipped or mask the original error")
+
+    extract_start = remote_operations.find("public function extractZip(")
+    extract_end = remote_operations.find("private function buildZip(", extract_start)
+    if extract_start < 0 or extract_end <= extract_start:
+        fail("WEB ZIP extraction method cannot be isolated for preflight audit")
+    extract_zip = remote_operations[extract_start:extract_end]
+    for marker in (
+        "$plan = [];",
+        "// Validate the complete archive before creating directories or uploading files.",
+        "$plan[] = [",
+        "// Only a fully validated archive is allowed to mutate remote state.",
+        "foreach ($plan as $row)",
+    ):
+        require(extract_zip, marker, "ByFTP WEB/app/Operations/RemoteOperations.php extractZip")
+    plan_add = extract_zip.find("$plan[] = [")
+    execute_plan = extract_zip.find("foreach ($plan as $row)")
+    ensure_directory = extract_zip.find("$this->ensureDirectory($remote);", execute_plan)
+    upload_atomic = extract_zip.find("$this->uploadAtomic($entryTmp, $remote);", execute_plan)
+    if not (0 <= plan_add < execute_plan < ensure_directory and execute_plan < upload_atomic):
+        fail("WEB ZIP extraction can mutate remote state before complete archive preflight")
+    if "$this->ensureDirectory($remote);" in extract_zip[:execute_plan] or "$this->uploadAtomic($entryTmp, $remote);" in extract_zip[:execute_plan]:
+        fail("WEB ZIP extraction performs remote mutation during archive validation")
 
     api = read("ByFTP WEB/api.php")
     strict_name = "PathGuard::segment((string)($_POST['name'] ?? ''))"
@@ -383,6 +410,14 @@ def main() -> int:
     ):
         require(zip_creation_tests, marker, "ByFTP WEB/tests/zip-creation.php")
 
+    zip_extraction_tests = read("ByFTP WEB/tests/zip-extraction-preflight.php")
+    for marker in (
+        "../escape.txt",
+        "unsafe ZIP is rejected before any remote mutation",
+        "WEB_ZIP_EXTRACTION_PREFLIGHT_TEST=PASS",
+    ):
+        require(zip_extraction_tests, marker, "ByFTP WEB/tests/zip-extraction-preflight.php")
+
     archive_name_tests = read("ByFTP WEB/tests/archive-download-name.php")
     for marker in (
         "long archive name preserves zip extension after truncation",
@@ -459,6 +494,7 @@ def main() -> int:
     print("WEB_UNIT_TESTS=PASS")
     print("WEB_NAME_INPUTS=FAIL_CLOSED")
     print("WEB_ARCHIVE_DOWNLOAD_NAME=PRESERVES_ZIP_EXTENSION")
+    print("WEB_ZIP_EXTRACTION_PREFLIGHT=FAIL_CLOSED")
     print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
     print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
     print("WEB_PROFILE_CREDENTIAL_RECOVERY=FAIL_CLOSED")
