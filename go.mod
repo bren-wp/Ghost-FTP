@@ -1,3 +1,3 @@
 module github.com/bren-wp/by-ftp
 
-go 1.27.0
+go 1.27.1
