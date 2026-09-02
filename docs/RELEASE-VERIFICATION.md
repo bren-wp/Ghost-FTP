@@ -1,6 +1,6 @@
 # Release verification
 
-`VERSION` is the only canonical ByFTP product-version source. Desktop builds inject it into binary/package metadata; Android derives `versionName`/`versionCode`; iOS derives marketing/build metadata and archive names; ByFTP WEB mirrors it in its own VERSION/composer/PWA cache metadata.
+`VERSION` is the only canonical ByFTP product-version source. Desktop builds inject it into binary/package metadata; Android derives `versionName`/`versionCode`; iOS derives marketing/build metadata and archive names; ByFTP WEB mirrors it in its own VERSION/composer/PWA cache metadata and public WEB ZIP name.
 
 ## Repository source verification
 
@@ -8,9 +8,9 @@ Production verification starts with the tracked source tree itself. `scripts/aud
 
 The repository audit is invoked by `scripts/audit_release.py`, and `scripts/audit_version.py` verifies that the integration remains present. A platform package is therefore not accepted merely because it compiles; the exact source tree used to build it must satisfy repository-wide integrity, security, privacy, documentation and release contracts first.
 
-## ByFTP 1.8.0 public artifact contract
+## ByFTP 1.9.0 public artifact contract
 
-A production release stages exactly **14 platform artifacts** before shared metadata:
+A production release stages exactly **15 platform artifacts** before shared metadata:
 
 - Windows x64: Portable EXE, Setup EXE, verified ZIP.
 - Windows x86: Portable EXE, Setup EXE, verified ZIP.
@@ -18,14 +18,17 @@ A production release stages exactly **14 platform artifacts** before shared meta
 - macOS: Universal PKG.
 - Android: debug-signed APK and optimized unsigned release APK.
 - iOS: arm64 unsigned IPA and arm64 unsigned `.app` ZIP.
+- WEB: verified shared-hosting PHP/PWA ZIP.
 
-The workflow then adds `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **17 public release files** total. Publication remains centralized through `scripts/publish_release.ps1`, which re-reads the GitHub Release and requires final asset identity, sizes and GitHub-provided SHA-256 digests to match local verified artifacts.
+The workflow then adds `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **18 public release files** total. `scripts/prepare_release.ps1` enforces the exact 15-file platform allowlist before metadata creation, rejects uninstall-named assets and then requires exactly 18 final public files.
 
-No public or internal release artifact named `Uninstall.exe` is part of the 1.8.0 contract.
+Publication remains centralized through `scripts/publish_release.ps1`, which re-reads the GitHub Release and requires final asset identity, sizes and GitHub-provided SHA-256 digests to match local verified artifacts.
+
+No public release artifact named `Uninstall.exe` is part of the 1.9.0 contract.
 
 ## Windows app-only Setup verification
 
-Windows production validation builds exactly four public PE files: Portable x64/x86 and Setup x64/x86. `BUILD-WINDOWS.ps1` fails if a generated file name contains `uninstall`.
+Windows production validation builds exactly four public PE files: Portable x64/x86 and Setup x64/x86. `BUILD-WINDOWS.ps1` fails if generated output contains an uninstall-named binary.
 
 Setup uses installer payload **schema 2**. `scripts/make_payload.py` writes exactly:
 
@@ -36,17 +39,17 @@ Setup uses installer payload **schema 2**. `scripts/make_payload.py` writes exac
 
 `scripts/verify_release.py` verifies Setup and Portable PE architecture, GUI subsystem, required PE mitigations/resources, telemetry-vendor absence and distinct SHA-256 identities, then emits `UNINSTALLER_BINARY=ABSENT`.
 
-The release ZIP contains only the public Setup/Portable binaries plus release/documentation metadata. `BUILD-METADATA-WINDOWS.txt` and shared `BUILD-METADATA.txt` record `WINDOWS_UNINSTALLER=none`.
+`scripts/package_windows_bundles.ps1` centralizes x64/x86 ZIP bundle creation, release metadata and bundle SHA verification and performs an additional recursive uninstall-name scan. `BUILD-METADATA-WINDOWS.txt` and shared `BUILD-METADATA.txt` record `WINDOWS_UNINSTALLER=none`.
 
 ## Desktop verification
 
-The central gate runs Go unit/integration tests, `go test -race ./...` and `go vet ./...`. Windows independently builds and verifies both x64 and x86 production packages. Linux independently builds amd64, arm64 and i386 DEBs. macOS independently builds and expands/verifies the Universal PKG. The reviewed native Go toolchain is 1.27.0.
+The central gate runs Go unit/integration tests, `go test -race ./...` and `go vet ./...`. Windows independently builds and verifies both x64 and x86 production packages. Linux independently builds amd64, arm64 and i386 DEBs. macOS independently builds and expands/verifies the Universal PKG. The reviewed native Go toolchain is **1.27.1**.
 
-Shared-hosting diagnostics remain covered by their Go and Windows regressions and the security audit: diagnostics must use the existing initial listing, contain no secret/network behavior and never override a saved/user-selected remote path.
+Shared-hosting diagnostics remain covered by Go/platform regressions and the security audit: diagnostics must use the existing initial listing, contain no secret/network behavior and never override a saved/user-selected remote path.
 
 ## Android verification
 
-Android 1.8.0 uses Android Gradle Plugin 9.3.2, Gradle 9.7.1, JDK 17, compileSdk/targetSdk 37 and build-tools 36.0.0.
+Android 1.9.0 uses **Android Gradle Plugin 9.4.0**, **Gradle 9.7.1**, JDK 17, compileSdk/targetSdk 37 and build-tools 36.0.0. `scripts/audit_version.py` verifies the AGP pin as part of the cross-platform version/toolchain contract.
 
 Publication requires `scripts/audit_android.py`, JUnit, `lintDebug`, `lintRelease`, `assembleDebug`, `assembleRelease` and `scripts/package_android.py` validation. Lint warnings are errors.
 
@@ -62,9 +65,11 @@ Neither iOS artifact implies Apple signing/provisioning. Production device/App S
 
 ## ByFTP WEB verification
 
-`scripts/audit_web.py` runs PHP syntax/runtime regressions and JavaScript syntax checks. Release 1.8.0 additionally requires fail-closed app/user/rate-limit/profile/preference recovery, atomic login/registration rate limiting, SFTP host-key pinning and generation-safe password/authentication tests.
+`scripts/audit_web.py` runs PHP syntax/runtime regressions and JavaScript syntax checks. The 1.9.0 gate additionally covers staged ZIP extraction, actual cumulative decompressed-byte accounting, remote-topology preflight, administrator-only diagnostics, fail-closed storage/recovery, atomic rate limiting, SFTP host-key pinning and generation-safe password/authentication behavior.
 
-The WEB source tree is validated as part of the release matrix even though it has no compiled binary artifact. Its VERSION, Composer metadata and Service Worker cache namespace must match root `VERSION` exactly.
+`scripts/package_web.py` creates `ByFTP-<version>-WEB-shared-hosting.zip` exclusively from `git ls-files` entries under `ByFTP WEB/`. It rejects symlinks, unsafe archive paths and case-insensitive duplicates; verifies required production files; and re-verifies archived VERSION, Composer version and Service Worker cache namespace. `scripts/test_package_web.py` compares the final archive entry set with tracked WEB source and explicitly verifies runtime `storage/users.json` and `storage/config.json` are absent.
+
+The WEB ZIP is a first-class release artifact in 1.9.0, not merely an indirectly validated source directory.
 
 ## Check SHA-256
 
@@ -72,6 +77,6 @@ Verify downloads against `SHA256.txt` before redistribution:
 
 - Windows: `Get-FileHash <file> -Algorithm SHA256`
 - Linux: `sha256sum <file>`
-- macOS/iOS artifact files: `shasum -a 256 <file>`
+- macOS/iOS/WEB artifact files: `shasum -a 256 <file>`
 
 Publish or redistribute artifacts from the gated release workflow rather than manually rebuilding files outside the verified run.
