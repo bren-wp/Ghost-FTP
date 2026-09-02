@@ -51,7 +51,7 @@ def main() -> int:
         "quality:", "windows:", "linux:", "macos:", "android:", "ios:", "publish:",
         "needs: [quality, windows, linux, macos, android, ios]",
         "go telemetry off", "go test ./...", "go test -race ./...", "go vet ./...",
-        "go-version: '1.27.0'", "gradle-version: '9.7.1'",
+        "go-version: '1.27.1'", "gradle-version: '9.7.1'",
         "python scripts/audit_localization.py", "python scripts/audit_version.py",
         "python scripts/audit_android.py", "python scripts/audit_ios.py",
         "python scripts/audit_docs.py", "python scripts/audit_security.py",
@@ -75,7 +75,11 @@ def main() -> int:
 
     ci = read(".github/workflows/ci.yml")
     require(ci, "python scripts/audit_release.py", ".github/workflows/ci.yml")
+    require(ci, "go-version: '1.27.1'", ".github/workflows/ci.yml")
     require(ci, "gradle-version: '9.7.1'", ".github/workflows/ci.yml")
+
+    android_root = read("android/build.gradle.kts")
+    require(android_root, 'id("com.android.application") version "9.4.0" apply false', "android/build.gradle.kts")
 
     for legacy in (
         "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh",
