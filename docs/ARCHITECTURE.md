@@ -6,9 +6,9 @@ ByFTP has four intentionally separate runtime implementations that share product
 
 Windows/Linux/macOS are implemented in Go. `cmd/byftp` starts the client, `cmd/installer` owns the Windows installation lifecycle, `internal/api` exposes typed engine operations, `internal/desktop` contains presentation, `internal/remote` owns FTP/FTPS/SFTP sessions, `internal/transfer` owns queue state, `internal/config` owns durable settings/profiles, `internal/security` centralizes hardening, `internal/i18n` owns localization and `internal/platform` isolates operating-system primitives.
 
-ByFTP 1.8.0 no longer builds or embeds a dedicated Windows `Uninstall.exe`. The Setup payload is application-only and contains `ByFTP.exe` plus its integrity manifest. During a successful upgrade Setup may clean legacy uninstall files/registry entries from older installations, but no new uninstaller binary is generated, packaged or registered.
+ByFTP 1.9.0 does not build or embed a dedicated Windows `Uninstall.exe`. The Setup payload is application-only and contains `ByFTP.exe` plus its integrity manifest. During a successful upgrade Setup may clean legacy uninstall files/registry entries from older installations, but no new uninstaller binary is generated, packaged or registered.
 
-The shared desktop engine is intentionally stored only once. Linux-specific packaging lives under `linux/` and macOS-specific packaging lives under `macos/`; neither directory carries a copied fork of the Go protocol/transfer/security core. This keeps fixes to the desktop engine consistent across Windows, Linux and macOS.
+The shared desktop engine is intentionally stored only once. Linux-specific packaging lives under `linux/` and macOS-specific packaging lives under `macos/`; neither directory carries a copied fork of the Go protocol/transfer/security core. This keeps fixes to the desktop engine consistent across Windows, Linux and macOS. The maintained native toolchain is Go 1.27.1.
 
 The constrained Windows OpenSSH AskPass path remains a separate security boundary with trusted-parent/token validation, protected runtime secrets and environment cleanup.
 
@@ -46,7 +46,7 @@ CI and production releases invoke `macos/BUILD.sh` directly. No macOS production
 
 Commons Net provides FTP/FTPS primitives. SSHJ provides SFTP primitives. Android validates SFTP fingerprints as real 32-byte SHA-256 digests, rejects credential/control-character input and fails closed on traversal/noncanonical remote paths and names.
 
-The 1.8.0 Android build baseline uses JDK 17, Gradle 9.7.1, Android Gradle Plugin 9.3.2, API 37 and Build Tools 36.0.0. The application version is derived from root `VERSION` so Android cannot silently diverge from the rest of the release.
+The 1.9.0 Android build baseline uses JDK 17, Gradle 9.7.1, Android Gradle Plugin 9.4.0, API 37 and Build Tools 36.0.0. The application version is derived from root `VERSION` so Android cannot silently diverge from the rest of the release.
 
 ## iOS runtime
 
@@ -74,23 +74,26 @@ The iOS build injects `MARKETING_VERSION` from root `VERSION`, validates the res
 - `app/Remote` implements FTP/SFTP transport boundaries and strict remote-path handling.
 - `app/Security` owns authentication, rate limiting, host validation, encryption and security logging.
 - `app/Storage` owns users, preferences, encrypted profiles and workspace durability.
-- `tests/` contains PHP runtime regressions for configuration, authentication/rate limiting, user-registry and encrypted-profile recovery behavior.
-- `scripts/audit_web.py` executes and statically verifies these fail-closed invariants in CI.
+- `app/Operations/RemoteOperations.php` owns higher-level copy/move/search/archive operations. ZIP extraction uses a two-phase model: archive/remote topology validation and complete local materialization happen before any remote mutation; the actual cumulative decompressed-byte budget is enforced during staging.
+- `tests/` contains PHP runtime regressions for configuration, authentication/rate limiting, user-registry, archive operations and encrypted-profile recovery behavior.
+- `scripts/audit_web.py` executes and statically verifies fail-closed WEB invariants in CI.
 
-`ByFTP WEB/VERSION`, Composer metadata and the PWA cache namespace are bound to the same 1.8.0 release as the native applications.
+Runtime diagnostics are administrator-only. `ByFTP WEB/VERSION`, Composer metadata and the PWA cache namespace are bound to the same 1.9.0 release as the native applications.
 
-## Build and packaging boundary
+## Release packaging boundary
 
-Root `VERSION` is the canonical application version source for Windows, Linux, macOS, Android and iOS; `ByFTP WEB/VERSION` must match it. The 1.8.0 reviewed desktop baseline uses Go 1.27.0, while Android uses Gradle 9.7.1 with AGP 9.3.2/JDK 17.
+Root `VERSION` is the canonical application version source for Windows, Linux, macOS, Android and iOS; `ByFTP WEB/VERSION` must match it. The 1.9.0 reviewed desktop baseline uses Go 1.27.1, while Android uses Gradle 9.7.1 with AGP 9.4.0/JDK 17.
 
 - Windows builds x64/x86 Setup and Portable binaries through root `BUILD-WINDOWS.ps1`; no uninstaller binary is produced.
+- `scripts/package_windows_bundles.ps1` creates the verified Windows x64/x86 distribution ZIPs from those validated executables and documentation.
 - `linux/BUILD.sh` builds amd64/arm64/i386 DEBs.
 - `macos/BUILD.sh` builds a Universal PKG.
 - Android builds debug-signed and optimized unsigned APKs; `scripts/package_android.py` validates/stages them.
 - `ios/BUILD.sh` builds a generic arm64 iPhoneOS `.app`; `scripts/package_ios.py` validates the bundle and creates an unsigned IPA plus unsigned app ZIP.
-- WEB is validated by the central release-quality job rather than emitted as an operating-system binary.
+- `scripts/package_web.py` creates the deterministic deployable shared-hosting WEB ZIP exclusively from tracked production files.
+- `scripts/prepare_release.ps1` enforces the exact platform allowlist, rejects uninstall-named public files, generates shared metadata/SHA-256 evidence and requires exactly 18 final public files.
 
-`scripts/` contains shared audits, packaging, verification and release tooling rather than platform-specific production build wrappers. The obsolete historical source-sync workflow has also been removed from `.github/workflows/`.
+`scripts/` contains shared audits, packaging, verification and release tooling rather than duplicate platform-specific production build implementations. The obsolete historical source-sync workflow has also been removed from `.github/workflows/`.
 
 Android production signing, Windows Authenticode, macOS Developer ID/notarization and Apple iOS signing remain external trust boundaries. The repository never fabricates a production publisher identity.
 
