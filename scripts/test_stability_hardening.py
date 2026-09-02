@@ -34,7 +34,7 @@ class StabilityHardeningTests(unittest.TestCase):
             "$actualBytes += $copied;",
             "$plan[$index]['local'] = $entryTmp;",
             "// Only a fully validated and materialized archive is allowed to mutate remote state.",
-            "$this->uploadAtomic($local, $remote);",
+            "$this->uploadAtomic($entryTmp, $remote);",
             "foreach ($stagedEntries as $stagedEntry) @unlink($stagedEntry);",
             "return ['files'=>$files,'bytes'=>$actualBytes];",
         )
@@ -45,7 +45,7 @@ class StabilityHardeningTests(unittest.TestCase):
         stream_copy = extract.index("stream_copy_to_stream($stream, $out, $remainingBytes + 1)")
         execution = extract.index("// Only a fully validated and materialized archive is allowed to mutate remote state.")
         ensure_directory = extract.index("$this->ensureDirectory($remote);", execution)
-        upload = extract.index("$this->uploadAtomic($local, $remote);", execution)
+        upload = extract.index("$this->uploadAtomic($entryTmp, $remote);", execution)
         cleanup = extract.index("foreach ($stagedEntries as $stagedEntry) @unlink($stagedEntry);")
 
         self.assertLess(materialize, stream_copy)
@@ -56,7 +56,7 @@ class StabilityHardeningTests(unittest.TestCase):
 
         pre_execution = extract[:execution]
         self.assertNotIn("$this->ensureDirectory($remote);", pre_execution)
-        self.assertNotIn("$this->uploadAtomic($local, $remote);", pre_execution)
+        self.assertNotIn("$this->uploadAtomic($entryTmp, $remote);", pre_execution)
 
 
 if __name__ == "__main__":
