@@ -435,28 +435,47 @@ final class RemoteOperations
                     }
                 }
 
-                // Only a fully validated archive is allowed to mutate remote state.
-                foreach ($plan as $row) {
-                    $remote = (string)$row['remote'];
-                    if (!empty($row['directory'])) {
-                        $this->ensureDirectory($remote);
-                        continue;
+                \byftp_assert_temp_capacity($bytes);
+                $stagedEntries = [];
+                $actualBytes = 0;
+                try {
+                    // Materialize and validate every file entry before any remote mutation.
+                    foreach ($plan as $index => $row) {
+                        if (!empty($row['directory'])) continue;
+                        $remainingBytes = self::MAX_ARCHIVE_BYTES - $actualBytes;
+                        if ($remainingBytes < 0) throw new RuntimeException('ZIP prelazi sigurnosni limit od 512 MiB.');
+                        $stream = $zip->getStream((string)$row['name']);
+                        if (!is_resource($stream)) throw new RuntimeException('ZIP stavku nije moguće pročitati.');
+                        $entryTmp = $this->tempFile('zipentry-');
+                        $stagedEntries[] = $entryTmp;
+                        $out = @fopen($entryTmp, 'wb');
+                        if (!is_resource($out)) { fclose($stream); throw new RuntimeException('Nije moguće pripremiti ZIP stavku.'); }
+                        $copied = stream_copy_to_stream($stream, $out, $remainingBytes + 1);
+                        fclose($stream); fclose($out);
+                        if ($copied === false || $copied > $remainingBytes) throw new RuntimeException('ZIP prelazi sigurnosni limit od 512 MiB.');
+                        $actualBytes += $copied;
+                        $plan[$index]['local'] = $entryTmp;
                     }
-                    $parent = PathGuard::parent($remote);
-                    $this->ensureDirectory($parent);
-                    $stream = $zip->getStream((string)$row['name']);
-                    if (!is_resource($stream)) throw new RuntimeException('ZIP stavku nije moguće pročitati.');
-                    $entryTmp = $this->tempFile('zipentry-');
-                    $out = @fopen($entryTmp, 'wb');
-                    if (!is_resource($out)) { fclose($stream); @unlink($entryTmp); throw new RuntimeException('Nije moguće pripremiti ZIP stavku.'); }
-                    $copied = stream_copy_to_stream($stream, $out, self::MAX_ARCHIVE_BYTES + 1);
-                    fclose($stream); fclose($out);
-                    if ($copied === false || $copied > self::MAX_ARCHIVE_BYTES) { @unlink($entryTmp); throw new RuntimeException('ZIP stavka prelazi sigurnosni limit.'); }
-                    try { $this->uploadAtomic($entryTmp, $remote); } finally { @unlink($entryTmp); }
-                    $files++;
+
+                    // Only a fully validated archive is allowed to mutate remote state.
+                    // Only a fully validated and materialized archive is allowed to mutate remote state.
+                    foreach ($plan as $row) {
+                        $remote = (string)$row['remote'];
+                        if (!empty($row['directory'])) {
+                            $this->ensureDirectory($remote);
+                            continue;
+                        }
+                        $entryTmp = (string)($row['local'] ?? '');
+                        if ($entryTmp === '' || !is_file($entryTmp)) throw new RuntimeException('ZIP stavka nije lokalno pripremljena.');
+                        $this->ensureDirectory(PathGuard::parent($remote));
+                        $this->uploadAtomic($entryTmp, $remote);
+                        $files++;
+                    }
+                } finally {
+                    foreach ($stagedEntries as $stagedEntry) @unlink($stagedEntry);
                 }
             } finally { $zip->close(); }
-            return ['files'=>$files,'bytes'=>$bytes];
+            return ['files'=>$files,'bytes'=>$actualBytes];
         } finally { @unlink($tmp); }
     }
 
