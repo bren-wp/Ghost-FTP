@@ -1,6 +1,8 @@
-# ByFTP WEB 1.8.0
+# ByFTP WEB 1.9.0
 
 ByFTP WEB je samostalni, višekorisnički FTP/FTPS/SFTP file manager za PHP shared hosting. Smješten je u zasebnoj mapi unutar glavnog ByFTP repozitorija i prati isti kanonski release broj kao Windows, Linux, macOS, Android i iOS klijenti.
+
+Od izdanja 1.9.0 WEB dobiva i vlastiti verificirani javni artefakt `ByFTP-1.9.0-WEB-shared-hosting.zip`. Paket se generira isključivo iz Git-tracked produkcijskih datoteka u `ByFTP WEB/` i ne smije sadržavati runtime korisnike, konfiguraciju, backupove, lockove, cache ili druge podatke nastale korištenjem instalacije.
 
 ## Što je uključeno
 
@@ -14,13 +16,23 @@ ByFTP WEB je samostalni, višekorisnički FTP/FTPS/SFTP file manager za PHP shar
 - PWA instalacija bez cacheiranja autentificiranih stranica, API-ja i download/preview odgovora
 - responzivni desktop/mobitel UI bez CDN-a i bez obveznog Node/Docker/cron runtimea
 
-## Sigurnosni model u 1.8.0
+## Sigurnosni i stability model u 1.9.0
 
 Remote putanje i nazivi su fail-closed. Aplikacija ne pretvara `\` u `/`, ne prihvaća traversal, `./`, dvostruke separatore ni protocol-control znakove. Host, port, timeout, account identity i SFTP fingerprint provjeravaju se prije normalizacije; vrijednosti kao `22junk`, rubni razmaci ili CR/LF ne mogu postati valjani unos tihim čišćenjem.
 
 SSRF zaštita je uključena prema zadanim postavkama: privatne, loopback i rezervirane IP adrese nisu dopuštene dok administrator eksplicitno ne uključi private-host pristup. DNS se razrješava na konkretne validirane targete, a transport se spaja na provjerenu IP adresu kako se host ne bi ponovno razrješavao nakon sigurnosne provjere.
 
-SFTP više ne može koristiti password ili privatni ključ bez pinned SHA-256 identiteta servera. `ClientFactory` odbija SFTP profil bez fingerprinta prije mrežne veze, a `SftpClient` uspoređuje stvarni server fingerprint s pinom.
+SFTP ne može koristiti password ili privatni ključ bez pinned SHA-256 identiteta servera. `ClientFactory` odbija SFTP profil bez fingerprinta prije mrežne veze, a `SftpClient` uspoređuje stvarni server fingerprint s pinom.
+
+### ZIP extraction bez kasnog parcijalnog writea
+
+Raspakiravanje ZIP-a u 1.9.0 provjerava kompletnu arhivsku topologiju i postojeće remote konflikte prije remote mutacije. Sve file stavke se zatim lokalno materializiraju u zaštićeni temp prostor i provjerava se stvarni kumulativni broj dekomprimiranih bajtova. Tek nakon što je cijela arhiva čitljiva i unutar limita počinju remote `mkdir` i atomic upload operacije.
+
+Time kasnija oštećena/nečitljiva ZIP stavka ili netočan metadata size ne može uzrokovati da se ranije stavke prvo upišu na server. Limit od 512 MiB primjenjuje se i na deklarirane i na stvarno dekomprimirane bajtove. Svi staged temp fajlovi uklanjaju se u `finally` cleanupu.
+
+### Privilegirane dijagnostike
+
+`diagnostics.php` sada je dostupan samo administratoru. Stranica prikazuje PHP/OpenSSL/runtime i hosting capability informacije koje običnom prijavljenom korisniku nisu potrebne.
 
 ### Fail-closed storage i recovery
 
@@ -33,7 +45,7 @@ Security/privacy state ne vraća se automatski iz starije `.bak` generacije kada
 - korisničke `preferences.json` — favorites, last/recent remote paths i client state
 - legacy profile/preferences migraciju
 
-`.bak` se zadržava za eksplicitni administratorski/operator recovery, ali runtime više ne smije tiho vratiti stariju lozinku, obrisani profil, obrisanu remote path povijest ili slabiju aplikacijsku politiku.
+`.bak` se zadržava za eksplicitni administratorski/operator recovery, ali runtime ne smije tiho vratiti stariju lozinku, obrisani profil, obrisanu remote path povijest ili slabiju aplikacijsku politiku.
 
 ### Authentication concurrency
 
@@ -63,12 +75,13 @@ Aplikacija koristi `SameSite=Strict`, HttpOnly session cookie, CSRF tokene, `Sec
 
 ## Instalacija na shared hosting
 
-1. Kopiraj sadržaj mape `ByFTP WEB/` na odabranu web putanju.
-2. Provjeri da PHP može zapisivati u `storage/`, `storage/tmp/`, `storage/logs/` i `storage/users/`.
-3. Otvori `/setup` i izradi administratorski račun.
-4. Nakon prijave otvori **Diagnostics** i provjeri FTP/SFTP/ZIP/crypto mogućnosti hostinga.
-5. Za svaki SFTP profil unesi provjereni SHA-256 host fingerprint prije testiranja/spremanja veze.
-6. U produkciji koristi HTTPS. `.htaccess` već zabranjuje direktan pristup `app/`, `storage/`, README-u, Composer metapodacima i JSON/backup/lock datotekama.
+1. Preuzmi `ByFTP-1.9.0-WEB-shared-hosting.zip` iz odgovarajućeg GitHub Releasea ili koristi verificirani source iz `ByFTP WEB/`.
+2. Raspakiraj sadržaj na odabranu web putanju.
+3. Provjeri da PHP može zapisivati u `storage/`, `storage/tmp/`, `storage/logs/` i `storage/users/`.
+4. Otvori `/setup` i izradi administratorski račun.
+5. Nakon administratorske prijave otvori **Diagnostics** i provjeri FTP/SFTP/ZIP/crypto mogućnosti hostinga.
+6. Za svaki SFTP profil unesi provjereni SHA-256 host fingerprint prije testiranja/spremanja veze.
+7. U produkciji koristi HTTPS. `.htaccess` već zabranjuje direktan pristup `app/`, `storage/`, README-u, Composer metapodacima i JSON/backup/lock datotekama.
 
 Ako Apache `mod_rewrite` nije dostupan, PHP datoteke i dalje mogu raditi direktno (`login.php`, `index.php`, `api.php`), ali clean URL-ovi neće biti aktivni.
 
@@ -76,9 +89,11 @@ Ako Apache `mod_rewrite` nije dostupan, PHP datoteke i dalje mogu raditi direktn
 
 Ako je primarni `app.json`, `users.json`, profile/preference registry ili rate-limit state oštećen, ByFTP namjerno neće automatski odabrati stariji backup. Prvo provjeri integritet i sadržaj sigurnosne kopije, zatim eksplicitno vrati provjerenu primarnu datoteku. Novi setup je blokiran dok postoje podaci koji mogu zahtijevati recovery kako novi encryption ključ ne bi učinio stare vjerodajnice nedostupnima.
 
-## Verzija i cache
+## Verzija, cache i release paket
 
-`VERSION` u ovoj mapi mora biti identičan root `VERSION`. `app/bootstrap.php` učitava taj broj pri pokretanju, Composer metadata ga ponavlja radi package konzistentnosti, a repository audit blokira mismatch. Service Worker koristi `byftp-static-v1.8.0` i pri aktivaciji uklanja prethodne `byftp-static-*` cache generacije.
+`VERSION` u ovoj mapi mora biti identičan root `VERSION`. `app/bootstrap.php` učitava taj broj pri pokretanju, Composer metadata ga ponavlja radi package konzistentnosti, a repository audit blokira mismatch. Service Worker koristi `byftp-static-v1.9.0` i pri aktivaciji uklanja prethodne `byftp-static-*` cache generacije.
+
+`scripts/package_web.py` iz root repozitorija generira `ByFTP-1.9.0-WEB-shared-hosting.zip` iz `git ls-files` popisa. Packager odbija symlink i unsafe archive putanju, provjerava arhivirani `VERSION`, Composer verziju i PWA cache namespace te nakon izrade ponovno provjerava sadržaj ZIP-a.
 
 ## Legacy podaci
 
@@ -93,6 +108,7 @@ python scripts/audit_web.py
 python scripts/audit_security.py
 python scripts/audit_privacy.py
 python scripts/audit_release.py
+python scripts/package_web.py --output-dir dist
 ```
 
 Iz same mape `ByFTP WEB/` dostupne su i niže razine provjere:
@@ -112,7 +128,7 @@ php tests/config-security.php
 php tests/rate-limiter.php
 ```
 
-Glavni ByFTP CI pokreće WEB runtime testove, repository-wide audit, sigurnosne/privacy provjere i puni native platform matrix prije releasea.
+Glavni ByFTP CI pokreće WEB runtime testove, repository-wide audit, sigurnosne/privacy provjere, deterministic WEB packaging regression i puni native platform matrix prije releasea.
 
 ## Ograničenja web modela
 
