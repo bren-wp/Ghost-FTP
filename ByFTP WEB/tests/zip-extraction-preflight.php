@@ -1,10 +1,45 @@
 <?php
 declare(strict_types=1);
 
+$remoteOperationsSource = file_get_contents(__DIR__ . '/../app/Operations/RemoteOperations.php');
+if (!is_string($remoteOperationsSource)) {
+    fwrite(STDERR, "FAIL: unable to inspect RemoteOperations ZIP extraction source.\n");
+    exit(1);
+}
+$extractStart = strpos($remoteOperationsSource, 'public function extractZip(');
+$extractEnd = $extractStart !== false ? strpos($remoteOperationsSource, 'private function buildZip(', $extractStart) : false;
+if ($extractStart === false || $extractEnd === false || $extractEnd <= $extractStart) {
+    fwrite(STDERR, "FAIL: unable to isolate ZIP extraction source.\n");
+    exit(1);
+}
+$extractSource = substr($remoteOperationsSource, $extractStart, $extractEnd - $extractStart);
+$requiredTypesPos = strpos($extractSource, '$requiredTypes = $plannedTypes;');
+$remoteStatePos = strpos($extractSource, "$remoteState = ['/'=>'dir'];");
+$listingCachePos = strpos($extractSource, '$listingCache = [];');
+$existingFileConflictPos = strpos($extractSource, 'ZIP odredište blokira postojeća datoteka.');
+$existingDirectoryConflictPos = strpos($extractSource, 'ZIP datoteka ne može prepisati postojeći direktorij.');
+$executionPos = strpos($extractSource, '// Only a fully validated archive is allowed to mutate remote state.');
+if (
+    $requiredTypesPos === false
+    || $remoteStatePos === false
+    || $listingCachePos === false
+    || $existingFileConflictPos === false
+    || $existingDirectoryConflictPos === false
+    || $executionPos === false
+    || !($requiredTypesPos < $remoteStatePos
+        && $remoteStatePos <= $listingCachePos
+        && $listingCachePos < $existingFileConflictPos
+        && $existingFileConflictPos < $executionPos
+        && $existingDirectoryConflictPos < $executionPos)
+) {
+    fwrite(STDERR, "FAIL: existing remote ZIP topology is not fully preflighted before execution.\n");
+    exit(1);
+}
+
 if (!class_exists(ZipArchive::class)) {
     // Some cross-platform build runners intentionally do not install the optional PHP
-    // ZIP extension. Source-order enforcement still runs everywhere; the real traversal
-    // fixture runs on environments where the extraction feature itself is available.
+    // ZIP extension. Source-order enforcement above still runs everywhere; the real
+    // archive fixtures run where the extraction feature itself is available.
     echo "WEB_ZIP_EXTRACTION_PREFLIGHT_TEST=SKIP_NO_ZIP\n";
     exit(0);
 }
