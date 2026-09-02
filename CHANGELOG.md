@@ -2,6 +2,25 @@
 
 The active product changelog intentionally starts at 1.3.0. Older development history remains available in Git history but is not part of the current maintained release documentation.
 
+## 1.9.0 — Stability hardening, current toolchains and deployable WEB release
+
+**Focus:** reduce partial-write/crash risk, remove confirmed dead code, tighten privileged diagnostics, update supported toolchains and publish every maintained platform from one verified 1.9.0 release contract.
+
+- Synchronized Windows, Linux, macOS, Android, iOS and ByFTP WEB on canonical release `1.9.0`.
+- Updated the native desktop build toolchain from Go 1.27.0 to **Go 1.27.1**.
+- Updated Android from AGP 9.3.2 to **AGP 9.4.0** while retaining **Gradle 9.7.1**, JDK 17, API 37 and build-tools 36.0.0.
+- Hardened WEB ZIP extraction so complete topology validation and local materialization occur before the first remote mutation.
+- Enforced the 512 MiB archive limit against actual decompressed bytes in addition to ZIP metadata, preventing dishonest metadata from bypassing the cumulative extraction budget.
+- Ensured staged WEB ZIP temp files are removed through guaranteed cleanup paths and successful extraction reports the actual extracted byte count.
+- Added regression coverage proving existing remote file/directory topology conflicts fail before any remote archive write begins.
+- Restricted `diagnostics.php` to administrators because it exposes PHP/OpenSSL/runtime/hosting capability information.
+- Removed the empty `internal/i18n/action_locale_de_fr.go` compilation unit and added an invariant preventing the dead file from returning.
+- Added deterministic `scripts/package_web.py` packaging and regression coverage. The public `ByFTP-1.9.0-WEB-shared-hosting.zip` contains tracked production WEB files only and excludes runtime state, cache, user data and backups.
+- Refactored Windows release-bundle creation into `scripts/package_windows_bundles.ps1` and centralized release staging/SHA validation in `scripts/prepare_release.ps1` instead of duplicating packaging logic in workflow YAML.
+- Expanded the public release allowlist to **15 platform artifacts plus 3 shared metadata files = 18 public release files**.
+- Kept Windows Setup app-only payload schema 2 and the explicit no-standalone-uninstaller invariant. `Setup.exe` and `Portable.exe` x64/x86 inherit the same canonical 1.9.0 version metadata.
+- Preserved full repository/WEB/mobile/security/privacy/docs audits, Python regressions, Go unit/race/vet gates and production builds for Windows, Linux, macOS, Android and iOS before publication.
+
 ## 1.8.0 — Cross-platform security hardening and installer cleanup
 
 **Focus:** synchronize every maintained client on one release, close the remaining web authentication/storage rollback races, modernize Android tooling and remove the standalone Windows uninstaller binary.
