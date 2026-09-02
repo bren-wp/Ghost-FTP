@@ -3,12 +3,11 @@ name: Publish ByFTP
 on:
   push:
     branches: [main]
-    paths:
-      - 'VERSION'
+    paths: ['VERSION']
   workflow_dispatch:
     inputs:
       version:
-        description: 'Optional version without the v prefix; leave empty to use canonical VERSION'
+        description: 'Optional version without v prefix; empty uses VERSION'
         required: false
 
 permissions:
@@ -26,7 +25,7 @@ env:
 
 jobs:
   quality:
-    name: Production quality, race, security and privacy
+    name: Production quality, race, security, privacy and WEB
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -37,7 +36,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.0'
+          go-version: '1.27.1'
           check-latest: false
           cache: false
       - name: Set up Python
@@ -50,24 +49,22 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Verify assets, localization, version and mobile invariants
+      - name: Verify source and release invariants
         shell: bash
         run: |
           set -euo pipefail
           python scripts/generate_brand_assets.py --check
           python scripts/audit_localization.py
           python scripts/audit_version.py
+          python scripts/audit_repository.py
+          python scripts/audit_web.py
           python scripts/audit_android.py
           python scripts/audit_ios.py
-      - name: Verify docs, security, privacy and release contract
-        shell: bash
-        run: |
-          set -euo pipefail
           python scripts/audit_docs.py
           python scripts/audit_security.py
           python scripts/audit_privacy.py
           python scripts/audit_release.py
-      - name: Python release-tool regressions
+      - name: Python regressions
         run: python -m unittest discover -s scripts -p 'test_*.py'
       - name: Go unit, race and vet
         shell: bash
@@ -76,7 +73,7 @@ jobs:
           go test ./...
           go test -race ./...
           go vet ./...
-      - name: Verify release-note generation
+      - name: Verify release notes
         shell: bash
         run: |
           set -euo pipefail
@@ -84,6 +81,15 @@ jobs:
           python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
           test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
           grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+      - name: Build verified WEB package
+        run: python scripts/package_web.py --output-dir dist
+      - name: Store WEB release package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: byftp-web-release
+          if-no-files-found: error
+          retention-days: 7
+          path: dist/ByFTP-*-WEB-shared-hosting.zip
 
   android:
     name: Android APK quality gate
@@ -112,21 +118,17 @@ jobs:
         run: |
           set -euo pipefail
           sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          test -d "$sdk_root/platforms"
           find "$sdk_root/platforms" -maxdepth 1 -type d -name 'android-37*' -print -quit | grep -q .
           test -d "$sdk_root/build-tools/36.0.0"
       - name: Audit Android source
         run: python scripts/audit_android.py
-      - name: Test, lint and compile Android APKs
+      - name: Test, lint and build Android APKs
         shell: bash
         run: |
           set -euo pipefail
           gradle -p android :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
-          python scripts/package_android.py \
-            --debug android/app/build/outputs/apk/debug/app-debug.apk \
-            --release android/app/build/outputs/apk/release/app-release-unsigned.apk \
-            --output-dir dist
-      - name: Store Android release packages
+          python scripts/package_android.py --debug android/app/build/outputs/apk/debug/app-debug.apk --release android/app/build/outputs/apk/release/app-release-unsigned.apk --output-dir dist
+      - name: Store Android packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-android-release
@@ -151,7 +153,7 @@ jobs:
         run: python3 scripts/audit_ios.py
       - name: Build native iPhoneOS artifacts
         run: bash ios/BUILD.sh
-      - name: Store iOS release packages
+      - name: Store iOS packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-ios-release
@@ -173,7 +175,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.0'
+          go-version: '1.27.1'
           check-latest: false
           cache: false
       - name: Set up Python
@@ -184,52 +186,14 @@ jobs:
         shell: pwsh
         run: |
           go telemetry off
-          if ($LASTEXITCODE -ne 0) { throw 'Unable to disable Go telemetry.' }
-          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
+          if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
       - name: Build Windows x64 and x86
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
       - name: Build verified Windows ZIP bundles
         shell: pwsh
-        run: |
-          $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
-          python scripts/release_notes.py --version $version --output 'dist\RELEASE-NOTES.txt'
-          if ($LASTEXITCODE -ne 0) { throw 'Release-note generation failed.' }
-          @"
-          VERSION=$version
-          COMMIT=$env:GITHUB_SHA
-          SOURCE_REF=$env:GITHUB_REF
-          GO_VERSION=$((go env GOVERSION).Trim())
-          GO_TELEMETRY=$((go telemetry).Trim())
-          BUILD_OS=windows
-          BUILD_ARCH=x64,x86
-          WINDOWS_UNINSTALLER=none
-          GITHUB_RUN_ID=$env:GITHUB_RUN_ID
-          GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
-          "@ | Set-Content 'dist\BUILD-METADATA-WINDOWS.txt' -Encoding ascii
-          foreach ($arch in @('x64','x86')) {
-            $root = "dist\ByFTP-$version-Windows-$arch"
-            Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
-            New-Item -ItemType Directory -Force -Path $root, (Join-Path $root 'Documentation') | Out-Null
-            Copy-Item "dist\ByFTP-$version-Portable-$arch.exe" $root -Force
-            Copy-Item "dist\ByFTP-$version-Setup-$arch.exe" $root -Force
-            Copy-Item 'dist\RELEASE-NOTES.txt' $root -Force
-            Copy-Item 'dist\BUILD-METADATA-WINDOWS.txt' (Join-Path $root 'BUILD-METADATA.txt') -Force
-            Copy-Item 'README.md','CHANGELOG.md','LICENSE' $root -Force
-            Copy-Item 'docs\*.md' (Join-Path $root 'Documentation') -Force
-            $lines = foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName) {
-              $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-              $relative = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\','/')
-              "$hash  $relative"
-            }
-            $lines | Set-Content (Join-Path $root 'BUNDLE-SHA256.txt') -Encoding ascii
-            $zip = "dist\ByFTP-$version-Windows-$arch.zip"
-            Remove-Item -Force $zip -ErrorAction SilentlyContinue
-            Compress-Archive -Path "$root\*" -DestinationPath $zip -CompressionLevel Optimal
-            python scripts/verify_bundle.py $zip --version $version --arch $arch
-            if ($LASTEXITCODE -ne 0) { throw "Windows $arch ZIP verification failed." }
-          }
-      - name: Store Windows release packages
+        run: .\scripts\package_windows_bundles.ps1
+      - name: Store Windows packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: byftp-windows-release
@@ -253,7 +217,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.0'
+          go-version: '1.27.1'
           check-latest: false
           cache: false
       - name: Disable and verify Go telemetry
@@ -263,13 +227,8 @@ jobs:
           go telemetry off
           test "$(go telemetry)" = 'off'
       - name: Verify Linux core
-        shell: bash
-        run: |
-          set -euo pipefail
-          go test ./...
-          go vet ./...
+        run: go test ./... && go vet ./...
       - name: Build DEB packages
-        shell: bash
         run: bash linux/BUILD.sh
       - name: Verify DEB metadata
         shell: bash
@@ -301,7 +260,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.0'
+          go-version: '1.27.1'
           check-latest: false
           cache: false
       - name: Disable and verify Go telemetry
@@ -311,13 +270,8 @@ jobs:
           go telemetry off
           test "$(go telemetry)" = 'off'
       - name: Cross-platform tests on macOS
-        shell: bash
-        run: |
-          set -euo pipefail
-          go test ./...
-          go vet ./...
+        run: go test ./... && go vet ./...
       - name: Build Universal PKG
-        shell: bash
         run: bash macos/BUILD.sh
       - name: Verify PKG structure
         shell: bash
@@ -355,11 +309,7 @@ jobs:
         shell: pwsh
         run: |
           $manual = '${{ inputs.version }}'.Trim()
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and $manual) {
-            $version = $manual
-          } else {
-            $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
-          }
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and $manual) { $version = $manual } else { $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim() }
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid version: $version" }
           $source = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
           if ($source -ne $version) { throw "Release version $version does not match VERSION=$source" }
@@ -367,104 +317,32 @@ jobs:
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Download Windows packages
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with:
-          name: byftp-windows-release
-          path: release
+        with: { name: byftp-windows-release, path: release }
       - name: Download Linux packages
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with:
-          name: byftp-linux-release
-          path: release
+        with: { name: byftp-linux-release, path: release }
       - name: Download macOS package
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with:
-          name: byftp-macos-release
-          path: release
-      - name: Download Android APK packages
+        with: { name: byftp-macos-release, path: release }
+      - name: Download Android packages
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with:
-          name: byftp-android-release
-          path: release
+        with: { name: byftp-android-release, path: release }
       - name: Download iOS packages
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with:
-          name: byftp-ios-release
-          path: release
-      - name: Verify public release staging
+        with: { name: byftp-ios-release, path: release }
+      - name: Download WEB package
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with: { name: byftp-web-release, path: release }
+      - name: Verify public release staging and generate metadata
         shell: pwsh
-        run: |
-          $expected = @(
-            "ByFTP-$env:VERSION-Portable-x64.exe",
-            "ByFTP-$env:VERSION-Setup-x64.exe",
-            "ByFTP-$env:VERSION-Windows-x64.zip",
-            "ByFTP-$env:VERSION-Portable-x86.exe",
-            "ByFTP-$env:VERSION-Setup-x86.exe",
-            "ByFTP-$env:VERSION-Windows-x86.zip",
-            "ByFTP-$env:VERSION-Linux-amd64.deb",
-            "ByFTP-$env:VERSION-Linux-arm64.deb",
-            "ByFTP-$env:VERSION-Linux-i386.deb",
-            "ByFTP-$env:VERSION-macOS-Universal.pkg",
-            "ByFTP-$env:VERSION-Android-debug.apk",
-            "ByFTP-$env:VERSION-Android-release-unsigned.apk",
-            "ByFTP-$env:VERSION-iOS-arm64-unsigned.ipa",
-            "ByFTP-$env:VERSION-iOS-arm64-unsigned-app.zip"
-          )
-          $actual = @(Get-ChildItem -LiteralPath 'release' -File | ForEach-Object Name | Sort-Object)
-          $wanted = @($expected | Sort-Object)
-          if ($actual.Count -ne $wanted.Count) { throw "Release staging has $($actual.Count) files instead of $($wanted.Count)." }
-          if (Compare-Object -ReferenceObject $wanted -DifferenceObject $actual) { throw 'Release staging does not match the public package contract.' }
-      - name: Generate shared metadata and SHA-256
-        shell: pwsh
-        run: |
-          python scripts/release_notes.py --version $env:VERSION --output 'release\RELEASE-NOTES.txt'
-          if ($LASTEXITCODE -ne 0) { throw 'Release-note generation failed.' }
-          @"
-          VERSION=$env:VERSION
-          COMMIT=$env:GITHUB_SHA
-          SOURCE_REF=$env:GITHUB_REF
-          WINDOWS=x64,x86
-          WINDOWS_UNINSTALLER=none
-          LINUX=amd64,arm64,i386
-          MACOS=universal-amd64-arm64
-          ANDROID=debug-signed,release-unsigned
-          IOS=arm64-unsigned-ipa,arm64-unsigned-app-zip
-          RELEASE_QUALITY_GATE=passed
-          GITHUB_RUN_ID=$env:GITHUB_RUN_ID
-          GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT
-          "@ | Set-Content 'release\BUILD-METADATA.txt' -Encoding ascii
-          $hashTargets = Get-ChildItem -LiteralPath 'release' -File | Where-Object { $_.Name -ne 'SHA256.txt' } | Sort-Object Name
-          $lines = foreach ($item in $hashTargets) {
-            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $($item.Name)"
-          }
-          $lines | Set-Content 'release\SHA256.txt' -Encoding ascii
+        run: .\scripts\prepare_release.ps1
       - name: Publish or safely complete GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $assets = @(
-            "release\ByFTP-$env:VERSION-Portable-x64.exe",
-            "release\ByFTP-$env:VERSION-Setup-x64.exe",
-            "release\ByFTP-$env:VERSION-Windows-x64.zip",
-            "release\ByFTP-$env:VERSION-Portable-x86.exe",
-            "release\ByFTP-$env:VERSION-Setup-x86.exe",
-            "release\ByFTP-$env:VERSION-Windows-x86.zip",
-            "release\ByFTP-$env:VERSION-Linux-amd64.deb",
-            "release\ByFTP-$env:VERSION-Linux-arm64.deb",
-            "release\ByFTP-$env:VERSION-Linux-i386.deb",
-            "release\ByFTP-$env:VERSION-macOS-Universal.pkg",
-            "release\ByFTP-$env:VERSION-Android-debug.apk",
-            "release\ByFTP-$env:VERSION-Android-release-unsigned.apk",
-            "release\ByFTP-$env:VERSION-iOS-arm64-unsigned.ipa",
-            "release\ByFTP-$env:VERSION-iOS-arm64-unsigned-app.zip",
-            'release\SHA256.txt',
-            'release\RELEASE-NOTES.txt',
-            'release\BUILD-METADATA.txt'
-          )
-          foreach ($asset in $assets) {
-            if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Missing release asset: $asset" }
-          }
+          $assets = @(Get-ChildItem -LiteralPath 'release' -File | Sort-Object Name | ForEach-Object FullName)
+          if ($assets.Count -ne 18) { throw "Expected 18 public release files; found $($assets.Count)." }
           & .\scripts\publish_release.ps1 -Repository $env:GITHUB_REPOSITORY -Version $env:VERSION -Commit $env:GITHUB_SHA -NotesFile 'release\RELEASE-NOTES.txt' -Assets $assets
       - name: Store complete release artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -477,19 +355,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path 'package\assets','package-out' | Out-Null
-          foreach ($name in @(
-            "ByFTP-$env:VERSION-Portable-x64.exe","ByFTP-$env:VERSION-Setup-x64.exe","ByFTP-$env:VERSION-Windows-x64.zip",
-            "ByFTP-$env:VERSION-Portable-x86.exe","ByFTP-$env:VERSION-Setup-x86.exe","ByFTP-$env:VERSION-Windows-x86.zip",
-            'SHA256.txt','RELEASE-NOTES.txt','BUILD-METADATA.txt')) {
-            Copy-Item (Join-Path 'release' $name) 'package\assets\' -Force
-          }
+          foreach ($name in @("ByFTP-$env:VERSION-Portable-x64.exe","ByFTP-$env:VERSION-Setup-x64.exe","ByFTP-$env:VERSION-Windows-x64.zip","ByFTP-$env:VERSION-Portable-x86.exe","ByFTP-$env:VERSION-Setup-x86.exe","ByFTP-$env:VERSION-Windows-x86.zip",'SHA256.txt','RELEASE-NOTES.txt','BUILD-METADATA.txt')) { Copy-Item (Join-Path 'release' $name) 'package\assets\' -Force }
+          '# ByFTP.Windows ' + $env:VERSION + "`n`nOfficial verified ByFTP Windows x64/x86 distribution. No standalone uninstaller is included." | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
           @"
-          # ByFTP.Windows $env:VERSION
-
-          Official ByFTP Windows distribution package for x64 and x86. It contains only public Windows builds and verified release metadata. The Setup payload does not contain a standalone uninstaller executable.
-          "@ | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
-          @"
-          <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><PackageId>ByFTP.Windows</PackageId><Version>$env:VERSION</Version><Authors>ByFTP</Authors><Company>ByFTP</Company><Description>ByFTP Windows x64 and x86 FTP/FTPS/SFTP distribution package.</Description><PackageTags>byftp;ftp;ftps;sftp;windows;privacy</PackageTags><PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl><RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl><RepositoryType>git</RepositoryType><PackageLicenseFile>LICENSE</PackageLicenseFile><PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance><SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup><ItemGroup><None Include="assets\**\*" Pack="true" PackagePath="tools\" /><None Include="PACKAGE-README.md" Pack="true" PackagePath="\" /><None Include="..\LICENSE" Pack="true" PackagePath="\" /><None Include="..\docs\*.md" Pack="true" PackagePath="docs\" /></ItemGroup></Project>
+          <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><PackageId>ByFTP.Windows</PackageId><Version>$env:VERSION</Version><Authors>ByFTP</Authors><Description>ByFTP Windows x64 and x86 FTP/FTPS/SFTP distribution package.</Description><PackageTags>byftp;ftp;ftps;sftp;windows;privacy</PackageTags><PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl><RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl><RepositoryType>git</RepositoryType><PackageLicenseFile>LICENSE</PackageLicenseFile><PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance><SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup><ItemGroup><None Include="assets\**\*" Pack="true" PackagePath="tools\" /><None Include="PACKAGE-README.md" Pack="true" PackagePath="\" /><None Include="..\LICENSE" Pack="true" PackagePath="\" /><None Include="..\docs\*.md" Pack="true" PackagePath="docs\" /></ItemGroup></Project>
           "@ | Set-Content 'package\ByFTP.Windows.csproj' -Encoding UTF8
           dotnet pack 'package\ByFTP.Windows.csproj' -c Release -o 'package-out'
       - name: Publish GitHub Windows package

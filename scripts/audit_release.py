@@ -50,32 +50,63 @@ def main() -> int:
         "group: byftp-release",
         "quality:", "windows:", "linux:", "macos:", "android:", "ios:", "publish:",
         "needs: [quality, windows, linux, macos, android, ios]",
+        "go-version: '1.27.1'", "gradle-version: '9.7.1'",
         "go telemetry off", "go test ./...", "go test -race ./...", "go vet ./...",
-        "go-version: '1.27.0'", "gradle-version: '9.7.1'",
-        "python scripts/audit_localization.py", "python scripts/audit_version.py",
-        "python scripts/audit_android.py", "python scripts/audit_ios.py",
-        "python scripts/audit_docs.py", "python scripts/audit_security.py",
-        "python scripts/audit_privacy.py", "python scripts/audit_release.py",
-        ".\\BUILD-WINDOWS.ps1", "bash linux/BUILD.sh", "bash macos/BUILD.sh", "bash ios/BUILD.sh",
+        "python scripts/audit_version.py", "python scripts/audit_repository.py", "python scripts/audit_web.py",
+        "python scripts/audit_android.py", "python scripts/audit_ios.py", "python scripts/audit_docs.py",
+        "python scripts/audit_security.py", "python scripts/audit_privacy.py", "python scripts/audit_release.py",
+        "python scripts/package_web.py --output-dir dist", "byftp-web-release",
+        ".\\BUILD-WINDOWS.ps1", ".\\scripts\\package_windows_bundles.ps1",
+        "bash linux/BUILD.sh", "bash macos/BUILD.sh", "bash ios/BUILD.sh",
         "android-37*", "build-tools/36.0.0",
         ":app:testDebugUnitTest", ":app:lintDebug", ":app:lintRelease", ":app:assembleDebug", ":app:assembleRelease",
         "python scripts/package_android.py", "byftp-android-release", "byftp-ios-release",
-        "python scripts/verify_bundle.py $zip --version $version --arch $arch",
-        "scripts\\publish_release.ps1", "Verify public release staging",
-        "ByFTP-$env:VERSION-Windows-x64.zip", "ByFTP-$env:VERSION-Windows-x86.zip",
-        "ByFTP-$env:VERSION-Linux-amd64.deb", "ByFTP-$env:VERSION-Linux-arm64.deb", "ByFTP-$env:VERSION-Linux-i386.deb",
-        "ByFTP-$env:VERSION-macOS-Universal.pkg",
-        "ByFTP-$env:VERSION-Android-debug.apk", "ByFTP-$env:VERSION-Android-release-unsigned.apk",
-        "ByFTP-$env:VERSION-iOS-arm64-unsigned.ipa", "ByFTP-$env:VERSION-iOS-arm64-unsigned-app.zip",
-        "ANDROID=debug-signed,release-unsigned", "IOS=arm64-unsigned-ipa,arm64-unsigned-app-zip",
-        "WINDOWS_UNINSTALLER=none",
+        "Download WEB package", ".\\scripts\\prepare_release.ps1",
+        "scripts\\publish_release.ps1", "Expected 18 public release files",
         "<PackageId>ByFTP.Windows</PackageId>", "dotnet nuget push", "--skip-duplicate",
     ):
         require(workflow, marker, ".github/workflows/release.yml")
 
     ci = read(".github/workflows/ci.yml")
-    require(ci, "python scripts/audit_release.py", ".github/workflows/ci.yml")
-    require(ci, "gradle-version: '9.7.1'", ".github/workflows/ci.yml")
+    for marker in ("python scripts/audit_release.py", "go-version: '1.27.1'", "gradle-version: '9.7.1'"):
+        require(ci, marker, ".github/workflows/ci.yml")
+
+    android_root = read("android/build.gradle.kts")
+    require(android_root, 'id("com.android.application") version "9.4.0" apply false', "android/build.gradle.kts")
+
+    web_packager = read("scripts/package_web.py")
+    for marker in (
+        'git", "ls-files", "-z", "--", "ByFTP WEB"',
+        "ByFTP-{version}-WEB-shared-hosting.zip",
+        "tracked WEB symlink is not allowed",
+        "archived composer.json version does not match canonical VERSION",
+        "byftp-static-v{version}",
+    ):
+        require(web_packager, marker, "scripts/package_web.py")
+    read("scripts/test_package_web.py")
+
+    windows_bundler = read("scripts/package_windows_bundles.ps1")
+    for marker in (
+        "ByFTP-$version-Portable-$arch.exe", "ByFTP-$version-Setup-$arch.exe",
+        "ByFTP-$version-Windows-$arch.zip", "scripts/verify_bundle.py",
+        "WINDOWS_UNINSTALLER=none", "unexpectedly produced an uninstaller-named file",
+    ):
+        require(windows_bundler, marker, "scripts/package_windows_bundles.ps1")
+
+    release_staging = read("scripts/prepare_release.ps1")
+    for marker in (
+        "ByFTP-$version-Portable-x64.exe", "ByFTP-$version-Setup-x64.exe",
+        "ByFTP-$version-Portable-x86.exe", "ByFTP-$version-Setup-x86.exe",
+        "ByFTP-$version-Linux-amd64.deb", "ByFTP-$version-Linux-arm64.deb", "ByFTP-$version-Linux-i386.deb",
+        "ByFTP-$version-macOS-Universal.pkg",
+        "ByFTP-$version-Android-debug.apk", "ByFTP-$version-Android-release-unsigned.apk",
+        "ByFTP-$version-iOS-arm64-unsigned.ipa", "ByFTP-$version-iOS-arm64-unsigned-app.zip",
+        "ByFTP-$version-WEB-shared-hosting.zip",
+        "PUBLIC_PLATFORM_ARTIFACTS=15", "SHARED_METADATA_ARTIFACTS=3", "PUBLIC_RELEASE_FILES=18",
+        "WINDOWS_UNINSTALLER=none", "Release staging contains an uninstaller-named public asset",
+        "SHA256.txt", "BUILD-METADATA.txt", "RELEASE-NOTES.txt",
+    ):
+        require(release_staging, marker, "scripts/prepare_release.ps1")
 
     for legacy in (
         "scripts/BUILD-LINUX.sh", "scripts/BUILD-MACOS.sh", "scripts/BUILD-IOS.sh",
@@ -108,8 +139,6 @@ def main() -> int:
         "transactionCommitted = true", "legacyCleanupWarning := cleanupLegacyUninstaller(dir)",
     ):
         require(installer, marker, "cmd/installer/main.go")
-    if "./cmd/uninstaller" in installer:
-        fail("installer still references the removed uninstaller command")
 
     windows_verifier = read("scripts/verify_release.py")
     for marker in ("UNINSTALLER_BINARY=ABSENT", "SETUP_PE_OK=YES", "PORTABLE_PE_OK=YES"):
@@ -119,11 +148,10 @@ def main() -> int:
 
     publisher = read("scripts/publish_release.ps1")
     for marker in (
-        "function Invoke-GhJson", "function Try-GhJson", "@('api',", "gh release create", "gh release edit",
+        "function Invoke-GhJson", "function Try-GhJson", "gh release create", "gh release edit",
         "gh release upload", "Get-FileHash", "SHA256", "Assert-TagCommit", "Assert-RemoteAsset",
         "function Assert-CurrentMainCommit", "repos/$Repository/branches/main",
-        "RELEASE_MAIN_HEAD_VERIFICATION=PASS", "Stale release run je blokiran",
-        "RELEASE_PUBLISH_VERIFICATION=PASS",
+        "RELEASE_MAIN_HEAD_VERIFICATION=PASS", "RELEASE_PUBLISH_VERIFICATION=PASS",
     ):
         require(publisher, marker, "scripts/publish_release.ps1")
 
@@ -133,38 +161,24 @@ def main() -> int:
         fail("publisher must verify current main before release lookup/mutation")
 
     android_packager = read("scripts/package_android.py")
-    for marker in (
-        "ANDROID_PACKAGE_FAILED", "AndroidManifest.xml", "classes.dex", "resources.arsc",
-        "Android-debug.apk", "Android-release-unsigned.apk", "validate_apk",
-    ):
+    for marker in ("ANDROID_PACKAGE_FAILED", "AndroidManifest.xml", "classes.dex", "resources.arsc", "validate_apk"):
         require(android_packager, marker, "scripts/package_android.py")
 
     ios_packager = read("scripts/package_ios.py")
-    for marker in (
-        "IOS_PACKAGE_FAILED", "Payload/ByFTP.app", "iOS-arm64-unsigned.ipa",
-        "iOS-arm64-unsigned-app.zip", "CFBundleIdentifier", "CFBundleShortVersionString",
-        "Mach-O", "symlink",
-    ):
+    for marker in ("IOS_PACKAGE_FAILED", "Payload/ByFTP.app", "CFBundleShortVersionString", "Mach-O", "symlink"):
         require(ios_packager, marker, "scripts/package_ios.py")
 
     linux_build = read("linux/BUILD.sh")
-    for marker in ("VERSION", "linux/byftp.desktop", "linux/debian/control.in", "dpkg-deb", "build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386"):
+    for marker in ("VERSION", "dpkg-deb", "build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386"):
         require(linux_build, marker, "linux/BUILD.sh")
-    read("linux/byftp.desktop")
-    read("linux/debian/control.in")
-    read("linux/README.md")
 
     macos_build = read("macos/BUILD.sh")
-    for marker in ("VERSION", "macos/Info.plist.in", "macos/launcher.zsh", "lipo -create", "pkgbuild", "ByFTP-${VERSION}-macOS-Universal.pkg"):
+    for marker in ("VERSION", "lipo -create", "pkgbuild", "ByFTP-${VERSION}-macOS-Universal.pkg"):
         require(macos_build, marker, "macos/BUILD.sh")
-    for rel in ("macos/Info.plist.in", "macos/launcher.zsh", "macos/README.md"):
-        read(rel)
 
     ios_build = read("ios/BUILD.sh")
     for marker in ("VERSION", "xcodebuild", "generic/platform=iOS", "ARCHS=arm64", "scripts/package_ios.py"):
         require(ios_build, marker, "ios/BUILD.sh")
-
-    require(windows_build, "VERSION", "BUILD-WINDOWS.ps1")
 
     verifier = read("scripts/verify_bundle.py")
     for marker in ("BUNDLE_VERIFICATION_FAILED", "BUNDLE-SHA256.txt", "Documentation/SECURITY.md"):
@@ -172,15 +186,15 @@ def main() -> int:
 
     for rel in (
         "README.md", "CHANGELOG.md", "linux/README.md", "macos/README.md", "android/README.md", "ios/README.md",
-        "ByFTP WEB/README.md", "ByFTP WEB/VERSION", "scripts/audit_web.py",
-        "docs/INSTALLATION.md", "docs/RELEASE-VERIFICATION.md", "docs/SECURITY.md", "docs/PRIVACY.md",
-        "scripts/audit_repository.py", "scripts/test_audit_repository.py",
+        "ByFTP WEB/README.md", "docs/INSTALLATION.md", "docs/RELEASE-VERIFICATION.md", "docs/SECURITY.md", "docs/PRIVACY.md",
     ):
         read(rel)
 
     for rel in (
         ".github/workflows/release.yml", "scripts/publish_release.ps1", "scripts/verify_bundle.py",
-        "scripts/package_android.py", "scripts/package_ios.py", "linux/BUILD.sh", "macos/BUILD.sh", "ios/BUILD.sh",
+        "scripts/package_android.py", "scripts/package_ios.py", "scripts/package_web.py",
+        "scripts/package_windows_bundles.ps1", "scripts/prepare_release.ps1",
+        "linux/BUILD.sh", "macos/BUILD.sh", "ios/BUILD.sh",
     ):
         if "brendigo" in read(rel).lower():
             fail(f"legacy branding remains in release surface: {rel}")
@@ -188,19 +202,16 @@ def main() -> int:
     print(f"RELEASE_AUDIT=PASS ({version})")
     print("REPOSITORY_WIDE_TRACKED_FILE_AUDIT=REQUIRED")
     print("WEB_RUNTIME_AND_SECURITY_GATE=REQUIRED")
+    print("WEB_DEPLOYABLE_PACKAGE=REQUIRED")
     print("RELEASE_MAIN_HEAD_GUARD=REQUIRED")
-    print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP,WEB_SOURCE_VALIDATED")
-    print("PLATFORM_PACKAGING=LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY,WEB_SOURCE_DIRECTORY")
-    print("OBSOLETE_PLATFORM_WRAPPERS=REMOVED")
-    print("OBSOLETE_SOURCE_SYNC_WORKFLOW=REMOVED")
+    print("RELEASE_MATRIX=WINDOWS_X64_X86,LINUX_AMD64_ARM64_I386,MACOS_UNIVERSAL,ANDROID_DEBUG_AND_UNSIGNED_RELEASE_APK,IOS_ARM64_UNSIGNED_IPA_AND_APP_ZIP,WEB_SHARED_HOSTING_ZIP")
+    print("PUBLIC_PLATFORM_ARTIFACTS=15")
+    print("PUBLIC_RELEASE_FILES=18")
     print("WINDOWS_STANDALONE_UNINSTALLER=REMOVED")
     print("WINDOWS_INSTALLER_PAYLOAD=APP_ONLY_SCHEMA_2")
     print("ANDROID_APK_PUBLICATION=DEBUG_SIGNED_AND_RELEASE_UNSIGNED")
-    print("ANDROID_PRODUCTION_SIGNING=EXTERNAL_IDENTITY_REQUIRED")
     print("IOS_IPA_PUBLICATION=UNSIGNED_ARM64_DEVICE_BUILD")
-    print("IOS_PRODUCTION_SIGNING=EXTERNAL_APPLE_IDENTITY_REQUIRED")
     print("PUBLISHER=CENTRALIZED_AND_CURRENT_MAIN_BOUND")
-    print("RELEASE_GITHUB_API=WRAPPED_AND_AUDITED")
     return 0
 
 

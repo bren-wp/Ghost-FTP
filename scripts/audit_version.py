@@ -10,8 +10,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
-GO_TOOLCHAIN = "1.27.0"
+GO_TOOLCHAIN = "1.27.1"
 GRADLE_TOOLCHAIN = "9.7.1"
+AGP_TOOLCHAIN = "9.4.0"
 
 
 def fail(message: str) -> None:
@@ -45,6 +46,10 @@ def main() -> int:
     gomod = read("go.mod")
     if f"go {GO_TOOLCHAIN}" not in gomod:
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
+
+    android_root = read("android/build.gradle.kts")
+    if f'id("com.android.application") version "{AGP_TOOLCHAIN}" apply false' not in android_root:
+        fail(f"android/build.gradle.kts must use Android Gradle Plugin {AGP_TOOLCHAIN}")
 
     for rel in ("cmd/byftp/main.go", "cmd/installer/main.go"):
         text = read(rel)
@@ -180,6 +185,7 @@ def main() -> int:
     print(f"VERSION_AUDIT=PASS ({version})")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print(f"GRADLE_TOOLCHAIN={GRADLE_TOOLCHAIN}")
+    print(f"ANDROID_GRADLE_PLUGIN={AGP_TOOLCHAIN}")
     print("PLATFORM_VERSION_SOURCES=WINDOWS,LINUX,MACOS,ANDROID,IOS,WEB")
     print("PLATFORM_BUILD_ENTRYPOINTS=ROOT_WINDOWS,LINUX_DIRECTORY,MACOS_DIRECTORY,IOS_DIRECTORY,WEB_SOURCE_DIRECTORY")
     print("GITHUB_PACKAGE_VERSION_SOURCE=VERSION")

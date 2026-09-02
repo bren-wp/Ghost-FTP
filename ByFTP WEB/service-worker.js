@@ -1,4 +1,4 @@
-const CACHE_NAME = 'byftp-static-v1.8.0';
+const CACHE_NAME = 'byftp-static-v1.9.0';
 const STATIC_EXTENSIONS = /\.(?:css|js|svg|png|jpg|jpeg|webp|ico|woff2?)$/i;
 
 self.addEventListener('install', (event) => {
@@ -42,5 +42,8 @@ self.addEventListener('fetch', (event) => {
             if (response.ok) await cache.put(request, response.clone());
             return response;
         })());
+        return;
     }
+
+    event.respondWith(fetch(request));
 });
