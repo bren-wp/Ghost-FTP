@@ -14,17 +14,17 @@ The gate rejects non-portable or unsafe tracked paths, case-insensitive collisio
 
 Core checks include `go test ./...`, the race detector, `go vet`, Windows x64/x86 production builds, Linux DEB builds, macOS Universal PKG builds, deterministic brand-asset verification, localization/version/documentation checks and security/privacy/release audits.
 
-The current 1.8.0 CI/release baseline uses Go 1.27.0. Linux packaging is tested directly through `linux/BUILD.sh`; macOS packaging is tested directly through `macos/BUILD.sh`. Obsolete platform wrappers under `scripts/` are rejected by the version/privacy/release audits rather than retained as duplicate entry points.
+The current 1.9.0 CI/release baseline uses **Go 1.27.1**. Linux packaging is tested directly through `linux/BUILD.sh`; macOS packaging is tested directly through `macos/BUILD.sh`. Obsolete platform wrappers under `scripts/` are rejected rather than retained as duplicate entry points.
 
-Shared-hosting diagnostics have dedicated Go regressions for deterministic web-root priority, plain-versus-secure transport state, SFTP home/account context and invalid file/symlink candidates. The security audit requires diagnostics to derive from the existing initial connection listing exactly once, rejects secret/network behavior in the diagnostic model and blocks automatic remote-path changes. Windows CI adds `connection_diagnostics_windows_test.go` coverage for user-visible connection status.
+Shared-hosting diagnostics have dedicated regressions for deterministic web-root priority, plain-versus-secure transport state, SFTP home/account context and invalid file/symlink candidates. The security audit requires diagnostics to derive from the existing initial connection listing exactly once, rejects secret/network behavior in the diagnostic model and blocks automatic remote-path changes.
 
-Installer changes require payload/transaction/rollback regressions. For 1.8.0 the Windows installer contract is application-only: `payload.zip` contains `ByFTP.exe` plus the verified manifest and no generated `Uninstall.exe`. Build and release audits fail if an uninstaller binary, `cmd/uninstaller`, legacy `--uninstaller` payload input or old payload schema returns.
+Installer changes require payload/transaction/rollback regressions. The Windows installer contract is application-only: `payload.zip` contains `ByFTP.exe` plus the verified manifest and no generated `Uninstall.exe`. Build, Windows bundle and public staging audits fail if an uninstaller binary, `cmd/uninstaller`, legacy `--uninstaller` payload input or old payload schema returns.
 
 Localization changes must preserve English fallback and formatting-placeholder compatibility.
 
 ## Android gates
 
-Android has an independent CI job with JDK 17, Gradle 9.7.1, Android Gradle Plugin 9.3.2, API 37 and Build Tools 36.0.0:
+Android has an independent CI job with **JDK 17, Gradle 9.7.1, Android Gradle Plugin 9.4.0, API 37 and Build Tools 36.0.0**:
 
 ```bash
 gradle -p android :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
@@ -36,63 +36,55 @@ python scripts/package_android.py \
 
 Lint treats warnings as errors. The mobile audit independently rejects permissive TLS/SSH patterns, verifies FTPS platform trust/endpoint checking, validates real 32-byte SFTP SHA-256 fingerprints, enforces strict canonical remote paths/names, checks login-root mapping, backup/storage policy, password persistence, picker cleanup and lifecycle behavior.
 
-JUnit coverage includes connection validation, credential-control rejection, fingerprint validation, traversal/noncanonical path rejection, version binding, FTP shared-hosting mapping, transfer byte accounting and `SharedHostingDiagnosticsTest`. The Android audit requires diagnostics to consume the already loaded initial listing, contain no secret/network behavior and never feed a detected web root into `openDirectory()` or persistent connection presets.
-
-Android source/resources remain under the repository-wide gate; obsolete or lint-invalid resources are removed rather than suppressed.
+JUnit coverage includes connection validation, credential-control rejection, fingerprint validation, traversal/noncanonical path rejection, version binding, FTP shared-hosting mapping, transfer byte accounting and shared-hosting diagnostics. `scripts/audit_version.py` also verifies the exact AGP 9.4.0 pin.
 
 ## iOS gates
 
-iOS has a dedicated macOS runner job. The central quality job first runs `python scripts/audit_ios.py`; the platform job then runs the canonical platform entry point:
+iOS has a dedicated macOS runner job. The central quality job first runs `python scripts/audit_ios.py`; the platform job then runs:
 
 ```bash
 bash ios/BUILD.sh
 ```
 
-The iOS build performs four stages:
+The iOS build:
 
-1. Compile/run dependency-free Swift model/path/preset/diagnostic regressions with `xcrun swiftc`.
-2. Parse/list the checked-in Xcode project/shared scheme.
-3. Build a real generic arm64 `iphoneos` Release `.app` with repository-side code signing disabled and `MARKETING_VERSION` derived from root `VERSION`.
-4. Validate/package the result through `scripts/package_ios.py` into a versioned unsigned IPA and unsigned app ZIP.
+1. compiles/runs dependency-free Swift model/path/preset/diagnostic regressions;
+2. parses the checked-in Xcode project/shared scheme;
+3. builds a real generic arm64 `iphoneos` Release `.app` with repository-side signing disabled and `MARKETING_VERSION` derived from root `VERSION`;
+4. validates/packages the result through `scripts/package_ios.py` into a versioned unsigned IPA and unsigned app ZIP.
 
-The app validation requires the expected bundle identifier/version, an executable arm64 Mach-O, a normal `Payload/ByFTP.app` IPA structure, no symlinks and no unsafe archive paths. Generated AppIcon PNG sizes are created from the canonical project icon for the build and removed afterwards instead of being duplicated in Git.
-
-The iOS source audit additionally enforces platform TLS use, PASV-host redirect blocking, bounded I/O, strict path/credential controls, session-generation cleanup, pending-connect cleanup, connect-only transport-password lifetime, stale/failed temporary-download cleanup, no `UserDefaults` credential store, no WebView/analytics endpoint and no global ATS bypass. Shared-hosting diagnostics must remain session-only, derive from the existing initial listing and never auto-navigate or persist derived state.
+Validation requires the expected bundle identifier/version, an executable arm64 Mach-O, normal `Payload/ByFTP.app` IPA structure, no symlinks and no unsafe archive paths. The iOS source audit additionally enforces platform TLS use, PASV-host redirect blocking, bounded I/O, strict path/credential controls, session-generation cleanup, pending-connect cleanup and stale temporary-download cleanup.
 
 ## WEB gates
 
-The shared-hosting WEB application is checked in the central quality job through `scripts/audit_web.py`. Runtime PHP regressions cover authentication rate limiting, user-registry durability, encrypted profile recovery, configuration recovery and other fail-closed storage/security invariants. `ByFTP WEB/VERSION` must match root `VERSION`; the PWA cache namespace and Composer package metadata are release-bound to the same application version.
+The shared-hosting WEB application is checked through `scripts/audit_web.py`. Runtime PHP regressions cover authentication rate limiting, user-registry durability, encrypted profile/config recovery, remote-name validation and fail-closed storage/security invariants.
 
-## Linux packaging gates
+Release 1.9.0 also permanently tests the staged extraction contract:
 
-Linux CI runs the shared Go tests/vet and then:
+- complete archive/topology/existing-remote validation precedes remote mutation;
+- every ZIP file is locally materialized before the first remote write;
+- the cumulative 512 MiB budget is enforced on actual decompressed bytes;
+- staged temp files are cleaned through `finally`;
+- WEB diagnostics remain administrator-only.
 
-```bash
-bash linux/BUILD.sh
-```
+`scripts/package_web.py` then creates the deployable `ByFTP-<version>-WEB-shared-hosting.zip` from tracked production files only. `scripts/test_package_web.py` verifies exact tracked-source membership, safe archive paths, VERSION/PWA metadata and absence of runtime `users.json`/`config.json` state.
 
-The gate requires non-empty amd64, arm64 and i386 DEBs and verifies package name, canonical root `VERSION` and architecture metadata. `linux/byftp.desktop` and `linux/debian/control.in` are source-controlled packaging inputs.
+## Linux and macOS packaging gates
 
-## macOS packaging gates
+Linux CI runs shared Go tests/vet and `bash linux/BUILD.sh`, then requires non-empty amd64, arm64 and i386 DEBs with correct package/version/architecture metadata.
 
-macOS CI runs the shared Go tests/vet and then:
-
-```bash
-bash macos/BUILD.sh
-```
-
-The gate requires a non-empty Universal PKG and expands it with `pkgutil` to validate package structure. The application metadata and launcher come from `macos/Info.plist.in` and `macos/launcher.zsh` rather than inline generated source.
+macOS CI runs shared Go tests/vet and `bash macos/BUILD.sh`, then requires a non-empty Universal PKG and expands it with `pkgutil` to validate package structure.
 
 ## Packaging and tooling regressions
 
 - `scripts/test_audit_repository.py` tests repository path/text/version hygiene.
 - `scripts/test_package_android.py` tests Android APK staging/structure/path safety.
 - `scripts/test_package_ios.py` tests iOS bundle validation, IPA/app ZIP structure, version mismatch rejection and symlink rejection.
-- `scripts/test_release_notes.py` ensures release notes describe all mobile artifacts and signing limitations.
-- `scripts/audit_version.py` enforces the reviewed Go/Gradle pins, canonical platform build entry points, root `VERSION` binding and repository-audit integration.
-- `scripts/audit_release.py` requires the repository-wide integrity scan, app-only Windows installer contract, Linux/macOS/iOS platform build directories and centralized release contract.
-- `scripts/audit_security.py` enforces the shared-hosting diagnostic non-secret/single-listing/auto-navigation boundaries alongside credential, path and transport checks.
-- `scripts/audit_web.py` executes the WEB runtime/security regressions and release-version checks.
+- `scripts/test_package_web.py` tests deterministic WEB packaging and runtime-state exclusion.
+- `scripts/test_stability_hardening.py` protects staged WEB extraction, admin-only diagnostics and dead-code cleanup invariants.
+- `scripts/test_release_notes.py` verifies release-note artifact/signing descriptions.
+- `scripts/audit_version.py` enforces Go 1.27.1, Gradle 9.7.1, AGP 9.4.0, canonical platform build entry points and root `VERSION` binding.
+- `scripts/audit_release.py` requires repository/WEB integrity, app-only Windows Setup, dedicated WEB packaging and the centralized 18-file public release contract.
 
 All Python tool regressions are run with:
 
@@ -102,6 +94,8 @@ python -m unittest discover -s scripts -p 'test_*.py'
 
 ## Production release gate
 
-The production workflow repeats central quality plus Windows, Linux, macOS, Android and iOS jobs. Publication cannot start until every job succeeds. The central quality gate also validates the WEB application, so WEB release integrity is part of the same publication decision even though it is deployed to shared hosting rather than emitted as a native binary.
+The production workflow repeats central quality plus Windows, Linux, macOS, Android and iOS jobs. The quality job additionally produces the verified WEB release package. Publication cannot start until every prerequisite job succeeds.
 
-Public staging requires the exact platform artifact allowlist before `SHA256.txt`, release notes and build metadata are generated and the centralized publisher is invoked. Debug/unsigned mobile artifacts are never treated as production store-signed software. Windows release metadata explicitly records `WINDOWS_UNINSTALLER=none` for the 1.8.0 app-only installer contract.
+Before publication, `scripts/prepare_release.ps1` requires exactly **15 platform artifacts**: Windows 6, Linux 3, macOS 1, Android 2, iOS 2 and WEB 1. It then generates `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, producing exactly **18 public release files**.
+
+Debug/unsigned mobile artifacts are never treated as production store-signed software. Windows release metadata explicitly records `WINDOWS_UNINSTALLER=none`.
