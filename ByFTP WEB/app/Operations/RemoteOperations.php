@@ -37,7 +37,7 @@ final class RemoteOperations
         if ($path === '/') return;
         $built = '';
         foreach (array_filter(explode('/', $path), 'strlen') as $segment) {
-            $built .= '/' . PathGuard::segment((string)$segment;
+            $built .= '/' . PathGuard::segment((string)$segment);
             if (!$this->exists($built, 'dir')) {
                 if ($this->exists($built)) throw new RuntimeException('Datoteka blokira izradu potrebnog direktorija.');
                 $this->client->makeDirectory($built);
