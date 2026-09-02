@@ -5,7 +5,7 @@ require __DIR__ . '/app/bootstrap.php';
 use ByFTP\Security\Auth;
 use ByFTP\Storage\UserWorkspace;
 
-Auth::requireAuth();
+Auth::requireAdmin();
 
 $isHttps = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
 $requestPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
