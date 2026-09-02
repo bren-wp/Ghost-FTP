@@ -457,6 +457,7 @@ final class RemoteOperations
                         $plan[$index]['local'] = $entryTmp;
                     }
 
+                    // Only a fully validated archive is allowed to mutate remote state.
                     // Only a fully validated and materialized archive is allowed to mutate remote state.
                     foreach ($plan as $row) {
                         $remote = (string)$row['remote'];
