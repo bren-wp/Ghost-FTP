@@ -29,8 +29,11 @@ final class ZipPreflightFakeClient implements RemoteClientInterface
     /** @var list<string> */
     private array $mutations = [];
 
-    public function __construct(private readonly string $archivePath)
-    {
+    /** @param array<string, list<array<string, mixed>>> $listings */
+    public function __construct(
+        private readonly string $archivePath,
+        private readonly array $listings = [],
+    ) {
     }
 
     public function connect(): void
@@ -39,16 +42,17 @@ final class ZipPreflightFakeClient implements RemoteClientInterface
 
     public function list(string $path): array
     {
+        $items = $this->listings[$path] ?? [];
         if ($path === '/') {
-            return [[
+            array_unshift($items, [
                 'name' => 'archive.zip',
                 'type' => 'file',
                 'size' => filesize($this->archivePath) ?: 0,
                 'modified' => null,
                 'permissions' => '',
-            ]];
+            ]);
         }
-        return [];
+        return $items;
     }
 
     public function makeDirectory(string $path): void
@@ -176,11 +180,57 @@ if ($topologyClient->mutations() !== []) {
     $failures[] = 'conflicting ZIP topology is rejected before any remote mutation';
 }
 
+$remoteTopologyPath = $testStorage . '/remote-topology.zip';
+$zip = new ZipArchive();
+if ($zip->open($remoteTopologyPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+    throw new RuntimeException('Unable to create existing remote topology fixture.');
+}
+if (!$zip->addFromString('first.txt', 'first')) {
+    throw new RuntimeException('Unable to add early safe ZIP entry.');
+}
+if (!$zip->addFromString('blocked/child.txt', 'child')) {
+    throw new RuntimeException('Unable to add remote-topology child entry.');
+}
+if (!$zip->close()) {
+    throw new RuntimeException('Unable to finalize existing remote topology fixture.');
+}
+
+$remoteTopologyClient = new ZipPreflightFakeClient($remoteTopologyPath, [
+    '/' => [[
+        'name' => 'dest',
+        'type' => 'dir',
+        'size' => 0,
+        'modified' => null,
+        'permissions' => '',
+    ]],
+    '/dest' => [[
+        'name' => 'blocked',
+        'type' => 'file',
+        'size' => 7,
+        'modified' => null,
+        'permissions' => '',
+    ]],
+]);
+$remoteTopologyOps = new RemoteOperations($remoteTopologyClient);
+$remoteTopologyThrew = false;
+try {
+    $remoteTopologyOps->extractZip('/archive.zip', '/dest');
+} catch (Throwable) {
+    $remoteTopologyThrew = true;
+}
+if (!$remoteTopologyThrew) {
+    $failures[] = 'existing remote file blocking a required ZIP directory was not rejected';
+}
+if ($remoteTopologyClient->mutations() !== []) {
+    $failures[] = 'existing remote ZIP topology conflict is rejected before any remote mutation';
+}
+
 foreach (glob($testStorage . '/tmp/*') ?: [] as $path) {
     @unlink($path);
 }
 @unlink($archivePath);
 @unlink($topologyPath);
+@unlink($remoteTopologyPath);
 @rmdir($testStorage . '/tmp');
 @rmdir($testStorage);
 
