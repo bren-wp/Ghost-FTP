@@ -465,10 +465,10 @@ final class RemoteOperations
                             $this->ensureDirectory($remote);
                             continue;
                         }
-                        $local = (string)($row['local'] ?? '');
-                        if ($local === '' || !is_file($local)) throw new RuntimeException('ZIP stavka nije lokalno pripremljena.');
+                        $entryTmp = (string)($row['local'] ?? '');
+                        if ($entryTmp === '' || !is_file($entryTmp)) throw new RuntimeException('ZIP stavka nije lokalno pripremljena.');
                         $this->ensureDirectory(PathGuard::parent($remote));
-                        $this->uploadAtomic($local, $remote);
+                        $this->uploadAtomic($entryTmp, $remote);
                         $files++;
                     }
                 } finally {
