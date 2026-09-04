@@ -6,6 +6,7 @@ on:
       - release/ghost-ftp-1.0.3-quality
     paths:
       - scripts/one_shot_103_patch.py
+      - scripts/one_shot_103_followup.py
       - .github/workflows/one-shot-103-patch.yml
 
 permissions:
@@ -26,7 +27,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply deterministic patch
-        run: python3 scripts/one_shot_103_patch.py
+        run: |
+          python3 scripts/one_shot_103_patch.py
+          python3 scripts/one_shot_103_followup.py
 
       - name: Validate patched source
         shell: bash
@@ -45,7 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f scripts/one_shot_103_patch.py .github/workflows/one-shot-103-patch.yml
+          rm -f scripts/one_shot_103_patch.py scripts/one_shot_103_followup.py .github/workflows/one-shot-103-patch.yml
           git config user.name 'Brendigo'
           git config user.email 'info@brendigo.com'
           git add -A
