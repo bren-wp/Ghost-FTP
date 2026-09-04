@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=ByFTP
-Comment=Privacy-focused FTP, FTPS and SFTP client
-Exec=/usr/bin/byftp
-Icon=byftp
-Terminal=true
-Categories=Network;FileTransfer;
-Keywords=FTP;FTPS;SFTP;ByFTP;
