@@ -11,11 +11,18 @@ jobs:
   purge:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: Remove stale branches carrying the retired identifier
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git ls-remote --heads "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git ls-remote --heads "$remote" \
             | awk '{print $2}' \
             | sed 's#^refs/heads/##' \
             > "$RUNNER_TEMP/branches.txt"
@@ -35,7 +42,6 @@ jobs:
           print(f"STALE_BRANCHES_MATCHED={len(delete)}")
           PY
 
-          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           deleted=0
           while IFS= read -r branch; do
             [[ -n "$branch" ]] || continue
@@ -43,5 +49,3 @@ jobs:
             deleted=$((deleted + 1))
           done < "$RUNNER_TEMP/delete.txt"
           echo "STALE_BRANCHES_DELETED=$deleted"
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
