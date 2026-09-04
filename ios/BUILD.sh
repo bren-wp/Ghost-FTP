@@ -10,8 +10,18 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-BUILD_NUMBER=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
-if (( BUILD_NUMBER < 1 )); then BUILD_NUMBER=1; fi
+
+# Ghost FTP retains the existing com.byftp.client bundle identity so installed users
+# can upgrade in place. Keep the internal CFBundleVersion monotonically above the
+# last published ByFTP build even though the public marketing version restarts at 1.0.0.
+SEMANTIC_BUILD_NUMBER=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
+GHOST_FTP_BUILD_EPOCH=1000000
+LEGACY_BYFTP_BUILD_FLOOR=1009002
+BUILD_NUMBER=$((GHOST_FTP_BUILD_EPOCH + SEMANTIC_BUILD_NUMBER))
+if (( BUILD_NUMBER <= LEGACY_BYFTP_BUILD_FLOOR )); then
+  echo "Ghost FTP iOS build number must stay above the published ByFTP build floor" >&2
+  exit 1
+fi
 
 PROJECT="$ROOT/ios/ByFTP.xcodeproj"
 SCHEME="ByFTP"
@@ -95,11 +105,13 @@ xcodebuild \
 [[ -x "$APP/ByFTP" ]] || { echo "ByFTP executable is missing." >&2; exit 1; }
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" == 'com.byftp.client' ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")" == "$VERSION" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")" == "$BUILD_NUMBER" ]]
 lipo -archs "$APP/ByFTP" | tr ' ' '\n' | grep -qx 'arm64'
 
 printf '[4/4] IPA and app bundle packaging\n'
 python3 scripts/package_ios.py --app "$APP" --output-dir dist
 
 echo "IOS_BUILD=PASS ($VERSION)"
+echo "IOS_BUILD_NUMBER=$BUILD_NUMBER"
 echo "IOS_DEVICE_ARCH=arm64"
 echo "IOS_CODE_SIGNING=UNSIGNED_EXTERNAL_APPLE_IDENTITY_REQUIRED"
