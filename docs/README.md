@@ -13,8 +13,18 @@ This directory contains the maintained technical and operator documentation for 
 - [Release verification](RELEASE-VERIFICATION.md) — checksums and provenance checks.
 - [Signing](SIGNING.md) — Windows, Apple and Android signing limitations and requirements.
 - [Shared hosting](SHARED-HOSTING.md) — web/PWA deployment guidance.
+- [Roadmap](ROADMAP.md) — product direction and planned platform work.
 - [Contributing](CONTRIBUTING.md) — contribution workflow.
-- [Support](SUPPORT.md) — issue reporting.
+- [Support](SUPPORT.md) — issue reporting and support boundaries.
+
+## Platform documentation
+
+- [Windows](../README.md#releases) — Windows packages and release naming are documented in the root README and installation guide.
+- [Linux](../linux/README.md)
+- [macOS](../macos/README.md)
+- [Android](../android/README.md)
+- [iOS](../ios/README.md)
+- [Web/PWA](../ByFTP%20WEB/README.md) — the source-directory name is retained as a legacy compatibility path; the product is Ghost FTP.
 
 ## Current product line
 
