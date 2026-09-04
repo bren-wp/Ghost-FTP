@@ -59,12 +59,12 @@ try {
     AppLogger::event('archive.download', ['profile_id' => $profileId, 'count' => count($paths), 'bytes' => $size ?: 0]);
     readfile($tmp);
 } catch (Throwable $e) {
-    AppLogger::event('archive_download.error', ['profile_id' => $profileId, 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+    AppLogger::event('archive_download.error', ['profile_id' => $profileId, 'exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
     if (!headers_sent()) {
-        http_response_code(400);
+        http_response_code(GhostFTP_public_error_status($e));
         header('Content-Type: text/plain; charset=utf-8');
+        echo 'Preuzimanje ZIP arhive nije uspjelo: ' . GhostFTP_public_error($e);
     }
-    echo 'Preuzimanje ZIP arhive nije uspjelo: ' . $e->getMessage();
 } finally {
     if ($client) {
         $client->disconnect();

@@ -247,30 +247,49 @@ try {
         case 'upload':
             $path = PathGuard::normalizeRelative((string)($_POST['path'] ?? '/'));
             $files = $_FILES['files'] ?? null;
-            if (!$files) throw new RuntimeException('Nema datoteka za upload.');
-            $names = is_array($files['name']) ? $files['name'] : [$files['name']];
-            $tmps = is_array($files['tmp_name']) ? $files['tmp_name'] : [$files['tmp_name']];
-            $errors = is_array($files['error']) ? $files['error'] : [$files['error']];
+            if (!$files || !is_array($files)) throw new RuntimeException('Nema datoteka za upload.');
+            $names = is_array($files['name'] ?? null) ? $files['name'] : [$files['name'] ?? ''];
+            $tmps = is_array($files['tmp_name'] ?? null) ? $files['tmp_name'] : [$files['tmp_name'] ?? ''];
+            $errors = is_array($files['error'] ?? null) ? $files['error'] : [$files['error'] ?? UPLOAD_ERR_NO_FILE];
             $relativePaths = $_POST['relative_paths'] ?? [];
             if (!is_array($relativePaths)) $relativePaths = [$relativePaths];
-            if (count($names) > 200) throw new RuntimeException('Previše datoteka u jednom upload zahtjevu.');
+            $fileCount = count($names);
+            if ($fileCount < 1) throw new RuntimeException('Nema datoteka za upload.');
+            if ($fileCount > 200) throw new RuntimeException('Previše datoteka u jednom upload zahtjevu.');
+            if (count($tmps) !== $fileCount || count($errors) !== $fileCount || count($relativePaths) > $fileCount) {
+                throw new RuntimeException('Upload zahtjev sadrži neusklađene metapodatke datoteka.');
+            }
             $conflictPolicy = strtolower(trim((string)($_POST['conflict'] ?? 'overwrite')));
             if (!in_array($conflictPolicy, ['overwrite','skip','rename'], true)) throw new RuntimeException('Neispravna politika konflikta pri uploadu.');
-            $uploaded = [];
-            $skipped = [];
+
+            $uploadPlan = [];
+            $seenRemote = [];
+            $seenTmp = [];
             foreach ($names as $i => $original) {
-                $error = (int)($errors[$i] ?? UPLOAD_ERR_NO_FILE);
-                if ($error !== UPLOAD_ERR_OK) throw new RuntimeException(GhostFTP_upload_error_message($error, (string)$original));
-                $tmp = (string)($tmps[$i] ?? '');
-                if (!is_uploaded_file($tmp)) throw new RuntimeException('Privremena upload datoteka nije valjana.');
+                if (!is_string($original) || $original === '') throw new RuntimeException('Naziv upload datoteke nije valjan.');
+                $error = (int)$errors[$i];
+                if ($error !== UPLOAD_ERR_OK) throw new RuntimeException(GhostFTP_upload_error_message($error, $original));
+                $tmp = (string)$tmps[$i];
+                if ($tmp === '' || !is_uploaded_file($tmp)) throw new RuntimeException('Privremena upload datoteka nije valjana.');
+                if (isset($seenTmp[$tmp])) throw new RuntimeException('Ista privremena upload datoteka ne smije biti navedena više puta.');
                 $relative = trim((string)($relativePaths[$i] ?? ''));
                 if ($relative !== '') {
                     $relative = PathGuard::normalizeRelative('/'.ltrim($relative,'/'));
                     $remote = PathGuard::normalizeRelative(($path === '/' ? '' : $path).$relative);
                 } else {
-                    $remote = PathGuard::child($path, PathGuard::basename((string)$original));
+                    $remote = PathGuard::child($path, PathGuard::basename($original));
                 }
-                $finalRemote = $ops->uploadWithConflict($tmp, $remote, $conflictPolicy);
+                if (isset($seenRemote[$remote])) throw new RuntimeException('Više upload datoteka ne smije ciljati istu udaljenu putanju.');
+                $seenTmp[$tmp] = true;
+                $seenRemote[$remote] = true;
+                $uploadPlan[] = ['tmp' => $tmp, 'remote' => $remote];
+            }
+
+            $uploaded = [];
+            $skipped = [];
+            foreach ($uploadPlan as $item) {
+                $remote = (string)$item['remote'];
+                $finalRemote = $ops->uploadWithConflict((string)$item['tmp'], $remote, $conflictPolicy);
                 if ($finalRemote === null) $skipped[] = $remote; else $uploaded[] = $finalRemote;
             }
             AppLogger::event('file.upload', ['profile_id'=>$profileId,'count'=>count($uploaded),'skipped'=>count($skipped),'path'=>$path]);
@@ -278,8 +297,8 @@ try {
     }
     throw new RuntimeException('Nepoznata akcija.');
 } catch (Throwable $e) {
-    AppLogger::event('api.error', ['action'=>$action,'profile_id'=>$profileId,'error'=>GhostFTP_truncate($e->getMessage(),300)]);
-    GhostFTP_json(['ok'=>false,'error'=>$e->getMessage()],400);
+    AppLogger::event('api.error', ['action'=>$action,'profile_id'=>$profileId,'exception'=>get_class($e),'error'=>GhostFTP_truncate($e->getMessage(),300)]);
+    GhostFTP_json(['ok'=>false,'error'=>GhostFTP_public_error($e)], GhostFTP_public_error_status($e));
 } finally {
     if ($client) $client->disconnect();
 }

@@ -242,7 +242,16 @@ def validate_http_session_and_csrf_boundaries() -> None:
     )
 
     helpers = read("GhostFTP WEB/app/helpers.php")
-    require(helpers, ("function GhostFTP_csrf_token", "hash_equals", "random_bytes"), "app/helpers.php")
+    require(helpers, ("function GhostFTP_csrf_token", "hash_equals", "random_bytes", "function GhostFTP_public_error", "function GhostFTP_public_error_status", "Neočekivana interna pogreška"), "app/helpers.php")
+
+    api = read("GhostFTP WEB/api.php")
+    require(api, ("GhostFTP_public_error($e)", "GhostFTP_public_error_status($e)", "exception'=>get_class($e)"), "api.php")
+    if "GhostFTP_json(['ok'=>false,'error'=>$e->getMessage()]" in api:
+        fail("API exposes raw unexpected exception messages")
+
+    for endpoint in ("download.php", "download-archive.php", "preview.php"):
+        endpoint_source = read(f"GhostFTP WEB/{endpoint}")
+        require(endpoint_source, ("GhostFTP_public_error($e)", "GhostFTP_public_error_status($e)"), endpoint)
 
 
 def validate_remote_input_and_secret_boundaries() -> None:
@@ -311,6 +320,21 @@ def validate_remote_input_and_secret_boundaries() -> None:
         ),
         "app/Operations/RemoteOperations.php",
     )
+
+    api = read("GhostFTP WEB/api.php")
+    require(
+        api,
+        (
+            "$uploadPlan = [];",
+            "Upload zahtjev sadrži neusklađene metapodatke datoteka.",
+            "Ista privremena upload datoteka ne smije biti navedena više puta.",
+            "Više upload datoteka ne smije ciljati istu udaljenu putanju.",
+            "foreach ($uploadPlan as $item)",
+        ),
+        "api.php",
+    )
+    helpers = read("GhostFTP WEB/app/helpers.php")
+    require(helpers, ("Popis putanja sadrži neispravnu stavku.",), "app/helpers.php")
 
     sftp = read("GhostFTP WEB/app/Remote/SftpClient.php")
     require(
