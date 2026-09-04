@@ -157,7 +157,8 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
         $expected = @ftp_size($this->connection, $remote);
         $expectedSize = is_int($expected) ? $expected : -1;
         $maxBytes = $this->effectiveDownloadLimit($remote, $maxBytes, $expectedSize);
-        if ($maxBytes !== null && $expectedSize > $maxBytes) {
+        $maxBytes = TransferLimiter::limitForDestination($localFile, $maxBytes);
+        if ($expectedSize >= 0 && $expectedSize > $maxBytes) {
             throw new RuntimeException('Download prelazi dopuštenu veličinu.');
         }
 
@@ -272,18 +273,11 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
         }
     }
 
-    private function effectiveDownloadLimit(string $remote, ?int $maxBytes, int $expectedSize): ?int
+    private function effectiveDownloadLimit(string $remote, ?int $maxBytes, int $expectedSize): int
     {
-        $limit = TransferLimiter::normalizeLimit($maxBytes);
         $snapshot = $this->listedFileSizes[$remote] ?? null;
         unset($this->listedFileSizes[$remote]);
-        if (is_int($snapshot)) {
-            $limit = $limit === null ? $snapshot : min($limit, $snapshot);
-        }
-        if ($limit === null && $expectedSize >= 0) {
-            $limit = $expectedSize;
-        }
-        return $limit;
+        return TransferLimiter::effectiveLimit($maxBytes, is_int($snapshot) ? $snapshot : null, $expectedSize);
     }
 
     private function mlsdDate(string $value): ?string
