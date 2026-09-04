@@ -63,6 +63,31 @@ The public product name is **Ghost FTP**. Some internal source paths, package id
 
 New public documentation, UI, release titles and downloadable package names use **Ghost FTP**.
 
+## Languages
+
+English is the default runtime language. Ghost FTP currently includes localization catalogs for:
+
+- English
+- Croatian
+- German
+- French
+- Spanish
+- Turkish
+- Greek
+- Portuguese
+- Chinese
+- Russian
+- Hindi
+- Japanese
+- Italian
+- Polish
+- Dutch
+- Czech
+- Ukrainian
+- Swedish
+
+Language selection is persisted in application settings. New canonical user-facing text is maintained English-first and translated through the localization system.
+
 ## Development
 
 The Go core requires a modern Go toolchain. CI currently builds with Go 1.27.1 and production scripts enforce the repository's minimum supported toolchain.
