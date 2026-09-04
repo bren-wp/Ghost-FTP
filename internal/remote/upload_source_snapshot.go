@@ -233,14 +233,21 @@ func (s *uploadSourceSnapshot) Close() error {
 		}
 		s.handle = nil
 	}
+	cleanupComplete := s.dir == ""
 	if s.dir != "" {
 		if err := security.RemoveTreeNoFollow(s.dir); err != nil && !errors.Is(err, os.ErrNotExist) {
 			errs = append(errs, err)
+		} else {
+			cleanupComplete = true
 		}
 	}
-	s.path = ""
-	s.dir = ""
-	s.initial = nil
-	s.digest = [sha256.Size]byte{}
+	// Preserve the owned path when cleanup fails so the caller's deferred Close
+	// (or another explicit Close) can retry removal of the sensitive snapshot.
+	if cleanupComplete {
+		s.path = ""
+		s.dir = ""
+		s.initial = nil
+		s.digest = [sha256.Size]byte{}
+	}
 	return errors.Join(errs...)
 }
