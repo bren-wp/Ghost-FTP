@@ -7,6 +7,36 @@ use ByFTP\Remote\TransferLimiter;
 
 $failures = [];
 
+if (TransferLimiter::effectiveLimit(null, null, -1) !== TransferLimiter::UNKNOWN_SIZE_MAX_BYTES) {
+    $failures[] = 'unknown-size transfer did not receive the hard fallback limit';
+}
+if (TransferLimiter::effectiveLimit(null, 0, -1) !== 0) {
+    $failures[] = 'known zero-byte listing snapshot was not preserved';
+}
+if (TransferLimiter::effectiveLimit(null, null, 0) !== 0) {
+    $failures[] = 'known zero-byte source size was not preserved';
+}
+if (TransferLimiter::effectiveLimit(100, 80, 120) !== 80) {
+    $failures[] = 'effective transfer limit did not choose the strictest known bound';
+}
+if (TransferLimiter::effectiveLimit(100, 120, 80) !== 80) {
+    $failures[] = 'fresh source size did not tighten the requested transfer limit';
+}
+
+$destinationProbe = tempnam(sys_get_temp_dir(), 'byftp-limit-');
+if ($destinationProbe === false) {
+    fwrite(STDERR, "Unable to create destination capacity fixture.\n");
+    exit(1);
+}
+try {
+    $destinationLimit = TransferLimiter::limitForDestination($destinationProbe, 1024, 0);
+    if ($destinationLimit < 0 || $destinationLimit > 1024) {
+        $failures[] = 'destination capacity guard returned an invalid limit';
+    }
+} finally {
+    @unlink($destinationProbe);
+}
+
 $input = fopen('php://temp', 'w+b');
 $output = fopen('php://temp', 'w+b');
 if (!is_resource($input) || !is_resource($output)) {
