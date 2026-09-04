@@ -4,7 +4,6 @@ declare(strict_types=1);
 require __DIR__ . '/../app/Storage/JsonStore.php';
 
 use ByFTP\Storage\JsonStore;
-use RuntimeException;
 
 $failures = [];
 $root = sys_get_temp_dir() . '/byftp-json-bounds-' . bin2hex(random_bytes(6));
@@ -25,11 +24,11 @@ try {
     $oversizePath = $root . '/oversize.json';
     $handle = fopen($oversizePath, 'xb');
     if (!is_resource($handle)) {
-        throw new RuntimeException('Unable to create oversized JSON state fixture.');
+        throw new \RuntimeException('Unable to create oversized JSON state fixture.');
     }
     try {
         if (!ftruncate($handle, (8 * 1024 * 1024) + 1)) {
-            throw new RuntimeException('Unable to size oversized JSON state fixture.');
+            throw new \RuntimeException('Unable to size oversized JSON state fixture.');
         }
     } finally {
         fclose($handle);
@@ -38,7 +37,7 @@ try {
     try {
         (new JsonStore($oversizePath, false))->read();
         $failures[] = 'oversized JSON state was accepted';
-    } catch (RuntimeException $e) {
+    } catch (\RuntimeException $e) {
         if (!str_contains($e->getMessage(), 'prevelika')) {
             $failures[] = 'oversized JSON state failed for an unexpected reason';
         }
@@ -47,7 +46,7 @@ try {
     try {
         $small->write(['payload' => str_repeat('x', 8 * 1024 * 1024)]);
         $failures[] = 'oversized JSON write was accepted';
-    } catch (RuntimeException $e) {
+    } catch (\RuntimeException $e) {
         if (!str_contains($e->getMessage(), 'preveliki')) {
             $failures[] = 'oversized JSON write failed for an unexpected reason';
         }
