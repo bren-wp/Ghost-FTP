@@ -21,6 +21,29 @@ jobs:
           ref: release/ghost-ftp-1.0.5-quality
           fetch-depth: 0
 
+      - name: Disambiguate deterministic index markers
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/one_shot_105_hardening.py')
+          text = path.read_text(encoding='utf-8')
+          generic = "        ('alt=\"GhostFTP\"', 'alt=\"Ghost FTP\"'),\n"
+          specific = "        (\"<img src=\\\"<?= GhostFTP_e(GhostFTP_asset('images/mark.svg')) ?>\\\" alt=\\\"GhostFTP\\\">\", \"<img src=\\\"<?= GhostFTP_e(GhostFTP_asset('images/mark.svg')) ?>\\\" alt=\\\"Ghost FTP\\\">\"),\n"
+          if text.count(generic) != 2:
+              raise SystemExit(f'expected two generic alt markers in helper, got {text.count(generic)}')
+          if text.count(specific) != 1:
+              raise SystemExit(f'expected one specific modal alt marker in helper, got {text.count(specific)}')
+          text = text.replace(generic, '', 1)
+          text = text.replace(specific, '', 1)
+          anchor = "# Canonical public Ghost FTP branding. Internal PHP namespace/functions,\n# package IDs and compatibility identifiers intentionally remain GhostFTP.\n"
+          addition = anchor + "replace_all_checked(\"GhostFTP WEB/index.php\", 'alt=\"GhostFTP\"', 'alt=\"Ghost FTP\"', 2)\n"
+          if text.count(anchor) != 1:
+              raise SystemExit('canonical brand anchor mismatch')
+          text = text.replace(anchor, addition, 1)
+          path.write_text(text, encoding='utf-8', newline='\n')
+          PY
+
       - name: Apply deterministic patch
         run: python3 scripts/one_shot_105_hardening.py
 
