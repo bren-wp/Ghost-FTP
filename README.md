@@ -88,6 +88,32 @@ English is the default runtime language. Ghost FTP currently includes localizati
 
 Language selection is persisted in application settings. New canonical user-facing text is maintained English-first and translated through the localization system.
 
+## Documentation
+
+Core documentation:
+
+- [Documentation index](docs/README.md)
+- [Installation](docs/INSTALLATION.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security](docs/SECURITY.md)
+- [Privacy](docs/PRIVACY.md)
+- [Testing](docs/TESTING.md)
+- [GitHub Releases](docs/GITHUB-RELEASES.md)
+- [Release verification](docs/RELEASE-VERIFICATION.md)
+- [Signing](docs/SIGNING.md)
+- [Shared hosting](docs/SHARED-HOSTING.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Support](docs/SUPPORT.md)
+
+Platform documentation:
+
+- [Linux](linux/README.md)
+- [macOS](macos/README.md)
+- [Android](android/README.md)
+- [iOS](ios/README.md)
+- [Web/PWA](ByFTP%20WEB/README.md) — legacy source-directory path; public product name is Ghost FTP.
+
 ## Development
 
 The Go core requires a modern Go toolchain. CI currently builds with Go 1.27.1 and production scripts enforce the repository's minimum supported toolchain.
