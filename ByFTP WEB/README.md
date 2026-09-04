@@ -1,8 +1,8 @@
-# ByFTP WEB 1.9.1
+# ByFTP WEB 1.9.2
 
 ByFTP WEB je samostalni, višekorisnički FTP/FTPS/SFTP file manager za PHP shared hosting. Smješten je u zasebnoj mapi unutar glavnog ByFTP repozitorija i prati isti kanonski release broj kao Windows, Linux, macOS, Android i iOS klijenti.
 
-Od izdanja 1.9.0 WEB ima vlastiti verificirani javni artefakt; za aktualno izdanje paket je `ByFTP-1.9.1-WEB-shared-hosting.zip`. Paket se generira isključivo iz Git-tracked produkcijskih datoteka u `ByFTP WEB/` i ne smije sadržavati runtime korisnike, konfiguraciju, backupove, lockove, cache ili druge podatke nastale korištenjem instalacije.
+Od izdanja 1.9.0 WEB ima vlastiti verificirani javni artefakt; za aktualno izdanje paket je `ByFTP-1.9.2-WEB-shared-hosting.zip`. Paket se generira isključivo iz Git-tracked produkcijskih datoteka u `ByFTP WEB/` i ne smije sadržavati runtime korisnike, konfiguraciju, backupove, lockove, cache ili druge podatke nastale korištenjem instalacije.
 
 ## Što je uključeno
 
@@ -16,7 +16,7 @@ Od izdanja 1.9.0 WEB ima vlastiti verificirani javni artefakt; za aktualno izdan
 - PWA instalacija bez cacheiranja autentificiranih stranica, API-ja i download/preview odgovora
 - responzivni desktop/mobitel UI bez CDN-a i bez obveznog Node/Docker/cron runtimea
 
-## Sigurnosni i stability model u 1.9.1
+## Sigurnosni i stability model u 1.9.2
 
 Remote putanje i nazivi su fail-closed. Aplikacija ne pretvara `\` u `/`, ne prihvaća traversal, `./`, dvostruke separatore ni protocol-control znakove. Host, port, timeout, account identity i SFTP fingerprint provjeravaju se prije normalizacije; vrijednosti kao `22junk`, rubni razmaci ili CR/LF ne mogu postati valjani unos tihim čišćenjem.
 
@@ -24,9 +24,17 @@ SSRF zaštita je uključena prema zadanim postavkama: privatne, loopback i rezer
 
 SFTP ne može koristiti password ili privatni ključ bez pinned SHA-256 identiteta servera. `ClientFactory` odbija SFTP profil bez fingerprinta prije mrežne veze, a `SftpClient` uspoređuje stvarni server fingerprint s pinom.
 
+### Bounded remote downloadi i temp prostor
+
+U 1.9.2 produkcijski FTP/FTPS i SFTP klijenti implementiraju zaseban bounded-download capability. Veličina datoteke dobivena kroz zadnji `list`/`stat` čuva se kao jednokratni snapshot budget za sljedeći download iste remote putanje. Ako se remote datoteka između preflighta i prijenosa poveća, transfer se prekida umjesto da se veći sadržaj prvo potpuno zapiše u `storage/tmp/`.
+
+FTP/FTPS koristi non-blocking `ftp_nb_fget`/`ftp_nb_continue` i tijekom prijenosa provjerava lokalno zapisanu veličinu. Prekoračenje ili mismatch truncira parcijalni temp file i zatvara FTP vezu kako se prekinuti transfer ne bi nastavio koristiti u nepoznatom protokolnom stanju. SFTP koristi bounded `stream_copy_to_stream` probe od najviše `maxBytes + 1`, pa se proizvoljno veliki remote payload ne kopira u cijelosti prije odbijanja.
+
+Javni `download.php` vezan je uz upravo prijavljenu remote veličinu. `preview.php` dodatno zadržava neovisni hard limit od 10 MiB. Checksum, copy, ZIP creation i ZIP extraction dobivaju istu TOCTOU zaštitu zato što prije lokalnog download staginga koriste postojeći `stat`/listing tok.
+
 ### Bounded JSON runtime state
 
-U 1.9.1 svaki JSON runtime state file ima limit od 8 MiB pri čitanju i pisanju. `JsonStore` čita najviše limit + 1 bajt prije `json_decode`, pa oštećena ili nenormalno velika state datoteka više ne može natjerati aplikaciju da prvo učita proizvoljno velik sadržaj u PHP memoriju.
+Od 1.9.1 svaki JSON runtime state file ima limit od 8 MiB pri čitanju i pisanju. `JsonStore` čita najviše limit + 1 bajt prije `json_decode`, pa oštećena ili nenormalno velika state datoteka više ne može natjerati aplikaciju da prvo učita proizvoljno velik sadržaj u PHP memoriju.
 
 ### FTP LIST fallback i nazivi datoteka
 
@@ -83,7 +91,7 @@ Aplikacija koristi `SameSite=Strict`, HttpOnly session cookie, CSRF tokene, `Sec
 
 ## Instalacija na shared hosting
 
-1. Preuzmi `ByFTP-1.9.1-WEB-shared-hosting.zip` iz odgovarajućeg GitHub Releasea ili koristi verificirani source iz `ByFTP WEB/`.
+1. Preuzmi `ByFTP-1.9.2-WEB-shared-hosting.zip` iz odgovarajućeg GitHub Releasea ili koristi verificirani source iz `ByFTP WEB/`.
 2. Raspakiraj sadržaj na odabranu web putanju.
 3. Provjeri da PHP može zapisivati u `storage/`, `storage/tmp/`, `storage/logs/` i `storage/users/`.
 4. Otvori `/setup` i izradi administratorski račun.
@@ -99,9 +107,9 @@ Ako je primarni `app.json`, `users.json`, profile/preference registry ili rate-l
 
 ## Verzija, cache i release paket
 
-`VERSION` u ovoj mapi mora biti identičan root `VERSION`. `app/bootstrap.php` učitava taj broj pri pokretanju, Composer metadata ga ponavlja radi package konzistentnosti, a repository audit blokira mismatch. Service Worker koristi `byftp-static-v1.9.1` i pri aktivaciji uklanja prethodne `byftp-static-*` cache generacije.
+`VERSION` u ovoj mapi mora biti identičan root `VERSION`. `app/bootstrap.php` učitava taj broj pri pokretanju, Composer metadata ga ponavlja radi package konzistentnosti, a repository audit blokira mismatch. Service Worker koristi `byftp-static-v1.9.2` i pri aktivaciji uklanja prethodne `byftp-static-*` cache generacije.
 
-`scripts/package_web.py` iz root repozitorija generira `ByFTP-1.9.1-WEB-shared-hosting.zip` iz `git ls-files` popisa. Packager odbija symlink i unsafe archive putanju, provjerava arhivirani `VERSION`, Composer verziju i PWA cache namespace te nakon izrade ponovno provjerava sadržaj ZIP-a.
+`scripts/package_web.py` iz root repozitorija generira `ByFTP-1.9.2-WEB-shared-hosting.zip` iz `git ls-files` popisa. Packager odbija symlink i unsafe archive putanju, provjerava arhivirani `VERSION`, Composer verziju i PWA cache namespace te nakon izrade ponovno provjerava sadržaj ZIP-a.
 
 ## Legacy podaci
 
@@ -132,6 +140,7 @@ node --check service-worker.js
 php tests/unit.php
 php tests/json-store-bounds.php
 php tests/ftp-listing.php
+php tests/transfer-limiter.php
 php tests/user-registry.php
 php tests/profile-recovery.php
 php tests/config-security.php
