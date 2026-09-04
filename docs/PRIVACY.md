@@ -1,39 +1,29 @@
-# Privacy
+# Ghost FTP privacy
 
-ByFTP contains no advertising, analytics SDK, application telemetry or mandatory cloud account. Connection details are used only to contact the server selected by the user.
+Ghost FTP is designed without application telemetry in production builds. The application does not intentionally send product-usage analytics, advertising identifiers or crash telemetry to a Ghost FTP-operated collection service.
 
-## Desktop
+## Network traffic
 
-Saved profiles/settings remain in the local application-data directory. Windows saved credentials use DPAPI. Production Go builds require Go telemetry to be disabled. External helper processes receive a minimized environment.
+Ghost FTP necessarily connects to servers selected by the user for FTP, FTPS or SFTP operations. Those servers and network intermediaries can observe connection metadata according to the selected protocol.
 
-## Android
+Plain FTP is unencrypted. Prefer FTPS or SFTP when the remote service supports them.
 
-The Android client does not persist connection passwords, passphrases or SSH private-key secrets. It uses document-provider URIs for user-selected upload/download files and requests no broad device-storage permission.
+## Credentials and profiles
 
-Starting with 1.3.0, Android can remember the last successful **non-secret** connection metadata in app-private preferences: protocol, host, port, username and, for SFTP, the expected host-key fingerprint. Password/passphrase fields are structurally absent from that preset. Loaded values are validated again before use.
+Connection profiles can contain hostnames, usernames, paths and authentication material. Secrets are handled as sensitive data and platform-specific protection is used where available. Do not commit exported profiles, configuration storage or credentials to source control.
 
-Cloud-backup and device-transfer rules exclude root, file, database, shared-preference and external app-data domains, so the local preset is not exported through Android backup/device transfer. Generic cleartext traffic is disabled for platform-aware networking. No Firebase Analytics, advertising SDK, project-controlled runtime API or ByFTP backend service is included.
+SFTP host-key fingerprints should be verified before trusting a server. A fingerprint change should be treated as a security event until independently explained.
 
-The password field is cleared after every connection attempt and at Activity teardown. Active/pending clients and picker state are cleaned during lifecycle teardown. Release APK packaging does not change this privacy model.
+## Web deployment
 
-## iOS
+The web/PWA client stores application configuration and per-user data on the operator's own hosting environment. Operators are responsible for protecting that hosting account, TLS configuration, backups and application storage permissions.
 
-The native iOS client also has no ByFTP backend, analytics/advertising SDK or fixed runtime HTTP(S) endpoint.
+The web application is intentionally configured not to be indexed by search engines. It also uses restrictive session/cookie/security controls, but those controls do not replace secure server administration.
 
-Connection **secrets** remain session-only. The password field is cleared after each connection attempt, the FTP transport clears its own password copy after authentication and the app disconnects when it enters the background.
+## Build privacy
 
-Starting with 1.3.0, iOS can remember only protocol, host, port and username as a non-secret `ConnectionPreset` in Keychain using `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. The preset has no password field, does not use `UserDefaults`, is device-bound by the selected Keychain accessibility class and is revalidated before restoration. The credential-bearing connection config is not retained merely to complete preset persistence.
+Production build scripts disable Go telemetry and use controlled dependency behavior. CI contains privacy auditing intended to detect accidental telemetry or tracking additions.
 
-Uploads use the system document picker and security-scoped access only for files explicitly selected by the user. Downloads are written to a private temporary directory for the system share/save workflow and can be explicitly cleared; the session store also removes the previous temporary download before creating a new one.
+## Third parties
 
-The iOS bundle contains no global App Transport Security bypass. Network traffic is limited to the endpoint entered by the user; PASV response hosts are not trusted as alternative destinations.
-
-Unsigned IPA/app ZIP generation is a packaging/signing property only and does not introduce telemetry, cloud storage or secret persistence.
-
-## Repository privacy gate
-
-Version 1.6.0 extends release hygiene across every tracked repository file. The repository-wide integrity audit is entirely local to the checked-out Git tree: it enumerates tracked paths and file contents only. It does not upload source, credentials, filenames or audit results to a ByFTP service and does not add a runtime endpoint or telemetry path.
-
-## Project communication
-
-ByFTP does not send usage events to the repository, support endpoint or a project-operated service. Static repository/support URLs used as product metadata do not trigger automatic network requests.
+FTP/FTPS/SFTP servers, hosting providers, operating-system vendors, GitHub and app-distribution platforms have their own privacy practices. Ghost FTP cannot control data processed independently by those services.

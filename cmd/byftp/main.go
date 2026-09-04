@@ -68,7 +68,7 @@ func validAskpassToken(token string) bool {
 // selectAskpassSecret is intentionally fail-closed.
 //
 // OpenSSH AskPass can also be invoked for keyboard-interactive and MFA
-// challenges. ByFTP must never automatically provide a stored credential
+// challenges. Ghost FTP must never automatically provide a stored credential
 // to an unknown prompt.
 //
 // Only clearly recognized password and private-key passphrase prompts are
@@ -217,7 +217,7 @@ func showError(message string) {
 func runApplication() (exitCode int) {
 	defer func() {
 		if recover() != nil {
-			showError("ByFTP closed unexpectedly. Restart the application and try again.")
+			showError("Ghost FTP closed unexpectedly. Restart the application and try again.")
 			exitCode = 1
 		}
 	}()
@@ -231,34 +231,34 @@ func runApplication() (exitCode int) {
 
 	exe, err := os.Executable()
 	if err != nil {
-		showError("ByFTP could not start. Restart the computer and try again.")
+		showError("Ghost FTP could not start. Restart the computer and try again.")
 		return 1
 	}
 
 	dataDir, err := api.DataDir()
 	if err != nil {
-		showError(usererror.Message(err, "ByFTP could not start. Check permissions for the user data folder and try again."))
+		showError(usererror.Message(err, "Ghost FTP could not start. Check permissions for the user data folder and try again."))
 		return 1
 	}
 	localAppData, err := platform.LocalAppData()
 	if err != nil {
-		showError("ByFTP could not access the local application-data folder.")
+		showError("Ghost FTP could not access the local application-data folder.")
 		return 1
 	}
 	if err := security.EnsureNoRedirectDirectory(localAppData, dataDir); err != nil {
-		showError("The ByFTP data folder is not safe to use. Remove filesystem redirection for that folder and try again.")
+		showError("The Ghost FTP data folder is not safe to use. Remove filesystem redirection for that folder and try again.")
 		return 1
 	}
 
 	engine, err := api.New(dataDir, exe)
 	if err != nil {
-		showError(usererror.Message(err, "ByFTP could not start. Please try again."))
+		showError(usererror.Message(err, "Ghost FTP could not start. Please try again."))
 		return 1
 	}
 	defer engine.Close()
 
 	if err := desktop.Run(engine, version); err != nil {
-		showError(usererror.Message(err, "The ByFTP window could not be opened. Please try again."))
+		showError(usererror.Message(err, "The Ghost FTP window could not be opened. Please try again."))
 		return 1
 	}
 	return 0

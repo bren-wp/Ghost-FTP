@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regresije za ByFTP remote/transfer runtime hardening."""
+"""Ghost FTP remote/transfer and release-runtime hardening regressions."""
 
 from __future__ import annotations
 
@@ -98,24 +98,28 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertIn("$maxPreviewBytes = 10485760;", preview)
         self.assertIn("downloadBounded($path, $tmp, $maxPreviewBytes)", preview)
 
-    def test_release_publisher_requires_delayed_remote_readback(self) -> None:
-        source = (ROOT / "scripts/publish_release.ps1").read_text(encoding="utf-8")
-        immediate = "Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'immediate'"
-        delay = "Start-Sleep -Seconds 5"
-        delayed = "Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'delayed'"
+    def test_release_workflow_requires_delayed_remote_readback(self) -> None:
+        source = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        immediate = "assert_release_asset_set immediate"
+        delay = "sleep 5"
+        main_guard = 'test "$main_sha" = "$GITHUB_SHA" || { echo "main moved before delayed release verification"'
+        delayed = "assert_release_asset_set delayed"
         for marker in (
-            "function Assert-ReleaseAssetSet",
-            "RELEASE_ASSET_READBACK=PASS",
+            "assert_release_asset_set()",
+            "RELEASE_ASSET_READBACK=PASS ($phase)",
+            "gh release view \"$RELEASE_TAG\" --repo \"$repo\" --json assets",
+            "gh release download \"$RELEASE_TAG\" --repo \"$repo\" --pattern 'SHA256.txt'",
+            "cmp release/SHA256.txt \"$readback_dir/SHA256.txt\"",
             immediate,
             delay,
-            "Assert-CurrentMainCommit",
+            main_guard,
             delayed,
         ):
             self.assertIn(marker, source)
 
         immediate_pos = source.index(immediate)
         delay_pos = source.index(delay, immediate_pos)
-        main_guard_pos = source.index("Assert-CurrentMainCommit", delay_pos)
+        main_guard_pos = source.index(main_guard, delay_pos)
         delayed_pos = source.index(delayed, main_guard_pos)
         self.assertLess(immediate_pos, delay_pos)
         self.assertLess(delay_pos, main_guard_pos)

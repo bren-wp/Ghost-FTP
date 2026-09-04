@@ -83,7 +83,7 @@ function byftp_update_config(array $changes): array
 
 function byftp_app_name(): string
 {
-    return (string)(byftp_config()['app_name'] ?? 'ByFTP');
+    return (string)(byftp_config()['app_name'] ?? 'Ghost FTP');
 }
 
 function byftp_registration_enabled(): bool
@@ -131,12 +131,12 @@ function byftp_truncate(string $value, int $length): string
 function byftp_archive_download_name(string $value): string
 {
     $name = trim($value);
-    $name = preg_replace('/[^\pL\pN._ -]+/u', '-', $name) ?: 'byftp-download';
+    $name = preg_replace('/[^\pL\pN._ -]+/u', '-', $name) ?: 'ghost-ftp-download';
     $base = preg_replace('/\.zip$/i', '', $name);
     $base = is_string($base) ? $base : '';
     $base = rtrim(byftp_truncate($base, 116), " .");
     if ($base === '') {
-        $base = 'byftp-download';
+        $base = 'ghost-ftp-download';
     }
     return $base . '.zip';
 }
@@ -219,7 +219,7 @@ function byftp_url(string $route = 'app'): string
         'preview' => '/preview/file',
         'manifest' => '/manifest.webmanifest',
         'service_worker' => '/service-worker.js',
-        default => throw new InvalidArgumentException('Nepoznata ByFTP ruta.'),
+        default => throw new InvalidArgumentException('Nepoznata Ghost FTP ruta.'),
     };
     $base = byftp_base_path();
     if ($path === '/') {

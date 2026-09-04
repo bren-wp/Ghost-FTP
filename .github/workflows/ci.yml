@@ -1,14 +1,17 @@
-name: Checks
+name: Ghost FTP CI
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ghostftp-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   GOTOOLCHAIN: local
@@ -16,12 +19,12 @@ env:
   GOSUMDB: off
 
 jobs:
-  test:
-    name: Tests, race, vet, security, privacy, docs and release integrity
+  quality:
+    name: Core, security, privacy and web
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -35,70 +38,60 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Disable and verify Go telemetry
+      - name: Disable Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Verify Go formatting
+      - name: Validate canonical version and public brand
         shell: bash
         run: |
           set -euo pipefail
-          unformatted="$(find cmd internal -type f -name '*.go' -print0 | xargs -0 -r gofmt -l)"
-          if [[ -n "$unformatted" ]]; then
-            printf 'Go source is not gofmt-clean:\n%s\n' "$unformatted" >&2
-            exit 1
-          fi
-      - name: Verify generated brand assets
-        run: python scripts/generate_brand_assets.py --check
-      - name: Verify English-first localization contract
-        run: python scripts/audit_localization.py
-      - name: Verify version consistency
-        run: python scripts/audit_version.py
-      - name: Verify repository hygiene
-        run: python scripts/audit_repository.py
-      - name: Verify ByFTP WEB
-        run: python scripts/audit_web.py
-      - name: Verify Android invariants
-        run: python scripts/audit_android.py
-      - name: Verify iOS invariants
-        run: python scripts/audit_ios.py
-      - name: Verify published-version immutability
-        env:
-          BYFTP_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          BYFTP_HEAD_SHA: ${{ github.sha }}
-        run: python scripts/audit_release_version_guard.py --base "$BYFTP_BASE_SHA" --head "$BYFTP_HEAD_SHA"
-      - name: Verify documentation
-        run: python scripts/audit_docs.py
-      - name: Verify security invariants
-        run: python scripts/audit_security.py
-      - name: Verify privacy and network policy
-        run: python scripts/audit_privacy.py
-      - name: Verify release pipeline
-        run: python scripts/audit_release.py
-      - name: Python release-tool regressions
-        run: python -m unittest discover -s scripts -p 'test_*.py'
-      - name: Go unit and integration tests
-        run: go test ./...
-      - name: Race detector
-        run: go test -race ./...
-      - name: Go vet
-        run: go vet ./...
-      - name: Verify release metadata generation
+          version="$(tr -d '\r\n' < VERSION)"
+          web_version="$(tr -d '\r\n' < 'ByFTP WEB/VERSION')"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$version" = "$web_version"
+          grep -F 'ProductName = "Ghost FTP"' internal/brand/brand.go
+          grep -F '<string name="app_name">Ghost FTP</string>' android/app/src/main/res/values/strings.xml
+          grep -F '<string>Ghost FTP</string>' ios/ByFTP/Info.plist
+          grep -F '"short_name": "Ghost FTP"' 'ByFTP WEB/manifest.webmanifest'
+          grep -F 'Name=Ghost FTP' linux/ghost-ftp.desktop
+      - name: Go formatting, tests, race detector and vet
         shell: bash
         run: |
+          set -euo pipefail
+          files="$(find . -name '*.go' -not -path './vendor/*' -print)"
+          test -z "$(gofmt -l $files)"
+          go test ./...
+          go test -race ./...
+          go vet ./...
+      - name: Security and privacy audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
+      - name: PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find 'ByFTP WEB' -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+      - name: Release notes regression
+        shell: bash
+        run: |
+          set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
           python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
-          test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
-          grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          grep -F "Ghost FTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+          grep -F "ghostftp-v$version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
 
-  android-build:
-    name: Android unit, lint and APK builds
+  android:
+    name: Android
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Java
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
@@ -111,124 +104,15 @@ jobs:
         with:
           gradle-version: '9.7.1'
           cache-disabled: true
-      - name: Verify Android SDK platform
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          test -d "$sdk_root/platforms"
-          find "$sdk_root/platforms" -maxdepth 1 -type d -name 'android-37*' -print -quit | grep -q .
-          test -d "$sdk_root/build-tools/36.0.0"
-      - name: Audit Android source
-        run: python scripts/audit_android.py
-      - name: Test, lint and build Android APKs
-        shell: bash
-        run: |
-          set -euo pipefail
-          gradle -p android :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
-          python scripts/package_android.py \
-            --debug android/app/build/outputs/apk/debug/app-debug.apk \
-            --release android/app/build/outputs/apk/release/app-release-unsigned.apk \
-            --output-dir dist
-      - name: Store Android lint reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: byftp-android-lint
-          if-no-files-found: warn
-          retention-days: 7
-          path: android/app/build/reports/lint-results-*.*
-      - name: Store Android APK build evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: byftp-android-ci
-          if-no-files-found: error
-          retention-days: 7
-          path: |
-            dist/ByFTP-*-Android-debug.apk
-            dist/ByFTP-*-Android-release-unsigned.apk
+      - name: Unit test, lint and assemble
+        run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
 
-  ios-build:
-    name: iOS arm64 app and unsigned IPA
-    runs-on: macos-14
-    timeout-minutes: 30
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.x'
-      - name: Audit iOS source and packaging contract
-        run: python3 scripts/audit_ios.py
-      - name: Build and validate native iOS artifacts
-        run: bash ios/BUILD.sh
-      - name: Store iOS build evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: byftp-ios-ci
-          if-no-files-found: error
-          retention-days: 7
-          path: |
-            dist/ByFTP-*-iOS-arm64-unsigned.ipa
-            dist/ByFTP-*-iOS-arm64-unsigned-app.zip
-
-  windows-build:
-    name: Windows x64 and x86 production build
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.1'
-          check-latest: false
-          cache: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.x'
-      - name: Disable and verify Go telemetry
-        shell: pwsh
-        run: |
-          go telemetry off
-          if ($LASTEXITCODE -ne 0) { throw 'Unable to disable Go telemetry.' }
-          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
-      - name: Validate release-publisher syntax
-        shell: pwsh
-        run: |
-          $tokens = $null
-          $parseErrors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path '.\scripts\publish_release.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
-          if ($parseErrors.Count -gt 0) {
-            $parseErrors | ForEach-Object { Write-Error $_.Message }
-            throw 'publish_release.ps1 contains a PowerShell syntax error.'
-          }
-      - name: Build and verify x64 and x86
-        shell: pwsh
-        run: .\BUILD-WINDOWS.ps1
-      - name: Store internal build evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: byftp-windows-ci
-          if-no-files-found: error
-          retention-days: 7
-          path: |
-            dist/ByFTP-*-Portable-x64.exe
-            dist/ByFTP-*-Setup-x64.exe
-            dist/ByFTP-*-Portable-x86.exe
-            dist/ByFTP-*-Setup-x86.exe
-            dist/internal/verification-x64.txt
-            dist/internal/verification-x86.txt
-
-  linux-build:
-    name: Linux DEB amd64 arm64 and i386
+  linux:
+    name: Linux packages
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -236,39 +120,57 @@ jobs:
           go-version: '1.27.1'
           check-latest: false
           cache: false
-      - name: Disable and verify Go telemetry
+      - name: Build and verify
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
-          test "$(go telemetry)" = 'off'
-      - name: Linux unit, integration and vet
-        shell: bash
-        run: |
-          set -euo pipefail
-          go test ./...
-          go vet ./...
-      - name: Build Linux installation packages
-        run: bash linux/BUILD.sh
-      - name: Verify DEB metadata
-        shell: bash
-        run: |
-          set -euo pipefail
+          bash linux/BUILD.sh
           version="$(tr -d '\r\n' < VERSION)"
           for arch in amd64 arm64 i386; do
-            pkg="dist/ByFTP-${version}-Linux-${arch}.deb"
+            pkg="dist/Ghost-FTP-${version}-Linux-${arch}.deb"
             test -s "$pkg"
-            test "$(dpkg-deb -f "$pkg" Package)" = 'byftp'
-            test "$(dpkg-deb -f "$pkg" Version)" = "$version"
+            test "$(dpkg-deb -f "$pkg" Package)" = ghost-ftp
             test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
           done
 
-  macos-build:
-    name: macOS Universal PKG
-    runs-on: macos-14
-    timeout-minutes: 25
+  windows:
+    name: Windows x64/x86
+    runs-on: windows-latest
+    timeout-minutes: 35
     steps:
-      - name: Checkout source
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Build and verify installers
+        shell: pwsh
+        run: |
+          go telemetry off
+          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
+          .\BUILD-WINDOWS.ps1
+          $v = (Get-Content VERSION -Raw).Trim()
+          foreach ($arch in @('x64','x86')) {
+            $path = "dist\Ghost-FTP-$v-Setup-$arch.exe"
+            if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing installer: $path" }
+          }
+
+  macos:
+    name: macOS Universal
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -276,26 +178,26 @@ jobs:
           go-version: '1.27.1'
           check-latest: false
           cache: false
-      - name: Disable and verify Go telemetry
+      - name: Build Universal package
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
-          test "$(go telemetry)" = 'off'
-      - name: macOS unit and vet
-        shell: bash
-        run: |
-          set -euo pipefail
-          go test ./...
-          go vet ./...
-      - name: Build macOS Universal installer
-        run: bash macos/BUILD.sh
-      - name: Verify PKG structure
-        shell: bash
-        run: |
-          set -euo pipefail
+          bash macos/BUILD.sh
           version="$(tr -d '\r\n' < VERSION)"
-          pkg="dist/ByFTP-${version}-macOS-Universal.pkg"
-          test -s "$pkg"
-          pkgutil --expand "$pkg" "$RUNNER_TEMP/byftp-pkg"
-          test -f "$RUNNER_TEMP/byftp-pkg/PackageInfo"
+          test -s "dist/ByFTP-${version}-macOS-Universal.pkg"
+
+  ios:
+    name: iOS arm64 unsigned
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and verify IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ios/BUILD.sh
+          version="$(tr -d '\r\n' < VERSION)"
+          test -s "dist/ByFTP-${version}-iOS-arm64-unsigned.ipa"

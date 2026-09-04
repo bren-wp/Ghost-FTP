@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Ugrađuje VERSIONINFO, manifest aplikacije i ICO resurse u nepotpisanu PE32/PE32+ izvršnu datoteku.
+"""Embed deterministic Ghost FTP VERSIONINFO, manifest and ICO resources into unsigned PE32/PE32+ binaries.
 
-Koristi samo Python standardnu biblioteku i namijenjen je determinističkim ByFTP buildovima.
-Ne potpisuje izvršnu datoteku; Authenticode potpisivanje zaseban je korak izdanja.
+The script uses only the Python standard library. It does not Authenticode-sign
+binaries; signing remains a separate publisher-controlled release step.
 """
 from __future__ import annotations
 
@@ -77,20 +77,20 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
         0,
     )
     descriptions = {
-        "portable": ("ByFTP klijent", "ByFTP"),
-        "setup": ("ByFTP instalacijski program", "ByFTPSetup"),
+        "portable": ("Ghost FTP file transfer client", "GhostFTP"),
+        "setup": ("Ghost FTP Setup", "GhostFTPSetup"),
     }
     description, internal_name = descriptions.get(role, descriptions["portable"])
     strings = [
-        ("CompanyName", "ByFTP"),
+        ("CompanyName", "Ghost FTP"),
         ("FileDescription", description),
         ("FileVersion", f"{major}.{minor}.{patch}.{build}"),
         ("InternalName", internal_name),
-        ("LegalCopyright", "Copyright © 2026 ByFTP"),
+        ("LegalCopyright", "Copyright © 2026 Ghost FTP"),
         ("OriginalFilename", original_filename),
-        ("ProductName", "ByFTP"),
+        ("ProductName", "Ghost FTP"),
         ("ProductVersion", f"{major}.{minor}.{patch}.{build}"),
-        ("Comments", "Siguran FTP, FTPS i SFTP klijent — ByFTP — github.com/bren-wp/by-ftp"),
+        ("Comments", "Secure FTP, FTPS and SFTP client — Ghost FTP — github.com/bren-wp/Ghost-FTP"),
     ]
     string_table = make_container_block("040904B0", [make_string_block(k, v) for k, v in strings], value_type=1)
     string_file_info = make_container_block("StringFileInfo", [string_table], value_type=1)
@@ -103,15 +103,15 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
 def make_manifest(version: tuple[int, int, int, int], role: str, processor_architecture: str) -> bytes:
     major, minor, patch, build = version
     if processor_architecture not in {"amd64", "x86"}:
-        raise ValueError(f"Nepodržana Windows arhitektura manifesta: {processor_architecture}")
+        raise ValueError(f"Unsupported Windows manifest architecture: {processor_architecture}")
     identity = {
-        "portable": "ByFTP.Client",
-        "setup": "ByFTP.Setup",
-    }.get(role, "ByFTP.Client")
+        "portable": "GhostFTP.Client",
+        "setup": "GhostFTP.Setup",
+    }.get(role, "GhostFTP.Client")
     xml = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity version="{major}.{minor}.{patch}.{build}" processorArchitecture="{processor_architecture}" name="{identity}" type="win32"/>
-  <description>ByFTP klijent tvrtke ByFTP</description>
+  <description>Ghost FTP file transfer client</description>
   <dependency>
     <dependentAssembly>
       <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0" processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
@@ -137,10 +137,10 @@ def make_manifest(version: tuple[int, int, int, int], role: str, processor_archi
 def parse_ico(path: Path) -> tuple[list[bytes], bytes]:
     data = path.read_bytes()
     if len(data) < 6:
-        raise ValueError("ICO je prekratak")
+        raise ValueError("ICO is too short")
     reserved, kind, count = struct.unpack_from("<HHH", data, 0)
     if reserved != 0 or kind != 1 or count < 1 or count > 64:
-        raise ValueError("Neispravan ICO header")
+        raise ValueError("Invalid ICO header")
     images: list[bytes] = []
     group = bytearray(struct.pack("<HHH", 0, 1, count))
     for i in range(count):
@@ -148,7 +148,7 @@ def parse_ico(path: Path) -> tuple[list[bytes], bytes]:
         width, height, colors, reserved2, planes, bpp, size, image_off = struct.unpack_from("<BBBBHHII", data, off)
         end = image_off + size
         if end > len(data):
-            raise ValueError("ICO zapis izlazi iz datoteke")
+            raise ValueError("ICO entry extends beyond the file")
         images.append(data[image_off:end])
         group += struct.pack("<BBBBHHIH", width, height, colors, reserved2, planes, bpp, size, i + 1)
     return images, bytes(group)
@@ -227,10 +227,10 @@ def build_resource_section(resources: dict[int, list[tuple[int, bytes]]], sectio
 def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str, original_filename: str) -> None:
     raw = bytearray(exe.read_bytes())
     if raw[:2] != b"MZ":
-        raise ValueError("Datoteka nije PE/MZ")
+        raise ValueError("File is not PE/MZ")
     pe_off = struct.unpack_from("<I", raw, 0x3C)[0]
     if raw[pe_off:pe_off + 4] != b"PE\0\0":
-        raise ValueError("PE potpis nije pronađen")
+        raise ValueError("PE signature not found")
     coff = pe_off + 4
     machine, number_sections, _, _, _, size_opt, _ = struct.unpack_from("<HHIIIHH", raw, coff)
     opt = coff + 20
@@ -242,7 +242,7 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
         processor_architecture = "x86"
         data_directory_offset = 96
     else:
-        raise ValueError(f"Nepodržan PE stroj/magic: machine=0x{machine:04x}, magic=0x{magic:04x}")
+        raise ValueError(f"Unsupported PE machine/magic: machine=0x{machine:04x}, magic=0x{magic:04x}")
 
     section_alignment = struct.unpack_from("<I", raw, opt + 32)[0]
     file_alignment = struct.unpack_from("<I", raw, opt + 36)[0]
@@ -250,7 +250,7 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
     section_table = opt + size_opt
     new_header_off = section_table + number_sections * 40
     if new_header_off + 40 > size_headers:
-        raise ValueError("Nema mjesta za dodatni .rsrc section header")
+        raise ValueError("No room for an additional .rsrc section header")
     max_end_rva = 0
     for i in range(number_sections):
         off = section_table + i * 40
@@ -289,7 +289,7 @@ def parse_version(text: str) -> tuple[int, int, int, int]:
     if len(parts) == 3:
         parts.append(0)
     if len(parts) != 4 or any(p < 0 or p > 65535 for p in parts):
-        raise argparse.ArgumentTypeError("verzija mora biti npr. 1.8.0 ili 1.8.0.0")
+        raise argparse.ArgumentTypeError("version must be like 1.0.0 or 1.0.0.0")
     return tuple(parts)  # type: ignore[return-value]
 
 

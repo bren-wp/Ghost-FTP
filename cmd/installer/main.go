@@ -28,6 +28,8 @@ const (
 	maxPayloadManifestSize = 64 << 10
 	payloadSchema          = 2
 
+	// These registry/application-path identifiers are retained for upgrade
+	// compatibility with installations created before the Ghost FTP rebrand.
 	legacyUninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
 	appPathsKey        = `Software\Microsoft\Windows\CurrentVersion\App Paths\ByFTP.exe`
 )
@@ -179,7 +181,7 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 
 func stageVerified(path string, data []byte) (string, error) {
 	dir := filepath.Dir(path)
-	f, err := os.CreateTemp(dir, ".byftp-install-*.tmp")
+	f, err := os.CreateTemp(dir, ".ghostftp-install-*.tmp")
 	if err != nil {
 		return "", err
 	}
@@ -345,7 +347,7 @@ func runInstaller() (exitCode int) {
 	}
 
 	content := brand.Website + "\n" + brand.Support + "\n\n" +
-		"ByFTP will be installed for your Windows user account and will be available from the Start menu."
+		brand.ProductName + " will be installed for your Windows user account and will be available from the Start menu."
 
 	if !platform.ConfirmDialog(
 		installerTitle(),
@@ -384,7 +386,7 @@ func runInstaller() (exitCode int) {
 	if err := security.EnsureNoRedirectDirectory(localAppData, dir); err != nil {
 		showInstallError(
 			"The installation folder is not safe",
-			"Remove any redirect from the ByFTP installation folder and try again.",
+			"Remove any redirect from the Ghost FTP installation folder and try again.",
 		)
 		return 1
 	}
@@ -397,12 +399,14 @@ func runInstaller() (exitCode int) {
 		return 1
 	}
 
+	// Keep the legacy executable filename for in-place upgrades and existing
+	// shortcuts/App Paths registrations. All user-visible branding is Ghost FTP.
 	appPath := filepath.Join(dir, "ByFTP.exe")
 	appBackup, err := backupExisting(appPath)
 	if err != nil {
 		showInstallError(
 			"Upgrade was not started",
-			"The existing installation could not be prepared for upgrade. Close ByFTP and try again.",
+			"The existing installation could not be prepared for upgrade. Close Ghost FTP and try again.",
 		)
 		return 1
 	}
@@ -463,8 +467,8 @@ func runInstaller() (exitCode int) {
 	if err := installFile(appPath, app, &appBackup); err != nil {
 		extra := rollbackMessage()
 		showInstallError(
-			"ByFTP could not be installed",
-			"Close ByFTP if it is running and try again."+extra,
+			brand.ProductName+" could not be installed",
+			"Close Ghost FTP if it is running and try again."+extra,
 		)
 		return 1
 	}
@@ -483,25 +487,25 @@ func runInstaller() (exitCode int) {
 
 	languageWarning := ""
 	if err := persistInstallerLanguage(installLanguage); err != nil {
-		languageWarning = "\n\nThe selected language could not be saved. ByFTP will start in English; you can change the language in Settings."
+		languageWarning = "\n\nThe selected language could not be saved. Ghost FTP will start in English; you can change the language in Settings."
 	}
 
 	shortcutWarning := ""
 	if err := platform.CreateShortcuts(appPath); err != nil {
-		shortcutWarning = "\n\nA shortcut could not be created. You can start ByFTP from its installation folder."
+		shortcutWarning = "\n\nA shortcut could not be created. You can start Ghost FTP from its installation folder."
 	}
 
 	if platform.ConfirmDialog(
 		installerTitle(),
 		"Setup completed successfully",
-		"ByFTP is ready to use."+legacyCleanupWarning+languageWarning+shortcutWarning+"\n\nLaunch ByFTP now?",
+		"Ghost FTP is ready to use."+legacyCleanupWarning+languageWarning+shortcutWarning+"\n\nLaunch Ghost FTP now?",
 	) {
 		cmd := exec.Command(appPath)
 		if err := cmd.Start(); err != nil {
 			platform.ErrorDialog(
 				installerTitle(),
-				"ByFTP is installed",
-				"ByFTP could not be launched automatically. Start it from the Windows Start menu.",
+				"Ghost FTP is installed",
+				"Ghost FTP could not be launched automatically. Start it from the Windows Start menu.",
 			)
 		}
 	}

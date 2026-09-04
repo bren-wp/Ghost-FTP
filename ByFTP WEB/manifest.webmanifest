@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "ByFTP Remote File Client",
-  "short_name": "ByFTP",
+  "name": "Ghost FTP Remote File Client",
+  "short_name": "Ghost FTP",
   "description": "Siguran FTP, FTPS i SFTP klijent za vlastiti hosting.",
   "start_url": "./",
   "scope": "./",

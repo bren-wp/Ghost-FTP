@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate ByFTP's English-first localization contract."""
+"""Validate Ghost FTP's English-first localization contract."""
 
 from __future__ import annotations
 
@@ -72,14 +72,25 @@ def main() -> int:
     for marker in (
         "credential is not available",
         "invalid authentication request",
-        "ByFTP could not start.",
-        "The ByFTP window could not be opened.",
+        "Ghost FTP could not start.",
+        "The Ghost FTP window could not be opened.",
     ):
         if marker not in entrypoint:
             fail(f"Windows English fallback marker is missing: {marker}")
 
+    # User-facing fallback text must not regress to the retired product name.
+    for legacy in (
+        "ByFTP closed unexpectedly.",
+        "ByFTP could not start.",
+        "ByFTP could not access the local application-data folder.",
+        "The ByFTP data folder is not safe to use.",
+        "The ByFTP window could not be opened.",
+    ):
+        if legacy in entrypoint:
+            fail(f"legacy public brand remains in Windows fallback text: {legacy}")
+
     readme = read("README.md")
-    for marker in (f"Current release: {version}", "## Languages", "English"):
+    for marker in (f"Current Ghost FTP version: **{version}**", "## Languages", "English"):
         if marker not in readme:
             fail(f"README is missing English-first marker: {marker}")
 
@@ -90,11 +101,11 @@ def main() -> int:
             "vjerodajnica nije dostupna",
             "neispravan zahtjev za prijavu",
             "nepouzdan nadređeni proces",
-            "ByFTP je neočekivano zatvoren",
-            "ByFTP je već pokrenut",
-            "ByFTP se ne može pokrenuti",
-            "ByFTP podatkovna mapa nije sigurna",
-            "ByFTP prozor nije moguće otvoriti",
+            "Ghost FTP je neočekivano zatvoren",
+            "Ghost FTP je već pokrenut",
+            "Ghost FTP se ne može pokrenuti",
+            "Ghost FTP podatkovna mapa nije sigurna",
+            "Ghost FTP prozor nije moguće otvoriti",
         ),
     }
     for rel, phrases in forbidden_primary.items():
@@ -106,6 +117,7 @@ def main() -> int:
     print(f"LOCALIZATION_AUDIT=PASS ({version})")
     print("PRIMARY_LANGUAGE=en")
     print("WINDOWS_STARTUP_FALLBACKS=en")
+    print("PUBLIC_BRAND=Ghost FTP")
     print("SUPPORTED_LANGUAGES=" + ",".join(SUPPORTED))
     return 0
 

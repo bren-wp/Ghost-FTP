@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=ByFTP
+Name=Ghost FTP
 Comment=Privacy-focused FTP, FTPS and SFTP client
-Exec=/usr/bin/byftp
-Icon=byftp
+Exec=/usr/bin/ghostftp
+Icon=ghost-ftp
 Terminal=true
 Categories=Network;FileTransfer;
-Keywords=FTP;FTPS;SFTP;ByFTP;
+Keywords=FTP;FTPS;SFTP;Ghost FTP;

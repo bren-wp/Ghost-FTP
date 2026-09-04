@@ -22,31 +22,36 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertIn("current change", section)
         self.assertNotIn("previous change", section)
 
-    def test_public_notes_are_english_first_and_describe_mobile_artifacts(self) -> None:
+    def test_public_notes_are_english_first_and_describe_release_artifacts(self) -> None:
         notes = build_notes("1.4.0", "- Native iOS release packaging.")
         for marker in (
-            "ByFTP 1.4.0",
-            "Privacy-focused file-transfer client",
-            "Windows, Linux, macOS, Android and iOS",
+            "Ghost FTP 1.4.0",
+            "Privacy-focused FTP, FTPS and SFTP client",
+            "Windows, Linux, macOS, Android, iOS and the web",
             "Highlights",
-            "Official packages",
-            "Android debug APK",
-            "Android release-unsigned APK",
-            "iOS arm64 unsigned IPA",
-            "iOS arm64 unsigned app ZIP",
-            "valid Apple signing identity",
-            "Release verification",
-            "Before installing",
-            "Signing status",
+            "ghostftp-v1.4.0",
+            "Public platform packages",
+            "Ghost-FTP-1.4.0-Setup-x64.exe",
+            "Ghost-FTP-1.4.0-Linux-multiarch.zip",
+            "Ghost-FTP-1.4.0-macOS-Universal.pkg",
+            "Ghost-FTP-1.4.0-Android.apk",
+            "Android debug signing",
+            "Ghost-FTP-1.4.0-iOS-arm64-unsigned.ipa",
+            "Ghost-FTP-1.4.0-Web.zip",
+            "SHA256.txt",
+            "BUILD-METADATA.txt",
+            "Signing and trust",
+            "never fabricates publisher identities",
         ):
             self.assertIn(marker, notes)
         for retired in (
+            "ByFTP 1.4.0",
             "Official desktop packages",
-            "source is under android/ and is a required release-quality gate",
+            "Android release-unsigned APK",
+            "iOS arm64 unsigned app ZIP",
             "Najvažnije promjene",
             "Službeni paketi",
             "Provjera izdanja",
-            "Preporuka prije instalacije",
         ):
             self.assertNotIn(retired, notes)
 

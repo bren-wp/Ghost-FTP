@@ -1,156 +1,169 @@
-# ByFTP
+# Ghost FTP
 
-![ByFTP — Secure File Transfer](docs/images/byftp-header.png)
+**Ghost FTP** is a privacy-focused FTP, FTPS and SFTP client for Windows, Linux, macOS, Android, iOS and the web. The project is designed for dependable day-to-day file transfer, shared-hosting workflows and environments where explicit security controls and reproducible releases matter.
 
-ByFTP is a privacy-focused file-transfer suite for **Windows, Linux, macOS, Android, iOS and the web**. Native desktop and Android clients support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS. **ByFTP WEB** is a PHP shared-hosting PWA with FTP/FTPS and optional SFTP when the hosting environment provides `ext-ssh2`.
+Current Ghost FTP version: **1.0.0**
 
-**Current release: 1.9.2**
+## Core capabilities
 
-[Latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Installation](docs/INSTALLATION.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+- FTP, explicit/implicit FTPS and SFTP workflows.
+- Local and remote file browsing, upload, download, rename, delete and directory operations.
+- Transfer state tracking with defensive staging, cleanup and rollback behavior.
+- SFTP host-key fingerprint validation and strict connection-input validation.
+- Protected profile secrets and platform-specific credential protection where supported.
+- Windows desktop client and installer, Linux packages, universal macOS package, Android client, iOS client and shared-hosting web/PWA client.
+- No application telemetry in production builds.
 
-## 1.9.2 highlights
+## Security and stability
 
-- Bounds ByFTP WEB FTP/FTPS/SFTP downloads while bytes are being written to temporary storage instead of relying only on a size check after transfer completion.
-- Binds internal and public WEB downloads to the most recent remote size snapshot, so a file that grows after `stat`/listing cannot silently consume unexpected shared-hosting temp space.
-- Uses non-blocking FTP transfer checks with fail-closed cleanup and a bounded SFTP `maxBytes + 1` stream probe.
-- Keeps ordinary WEB downloads tied to their just-read size while preserving the independent 10 MiB image-preview ceiling.
-- Adds deterministic PHP and Python regression coverage for exact-limit transfers, oversized probes, transport source contracts and endpoint wiring.
-- Keeps the 1.9.1 release-publication hardening: exact-current-`main` guard plus immediate and delayed public asset/SHA-256 readback.
-- Keeps canonical toolchains unchanged: Go 1.27.1, Android Gradle Plugin 9.4.0, Gradle 9.7.1, JDK 17, Android API 37 and build-tools 36.0.0.
+Ghost FTP treats remote paths, local paths, temporary files and credentials as security boundaries. The repository includes regression coverage for traversal protection, SFTP fingerprint policy, transfer cleanup, staging/rollback behavior, configuration durability, runtime-secret handling, process lifecycle behavior and other failure modes.
 
-## 1.9.1 highlights
+The web application additionally uses CSRF protection, strict session handling, secure cookies, security headers, rate limiting and `noindex` directives. Production CI runs Go formatting checks, unit tests, the race detector, `go vet`, security/privacy audits, PHP syntax validation and native platform build checks.
 
-- Hardens private upload-source snapshot cleanup so failed filesystem removal remains retryable instead of losing the only cleanup target.
-- Makes local download replacement report rollback-copy cleanup failures instead of silently leaving stale `.byftp-rollback-*` content after a committed replacement.
-- Bounds ByFTP WEB JSON runtime state to 8 MiB for both reads and writes, using bounded stream reads before JSON decoding to reduce memory-exhaustion risk from abnormal state files.
-- Fixes the WEB FTP raw LIST fallback so a regular filename containing ` -> ` is preserved; link-target normalization now applies only to actual Unix symlink entries.
-- Adds regression coverage for snapshot cleanup retryability, local rollback cleanup, WEB JSON bounds and FTP LIST filename preservation.
-- Strengthens release publication with an immediate complete remote asset/digest verification plus a delayed second GitHub readback after re-confirming the exact current `main` commit.
-- Keeps canonical toolchains unchanged from 1.9.0: Go 1.27.1, Android Gradle Plugin 9.4.0, Gradle 9.7.1, JDK 17, Android API 37 and build-tools 36.0.0.
-
-## 1.9.0 highlights
-
-- Synchronizes Windows, Linux, macOS, Android, iOS and ByFTP WEB on canonical `VERSION` **1.9.0**.
-- Updates the native desktop toolchain to **Go 1.27.1**, including the September 2026 compiler/runtime/library fixes.
-- Updates Android to **Android Gradle Plugin 9.4.0** with **Gradle 9.7.1**, JDK 17, Android API 37 and build-tools 36.0.0.
-- Publishes a verified deployable `ByFTP-1.9.0-WEB-shared-hosting.zip` built only from tracked production WEB files; runtime user/config/cache/backup data cannot enter the public package.
-- Makes WEB ZIP extraction two-phase: every file entry is first materialized and validated locally, the real cumulative decompressed-byte limit is enforced, and only then may remote directories/uploads be mutated. A corrupt late ZIP entry therefore cannot cause earlier archive entries to be written first.
-- Restricts WEB runtime diagnostics to administrators instead of every authenticated user.
-- Removes the empty `internal/i18n/action_locale_de_fr.go` compilation unit and adds regression coverage so the dead file cannot silently return.
-- Keeps the standalone Windows `Uninstall.exe` removed. Windows Setup uses the app-only schema-2 payload, while Setup/Portable x64/x86 all inherit the same canonical 1.9.0 version metadata.
-- Refactors release packaging so Windows bundle creation and public release staging/SHA generation are centralized in dedicated scripts instead of duplicated workflow blocks.
-- Expands the public release contract to **15 platform artifacts plus 3 shared metadata files = 18 public files**, including the WEB shared-hosting ZIP.
-- Preserves the full release-quality matrix: repository/WEB/mobile/security/privacy/docs audits, Python regressions, Go tests/race/vet, Windows x64/x86, Linux amd64/arm64/i386, macOS Universal, Android APKs, iOS arm64 artifacts and WEB package verification.
-
-## 1.8.0 highlights
-
-- Synchronized Windows, Linux, macOS, Android, iOS and ByFTP WEB on the single canonical `VERSION` value `1.8.0`.
-- Removed the standalone Windows `Uninstall.exe` binary from source, build output and installer payload. Windows Setup embeds only the verified `ByFTP.exe` payload plus its integrity manifest; upgrades best-effort clean the legacy uninstaller from older installations after the new application commit succeeds.
-- Upgraded the Android build chain to Android Gradle Plugin 9.3.2 and Gradle 9.7.1 with Android API 37/build-tools 36.0.0 and Go 1.27.0 for the native desktop build.
-- Hardened ByFTP WEB security state, authentication concurrency, rate limits, SFTP host-key pinning, encrypted profile binding and user/config recovery.
-
-## Platform matrix
-
-| Surface | Transport support | Release/build form |
-| --- | --- | --- |
-| Windows x64/x86 | FTP, explicit FTPS, implicit FTPS, SFTP | Portable EXE, app-only Setup EXE, verified ZIP; no standalone uninstaller |
-| Linux amd64/arm64/i386 | FTP, explicit FTPS, implicit FTPS, SFTP | DEB |
-| macOS Universal | FTP, explicit FTPS, implicit FTPS, SFTP | Universal PKG |
-| Android 8.0+ | FTP, explicit FTPS, implicit FTPS, SFTP | Debug-signed APK, unsigned optimized release APK |
-| iOS 16+ | FTP, implicit FTPS | Unsigned arm64 IPA and `.app` ZIP |
-| ByFTP WEB | FTP/FTPS; SFTP with PHP `ext-ssh2` | Verified shared-hosting PHP/PWA ZIP plus maintained source tree |
-
-Android production signing and Apple production signing remain external trust boundaries. Debug/unsigned artifacts are never described as store-signed production packages.
-
-## Security model
-
-ByFTP treats paths, endpoint identity, credentials and release metadata as security boundaries rather than UI conveniences.
-
-Remote path/name input is validated before protocol commands are sent. Saved profiles and direct-connect flows reject noncanonical endpoint input rather than silently trimming control characters or edge whitespace. SFTP host-key verification remains mandatory where the client exposes SFTP. Android and desktop use canonical SHA-256 host-key fingerprints; ByFTP WEB requires a pinned SHA-256 SFTP fingerprint before client creation; iOS does not claim SFTP until an audited native implementation exists.
-
-Plain FTP remains available for compatibility but does not encrypt credentials or content. Prefer SFTP or FTPS where supported. Android FTPS uses platform trust and endpoint checking; iOS implicit FTPS uses Apple Network.framework. PHP `ext-ftp` does not expose the same peer-verification controls as SFTP, so ByFTP WEB recommends fingerprint-pinned SFTP when a cryptographically verified server identity is required.
-
-Saved mobile connection presets intentionally exclude passwords/passphrases. Windows keeps saved secrets behind its existing platform credential boundary. ByFTP WEB encrypts saved remote credential material with an installation-specific 256-bit key and isolates profile/preference data per ByFTP user.
-
-No official client includes an advertising SDK or requires a ByFTP telemetry backend. Connections target endpoints selected by the user, subject to platform safety policies.
+See [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Testing](docs/TESTING.md) for details.
 
 ## Shared hosting
 
-Native clients map the visible FTP root to the authenticated account namespace and expose non-secret shared-hosting diagnostics derived from the first listing already needed for the session. Common web roots are recognized in this deterministic order: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Detection is advisory only: ByFTP never silently changes or saves the user's selected path because a common web-root name was found.
+Ghost FTP supports common shared-hosting FTP/FTPS/SFTP layouts without silently changing the user's remote location. Initial directory diagnostics can recognize conventional web roots such as `public_html`, `httpdocs`, `htdocs`, `www`, `web` and `html`, but detected paths are informational: Ghost FTP does not automatically navigate to or persist a derived web root.
 
-ByFTP WEB can run directly on ordinary PHP shared hosting. It needs PHP 8.1+, a writable `storage/` directory, `ext-ftp` for FTP/FTPS, Sodium or OpenSSL for encrypted credential storage, optional `ext-ssh2` for SFTP and optional `ext-zip` for ZIP operations. Production deployments should use HTTPS. Release users can deploy the versioned `ByFTP-1.9.2-WEB-shared-hosting.zip`; its packaging process includes tracked production files only and excludes runtime data. See [Shared hosting](docs/SHARED-HOSTING.md) and [ByFTP WEB documentation](ByFTP%20WEB/README.md).
+Usernames such as `account@domain` are supported, and FTP directory listings retain an MLSD-to-LIST compatibility path for hosts with older server configurations. Passive connection behavior and the security trade-offs of plain FTP versus FTPS/SFTP are documented in [Shared hosting](docs/SHARED-HOSTING.md).
 
-## Mobile behavior
+## Releases
 
-Android and iOS include local filtering/search, deterministic directory-first sorting, direct path navigation and multi-file upload. Transfer progress is byte-based. Batch upload can stop safely after the currently active file rather than tearing down an FTP transaction mid-command.
+Ghost FTP releases use the tag namespace `ghostftp-vX.Y.Z`. The first release in the Ghost FTP product line is `ghostftp-v1.0.0`; subsequent patch versions are `ghostftp-v1.0.1`, `ghostftp-v1.0.2`, and so on.
 
-Android uses the Storage Access Framework and does not request broad storage access. Application backup/device transfer is disabled for private app data. iOS uses security-scoped document access and clears active sessions when entering the background.
+Public release assets are intentionally simple:
 
-## Desktop behavior
+| Platform | Public package |
+| --- | --- |
+| Windows x64 | `Ghost-FTP-X.Y.Z-Setup-x64.exe` |
+| Windows x86 / 32-bit | `Ghost-FTP-X.Y.Z-Setup-x86.exe` |
+| Windows x32 alias | `Ghost-FTP-X.Y.Z-Setup-x32.exe` |
+| Linux | `Ghost-FTP-X.Y.Z-Linux-multiarch.zip` |
+| macOS | `Ghost-FTP-X.Y.Z-macOS-Universal.pkg` |
+| Android | `Ghost-FTP-X.Y.Z-Android.apk` |
+| iOS | `Ghost-FTP-X.Y.Z-iOS-arm64-unsigned.ipa` |
+| Web | `Ghost-FTP-X.Y.Z-Web.zip` |
 
-The desktop core is written in Go and shared by Windows, Linux and macOS. Windows has the native graphical shell and the verified x64/x86 build pipeline. The 1.9.2 Windows Setup installs only `ByFTP.exe`; it does not install or register a standalone `Uninstall.exe`. Linux/macOS retain the shared transport/security core and canonical platform packaging under `linux/` and `macos/`.
+`x32` and `x86` refer to the same 32-bit Windows architecture in this project. The x32 file is therefore a byte-identical compatibility alias of the x86 installer, not a third CPU architecture.
 
-The terminal client preserves raw host, account and filesystem identity input until central validation. Valid Unix paths are not altered by UI preprocessing.
+Every release also contains `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`. Verify the checksum before installing a downloaded package.
 
-## Repository and release integrity
+Android CI produces an installable debug-signed APK unless a private production signing identity is configured externally. iOS release artifacts are unsigned and require a valid Apple signing identity and provisioning profile before normal device/TestFlight/App Store distribution. The workflow never labels unsigned or debug-signed artifacts as store-signed production binaries.
 
-Root `VERSION` is the single production version source. `ByFTP WEB/VERSION` must match it exactly. CI enforces:
+See [GitHub Releases](docs/GITHUB-RELEASES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Signing](docs/SIGNING.md).
 
-- repository-wide tracked-file audit and current-version consistency;
-- localization/documentation/security/privacy/release audits;
-- Go formatting, unit/integration tests, race detector and `go vet` using Go 1.27.1;
-- Windows x64/x86 production builds with app-only Setup payload and explicit no-uninstaller invariant;
-- Linux amd64/arm64/i386 DEB builds;
-- macOS Universal PKG build;
-- Android JUnit, lintDebug, lintRelease, debug APK and unsigned release APK using AGP 9.4.0 / Gradle 9.7.1;
-- real arm64 iPhoneOS build plus unsigned IPA/app ZIP validation;
-- ByFTP WEB PHP/JavaScript/runtime tests plus deterministic tracked-source release ZIP packaging;
-- exact public staging allowlist of 15 platform artifacts and three shared metadata files;
-- exact-current-`main` verification immediately before GitHub Release mutation;
-- immediate and delayed remote release asset/digest readback after publication.
+## Versioning policy
 
-Only the active public development history from **1.3.0 onward** remains in the maintained changelog/documentation surface. Older Git history is not rewritten.
+The **Ghost FTP** product line starts at `1.0.0`. Version changes use Semantic Versioning:
+
+- patch fixes: `1.0.0` → `1.0.1` → `1.0.2`
+- backward-compatible feature releases: `1.0.x` → `1.1.0`
+- breaking changes: next major version
+
+Historical ByFTP commits and tags remain in Git history for provenance. They are not rewritten. In particular, the historical `v1.0.0` tag is intentionally separate from the Ghost FTP tag `ghostftp-v1.0.0`.
+
+## Compatibility identifiers
+
+The public product name is **Ghost FTP**. Some internal source paths, package identifiers, migration keys, namespaces or build-stage filenames may still contain the legacy `ByFTP`/`byftp` identifier where changing it would unnecessarily break existing installations, saved profiles, application identities or migration/cleanup logic. These identifiers are compatibility implementation details and must not be used as new public branding.
+
+New public documentation, UI, release titles and downloadable package names use **Ghost FTP**.
 
 ## Languages
 
-English is the canonical source and fallback language for the desktop runtime and repository documentation. The desktop application currently supports 18 runtime languages: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish.
+English is the default runtime language. Ghost FTP currently includes localization catalogs for:
 
-Android, iOS and ByFTP WEB remain English-first at the canonical source/documentation level while platform-specific UI localization is expanded only through reviewed, complete locale sets.
+- English
+- Croatian
+- German
+- French
+- Spanish
+- Turkish
+- Greek
+- Portuguese
+- Chinese
+- Russian
+- Hindi
+- Japanese
+- Italian
+- Polish
+- Dutch
+- Czech
+- Ukrainian
+- Swedish
 
-## Build from source
-
-Use the canonical platform entry points:
-
-```text
-Windows: BUILD-WINDOWS.ps1
-Linux:   linux/BUILD.sh
-macOS:   macos/BUILD.sh
-Android: Gradle project under android/ (AGP 9.4.0 / Gradle 9.7.1)
-iOS:     ios/BUILD.sh
-Web:     ByFTP WEB/ (PHP 8.1+) or python scripts/package_web.py
-```
-
-The current native build toolchain is Go 1.27.1. Android uses JDK 17, API 37 and build-tools 36.0.0.
-
-For ByFTP WEB verification and packaging:
-
-```bash
-find 'ByFTP WEB' -name '*.php' -print0 | xargs -0 -n1 php -l
-node --check 'ByFTP WEB/assets/js/api.js'
-node --check 'ByFTP WEB/assets/js/app.js'
-node --check 'ByFTP WEB/assets/js/pwa.js'
-node --check 'ByFTP WEB/assets/js/settings.js'
-node --check 'ByFTP WEB/assets/js/utils.js'
-node --check 'ByFTP WEB/service-worker.js'
-php 'ByFTP WEB/tests/unit.php'
-python scripts/audit_web.py
-python scripts/package_web.py --output-dir dist
-```
+Language selection is persisted in application settings. New canonical user-facing text is maintained English-first and translated through the localization system.
 
 ## Documentation
 
 Core documentation:
-[Architecture](docs/ARCHITECTURE.md) · [Contributing](docs/CONTRIBUTING.md) · [GitHub releases](docs/GITHUB-RELEASES.md) · [Installation](docs/INSTALLATION.md) · [Privacy](docs/PRIVACY.md) · [Release verification](docs/RELEASE-VERIFICATION.md) · [Roadmap](docs/ROADMAP.md) · [Security](docs/SECURITY.md) · [Shared hosting](docs/SHARED-HOSTING.md) · [Signing](docs/SIGNING.md) · [Support](docs/SUPPORT.md) · [Testing](docs/TESTING.md) · [Third-party notices](docs/THIRD-PARTY-NOTICES.md).
 
-Platform/source guides:
-[Linux](linux/README.md) · [macOS](macos/README.md) · [Android](android/README.md) · [iOS](ios/README.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Build and verification tooling](scripts/README.md) · [Documentation index](docs/README.md).
+- [Documentation index](docs/README.md)
+- [Installation](docs/INSTALLATION.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security](docs/SECURITY.md)
+- [Privacy](docs/PRIVACY.md)
+- [Testing](docs/TESTING.md)
+- [GitHub Releases](docs/GITHUB-RELEASES.md)
+- [Release verification](docs/RELEASE-VERIFICATION.md)
+- [Signing](docs/SIGNING.md)
+- [Shared hosting](docs/SHARED-HOSTING.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Third-party notices](docs/THIRD-PARTY-NOTICES.md)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Support](docs/SUPPORT.md)
+
+Platform documentation:
+
+- [Linux](linux/README.md)
+- [macOS](macos/README.md)
+- [Android](android/README.md)
+- [iOS](ios/README.md)
+- [Web/PWA](ByFTP%20WEB/README.md) — legacy source-directory path; public product name is Ghost FTP.
+
+## Development
+
+The Go core requires a modern Go toolchain. CI currently builds with Go 1.27.1 and production scripts enforce the repository's minimum supported toolchain.
+
+```bash
+go telemetry off
+go test ./...
+go test -race ./...
+go vet ./...
+```
+
+Linux packages:
+
+```bash
+bash linux/BUILD.sh
+```
+
+macOS package:
+
+```bash
+bash macos/BUILD.sh
+```
+
+Windows packages are built with `BUILD-WINDOWS.ps1`. Android uses the Gradle project in `android/`, iOS uses the Xcode project in `ios/`, and the web client is packaged by `scripts/package_web.py`.
+
+## Repository structure
+
+- `cmd/` — Go application and installer entry points.
+- `internal/` — transfer, remote protocol, configuration, security, desktop and platform logic.
+- `android/` — Android application.
+- `ios/` — iOS application.
+- `linux/` — Debian package build.
+- `macos/` — universal macOS package build.
+- `ByFTP WEB/` — legacy-named source directory for the Ghost FTP web/PWA client; directory name is retained for compatibility during the rebrand.
+- `scripts/` — build, audit, packaging and verification tooling.
+- `docs/` — architecture, security, release and operator documentation.
+
+## Support
+
+Issues and feature requests: https://github.com/bren-wp/Ghost-FTP/issues
+
+Repository: https://github.com/bren-wp/Ghost-FTP
+
+## License
+
+See [LICENSE](LICENSE).

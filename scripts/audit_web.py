@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the ByFTP WEB source, privacy, version and shared-hosting contract."""
+"""Fail-closed Ghost FTP web/PWA source, runtime, privacy and security audit."""
 
 from __future__ import annotations
 
@@ -11,7 +11,16 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WEB = ROOT / "ByFTP WEB"
+WEB = ROOT / "ByFTP WEB"  # Legacy source-directory name retained for compatibility.
+
+# These empty files keep runtime-created directories present in source/deploy
+# archives. They are the only tracked entries allowed below storage/ besides
+# storage/.htaccess; any actual runtime/user data remains release-blocking.
+ALLOWED_STORAGE_PLACEHOLDERS = {
+    "ByFTP WEB/storage/logs/.gitkeep",
+    "ByFTP WEB/storage/tmp/.gitkeep",
+    "ByFTP WEB/storage/users/.gitkeep",
+}
 
 
 def fail(message: str) -> None:
@@ -22,12 +31,16 @@ def read(rel: str) -> str:
     path = ROOT / rel
     if not path.is_file():
         fail(f"missing required file: {rel}")
-    return path.read_text(encoding="utf-8")
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeError as exc:
+        fail(f"{rel} is not valid UTF-8: {exc}")
 
 
-def require(text: str, marker: str, where: str) -> None:
-    if marker not in text:
-        fail(f"{where} is missing required marker: {marker}")
+def require(text: str, markers: tuple[str, ...], where: str) -> None:
+    for marker in markers:
+        if marker not in text:
+            fail(f"{where} is missing required security/runtime marker: {marker}")
 
 
 def tracked_web_files() -> list[str]:
@@ -40,15 +53,15 @@ def tracked_web_files() -> list[str]:
             errors="replace",
         )
     except (OSError, subprocess.CalledProcessError) as exc:
-        fail(f"git ls-files failed for ByFTP WEB: {exc}")
+        fail(f"git ls-files failed for web source: {exc}")
     return [line for line in output.splitlines() if line]
 
 
-def run_checked(command: list[str], *, label: str, cwd: Path = ROOT) -> None:
+def run_checked(command: list[str], *, label: str) -> None:
     try:
         result = subprocess.run(
             command,
-            cwd=cwd,
+            cwd=ROOT,
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -60,18 +73,18 @@ def run_checked(command: list[str], *, label: str, cwd: Path = ROOT) -> None:
         fail(f"{label} could not start: {exc}")
     if result.returncode != 0:
         output = (result.stdout or "").strip()
-        if len(output) > 5000:
-            output = output[-5000:]
+        if len(output) > 6000:
+            output = output[-6000:]
         fail(f"{label} failed with exit code {result.returncode}:\n{output}")
 
 
-def run_runtime_checks() -> tuple[int, int]:
+def run_runtime_checks() -> tuple[int, int, int]:
     php = shutil.which("php")
     node = shutil.which("node")
     if not php:
-        fail("PHP CLI is required for ByFTP WEB validation")
+        fail("PHP CLI is required for Ghost FTP web validation")
     if not node:
-        fail("Node.js is required for ByFTP WEB JavaScript syntax validation")
+        fail("Node.js is required for Ghost FTP web JavaScript syntax validation")
 
     run_checked(
         [php, "-r", "if (PHP_VERSION_ID < 80100) { fwrite(STDERR, 'PHP 8.1+ required'); exit(2); }"],
@@ -80,455 +93,248 @@ def run_runtime_checks() -> tuple[int, int]:
 
     php_files = sorted(WEB.rglob("*.php"))
     js_files = sorted((WEB / "assets" / "js").glob("*.js"))
+    test_files = sorted((WEB / "tests").glob("*.php"))
     if not php_files:
-        fail("no PHP files found under ByFTP WEB")
+        fail("no PHP files found under web source")
     if not js_files:
-        fail("no JavaScript files found under ByFTP WEB/assets/js")
+        fail("no JavaScript files found under web assets")
+    if not test_files:
+        fail("no web runtime regression tests found")
 
     for path in php_files:
         run_checked([php, "-l", str(path)], label=f"PHP syntax: {path.relative_to(ROOT)}")
-    run_checked([php, str(WEB / "tests" / "unit.php")], label="ByFTP WEB unit tests")
-    run_checked(
-        [php, str(WEB / "tests" / "name-input.php")],
-        label="ByFTP WEB strict name-input tests",
-    )
-    run_checked(
-        [php, str(WEB / "tests" / "zip-creation.php")],
-        label="ByFTP WEB ZIP creation error-path tests",
-    )
-    run_checked(
-        [php, str(WEB / "tests" / "zip-extraction-preflight.php")],
-        label="ByFTP WEB ZIP extraction preflight tests",
-    )
-    run_checked(
-        [php, str(WEB / "tests" / "archive-download-name.php")],
-        label="ByFTP WEB archive download filename tests",
-    )
-    run_checked(
-        [php, str(WEB / "tests" / "user-registry.php")],
-        label="ByFTP WEB user registry fail-closed tests",
-    )
-    run_checked(
-        [php, str(WEB / "tests" / "config-security.php")],
-        label="ByFTP WEB config fail-closed tests",
-    )
-    run_checked(
-        [php, str(WEB / "tests" / "rate-limiter.php")],
-        label="ByFTP WEB atomic rate-limiter tests",
-    )
-    run_checked(
-        [php, str(WEB / "tests" / "profile-recovery.php")],
-        label="ByFTP WEB deleted-profile recovery tests",
-    )
     for path in js_files:
         run_checked([node, "--check", str(path)], label=f"JavaScript syntax: {path.relative_to(ROOT)}")
-    run_checked([node, "--check", str(WEB / "service-worker.js")], label="JavaScript syntax: ByFTP WEB/service-worker.js")
+    run_checked([node, "--check", str(WEB / "service-worker.js")], label="JavaScript syntax: service-worker.js")
 
-    return len(php_files), len(js_files) + 1
+    for path in test_files:
+        run_checked([php, str(path)], label=f"Ghost FTP web test: {path.name}")
+
+    return len(php_files), len(js_files) + 1, len(test_files)
+
+
+def validate_repository_surface(version: str) -> None:
+    tracked = set(tracked_web_files())
+    required = {
+        "ByFTP WEB/.htaccess",
+        "ByFTP WEB/README.md",
+        "ByFTP WEB/VERSION",
+        "ByFTP WEB/composer.json",
+        "ByFTP WEB/index.php",
+        "ByFTP WEB/api.php",
+        "ByFTP WEB/setup.php",
+        "ByFTP WEB/login.php",
+        "ByFTP WEB/logout.php",
+        "ByFTP WEB/register.php",
+        "ByFTP WEB/account.php",
+        "ByFTP WEB/settings.php",
+        "ByFTP WEB/download.php",
+        "ByFTP WEB/preview.php",
+        "ByFTP WEB/app/bootstrap.php",
+        "ByFTP WEB/app/helpers.php",
+        "ByFTP WEB/app/Remote/PathGuard.php",
+        "ByFTP WEB/app/Remote/FtpClient.php",
+        "ByFTP WEB/app/Remote/SftpClient.php",
+        "ByFTP WEB/app/Security/Auth.php",
+        "ByFTP WEB/app/Security/HostGuard.php",
+        "ByFTP WEB/app/Security/RateLimiter.php",
+        "ByFTP WEB/app/Storage/JsonStore.php",
+        "ByFTP WEB/app/Storage/ProfileStore.php",
+        "ByFTP WEB/manifest.webmanifest",
+        "ByFTP WEB/service-worker.js",
+        "ByFTP WEB/robots.txt",
+        "ByFTP WEB/storage/.htaccess",
+    }
+    missing = sorted(required - tracked)
+    if missing:
+        fail("required web files are not tracked: " + ", ".join(missing))
+
+    for placeholder in sorted(ALLOWED_STORAGE_PLACEHOLDERS):
+        if placeholder not in tracked:
+            fail(f"required empty storage placeholder is not tracked: {placeholder}")
+        path = ROOT / placeholder
+        if not path.is_file() or path.stat().st_size != 0:
+            fail(f"storage placeholder must remain an empty regular file: {placeholder}")
+
+    runtime_storage = sorted(
+        path
+        for path in tracked
+        if path.startswith("ByFTP WEB/storage/")
+        and path != "ByFTP WEB/storage/.htaccess"
+        and path not in ALLOWED_STORAGE_PLACEHOLDERS
+    )
+    if runtime_storage:
+        fail("runtime/user storage must not be tracked: " + ", ".join(runtime_storage))
+
+    forbidden_suffixes = (".log", ".tmp", ".bak", ".sqlite", ".sqlite3")
+    leaked = sorted(path for path in tracked if path.lower().endswith(forbidden_suffixes))
+    if leaked:
+        fail("generated/runtime file is tracked: " + ", ".join(leaked))
+
+    composer = json.loads(read("ByFTP WEB/composer.json"))
+    if composer.get("name") != "brendigo/ghost-ftp-web":
+        fail("composer package name is not Ghost FTP")
+    if composer.get("version") != version:
+        fail("composer version does not match canonical VERSION")
+    if "Ghost FTP" not in str(composer.get("description", "")):
+        fail("composer description does not use Ghost FTP branding")
+
+
+def validate_public_brand_and_pwa(version: str) -> None:
+    manifest = read("ByFTP WEB/manifest.webmanifest")
+    require(manifest, ('"name": "Ghost FTP Remote File Client"', '"short_name": "Ghost FTP"'), "manifest.webmanifest")
+
+    service_worker = read("ByFTP WEB/service-worker.js")
+    require(
+        service_worker,
+        (
+            f"ghostftp-static-v{version}",
+            "key.startsWith('byftp-static-')",
+            "request.mode === 'navigate'",
+            "api|login|logout|register|account|users|settings|setup|diagnostics|download|preview",
+            "fetch(request)",
+            "cache.put(request",
+        ),
+        "service-worker.js",
+    )
+    if f"byftp-static-v{version}" in service_worker:
+        fail("current PWA cache namespace still uses the retired public brand")
+
+    readme = read("ByFTP WEB/README.md")
+    if "Ghost FTP" not in readme:
+        fail("web README does not identify Ghost FTP")
+
+
+def validate_http_session_and_csrf_boundaries() -> None:
+    bootstrap = read("ByFTP WEB/app/bootstrap.php")
+    require(
+        bootstrap,
+        (
+            "BYFTP_ROOT . '/VERSION'",
+            "HTTP_SEC_FETCH_SITE",
+            "X-Content-Type-Options: nosniff",
+            "X-Frame-Options: DENY",
+            "X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex",
+            "Referrer-Policy: no-referrer",
+            "Content-Security-Policy:",
+            "Strict-Transport-Security: max-age=31536000",
+            "session.use_strict_mode",
+            "session.use_only_cookies",
+            "'httponly' => true",
+            "'samesite' => 'Strict'",
+            "session_regenerate_id(true)",
+        ),
+        "app/bootstrap.php",
+    )
+
+    auth = read("ByFTP WEB/app/Security/Auth.php")
+    require(
+        auth,
+        (
+            "session_regenerate_id(true)",
+            "user_session_version",
+            "unset($_SESSION['csrf'])",
+            "byftp_csrf_token()",
+            "unset($user['password_hash'])",
+        ),
+        "app/Security/Auth.php",
+    )
+
+    helpers = read("ByFTP WEB/app/helpers.php")
+    require(helpers, ("function byftp_csrf_token", "hash_equals", "random_bytes"), "app/helpers.php")
+
+
+def validate_remote_input_and_secret_boundaries() -> None:
+    path_guard = read("ByFTP WEB/app/Remote/PathGuard.php")
+    require(
+        path_guard,
+        (
+            "str_contains($path, '\\\\')",
+            "str_contains($path, '//')",
+            "$part === '.' || $part === '..'",
+            "ensureNotRoot",
+        ),
+        "app/Remote/PathGuard.php",
+    )
+    if "str_replace('\\\\', '/', $path)" in path_guard:
+        fail("path guard rewrites unsafe backslashes instead of rejecting them")
+
+    host_guard = read("ByFTP WEB/app/Security/HostGuard.php")
+    require(
+        host_guard,
+        (
+            "$host !== trim($host)",
+            "FILTER_FLAG_NO_PRIV_RANGE",
+            "FILTER_FLAG_NO_RES_RANGE",
+        ),
+        "app/Security/HostGuard.php",
+    )
+
+    profiles = read("ByFTP WEB/app/Storage/ProfileStore.php")
+    require(
+        profiles,
+        (
+            "$rawHost !== trim($rawHost)",
+            "preg_match('/^[0-9]{1,5}$/', $rawPort)",
+            "PathGuard::normalizeRelative($basePath)",
+        ),
+        "app/Storage/ProfileStore.php",
+    )
+    if "trim((string)($input['host']" in profiles:
+        fail("profile host is normalized before fail-closed validation")
+
+    ftp = read("ByFTP WEB/app/Remote/FtpClient.php")
+    require(ftp, ("$this->profile['password'] = '';", "HostGuard::connectionTargets"), "app/Remote/FtpClient.php")
+
+    sftp = read("ByFTP WEB/app/Remote/SftpClient.php")
+    require(
+        sftp,
+        (
+            "verifyHostFingerprint",
+            "SSH2_FINGERPRINT_SHA256",
+            "hash_equals",
+            "$this->profile['password'] = '';",
+            "$this->profile['private_key'] = '';",
+            "$this->profile['key_passphrase'] = '';",
+            "@unlink($pub)",
+            "@unlink($priv)",
+        ),
+        "app/Remote/SftpClient.php",
+    )
+
+
+def validate_noindex_and_storage_protection() -> None:
+    robots = read("ByFTP WEB/robots.txt")
+    require(robots, ("Disallow: /api", "Disallow: /download/", "Disallow: /preview/"), "robots.txt")
+
+    storage_htaccess = read("ByFTP WEB/storage/.htaccess")
+    if not re.search(r"(?i)(deny\s+from\s+all|require\s+all\s+denied)", storage_htaccess):
+        fail("storage/.htaccess does not deny direct HTTP access")
 
 
 def main() -> int:
     version = read("VERSION").strip()
     web_version = read("ByFTP WEB/VERSION").strip()
-    if not re.fullmatch(r"\d+\.\d+\.\d+", version) or web_version != version:
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        fail(f"invalid canonical VERSION: {version!r}")
+    if web_version != version:
         fail(f"root/web version mismatch: {version!r} != {web_version!r}")
 
-    required = {
-        "ByFTP WEB/.htaccess", "ByFTP WEB/README.md", "ByFTP WEB/VERSION",
-        "ByFTP WEB/index.php", "ByFTP WEB/api.php", "ByFTP WEB/setup.php",
-        "ByFTP WEB/login.php", "ByFTP WEB/logout.php", "ByFTP WEB/register.php",
-        "ByFTP WEB/account.php", "ByFTP WEB/users.php", "ByFTP WEB/settings.php",
-        "ByFTP WEB/diagnostics.php", "ByFTP WEB/download.php",
-        "ByFTP WEB/download-archive.php", "ByFTP WEB/preview.php",
-        "ByFTP WEB/app/bootstrap.php", "ByFTP WEB/app/helpers.php",
-        "ByFTP WEB/app/Operations/RemoteOperations.php",
-        "ByFTP WEB/app/Remote/FtpClient.php", "ByFTP WEB/app/Remote/SftpClient.php",
-        "ByFTP WEB/app/Remote/PathGuard.php", "ByFTP WEB/app/Security/HostGuard.php",
-        "ByFTP WEB/app/Security/Auth.php", "ByFTP WEB/app/Security/Crypto.php",
-        "ByFTP WEB/app/Security/RateLimiter.php", "ByFTP WEB/app/Security/LoginRateLimitGate.php",
-        "ByFTP WEB/app/Storage/JsonStore.php", "ByFTP WEB/app/Storage/ProfileStore.php",
-        "ByFTP WEB/app/Storage/UserStore.php", "ByFTP WEB/app/Storage/UserWorkspace.php",
-        "ByFTP WEB/assets/css/app.css", "ByFTP WEB/assets/css/brendigo.css",
-        "ByFTP WEB/assets/js/api.js", "ByFTP WEB/assets/js/app.js",
-        "ByFTP WEB/assets/js/pwa.js", "ByFTP WEB/assets/js/settings.js",
-        "ByFTP WEB/assets/js/utils.js", "ByFTP WEB/manifest.webmanifest",
-        "ByFTP WEB/service-worker.js", "ByFTP WEB/robots.txt", "ByFTP WEB/tests/unit.php",
-        "ByFTP WEB/tests/name-input.php", "ByFTP WEB/tests/zip-creation.php",
-        "ByFTP WEB/tests/zip-extraction-preflight.php", "ByFTP WEB/tests/archive-download-name.php",
-        "ByFTP WEB/tests/user-registry.php", "ByFTP WEB/tests/config-security.php",
-        "ByFTP WEB/tests/rate-limiter.php", "ByFTP WEB/tests/profile-recovery.php",
-        "ByFTP WEB/storage/.htaccess",
-    }
-    tracked = set(tracked_web_files())
-    missing = sorted(required - tracked)
-    if missing:
-        fail("required web files are not tracked: " + ", ".join(missing))
-
-    composer = json.loads(read("ByFTP WEB/composer.json"))
-    if composer.get("version") != version:
-        fail("composer.json version does not match root VERSION")
-
-    service_worker = read("ByFTP WEB/service-worker.js")
-    require(service_worker, f"byftp-static-v{version}", "ByFTP WEB/service-worker.js")
-    for marker in (
-        "request.mode === 'navigate'",
-        "api|login|logout|register|account|users|settings|setup|diagnostics|download|preview",
-        "fetch(request)",
-    ):
-        require(service_worker, marker, "ByFTP WEB/service-worker.js")
-    if "cache.put(request" not in service_worker:
-        fail("service worker has no explicit static-asset cache path")
-
-    robots = read("ByFTP WEB/robots.txt")
-    require(robots, "Disallow: /api", "ByFTP WEB/robots.txt")
-    require(robots, "Disallow: /download/", "ByFTP WEB/robots.txt")
-    require(robots, "Disallow: /preview/", "ByFTP WEB/robots.txt")
-    require(
-        read("ByFTP WEB/app/Views/head.php"),
-        "noindex,nofollow,noarchive,nosnippet,noimageindex",
-        "ByFTP WEB/app/Views/head.php",
-    )
-    require(
-        read("ByFTP WEB/app/bootstrap.php"),
-        "X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex",
-        "ByFTP WEB/app/bootstrap.php",
-    )
-
-    path_guard = read("ByFTP WEB/app/Remote/PathGuard.php")
-    for marker in ("str_contains($path, '\\\\')", "str_contains($path, '//')", "$part === '.' || $part === '..'", "ensureNotRoot"):
-        require(path_guard, marker, "ByFTP WEB/app/Remote/PathGuard.php")
-    if "str_replace('\\\\', '/', $path)" in path_guard:
-        fail("web path guard rewrites unsafe backslashes instead of rejecting them")
-
-    remote_operations = read("ByFTP WEB/app/Operations/RemoteOperations.php")
-    zip_finalization = re.search(
-        r"\$closed = \$zip->close\(\);.*?finally\s*\{\s*foreach \(\$temps as \$temp\) @unlink\(\$temp\);\s*\}\s*"
-        r"if \(!\$closed\)\s*\{\s*@unlink\(\$tmp\);\s*throw new RuntimeException\('Nije moguće dovršiti ZIP arhivu\.'\);",
-        remote_operations,
-        re.DOTALL,
-    )
-    if zip_finalization is None:
-        fail("WEB ZIP build does not fail closed when ZipArchive::close() fails")
-    for marker in (
-        "if (!$zip->addEmptyDir(rtrim($archivePath, '/'))) throw new RuntimeException('Nije moguće dodati direktorij u ZIP.');",
-        "// Preserve the original build error; cleanup still must run.",
-    ):
-        require(marker=marker, text=remote_operations, where="ByFTP WEB/app/Operations/RemoteOperations.php")
-    zip_error_cleanup = re.search(
-        r"catch \(\\Throwable\)\s*\{.*?\}\s*finally\s*\{\s*"
-        r"foreach \(\$temps as \$temp\) @unlink\(\$temp\);\s*@unlink\(\$tmp\);\s*\}\s*throw \$e;",
-        remote_operations,
-        re.DOTALL,
-    )
-    if zip_error_cleanup is None:
-        fail("WEB ZIP build failure cleanup can be skipped or mask the original error")
-
-    extract_start = remote_operations.find("public function extractZip(")
-    extract_end = remote_operations.find("private function buildZip(", extract_start)
-    if extract_start < 0 or extract_end <= extract_start:
-        fail("WEB ZIP extraction method cannot be isolated for preflight audit")
-    extract_zip = remote_operations[extract_start:extract_end]
-    for marker in (
-        "$plan = [];",
-        "// Validate the complete archive before creating directories or uploading files.",
-        "$plan[] = [",
-        "$plannedTypes = [];",
-        "array_key_exists($remote, $plannedTypes)",
-        "($plannedTypes[$parent] ?? null) === 'file'",
-        "ZIP sadrži više stavki za isto odredište.",
-        "ZIP sadrži konflikt datoteke i podređene putanje.",
-        "// Only a fully validated archive is allowed to mutate remote state.",
-        "foreach ($plan as $row)",
-    ):
-        require(extract_zip, marker, "ByFTP WEB/app/Operations/RemoteOperations.php extractZip")
-    plan_add = extract_zip.find("$plan[] = [")
-    topology_types = extract_zip.find("$plannedTypes = [];")
-    topology_duplicate = extract_zip.find("array_key_exists($remote, $plannedTypes)", topology_types)
-    topology_parent = extract_zip.find("($plannedTypes[$parent] ?? null) === 'file'", topology_types)
-    execution_marker = extract_zip.find("// Only a fully validated archive is allowed to mutate remote state.")
-    execute_plan = extract_zip.find("foreach ($plan as $row)", execution_marker)
-    ensure_directory = extract_zip.find("$this->ensureDirectory($remote);", execute_plan)
-    upload_atomic = extract_zip.find("$this->uploadAtomic($entryTmp, $remote);", execute_plan)
-    if not (
-        0 <= plan_add < topology_types < topology_duplicate < execution_marker
-        and topology_types < topology_parent < execution_marker
-        and execution_marker < execute_plan < ensure_directory
-        and execute_plan < upload_atomic
-    ):
-        fail("WEB ZIP extraction topology validation does not complete before remote mutation")
-    if "$this->ensureDirectory($remote);" in extract_zip[:execute_plan] or "$this->uploadAtomic($entryTmp, $remote);" in extract_zip[:execute_plan]:
-        fail("WEB ZIP extraction performs remote mutation during archive validation")
-
-    api = read("ByFTP WEB/api.php")
-    strict_name = "PathGuard::segment((string)($_POST['name'] ?? ''))"
-    legacy_name = "PathGuard::basename((string)($_POST['name'] ?? ''))"
-    if api.count(strict_name) != 3 or legacy_name in api:
-        fail("mkdir/new_file/rename must reject noncanonical explicit name fields instead of basename-normalizing them")
-
-    profile_store = read("ByFTP WEB/app/Storage/ProfileStore.php")
-    for marker in (
-        "$rawHost !== trim($rawHost)",
-        "preg_match('/^[0-9]{1,5}$/', $rawPort)",
-        "preg_match('/[\\r\\n\\x00]/', $username)",
-        "PathGuard::normalizeRelative($basePath)",
-        "new JsonStore(UserWorkspace::file($userId, 'profiles.json'), false)",
-    ):
-        require(profile_store, marker, "ByFTP WEB/app/Storage/ProfileStore.php")
-    if "trim((string)($input['host']" in profile_store:
-        fail("profile host is normalized before fail-closed validation")
-
-    json_store = read("ByFTP WEB/app/Storage/JsonStore.php")
-    require(json_store, "private readonly bool $recoverFromBackup = true", "ByFTP WEB/app/Storage/JsonStore.php")
-    require(json_store, "if (!$this->recoverFromBackup)", "ByFTP WEB/app/Storage/JsonStore.php")
-
-    user_store = read("ByFTP WEB/app/Storage/UserStore.php")
-    require(
-        user_store,
-        "new JsonStore(BYFTP_STORAGE . '/users.json', false)",
-        "ByFTP WEB/app/Storage/UserStore.php",
-    )
-
-    helpers = read("ByFTP WEB/app/helpers.php")
-    for marker in (
-        "new ByFTP\\Storage\\JsonStore($path, false)",
-        "if (isset($GLOBALS['byftp_config_error']))",
-        "Konfiguracija aplikacije nema valjan encryption ključ",
-        "unset($GLOBALS['byftp_config_error']);",
-        "function byftp_archive_download_name(string $value): string",
-        "return $base . '.zip';",
-    ):
-        require(helpers, marker, "ByFTP WEB/app/helpers.php")
-
-    archive_download = read("ByFTP WEB/download-archive.php")
-    require(
-        archive_download,
-        "$name = byftp_archive_download_name((string)($_POST['name'] ?? 'byftp-download.zip'));",
-        "ByFTP WEB/download-archive.php",
-    )
-    if "byftp_truncate($name, 120)" in archive_download:
-        fail("archive download truncates the full filename after adding .zip")
-
-    rate_limiter = read("ByFTP WEB/app/Security/RateLimiter.php")
-    for marker in (
-        "public function consume(string $key): bool",
-        "$this->store($key)->update(function (array $data)",
-        "if ($count >= $this->maxAttempts)",
-        "$data['count'] = $count + 1;",
-    ):
-        require(rate_limiter, marker, "ByFTP WEB/app/Security/RateLimiter.php")
-
-    login_gate = read("ByFTP WEB/app/Security/LoginRateLimitGate.php")
-    for marker in (
-        "if (!$ipLimiter->consume($ipKey))",
-        "return $accountLimiter->consume($accountKey);",
-    ):
-        require(login_gate, marker, "ByFTP WEB/app/Security/LoginRateLimitGate.php")
-
-    host_guard = read("ByFTP WEB/app/Security/HostGuard.php")
-    for marker in ("connectionTargets", "FILTER_FLAG_NO_PRIV_RANGE", "FILTER_FLAG_NO_RES_RANGE", "localhost", "dns_get_record"):
-        require(host_guard, marker, "ByFTP WEB/app/Security/HostGuard.php")
-
-    ftp = read("ByFTP WEB/app/Remote/FtpClient.php")
-    sftp = read("ByFTP WEB/app/Remote/SftpClient.php")
-    require(ftp, "$this->profile['password'] = '';", "ByFTP WEB/app/Remote/FtpClient.php")
-    for marker in (
-        "$this->profile['password'] = '';",
-        "$this->profile['private_key'] = '';",
-        "$this->profile['key_passphrase'] = '';",
-        "verifyHostFingerprint",
-    ):
-        require(sftp, marker, "ByFTP WEB/app/Remote/SftpClient.php")
-
-    auth = read("ByFTP WEB/app/Security/Auth.php")
-    for marker in ("session_regenerate_id(true)", "user_session_version"):
-        require(auth, marker, "ByFTP WEB/app/Security/Auth.php")
-    require(read("ByFTP WEB/app/bootstrap.php"), "'samesite' => 'Strict'", "ByFTP WEB/app/bootstrap.php")
-
-    login = read("ByFTP WEB/login.php")
-    for marker in (
-        "function byftp_clear_login_rate_limiters(",
-        "auth.rate_limit_clear_failed",
-        "LoginRateLimitGate::consume($ipLimiter, $ipKey, $accountLimiter, $accountKey)",
-        "auth.rate_limit_consume_failed",
-        "if (!Auth::attempt($email, $password))",
-        "$migrationFailed = false;",
-        "if (!$migrationFailed)",
-    ):
-        require(login, marker, "ByFTP WEB/login.php")
-    if "$accountLimiter->clear(" in login or "$ipLimiter->clear(" in login:
-        fail("login performs direct post-auth limiter cleanup outside the fail-soft helper")
-    if "$ipLimiter->consume(" in login or "$accountLimiter->consume(" in login:
-        fail("login bypasses the ordered IP-first rate-limit gate")
-    if "->blocked(" in login or "->hit(" in login:
-        fail("login uses split rate-limit check/hit operations instead of atomic pre-auth consume")
-    if login.count("Auth::logout();") != 1:
-        fail("login must invalidate an authenticated session only for the actual legacy migration failure path")
-
-    register = read("ByFTP WEB/register.php")
-    for marker in (
-        "$limiter->consume($key)",
-        "auth.registration_rate_limit_consume_failed",
-        "auth.registration_blocked",
-    ):
-        require(register, marker, "ByFTP WEB/register.php")
-    if "->blocked(" in register or "->hit(" in register:
-        fail("registration uses split rate-limit check/hit operations instead of atomic consume")
-
-    setup = read("ByFTP WEB/setup.php")
-    for marker in (
-        "$configRecoveryRequired = isset($GLOBALS['byftp_config_error']);",
-        "$existingDataDetected = $configRecoveryRequired || $hasStoredData();",
-        "$setupTransactionStarted = false;",
-        "if (isset($GLOBALS['byftp_config_error']))",
-        "if ($setupTransactionStarted)",
-    ):
-        require(setup, marker, "ByFTP WEB/setup.php")
-    rollback_match = re.search(r"\$rollbackArtifacts\s*=\s*\[(.*?)\];", setup, re.DOTALL)
-    if rollback_match is None:
-        fail("ByFTP WEB/setup.php has no explicit failed-setup artifact rollback list")
-    rollback_artifacts = rollback_match.group(1)
-    for marker in (
-        "byftp_config_path()",
-        "byftp_config_path() . '.bak'",
-        "byftp_config_path() . '.lock'",
-        "BYFTP_STORAGE . '/users.json'",
-        "BYFTP_STORAGE . '/users.json.bak'",
-        "BYFTP_STORAGE . '/users.json.lock'",
-    ):
-        require(rollback_artifacts, marker, "ByFTP WEB/setup.php rollback artifacts")
-    require(setup, "foreach ($rollbackArtifacts as $artifact)", "ByFTP WEB/setup.php")
-    require(setup, "unset($GLOBALS['byftp_config_error']);", "ByFTP WEB/setup.php")
-
-    index = read("ByFTP WEB/index.php")
-    if "icon-192.png" in index or "icon-512.png" in index:
-        fail("web UI references removed duplicate PNG PWA assets")
-    require(index, "byftp_asset('images/mark.svg')", "ByFTP WEB/index.php")
-    require(index, "webkitdirectory", "ByFTP WEB/index.php")
-
-    tests = read("ByFTP WEB/tests/unit.php")
-    for marker in ("22junk", "profile traversal rejected", "host edge whitespace rejected", "credential protocol controls rejected"):
-        require(tests, marker, "ByFTP WEB/tests/unit.php")
-
-    name_input_tests = read("ByFTP WEB/tests/name-input.php")
-    for marker in (
-        "single-name validator rejects slash-separated input",
-        "API no longer silently canonicalizes explicit name fields with basename",
-    ):
-        require(name_input_tests, marker, "ByFTP WEB/tests/name-input.php")
-
-    zip_creation_tests = read("ByFTP WEB/tests/zip-creation.php")
-    for marker in (
-        "ZIP directory insertion failure is checked explicitly",
-        "ZIP cleanup preserves the original build failure",
-        "ZIP build failure always cleans staged files and incomplete output",
-    ):
-        require(zip_creation_tests, marker, "ByFTP WEB/tests/zip-creation.php")
-
-    zip_extraction_tests = read("ByFTP WEB/tests/zip-extraction-preflight.php")
-    for marker in (
-        "../escape.txt",
-        "unsafe ZIP is rejected before any remote mutation",
-        "safe.txt/child.txt",
-        "conflicting ZIP file/child topology was not rejected",
-        "conflicting ZIP topology is rejected before any remote mutation",
-        "WEB_ZIP_EXTRACTION_PREFLIGHT_TEST=PASS",
-    ):
-        require(zip_extraction_tests, marker, "ByFTP WEB/tests/zip-extraction-preflight.php")
-
-    archive_name_tests = read("ByFTP WEB/tests/archive-download-name.php")
-    for marker in (
-        "long archive name preserves zip extension after truncation",
-        "existing ZIP extension is normalized without duplication",
-        "unsafe archive filename characters are sanitized before header use",
-    ):
-        require(archive_name_tests, marker, "ByFTP WEB/tests/archive-download-name.php")
-
-    registry_tests = read("ByFTP WEB/tests/user-registry.php")
-    for marker in (
-        "old-password-123",
-        "{corrupt-user-registry",
-        "fails closed instead of authenticating from stale backup",
-        "generic JsonStore recovery remains available",
-    ):
-        require(registry_tests, marker, "ByFTP WEB/tests/user-registry.php")
-
-    config_tests = read("ByFTP WEB/tests/config-security.php")
-    for marker in (
-        "{corrupt-app-config",
-        "runtime config does not recover stale app.json backup automatically",
-        "config update is blocked while the primary config is corrupt",
-        "generic JsonStore still exposes backup data for explicit operator recovery",
-        "backup-only stale config does not silently configure the application",
-    ):
-        require(config_tests, marker, "ByFTP WEB/tests/config-security.php")
-
-    limiter_tests = read("ByFTP WEB/tests/rate-limiter.php")
-    for marker in (
-        "first attempt is atomically admitted",
-        "attempt after configured budget is atomically rejected",
-        "rejected consume does not inflate persisted attempt count",
-        "blocked IP does not create or consume an account-specific rate-limit state",
-        "ordered login gate consumes account budget exactly once for admitted IP",
-        "atomic consume fails closed when primary rate-limit state is corrupt",
-    ):
-        require(limiter_tests, marker, "ByFTP WEB/tests/rate-limiter.php")
-
-    profile_recovery_tests = read("ByFTP WEB/tests/profile-recovery.php")
-    for marker in (
-        "backup intentionally contains the deleted encrypted profile",
-        "fails closed instead of resurrecting deleted credentials from stale backup",
-        "generic JsonStore still exposes profile backup for explicit operator recovery",
-        "fails closed when only stale profiles.json.bak remains",
-    ):
-        require(profile_recovery_tests, marker, "ByFTP WEB/tests/profile-recovery.php")
-
-    allowed_storage = {
-        "ByFTP WEB/storage/.htaccess",
-        "ByFTP WEB/storage/logs/.gitkeep",
-        "ByFTP WEB/storage/tmp/.gitkeep",
-        "ByFTP WEB/storage/users/.gitkeep",
-    }
-    unexpected_storage = sorted(
-        path for path in tracked if path.startswith("ByFTP WEB/storage/") and path not in allowed_storage
-    )
-    if unexpected_storage:
-        fail("runtime/private web storage is tracked: " + ", ".join(unexpected_storage))
-
-    legacy_version = re.compile(r"\b(?:1\.[012]\.\d+|[234]\.\d+\.\d+)\b")
-    for path in sorted(tracked):
-        if not path.endswith((".php", ".js", ".json", ".md", ".txt", ".webmanifest")):
-            continue
-        text = read(path)
-        if legacy_version.search(text):
-            fail(f"legacy/foreign active ByFTP version literal remains in {path}")
-
-    php_count, js_count = run_runtime_checks()
+    validate_repository_surface(version)
+    validate_public_brand_and_pwa(version)
+    validate_http_session_and_csrf_boundaries()
+    validate_remote_input_and_secret_boundaries()
+    validate_noindex_and_storage_protection()
+    php_count, js_count, test_count = run_runtime_checks()
 
     print(f"WEB_AUDIT=PASS ({version})")
-    print(f"WEB_TRACKED_FILES={len(tracked)}")
-    print(f"WEB_PHP_SYNTAX_FILES={php_count}")
-    print(f"WEB_JS_SYNTAX_FILES={js_count}")
-    print("WEB_UNIT_TESTS=PASS")
-    print("WEB_NAME_INPUTS=FAIL_CLOSED")
-    print("WEB_ARCHIVE_DOWNLOAD_NAME=PRESERVES_ZIP_EXTENSION")
-    print("WEB_ZIP_EXTRACTION_PREFLIGHT=FAIL_CLOSED")
-    print("WEB_ZIP_EXTRACTION_TOPOLOGY=FAIL_CLOSED")
-    print("WEB_USER_REGISTRY_RECOVERY=FAIL_CLOSED")
-    print("WEB_CONFIG_SECURITY_POLICY_RECOVERY=FAIL_CLOSED")
-    print("WEB_PROFILE_CREDENTIAL_RECOVERY=FAIL_CLOSED")
-    print("WEB_LOGIN_RATE_LIMIT_ATTEMPTS=ATOMIC_PRE_AUTH")
-    print("WEB_LOGIN_RATE_LIMIT_ORDER=IP_THEN_ACCOUNT_SHORT_CIRCUIT")
-    print("WEB_POST_AUTH_LIMITER_RESET=FAIL_SOFT")
-    print("WEB_SUBPROCESS_TEXT_ENCODING=UTF8_REPLACE")
-    print("WEB_VERSION_SOURCE=ROOT_AND_WEB_VERSION_MATCH")
-    print("WEB_PWA_AUTHENTICATED_CACHE=BLOCKED")
-    print("WEB_REMOTE_PATHS=FAIL_CLOSED")
-    print("WEB_ZIP_FINALIZATION=FAIL_CLOSED")
-    print("WEB_ZIP_CREATION_ERROR_PATHS=FAIL_CLOSED")
-    print("WEB_PRIVATE_HOSTS=BLOCKED_BY_DEFAULT")
-    print("WEB_CREDENTIAL_LIFETIME=POST_AUTH_CLEARED")
-    print("WEB_SETUP_FAILED_TRANSACTION_ARTIFACTS=CLEANED")
-    print("WEB_RUNTIME_STORAGE=NOT_TRACKED")
+    print("PUBLIC_BRAND=Ghost FTP")
+    print("WEB_RUNTIME_STORAGE=BLOCKED_EXCEPT_EMPTY_PLACEHOLDERS")
+    print("WEB_PWA_CACHE_NAMESPACE=ghostftp-static")
+    print("WEB_LEGACY_CACHE_MIGRATION=byftp-static-cleanup")
+    print(f"WEB_PHP_FILES={php_count}")
+    print(f"WEB_JS_FILES={js_count}")
+    print(f"WEB_RUNTIME_TESTS={test_count}")
     return 0
 
 

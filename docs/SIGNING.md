@@ -1,41 +1,31 @@
-# Code signing
+# Ghost FTP signing policy
 
-ByFTP separates build integrity from publisher identity. CI can prove what source/version produced an artifact, but it must not fabricate a trusted operating-system publisher identity.
+Ghost FTP distinguishes **build success** from **publisher signing**. GitHub Actions can compile and package the applications, but it cannot legitimately manufacture Windows, Apple or Android publisher identities.
 
 ## Windows
 
-Verified Publisher requires a real Authenticode certificate controlled by the legitimate publisher. Until configured in protected CI, verification relies on the gated build, provenance and SHA-256 checksums.
+Authenticode signing requires a real code-signing certificate and private key held outside the public repository. If no signing identity is configured, Ghost FTP Windows installers remain unsigned and release metadata must say so explicitly.
 
-ByFTP 1.9.0 signs/verifies only the public Windows `Setup` and `Portable` executables when an authentic signing identity is supplied. The release pipeline does not build, embed or publish a separate `Uninstall.exe`, so no uninstaller signing identity or signing step exists in the current release contract. Both x64/x86 Setup and Portable artifacts derive their product version from the same root `VERSION` value.
+Never commit signing certificates, PFX passwords or hardware-token credentials to the repository.
 
 ## macOS
 
-macOS trust requires a real Developer ID identity and Apple notarization credentials. The project must not claim signed/notarized status without completing the actual Apple flow. The gated Universal PKG remains valid build evidence even when Developer ID signing is not configured.
+Developer ID Application/Installer signing and notarization require valid Apple Developer credentials. A CI-built universal `.pkg` without those credentials can be used for controlled testing, but Gatekeeper may warn or block it according to local policy.
 
-## Android
-
-The release workflow produces:
-
-- `ByFTP-<version>-Android-debug.apk` — standard Android debug identity, development/testing only.
-- `ByFTP-<version>-Android-release-unsigned.apk` — optimized/minified release output without a production signature.
-
-Production Android distribution requires a stable private signing identity managed outside the repository. The 1.9.0 build uses AGP 9.4.0 and Gradle 9.7.1, but toolchain updates do not change the signing boundary.
+Production publication should use private CI secrets or a dedicated signing system and should verify the notarization result before release promotion.
 
 ## iOS
 
-The release workflow produces:
+The public Ghost FTP pipeline publishes `Ghost-FTP-X.Y.Z-iOS-arm64-unsigned.ipa`. This is intentionally labeled **unsigned**.
 
-- `ByFTP-<version>-iOS-arm64-unsigned.ipa` — a real arm64 iPhoneOS application packaged under `Payload/ByFTP.app`, built with code signing disabled.
-- `ByFTP-<version>-iOS-arm64-unsigned-app.zip` — the same unsigned `.app` bundle for verification or an external signing workflow.
+Device/TestFlight/App Store distribution requires the appropriate Apple certificate, provisioning profile, bundle identifier and entitlements. Those credentials are deployment secrets, not repository content.
 
-These artifacts are reproducible pre-signing evidence, **not** App Store/TestFlight packages and not normally installable on a stock iPhone/iPad. Production distribution requires a valid Apple signing certificate/private key plus an appropriate provisioning profile and, for store distribution, the corresponding App Store/TestFlight process.
+## Android
 
-The public workflow intentionally does not invent a development team, ad-hoc production identity or fake provisioning profile. A future protected signing stage may consume real Apple credentials after the unsigned build has passed the existing package integrity gate.
+The public CI pipeline builds an installable debug-signed APK. It is suitable for testing and sideload verification but is not a Play Store production release.
 
-## WEB
+Production Android distribution requires a protected release keystore and signing configuration outside the public repository. The release workflow must never rename a debug-signed APK in a way that implies production-store signing.
 
-The `ByFTP-<version>-WEB-shared-hosting.zip` artifact has no operating-system code-signing model. Its integrity is established by deterministic tracked-source packaging plus the release `SHA256.txt` and GitHub asset digest. Server-side HTTPS/TLS certificates and hosting account credentials remain deployment infrastructure and must never be embedded in the package.
+## Release metadata
 
-## Secret handling
-
-Authenticode/Developer ID/Apple Distribution certificates, private keys, Android keystores, `.p12` files, mobile provisioning profiles, passwords and notarization credentials belong in protected signing infrastructure. They must never be committed to the repository, embedded in build scripts or generated as fake production identities.
+Each Ghost FTP Release contains `BUILD-METADATA.txt` and `RELEASE-NOTES.txt`. These files state the signing/provenance limitations for each platform. `SHA256.txt` provides integrity verification but does not substitute for publisher identity or platform notarization.
