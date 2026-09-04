@@ -86,8 +86,7 @@ def main() -> int:
     for obsolete in (
         "scripts/package_windows_bundles.ps1", "scripts/prepare_release.ps1", "scripts/publish_release.ps1",
         "Expected 18 public release files", "PUBLIC_PLATFORM_ARTIFACTS=15",
-        "path: dist/ByFTP-*-Setup-*.exe",
-        'staging/windows/ByFTP-${VERSION}-Setup-',
+        "path: dist/ByFTP-*-Setup-*.exe", 'staging/windows/ByFTP-${VERSION}-Setup-',
     ):
         if obsolete in workflow:
             fail(f"release workflow still references obsolete release surface: {obsolete}")
@@ -181,7 +180,8 @@ def main() -> int:
             'appPathsKey        = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\ByFTP.exe`',
             'appPath := filepath.Join(dir, "ByFTP.exe")',
             'brand.ProductName + " will be installed for your Windows user account',
-            '"The "+brand.ProductName+" data folder is not safe',
+            '"Remove any redirect from the Ghost FTP installation folder and try again."',
+            "All user-visible branding is Ghost FTP",
         ),
         "cmd/installer/main.go",
     )
