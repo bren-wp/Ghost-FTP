@@ -160,7 +160,7 @@ jobs:
         run: |
           $v = (Get-Content VERSION -Raw).Trim()
           foreach ($arch in @('x64','x86')) {
-            $path = "dist\ByFTP-$v-Setup-$arch.exe"
+            $path = "dist\Ghost-FTP-$v-Setup-$arch.exe"
             if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing installer: $path" }
           }
       - name: Store Windows installers
@@ -169,7 +169,7 @@ jobs:
           name: ghostftp-windows-stage
           if-no-files-found: error
           retention-days: 7
-          path: dist/ByFTP-*-Setup-*.exe
+          path: dist/Ghost-FTP-*-Setup-*.exe
 
   linux:
     name: Linux amd64 arm64 i386
@@ -297,9 +297,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
-          cp "staging/windows/ByFTP-${VERSION}-Setup-x64.exe" "release/Ghost-FTP-${VERSION}-Setup-x64.exe"
-          cp "staging/windows/ByFTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x86.exe"
-          cp "staging/windows/ByFTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x32.exe"
+          cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x64.exe" "release/Ghost-FTP-${VERSION}-Setup-x64.exe"
+          cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x86.exe"
+          cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x32.exe"
           (
             cd staging/linux
             zip -9 "$GITHUB_WORKSPACE/release/Ghost-FTP-${VERSION}-Linux-multiarch.zip" \
