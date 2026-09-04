@@ -161,7 +161,7 @@ jobs:
           .\BUILD-WINDOWS.ps1
           $v = (Get-Content VERSION -Raw).Trim()
           foreach ($arch in @('x64','x86')) {
-            $path = "dist\ByFTP-$v-Setup-$arch.exe"
+            $path = "dist\Ghost-FTP-$v-Setup-$arch.exe"
             if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing installer: $path" }
           }
 
