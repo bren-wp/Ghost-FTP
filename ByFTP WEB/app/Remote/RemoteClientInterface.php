@@ -11,8 +11,8 @@ interface RemoteClientInterface
     public function rename(string $from, string $to): void;
     public function delete(string $path, bool $directory = false): void;
     public function upload(string $localFile, string $remotePath): void;
-    public function download(string $remotePath, string $localFile): void;
-    public function read(string $remotePath, int $maxBytes = 2097152): string;
+    public function download(string $remotePath, string $localFile, ?int $maxBytes = null): int;
+    public function read(string $remotePath, int $maxBytes = 4194304): string;
     public function write(string $remotePath, string $content): void;
     public function chmod(string $path, int $mode): void;
     public function disconnect(): void;
