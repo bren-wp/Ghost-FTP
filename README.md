@@ -34,6 +34,12 @@ The web application uses CSRF protection, strict sessions, secure cookies, secur
 
 See [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Testing](docs/TESTING.md).
 
+## Shared hosting
+
+Ghost FTP supports common shared-hosting FTP/FTPS/SFTP layouts without silently changing the user's remote location. Initial directory diagnostics can recognize conventional web roots such as `public_html`, `httpdocs`, `htdocs`, `www`, `web` and `html`, but detected paths remain informational: Ghost FTP does not automatically navigate to or persist a derived web root.
+
+Usernames such as `account@domain` are supported. FTP directory listings retain an MLSD-to-LIST fallback for servers with older configurations. Passive connection behavior and the security differences between FTP, FTPS and SFTP are documented in [Shared hosting](docs/SHARED-HOSTING.md).
+
 ## Releases
 
 Ghost FTP releases use `ghostftp-vX.Y.Z`. The current product line starts at `ghostftp-v1.0.0` and advances sequentially through patch releases such as `ghostftp-v1.0.1` and `ghostftp-v1.0.2`.
@@ -54,6 +60,12 @@ Ghost FTP releases use `ghostftp-vX.Y.Z`. The current product line starts at `gh
 `x32` and `x86` are the same 32-bit Windows architecture in this release contract; the x32 setup is a byte-identical alias of the x86 installer. Every release also contains `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **10 platform artifacts and 13 public files total**.
 
 Windows portable binaries are additionally published as the GitHub Packages NuGet package **`GhostFTP`**. Package and release versions both derive from the repository `VERSION` file, and publication performs registry/release readback before a workflow can succeed.
+
+## Versioning policy
+
+Ghost FTP starts at **1.0.0** and follows Semantic Versioning. Patch releases advance sequentially (`1.0.0` → `1.0.1` → `1.0.2`), backward-compatible feature releases advance the minor version, and breaking compatibility requires a major-version change.
+
+Published historical tags remain immutable for provenance. Current Ghost FTP releases use the dedicated `ghostftp-vX.Y.Z` namespace so they do not collide with historical generic `vX.Y.Z` tags.
 
 ## Signing status
 
