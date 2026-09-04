@@ -51,7 +51,7 @@ func TestProcessLifecycleHelper(t *testing.T) {
 	case "parent":
 		child := exec.Command(os.Args[0], "-test.run=TestProcessLifecycleHelper")
 		child.Env = helperEnv(os.Environ(), map[string]string{
-			processHelperEnv:       "child",
+			processHelperEnv:          "child",
 			"GhostFTP_PROCESS_MARKER": marker,
 			"GhostFTP_PROCESS_READY":  "",
 		})
@@ -95,7 +95,7 @@ func TestConfigureToolCommandCancelsDescendantProcess(t *testing.T) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestProcessLifecycleHelper")
 	cmd.Env = helperEnv(os.Environ(), map[string]string{
-		processHelperEnv:       "parent",
+		processHelperEnv:          "parent",
 		"GhostFTP_PROCESS_MARKER": marker,
 		"GhostFTP_PROCESS_READY":  ready,
 	})

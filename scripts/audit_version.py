@@ -107,10 +107,10 @@ def main() -> int:
     require(
         release_audit,
         (
-            'run_python_audit("scripts/audit_repository.py",',
-            'run_python_audit("scripts/audit_web.py",',
+            'run("scripts/audit_repository.py")',
+            'run("scripts/audit_web.py")',
             "RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z",
-            "PUBLIC_RELEASE_FILES=11",
+            "PUBLIC_RELEASE_FILES=13",
         ),
         "scripts/audit_release.py",
     )
@@ -187,13 +187,15 @@ def main() -> int:
             "manual='${{ inputs.version }}'",
             "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
             "RELEASE_TAG=ghostftp-v$version",
-            "PUBLIC_PLATFORM_ARTIFACTS=8",
-            "PUBLIC_RELEASE_FILES=11",
+            "PUBLIC_PLATFORM_ARTIFACTS=10",
+            "PUBLIC_RELEASE_FILES=13",
         ),
         ".github/workflows/release.yml",
     )
-    if "dotnet nuget push" in release_workflow or "<PackageId>GhostFTP.Windows</PackageId>" in release_workflow:
-        fail("release workflow contains obsolete NuGet publication")
+    if "GhostFTP.Windows" in release_workflow:
+        fail("release workflow contains the retired NuGet package identity")
+    if "dotnet nuget push" not in release_workflow or "packages: write" not in release_workflow:
+        fail("release workflow does not publish the GhostFTP GitHub Package")
 
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):

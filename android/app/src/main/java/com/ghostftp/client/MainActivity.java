@@ -107,7 +107,7 @@ public final class MainActivity extends Activity {
         header.setPadding(0, 0, 0, dp(10));
 
         ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.ic_GhostFTP);
+        logo.setImageResource(R.drawable.ic_ghostftp);
         logo.setContentDescription(getString(R.string.app_name));
         header.addView(logo, new LinearLayout.LayoutParams(dp(48), dp(48)));
 

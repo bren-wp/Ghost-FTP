@@ -31,7 +31,7 @@ const (
 	// These registry/application-path identifiers are retained for upgrade
 	// compatibility with installations created before the Ghost FTP rebrand.
 	uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
-	appPathsKey        = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
+	appPathsKey  = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
 )
 
 var version = "dev"
