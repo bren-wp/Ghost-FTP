@@ -119,9 +119,10 @@ final class SftpClient implements RemoteClientInterface
         }
     }
 
-    public function download(string $remotePath, string $localFile): void
+    public function download(string $remotePath, string $localFile, ?int $maxBytes = null): int
     {
         $this->ensureConnected();
+        $maxBytes = TransferLimiter::normalizeLimit($maxBytes);
         $in = @fopen($this->uri($this->full($remotePath)), 'rb');
         $out = @fopen($localFile, 'wb');
         if (!is_resource($in) || !is_resource($out)) {
@@ -130,11 +131,19 @@ final class SftpClient implements RemoteClientInterface
             throw new RuntimeException('Download nije moguće pokrenuti.');
         }
         $sourceStat = fstat($in);
+        $expected = is_array($sourceStat) ? (int)($sourceStat['size'] ?? -1) : -1;
         try {
-            $copied = stream_copy_to_stream($in, $out);
-            if ($copied === false) throw new RuntimeException('Download nije uspio.');
-            $expected = is_array($sourceStat) ? (int)($sourceStat['size'] ?? -1) : -1;
-            if ($expected >= 0 && $copied !== $expected) throw new RuntimeException('Download nije dovršen u cijelosti.');
+            if ($maxBytes !== null && $expected > $maxBytes) {
+                throw new RuntimeException('Download prelazi dopuštenu veličinu.');
+            }
+            $copied = TransferLimiter::copy($in, $out, $maxBytes);
+            if ($expected >= 0 && $copied !== $expected) {
+                throw new RuntimeException('Download nije dovršen u cijelosti.');
+            }
+            return $copied;
+        } catch (\Throwable $e) {
+            @ftruncate($out, 0);
+            throw $e;
         } finally {
             fclose($in);
             fclose($out);
@@ -144,9 +153,10 @@ final class SftpClient implements RemoteClientInterface
     public function read(string $remotePath, int $maxBytes = 4194304): string
     {
         $this->ensureConnected();
+        $maxBytes = TransferLimiter::normalizeLimit($maxBytes) ?? 4194304;
         $fp = @fopen($this->uri($this->full($remotePath)), 'rb');
         if (!is_resource($fp)) throw new RuntimeException('Ne mogu otvoriti datoteku.');
-        $content = stream_get_contents($fp, $maxBytes + 1);
+        $content = stream_get_contents($fp, $maxBytes === PHP_INT_MAX ? PHP_INT_MAX : $maxBytes + 1);
         fclose($fp);
         if (!is_string($content) || strlen($content) > $maxBytes) throw new RuntimeException('Datoteka je prevelika za uređivanje.');
         if (str_contains(substr($content, 0, 8192), "\0")) throw new RuntimeException('Binarne datoteke nije moguće uređivati.');
