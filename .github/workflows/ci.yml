@@ -1,4 +1,4 @@
-name: Ghost FTP CI
+name: CI
 
 on:
   push:
@@ -9,195 +9,22 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ghostftp-ci-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  GOTOOLCHAIN: local
-  GOPROXY: off
-  GOSUMDB: off
-
 jobs:
-  quality:
-    name: Core, security, privacy and web
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.1'
-          check-latest: false
-          cache: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.x'
-      - name: Disable Go telemetry
-        shell: bash
-        run: |
-          set -euo pipefail
-          go telemetry off
-          test "$(go telemetry)" = 'off'
-      - name: Validate canonical version and public brand
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(tr -d '\r\n' < VERSION)"
-          web_version="$(tr -d '\r\n' < 'ByFTP WEB/VERSION')"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          test "$version" = "$web_version"
-          grep -F 'ProductName = "Ghost FTP"' internal/brand/brand.go
-          grep -F '<string name="app_name">Ghost FTP</string>' android/app/src/main/res/values/strings.xml
-          grep -F '<string>Ghost FTP</string>' ios/ByFTP/Info.plist
-          grep -F '"short_name": "Ghost FTP"' 'ByFTP WEB/manifest.webmanifest'
-          grep -F 'Name=Ghost FTP' linux/ghost-ftp.desktop
-      - name: Go formatting, tests, race detector and vet
-        shell: bash
-        run: |
-          set -euo pipefail
-          files="$(find . -name '*.go' -not -path './vendor/*' -print)"
-          test -z "$(gofmt -l $files)"
-          go test ./...
-          go test -race ./...
-          go vet ./...
-      - name: Security and privacy audits
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/audit_security.py
-          python scripts/audit_privacy.py
-      - name: PHP syntax
-        shell: bash
-        run: |
-          set -euo pipefail
-          find 'ByFTP WEB' -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
-      - name: Release notes regression
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(tr -d '\r\n' < VERSION)"
-          python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
-          grep -F "Ghost FTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
-          grep -F "ghostftp-v$version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
-
-  android:
-    name: Android
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Java
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
-        with:
-          distribution: temurin
-          java-version: '17'
-          check-latest: false
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
-        with:
-          gradle-version: '9.7.1'
-          cache-disabled: true
-      - name: Unit test, lint and assemble
-        run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
-
-  linux:
-    name: Linux packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.1'
-          check-latest: false
-          cache: false
-      - name: Build and verify
-        shell: bash
-        run: |
-          set -euo pipefail
-          go telemetry off
-          bash linux/BUILD.sh
-          version="$(tr -d '\r\n' < VERSION)"
-          for arch in amd64 arm64 i386; do
-            pkg="dist/Ghost-FTP-${version}-Linux-${arch}.deb"
-            test -s "$pkg"
-            test "$(dpkg-deb -f "$pkg" Package)" = ghost-ftp
-            test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
-          done
-
-  windows:
-    name: Windows x64/x86
+  build-and-self-test:
     runs-on: windows-latest
-    timeout-minutes: 35
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
         with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.1'
-          check-latest: false
-          cache: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.x'
-      - name: Build and verify installers
+          dotnet-version: 10.0.x
+      - name: Restore
+        run: dotnet restore GhostFTP.sln
+      - name: Build
+        run: dotnet build GhostFTP.sln -c Release --no-restore
+      - name: Dependency and telemetry audit
         shell: pwsh
-        run: |
-          go telemetry off
-          if ((go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
-          .\BUILD-WINDOWS.ps1
-          $v = (Get-Content VERSION -Raw).Trim()
-          foreach ($arch in @('x64','x86')) {
-            $path = "dist\Ghost-FTP-$v-Setup-$arch.exe"
-            if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing installer: $path" }
-          }
-
-  macos:
-    name: macOS Universal
-    runs-on: macos-14
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.1'
-          check-latest: false
-          cache: false
-      - name: Build Universal package
-        shell: bash
-        run: |
-          set -euo pipefail
-          go telemetry off
-          bash macos/BUILD.sh
-          version="$(tr -d '\r\n' < VERSION)"
-          test -s "dist/ByFTP-${version}-macOS-Universal.pkg"
-
-  ios:
-    name: iOS arm64 unsigned
-    runs-on: macos-14
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Build and verify IPA
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ios/BUILD.sh
-          version="$(tr -d '\r\n' < VERSION)"
-          test -s "dist/ByFTP-${version}-iOS-arm64-unsigned.ipa"
+        run: ./audit-source.ps1
+      - name: Self-test
+        run: dotnet run --project tests/GhostFTP.SelfTest/GhostFTP.SelfTest.csproj -c Release --no-build

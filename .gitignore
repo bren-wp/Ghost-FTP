@@ -1,34 +1,10 @@
-# Build output
-/dist/
-/cmd/installer/payload/*.exe
-/cmd/installer/payload/payload.zip
-
-# Generated release artifacts
-*.exe
-*.zip
-*.sha256
-*.apk
-*.aab
-*.ipa
-
-# Generated iOS/Xcode state
-/ios/ByFTP/Assets.xcassets/AppIcon.appiconset/*.png
-/ios/**/xcuserdata/
-*.xcuserstate
-
-# Temporary/runtime files
-*.tmp
-*.log
-*.bak
-*.part
-
-# Python
-__pycache__/
-*.pyc
-
-# Editors / OS
-.vscode/
+**/bin/
+**/obj/
+.vs/
 .idea/
-.DS_Store
-Thumbs.db
-Desktop.ini
+artifacts/
+release/
+Data/
+*.user
+*.suo
+*.ghostftp.part

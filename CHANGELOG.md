@@ -1,19 +1,19 @@
-# Changelog
+# GhostFTP changelog
 
-All notable Ghost FTP changes are documented here. Ghost FTP uses semantic versioning in the `1.0.x` line beginning with the rebrand release.
+## 1.1.0 — 2026-09-04
 
-## 1.0.0 - 2026-09-04
-
-- Rebranded the public product from ByFTP to **Ghost FTP** across the core application identity, Android, iOS, macOS, Linux and the web/PWA surface.
-- Restarted the Ghost FTP product version line at **1.0.0**. Future patch releases increment sequentially as `1.0.1`, `1.0.2`, and so on.
-- Introduced namespaced Ghost FTP Git release tags (`ghostftp-v1.0.0`, `ghostftp-v1.0.1`, …) so historical ByFTP tags are never rewritten or moved.
-- Reworked Linux packaging as `ghost-ftp` with the `ghostftp` executable and a Ghost FTP desktop entry.
-- Simplified public Releases to clear per-platform packages: Windows x64/x86/x32 alias installers, one Linux multi-architecture archive, one universal macOS package, one Android APK, one iOS IPA and one web archive.
-- Kept cryptographic release verification through SHA-256 checksums and explicit build metadata.
-- Preserved existing security controls for path validation, transfer staging/rollback, SFTP host-key verification, encrypted profile secrets, rate limiting, session hardening and release provenance.
-- Kept signing status explicit: unsigned or debug-signed mobile artifacts are never presented as store-signed production packages.
-- Updated repository and support links to `bren-wp/Ghost-FTP`.
-
-## Legacy ByFTP history
-
-Releases and tags from the former ByFTP product line remain in Git history for provenance and reproducibility. They are not part of the Ghost FTP semantic-version sequence and are not rewritten. In particular, the historical `v1.0.0` tag remains immutable; Ghost FTP uses `ghostftp-v1.0.0` for its new 1.0.0 release.
+- Rebuilt the Windows client as a C#-only, dependency-free desktop application.
+- Added Windows 11 Fluent/Mica visual treatment and premium dual-pane file management UX.
+- Added local Demo mode with realistic folders and transfer operations without network traffic.
+- Added FTP, explicit FTPS and implicit FTPS support using the .NET networking stack directly.
+- Added upload/download queues, cancellation, recursive folders, rename, delete, new folder and refresh operations.
+- Added per-transfer FTP/FTPS sessions so cancelled transfers cannot corrupt the browser control connection.
+- Added strict TLS 1.2/1.3 validation with no certificate-bypass option and offline revocation cache checks.
+- Added CR/LF command-injection guards, path canonicalization, PASV host hardening, traversal limits and reply-size limits.
+- Added safe partial downloads and temporary remote uploads before atomic rename into the destination.
+- Added NTFS reparse-point protection for recursive uploads/deletes.
+- Added DPAPI-protected optional saved passwords and atomic profile/settings writes.
+- Added a C# per-user installer, Start Menu/Desktop integration and Windows uninstall registration.
+- Added x64/ARM64 portable + setup release builds with SHA-256 checksums.
+- Added CI self-tests and source audits that reject NuGet PackageReference dependencies and known telemetry/tracking SDKs.
+- Synchronized product metadata: author Brendigo, ghostftp.com, brendigo.com and version 1.1.0.

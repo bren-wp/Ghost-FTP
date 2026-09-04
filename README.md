@@ -1,169 +1,126 @@
-# Ghost FTP
+# GhostFTP
 
-**Ghost FTP** is a privacy-focused FTP, FTPS and SFTP client for Windows, Linux, macOS, Android, iOS and the web. The project is designed for dependable day-to-day file transfer, shared-hosting workflows and environments where explicit security controls and reproducible releases matter.
+**GhostFTP** is a premium, privacy-first FTP/FTPS client for Windows, authored by **Brendigo**.
 
-Current Ghost FTP version: **1.0.0**
+- Project: https://ghostftp.com
+- Author: https://brendigo.com
+- Repository: https://github.com/Ghost-FTP/Ghost-FTP
+- Version: **1.1.0**
+- Runtime baseline: **.NET 10 LTS / C# 14**
 
-## Core capabilities
+## Why GhostFTP
 
-- FTP, explicit/implicit FTPS and SFTP workflows.
-- Local and remote file browsing, upload, download, rename, delete and directory operations.
-- Transfer state tracking with defensive staging, cleanup and rollback behavior.
-- SFTP host-key fingerprint validation and strict connection-input validation.
-- Protected profile secrets and platform-specific credential protection where supported.
-- Windows desktop client and installer, Linux packages, universal macOS package, Android client, iOS client and shared-hosting web/PWA client.
-- No application telemetry in production builds.
+GhostFTP is built for people who want a modern Windows 11 file-transfer experience without analytics, cloud accounts or background services. The desktop app uses a Fluent-inspired dual-pane workflow with a Windows 11 Mica backdrop where supported.
 
-## Security and stability
+### Core features
 
-Ghost FTP treats remote paths, local paths, temporary files and credentials as security boundaries. The repository includes regression coverage for traversal protection, SFTP fingerprint policy, transfer cleanup, staging/rollback behavior, configuration durability, runtime-secret handling, process lifecycle behavior and other failure modes.
+- Local / Remote dual-pane file manager.
+- Saved FTP/FTPS server profiles.
+- Quick Connect.
+- FTP, explicit FTPS and implicit FTPS.
+- TLS 1.2 / TLS 1.3 with normal certificate validation.
+- Upload/download files and complete folders.
+- Sequential transfer queue with progress, speed and cancellation.
+- Download resume through `.ghostftp.part` where the server supports `REST`.
+- Atomic-style uploads through a remote temporary file followed by rename.
+- Create, rename and recursively delete remote directories.
+- Local filename sanitization and remote-path boundary protection.
+- Windows 11 Mica/rounded-corner integration with safe fallback.
+- Dark, light and system appearance modes.
+- Fully local Demo server with realistic `public_html`, `assets`, `backups` and `logs` data.
+- Per-user setup and standalone portable builds.
+- x64 and ARM64 Windows releases.
 
-The web application additionally uses CSRF protection, strict session handling, secure cookies, security headers, rate limiting and `noindex` directives. Production CI runs Go formatting checks, unit tests, the race detector, `go vet`, security/privacy audits, PHP syntax validation and native platform build checks.
+## Privacy by design
 
-See [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Testing](docs/TESTING.md) for details.
+GhostFTP has **no telemetry, no analytics, no ads, no tracking SDK, no crash-report upload and no automatic update checker**.
 
-## Shared hosting
+The application creates network traffic only when you explicitly:
 
-Ghost FTP supports common shared-hosting FTP/FTPS/SFTP layouts without silently changing the user's remote location. Initial directory diagnostics can recognize conventional web roots such as `public_html`, `httpdocs`, `htdocs`, `www`, `web` and `html`, but detected paths are informational: Ghost FTP does not automatically navigate to or persist a derived web root.
+1. connect to an FTP/FTPS server; or
+2. click a website link in the About dialog.
 
-Usernames such as `account@domain` are supported, and FTP directory listings retain an MLSD-to-LIST compatibility path for hosts with older server configurations. Passive connection behavior and the security trade-offs of plain FTP versus FTPS/SFTP are documented in [Shared hosting](docs/SHARED-HOSTING.md).
+Demo mode never opens a network connection. See [PRIVACY.md](PRIVACY.md).
 
-## Releases
+## No third-party runtime dependencies
 
-Ghost FTP releases use the tag namespace `ghostftp-vX.Y.Z`. The first release in the Ghost FTP product line is `ghostftp-v1.0.0`; subsequent patch versions are `ghostftp-v1.0.1`, `ghostftp-v1.0.2`, and so on.
+The application source has **zero NuGet `PackageReference` dependencies**. GhostFTP uses only:
 
-Public release assets are intentionally simple:
+- C# and the Microsoft .NET 10 base class libraries;
+- Microsoft WPF included with the .NET Desktop runtime;
+- Windows APIs already present in Windows for Mica, DPAPI, shortcuts and installer registration.
 
-| Platform | Public package |
-| --- | --- |
-| Windows x64 | `Ghost-FTP-X.Y.Z-Setup-x64.exe` |
-| Windows x86 / 32-bit | `Ghost-FTP-X.Y.Z-Setup-x86.exe` |
-| Windows x32 alias | `Ghost-FTP-X.Y.Z-Setup-x32.exe` |
-| Linux | `Ghost-FTP-X.Y.Z-Linux-multiarch.zip` |
-| macOS | `Ghost-FTP-X.Y.Z-macOS-Universal.pkg` |
-| Android | `Ghost-FTP-X.Y.Z-Android.apk` |
-| iOS | `Ghost-FTP-X.Y.Z-iOS-arm64-unsigned.ipa` |
-| Web | `Ghost-FTP-X.Y.Z-Web.zip` |
+The release is self-contained so users do not need to install .NET separately.
 
-`x32` and `x86` refer to the same 32-bit Windows architecture in this project. The x32 file is therefore a byte-identical compatibility alias of the x86 installer, not a third CPU architecture.
+## Security
 
-Every release also contains `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`. Verify the checksum before installing a downloaded package.
+- Traversal and resource limits protect recursive operations from malicious or cyclic server listings.
+- Local recursive uploads skip NTFS reparse points/junctions so a selected folder cannot silently expand outside its tree.
+- Plain FTP always requires an explicit warning confirmation; FTPS Explicit remains the default.
 
-Android CI produces an installable debug-signed APK unless a private production signing identity is configured externally. iOS release artifacts are unsigned and require a valid Apple signing identity and provisioning profile before normal device/TestFlight/App Store distribution. The workflow never labels unsigned or debug-signed artifacts as store-signed production binaries.
+New profiles default to **explicit FTPS**. GhostFTP deliberately does not provide an “accept invalid certificate” switch. See [SECURITY.md](SECURITY.md) for the full security model.
 
-See [GitHub Releases](docs/GITHUB-RELEASES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Signing](docs/SIGNING.md).
+## Build
 
-## Versioning policy
+Requirements for building:
 
-The **Ghost FTP** product line starts at `1.0.0`. Version changes use Semantic Versioning:
+- Windows 11 recommended;
+- .NET SDK **10.0.x** (latest stable feature band recommended).
 
-- patch fixes: `1.0.0` → `1.0.1` → `1.0.2`
-- backward-compatible feature releases: `1.0.x` → `1.1.0`
-- breaking changes: next major version
+Build and run self-tests:
 
-Historical ByFTP commits and tags remain in Git history for provenance. They are not rewritten. In particular, the historical `v1.0.0` tag is intentionally separate from the Ghost FTP tag `ghostftp-v1.0.0`.
-
-## Compatibility identifiers
-
-The public product name is **Ghost FTP**. Some internal source paths, package identifiers, migration keys, namespaces or build-stage filenames may still contain the legacy `ByFTP`/`byftp` identifier where changing it would unnecessarily break existing installations, saved profiles, application identities or migration/cleanup logic. These identifiers are compatibility implementation details and must not be used as new public branding.
-
-New public documentation, UI, release titles and downloadable package names use **Ghost FTP**.
-
-## Languages
-
-English is the default runtime language. Ghost FTP currently includes localization catalogs for:
-
-- English
-- Croatian
-- German
-- French
-- Spanish
-- Turkish
-- Greek
-- Portuguese
-- Chinese
-- Russian
-- Hindi
-- Japanese
-- Italian
-- Polish
-- Dutch
-- Czech
-- Ukrainian
-- Swedish
-
-Language selection is persisted in application settings. New canonical user-facing text is maintained English-first and translated through the localization system.
-
-## Documentation
-
-Core documentation:
-
-- [Documentation index](docs/README.md)
-- [Installation](docs/INSTALLATION.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Security](docs/SECURITY.md)
-- [Privacy](docs/PRIVACY.md)
-- [Testing](docs/TESTING.md)
-- [GitHub Releases](docs/GITHUB-RELEASES.md)
-- [Release verification](docs/RELEASE-VERIFICATION.md)
-- [Signing](docs/SIGNING.md)
-- [Shared hosting](docs/SHARED-HOSTING.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Third-party notices](docs/THIRD-PARTY-NOTICES.md)
-- [Contributing](docs/CONTRIBUTING.md)
-- [Support](docs/SUPPORT.md)
-
-Platform documentation:
-
-- [Linux](linux/README.md)
-- [macOS](macos/README.md)
-- [Android](android/README.md)
-- [iOS](ios/README.md)
-- [Web/PWA](ByFTP%20WEB/README.md) — legacy source-directory path; public product name is Ghost FTP.
-
-## Development
-
-The Go core requires a modern Go toolchain. CI currently builds with Go 1.27.1 and production scripts enforce the repository's minimum supported toolchain.
-
-```bash
-go telemetry off
-go test ./...
-go test -race ./...
-go vet ./...
+```powershell
+dotnet restore GhostFTP.sln
+dotnet build GhostFTP.sln -c Release
+dotnet run --project tests/GhostFTP.SelfTest/GhostFTP.SelfTest.csproj -c Release
 ```
 
-Linux packages:
+Create all release packages:
 
-```bash
-bash linux/BUILD.sh
+```powershell
+./build-release.ps1
 ```
 
-macOS package:
+or double-click/run:
 
-```bash
-bash macos/BUILD.sh
+```text
+build-release.bat
 ```
 
-Windows packages are built with `BUILD-WINDOWS.ps1`. Android uses the Gradle project in `android/`, iOS uses the Xcode project in `ios/`, and the web client is packaged by `scripts/package_web.py`.
+The `release` directory will contain:
 
-## Repository structure
+```text
+GhostFTP-Portable-win-x64.exe
+GhostFTP-Setup-win-x64.exe
+GhostFTP-Portable-win-arm64.exe
+GhostFTP-Setup-win-arm64.exe
+SHA256SUMS.txt
+```
 
-- `cmd/` — Go application and installer entry points.
-- `internal/` — transfer, remote protocol, configuration, security, desktop and platform logic.
-- `android/` — Android application.
-- `ios/` — iOS application.
-- `linux/` — Debian package build.
-- `macos/` — universal macOS package build.
-- `ByFTP WEB/` — legacy-named source directory for the Ghost FTP web/PWA client; directory name is retained for compatibility during the rebrand.
-- `scripts/` — build, audit, packaging and verification tooling.
-- `docs/` — architecture, security, release and operator documentation.
+## GitHub Actions
 
-## Support
+- `CI` builds the solution and runs dependency-free self-tests on every push/PR to `main`.
+- `Release` builds x64 + ARM64 portable/setup artifacts, calculates SHA-256 hashes and can publish tag-based GitHub Releases.
 
-Issues and feature requests: https://github.com/bren-wp/Ghost-FTP/issues
+## Portable vs installed data
 
-Repository: https://github.com/bren-wp/Ghost-FTP
+`GhostFTP-Portable-*.exe` stores profiles/settings in a `Data` folder next to the executable. Installed GhostFTP stores them under the current user's local application-data directory.
 
-## License
+Passwords are not saved unless **Remember password** is enabled. Saved passwords are protected with Windows DPAPI for the current Windows user.
 
-See [LICENSE](LICENSE).
+## Project structure
+
+```text
+src/
+  GhostFTP.Core/       FTP/FTPS engine, demo session, transfer queue
+  GhostFTP.App/        premium Windows desktop app, C# UI, no XAML
+  GhostFTP.Setup/      self-contained per-user C# installer
+
+tests/
+  GhostFTP.SelfTest/   zero-dependency CI self-tests
+
+docs/
+  ARCHITECTURE.md
+```
+
+Copyright © 2026 Brendigo. See [NOTICE.md](NOTICE.md).

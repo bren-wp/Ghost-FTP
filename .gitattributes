@@ -1,10 +1,10 @@
 * text=auto
-*.go text eol=lf
-*.md text eol=lf
-*.py text eol=lf
+*.cs text eol=crlf
+*.csproj text eol=crlf
+*.props text eol=crlf
+*.sln text eol=crlf
 *.ps1 text eol=crlf
-*.cmd text eol=crlf
-*.png binary
-*.ico binary
-*.exe binary
-*.zip binary
+*.bat text eol=crlf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf

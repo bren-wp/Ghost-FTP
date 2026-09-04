@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <Authors>Brendigo</Authors>
+    <Company>Brendigo</Company>
+    <Product>GhostFTP</Product>
+    <Copyright>Copyright © 2026 Brendigo</Copyright>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <InformationalVersion>1.1.0</InformationalVersion>
+    <RepositoryUrl>https://github.com/Ghost-FTP/Ghost-FTP</RepositoryUrl>
+    <PackageProjectUrl>https://ghostftp.com</PackageProjectUrl>
+  </PropertyGroup>
+</Project>

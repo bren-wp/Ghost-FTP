@@ -2,13 +2,14 @@ root = true
 
 [*]
 charset = utf-8
-end_of_line = lf
+end_of_line = crlf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[*.go]
-indent_style = tab
+[*.{cs,csproj,props,sln}]
+indent_style = space
+indent_size = 4
 
-[*.{md,yml,yaml,json,py,ps1}]
+[*.{yml,yaml,json,md}]
 indent_style = space
 indent_size = 2
