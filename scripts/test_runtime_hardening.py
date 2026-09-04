@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -37,6 +39,42 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertEqual(source.count("func selectedIDs("), 1)
         self.assertGreaterEqual(source.count("selectedIDs(ids)"), 2)
         self.assertIn("if ctx == nil", source[source.index("func (m *Manager) waitWorkers") :])
+
+    def test_web_runtime_regressions(self) -> None:
+        php = shutil.which("php")
+        if php is None:
+            self.skipTest("PHP CLI is not available")
+        for relative in (
+            "ByFTP WEB/tests/json-store-bounds.php",
+            "ByFTP WEB/tests/ftp-listing.php",
+        ):
+            result = subprocess.run(
+                [php, str(ROOT / relative)],
+                cwd=ROOT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, f"{relative}:\n{result.stdout}")
+            self.assertIn("=PASS", result.stdout, relative)
+
+    def test_release_publisher_requires_delayed_remote_readback(self) -> None:
+        source = (ROOT / "scripts/publish_release.ps1").read_text(encoding="utf-8")
+        for marker in (
+            "RELEASE_PUBLISH_IMMEDIATE_READBACK=PASS",
+            "Start-Sleep -Seconds 5",
+            "Assert-CurrentMainCommit",
+            "RELEASE_PUBLISH_DELAYED_READBACK=PASS",
+            "Assert-CompleteRemoteRelease -Release $release -Stage 'delayed'",
+        ):
+            self.assertIn(marker, source)
+        self.assertLess(
+            source.index("Start-Sleep -Seconds 5"),
+            source.index("Assert-CompleteRemoteRelease -Release $release -Stage 'delayed'"),
+        )
 
 
 if __name__ == "__main__":
