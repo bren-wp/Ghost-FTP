@@ -13,6 +13,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "ByFTP WEB"  # Legacy source-directory name retained for compatibility.
 
+# These empty files keep runtime-created directories present in source/deploy
+# archives. They are the only tracked entries allowed below storage/ besides
+# storage/.htaccess; any actual runtime/user data remains release-blocking.
+ALLOWED_STORAGE_PLACEHOLDERS = {
+    "ByFTP WEB/storage/logs/.gitkeep",
+    "ByFTP WEB/storage/tmp/.gitkeep",
+    "ByFTP WEB/storage/users/.gitkeep",
+}
+
 
 def fail(message: str) -> None:
     raise SystemExit("WEB_AUDIT_FAILED: " + message)
@@ -140,9 +149,19 @@ def validate_repository_surface(version: str) -> None:
     if missing:
         fail("required web files are not tracked: " + ", ".join(missing))
 
+    for placeholder in sorted(ALLOWED_STORAGE_PLACEHOLDERS):
+        if placeholder not in tracked:
+            fail(f"required empty storage placeholder is not tracked: {placeholder}")
+        path = ROOT / placeholder
+        if not path.is_file() or path.stat().st_size != 0:
+            fail(f"storage placeholder must remain an empty regular file: {placeholder}")
+
     runtime_storage = sorted(
-        path for path in tracked
-        if path.startswith("ByFTP WEB/storage/") and path != "ByFTP WEB/storage/.htaccess"
+        path
+        for path in tracked
+        if path.startswith("ByFTP WEB/storage/")
+        and path != "ByFTP WEB/storage/.htaccess"
+        and path not in ALLOWED_STORAGE_PLACEHOLDERS
     )
     if runtime_storage:
         fail("runtime/user storage must not be tracked: " + ", ".join(runtime_storage))
@@ -310,7 +329,7 @@ def main() -> int:
 
     print(f"WEB_AUDIT=PASS ({version})")
     print("PUBLIC_BRAND=Ghost FTP")
-    print("WEB_RUNTIME_STORAGE=NOT_TRACKED")
+    print("WEB_RUNTIME_STORAGE=BLOCKED_EXCEPT_EMPTY_PLACEHOLDERS")
     print("WEB_PWA_CACHE_NAMESPACE=ghostftp-static")
     print("WEB_LEGACY_CACHE_MIGRATION=byftp-static-cleanup")
     print(f"WEB_PHP_FILES={php_count}")
