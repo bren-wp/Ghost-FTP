@@ -1,0 +1,140 @@
+name: GhostFTP hard-cut migration
+
+on:
+  push:
+    branches: ['release/ghost-ftp-1.0.1-portable']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-hardcut
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[hardcut-done]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: release/ghost-ftp-1.0.1-portable
+      - name: Apply complete GhostFTP hard cut
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          ROOT = Path('.').resolve()
+
+          # Rename every remaining filesystem path carrying the retired identifier.
+          def renamed(name: str) -> str:
+              return (name
+                      .replace('ByFTP', 'GhostFTP')
+                      .replace('BYFTP', 'GHOSTFTP')
+                      .replace('byftp', 'ghostftp')
+                      .replace('by-ftp', 'ghost-ftp'))
+
+          paths = [p for p in ROOT.rglob('*') if '.git' not in p.parts]
+          for path in sorted(paths, key=lambda p: len(p.parts), reverse=True):
+              new_name = renamed(path.name)
+              if new_name == path.name:
+                  continue
+              target = path.with_name(new_name)
+              if target.exists():
+                  raise SystemExit(f'rename collision: {path} -> {target}')
+              path.rename(target)
+
+          # Replace retired textual identifiers in every UTF-8 source/config/document.
+          replacements = (
+              ('ByFTP', 'GhostFTP'),
+              ('BYFTP', 'GHOSTFTP'),
+              ('byftp', 'ghostftp'),
+              ('by-ftp', 'ghost-ftp'),
+          )
+          for path in ROOT.rglob('*'):
+              if not path.is_file() or '.git' in path.parts:
+                  continue
+              data = path.read_bytes()
+              try:
+                  text = data.decode('utf-8')
+              except UnicodeDecodeError:
+                  continue
+              updated = text
+              for old, new in replacements:
+                  updated = updated.replace(old, new)
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8', newline='')
+
+          version = '1.0.1'
+          Path('VERSION').write_text(version + '\n', encoding='utf-8')
+          web_root = Path('GhostFTP WEB')
+          (web_root / 'VERSION').write_text(version + '\n', encoding='utf-8')
+
+          composer_path = web_root / 'composer.json'
+          composer = json.loads(composer_path.read_text(encoding='utf-8'))
+          composer['version'] = version
+          composer_path.write_text(json.dumps(composer, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+          sw_path = web_root / 'service-worker.js'
+          sw = sw_path.read_text(encoding='utf-8')
+          sw = re.sub(r'ghostftp-static-v\d+\.\d+\.\d+', f'ghostftp-static-v{version}', sw)
+          sw_path.write_text(sw, encoding='utf-8')
+
+          readme = Path('README.md').read_text(encoding='utf-8')
+          readme = re.sub(r'Current Ghost FTP version: \*\*\d+\.\d+\.\d+\*\*', f'Current Ghost FTP version: **{version}**', readme)
+          Path('README.md').write_text(readme, encoding='utf-8')
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text(encoding='utf-8')
+          if f'## {version} - 2026-09-04' not in changelog:
+              marker = '# Changelog\n'
+              entry = (
+                  f'\n## {version} - 2026-09-04\n\n'
+                  '- Completed the hard-cut Ghost FTP rebrand across every tracked path, namespace and runtime identifier.\n'
+                  '- Removed compatibility identifiers tied to the retired product identity.\n'
+                  '- Renamed Android, iOS, Go, Windows installer and web technical identities to GhostFTP/Ghost FTP.\n'
+                  '- Added a repository-wide fail-closed brand audit to prevent retired identifiers from returning.\n'
+                  '- Prepared Windows portable release artifacts and GitHub Packages publication under GhostFTP.\n'
+              )
+              if marker in changelog:
+                  changelog = changelog.replace(marker, marker + entry, 1)
+              else:
+                  changelog = entry.lstrip() + '\n' + changelog
+              changelog_path.write_text(changelog, encoding='utf-8')
+
+          audit_path = Path('scripts/audit_brand_hardcut.py')
+          audit_path.write_text('''#!/usr/bin/env python3\n"""Fail closed if retired product identifiers reappear in tracked paths or UTF-8 content."""\nfrom __future__ import annotations\nimport subprocess\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nFORBIDDEN = (("by" + "ftp").casefold(), ("by" + "-ftp").casefold())\n\ndef fail(message: str) -> None:\n    raise SystemExit("BRAND_HARDCUT_FAILED: " + message)\n\ndef main() -> int:\n    raw = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT)\n    paths = [p.decode("utf-8", "strict") for p in raw.split(b"\\0") if p]\n    violations: list[str] = []\n    for rel in paths:\n        folded_path = rel.casefold()\n        if any(token in folded_path for token in FORBIDDEN):\n            violations.append(f"path:{rel}")\n            continue\n        path = ROOT / rel\n        if not path.is_file():\n            continue\n        data = path.read_bytes()\n        try:\n            text = data.decode("utf-8")\n        except UnicodeDecodeError:\n            continue\n        folded = text.casefold()\n        if any(token in folded for token in FORBIDDEN):\n            violations.append(f"content:{rel}")\n    if violations:\n        fail("retired identifier found: " + ", ".join(violations))\n    print("BRAND_HARDCUT=PASS")\n    print("PUBLIC_BRAND=Ghost FTP")\n    print("TECHNICAL_IDENTITY=GhostFTP")\n    return 0\n\nif __name__ == "__main__":\n    raise SystemExit(main())\n''', encoding='utf-8')
+
+          # Make the permanent CI/release quality gates enforce the hard cut.
+          for rel in ('.github/workflows/ci.yml', '.github/workflows/release.yml'):
+              p = Path(rel)
+              text = p.read_text(encoding='utf-8')
+              needle = 'python scripts/audit_privacy.py'
+              if 'python scripts/audit_brand_hardcut.py' not in text:
+                  text = text.replace(needle, needle + '\n          python scripts/audit_brand_hardcut.py')
+              p.write_text(text, encoding='utf-8')
+
+          # The one-shot workflow must not survive its own migration commit.
+          Path('.github/workflows/hardcut-rebrand.yml').unlink(missing_ok=True)
+          PY
+
+          git add -A
+          python scripts/audit_brand_hardcut.py
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No migration changes were produced.' >&2
+            exit 1
+          fi
+          git config user.name 'Brendigo'
+          git config user.email 'info@brendigo.com'
+          git commit -m 'Complete GhostFTP hard-cut rebrand [hardcut-done]'
+          git push origin HEAD:release/ghost-ftp-1.0.1-portable
