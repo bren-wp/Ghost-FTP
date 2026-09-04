@@ -78,20 +78,26 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
         $items = @ftp_mlsd($this->connection, $remote);
         if (is_array($items)) {
             $out = [];
+            $knownSizes = [];
             foreach ($items as $item) {
                 $name = (string)($item['name'] ?? '');
                 if ($name === '' || $name === '.' || $name === '..') continue;
                 $type = strtolower((string)($item['type'] ?? 'file'));
                 if (in_array($type, ['cdir', 'pdir'], true)) continue;
+                $sizeKnown = array_key_exists('size', $item) && is_numeric($item['size']);
+                $size = $sizeKnown ? max(0, (int)$item['size']) : 0;
                 $out[] = [
                     'name' => $name,
                     'type' => $type === 'dir' ? 'dir' : 'file',
-                    'size' => (int)($item['size'] ?? 0),
+                    'size' => $size,
                     'modified' => $this->mlsdDate((string)($item['modify'] ?? '')),
                     'permissions' => (string)($item['unix.mode'] ?? ''),
                 ];
+                if ($type !== 'dir' && $sizeKnown) {
+                    $knownSizes[$name] = $size;
+                }
             }
-            $this->rememberListedFileSizes($remote, $out);
+            $this->rememberListedFileSizes($remote, $out, $knownSizes);
             return $this->sortItems($out);
         }
 
@@ -250,13 +256,19 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
         return PathGuard::join((string)($this->profile['base_path'] ?? '/'), $path);
     }
 
-    private function rememberListedFileSizes(string $directory, array $items): void
+    private function rememberListedFileSizes(string $directory, array $items, ?array $knownSizes = null): void
     {
         foreach ($items as $item) {
             if (($item['type'] ?? 'file') !== 'file') continue;
             $name = (string)($item['name'] ?? '');
             if ($name === '') continue;
-            $this->listedFileSizes[PathGuard::child($directory, $name)] = max(0, (int)($item['size'] ?? 0));
+            if ($knownSizes !== null) {
+                if (!array_key_exists($name, $knownSizes)) continue;
+                $size = max(0, (int)$knownSizes[$name]);
+            } else {
+                $size = max(0, (int)($item['size'] ?? 0));
+            }
+            $this->listedFileSizes[PathGuard::child($directory, $name)] = $size;
         }
     }
 
