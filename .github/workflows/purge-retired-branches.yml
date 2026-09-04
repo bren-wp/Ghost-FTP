@@ -1,0 +1,47 @@
+name: GhostFTP stale branch cleanup
+
+on:
+  push:
+    branches: ['release/ghost-ftp-1.0.1-portable']
+
+permissions:
+  contents: write
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove stale branches carrying the retired identifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-remote --heads "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            | awk '{print $2}' \
+            | sed 's#^refs/heads/##' \
+            > "$RUNNER_TEMP/branches.txt"
+
+          python - "$RUNNER_TEMP/branches.txt" "$RUNNER_TEMP/delete.txt" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          source = Path(sys.argv[1])
+          target = Path(sys.argv[2])
+          retired = re.compile(r"by[\s_-]?ftp", re.IGNORECASE)
+          protected = {"main", "release/ghost-ftp-1.0.1-portable"}
+          branches = [line.strip() for line in source.read_text().splitlines() if line.strip()]
+          delete = sorted(branch for branch in branches if branch not in protected and retired.search(branch))
+          target.write_text("\n".join(delete) + ("\n" if delete else ""))
+          print(f"STALE_BRANCHES_MATCHED={len(delete)}")
+          PY
+
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          deleted=0
+          while IFS= read -r branch; do
+            [[ -n "$branch" ]] || continue
+            git push "$remote" --delete "$branch"
+            deleted=$((deleted + 1))
+          done < "$RUNNER_TEMP/delete.txt"
+          echo "STALE_BRANCHES_DELETED=$deleted"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
