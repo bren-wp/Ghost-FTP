@@ -11,7 +11,7 @@ declare(strict_types=1);
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ByFTP">
+<meta name="apple-mobile-web-app-title" content="Ghost FTP">
 <meta name="service-worker-url" content="<?= byftp_e(byftp_url('service_worker')) ?>">
 <title><?= byftp_e($pageTitle) ?></title>
 <link rel="icon" href="<?= byftp_e(byftp_asset('images/favicon.svg')) ?>" type="image/svg+xml">
