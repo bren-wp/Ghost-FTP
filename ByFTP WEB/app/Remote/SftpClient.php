@@ -68,7 +68,8 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
             $stat = @ssh2_sftp_lstat($this->sftp, $remote) ?: [];
             $mode = (int)($stat['mode'] ?? 0);
             $isDir = ($mode & 0040000) === 0040000;
-            $size = max(0, (int)($stat['size'] ?? 0));
+            $sizeKnown = array_key_exists('size', $stat) && is_numeric($stat['size']);
+            $size = $sizeKnown ? max(0, (int)$stat['size']) : 0;
             $items[] = [
                 'name' => $name,
                 'type' => $isDir ? 'dir' : 'file',
@@ -76,7 +77,7 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
                 'modified' => isset($stat['mtime']) ? gmdate('c', (int)$stat['mtime']) : null,
                 'permissions' => substr(sprintf('%o', $mode), -4),
             ];
-            if (!$isDir) {
+            if (!$isDir && $sizeKnown) {
                 $this->listedFileSizes[PathGuard::normalizeRelative($remote)] = $size;
             }
         }
@@ -143,7 +144,9 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
             throw new RuntimeException('Download nije moguće pokrenuti.');
         }
         $sourceStat = fstat($in);
-        $expected = is_array($sourceStat) ? (int)($sourceStat['size'] ?? -1) : -1;
+        $expected = is_array($sourceStat) && array_key_exists('size', $sourceStat) && is_numeric($sourceStat['size'])
+            ? max(0, (int)$sourceStat['size'])
+            : -1;
         $maxBytes = $this->effectiveDownloadLimit($remote, $maxBytes, $expected);
         try {
             if ($maxBytes !== null && $expected > $maxBytes) {
