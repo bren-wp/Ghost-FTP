@@ -176,7 +176,7 @@ def main() -> int:
     require(
         installer,
         (
-            'legacyUninstallKey = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GhostFTP`',
+            'uninstallKey = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GhostFTP`',
             'appPathsKey        = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\GhostFTP.exe`',
             'appPath := filepath.Join(dir, "GhostFTP.exe")',
             'brand.ProductName + " will be installed for your Windows user account',
@@ -190,7 +190,7 @@ def main() -> int:
     require(web_manifest, ('"name": "Ghost FTP Remote File Client"', '"short_name": "Ghost FTP"'), "GhostFTP WEB/manifest.webmanifest")
 
     changelog = read("CHANGELOG.md")
-    require(changelog, (f"## {version} - 2026-09-04", "Legacy GhostFTP history", "ghostftp-v1.0.0"), "CHANGELOG.md")
+    require(changelog, (f"## {version} - 2026-09-04", "Pre-1.0.0 history", "ghostftp-v1.0.0"), "CHANGELOG.md")
 
     obsolete_files = (
         "scripts/prepare_release.ps1", "scripts/publish_release.ps1", "scripts/package_windows_bundles.ps1",

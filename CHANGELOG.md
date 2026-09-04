@@ -22,6 +22,6 @@ All notable Ghost FTP changes are documented here. Ghost FTP uses semantic versi
 - Kept signing status explicit: unsigned or debug-signed mobile artifacts are never presented as store-signed production packages.
 - Updated repository and support links to `bren-wp/Ghost-FTP`.
 
-## Legacy GhostFTP history
+## Pre-1.0.0 history
 
 Releases and tags from the former GhostFTP product line remain in Git history for provenance and reproducibility. They are not part of the Ghost FTP semantic-version sequence and are not rewritten. In particular, the historical `v1.0.0` tag remains immutable; Ghost FTP uses `ghostftp-v1.0.0` for its new 1.0.0 release.

@@ -41,9 +41,9 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("TestPromptUsesFallbackOnlyForEmptyLine", tests)
 
     def test_android_document_provider_name_is_nullable_safe(self) -> None:
-        helper = read("android/app/src/main/java/com/GhostFTP/client/model/DocumentName.java")
-        activity = read("android/app/src/main/java/com/GhostFTP/client/MainActivity.java")
-        tests = read("android/app/src/test/java/com/GhostFTP/client/model/DocumentNameTest.java")
+        helper = read("android/app/src/main/java/com/ghostftp/client/model/DocumentName.java")
+        activity = read("android/app/src/main/java/com/ghostftp/client/MainActivity.java")
+        tests = read("android/app/src/test/java/com/ghostftp/client/model/DocumentNameTest.java")
         self.assertIn("providerName != null && !providerName.isBlank()", helper)
         self.assertIn('return "upload.bin";', helper)
         self.assertIn("DocumentName.resolve(providerName, uri.getLastPathSegment())", activity)
@@ -78,7 +78,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("ghostftp-v1.0.0", readme)
         self.assertIn("historical `v1.0.0` tag", readme)
         self.assertIn("## 1.0.0", changelog)
-        self.assertIn("Legacy GhostFTP history", changelog)
+        self.assertIn("Pre-1.0.0 history", changelog)
 
     def test_web_version_brand_and_fail_closed_boundaries(self) -> None:
         web = ROOT / "GhostFTP WEB"

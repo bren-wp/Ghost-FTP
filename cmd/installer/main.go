@@ -30,7 +30,7 @@ const (
 
 	// These registry/application-path identifiers are retained for upgrade
 	// compatibility with installations created before the Ghost FTP rebrand.
-	legacyUninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
+	uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
 	appPathsKey        = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
 )
 
@@ -309,7 +309,7 @@ func cleanupLegacyUninstaller(dir string) string {
 		warnings = append(warnings, "The legacy Uninstall.exe path could not be checked safely.")
 	}
 
-	if err := platform.DeleteRegistryKey(legacyUninstallKey); err != nil {
+	if err := platform.DeleteRegistryKey(uninstallKey); err != nil {
 		warnings = append(warnings, "The legacy Windows uninstall registry entry could not be removed.")
 	}
 
