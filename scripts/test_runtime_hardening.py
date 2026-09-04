@@ -47,6 +47,7 @@ class RuntimeHardeningTests(unittest.TestCase):
         for relative in (
             "ByFTP WEB/tests/json-store-bounds.php",
             "ByFTP WEB/tests/ftp-listing.php",
+            "ByFTP WEB/tests/transfer-limiter.php",
         ):
             result = subprocess.run(
                 [php, str(ROOT / relative)],
