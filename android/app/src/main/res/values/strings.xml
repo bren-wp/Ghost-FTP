@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ByFTP</string>
+    <string name="app_name">Ghost FTP</string>
     <string name="app_subtitle">Secure file transfer</string>
     <string name="host">Host</string>
     <string name="port">Port</string>
