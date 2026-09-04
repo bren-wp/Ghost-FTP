@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible problem in ByFTP
+description: Report a reproducible problem in Ghost FTP
 title: "[Bug] "
 labels: [bug]
 body:
@@ -10,8 +10,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: ByFTP version
-      description: Enter the version shown in ByFTP or the name of the downloaded official release.
+      label: Ghost FTP version
+      description: Enter the version shown in Ghost FTP or the name of the downloaded official release.
       placeholder: "e.g. the version shown in the application"
     validations:
       required: true
@@ -28,7 +28,7 @@ body:
     validations:
       required: true
   - type: dropdown
-    id: windows
+    id: operating_system
     attributes:
       label: Operating system
       options:
@@ -36,6 +36,9 @@ body:
         - Windows 10
         - Linux
         - macOS
+        - Android
+        - iOS
+        - Web
         - Other
     validations:
       required: true
@@ -51,7 +54,7 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Open ByFTP
+        1. Open Ghost FTP
         2. Connect to sanitized.example
         3. ...
     validations:
