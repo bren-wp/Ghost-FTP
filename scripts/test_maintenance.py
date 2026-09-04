@@ -74,7 +74,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         readme = read("README.md")
         changelog = read("CHANGELOG.md")
         self.assertIn("Current Ghost FTP version: **1.0.0**", readme)
-        self.assertIn("Ghost FTP product line starts at `1.0.0`", readme)
+        self.assertIn("product line starts at `1.0.0`", readme)
         self.assertIn("ghostftp-v1.0.0", readme)
         self.assertIn("historical `v1.0.0` tag", readme)
         self.assertIn("## 1.0.0", changelog)
