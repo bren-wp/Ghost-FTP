@@ -14,6 +14,7 @@ This directory contains the maintained technical and operator documentation for 
 - [Signing](SIGNING.md) — Windows, Apple and Android signing limitations and requirements.
 - [Shared hosting](SHARED-HOSTING.md) — web/PWA deployment guidance.
 - [Roadmap](ROADMAP.md) — product direction and planned platform work.
+- [Third-party notices](THIRD-PARTY-NOTICES.md) — bundled/runtime third-party notices and attribution.
 - [Contributing](CONTRIBUTING.md) — contribution workflow.
 - [Support](SUPPORT.md) — issue reporting and support boundaries.
 
