@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ghost FTP
+Comment=Privacy-focused FTP, FTPS and SFTP client
+Exec=/usr/bin/ghostftp
+Icon=ghost-ftp
+Terminal=true
+Categories=Network;FileTransfer;
+Keywords=FTP;FTPS;SFTP;Ghost FTP;
