@@ -1,23 +1,63 @@
 # Roadmap
 
-The roadmap is capability-based rather than tied to speculative product-version numbers.
+Ghost FTP starts a new product line at **1.0.0**. The roadmap is capability- and quality-based; historical ByFTP release numbers do not define future Ghost FTP sequencing.
 
-The 1.3.0 mobile parity work established the practical native file-manager baseline on both mobile clients: filtering/search, deterministic directory-first sorting, direct path navigation, multi-file upload, compact mobile action surfaces and restoration of non-secret connection metadata without persistent passwords/passphrases.
+## 1.0.x priorities
 
-The 1.4.0 transfer-control work added observable byte-level upload/download progress on Android and iOS plus a fail-safe batch stop boundary. Multi-file uploads can stop after the active file completes; ByFTP intentionally does not tear down an FTP/FTPS data/control channel mid-command merely to provide an aggressive cancel button.
+The initial 1.0.x series focuses on stability, compatibility and distribution quality rather than rapid feature expansion:
 
-The 1.5.0 shared-hosting diagnostics work makes successful connections easier to understand without adding scanners or hidden probes. Desktop, Android and iOS derive non-secret diagnostics from their existing initial remote listing, recognize common web-root directories, distinguish secure transport from plain FTP and keep detected paths advisory only. Security audits block credential-bearing diagnostic fields, independent diagnostic network activity, automatic web-root navigation and persistence of derived diagnostic state.
+- remove remaining user-visible legacy branding while preserving only migration-sensitive internal identifiers;
+- keep Windows x64/x86 installation and upgrade behavior rollback-safe;
+- broaden Linux package compatibility across amd64, arm64 and i386 without forking the shared desktop core;
+- improve macOS packaging/signing readiness while preserving the Universal build;
+- harden Android lifecycle, file-picker and secure credential behavior;
+- expand iOS transport capability only when certificate/host verification and credential handling meet the same fail-closed security model;
+- continue web/PWA shared-hosting compatibility, storage durability and strict no-cache boundaries for sensitive responses;
+- reduce duplicate build/audit code and keep one canonical production release pipeline.
 
-The 1.6.0 maintenance work makes the entire tracked repository part of the release contract. Cross-platform path portability, generated-artifact exclusion, UTF-8/text hygiene, merge-conflict detection and explicit current-release markers are validated before production packaging, reducing filesystem-specific and repository-state regressions that feature-level tests cannot see.
+Patch versions advance sequentially: `1.0.0`, `1.0.1`, `1.0.2`, and so on.
 
-Current priorities are secure Android Keystore-backed SFTP private-key handling, secure iOS SFTP and explicit-FTPS support only when those transports can preserve the same fail-closed trust model, additional accessibility/keyboard improvements on tablets, secure Unix credential handling for SFTP cases that cannot safely use command-line secrets, real platform signing when publisher credentials are available, and broader server compatibility without weakening TLS, host-key or path protections.
+## Protocol and transfer work
 
-True mid-file cancellation remains a future capability only if it can be implemented with protocol-aware abort/cleanup semantics, deterministic partial-file handling and regression coverage. A UI control must not imply that an active remote write was safely cancelled when the protocol or server state cannot prove that guarantee.
+Future protocol work must not weaken existing trust boundaries. New or expanded transport features require:
 
-Shared-hosting diagnostics may later grow richer server capability summaries only when those facts can be derived from normal protocol exchanges or explicit user-requested checks. ByFTP will not add background port scanning, trust bypasses, arbitrary PASV destinations or secret-bearing diagnostic uploads to achieve a more detailed status screen.
+- platform-appropriate TLS or host-key verification;
+- strict path and connection-input validation;
+- deterministic temporary-file cleanup;
+- bounded transfer behavior;
+- explicit failure semantics;
+- regression coverage on every affected platform.
 
-Android debug and unsigned release APK generation is part of the verified release pipeline. The remaining Android distribution milestone is a real externally managed production signing identity plus a signing-verification gate; the repository will not substitute a debug or fabricated key for that requirement.
+True mid-file cancellation remains a future capability only if the active protocol can abort safely and Ghost FTP can deterministically handle partial local/remote files. A UI button must not claim that a remote write was safely cancelled when the protocol state cannot prove it.
 
-The native iOS application and verified unsigned arm64 IPA/app artifacts remain the iOS release baseline. Future iOS transport work must not claim SFTP or explicit FTPS until a reviewed implementation has host/certificate verification, credential handling, path safety, lifecycle tests and a real iPhoneOS CI gate. Production iOS distribution additionally requires a legitimate Apple signing identity and provisioning profile managed outside the repository.
+## Mobile distribution
 
-A feature is complete only when its failure modes are understood, regression coverage exists where practical and every affected platform build gate remains green.
+Android CI currently produces an installable APK. Production Play distribution requires an externally managed production signing key and an explicit signing verification gate; repository automation must never substitute a debug or fabricated identity and label it production-signed.
+
+iOS CI produces a real unsigned arm64 IPA. Device/TestFlight/App Store distribution requires a legitimate Apple signing identity and provisioning profile managed outside the repository. New iOS protocol support is advertised only after its trust, path, credential and lifecycle behavior is covered by native tests and CI.
+
+## Desktop distribution
+
+Windows remains a primary desktop target. The installer and upgrade transaction will continue to receive additional regression coverage for payload integrity, path redirection, rollback and legacy-install cleanup.
+
+Linux packaging will remain based on the shared Go core and canonical `linux/BUILD.sh`. macOS packaging will remain based on the shared core and canonical `macos/BUILD.sh`; code signing/notarization can be added when valid publisher credentials are available.
+
+## Web/PWA
+
+The shared-hosting application will continue prioritizing:
+
+- safe deployment on ordinary PHP hosting;
+- no indexing of authenticated/private application surfaces;
+- strict session/CSRF/rate-limit behavior;
+- encrypted profile storage;
+- fail-closed host and remote-path validation;
+- bounded archive/upload/download operations;
+- deterministic migration of PWA caches and application state.
+
+Ghost FTP will not add background port scanning, hidden diagnostic destinations, certificate/host-key bypasses or secret-bearing analytics to obtain a richer status screen.
+
+## Release engineering
+
+Every production release must keep root `VERSION` as the canonical version source and must pass all applicable platform gates. The public release contract remains intentionally small: eight platform packages plus checksum, release notes and build metadata.
+
+A feature is complete only when its failure modes are understood, regression coverage exists where practical and every affected build/security gate remains green.
