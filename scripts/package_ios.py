@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate an unsigned GhostFTP iOS app bundle and create deterministic release archives."""
+"""Validate an unsigned GhostFTP iOS app bundle and create deterministic archives."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MACHO_MAGICS = {
-    b"\xcf\xfa\xed\xfe",  # MH_MAGIC_64 little endian
-    b"\xfe\xed\xfa\xcf",  # MH_CIGAM_64
-    b"\xca\xfe\xba\xbe",  # FAT_MAGIC
-    b"\xbe\xba\xfe\xca",  # FAT_CIGAM
+    b"\xcf\xfa\xed\xfe",
+    b"\xfe\xed\xfa\xcf",
+    b"\xca\xfe\xba\xbe",
+    b"\xbe\xba\xfe\xca",
 }
 
 
@@ -121,8 +121,8 @@ def main() -> int:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    ipa = output_dir / f"GhostFTP-{version}-iOS-arm64-unsigned.ipa"
-    app_zip = output_dir / f"GhostFTP-{version}-iOS-arm64-unsigned-app.zip"
+    ipa = output_dir / f"Ghost-FTP-{version}-iOS-arm64-unsigned.ipa"
+    app_zip = output_dir / f"Ghost-FTP-{version}-iOS-arm64-unsigned-app.zip"
     archive_tree(args.app, ipa, "Payload/GhostFTP.app")
     archive_tree(args.app, app_zip, "GhostFTP.app")
 
