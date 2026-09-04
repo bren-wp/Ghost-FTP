@@ -3,8 +3,8 @@
 
 Brand binaries are committed to the repository and are not regenerated during
 production builds. This keeps builds deterministic and avoids maintaining a
-custom PNG/ICO renderer solely for CI. The historical GhostFTP documentation
-banner is intentionally no longer part of the brand contract.
+custom PNG/ICO renderer solely for CI. Retired documentation artwork is not
+part of the current brand contract.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def main() -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="retained for build-script compatibility; validation is always performed",
+        help="accepted for build-script compatibility; validation is always performed",
     )
     parser.parse_args()
 
@@ -68,7 +68,7 @@ def main() -> int:
 
     print("BRAND_ASSET_AUDIT=PASS")
     print("PUBLIC_BRAND=Ghost FTP")
-    print("LEGACY_GhostFTP_DOC_HEADER=REMOVED")
+    print("RETIRED_DOC_HEADER=REMOVED")
     return 0
 
 
