@@ -47,6 +47,20 @@ jobs:
       - name: Apply deterministic patch
         run: python3 scripts/one_shot_105_hardening.py
 
+      - name: Make regression source markers literal
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('GhostFTP WEB/tests/html-error-and-interface-boundary.php')
+          text = path.read_text(encoding='utf-8')
+          old = '''if (str_contains($operations, "$deleteError->getMessage()") || str_contains($userStore, "$e->getMessage(),\\n                0,")) {'''
+          new = "if (str_contains($operations, '$deleteError->getMessage()') || str_contains($userStore, '$e->getMessage()')) {"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one interpolating wrapper marker, got {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
+
       - name: Validate Web hardening, dead-code cleanup and release metadata
         shell: bash
         run: |
