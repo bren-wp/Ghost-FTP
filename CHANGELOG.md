@@ -2,6 +2,20 @@
 
 The active product changelog intentionally starts at 1.3.0. Older development history remains available in Git history but is not part of the current maintained release documentation.
 
+## 1.9.2 — Bounded WEB downloads and temp-space hardening
+
+**Focus:** bind FTP/FTPS/SFTP downloads to the size snapshot already validated by the application and stop oversized remote transfers while they are still being written to temporary storage.
+
+- Synchronized Windows, Linux, macOS, Android, iOS and ByFTP WEB on canonical release `1.9.2` without changing the 1.9.1 native/mobile toolchain baseline.
+- Added a dedicated WEB bounded-download capability shared by the production FTP/FTPS and SFTP clients while keeping the base remote-client interface backward compatible for existing operations and tests.
+- FTP/FTPS downloads now use non-blocking transfer progress with repeated destination-size checks; a transfer that exceeds its effective budget fails closed, truncates the partial temp file and closes the FTP control connection so the interrupted transaction cannot be reused in an uncertain protocol state.
+- SFTP downloads now use a `maxBytes + 1` bounded stream probe instead of copying an arbitrary remote payload fully before rejecting it.
+- FTP and SFTP clients remember the most recent file-size snapshot obtained through directory listing/stat lookup and consume that snapshot as the next download budget. If a remote file grows between preflight and transfer, the larger payload is rejected instead of silently consuming unexpected shared-hosting temp space.
+- Direct WEB file downloads bind the transfer to the just-read remote size, while image previews retain their independent 10 MiB ceiling and also fail during transfer if the source grows.
+- Internal checksum, copy, ZIP creation and ZIP extraction paths inherit the same snapshot-bound protection because they stat/list each remote file before downloading it to local temp storage.
+- Added a reusable `TransferLimiter`, a PHP runtime regression proving oversized streams copy no more than `maxBytes + 1`, and source-contract regression coverage for both transports and both public download endpoints.
+- Preserved the complete 18-file public release contract and the immediate plus delayed GitHub asset/digest readback introduced in 1.9.1.
+
 ## 1.9.1 — Transfer cleanup, WEB state bounds and release readback hardening
 
 **Focus:** close post-commit cleanup gaps, bound shared-hosting runtime state, preserve raw FTP filenames correctly and make release publication re-verify its public asset set after propagation delay.
