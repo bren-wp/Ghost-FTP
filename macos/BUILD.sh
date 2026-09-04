@@ -22,7 +22,7 @@ go_patch="${BASH_REMATCH[4]:-0}"
 if (( go_major < MIN_GO_MAJOR ||
       (go_major == MIN_GO_MAJOR && go_minor < MIN_GO_MINOR) ||
       (go_major == MIN_GO_MAJOR && go_minor == MIN_GO_MINOR && go_patch < MIN_GO_PATCH) )); then
-  echo "GhostFTP production builds require Go 1.26.5 or newer; current: $raw_go" >&2
+  echo "Ghost FTP production builds require Go 1.26.5 or newer; current: $raw_go" >&2
   exit 1
 fi
 
@@ -36,11 +36,12 @@ export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS=darwin
 mkdir -p dist
 work="dist/macos-work"
 root="$work/root"
-rm -rf "$work" "dist/GhostFTP-${VERSION}-macOS-Universal.pkg"
+pkg="dist/Ghost-FTP-${VERSION}-macOS-Universal.pkg"
+rm -rf "$work" "$pkg"
 mkdir -p "$work/bin" "$root/usr/local/bin" "$root/Applications/GhostFTP.app/Contents/MacOS" "$root/Applications/GhostFTP.app/Contents/Resources"
 
 for arch in amd64 arm64; do
-  echo "[macOS ${arch}] Building GhostFTP"
+  echo "[macOS ${arch}] Building Ghost FTP"
   GOARCH="$arch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$work/bin/GhostFTP-${arch}" ./cmd/ghostftp
 done
 lipo -create "$work/bin/GhostFTP-amd64" "$work/bin/GhostFTP-arm64" -output "$root/usr/local/bin/GhostFTP"
@@ -66,10 +67,9 @@ sed "s/@VERSION@/${VERSION}/g" macos/Info.plist.in > "$root/Applications/GhostFT
 cp macos/launcher.zsh "$root/Applications/GhostFTP.app/Contents/MacOS/GhostFTP"
 chmod 0755 "$root/Applications/GhostFTP.app/Contents/MacOS/GhostFTP"
 
-pkg="dist/GhostFTP-${VERSION}-macOS-Universal.pkg"
 pkgbuild --root "$root" --identifier io.github.bren-wp.ghostftp --version "$VERSION" --install-location / "$pkg" >/dev/null
 test -s "$pkg"
 rm -rf "$work"
 echo "MACOS_PACKAGE_OK=$pkg"
-echo "GhostFTP ${VERSION} macOS package built with ${raw_go} and telemetry=${telemetry}."
+echo "Ghost FTP ${VERSION} macOS package built with ${raw_go} and telemetry=${telemetry}."
 echo 'Note: the package is not Developer ID signed until a valid Apple signing certificate is configured.'
