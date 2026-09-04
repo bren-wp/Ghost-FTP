@@ -63,18 +63,26 @@ class RuntimeHardeningTests(unittest.TestCase):
 
     def test_release_publisher_requires_delayed_remote_readback(self) -> None:
         source = (ROOT / "scripts/publish_release.ps1").read_text(encoding="utf-8")
+        immediate = "Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'immediate'"
+        delay = "Start-Sleep -Seconds 5"
+        delayed = "Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'delayed'"
         for marker in (
-            "RELEASE_PUBLISH_IMMEDIATE_READBACK=PASS",
-            "Start-Sleep -Seconds 5",
+            "function Assert-ReleaseAssetSet",
+            "RELEASE_ASSET_READBACK=PASS",
+            immediate,
+            delay,
             "Assert-CurrentMainCommit",
-            "RELEASE_PUBLISH_DELAYED_READBACK=PASS",
-            "Assert-CompleteRemoteRelease -Release $release -Stage 'delayed'",
+            delayed,
         ):
             self.assertIn(marker, source)
-        self.assertLess(
-            source.index("Start-Sleep -Seconds 5"),
-            source.index("Assert-CompleteRemoteRelease -Release $release -Stage 'delayed'"),
-        )
+
+        immediate_pos = source.index(immediate)
+        delay_pos = source.index(delay, immediate_pos)
+        main_guard_pos = source.index("Assert-CurrentMainCommit", delay_pos)
+        delayed_pos = source.index(delayed, main_guard_pos)
+        self.assertLess(immediate_pos, delay_pos)
+        self.assertLess(delay_pos, main_guard_pos)
+        self.assertLess(main_guard_pos, delayed_pos)
 
 
 if __name__ == "__main__":
