@@ -12,9 +12,12 @@ use RuntimeException;
  * - temp + rename prevents partial primary writes
  * - one last-known-good .bak generation improves recovery from external corruption
  * - security-sensitive stores may disable automatic backup recovery and fail closed
+ * - bounded reads/writes prevent abnormal state files from exhausting PHP memory
  */
 final class JsonStore
 {
+    private const MAX_JSON_BYTES = 8 * 1024 * 1024;
+
     public function __construct(
         private readonly string $path,
         private readonly bool $recoverFromBackup = true
@@ -115,9 +118,20 @@ final class JsonStore
 
     private function decodeFile(string $path): array
     {
-        $raw = @file_get_contents($path);
+        $handle = @fopen($path, 'rb');
+        if (!is_resource($handle)) {
+            throw new RuntimeException('Nije moguće pročitati spremljene podatke.');
+        }
+        try {
+            $raw = stream_get_contents($handle, self::MAX_JSON_BYTES + 1);
+        } finally {
+            fclose($handle);
+        }
         if (!is_string($raw)) {
             throw new RuntimeException('Nije moguće pročitati spremljene podatke.');
+        }
+        if (strlen($raw) > self::MAX_JSON_BYTES) {
+            throw new RuntimeException('Spremljena JSON datoteka je prevelika.');
         }
         $decoded = json_decode($raw, true);
         if (!is_array($decoded)) {
@@ -131,6 +145,9 @@ final class JsonStore
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         if (!is_string($json)) {
             throw new RuntimeException('Nije moguće pretvoriti podatke u JSON.');
+        }
+        if (strlen($json) > self::MAX_JSON_BYTES) {
+            throw new RuntimeException('JSON podaci su preveliki za sigurno spremanje.');
         }
         return $json;
     }
