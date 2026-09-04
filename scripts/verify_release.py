@@ -33,7 +33,7 @@ def detect_arch(machine: int, magic: int) -> str:
     for arch, spec in ARCH_SPECS.items():
         if machine == spec["machine"] and magic == spec["magic"]:
             return arch
-    raise ValueError(f"nepodržan PE stroj/magic: machine=0x{machine:04x}, magic=0x{magic:04x}")
+    raise ValueError(f"unsupported PE machine/magic: machine=0x{machine:04x}, magic=0x{magic:04x}")
 
 
 def read_pe(path: Path, expected_arch: str | None = None):
@@ -49,7 +49,7 @@ def read_pe(path: Path, expected_arch: str | None = None):
     magic = struct.unpack_from("<H", data, opt)[0]
     arch = detect_arch(machine, magic)
     if expected_arch and arch != expected_arch:
-        raise ValueError(f"{path.name}: očekuje se {expected_arch}, pronađen je {arch}")
+        raise ValueError(f"{path.name}: expected {expected_arch}, found {arch}")
     spec = ARCH_SPECS[arch]
 
     subsystem = struct.unpack_from("<H", data, opt + 68)[0]
@@ -79,14 +79,34 @@ def read_pe(path: Path, expected_arch: str | None = None):
         names.append(data[off:off + 8].split(b"\0", 1)[0].decode("ascii", "replace"))
     if ".rsrc" not in names:
         raise ValueError(f"{path.name}: .rsrc section missing")
-    for text in ["CompanyName", "ByFTP", "ProductName", "ByFTP", "github.com/bren-wp/by-ftp"]:
+
+    required_versioninfo = (
+        "CompanyName",
+        "Ghost FTP",
+        "ProductName",
+        "github.com/bren-wp/Ghost-FTP",
+    )
+    for text in required_versioninfo:
         if text.encode("utf-16le") not in data:
             raise ValueError(f"{path.name}: VERSIONINFO field missing: {text}")
+
+    legacy_public_markers = (
+        "ByFTP klijent",
+        "ByFTP instalacijski program",
+        "Copyright © 2026 ByFTP",
+        "Siguran FTP, FTPS i SFTP klijent — ByFTP",
+    )
+    for text in legacy_public_markers:
+        if text.encode("utf-16le") in data:
+            raise ValueError(f"{path.name}: legacy public PE branding remains: {text}")
+
     if b'requestedExecutionLevel level="asInvoker"' not in data:
         raise ValueError(f"{path.name}: asInvoker manifest missing")
     manifest_arch = "amd64" if arch == "x64" else "x86"
     if f'processorArchitecture="{manifest_arch}"'.encode("ascii") not in data:
         raise ValueError(f"{path.name}: manifest architecture is not {manifest_arch}")
+    if b"Ghost FTP file transfer client" not in data:
+        raise ValueError(f"{path.name}: Ghost FTP application manifest description is missing")
     return data, bool(cert_offset and cert_size), arch, required_mitigations
 
 
@@ -104,7 +124,7 @@ def main() -> None:
     results = [read_pe(p, args.arch) for p in (args.setup, args.portable)]
     arches = {result[2] for result in results}
     if len(arches) != 1:
-        raise SystemExit("Setup and Portable nisu iste arhitekture")
+        raise SystemExit("Setup and Portable binaries are not the same architecture")
     arch = next(iter(arches))
     (sdat, ssigned, _, mitigations), (pdat, psigned, _, _) = results
 
@@ -118,7 +138,8 @@ def main() -> None:
     print("PORTABLE_PE_OK=YES")
     print("UNINSTALLER_BINARY=ABSENT")
     print(f"WINDOWS_ARCH={arch}")
-    print("COMPANY_NAME=ByFTP")
+    print("PUBLIC_BRAND=Ghost FTP")
+    print("COMPANY_NAME=Ghost FTP")
     print("EXECUTION_LEVEL=asInvoker")
     print("PE_MITIGATIONS=" + ",".join(mitigations.keys()))
     print(f"SETUP_AUTHENTICODE_SIGNED={'YES' if ssigned else 'NO'}")
