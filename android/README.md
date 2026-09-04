@@ -1,6 +1,6 @@
 # ByFTP for Android
 
-ByFTP Android is a native Java client isolated from the Go desktop runtime so mobile lifecycle, permissions, networking, APK packaging and release-signing boundaries remain explicit and independently testable. The Android app uses the repository root `VERSION`; release **1.9.0** therefore stays synchronized with Windows, Linux, macOS, iOS and ByFTP WEB.
+ByFTP Android is a native Java client isolated from the Go desktop runtime so mobile lifecycle, permissions, networking, APK packaging and release-signing boundaries remain explicit and independently testable. The Android app uses the repository root `VERSION`; release **1.9.2** therefore stays synchronized with Windows, Linux, macOS, iOS and ByFTP WEB.
 
 ## Current capabilities
 
@@ -18,9 +18,9 @@ ByFTP Android is a native Java client isolated from the Go desktop runtime so mo
 - Session-only passwords; backup/device-transfer exclusions for application data.
 - No analytics, advertising SDK, telemetry backend or mandatory cloud account.
 
-## 1.9.0 maintenance update
+## 1.9.2 release integration
 
-Release 1.9.0 uses **Android Gradle Plugin 9.4.0** and **Gradle 9.7.1** with JDK 17, compileSdk/targetSdk 37, build-tools 36.0.0 and minSdk 26. The root version audit now checks the AGP pin directly so CI cannot silently build a release with an older plugin generation.
+Release 1.9.2 keeps **Android Gradle Plugin 9.4.0** and **Gradle 9.7.1** with JDK 17, compileSdk/targetSdk 37, build-tools 36.0.0 and minSdk 26. The new bounded remote-download logic is specific to ByFTP WEB; Android transport, lifecycle and trust behavior remains on the reviewed 1.9.1 baseline.
 
 The root release workflow runs Android JUnit tests, `lintDebug`, `lintRelease`, debug/release assembly and APK structure validation before GitHub publication. The optimized release APK remains intentionally unsigned until an external production signing identity is supplied.
 
