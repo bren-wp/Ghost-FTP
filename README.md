@@ -4,9 +4,19 @@
 
 ByFTP is a privacy-focused file-transfer suite for **Windows, Linux, macOS, Android, iOS and the web**. Native desktop and Android clients support FTP, explicit FTPS, implicit FTPS and SFTP. The native iOS client supports FTP and implicit FTPS. **ByFTP WEB** is a PHP shared-hosting PWA with FTP/FTPS and optional SFTP when the hosting environment provides `ext-ssh2`.
 
-**Current release: 1.9.0**
+**Current release: 1.9.1**
 
 [Latest release](https://github.com/bren-wp/by-ftp/releases/latest) · [Installation](docs/INSTALLATION.md) · [ByFTP WEB](ByFTP%20WEB/README.md) · [Security](docs/SECURITY.md) · [Release verification](docs/RELEASE-VERIFICATION.md)
+
+## 1.9.1 highlights
+
+- Hardens private upload-source snapshot cleanup so failed filesystem removal remains retryable instead of losing the only cleanup target.
+- Makes local download replacement report rollback-copy cleanup failures instead of silently leaving stale `.byftp-rollback-*` content after a committed replacement.
+- Bounds ByFTP WEB JSON runtime state to 8 MiB for both reads and writes, using bounded stream reads before JSON decoding to reduce memory-exhaustion risk from abnormal state files.
+- Fixes the WEB FTP raw LIST fallback so a regular filename containing ` -> ` is preserved; link-target normalization now applies only to actual Unix symlink entries.
+- Adds regression coverage for snapshot cleanup retryability, local rollback cleanup, WEB JSON bounds and FTP LIST filename preservation.
+- Strengthens release publication with an immediate complete remote asset/digest verification plus a delayed second GitHub readback after re-confirming the exact current `main` commit.
+- Keeps canonical toolchains unchanged from 1.9.0: Go 1.27.1, Android Gradle Plugin 9.4.0, Gradle 9.7.1, JDK 17, Android API 37 and build-tools 36.0.0.
 
 ## 1.9.0 highlights
 
@@ -58,7 +68,7 @@ No official client includes an advertising SDK or requires a ByFTP telemetry bac
 
 Native clients map the visible FTP root to the authenticated account namespace and expose non-secret shared-hosting diagnostics derived from the first listing already needed for the session. Common web roots are recognized in this deterministic order: `public_html`, `httpdocs`, `htdocs`, `www`, `web`, `html`. Detection is advisory only: ByFTP never silently changes or saves the user's selected path because a common web-root name was found.
 
-ByFTP WEB can run directly on ordinary PHP shared hosting. It needs PHP 8.1+, a writable `storage/` directory, `ext-ftp` for FTP/FTPS, Sodium or OpenSSL for encrypted credential storage, optional `ext-ssh2` for SFTP and optional `ext-zip` for ZIP operations. Production deployments should use HTTPS. Release users can deploy the versioned `ByFTP-1.9.0-WEB-shared-hosting.zip`; its packaging process includes tracked production files only and excludes runtime data. See [Shared hosting](docs/SHARED-HOSTING.md) and [ByFTP WEB documentation](ByFTP%20WEB/README.md).
+ByFTP WEB can run directly on ordinary PHP shared hosting. It needs PHP 8.1+, a writable `storage/` directory, `ext-ftp` for FTP/FTPS, Sodium or OpenSSL for encrypted credential storage, optional `ext-ssh2` for SFTP and optional `ext-zip` for ZIP operations. Production deployments should use HTTPS. Release users can deploy the versioned `ByFTP-1.9.1-WEB-shared-hosting.zip`; its packaging process includes tracked production files only and excludes runtime data. See [Shared hosting](docs/SHARED-HOSTING.md) and [ByFTP WEB documentation](ByFTP%20WEB/README.md).
 
 ## Mobile behavior
 
@@ -68,7 +78,7 @@ Android uses the Storage Access Framework and does not request broad storage acc
 
 ## Desktop behavior
 
-The desktop core is written in Go and shared by Windows, Linux and macOS. Windows has the native graphical shell and the verified x64/x86 build pipeline. The 1.9.0 Windows Setup installs only `ByFTP.exe`; it does not install or register a standalone `Uninstall.exe`. Linux/macOS retain the shared transport/security core and canonical platform packaging under `linux/` and `macos/`.
+The desktop core is written in Go and shared by Windows, Linux and macOS. Windows has the native graphical shell and the verified x64/x86 build pipeline. The 1.9.1 Windows Setup installs only `ByFTP.exe`; it does not install or register a standalone `Uninstall.exe`. Linux/macOS retain the shared transport/security core and canonical platform packaging under `linux/` and `macos/`.
 
 The terminal client preserves raw host, account and filesystem identity input until central validation. Valid Unix paths are not altered by UI preprocessing.
 
@@ -86,7 +96,8 @@ Root `VERSION` is the single production version source. `ByFTP WEB/VERSION` must
 - real arm64 iPhoneOS build plus unsigned IPA/app ZIP validation;
 - ByFTP WEB PHP/JavaScript/runtime tests plus deterministic tracked-source release ZIP packaging;
 - exact public staging allowlist of 15 platform artifacts and three shared metadata files;
-- exact-current-`main` verification immediately before GitHub Release mutation.
+- exact-current-`main` verification immediately before GitHub Release mutation;
+- immediate and delayed remote release asset/digest readback after publication.
 
 Only the active public development history from **1.3.0 onward** remains in the maintained changelog/documentation surface. Older Git history is not rewritten.
 
