@@ -1,0 +1,56 @@
+name: Ghost FTP 1.0.6 read-only deep audit
+
+on:
+  push:
+    branches:
+      - audit/ghost-ftp-1.0.6
+    paths:
+      - .github/workflows/one-shot-106-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Scan Web and native reliability boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== VERSION ==='
+          cat VERSION
+          echo '=== PHP_RAW_EXCEPTION_MESSAGES ==='
+          grep -RFn --include='*.php' 'getMessage()' 'GhostFTP WEB' || true
+          echo '=== PHP_THROWABLE_CATCHES ==='
+          grep -RFn --include='*.php' 'catch (\Throwable' 'GhostFTP WEB' || true
+          echo '=== PHP_TEMP_AND_WRITES ==='
+          grep -REn --include='*.php' 'tempnam\(|file_put_contents\(|fwrite\(|fopen\(' 'GhostFTP WEB/app' 'GhostFTP WEB'/*.php || true
+          echo '=== PHP_EMPTY_OR_SWALLOWED_CATCHES ==='
+          grep -REn --include='*.php' 'catch \(\\Throwable[^)]*\) *\{ *\}|catch \(\\Throwable[^)]*\) *\{[^}]*@' 'GhostFTP WEB' || true
+          echo '=== PHP_VISIBLE_GHOSTFTP_TOPLEVEL ==='
+          grep -Fn --include='*.php' 'GhostFTP' 'GhostFTP WEB'/*.php || true
+          echo '=== PHP_VISIBLE_GHOSTFTP_VIEWS ==='
+          grep -RFn --include='*.php' 'GhostFTP' 'GhostFTP WEB/app/Views' || true
+          echo '=== GO_TODO_FIXME ==='
+          grep -REn --include='*.go' 'TODO|FIXME|HACK|XXX' cmd internal || true
+          echo '=== GO_PANIC_FATAL ==='
+          grep -REn --include='*.go' 'panic\(|log\.Fatal|os\.Exit\(' cmd internal || true
+          echo '=== GO_FS_WRITES ==='
+          grep -REn --include='*.go' 'os\.(WriteFile|Create|CreateTemp|OpenFile|Rename|Remove|RemoveAll|Mkdir|MkdirAll)|io\.Copy\(' cmd internal || true
+          echo '=== GO_PERMISSIONS ==='
+          grep -REn --include='*.go' '0[0-7]{3}|Chmod\(' cmd internal || true
+          echo '=== GO_NETWORK_IMPORTS ==='
+          grep -REn --include='*.go' 'net/http|net/rpc|net/smtp' cmd internal || true
+          echo '=== GO_IGNORED_ERRORS ==='
+          grep -REn --include='*.go' '(^|[^A-Za-z0-9_])_ *= *[^=].*\(|defer +[^;]+\.Close\(\)|[^A-Za-z0-9_]Close\(\) *$' cmd internal || true
+          echo '=== REPOSITORY_AUDITS ==='
+          python3 scripts/audit_repository.py
+          python3 scripts/audit_security.py
+          python3 scripts/audit_privacy.py
+          python3 scripts/audit_web.py
+          python3 scripts/audit_version.py
+          python3 scripts/audit_docs.py
+          python3 scripts/audit_release.py
