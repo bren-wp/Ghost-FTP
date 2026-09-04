@@ -41,7 +41,7 @@ mkdir -p "$work/bin" "$root/usr/local/bin" "$root/Applications/GhostFTP.app/Cont
 
 for arch in amd64 arm64; do
   echo "[macOS ${arch}] Building GhostFTP"
-  GOARCH="$arch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$work/bin/GhostFTP-${arch}" ./cmd/GhostFTP
+  GOARCH="$arch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$work/bin/GhostFTP-${arch}" ./cmd/ghostftp
 done
 lipo -create "$work/bin/GhostFTP-amd64" "$work/bin/GhostFTP-arm64" -output "$root/usr/local/bin/GhostFTP"
 chmod 0755 "$root/usr/local/bin/GhostFTP"
@@ -67,7 +67,7 @@ cp macos/launcher.zsh "$root/Applications/GhostFTP.app/Contents/MacOS/GhostFTP"
 chmod 0755 "$root/Applications/GhostFTP.app/Contents/MacOS/GhostFTP"
 
 pkg="dist/GhostFTP-${VERSION}-macOS-Universal.pkg"
-pkgbuild --root "$root" --identifier io.github.bren-wp.GhostFTP --version "$VERSION" --install-location / "$pkg" >/dev/null
+pkgbuild --root "$root" --identifier io.github.bren-wp.ghostftp --version "$VERSION" --install-location / "$pkg" >/dev/null
 test -s "$pkg"
 rm -rf "$work"
 echo "MACOS_PACKAGE_OK=$pkg"

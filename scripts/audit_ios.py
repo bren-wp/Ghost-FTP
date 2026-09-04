@@ -139,7 +139,7 @@ def main() -> int:
         "ConnectionPresetKeychain.save(preset)", "func forgetSavedConnection()",
         "func upload(_ urls: [URL])", "var remoteNames = Set<String>()", "private func sortedEntries",
         "SecItemCopyMatching", "SecItemAdd", "SecItemDelete", "kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
-        'service = "com.GhostFTP.client.connection-preset"',
+        'service = "com.ghostftp.client.connection-preset"',
         "@Published private(set) var transferFraction", "@Published private(set) var transferDetail",
         "@Published private(set) var canStopAfterCurrent", "func requestStopAfterCurrent()",
         "stopAfterCurrentRequested", "if stopAfterCurrentRequested && index + 1 < jobs.count { break }",
@@ -210,7 +210,7 @@ def main() -> int:
 
     project = read("ios/GhostFTP.xcodeproj/project.pbxproj")
     for marker in (
-        "com.apple.product-type.application", "PRODUCT_BUNDLE_IDENTIFIER = com.GhostFTP.client",
+        "com.apple.product-type.application", "PRODUCT_BUNDLE_IDENTIFIER = com.ghostftp.client",
         "IPHONEOS_DEPLOYMENT_TARGET = 16.0", "MARKETING_VERSION = 0.0.0", "SWIFT_VERSION = 5.0",
         "000000000000000000000002 /* GhostFTP */",
     ):

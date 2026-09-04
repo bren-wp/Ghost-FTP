@@ -42,7 +42,7 @@ def main() -> int:
     if not curl:
         fail("CurlFTP runtime credential contract is unavailable")
 
-    require("cmd/GhostFTP/main.go", (
+    require("cmd/ghostftp/main.go", (
         "func selectAskpassSecret(",
         "unknown or unsupported credential request",
         "invalid authentication request",
@@ -52,7 +52,7 @@ def main() -> int:
         "security.WipeBytes(password)",
         "security.WipeBytes(passphrase)",
     ))
-    require("cmd/GhostFTP/askpass_test.go", ("TestSelectAskpassSecret", "Verification code", "One-time password token"))
+    require("cmd/ghostftp/askpass_test.go", ("TestSelectAskpassSecret", "Verification code", "One-time password token"))
     require("internal/remote/sftp_stream_test.go", ("TestSFTPCommandArgsKeepAskPassEnabled", "sftp -b"))
     require("internal/remote/connect_regression_test.go", ("TestSSHSessionConfigNormalizesBracketedIPv6Host", "TestFindOpenSSHUsesNativeExecutableNameOutsideWindows"))
     require("internal/remote/process_connect_smoke_other_test.go", (

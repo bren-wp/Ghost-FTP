@@ -19,7 +19,7 @@ class IOSPackageTests(unittest.TestCase):
         with (app / "Info.plist").open("wb") as handle:
             plistlib.dump(
                 {
-                    "CFBundleIdentifier": "com.GhostFTP.client",
+                    "CFBundleIdentifier": "com.ghostftp.client",
                     "CFBundleShortVersionString": version,
                     "CFBundleExecutable": "GhostFTP",
                 },

@@ -8,7 +8,7 @@ Ghost FTP is a multi-platform file-transfer product with separate native/runtime
 
 The desktop core is written in Go:
 
-- `cmd/GhostFTP/` is the legacy-named desktop entry point retained for source compatibility.
+- `cmd/ghostftp/` is the legacy-named desktop entry point retained for source compatibility.
 - `cmd/installer/` owns the Windows installation transaction.
 - `internal/api/` exposes typed application operations.
 - `internal/desktop/` contains platform presentation and desktop interaction.

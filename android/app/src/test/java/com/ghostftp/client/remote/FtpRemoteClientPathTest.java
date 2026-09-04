@@ -1,4 +1,4 @@
-package com.GhostFTP.client.remote;
+package com.ghostftp.client.remote;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;

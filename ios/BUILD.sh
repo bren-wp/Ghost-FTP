@@ -11,7 +11,7 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 
-# Ghost FTP retains the existing com.GhostFTP.client bundle identity so installed users
+# Ghost FTP retains the existing com.ghostftp.client bundle identity so installed users
 # can upgrade in place. Keep the internal CFBundleVersion monotonically above the
 # last published GhostFTP build even though the public marketing version restarts at 1.0.0.
 SEMANTIC_BUILD_NUMBER=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
@@ -103,7 +103,7 @@ xcodebuild \
 
 [[ -d "$APP" ]] || { echo "GhostFTP.app was not generated." >&2; exit 1; }
 [[ -x "$APP/GhostFTP" ]] || { echo "GhostFTP executable is missing." >&2; exit 1; }
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" == 'com.GhostFTP.client' ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" == 'com.ghostftp.client' ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")" == "$VERSION" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")" == "$BUILD_NUMBER" ]]
 lipo -archs "$APP/GhostFTP" | tr ' ' '\n' | grep -qx 'arm64'

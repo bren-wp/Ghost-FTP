@@ -199,7 +199,7 @@ function Build-GhostFTPArchitecture {
     Write-Host "      [$Label] Ghost FTP client"
     Invoke-Native -FilePath $go -ArgumentList @(
         'build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$ldflags,
-        '-o',$portable,'./cmd/GhostFTP'
+        '-o',$portable,'./cmd/ghostftp'
     ) -FailureMessage "Client $Label build failed"
 
     Invoke-Native -FilePath $python -ArgumentList @(

@@ -1,4 +1,4 @@
-package com.GhostFTP.client.model;
+package com.ghostftp.client.model;
 
 import static org.junit.Assert.assertEquals;
 

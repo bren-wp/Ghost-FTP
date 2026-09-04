@@ -1,6 +1,6 @@
-package com.GhostFTP.client.remote;
+package com.ghostftp.client.remote;
 
-import com.GhostFTP.client.model.RemoteEntry;
+import com.ghostftp.client.model.RemoteEntry;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;

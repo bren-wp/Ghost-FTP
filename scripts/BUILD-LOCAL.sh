@@ -82,7 +82,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[10/16] Portable"
-go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$PORTABLE" ./cmd/GhostFTP
+go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$PORTABLE" ./cmd/ghostftp
 python3 scripts/pe_resources.py "$PORTABLE" --ico "$ICON" --version "$VERSION" --role portable --original-filename "GhostFTP-$VERSION-Portable-x64.exe"
 
 echo "[11/16] Internal uninstaller"

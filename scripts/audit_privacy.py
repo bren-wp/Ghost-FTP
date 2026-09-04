@@ -146,7 +146,7 @@ def audit_credentials_and_network_tools() -> None:
             fail(f"SFTP must not write AskPass secrets to disk: {forbidden}")
 
     askpass = require(
-        "cmd/GhostFTP/main.go",
+        "cmd/ghostftp/main.go",
         ("GhostFTP_ASKPASS_TOKEN", "GhostFTP_PASSWORD_BLOB", "GhostFTP_PASSPHRASE_BLOB", "TrustedAskPassParent", "selectAskpassSecret"),
     )
     if "GhostFTP_ASKPASS_FILE" in askpass:

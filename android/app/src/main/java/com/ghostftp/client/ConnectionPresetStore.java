@@ -1,8 +1,8 @@
-package com.GhostFTP.client;
+package com.ghostftp.client;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import com.GhostFTP.client.model.ConnectionConfig;
+import com.ghostftp.client.model.ConnectionConfig;
 
 /**
  * Persists only non-secret connection metadata in the app-private preferences

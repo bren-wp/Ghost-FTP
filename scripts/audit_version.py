@@ -65,7 +65,7 @@ def main() -> int:
     if f'id("com.android.application") version "{AGP_TOOLCHAIN}" apply false' not in android_root:
         fail(f"android/build.gradle.kts must use Android Gradle Plugin {AGP_TOOLCHAIN}")
 
-    for rel in ("cmd/GhostFTP/main.go", "cmd/installer/main.go"):
+    for rel in ("cmd/ghostftp/main.go", "cmd/installer/main.go"):
         text = read(rel)
         if 'var version = "dev"' not in text:
             fail(f"{rel} does not keep the safe development version fallback")

@@ -68,7 +68,7 @@ def main() -> int:
         if marker not in windows:
             fail(f"Windows live localization is missing: {marker}")
 
-    entrypoint = read("cmd/GhostFTP/main.go")
+    entrypoint = read("cmd/ghostftp/main.go")
     for marker in (
         "credential is not available",
         "invalid authentication request",
@@ -97,7 +97,7 @@ def main() -> int:
     forbidden_primary = {
         "README.md": ("Trenutačno izdanje:", "## Preuzimanje", "## Dokumentacija"),
         ".github/pull_request_template.md": ("## Ovlaštenje", "## Sažetak"),
-        "cmd/GhostFTP/main.go": (
+        "cmd/ghostftp/main.go": (
             "vjerodajnica nije dostupna",
             "neispravan zahtjev za prijavu",
             "nepouzdan nadređeni proces",

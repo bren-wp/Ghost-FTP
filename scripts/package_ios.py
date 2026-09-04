@@ -47,7 +47,7 @@ def validate_app(app: Path, version: str) -> str:
     with info_path.open("rb") as handle:
         info = plistlib.load(handle)
 
-    if info.get("CFBundleIdentifier") != "com.GhostFTP.client":
+    if info.get("CFBundleIdentifier") != "com.ghostftp.client":
         fail("unexpected CFBundleIdentifier")
     if info.get("CFBundleShortVersionString") != version:
         fail("iOS app version does not match VERSION")

@@ -1,4 +1,4 @@
-package com.GhostFTP.client.model;
+package com.ghostftp.client.model;
 
 public record RemoteEntry(String name, boolean directory, long size, long modifiedMillis) {
     public RemoteEntry {

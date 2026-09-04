@@ -443,7 +443,7 @@ final class SessionStore: ObservableObject {
 }
 
 private enum ConnectionPresetKeychain {
-    private static let service = "com.GhostFTP.client.connection-preset"
+    private static let service = "com.ghostftp.client.connection-preset"
     private static let account = "last-connection"
 
     static func load() -> ConnectionPreset? {

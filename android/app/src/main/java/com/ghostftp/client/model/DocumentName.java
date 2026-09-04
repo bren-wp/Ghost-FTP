@@ -1,4 +1,4 @@
-package com.GhostFTP.client.model;
+package com.ghostftp.client.model;
 
 public final class DocumentName {
     private DocumentName() {}

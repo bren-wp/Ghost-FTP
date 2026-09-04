@@ -4,7 +4,7 @@
 <dict>
   <key>CFBundleName</key><string>Ghost FTP</string>
   <key>CFBundleDisplayName</key><string>Ghost FTP</string>
-  <key>CFBundleIdentifier</key><string>io.github.bren-wp.GhostFTP</string>
+  <key>CFBundleIdentifier</key><string>io.github.bren-wp.ghostftp</string>
   <key>CFBundleVersion</key><string>@VERSION@</string>
   <key>CFBundleShortVersionString</key><string>@VERSION@</string>
   <key>CFBundleExecutable</key><string>GhostFTP</string>

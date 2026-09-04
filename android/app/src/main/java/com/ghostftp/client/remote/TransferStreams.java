@@ -1,4 +1,4 @@
-package com.GhostFTP.client.remote;
+package com.ghostftp.client.remote;
 
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
