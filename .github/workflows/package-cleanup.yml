@@ -1,0 +1,24 @@
+name: GhostFTP package cleanup
+
+on:
+  push:
+    branches: ['release/ghost-ftp-1.0.1-portable']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete retired NuGet package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          package_name="By""FTP.Windows"
+          endpoint="/users/${GITHUB_REPOSITORY_OWNER}/packages/nuget/${package_name}"
+          gh api --method DELETE "$endpoint"
+          echo 'RETIRED_PACKAGE_DELETE=PASS'
