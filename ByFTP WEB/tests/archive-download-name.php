@@ -31,7 +31,7 @@ check(
     'missing ZIP extension is appended'
 );
 check(
-    byftp_archive_download_name('.zip') === 'byftp-download.zip',
+    byftp_archive_download_name('.zip') === 'ghost-ftp-download.zip',
     'empty archive basename falls back to a stable filename'
 );
 check(
