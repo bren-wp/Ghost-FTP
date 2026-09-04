@@ -2,7 +2,7 @@
 
 `macos/` contains the canonical macOS packaging surface for the shared ByFTP desktop engine. The Go runtime remains shared under `cmd/` and `internal/`; macOS-specific bundle metadata, launcher behavior and Universal PKG build logic live here so the platform package does not duplicate the desktop core.
 
-**Current release: 1.9.0**
+**Current release: 1.9.1**
 
 ## Release target
 
@@ -12,7 +12,7 @@ The production macOS artifact is:
 dist/ByFTP-<version>-macOS-Universal.pkg
 ```
 
-The package contains a Universal Intel/Apple Silicon ByFTP runtime and `/Applications/ByFTP.app`. Release 1.9.0 reads the same root `VERSION` used by Windows, Linux, Android, iOS and ByFTP WEB. The repository build is intentionally not Developer ID signed until a valid Apple signing identity is supplied outside the repository.
+The package contains a Universal Intel/Apple Silicon ByFTP runtime and `/Applications/ByFTP.app`. Release 1.9.1 reads the same root `VERSION` used by Windows, Linux, Android, iOS and ByFTP WEB. The repository build is intentionally not Developer ID signed until a valid Apple signing identity is supplied outside the repository.
 
 ## Build
 
@@ -29,4 +29,4 @@ CI and the production release workflow invoke `macos/BUILD.sh` directly, execute
 
 ## Shared desktop core
 
-FTP, FTPS, SFTP, transfer, persistence, shared-hosting diagnostics and security code are intentionally not copied into `macos/`. macOS builds the same reviewed desktop engine as Windows and Linux, while keeping platform packaging and launcher details isolated here. The 1.9.0 release uses Go 1.27.1 and the same canonical security/release invariants as the other desktop targets.
+FTP, FTPS, SFTP, transfer, persistence, shared-hosting diagnostics and security code are intentionally not copied into `macos/`. macOS builds the same reviewed desktop engine as Windows and Linux, while keeping platform packaging and launcher details isolated here. The 1.9.1 release uses Go 1.27.1 and the same canonical transfer-cleanup, security and release-integrity invariants as the other desktop targets.
