@@ -6,10 +6,13 @@ namespace ByFTP\Remote;
 use ByFTP\Security\HostGuard;
 use RuntimeException;
 
-final class SftpClient implements RemoteClientInterface
+final class SftpClient implements RemoteClientInterface, BoundedDownloadInterface
 {
     private mixed $connection = null;
     private mixed $sftp = null;
+
+    /** @var array<string, int> */
+    private array $listedFileSizes = [];
 
     public function __construct(private array $profile)
     {
@@ -65,13 +68,17 @@ final class SftpClient implements RemoteClientInterface
             $stat = @ssh2_sftp_lstat($this->sftp, $remote) ?: [];
             $mode = (int)($stat['mode'] ?? 0);
             $isDir = ($mode & 0040000) === 0040000;
+            $size = max(0, (int)($stat['size'] ?? 0));
             $items[] = [
                 'name' => $name,
                 'type' => $isDir ? 'dir' : 'file',
-                'size' => (int)($stat['size'] ?? 0),
+                'size' => $size,
                 'modified' => isset($stat['mtime']) ? gmdate('c', (int)$stat['mtime']) : null,
                 'permissions' => substr(sprintf('%o', $mode), -4),
             ];
+            if (!$isDir) {
+                $this->listedFileSizes[PathGuard::normalizeRelative($remote)] = $size;
+            }
         }
         closedir($handle);
         usort($items, static fn(array $a, array $b): int => $a['type'] !== $b['type'] ? ($a['type'] === 'dir' ? -1 : 1) : strnatcasecmp((string)$a['name'], (string)$b['name']));
@@ -119,11 +126,16 @@ final class SftpClient implements RemoteClientInterface
         }
     }
 
-    public function download(string $remotePath, string $localFile, ?int $maxBytes = null): int
+    public function download(string $remotePath, string $localFile): void
+    {
+        $this->downloadBounded($remotePath, $localFile);
+    }
+
+    public function downloadBounded(string $remotePath, string $localFile, ?int $maxBytes = null): int
     {
         $this->ensureConnected();
-        $maxBytes = TransferLimiter::normalizeLimit($maxBytes);
-        $in = @fopen($this->uri($this->full($remotePath)), 'rb');
+        $remote = $this->full($remotePath);
+        $in = @fopen($this->uri($remote), 'rb');
         $out = @fopen($localFile, 'wb');
         if (!is_resource($in) || !is_resource($out)) {
             if (is_resource($in)) fclose($in);
@@ -132,6 +144,7 @@ final class SftpClient implements RemoteClientInterface
         }
         $sourceStat = fstat($in);
         $expected = is_array($sourceStat) ? (int)($sourceStat['size'] ?? -1) : -1;
+        $maxBytes = $this->effectiveDownloadLimit($remote, $maxBytes, $expected);
         try {
             if ($maxBytes !== null && $expected > $maxBytes) {
                 throw new RuntimeException('Download prelazi dopuštenu veličinu.');
@@ -191,8 +204,23 @@ final class SftpClient implements RemoteClientInterface
         $this->profile['password'] = '';
         $this->profile['private_key'] = '';
         $this->profile['key_passphrase'] = '';
+        $this->listedFileSizes = [];
         $this->sftp = null;
         $this->connection = null;
+    }
+
+    private function effectiveDownloadLimit(string $remote, ?int $maxBytes, int $expectedSize): ?int
+    {
+        $limit = TransferLimiter::normalizeLimit($maxBytes);
+        $snapshot = $this->listedFileSizes[$remote] ?? null;
+        unset($this->listedFileSizes[$remote]);
+        if (is_int($snapshot)) {
+            $limit = $limit === null ? $snapshot : min($limit, $snapshot);
+        }
+        if ($limit === null && $expectedSize >= 0) {
+            $limit = $expectedSize;
+        }
+        return $limit;
     }
 
     private function verifyHostFingerprint(mixed $conn, string $expected): void
