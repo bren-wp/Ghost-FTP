@@ -22,6 +22,12 @@ The web application additionally uses CSRF protection, strict session handling, 
 
 See [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Testing](docs/TESTING.md) for details.
 
+## Shared hosting
+
+Ghost FTP supports common shared-hosting FTP/FTPS/SFTP layouts without silently changing the user's remote location. Initial directory diagnostics can recognize conventional web roots such as `public_html`, `httpdocs`, `htdocs`, `www`, `web` and `html`, but detected paths are informational: Ghost FTP does not automatically navigate to or persist a derived web root.
+
+Usernames such as `account@domain` are supported, and FTP directory listings retain an MLSD-to-LIST compatibility path for hosts with older server configurations. Passive connection behavior and the security trade-offs of plain FTP versus FTPS/SFTP are documented in [Shared hosting](docs/SHARED-HOSTING.md).
+
 ## Releases
 
 Ghost FTP releases use the tag namespace `ghostftp-vX.Y.Z`. The first release in the Ghost FTP product line is `ghostftp-v1.0.0`; subsequent patch versions are `ghostftp-v1.0.1`, `ghostftp-v1.0.2`, and so on.
