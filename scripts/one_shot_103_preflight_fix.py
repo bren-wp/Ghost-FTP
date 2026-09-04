@@ -111,7 +111,7 @@ if ($start === false || $end === false || $end <= $start) {
 $block = substr($source, $start, $end - $start);
 $bufferPos = strpos($block, '$validatedItems = [];');
 $validateLoopPos = strpos($block, 'foreach ($items as $item)');
-$bufferAppendPos = strpos($block, "$validatedItems[] = ['path' => $path, 'type' => $type];");
+$bufferAppendPos = strpos($block, '$validatedItems[] =');
 $executeLoopPos = strpos($block, 'foreach ($validatedItems as $item)');
 $deletePos = strpos($block, '$ops->deleteRecursive(', $executeLoopPos === false ? 0 : $executeLoopPos);
 $malformedPos = strpos($block, 'Popis za skupno brisanje sadrži neispravnu stavku.');
