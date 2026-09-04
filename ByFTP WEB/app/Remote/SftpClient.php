@@ -137,21 +137,27 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
         $this->ensureConnected();
         $remote = $this->full($remotePath);
         $in = @fopen($this->uri($remote), 'rb');
-        $out = @fopen($localFile, 'wb');
-        if (!is_resource($in) || !is_resource($out)) {
-            if (is_resource($in)) fclose($in);
-            if (is_resource($out)) fclose($out);
+        if (!is_resource($in)) {
             throw new RuntimeException('Download nije moguće pokrenuti.');
         }
+
         $sourceStat = fstat($in);
         $expected = is_array($sourceStat) && array_key_exists('size', $sourceStat) && is_numeric($sourceStat['size'])
             ? max(0, (int)$sourceStat['size'])
             : -1;
         $maxBytes = $this->effectiveDownloadLimit($remote, $maxBytes, $expected);
+        $maxBytes = TransferLimiter::limitForDestination($localFile, $maxBytes);
+        if ($expected >= 0 && $expected > $maxBytes) {
+            fclose($in);
+            throw new RuntimeException('Download prelazi dopuštenu veličinu.');
+        }
+
+        $out = @fopen($localFile, 'wb');
+        if (!is_resource($out)) {
+            fclose($in);
+            throw new RuntimeException('Download nije moguće pokrenuti.');
+        }
         try {
-            if ($maxBytes !== null && $expected > $maxBytes) {
-                throw new RuntimeException('Download prelazi dopuštenu veličinu.');
-            }
             $copied = TransferLimiter::copy($in, $out, $maxBytes);
             if ($expected >= 0 && $copied !== $expected) {
                 throw new RuntimeException('Download nije dovršen u cijelosti.');
@@ -212,18 +218,11 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
         $this->connection = null;
     }
 
-    private function effectiveDownloadLimit(string $remote, ?int $maxBytes, int $expectedSize): ?int
+    private function effectiveDownloadLimit(string $remote, ?int $maxBytes, int $expectedSize): int
     {
-        $limit = TransferLimiter::normalizeLimit($maxBytes);
         $snapshot = $this->listedFileSizes[$remote] ?? null;
         unset($this->listedFileSizes[$remote]);
-        if (is_int($snapshot)) {
-            $limit = $limit === null ? $snapshot : min($limit, $snapshot);
-        }
-        if ($limit === null && $expectedSize >= 0) {
-            $limit = $expectedSize;
-        }
-        return $limit;
+        return TransferLimiter::effectiveLimit($maxBytes, is_int($snapshot) ? $snapshot : null, $expectedSize);
     }
 
     private function verifyHostFingerprint(mixed $conn, string $expected): void
