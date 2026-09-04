@@ -1,24 +1,6 @@
-# ByFTP for Linux
+# Ghost FTP for Linux
 
-`linux/` is the canonical Linux application packaging surface. The runtime itself remains in the shared Go desktop core under `cmd/` and `internal/` so Linux, Windows and macOS do not carry duplicated protocol, transfer or security implementations.
-
-**Current release: 1.9.2**
-
-## Contents
-
-- `BUILD.sh` — production Linux build and DEB packaging entry point.
-- `byftp.desktop` — desktop-entry metadata installed under `/usr/share/applications`.
-- `debian/control.in` — DEB metadata template populated from the root `VERSION` and target architecture.
-
-## Release architectures
-
-The production build generates:
-
-- `ByFTP-<version>-Linux-amd64.deb`
-- `ByFTP-<version>-Linux-arm64.deb`
-- `ByFTP-<version>-Linux-i386.deb`
-
-All three packages are built from the same canonical source and root `VERSION`. Release 1.9.2 therefore uses the same product version as Windows, macOS, Android, iOS and ByFTP WEB.
+Ghost FTP Linux packages are built by `linux/BUILD.sh` for `amd64`, `arm64` and `i386`.
 
 ## Build
 
@@ -27,10 +9,27 @@ go telemetry off
 bash linux/BUILD.sh
 ```
 
-The current reviewed native toolchain is **Go 1.27.1** plus `dpkg-deb`, with Go telemetry disabled. The build is dependency-locked (`GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local`) and uses the shared `build/icon.png` brand asset.
+The script creates:
 
-CI and the production release workflow invoke `linux/BUILD.sh` directly, run unit/integration tests and `go vet`, then verify Package, Version and Architecture fields for every generated DEB. There is no second Linux production-build implementation or compatibility wrapper under `scripts/`.
+```text
+dist/Ghost-FTP-X.Y.Z-Linux-amd64.deb
+dist/Ghost-FTP-X.Y.Z-Linux-arm64.deb
+dist/Ghost-FTP-X.Y.Z-Linux-i386.deb
+```
 
-## Shared desktop core
+The GitHub Release combines these verified packages into one public download:
 
-FTP, FTPS, SFTP, transfer, persistence, shared-hosting diagnostics and security logic remain in the reviewed common Go core. Linux packaging does not carry a forked protocol implementation, so the 1.9.1 native transfer-cleanup/security fixes remain inherited from the same source used by Windows and macOS; 1.9.2 adds WEB-only bounded download hardening without changing the Linux transport implementation.
+```text
+Ghost-FTP-X.Y.Z-Linux-multiarch.zip
+```
+
+## Installed identity
+
+- Debian package: `ghost-ftp`
+- executable: `/usr/bin/ghostftp`
+- desktop name: **Ghost FTP**
+- desktop entry: `ghost-ftp.desktop`
+
+Runtime dependencies declared by the package are `ca-certificates`, `curl` and `openssh-client`.
+
+Production build scripts require Go telemetry to be disabled and use controlled Go dependency settings from CI.
