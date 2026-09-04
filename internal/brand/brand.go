@@ -1,9 +1,9 @@
 package brand
 
 const (
-	ProductName = "ByFTP"
-	ProductFull = "ByFTP file transfer client"
-	Company     = "ByFTP"
-	Website     = "https://github.com/bren-wp/by-ftp"
-	Support     = "https://github.com/bren-wp/by-ftp/issues"
+	ProductName = "Ghost FTP"
+	ProductFull = "Ghost FTP file transfer client"
+	Company     = "Ghost FTP"
+	Website     = "https://github.com/bren-wp/Ghost-FTP"
+	Support     = "https://github.com/bren-wp/Ghost-FTP/issues"
 )
