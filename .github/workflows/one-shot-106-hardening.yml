@@ -1,0 +1,74 @@
+name: Apply Ghost FTP 1.0.6 atomic recovery hardening
+
+on:
+  push:
+    branches:
+      - release/ghost-ftp-1.0.6-quality
+    paths:
+      - scripts/one_shot_106_hardening.py
+      - .github/workflows/one-shot-106-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout patch branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: release/ghost-ftp-1.0.6-quality
+          fetch-depth: 0
+
+      - name: Apply deterministic patch
+        run: python3 scripts/one_shot_106_hardening.py
+
+      - name: Remove all one-shot tooling before production audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f scripts/one_shot_106_hardening.py
+          find .github/workflows -maxdepth 1 -type f -name 'one-shot-*' -print -delete
+          if find .github/workflows -maxdepth 1 -type f -name 'one-shot-*' | grep -q .; then
+            echo 'One-shot workflow cleanup failed.' >&2
+            exit 1
+          fi
+
+      - name: Validate atomic recovery and repository hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          find 'GhostFTP WEB' -name '*.php' -type f -print0 | xargs -0 -n1 php -l >/tmp/php-lint.log
+          cat /tmp/php-lint.log
+          php 'GhostFTP WEB/tests/atomic-upload-recovery.php'
+          php 'GhostFTP WEB/tests/public-error-boundary.php'
+          php 'GhostFTP WEB/tests/html-error-and-interface-boundary.php'
+          php 'GhostFTP WEB/tests/unit.php'
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          go test ./...
+          go vet ./...
+          python3 scripts/audit_repository.py
+          python3 scripts/audit_security.py
+          python3 scripts/audit_privacy.py
+          python3 scripts/audit_web.py
+          python3 scripts/audit_version.py
+          python3 scripts/audit_docs.py
+          python3 scripts/audit_release.py
+          git diff --check
+
+      - name: Commit clean validated production tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo'
+          git config user.email 'info@brendigo.com'
+          git add -A
+          if git ls-files '.github/workflows/one-shot-*' | grep -q .; then
+            echo 'Tracked one-shot workflow remains after cleanup.' >&2
+            exit 1
+          fi
+          git diff --cached --check
+          git status --short
+          git commit -m 'Harden atomic overwrite recovery and repository hygiene for 1.0.6'
+          git push origin HEAD:release/ghost-ftp-1.0.6-quality
