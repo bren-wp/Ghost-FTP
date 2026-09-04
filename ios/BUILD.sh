@@ -10,18 +10,14 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+for part in "$MAJOR" "$MINOR" "$PATCH"; do
+  (( part >= 0 && part <= 999 )) || { echo 'VERSION components must be between 0 and 999.' >&2; exit 1; }
+done
 
-# Ghost FTP retains the existing com.ghostftp.client bundle identity so installed users
-# can upgrade in place. Keep the internal CFBundleVersion monotonically above the
-# last published GhostFTP build even though the public marketing version restarts at 1.0.0.
-SEMANTIC_BUILD_NUMBER=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
-GHOST_FTP_BUILD_EPOCH=1000000
-LEGACY_GhostFTP_BUILD_FLOOR=1009002
-BUILD_NUMBER=$((GHOST_FTP_BUILD_EPOCH + SEMANTIC_BUILD_NUMBER))
-if (( BUILD_NUMBER <= LEGACY_GhostFTP_BUILD_FLOOR )); then
-  echo "Ghost FTP iOS build number must stay above the published GhostFTP build floor" >&2
-  exit 1
-fi
+# GhostFTP uses a new bundle identity. CFBundleVersion is derived directly from
+# the canonical semantic version and contains no migration epoch or legacy floor.
+BUILD_NUMBER=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
+(( BUILD_NUMBER > 0 )) || { echo 'Ghost FTP iOS build number must be positive.' >&2; exit 1; }
 
 PROJECT="$ROOT/ios/GhostFTP.xcodeproj"
 SCHEME="GhostFTP"
@@ -34,10 +30,9 @@ ICON_DIR="$ROOT/ios/GhostFTP/Assets.xcassets/AppIcon.appiconset"
 for required in "$PROJECT/project.pbxproj" "$ICON_SOURCE" "$ROOT/ios/GhostFTP/Info.plist"; do
   [[ -f "$required" ]] || { echo "Missing required iOS build input: $required" >&2; exit 1; }
 done
-command -v xcodebuild >/dev/null
-command -v xcrun >/dev/null
-command -v sips >/dev/null
-command -v python3 >/dev/null
+for tool in xcodebuild xcrun sips python3 lipo; do
+  command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
+done
 
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT" "$ICON_DIR"
@@ -95,6 +90,7 @@ xcodebuild \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY='' \
   DEVELOPMENT_TEAM='' \
+  PRODUCT_BUNDLE_IDENTIFIER='com.ghostftp.client' \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   ONLY_ACTIVE_ARCH=NO \
