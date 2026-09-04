@@ -84,6 +84,7 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 - Destructive/batch mutation inputs fail closed before partial application when their shape or source set is invalid.
 - Multi-file upload validates the complete request shape, temporary upload identity and normalized remote destination set before the first remote mutation.
 - Public Web error responses expose deliberate validation messages but replace unexpected PHP/extension Throwable details with a generic internal-error response.
+- Known application validation failures use HTTP 400; unexpected internal `Throwable` failures use HTTP 500 without exposing their raw message to the client.
 - Password changes/rehashes use generation-aware compare-and-swap behavior.
 - User deletion is two-phase/retryable and does not traverse unsafe workspace-root symlinks.
 - Encryption keys are not rotated over pre-existing encrypted data during recovery.
