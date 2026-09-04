@@ -1,75 +1,35 @@
-# ByFTP build and verification tools
+# Ghost FTP build and audit scripts
 
-This directory contains shared development/CI audit, packaging, release and verification utilities. Platform-specific production build entry points live with their applications under `linux/`, `macos/` and `ios/`; they are not duplicated here.
+This directory contains the maintained packaging, security, privacy and verification tooling used by Ghost FTP.
 
-**Current release: 1.9.2**
+## Canonical release path
 
-## Build and packaging tools
+GitHub Releases are assembled by `.github/workflows/release.yml`. There is no second PowerShell release publisher: keeping one publication path reduces version/tag drift and stale artifact naming.
 
-- `BUILD-LOCAL.sh` — local/offline cross-build smoke check for the shared desktop core.
-- `make_payload.py` — creates the Windows Setup **schema-2 app-only payload**. The archive contains exactly verified `ByFTP.exe` plus `manifest.json`; it does not accept or embed a standalone uninstaller.
-- `pe_resources.py` — writes Windows PE icon, manifest and VERSIONINFO resources for the only supported PE roles: `portable` and `setup`.
-- `generate_brand_assets.py` — reproducibly generates and verifies PNG/ICO brand assets.
-- `package_windows_bundles.ps1` — centralizes verified x64/x86 Windows distribution ZIP creation, bundle SHA-256 generation and the no-uninstaller output scan.
-- `package_android.py` — validates debug/release APK structure and stages versioned Android release artifacts.
-- `package_ios.py` — validates the native iOS `.app`, version/bundle identity, Mach-O executable and archive paths before staging versioned unsigned IPA/app artifacts.
-- `package_web.py` — builds the deterministic shared-hosting WEB ZIP exclusively from tracked production files and verifies VERSION, Composer and PWA metadata after packaging.
-- `prepare_release.ps1` — enforces the exact 15-platform-artifact public allowlist, rejects uninstall-named assets, generates shared release metadata/SHA-256 evidence and requires exactly 18 final public files.
+Important maintained tools include:
 
-Canonical production build entry points are [`BUILD-WINDOWS.ps1`](../BUILD-WINDOWS.ps1), [`linux/BUILD.sh`](../linux/BUILD.sh), [`macos/BUILD.sh`](../macos/BUILD.sh) and [`ios/BUILD.sh`](../ios/BUILD.sh). Windows 1.9.2 builds exactly Portable + Setup for x64/x86 and fails if an uninstall-named binary is produced.
+- `release_notes.py` — generates Ghost FTP release notes from `CHANGELOG.md`.
+- `package_web.py` — creates the shared-hosting web archive used by CI.
+- `audit_security.py` — security-policy regression checks.
+- `audit_privacy.py` — privacy/telemetry regression checks.
+- platform build/package helpers that are still referenced by CI or local documented workflows.
 
-## Reviewed toolchain
+## Release identity
 
-- Go 1.27.1 for the native desktop core and Windows/Linux/macOS builds.
-- Android Gradle Plugin 9.4.0, Gradle 9.7.1, JDK 17, Android API 37 and Build Tools 36.0.0.
-- Xcode/macOS runner for the native arm64 iPhoneOS build.
-- PHP 8.1+ and Node syntax checks for ByFTP WEB verification.
+Ghost FTP uses `VERSION` plus namespaced tags:
 
-The exact production pins are enforced by `audit_version.py` and the CI/release workflow definitions.
+```text
+ghostftp-vX.Y.Z
+```
 
-## Audit tools
+Historical ByFTP tags are immutable and are not reused.
 
-- `audit_repository.py` — enumerates every tracked Git path/file and enforces portable paths, no committed build/cache output, strict UTF-8/text hygiene, no unresolved merge markers and canonical current-release metadata.
-- `audit_localization.py` — verifies English-first localization, supported desktop catalogs and Windows startup fallback policy.
-- `audit_version.py` — verifies the single `VERSION`, Go 1.27.1, Gradle 9.7.1, AGP 9.4.0, canonical platform build entry points, ByFTP WEB version/cache binding and repository-audit integration.
-- `audit_web.py` — runs PHP/JavaScript syntax checks and WEB runtime regressions for paths, users, archive operations, recovery, rate limiting, encrypted profiles/preferences, SFTP host-key pinning and authentication concurrency.
-- `audit_android.py` — verifies Android TLS/SSH, permissions, canonical names/login-root paths, lifecycle, credential lifetime, diagnostics, picker-state and version invariants.
-- `audit_ios.py` — verifies native iOS project structure, transport/path hardening, diagnostics, pending-session/temp-file cleanup, privacy/lifecycle rules, Xcode version binding and unsigned IPA packaging contract.
-- `audit_docs.py` — checks local documentation links, platform guides, documentation indexing and version-neutral long-lived document titles.
-- `audit_security.py` — protects filesystem, credential, transfer, session and shared-hosting diagnostic security invariants.
-- `audit_privacy.py` — enforces privacy and network policy.
-- `audit_release.py` — validates repository/WEB integrity, current toolchains, Windows/Linux/macOS/Android/iOS/WEB packaging, app-only Windows/no-uninstaller invariants and the centralized 18-file publisher contract.
-- `audit_release_version_guard.py` — prevents mutation of already-published version lines.
+## Build invariants
 
-## Regression and release tools
+Production workflows disable Go telemetry and use controlled dependency resolution. Final release filenames are assembled only after all platform jobs pass, then checksummed in `SHA256.txt`.
 
-- `test_audit_repository.py` — unit coverage for repository path, symlink, text and current-version rules.
-- `test_stability_hardening.py` — protects WEB staged ZIP extraction, administrator-only diagnostics and confirmed dead-code removal.
-- `test_runtime_hardening.py` — protects runtime lifecycle invariants plus transfer cleanup, WEB JSON-state bounds, FTP LIST filename parsing, 1.9.2 bounded FTP/FTPS/SFTP temp downloads and delayed release-readback contracts.
-- `test_package_web.py` — executes the WEB packager and verifies exact safe tracked-source membership plus runtime-state exclusion.
-- `verify_release.py` — validates the Windows **Setup + Portable** PE pair for one architecture and emits `UNINSTALLER_BINARY=ABSENT`; it does not accept an uninstaller argument.
-- `verify_bundle.py` — fail-closed validation of Windows release ZIP contents, paths and `BUNDLE-SHA256.txt`.
-- `release_notes.py` — generates release notes from the exact matching `CHANGELOG.md` section.
-- `publish_release.ps1` — centralized GitHub Release publication with current-`main` guard, tag/commit checks, immediate complete remote asset verification and delayed second asset/digest readback.
-- `test_release_tools.py`, `test_package_android.py`, `test_package_ios.py` and other `test_*.py` files provide release-tool regression coverage.
+Do not add a second script that independently creates or force-updates GitHub Releases. New release logic belongs in the canonical workflow and must preserve tag immutability, checksum generation and explicit signing status.
 
-## Production rules
+## Security
 
-1. `VERSION` is the only production version source; all maintained surfaces must resolve to the same release number.
-2. Every tracked repository file must pass `audit_repository.py` through the release-integrity gate.
-3. Go telemetry must be disabled before production desktop builds.
-4. Production Go builds run with `GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local` and Go 1.27.1.
-5. Security, privacy, localization, documentation, WEB, Android, iOS, version and release audits must pass.
-6. Linux packaging belongs under `linux/`, macOS packaging under `macos/`, and the iOS build entry point under `ios/`; obsolete platform wrappers under `scripts/` are rejected.
-7. Windows Setup payload schema 2 contains only `ByFTP.exe` and its manifest. `cmd/uninstaller`, a generated `Uninstall.exe` and an uninstaller PE-resource role are forbidden.
-8. Windows Setup/Portable x64/x86 binaries and ZIP bundles are checked against explicit allowlists and SHA-256 manifests.
-9. Android debug and unsigned release APKs must pass JUnit, warning-as-error lint and structural/path validation before staging.
-10. iOS must compile as a native arm64 iPhoneOS app and its unsigned IPA/app artifacts must pass bundle/version/Mach-O/path validation before staging.
-11. WEB must pass runtime/security audits and deterministic tracked-source ZIP packaging before staging.
-12. Public release staging must contain exactly 15 platform artifacts before the three shared metadata files are generated, for 18 final public files.
-13. GitHub Release publication is performed only through `publish_release.ps1`; final remote assets are verified immediately and again after a propagation delay against the exact release commit and local SHA-256 evidence.
-14. Production Android/Apple/Authenticode signing identities are external secrets and must never be fabricated or committed.
-
-## Documentation
-
-See the [Linux guide](../linux/README.md), [macOS guide](../macos/README.md), [Android guide](../android/README.md), [iOS guide](../ios/README.md), [ByFTP WEB guide](../ByFTP%20WEB/README.md), [GitHub releases](../docs/GITHUB-RELEASES.md), [Release verification](../docs/RELEASE-VERIFICATION.md), [Testing](../docs/TESTING.md) and [Security](../docs/SECURITY.md).
+Never embed production signing keys, tokens, FTP credentials, recovery secrets or private certificates in scripts. Signing credentials must remain outside the public repository.
