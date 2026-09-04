@@ -156,7 +156,7 @@ def main() -> int:
         ),
         "cmd/installer/main.go",
     )
-    if "legacyUninstallKey" in installer:
+    if "uninstallKey" in installer:
         fail("Windows installer still exposes a legacy uninstall-key concept")
 
     require(
