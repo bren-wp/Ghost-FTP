@@ -1,106 +1,127 @@
 # Security
 
-ByFTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
+Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current release: 1.9.2**
+**Current Ghost FTP release: 1.0.0**
 
-## Desktop
+## Desktop core
 
 FTP over TLS validates certificates. SFTP pins and verifies the host key. Uploads use stable local snapshots, remote writes use temporary staging and destination revalidation, and overwrite paths use backup/rollback logic. Local recursive operations guard against symlinks, junctions and reparse-point traversal.
 
-Private upload-source snapshots retain their owned cleanup path if fail-closed removal itself fails, allowing deferred or explicit cleanup to retry instead of losing the only reference to residual sensitive data. After a downloaded replacement is committed locally, failure to remove the temporary rollback copy is reported explicitly instead of silently returning success while stale content remains.
+Private upload-source snapshots retain their owned cleanup path if fail-closed removal itself fails, allowing cleanup to be retried instead of losing the only reference to residual sensitive data. After a downloaded replacement is committed locally, failure to remove a rollback copy is reported instead of silently returning success.
 
-Credentials must never be logged. Windows saved profile secrets are DPAPI protected. External processes receive a minimized environment and bounded output. AskPass remains parent/token constrained and clears inherited credential state before secret use.
+Credentials must never be logged. Windows saved profile secrets are protected with DPAPI. Runtime secret material is kept ephemeral on supported platforms. External processes receive a minimized environment and bounded output. OpenSSH AskPass is parent/token constrained, clears inherited credential state before secret use and refuses unknown/MFA-style prompts instead of supplying a stored secret.
 
-Windows 1.9.2 Setup does not build or install a standalone `Uninstall.exe`. The Setup payload contains only verified `ByFTP.exe` plus a schema-2 integrity manifest. Upgrade rollback covers the application/App Paths transaction, while cleanup of a legacy pre-1.8.0 `Uninstall.exe` happens only after the new application commit and refuses unsafe symlink/reparse/non-regular paths. `BUILD-WINDOWS.ps1`, `scripts/package_windows_bundles.ps1` and public release staging independently reject uninstall-named generated assets.
+The maintained desktop toolchain is pinned by CI. Production builds disable Go telemetry and external module downloads before compiling.
 
-The maintained desktop toolchain is Go 1.27.1 and all Windows/Linux/macOS CI/release jobs pin that exact version with local toolchain mode and Go telemetry disabled.
+## Windows installer and upgrade boundary
+
+Ghost FTP 1.0.0 Setup uses an application-only verified payload and does not publish a standalone `Uninstall.exe`.
+
+The installer validates its embedded payload manifest and digest, stages verified bytes, protects installation paths against unsafe redirection/reparse behavior and uses rollback-aware file/registry transactions.
+
+A small set of historical identifiers is intentionally retained only to preserve safe upgrades from existing installations:
+
+- installed executable name `ByFTP.exe`;
+- old Windows App Paths entry for `ByFTP.exe`;
+- old ByFTP uninstall registry key used for migration/cleanup;
+- installer payload member name `ByFTP.exe`.
+
+These are compatibility identifiers, not public branding. Setup dialogs, build outputs, PE VERSIONINFO and manifests use **Ghost FTP**. Public Windows release files are `Ghost-FTP-X.Y.Z-Setup-x64.exe`, `Ghost-FTP-X.Y.Z-Setup-x86.exe` and the byte-identical x32 alias of x86.
 
 ## Android
 
 Android uses a separate native protocol boundary:
 
 - SFTP requires an OpenSSH-style `SHA256:` host-key fingerprint.
-- The fingerprint is Base64-decoded and must be exactly a 32-byte SHA-256 digest before SSHJ receives the canonical value.
+- Fingerprints are decoded and validated before use by the SSH layer.
 - Permissive/promiscuous SFTP verifiers are forbidden.
-- Explicit/implicit FTPS use platform trust, endpoint/hostname checking and `PROT P`.
-- ByFTP Android source is audited against custom trust-all `X509TrustManager` and permissive hostname-verifier patterns.
-- Plain FTP is retained only for explicit compatibility and is unencrypted.
-- FTP/FTPS map UI `/` to the authenticated login/account root; unavailable `PWD` falls back to login-relative paths.
-- Remote paths fail closed on traversal, `.`/`..`, duplicate separators, backslashes, NULs and noncanonical single-component names instead of rewriting them.
-- Host/port validation is bounded and username/password control characters are rejected.
-- Passwords and passphrases remain session-only and are never written to preferences, databases, files or a project backend.
-- Android may remember only the last successful non-secret connection metadata in app-private preferences: protocol, host, port, username and SFTP fingerprint.
-- The password field is cleared after every connect attempt and again during Activity teardown.
-- Storage Access Framework is used instead of broad storage permissions; backup/device-transfer rules exclude app data.
-- Multi-file upload validates every target name before transfer and rejects duplicate target names in the same batch.
-- Active/pending clients and file-picker state are cleaned during lifecycle teardown; stale UI callbacks are ignored through the lifecycle guard.
+- Explicit/implicit FTPS use platform trust, endpoint/hostname validation and protected data channels.
+- Plain FTP remains available only as an explicitly unencrypted compatibility mode.
+- Remote paths fail closed on traversal, dot components, duplicate separators, backslashes, NULs and noncanonical names.
+- Host/port input is bounded and credential control characters are rejected.
+- Passwords/passphrases are session-only and are not persisted by Ghost FTP.
+- Remembered connection metadata excludes secrets.
+- Password UI state is cleared after connection attempts and lifecycle teardown.
+- Storage Access Framework is used instead of broad storage permissions.
+- Lifecycle generation guards prevent stale callbacks from mutating a newer/disconnected session.
 
-Android SFTP private-key import remains deferred until Android Keystore-backed handling, import validation and migration semantics are implemented and audited.
+The Android package/application identifier may retain a legacy `byftp` namespace for installed-app identity compatibility. The visible application name is **Ghost FTP**.
 
-The 1.9.2 Android build uses **AGP 9.4.0**, **Gradle 9.7.1**, JDK 17, API 37 and build-tools 36.0.0. The patch release does not relax TLS, SSH, lint, lifecycle or signing invariants.
+CI produces an installable APK. A production Play signing key must remain outside the repository; a debug-signed CI artifact must never be represented as store-signed production software.
 
 ## iOS
 
-The native iOS release supports FTP and implicit FTPS through Apple Network.framework.
+The native iOS application currently uses platform networking for its supported FTP/FTPS transport surface.
 
-- Implicit FTPS uses platform TLS validation and protects the FTP data channel with `PBSZ 0` / `PROT P`.
-- No custom trust-all callback or global App Transport Security bypass is used.
-- FTP UI paths and server-reported login roots reject traversal, backslashes, duplicate separators, NULs and dot components.
-- EPSV is preferred. PASV fallback ignores the server-provided host and opens the data connection only to the user-selected endpoint.
-- FTP command names are constrained and command arguments/credentials reject CR/LF/NUL control characters.
-- Network reads/listings are bounded; downloads are streamed to temporary files rather than accumulated unbounded in memory.
-- Session generation prevents stale asynchronous work from mutating a disconnected/newer session.
-- The UI password is cleared after each connect attempt; the FTP actor clears its own password copy after authentication; the app disconnects on background transition.
-- iOS may remember only non-secret protocol/host/port/username metadata in Keychain using `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
-- Upload uses security-scoped document access; failed/stale temporary downloads are cleaned up.
-- No `UserDefaults` credential store, WebView wrapper, analytics SDK or fixed runtime service endpoint is part of the iOS application.
+- TLS validation remains platform-controlled; there is no trust-all callback or global ATS bypass.
+- Remote paths and server-reported roots reject traversal, backslashes, duplicate separators, NULs and dot components.
+- EPSV is preferred and PASV fallback does not trust a server-supplied alternate host.
+- FTP commands/arguments and credentials reject CR/LF/NUL injection.
+- Reads/listings are bounded and downloads use temporary files instead of unbounded in-memory accumulation.
+- Session generation prevents stale asynchronous work from mutating a newer session.
+- Credential UI/runtime copies are cleared after use where practical.
+- Persisted connection metadata excludes secrets and uses restrictive Keychain accessibility.
+- Failed/stale temporary downloads are cleaned up.
+- No analytics SDK, WebView wrapper or fixed Ghost FTP backend endpoint is part of the app.
 
-Explicit FTPS and SFTP are not exposed on iOS until separately audited native implementations exist.
+The existing Xcode project/bundle identifiers may retain legacy `ByFTP` naming for application identity compatibility. Public application naming is **Ghost FTP**.
 
-## ByFTP WEB
+The CI IPA is a real arm64 device build but is unsigned. Normal device/TestFlight/App Store distribution requires a legitimate Apple signing identity and provisioning profile managed outside the repository.
 
-Release 1.9.2 treats authentication, encrypted profiles, archive extraction, privileged diagnostics, runtime policy and local temp-transfer budgets as security state.
+## Web/PWA
 
-- `app.json`, `users.json`, rate-limit counters, encrypted `profiles.json`, privacy-bearing `preferences.json` and legacy migration state fail closed when the primary generation is corrupt or missing. Adjacent `.bak` files remain available only for explicit operator recovery.
-- Each JSON runtime-state file is limited to 8 MiB for both reads and writes. Reads are bounded before `json_decode`, preventing an abnormal state file from first being loaded without a memory bound.
-- Login and registration consume their rate-limit budget atomically before password/account mutation work. Login consumes the source-IP budget first and stops before account-specific state when the IP is already blocked.
-- Saved FTP/SFTP secrets are bound to the exact endpoint/account/key identity. Blank secret fields cannot inherit credentials after host, port, username or private-key identity changes.
-- SFTP requires a pinned SHA-256 host fingerprint before `ClientFactory` creates a client; `SftpClient` verifies the connected server key against that pin.
-- Password changes and password rehashes use compare-and-swap against the exact password-hash generation that was verified.
-- Authentication completion rechecks that verified hash generation under the atomic registry update used to publish login metadata.
-- User deletion is two-phase and retryable. The registry keeps an inactive `deleting` row until workspace cleanup is verified; workspace-root symlinks are unlinked rather than traversed.
-- First setup and configuration recovery never rotate the encryption key over pre-existing protected data.
-- Remote connection target validation resolves and validates exact target IPs; transports connect to those validated targets rather than re-resolving a hostname after the security decision.
-- The raw Unix FTP LIST fallback removes ` -> target` only from actual symlink entries, preserving legitimate regular filenames that contain the same text.
-- Production FTP/FTPS and SFTP clients implement a bounded-download capability. File sizes observed by the preceding listing/stat operation are consumed as one-shot download budgets, so a remote file that grows between preflight and transfer cannot silently expand local temp usage beyond the validated snapshot.
-- FTP/FTPS uses non-blocking transfer progress with repeated local destination-size checks. Limit/mismatch failures truncate the partial temp file and close the FTP connection so an interrupted transaction is not reused in uncertain protocol state.
-- SFTP uses a bounded `maxBytes + 1` stream probe and rejects the transfer before an arbitrary oversized source can be copied in full. Public image previews independently remain capped at 10 MiB.
-- ZIP extraction completes archive topology validation, existing-remote conflict validation and local decompression/materialization before any remote `mkdir` or upload. The 512 MiB limit is checked against actual cumulative decompressed bytes, staged temp files are always cleaned and late archive corruption cannot trigger earlier remote writes.
-- `diagnostics.php` requires administrator authorization because runtime/PHP/OpenSSL/hosting capability data is privileged operational information.
+`ByFTP WEB/` is the legacy-named source directory for the **Ghost FTP** shared-hosting application. The source path and some internal PHP symbols are retained for compatibility; the product/UI/package metadata are Ghost FTP.
 
-ByFTP WEB uses SameSite=Strict/HttpOnly cookies, CSRF tokens, cross-site POST filtering, CSP, no-store responses for sensitive surfaces and explicit no-index protections. Saved connection secrets are encrypted with Sodium secretbox or AES-256-GCM/OpenSSL fallback using an installation-specific 256-bit key.
+Authentication, encrypted profiles, runtime state, archive processing and temporary-transfer budgets are security state:
 
-The deployable WEB release ZIP is built by `scripts/package_web.py` from tracked production files only. The packager rejects symlinks/unsafe paths/case-fold collisions and validates archived VERSION, Composer metadata and PWA cache namespace. Runtime users, config, cache and backup data cannot enter the public archive unless incorrectly committed to Git, which the repository audit separately blocks as generated/runtime state.
+- JSON state reads/writes are bounded and fail closed on malformed/corrupt primary state.
+- Login/registration rate-limit budgets are consumed before sensitive account mutation work.
+- Saved connection secrets are bound to the exact endpoint/account/key identity.
+- SFTP requires a pinned SHA-256 host fingerprint and verifies the connected server key against that pin.
+- Password changes/rehashes use generation-aware compare-and-swap behavior.
+- User deletion is two-phase/retryable and does not traverse unsafe workspace-root symlinks.
+- Encryption keys are not rotated over pre-existing encrypted data during recovery.
+- Connection target validation resolves/validates exact targets before transport use.
+- FTP/FTPS and SFTP downloads are bounded; partial/oversized temporary files are cleaned.
+- ZIP extraction validates archive topology, existing-remote conflicts and decompressed size before remote writes.
+- Diagnostics are authorization-protected because hosting/runtime capability information is operationally sensitive.
 
-## Repository and release integrity
+Ghost FTP Web uses SameSite=Strict/HttpOnly cookies, CSRF tokens, cross-site POST filtering, CSP, HSTS on HTTPS, no-store behavior for sensitive surfaces and explicit no-index protections. Saved connection secrets use authenticated encryption with an installation-specific key.
 
-The repository-wide fail-closed audit checks every tracked Git file. It rejects case-insensitive path collisions, Windows-reserved path components, tracked symlinks, committed build/cache artifacts, invalid UTF-8 or unexpected NUL content, BOMs, trailing whitespace, missing final newlines, unresolved merge-conflict markers and stale explicit current-release markers.
+The PWA cache namespace is `ghostftp-static-vX.Y.Z`; activation removes superseded Ghost FTP caches and legacy `byftp-static-*` caches. Navigation, API, account, setup, diagnostics, download and preview responses are never stored in the offline cache.
 
-The no-uninstaller invariant remains explicit: `cmd/uninstaller`, a Windows build path that produces an uninstall binary, a payload `--uninstaller` option or an uninstaller PE-resource role must not re-enter the maintained release surface.
+`scripts/package_web.py` builds `Ghost-FTP-X.Y.Z-Web.zip` from tracked production files only and rejects symlinks, unsafe paths and case-fold collisions. Runtime users/config/cache/backup data must not enter the public archive.
 
-For 1.9.2, `scripts/prepare_release.ps1` enforces exactly 15 platform artifacts before metadata and 18 final public files. Unexpected or uninstall-named assets fail closed before publication. `scripts/publish_release.ps1` verifies the complete remote asset set and SHA-256 digests immediately after upload, then performs a delayed second GitHub readback after re-confirming that the exact release commit is still the current `main` head.
+## Repository, privacy and release integrity
 
-The repository audit is local and deterministic. It does not weaken runtime trust rules, execute tracked source files, scan network endpoints or upload repository content.
+The repository-wide audit checks tracked files for case-insensitive path collisions, Windows-reserved components, symlinks, generated/cache artifacts, malformed UTF-8 text, NUL/BOM issues, trailing whitespace, missing final newlines, merge-conflict markers and stale current-release references.
 
-## Mobile package integrity and signing
+Security/privacy audits additionally protect:
 
-`scripts/package_android.py` validates required APK structure and rejects unsafe/duplicate archive members before versioned staging.
+- no application telemetry/analytics vendor integrations;
+- no fixed runtime HTTP(S) destination in the desktop core;
+- no plaintext credential artifacts written for AskPass;
+- minimized proxy/network-tool environment;
+- SFTP fingerprint/trust invariants;
+- local/remote path boundaries;
+- transfer ownership/generation checks;
+- safe state-file opening and cleanup behavior.
 
-`scripts/package_ios.py` validates `ByFTP.app` bundle identifier/version, executable presence and Mach-O format, rejects symlinks and unsafe archive paths, then creates the normal `Payload/ByFTP.app` unsigned IPA plus an unsigned app ZIP.
+`.github/workflows/release.yml` is the single production publication path. It assembles exactly eight platform packages plus `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **11 public release files**.
 
-Android debug signing is for development/testing only; the optimized Android release APK is unsigned. iOS IPA/app ZIP artifacts are also unsigned. Production Android and Apple signing identities/provisioning material must stay outside the repository. See [Signing](SIGNING.md).
+Before publication, the workflow verifies that `main` still points to the release commit. Existing `ghostftp-vX.Y.Z` tags are never moved to another commit. The historical `v1.0.0` and other ByFTP tags remain untouched.
+
+## Package integrity and signing
+
+Release consumers should verify `SHA256.txt` before installation.
+
+Windows PE metadata is verified for architecture, GUI subsystem, resource presence and platform mitigations. Authenticode signing status is reported explicitly; Verified Publisher requires a legitimate external Ghost FTP code-signing certificate.
+
+Android CI signing is installable/development signing unless an external production identity is configured. iOS release artifacts are unsigned. Publisher credentials and private signing keys must not be committed to this repository.
+
+See [Signing](SIGNING.md), [Release verification](RELEASE-VERIFICATION.md) and [GitHub Releases](GITHUB-RELEASES.md).
 
 ## Reporting
 
-Report vulnerabilities through the repository Security policy. Never publish working secrets, signing credentials, production endpoints or customer data in a public issue.
+Report vulnerabilities through the repository Security policy. Never publish working passwords, private keys, signing credentials, production endpoints or customer data in a public issue.
