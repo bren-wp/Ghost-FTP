@@ -79,6 +79,12 @@ Always verify `SHA256.txt` before installation. See [Signing](docs/SIGNING.md) a
 - Web source: `GhostFTP WEB/`
 - GitHub Packages ID: `GhostFTP`
 
+## Languages
+
+English is the default runtime language. Ghost FTP currently includes localization catalogs for English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish.
+
+Language selection is persisted in application settings. New canonical user-facing text is maintained English-first and translated through the localization system.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
