@@ -24,8 +24,8 @@ patch_once(
                 $deleted++;
             }
             AppLogger::event('item.bulk_delete', ['profile_id'=>$profileId,'count'=>$deleted]);
-            GhostFTP_json_response(['ok'=>true,'deleted'=>$deleted]);
-            break;
+            GhostFTP_json(['ok'=>true,'deleted'=>$deleted]);
+
 """,
     """        case 'bulk_delete':
             $items = GhostFTP_json_array((string)($_POST['items'] ?? '[]'), 200);
@@ -43,8 +43,8 @@ patch_once(
                 $deleted++;
             }
             AppLogger::event('item.bulk_delete', ['profile_id'=>$profileId,'count'=>$deleted]);
-            GhostFTP_json_response(['ok'=>true,'deleted'=>$deleted]);
-            break;
+            GhostFTP_json(['ok'=>true,'deleted'=>$deleted]);
+
 """,
 )
 
@@ -103,7 +103,7 @@ if (!is_string($source)) {
     exit(1);
 }
 $start = strpos($source, "case 'bulk_delete':");
-$end = $start !== false ? strpos($source, "case 'batch_rename':", $start) : false;
+$end = $start !== false ? strpos($source, "case 'copy':", $start) : false;
 if ($start === false || $end === false || $end <= $start) {
     fwrite(STDERR, "FAIL: unable to isolate bulk_delete API branch.\\n");
     exit(1);
