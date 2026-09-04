@@ -3,6 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
 use ByFTP\Operations\RemoteOperations;
+use ByFTP\Remote\BoundedDownloadInterface;
 use ByFTP\Remote\ClientFactory;
 use ByFTP\Remote\PathGuard;
 use ByFTP\Security\AppLogger;
@@ -29,6 +30,9 @@ if ($tmp === false) { http_response_code(500); exit('Privremena datoteka nije do
 $client = null;
 try {
     $client = ClientFactory::make($profile);
+    if (!$client instanceof BoundedDownloadInterface) {
+        throw new RuntimeException('Remote klijent ne podržava sigurni ograničeni download.');
+    }
     $ops = new RemoteOperations($client);
     $item = $ops->stat($path);
     if ($item === null || ($item['type'] ?? 'file') !== 'file') {
@@ -40,7 +44,7 @@ try {
         throw new RuntimeException('Pregled slike podržava datoteke do 10 MiB.');
     }
     \byftp_assert_temp_capacity($maxPreviewBytes);
-    $size = $client->download($path, $tmp, $maxPreviewBytes);
+    $size = $client->downloadBounded($path, $tmp, $maxPreviewBytes);
     if ($size < 1) {
         throw new RuntimeException('Pregled slike podržava datoteke do 10 MiB.');
     }
