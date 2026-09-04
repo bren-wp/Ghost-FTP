@@ -106,6 +106,8 @@ The PWA cache namespace is `ghostftp-static-vX.Y.Z`; activation removes supersed
 
 The repository-wide audit checks tracked files for case-insensitive path collisions, Windows-reserved components, symlinks, generated/cache artifacts, temporary one-shot workflows, malformed UTF-8 text, NUL/BOM issues, trailing whitespace, missing final newlines, merge-conflict markers and stale current-release references.
 
+Temporary audit/patch workflows must run only on isolated branches and must be removed before production validation or merge; `scripts/audit_repository.py` rejects any tracked `.github/workflows/one-shot-*` file in a release tree.
+
 Security/privacy audits additionally protect:
 
 - no application telemetry/analytics vendor integrations;
