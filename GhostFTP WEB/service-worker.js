@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ghostftp-static-v1.0.4';
+const CACHE_NAME = 'ghostftp-static-v1.0.5';
 const STATIC_EXTENSIONS = /\.(?:css|js|svg|png|jpg|jpeg|webp|ico|woff2?)$/i;
 
 self.addEventListener('install', (event) => {

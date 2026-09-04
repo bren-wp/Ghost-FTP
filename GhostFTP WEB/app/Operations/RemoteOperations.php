@@ -116,7 +116,7 @@ final class RemoteOperations
             try {
                 $this->deleteRecursive($source, (string)($item['type'] ?? 'file'));
             } catch (\Throwable $deleteError) {
-                throw new RuntimeException('Stavka je kopirana na odredište, ali izvor nije moguće obrisati: ' . $deleteError->getMessage(), 0, $deleteError);
+                throw new RuntimeException('Stavka je kopirana na odredište, ali izvor nije moguće obrisati. Izvor je ostavljen radi sigurnog ponavljanja operacije.', 0, $deleteError);
             }
         }
     }

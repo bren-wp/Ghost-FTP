@@ -97,7 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     AppLogger::event('auth.legacy_migrated', ['user_id' => $user['id']]);
                     GhostFTP_redirect('app');
                 } catch (Throwable $e) {
-                    $error = $e->getMessage();
+                    AppLogger::event('auth.legacy_setup_failed', ['exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+                    $error = GhostFTP_public_error($e);
                 }
             }
         } elseif (Auth::attempt($email, $password)) {
@@ -122,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
                     Auth::logout();
                     $migrationFailed = true;
-                    $error = 'Prijava je valjana, ali migracija starih GhostFTP podataka nije dovršena. Provjeri dozvole storage direktorija i pokušaj ponovno.';
+                    $error = 'Prijava je valjana, ali migracija starih Ghost FTP podataka nije dovršena. Provjeri dozvole storage direktorija i pokušaj ponovno.';
                 }
             }
 
@@ -157,7 +158,7 @@ $pageTitle = 'Prijava · ' . GhostFTP_app_name();
         <h1>Dobro došao natrag.</h1>
         <p class="muted">Prijavi se i nastavi točno gdje si stao — spremljene veze i postavke vezane su uz tvoj račun.</p>
     <?php endif; ?>
-    <?php if (isset($_GET['installed'])): ?><div class="alert success" role="status">GhostFTP je uspješno postavljen. Prijavi se svojim administratorskim računom.</div><?php endif; ?>
+    <?php if (isset($_GET['installed'])): ?><div class="alert success" role="status">Ghost FTP je uspješno postavljen. Prijavi se svojim administratorskim računom.</div><?php endif; ?>
     <?php if (isset($_GET['registered'])): ?><div class="alert success" role="status">Račun je izrađen. Možeš se prijaviti.</div><?php endif; ?>
     <?php if ($error): ?><div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div><?php endif; ?>
     <form method="post" class="stack auth-form" autocomplete="on">
@@ -177,7 +178,7 @@ $pageTitle = 'Prijava · ' . GhostFTP_app_name();
     </form>
     <div class="auth-link-row">
         <?php if (!$legacy && GhostFTP_registration_enabled()): ?><a href="<?= GhostFTP_e(GhostFTP_url('register')) ?>">Izradi korisnički račun</a><?php endif; ?>
-        <button class="text-button install-auth" type="button" data-install-app>Instaliraj GhostFTP</button>
+        <button class="text-button install-auth" type="button" data-install-app>Instaliraj Ghost FTP</button>
     </div>
     <div class="auth-security-note"><span aria-hidden="true">●</span> Izolirani korisnički podaci · šifrirane vjerodajnice · bez indeksiranja</div>
 </main>

@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Sigurnosni token nije valjan.';
     } else {
         try {
-            $appName = trim((string)($_POST['app_name'] ?? 'GhostFTP')) ?: 'GhostFTP';
+            $appName = trim((string)($_POST['app_name'] ?? 'Ghost FTP')) ?: 'Ghost FTP';
             $idle = max(15, min(1440, (int)($_POST['session_idle_minutes'] ?? 120)));
             $maxHours = max(1, min(168, (int)($_POST['session_max_hours'] ?? 12)));
             $config = GhostFTP_update_config([
@@ -30,7 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             AppLogger::event('admin.settings_update', ['user_id' => Auth::id()]);
             $success = 'Postavke aplikacije su spremljene.';
         } catch (Throwable $e) {
-            $error = $e->getMessage();
+            AppLogger::event('admin.settings_update_failed', ['user_id' => Auth::id(), 'exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+            $error = GhostFTP_public_error($e);
         }
     }
 }
@@ -64,7 +65,7 @@ $activeSettingsPage = 'settings';
             <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
             <label>
                 Naziv instalacije
-                <input name="app_name" maxlength="80" value="<?= GhostFTP_e((string)($config['app_name'] ?? 'GhostFTP')) ?>" required>
+                <input name="app_name" maxlength="80" value="<?= GhostFTP_e((string)($config['app_name'] ?? 'Ghost FTP')) ?>" required>
             </label>
 
             <label class="check-card">

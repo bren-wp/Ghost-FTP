@@ -284,7 +284,7 @@ final class UserStore
             }
         } catch (\Throwable $e) {
             throw new RuntimeException(
-                'Korisnički račun je deaktiviran, ali workspace nije moguće u potpunosti obrisati. Provjeri dozvole i ponovi brisanje: ' . $e->getMessage(),
+                'Korisnički račun je deaktiviran, ali workspace nije moguće u potpunosti obrisati. Provjeri dozvole i ponovi brisanje.',
                 0,
                 $e
             );

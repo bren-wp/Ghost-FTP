@@ -253,6 +253,27 @@ def validate_http_session_and_csrf_boundaries() -> None:
         endpoint_source = read(f"GhostFTP WEB/{endpoint}")
         require(endpoint_source, ("GhostFTP_public_error($e)", "GhostFTP_public_error_status($e)"), endpoint)
 
+    for page in ("account.php", "login.php", "register.php", "users.php", "settings.php", "setup.php"):
+        page_source = read(f"GhostFTP WEB/{page}")
+        require(page_source, ("GhostFTP_public_error($e)",), page)
+        if "$error = $e->getMessage();" in page_source:
+            fail(f"HTML page exposes raw Throwable message: {page}")
+
+    operations = read("GhostFTP WEB/app/Operations/RemoteOperations.php")
+    user_store = read("GhostFTP WEB/app/Storage/UserStore.php")
+    if "$deleteError->getMessage()" in operations:
+        fail("move fallback re-exposes raw nested Throwable text")
+    if "ponovi brisanje: ' . $e->getMessage()" in user_store:
+        fail("user-delete wrapper re-exposes raw nested Throwable text")
+
+    remote_interface = read("GhostFTP WEB/app/Remote/RemoteClientInterface.php")
+    ftp_client = read("GhostFTP WEB/app/Remote/FtpClient.php")
+    sftp_client = read("GhostFTP WEB/app/Remote/SftpClient.php")
+    require(remote_interface, ("int $maxBytes = 4194304",), "app/Remote/RemoteClientInterface.php")
+    for label, source in (("RemoteClientInterface", remote_interface), ("FtpClient", ftp_client), ("SftpClient", sftp_client)):
+        if "function write(string $remotePath" in source:
+            fail(f"dead transport write() contract remains in {label}")
+
 
 def validate_remote_input_and_secret_boundaries() -> None:
     path_guard = read("GhostFTP WEB/app/Remote/PathGuard.php")

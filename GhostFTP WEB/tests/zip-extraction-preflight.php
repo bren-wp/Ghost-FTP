@@ -117,14 +117,9 @@ final class ZipPreflightFakeClient implements RemoteClientInterface
         }
     }
 
-    public function read(string $remotePath, int $maxBytes = 2097152): string
+    public function read(string $remotePath, int $maxBytes = 4194304): string
     {
         throw new RuntimeException('Unexpected read during ZIP extraction preflight test.');
-    }
-
-    public function write(string $remotePath, string $content): void
-    {
-        $this->mutations[] = 'write:' . $remotePath;
     }
 
     public function chmod(string $path, int $mode): void

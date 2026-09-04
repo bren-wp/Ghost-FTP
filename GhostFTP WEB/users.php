@@ -69,7 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 AppLogger::event('admin.user_delete', ['user_id' => $id]);
             }
         } catch (Throwable $e) {
-            $error = $e->getMessage();
+            AppLogger::event('admin.user_action_failed', ['user_id' => Auth::id(), 'action' => $action ?? '', 'exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+            $error = GhostFTP_public_error($e);
         }
     }
 }

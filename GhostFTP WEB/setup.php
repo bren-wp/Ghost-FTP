@@ -48,11 +48,11 @@ $existingDataDetected = $configRecoveryRequired || $hasStoredData();
 $error = $configRecoveryRequired
     ? 'Konfiguracija aplikacije nije čitljiva. Automatski povratak na stariji app.json.bak je blokiran radi sigurnosti. Vrati provjereni storage/app.json prije nastavka.'
     : ($existingDataDetected
-        ? 'Pronađeni su postojeći GhostFTP korisnički podaci, ali nedostaje konfiguracija s encryption ključem. Vrati storage/app.json ili storage/app.json.bak iz sigurnosne kopije prije nastavka.'
+        ? 'Pronađeni su postojeći Ghost FTP korisnički podaci, ali nedostaje konfiguracija s encryption ključem. Vrati storage/app.json ili storage/app.json.bak iz sigurnosne kopije prije nastavka.'
         : '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $appName = trim((string)($_POST['app_name'] ?? 'GhostFTP')) ?: 'GhostFTP';
+    $appName = trim((string)($_POST['app_name'] ?? 'Ghost FTP')) ?: 'Ghost FTP';
     $name = trim((string)($_POST['name'] ?? ''));
     $email = trim((string)($_POST['email'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
@@ -125,7 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $GLOBALS['GhostFTP_config_cache'] = [];
                     unset($GLOBALS['GhostFTP_config_error']);
                 }
-                $error = $e->getMessage();
+                AppLogger::event('install.failed', ['transaction_started' => $setupTransactionStarted, 'exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+                $error = GhostFTP_public_error($e);
             } finally {
                 flock($setupLock, LOCK_UN);
                 fclose($setupLock);
@@ -133,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-$pageTitle = 'Postavljanje GhostFTP';
+$pageTitle = 'Postavljanje Ghost FTP';
 ?><!doctype html>
 <html lang="hr">
 <head>
@@ -155,7 +156,7 @@ $pageTitle = 'Postavljanje GhostFTP';
     <form method="post" class="stack auth-form" autocomplete="off">
         <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
         <label>Naziv aplikacije
-            <input name="app_name" value="<?= GhostFTP_e((string)($_POST['app_name'] ?? 'GhostFTP')) ?>" maxlength="80" required>
+            <input name="app_name" value="<?= GhostFTP_e((string)($_POST['app_name'] ?? 'Ghost FTP')) ?>" maxlength="80" required>
         </label>
         <div class="form-grid two">
             <label>Ime administratora
@@ -175,12 +176,12 @@ $pageTitle = 'Postavljanje GhostFTP';
         </div>
         <label class="check-card">
             <input type="checkbox" name="allow_registration" value="1" <?= !empty($_POST['allow_registration']) ? 'checked' : '' ?>>
-            <span><strong>Dopusti samostalnu registraciju</strong><small>Korisnici će moći sami izraditi izolirani GhostFTP račun. Možeš promijeniti kasnije.</small></span>
+            <span><strong>Dopusti samostalnu registraciju</strong><small>Korisnici će moći sami izraditi izolirani Ghost FTP račun. Možeš promijeniti kasnije.</small></span>
         </label>
         <button class="button primary auth-submit" type="submit">Završi postavljanje <span aria-hidden="true">→</span></button>
     </form>
     <?php endif; ?>
-    <div class="auth-security-note"><span aria-hidden="true">●</span> Za produkciju koristi HTTPS. GhostFTP ne sprema FTP/SFTP lozinke kao čitljiv tekst.</div>
+    <div class="auth-security-note"><span aria-hidden="true">●</span> Za produkciju koristi HTTPS. Ghost FTP ne sprema FTP/SFTP lozinke kao čitljiv tekst.</div>
 </main>
 <script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
 </body>

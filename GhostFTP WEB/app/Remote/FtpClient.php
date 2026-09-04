@@ -219,18 +219,6 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
         }
     }
 
-    public function write(string $remotePath, string $content): void
-    {
-        $tmp = tempnam(GhostFTP_STORAGE . '/tmp', 'write-');
-        if ($tmp === false) throw new RuntimeException('Ne mogu stvoriti privremenu datoteku.');
-        try {
-            if (file_put_contents($tmp, $content, LOCK_EX) === false) throw new RuntimeException('Ne mogu pripremiti sadržaj za spremanje.');
-            $this->upload($tmp, $remotePath);
-        } finally {
-            @unlink($tmp);
-        }
-    }
-
     public function chmod(string $path, int $mode): void
     {
         $this->ensureConnected();

@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 AppLogger::event('auth.register', ['user_id' => $user['id']]);
                 GhostFTP_redirect('login', ['registered' => 1]);
             } catch (Throwable $e) {
-                $error = $e->getMessage();
+                AppLogger::event('auth.registration_failed', ['exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+                $error = GhostFTP_public_error($e);
             }
         }
     }
@@ -59,7 +60,7 @@ $pageTitle = 'Izradi račun · ' . GhostFTP_app_name();
 </head><body class="auth-page brendigo-auth">
 <main class="auth-card auth-card-premium">
     <?php require __DIR__ . '/app/Views/auth-brand.php'; ?>
-    <p class="eyebrow">Novi račun</p><h1>Tvoj GhostFTP workspace.</h1>
+    <p class="eyebrow">Novi račun</p><h1>Tvoj Ghost FTP workspace.</h1>
     <p class="muted">Serveri, favoriti i postavke ostat će spremljeni uz ovaj račun i bit će dostupni nakon prijave s drugog uređaja.</p>
     <?php if ($error): ?><div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div><?php endif; ?>
     <form method="post" class="stack auth-form">
@@ -70,7 +71,7 @@ $pageTitle = 'Izradi račun · ' . GhostFTP_app_name();
         <label>Ponovi lozinku<input type="password" name="confirm" minlength="12" autocomplete="new-password" required></label>
         <button class="button primary auth-submit" type="submit">Izradi račun <span>→</span></button>
     </form>
-    <div class="auth-link-row"><a href="<?= GhostFTP_e(GhostFTP_url('login')) ?>">Već imam račun</a><button class="text-button" data-install-app type="button">Instaliraj GhostFTP</button></div>
+    <div class="auth-link-row"><a href="<?= GhostFTP_e(GhostFTP_url('login')) ?>">Već imam račun</a><button class="text-button" data-install-app type="button">Instaliraj Ghost FTP</button></div>
 </main>
 <script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
 </body></html>

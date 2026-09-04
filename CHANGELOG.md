@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5 - 2026-09-05
+
+- Extended the shared Web public-error boundary to account, login migration, registration, user administration, application settings and first-run setup HTML flows so unexpected Throwable details are no longer rendered in pages.
+- Removed nested Throwable-message concatenation from move fallback and user-workspace deletion wrappers, preserving the original exception only as the internal cause.
+- Removed the unused transport-level `write()` interface and FTP/SFTP implementations; all real inline writes remain on the bounded, exact-write, atomic `RemoteOperations::writeAtomic()` path.
+- Aligned the remote read interface default with the canonical 4 MiB browser editor limit.
+- Added regression/audit coverage for HTML error disclosure, nested exception wrapping and dead transport write-contract removal.
+- Completed additional visible Web/PWA branding cleanup so user-facing labels, setup/login text, install prompts, image alt text and default installation name use **Ghost FTP**.
+
 ## 1.0.4 - 2026-09-05
 
 - Added a shared fail-closed Web public-error boundary: deliberate validation failures remain actionable, while unexpected PHP/extension Throwable details return a generic 500 response instead of leaking internals.

@@ -194,23 +194,6 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
         return $content;
     }
 
-    public function write(string $remotePath, string $content): void
-    {
-        $this->ensureConnected();
-        $fp = @fopen($this->uri($this->full($remotePath)), 'wb');
-        if (!is_resource($fp)) throw new RuntimeException('Ne mogu otvoriti datoteku za spremanje.');
-        $remaining = $content;
-        while ($remaining !== '') {
-            $written = fwrite($fp, $remaining);
-            if ($written === false || $written === 0) {
-                fclose($fp);
-                throw new RuntimeException('Spremanje nije uspjelo.');
-            }
-            $remaining = substr($remaining, $written);
-        }
-        fclose($fp);
-    }
-
     public function chmod(string $path, int $mode): void
     {
         $this->ensureConnected();

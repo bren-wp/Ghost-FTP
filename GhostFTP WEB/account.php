@@ -41,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 AppLogger::event('account.password_change', ['user_id' => Auth::id()]);
             }
         } catch (Throwable $e) {
-            $error = $e->getMessage();
+            AppLogger::event('account.error', ['user_id' => Auth::id(), 'exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+            $error = GhostFTP_public_error($e);
         }
     }
 }
@@ -53,7 +54,7 @@ $activeSettingsPage = 'account';
 </head><body class="settings-page">
 <?php require __DIR__ . '/app/Views/settings-nav.php'; ?>
 <main class="settings-main">
-    <section class="settings-hero"><p class="eyebrow">Korisnički račun</p><h1>Moj GhostFTP</h1><p>Upravljaj identitetom i sigurnošću svog računa. Spremljene FTP/SFTP veze i preference ostaju povezane s ovim korisnikom.</p></section>
+    <section class="settings-hero"><p class="eyebrow">Korisnički račun</p><h1>Moj Ghost FTP</h1><p>Upravljaj identitetom i sigurnošću svog računa. Spremljene FTP/SFTP veze i preference ostaju povezane s ovim korisnikom.</p></section>
     <?php if ($error): ?><div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div><?php endif; ?>
     <?php if ($success): ?><div class="alert success" role="status"><?= GhostFTP_e($success) ?></div><?php endif; ?>
     <div class="settings-grid">

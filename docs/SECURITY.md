@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current Ghost FTP release: 1.0.4**
+**Current Ghost FTP release: 1.0.5**
 
 ## Desktop core
 
@@ -85,6 +85,8 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 - Multi-file upload validates the complete request shape, temporary upload identity and normalized remote destination set before the first remote mutation.
 - Public Web error responses expose deliberate validation messages but replace unexpected PHP/extension Throwable details with a generic internal-error response.
 - Known application validation failures use HTTP 400; unexpected internal `Throwable` failures use HTTP 500 without exposing their raw message to the client.
+- The same public-error mapping is used by account, registration, settings, user-administration, login-migration and setup HTML flows; nested internal exceptions are preserved as causes without concatenating their raw text into a user-visible `RuntimeException`.
+- Browser editor/new-file writes use only `RemoteOperations::writeAtomic()`; the unused direct transport `write()` contract has been removed to prevent a weaker duplicate write path from drifting back into use.
 - Password changes/rehashes use generation-aware compare-and-swap behavior.
 - User deletion is two-phase/retryable and does not traverse unsafe workspace-root symlinks.
 - Encryption keys are not rotated over pre-existing encrypted data during recovery.
