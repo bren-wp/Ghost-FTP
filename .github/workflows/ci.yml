@@ -22,7 +22,7 @@ jobs:
   quality:
     name: Core, security, privacy and web
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,19 +44,23 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Validate canonical version and public brand
+      - name: Validate canonical version and Ghost FTP identity
         shell: bash
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
-          web_version="$(tr -d '\r\n' < 'ByFTP WEB/VERSION')"
+          web_version="$(tr -d '\r\n' < 'GhostFTP WEB/VERSION')"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test "$version" = "$web_version"
+          grep -F 'module github.com/bren-wp/Ghost-FTP' go.mod
           grep -F 'ProductName = "Ghost FTP"' internal/brand/brand.go
+          grep -F 'namespace = "com.ghostftp.client"' android/app/build.gradle.kts
+          grep -F 'applicationId = "com.ghostftp.client"' android/app/build.gradle.kts
           grep -F '<string name="app_name">Ghost FTP</string>' android/app/src/main/res/values/strings.xml
-          grep -F '<string>Ghost FTP</string>' ios/ByFTP/Info.plist
-          grep -F '"short_name": "Ghost FTP"' 'ByFTP WEB/manifest.webmanifest'
+          grep -F '<string>Ghost FTP</string>' ios/GhostFTP/Info.plist
+          grep -F '"short_name": "Ghost FTP"' 'GhostFTP WEB/manifest.webmanifest'
           grep -F 'Name=Ghost FTP' linux/ghost-ftp.desktop
+          python scripts/audit_brand_hardcut.py
       - name: Go formatting, tests, race detector and vet
         shell: bash
         run: |
@@ -66,17 +70,27 @@ jobs:
           go test ./...
           go test -race ./...
           go vet ./...
-      - name: Security and privacy audits
+      - name: Repository, version, documentation and release audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/audit_repository.py
+          python scripts/audit_version.py
+          python scripts/audit_localization.py
+          python scripts/audit_docs.py
+          python scripts/audit_release.py
+      - name: Security, privacy and web audits
         shell: bash
         run: |
           set -euo pipefail
           python scripts/audit_security.py
           python scripts/audit_privacy.py
+          python scripts/audit_web.py
       - name: PHP syntax
         shell: bash
         run: |
           set -euo pipefail
-          find 'ByFTP WEB' -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          find 'GhostFTP WEB' -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
       - name: Release notes regression
         shell: bash
         run: |
@@ -105,7 +119,11 @@ jobs:
           gradle-version: '9.7.1'
           cache-disabled: true
       - name: Unit test, lint and assemble
-        run: gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
 
   linux:
     name: Linux packages
@@ -125,19 +143,21 @@ jobs:
         run: |
           set -euo pipefail
           go telemetry off
+          test "$(go telemetry)" = 'off'
           bash linux/BUILD.sh
           version="$(tr -d '\r\n' < VERSION)"
           for arch in amd64 arm64 i386; do
             pkg="dist/Ghost-FTP-${version}-Linux-${arch}.deb"
             test -s "$pkg"
             test "$(dpkg-deb -f "$pkg" Package)" = ghost-ftp
+            test "$(dpkg-deb -f "$pkg" Version)" = "$version"
             test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
           done
 
   windows:
-    name: Windows x64/x86
+    name: Windows x64/x86 setup and portable
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -153,7 +173,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Build and verify installers
+      - name: Build and verify Windows artifacts
         shell: pwsh
         run: |
           go telemetry off
@@ -161,8 +181,12 @@ jobs:
           .\BUILD-WINDOWS.ps1
           $v = (Get-Content VERSION -Raw).Trim()
           foreach ($arch in @('x64','x86')) {
-            $path = "dist\Ghost-FTP-$v-Setup-$arch.exe"
-            if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing installer: $path" }
+            foreach ($kind in @('Setup','Portable')) {
+              $path = "dist\Ghost-FTP-$v-$kind-$arch.exe"
+              if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) {
+                throw "Missing Windows artifact: $path"
+              }
+            }
           }
 
   macos:
@@ -183,9 +207,10 @@ jobs:
         run: |
           set -euo pipefail
           go telemetry off
+          test "$(go telemetry)" = 'off'
           bash macos/BUILD.sh
           version="$(tr -d '\r\n' < VERSION)"
-          test -s "dist/ByFTP-${version}-macOS-Universal.pkg"
+          test -s "dist/Ghost-FTP-${version}-macOS-Universal.pkg"
 
   ios:
     name: iOS arm64 unsigned
@@ -200,4 +225,4 @@ jobs:
           set -euo pipefail
           bash ios/BUILD.sh
           version="$(tr -d '\r\n' < VERSION)"
-          test -s "dist/ByFTP-${version}-iOS-arm64-unsigned.ipa"
+          test -s "dist/Ghost-FTP-${version}-iOS-arm64-unsigned.ipa"
