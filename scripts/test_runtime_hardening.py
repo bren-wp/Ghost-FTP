@@ -71,6 +71,9 @@ class RuntimeHardeningTests(unittest.TestCase):
         preview = (ROOT / "ByFTP WEB/preview.php").read_text(encoding="utf-8")
 
         self.assertIn("downloadBounded(string $remotePath, string $localFile, ?int $maxBytes = null): int", bounded)
+        self.assertIn("public const UNKNOWN_SIZE_MAX_BYTES = 536870912;", limiter)
+        self.assertIn("public static function effectiveLimit", limiter)
+        self.assertIn("public static function limitForDestination", limiter)
         self.assertIn("stream_copy_to_stream($input, $output, self::probeLength($maxBytes))", limiter)
         self.assertIn("$copied > $maxBytes", limiter)
 
@@ -79,6 +82,8 @@ class RuntimeHardeningTests(unittest.TestCase):
             self.assertIn("private array $listedFileSizes = [];", source)
             self.assertIn("effectiveDownloadLimit", source)
             self.assertIn("unset($this->listedFileSizes[$remote]);", source)
+            self.assertIn("TransferLimiter::effectiveLimit", source)
+            self.assertIn("TransferLimiter::limitForDestination($localFile, $maxBytes)", source)
             self.assertIn("@ftruncate", source)
 
         self.assertIn("ftp_nb_fget", ftp)
@@ -87,7 +92,8 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertIn("TransferLimiter::copy($in, $out, $maxBytes)", sftp)
 
         self.assertIn("$client instanceof BoundedDownloadInterface", download)
-        self.assertIn("downloadBounded($path, $tmp, $reportedSize)", download)
+        self.assertIn("$requestedLimit = $reportedSize > 0 ? $reportedSize : null;", download)
+        self.assertIn("downloadBounded($path, $tmp, $requestedLimit)", download)
         self.assertIn("$client instanceof BoundedDownloadInterface", preview)
         self.assertIn("$maxPreviewBytes = 10485760;", preview)
         self.assertIn("downloadBounded($path, $tmp, $maxPreviewBytes)", preview)
