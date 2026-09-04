@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a focused improvement to ByFTP
+description: Propose a focused improvement to Ghost FTP
 title: "[Feature] "
 labels: [enhancement]
 body:
@@ -7,7 +7,7 @@ body:
     id: problem
     attributes:
       label: Problem or workflow
-      description: Which user workflow would this improve?
+      description: Which Ghost FTP user workflow would this improve?
     validations:
       required: true
   - type: textarea
