@@ -1,108 +1,67 @@
-# Installation
+# Installing Ghost FTP
 
-## Verify the release first
-
-Use only artifacts produced by the gated ByFTP release workflow. Compare every downloaded file against `SHA256.txt` before installation or redistribution. Release **1.9.0** is built from one canonical `VERSION` value across Windows, Linux, macOS, Android, iOS and ByFTP WEB.
+Download Ghost FTP only from the repository Releases page and verify the matching entry in `SHA256.txt` before installation.
 
 ## Windows
 
-Use Setup for a normal per-user installation or Portable when installation is not required. Windows packages are produced for x64 and x86.
+Choose one installer:
 
-Setup contains an **app-only schema-2 payload**: verified `ByFTP.exe` plus its integrity manifest. ByFTP no longer builds, installs or publishes a standalone `Uninstall.exe`. Setup validates the embedded application, stages replacements, keeps rollback data during upgrades and creates App Paths/shortcuts only after integrity checks succeed.
+- `Ghost-FTP-X.Y.Z-Setup-x64.exe` for 64-bit Windows.
+- `Ghost-FTP-X.Y.Z-Setup-x86.exe` for 32-bit x86 Windows.
+- `Ghost-FTP-X.Y.Z-Setup-x32.exe` is a compatibility alias of the x86 installer and has identical bytes/checksum.
 
-When upgrading an older ByFTP installation, Setup performs a best-effort post-commit cleanup of the legacy `%LOCALAPPDATA%\ByFTP\Uninstall.exe` and old per-user Windows uninstall registry entry. Legacy cleanup is deliberately outside the new application transaction so failure to remove an old locked file cannot corrupt the newly committed ByFTP executable.
-
-The 1.9.0 Windows artifacts are:
-
-- `ByFTP-1.9.0-Portable-x64.exe`
-- `ByFTP-1.9.0-Setup-x64.exe`
-- `ByFTP-1.9.0-Windows-x64.zip`
-- `ByFTP-1.9.0-Portable-x86.exe`
-- `ByFTP-1.9.0-Setup-x86.exe`
-- `ByFTP-1.9.0-Windows-x86.zip`
-
-`Setup.exe` and `Portable.exe` both receive their production version metadata from root `VERSION`; there is no separate manually maintained Windows release number. `scripts/package_windows_bundles.ps1` builds and verifies the ZIP bundles and rejects any generated file whose name contains `uninstall`.
-
-Manual removal remains straightforward: close ByFTP, remove its shortcuts and delete the per-user ByFTP installation directory under Local AppData. Remove user configuration only when local settings should also be erased.
+The public product name is **Ghost FTP**. Some migration-sensitive internal identifiers can retain the former `byftp` name so existing profiles and cleanup paths continue to work.
 
 ## Linux
 
-Install the official architecture-specific DEB: amd64, arm64 or i386. Verify the package hash before installation or redistribution.
+Download `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`, extract it and install the Debian package matching the machine architecture:
 
-The canonical Linux source/packaging surface is under `linux/`. For a source build on a supported Linux host with the reviewed **Go 1.27.1** toolchain:
-
-```bash
-go telemetry off
-bash linux/BUILD.sh
+```text
+Ghost-FTP-X.Y.Z-Linux-amd64.deb
+Ghost-FTP-X.Y.Z-Linux-arm64.deb
+Ghost-FTP-X.Y.Z-Linux-i386.deb
 ```
 
-This creates the three architecture-specific DEBs in `dist/`. `linux/byftp.desktop` and `linux/debian/control.in` are the source metadata copied/rendered into the packages. CI and release automation invoke `linux/BUILD.sh` directly; there is no duplicate production-build wrapper under `scripts/`.
+The installed Debian package name is `ghost-ftp` and the command is:
+
+```bash
+ghostftp
+```
+
+Runtime dependencies declared by the package are `ca-certificates`, `curl` and `openssh-client`.
 
 ## macOS
 
-Use the gated Universal PKG containing Intel x86_64 and Apple Silicon arm64 payloads. See [Signing](SIGNING.md) for Developer ID/notarization status.
+Use `Ghost-FTP-X.Y.Z-macOS-Universal.pkg`. The package contains a universal application build for Intel x86_64 and Apple Silicon arm64.
 
-The canonical macOS packaging surface is under `macos/`. For a source build on macOS with the reviewed **Go 1.27.1** toolchain:
-
-```bash
-go telemetry off
-bash macos/BUILD.sh
-```
-
-The build uses `macos/Info.plist.in` and `macos/launcher.zsh`, creates the Universal app/runtime and emits `dist/ByFTP-<version>-macOS-Universal.pkg`. CI and release automation invoke this build directly.
+A package built without a configured Apple Developer ID may trigger Gatekeeper warnings. Production Developer ID signing and notarization require real Apple credentials and are never simulated by CI.
 
 ## Android
 
-ByFTP supports Android 8.0/API 26 or newer and targets API 37. Official releases contain:
+Use `Ghost-FTP-X.Y.Z-Android.apk` for direct testing/installations that allow sideloading.
 
-- `ByFTP-<version>-Android-debug.apk` — debug-signed and installable for development/testing.
-- `ByFTP-<version>-Android-release-unsigned.apk` — optimized/minified release APK that intentionally has no production signature.
-
-The unsigned release APK requires a stable private Android signing identity before production distribution. Never commit signing keys, passwords or keystores.
-
-For 1.9.0 source builds use **JDK 17, Android Gradle Plugin 9.4.0, Gradle 9.7.1, Android SDK platform 37 and Build Tools 36.0.0**, then run:
-
-```bash
-gradle -p android :app:clean :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
-python scripts/package_android.py \
-  --debug android/app/build/outputs/apk/debug/app-debug.apk \
-  --release android/app/build/outputs/apk/release/app-release-unsigned.apk \
-  --output-dir dist
-```
-
-Android uses the Storage Access Framework, requests no broad storage permission, keeps passwords/SSH secrets session-only and excludes app data from backup/device-transfer flows.
+The public CI artifact is debug-signed. It is installable for testing but is not presented as a Play Store production-signed package. Store distribution requires a private production keystore and the appropriate release process.
 
 ## iOS
 
-ByFTP includes a native SwiftUI application for iOS 16+ on arm64 iPhone/iPad devices. Official release evidence contains:
+`Ghost-FTP-X.Y.Z-iOS-arm64-unsigned.ipa` is an unsigned device archive. It cannot replace normal Apple distribution signing. A valid Apple signing identity, provisioning profile and entitlements must be applied for the intended distribution channel.
 
-- `ByFTP-<version>-iOS-arm64-unsigned.ipa` — a real iPhoneOS device application packaged as `Payload/ByFTP.app`, without an Apple signature/provisioning profile.
-- `ByFTP-<version>-iOS-arm64-unsigned-app.zip` — the same unsigned `ByFTP.app` bundle packaged for inspection or an external signing workflow.
+## Web / shared hosting
 
-These files are **not** App Store/TestFlight packages and are not normally installable on a stock device until signed with a valid Apple identity and provisioning configuration. The public repository intentionally contains no `.p12`, private key, provisioning profile or signing password.
+Use `Ghost-FTP-X.Y.Z-Web.zip`.
 
-For source builds use macOS with Xcode and run:
+The web client requires a supported PHP environment and writable application storage. Deploy the package over HTTPS, keep the application storage protected from direct web access and complete the setup flow before normal use.
 
-```bash
-bash ios/BUILD.sh
-```
+The web client is intentionally marked `noindex` and includes defensive session/security headers. See [Shared hosting](SHARED-HOSTING.md) for deployment details.
 
-The build injects root `VERSION` as production `MARKETING_VERSION`, builds a generic arm64 `iphoneos` Release application with repository-side signing disabled, validates bundle/version/architecture and creates both release archives through `scripts/package_ios.py`.
+## Verify before installation
 
-The iOS transport supports FTP and implicit FTPS. Explicit FTPS and SFTP remain intentionally unavailable on iOS until separately audited native implementations exist.
+For every platform:
 
-## ByFTP WEB
+1. Download the package and `SHA256.txt` from the same Ghost FTP Release.
+2. Compute the local SHA-256 digest.
+3. Compare it exactly with the value in `SHA256.txt`.
+4. Read `BUILD-METADATA.txt` for signing/provenance status.
+5. Do not install a package whose checksum or expected release tag does not match.
 
-Release 1.9.0 publishes **`ByFTP-1.9.0-WEB-shared-hosting.zip`**. This is the preferred deployable WEB artifact. `scripts/package_web.py` builds it only from tracked production files in `ByFTP WEB/`, rejects symlinks/unsafe archive paths and verifies the archived VERSION, Composer version and Service Worker cache namespace. Runtime users, configuration, cache and backup state are not tracked and therefore cannot enter the package.
-
-Extract the ZIP to a PHP 8.1+ shared-hosting location with writable `storage/`. `ext-ftp` is required for FTP/FTPS; Sodium or OpenSSL is required for encrypted saved credentials; `ext-ssh2` enables SFTP and `ext-zip` enables ZIP operations.
-
-For SFTP, a verified SHA-256 host fingerprint is mandatory before the client can be created. Security-sensitive JSON state is fail-closed: if the primary config/user/profile/preference/rate-limit data is corrupt or missing while a backup exists, restore a verified primary explicitly instead of relying on automatic stale backup recovery.
-
-WEB ZIP extraction in 1.9.0 fully validates archive topology and existing remote conflicts, materializes all file entries locally and enforces the actual decompressed-byte budget before the first remote mutation. Runtime diagnostics are administrator-only.
-
-See [ByFTP WEB documentation](../ByFTP%20WEB/README.md) for setup, recovery and runtime tests.
-
-## Source builds
-
-Root `VERSION` is the only current production version source. Desktop binaries/packages, Android `versionName`/`versionCode`, iOS marketing/build packaging, ByFTP WEB metadata/cache namespace, release notes and public artifact names are derived from it. Run the complete test/audit/build matrix before distributing a source build.
+See [Release verification](RELEASE-VERIFICATION.md) for platform-specific commands.
