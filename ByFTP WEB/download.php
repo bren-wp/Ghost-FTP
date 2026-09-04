@@ -3,6 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
 use ByFTP\Operations\RemoteOperations;
+use ByFTP\Remote\BoundedDownloadInterface;
 use ByFTP\Remote\ClientFactory;
 use ByFTP\Remote\PathGuard;
 use ByFTP\Security\AppLogger;
@@ -42,23 +43,25 @@ if ($tmp === false) {
 $client = null;
 try {
     $client = ClientFactory::make($profile);
+    if (!$client instanceof BoundedDownloadInterface) {
+        throw new RuntimeException('Remote klijent ne podržava sigurni ograničeni download.');
+    }
     $ops = new RemoteOperations($client);
     $item = $ops->stat($path);
     if ($item === null || ($item['type'] ?? 'file') !== 'file') {
         throw new RuntimeException('Datoteka više ne postoji.');
     }
-    \byftp_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
-    $client->download($path, $tmp);
-    $size = filesize($tmp);
+    $reportedSize = max(0, (int)($item['size'] ?? 0));
+    $requestedLimit = $reportedSize > 0 ? $reportedSize : null;
+    \byftp_assert_temp_capacity($reportedSize);
+    $size = $client->downloadBounded($path, $tmp, $requestedLimit);
 
     header('Content-Type: application/octet-stream');
     header('Content-Disposition: attachment; filename="' . str_replace(['"', "\r", "\n"], '', $name) . '"; filename*=UTF-8\'\'' . rawurlencode($name));
-    if ($size !== false) {
-        header('Content-Length: ' . $size);
-    }
+    header('Content-Length: ' . $size);
     header('Cache-Control: no-store, private');
     header('X-Content-Type-Options: nosniff');
-    AppLogger::event('file.download', ['profile_id' => $profileId, 'path' => $path, 'bytes' => $size ?: 0]);
+    AppLogger::event('file.download', ['profile_id' => $profileId, 'path' => $path, 'bytes' => $size]);
     readfile($tmp);
 } catch (Throwable $e) {
     AppLogger::event('download.error', ['profile_id' => $profileId, 'path' => $path, 'error' => byftp_truncate($e->getMessage(), 300)]);

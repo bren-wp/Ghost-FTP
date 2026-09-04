@@ -2,7 +2,7 @@
 
 This directory contains shared development/CI audit, packaging, release and verification utilities. Platform-specific production build entry points live with their applications under `linux/`, `macos/` and `ios/`; they are not duplicated here.
 
-**Current release: 1.9.1**
+**Current release: 1.9.2**
 
 ## Build and packaging tools
 
@@ -16,7 +16,7 @@ This directory contains shared development/CI audit, packaging, release and veri
 - `package_web.py` — builds the deterministic shared-hosting WEB ZIP exclusively from tracked production files and verifies VERSION, Composer and PWA metadata after packaging.
 - `prepare_release.ps1` — enforces the exact 15-platform-artifact public allowlist, rejects uninstall-named assets, generates shared release metadata/SHA-256 evidence and requires exactly 18 final public files.
 
-Canonical production build entry points are [`BUILD-WINDOWS.ps1`](../BUILD-WINDOWS.ps1), [`linux/BUILD.sh`](../linux/BUILD.sh), [`macos/BUILD.sh`](../macos/BUILD.sh) and [`ios/BUILD.sh`](../ios/BUILD.sh). Windows 1.9.1 builds exactly Portable + Setup for x64/x86 and fails if an uninstall-named binary is produced.
+Canonical production build entry points are [`BUILD-WINDOWS.ps1`](../BUILD-WINDOWS.ps1), [`linux/BUILD.sh`](../linux/BUILD.sh), [`macos/BUILD.sh`](../macos/BUILD.sh) and [`ios/BUILD.sh`](../ios/BUILD.sh). Windows 1.9.2 builds exactly Portable + Setup for x64/x86 and fails if an uninstall-named binary is produced.
 
 ## Reviewed toolchain
 
@@ -45,7 +45,7 @@ The exact production pins are enforced by `audit_version.py` and the CI/release 
 
 - `test_audit_repository.py` — unit coverage for repository path, symlink, text and current-version rules.
 - `test_stability_hardening.py` — protects WEB staged ZIP extraction, administrator-only diagnostics and confirmed dead-code removal.
-- `test_runtime_hardening.py` — protects runtime lifecycle invariants plus 1.9.1 upload/download cleanup, WEB JSON-state bounds, FTP LIST filename parsing and delayed release-readback contracts.
+- `test_runtime_hardening.py` — protects runtime lifecycle invariants plus transfer cleanup, WEB JSON-state bounds, FTP LIST filename parsing, 1.9.2 bounded FTP/FTPS/SFTP temp downloads and delayed release-readback contracts.
 - `test_package_web.py` — executes the WEB packager and verifies exact safe tracked-source membership plus runtime-state exclusion.
 - `verify_release.py` — validates the Windows **Setup + Portable** PE pair for one architecture and emits `UNINSTALLER_BINARY=ABSENT`; it does not accept an uninstaller argument.
 - `verify_bundle.py` — fail-closed validation of Windows release ZIP contents, paths and `BUNDLE-SHA256.txt`.

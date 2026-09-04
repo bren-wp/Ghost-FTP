@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
+require __DIR__ . '/../app/Remote/BoundedDownloadInterface.php';
+require __DIR__ . '/../app/Remote/TransferLimiter.php';
 require __DIR__ . '/../app/Remote/FtpClient.php';
 
 use ByFTP\Remote\FtpClient;

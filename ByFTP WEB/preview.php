@@ -3,6 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
 use ByFTP\Operations\RemoteOperations;
+use ByFTP\Remote\BoundedDownloadInterface;
 use ByFTP\Remote\ClientFactory;
 use ByFTP\Remote\PathGuard;
 use ByFTP\Security\AppLogger;
@@ -29,19 +30,22 @@ if ($tmp === false) { http_response_code(500); exit('Privremena datoteka nije do
 $client = null;
 try {
     $client = ClientFactory::make($profile);
+    if (!$client instanceof BoundedDownloadInterface) {
+        throw new RuntimeException('Remote klijent ne podržava sigurni ograničeni download.');
+    }
     $ops = new RemoteOperations($client);
     $item = $ops->stat($path);
     if ($item === null || ($item['type'] ?? 'file') !== 'file') {
         throw new RuntimeException('Datoteka više ne postoji.');
     }
+    $maxPreviewBytes = 10485760;
     $reportedSize = max(0, (int)($item['size'] ?? 0));
-    if ($reportedSize > 10485760) {
+    if ($reportedSize > $maxPreviewBytes) {
         throw new RuntimeException('Pregled slike podržava datoteke do 10 MiB.');
     }
-    \byftp_assert_temp_capacity($reportedSize);
-    $client->download($path, $tmp);
-    $size = @filesize($tmp);
-    if (!is_int($size) || $size < 1 || $size > 10485760) {
+    \byftp_assert_temp_capacity($maxPreviewBytes);
+    $size = $client->downloadBounded($path, $tmp, $maxPreviewBytes);
+    if ($size < 1) {
         throw new RuntimeException('Pregled slike podržava datoteke do 10 MiB.');
     }
     $info = @getimagesize($tmp);
