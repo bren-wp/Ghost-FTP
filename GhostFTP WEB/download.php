@@ -64,12 +64,12 @@ try {
     AppLogger::event('file.download', ['profile_id' => $profileId, 'path' => $path, 'bytes' => $size]);
     readfile($tmp);
 } catch (Throwable $e) {
-    AppLogger::event('download.error', ['profile_id' => $profileId, 'path' => $path, 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+    AppLogger::event('download.error', ['profile_id' => $profileId, 'path' => $path, 'exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
     if (!headers_sent()) {
-        http_response_code(400);
+        http_response_code(GhostFTP_public_error_status($e));
         header('Content-Type: text/plain; charset=utf-8');
+        echo 'Download nije uspio: ' . GhostFTP_public_error($e);
     }
-    echo 'Download nije uspio: ' . $e->getMessage();
 } finally {
     if ($client) {
         $client->disconnect();

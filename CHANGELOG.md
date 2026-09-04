@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.4 - 2026-09-05
+
+- Added a shared fail-closed Web public-error boundary: deliberate validation failures remain actionable, while unexpected PHP/extension Throwable details return a generic 500 response instead of leaking internals.
+- Applied the same safe error mapping to API, file download, ZIP download and image preview endpoints, and stopped appending text errors after binary response headers have already been sent.
+- Made multi-file upload fully preflighted: request shape, upload status, temporary files, remote paths and duplicate targets are validated before the first remote upload mutation.
+- Made ZIP path-list parsing reject malformed non-string rows instead of silently skipping them.
+- Added regression tests and source audits for public error disclosure, upload preflight ordering and strict path-list parsing.
+- Removed remaining visible `GhostFTP` diagnostics text in favor of the canonical **Ghost FTP** brand.
+
 ## 1.0.3 - 2026-09-05
 
 - Required a canonical pinned SHA-256 SFTP host fingerprint before Web profiles can be persisted, while retaining the connection-boundary pin requirement as defense in depth.

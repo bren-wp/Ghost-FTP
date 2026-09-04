@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current Ghost FTP release: 1.0.3**
+**Current Ghost FTP release: 1.0.4**
 
 ## Desktop core
 
@@ -82,6 +82,8 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 - Inline editor/new-file content is centrally bounded and local staging must be complete before any remote promotion.
 - SFTP key temp files are permission-restricted before key material is written, and uploads verify the resulting remote size when the server exposes it.
 - Destructive/batch mutation inputs fail closed before partial application when their shape or source set is invalid.
+- Multi-file upload validates the complete request shape, temporary upload identity and normalized remote destination set before the first remote mutation.
+- Public Web error responses expose deliberate validation messages but replace unexpected PHP/extension Throwable details with a generic internal-error response.
 - Password changes/rehashes use generation-aware compare-and-swap behavior.
 - User deletion is two-phase/retryable and does not traverse unsafe workspace-root symlinks.
 - Encryption keys are not rotated over pre-existing encrypted data during recovery.

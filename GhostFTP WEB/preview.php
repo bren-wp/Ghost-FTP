@@ -61,9 +61,12 @@ try {
     AppLogger::event('file.preview', ['profile_id' => $profileId, 'path' => $path, 'bytes' => $size]);
     readfile($tmp);
 } catch (Throwable $e) {
-    AppLogger::event('preview.error', ['profile_id' => $profileId, 'path' => $path, 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
-    if (!headers_sent()) { http_response_code(400); header('Content-Type: text/plain; charset=utf-8'); }
-    echo $e->getMessage();
+    AppLogger::event('preview.error', ['profile_id' => $profileId, 'path' => $path, 'exception' => get_class($e), 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
+    if (!headers_sent()) {
+        http_response_code(GhostFTP_public_error_status($e));
+        header('Content-Type: text/plain; charset=utf-8');
+        echo GhostFTP_public_error($e);
+    }
 } finally {
     if ($client) $client->disconnect();
     @unlink($tmp);

@@ -15,7 +15,7 @@ $noIndexReady = is_file(GhostFTP_ROOT . '/robots.txt');
 $userWorkspace = UserWorkspace::ensure(Auth::id());
 $pwaReady = is_file(GhostFTP_ROOT . '/manifest.webmanifest') && is_file(GhostFTP_ROOT . '/service-worker.js');
 $checks = [
-    ['GhostFTP Web', 'v' . GhostFTP_VERSION, true, 'core'],
+    ['Ghost FTP Web', 'v' . GhostFTP_VERSION, true, 'core'],
     ['PHP verzija', PHP_VERSION, version_compare(PHP_VERSION, '8.1.0', '>='), 'core'],
     ['FTP / FTPS', extension_loaded('ftp') ? (function_exists('ftp_ssl_connect') ? 'FTP + FTPS dostupni' : 'FTP dostupan, FTPS nije dostupan') : 'FTP ekstenzija nije dostupna', extension_loaded('ftp'), 'transfer'],
     ['FTPS identitet servera', function_exists('ftp_ssl_connect') ? 'PHP ext-ftp ne provjerava peer certifikat; za provjerljiv identitet koristi SFTP fingerprint' : 'FTPS nije dostupan', !function_exists('ftp_ssl_connect'), 'optional'],
@@ -55,7 +55,7 @@ $requiredOk = version_compare(PHP_VERSION, '8.1.0', '>=') && extension_loaded('f
     <p class="muted">Provjera runtime mogućnosti, sigurnosti, clean URL konfiguracije i limita koji utječu na prijenose.</p>
     <div class="diagnostic-status <?= $requiredOk ? 'is-good' : 'is-warning' ?>">
         <strong><?= $requiredOk ? 'Osnovni zahtjevi su zadovoljeni' : 'Potrebna je dorada hostinga' ?></strong>
-        <span><?= $requiredOk ? 'GhostFTP može pokrenuti osnovne FTP funkcije.' : 'Provjeri označene obavezne stavke prije produkcijskog rada.' ?></span>
+        <span><?= $requiredOk ? 'Ghost FTP može pokrenuti osnovne FTP funkcije.' : 'Provjeri označene obavezne stavke prije produkcijskog rada.' ?></span>
     </div>
     <div class="diagnostic-list">
         <?php foreach ($checks as [$name, $value, $ok, $group]): ?>
@@ -67,7 +67,7 @@ $requiredOk = version_compare(PHP_VERSION, '8.1.0', '>=') && extension_loaded('f
     </div>
     <p class="small muted diagnostic-note">SFTP i ZIP su opcionalni. HTTPS je snažno preporučen. Stvarna podrška za clean URL zahtijeva Apache/LiteSpeed <code>mod_rewrite</code> ili ekvivalentnu konfiguraciju hostinga.</p>
     <div class="diagnostic-actions">
-        <a href="<?= GhostFTP_e(GhostFTP_url('app')) ?>" class="button primary">Natrag u GhostFTP</a>
+        <a href="<?= GhostFTP_e(GhostFTP_url('app')) ?>" class="button primary">Natrag u Ghost FTP</a>
         <button class="button ghost" type="button" data-install-app>Instaliraj aplikaciju</button><a href="<?= GhostFTP_e(GhostFTP_url('logout')) ?>" class="button ghost">Odjava</a>
     </div>
 </main>

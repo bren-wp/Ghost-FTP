@@ -123,6 +123,22 @@ function GhostFTP_json(array $payload, int $status = 200): never
     exit;
 }
 
+function GhostFTP_public_error(Throwable $error): string
+{
+    if ($error instanceof RuntimeException || $error instanceof InvalidArgumentException) {
+        $message = trim(str_replace(["\r", "\n", "\0"], ' ', $error->getMessage()));
+        if ($message !== '') {
+            return GhostFTP_truncate($message, 300);
+        }
+    }
+    return 'Neočekivana interna pogreška. Pokušaj ponovno ili provjeri zapisnik poslužitelja.';
+}
+
+function GhostFTP_public_error_status(Throwable $error): int
+{
+    return ($error instanceof RuntimeException || $error instanceof InvalidArgumentException) ? 400 : 500;
+}
+
 function GhostFTP_truncate(string $value, int $length): string
 {
     return function_exists('mb_substr') ? mb_substr($value, 0, $length) : substr($value, 0, $length);
@@ -165,7 +181,7 @@ function GhostFTP_string_paths(string $json, int $maxItems = 200): array
     $paths = [];
     foreach ($rows as $row) {
         if (!is_string($row)) {
-            continue;
+            throw new RuntimeException('Popis putanja sadrži neispravnu stavku.');
         }
         $paths[] = GhostFTP\Remote\PathGuard::ensureNotRoot($row);
     }
