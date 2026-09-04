@@ -6,9 +6,12 @@ namespace ByFTP\Remote;
 use ByFTP\Security\HostGuard;
 use RuntimeException;
 
-final class FtpClient implements RemoteClientInterface
+final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
 {
     private mixed $connection = null;
+
+    /** @var array<string, int> */
+    private array $listedFileSizes = [];
 
     public function __construct(private array $profile)
     {
@@ -88,12 +91,15 @@ final class FtpClient implements RemoteClientInterface
                     'permissions' => (string)($item['unix.mode'] ?? ''),
                 ];
             }
+            $this->rememberListedFileSizes($remote, $out);
             return $this->sortItems($out);
         }
 
         $raw = @ftp_rawlist($this->connection, $remote);
         if (!is_array($raw)) throw new RuntimeException('Ne mogu dohvatiti sadržaj direktorija.');
-        return $this->sortItems($this->parseRawList($raw));
+        $out = $this->parseRawList($raw);
+        $this->rememberListedFileSizes($remote, $out);
+        return $this->sortItems($out);
     }
 
     public function makeDirectory(string $path): void
@@ -133,13 +139,19 @@ final class FtpClient implements RemoteClientInterface
         }
     }
 
-    public function download(string $remotePath, string $localFile, ?int $maxBytes = null): int
+    public function download(string $remotePath, string $localFile): void
+    {
+        $this->downloadBounded($remotePath, $localFile);
+    }
+
+    public function downloadBounded(string $remotePath, string $localFile, ?int $maxBytes = null): int
     {
         $this->ensureConnected();
-        $maxBytes = TransferLimiter::normalizeLimit($maxBytes);
         $remote = $this->full($remotePath);
         $expected = @ftp_size($this->connection, $remote);
-        if ($maxBytes !== null && is_int($expected) && $expected > $maxBytes) {
+        $expectedSize = is_int($expected) ? $expected : -1;
+        $maxBytes = $this->effectiveDownloadLimit($remote, $maxBytes, $expectedSize);
+        if ($maxBytes !== null && $expectedSize > $maxBytes) {
             throw new RuntimeException('Download prelazi dopuštenu veličinu.');
         }
 
@@ -162,7 +174,7 @@ final class FtpClient implements RemoteClientInterface
             }
 
             $actual = TransferLimiter::assertWithinLimit($fp, $maxBytes);
-            if (is_int($expected) && $expected >= 0 && $actual >= 0 && $actual !== $expected) {
+            if ($expectedSize >= 0 && $actual >= 0 && $actual !== $expectedSize) {
                 throw new RuntimeException('Download je završio s neočekivanom veličinom datoteke. Prijenos nije pouzdan.');
             }
             if ($actual < 0) {
@@ -191,7 +203,7 @@ final class FtpClient implements RemoteClientInterface
         $tmp = tempnam(BYFTP_STORAGE . '/tmp', 'read-');
         if ($tmp === false) throw new RuntimeException('Ne mogu stvoriti privremenu datoteku.');
         try {
-            $this->download($remotePath, $tmp, $maxBytes);
+            $this->downloadBounded($remotePath, $tmp, $maxBytes);
             $content = file_get_contents($tmp);
             if (!is_string($content) || str_contains(substr($content, 0, 8192), "\0")) throw new RuntimeException('Binarne datoteke nije moguće uređivati u editoru.');
             return $content;
@@ -221,6 +233,7 @@ final class FtpClient implements RemoteClientInterface
     public function disconnect(): void
     {
         $this->profile['password'] = '';
+        $this->listedFileSizes = [];
         if ($this->connection) {
             @ftp_close($this->connection);
             $this->connection = null;
@@ -235,6 +248,30 @@ final class FtpClient implements RemoteClientInterface
     private function full(string $path): string
     {
         return PathGuard::join((string)($this->profile['base_path'] ?? '/'), $path);
+    }
+
+    private function rememberListedFileSizes(string $directory, array $items): void
+    {
+        foreach ($items as $item) {
+            if (($item['type'] ?? 'file') !== 'file') continue;
+            $name = (string)($item['name'] ?? '');
+            if ($name === '') continue;
+            $this->listedFileSizes[PathGuard::child($directory, $name)] = max(0, (int)($item['size'] ?? 0));
+        }
+    }
+
+    private function effectiveDownloadLimit(string $remote, ?int $maxBytes, int $expectedSize): ?int
+    {
+        $limit = TransferLimiter::normalizeLimit($maxBytes);
+        $snapshot = $this->listedFileSizes[$remote] ?? null;
+        unset($this->listedFileSizes[$remote]);
+        if (is_int($snapshot)) {
+            $limit = $limit === null ? $snapshot : min($limit, $snapshot);
+        }
+        if ($limit === null && $expectedSize >= 0) {
+            $limit = $expectedSize;
+        }
+        return $limit;
     }
 
     private function mlsdDate(string $value): ?string
