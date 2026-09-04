@@ -1,35 +1,23 @@
-# ByFTP documentation
+# Ghost FTP documentation
 
-English is the canonical documentation language. Runtime translations belong in `internal/i18n`; technical documentation stays English-first so code, CI and release instructions have one authoritative source.
+This directory contains the maintained technical and operator documentation for **Ghost FTP**.
 
-**Current release: 1.9.2**
+## Start here
 
-## Core documentation
+- [Installation](INSTALLATION.md) — platform packages, installation expectations and prerequisites.
+- [Architecture](ARCHITECTURE.md) — core structure and platform boundaries.
+- [Security](SECURITY.md) — threat boundaries, credential handling and transfer hardening.
+- [Privacy](PRIVACY.md) — telemetry and data-handling policy.
+- [Testing](TESTING.md) — automated verification and platform quality gates.
+- [GitHub Releases](GITHUB-RELEASES.md) — release asset contract and version/tag policy.
+- [Release verification](RELEASE-VERIFICATION.md) — checksums and provenance checks.
+- [Signing](SIGNING.md) — Windows, Apple and Android signing limitations and requirements.
+- [Shared hosting](SHARED-HOSTING.md) — web/PWA deployment guidance.
+- [Contributing](CONTRIBUTING.md) — contribution workflow.
+- [Support](SUPPORT.md) — issue reporting.
 
-- [Installation](INSTALLATION.md)
-- [Shared hosting](SHARED-HOSTING.md)
-- [Architecture](ARCHITECTURE.md)
-- [Security](SECURITY.md)
-- [Privacy](PRIVACY.md)
-- [Testing](TESTING.md)
-- [Support](SUPPORT.md)
-- [Roadmap](ROADMAP.md)
-- [Contributing](CONTRIBUTING.md)
-- [GitHub releases](GITHUB-RELEASES.md)
-- [Release verification](RELEASE-VERIFICATION.md)
-- [Signing](SIGNING.md)
-- [Third-party notices](THIRD-PARTY-NOTICES.md)
+## Current product line
 
-## Platform and build guides
+Ghost FTP starts at version **1.0.0** and uses tags named `ghostftp-vX.Y.Z`. Patch releases advance sequentially (`1.0.1`, `1.0.2`, ...).
 
-- [Windows build/release overview](../README.md#build-from-source)
-- [Linux source and DEB build guide](../linux/README.md)
-- [macOS source and Universal PKG build guide](../macos/README.md)
-- [Android source and APK build guide](../android/README.md)
-- [iOS source, Xcode and unsigned IPA build guide](../ios/README.md)
-- [ByFTP WEB shared-hosting guide](../ByFTP%20WEB/README.md)
-- [Build, audit and release tooling](../scripts/README.md)
-
-The maintained release surfaces are intentionally separated by platform while sharing the canonical release number from root `VERSION`. Windows/Linux/macOS use the reviewed Go 1.27.1 desktop core; Android uses AGP 9.4.0/Gradle 9.7.1; iOS has its native SwiftUI/Xcode project; ByFTP WEB is an audited PHP/PWA shared-hosting application with a deterministic deployable release ZIP.
-
-Release 1.9.2 preserves the 1.9.1 transfer-cleanup, JSON-state, FTP LIST and release-readback hardening while adding bounded FTP/FTPS/SFTP temp downloads tied to the most recent remote size snapshot and explicit endpoint limits. See [Installation](INSTALLATION.md), [GitHub releases](GITHUB-RELEASES.md), [Security](SECURITY.md) and [Release verification](RELEASE-VERIFICATION.md).
+Historical ByFTP identifiers may remain in internal source paths and migration-sensitive package identifiers solely for compatibility. They are not the public product name. Public UI, documentation and release assets use **Ghost FTP**.
