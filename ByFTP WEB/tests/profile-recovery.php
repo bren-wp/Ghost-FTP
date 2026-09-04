@@ -23,6 +23,8 @@ define('BYFTP_STORAGE', $storage);
 
 require __DIR__ . '/../app/Remote/PathGuard.php';
 require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
+require __DIR__ . '/../app/Remote/BoundedDownloadInterface.php';
+require __DIR__ . '/../app/Remote/TransferLimiter.php';
 require __DIR__ . '/../app/Remote/SftpClient.php';
 require __DIR__ . '/../app/Remote/ClientFactory.php';
 require __DIR__ . '/../app/Storage/JsonStore.php';
