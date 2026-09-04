@@ -1,27 +1,32 @@
 # Changelog
 
+## 1.0.2 - 2026-09-04
+
+- Bounded the non-Windows in-memory runtime-secret store and made capacity exhaustion fail closed instead of allowing unbounded growth.
+- Added runtime-secret regression coverage for copy isolation, capacity limits, cleanup and capacity reuse.
+- Hardened Web credential envelope parsing with strict driver validation, maximum encoded size, explicit truncation checks and authenticated-tamper rejection tests.
+- Removed a stale hard-coded release number from Composer metadata and added a runtime metadata regression test so human-readable package descriptions cannot drift from canonical versioning.
+- Advanced the web PWA cache namespace and all canonical version surfaces to 1.0.2.
+- Refreshed root documentation to describe the current Ghost FTP security, release and package contract without version-specific metadata drift.
+
 ## 1.0.1 - 2026-09-04
 
-- Completed the hard-cut Ghost FTP rebrand across tracked paths, namespaces and runtime identifiers.
-- Removed compatibility identifiers tied to the retired product identity.
-- Renamed Android, iOS, Go, Windows installer and web technical identities to GhostFTP/Ghost FTP.
+- Completed the hard-cut Ghost FTP identity across tracked paths, namespaces and runtime identifiers.
+- Standardized Android, iOS, Go, Windows installer and web technical identities on GhostFTP/Ghost FTP.
 - Added a fail-closed repository brand audit.
-- Prepared Windows portable artifacts and GitHub Packages publication under GhostFTP.
-
-All notable Ghost FTP changes are documented here. Ghost FTP uses semantic versioning in the `1.0.x` line beginning with the rebrand release.
+- Added Windows portable x64/x86 artifacts and GitHub Packages publication under `GhostFTP`.
+- Verified the complete multi-platform release and registry readback pipeline.
 
 ## 1.0.0 - 2026-09-04
 
-- Rebranded the public product from GhostFTP to **Ghost FTP** across the core application identity, Android, iOS, macOS, Linux and the web/PWA surface.
-- Restarted the Ghost FTP product version line at **1.0.0**. Future patch releases increment sequentially as `1.0.1`, `1.0.2`, and so on.
-- Introduced namespaced Ghost FTP Git release tags (`ghostftp-v1.0.0`, `ghostftp-v1.0.1`, …) so historical GhostFTP tags are never rewritten or moved.
-- Reworked Linux packaging as `ghost-ftp` with the `ghostftp` executable and a Ghost FTP desktop entry.
-- Simplified public Releases to clear per-platform packages: Windows x64/x86/x32 alias installers, one Linux multi-architecture archive, one universal macOS package, one Android APK, one iOS IPA and one web archive.
-- Kept cryptographic release verification through SHA-256 checksums and explicit build metadata.
-- Preserved existing security controls for path validation, transfer staging/rollback, SFTP host-key verification, encrypted profile secrets, rate limiting, session hardening and release provenance.
-- Kept signing status explicit: unsigned or debug-signed mobile artifacts are never presented as store-signed production packages.
-- Updated repository and support links to `bren-wp/Ghost-FTP`.
+- Established **Ghost FTP** as the canonical public product identity across Windows, Linux, macOS, Android, iOS and Web/PWA surfaces.
+- Started the Ghost FTP semantic-version line at **1.0.0** with sequential patch releases.
+- Introduced namespaced release tags (`ghostftp-vX.Y.Z`) so current releases never collide with historical generic tags.
+- Standardized Linux packaging as `ghost-ftp` with the `ghostftp` executable and Ghost FTP desktop entry.
+- Established the multi-platform Release contract and SHA-256/build-metadata verification model.
+- Preserved strict path validation, transfer staging/rollback, SFTP host-key verification, encrypted profile secrets, rate limiting, session hardening and release provenance controls.
+- Kept mobile and desktop signing status explicit rather than representing unsigned/debug-signed artifacts as store-signed packages.
 
-## Pre-1.0.0 history
+## Historical provenance
 
-Releases and tags from the former GhostFTP product line remain in Git history for provenance and reproducibility. They are not part of the Ghost FTP semantic-version sequence and are not rewritten. In particular, the historical `v1.0.0` tag remains immutable; Ghost FTP uses `ghostftp-v1.0.0` for its new 1.0.0 release.
+Git tags and commits created before the current Ghost FTP release sequence remain immutable for repository provenance and reproducibility. Current product releases exclusively use the `ghostftp-vX.Y.Z` namespace.

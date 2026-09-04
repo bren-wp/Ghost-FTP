@@ -9,6 +9,8 @@ import (
 	"sync"
 )
 
+const runtimeSecretLimit = 128
+
 var runtimeValues = struct {
 	sync.Mutex
 	values map[string][]byte
@@ -29,6 +31,10 @@ func ProtectRuntimeString(value string) (string, error) {
 	if _, exists := runtimeValues.values[token]; exists {
 		WipeBytes(valueBytes)
 		return "", errors.New("nije moguće izdvojiti privremenu vrijednost")
+	}
+	if len(runtimeValues.values) >= runtimeSecretLimit {
+		WipeBytes(valueBytes)
+		return "", errors.New("dosegnuto je ograničenje aktivnih privremenih tajni")
 	}
 	runtimeValues.values[token] = valueBytes
 	return token, nil
