@@ -5,10 +5,9 @@ require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
 require __DIR__ . '/../app/Remote/FtpClient.php';
 
 use ByFTP\Remote\FtpClient;
-use ReflectionMethod;
 
 $client = new FtpClient([]);
-$parse = new ReflectionMethod(FtpClient::class, 'parseRawList');
+$parse = new \ReflectionMethod(FtpClient::class, 'parseRawList');
 
 $items = $parse->invoke($client, [
     '-rw-r--r-- 1 user group 12 Sep 4 12:00 report -> archive.txt',
