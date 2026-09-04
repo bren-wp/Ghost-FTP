@@ -62,6 +62,36 @@ class RuntimeHardeningTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, f"{relative}:\n{result.stdout}")
             self.assertIn("=PASS", result.stdout, relative)
 
+    def test_web_downloads_are_bounded_during_transfer(self) -> None:
+        bounded = (ROOT / "ByFTP WEB/app/Remote/BoundedDownloadInterface.php").read_text(encoding="utf-8")
+        limiter = (ROOT / "ByFTP WEB/app/Remote/TransferLimiter.php").read_text(encoding="utf-8")
+        ftp = (ROOT / "ByFTP WEB/app/Remote/FtpClient.php").read_text(encoding="utf-8")
+        sftp = (ROOT / "ByFTP WEB/app/Remote/SftpClient.php").read_text(encoding="utf-8")
+        download = (ROOT / "ByFTP WEB/download.php").read_text(encoding="utf-8")
+        preview = (ROOT / "ByFTP WEB/preview.php").read_text(encoding="utf-8")
+
+        self.assertIn("downloadBounded(string $remotePath, string $localFile, ?int $maxBytes = null): int", bounded)
+        self.assertIn("stream_copy_to_stream($input, $output, self::probeLength($maxBytes))", limiter)
+        self.assertIn("$copied > $maxBytes", limiter)
+
+        for source in (ftp, sftp):
+            self.assertIn("implements RemoteClientInterface, BoundedDownloadInterface", source)
+            self.assertIn("private array $listedFileSizes = [];", source)
+            self.assertIn("effectiveDownloadLimit", source)
+            self.assertIn("unset($this->listedFileSizes[$remote]);", source)
+            self.assertIn("@ftruncate", source)
+
+        self.assertIn("ftp_nb_fget", ftp)
+        self.assertIn("ftp_nb_continue", ftp)
+        self.assertIn("TransferLimiter::assertWithinLimit($fp, $maxBytes)", ftp)
+        self.assertIn("TransferLimiter::copy($in, $out, $maxBytes)", sftp)
+
+        self.assertIn("$client instanceof BoundedDownloadInterface", download)
+        self.assertIn("downloadBounded($path, $tmp, $reportedSize)", download)
+        self.assertIn("$client instanceof BoundedDownloadInterface", preview)
+        self.assertIn("$maxPreviewBytes = 10485760;", preview)
+        self.assertIn("downloadBounded($path, $tmp, $maxPreviewBytes)", preview)
+
     def test_release_publisher_requires_delayed_remote_readback(self) -> None:
         source = (ROOT / "scripts/publish_release.ps1").read_text(encoding="utf-8")
         immediate = "Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'immediate'"
