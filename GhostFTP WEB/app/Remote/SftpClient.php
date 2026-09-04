@@ -116,14 +116,23 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
             throw new RuntimeException('Upload nije moguće pokrenuti.');
         }
         $sourceStat = fstat($in);
+        $expected = is_array($sourceStat) ? (int)($sourceStat['size'] ?? -1) : -1;
         try {
             $copied = stream_copy_to_stream($in, $out);
             if ($copied === false) throw new RuntimeException('Upload nije uspio.');
-            $expected = is_array($sourceStat) ? (int)($sourceStat['size'] ?? -1) : -1;
             if ($expected >= 0 && $copied !== $expected) throw new RuntimeException('Upload nije dovršen u cijelosti.');
         } finally {
             fclose($in);
             fclose($out);
+        }
+        if ($expected >= 0) {
+            $remoteStat = @ssh2_sftp_lstat($this->sftp, $this->full($remotePath));
+            $remoteSize = is_array($remoteStat) && array_key_exists('size', $remoteStat) && is_numeric($remoteStat['size'])
+                ? (int)$remoteStat['size']
+                : -1;
+            if ($remoteSize >= 0 && $remoteSize !== $expected) {
+                throw new RuntimeException('Upload je završio s neočekivanom veličinom datoteke. Prijenos nije pouzdan.');
+            }
         }
     }
 
@@ -258,8 +267,15 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
             throw new RuntimeException('Nije moguće pripremiti privremene SFTP ključeve.');
         }
         try {
-            if (file_put_contents($pub, $publicKey . (str_ends_with($publicKey, "\n") ? '' : "\n"), LOCK_EX) === false || file_put_contents($priv, $privateKey . (str_ends_with($privateKey, "\n") ? '' : "\n"), LOCK_EX) === false) {
-                throw new RuntimeException('Nije moguće zapisati privremene SFTP ključeve.');
+            @chmod($pub, 0600);
+            @chmod($priv, 0600);
+            $publicMaterial = $publicKey . (str_ends_with($publicKey, "\n") ? '' : "\n");
+            $privateMaterial = $privateKey . (str_ends_with($privateKey, "\n") ? '' : "\n");
+            $publicWritten = file_put_contents($pub, $publicMaterial, LOCK_EX);
+            $privateWritten = file_put_contents($priv, $privateMaterial, LOCK_EX);
+            if (!is_int($publicWritten) || $publicWritten !== strlen($publicMaterial)
+                || !is_int($privateWritten) || $privateWritten !== strlen($privateMaterial)) {
+                throw new RuntimeException('Nije moguće zapisati cijele privremene SFTP ključeve.');
             }
             @chmod($pub, 0600);
             @chmod($priv, 0600);

@@ -133,7 +133,8 @@ try {
 
         case 'delete':
             $path = PathGuard::ensureNotRoot((string)($_POST['path'] ?? ''));
-            $type = (string)($_POST['type'] ?? 'file') === 'dir' ? 'dir' : 'file';
+            $type = (string)($_POST['type'] ?? 'file');
+            if (!in_array($type, ['file', 'dir'], true)) throw new RuntimeException('Vrsta stavke za brisanje nije valjana.');
             $recursive = !isset($_POST['recursive']) || filter_var($_POST['recursive'], FILTER_VALIDATE_BOOLEAN);
             if ($type === 'dir' && $recursive) $ops->deleteRecursive($path, 'dir'); else $client->delete($path, $type === 'dir');
             AppLogger::event('item.delete', ['profile_id'=>$profileId,'path'=>$path,'type'=>$type]);
@@ -143,9 +144,10 @@ try {
             $items = GhostFTP_json_array((string)($_POST['items'] ?? '[]'), 200);
             $deleted = 0;
             foreach ($items as $item) {
-                if (!is_array($item)) continue;
+                if (!is_array($item)) throw new RuntimeException('Popis za skupno brisanje sadrži neispravnu stavku.');
                 $path = PathGuard::ensureNotRoot((string)($item['path'] ?? ''));
-                $type = (string)($item['type'] ?? 'file') === 'dir' ? 'dir' : 'file';
+                $type = (string)($item['type'] ?? 'file');
+                if (!in_array($type, ['file', 'dir'], true)) throw new RuntimeException('Vrsta stavke za skupno brisanje nije valjana.');
                 $ops->deleteRecursive($path, $type);
                 $deleted++;
             }
@@ -184,7 +186,7 @@ try {
         case 'write':
             $path = PathGuard::ensureNotRoot((string)($_POST['path'] ?? ''));
             $content = (string)($_POST['content'] ?? '');
-            if (strlen($content) > 4194304) throw new RuntimeException('Sadržaj je prevelik za web editor. Maksimum je 4 MiB.');
+            RemoteOperations::assertInlineContentSize($content);
             $ifMatch = trim((string)($_POST['if_match'] ?? ''));
             if ($ifMatch !== '') {
                 $current = $client->read($path, 4194304);

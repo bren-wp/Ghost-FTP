@@ -133,6 +133,7 @@ def validate_repository_surface(version: str) -> None:
         "GhostFTP WEB/app/bootstrap.php",
         "GhostFTP WEB/app/helpers.php",
         "GhostFTP WEB/app/Remote/PathGuard.php",
+        "GhostFTP WEB/app/Remote/ClientFactory.php",
         "GhostFTP WEB/app/Remote/FtpClient.php",
         "GhostFTP WEB/app/Remote/SftpClient.php",
         "GhostFTP WEB/app/Security/Auth.php",
@@ -277,14 +278,39 @@ def validate_remote_input_and_secret_boundaries() -> None:
             "$rawHost !== trim($rawHost)",
             "preg_match('/^[0-9]{1,5}$/', $rawPort)",
             "PathGuard::normalizeRelative($basePath)",
+            "$protocol === 'sftp' && $fingerprint === ''",
+            "SFTP zahtijeva SHA-256 host fingerprint prije spremanja ili povezivanja",
         ),
         "app/Storage/ProfileStore.php",
     )
     if "trim((string)($input['host']" in profiles:
         fail("profile host is normalized before fail-closed validation")
 
+    client_factory = read("GhostFTP WEB/app/Remote/ClientFactory.php")
+    require(
+        client_factory,
+        (
+            "$protocol === 'sftp'",
+            "$profile['host_fingerprint']",
+            "SFTP zahtijeva SHA-256 host fingerprint prije povezivanja",
+        ),
+        "app/Remote/ClientFactory.php",
+    )
+
     ftp = read("GhostFTP WEB/app/Remote/FtpClient.php")
     require(ftp, ("$this->profile['password'] = '';", "HostGuard::connectionTargets"), "app/Remote/FtpClient.php")
+
+    operations = read("GhostFTP WEB/app/Operations/RemoteOperations.php")
+    require(
+        operations,
+        (
+            "MAX_INLINE_CONTENT_BYTES = 4194304",
+            "assertInlineContentSize",
+            "$written !== $contentBytes",
+            "Ista izvorna stavka ne smije biti navedena više puta",
+        ),
+        "app/Operations/RemoteOperations.php",
+    )
 
     sftp = read("GhostFTP WEB/app/Remote/SftpClient.php")
     require(
@@ -298,6 +324,9 @@ def validate_remote_input_and_secret_boundaries() -> None:
             "$this->profile['key_passphrase'] = '';",
             "@unlink($pub)",
             "@unlink($priv)",
+            "$publicWritten !== strlen($publicMaterial)",
+            "$privateWritten !== strlen($privateMaterial)",
+            "ssh2_sftp_lstat",
         ),
         "app/Remote/SftpClient.php",
     )

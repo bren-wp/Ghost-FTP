@@ -18,7 +18,7 @@ $remoteStatePos = strpos($extractSource, "$remoteState = ['/'=>'dir'];");
 $listingCachePos = strpos($extractSource, '$listingCache = [];');
 $existingFileConflictPos = strpos($extractSource, 'ZIP odredište blokira postojeća datoteka.');
 $existingDirectoryConflictPos = strpos($extractSource, 'ZIP datoteka ne može prepisati postojeći direktorij.');
-$executionPos = strpos($extractSource, '// Only a fully validated archive is allowed to mutate remote state.');
+$executionPos = strpos($extractSource, '// Only a fully validated and materialized archive is allowed to mutate remote state.');
 if (
     $requiredTypesPos === false
     || $remoteStatePos === false
