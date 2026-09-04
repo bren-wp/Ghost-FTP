@@ -2,7 +2,7 @@
 
 `linux/` is the canonical Linux application packaging surface. The runtime itself remains in the shared Go desktop core under `cmd/` and `internal/` so Linux, Windows and macOS do not carry duplicated protocol, transfer or security implementations.
 
-**Current release: 1.9.1**
+**Current release: 1.9.2**
 
 ## Contents
 
@@ -18,7 +18,7 @@ The production build generates:
 - `ByFTP-<version>-Linux-arm64.deb`
 - `ByFTP-<version>-Linux-i386.deb`
 
-All three packages are built from the same canonical source and root `VERSION`. Release 1.9.1 therefore uses the same product version as Windows, macOS, Android, iOS and ByFTP WEB.
+All three packages are built from the same canonical source and root `VERSION`. Release 1.9.2 therefore uses the same product version as Windows, macOS, Android, iOS and ByFTP WEB.
 
 ## Build
 
@@ -33,4 +33,4 @@ CI and the production release workflow invoke `linux/BUILD.sh` directly, run uni
 
 ## Shared desktop core
 
-FTP, FTPS, SFTP, transfer, persistence, shared-hosting diagnostics and security logic remain in the reviewed common Go core. Linux packaging does not carry a forked protocol implementation, so the 1.9.1 transfer-cleanup/security fixes and release checks apply from the same source used by Windows and macOS.
+FTP, FTPS, SFTP, transfer, persistence, shared-hosting diagnostics and security logic remain in the reviewed common Go core. Linux packaging does not carry a forked protocol implementation, so the 1.9.1 native transfer-cleanup/security fixes remain inherited from the same source used by Windows and macOS; 1.9.2 adds WEB-only bounded download hardening without changing the Linux transport implementation.
