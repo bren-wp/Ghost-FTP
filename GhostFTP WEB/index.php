@@ -26,7 +26,7 @@ $initial = strtoupper(function_exists('mb_substr') ? mb_substr((string)($current
 <div class="app-shell" id="app">
 <header class="topbar">
     <button id="sidebarToggle" class="icon-button mobile-only" type="button" aria-label="Otvori izbornik" aria-controls="sidebar" aria-expanded="false">☰</button>
-    <a class="brand" href="<?= GhostFTP_e(GhostFTP_url('app')) ?>"><img src="<?= GhostFTP_e(GhostFTP_asset('images/logo.svg')) ?>" alt="GhostFTP"></a>
+    <a class="brand" href="<?= GhostFTP_e(GhostFTP_url('app')) ?>"><img src="<?= GhostFTP_e(GhostFTP_asset('images/logo.svg')) ?>" alt="Ghost FTP"></a>
     <div class="connection-summary"><strong id="connectionName">Nije odabran server</strong><span id="connectionMeta">Odaberi vezu iz izbornika</span></div>
     <div class="topbar-search"><span aria-hidden="true">⌕</span><input id="remoteSearch" type="search" placeholder="Pretraži server…" autocomplete="off"><button id="searchBtn" class="icon-button" type="button" aria-label="Pretraži">↵</button></div>
     <div class="user-menu-wrap">
@@ -51,7 +51,7 @@ $initial = strtoupper(function_exists('mb_substr') ? mb_substr((string)($current
         <a href="<?= GhostFTP_e(GhostFTP_url('account')) ?>">● Moj račun</a>
         <?php if (($currentUser['role'] ?? '') === 'admin'): ?><a href="<?= GhostFTP_e(GhostFTP_url('users')) ?>">◎ Korisnici</a><?php endif; ?>
         <a href="<?= GhostFTP_e(GhostFTP_url('diagnostics')) ?>">◇ Dijagnostika</a>
-        <button type="button" data-install-app>↓ Instaliraj GhostFTP</button>
+        <button type="button" data-install-app>↓ Instaliraj Ghost FTP</button>
     </nav>
     <div class="sidebar-footer"><span id="connectionStatus" class="status-dot offline"></span><span id="statusText">Nije povezano</span><small>v<?= GhostFTP_e(GhostFTP_VERSION) ?></small></div>
 </aside>
@@ -118,7 +118,7 @@ $initial = strtoupper(function_exists('mb_substr') ? mb_substr((string)($current
 
 <nav id="contextMenu" class="context-menu hidden"><button data-action="open" type="button">Otvori</button><button data-action="download" type="button">Preuzmi</button><button data-action="edit" type="button">Uredi</button><button data-action="preview" type="button">Pregled slike</button><hr><button data-action="duplicate" type="button">Dupliciraj</button><button data-action="copy" type="button">Kopiraj u…</button><button data-action="move" type="button">Premjesti u…</button><button data-action="rename" type="button">Preimenuj</button><button data-action="chmod" type="button">Dozvole</button><button data-action="extract" type="button">Raspakiraj ZIP</button><hr><button class="danger-text" data-action="delete" type="button">Obriši</button></nav>
 
-<div id="installModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card install-card"><div class="modal-head"><div><p class="eyebrow">PWA</p><h2>Instaliraj GhostFTP</h2></div><button class="icon-button" type="button" data-close-install>×</button></div><div class="install-visual"><img src="<?= GhostFTP_e(GhostFTP_asset('images/mark.svg')) ?>" alt="GhostFTP"><p>Dodaj GhostFTP na početni zaslon. Autentificirane stranice i FTP podaci ne spremaju se u offline cache.</p></div><ol data-ios-install hidden><li>U Safariju odaberi <strong>Dijeli</strong>.</li><li>Odaberi <strong>Dodaj na početni zaslon</strong>.</li></ol><p data-generic-install>U izborniku preglednika odaberi <strong>Instaliraj aplikaciju</strong>.</p></div></div>
+<div id="installModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card install-card"><div class="modal-head"><div><p class="eyebrow">PWA</p><h2>Instaliraj Ghost FTP</h2></div><button class="icon-button" type="button" data-close-install>×</button></div><div class="install-visual"><img src="<?= GhostFTP_e(GhostFTP_asset('images/mark.svg')) ?>" alt="Ghost FTP"><p>Dodaj Ghost FTP na početni zaslon. Autentificirane stranice i FTP podaci ne spremaju se u offline cache.</p></div><ol data-ios-install hidden><li>U Safariju odaberi <strong>Dijeli</strong>.</li><li>Odaberi <strong>Dodaj na početni zaslon</strong>.</li></ol><p data-generic-install>U izborniku preglednika odaberi <strong>Instaliraj aplikaciju</strong>.</p></div></div>
 
 <div id="toastHost" class="toast-host" aria-live="polite"></div>
 <script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>

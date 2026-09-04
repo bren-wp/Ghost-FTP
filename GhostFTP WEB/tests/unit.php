@@ -103,14 +103,9 @@ final class BatchRenameFakeClient implements RemoteClientInterface
         throw new RuntimeException('Unexpected download in batch rename test.');
     }
 
-    public function read(string $remotePath, int $maxBytes = 2097152): string
+    public function read(string $remotePath, int $maxBytes = 4194304): string
     {
         throw new RuntimeException('Unexpected read in batch rename test.');
-    }
-
-    public function write(string $remotePath, string $content): void
-    {
-        throw new RuntimeException('Unexpected write in batch rename test.');
     }
 
     public function chmod(string $path, int $mode): void

@@ -4,7 +4,7 @@ declare(strict_types=1);
 /** @var array $currentUser */
 ?>
 <header class="settings-topbar">
-    <a class="brand settings-brand" href="<?= GhostFTP_e(GhostFTP_url('app')) ?>"><img src="<?= GhostFTP_e(GhostFTP_asset('images/logo.svg')) ?>" alt="GhostFTP"></a>
+    <a class="brand settings-brand" href="<?= GhostFTP_e(GhostFTP_url('app')) ?>"><img src="<?= GhostFTP_e(GhostFTP_asset('images/logo.svg')) ?>" alt="Ghost FTP"></a>
     <nav class="settings-nav" aria-label="Postavke">
         <a class="<?= $activeSettingsPage === 'account' ? 'active' : '' ?>" href="<?= GhostFTP_e(GhostFTP_url('account')) ?>">Moj račun</a>
         <?php if (($currentUser['role'] ?? '') === 'admin'): ?>

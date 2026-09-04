@@ -32,7 +32,7 @@ if (!$profile) {
 }
 
 $paths = GhostFTP_string_paths((string)($_POST['paths'] ?? '[]'), 200);
-$name = GhostFTP_archive_download_name((string)($_POST['name'] ?? 'GhostFTP-download.zip'));
+$name = GhostFTP_archive_download_name((string)($_POST['name'] ?? 'Ghost-FTP-download.zip'));
 
 $tmp = tempnam(GhostFTP_STORAGE . '/tmp', 'archive-');
 if ($tmp === false) {
