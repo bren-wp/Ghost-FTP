@@ -326,6 +326,8 @@ def validate_remote_input_and_secret_boundaries() -> None:
             "@unlink($priv)",
             "$publicWritten !== strlen($publicMaterial)",
             "$privateWritten !== strlen($privateMaterial)",
+            "DIRECTORY_SEPARATOR === '/'",
+            "dozvolama 0600",
             "ssh2_sftp_lstat",
         ),
         "app/Remote/SftpClient.php",

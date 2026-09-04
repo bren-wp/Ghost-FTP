@@ -267,8 +267,14 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
             throw new RuntimeException('Nije moguće pripremiti privremene SFTP ključeve.');
         }
         try {
-            @chmod($pub, 0600);
-            @chmod($priv, 0600);
+            if (DIRECTORY_SEPARATOR === '/') {
+                if (!@chmod($pub, 0600) || !@chmod($priv, 0600)) {
+                    throw new RuntimeException('Nije moguće zaštititi privremene SFTP ključeve dozvolama 0600.');
+                }
+            } else {
+                @chmod($pub, 0600);
+                @chmod($priv, 0600);
+            }
             $publicMaterial = $publicKey . (str_ends_with($publicKey, "\n") ? '' : "\n");
             $privateMaterial = $privateKey . (str_ends_with($privateKey, "\n") ? '' : "\n");
             $publicWritten = file_put_contents($pub, $publicMaterial, LOCK_EX);
@@ -277,8 +283,14 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
                 || !is_int($privateWritten) || $privateWritten !== strlen($privateMaterial)) {
                 throw new RuntimeException('Nije moguće zapisati cijele privremene SFTP ključeve.');
             }
-            @chmod($pub, 0600);
-            @chmod($priv, 0600);
+            if (DIRECTORY_SEPARATOR === '/') {
+                if (!@chmod($pub, 0600) || !@chmod($priv, 0600)) {
+                    throw new RuntimeException('Nije moguće zadržati zaštitu privremenih SFTP ključeva dozvolama 0600.');
+                }
+            } else {
+                @chmod($pub, 0600);
+                @chmod($priv, 0600);
+            }
             $passphrase = (string)($this->profile['key_passphrase'] ?? '');
             $ok = $passphrase === '' ? @ssh2_auth_pubkey_file($conn, $username, $pub, $priv) : @ssh2_auth_pubkey_file($conn, $username, $pub, $priv, $passphrase);
             if (!$ok) throw new RuntimeException('SFTP prijava ključem nije uspjela. Provjeri ključ, korisničko ime i passphrase.');

@@ -142,13 +142,17 @@ try {
 
         case 'bulk_delete':
             $items = GhostFTP_json_array((string)($_POST['items'] ?? '[]'), 200);
-            $deleted = 0;
+            $validatedItems = [];
             foreach ($items as $item) {
                 if (!is_array($item)) throw new RuntimeException('Popis za skupno brisanje sadrži neispravnu stavku.');
                 $path = PathGuard::ensureNotRoot((string)($item['path'] ?? ''));
                 $type = (string)($item['type'] ?? 'file');
                 if (!in_array($type, ['file', 'dir'], true)) throw new RuntimeException('Vrsta stavke za skupno brisanje nije valjana.');
-                $ops->deleteRecursive($path, $type);
+                $validatedItems[] = ['path' => $path, 'type' => $type];
+            }
+            $deleted = 0;
+            foreach ($validatedItems as $item) {
+                $ops->deleteRecursive((string)$item['path'], (string)$item['type']);
                 $deleted++;
             }
             AppLogger::event('item.bulk_delete', ['profile_id'=>$profileId,'count'=>$deleted]);
