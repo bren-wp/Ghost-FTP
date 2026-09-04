@@ -77,7 +77,7 @@ jobs:
           name: ghostftp-web-stage
           if-no-files-found: error
           retention-days: 7
-          path: dist/ByFTP-*-WEB-shared-hosting.zip
+          path: dist/Ghost-FTP-*-Web.zip
 
   android:
     name: Android installable APK
@@ -310,7 +310,7 @@ jobs:
           cp "staging/macos/ByFTP-${VERSION}-macOS-Universal.pkg" "release/Ghost-FTP-${VERSION}-macOS-Universal.pkg"
           cp "staging/android/app-debug.apk" "release/Ghost-FTP-${VERSION}-Android.apk"
           cp "staging/ios/ByFTP-${VERSION}-iOS-arm64-unsigned.ipa" "release/Ghost-FTP-${VERSION}-iOS-arm64-unsigned.ipa"
-          cp "staging/web/ByFTP-${VERSION}-WEB-shared-hosting.zip" "release/Ghost-FTP-${VERSION}-Web.zip"
+          cp "staging/web/Ghost-FTP-${VERSION}-Web.zip" "release/Ghost-FTP-${VERSION}-Web.zip"
 
           python scripts/release_notes.py --version "$VERSION" --output release/RELEASE-NOTES.txt
           cat > release/BUILD-METADATA.txt <<EOF
