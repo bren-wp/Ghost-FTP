@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate ByFTP documentation links, indexing, and version-neutral titles."""
+"""Validate Ghost FTP documentation links, indexing and durable titles."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ INDEX = DOCS / "README.md"
 
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
 HTML_LINK_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
-VERSIONED_DOC_TITLE_RE = re.compile(r"(?m)^#\s+ByFTP\s+\d+\.\d+\.\d+\s+—")
+VERSIONED_DOC_TITLE_RE = re.compile(r"(?m)^#\s+(?:Ghost FTP|ByFTP)\s+\d+\.\d+\.\d+\s+—")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 
 
@@ -40,8 +40,6 @@ def clean_destination(raw: str) -> str:
 def check_link(source: Path, raw: str) -> None:
     destination = clean_destination(raw)
     if not destination or destination.lower().startswith(IGNORED_PREFIXES):
-        return
-    if source == ROOT / "README.md" and destination.startswith("../../actions/"):
         return
     target = (source.parent / destination).resolve()
     try:
@@ -70,6 +68,11 @@ def main() -> int:
 
     index_text = INDEX.read_text(encoding="utf-8")
     root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    if not root_readme.startswith("# Ghost FTP\n"):
+        fail("root README does not use the Ghost FTP public title")
+    if not index_text.startswith("# Ghost FTP documentation\n"):
+        fail("documentation index does not use the Ghost FTP public title")
+
     detailed_docs = sorted(path for path in DOCS.glob("*.md") if path.name != "README.md")
     for path in detailed_docs:
         if path.name not in index_text:
@@ -84,7 +87,8 @@ def main() -> int:
             fail(f"root README does not link {platform_readme}")
 
     print(f"DOCS_AUDIT=PASS ({len(files)} Markdown files, {len(detailed_docs)} detailed documents)")
-    print("PLATFORM_DOCS=LINUX,MACOS,ANDROID,IOS")
+    print("PUBLIC_BRAND=Ghost FTP")
+    print("PLATFORM_DOCS=LINUX,MACOS,ANDROID,IOS,WEB")
     return 0
 
 
