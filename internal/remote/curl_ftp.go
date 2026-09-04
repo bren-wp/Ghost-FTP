@@ -304,7 +304,6 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 			if ftpCommandUnsupported(err) {
 				c.mlsdState.Store(-1)
 			}
-		}
 	}
 	out, err := c.run(ctx, []string{urlLine})
 	if err != nil {
@@ -485,6 +484,13 @@ func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, option
 	return replaceLocalFileAtomic(local, part, options.KeepBackup)
 }
 
+func removeCommittedLocalRollback(path string, remove func(string) error) error {
+	if err := remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("new file is active, but local rollback could not be removed at %s: %w", path, err)
+	}
+	return nil
+}
+
 func replaceLocalFileAtomic(local, part string, keepBackup bool) error {
 	if st, err := os.Lstat(local); err == nil {
 		if st.IsDir() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
@@ -515,7 +521,9 @@ func replaceLocalFileAtomic(local, part string, keepBackup bool) error {
 			return err
 		}
 		if !keepBackup {
-			_ = os.Remove(bak)
+			if err := removeCommittedLocalRollback(bak, os.Remove); err != nil {
+				return err
+			}
 		}
 		return nil
 	} else if !os.IsNotExist(err) {
