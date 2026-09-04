@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -68,21 +69,29 @@ class MaintenanceRegressionTests(unittest.TestCase):
         create = workflow.index("gh release create")
         self.assertLess(guard, create)
 
-    def test_ghostftp_product_line_starts_at_1_0_0_without_rewriting_history(self) -> None:
-        self.assertEqual("1.0.0", read("VERSION").strip())
-        self.assertEqual("1.0.0", read("GhostFTP WEB/VERSION").strip())
+    def test_ghostftp_version_line_starts_at_1_0_0_and_tracks_current_version(self) -> None:
+        version = read("VERSION").strip()
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+        self.assertEqual(version, read("GhostFTP WEB/VERSION").strip())
+
         readme = read("README.md")
         changelog = read("CHANGELOG.md")
-        self.assertIn("Current Ghost FTP version: **1.0.0**", readme)
-        self.assertIn("product line starts at `1.0.0`", readme)
+        self.assertIn(f"Current Ghost FTP version: **{version}**", readme)
+        self.assertIn("Ghost FTP starts at **1.0.0**", readme)
         self.assertIn("ghostftp-v1.0.0", readme)
-        self.assertIn("historical `v1.0.0` tag", readme)
+        self.assertIn(f"## {version}", changelog)
         self.assertIn("## 1.0.0", changelog)
-        self.assertIn("Pre-1.0.0 history", changelog)
+
+        version_sections = [
+            match.group(1)
+            for match in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)
+        ]
+        self.assertIn("1.0.0", version_sections)
+        self.assertIn(version, version_sections)
 
     def test_web_version_brand_and_fail_closed_boundaries(self) -> None:
         web = ROOT / "GhostFTP WEB"
-        self.assertTrue(web.is_dir(), "legacy-named web source directory is required")
+        self.assertTrue(web.is_dir(), "GhostFTP web source directory is required")
         root_version = read("VERSION").strip()
         self.assertEqual(root_version, (web / "VERSION").read_text(encoding="utf-8").strip())
 
