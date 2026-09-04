@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and verify the deployable ByFTP WEB shared-hosting release archive."""
+"""Build and verify the deployable Ghost FTP shared-hosting release archive."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-WEB_ROOT = ROOT / "ByFTP WEB"
+WEB_ROOT = ROOT / "ByFTP WEB"  # Legacy source-directory name retained for compatibility.
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 FIXED_ZIP_TIME = (2026, 1, 1, 0, 0, 0)
 
@@ -28,7 +28,7 @@ def canonical_version() -> str:
         fail(f"invalid VERSION: {version!r}")
     web_version = (WEB_ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if web_version != version:
-        fail(f"ByFTP WEB/VERSION mismatch: {web_version!r} != {version!r}")
+        fail(f"web VERSION mismatch: {web_version!r} != {version!r}")
     return version
 
 
@@ -42,7 +42,7 @@ def tracked_web_files() -> list[Path]:
             stderr=subprocess.PIPE,
         )
     except (OSError, subprocess.CalledProcessError) as exc:
-        fail(f"cannot enumerate tracked WEB files: {exc}")
+        fail(f"cannot enumerate tracked web files: {exc}")
 
     files: list[Path] = []
     for raw in proc.stdout.split(b"\0"):
@@ -51,19 +51,19 @@ def tracked_web_files() -> list[Path]:
         try:
             rel_text = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
-            fail(f"tracked WEB path is not UTF-8: {exc}")
+            fail(f"tracked web path is not UTF-8: {exc}")
         rel = PurePosixPath(rel_text)
         if rel.is_absolute() or ".." in rel.parts or not rel.parts or rel.parts[0] != "ByFTP WEB":
-            fail(f"unsafe tracked WEB path: {rel_text!r}")
+            fail(f"unsafe tracked web path: {rel_text!r}")
         path = ROOT.joinpath(*rel.parts)
         if path.is_symlink():
-            fail(f"tracked WEB symlink is not allowed in public package: {rel_text}")
+            fail(f"tracked web symlink is not allowed in public package: {rel_text}")
         if not path.is_file():
-            fail(f"tracked WEB entry is not a regular file: {rel_text}")
+            fail(f"tracked web entry is not a regular file: {rel_text}")
         files.append(path)
 
     if not files:
-        fail("no tracked WEB files were found")
+        fail("no tracked web files were found")
     return sorted(files, key=lambda p: p.as_posix().casefold())
 
 
@@ -71,7 +71,7 @@ def archive_name(path: Path) -> str:
     rel = path.relative_to(WEB_ROOT).as_posix()
     pure = PurePosixPath(rel)
     if pure.is_absolute() or ".." in pure.parts or rel in {"", "."}:
-        fail(f"unsafe WEB archive path: {rel!r}")
+        fail(f"unsafe web archive path: {rel!r}")
     return rel
 
 
@@ -108,12 +108,12 @@ def verify_archive(output: Path, files: list[Path], version: str) -> None:
     }
     if not required.issubset(expected):
         missing = sorted(required.difference(expected))
-        fail("tracked WEB source is missing required package files: " + ", ".join(missing))
+        fail("tracked web source is missing required package files: " + ", ".join(missing))
 
     with zipfile.ZipFile(output, "r") as zf:
         names = zf.namelist()
         if names != expected:
-            fail("archive entry set/order does not match tracked WEB source")
+            fail("archive entry set/order does not match tracked web source")
         if len({name.casefold() for name in names}) != len(names):
             fail("archive contains duplicate paths")
         for name in names:
@@ -128,9 +128,11 @@ def verify_archive(output: Path, files: list[Path], version: str) -> None:
             fail(f"archived composer.json is invalid: {exc}")
         if composer.get("version") != version:
             fail("archived composer.json version does not match canonical VERSION")
+        if composer.get("name") != "brendigo/ghost-ftp-web":
+            fail("archived composer.json does not use the Ghost FTP package name")
         service_worker = zf.read("service-worker.js").decode("utf-8")
-        if f"byftp-static-v{version}" not in service_worker:
-            fail("archived service-worker cache namespace does not match canonical VERSION")
+        if f"ghostftp-static-v{version}" not in service_worker:
+            fail("archived service-worker cache namespace does not match canonical Ghost FTP VERSION")
 
 
 def main() -> int:
@@ -143,14 +145,15 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
         output_dir = ROOT / output_dir
-    output = output_dir / f"ByFTP-{version}-WEB-shared-hosting.zip"
+    output = output_dir / f"Ghost-FTP-{version}-Web.zip"
 
     write_archive(output, files)
     verify_archive(output, files, version)
     if output.stat().st_size <= 0:
-        fail("WEB package is empty")
+        fail("web package is empty")
 
     print(f"WEB_PACKAGE=PASS ({version})")
+    print("PUBLIC_BRAND=Ghost FTP")
     print(f"WEB_PACKAGE_FILES={len(files)}")
     print(f"WEB_PACKAGE_PATH={output}")
     return 0
