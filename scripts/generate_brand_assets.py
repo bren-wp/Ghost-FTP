@@ -3,8 +3,8 @@
 
 Brand binaries are committed to the repository and are not regenerated during
 production builds. This keeps builds deterministic and avoids maintaining a
-custom PNG/ICO renderer solely for CI. The historical ByFTP documentation
-banner is intentionally no longer part of the brand contract.
+custom PNG/ICO renderer solely for CI. Retired documentation artwork is not
+part of the current brand contract.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 ICON_PNG = ROOT / "build" / "icon.png"
 ICON_ICO = ROOT / "build" / "icon.ico"
-WEB_LOGO = ROOT / "ByFTP WEB" / "assets" / "images" / "logo.svg"
-WEB_MARK = ROOT / "ByFTP WEB" / "assets" / "images" / "mark.svg"
+WEB_LOGO = ROOT / "GhostFTP WEB" / "assets" / "images" / "logo.svg"
+WEB_MARK = ROOT / "GhostFTP WEB" / "assets" / "images" / "mark.svg"
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 ICO_SIGNATURE = b"\x00\x00\x01\x00"
@@ -43,7 +43,7 @@ def validate() -> None:
         raise ValueError("build/icon.ico is not a valid Windows icon asset")
 
     logo = require_file(WEB_LOGO).decode("utf-8", errors="strict")
-    if "Ghost FTP" not in logo or "ByFTP" in logo:
+    if "Ghost FTP" not in logo or "GhostFTP" in logo:
         raise ValueError("web logo does not contain the canonical Ghost FTP brand")
 
     mark = require_file(WEB_MARK).decode("utf-8", errors="strict")
@@ -56,7 +56,7 @@ def main() -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="retained for build-script compatibility; validation is always performed",
+        help="accepted for build-script compatibility; validation is always performed",
     )
     parser.parse_args()
 
@@ -68,7 +68,7 @@ def main() -> int:
 
     print("BRAND_ASSET_AUDIT=PASS")
     print("PUBLIC_BRAND=Ghost FTP")
-    print("LEGACY_BYFTP_DOC_HEADER=REMOVED")
+    print("RETIRED_DOC_HEADER=REMOVED")
     return 0
 
 

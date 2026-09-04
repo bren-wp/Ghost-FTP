@@ -28,8 +28,8 @@ class PackageAndroidTests(unittest.TestCase):
 
             debug_out, release_out = package_android.stage_apks(debug, release, out, "1.1.1")
 
-            self.assertEqual(debug_out.name, "ByFTP-1.1.1-Android-debug.apk")
-            self.assertEqual(release_out.name, "ByFTP-1.1.1-Android-release-unsigned.apk")
+            self.assertEqual(debug_out.name, "GhostFTP-1.1.1-Android-debug.apk")
+            self.assertEqual(release_out.name, "GhostFTP-1.1.1-Android-release-unsigned.apk")
             package_android.validate_apk(debug_out)
             package_android.validate_apk(release_out)
 

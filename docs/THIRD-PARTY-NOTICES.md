@@ -4,4 +4,4 @@ Ghost FTP is built with Go and uses operating-system facilities plus command-lin
 
 Those components are distributed and licensed by their respective vendors or operating-system projects. Ghost FTP does not bundle third-party credentials or bypass platform licensing requirements.
 
-Historical source paths or internal compatibility identifiers that contain `ByFTP` are implementation details retained only where changing them could break upgrades or existing application identity. They do not represent the public product name.
+Historical source paths or internal compatibility identifiers that contain `GhostFTP` are implementation details retained only where changing them could break upgrades or existing application identity. They do not represent the public product name.

@@ -42,7 +42,9 @@ Public platform packages
 Windows:
 - Ghost-FTP-{version}-Setup-x64.exe — 64-bit Windows installer.
 - Ghost-FTP-{version}-Setup-x86.exe — 32-bit x86 Windows installer.
-- Ghost-FTP-{version}-Setup-x32.exe — compatibility alias of the x86 installer; x32 and x86 refer to the same 32-bit architecture here.
+- Ghost-FTP-{version}-Setup-x32.exe — byte-identical alias of the x86 installer; x32 and x86 refer to the same 32-bit architecture here.
+- Ghost-FTP-{version}-Portable-x64.exe — portable 64-bit Windows executable.
+- Ghost-FTP-{version}-Portable-x86.exe — portable 32-bit x86 Windows executable.
 
 Linux:
 - Ghost-FTP-{version}-Linux-multiarch.zip — contains verified amd64, arm64 and i386 Debian packages.
@@ -51,7 +53,7 @@ macOS:
 - Ghost-FTP-{version}-macOS-Universal.pkg — universal Intel x86_64 + Apple Silicon arm64 package.
 
 Android:
-- Ghost-FTP-{version}-Android.apk — installable CI test build using Android debug signing. It is not represented as a Play Store production-signed package.
+- Ghost-FTP-{version}-Android.apk — installable CI build using Android debug signing. It is not represented as a Play Store production-signed package.
 
 iOS:
 - Ghost-FTP-{version}-iOS-arm64-unsigned.ipa — unsigned device archive for external Apple signing/provisioning.
@@ -59,11 +61,24 @@ iOS:
 Web:
 - Ghost-FTP-{version}-Web.zip — shared-hosting web package.
 
+GitHub Packages
+---------------
+- NuGet package ID: GhostFTP
+- Package version: {version}
+- Contents: verified Windows portable x64 and x86 GhostFTP executables.
+
+The release workflow verifies the package-registry readback before completing publication.
+
 Verification files
 ------------------
 - SHA256.txt — SHA-256 checksums for every public release file except SHA256.txt itself.
 - RELEASE-NOTES.txt — these notes generated from CHANGELOG.md.
 - BUILD-METADATA.txt — version, release tag, commit and signing/provenance status.
+
+Release contract
+----------------
+- 10 platform artifacts.
+- 13 public release files total, including the three verification/metadata files.
 
 Signing and trust
 -----------------

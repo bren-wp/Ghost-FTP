@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and stage versioned ByFTP Android APK build artifacts."""
+"""Validate and stage versioned GhostFTP Android APK build artifacts."""
 
 from __future__ import annotations
 
@@ -53,8 +53,8 @@ def stage_apks(debug_apk: Path, release_apk: Path, output_dir: Path, version: st
     validate_apk(release_apk)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    debug_out = output_dir / f"ByFTP-{version}-Android-debug.apk"
-    release_out = output_dir / f"ByFTP-{version}-Android-release-unsigned.apk"
+    debug_out = output_dir / f"GhostFTP-{version}-Android-debug.apk"
+    release_out = output_dir / f"GhostFTP-{version}-Android-release-unsigned.apk"
     shutil.copy2(debug_apk, debug_out)
     shutil.copy2(release_apk, release_out)
 

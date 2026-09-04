@@ -5,10 +5,10 @@ package desktop
 import (
 	"context"
 	"fmt"
-	"github.com/bren-wp/by-ftp/internal/api"
-	"github.com/bren-wp/by-ftp/internal/brand"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/api"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
 	"runtime"
 	"sync"
 	"syscall"
@@ -77,7 +77,7 @@ func Run(engine *api.Engine, version string) error {
 	cursor, _, _ := loadCursorW.Call(0, 32512)
 	icon, _, _ := loadIconW.Call(hinst, 1)
 	brush, _, _ := createSolidBrush.Call(windowColor())
-	className := wstr("ByFTP.NativeWindow")
+	className := wstr("GhostFTP.NativeWindow")
 	wc := wndClassEx{
 		CbSize:     uint32(unsafe.Sizeof(wndClassEx{})),
 		WndProc:    wndProcPtr,
@@ -92,7 +92,7 @@ func Run(engine *api.Engine, version string) error {
 		if brush != 0 {
 			deleteObject.Call(brush)
 		}
-		return fmt.Errorf("unable to register ByFTP window: %v", err)
+		return fmt.Errorf("unable to register GhostFTP window: %v", err)
 	}
 
 	a := &app{engine: engine, version: version, remoteCurrent: "/", seenDone: map[string]bool{}, brush: brush, buttons: make(map[uintptr]buttonVisual), settings: model.Settings{Language: "en"}}
@@ -108,7 +108,7 @@ func Run(engine *api.Engine, version string) error {
 		if brush != 0 {
 			deleteObject.Call(brush)
 		}
-		return fmt.Errorf("unable to open ByFTP window: %v", err)
+		return fmt.Errorf("unable to open GhostFTP window: %v", err)
 	}
 	a.hwnd = hwnd
 	a.dpi = windowDPI(hwnd)
@@ -157,9 +157,9 @@ func Run(engine *api.Engine, version string) error {
 		r, _, callErr := getMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
 		if int32(r) == -1 {
 			if callErr != nil && callErr != syscall.Errno(0) {
-				return fmt.Errorf("ByFTP window messages are unavailable: %w", callErr)
+				return fmt.Errorf("GhostFTP window messages are unavailable: %w", callErr)
 			}
-			return fmt.Errorf("ByFTP window messages are unavailable")
+			return fmt.Errorf("GhostFTP window messages are unavailable")
 		}
 		if r == 0 {
 			break
@@ -286,7 +286,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		return 0
 	case wmClose:
 		if a.connected || a.connectionBusy || a.hasActiveTransfers() {
-			if !platform.ConfirmDialog("ByFTP", closeQuestion(a.languageCode()), closeBody(a.languageCode())) {
+			if !platform.ConfirmDialog("GhostFTP", closeQuestion(a.languageCode()), closeBody(a.languageCode())) {
 				return 0
 			}
 		}

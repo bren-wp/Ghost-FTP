@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const processHelperEnv = "BYFTP_PROCESS_HELPER"
+const processHelperEnv = "GhostFTP_PROCESS_HELPER"
 
 func helperEnv(base []string, values map[string]string) []string {
 	out := make([]string, 0, len(base)+len(values))
@@ -39,8 +39,8 @@ func TestProcessLifecycleHelper(t *testing.T) {
 	if mode == "" {
 		return
 	}
-	marker := os.Getenv("BYFTP_PROCESS_MARKER")
-	ready := os.Getenv("BYFTP_PROCESS_READY")
+	marker := os.Getenv("GhostFTP_PROCESS_MARKER")
+	ready := os.Getenv("GhostFTP_PROCESS_READY")
 	switch mode {
 	case "child":
 		time.Sleep(700 * time.Millisecond)
@@ -51,9 +51,9 @@ func TestProcessLifecycleHelper(t *testing.T) {
 	case "parent":
 		child := exec.Command(os.Args[0], "-test.run=TestProcessLifecycleHelper")
 		child.Env = helperEnv(os.Environ(), map[string]string{
-			processHelperEnv:       "child",
-			"BYFTP_PROCESS_MARKER": marker,
-			"BYFTP_PROCESS_READY":  "",
+			processHelperEnv:          "child",
+			"GhostFTP_PROCESS_MARKER": marker,
+			"GhostFTP_PROCESS_READY":  "",
 		})
 		if err := child.Start(); err != nil {
 			os.Exit(11)
@@ -95,9 +95,9 @@ func TestConfigureToolCommandCancelsDescendantProcess(t *testing.T) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestProcessLifecycleHelper")
 	cmd.Env = helperEnv(os.Environ(), map[string]string{
-		processHelperEnv:       "parent",
-		"BYFTP_PROCESS_MARKER": marker,
-		"BYFTP_PROCESS_READY":  ready,
+		processHelperEnv:          "parent",
+		"GhostFTP_PROCESS_MARKER": marker,
+		"GhostFTP_PROCESS_READY":  ready,
 	})
 	configureToolCommand(cmd)
 	done := make(chan error, 1)

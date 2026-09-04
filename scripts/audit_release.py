@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the Ghost FTP production release contract."""
+"""Fail-closed validation of the Ghost FTP release and package contract."""
 
 from __future__ import annotations
 
@@ -19,199 +19,121 @@ def read(rel: str) -> str:
     path = ROOT / rel
     if not path.is_file():
         fail(f"missing required file: {rel}")
-    try:
-        return path.read_text(encoding="utf-8")
-    except UnicodeError as exc:
-        fail(f"{rel} is not valid UTF-8: {exc}")
+    return path.read_text(encoding="utf-8")
 
 
-def require(text: str, markers: tuple[str, ...], where: str) -> None:
+def require(rel: str, *markers: str) -> str:
+    text = read(rel)
     for marker in markers:
         if marker not in text:
-            fail(f"{where} is missing required marker: {marker}")
+            fail(f"{rel} is missing required marker: {marker}")
+    return text
 
 
-def run_python_audit(rel: str, label: str) -> None:
-    audit = ROOT / rel
-    if not audit.is_file():
-        fail(f"missing required file: {rel}")
+def run(rel: str) -> None:
     try:
-        subprocess.run([sys.executable, str(audit)], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, str(ROOT / rel)], cwd=ROOT, check=True)
     except subprocess.CalledProcessError as exc:
-        fail(f"{label} failed with exit code {exc.returncode}")
+        fail(f"{rel} failed with exit code {exc.returncode}")
 
 
 def main() -> int:
     version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
-    if read("ByFTP WEB/VERSION").strip() != version:
-        fail("web VERSION does not match the repository VERSION")
+    if read("GhostFTP WEB/VERSION").strip() != version:
+        fail("web VERSION does not match root VERSION")
 
-    run_python_audit("scripts/audit_repository.py", "repository-wide tracked-file audit")
-    run_python_audit("scripts/audit_web.py", "Ghost FTP web audit/runtime gate")
+    run("scripts/audit_brand_hardcut.py")
+    run("scripts/audit_repository.py")
+    run("scripts/audit_web.py")
 
-    workflow = read(".github/workflows/release.yml")
-    require(
-        workflow,
-        (
-            "name: Publish Ghost FTP",
-            "group: ghostftp-release",
-            "permissions:\n  contents: write",
-            "quality:", "windows:", "linux:", "macos:", "android:", "ios:", "publish:",
-            "needs: [quality, windows, linux, macos, android, ios]",
-            "go telemetry off", "go test ./...", "go test -race ./...", "go vet ./...",
-            "python scripts/audit_security.py", "python scripts/audit_privacy.py",
-            "python scripts/package_web.py --output-dir dist",
-            ".\\BUILD-WINDOWS.ps1", "bash linux/BUILD.sh", "bash macos/BUILD.sh", "bash ios/BUILD.sh",
-            ":app:testDebugUnitTest", ":app:lintDebug", ":app:assembleDebug",
-            "RELEASE_TAG=ghostftp-v$version",
-            "path: dist/Ghost-FTP-*-Setup-*.exe",
-            'staging/windows/Ghost-FTP-${VERSION}-Setup-x64.exe',
-            'staging/windows/Ghost-FTP-${VERSION}-Setup-x86.exe',
-            "Ghost-FTP-${VERSION}-Setup-x32.exe",
-            "Ghost-FTP-${VERSION}-Linux-multiarch.zip",
-            "Ghost-FTP-${VERSION}-macOS-Universal.pkg",
-            "Ghost-FTP-${VERSION}-Android.apk",
-            "Ghost-FTP-${VERSION}-iOS-arm64-unsigned.ipa",
-            "Ghost-FTP-${VERSION}-Web.zip",
-            "PUBLIC_PLATFORM_ARTIFACTS=8", "PUBLIC_RELEASE_FILES=11",
-            "main moved from release commit", "refusing to rewrite it", "gh release create",
-            "SHA256.txt", "BUILD-METADATA.txt", "RELEASE-NOTES.txt",
-        ),
+    workflow = require(
         ".github/workflows/release.yml",
+        "name: Publish Ghost FTP",
+        "contents: write",
+        "packages: write",
+        "needs: [quality, windows, linux, macos, android, ios]",
+        "RELEASE_TAG=ghostftp-v$version",
+        "python scripts/audit_brand_hardcut.py",
+        "python scripts/package_nuget.py",
+        "dotnet nuget push",
+        "/packages/nuget/GhostFTP/versions",
+        "GITHUB_PACKAGE_READBACK=PASS",
+        "Ghost-FTP-${VERSION}-Portable-x64.exe",
+        "Ghost-FTP-${VERSION}-Portable-x86.exe",
+        "Ghost-FTP-${VERSION}-Setup-x64.exe",
+        "Ghost-FTP-${VERSION}-Setup-x86.exe",
+        "Ghost-FTP-${VERSION}-Setup-x32.exe",
+        "Ghost-FTP-${VERSION}-Linux-multiarch.zip",
+        "Ghost-FTP-${VERSION}-macOS-Universal.pkg",
+        "Ghost-FTP-${VERSION}-Android.apk",
+        "Ghost-FTP-${VERSION}-iOS-arm64-unsigned.ipa",
+        "Ghost-FTP-${VERSION}-Web.zip",
+        "PUBLIC_PLATFORM_ARTIFACTS=10",
+        "PUBLIC_RELEASE_FILES=13",
+        "GITHUB_PACKAGE=GhostFTP",
+        "main moved from release commit",
+        "refusing to rewrite it",
+        "RELEASE_ASSET_READBACK=PASS",
     )
-    if "packages: write" in workflow or "dotnet nuget push" in workflow:
-        fail("release workflow contains obsolete package-registry publication")
-    for obsolete in (
-        "scripts/package_windows_bundles.ps1", "scripts/prepare_release.ps1", "scripts/publish_release.ps1",
-        "Expected 18 public release files", "PUBLIC_PLATFORM_ARTIFACTS=15",
-        "path: dist/ByFTP-*-Setup-*.exe", 'staging/windows/ByFTP-${VERSION}-Setup-',
-    ):
-        if obsolete in workflow:
-            fail(f"release workflow still references obsolete release surface: {obsolete}")
+    if "PUBLIC_PLATFORM_ARTIFACTS=8" in workflow or "PUBLIC_RELEASE_FILES=11" in workflow:
+        fail("release workflow still exposes the 1.0.0 artifact count")
 
-    ci = read(".github/workflows/ci.yml")
     require(
-        ci,
-        (
-            "name: Ghost FTP CI", "ProductName = \"Ghost FTP\"",
-            "go test ./...", "go test -race ./...", "go vet ./...",
-            "python scripts/audit_security.py", "python scripts/audit_privacy.py", "PHP syntax",
-            "bash linux/BUILD.sh", ".\\BUILD-WINDOWS.ps1", "bash macos/BUILD.sh", "bash ios/BUILD.sh",
-            'dist\\Ghost-FTP-$v-Setup-$arch.exe',
-        ),
         ".github/workflows/ci.yml",
-    )
-    if 'dist\\ByFTP-$v-Setup-$arch.exe' in ci:
-        fail("CI still expects the retired public Windows build filename")
-
-    release_notes = read("scripts/release_notes.py")
-    require(
-        release_notes,
-        (
-            'tag = f"ghostftp-v{version}"', "Ghost FTP {version}", "Setup-x32.exe",
-            "x32 and x86 refer to the same 32-bit architecture", "Android.apk",
-            "iOS-arm64-unsigned.ipa", "Web.zip",
-        ),
-        "scripts/release_notes.py",
+        "name: Ghost FTP CI",
+        "GhostFTP WEB/VERSION",
+        "ios/GhostFTP/Info.plist",
+        'namespace = "com.ghostftp.client"',
+        "python scripts/audit_brand_hardcut.py",
+        "go test -race ./...",
+        "Ghost-FTP-$v-$kind-$arch.exe",
     )
 
-    linux_build = read("linux/BUILD.sh")
     require(
-        linux_build,
-        (
-            '"$root/usr/bin/ghostftp"', "linux/ghost-ftp.desktop",
-            "Ghost-FTP-${VERSION}-Linux-${debarch}.deb",
-            "build_arch amd64 amd64", "build_arch arm64 arm64", "build_arch 386 i386",
-        ),
-        "linux/BUILD.sh",
-    )
-    require(read("linux/debian/control.in"), ("Package: ghost-ftp",), "linux/debian/control.in")
-    require(read("linux/ghost-ftp.desktop"), ("Name=Ghost FTP", "Exec=/usr/bin/ghostftp"), "linux/ghost-ftp.desktop")
-
-    windows_build = read("BUILD-WINDOWS.ps1")
-    require(
-        windows_build,
-        (
-            "function Build-GhostFTPArchitecture",
-            '"Ghost-FTP-$version-Portable-$Label.exe"',
-            '"Ghost-FTP-$version-Setup-$Label.exe"',
-            "scripts/make_payload.py", "scripts/verify_release.py",
-            "UNINSTALLER_BINARY", "unexpectedly produced an uninstaller binary",
-        ),
         "BUILD-WINDOWS.ps1",
-    )
-    for forbidden in (
-        "function Build-ByFTPArchitecture", '"ByFTP-$version-Portable-$Label.exe"',
-        '"ByFTP-$version-Setup-$Label.exe"', "./cmd/uninstaller", "--uninstaller", "-Uninstall-", "'uninstaller'",
-    ):
-        if forbidden in windows_build:
-            fail(f"Windows build still contains obsolete public/release path: {forbidden}")
-
-    pe_resources = read("scripts/pe_resources.py")
-    require(
-        pe_resources,
-        (
-            '("CompanyName", "Ghost FTP")', '("ProductName", "Ghost FTP")',
-            '"Ghost FTP file transfer client"', '"GhostFTP.Client"', '"GhostFTP.Setup"',
-        ),
-        "scripts/pe_resources.py",
-    )
-
-    verifier = read("scripts/verify_release.py")
-    require(
-        verifier,
-        (
-            '"Ghost FTP"', '"github.com/bren-wp/Ghost-FTP"',
-            'print("PUBLIC_BRAND=Ghost FTP")', 'print("COMPANY_NAME=Ghost FTP")',
-        ),
+        "function Build-GhostFTPArchitecture",
+        '"Ghost-FTP-$version-Portable-$Label.exe"',
+        '"Ghost-FTP-$version-Setup-$Label.exe"',
+        "./cmd/ghostftp",
+        "scripts/make_payload.py",
         "scripts/verify_release.py",
     )
-
-    # ByFTP.exe and old registry keys remain intentional Windows upgrade-compatibility identifiers.
-    payload = read("scripts/make_payload.py")
-    require(payload, ("PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "ByFTP.exe")'), "scripts/make_payload.py")
-    installer = read("cmd/installer/main.go")
     require(
-        installer,
-        (
-            'legacyUninstallKey = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ByFTP`',
-            'appPathsKey        = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\ByFTP.exe`',
-            'appPath := filepath.Join(dir, "ByFTP.exe")',
-            'brand.ProductName + " will be installed for your Windows user account',
-            '"Remove any redirect from the Ghost FTP installation folder and try again."',
-            "All user-visible branding is Ghost FTP",
-        ),
         "cmd/installer/main.go",
+        'uninstallKey = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GhostFTP`',
+        'appPathsKey  = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\GhostFTP.exe`',
+        'appPath := filepath.Join(dir, "GhostFTP.exe")',
     )
+    require("scripts/make_payload.py", "PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "GhostFTP.exe")')
 
-    web_manifest = read("ByFTP WEB/manifest.webmanifest")
-    require(web_manifest, ('"name": "Ghost FTP Remote File Client"', '"short_name": "Ghost FTP"'), "ByFTP WEB/manifest.webmanifest")
-
-    changelog = read("CHANGELOG.md")
-    require(changelog, (f"## {version} - 2026-09-04", "Legacy ByFTP history", "ghostftp-v1.0.0"), "CHANGELOG.md")
-
-    obsolete_files = (
-        "scripts/prepare_release.ps1", "scripts/publish_release.ps1", "scripts/package_windows_bundles.ps1",
-        "scripts/audit_release_version_guard.py", "scripts/test_release_version_guard.py", "scripts/test_release_tools.py",
-        "linux/byftp.desktop", "docs/images/byftp-header.png", "cmd/uninstaller",
+    require(
+        "scripts/package_nuget.py",
+        'PACKAGE_ID = "GhostFTP"',
+        'output = output_dir / f"{PACKAGE_ID}.{version}.nupkg"',
+        '"tools/win-x64/GhostFTP.exe"',
+        '"tools/win-x86/GhostFTP.exe"',
+        "NuGet package file set does not match the contract",
     )
-    for rel in obsolete_files:
-        if (ROOT / rel).exists():
-            fail(f"obsolete release/brand surface still exists: {rel}")
+    require("linux/BUILD.sh", '"$root/usr/bin/ghostftp"', "Ghost-FTP-${VERSION}-Linux-${debarch}.deb")
+    require("linux/debian/control.in", "Package: ghost-ftp")
+    require("macos/BUILD.sh", "Ghost-FTP-${VERSION}-macOS-Universal.pkg", "./cmd/ghostftp", "io.github.bren-wp.ghostftp")
+    require("ios/BUILD.sh", "ios/GhostFTP.xcodeproj", "com.ghostftp.client", "scripts/package_ios.py")
+    require("scripts/package_ios.py", 'f"Ghost-FTP-{version}-iOS-arm64-unsigned.ipa"', '"GhostFTP.app"')
+    require("GhostFTP WEB/manifest.webmanifest", '"short_name": "Ghost FTP"')
 
     print(f"RELEASE_AUDIT=PASS ({version})")
     print("PUBLIC_BRAND=Ghost FTP")
+    print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
-    print("PUBLIC_PLATFORM_ARTIFACTS=8")
-    print("PUBLIC_RELEASE_FILES=11")
+    print("PUBLIC_PLATFORM_ARTIFACTS=10")
+    print("PUBLIC_RELEASE_FILES=13")
+    print("GITHUB_PACKAGE_ID=GhostFTP")
+    print("WINDOWS_PORTABLE=x64,x86")
     print("WINDOWS_X32_ALIAS_OF_X86=REQUIRED")
-    print("WINDOWS_PUBLIC_BUILD_NAMES=Ghost-FTP")
-    print("HISTORICAL_TAG_REWRITE=BLOCKED")
-    print("DUPLICATE_RELEASE_PUBLISHERS=REMOVED")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

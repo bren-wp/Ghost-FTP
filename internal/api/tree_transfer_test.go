@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/remote"
 )
 
 type fakeTreeSession struct {

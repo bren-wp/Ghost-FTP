@@ -31,13 +31,13 @@ set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (
     echo.
-    echo [ERROR] ByFTP build nije uspio. Exit code: %EXIT_CODE%
+    echo [ERROR] GhostFTP build nije uspio. Exit code: %EXIT_CODE%
     echo.
     pause
     exit /b %EXIT_CODE%
 )
 
 echo.
-echo [OK] ByFTP Windows build uspjesno je dovrsen.
+echo [OK] GhostFTP Windows build uspjesno je dovrsen.
 
 exit /b 0

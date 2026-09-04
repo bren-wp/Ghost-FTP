@@ -3,7 +3,7 @@ package remote
 import (
 	"context"
 	"errors"
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 var ErrSkipped = errors.New("prijenos je preskočen jer odredišna datoteka već postoji")

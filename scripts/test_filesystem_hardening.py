@@ -62,7 +62,7 @@ def run_checks() -> None:
         "snapshotPrivateKey",
         "io.LimitReader",
         "os.SameFile",
-        ".byftp-private-key-*.tmp",
+        ".GhostFTP-private-key-*.tmp",
         "privateKeyCopy",
     ))
     require("internal/remote/manager.go", (

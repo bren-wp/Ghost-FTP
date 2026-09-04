@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
 type registryStringSnapshot struct {

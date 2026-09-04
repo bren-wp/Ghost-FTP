@@ -5,25 +5,20 @@ plugins {
 val canonicalVersion = rootProject.file("../VERSION").readText().trim()
 val versionParts = canonicalVersion.split('.').map { it.toInt() }
 require(versionParts.size == 3) { "VERSION must be semantic major.minor.patch" }
+require(versionParts.all { it in 0..999 }) { "VERSION components must be between 0 and 999" }
 
-// Ghost FTP keeps the existing com.byftp.client application identity so installed
-// users can upgrade in place. Store version codes therefore need a monotonic epoch
-// that remains above the highest published ByFTP code even though the public product
-// version restarts at 1.0.0.
-val semanticVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
-val ghostFtpVersionCodeEpoch = 1_000_000
-val legacyByFtpVersionCodeFloor = 10_902
-val canonicalVersionCode = ghostFtpVersionCodeEpoch + semanticVersionCode
-require(canonicalVersionCode > legacyByFtpVersionCodeFloor) {
-    "Ghost FTP Android versionCode must stay above the published ByFTP versionCode floor"
-}
+// Android requires an integer versionCode. Ghost FTP uses a deterministic encoding
+// of the canonical semantic version because the GhostFTP application ID is new.
+val canonicalVersionCode =
+    versionParts[0] * 1_000_000 + versionParts[1] * 1_000 + versionParts[2]
+require(canonicalVersionCode > 0) { "Ghost FTP Android versionCode must be positive" }
 
 android {
-    namespace = "com.byftp.client"
+    namespace = "com.ghostftp.client"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.byftp.client"
+        applicationId = "com.ghostftp.client"
         minSdk = 26
         targetSdk = 37
         versionCode = canonicalVersionCode
@@ -38,7 +33,10 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
@@ -51,8 +49,9 @@ android {
         abortOnError = true
         warningsAsErrors = true
         checkReleaseBuilds = true
-        // These implementations live inside third-party JARs. Ghost FTP source is separately
-        // audited to reject permissive TrustManager code and explicitly uses platform trust.
+        // Third-party JARs may contain compatibility implementations that trigger
+        // these library-level checks. Ghost FTP source is audited separately and
+        // uses the platform trust implementation.
         disable += setOf("OldTargetApi", "TrustAllX509TrustManager")
     }
 

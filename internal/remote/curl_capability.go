@@ -92,7 +92,7 @@ func probeCurlRevokeBestEffort(curlPath string) bool {
 // curlSupportsRevokeBestEffort je lokalna capability provjera bez mrežnog
 // prometa. Rezultat je cacheiran po očišćenoj trusted curl putanji i konkurentni
 // pozivi dijele isti sync.Once probe. Ako provjera zakaže ili je curl prestar,
-// ByFTP ne dodaje nepoznatu opciju i Schannel zadržava zadani revocation model.
+// GhostFTP ne dodaje nepoznatu opciju i Schannel zadržava zadani revocation model.
 func curlSupportsRevokeBestEffort(curlPath string) bool {
 	if runtime.GOOS != "windows" || strings.TrimSpace(curlPath) == "" {
 		return false

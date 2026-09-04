@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verification for ByFTP Windows release ZIP bundles."""
+"""Fail-closed verification for GhostFTP Windows release ZIP bundles."""
 
 from __future__ import annotations
 
@@ -36,8 +36,8 @@ def normalize_member(name: str) -> str:
 
 def required_members(version: str, arch: str) -> set[str]:
     return {
-        f"ByFTP-{version}-Portable-{arch}.exe",
-        f"ByFTP-{version}-Setup-{arch}.exe",
+        f"GhostFTP-{version}-Portable-{arch}.exe",
+        f"GhostFTP-{version}-Setup-{arch}.exe",
         "RELEASE-NOTES.txt",
         "BUILD-METADATA.txt",
         "README.md",
@@ -90,7 +90,7 @@ def verify_bundle(zip_path: Path, version: str, arch: str) -> None:
         if missing_required:
             fail("missing required entries: " + ", ".join(missing_required))
         forbidden = {
-            f"ByFTP-{version}-Uninstall-{arch}.exe",
+            f"GhostFTP-{version}-Uninstall-{arch}.exe",
             "verification.txt",
             f"verification-{arch}.txt",
         }

@@ -26,7 +26,7 @@ type languageDialogState struct {
 var (
 	languageStates sync.Map
 	languageOnce   sync.Once
-	languageClass  = "ByFTP.LanguageDialog"
+	languageClass  = "GhostFTP.LanguageDialog"
 	languageProc   = syscall.NewCallback(languageWndProc)
 )
 

@@ -158,7 +158,7 @@ func TestSSHSessionConfigIsPrivateDirectAndScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(config)
-	if filepath.Dir(config) != dir || !strings.HasPrefix(filepath.Base(config), ".byftp-sftp-") {
+	if filepath.Dir(config) != dir || !strings.HasPrefix(filepath.Base(config), ".GhostFTP-sftp-") {
 		t.Fatalf("session config escaped managed directory: %q", config)
 	}
 	b, err := os.ReadFile(config)

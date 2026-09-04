@@ -135,21 +135,21 @@ def audit_credentials_and_network_tools() -> None:
             '"  IdentityAgent none"',
             '"  ClearAllForwardings yes"',
             '"  ForwardAgent no"',
-            "BYFTP_ASKPASS_TOKEN=",
-            "BYFTP_PASSWORD_BLOB=",
-            "BYFTP_PASSPHRASE_BLOB=",
+            "GhostFTP_ASKPASS_TOKEN=",
+            "GhostFTP_PASSWORD_BLOB=",
+            "GhostFTP_PASSPHRASE_BLOB=",
             "sanitizedToolEnv(os.Environ())",
         ),
     )
-    for forbidden in ("BYFTP_ASKPASS_FILE", "askpassFile", "os.WriteFile(askpass"):
+    for forbidden in ("GhostFTP_ASKPASS_FILE", "askpassFile", "os.WriteFile(askpass"):
         if forbidden in sftp:
             fail(f"SFTP must not write AskPass secrets to disk: {forbidden}")
 
     askpass = require(
-        "cmd/byftp/main.go",
-        ("BYFTP_ASKPASS_TOKEN", "BYFTP_PASSWORD_BLOB", "BYFTP_PASSPHRASE_BLOB", "TrustedAskPassParent", "selectAskpassSecret"),
+        "cmd/ghostftp/main.go",
+        ("GhostFTP_ASKPASS_TOKEN", "GhostFTP_PASSWORD_BLOB", "GhostFTP_PASSPHRASE_BLOB", "TrustedAskPassParent", "selectAskpassSecret"),
     )
-    if "BYFTP_ASKPASS_FILE" in askpass:
+    if "GhostFTP_ASKPASS_FILE" in askpass:
         fail("AskPass must not depend on a disk credential artifact")
 
     require(

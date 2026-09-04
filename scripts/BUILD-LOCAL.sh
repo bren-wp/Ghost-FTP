@@ -9,7 +9,7 @@ PAYLOAD="$PWD/cmd/installer/payload"
 ICON="$PWD/build/icon.ico"
 
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Invalid ByFTP version in VERSION: $VERSION" >&2
+  echo "Invalid GhostFTP version in VERSION: $VERSION" >&2
   exit 1
 fi
 
@@ -29,7 +29,7 @@ if not m:
 cur = tuple(map(int, (m.group(1), m.group(2), m.group(3) or 0)))
 req = tuple(map(int, minimum.split('.')))
 if cur < req:
-    raise SystemExit(f'ByFTP production builds require Go {minimum}+ security patch; current: {current}')
+    raise SystemExit(f'GhostFTP production builds require Go {minimum}+ security patch; current: {current}')
 PY
 
 GO_TELEMETRY="$(go telemetry)"
@@ -71,9 +71,9 @@ rm -f "$PAYLOAD/payload.zip"
 
 export GOOS=windows GOARCH=amd64 CGO_ENABLED=0
 LDFLAGS="-s -w -H=windowsgui -X main.version=$VERSION"
-PORTABLE="$DIST/ByFTP-$VERSION-Portable-x64.exe"
-SETUP="$DIST/ByFTP-$VERSION-Setup-x64.exe"
-INTERNAL_REMOVE="$INTERNAL/ByFTP-$VERSION-Remove-x64.exe"
+PORTABLE="$DIST/GhostFTP-$VERSION-Portable-x64.exe"
+SETUP="$DIST/GhostFTP-$VERSION-Setup-x64.exe"
+INTERNAL_REMOVE="$INTERNAL/GhostFTP-$VERSION-Remove-x64.exe"
 INTERNAL_VERIFY="$INTERNAL/windows-x64-verification.txt"
 
 cleanup() {
@@ -82,12 +82,12 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[10/16] Portable"
-go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$PORTABLE" ./cmd/byftp
-python3 scripts/pe_resources.py "$PORTABLE" --ico "$ICON" --version "$VERSION" --role portable --original-filename "ByFTP-$VERSION-Portable-x64.exe"
+go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$PORTABLE" ./cmd/ghostftp
+python3 scripts/pe_resources.py "$PORTABLE" --ico "$ICON" --version "$VERSION" --role portable --original-filename "GhostFTP-$VERSION-Portable-x64.exe"
 
 echo "[11/16] Internal uninstaller"
 go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$INTERNAL_REMOVE" ./cmd/uninstaller
-python3 scripts/pe_resources.py "$INTERNAL_REMOVE" --ico "$ICON" --version "$VERSION" --role uninstaller --original-filename "ByFTP-$VERSION-Remove-x64.exe"
+python3 scripts/pe_resources.py "$INTERNAL_REMOVE" --ico "$ICON" --version "$VERSION" --role uninstaller --original-filename "GhostFTP-$VERSION-Remove-x64.exe"
 
 echo "[12/16] Installer payload"
 python3 scripts/make_payload.py --app "$PORTABLE" --uninstaller "$INTERNAL_REMOVE" --output "$PAYLOAD/payload.zip"
@@ -97,7 +97,7 @@ go build -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o "$SETUP" ./cmd/install
 rm -f "$PAYLOAD/payload.zip"
 
 echo "[14/16] PE and security verification"
-python3 scripts/pe_resources.py "$SETUP" --ico "$ICON" --version "$VERSION" --role setup --original-filename "ByFTP-$VERSION-Setup-x64.exe"
+python3 scripts/pe_resources.py "$SETUP" --ico "$ICON" --version "$VERSION" --role setup --original-filename "GhostFTP-$VERSION-Setup-x64.exe"
 python3 scripts/verify_release.py "$SETUP" "$PORTABLE" "$INTERNAL_REMOVE" --arch x64 | tee "$INTERNAL_VERIFY"
 
 echo "[15/16] SHA-256 of public files"
@@ -105,11 +105,11 @@ sha256sum "$SETUP" "$PORTABLE" > "$DIST/SHA256.txt"
 
 echo "[16/16] Digital-signature status"
 if grep -q 'AUTHENTICODE_SIGNED=NO' "$INTERNAL_VERIFY"; then
-  echo 'WARNING: public Windows binaries are not Authenticode-signed; Verified Publisher requires a real ByFTP certificate.' >&2
+  echo 'WARNING: public Windows binaries are not Authenticode-signed; Verified Publisher requires a real GhostFTP certificate.' >&2
 fi
 
 for public in "$SETUP" "$PORTABLE" "$DIST/SHA256.txt"; do
   [[ -s "$public" ]] || { echo "Missing public output: $public" >&2; exit 1; }
 done
 
-echo "ByFTP $VERSION local x64 build completed: public outputs in $DIST, technical evidence in $INTERNAL"
+echo "GhostFTP $VERSION local x64 build completed: public outputs in $DIST, technical evidence in $INTERNAL"

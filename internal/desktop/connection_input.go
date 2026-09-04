@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 var errInvalidConnectionPort = errors.New("port mora biti broj između 1 i 65535")

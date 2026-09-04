@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 // Sort orders directories before files and then compares names

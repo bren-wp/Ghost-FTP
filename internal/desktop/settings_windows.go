@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bren-wp/by-ftp/internal/brand"
-	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
 func (a *app) loadSettings() {

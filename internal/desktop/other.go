@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/api"
-	"github.com/bren-wp/by-ftp/internal/i18n"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/usererror"
+	"github.com/bren-wp/Ghost-FTP/internal/api"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
 func prompt(reader *bufio.Reader, label, fallback string) (string, error) {
@@ -269,7 +269,7 @@ func runTerminal(engine *api.Engine, version string) error {
 	fmt.Println(i18n.T(language, "terminal.commands"))
 	fmt.Println(i18n.T(language, "terminal.quote_paths"))
 	for {
-		fmt.Printf("byftp:%s> ", current)
+		fmt.Printf("GhostFTP:%s> ", current)
 		line, readErr := reader.ReadString('\n')
 		if readErr != nil && len(line) == 0 {
 			return nil

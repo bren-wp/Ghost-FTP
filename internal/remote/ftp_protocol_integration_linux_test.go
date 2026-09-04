@@ -104,7 +104,7 @@ func (s *ftpIntegrationServer) serveControl(conn net.Conn) {
 		}
 		return writer.Flush() == nil
 	}
-	if !reply("220 ByFTP local integration FTP ready") {
+	if !reply("220 GhostFTP local integration FTP ready") {
 		return
 	}
 
@@ -465,10 +465,10 @@ func TestCurlFTPRealProtocolWorkflow(t *testing.T) {
 	if _, err := findCurl(); err != nil {
 		t.Skipf("system curl unavailable: %v", err)
 	}
-	server := newFTPIntegrationServer(t, "byftp-test", "byftp-test-password")
+	server := newFTPIntegrationServer(t, "GhostFTP-test", "GhostFTP-test-password")
 	defer server.close()
 
-	client, err := NewCurlFTP("ftp", "127.0.0.1", server.port(), "byftp-test", "byftp-test-password")
+	client, err := NewCurlFTP("ftp", "127.0.0.1", server.port(), "GhostFTP-test", "GhostFTP-test-password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,7 +505,7 @@ func TestCurlFTPRealProtocolWorkflow(t *testing.T) {
 		t.Fatalf("remove empty directory: %v", err)
 	}
 
-	payload := []byte("ByFTP real FTP integration payload\nline two\n")
+	payload := []byte("GhostFTP real FTP integration payload\nline two\n")
 	localSource := pathForTestTemp(t, "upload-source.txt")
 	if err := os.WriteFile(localSource, payload, 0600); err != nil {
 		t.Fatal(err)
@@ -568,9 +568,9 @@ func TestFTPIntegrationServerRejectsWrongPassword(t *testing.T) {
 	if _, err := findCurl(); err != nil {
 		t.Skipf("system curl unavailable: %v", err)
 	}
-	server := newFTPIntegrationServer(t, "byftp-test", "correct-password")
+	server := newFTPIntegrationServer(t, "GhostFTP-test", "correct-password")
 	defer server.close()
-	client, err := NewCurlFTP("ftp", "127.0.0.1", server.port(), "byftp-test", "wrong-password")
+	client, err := NewCurlFTP("ftp", "127.0.0.1", server.port(), "GhostFTP-test", "wrong-password")
 	if err != nil {
 		t.Fatal(err)
 	}

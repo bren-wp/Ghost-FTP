@@ -4,11 +4,11 @@
 <dict>
   <key>CFBundleName</key><string>Ghost FTP</string>
   <key>CFBundleDisplayName</key><string>Ghost FTP</string>
-  <key>CFBundleIdentifier</key><string>io.github.bren-wp.byftp</string>
+  <key>CFBundleIdentifier</key><string>io.github.bren-wp.ghostftp</string>
   <key>CFBundleVersion</key><string>@VERSION@</string>
   <key>CFBundleShortVersionString</key><string>@VERSION@</string>
-  <key>CFBundleExecutable</key><string>ByFTP</string>
-  <key>CFBundleIconFile</key><string>ByFTP</string>
+  <key>CFBundleExecutable</key><string>GhostFTP</string>
+  <key>CFBundleIconFile</key><string>GhostFTP</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict>

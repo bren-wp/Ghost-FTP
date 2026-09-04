@@ -12,7 +12,7 @@ ghostftp-vX.Y.Z
 
 The version in the tag, package filename, `VERSION`, release title and release metadata must agree.
 
-Historical tags from the former ByFTP product line are preserved for provenance and are not reused for Ghost FTP releases.
+Historical tags from the former GhostFTP product line are preserved for provenance and are not reused for Ghost FTP releases.
 
 ## 2. Verify SHA-256
 

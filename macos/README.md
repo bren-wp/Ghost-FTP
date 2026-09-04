@@ -21,4 +21,4 @@ A successful package build is not the same as Apple publisher signing. Developer
 
 ## Compatibility identifiers
 
-The visible application name is **Ghost FTP**. The bundle identifier and executable name may temporarily retain legacy `byftp`/`ByFTP` identifiers to preserve upgrade/application identity while the product is rebranded. New public package names and UI must use Ghost FTP.
+The visible application name is **Ghost FTP**. The bundle identifier and executable name may temporarily retain legacy `GhostFTP`/`GhostFTP` identifiers to preserve upgrade/application identity while the product is rebranded. New public package names and UI must use Ghost FTP.

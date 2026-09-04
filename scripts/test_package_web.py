@@ -27,14 +27,14 @@ class WebPackageTests(unittest.TestCase):
             self.assertGreater(package.stat().st_size, 0)
 
             tracked = subprocess.run(
-                ["git", "ls-files", "-z", "--", "ByFTP WEB"],
+                ["git", "ls-files", "-z", "--", "GhostFTP WEB"],
                 cwd=ROOT,
                 check=True,
                 stdout=subprocess.PIPE,
             ).stdout
             expected = sorted(
                 (
-                    raw.decode("utf-8").removeprefix("ByFTP WEB/")
+                    raw.decode("utf-8").removeprefix("GhostFTP WEB/")
                     for raw in tracked.split(b"\0")
                     if raw
                 ),

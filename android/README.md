@@ -20,7 +20,7 @@ The public CI artifact is debug-signed for testing/sideloading. Production Play 
 
 ## Branding and compatibility
 
-The public app name is **Ghost FTP**. The existing Android application/package identifier can retain the legacy `com.byftp.client` value so upgrades and installed-app identity remain stable. It is an internal compatibility identifier, not public branding.
+The public app name is **Ghost FTP**. The existing Android application/package identifier can retain the legacy `com.ghostftp.client` value so upgrades and installed-app identity remain stable. It is an internal compatibility identifier, not public branding.
 
 ## Security
 

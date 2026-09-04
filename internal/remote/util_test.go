@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 func TestCfgQuoteEscapesBackslashAndQuote(t *testing.T) {
@@ -49,7 +49,7 @@ func TestReplaceLocalFileAtomicKeepsBackup(t *testing.T) {
 	}
 	backups := 0
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "file.txt.byftp-backup-") {
+		if strings.HasPrefix(entry.Name(), "file.txt.GhostFTP-backup-") {
 			backups++
 			old, err := os.ReadFile(filepath.Join(dir, entry.Name()))
 			if err != nil || string(old) != "old" {
@@ -80,7 +80,7 @@ func TestReplaceLocalFileAtomicRemovesRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if strings.Contains(entry.Name(), ".byftp-rollback-") {
+		if strings.Contains(entry.Name(), ".GhostFTP-rollback-") {
 			t.Fatalf("rollback left behind: %s", entry.Name())
 		}
 	}
@@ -94,10 +94,10 @@ func TestRemoteTransferNamesStayInDirectory(t *testing.T) {
 	if dir != "/public_html/site" || base != "index.html" {
 		t.Fatalf("dir=%q base=%q", dir, base)
 	}
-	if !strings.HasPrefix(temp, ".byftp-part-") {
+	if !strings.HasPrefix(temp, ".GhostFTP-part-") {
 		t.Fatalf("temp=%q", temp)
 	}
-	if !strings.HasPrefix(saved, ".byftp-rollback-") {
+	if !strings.HasPrefix(saved, ".GhostFTP-rollback-") {
 		t.Fatalf("saved=%q", saved)
 	}
 }
@@ -116,11 +116,11 @@ func TestValidateChmod(t *testing.T) {
 }
 
 func TestBackupName(t *testing.T) {
-	rollback := "index.html.byftp-rollback-20260814T230000Z"
+	rollback := "index.html.GhostFTP-rollback-20260814T230000Z"
 	if got := backupName("index.html", rollback, false); got != rollback {
 		t.Fatalf("rollback name=%q", got)
 	}
-	want := "index.html.byftp-backup-20260814T230000Z"
+	want := "index.html.GhostFTP-backup-20260814T230000Z"
 	if got := backupName("index.html", rollback, true); got != want {
 		t.Fatalf("backup name=%q want=%q", got, want)
 	}
@@ -140,10 +140,10 @@ func TestCommitRemoteTempKeepsBackup(t *testing.T) {
 		},
 	}
 	items := []model.Item{{Name: "index.html"}}
-	if err := commitRemoteTemp(context.Background(), items, "/www", "index.html", ".part", "index.html.byftp-rollback-stamp", true, ops); err != nil {
+	if err := commitRemoteTemp(context.Background(), items, "/www", "index.html", ".part", "index.html.GhostFTP-rollback-stamp", true, ops); err != nil {
 		t.Fatal(err)
 	}
-	want := [][2]string{{"index.html", "index.html.byftp-backup-stamp"}, {".part", "index.html"}}
+	want := [][2]string{{"index.html", "index.html.GhostFTP-backup-stamp"}, {".part", "index.html"}}
 	if !reflect.DeepEqual(renamed, want) {
 		t.Fatalf("renames=%v want=%v", renamed, want)
 	}
@@ -169,11 +169,11 @@ func TestCommitRemoteTempRestoresOnActivationFailure(t *testing.T) {
 		},
 	}
 	items := []model.Item{{Name: "index.html"}}
-	err := commitRemoteTemp(context.Background(), items, "/www", "index.html", ".part", "index.html.byftp-rollback-stamp", false, ops)
+	err := commitRemoteTemp(context.Background(), items, "/www", "index.html", ".part", "index.html.GhostFTP-rollback-stamp", false, ops)
 	if err == nil {
 		t.Fatal("expected activation failure")
 	}
-	want := [][2]string{{"index.html", "index.html.byftp-rollback-stamp"}, {".part", "index.html"}, {"index.html.byftp-rollback-stamp", "index.html"}}
+	want := [][2]string{{"index.html", "index.html.GhostFTP-rollback-stamp"}, {".part", "index.html"}, {"index.html.GhostFTP-rollback-stamp", "index.html"}}
 	if !reflect.DeepEqual(renamed, want) {
 		t.Fatalf("renames=%v want=%v", renamed, want)
 	}
@@ -200,10 +200,10 @@ func TestCleanupStaleSFTPArtifactsRemovesOnlyManagedFiles(t *testing.T) {
 	dir := t.TempDir()
 	managed := []string{
 		filepath.Join(dir, "askpass-old.txt"),
-		filepath.Join(dir, ".byftp-sftp-session.conf"),
-		filepath.Join(dir, ".byftp-known-session.txt"),
-		filepath.Join(dir, ".byftp-scan-host-test.txt"),
-		filepath.Join(dir, "byftp-key-test.known_hosts"),
+		filepath.Join(dir, ".GhostFTP-sftp-session.conf"),
+		filepath.Join(dir, ".GhostFTP-known-session.txt"),
+		filepath.Join(dir, ".GhostFTP-scan-host-test.txt"),
+		filepath.Join(dir, "GhostFTP-key-test.known_hosts"),
 		filepath.Join(dir, "ssh-client.conf"),
 	}
 	keep := filepath.Join(dir, "keep.txt")
@@ -231,10 +231,10 @@ func TestRemoteTransferNamesRelativeStayInCurrentDirectory(t *testing.T) {
 	if dir != "." || base != "index.html" {
 		t.Fatalf("dir=%q base=%q", dir, base)
 	}
-	if !strings.HasPrefix(temp, ".byftp-part-") {
+	if !strings.HasPrefix(temp, ".GhostFTP-part-") {
 		t.Fatalf("temp=%q", temp)
 	}
-	if !strings.HasPrefix(saved, ".byftp-rollback-") {
+	if !strings.HasPrefix(saved, ".GhostFTP-rollback-") {
 		t.Fatalf("saved=%q", saved)
 	}
 }
@@ -372,7 +372,7 @@ func TestTransferTempNamesUseUnpredictableTokens(t *testing.T) {
 	if tempA == tempB || savedA == savedB {
 		t.Fatalf("transfer temp names must be unique: %q %q / %q %q", tempA, savedA, tempB, savedB)
 	}
-	if !strings.HasPrefix(tempA, ".byftp-part-") || !strings.HasPrefix(savedA, ".byftp-rollback-") {
+	if !strings.HasPrefix(tempA, ".GhostFTP-part-") || !strings.HasPrefix(savedA, ".GhostFTP-rollback-") {
 		t.Fatalf("unexpected transfer names: %q %q", tempA, savedA)
 	}
 }

@@ -100,7 +100,7 @@ func HardenProcessPrivacy() {
 		semNoOpenFileErrorBox = 0x8000
 	)
 	setErrorMode.Call(semFailCriticalErrors | semNoGPFaultErrorBox | semNoOpenFileErrorBox)
-	// ByFTP has no private runtime DLL/plugin directory. Remove the current
+	// GhostFTP has no private runtime DLL/plugin directory. Remove the current
 	// working directory from the DLL search path to reduce DLL planting risk.
 	empty, _ := syscall.UTF16PtrFromString("")
 	if empty != nil {
@@ -154,7 +154,7 @@ func SystemDirectory() (string, error) {
 }
 
 // TrustedAskPassParent confirms that the AskPass helper was launched by the
-// Windows OpenSSH transport from System32. This prevents a normal/manual ByFTP
+// Windows OpenSSH transport from System32. This prevents a normal/manual GhostFTP
 // launch with crafted AskPass environment variables from entering secret-output mode.
 func TrustedAskPassParent() bool {
 	ppid := os.Getppid()
@@ -225,7 +225,7 @@ func ChoosePrivateKey() (string, error) {
 
 func ChooseDirectory() (string, error) {
 	display := make([]uint16, 260)
-	title, _ := syscall.UTF16PtrFromString("Odaberi lokalnu mapu za ByFTP")
+	title, _ := syscall.UTF16PtrFromString("Odaberi lokalnu mapu za GhostFTP")
 	bi := browseInfo{DisplayName: &display[0], Title: title, Flags: bifReturnOnlyFS | bifNewDialogStyle}
 	pidl, _, _ := browseFolder.Call(uintptr(unsafe.Pointer(&bi)))
 	if pidl == 0 {

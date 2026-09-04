@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/appdata"
-	"github.com/bren-wp/by-ftp/internal/config"
-	"github.com/bren-wp/by-ftp/internal/localfs"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/remote"
-	"github.com/bren-wp/by-ftp/internal/security"
-	"github.com/bren-wp/by-ftp/internal/transfer"
+	"github.com/bren-wp/Ghost-FTP/internal/appdata"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/localfs"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/remote"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/transfer"
 )
 
 type Engine struct {
@@ -29,7 +29,7 @@ type Engine struct {
 }
 
 func cleanupLegacyDiagnostics(dataDir string) {
-	for _, name := range []string{"byftp.log", "byftp.log.1"} {
+	for _, name := range []string{"GhostFTP.log", "GhostFTP.log.1"} {
 		p := filepath.Join(dataDir, name)
 		if _, err := os.Lstat(p); err == nil {
 			// Remove only the directory entry. os.Remove never follows a symlink.

@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bren-wp/by-ftp/internal/remote"
-	"github.com/bren-wp/by-ftp/internal/security"
-	"github.com/bren-wp/by-ftp/internal/transfer"
+	"github.com/bren-wp/Ghost-FTP/internal/remote"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/transfer"
 )
 
 const (

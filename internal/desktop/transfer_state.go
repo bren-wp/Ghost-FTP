@@ -1,8 +1,8 @@
 package desktop
 
 import (
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/transfer"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/transfer"
 )
 
 // applyTransferEventsToJobs applies an event batch in O(current jobs + events)

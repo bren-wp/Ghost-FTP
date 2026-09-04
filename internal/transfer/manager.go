@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/config"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/remote"
-	"github.com/bren-wp/by-ftp/internal/security"
-	"github.com/bren-wp/by-ftp/internal/usererror"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/remote"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
 type Event struct {

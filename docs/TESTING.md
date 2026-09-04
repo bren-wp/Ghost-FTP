@@ -47,7 +47,7 @@ Web security is additionally executed through `scripts/audit_web.py`, which vali
 
 - PHP 8.1+ availability and syntax for every PHP file;
 - JavaScript/service-worker syntax with Node;
-- all PHP regression tests under `ByFTP WEB/tests/`;
+- all PHP regression tests under `GhostFTP WEB/tests/`;
 - root/web/composer/PWA version consistency;
 - Ghost FTP public manifest/cache branding;
 - runtime storage exclusion from tracked/release files;
@@ -58,7 +58,7 @@ Web security is additionally executed through `scripts/audit_web.py`, which vali
 - SFTP SHA-256 host fingerprint verification;
 - direct HTTP denial for the storage directory.
 
-The `ByFTP WEB` path is a legacy source-directory identifier only; the public application is Ghost FTP.
+The `GhostFTP WEB` path is a legacy source-directory identifier only; the public application is Ghost FTP.
 
 ## Windows gate
 
@@ -76,7 +76,7 @@ Windows validation covers:
 - Authenticode signing status reporting;
 - no standalone uninstaller binary.
 
-Legacy `ByFTP.exe`/registry identifiers may remain only where required to upgrade existing installations. User-facing product metadata must identify Ghost FTP.
+Legacy `GhostFTP.exe`/registry identifiers may remain only where required to upgrade existing installations. User-facing product metadata must identify Ghost FTP.
 
 ## Linux gate
 

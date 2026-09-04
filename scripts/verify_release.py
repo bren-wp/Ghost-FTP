@@ -91,10 +91,10 @@ def read_pe(path: Path, expected_arch: str | None = None):
             raise ValueError(f"{path.name}: VERSIONINFO field missing: {text}")
 
     legacy_public_markers = (
-        "ByFTP klijent",
-        "ByFTP instalacijski program",
-        "Copyright © 2026 ByFTP",
-        "Siguran FTP, FTPS i SFTP klijent — ByFTP",
+        "GhostFTP klijent",
+        "GhostFTP instalacijski program",
+        "Copyright © 2026 GhostFTP",
+        "Siguran FTP, FTPS i SFTP klijent — GhostFTP",
     )
     for text in legacy_public_markers:
         if text.encode("utf-16le") in data:

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 var canonicalTestFingerprint = "SHA256:" + strings.Repeat("A", 43)

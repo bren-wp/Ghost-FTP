@@ -3,7 +3,7 @@ package itemlist
 import (
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 func TestSortDirectoriesFirstAndCaseInsensitiveStable(t *testing.T) {

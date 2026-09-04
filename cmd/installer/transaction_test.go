@@ -9,7 +9,7 @@ import (
 
 func TestBackupExistingRollbackRestoresPreviousFile(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "ByFTP.exe")
+	target := filepath.Join(dir, "GhostFTP.exe")
 	if err := os.WriteFile(target, []byte("old"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestBackupExistingRollbackRestoresPreviousFile(t *testing.T) {
 
 func TestBackupExistingRollbackRemovesFreshInstalledFile(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "ByFTP.exe")
+	target := filepath.Join(dir, "GhostFTP.exe")
 	b, err := backupExisting(target)
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func TestBackupExistingRejectsSymlinkTarget(t *testing.T) {
 	if err := os.WriteFile(realTarget, []byte("old"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(dir, "ByFTP.exe")
+	link := filepath.Join(dir, "GhostFTP.exe")
 	if err := os.Symlink(realTarget, link); err != nil {
 		t.Skipf("symlink unavailable: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestBackupExistingRejectsSymlinkTarget(t *testing.T) {
 
 func TestBackupExistingRejectsLstatOpenReplacement(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "ByFTP.exe")
+	target := filepath.Join(dir, "GhostFTP.exe")
 	originalMoved := filepath.Join(dir, "original.exe")
 	replacement := filepath.Join(dir, "replacement.exe")
 	if err := os.WriteFile(target, []byte("original"), 0644); err != nil {
@@ -109,7 +109,7 @@ func TestBackupExistingRejectsLstatOpenReplacement(t *testing.T) {
 
 func TestFreshInstallDoesNotOverwriteTargetThatAppearedAfterSnapshot(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "ByFTP.exe")
+	target := filepath.Join(dir, "GhostFTP.exe")
 	b, err := backupExisting(target)
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestFreshInstallDoesNotOverwriteTargetThatAppearedAfterSnapshot(t *testing.
 	if err := os.WriteFile(target, []byte("external"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := installFile(target, []byte("byftp"), &b); err == nil {
+	if err := installFile(target, []byte("GhostFTP"), &b); err == nil {
 		t.Fatal("fresh install overwrote a target that appeared after snapshot")
 	}
 	if err := b.rollback(); err != nil {
@@ -134,7 +134,7 @@ func TestFreshInstallDoesNotOverwriteTargetThatAppearedAfterSnapshot(t *testing.
 
 func TestUpgradeRejectsOriginalChangedAfterBackup(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "ByFTP.exe")
+	target := filepath.Join(dir, "GhostFTP.exe")
 	if err := os.WriteFile(target, []byte("old"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -160,12 +160,12 @@ func TestUpgradeRejectsOriginalChangedAfterBackup(t *testing.T) {
 
 func TestRollbackRefusesInstalledFileChangedByAnotherActor(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "ByFTP.exe")
+	target := filepath.Join(dir, "GhostFTP.exe")
 	b, err := backupExisting(target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := installFile(target, []byte("byftp"), &b); err != nil {
+	if err := installFile(target, []byte("GhostFTP"), &b); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(target, []byte("external-change"), 0644); err != nil {
@@ -185,7 +185,7 @@ func TestRollbackRefusesInstalledFileChangedByAnotherActor(t *testing.T) {
 
 func TestRollbackBeforeActivationNeverDeletesFreshExternalTarget(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "ByFTP.exe")
+	target := filepath.Join(dir, "GhostFTP.exe")
 	b, err := backupExisting(target)
 	if err != nil {
 		t.Fatal(err)

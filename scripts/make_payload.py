@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a small deterministic installer payload ZIP for ByFTP."""
+"""Create a small deterministic installer payload ZIP for GhostFTP."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -28,7 +28,7 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     manifest: list[dict[str, object]] = []
     with zipfile.ZipFile(args.output, "w") as zf:
-        manifest.append(add(zf, args.app, "ByFTP.exe"))
+        manifest.append(add(zf, args.app, "GhostFTP.exe"))
         info = zipfile.ZipInfo("manifest.json", FIXED_TIME)
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0o644 << 16

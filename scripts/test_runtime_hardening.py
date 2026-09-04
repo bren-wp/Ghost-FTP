@@ -45,9 +45,9 @@ class RuntimeHardeningTests(unittest.TestCase):
         if php is None:
             self.skipTest("PHP CLI is not available")
         for relative in (
-            "ByFTP WEB/tests/json-store-bounds.php",
-            "ByFTP WEB/tests/ftp-listing.php",
-            "ByFTP WEB/tests/transfer-limiter.php",
+            "GhostFTP WEB/tests/json-store-bounds.php",
+            "GhostFTP WEB/tests/ftp-listing.php",
+            "GhostFTP WEB/tests/transfer-limiter.php",
         ):
             result = subprocess.run(
                 [php, str(ROOT / relative)],
@@ -63,12 +63,12 @@ class RuntimeHardeningTests(unittest.TestCase):
             self.assertIn("=PASS", result.stdout, relative)
 
     def test_web_downloads_are_bounded_during_transfer(self) -> None:
-        bounded = (ROOT / "ByFTP WEB/app/Remote/BoundedDownloadInterface.php").read_text(encoding="utf-8")
-        limiter = (ROOT / "ByFTP WEB/app/Remote/TransferLimiter.php").read_text(encoding="utf-8")
-        ftp = (ROOT / "ByFTP WEB/app/Remote/FtpClient.php").read_text(encoding="utf-8")
-        sftp = (ROOT / "ByFTP WEB/app/Remote/SftpClient.php").read_text(encoding="utf-8")
-        download = (ROOT / "ByFTP WEB/download.php").read_text(encoding="utf-8")
-        preview = (ROOT / "ByFTP WEB/preview.php").read_text(encoding="utf-8")
+        bounded = (ROOT / "GhostFTP WEB/app/Remote/BoundedDownloadInterface.php").read_text(encoding="utf-8")
+        limiter = (ROOT / "GhostFTP WEB/app/Remote/TransferLimiter.php").read_text(encoding="utf-8")
+        ftp = (ROOT / "GhostFTP WEB/app/Remote/FtpClient.php").read_text(encoding="utf-8")
+        sftp = (ROOT / "GhostFTP WEB/app/Remote/SftpClient.php").read_text(encoding="utf-8")
+        download = (ROOT / "GhostFTP WEB/download.php").read_text(encoding="utf-8")
+        preview = (ROOT / "GhostFTP WEB/preview.php").read_text(encoding="utf-8")
 
         self.assertIn("downloadBounded(string $remotePath, string $localFile, ?int $maxBytes = null): int", bounded)
         self.assertIn("public const UNKNOWN_SIZE_MAX_BYTES = 536870912;", limiter)

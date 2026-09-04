@@ -16,8 +16,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 const maxPrivateKeySize = 1 << 20
@@ -87,7 +87,7 @@ func cleanupStaleSFTPArtifacts(dir string) {
 	if err != nil {
 		return
 	}
-	prefixes := []string{".byftp-sftp-", ".byftp-known-", ".byftp-scan-host-", ".byftp-private-key-", "byftp-key-", "askpass-"}
+	prefixes := []string{".GhostFTP-sftp-", ".GhostFTP-known-", ".GhostFTP-scan-host-", ".GhostFTP-private-key-", "GhostFTP-key-", "askpass-"}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -206,7 +206,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 		return "", "", "", errors.New("poslužitelj je vratio nepodržan SSH host ključ")
 	}
 
-	name, err := writePrivateTempFile(tempDir, "byftp-key-*.known_hosts", []byte(selected+"\n"))
+	name, err := writePrivateTempFile(tempDir, "GhostFTP-key-*.known_hosts", []byte(selected+"\n"))
 	if err != nil {
 		return "", "", "", err
 	}
@@ -246,7 +246,7 @@ func randomSFTPAlias() (string, error) {
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
-	return "byftp-" + hex.EncodeToString(buf), nil
+	return "GhostFTP-" + hex.EncodeToString(buf), nil
 }
 
 func sshConfigQuote(value string) string {
@@ -314,7 +314,7 @@ func snapshotPrivateKey(dir, keyPath string) (string, error) {
 	if !os.SameFile(opened, after) || opened.Size() != after.Size() || int64(len(data)) != after.Size() || !opened.ModTime().Equal(after.ModTime()) {
 		return "", errors.New("privatni ključ se promijenio tijekom čitanja")
 	}
-	return writePrivateTempFile(dir, ".byftp-private-key-*.tmp", data)
+	return writePrivateTempFile(dir, ".GhostFTP-private-key-*.tmp", data)
 }
 
 func createSSHSessionConfig(dir, host string, port int, username, keyPath, knownHosts, hostKeyAlgorithm string, connectTimeout int) (string, string, error) {
@@ -367,7 +367,7 @@ func createSSHSessionConfig(dir, host string, port int, username, keyPath, known
 	if hostKeyAlgorithm != "" {
 		lines = append(lines, "  HostKeyAlgorithms "+hostKeyAlgorithm)
 	}
-	configPath, err := writePrivateTempFile(dir, ".byftp-sftp-*.conf", []byte(strings.Join(lines, "\n")+"\n"))
+	configPath, err := writePrivateTempFile(dir, ".GhostFTP-sftp-*.conf", []byte(strings.Join(lines, "\n")+"\n"))
 	if err != nil {
 		return "", "", err
 	}
@@ -469,10 +469,10 @@ func (s *SFTP) askpassEnvironment() ([]string, error) {
 	env = append(env,
 		"SSH_ASKPASS="+s.exePath,
 		"SSH_ASKPASS_REQUIRE=force",
-		"DISPLAY=ByFTP",
-		"BYFTP_ASKPASS_TOKEN="+token,
-		"BYFTP_PASSWORD_BLOB="+s.passwordBlob,
-		"BYFTP_PASSPHRASE_BLOB="+s.passphraseBlob,
+		"DISPLAY=GhostFTP",
+		"GhostFTP_ASKPASS_TOKEN="+token,
+		"GhostFTP_PASSWORD_BLOB="+s.passwordBlob,
+		"GhostFTP_PASSPHRASE_BLOB="+s.passphraseBlob,
 	)
 	return env, nil
 }

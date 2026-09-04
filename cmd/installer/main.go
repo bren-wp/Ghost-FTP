@@ -15,9 +15,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bren-wp/by-ftp/internal/brand"
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 //go:embed all:payload
@@ -30,8 +30,8 @@ const (
 
 	// These registry/application-path identifiers are retained for upgrade
 	// compatibility with installations created before the Ghost FTP rebrand.
-	legacyUninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\ByFTP`
-	appPathsKey        = `Software\Microsoft\Windows\CurrentVersion\App Paths\ByFTP.exe`
+	uninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
+	appPathsKey  = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
 )
 
 var version = "dev"
@@ -70,7 +70,7 @@ func parsePayload(data []byte) ([]byte, error) {
 
 	for _, f := range zr.File {
 		switch f.Name {
-		case "ByFTP.exe":
+		case "GhostFTP.exe":
 			if _, exists := files[f.Name]; exists {
 				return nil, errors.New("installer payload contains a duplicate file")
 			}
@@ -96,7 +96,7 @@ func parsePayload(data []byte) ([]byte, error) {
 		}
 	}
 
-	app, appOK := files["ByFTP.exe"]
+	app, appOK := files["GhostFTP.exe"]
 	if !appOK || manifestData == nil {
 		return nil, errors.New("installer payload is missing required files")
 	}
@@ -156,7 +156,7 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 	seen := make(map[string]bool, 1)
 	for _, item := range manifest.Files {
 		content, ok := files[item.Name]
-		if !ok || seen[item.Name] || item.Name != "ByFTP.exe" {
+		if !ok || seen[item.Name] || item.Name != "GhostFTP.exe" {
 			return errors.New("installer manifest does not match the package")
 		}
 		seen[item.Name] = true
@@ -172,7 +172,7 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 		}
 	}
 
-	if !seen["ByFTP.exe"] {
+	if !seen["GhostFTP.exe"] {
 		return errors.New("installer manifest is incomplete")
 	}
 
@@ -309,7 +309,7 @@ func cleanupLegacyUninstaller(dir string) string {
 		warnings = append(warnings, "The legacy Uninstall.exe path could not be checked safely.")
 	}
 
-	if err := platform.DeleteRegistryKey(legacyUninstallKey); err != nil {
+	if err := platform.DeleteRegistryKey(uninstallKey); err != nil {
 		warnings = append(warnings, "The legacy Windows uninstall registry entry could not be removed.")
 	}
 
@@ -401,7 +401,7 @@ func runInstaller() (exitCode int) {
 
 	// Keep the legacy executable filename for in-place upgrades and existing
 	// shortcuts/App Paths registrations. All user-visible branding is Ghost FTP.
-	appPath := filepath.Join(dir, "ByFTP.exe")
+	appPath := filepath.Join(dir, "GhostFTP.exe")
 	appBackup, err := backupExisting(appPath)
 	if err != nil {
 		showInstallError(

@@ -10,7 +10,7 @@ Choose one installer:
 - `Ghost-FTP-X.Y.Z-Setup-x86.exe` for 32-bit x86 Windows.
 - `Ghost-FTP-X.Y.Z-Setup-x32.exe` is a compatibility alias of the x86 installer and has identical bytes/checksum.
 
-The public product name is **Ghost FTP**. Some migration-sensitive internal identifiers can retain the former `byftp` name so existing profiles and cleanup paths continue to work.
+The public product name is **Ghost FTP**. Some migration-sensitive internal identifiers can retain the former `GhostFTP` name so existing profiles and cleanup paths continue to work.
 
 ## Linux
 

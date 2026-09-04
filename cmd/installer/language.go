@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/bren-wp/by-ftp/internal/appdata"
-	"github.com/bren-wp/by-ftp/internal/brand"
-	"github.com/bren-wp/by-ftp/internal/config"
-	"github.com/bren-wp/by-ftp/internal/i18n"
-	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/appdata"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
 func selectInstallerLanguage() (string, bool) {

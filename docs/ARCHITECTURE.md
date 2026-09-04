@@ -8,7 +8,7 @@ Ghost FTP is a multi-platform file-transfer product with separate native/runtime
 
 The desktop core is written in Go:
 
-- `cmd/byftp/` is the legacy-named desktop entry point retained for source compatibility.
+- `cmd/ghostftp/` is the legacy-named desktop entry point retained for source compatibility.
 - `cmd/installer/` owns the Windows installation transaction.
 - `internal/api/` exposes typed application operations.
 - `internal/desktop/` contains platform presentation and desktop interaction.
@@ -25,7 +25,7 @@ The maintained Go toolchain is pinned by CI and version audits. Production build
 
 ### Windows installation boundary
 
-The Windows installer uses an application-only verified payload. Legacy identifiers such as `ByFTP.exe`, old App Paths entries and old uninstall registry keys may remain where required to upgrade or clean existing installations safely. They are compatibility identifiers, not public branding.
+The Windows installer uses an application-only verified payload. Legacy identifiers such as `GhostFTP.exe`, old App Paths entries and old uninstall registry keys may remain where required to upgrade or clean existing installations safely. They are compatibility identifiers, not public branding.
 
 The installer validates its embedded payload, stages verified bytes, protects against redirected/reparse installation paths and uses rollback-aware file/registry transactions. Ghost FTP does not publish a standalone uninstaller binary from this pipeline.
 
@@ -33,7 +33,7 @@ The installer validates its embedded payload, stages verified bytes, protects ag
 
 `android/` is a native Android application. It contains its own connection, remote-browser and lifecycle implementation and does not depend on a project-controlled backend service.
 
-The package/application identifiers may retain `byftp` for update identity compatibility, while the visible application name is **Ghost FTP**. Android release CI tests, lints and assembles an installable APK. A production store signing identity is intentionally external to the repository.
+The package/application identifiers may retain `GhostFTP` for update identity compatibility, while the visible application name is **Ghost FTP**. Android release CI tests, lints and assembles an installable APK. A production store signing identity is intentionally external to the repository.
 
 ### iOS
 
@@ -43,7 +43,7 @@ The iOS build derives its marketing version from root `VERSION`, builds a real a
 
 ### Web/PWA
 
-`ByFTP WEB/` is the legacy-named source directory for the Ghost FTP PHP/shared-hosting application. The directory and internal PHP namespace are retained to avoid unnecessary migration churn; public application naming is **Ghost FTP**.
+`GhostFTP WEB/` is the legacy-named source directory for the Ghost FTP PHP/shared-hosting application. The directory and internal PHP namespace are retained to avoid unnecessary migration churn; public application naming is **Ghost FTP**.
 
 The web runtime contains:
 
@@ -54,7 +54,7 @@ The web runtime contains:
 - `tests/` — executable PHP regression tests.
 - `assets/` plus `manifest.webmanifest` and `service-worker.js` — PWA presentation/runtime assets.
 
-Sensitive navigation/API/download responses are never cached by the service worker. Ghost FTP uses a `ghostftp-static-vX.Y.Z` cache namespace and removes legacy `byftp-static-*` caches during activation.
+Sensitive navigation/API/download responses are never cached by the service worker. Ghost FTP uses a `ghostftp-static-vX.Y.Z` cache namespace and removes legacy `GhostFTP-static-*` caches during activation.
 
 ## Security boundaries
 

@@ -5,9 +5,9 @@ package desktop
 import (
 	"fmt"
 
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/transfer"
-	"github.com/bren-wp/by-ftp/internal/usererror"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/transfer"
+	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
 func (a *app) updateTransferSummary() {
@@ -47,7 +47,7 @@ func (a *app) addTransfer(direction, local, remotePath, localRoot string) {
 			}
 			if err != nil {
 				a.setStatus(usererror.Message(err, "Prijenos nije moguće pokrenuti."))
-				platform.ErrorDialog("ByFTP — prijenos", "Prijenos nije pokrenut", usererror.Message(err, "Provjerite vezu i odabrane datoteke."))
+				platform.ErrorDialog("GhostFTP — prijenos", "Prijenos nije pokrenut", usererror.Message(err, "Provjerite vezu i odabrane datoteke."))
 				return
 			}
 			a.setStatus("Prijenos dodan u red čekanja.")
@@ -170,7 +170,7 @@ func (a *app) cancelSelectedTransfer() {
 		err := a.engine.CancelTransfers(ids)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("ByFTP — prijenosi", "Radnja nije uspjela", usererror.Message(err, "Odabrane prijenose trenutačno nije moguće otkazati."))
+				platform.ErrorDialog("GhostFTP — prijenosi", "Radnja nije uspjela", usererror.Message(err, "Odabrane prijenose trenutačno nije moguće otkazati."))
 				return
 			}
 			a.setStatus(fmt.Sprintf("Otkazano prijenosa: %d", len(ids)))
@@ -197,7 +197,7 @@ func (a *app) retrySelectedTransfer() {
 				return
 			}
 			if err != nil {
-				platform.ErrorDialog("ByFTP — prijenosi", "Radnja nije uspjela", usererror.Message(err, "Odabrane prijenose trenutačno nije moguće ponoviti."))
+				platform.ErrorDialog("GhostFTP — prijenosi", "Radnja nije uspjela", usererror.Message(err, "Odabrane prijenose trenutačno nije moguće ponoviti."))
 				return
 			}
 			a.setStatus(fmt.Sprintf("Ponovno dodano u red: %d", len(ids)))

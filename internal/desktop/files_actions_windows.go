@@ -5,11 +5,11 @@ package desktop
 import (
 	"context"
 	"errors"
-	"github.com/bren-wp/by-ftp/internal/api"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/security"
-	"github.com/bren-wp/by-ftp/internal/usererror"
+	"github.com/bren-wp/Ghost-FTP/internal/api"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -24,7 +24,7 @@ func (a *app) suppressExpectedDisconnectError(err error) bool {
 func (a *app) chooseLocalDirectory() {
 	p, err := a.engine.ChooseDirectory()
 	if err != nil {
-		platform.ErrorDialog("ByFTP", "Odabir mape nije uspio", usererror.Message(err, "Mapu trenutačno nije moguće odabrati."))
+		platform.ErrorDialog("GhostFTP", "Odabir mape nije uspio", usererror.Message(err, "Mapu trenutačno nije moguće odabrati."))
 		return
 	}
 	if p != "" {
@@ -164,7 +164,7 @@ func (a *app) openSelectedRemote() {
 }
 
 func (a *app) localMkdirAction() {
-	name, ok := platform.PromptDialog("ByFTP — nova lokalna mapa", "Naziv nove mape:", "Nova mapa")
+	name, ok := platform.PromptDialog("GhostFTP — nova lokalna mapa", "Naziv nove mape:", "Nova mapa")
 	if !ok {
 		return
 	}
@@ -174,7 +174,7 @@ func (a *app) localMkdirAction() {
 		err := a.engine.LocalMkdir(base, name)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("ByFTP", "Mapa nije stvorena", usererror.Message(err, "Mapu nije moguće stvoriti."))
+				platform.ErrorDialog("GhostFTP", "Mapa nije stvorena", usererror.Message(err, "Mapu nije moguće stvoriti."))
 				return
 			}
 			a.refreshLocal(a.localCurrent)
@@ -190,7 +190,7 @@ func (a *app) localRenameAction() {
 		return
 	}
 	item := a.localItems[indices[0]]
-	name, ok := platform.PromptDialog("ByFTP — preimenuj lokalno", "Novi naziv:", item.Name)
+	name, ok := platform.PromptDialog("GhostFTP — preimenuj lokalno", "Novi naziv:", item.Name)
 	if !ok || strings.TrimSpace(name) == item.Name {
 		return
 	}
@@ -199,7 +199,7 @@ func (a *app) localRenameAction() {
 		err := a.engine.LocalRename(base, item.Name, strings.TrimSpace(name))
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("ByFTP", "Preimenovanje nije uspjelo", usererror.Message(err, "Stavku nije moguće preimenovati."))
+				platform.ErrorDialog("GhostFTP", "Preimenovanje nije uspjelo", usererror.Message(err, "Stavku nije moguće preimenovati."))
 				return
 			}
 			a.refreshLocal(a.localCurrent)
@@ -228,7 +228,7 @@ func (a *app) localDeleteAction() {
 		if len(items) > 1 {
 			message = strconv.Itoa(len(items)) + " odabranih stavki"
 		}
-		if !platform.ConfirmDialog("ByFTP — brisanje", "Obrisati odabrane lokalne stavke?", message+"\n\nOva radnja se ne može poništiti kroz ByFTP.") {
+		if !platform.ConfirmDialog("GhostFTP — brisanje", "Obrisati odabrane lokalne stavke?", message+"\n\nOva radnja se ne može poništiti kroz GhostFTP.") {
 			return
 		}
 	}
@@ -246,7 +246,7 @@ func (a *app) localDeleteAction() {
 		err := errors.Join(errs...)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("ByFTP", "Nisu obrisane sve stavke", usererror.Message(err, "Dio odabranih stavki nije moguće obrisati."))
+				platform.ErrorDialog("GhostFTP", "Nisu obrisane sve stavke", usererror.Message(err, "Dio odabranih stavki nije moguće obrisati."))
 			}
 			a.refreshLocal(a.localCurrent)
 			a.setStatus("Obrisano lokalnih stavki: " + strconv.Itoa(deleted) + " • neuspjelo: " + strconv.Itoa(len(items)-deleted))
@@ -258,12 +258,12 @@ func (a *app) remoteMkdirAction() {
 	if !a.connected || a.connectionBusy {
 		return
 	}
-	name, ok := platform.PromptDialog("ByFTP — nova mapa na poslužitelju", "Naziv nove mape:", "Nova mapa")
+	name, ok := platform.PromptDialog("GhostFTP — nova mapa na poslužitelju", "Naziv nove mape:", "Nova mapa")
 	if !ok {
 		return
 	}
 	if err := security.ValidateRemoteName(name); err != nil {
-		platform.ErrorDialog("ByFTP", "Mapa nije stvorena", usererror.Message(err, "Naziv udaljene mape nije valjan."))
+		platform.ErrorDialog("GhostFTP", "Mapa nije stvorena", usererror.Message(err, "Naziv udaljene mape nije valjan."))
 		return
 	}
 	base := a.remoteCurrent
@@ -278,12 +278,12 @@ func (a *app) remoteRenameAction() {
 	}
 	item := a.remoteItems[indices[0]]
 	base := a.remoteCurrent
-	name, ok := platform.PromptDialog("ByFTP — preimenuj na poslužitelju", "Novi naziv:", item.Name)
+	name, ok := platform.PromptDialog("GhostFTP — preimenuj na poslužitelju", "Novi naziv:", item.Name)
 	if !ok {
 		return
 	}
 	if err := security.ValidateRemoteName(name); err != nil {
-		platform.ErrorDialog("ByFTP", "Preimenovanje nije uspjelo", usererror.Message(err, "Novi naziv udaljene stavke nije valjan."))
+		platform.ErrorDialog("GhostFTP", "Preimenovanje nije uspjelo", usererror.Message(err, "Novi naziv udaljene stavke nije valjan."))
 		return
 	}
 	if name == item.Name {
@@ -314,7 +314,7 @@ func (a *app) remoteDeleteAction() {
 		if len(items) > 1 {
 			message = strconv.Itoa(len(items)) + " odabranih stavki"
 		}
-		if !platform.ConfirmDialog("ByFTP — brisanje na poslužitelju", "Obrisati odabrane stavke?", message+"\n\nBrisanje na poslužitelju može biti nepovratno.") {
+		if !platform.ConfirmDialog("GhostFTP — brisanje na poslužitelju", "Obrisati odabrane stavke?", message+"\n\nBrisanje na poslužitelju može biti nepovratno.") {
 			return
 		}
 	}
@@ -353,7 +353,7 @@ func (a *app) remoteChmodAction() {
 		return
 	}
 	base := a.remoteCurrent
-	mode, ok := platform.PromptDialog("ByFTP — dozvole", "Dozvole za odabrane stavke, npr. 644 ili 755:", "644")
+	mode, ok := platform.PromptDialog("GhostFTP — dozvole", "Dozvole za odabrane stavke, npr. 644 ili 755:", "644")
 	if !ok {
 		return
 	}
@@ -397,7 +397,7 @@ func (a *app) runRemoteMutationWithTimeout(label string, timeout time.Duration, 
 				if a.suppressExpectedDisconnectError(err) {
 					return
 				}
-				platform.ErrorDialog("ByFTP — poslužitelj", label+" nije uspjelo", usererror.Message(err, "Radnju na poslužitelju nije moguće dovršiti."))
+				platform.ErrorDialog("GhostFTP — poslužitelj", label+" nije uspjelo", usererror.Message(err, "Radnju na poslužitelju nije moguće dovršiti."))
 				a.setStatus(usererror.Message(err, label+" nije uspjelo."))
 				a.checkConnectionAfterError()
 				return
@@ -434,7 +434,7 @@ func (a *app) runRemoteBatchMutationWithTimeout(label string, timeout time.Durat
 			}
 			a.setStatus(status)
 			if result.Err != nil && !a.suppressExpectedDisconnectError(result.Err) {
-				platform.ErrorDialog("ByFTP — poslužitelj", label+" nije dovršeno za sve stavke", usererror.Message(result.Err, "Dio odabranih stavki nije moguće promijeniti."))
+				platform.ErrorDialog("GhostFTP — poslužitelj", label+" nije dovršeno za sve stavke", usererror.Message(result.Err, "Dio odabranih stavki nije moguće promijeniti."))
 			}
 			if result.Succeeded > 0 && baseNavGeneration == a.remoteNavSeq {
 				// Refresh itself proves whether the connection is still usable, so do
@@ -503,7 +503,7 @@ func (a *app) queueSelection(direction string, files []api.TransferRequest, tree
 				return
 			}
 			if err != nil && !a.suppressExpectedDisconnectError(err) {
-				platform.ErrorDialog("ByFTP — prijenos", "Nisu dodane sve odabrane stavke", usererror.Message(err, "Dio odabranih stavki nije moguće dodati u prijenos."))
+				platform.ErrorDialog("GhostFTP — prijenos", "Nisu dodane sve odabrane stavke", usererror.Message(err, "Dio odabranih stavki nije moguće dodati u prijenos."))
 			}
 			text := "Dodano u red: " + strconv.Itoa(queuedFiles) + " datoteka"
 			if queuedDirs > 0 {
@@ -604,7 +604,7 @@ func (a *app) addTreeTransfer(direction, local, remotePath string) {
 				if a.suppressExpectedDisconnectError(err) {
 					return
 				}
-				platform.ErrorDialog("ByFTP — prijenos mape", "Mapa nije dodana u prijenos", usererror.Message(err, "Prijenos mape nije moguće pokrenuti."))
+				platform.ErrorDialog("GhostFTP — prijenos mape", "Mapa nije dodana u prijenos", usererror.Message(err, "Prijenos mape nije moguće pokrenuti."))
 				a.setStatus(usererror.Message(err, "Prijenos mape nije moguće pokrenuti."))
 				return
 			}

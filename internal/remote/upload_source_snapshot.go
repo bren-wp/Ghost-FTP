@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 type uploadSourceSnapshot struct {
@@ -100,7 +100,7 @@ func copyUploadSnapshot(source *os.File, destination string, original os.FileInf
 
 // prepareUploadSource binds an upload to one verified local filesystem object.
 // The child network tool never reopens the user-controlled original pathname.
-// Instead, ByFTP creates a byte-for-byte private snapshot from the verified open
+// Instead, GhostFTP creates a byte-for-byte private snapshot from the verified open
 // handle and validates its content before it can be used for a remote commit.
 func prepareUploadSource(local string) (*uploadSourceSnapshot, error) {
 	before, err := os.Lstat(local)
@@ -124,7 +124,7 @@ func prepareUploadSource(local string) (*uploadSourceSnapshot, error) {
 		return nil, errors.New("lokalni upload izvor se promijenio tijekom sigurnog otvaranja")
 	}
 
-	tempDir, err := os.MkdirTemp("", "byftp-upload-*")
+	tempDir, err := os.MkdirTemp("", "GhostFTP-upload-*")
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestRemoveCommittedLocalRollbackReportsCleanupFailure(t *testing.T) {
-	const path = "/tmp/byftp-rollback-sensitive"
+	const path = "/tmp/GhostFTP-rollback-sensitive"
 	want := errors.New("permission denied")
 	err := removeCommittedLocalRollback(path, func(got string) error {
 		if got != path {

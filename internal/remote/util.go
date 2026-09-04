@@ -17,10 +17,10 @@ import (
 
 	"unicode/utf8"
 
-	"github.com/bren-wp/by-ftp/internal/itemlist"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/itemlist"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 const (
@@ -115,10 +115,10 @@ func sanitizedToolEnv(env []string) []string {
 		// Never inherit proxy routing from the parent process.
 		"http_proxy": {}, "https_proxy": {}, "ftp_proxy": {}, "ftps_proxy": {}, "all_proxy": {}, "no_proxy": {},
 		// Never inherit curl/TLS controls that could change trust, backend selection
-		// or export session secrets outside ByFTP.
+		// or export session secrets outside GhostFTP.
 		"curl_ssl_backend": {}, "curl_ca_bundle": {}, "ssl_cert_file": {}, "ssl_cert_dir": {}, "sslkeylogfile": {},
 		"curl_home": {}, "xdg_config_home": {}, "netrc": {},
-		// Never inherit external SSH helpers/agents. ByFTP supplies its own
+		// Never inherit external SSH helpers/agents. GhostFTP supplies its own
 		// AskPass variables only for the specific child process that needs them.
 		"ssh_askpass": {}, "ssh_askpass_require": {}, "ssh_auth_sock": {}, "ssh_sk_provider": {}, "display": {},
 	}
@@ -141,7 +141,7 @@ func writePrivateFileAtomic(filePath string, data []byte) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(dir, ".byftp-private-*.tmp")
+	f, err := os.CreateTemp(dir, ".GhostFTP-private-*.tmp")
 	if err != nil {
 		return err
 	}
@@ -284,8 +284,8 @@ func remoteTransferNames(remotePath string) (dir, base, tempName, savedName stri
 	if err != nil {
 		return "", "", "", "", err
 	}
-	tempName = ".byftp-part-" + token
-	savedName = ".byftp-rollback-" + token
+	tempName = ".GhostFTP-part-" + token
+	savedName = ".GhostFTP-rollback-" + token
 	return
 }
 
@@ -307,7 +307,7 @@ func localTransferSibling(local, kind string, preserveBase bool) (string, error)
 	if err != nil {
 		return "", err
 	}
-	suffix := ".byftp-" + kind + "-" + token
+	suffix := ".GhostFTP-" + kind + "-" + token
 	name := suffix
 	if preserveBase {
 		prefix := truncateUTF8Bytes(base, 240-len(suffix))
@@ -335,11 +335,11 @@ func backupName(base, rollbackName string, keepBackup bool) string {
 	if !keepBackup {
 		return rollbackName
 	}
-	token := strings.TrimPrefix(rollbackName, ".byftp-rollback-")
+	token := strings.TrimPrefix(rollbackName, ".GhostFTP-rollback-")
 	if token == rollbackName {
-		token = strings.TrimPrefix(rollbackName, base+".byftp-rollback-")
+		token = strings.TrimPrefix(rollbackName, base+".GhostFTP-rollback-")
 	}
-	suffix := ".byftp-backup-" + token
+	suffix := ".GhostFTP-backup-" + token
 	prefix := truncateUTF8Bytes(base, 240-len(suffix))
 	if prefix == "" {
 		prefix = "datoteka"

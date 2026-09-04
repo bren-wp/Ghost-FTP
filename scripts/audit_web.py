@@ -11,15 +11,15 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WEB = ROOT / "ByFTP WEB"  # Legacy source-directory name retained for compatibility.
+WEB = ROOT / "GhostFTP WEB"  # Legacy source-directory name retained for compatibility.
 
 # These empty files keep runtime-created directories present in source/deploy
 # archives. They are the only tracked entries allowed below storage/ besides
 # storage/.htaccess; any actual runtime/user data remains release-blocking.
 ALLOWED_STORAGE_PLACEHOLDERS = {
-    "ByFTP WEB/storage/logs/.gitkeep",
-    "ByFTP WEB/storage/tmp/.gitkeep",
-    "ByFTP WEB/storage/users/.gitkeep",
+    "GhostFTP WEB/storage/logs/.gitkeep",
+    "GhostFTP WEB/storage/tmp/.gitkeep",
+    "GhostFTP WEB/storage/users/.gitkeep",
 }
 
 
@@ -46,7 +46,7 @@ def require(text: str, markers: tuple[str, ...], where: str) -> None:
 def tracked_web_files() -> list[str]:
     try:
         output = subprocess.check_output(
-            ["git", "ls-files", "--", "ByFTP WEB"],
+            ["git", "ls-files", "--", "GhostFTP WEB"],
             cwd=ROOT,
             text=True,
             encoding="utf-8",
@@ -116,34 +116,34 @@ def run_runtime_checks() -> tuple[int, int, int]:
 def validate_repository_surface(version: str) -> None:
     tracked = set(tracked_web_files())
     required = {
-        "ByFTP WEB/.htaccess",
-        "ByFTP WEB/README.md",
-        "ByFTP WEB/VERSION",
-        "ByFTP WEB/composer.json",
-        "ByFTP WEB/index.php",
-        "ByFTP WEB/api.php",
-        "ByFTP WEB/setup.php",
-        "ByFTP WEB/login.php",
-        "ByFTP WEB/logout.php",
-        "ByFTP WEB/register.php",
-        "ByFTP WEB/account.php",
-        "ByFTP WEB/settings.php",
-        "ByFTP WEB/download.php",
-        "ByFTP WEB/preview.php",
-        "ByFTP WEB/app/bootstrap.php",
-        "ByFTP WEB/app/helpers.php",
-        "ByFTP WEB/app/Remote/PathGuard.php",
-        "ByFTP WEB/app/Remote/FtpClient.php",
-        "ByFTP WEB/app/Remote/SftpClient.php",
-        "ByFTP WEB/app/Security/Auth.php",
-        "ByFTP WEB/app/Security/HostGuard.php",
-        "ByFTP WEB/app/Security/RateLimiter.php",
-        "ByFTP WEB/app/Storage/JsonStore.php",
-        "ByFTP WEB/app/Storage/ProfileStore.php",
-        "ByFTP WEB/manifest.webmanifest",
-        "ByFTP WEB/service-worker.js",
-        "ByFTP WEB/robots.txt",
-        "ByFTP WEB/storage/.htaccess",
+        "GhostFTP WEB/.htaccess",
+        "GhostFTP WEB/README.md",
+        "GhostFTP WEB/VERSION",
+        "GhostFTP WEB/composer.json",
+        "GhostFTP WEB/index.php",
+        "GhostFTP WEB/api.php",
+        "GhostFTP WEB/setup.php",
+        "GhostFTP WEB/login.php",
+        "GhostFTP WEB/logout.php",
+        "GhostFTP WEB/register.php",
+        "GhostFTP WEB/account.php",
+        "GhostFTP WEB/settings.php",
+        "GhostFTP WEB/download.php",
+        "GhostFTP WEB/preview.php",
+        "GhostFTP WEB/app/bootstrap.php",
+        "GhostFTP WEB/app/helpers.php",
+        "GhostFTP WEB/app/Remote/PathGuard.php",
+        "GhostFTP WEB/app/Remote/FtpClient.php",
+        "GhostFTP WEB/app/Remote/SftpClient.php",
+        "GhostFTP WEB/app/Security/Auth.php",
+        "GhostFTP WEB/app/Security/HostGuard.php",
+        "GhostFTP WEB/app/Security/RateLimiter.php",
+        "GhostFTP WEB/app/Storage/JsonStore.php",
+        "GhostFTP WEB/app/Storage/ProfileStore.php",
+        "GhostFTP WEB/manifest.webmanifest",
+        "GhostFTP WEB/service-worker.js",
+        "GhostFTP WEB/robots.txt",
+        "GhostFTP WEB/storage/.htaccess",
     }
     missing = sorted(required - tracked)
     if missing:
@@ -159,8 +159,8 @@ def validate_repository_surface(version: str) -> None:
     runtime_storage = sorted(
         path
         for path in tracked
-        if path.startswith("ByFTP WEB/storage/")
-        and path != "ByFTP WEB/storage/.htaccess"
+        if path.startswith("GhostFTP WEB/storage/")
+        and path != "GhostFTP WEB/storage/.htaccess"
         and path not in ALLOWED_STORAGE_PLACEHOLDERS
     )
     if runtime_storage:
@@ -171,7 +171,7 @@ def validate_repository_surface(version: str) -> None:
     if leaked:
         fail("generated/runtime file is tracked: " + ", ".join(leaked))
 
-    composer = json.loads(read("ByFTP WEB/composer.json"))
+    composer = json.loads(read("GhostFTP WEB/composer.json"))
     if composer.get("name") != "brendigo/ghost-ftp-web":
         fail("composer package name is not Ghost FTP")
     if composer.get("version") != version:
@@ -181,15 +181,15 @@ def validate_repository_surface(version: str) -> None:
 
 
 def validate_public_brand_and_pwa(version: str) -> None:
-    manifest = read("ByFTP WEB/manifest.webmanifest")
+    manifest = read("GhostFTP WEB/manifest.webmanifest")
     require(manifest, ('"name": "Ghost FTP Remote File Client"', '"short_name": "Ghost FTP"'), "manifest.webmanifest")
 
-    service_worker = read("ByFTP WEB/service-worker.js")
+    service_worker = read("GhostFTP WEB/service-worker.js")
     require(
         service_worker,
         (
             f"ghostftp-static-v{version}",
-            "key.startsWith('byftp-static-')",
+            "key.startsWith('GhostFTP-static-')",
             "request.mode === 'navigate'",
             "api|login|logout|register|account|users|settings|setup|diagnostics|download|preview",
             "fetch(request)",
@@ -197,20 +197,20 @@ def validate_public_brand_and_pwa(version: str) -> None:
         ),
         "service-worker.js",
     )
-    if f"byftp-static-v{version}" in service_worker:
+    if f"GhostFTP-static-v{version}" in service_worker:
         fail("current PWA cache namespace still uses the retired public brand")
 
-    readme = read("ByFTP WEB/README.md")
+    readme = read("GhostFTP WEB/README.md")
     if "Ghost FTP" not in readme:
         fail("web README does not identify Ghost FTP")
 
 
 def validate_http_session_and_csrf_boundaries() -> None:
-    bootstrap = read("ByFTP WEB/app/bootstrap.php")
+    bootstrap = read("GhostFTP WEB/app/bootstrap.php")
     require(
         bootstrap,
         (
-            "BYFTP_ROOT . '/VERSION'",
+            "GhostFTP_ROOT . '/VERSION'",
             "HTTP_SEC_FETCH_SITE",
             "X-Content-Type-Options: nosniff",
             "X-Frame-Options: DENY",
@@ -227,25 +227,25 @@ def validate_http_session_and_csrf_boundaries() -> None:
         "app/bootstrap.php",
     )
 
-    auth = read("ByFTP WEB/app/Security/Auth.php")
+    auth = read("GhostFTP WEB/app/Security/Auth.php")
     require(
         auth,
         (
             "session_regenerate_id(true)",
             "user_session_version",
             "unset($_SESSION['csrf'])",
-            "byftp_csrf_token()",
+            "GhostFTP_csrf_token()",
             "unset($user['password_hash'])",
         ),
         "app/Security/Auth.php",
     )
 
-    helpers = read("ByFTP WEB/app/helpers.php")
-    require(helpers, ("function byftp_csrf_token", "hash_equals", "random_bytes"), "app/helpers.php")
+    helpers = read("GhostFTP WEB/app/helpers.php")
+    require(helpers, ("function GhostFTP_csrf_token", "hash_equals", "random_bytes"), "app/helpers.php")
 
 
 def validate_remote_input_and_secret_boundaries() -> None:
-    path_guard = read("ByFTP WEB/app/Remote/PathGuard.php")
+    path_guard = read("GhostFTP WEB/app/Remote/PathGuard.php")
     require(
         path_guard,
         (
@@ -259,7 +259,7 @@ def validate_remote_input_and_secret_boundaries() -> None:
     if "str_replace('\\\\', '/', $path)" in path_guard:
         fail("path guard rewrites unsafe backslashes instead of rejecting them")
 
-    host_guard = read("ByFTP WEB/app/Security/HostGuard.php")
+    host_guard = read("GhostFTP WEB/app/Security/HostGuard.php")
     require(
         host_guard,
         (
@@ -270,7 +270,7 @@ def validate_remote_input_and_secret_boundaries() -> None:
         "app/Security/HostGuard.php",
     )
 
-    profiles = read("ByFTP WEB/app/Storage/ProfileStore.php")
+    profiles = read("GhostFTP WEB/app/Storage/ProfileStore.php")
     require(
         profiles,
         (
@@ -283,10 +283,10 @@ def validate_remote_input_and_secret_boundaries() -> None:
     if "trim((string)($input['host']" in profiles:
         fail("profile host is normalized before fail-closed validation")
 
-    ftp = read("ByFTP WEB/app/Remote/FtpClient.php")
+    ftp = read("GhostFTP WEB/app/Remote/FtpClient.php")
     require(ftp, ("$this->profile['password'] = '';", "HostGuard::connectionTargets"), "app/Remote/FtpClient.php")
 
-    sftp = read("ByFTP WEB/app/Remote/SftpClient.php")
+    sftp = read("GhostFTP WEB/app/Remote/SftpClient.php")
     require(
         sftp,
         (
@@ -304,17 +304,17 @@ def validate_remote_input_and_secret_boundaries() -> None:
 
 
 def validate_noindex_and_storage_protection() -> None:
-    robots = read("ByFTP WEB/robots.txt")
+    robots = read("GhostFTP WEB/robots.txt")
     require(robots, ("Disallow: /api", "Disallow: /download/", "Disallow: /preview/"), "robots.txt")
 
-    storage_htaccess = read("ByFTP WEB/storage/.htaccess")
+    storage_htaccess = read("GhostFTP WEB/storage/.htaccess")
     if not re.search(r"(?i)(deny\s+from\s+all|require\s+all\s+denied)", storage_htaccess):
         fail("storage/.htaccess does not deny direct HTTP access")
 
 
 def main() -> int:
     version = read("VERSION").strip()
-    web_version = read("ByFTP WEB/VERSION").strip()
+    web_version = read("GhostFTP WEB/VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid canonical VERSION: {version!r}")
     if web_version != version:
@@ -331,7 +331,7 @@ def main() -> int:
     print("PUBLIC_BRAND=Ghost FTP")
     print("WEB_RUNTIME_STORAGE=BLOCKED_EXCEPT_EMPTY_PLACEHOLDERS")
     print("WEB_PWA_CACHE_NAMESPACE=ghostftp-static")
-    print("WEB_LEGACY_CACHE_MIGRATION=byftp-static-cleanup")
+    print("WEB_LEGACY_CACHE_MIGRATION=GhostFTP-static-cleanup")
     print(f"WEB_PHP_FILES={php_count}")
     print(f"WEB_JS_FILES={js_count}")
     print(f"WEB_RUNTIME_TESTS={test_count}")

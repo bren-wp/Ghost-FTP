@@ -12,9 +12,9 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/profilebinding"
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/profilebinding"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 type Profiles struct {

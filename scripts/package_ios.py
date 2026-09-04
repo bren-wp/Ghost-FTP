@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate an unsigned ByFTP iOS app bundle and create deterministic release archives."""
+"""Validate an unsigned GhostFTP iOS app bundle and create deterministic archives."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MACHO_MAGICS = {
-    b"\xcf\xfa\xed\xfe",  # MH_MAGIC_64 little endian
-    b"\xfe\xed\xfa\xcf",  # MH_CIGAM_64
-    b"\xca\xfe\xba\xbe",  # FAT_MAGIC
-    b"\xbe\xba\xfe\xca",  # FAT_CIGAM
+    b"\xcf\xfa\xed\xfe",
+    b"\xfe\xed\xfa\xcf",
+    b"\xca\xfe\xba\xbe",
+    b"\xbe\xba\xfe\xca",
 }
 
 
@@ -34,8 +34,8 @@ def canonical_version() -> str:
 
 
 def validate_app(app: Path, version: str) -> str:
-    if not app.is_dir() or app.name != "ByFTP.app":
-        fail("expected a ByFTP.app directory")
+    if not app.is_dir() or app.name != "GhostFTP.app":
+        fail("expected a GhostFTP.app directory")
 
     for path in app.rglob("*"):
         if path.is_symlink():
@@ -43,26 +43,26 @@ def validate_app(app: Path, version: str) -> str:
 
     info_path = app / "Info.plist"
     if not info_path.is_file():
-        fail("ByFTP.app is missing Info.plist")
+        fail("GhostFTP.app is missing Info.plist")
     with info_path.open("rb") as handle:
         info = plistlib.load(handle)
 
-    if info.get("CFBundleIdentifier") != "com.byftp.client":
+    if info.get("CFBundleIdentifier") != "com.ghostftp.client":
         fail("unexpected CFBundleIdentifier")
     if info.get("CFBundleShortVersionString") != version:
         fail("iOS app version does not match VERSION")
     executable_name = info.get("CFBundleExecutable")
-    if executable_name != "ByFTP":
+    if executable_name != "GhostFTP":
         fail("unexpected CFBundleExecutable")
 
     executable = app / executable_name
     if not executable.is_file():
-        fail("ByFTP.app is missing its executable")
+        fail("GhostFTP.app is missing its executable")
     if not os.access(executable, os.X_OK):
-        fail("ByFTP executable is not executable")
+        fail("GhostFTP executable is not executable")
     with executable.open("rb") as handle:
         if handle.read(4) not in MACHO_MAGICS:
-            fail("ByFTP executable is not a Mach-O binary")
+            fail("GhostFTP executable is not a Mach-O binary")
 
     return executable_name
 
@@ -121,23 +121,23 @@ def main() -> int:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    ipa = output_dir / f"ByFTP-{version}-iOS-arm64-unsigned.ipa"
-    app_zip = output_dir / f"ByFTP-{version}-iOS-arm64-unsigned-app.zip"
-    archive_tree(args.app, ipa, "Payload/ByFTP.app")
-    archive_tree(args.app, app_zip, "ByFTP.app")
+    ipa = output_dir / f"Ghost-FTP-{version}-iOS-arm64-unsigned.ipa"
+    app_zip = output_dir / f"Ghost-FTP-{version}-iOS-arm64-unsigned-app.zip"
+    archive_tree(args.app, ipa, "Payload/GhostFTP.app")
+    archive_tree(args.app, app_zip, "GhostFTP.app")
 
     validate_archive(
         ipa,
         {
-            "Payload/ByFTP.app/Info.plist",
-            f"Payload/ByFTP.app/{executable_name}",
+            "Payload/GhostFTP.app/Info.plist",
+            f"Payload/GhostFTP.app/{executable_name}",
         },
     )
     validate_archive(
         app_zip,
         {
-            "ByFTP.app/Info.plist",
-            f"ByFTP.app/{executable_name}",
+            "GhostFTP.app/Info.plist",
+            f"GhostFTP.app/{executable_name}",
         },
     )
 

@@ -25,7 +25,7 @@ func makePayload(t *testing.T, files []testPayloadFile, includeManifest bool, sc
 		if _, err := w.Write([]byte(item.body)); err != nil {
 			t.Fatal(err)
 		}
-		if item.name == "ByFTP.exe" {
+		if item.name == "GhostFTP.exe" {
 			digest := fmt.Sprintf("%x", sha256.Sum256([]byte(item.body)))
 			manifest.Files = append(manifest.Files, struct {
 				Name   string `json:"name"`
@@ -50,7 +50,7 @@ func makePayload(t *testing.T, files []testPayloadFile, includeManifest bool, sc
 }
 
 func TestParsePayloadAcceptsAppOnlySchemaTwo(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "app"}}, true, 2)
+	data := makePayload(t, []testPayloadFile{{"GhostFTP.exe", "app"}}, true, 2)
 	app, err := parsePayload(data)
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func TestParsePayloadAcceptsAppOnlySchemaTwo(t *testing.T) {
 }
 
 func TestParsePayloadRejectsDuplicateRequiredFile(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"ByFTP.exe", "b"}}, true, 2)
+	data := makePayload(t, []testPayloadFile{{"GhostFTP.exe", "a"}, {"GhostFTP.exe", "b"}}, true, 2)
 	_, err := parsePayload(data)
 	if err == nil || !strings.Contains(err.Error(), "duplicate") {
 		t.Fatalf("expected duplicate rejection, got %v", err)
@@ -69,7 +69,7 @@ func TestParsePayloadRejectsDuplicateRequiredFile(t *testing.T) {
 }
 
 func TestParsePayloadRejectsLegacyUninstallerEntry(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"Uninstall.exe", "legacy"}}, true, 2)
+	data := makePayload(t, []testPayloadFile{{"GhostFTP.exe", "a"}, {"Uninstall.exe", "legacy"}}, true, 2)
 	_, err := parsePayload(data)
 	if err == nil || !strings.Contains(err.Error(), "unexpected") {
 		t.Fatalf("expected legacy uninstaller entry rejection, got %v", err)
@@ -77,7 +77,7 @@ func TestParsePayloadRejectsLegacyUninstallerEntry(t *testing.T) {
 }
 
 func TestParsePayloadRejectsUnexpectedFile(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}, {"extra.dll", "x"}}, true, 2)
+	data := makePayload(t, []testPayloadFile{{"GhostFTP.exe", "a"}, {"extra.dll", "x"}}, true, 2)
 	_, err := parsePayload(data)
 	if err == nil || !strings.Contains(err.Error(), "unexpected") {
 		t.Fatalf("expected unexpected-file rejection, got %v", err)
@@ -85,22 +85,22 @@ func TestParsePayloadRejectsUnexpectedFile(t *testing.T) {
 }
 
 func TestParsePayloadRequiresManifest(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}}, false, 2)
+	data := makePayload(t, []testPayloadFile{{"GhostFTP.exe", "a"}}, false, 2)
 	if _, err := parsePayload(data); err == nil {
 		t.Fatal("expected missing manifest to be rejected")
 	}
 }
 
 func TestParsePayloadRejectsLegacySchemaOne(t *testing.T) {
-	data := makePayload(t, []testPayloadFile{{"ByFTP.exe", "a"}}, true, 1)
+	data := makePayload(t, []testPayloadFile{{"GhostFTP.exe", "a"}}, true, 1)
 	if _, err := parsePayload(data); err == nil {
 		t.Fatal("expected legacy payload schema to be rejected")
 	}
 }
 
 func TestValidatePayloadManifestRejectsTamperedHash(t *testing.T) {
-	files := map[string][]byte{"ByFTP.exe": []byte("app")}
-	manifest := []byte(`{"schema":2,"files":[{"name":"ByFTP.exe","size":3,"sha256":"00"}]}`)
+	files := map[string][]byte{"GhostFTP.exe": []byte("app")}
+	manifest := []byte(`{"schema":2,"files":[{"name":"GhostFTP.exe","size":3,"sha256":"00"}]}`)
 	if err := validatePayloadManifest(manifest, files); err == nil {
 		t.Fatal("expected tampered manifest to be rejected")
 	}

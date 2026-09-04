@@ -14,18 +14,18 @@ import package_ios
 class IOSPackageTests(unittest.TestCase):
     def make_app(self, root: Path) -> tuple[Path, str]:
         version = package_ios.canonical_version()
-        app = root / "ByFTP.app"
+        app = root / "GhostFTP.app"
         app.mkdir()
         with (app / "Info.plist").open("wb") as handle:
             plistlib.dump(
                 {
-                    "CFBundleIdentifier": "com.byftp.client",
+                    "CFBundleIdentifier": "com.ghostftp.client",
                     "CFBundleShortVersionString": version,
-                    "CFBundleExecutable": "ByFTP",
+                    "CFBundleExecutable": "GhostFTP",
                 },
                 handle,
             )
-        executable = app / "ByFTP"
+        executable = app / "GhostFTP"
         executable.write_bytes(b"\xcf\xfa\xed\xfe" + b"\x00" * 128)
         executable.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
         (app / "asset.txt").write_text("asset", encoding="utf-8")
@@ -38,12 +38,12 @@ class IOSPackageTests(unittest.TestCase):
             package_ios.validate_app(app, package_ios.canonical_version())
             ipa = root / "out.ipa"
             app_zip = root / "app.zip"
-            package_ios.archive_tree(app, ipa, "Payload/ByFTP.app")
-            package_ios.archive_tree(app, app_zip, "ByFTP.app")
-            package_ios.validate_archive(ipa, {"Payload/ByFTP.app/Info.plist", "Payload/ByFTP.app/ByFTP"})
-            package_ios.validate_archive(app_zip, {"ByFTP.app/Info.plist", "ByFTP.app/ByFTP"})
+            package_ios.archive_tree(app, ipa, "Payload/GhostFTP.app")
+            package_ios.archive_tree(app, app_zip, "GhostFTP.app")
+            package_ios.validate_archive(ipa, {"Payload/GhostFTP.app/Info.plist", "Payload/GhostFTP.app/GhostFTP"})
+            package_ios.validate_archive(app_zip, {"GhostFTP.app/Info.plist", "GhostFTP.app/GhostFTP"})
             with zipfile.ZipFile(ipa) as archive:
-                self.assertIn("Payload/ByFTP.app/asset.txt", archive.namelist())
+                self.assertIn("Payload/GhostFTP.app/asset.txt", archive.namelist())
 
     def test_version_mismatch_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

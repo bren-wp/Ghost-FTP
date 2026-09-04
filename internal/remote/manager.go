@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/config"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/profilebinding"
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/profilebinding"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 var (
@@ -315,7 +315,7 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		if trust != "" {
 			m.applyPendingTrust(cfg, &resolved, fp)
 		}
-		kh, err := writePrivateTempFile(knownHostsDir, ".byftp-known-*.txt", []byte(keyLine))
+		kh, err := writePrivateTempFile(knownHostsDir, ".GhostFTP-known-*.txt", []byte(keyLine))
 		if err != nil {
 			return ConnectResult{}, err
 		}
