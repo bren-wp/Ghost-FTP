@@ -1,102 +1,99 @@
 # Architecture
 
-ByFTP has four intentionally separate runtime implementations that share product, security and release policy rather than process memory: the Go desktop client, native Android client, native iOS client and shared-hosting WEB application.
+Ghost FTP is a multi-platform file-transfer product with separate native/runtime implementations that share product, security, versioning and release policy.
 
-## Desktop core
+## Runtime surfaces
 
-Windows/Linux/macOS are implemented in Go. `cmd/byftp` starts the client, `cmd/installer` owns the Windows installation lifecycle, `internal/api` exposes typed engine operations, `internal/desktop` contains presentation, `internal/remote` owns FTP/FTPS/SFTP sessions, `internal/transfer` owns queue state, `internal/config` owns durable settings/profiles, `internal/security` centralizes hardening, `internal/i18n` owns localization and `internal/platform` isolates operating-system primitives.
+### Desktop core — Windows, Linux and macOS
 
-ByFTP 1.9.0 does not build or embed a dedicated Windows `Uninstall.exe`. The Setup payload is application-only and contains `ByFTP.exe` plus its integrity manifest. During a successful upgrade Setup may clean legacy uninstall files/registry entries from older installations, but no new uninstaller binary is generated, packaged or registered.
+The desktop core is written in Go:
 
-The shared desktop engine is intentionally stored only once. Linux-specific packaging lives under `linux/` and macOS-specific packaging lives under `macos/`; neither directory carries a copied fork of the Go protocol/transfer/security core. This keeps fixes to the desktop engine consistent across Windows, Linux and macOS. The maintained native toolchain is Go 1.27.1.
+- `cmd/byftp/` is the legacy-named desktop entry point retained for source compatibility.
+- `cmd/installer/` owns the Windows installation transaction.
+- `internal/api/` exposes typed application operations.
+- `internal/desktop/` contains platform presentation and desktop interaction.
+- `internal/remote/` owns FTP, FTPS and SFTP connection boundaries.
+- `internal/transfer/` owns transfer state and queue lifecycle.
+- `internal/config/` owns durable settings and profiles.
+- `internal/security/` centralizes path, secret and process hardening.
+- `internal/i18n/` owns runtime localization.
+- `internal/platform/` isolates operating-system primitives.
 
-The constrained Windows OpenSSH AskPass path remains a separate security boundary with trusted-parent/token validation, protected runtime secrets and environment cleanup.
+Linux packaging lives under `linux/`; macOS packaging lives under `macos/`. Both build the shared Go core rather than carrying forked protocol implementations.
 
-## Linux packaging surface
+The maintained Go toolchain is pinned by CI and version audits. Production build scripts disable Go telemetry before building and keep external module fetching disabled for the dependency-free Go module graph.
 
-`linux/` is the canonical Linux application-packaging directory:
+### Windows installation boundary
 
-- `linux/BUILD.sh` cross-builds the shared desktop runtime for amd64, arm64 and i386 and creates the DEB packages.
-- `linux/byftp.desktop` is the desktop-entry source copied into every DEB.
-- `linux/debian/control.in` is the version/architecture-templated package metadata source.
-- `linux/README.md` documents the Linux build boundary.
+The Windows installer uses an application-only verified payload. Legacy identifiers such as `ByFTP.exe`, old App Paths entries and old uninstall registry keys may remain where required to upgrade or clean existing installations safely. They are compatibility identifiers, not public branding.
 
-CI and production releases invoke `linux/BUILD.sh` directly. No Linux production-build wrapper remains under `scripts/`.
+The installer validates its embedded payload, stages verified bytes, protects against redirected/reparse installation paths and uses rollback-aware file/registry transactions. Ghost FTP does not publish a standalone uninstaller binary from this pipeline.
 
-## macOS packaging surface
+### Android
 
-`macos/` is the canonical macOS application-packaging directory:
+`android/` is a native Android application. It contains its own connection, remote-browser and lifecycle implementation and does not depend on a project-controlled backend service.
 
-- `macos/BUILD.sh` builds amd64/arm64 desktop binaries, creates the Universal binary/application bundle and builds the PKG.
-- `macos/Info.plist.in` is the version-templated bundle metadata source.
-- `macos/launcher.zsh` is the application launcher installed into the bundle.
-- `macos/README.md` documents the macOS build/signing boundary.
+The package/application identifiers may retain `byftp` for update identity compatibility, while the visible application name is **Ghost FTP**. Android release CI tests, lints and assembles an installable APK. A production store signing identity is intentionally external to the repository.
 
-CI and production releases invoke `macos/BUILD.sh` directly. No macOS production-build wrapper remains under `scripts/`.
+### iOS
 
-## Android runtime
+`ios/` is a native Swift/Xcode application. The existing Xcode project/bundle identifiers may retain legacy identifiers where changing them would break application identity. User-visible naming is **Ghost FTP**.
 
-`android/` is a native Java/Android application. It does not embed the Go executable, start a localhost bridge or send credentials through a ByFTP service.
+The iOS build derives its marketing version from root `VERSION`, builds a real arm64 iPhoneOS application and packages an unsigned IPA. Normal device/TestFlight/App Store distribution requires an externally managed Apple signing identity and provisioning profile.
 
-- `model/` contains validated connection configuration, remote entries and strict remote-path helpers.
-- `remote/` contains FTP/FTPS and SFTP adapters behind the `RemoteClient` boundary.
-- `MainActivity` owns Android UI/lifecycle orchestration and Storage Access Framework interaction.
-- `res/` contains UI resources and network-security/backup/device-transfer policy.
-- `android/app/src/test` contains unit/security/path/version regressions.
+### Web/PWA
 
-Commons Net provides FTP/FTPS primitives. SSHJ provides SFTP primitives. Android validates SFTP fingerprints as real 32-byte SHA-256 digests, rejects credential/control-character input and fails closed on traversal/noncanonical remote paths and names.
+`ByFTP WEB/` is the legacy-named source directory for the Ghost FTP PHP/shared-hosting application. The directory and internal PHP namespace are retained to avoid unnecessary migration churn; public application naming is **Ghost FTP**.
 
-The 1.9.0 Android build baseline uses JDK 17, Gradle 9.7.1, Android Gradle Plugin 9.4.0, API 37 and Build Tools 36.0.0. The application version is derived from root `VERSION` so Android cannot silently diverge from the rest of the release.
+The web runtime contains:
 
-## iOS runtime
+- `app/Remote/` — FTP/SFTP transport and remote-path boundaries.
+- `app/Security/` — authentication, rate limiting, host validation, encryption and security logging.
+- `app/Storage/` — durable users, preferences and encrypted connection profiles.
+- `app/Operations/` — higher-level remote operations.
+- `tests/` — executable PHP regression tests.
+- `assets/` plus `manifest.webmanifest` and `service-worker.js` — PWA presentation/runtime assets.
 
-`ios/` is a native SwiftUI application with a conventional Xcode project and shared scheme. It does not embed a WebView or hidden desktop process.
+Sensitive navigation/API/download responses are never cached by the service worker. Ghost FTP uses a `ghostftp-static-vX.Y.Z` cache namespace and removes legacy `byftp-static-*` caches during activation.
 
-- `ConnectionConfig.swift` owns validated host/port/credential input and the intentionally limited protocol set.
-- `RemoteModels.swift` owns canonical remote paths and shared-hosting login-root mapping.
-- `SocketConnection.swift` wraps Network.framework with bounded async I/O.
-- `FTPRemoteClient.swift` implements FTP and implicit FTPS, passive-mode safety, MLSD/LIST parsing and remote operations.
-- `SessionStore.swift` owns generation-bound async state so stale operations cannot update a disconnected/newer session.
-- `ConnectionView.swift`, `RemoteBrowserView.swift` and `ContentView.swift` keep presentation separate from transport/session logic.
-- `ios/Tests/ModelTests.swift` supplies dependency-free input/path regressions.
-- `ios/BUILD.sh` is the canonical iPhoneOS build entry point used by CI and production releases.
+## Security boundaries
 
-The current iOS runtime intentionally supports FTP and implicit FTPS only. Explicit FTPS and SFTP require separately audited native implementations before they can be exposed.
+Security-sensitive design principles are shared across implementations:
 
-Network.framework supplies TCP/TLS. FTPS uses platform TLS verification and `PROT P`. EPSV is preferred; PASV fallback accepts only the advertised port and keeps the data connection on the user-selected host. The authenticated FTP `PWD` becomes the UI account root. The transport password copy is cleared after connect, pending connections are disconnectable and the UI disconnects when the app enters the background.
+- user-selected server destinations only;
+- no application telemetry or advertising SDKs;
+- strict host/path/port validation;
+- fail-closed traversal and noncanonical path handling;
+- SFTP host-key/fingerprint verification where SFTP is supported;
+- platform TLS verification for FTPS;
+- bounded temporary-file and transfer handling;
+- minimized credential lifetime and no persistent plaintext secret logging;
+- rollback/cleanup paths for interrupted operations;
+- no hidden network probes or background scanners.
 
-The iOS build injects `MARKETING_VERSION` from root `VERSION`, validates the resulting bundle version and packages a real unsigned arm64 iPhoneOS app into the release IPA/app ZIP contract.
+The web application additionally enforces strict session cookies, CSRF protection, cross-site POST rejection, security headers, rate limiting and runtime-storage exclusion from release archives.
 
-## WEB runtime
+## Version source
 
-`ByFTP WEB/` is a PHP/shared-hosting implementation with its own request/session runtime but the same product/security release policy.
+Root `VERSION` is the canonical production version source. Ghost FTP starts at **1.0.0**. Platform build metadata is derived from that version and CI rejects drift between desktop, Android, iOS, Linux, macOS and web packaging.
 
-- `app/Remote` implements FTP/SFTP transport boundaries and strict remote-path handling.
-- `app/Security` owns authentication, rate limiting, host validation, encryption and security logging.
-- `app/Storage` owns users, preferences, encrypted profiles and workspace durability.
-- `app/Operations/RemoteOperations.php` owns higher-level copy/move/search/archive operations. ZIP extraction uses a two-phase model: archive/remote topology validation and complete local materialization happen before any remote mutation; the actual cumulative decompressed-byte budget is enforced during staging.
-- `tests/` contains PHP runtime regressions for configuration, authentication/rate limiting, user-registry, archive operations and encrypted-profile recovery behavior.
-- `scripts/audit_web.py` executes and statically verifies fail-closed WEB invariants in CI.
+Historical Git tags are not rewritten. Ghost FTP releases use the separate namespace `ghostftp-vX.Y.Z`.
 
-Runtime diagnostics are administrator-only. `ByFTP WEB/VERSION`, Composer metadata and the PWA cache namespace are bound to the same 1.9.0 release as the native applications.
+## Release architecture
 
-## Release packaging boundary
+`.github/workflows/ci.yml` validates pull requests and `main`. `.github/workflows/release.yml` is the single production publication path.
 
-Root `VERSION` is the canonical application version source for Windows, Linux, macOS, Android and iOS; `ByFTP WEB/VERSION` must match it. The 1.9.0 reviewed desktop baseline uses Go 1.27.1, while Android uses Gradle 9.7.1 with AGP 9.4.0/JDK 17.
+The release workflow builds independent platform stages and assembles exactly eight public platform packages:
 
-- Windows builds x64/x86 Setup and Portable binaries through root `BUILD-WINDOWS.ps1`; no uninstaller binary is produced.
-- `scripts/package_windows_bundles.ps1` creates the verified Windows x64/x86 distribution ZIPs from those validated executables and documentation.
-- `linux/BUILD.sh` builds amd64/arm64/i386 DEBs.
-- `macos/BUILD.sh` builds a Universal PKG.
-- Android builds debug-signed and optimized unsigned APKs; `scripts/package_android.py` validates/stages them.
-- `ios/BUILD.sh` builds a generic arm64 iPhoneOS `.app`; `scripts/package_ios.py` validates the bundle and creates an unsigned IPA plus unsigned app ZIP.
-- `scripts/package_web.py` creates the deterministic deployable shared-hosting WEB ZIP exclusively from tracked production files.
-- `scripts/prepare_release.ps1` enforces the exact platform allowlist, rejects uninstall-named public files, generates shared metadata/SHA-256 evidence and requires exactly 18 final public files.
+1. Windows x64 Setup
+2. Windows x86 Setup
+3. Windows x32 alias of the x86 Setup
+4. Linux multiarch archive containing amd64/arm64/i386 DEBs
+5. macOS Universal PKG
+6. Android APK
+7. iOS arm64 unsigned IPA
+8. Web shared-hosting ZIP
 
-`scripts/` contains shared audits, packaging, verification and release tooling rather than duplicate platform-specific production build implementations. The obsolete historical source-sync workflow has also been removed from `.github/workflows/`.
+It also creates `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for exactly **11 public release files**.
 
-Android production signing, Windows Authenticode, macOS Developer ID/notarization and Apple iOS signing remain external trust boundaries. The repository never fabricates a production publisher identity.
-
-## Shared invariants
-
-All runtimes use canonical versioning, contact only endpoints selected by the user, avoid application telemetry/advertising and participate in fail-closed CI/release gates. Platform-specific security controls remain native rather than being weakened to force a single shared implementation.
+Publication verifies that `main` still points to the release commit and refuses to move an existing `ghostftp-vX.Y.Z` tag to a different commit.
