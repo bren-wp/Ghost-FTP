@@ -162,6 +162,9 @@ throws(fn() => PathGuard::segment("line\nbreak.txt"), 'remote name controls reje
 throws(fn() => HostGuard::connectionTargets('127.0.0.1', false), 'private host blocked by default');
 check(HostGuard::connectionTargets('127.0.0.1', true) === ['127.0.0.1'], 'private host allowed only when explicit');
 throws(fn() => HostGuard::connectionTargets(' example.com', true), 'host edge whitespace rejected');
+check(strlen(str_repeat('x', RemoteOperations::MAX_INLINE_CONTENT_BYTES)) === RemoteOperations::MAX_INLINE_CONTENT_BYTES, 'inline editor limit constant is stable');
+RemoteOperations::assertInlineContentSize(str_repeat('x', RemoteOperations::MAX_INLINE_CONTENT_BYTES));
+throws(fn() => RemoteOperations::assertInlineContentSize(str_repeat('x', RemoteOperations::MAX_INLINE_CONTENT_BYTES + 1)), 'inline editor content above 4 MiB rejected');
 
 $reflection = new ReflectionClass(ProfileStore::class);
 $store = $reflection->newInstanceWithoutConstructor();
@@ -170,7 +173,7 @@ $method->setAccessible(true);
 $base = [
     'label' => 'Test', 'protocol' => 'sftp', 'host' => 'example.com', 'port' => '22',
     'base_path' => '/', 'username' => 'user', 'password' => 'password', 'timeout' => '30',
-    'host_fingerprint' => '', 'auth_method' => 'password',
+    'host_fingerprint' => str_repeat('a', 64), 'auth_method' => 'password',
 ];
 $normalized = $method->invoke($store, $base);
 check($normalized['host'] === 'example.com' && $normalized['port'] === 22, 'canonical profile accepted');
@@ -183,6 +186,8 @@ $bad = $base; $bad['base_path'] = '/a/../b';
 throws(fn() => $method->invoke($store, $bad), 'profile traversal rejected');
 $bad = $base; $bad['host_fingerprint'] = ' SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 throws(fn() => $method->invoke($store, $bad), 'fingerprint edge whitespace rejected');
+$bad = $base; $bad['host_fingerprint'] = '';
+throws(fn() => $method->invoke($store, $bad), 'SFTP profile without pinned fingerprint rejected before persistence');
 $bad = $base; $bad['username'] = "user\r\nnext";
 throws(fn() => $method->invoke($store, $bad), 'credential protocol controls rejected');
 
@@ -334,6 +339,13 @@ check(
     'failed user workspace leaves no registry or ghost backup generation'
 );
 @unlink(GhostFTP_STORAGE . '/users');
+
+$preflightClient = new BatchRenameFakeClient(['/a' => 'A', '/b' => 'B'], 999);
+$preflightOps = new RemoteOperations($preflightClient);
+throws(fn() => $preflightOps->batchRename([['path' => '/a'], 'invalid'], 'a', 'z', '', ''), 'batch rename rejects malformed rows before mutation');
+check($preflightClient->files() === ['/a' => 'A', '/b' => 'B'], 'malformed batch rename leaves remote state untouched');
+throws(fn() => $preflightOps->batchRename([['path' => '/a'], ['path' => '/a']], 'a', 'z', '', ''), 'batch rename rejects duplicate source rows before mutation');
+check($preflightClient->files() === ['/a' => 'A', '/b' => 'B'], 'duplicate-source batch rename leaves remote state untouched');
 
 $renameClient = new BatchRenameFakeClient(['/a' => 'A', '/x-a' => 'B'], 4);
 $renameOps = new RemoteOperations($renameClient);

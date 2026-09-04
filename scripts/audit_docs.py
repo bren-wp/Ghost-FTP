@@ -15,6 +15,7 @@ INDEX = DOCS / "README.md"
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
 HTML_LINK_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
 VERSIONED_DOC_TITLE_RE = re.compile(r"(?m)^#\s+(?:Ghost FTP|GhostFTP)\s+\d+\.\d+\.\d+\s+—")
+CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d+)\*\*")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 
 
@@ -66,10 +67,25 @@ def main() -> int:
         for match in HTML_LINK_RE.finditer(text):
             check_link(path, match.group(1))
 
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        fail(f"invalid canonical VERSION: {version!r}")
+
     index_text = INDEX.read_text(encoding="utf-8")
     root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
     if not root_readme.startswith("# Ghost FTP\n"):
         fail("root README does not use the Ghost FTP public title")
+    if f"Current Ghost FTP version: **{version}**" not in root_readme:
+        fail("root README current-version marker does not match VERSION")
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        for match in CURRENT_RELEASE_RE.finditer(text):
+            if match.group(1) != version:
+                fail(f"stale current-release marker in {path.relative_to(ROOT)}: {match.group(1)} != {version}")
+    security_doc = (DOCS / "SECURITY.md").read_text(encoding="utf-8")
+    for marker in ("10 platform artifacts", "13 public files"):
+        if marker not in root_readme or marker not in security_doc:
+            fail(f"release-contract documentation is missing current marker: {marker}")
     if not index_text.startswith("# Ghost FTP documentation\n"):
         fail("documentation index does not use the Ghost FTP public title")
 
@@ -86,7 +102,7 @@ def main() -> int:
         if platform_readme not in root_readme:
             fail(f"root README does not link {platform_readme}")
 
-    print(f"DOCS_AUDIT=PASS ({len(files)} Markdown files, {len(detailed_docs)} detailed documents)")
+    print(f"DOCS_AUDIT=PASS ({version}; {len(files)} Markdown files, {len(detailed_docs)} detailed documents)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("PLATFORM_DOCS=LINUX,MACOS,ANDROID,IOS,WEB")
     return 0

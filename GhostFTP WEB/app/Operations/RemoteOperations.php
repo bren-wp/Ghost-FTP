@@ -10,6 +10,8 @@ use ZipArchive;
 
 final class RemoteOperations
 {
+    public const MAX_INLINE_CONTENT_BYTES = 4194304;
+
     private const MAX_DEPTH = 40;
     private const MAX_TREE_ITEMS = 10000;
     private const MAX_SEARCH_RESULTS = 500;
@@ -22,8 +24,16 @@ final class RemoteOperations
     {
     }
 
+    public static function assertInlineContentSize(string $content): void
+    {
+        if (strlen($content) > self::MAX_INLINE_CONTENT_BYTES) {
+            throw new RuntimeException('Sadržaj je prevelik za web editor. Maksimum je 4 MiB.');
+        }
+    }
+
     public function createFile(string $path, string $content = ''): void
     {
+        self::assertInlineContentSize($content);
         $path = PathGuard::ensureNotRoot($path);
         if ($this->exists($path)) {
             throw new RuntimeException('Datoteka ili direktorij s tim nazivom već postoji.');
@@ -159,9 +169,15 @@ final class RemoteOperations
 
     public function writeAtomic(string $remotePath, string $content): void
     {
+        self::assertInlineContentSize($content);
+        $contentBytes = strlen($content);
+        \GhostFTP_assert_temp_capacity($contentBytes);
         $tmp = $this->tempFile('write-');
         try {
-            if (file_put_contents($tmp, $content, LOCK_EX) === false) throw new RuntimeException('Nije moguće pripremiti sadržaj za spremanje.');
+            $written = file_put_contents($tmp, $content, LOCK_EX);
+            if (!is_int($written) || $written !== $contentBytes) {
+                throw new RuntimeException('Nije moguće pripremiti cijeli sadržaj za spremanje.');
+            }
             $this->uploadAtomic($tmp, $remotePath);
         } finally {
             @unlink($tmp);
@@ -248,13 +264,18 @@ final class RemoteOperations
         $plan = [];
         $sources = [];
         foreach ($items as $item) {
-            if (!is_array($item)) continue;
+            if (!is_array($item)) {
+                throw new RuntimeException('Popis za batch preimenovanje sadrži neispravnu stavku.');
+            }
             $source = PathGuard::ensureNotRoot((string)($item['path'] ?? ''));
             $oldName = PathGuard::basename($source);
             $newName = $prefix . ($find !== '' ? str_replace($find, $replace, $oldName) : $oldName) . $suffix;
             $newName = PathGuard::segment($newName);
             $destination = PathGuard::child(PathGuard::parent($source), $newName);
             if ($source === $destination) continue;
+            if (isset($sources[$source])) {
+                throw new RuntimeException('Ista izvorna stavka ne smije biti navedena više puta u batch preimenovanju.');
+            }
             $sources[$source] = true;
             $plan[] = ['source'=>$source,'destination'=>$destination];
         }
@@ -457,7 +478,6 @@ final class RemoteOperations
                         $plan[$index]['local'] = $entryTmp;
                     }
 
-                    // Only a fully validated archive is allowed to mutate remote state.
                     // Only a fully validated and materialized archive is allowed to mutate remote state.
                     foreach ($plan as $row) {
                         $remote = (string)$row['remote'];

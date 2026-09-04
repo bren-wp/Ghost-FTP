@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current Ghost FTP release: 1.0.0**
+**Current Ghost FTP release: 1.0.3**
 
 ## Desktop core
 
@@ -16,7 +16,7 @@ The maintained desktop toolchain is pinned by CI. Production builds disable Go t
 
 ## Windows installer and upgrade boundary
 
-Ghost FTP 1.0.0 Setup uses an application-only verified payload and does not publish a standalone `Uninstall.exe`.
+Ghost FTP Setup uses an application-only verified payload and does not publish a standalone `Uninstall.exe`.
 
 The installer validates its embedded payload manifest and digest, stages verified bytes, protects installation paths against unsafe redirection/reparse behavior and uses rollback-aware file/registry transactions.
 
@@ -78,7 +78,10 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 - JSON state reads/writes are bounded and fail closed on malformed/corrupt primary state.
 - Login/registration rate-limit budgets are consumed before sensitive account mutation work.
 - Saved connection secrets are bound to the exact endpoint/account/key identity.
-- SFTP requires a pinned SHA-256 host fingerprint and verifies the connected server key against that pin.
+- SFTP requires a pinned SHA-256 host fingerprint before a profile can be persisted and verifies the connected server key against that pin again at the client boundary.
+- Inline editor/new-file content is centrally bounded and local staging must be complete before any remote promotion.
+- SFTP key temp files are permission-restricted before key material is written, and uploads verify the resulting remote size when the server exposes it.
+- Destructive/batch mutation inputs fail closed before partial application when their shape or source set is invalid.
 - Password changes/rehashes use generation-aware compare-and-swap behavior.
 - User deletion is two-phase/retryable and does not traverse unsafe workspace-root symlinks.
 - Encryption keys are not rotated over pre-existing encrypted data during recovery.
@@ -108,7 +111,7 @@ Security/privacy audits additionally protect:
 - transfer ownership/generation checks;
 - safe state-file opening and cleanup behavior.
 
-`.github/workflows/release.yml` is the single production publication path. It assembles exactly eight platform packages plus `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **11 public release files**.
+`.github/workflows/release.yml` is the single production publication path. It assembles exactly **10 platform artifacts** plus `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **13 public files** total.
 
 Before publication, the workflow verifies that `main` still points to the release commit. Existing `ghostftp-vX.Y.Z` tags are never moved to another commit. The historical `v1.0.0` and other GhostFTP tags remain untouched.
 

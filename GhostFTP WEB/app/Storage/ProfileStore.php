@@ -321,6 +321,10 @@ final class ProfileStore
             throw new RuntimeException('SFTP ključ ili passphrase sadrži NUL znak.');
         }
 
+        if ($protocol === 'sftp' && $fingerprint === '') {
+            throw new RuntimeException('SFTP zahtijeva SHA-256 host fingerprint prije spremanja ili povezivanja. Provjeri fingerprint servera iz pouzdanog izvora.');
+        }
+
         if ($fingerprint !== '') {
             $validFingerprint = false;
             if (preg_match('/^SHA256:([A-Za-z0-9+\/]{43})$/', $fingerprint, $match)) {
