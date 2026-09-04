@@ -4,6 +4,10 @@ const (
 	ProductName = "Ghost FTP"
 	ProductFull = "Ghost FTP file transfer client"
 	Company     = "Ghost FTP"
-	Website     = "https://github.com/bren-wp/Ghost-FTP"
-	Support     = "https://github.com/bren-wp/Ghost-FTP/issues"
+
+	// Runtime metadata is intentionally schemeless so the application does not
+	// embed a fixed HTTP(S) network destination. Documentation contains the
+	// canonical clickable project URLs.
+	Website = "github.com/bren-wp/Ghost-FTP"
+	Support = "github.com/bren-wp/Ghost-FTP/issues"
 )
