@@ -304,6 +304,7 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 			if ftpCommandUnsupported(err) {
 				c.mlsdState.Store(-1)
 			}
+		}
 	}
 	out, err := c.run(ctx, []string{urlLine})
 	if err != nil {
