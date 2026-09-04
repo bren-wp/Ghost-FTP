@@ -52,8 +52,9 @@ try {
         throw new RuntimeException('Datoteka više ne postoji.');
     }
     $reportedSize = max(0, (int)($item['size'] ?? 0));
+    $requestedLimit = $reportedSize > 0 ? $reportedSize : null;
     \byftp_assert_temp_capacity($reportedSize);
-    $size = $client->downloadBounded($path, $tmp, $reportedSize);
+    $size = $client->downloadBounded($path, $tmp, $requestedLimit);
 
     header('Content-Type: application/octet-stream');
     header('Content-Disposition: attachment; filename="' . str_replace(['"', "\r", "\n"], '', $name) . '"; filename*=UTF-8\'\'' . rawurlencode($name));
