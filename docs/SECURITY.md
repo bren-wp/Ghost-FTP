@@ -2,7 +2,7 @@
 
 ByFTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current release: 1.9.1**
+**Current release: 1.9.2**
 
 ## Desktop
 
@@ -12,7 +12,7 @@ Private upload-source snapshots retain their owned cleanup path if fail-closed r
 
 Credentials must never be logged. Windows saved profile secrets are DPAPI protected. External processes receive a minimized environment and bounded output. AskPass remains parent/token constrained and clears inherited credential state before secret use.
 
-Windows 1.9.1 Setup does not build or install a standalone `Uninstall.exe`. The Setup payload contains only verified `ByFTP.exe` plus a schema-2 integrity manifest. Upgrade rollback covers the application/App Paths transaction, while cleanup of a legacy pre-1.8.0 `Uninstall.exe` happens only after the new application commit and refuses unsafe symlink/reparse/non-regular paths. `BUILD-WINDOWS.ps1`, `scripts/package_windows_bundles.ps1` and public release staging independently reject uninstall-named generated assets.
+Windows 1.9.2 Setup does not build or install a standalone `Uninstall.exe`. The Setup payload contains only verified `ByFTP.exe` plus a schema-2 integrity manifest. Upgrade rollback covers the application/App Paths transaction, while cleanup of a legacy pre-1.8.0 `Uninstall.exe` happens only after the new application commit and refuses unsafe symlink/reparse/non-regular paths. `BUILD-WINDOWS.ps1`, `scripts/package_windows_bundles.ps1` and public release staging independently reject uninstall-named generated assets.
 
 The maintained desktop toolchain is Go 1.27.1 and all Windows/Linux/macOS CI/release jobs pin that exact version with local toolchain mode and Go telemetry disabled.
 
@@ -38,7 +38,7 @@ Android uses a separate native protocol boundary:
 
 Android SFTP private-key import remains deferred until Android Keystore-backed handling, import validation and migration semantics are implemented and audited.
 
-The 1.9.1 Android build uses **AGP 9.4.0**, **Gradle 9.7.1**, JDK 17, API 37 and build-tools 36.0.0. The patch release does not relax TLS, SSH, lint, lifecycle or signing invariants.
+The 1.9.2 Android build uses **AGP 9.4.0**, **Gradle 9.7.1**, JDK 17, API 37 and build-tools 36.0.0. The patch release does not relax TLS, SSH, lint, lifecycle or signing invariants.
 
 ## iOS
 
@@ -60,7 +60,7 @@ Explicit FTPS and SFTP are not exposed on iOS until separately audited native im
 
 ## ByFTP WEB
 
-Release 1.9.1 treats authentication, encrypted profiles, archive extraction, privileged diagnostics and runtime policy as security state.
+Release 1.9.2 treats authentication, encrypted profiles, archive extraction, privileged diagnostics, runtime policy and local temp-transfer budgets as security state.
 
 - `app.json`, `users.json`, rate-limit counters, encrypted `profiles.json`, privacy-bearing `preferences.json` and legacy migration state fail closed when the primary generation is corrupt or missing. Adjacent `.bak` files remain available only for explicit operator recovery.
 - Each JSON runtime-state file is limited to 8 MiB for both reads and writes. Reads are bounded before `json_decode`, preventing an abnormal state file from first being loaded without a memory bound.
@@ -73,6 +73,9 @@ Release 1.9.1 treats authentication, encrypted profiles, archive extraction, pri
 - First setup and configuration recovery never rotate the encryption key over pre-existing protected data.
 - Remote connection target validation resolves and validates exact target IPs; transports connect to those validated targets rather than re-resolving a hostname after the security decision.
 - The raw Unix FTP LIST fallback removes ` -> target` only from actual symlink entries, preserving legitimate regular filenames that contain the same text.
+- Production FTP/FTPS and SFTP clients implement a bounded-download capability. File sizes observed by the preceding listing/stat operation are consumed as one-shot download budgets, so a remote file that grows between preflight and transfer cannot silently expand local temp usage beyond the validated snapshot.
+- FTP/FTPS uses non-blocking transfer progress with repeated local destination-size checks. Limit/mismatch failures truncate the partial temp file and close the FTP connection so an interrupted transaction is not reused in uncertain protocol state.
+- SFTP uses a bounded `maxBytes + 1` stream probe and rejects the transfer before an arbitrary oversized source can be copied in full. Public image previews independently remain capped at 10 MiB.
 - ZIP extraction completes archive topology validation, existing-remote conflict validation and local decompression/materialization before any remote `mkdir` or upload. The 512 MiB limit is checked against actual cumulative decompressed bytes, staged temp files are always cleaned and late archive corruption cannot trigger earlier remote writes.
 - `diagnostics.php` requires administrator authorization because runtime/PHP/OpenSSL/hosting capability data is privileged operational information.
 
@@ -86,7 +89,7 @@ The repository-wide fail-closed audit checks every tracked Git file. It rejects 
 
 The no-uninstaller invariant remains explicit: `cmd/uninstaller`, a Windows build path that produces an uninstall binary, a payload `--uninstaller` option or an uninstaller PE-resource role must not re-enter the maintained release surface.
 
-For 1.9.1, `scripts/prepare_release.ps1` enforces exactly 15 platform artifacts before metadata and 18 final public files. Unexpected or uninstall-named assets fail closed before publication. `scripts/publish_release.ps1` verifies the complete remote asset set and SHA-256 digests immediately after upload, then performs a delayed second GitHub readback after re-confirming that the exact release commit is still the current `main` head.
+For 1.9.2, `scripts/prepare_release.ps1` enforces exactly 15 platform artifacts before metadata and 18 final public files. Unexpected or uninstall-named assets fail closed before publication. `scripts/publish_release.ps1` verifies the complete remote asset set and SHA-256 digests immediately after upload, then performs a delayed second GitHub readback after re-confirming that the exact release commit is still the current `main` head.
 
 The repository audit is local and deterministic. It does not weaken runtime trust rules, execute tracked source files, scan network endpoints or upload repository content.
 
