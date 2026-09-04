@@ -361,6 +361,29 @@ jobs:
           else
             gh release create "$RELEASE_TAG" release/* --repo "$repo" --target "$GITHUB_SHA" --title "Ghost FTP $VERSION" --notes-file release/RELEASE-NOTES.txt
           fi
+
+          assert_release_asset_set() {
+            phase="$1"
+            local_manifest="$(mktemp)"
+            remote_manifest="$(mktemp)"
+            readback_dir="$(mktemp -d)"
+            trap 'rm -f "$local_manifest" "$remote_manifest"; rm -rf "$readback_dir"' RETURN
+
+            find release -maxdepth 1 -type f -printf '%f\t%s\n' | LC_ALL=C sort > "$local_manifest"
+            gh release view "$RELEASE_TAG" --repo "$repo" --json assets \
+              --jq '.assets[] | [.name, (.size | tostring)] | @tsv' | LC_ALL=C sort > "$remote_manifest"
+            diff -u "$local_manifest" "$remote_manifest"
+
+            gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir"
+            cmp release/SHA256.txt "$readback_dir/SHA256.txt"
+            echo "RELEASE_ASSET_READBACK=PASS ($phase)"
+          }
+
+          assert_release_asset_set immediate
+          sleep 5
+          main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
+          test "$main_sha" = "$GITHUB_SHA" || { echo "main moved before delayed release verification" >&2; exit 1; }
+          assert_release_asset_set delayed
       - name: Store complete release artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
