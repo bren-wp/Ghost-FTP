@@ -2,7 +2,7 @@
 
 `ios/` contains the native SwiftUI iPhone/iPad application, Xcode project, tests and canonical production build entry point. It is not a WebView wrapper and does not share Android UI/runtime code.
 
-**Current release: 1.9.0**
+**Current release: 1.9.1**
 
 ## Current capabilities
 
@@ -22,9 +22,9 @@
 
 Explicit FTPS and SFTP are **not** claimed by the iOS implementation. Adding either transport requires a separately audited native implementation rather than a permissive compatibility shim.
 
-## 1.9.0 release integration
+## 1.9.1 release integration
 
-The iOS app uses the repository root `VERSION` for production `MARKETING_VERSION`, so release 1.9.0 is synchronized with Windows, Linux, macOS, Android and ByFTP WEB. The checked-in Xcode project deliberately keeps `MARKETING_VERSION = 0.0.0` as a safe development fallback; only the canonical build script injects the production release number.
+The iOS app uses the repository root `VERSION` for production `MARKETING_VERSION`, so release 1.9.1 is synchronized with Windows, Linux, macOS, Android and ByFTP WEB. The checked-in Xcode project deliberately keeps `MARKETING_VERSION = 0.0.0` as a safe development fallback; only the canonical build script injects the production release number.
 
 The release matrix requires a real arm64 `iphoneos` Release build plus validation of both unsigned release artifacts before GitHub publication. No Apple signing identity, provisioning profile or private key is stored in the repository.
 

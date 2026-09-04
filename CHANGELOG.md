@@ -2,6 +2,20 @@
 
 The active product changelog intentionally starts at 1.3.0. Older development history remains available in Git history but is not part of the current maintained release documentation.
 
+## 1.9.1 — Transfer cleanup, WEB state bounds and release readback hardening
+
+**Focus:** close post-commit cleanup gaps, bound shared-hosting runtime state, preserve raw FTP filenames correctly and make release publication re-verify its public asset set after propagation delay.
+
+- Synchronized Windows, Linux, macOS, Android, iOS and ByFTP WEB on canonical release `1.9.1` without changing the 1.9.0 toolchain baseline.
+- Kept failed private upload-source snapshot cleanup retryable by preserving the owned temp `dir`/`path` until removal succeeds.
+- Made local download replacement surface rollback-copy cleanup failures instead of silently returning success while stale `.byftp-rollback-*` data remains.
+- Added deterministic Go regression coverage for retryable upload snapshot cleanup and local rollback cleanup failure handling.
+- Added an 8 MiB per-file limit to ByFTP WEB JSON runtime state for both reads and writes; state reads are bounded before JSON decoding instead of loading an arbitrary file fully into PHP memory.
+- Fixed the WEB FTP raw LIST fallback so regular filenames containing ` -> ` remain unchanged while actual Unix symlink display targets are still stripped from the visible link name.
+- Added WEB regression coverage for JSON state bounds and FTP LIST filename/symlink behavior and bound those checks into the existing runtime hardening regression suite.
+- Strengthened `scripts/publish_release.ps1` with an immediate complete remote asset/digest verification and a delayed second readback after re-confirming the exact current `main` commit.
+- Preserved release immutability: CI blocked the first hardening attempt while `VERSION` still identified published 1.9.0, forcing the production changes onto a new 1.9.1 version instead of mutating an existing release identity.
+
 ## 1.9.0 — Stability hardening, current toolchains and deployable WEB release
 
 **Focus:** reduce partial-write/crash risk, remove confirmed dead code, tighten privileged diagnostics, update supported toolchains and publish every maintained platform from one verified 1.9.0 release contract.

@@ -123,6 +123,41 @@ function Assert-RemoteAsset {
     }
 }
 
+function Assert-ReleaseAssetSet {
+    param(
+        [Parameter(Mandatory = $true)][string]$Tag,
+        [Parameter(Mandatory = $true)]$LocalAssets,
+        [Parameter(Mandatory = $true)][string]$Phase
+    )
+    $current = Get-Release -Tag $Tag
+    if ($null -eq $current) {
+        throw "Izdanje $Tag nije dostupno tijekom $Phase provjere."
+    }
+    Assert-TagCommit -Tag $Tag
+
+    $remoteByName = @{}
+    foreach ($remote in @($current.assets)) {
+        $name = [string]$remote.name
+        if ($remoteByName.ContainsKey($name)) {
+            throw "GitHub izdanje ima dupliciran asset: $name"
+        }
+        if (-not $LocalAssets.ContainsKey($name)) {
+            throw "Izdanje $Tag sadrži neočekivani asset '$name'."
+        }
+        $remoteByName[$name] = $remote
+    }
+    if ($remoteByName.Count -ne $LocalAssets.Count) {
+        throw "Izdanje $Tag nema očekivani broj asseta tijekom $Phase provjere ($($remoteByName.Count) != $($LocalAssets.Count))."
+    }
+    foreach ($name in $LocalAssets.Keys) {
+        if (-not $remoteByName.ContainsKey($name)) {
+            throw "Nedostaje release asset tijekom $Phase provjere: $name"
+        }
+        Assert-RemoteAsset -Remote $remoteByName[$name] -Local $LocalAssets[$name]
+    }
+    Write-Host "RELEASE_ASSET_READBACK=PASS ($Phase, $($LocalAssets.Count) asseta)"
+}
+
 $tag = "v$Version"
 $localAssets = @{}
 foreach ($assetPath in $Assets) {
@@ -187,22 +222,12 @@ foreach ($name in ($localAssets.Keys | Sort-Object)) {
     if ($LASTEXITCODE -ne 0) { throw "Upload asseta $name nije uspio." }
 }
 
-# Završna provjera ponovno čita GitHub stanje i zahtijeva točno isti skup i digest.
-$release = Get-Release -Tag $tag
-if ($null -eq $release) { throw "Izdanje $tag nije dostupno za završnu provjeru." }
-Assert-TagCommit -Tag $tag
-$finalByName = @{}
-foreach ($remote in @($release.assets)) {
-    $name = [string]$remote.name
-    if ($finalByName.ContainsKey($name)) { throw "GitHub izdanje ima dupliciran asset: $name" }
-    $finalByName[$name] = $remote
-}
-if ($finalByName.Count -ne $localAssets.Count) {
-    throw "Izdanje $tag nema očekivani broj asseta ($($finalByName.Count) != $($localAssets.Count))."
-}
-foreach ($name in $localAssets.Keys) {
-    if (-not $finalByName.ContainsKey($name)) { throw "Nedostaje završni asset: $name" }
-    Assert-RemoteAsset -Remote $finalByName[$name] -Local $localAssets[$name]
-}
+# GitHub stanje čita se dvaput nakon uploada. Drugi readback namjerno kasni kako
+# neposredna API konzistentnost ne bi bila jedini dokaz da javni release i dalje
+# sadrži točno isti skup datoteka i SHA-256 digestova.
+Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'immediate'
+Start-Sleep -Seconds 5
+Assert-CurrentMainCommit
+Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'delayed'
 
 Write-Host "RELEASE_PUBLISH_VERIFICATION=PASS ($tag -> $Commit, $($localAssets.Count) asseta)"

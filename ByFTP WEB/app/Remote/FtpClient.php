@@ -223,8 +223,11 @@ final class FtpClient implements RemoteClientInterface
         foreach ($lines as $line) {
             if (!is_string($line) || trim($line) === '' || str_starts_with(trim($line), 'total ')) continue;
             if (preg_match('/^([dl-][rwxstST-]{9})\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(\w+\s+\d+\s+[\d:]+|\w+\s+\d+\s+\d{4})\s+(.+)$/', $line, $m)) {
-                $name = preg_replace('/\s+->\s+.*$/', '', $m[4]);
-                if ($name === '.' || $name === '..') continue;
+                $name = $m[4];
+                if ($m[1][0] === 'l') {
+                    $name = preg_replace('/\s+->\s+.*$/', '', $name) ?? $name;
+                }
+                if ($name === '' || $name === '.' || $name === '..') continue;
                 $items[] = ['name'=>$name,'type'=>$m[1][0] === 'd' ? 'dir' : 'file','size'=>(int)$m[2],'modified'=>$m[3],'permissions'=>$m[1]];
                 continue;
             }

@@ -103,6 +103,22 @@ func TestUploadSourceSnapshotCloseRemovesTempDirectory(t *testing.T) {
 	}
 }
 
+func TestUploadSourceSnapshotClosePreservesPathAfterCleanupFailure(t *testing.T) {
+	root := filepath.VolumeName(os.TempDir()) + string(filepath.Separator)
+	if root == "" {
+		root = string(filepath.Separator)
+	}
+	snapshotPath := filepath.Join(root, "byftp-upload-cleanup-sentinel")
+	snap := &uploadSourceSnapshot{dir: root, path: snapshotPath}
+
+	if err := snap.Close(); err == nil {
+		t.Fatal("filesystem root cleanup must fail closed")
+	}
+	if snap.dir != root || snap.path != snapshotPath {
+		t.Fatalf("failed cleanup discarded retry state: dir=%q path=%q", snap.dir, snap.path)
+	}
+}
+
 func TestPrepareUploadSourceRejectsSymlink(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows symlink creation depends on host privileges; reparse validation is covered by production checks")

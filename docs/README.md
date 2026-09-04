@@ -2,7 +2,7 @@
 
 English is the canonical documentation language. Runtime translations belong in `internal/i18n`; technical documentation stays English-first so code, CI and release instructions have one authoritative source.
 
-**Current release: 1.9.0**
+**Current release: 1.9.1**
 
 ## Core documentation
 
@@ -32,4 +32,4 @@ English is the canonical documentation language. Runtime translations belong in 
 
 The maintained release surfaces are intentionally separated by platform while sharing the canonical release number from root `VERSION`. Windows/Linux/macOS use the reviewed Go 1.27.1 desktop core; Android uses AGP 9.4.0/Gradle 9.7.1; iOS has its native SwiftUI/Xcode project; ByFTP WEB is an audited PHP/PWA shared-hosting application with a deterministic deployable release ZIP.
 
-Release 1.9.0 preserves the app-only Windows Setup/no-standalone-uninstaller contract, hardens WEB ZIP extraction and privileged diagnostics, removes confirmed dead source, and expands public release staging to 15 platform artifacts plus three shared metadata files. See [Installation](INSTALLATION.md), [GitHub releases](GITHUB-RELEASES.md) and [Release verification](RELEASE-VERIFICATION.md).
+Release 1.9.1 preserves the app-only Windows Setup/no-standalone-uninstaller contract while adding retryable private upload snapshot cleanup, explicit local rollback cleanup failure reporting, bounded WEB JSON state, correct FTP raw-list filename handling and delayed public release asset/digest readback. See [Installation](INSTALLATION.md), [GitHub releases](GITHUB-RELEASES.md) and [Release verification](RELEASE-VERIFICATION.md).

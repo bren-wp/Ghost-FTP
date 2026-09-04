@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -37,6 +39,50 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertEqual(source.count("func selectedIDs("), 1)
         self.assertGreaterEqual(source.count("selectedIDs(ids)"), 2)
         self.assertIn("if ctx == nil", source[source.index("func (m *Manager) waitWorkers") :])
+
+    def test_web_runtime_regressions(self) -> None:
+        php = shutil.which("php")
+        if php is None:
+            self.skipTest("PHP CLI is not available")
+        for relative in (
+            "ByFTP WEB/tests/json-store-bounds.php",
+            "ByFTP WEB/tests/ftp-listing.php",
+        ):
+            result = subprocess.run(
+                [php, str(ROOT / relative)],
+                cwd=ROOT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, f"{relative}:\n{result.stdout}")
+            self.assertIn("=PASS", result.stdout, relative)
+
+    def test_release_publisher_requires_delayed_remote_readback(self) -> None:
+        source = (ROOT / "scripts/publish_release.ps1").read_text(encoding="utf-8")
+        immediate = "Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'immediate'"
+        delay = "Start-Sleep -Seconds 5"
+        delayed = "Assert-ReleaseAssetSet -Tag $tag -LocalAssets $localAssets -Phase 'delayed'"
+        for marker in (
+            "function Assert-ReleaseAssetSet",
+            "RELEASE_ASSET_READBACK=PASS",
+            immediate,
+            delay,
+            "Assert-CurrentMainCommit",
+            delayed,
+        ):
+            self.assertIn(marker, source)
+
+        immediate_pos = source.index(immediate)
+        delay_pos = source.index(delay, immediate_pos)
+        main_guard_pos = source.index("Assert-CurrentMainCommit", delay_pos)
+        delayed_pos = source.index(delayed, main_guard_pos)
+        self.assertLess(immediate_pos, delay_pos)
+        self.assertLess(delay_pos, main_guard_pos)
+        self.assertLess(main_guard_pos, delayed_pos)
 
 
 if __name__ == "__main__":
