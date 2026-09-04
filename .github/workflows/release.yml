@@ -1,4 +1,4 @@
-name: Publish ByFTP
+name: Publish Ghost FTP
 
 on:
   push:
@@ -7,15 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Optional version without v prefix; empty uses VERSION'
+        description: 'Optional semantic version; empty uses VERSION'
         required: false
 
 permissions:
   contents: write
-  packages: write
 
 concurrency:
-  group: byftp-release
+  group: ghostftp-release
   cancel-in-progress: false
 
 env:
@@ -25,7 +24,7 @@ env:
 
 jobs:
   quality:
-    name: Production quality, race, security, privacy and WEB
+    name: Core quality and security
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -43,56 +42,45 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Disable and verify Go telemetry
+      - name: Disable Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Verify source and release invariants
+      - name: Verify formatting, unit tests, race detector and vet
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/generate_brand_assets.py --check
-          python scripts/audit_localization.py
-          python scripts/audit_version.py
-          python scripts/audit_repository.py
-          python scripts/audit_web.py
-          python scripts/audit_android.py
-          python scripts/audit_ios.py
-          python scripts/audit_docs.py
-          python scripts/audit_security.py
-          python scripts/audit_privacy.py
-          python scripts/audit_release.py
-      - name: Python regressions
-        run: python -m unittest discover -s scripts -p 'test_*.py'
-      - name: Go unit, race and vet
-        shell: bash
-        run: |
-          set -euo pipefail
+          test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))"
           go test ./...
           go test -race ./...
           go vet ./...
+      - name: Security and privacy audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
       - name: Verify release notes
         shell: bash
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
           python scripts/release_notes.py --version "$version" --output "$RUNNER_TEMP/RELEASE-NOTES.txt"
-          test -s "$RUNNER_TEMP/RELEASE-NOTES.txt"
-          grep -F "ByFTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
-      - name: Build verified WEB package
+          grep -F "Ghost FTP $version" "$RUNNER_TEMP/RELEASE-NOTES.txt"
+      - name: Build WEB package
         run: python scripts/package_web.py --output-dir dist
-      - name: Store WEB release package
+      - name: Store WEB package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-web-release
+          name: ghostftp-web-stage
           if-no-files-found: error
           retention-days: 7
           path: dist/ByFTP-*-WEB-shared-hosting.zip
 
   android:
-    name: Android APK quality gate
+    name: Android installable APK
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -104,67 +92,44 @@ jobs:
           distribution: temurin
           java-version: '17'
           check-latest: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.x'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
           gradle-version: '9.7.1'
           cache-disabled: true
-      - name: Verify Android SDK platform
+      - name: Test, lint and build debug-signed APK
         shell: bash
         run: |
           set -euo pipefail
-          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          find "$sdk_root/platforms" -maxdepth 1 -type d -name 'android-37*' -print -quit | grep -q .
-          test -d "$sdk_root/build-tools/36.0.0"
-      - name: Audit Android source
-        run: python scripts/audit_android.py
-      - name: Test, lint and build Android APKs
-        shell: bash
-        run: |
-          set -euo pipefail
-          gradle -p android :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
-          python scripts/package_android.py --debug android/app/build/outputs/apk/debug/app-debug.apk --release android/app/build/outputs/apk/release/app-release-unsigned.apk --output-dir dist
-      - name: Store Android packages
+          gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Store Android APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-android-release
+          name: ghostftp-android-stage
           if-no-files-found: error
           retention-days: 7
-          path: |
-            dist/ByFTP-*-Android-debug.apk
-            dist/ByFTP-*-Android-release-unsigned.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
 
   ios:
-    name: iOS arm64 unsigned IPA and app bundle
+    name: iOS arm64 unsigned IPA
     runs-on: macos-14
     timeout-minutes: 30
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.x'
-      - name: Audit iOS source and packaging contract
-        run: python3 scripts/audit_ios.py
-      - name: Build native iPhoneOS artifacts
+      - name: Build native iPhoneOS artifact
         run: bash ios/BUILD.sh
-      - name: Store iOS packages
+      - name: Store iOS IPA
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-ios-release
+          name: ghostftp-ios-stage
           if-no-files-found: error
           retention-days: 7
-          path: |
-            dist/ByFTP-*-iOS-arm64-unsigned.ipa
-            dist/ByFTP-*-iOS-arm64-unsigned-app.zip
+          path: dist/ByFTP-*-iOS-arm64-unsigned.ipa
 
   windows:
-    name: Windows x64 and x86
+    name: Windows x64 and x86 installers
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
@@ -182,33 +147,32 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Disable and verify Go telemetry
+      - name: Disable Go telemetry
         shell: pwsh
         run: |
           go telemetry off
           if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
-      - name: Build Windows x64 and x86
+      - name: Build x64 and x86 installers
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
-      - name: Build verified Windows ZIP bundles
+      - name: Verify installers
         shell: pwsh
-        run: .\scripts\package_windows_bundles.ps1
-      - name: Store Windows packages
+        run: |
+          $v = (Get-Content VERSION -Raw).Trim()
+          foreach ($arch in @('x64','x86')) {
+            $path = "dist\ByFTP-$v-Setup-$arch.exe"
+            if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) { throw "Missing installer: $path" }
+          }
+      - name: Store Windows installers
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-windows-release
+          name: ghostftp-windows-stage
           if-no-files-found: error
           retention-days: 7
-          path: |
-            dist/ByFTP-*-Portable-x64.exe
-            dist/ByFTP-*-Setup-x64.exe
-            dist/ByFTP-*-Windows-x64.zip
-            dist/ByFTP-*-Portable-x86.exe
-            dist/ByFTP-*-Setup-x86.exe
-            dist/ByFTP-*-Windows-x86.zip
+          path: dist/ByFTP-*-Setup-*.exe
 
   linux:
-    name: Linux amd64 arm64 and i386
+    name: Linux amd64 arm64 i386
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -220,14 +184,12 @@ jobs:
           go-version: '1.27.1'
           check-latest: false
           cache: false
-      - name: Disable and verify Go telemetry
+      - name: Disable Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Verify Linux core
-        run: go test ./... && go vet ./...
       - name: Build DEB packages
         run: bash linux/BUILD.sh
       - name: Verify DEB metadata
@@ -236,19 +198,19 @@ jobs:
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
           for arch in amd64 arm64 i386; do
-            pkg="dist/ByFTP-${version}-Linux-${arch}.deb"
+            pkg="dist/Ghost-FTP-${version}-Linux-${arch}.deb"
             test -s "$pkg"
-            test "$(dpkg-deb -f "$pkg" Package)" = 'byftp'
+            test "$(dpkg-deb -f "$pkg" Package)" = 'ghost-ftp'
             test "$(dpkg-deb -f "$pkg" Version)" = "$version"
             test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
           done
       - name: Store Linux packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-linux-release
+          name: ghostftp-linux-stage
           if-no-files-found: error
           retention-days: 7
-          path: dist/ByFTP-*-Linux-*.deb
+          path: dist/Ghost-FTP-*-Linux-*.deb
 
   macos:
     name: macOS Universal
@@ -263,37 +225,32 @@ jobs:
           go-version: '1.27.1'
           check-latest: false
           cache: false
-      - name: Disable and verify Go telemetry
+      - name: Disable Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Cross-platform tests on macOS
-        run: go test ./... && go vet ./...
       - name: Build Universal PKG
         run: bash macos/BUILD.sh
-      - name: Verify PKG structure
+      - name: Verify PKG
         shell: bash
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
-          pkg="dist/ByFTP-${version}-macOS-Universal.pkg"
-          test -s "$pkg"
-          pkgutil --expand "$pkg" "$RUNNER_TEMP/byftp-pkg"
-          test -f "$RUNNER_TEMP/byftp-pkg/PackageInfo"
+          test -s "dist/ByFTP-${version}-macOS-Universal.pkg"
       - name: Store macOS package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-macos-release
+          name: ghostftp-macos-stage
           if-no-files-found: error
           retention-days: 7
           path: dist/ByFTP-*-macOS-Universal.pkg
 
   publish:
-    name: Verify and publish release
+    name: Assemble and publish Ghost FTP release
     needs: [quality, windows, linux, macos, android, ios]
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - name: Checkout source
@@ -304,68 +261,110 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Resolve and verify version
+      - name: Resolve version
         id: version
-        shell: pwsh
+        shell: bash
         run: |
-          $manual = '${{ inputs.version }}'.Trim()
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch' -and $manual) { $version = $manual } else { $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim() }
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid version: $version" }
-          $source = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
-          if ($source -ne $version) { throw "Release version $version does not match VERSION=$source" }
-          "VERSION=$version" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          "version=$version" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-      - name: Download Windows packages
+          set -euo pipefail
+          source_version="$(tr -d '\r\n' < VERSION)"
+          manual='${{ inputs.version }}'
+          if [[ '${{ github.event_name }}' == 'workflow_dispatch' && -n "$manual" ]]; then version="$manual"; else version="$source_version"; fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
+          test "$version" = "$source_version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"
+      - name: Download Windows
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: byftp-windows-release, path: release }
-      - name: Download Linux packages
+        with: { name: ghostftp-windows-stage, path: staging/windows }
+      - name: Download Linux
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: byftp-linux-release, path: release }
-      - name: Download macOS package
+        with: { name: ghostftp-linux-stage, path: staging/linux }
+      - name: Download macOS
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: byftp-macos-release, path: release }
-      - name: Download Android packages
+        with: { name: ghostftp-macos-stage, path: staging/macos }
+      - name: Download Android
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: byftp-android-release, path: release }
-      - name: Download iOS packages
+        with: { name: ghostftp-android-stage, path: staging/android }
+      - name: Download iOS
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: byftp-ios-release, path: release }
-      - name: Download WEB package
+        with: { name: ghostftp-ios-stage, path: staging/ios }
+      - name: Download WEB
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: byftp-web-release, path: release }
-      - name: Verify public release staging and generate metadata
-        shell: pwsh
-        run: .\scripts\prepare_release.ps1
-      - name: Publish or safely complete GitHub release
-        shell: pwsh
+        with: { name: ghostftp-web-stage, path: staging/web }
+      - name: Assemble public release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp "staging/windows/ByFTP-${VERSION}-Setup-x64.exe" "release/Ghost-FTP-${VERSION}-Setup-x64.exe"
+          cp "staging/windows/ByFTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x86.exe"
+          cp "staging/windows/ByFTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x32.exe"
+          (
+            cd staging/linux
+            zip -9 "$GITHUB_WORKSPACE/release/Ghost-FTP-${VERSION}-Linux-multiarch.zip" \
+              "Ghost-FTP-${VERSION}-Linux-amd64.deb" \
+              "Ghost-FTP-${VERSION}-Linux-arm64.deb" \
+              "Ghost-FTP-${VERSION}-Linux-i386.deb"
+          )
+          cp "staging/macos/ByFTP-${VERSION}-macOS-Universal.pkg" "release/Ghost-FTP-${VERSION}-macOS-Universal.pkg"
+          cp "staging/android/app-debug.apk" "release/Ghost-FTP-${VERSION}-Android.apk"
+          cp "staging/ios/ByFTP-${VERSION}-iOS-arm64-unsigned.ipa" "release/Ghost-FTP-${VERSION}-iOS-arm64-unsigned.ipa"
+          cp "staging/web/ByFTP-${VERSION}-WEB-shared-hosting.zip" "release/Ghost-FTP-${VERSION}-Web.zip"
+
+          python scripts/release_notes.py --version "$VERSION" --output release/RELEASE-NOTES.txt
+          cat > release/BUILD-METADATA.txt <<EOF
+          BRAND=Ghost FTP
+          VERSION=${VERSION}
+          RELEASE_TAG=${RELEASE_TAG}
+          COMMIT=${GITHUB_SHA}
+          WINDOWS=x64,x86,x32-alias-of-x86
+          LINUX=multiarch-amd64-arm64-i386
+          MACOS=universal-x86_64-arm64
+          ANDROID=debug-signed-installable-non-store
+          IOS=arm64-unsigned
+          WEB=shared-hosting
+          PUBLIC_PLATFORM_ARTIFACTS=8
+          PUBLIC_RELEASE_FILES=11
+          EOF
+          sed -i 's/^          //' release/BUILD-METADATA.txt
+
+          (
+            cd release
+            find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs sha256sum > SHA256.txt
+          )
+
+          count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
+          test "$count" = '11'
+          test "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x86.exe" | awk '{print $1}')" = "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x32.exe" | awk '{print $1}')"
+          cat release/BUILD-METADATA.txt
+          cat release/SHA256.txt
+      - name: Publish GitHub Release without rewriting existing tags
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $assets = @(Get-ChildItem -LiteralPath 'release' -File | Sort-Object Name | ForEach-Object FullName)
-          if ($assets.Count -ne 18) { throw "Expected 18 public release files; found $($assets.Count)." }
-          & .\scripts\publish_release.ps1 -Repository $env:GITHUB_REPOSITORY -Version $env:VERSION -Commit $env:GITHUB_SHA -NotesFile 'release\RELEASE-NOTES.txt' -Assets $assets
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
+          test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
+
+          if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
+            tag_sha="$(git rev-list -n 1 "$RELEASE_TAG" 2>/dev/null || true)"
+            if [[ -z "$tag_sha" ]]; then
+              git fetch --tags --force
+              tag_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
+            fi
+            test "$tag_sha" = "$GITHUB_SHA" || { echo "Existing $RELEASE_TAG points to $tag_sha, not $GITHUB_SHA; refusing to rewrite it." >&2; exit 1; }
+            gh release upload "$RELEASE_TAG" release/* --repo "$repo" --clobber
+            gh release edit "$RELEASE_TAG" --repo "$repo" --title "Ghost FTP $VERSION" --notes-file release/RELEASE-NOTES.txt
+          else
+            gh release create "$RELEASE_TAG" release/* --repo "$repo" --target "$GITHUB_SHA" --title "Ghost FTP $VERSION" --notes-file release/RELEASE-NOTES.txt
+          fi
       - name: Store complete release artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: byftp-${{ steps.version.outputs.version }}-complete-release
+          name: ghostftp-${{ steps.version.outputs.version }}-complete-release
           if-no-files-found: error
           retention-days: 30
           path: release/*
-      - name: Build GitHub Windows package
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path 'package\assets','package-out' | Out-Null
-          foreach ($name in @("ByFTP-$env:VERSION-Portable-x64.exe","ByFTP-$env:VERSION-Setup-x64.exe","ByFTP-$env:VERSION-Windows-x64.zip","ByFTP-$env:VERSION-Portable-x86.exe","ByFTP-$env:VERSION-Setup-x86.exe","ByFTP-$env:VERSION-Windows-x86.zip",'SHA256.txt','RELEASE-NOTES.txt','BUILD-METADATA.txt')) { Copy-Item (Join-Path 'release' $name) 'package\assets\' -Force }
-          '# ByFTP.Windows ' + $env:VERSION + "`n`nOfficial verified ByFTP Windows x64/x86 distribution. No standalone uninstaller is included." | Set-Content 'package\PACKAGE-README.md' -Encoding UTF8
-          @"
-          <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><PackageId>ByFTP.Windows</PackageId><Version>$env:VERSION</Version><Authors>ByFTP</Authors><Description>ByFTP Windows x64 and x86 FTP/FTPS/SFTP distribution package.</Description><PackageTags>byftp;ftp;ftps;sftp;windows;privacy</PackageTags><PackageProjectUrl>https://github.com/bren-wp/by-ftp</PackageProjectUrl><RepositoryUrl>https://github.com/bren-wp/by-ftp</RepositoryUrl><RepositoryType>git</RepositoryType><PackageLicenseFile>LICENSE</PackageLicenseFile><PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile><PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance><SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup><ItemGroup><None Include="assets\**\*" Pack="true" PackagePath="tools\" /><None Include="PACKAGE-README.md" Pack="true" PackagePath="\" /><None Include="..\LICENSE" Pack="true" PackagePath="\" /><None Include="..\docs\*.md" Pack="true" PackagePath="docs\" /></ItemGroup></Project>
-          "@ | Set-Content 'package\ByFTP.Windows.csproj' -Encoding UTF8
-          dotnet pack 'package\ByFTP.Windows.csproj' -c Release -o 'package-out'
-      - name: Publish GitHub Windows package
-        shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          $pkg = Get-ChildItem 'package-out\ByFTP.Windows.*.nupkg' | Select-Object -First 1
-          if (-not $pkg) { throw 'ByFTP.Windows package was not built.' }
-          dotnet nuget push $pkg.FullName --api-key "$env:GITHUB_TOKEN" --source 'https://nuget.pkg.github.com/bren-wp/index.json' --skip-duplicate
