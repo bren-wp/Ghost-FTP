@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Scan exception, write and client-interface paths
+      - name: Scan exception, write, interface and visible-brand paths
         shell: bash
         run: |
           set -euo pipefail
@@ -32,3 +32,7 @@ jobs:
           grep -RFn --include='*.php' 'function write(string $remotePath' 'GhostFTP WEB' || true
           echo '=== RUNTIME_EXCEPTION_DYNAMIC ==='
           grep -REn --include='*.php' 'new RuntimeException\([^;]*(\$[A-Za-z_][A-Za-z0-9_]*|getMessage\()' 'GhostFTP WEB' || true
+          echo '=== VISIBLE_GHOSTFTP_TOPLEVEL ==='
+          grep -Fn --include='*.php' 'GhostFTP' 'GhostFTP WEB'/*.php || true
+          echo '=== VISIBLE_GHOSTFTP_VIEWS ==='
+          grep -RFn --include='*.php' 'GhostFTP' 'GhostFTP WEB/app/Views' || true
