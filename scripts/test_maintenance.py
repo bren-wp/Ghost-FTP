@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import re
-import subprocess
 import unittest
 from pathlib import Path
 
@@ -60,44 +58,35 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("SecItemAdd", save)
         self.assertNotIn("clear()", save)
 
-    def test_publisher_refuses_stale_main_commit(self) -> None:
-        src = read("scripts/publish_release.ps1")
-        guard = between(src, "function Assert-CurrentMainCommit", "function Resolve-TagCommit")
-        self.assertIn('repos/$Repository/branches/main', guard)
-        self.assertIn('$branch.commit.sha', guard)
-        self.assertIn('Stale release run je blokiran', guard)
-        self.assertIn('RELEASE_MAIN_HEAD_VERIFICATION=PASS', guard)
-        first_guard = src.index("Assert-CurrentMainCommit", src.index('$tag = "v$Version"'))
-        release_lookup = src.index("$release = Get-Release -Tag $tag")
-        self.assertLess(first_guard, release_lookup)
+    def test_release_workflow_refuses_stale_main_or_tag_rewrite(self) -> None:
+        workflow = read(".github/workflows/release.yml")
+        self.assertIn("RELEASE_TAG=ghostftp-v$version", workflow)
+        self.assertIn("main moved from release commit", workflow)
+        self.assertIn("refusing to rewrite it", workflow)
+        self.assertIn("gh release create", workflow)
+        guard = workflow.index("main moved from release commit")
+        create = workflow.index("gh release create")
+        self.assertLess(guard, create)
 
-    def test_active_product_history_has_no_pre_1_3_byftp_line(self) -> None:
-        tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).split(b"\0")
-        patterns = (
-            re.compile(r"\bByFTP(?:\s+WEB)?\s+v?1\.[0-2]\.\d+\b", re.IGNORECASE),
-            re.compile(r"(?m)^##\s+1\.[0-2]\.\d+\b"),
-            re.compile(r"\bv1\.[0-2]\.\d+\b", re.IGNORECASE),
-            re.compile(r"\bVersion\s+1\.[0-2]\.\d+\b", re.IGNORECASE),
-        )
-        offenders: list[str] = []
-        for raw in tracked:
-            if not raw:
-                continue
-            path = ROOT / raw.decode("utf-8", "strict")
-            try:
-                text = path.read_text(encoding="utf-8")
-            except (UnicodeDecodeError, OSError):
-                continue
-            if any(pattern.search(text) for pattern in patterns):
-                offenders.append(str(path.relative_to(ROOT)))
-        self.assertEqual([], offenders, "pre-1.3 active ByFTP version references: " + ", ".join(offenders))
+    def test_ghostftp_product_line_starts_at_1_0_0_without_rewriting_history(self) -> None:
+        self.assertEqual("1.0.0", read("VERSION").strip())
+        self.assertEqual("1.0.0", read("ByFTP WEB/VERSION").strip())
+        readme = read("README.md")
+        changelog = read("CHANGELOG.md")
+        self.assertIn("Current Ghost FTP version: **1.0.0**", readme)
+        self.assertIn("Ghost FTP product line starts at `1.0.0`", readme)
+        self.assertIn("ghostftp-v1.0.0", readme)
+        self.assertIn("historical `v1.0.0` tag", readme)
+        self.assertIn("## 1.0.0", changelog)
+        self.assertIn("Legacy ByFTP history", changelog)
 
-    def test_web_version_and_fail_closed_boundaries(self) -> None:
+    def test_web_version_brand_and_fail_closed_boundaries(self) -> None:
         web = ROOT / "ByFTP WEB"
-        self.assertTrue(web.is_dir(), "ByFTP WEB source directory is required")
+        self.assertTrue(web.is_dir(), "legacy-named web source directory is required")
         root_version = read("VERSION").strip()
         self.assertEqual(root_version, (web / "VERSION").read_text(encoding="utf-8").strip())
 
+        composer = (web / "composer.json").read_text(encoding="utf-8")
         bootstrap = (web / "app/bootstrap.php").read_text(encoding="utf-8")
         paths = (web / "app/Remote/PathGuard.php").read_text(encoding="utf-8")
         profiles = (web / "app/Storage/ProfileStore.php").read_text(encoding="utf-8")
@@ -107,6 +96,8 @@ class MaintenanceRegressionTests(unittest.TestCase):
         sw = (web / "service-worker.js").read_text(encoding="utf-8")
         tests = (web / "tests/unit.php").read_text(encoding="utf-8")
 
+        self.assertIn('"name": "brendigo/ghost-ftp-web"', composer)
+        self.assertIn(f'"version": "{root_version}"', composer)
         self.assertIn("BYFTP_ROOT . '/VERSION'", bootstrap)
         self.assertNotRegex(bootstrap, r"const\s+BYFTP_VERSION\s*=\s*['\"]\d")
         self.assertIn("str_contains($path, '\\\\')", paths)
@@ -119,7 +110,8 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("FILTER_FLAG_NO_PRIV_RANGE", host_guard)
         self.assertIn("$this->profile['password'] = '';", ftp)
         self.assertIn("$this->profile['private_key'] = '';", sftp)
-        self.assertIn(f"byftp-static-v{root_version}", sw)
+        self.assertIn(f"ghostftp-static-v{root_version}", sw)
+        self.assertIn("key.startsWith('byftp-static-')", sw)
         self.assertIn("request.mode === 'navigate'", sw)
         self.assertIn("preview", sw)
         self.assertIn("WEB_UNIT_TESTS=PASS", tests)
