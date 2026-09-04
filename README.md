@@ -103,6 +103,7 @@ Core documentation:
 - [Signing](docs/SIGNING.md)
 - [Shared hosting](docs/SHARED-HOSTING.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Third-party notices](docs/THIRD-PARTY-NOTICES.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Support](docs/SUPPORT.md)
 
