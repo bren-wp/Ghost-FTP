@@ -2,12 +2,12 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Operations\RemoteOperations;
-use ByFTP\Remote\ClientFactory;
-use ByFTP\Remote\PathGuard;
-use ByFTP\Security\AppLogger;
-use ByFTP\Security\Auth;
-use ByFTP\Storage\ProfileStore;
+use GhostFTP\Operations\RemoteOperations;
+use GhostFTP\Remote\ClientFactory;
+use GhostFTP\Remote\PathGuard;
+use GhostFTP\Security\AppLogger;
+use GhostFTP\Security\Auth;
+use GhostFTP\Storage\ProfileStore;
 
 if (!Auth::check()) {
     http_response_code(401);
@@ -17,13 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     exit('Method not allowed.');
 }
-if (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+if (!GhostFTP_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
     http_response_code(419);
     exit('Sigurnosni token nije valjan.');
 }
 
 $userId = Auth::id();
-byftp_release_session_lock();
+GhostFTP_release_session_lock();
 $profileId = (string)($_POST['profile_id'] ?? '');
 $profile = (new ProfileStore($userId))->find($profileId, true);
 if (!$profile) {
@@ -31,10 +31,10 @@ if (!$profile) {
     exit('Profil nije pronađen.');
 }
 
-$paths = byftp_string_paths((string)($_POST['paths'] ?? '[]'), 200);
-$name = byftp_archive_download_name((string)($_POST['name'] ?? 'byftp-download.zip'));
+$paths = GhostFTP_string_paths((string)($_POST['paths'] ?? '[]'), 200);
+$name = GhostFTP_archive_download_name((string)($_POST['name'] ?? 'GhostFTP-download.zip'));
 
-$tmp = tempnam(BYFTP_STORAGE . '/tmp', 'archive-');
+$tmp = tempnam(GhostFTP_STORAGE . '/tmp', 'archive-');
 if ($tmp === false) {
     http_response_code(500);
     exit('Privremena datoteka nije dostupna.');
@@ -59,7 +59,7 @@ try {
     AppLogger::event('archive.download', ['profile_id' => $profileId, 'count' => count($paths), 'bytes' => $size ?: 0]);
     readfile($tmp);
 } catch (Throwable $e) {
-    AppLogger::event('archive_download.error', ['profile_id' => $profileId, 'error' => byftp_truncate($e->getMessage(), 300)]);
+    AppLogger::event('archive_download.error', ['profile_id' => $profileId, 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
     if (!headers_sent()) {
         http_response_code(400);
         header('Content-Type: text/plain; charset=utf-8');

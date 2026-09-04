@@ -3,4 +3,4 @@
 -dontwarn net.i2p.crypto.eddsa.**
 
 # Keep the small protocol boundary readable in crash reports.
--keep class com.byftp.client.remote.** { *; }
+-keep class com.GhostFTP.client.remote.** { *; }

@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-use ByFTP\Security\LoginRateLimitGate;
-use ByFTP\Security\RateLimiter;
+use GhostFTP\Security\LoginRateLimitGate;
+use GhostFTP\Security\RateLimiter;
 
-$storage = sys_get_temp_dir() . '/byftp-rate-limit-' . bin2hex(random_bytes(6));
-define('BYFTP_STORAGE', $storage);
+$storage = sys_get_temp_dir() . '/GhostFTP-rate-limit-' . bin2hex(random_bytes(6));
+define('GhostFTP_STORAGE', $storage);
 
 require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/Security/RateLimiter.php';
@@ -35,7 +35,7 @@ function limiter_throws(callable $callback, string $label): void
 
 function limiter_path(string $key): string
 {
-    return BYFTP_STORAGE . '/logs/rl-' . hash('sha256', $key) . '.json';
+    return GhostFTP_STORAGE . '/logs/rl-' . hash('sha256', $key) . '.json';
 }
 
 try {
@@ -97,14 +97,14 @@ try {
         'atomic consume fails closed when primary rate-limit state is corrupt'
     );
 } finally {
-    $logs = BYFTP_STORAGE . '/logs';
+    $logs = GhostFTP_STORAGE . '/logs';
     if (is_dir($logs)) {
         foreach (glob($logs . '/*') ?: [] as $file) {
             @unlink($file);
         }
         @rmdir($logs);
     }
-    @rmdir(BYFTP_STORAGE);
+    @rmdir(GhostFTP_STORAGE);
 }
 
 if ($failed) {

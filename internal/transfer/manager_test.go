@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/config"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/remote"
 )
 
 type disconnectedProvider struct{}

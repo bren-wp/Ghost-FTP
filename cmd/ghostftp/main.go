@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bren-wp/by-ftp/internal/api"
-	"github.com/bren-wp/by-ftp/internal/brand"
-	"github.com/bren-wp/by-ftp/internal/desktop"
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/security"
-	"github.com/bren-wp/by-ftp/internal/usererror"
+	"github.com/bren-wp/Ghost-FTP/internal/api"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/desktop"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
 var version = "dev"
@@ -25,9 +25,9 @@ const (
 )
 
 var askpassEnvironmentKeys = [...]string{
-	"BYFTP_ASKPASS_TOKEN",
-	"BYFTP_PASSWORD_BLOB",
-	"BYFTP_PASSPHRASE_BLOB",
+	"GhostFTP_ASKPASS_TOKEN",
+	"GhostFTP_PASSWORD_BLOB",
+	"GhostFTP_PASSPHRASE_BLOB",
 	"SSH_ASKPASS",
 	"SSH_ASKPASS_REQUIRE",
 }
@@ -152,13 +152,13 @@ func writeAskpassSecret(secret []byte) error {
 }
 
 func askpassMode() (bool, error) {
-	token := os.Getenv("BYFTP_ASKPASS_TOKEN")
+	token := os.Getenv("GhostFTP_ASKPASS_TOKEN")
 	if token == "" {
 		return false, nil
 	}
 
-	passwordBlob := os.Getenv("BYFTP_PASSWORD_BLOB")
-	passphraseBlob := os.Getenv("BYFTP_PASSPHRASE_BLOB")
+	passwordBlob := os.Getenv("GhostFTP_PASSWORD_BLOB")
+	passphraseBlob := os.Getenv("GhostFTP_PASSPHRASE_BLOB")
 	askpassExe := os.Getenv("SSH_ASKPASS")
 	require := os.Getenv("SSH_ASKPASS_REQUIRE")
 

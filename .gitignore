@@ -12,7 +12,7 @@
 *.ipa
 
 # Generated iOS/Xcode state
-/ios/ByFTP/Assets.xcassets/AppIcon.appiconset/*.png
+/ios/GhostFTP/Assets.xcassets/AppIcon.appiconset/*.png
 /ios/**/xcuserdata/
 *.xcuserstate
 

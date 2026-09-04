@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/bren-wp/by-ftp/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
 var systemDirectory = platform.SystemDirectory

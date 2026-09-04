@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Storage;
+namespace GhostFTP\Storage;
 
 use RuntimeException;
 
@@ -14,7 +14,7 @@ final class UserStore
         // Authentication/authorization state must never silently roll back to the
         // previous generation after primary corruption. Keep users.json.bak for
         // explicit operator recovery, but fail closed for runtime reads/updates.
-        $this->store = new JsonStore(BYFTP_STORAGE . '/users.json', false);
+        $this->store = new JsonStore(GhostFTP_STORAGE . '/users.json', false);
     }
 
     public function all(): array

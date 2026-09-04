@@ -1,18 +1,18 @@
 <?php
 declare(strict_types=1);
 
-function byftp_config_path(): string
+function GhostFTP_config_path(): string
 {
-    return BYFTP_STORAGE . '/app.json';
+    return GhostFTP_STORAGE . '/app.json';
 }
 
-function byftp_is_configured(): bool
+function GhostFTP_is_configured(): bool
 {
-    $path = byftp_config_path();
+    $path = GhostFTP_config_path();
     if (!is_file($path) && !is_file($path . '.bak')) {
         return false;
     }
-    $config = byftp_config();
+    $config = GhostFTP_config();
     $key = base64_decode((string)($config['secret_key'] ?? ''), true);
     if (!is_string($key) || strlen($key) !== 32) {
         return false;
@@ -26,50 +26,50 @@ function byftp_is_configured(): bool
     // A valid encryption key without any user can be left behind by an interrupted
     // first setup. Treat that state as recoverable setup instead of an unusable login.
     try {
-        return (new ByFTP\Storage\UserStore())->count() > 0;
+        return (new GhostFTP\Storage\UserStore())->count() > 0;
     } catch (Throwable) {
         // If user storage exists but is unreadable/corrupt, fail closed. Never expose
         // setup in a way that could rotate the key over potentially recoverable data.
-        return is_file(BYFTP_STORAGE . '/users.json') || is_file(BYFTP_STORAGE . '/users.json.bak');
+        return is_file(GhostFTP_STORAGE . '/users.json') || is_file(GhostFTP_STORAGE . '/users.json.bak');
     }
 }
 
-function byftp_config(bool $fresh = false): array
+function GhostFTP_config(bool $fresh = false): array
 {
-    if ($fresh || !array_key_exists('byftp_config_cache', $GLOBALS)) {
-        $path = byftp_config_path();
+    if ($fresh || !array_key_exists('GhostFTP_config_cache', $GLOBALS)) {
+        $path = GhostFTP_config_path();
         if (!is_file($path) && !is_file($path . '.bak')) {
-            $GLOBALS['byftp_config_cache'] = [];
-            unset($GLOBALS['byftp_config_error']);
+            $GLOBALS['GhostFTP_config_cache'] = [];
+            unset($GLOBALS['GhostFTP_config_error']);
         } else {
             try {
                 // app.json contains the encryption key and runtime security policy.
                 // Keep the adjacent .bak for explicit operator recovery, but never
                 // silently roll security settings back to an older generation.
-                $GLOBALS['byftp_config_cache'] = (new ByFTP\Storage\JsonStore($path, false))->read([]);
-                unset($GLOBALS['byftp_config_error']);
+                $GLOBALS['GhostFTP_config_cache'] = (new GhostFTP\Storage\JsonStore($path, false))->read([]);
+                unset($GLOBALS['GhostFTP_config_error']);
             } catch (Throwable $e) {
                 // Fail closed into recovery/setup instead of crashing every request.
-                $GLOBALS['byftp_config_cache'] = [];
-                $GLOBALS['byftp_config_error'] = $e->getMessage();
+                $GLOBALS['GhostFTP_config_cache'] = [];
+                $GLOBALS['GhostFTP_config_error'] = $e->getMessage();
             }
         }
     }
-    return is_array($GLOBALS['byftp_config_cache'] ?? null) ? $GLOBALS['byftp_config_cache'] : [];
+    return is_array($GLOBALS['GhostFTP_config_cache'] ?? null) ? $GLOBALS['GhostFTP_config_cache'] : [];
 }
 
-function byftp_write_config(array $data): void
+function GhostFTP_write_config(array $data): void
 {
-    $store = new ByFTP\Storage\JsonStore(byftp_config_path());
+    $store = new GhostFTP\Storage\JsonStore(GhostFTP_config_path());
     $store->write($data);
-    $GLOBALS['byftp_config_cache'] = $data;
-    unset($GLOBALS['byftp_config_error']);
+    $GLOBALS['GhostFTP_config_cache'] = $data;
+    unset($GLOBALS['GhostFTP_config_error']);
 }
 
-function byftp_update_config(array $changes): array
+function GhostFTP_update_config(array $changes): array
 {
-    $current = byftp_config(true);
-    if (isset($GLOBALS['byftp_config_error'])) {
+    $current = GhostFTP_config(true);
+    if (isset($GLOBALS['GhostFTP_config_error'])) {
         throw new RuntimeException('Konfiguracija aplikacije nije čitljiva. Vrati storage/app.json iz provjerene sigurnosne kopije prije spremanja postavki.');
     }
     $key = base64_decode((string)($current['secret_key'] ?? ''), true);
@@ -77,26 +77,26 @@ function byftp_update_config(array $changes): array
         throw new RuntimeException('Konfiguracija aplikacije nema valjan encryption ključ. Postavke nisu spremljene.');
     }
     $next = array_replace($current, $changes);
-    byftp_write_config($next);
+    GhostFTP_write_config($next);
     return $next;
 }
 
-function byftp_app_name(): string
+function GhostFTP_app_name(): string
 {
-    return (string)(byftp_config()['app_name'] ?? 'Ghost FTP');
+    return (string)(GhostFTP_config()['app_name'] ?? 'Ghost FTP');
 }
 
-function byftp_registration_enabled(): bool
+function GhostFTP_registration_enabled(): bool
 {
-    return !empty(byftp_config()['allow_registration']);
+    return !empty(GhostFTP_config()['allow_registration']);
 }
 
-function byftp_private_hosts_allowed(): bool
+function GhostFTP_private_hosts_allowed(): bool
 {
-    return !empty(byftp_config()['allow_private_hosts']);
+    return !empty(GhostFTP_config()['allow_private_hosts']);
 }
 
-function byftp_csrf_token(): string
+function GhostFTP_csrf_token(): string
 {
     if (empty($_SESSION['csrf'])) {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
@@ -104,17 +104,17 @@ function byftp_csrf_token(): string
     return (string)$_SESSION['csrf'];
 }
 
-function byftp_verify_csrf(?string $token): bool
+function GhostFTP_verify_csrf(?string $token): bool
 {
-    return is_string($token) && hash_equals(byftp_csrf_token(), $token);
+    return is_string($token) && hash_equals(GhostFTP_csrf_token(), $token);
 }
 
-function byftp_e(string $value): string
+function GhostFTP_e(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
-function byftp_json(array $payload, int $status = 200): never
+function GhostFTP_json(array $payload, int $status = 200): never
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -123,31 +123,31 @@ function byftp_json(array $payload, int $status = 200): never
     exit;
 }
 
-function byftp_truncate(string $value, int $length): string
+function GhostFTP_truncate(string $value, int $length): string
 {
     return function_exists('mb_substr') ? mb_substr($value, 0, $length) : substr($value, 0, $length);
 }
 
-function byftp_archive_download_name(string $value): string
+function GhostFTP_archive_download_name(string $value): string
 {
     $name = trim($value);
     $name = preg_replace('/[^\pL\pN._ -]+/u', '-', $name) ?: 'ghost-ftp-download';
     $base = preg_replace('/\.zip$/i', '', $name);
     $base = is_string($base) ? $base : '';
-    $base = rtrim(byftp_truncate($base, 116), " .");
+    $base = rtrim(GhostFTP_truncate($base, 116), " .");
     if ($base === '') {
         $base = 'ghost-ftp-download';
     }
     return $base . '.zip';
 }
 
-function byftp_client_ip(): string
+function GhostFTP_client_ip(): string
 {
     // REMOTE_ADDR is intentionally used directly. Forwarded headers are not trusted by default.
     return (string)($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
 }
 
-function byftp_json_array(string $json, int $maxItems = 200): array
+function GhostFTP_json_array(string $json, int $maxItems = 200): array
 {
     $decoded = json_decode($json, true);
     if (!is_array($decoded)) {
@@ -159,27 +159,27 @@ function byftp_json_array(string $json, int $maxItems = 200): array
     return array_values($decoded);
 }
 
-function byftp_string_paths(string $json, int $maxItems = 200): array
+function GhostFTP_string_paths(string $json, int $maxItems = 200): array
 {
-    $rows = byftp_json_array($json, $maxItems);
+    $rows = GhostFTP_json_array($json, $maxItems);
     $paths = [];
     foreach ($rows as $row) {
         if (!is_string($row)) {
             continue;
         }
-        $paths[] = ByFTP\Remote\PathGuard::ensureNotRoot($row);
+        $paths[] = GhostFTP\Remote\PathGuard::ensureNotRoot($row);
     }
     return array_values(array_unique($paths));
 }
 
-function byftp_base_path(): string
+function GhostFTP_base_path(): string
 {
     static $base = null;
     if ($base !== null) {
         return $base;
     }
 
-    $root = realpath(BYFTP_ROOT);
+    $root = realpath(GhostFTP_ROOT);
     $documentRoot = realpath((string)($_SERVER['DOCUMENT_ROOT'] ?? ''));
     if (is_string($root) && is_string($documentRoot)) {
         $rootNormalized = rtrim(str_replace('\\', '/', $root), '/');
@@ -201,7 +201,7 @@ function byftp_base_path(): string
     return $base = ($dir === '/' || $dir === '.' ? '' : rtrim($dir, '/'));
 }
 
-function byftp_url(string $route = 'app'): string
+function GhostFTP_url(string $route = 'app'): string
 {
     $path = match ($route) {
         'app' => '/',
@@ -221,25 +221,25 @@ function byftp_url(string $route = 'app'): string
         'service_worker' => '/service-worker.js',
         default => throw new InvalidArgumentException('Nepoznata Ghost FTP ruta.'),
     };
-    $base = byftp_base_path();
+    $base = GhostFTP_base_path();
     if ($path === '/') {
         return ($base === '' ? '' : $base) . '/';
     }
     return $base . $path;
 }
 
-function byftp_asset(string $path): string
+function GhostFTP_asset(string $path): string
 {
     $clean = ltrim(str_replace('\\', '/', $path), '/');
     if ($clean === '' || str_contains($clean, '..')) {
         throw new InvalidArgumentException('Neispravna putanja asseta.');
     }
-    return byftp_base_path() . '/assets/' . $clean . '?v=' . rawurlencode(BYFTP_VERSION);
+    return GhostFTP_base_path() . '/assets/' . $clean . '?v=' . rawurlencode(GhostFTP_VERSION);
 }
 
-function byftp_redirect(string $route, array $query = []): never
+function GhostFTP_redirect(string $route, array $query = []): never
 {
-    $url = byftp_url($route);
+    $url = GhostFTP_url($route);
     if ($query !== []) {
         $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
     }
@@ -247,7 +247,7 @@ function byftp_redirect(string $route, array $query = []): never
     exit;
 }
 
-function byftp_ini_bytes(string|false $value): int
+function GhostFTP_ini_bytes(string|false $value): int
 {
     if ($value === false) {
         return PHP_INT_MAX;
@@ -266,14 +266,14 @@ function byftp_ini_bytes(string|false $value): int
     return $bytes >= PHP_INT_MAX ? PHP_INT_MAX : (int)$bytes;
 }
 
-function byftp_upload_limit_bytes(): int
+function GhostFTP_upload_limit_bytes(): int
 {
-    return min(byftp_ini_bytes(ini_get('upload_max_filesize')), byftp_ini_bytes(ini_get('post_max_size')));
+    return min(GhostFTP_ini_bytes(ini_get('upload_max_filesize')), GhostFTP_ini_bytes(ini_get('post_max_size')));
 }
 
-function byftp_upload_error_message(int $code, string $name = ''): string
+function GhostFTP_upload_error_message(int $code, string $name = ''): string
 {
-    $label = $name !== '' ? ' (' . byftp_truncate($name, 100) . ')' : '';
+    $label = $name !== '' ? ' (' . GhostFTP_truncate($name, 100) . ')' : '';
     return match ($code) {
         UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Datoteka je veća od dopuštenog upload limita' . $label . '.',
         UPLOAD_ERR_PARTIAL => 'Upload je samo djelomično dovršen' . $label . '.',
@@ -285,12 +285,12 @@ function byftp_upload_error_message(int $code, string $name = ''): string
     };
 }
 
-function byftp_assert_temp_capacity(int $expectedBytes, int $reserveBytes = 16777216): void
+function GhostFTP_assert_temp_capacity(int $expectedBytes, int $reserveBytes = 16777216): void
 {
     if ($expectedBytes <= 0) {
         return;
     }
-    $free = @disk_free_space(BYFTP_STORAGE . '/tmp');
+    $free = @disk_free_space(GhostFTP_STORAGE . '/tmp');
     if (!is_float($free) && !is_int($free)) {
         return; // Some shared hosts do not expose disk_free_space().
     }
@@ -300,9 +300,9 @@ function byftp_assert_temp_capacity(int $expectedBytes, int $reserveBytes = 1677
     }
 }
 
-function byftp_cleanup_stale_temp_files(int $maxAgeSeconds = 86400, int $maxFiles = 100): int
+function GhostFTP_cleanup_stale_temp_files(int $maxAgeSeconds = 86400, int $maxFiles = 100): int
 {
-    $directory = BYFTP_STORAGE . '/tmp';
+    $directory = GhostFTP_STORAGE . '/tmp';
     if (!is_dir($directory) || $maxAgeSeconds < 3600 || $maxFiles < 1) {
         return 0;
     }
@@ -331,22 +331,22 @@ function byftp_cleanup_stale_temp_files(int $maxAgeSeconds = 86400, int $maxFile
     return $removed;
 }
 
-function byftp_session_limits(?array $config = null): array
+function GhostFTP_session_limits(?array $config = null): array
 {
-    $config ??= byftp_config();
+    $config ??= GhostFTP_config();
     $idleSeconds = max(900, min(86400, (int)($config['session_idle_minutes'] ?? 120) * 60));
     $maxSeconds = max(3600, min(604800, (int)($config['session_max_hours'] ?? 12) * 3600));
     return ['idle' => $idleSeconds, 'max' => $maxSeconds, 'gc' => max($idleSeconds, $maxSeconds)];
 }
 
-function byftp_release_session_lock(): void
+function GhostFTP_release_session_lock(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();
     }
 }
 
-function byftp_human_date(?string $iso): string
+function GhostFTP_human_date(?string $iso): string
 {
     if (!$iso) {
         return '—';

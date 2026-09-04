@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 func TestCleanupFailureReturnsOriginalWhenCleanupSucceeds(t *testing.T) {
 	original := errors.New("connection reset")
-	err := cleanupFailure(original, "/www", ".byftp-part-test", func(context.Context, string, string, bool) error {
+	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
 		return nil
 	})
 	if !errors.Is(err, original) {
@@ -27,7 +27,7 @@ func TestCleanupFailureReturnsOriginalWhenCleanupSucceeds(t *testing.T) {
 
 func TestCleanupFailureAcceptsConfirmedMissingArtifact(t *testing.T) {
 	original := errors.New("upload failed")
-	err := cleanupFailure(original, "/www", ".byftp-part-test", func(context.Context, string, string, bool) error {
+	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
 		return errors.New("No such file")
 	})
 	if !errors.Is(err, original) || isRemoteResidualArtifactError(err) {
@@ -38,7 +38,7 @@ func TestCleanupFailureAcceptsConfirmedMissingArtifact(t *testing.T) {
 func TestCleanupFailureMarksUncertainRemoteState(t *testing.T) {
 	original := errors.New("connection reset")
 	cleanup := errors.New("permission denied")
-	err := cleanupFailure(original, "/www", ".byftp-part-test", func(context.Context, string, string, bool) error {
+	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
 		return cleanup
 	})
 	if !isRemoteResidualArtifactError(err) {
@@ -47,14 +47,14 @@ func TestCleanupFailureMarksUncertainRemoteState(t *testing.T) {
 	if !errors.Is(err, original) || !errors.Is(err, cleanup) {
 		t.Fatalf("residual error must preserve both causes: %v", err)
 	}
-	if !strings.Contains(err.Error(), "/www/.byftp-part-test") {
+	if !strings.Contains(err.Error(), "/www/.GhostFTP-part-test") {
 		t.Fatalf("residual object is not identified: %v", err)
 	}
 }
 
 func TestCommittedCleanupFailureMarksCommittedState(t *testing.T) {
 	cleanup := errors.New("permission denied")
-	err := committedCleanupFailure(nil, "/www", ".byftp-rollback-test", func(context.Context, string, string, bool) error {
+	err := committedCleanupFailure(nil, "/www", ".GhostFTP-rollback-test", func(context.Context, string, string, bool) error {
 		return cleanup
 	})
 	var residual *remoteResidualArtifactError
@@ -71,7 +71,7 @@ func TestResidualCleanupErrorBlocksAutomaticRetry(t *testing.T) {
 	if !IsRetryable(transport) {
 		t.Fatal("transport interruption should be retryable before cleanup uncertainty")
 	}
-	err := cleanupFailure(transport, "/www", ".byftp-part-test", func(context.Context, string, string, bool) error {
+	err := cleanupFailure(transport, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
 		return errors.New("connection reset while deleting")
 	})
 	if IsRetryable(err) {
@@ -92,15 +92,15 @@ func TestCommitRemoteTempReportsPostCommitRollbackCleanupFailure(t *testing.T) {
 			return errors.New("permission denied")
 		},
 	}
-	err := commitRemoteTemp(context.Background(), []model.Item{{Name: "index.html"}}, "/www", "index.html", ".part", ".byftp-rollback-test", false, ops)
+	err := commitRemoteTemp(context.Background(), []model.Item{{Name: "index.html"}}, "/www", "index.html", ".part", ".GhostFTP-rollback-test", false, ops)
 	if err == nil || !isRemoteResidualArtifactError(err) || IsRetryable(err) {
 		t.Fatalf("post-commit cleanup failure must be explicit and non-retryable: %v", err)
 	}
-	wantRenamed := [][2]string{{"index.html", ".byftp-rollback-test"}, {".part", "index.html"}}
+	wantRenamed := [][2]string{{"index.html", ".GhostFTP-rollback-test"}, {".part", "index.html"}}
 	if !reflect.DeepEqual(renamed, wantRenamed) {
 		t.Fatalf("activation sequence=%v want=%v", renamed, wantRenamed)
 	}
-	if !reflect.DeepEqual(deleted, []string{".byftp-rollback-test"}) {
+	if !reflect.DeepEqual(deleted, []string{".GhostFTP-rollback-test"}) {
 		t.Fatalf("cleanup target=%v", deleted)
 	}
 }

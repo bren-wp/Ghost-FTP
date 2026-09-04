@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Remote;
+namespace GhostFTP\Remote;
 
 use RuntimeException;
 
-/** Canonical fail-closed remote path validation shared by FTP and SFTP operations. */
+/** Canonical fail-closed remote path validation shared GhostFTP and SFTP operations. */
 final class PathGuard
 {
     public static function normalizeRelative(string $path): string

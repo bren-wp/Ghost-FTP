@@ -10,7 +10,7 @@ import (
 
 // RenameNoReplace uses an exclusive hard-link creation for regular files on
 // macOS. link(2) fails atomically when dst already exists, so a competing file
-// can never be overwritten. ByFTP uses this primitive for staged local files.
+// can never be overwritten. GhostFTP uses this primitive for staged local files.
 // If unlinking src fails after the link succeeds, both names are left in place
 // and the error is surfaced rather than risking deletion of unrelated data.
 func RenameNoReplace(src, dst string) error {

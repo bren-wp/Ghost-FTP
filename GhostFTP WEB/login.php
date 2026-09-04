@@ -2,14 +2,14 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Security\AppLogger;
-use ByFTP\Security\Auth;
-use ByFTP\Security\LoginRateLimitGate;
-use ByFTP\Security\RateLimiter;
-use ByFTP\Storage\UserStore;
-use ByFTP\Storage\UserWorkspace;
+use GhostFTP\Security\AppLogger;
+use GhostFTP\Security\Auth;
+use GhostFTP\Security\LoginRateLimitGate;
+use GhostFTP\Security\RateLimiter;
+use GhostFTP\Storage\UserStore;
+use GhostFTP\Storage\UserWorkspace;
 
-function byftp_clear_login_rate_limiters(
+function GhostFTP_clear_login_rate_limiters(
     RateLimiter $accountLimiter,
     string $accountKey,
     RateLimiter $ipLimiter,
@@ -26,21 +26,21 @@ function byftp_clear_login_rate_limiters(
             // turn a valid login into a false legacy-migration failure or destroy the session.
             AppLogger::event('auth.rate_limit_clear_failed', [
                 'scope' => $entry['scope'],
-                'error' => byftp_truncate($e->getMessage(), 300),
+                'error' => GhostFTP_truncate($e->getMessage(), 300),
             ]);
         }
     }
 }
 
-if (!byftp_is_configured()) {
-    byftp_redirect('setup');
+if (!GhostFTP_is_configured()) {
+    GhostFTP_redirect('setup');
 }
 if (Auth::check()) {
-    byftp_redirect('app');
+    GhostFTP_redirect('app');
 }
 
 $users = new UserStore();
-$config = byftp_config();
+$config = GhostFTP_config();
 $legacy = $users->count() === 0 && !empty($config['password_hash']);
 $error = '';
 $accountLimiter = new RateLimiter(5, 900);
@@ -49,10 +49,10 @@ $ipLimiter = new RateLimiter(12, 900);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = strtolower(trim((string)($_POST['email'] ?? '')));
     $password = (string)($_POST['password'] ?? '');
-    $accountKey = 'login-account:' . hash('sha256', byftp_truncate($email, 320));
-    $ipKey = 'login-ip:' . byftp_client_ip();
+    $accountKey = 'login-account:' . hash('sha256', GhostFTP_truncate($email, 320));
+    $ipKey = 'login-ip:' . GhostFTP_client_ip();
 
-    if (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+    if (!GhostFTP_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
         $error = 'Sigurnosni token nije valjan.';
     } else {
         $rateLimitState = 'allowed';
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             $rateLimitState = 'error';
             AppLogger::event('auth.rate_limit_consume_failed', [
-                'error' => byftp_truncate($e->getMessage(), 300),
+                'error' => GhostFTP_truncate($e->getMessage(), 300),
             ]);
         }
 
@@ -87,15 +87,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     UserWorkspace::migrateLegacy((string)$user['id']);
                     $next = $config;
                     unset($next['password_hash']);
-                    $next['version'] = BYFTP_VERSION;
+                    $next['version'] = GhostFTP_VERSION;
                     $next['allow_registration'] = (bool)($next['allow_registration'] ?? false);
-                    byftp_write_config($next);
+                    GhostFTP_write_config($next);
                     if (!Auth::attempt($email, $password)) {
                         throw new RuntimeException('Račun je izrađen, ali automatska prijava nije dovršena. Pokušaj se ponovno prijaviti.');
                     }
-                    byftp_clear_login_rate_limiters($accountLimiter, $accountKey, $ipLimiter, $ipKey);
+                    GhostFTP_clear_login_rate_limiters($accountLimiter, $accountKey, $ipLimiter, $ipKey);
                     AppLogger::event('auth.legacy_migrated', ['user_id' => $user['id']]);
-                    byftp_redirect('app');
+                    GhostFTP_redirect('app');
                 } catch (Throwable $e) {
                     $error = $e->getMessage();
                 }
@@ -111,25 +111,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     UserWorkspace::migrateLegacy(Auth::id());
                     $next = $config;
                     unset($next['password_hash']);
-                    $next['version'] = BYFTP_VERSION;
+                    $next['version'] = GhostFTP_VERSION;
                     $next['allow_registration'] = (bool)($next['allow_registration'] ?? false);
-                    byftp_write_config($next);
+                    GhostFTP_write_config($next);
                     AppLogger::event('auth.legacy_migration_recovered', ['user_id' => Auth::id()]);
                 } catch (Throwable $e) {
                     AppLogger::event('auth.legacy_migration_failed', [
                         'user_id' => Auth::id(),
-                        'error' => byftp_truncate($e->getMessage(), 300),
+                        'error' => GhostFTP_truncate($e->getMessage(), 300),
                     ]);
                     Auth::logout();
                     $migrationFailed = true;
-                    $error = 'Prijava je valjana, ali migracija starih ByFTP podataka nije dovršena. Provjeri dozvole storage direktorija i pokušaj ponovno.';
+                    $error = 'Prijava je valjana, ali migracija starih GhostFTP podataka nije dovršena. Provjeri dozvole storage direktorija i pokušaj ponovno.';
                 }
             }
 
             if (!$migrationFailed) {
-                byftp_clear_login_rate_limiters($accountLimiter, $accountKey, $ipLimiter, $ipKey);
+                GhostFTP_clear_login_rate_limiters($accountLimiter, $accountKey, $ipLimiter, $ipKey);
                 AppLogger::event('auth.login', ['email' => $email, 'user_id' => Auth::id()]);
-                byftp_redirect('app');
+                GhostFTP_redirect('app');
             }
         } else {
             usleep(350000);
@@ -138,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-$pageTitle = 'Prijava · ' . byftp_app_name();
+$pageTitle = 'Prijava · ' . GhostFTP_app_name();
 ?><!doctype html>
 <html lang="hr">
 <head>
@@ -157,18 +157,18 @@ $pageTitle = 'Prijava · ' . byftp_app_name();
         <h1>Dobro došao natrag.</h1>
         <p class="muted">Prijavi se i nastavi točno gdje si stao — spremljene veze i postavke vezane su uz tvoj račun.</p>
     <?php endif; ?>
-    <?php if (isset($_GET['installed'])): ?><div class="alert success" role="status">ByFTP je uspješno postavljen. Prijavi se svojim administratorskim računom.</div><?php endif; ?>
+    <?php if (isset($_GET['installed'])): ?><div class="alert success" role="status">GhostFTP je uspješno postavljen. Prijavi se svojim administratorskim računom.</div><?php endif; ?>
     <?php if (isset($_GET['registered'])): ?><div class="alert success" role="status">Račun je izrađen. Možeš se prijaviti.</div><?php endif; ?>
-    <?php if ($error): ?><div class="alert error" role="alert"><?= byftp_e($error) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div><?php endif; ?>
     <form method="post" class="stack auth-form" autocomplete="on">
-        <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>">
+        <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
         <?php if ($legacy): ?>
             <label>Ime administratora
-                <input name="name" maxlength="80" value="<?= byftp_e((string)($_POST['name'] ?? 'Administrator')) ?>" autocomplete="name" required>
+                <input name="name" maxlength="80" value="<?= GhostFTP_e((string)($_POST['name'] ?? 'Administrator')) ?>" autocomplete="name" required>
             </label>
         <?php endif; ?>
         <label>E-mail
-            <input type="email" name="email" maxlength="254" value="<?= byftp_e((string)($_POST['email'] ?? '')) ?>" autocomplete="email" autofocus required>
+            <input type="email" name="email" maxlength="254" value="<?= GhostFTP_e((string)($_POST['email'] ?? '')) ?>" autocomplete="email" autofocus required>
         </label>
         <label><?= $legacy ? 'Stara administratorska lozinka' : 'Lozinka' ?>
             <input type="password" name="password" autocomplete="current-password" required>
@@ -176,11 +176,11 @@ $pageTitle = 'Prijava · ' . byftp_app_name();
         <button class="button primary auth-submit" type="submit"><?= $legacy ? 'Nadogradi i prijavi se' : 'Prijavi se' ?> <span aria-hidden="true">→</span></button>
     </form>
     <div class="auth-link-row">
-        <?php if (!$legacy && byftp_registration_enabled()): ?><a href="<?= byftp_e(byftp_url('register')) ?>">Izradi korisnički račun</a><?php endif; ?>
-        <button class="text-button install-auth" type="button" data-install-app>Instaliraj ByFTP</button>
+        <?php if (!$legacy && GhostFTP_registration_enabled()): ?><a href="<?= GhostFTP_e(GhostFTP_url('register')) ?>">Izradi korisnički račun</a><?php endif; ?>
+        <button class="text-button install-auth" type="button" data-install-app>Instaliraj GhostFTP</button>
     </div>
     <div class="auth-security-note"><span aria-hidden="true">●</span> Izolirani korisnički podaci · šifrirane vjerodajnice · bez indeksiranja</div>
 </main>
-<script src="<?= byftp_e(byftp_asset('js/pwa.js')) ?>" defer></script>
+<script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
 </body>
 </html>

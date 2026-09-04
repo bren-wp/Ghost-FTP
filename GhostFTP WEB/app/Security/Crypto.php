@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Security;
+namespace GhostFTP\Security;
 
 use RuntimeException;
 
@@ -11,10 +11,10 @@ final class Crypto
 
     public function __construct()
     {
-        $encoded = (string)(\byftp_config()['secret_key'] ?? '');
+        $encoded = (string)(\GhostFTP_config()['secret_key'] ?? '');
         $key = base64_decode($encoded, true);
         if (!is_string($key) || strlen($key) !== 32) {
-            throw new RuntimeException('ByFTP encryption key is invalid.');
+            throw new RuntimeException('GhostFTP encryption key is invalid.');
         }
         $this->key = $key;
     }

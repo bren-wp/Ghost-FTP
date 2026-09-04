@@ -2,7 +2,7 @@
 
 **Ghost FTP** is a privacy-focused FTP, FTPS and SFTP client for Windows, Linux, macOS, Android, iOS and the web. The project is designed for dependable day-to-day file transfer, shared-hosting workflows and environments where explicit security controls and reproducible releases matter.
 
-Current Ghost FTP version: **1.0.0**
+Current Ghost FTP version: **1.0.1**
 
 ## Core capabilities
 
@@ -61,11 +61,11 @@ The **Ghost FTP** product line starts at `1.0.0`. Version changes use Semantic V
 - backward-compatible feature releases: `1.0.x` → `1.1.0`
 - breaking changes: next major version
 
-Historical ByFTP commits and tags remain in Git history for provenance. They are not rewritten. In particular, the historical `v1.0.0` tag is intentionally separate from the Ghost FTP tag `ghostftp-v1.0.0`.
+Historical GhostFTP commits and tags remain in Git history for provenance. They are not rewritten. In particular, the historical `v1.0.0` tag is intentionally separate from the Ghost FTP tag `ghostftp-v1.0.0`.
 
 ## Compatibility identifiers
 
-The public product name is **Ghost FTP**. Some internal source paths, package identifiers, migration keys, namespaces or build-stage filenames may still contain the legacy `ByFTP`/`byftp` identifier where changing it would unnecessarily break existing installations, saved profiles, application identities or migration/cleanup logic. These identifiers are compatibility implementation details and must not be used as new public branding.
+The public product name is **Ghost FTP**. Some internal source paths, package identifiers, migration keys, namespaces or build-stage filenames may still contain the legacy `GhostFTP`/`GhostFTP` identifier where changing it would unnecessarily break existing installations, saved profiles, application identities or migration/cleanup logic. These identifiers are compatibility implementation details and must not be used as new public branding.
 
 New public documentation, UI, release titles and downloadable package names use **Ghost FTP**.
 
@@ -119,7 +119,7 @@ Platform documentation:
 - [macOS](macos/README.md)
 - [Android](android/README.md)
 - [iOS](ios/README.md)
-- [Web/PWA](ByFTP%20WEB/README.md) — legacy source-directory path; public product name is Ghost FTP.
+- [Web/PWA](GhostFTP%20WEB/README.md) — legacy source-directory path; public product name is Ghost FTP.
 
 ## Development
 
@@ -154,7 +154,7 @@ Windows packages are built with `BUILD-WINDOWS.ps1`. Android uses the Gradle pro
 - `ios/` — iOS application.
 - `linux/` — Debian package build.
 - `macos/` — universal macOS package build.
-- `ByFTP WEB/` — legacy-named source directory for the Ghost FTP web/PWA client; directory name is retained for compatibility during the rebrand.
+- `GhostFTP WEB/` — legacy-named source directory for the Ghost FTP web/PWA client; directory name is retained for compatibility during the rebrand.
 - `scripts/` — build, audit, packaging and verification tooling.
 - `docs/` — architecture, security, release and operator documentation.
 

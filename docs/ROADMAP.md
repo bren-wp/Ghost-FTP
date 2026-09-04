@@ -1,6 +1,6 @@
 # Roadmap
 
-Ghost FTP starts a new product line at **1.0.0**. The roadmap is capability- and quality-based; historical ByFTP release numbers do not define future Ghost FTP sequencing.
+Ghost FTP starts a new product line at **1.0.0**. The roadmap is capability- and quality-based; historical GhostFTP release numbers do not define future Ghost FTP sequencing.
 
 ## 1.0.x priorities
 

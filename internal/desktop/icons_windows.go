@@ -5,7 +5,7 @@ package desktop
 import "unsafe"
 
 // Windows system icon glyphs. The core code points are shared by Segoe Fluent
-// Icons and Segoe MDL2 Assets, which lets ByFTP use the modern Windows 11 font
+// Icons and Segoe MDL2 Assets, which lets GhostFTP use the modern Windows 11 font
 // while retaining a Windows 10 fallback without shipping font files.
 const (
 	iconConnect     = "\uE703"

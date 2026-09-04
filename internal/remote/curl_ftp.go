@@ -15,9 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 type CurlFTP struct {
@@ -101,7 +101,7 @@ func appendConfigLine(dst []byte, line string) []byte {
 	return append(dst, '\n')
 }
 
-// ftpURLPath keeps every ByFTP FTP/FTPS URL inside the login/home namespace.
+// ftpURLPath keeps every GhostFTP FTP/FTPS URL inside the login/home namespace.
 // Curl treats a double leading slash as an absolute server-root path, so user
 // input such as //public_html must collapse to the same logical path as
 // /public_html instead of changing namespace semantics.
@@ -330,7 +330,7 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 	return items, nil
 }
 
-// ftpCommandPath maps ByFTP's logical FTP namespace to the server command
+// ftpCommandPath maps GhostFTP's logical FTP namespace to the server command
 // namespace. Curl FTP URLs with a single leading slash are relative to the
 // directory entered after login; raw QUOTE commands are sent immediately after
 // PWD and therefore must not be given a leading slash that would turn them into

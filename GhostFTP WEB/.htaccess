@@ -4,7 +4,7 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Clean application routes. Relative rules keep ByFTP working in a shared-hosting subdirectory.
+    # Clean application routes. Relative rules keep GhostFTP working in a shared-hosting subdirectory.
     RewriteRule ^login/?$ login.php [L,QSA]
     RewriteRule ^logout/?$ logout.php [L,QSA]
     RewriteRule ^register/?$ register.php [L,QSA]

@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Operations;
+namespace GhostFTP\Operations;
 
-use ByFTP\Remote\PathGuard;
-use ByFTP\Remote\RemoteClientInterface;
+use GhostFTP\Remote\PathGuard;
+use GhostFTP\Remote\RemoteClientInterface;
 use RuntimeException;
 use ZipArchive;
 
@@ -175,14 +175,14 @@ final class RemoteOperations
         $existing = $this->stat($remotePath);
         if (($existing['type'] ?? null) === 'dir') throw new RuntimeException('Datoteka ne može prepisati postojeći direktorij istog naziva.');
         $parent = PathGuard::parent($remotePath);
-        $staging = $this->temporarySibling($parent, 'byftp-upload');
+        $staging = $this->temporarySibling($parent, 'GhostFTP-upload');
         $backup = null;
         $staged = false;
         try {
             $this->client->upload($localFile, $staging);
             $staged = true;
             if ($existing !== null) {
-                $backup = $this->temporarySibling($parent, 'byftp-backup');
+                $backup = $this->temporarySibling($parent, 'GhostFTP-backup');
                 $this->client->rename($remotePath, $backup);
             }
             try {
@@ -211,7 +211,7 @@ final class RemoteOperations
         if (!in_array($algorithm, ['sha256','sha1','md5'], true)) throw new RuntimeException('Nepodržan checksum algoritam.');
         $item = $this->stat($path);
         if ($item === null || ($item['type'] ?? 'file') !== 'file') throw new RuntimeException('Checksum je dostupan samo za datoteke.');
-        \byftp_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
+        \GhostFTP_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
         $tmp = $this->tempFile('hash-');
         try {
             $this->client->download($path, $tmp);
@@ -268,7 +268,7 @@ final class RemoteOperations
         $staged = [];
         try {
             foreach ($plan as $row) {
-                $tmp = $this->temporarySibling(PathGuard::parent($row['source']), 'byftp-rename');
+                $tmp = $this->temporarySibling(PathGuard::parent($row['source']), 'GhostFTP-rename');
                 $this->client->rename($row['source'], $tmp);
                 $staged[] = ['tmp'=>$tmp,'source'=>$row['source'],'destination'=>$row['destination']];
             }
@@ -331,7 +331,7 @@ final class RemoteOperations
         $destination = PathGuard::normalizeRelative($destination);
         $item = $this->stat($path);
         if ($item === null || ($item['type'] ?? 'file') !== 'file') throw new RuntimeException('ZIP datoteka više ne postoji.');
-        \byftp_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
+        \GhostFTP_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
         $tmp = $this->tempFile('extract-');
         try {
             $this->client->download($path, $tmp);
@@ -435,7 +435,7 @@ final class RemoteOperations
                     }
                 }
 
-                \byftp_assert_temp_capacity($bytes);
+                \GhostFTP_assert_temp_capacity($bytes);
                 $stagedEntries = [];
                 $actualBytes = 0;
                 try {
@@ -544,7 +544,7 @@ final class RemoteOperations
         }
         $bytes += max(0, (int)($item['size'] ?? 0));
         if ($bytes > self::MAX_ARCHIVE_BYTES) throw new RuntimeException('Odabir prelazi sigurnosni limit ZIP veličine.');
-        \byftp_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
+        \GhostFTP_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
         $tmp = $this->tempFile('zipitem-');
         try {
             $this->client->download($remote, $tmp);
@@ -586,7 +586,7 @@ final class RemoteOperations
         $this->countItem();
         $item = $this->stat($source);
         if ($item === null || ($item['type'] ?? 'file') !== 'file') throw new RuntimeException('Izvorna datoteka više ne postoji.');
-        \byftp_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
+        \GhostFTP_assert_temp_capacity(max(0, (int)($item['size'] ?? 0)));
         $tmp = $this->tempFile('copy-');
         try { $this->client->download($source, $tmp); $this->uploadAtomic($tmp, $destination); } finally { @unlink($tmp); }
     }
@@ -639,7 +639,7 @@ final class RemoteOperations
 
     private function tempFile(string $prefix): string
     {
-        $tmp = tempnam(BYFTP_STORAGE . '/tmp', $prefix);
+        $tmp = tempnam(GhostFTP_STORAGE . '/tmp', $prefix);
         if ($tmp === false) throw new RuntimeException('Nije moguće stvoriti privremenu datoteku.');
         @chmod($tmp, 0600);
         return $tmp;

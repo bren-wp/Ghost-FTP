@@ -9,7 +9,7 @@ import (
 )
 
 // RenameNoReplace is a conservative regular-file fallback for Unix-like
-// platforms without a native exclusive-rename implementation in ByFTP.
+// platforms without a native exclusive-rename implementation in GhostFTP.
 // Creating the destination hard link is atomic and fails if dst already exists;
 // unlike check-then-rename it can never silently overwrite a competing file.
 func RenameNoReplace(src, dst string) error {

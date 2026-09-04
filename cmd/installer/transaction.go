@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 var openInstallerBackupSource = os.Open
@@ -143,7 +143,7 @@ func backupExisting(target string) (fileBackup, error) {
 		return fileBackup{}, errors.New("postojeća instalacijska datoteka se promijenila tijekom sigurnog otvaranja")
 	}
 
-	dst, err := os.CreateTemp(filepath.Dir(target), ".byftp-rollback-*.bak")
+	dst, err := os.CreateTemp(filepath.Dir(target), ".GhostFTP-rollback-*.bak")
 	if err != nil {
 		return fileBackup{}, err
 	}
@@ -328,7 +328,7 @@ func (b fileBackup) stageRollbackBackup() (string, error) {
 	}
 	defer src.Close()
 
-	dst, err := os.CreateTemp(filepath.Dir(b.target), ".byftp-restore-*.tmp")
+	dst, err := os.CreateTemp(filepath.Dir(b.target), ".GhostFTP-restore-*.tmp")
 	if err != nil {
 		return "", err
 	}

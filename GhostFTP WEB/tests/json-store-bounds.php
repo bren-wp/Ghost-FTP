@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 require __DIR__ . '/../app/Storage/JsonStore.php';
 
-use ByFTP\Storage\JsonStore;
+use GhostFTP\Storage\JsonStore;
 
 $failures = [];
-$root = sys_get_temp_dir() . '/byftp-json-bounds-' . bin2hex(random_bytes(6));
+$root = sys_get_temp_dir() . '/GhostFTP-json-bounds-' . bin2hex(random_bytes(6));
 if (!mkdir($root, 0700, true) && !is_dir($root)) {
     fwrite(STDERR, "Unable to create JSON bounds test directory.\n");
     exit(1);

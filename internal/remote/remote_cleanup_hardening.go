@@ -8,7 +8,7 @@ import (
 
 // remoteResidualArtifactError marks a remote operation whose cleanup could not
 // be confirmed. Automatic retry must not repeat an operation while a previous
-// .byftp-part-* or rollback object may still exist on the server.
+// .GhostFTP-part-* or rollback object may still exist on the server.
 type remoteResidualArtifactError struct {
 	object       string
 	operationErr error

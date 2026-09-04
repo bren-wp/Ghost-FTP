@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ghostftp-static-v1.0.0';
+const CACHE_NAME = 'ghostftp-static-v1.0.1';
 const STATIC_EXTENSIONS = /\.(?:css|js|svg|png|jpg|jpeg|webp|ico|woff2?)$/i;
 
 self.addEventListener('install', (event) => {
@@ -11,7 +11,7 @@ self.addEventListener('activate', (event) => {
         await Promise.all(keys
             .filter((key) => (
                 (key.startsWith('ghostftp-static-') && key !== CACHE_NAME)
-                || key.startsWith('byftp-static-')
+                || key.startsWith('GhostFTP-static-')
             ))
             .map((key) => caches.delete(key)));
         await self.clients.claim();

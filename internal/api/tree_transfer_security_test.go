@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/security"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 func TestUploadTreeBoundaryRejectsLateRootRedirect(t *testing.T) {

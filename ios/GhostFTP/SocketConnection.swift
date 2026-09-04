@@ -3,7 +3,7 @@ import Network
 
 final class SocketConnection {
     private let connection: NWConnection
-    private let queue = DispatchQueue(label: "com.byftp.ios.socket", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.GhostFTP.ios.socket", qos: .userInitiated)
     private var readBuffer = Data()
 
     init(host: String, port: UInt16, tls: Bool) throws {

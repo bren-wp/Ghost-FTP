@@ -14,7 +14,7 @@ INDEX = DOCS / "README.md"
 
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
 HTML_LINK_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
-VERSIONED_DOC_TITLE_RE = re.compile(r"(?m)^#\s+(?:Ghost FTP|ByFTP)\s+\d+\.\d+\.\d+\s+—")
+VERSIONED_DOC_TITLE_RE = re.compile(r"(?m)^#\s+(?:Ghost FTP|GhostFTP)\s+\d+\.\d+\.\d+\s+—")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 
 

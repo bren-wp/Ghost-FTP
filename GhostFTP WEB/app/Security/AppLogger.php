@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Security;
+namespace GhostFTP\Security;
 
 final class AppLogger
 {
@@ -16,24 +16,24 @@ final class AppLogger
                 continue;
             }
             if (is_scalar($value) || $value === null) {
-                $safe[$key] = is_string($value) ? \byftp_truncate($value, 500) : $value;
+                $safe[$key] = is_string($value) ? \GhostFTP_truncate($value, 500) : $value;
             }
         }
 
         $row = [
             'time' => gmdate('c'),
-            'ip' => \byftp_client_ip(),
-            'user_id' => isset($_SESSION['user_id']) ? \byftp_truncate((string)$_SESSION['user_id'], 64) : null,
-            'action' => \byftp_truncate($action, 80),
+            'ip' => \GhostFTP_client_ip(),
+            'user_id' => isset($_SESSION['user_id']) ? \GhostFTP_truncate((string)$_SESSION['user_id'], 64) : null,
+            'action' => \GhostFTP_truncate($action, 80),
             'context' => $safe,
         ];
 
-        $directory = BYFTP_STORAGE . '/logs';
+        $directory = GhostFTP_STORAGE . '/logs';
         if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
             return;
         }
-        $path = $directory . '/byftp.log';
-        $lockPath = $directory . '/byftp.log.lock';
+        $path = $directory . '/GhostFTP.log';
+        $lockPath = $directory . '/GhostFTP.log.lock';
         $lock = @fopen($lockPath, 'c+');
         if (!is_resource($lock)) {
             return;

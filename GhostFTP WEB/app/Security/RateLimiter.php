@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Security;
+namespace GhostFTP\Security;
 
-use ByFTP\Storage\JsonStore;
+use GhostFTP\Storage\JsonStore;
 
 final class RateLimiter
 {
@@ -13,7 +13,7 @@ final class RateLimiter
 
     private function path(string $key): string
     {
-        return BYFTP_STORAGE . '/logs/rl-' . hash('sha256', $key) . '.json';
+        return GhostFTP_STORAGE . '/logs/rl-' . hash('sha256', $key) . '.json';
     }
 
     private function store(string $key): JsonStore

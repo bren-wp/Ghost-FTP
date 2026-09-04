@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// Official ByFTP Linux packages target amd64, arm64 and 386 and use kernel
+// Official GhostFTP Linux packages target amd64, arm64 and 386 and use kernel
 // RENAME_NOREPLACE. Other Linux architectures retain safe exclusive-link
 // semantics for regular staged files instead of failing to compile or using a
 // check-then-rename overwrite window.

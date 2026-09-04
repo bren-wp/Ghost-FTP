@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/i18n"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 )
 
 func TestMessageDefaultsToEnglishAndHidesToolDetails(t *testing.T) {

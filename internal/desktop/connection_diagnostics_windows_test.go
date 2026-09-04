@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/remote"
+	"github.com/bren-wp/Ghost-FTP/internal/remote"
 )
 
 func TestConnectionDiagnosticStatusShowsSecureWebRoot(t *testing.T) {

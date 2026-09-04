@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Storage;
+namespace GhostFTP\Storage;
 
-use ByFTP\Remote\PathGuard;
-use ByFTP\Security\Crypto;
+use GhostFTP\Remote\PathGuard;
+use GhostFTP\Security\Crypto;
 use RuntimeException;
 
 final class ProfileStore
@@ -210,7 +210,7 @@ final class ProfileStore
             throw new RuntimeException('Profil nije pronađen.');
         }
         unset($profile['id'], $profile['created_at'], $profile['updated_at'], $profile['has_private_key'], $profile['has_password'], $profile['has_key_passphrase']);
-        $profile['label'] = \byftp_truncate((string)$profile['label'] . ' – kopija', 80);
+        $profile['label'] = \GhostFTP_truncate((string)$profile['label'] . ' – kopija', 80);
         return $this->save($profile);
     }
 
@@ -336,9 +336,9 @@ final class ProfileStore
 
         return [
             'id' => $requestedId,
-            'label' => \byftp_truncate($label, 80),
+            'label' => \GhostFTP_truncate($label, 80),
             'protocol' => $protocol,
-            'host' => \byftp_truncate($host, 255),
+            'host' => \GhostFTP_truncate($host, 255),
             'port' => $port,
             'base_path' => PathGuard::normalizeRelative($basePath),
             'username' => $username,
@@ -346,7 +346,7 @@ final class ProfileStore
             'passive' => $passive,
             'utf8' => $utf8,
             'timeout' => $timeout,
-            'host_fingerprint' => \byftp_truncate($fingerprint, 200),
+            'host_fingerprint' => \GhostFTP_truncate($fingerprint, 200),
             'auth_method' => $authMethod,
             'public_key' => $publicKey,
             'private_key' => $privateKey,

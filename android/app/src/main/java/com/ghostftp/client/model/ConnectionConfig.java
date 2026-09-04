@@ -1,4 +1,4 @@
-package com.byftp.client.model;
+package com.GhostFTP.client.model;
 
 import java.util.Base64;
 import java.util.Locale;

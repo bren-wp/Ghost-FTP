@@ -4,7 +4,7 @@ package platform
 
 import (
 	"errors"
-	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -157,7 +157,7 @@ func RemoveShortcuts() error {
 	startDir := filepath.Dir(start)
 	if err := os.Remove(startDir); err != nil && !errors.Is(err, os.ErrNotExist) {
 		// A non-empty company Start Menu folder is normal; do not remove
-		// unrelated shortcuts that may belong to other ByFTP products.
+		// unrelated shortcuts that may belong to other GhostFTP products.
 		if entries, readErr := os.ReadDir(startDir); readErr != nil || len(entries) == 0 {
 			errs = append(errs, err)
 		}

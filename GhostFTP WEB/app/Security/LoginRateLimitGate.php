@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Security;
+namespace GhostFTP\Security;
 
 /**
  * Applies login rate limits in abuse-resistant order.

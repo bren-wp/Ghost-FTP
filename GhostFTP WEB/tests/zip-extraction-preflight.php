@@ -44,11 +44,11 @@ if (!class_exists(ZipArchive::class)) {
     exit(0);
 }
 
-$testStorage = sys_get_temp_dir() . '/byftp-zip-preflight-' . bin2hex(random_bytes(6));
+$testStorage = sys_get_temp_dir() . '/GhostFTP-zip-preflight-' . bin2hex(random_bytes(6));
 mkdir($testStorage . '/tmp', 0700, true);
-define('BYFTP_STORAGE', $testStorage);
+define('GhostFTP_STORAGE', $testStorage);
 
-function byftp_assert_temp_capacity(int $expectedBytes, int $reserveBytes = 16777216): void
+function GhostFTP_assert_temp_capacity(int $expectedBytes, int $reserveBytes = 16777216): void
 {
 }
 
@@ -56,8 +56,8 @@ require __DIR__ . '/../app/Remote/PathGuard.php';
 require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
 require __DIR__ . '/../app/Operations/RemoteOperations.php';
 
-use ByFTP\Operations\RemoteOperations;
-use ByFTP\Remote\RemoteClientInterface;
+use GhostFTP\Operations\RemoteOperations;
+use GhostFTP\Remote\RemoteClientInterface;
 
 final class ZipPreflightFakeClient implements RemoteClientInterface
 {

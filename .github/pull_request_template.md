@@ -12,7 +12,7 @@ Describe the change and why it is needed.
 ## Branding and compatibility
 
 - [ ] New public UI, documentation and release assets use **Ghost FTP**.
-- [ ] Any retained `ByFTP`/`byftp` identifier is required for backward compatibility, migration or installed-application identity and is not user-facing branding.
+- [ ] Any retained `GhostFTP`/`GhostFTP` identifier is required for backward compatibility, migration or installed-application identity and is not user-facing branding.
 
 ## Security and privacy
 

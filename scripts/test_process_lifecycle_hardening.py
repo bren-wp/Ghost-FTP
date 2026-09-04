@@ -49,7 +49,7 @@ class ProcessLifecycleHardeningTests(unittest.TestCase):
     def test_functional_regression_uses_real_descendant(self) -> None:
         text = self.read("internal/remote/process_lifecycle_test.go")
         for marker in (
-            'processHelperEnv = "BYFTP_PROCESS_HELPER"',
+            'processHelperEnv = "GhostFTP_PROCESS_HELPER"',
             'child := exec.Command(os.Args[0], "-test.run=TestProcessLifecycleHelper")',
             "configureToolCommand(cmd)",
             "cancel()",

@@ -1,25 +1,25 @@
 <?php
 declare(strict_types=1);
 
-use ByFTP\Remote\ClientFactory;
-use ByFTP\Remote\SftpClient;
-use ByFTP\Storage\JsonStore;
-use ByFTP\Storage\PreferenceStore;
-use ByFTP\Storage\ProfileStore;
-use ByFTP\Storage\UserWorkspace;
+use GhostFTP\Remote\ClientFactory;
+use GhostFTP\Remote\SftpClient;
+use GhostFTP\Storage\JsonStore;
+use GhostFTP\Storage\PreferenceStore;
+use GhostFTP\Storage\ProfileStore;
+use GhostFTP\Storage\UserWorkspace;
 
-function byftp_truncate(string $value, int $length): string
+function GhostFTP_truncate(string $value, int $length): string
 {
     return substr($value, 0, $length);
 }
 
-function byftp_config(bool $fresh = false): array
+function GhostFTP_config(bool $fresh = false): array
 {
     return ['secret_key' => base64_encode(str_repeat('P', 32))];
 }
 
-$storage = sys_get_temp_dir() . '/byftp-profile-recovery-' . bin2hex(random_bytes(6));
-define('BYFTP_STORAGE', $storage);
+$storage = sys_get_temp_dir() . '/GhostFTP-profile-recovery-' . bin2hex(random_bytes(6));
+define('GhostFTP_STORAGE', $storage);
 
 require __DIR__ . '/../app/Remote/PathGuard.php';
 require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
@@ -208,7 +208,7 @@ try {
     // Legacy upgrade must not make a different recovery decision than the normal runtime.
     // A stale root backup can contain a profile deleted before the upgrade started.
     $legacyUserDir = UserWorkspace::directory($legacyUserId);
-    $legacySource = BYFTP_STORAGE . '/profiles.json';
+    $legacySource = GhostFTP_STORAGE . '/profiles.json';
     $legacyTarget = UserWorkspace::file($legacyUserId, 'profiles.json');
     $legacyStore = new JsonStore($legacySource);
     $legacyStore->write([[
@@ -264,8 +264,8 @@ try {
             @rmdir($directory);
         }
     }
-    @rmdir(BYFTP_STORAGE . '/users');
-    @rmdir(BYFTP_STORAGE);
+    @rmdir(GhostFTP_STORAGE . '/users');
+    @rmdir(GhostFTP_STORAGE);
 }
 
 if ($failed) {

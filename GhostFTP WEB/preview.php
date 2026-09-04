@@ -2,20 +2,20 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Operations\RemoteOperations;
-use ByFTP\Remote\BoundedDownloadInterface;
-use ByFTP\Remote\ClientFactory;
-use ByFTP\Remote\PathGuard;
-use ByFTP\Security\AppLogger;
-use ByFTP\Security\Auth;
-use ByFTP\Storage\ProfileStore;
+use GhostFTP\Operations\RemoteOperations;
+use GhostFTP\Remote\BoundedDownloadInterface;
+use GhostFTP\Remote\ClientFactory;
+use GhostFTP\Remote\PathGuard;
+use GhostFTP\Security\AppLogger;
+use GhostFTP\Security\Auth;
+use GhostFTP\Storage\ProfileStore;
 
 if (!Auth::check()) { http_response_code(401); exit('Sesija je istekla.'); }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); exit('Method not allowed.'); }
-if (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) { http_response_code(419); exit('Sigurnosni token nije valjan.'); }
+if (!GhostFTP_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) { http_response_code(419); exit('Sigurnosni token nije valjan.'); }
 
 $userId = Auth::id();
-byftp_release_session_lock();
+GhostFTP_release_session_lock();
 $profileId = (string)($_POST['profile_id'] ?? '');
 $profile = (new ProfileStore($userId))->find($profileId, true);
 if (!$profile) { http_response_code(404); exit('Profil nije pronađen.'); }
@@ -25,7 +25,7 @@ if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
     http_response_code(415); exit('Ova vrsta datoteke nema sigurni ugrađeni pregled.');
 }
 
-$tmp = tempnam(BYFTP_STORAGE . '/tmp', 'preview-');
+$tmp = tempnam(GhostFTP_STORAGE . '/tmp', 'preview-');
 if ($tmp === false) { http_response_code(500); exit('Privremena datoteka nije dostupna.'); }
 $client = null;
 try {
@@ -43,7 +43,7 @@ try {
     if ($reportedSize > $maxPreviewBytes) {
         throw new RuntimeException('Pregled slike podržava datoteke do 10 MiB.');
     }
-    \byftp_assert_temp_capacity($maxPreviewBytes);
+    \GhostFTP_assert_temp_capacity($maxPreviewBytes);
     $size = $client->downloadBounded($path, $tmp, $maxPreviewBytes);
     if ($size < 1) {
         throw new RuntimeException('Pregled slike podržava datoteke do 10 MiB.');
@@ -61,7 +61,7 @@ try {
     AppLogger::event('file.preview', ['profile_id' => $profileId, 'path' => $path, 'bytes' => $size]);
     readfile($tmp);
 } catch (Throwable $e) {
-    AppLogger::event('preview.error', ['profile_id' => $profileId, 'path' => $path, 'error' => byftp_truncate($e->getMessage(), 300)]);
+    AppLogger::event('preview.error', ['profile_id' => $profileId, 'path' => $path, 'error' => GhostFTP_truncate($e->getMessage(), 300)]);
     if (!headers_sent()) { http_response_code(400); header('Content-Type: text/plain; charset=utf-8'); }
     echo $e->getMessage();
 } finally {

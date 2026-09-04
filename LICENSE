@@ -1,17 +1,17 @@
-Brendigo ByFTP vlasnička licenca izvornog koda
+Brendigo GhostFTP vlasnička licenca izvornog koda
 Verzija 1.1 — Sva prava pridržana
 
 Copyright (c) 2026 Brendigo. Sva prava pridržana.
 
 1. VLASNIŠTVO
 
-ByFTP, uključujući izvorni kod, objektni kod, korisničko sučelje, brending, dokumentaciju, grafiku, ikone, build skripte i povezane materijale (zajedno: „Softver”), vlasnički je softver tvrtke Brendigo i zaštićen je primjenjivim autorskim i drugim pravima intelektualnog vlasništva.
+GhostFTP, uključujući izvorni kod, objektni kod, korisničko sučelje, brending, dokumentaciju, grafiku, ikone, build skripte i povezane materijale (zajedno: „Softver”), vlasnički je softver tvrtke Brendigo i zaštićen je primjenjivim autorskim i drugim pravima intelektualnog vlasništva.
 
 2. OGRANIČENO DOPUŠTENJE
 
-Dopušteno je pregledavati izvorni kod u ovom repozitoriju te preuzeti i koristiti službena, neizmijenjena binarna ByFTP izdanja za njihovu namijenjenu svrhu, pod uvjetima ove Licence.
+Dopušteno je pregledavati izvorni kod u ovom repozitoriju te preuzeti i koristiti službena, neizmijenjena binarna GhostFTP izdanja za njihovu namijenjenu svrhu, pod uvjetima ove Licence.
 
-Izvorni kod objavljen je radi transparentnosti, sigurnosne provjere i evaluacije. Sama objava izvornog koda ne čini ByFTP open-source softverom i ne daje opće pravo izmjene, redistribucije ili izrade izvedenih djela.
+Izvorni kod objavljen je radi transparentnosti, sigurnosne provjere i evaluacije. Sama objava izvornog koda ne čini GhostFTP open-source softverom i ne daje opće pravo izmjene, redistribucije ili izrade izvedenih djela.
 
 3. ZABRANJENO BEZ PRETHODNOG PISANOG DOPUŠTENJA TVRTKE BRENDIGO
 
@@ -20,12 +20,12 @@ Osim prava koja se prema zakonu ne mogu ograničiti, bez prethodnog pisanog dopu
 (a) mijenjati, prilagođavati, prevoditi, patchirati ili izrađivati izvedena djela Softvera;
 (b) distribuirati, objavljivati, sublicencirati, prodavati, iznajmljivati ili na drugi način davati trećim osobama izmijenjeni izvorni kod ili binarne datoteke;
 (c) redistribuirati izvorni kod ili službene binarne datoteke kao dio drugog proizvoda, instalacijskog paketa, bundlea, usluge ili repozitorija;
-(d) rebrandirati, white-labelati, ukloniti, zamijeniti ili prikriti nazive ByFTP/Brendigo, autorska prava, identitet proizvoda ili atribuciju;
+(d) rebrandirati, white-labelati, ukloniti, zamijeniti ili prikriti nazive GhostFTP/Brendigo, autorska prava, identitet proizvoda ili atribuciju;
 (e) koristiti dio izvornog koda u drugom projektu ili proizvodu;
 (f) izrađivati ili distribuirati konkurentski ili izvedeni proizvod koji se u bitnom temelji na Softveru;
 (g) tvrditi autorstvo ili vlasništvo nad Softverom ili njegovim bitnim dijelom;
 (h) sublicencirati ili prenositi prava dana ovom Licencom;
-(i) koristiti žigove, logotipe, ikone ili brending Brendigo/ByFTP na način koji stvara dojam neodobrene podrške, povezanosti ili autorizacije.
+(i) koristiti žigove, logotipe, ikone ili brending Brendigo/GhostFTP na način koji stvara dojam neodobrene podrške, povezanosti ili autorizacije.
 
 4. PRAVA VEZANA UZ JAVNI GITHUB REPOZITORIJ
 
@@ -33,11 +33,11 @@ Ako je ovaj repozitorij javan na GitHubu, GitHubovi uvjeti korištenja mogu kori
 
 5. OVLAŠTENI DOPRINOSI
 
-Otvaranje issuea, forka ili pull requesta samo po sebi ne daje dopuštenje za izmjenu ili redistribuciju ByFTP-a. Doprinosi izvornom kodu dopušteni su samo kada ih Brendigo izričito zatraži ili odobri. Prihvaćeni doprinosi podliježu pravilima doprinosa ovog repozitorija i ne smiju sadržavati kod treće strane koji Brendigo nema pravo distribuirati prema ovom modelu licence.
+Otvaranje issuea, forka ili pull requesta samo po sebi ne daje dopuštenje za izmjenu ili redistribuciju GhostFTP-a. Doprinosi izvornom kodu dopušteni su samo kada ih Brendigo izričito zatraži ili odobri. Prihvaćeni doprinosi podliježu pravilima doprinosa ovog repozitorija i ne smiju sadržavati kod treće strane koji Brendigo nema pravo distribuirati prema ovom modelu licence.
 
 6. SLUŽBENA IZDANJA
 
-Službena su samo binarna izdanja koja Brendigo distribuira kroz službeni ByFTP/Brendigo kanal. Izmijenjeni, prepakirani ili rebrandirani buildovi nisu službena izdanja.
+Službena su samo binarna izdanja koja Brendigo distribuira kroz službeni GhostFTP/Brendigo kanal. Izmijenjeni, prepakirani ili rebrandirani buildovi nisu službena izdanja.
 
 7. BEZ JAMSTVA
 

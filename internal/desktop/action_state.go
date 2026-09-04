@@ -1,6 +1,6 @@
 package desktop
 
-import "github.com/bren-wp/by-ftp/internal/model"
+import "github.com/bren-wp/Ghost-FTP/internal/model"
 
 type transferActionState struct {
 	Pause  bool

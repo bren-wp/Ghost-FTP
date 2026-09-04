@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Storage;
+namespace GhostFTP\Storage;
 
-use ByFTP\Remote\PathGuard;
+use GhostFTP\Remote\PathGuard;
 use RuntimeException;
 
 final class PreferenceStore

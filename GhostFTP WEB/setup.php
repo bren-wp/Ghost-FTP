@@ -2,23 +2,23 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Security\AppLogger;
-use ByFTP\Storage\UserStore;
+use GhostFTP\Security\AppLogger;
+use GhostFTP\Storage\UserStore;
 
-if (byftp_is_configured()) {
-    byftp_redirect('login');
+if (GhostFTP_is_configured()) {
+    GhostFTP_redirect('login');
 }
 
 $hasStoredData = static function (): bool {
     $candidates = [
-        BYFTP_STORAGE . '/users.json',
-        BYFTP_STORAGE . '/users.json.bak',
-        BYFTP_STORAGE . '/profiles.json',
-        BYFTP_STORAGE . '/profiles.json.bak',
-        BYFTP_STORAGE . '/profiles.json.migrated.bak',
-        BYFTP_STORAGE . '/preferences.json',
-        BYFTP_STORAGE . '/preferences.json.bak',
-        BYFTP_STORAGE . '/preferences.json.migrated.bak',
+        GhostFTP_STORAGE . '/users.json',
+        GhostFTP_STORAGE . '/users.json.bak',
+        GhostFTP_STORAGE . '/profiles.json',
+        GhostFTP_STORAGE . '/profiles.json.bak',
+        GhostFTP_STORAGE . '/profiles.json.migrated.bak',
+        GhostFTP_STORAGE . '/preferences.json',
+        GhostFTP_STORAGE . '/preferences.json.bak',
+        GhostFTP_STORAGE . '/preferences.json.migrated.bak',
     ];
     foreach ($candidates as $path) {
         if (!is_file($path)) {
@@ -29,7 +29,7 @@ $hasStoredData = static function (): bool {
             return true;
         }
     }
-    foreach (glob(BYFTP_STORAGE . '/users/*', GLOB_ONLYDIR) ?: [] as $directory) {
+    foreach (glob(GhostFTP_STORAGE . '/users/*', GLOB_ONLYDIR) ?: [] as $directory) {
         foreach (['profiles.json', 'profiles.json.bak', 'preferences.json', 'preferences.json.bak'] as $name) {
             $path = $directory . '/' . $name;
             if (!is_file($path)) {
@@ -43,16 +43,16 @@ $hasStoredData = static function (): bool {
     }
     return false;
 };
-$configRecoveryRequired = isset($GLOBALS['byftp_config_error']);
+$configRecoveryRequired = isset($GLOBALS['GhostFTP_config_error']);
 $existingDataDetected = $configRecoveryRequired || $hasStoredData();
 $error = $configRecoveryRequired
     ? 'Konfiguracija aplikacije nije čitljiva. Automatski povratak na stariji app.json.bak je blokiran radi sigurnosti. Vrati provjereni storage/app.json prije nastavka.'
     : ($existingDataDetected
-        ? 'Pronađeni su postojeći ByFTP korisnički podaci, ali nedostaje konfiguracija s encryption ključem. Vrati storage/app.json ili storage/app.json.bak iz sigurnosne kopije prije nastavka.'
+        ? 'Pronađeni su postojeći GhostFTP korisnički podaci, ali nedostaje konfiguracija s encryption ključem. Vrati storage/app.json ili storage/app.json.bak iz sigurnosne kopije prije nastavka.'
         : '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $appName = trim((string)($_POST['app_name'] ?? 'ByFTP')) ?: 'ByFTP';
+    $appName = trim((string)($_POST['app_name'] ?? 'GhostFTP')) ?: 'GhostFTP';
     $name = trim((string)($_POST['name'] ?? ''));
     $email = trim((string)($_POST['email'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
@@ -63,67 +63,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Never rotate the encryption key while encrypted user/profile data still exists
         // or while the primary configuration requires explicit operator recovery.
         $error = 'Postavljanje je zaključano radi zaštite postojećih podataka i sigurnosnih postavki. Vrati provjereni storage/app.json prije nastavka.';
-    } elseif (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+    } elseif (!GhostFTP_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
         $error = 'Sigurnosni token nije valjan. Osvježi stranicu.';
     } elseif ($password !== $confirm) {
         $error = 'Lozinke se ne podudaraju.';
-    } elseif (!is_writable(BYFTP_STORAGE)) {
+    } elseif (!is_writable(GhostFTP_STORAGE)) {
         $error = 'Direktorij storage nije zapisiv. Provjeri dozvole na hostingu.';
     } elseif (!function_exists('sodium_crypto_secretbox') && !function_exists('openssl_encrypt')) {
         $error = 'Hosting mora imati Sodium ili OpenSSL za šifriranje FTP vjerodajnica.';
     } else {
-        $setupLock = @fopen(BYFTP_STORAGE . '/setup.lock', 'c+');
+        $setupLock = @fopen(GhostFTP_STORAGE . '/setup.lock', 'c+');
         if (!is_resource($setupLock) || !flock($setupLock, LOCK_EX)) {
             if (is_resource($setupLock)) {
                 fclose($setupLock);
             }
             $error = 'Nije moguće zaključati instalaciju. Provjeri dozvole storage direktorija i pokušaj ponovno.';
         } else {
-            @chmod(BYFTP_STORAGE . '/setup.lock', 0600);
+            @chmod(GhostFTP_STORAGE . '/setup.lock', 0600);
             $setupTransactionStarted = false;
             try {
                 // Re-check under an exclusive lock so two simultaneous first-run requests
                 // cannot create different encryption keys or competing administrator accounts.
-                if (byftp_is_configured()) {
-                    byftp_redirect('login');
+                if (GhostFTP_is_configured()) {
+                    GhostFTP_redirect('login');
                 }
-                if (isset($GLOBALS['byftp_config_error'])) {
+                if (isset($GLOBALS['GhostFTP_config_error'])) {
                     throw new RuntimeException('Konfiguracija aplikacije zahtijeva ručni oporavak. Novi setup nije pokrenut.');
                 }
 
                 $setupTransactionStarted = true;
                 $config = [
-                    'app_name' => byftp_truncate($appName, 80),
+                    'app_name' => GhostFTP_truncate($appName, 80),
                     'secret_key' => base64_encode(random_bytes(32)),
                     'allow_registration' => $allowRegistration,
                     'allow_private_hosts' => false,
                     'session_idle_minutes' => 120,
                     'session_max_hours' => 12,
                     'installed_at' => gmdate('c'),
-                    'version' => BYFTP_VERSION,
+                    'version' => GhostFTP_VERSION,
                 ];
-                byftp_write_config($config);
+                GhostFTP_write_config($config);
                 (new UserStore())->create($name, $email, $password, 'admin');
                 AppLogger::event('install.complete', ['email' => strtolower($email)]);
-                byftp_redirect('login', ['installed' => 1]);
+                GhostFTP_redirect('login', ['installed' => 1]);
             } catch (Throwable $e) {
                 // Only a transaction that passed the recovery guards may remove setup
                 // artifacts. A pre-existing corrupt/missing primary config must be left
                 // untouched so an operator can restore it from a verified backup.
                 if ($setupTransactionStarted) {
                     $rollbackArtifacts = [
-                        byftp_config_path(),
-                        byftp_config_path() . '.bak',
-                        byftp_config_path() . '.lock',
-                        BYFTP_STORAGE . '/users.json',
-                        BYFTP_STORAGE . '/users.json.bak',
-                        BYFTP_STORAGE . '/users.json.lock',
+                        GhostFTP_config_path(),
+                        GhostFTP_config_path() . '.bak',
+                        GhostFTP_config_path() . '.lock',
+                        GhostFTP_STORAGE . '/users.json',
+                        GhostFTP_STORAGE . '/users.json.bak',
+                        GhostFTP_STORAGE . '/users.json.lock',
                     ];
                     foreach ($rollbackArtifacts as $artifact) {
                         @unlink($artifact);
                     }
-                    $GLOBALS['byftp_config_cache'] = [];
-                    unset($GLOBALS['byftp_config_error']);
+                    $GLOBALS['GhostFTP_config_cache'] = [];
+                    unset($GLOBALS['GhostFTP_config_error']);
                 }
                 $error = $e->getMessage();
             } finally {
@@ -133,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-$pageTitle = 'Postavljanje ByFTP';
+$pageTitle = 'Postavljanje GhostFTP';
 ?><!doctype html>
 <html lang="hr">
 <head>
@@ -146,23 +146,23 @@ $pageTitle = 'Postavljanje ByFTP';
     <p class="eyebrow">Prvo pokretanje</p>
     <h1>Izradi administratorski račun.</h1>
     <p class="muted">Svaki korisnik dobiva vlastite server profile, favorite i postavke. FTP/SFTP vjerodajnice spremaju se šifrirano.</p>
-    <?php if ($error): ?><div class="alert error" role="alert"><?= byftp_e($error) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div><?php endif; ?>
     <?php if ($existingDataDetected): ?>
         <div class="stack">
             <p class="muted">Novi setup bi mogao izraditi novi encryption ključ ili vratiti stariju sigurnosnu politiku. Ne briši <code>storage/users/</code> niti postojeće JSON datoteke. Vrati provjereni <code>storage/app.json</code> prije nastavka.</p>
         </div>
     <?php else: ?>
     <form method="post" class="stack auth-form" autocomplete="off">
-        <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>">
+        <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
         <label>Naziv aplikacije
-            <input name="app_name" value="<?= byftp_e((string)($_POST['app_name'] ?? 'ByFTP')) ?>" maxlength="80" required>
+            <input name="app_name" value="<?= GhostFTP_e((string)($_POST['app_name'] ?? 'GhostFTP')) ?>" maxlength="80" required>
         </label>
         <div class="form-grid two">
             <label>Ime administratora
-                <input name="name" value="<?= byftp_e((string)($_POST['name'] ?? '')) ?>" maxlength="80" autocomplete="name" required>
+                <input name="name" value="<?= GhostFTP_e((string)($_POST['name'] ?? '')) ?>" maxlength="80" autocomplete="name" required>
             </label>
             <label>E-mail
-                <input type="email" name="email" value="<?= byftp_e((string)($_POST['email'] ?? '')) ?>" maxlength="254" autocomplete="email" required>
+                <input type="email" name="email" value="<?= GhostFTP_e((string)($_POST['email'] ?? '')) ?>" maxlength="254" autocomplete="email" required>
             </label>
         </div>
         <div class="form-grid two">
@@ -175,13 +175,13 @@ $pageTitle = 'Postavljanje ByFTP';
         </div>
         <label class="check-card">
             <input type="checkbox" name="allow_registration" value="1" <?= !empty($_POST['allow_registration']) ? 'checked' : '' ?>>
-            <span><strong>Dopusti samostalnu registraciju</strong><small>Korisnici će moći sami izraditi izolirani ByFTP račun. Možeš promijeniti kasnije.</small></span>
+            <span><strong>Dopusti samostalnu registraciju</strong><small>Korisnici će moći sami izraditi izolirani GhostFTP račun. Možeš promijeniti kasnije.</small></span>
         </label>
         <button class="button primary auth-submit" type="submit">Završi postavljanje <span aria-hidden="true">→</span></button>
     </form>
     <?php endif; ?>
-    <div class="auth-security-note"><span aria-hidden="true">●</span> Za produkciju koristi HTTPS. ByFTP ne sprema FTP/SFTP lozinke kao čitljiv tekst.</div>
+    <div class="auth-security-note"><span aria-hidden="true">●</span> Za produkciju koristi HTTPS. GhostFTP ne sprema FTP/SFTP lozinke kao čitljiv tekst.</div>
 </main>
-<script src="<?= byftp_e(byftp_asset('js/pwa.js')) ?>" defer></script>
+<script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
 </body>
 </html>

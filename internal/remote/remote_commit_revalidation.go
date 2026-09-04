@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 type remoteListFunc func(context.Context, string) ([]model.Item, error)
@@ -30,7 +30,7 @@ func revalidateRemoteCommit(
 		revalidationErr := fmt.Errorf("nije moguće ponovno provjeriti remote odredište prije aktivacije: %w", err)
 		return nil, cleanupFailure(revalidationErr, dir, tempName, delete)
 	}
-	// Neki FTP LIST fallbackovi ne prikazuju skrivene .byftp-part-* datoteke,
+	// Neki FTP LIST fallbackovi ne prikazuju skrivene .GhostFTP-part-* datoteke,
 	// zato odsutnost staging stavke u listingu sama po sebi nije dokaz greške.
 	// Ako je server ipak vrati, ona mora ostati obična datoteka; direktorij ili
 	// symlink pod našim nasumičnim staging nazivom nikada se ne smije aktivirati.

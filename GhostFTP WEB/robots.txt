@@ -1,4 +1,4 @@
-# ByFTP is private. UI routes return X-Robots-Tag: noindex so crawlers can
+# GhostFTP is private. UI routes return X-Robots-Tag: noindex so crawlers can
 # receive the noindex directive; sensitive/non-HTML endpoints stay blocked.
 User-agent: *
 Disallow: /api

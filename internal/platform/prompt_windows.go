@@ -77,7 +77,7 @@ type promptState struct {
 var (
 	promptStates sync.Map
 	promptOnce   sync.Once
-	promptClass  = "ByFTP.PromptDialog"
+	promptClass  = "GhostFTP.PromptDialog"
 	promptProc   = syscall.NewCallback(promptWndProc)
 )
 

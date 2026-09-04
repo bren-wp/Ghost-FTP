@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	testExecutable = `C:\Program Files\ByFTP\ByFTP.exe`
+	testExecutable = `C:\Program Files\GhostFTP\GhostFTP.exe`
 	validToken     = "0123456789abcdef0123456789abcdef"
 )
 
@@ -30,7 +30,7 @@ func TestValidAskpassInvocation(t *testing.T) {
 	}{
 		{
 			name:       "rejects wrong executable",
-			askpassExe: `C:\Other\ByFTP.exe`,
+			askpassExe: `C:\Other\GhostFTP.exe`,
 			require:    "force",
 			token:      validToken,
 		},

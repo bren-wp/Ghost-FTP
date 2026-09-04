@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security report
-    url: https://github.com/bren-wp/by-ftp/security/policy
+    url: https://github.com/bren-wp/Ghost-FTP/security/policy
     about: Use the security policy for sensitive vulnerabilities instead of a public issue.

@@ -37,12 +37,12 @@ def main() -> int:
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
 
-    web_version = read("ByFTP WEB/VERSION").strip()
+    web_version = read("GhostFTP WEB/VERSION").strip()
     if web_version != version:
         fail(f"web VERSION must equal root VERSION: {web_version!r} != {version!r}")
 
     try:
-        web_composer = json.loads(read("ByFTP WEB/composer.json"))
+        web_composer = json.loads(read("GhostFTP WEB/composer.json"))
     except json.JSONDecodeError as exc:
         fail(f"web composer.json is invalid JSON: {exc}")
     if web_composer.get("version") != version:
@@ -50,10 +50,10 @@ def main() -> int:
     if web_composer.get("name") != "brendigo/ghost-ftp-web":
         fail("web Composer package name is not Ghost FTP")
     description = str(web_composer.get("description", ""))
-    if "Ghost FTP" not in description or "ByFTP" in description:
+    if "Ghost FTP" not in description or "GhostFTP" in description:
         fail("web Composer description contains stale public branding")
 
-    service_worker = read("ByFTP WEB/service-worker.js")
+    service_worker = read("GhostFTP WEB/service-worker.js")
     if f"v{version}" not in service_worker:
         fail("web service-worker cache version is not bound to canonical VERSION")
 
@@ -65,7 +65,7 @@ def main() -> int:
     if f'id("com.android.application") version "{AGP_TOOLCHAIN}" apply false' not in android_root:
         fail(f"android/build.gradle.kts must use Android Gradle Plugin {AGP_TOOLCHAIN}")
 
-    for rel in ("cmd/byftp/main.go", "cmd/installer/main.go"):
+    for rel in ("cmd/GhostFTP/main.go", "cmd/installer/main.go"):
         text = read(rel)
         if 'var version = "dev"' not in text:
             fail(f"{rel} does not keep the safe development version fallback")
@@ -162,7 +162,7 @@ def main() -> int:
         ('MARKETING_VERSION="$VERSION"', 'CURRENT_PROJECT_VERSION="$BUILD_NUMBER"', "scripts/package_ios.py"),
         "ios/BUILD.sh",
     )
-    ios_project = read("ios/ByFTP.xcodeproj/project.pbxproj")
+    ios_project = read("ios/GhostFTP.xcodeproj/project.pbxproj")
     if "MARKETING_VERSION = 0.0.0" not in ios_project:
         fail("iOS project does not keep the safe development marketing-version fallback")
     if re.search(r"MARKETING_VERSION = (?!0\.0\.0)\d+\.\d+\.\d+", ios_project):
@@ -192,7 +192,7 @@ def main() -> int:
         ),
         ".github/workflows/release.yml",
     )
-    if "dotnet nuget push" in release_workflow or "<PackageId>ByFTP.Windows</PackageId>" in release_workflow:
+    if "dotnet nuget push" in release_workflow or "<PackageId>GhostFTP.Windows</PackageId>" in release_workflow:
         fail("release workflow contains obsolete NuGet publication")
 
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")

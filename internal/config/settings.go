@@ -4,8 +4,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/bren-wp/by-ftp/internal/i18n"
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 const (

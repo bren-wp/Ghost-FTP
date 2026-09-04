@@ -4,7 +4,7 @@ package desktop
 
 import (
 	"fmt"
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -246,7 +246,7 @@ func attachSystemImageList(list uintptr) {
 		return
 	}
 	var info shFileInfo
-	probe := wstr("byftp.file")
+	probe := wstr("GhostFTP.file")
 	h, _, _ := shGetFileInfoW.Call(
 		uintptr(unsafe.Pointer(probe)), fileAttributeNormal, uintptr(unsafe.Pointer(&info)), unsafe.Sizeof(info),
 		shgfiUseFileAttributes|shgfiSysIconIndex|shgfiSmallIcon,
@@ -261,15 +261,15 @@ var systemIconCache sync.Map
 func systemIconIndex(name string, directory bool) int32 {
 	attr := uintptr(fileAttributeNormal)
 	key := strings.ToLower(filepath.Ext(name))
-	probe := "byftp" + key
+	probe := "GhostFTP" + key
 	if key == "" {
 		key = "<file>"
-		probe = "byftp.file"
+		probe = "GhostFTP.file"
 	}
 	if directory {
 		attr = fileAttributeDirectory
 		key = "<dir>"
-		probe = "ByFTP-folder"
+		probe = "GhostFTP-folder"
 	}
 	if cached, ok := systemIconCache.Load(key); ok {
 		return cached.(int32)

@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Remote;
+namespace GhostFTP\Remote;
 
-use ByFTP\Security\HostGuard;
+use GhostFTP\Security\HostGuard;
 use RuntimeException;
 
 final class SftpClient implements RemoteClientInterface, BoundedDownloadInterface
@@ -25,7 +25,7 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
         }
 
         $host = (string)$this->profile['host'];
-        $targets = HostGuard::connectionTargets($host, \byftp_private_hosts_allowed());
+        $targets = HostGuard::connectionTargets($host, \GhostFTP_private_hosts_allowed());
         $conn = false;
         foreach ($targets as $target) {
             $conn = @ssh2_connect($target, (int)$this->profile['port']);
@@ -250,8 +250,8 @@ final class SftpClient implements RemoteClientInterface, BoundedDownloadInterfac
         $publicKey = (string)($this->profile['public_key'] ?? '');
         $privateKey = (string)($this->profile['private_key'] ?? '');
         if ($publicKey === '' || $privateKey === '') throw new RuntimeException('SFTP profil nema spremljen javni i privatni ključ.');
-        $pub = tempnam(BYFTP_STORAGE . '/tmp', 'sftp-pub-');
-        $priv = tempnam(BYFTP_STORAGE . '/tmp', 'sftp-key-');
+        $pub = tempnam(GhostFTP_STORAGE . '/tmp', 'sftp-pub-');
+        $priv = tempnam(GhostFTP_STORAGE . '/tmp', 'sftp-key-');
         if ($pub === false || $priv === false) {
             if (is_string($pub)) @unlink($pub);
             if (is_string($priv)) @unlink($priv);

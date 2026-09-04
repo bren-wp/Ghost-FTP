@@ -108,7 +108,7 @@ func TestUploadSourceSnapshotClosePreservesPathAfterCleanupFailure(t *testing.T)
 	if root == "" {
 		root = string(filepath.Separator)
 	}
-	snapshotPath := filepath.Join(root, "byftp-upload-cleanup-sentinel")
+	snapshotPath := filepath.Join(root, "GhostFTP-upload-cleanup-sentinel")
 	snap := &uploadSourceSnapshot{dir: root, path: snapshotPath}
 
 	if err := snap.Close(); err == nil {

@@ -2,9 +2,9 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Security\AppLogger;
-use ByFTP\Security\Auth;
-use ByFTP\Storage\UserStore;
+use GhostFTP\Security\AppLogger;
+use GhostFTP\Security\Auth;
+use GhostFTP\Storage\UserStore;
 
 Auth::requireAdmin();
 $store = new UserStore();
@@ -13,7 +13,7 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+    if (!GhostFTP_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
         $error = 'Sigurnosni token nije valjan.';
     } else {
         try {
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $allUsers = $store->all();
-$pageTitle = 'Korisnici · ' . byftp_app_name();
+$pageTitle = 'Korisnici · ' . GhostFTP_app_name();
 $activeSettingsPage = 'users';
 ?>
 <!doctype html>
@@ -93,10 +93,10 @@ $activeSettingsPage = 'users';
     </section>
 
     <?php if ($error): ?>
-        <div class="alert error" role="alert"><?= byftp_e($error) ?></div>
+        <div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div>
     <?php endif; ?>
     <?php if ($success): ?>
-        <div class="alert success" role="status"><?= byftp_e($success) ?></div>
+        <div class="alert success" role="status"><?= GhostFTP_e($success) ?></div>
     <?php endif; ?>
 
     <div class="settings-grid users-grid">
@@ -104,7 +104,7 @@ $activeSettingsPage = 'users';
             <p class="eyebrow">Novi korisnik</p>
             <h2>Izradi račun</h2>
             <form method="post" class="stack" autocomplete="off">
-                <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>">
+                <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
                 <input type="hidden" name="action" value="create">
                 <label>Ime<input name="name" maxlength="80" autocomplete="name" required></label>
                 <label>E-mail<input type="email" name="email" maxlength="254" autocomplete="email" required></label>
@@ -134,17 +134,17 @@ $activeSettingsPage = 'users';
                         : substr((string)$user['name'], 0, 1));
                     ?>
                     <article class="user-admin-row">
-                        <div class="user-avatar"><?= byftp_e($initial) ?></div>
+                        <div class="user-avatar"><?= GhostFTP_e($initial) ?></div>
                         <div class="user-admin-copy">
-                            <strong><?= byftp_e((string)$user['name']) ?></strong>
-                            <span><?= byftp_e((string)$user['email']) ?></span>
-                            <small>Zadnja prijava: <?= byftp_e(byftp_human_date($user['last_login_at'] ?? null)) ?></small>
+                            <strong><?= GhostFTP_e((string)$user['name']) ?></strong>
+                            <span><?= GhostFTP_e((string)$user['email']) ?></span>
+                            <small>Zadnja prijava: <?= GhostFTP_e(GhostFTP_human_date($user['last_login_at'] ?? null)) ?></small>
                         </div>
 
                         <form method="post" class="user-admin-controls">
-                            <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>">
+                            <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
                             <input type="hidden" name="action" value="update">
-                            <input type="hidden" name="id" value="<?= byftp_e((string)$user['id']) ?>">
+                            <input type="hidden" name="id" value="<?= GhostFTP_e((string)$user['id']) ?>">
                             <select name="role" aria-label="Uloga korisnika">
                                 <option value="user" <?= $user['role'] === 'user' ? 'selected' : '' ?>>Korisnik</option>
                                 <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Administrator</option>
@@ -161,18 +161,18 @@ $activeSettingsPage = 'users';
                             <summary>Više</summary>
                             <div class="user-admin-more-body">
                                 <form method="post" class="inline-form" autocomplete="off">
-                                    <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>">
+                                    <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
                                     <input type="hidden" name="action" value="reset_password">
-                                    <input type="hidden" name="id" value="<?= byftp_e((string)$user['id']) ?>">
+                                    <input type="hidden" name="id" value="<?= GhostFTP_e((string)$user['id']) ?>">
                                     <input type="password" name="password" minlength="12" autocomplete="new-password" placeholder="Nova lozinka" required>
                                     <input type="password" name="confirm" minlength="12" autocomplete="new-password" placeholder="Ponovi" required>
                                     <button class="button ghost compact" type="submit">Resetiraj lozinku</button>
                                 </form>
                                 <?php if (!$isSelf): ?>
-                                    <form method="post" data-confirm-delete-user data-user-label="<?= byftp_e((string)$user['email']) ?>">
-                                        <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>">
+                                    <form method="post" data-confirm-delete-user data-user-label="<?= GhostFTP_e((string)$user['email']) ?>">
+                                        <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
                                         <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="id" value="<?= byftp_e((string)$user['id']) ?>">
+                                        <input type="hidden" name="id" value="<?= GhostFTP_e((string)$user['id']) ?>">
                                         <button class="button danger compact" type="submit">Obriši račun</button>
                                     </form>
                                 <?php endif; ?>
@@ -184,7 +184,7 @@ $activeSettingsPage = 'users';
         </section>
     </div>
 </main>
-<script src="<?= byftp_e(byftp_asset('js/settings.js')) ?>" defer></script>
-<script src="<?= byftp_e(byftp_asset('js/pwa.js')) ?>" defer></script>
+<script src="<?= GhostFTP_e(GhostFTP_asset('js/settings.js')) ?>" defer></script>
+<script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
 </body>
 </html>

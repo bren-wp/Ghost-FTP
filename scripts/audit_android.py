@@ -77,7 +77,7 @@ def main() -> int:
             if f'domain="{domain}" path="."' not in backup:
                 fail(f"{rel} does not exclude the {domain} backup domain")
 
-    connection = require("android/app/src/main/java/com/byftp/client/model/ConnectionConfig.java", (
+    connection = require("android/app/src/main/java/com/GhostFTP/client/model/ConnectionConfig.java", (
         "SFTP requires an expected SHA-256 host-key fingerprint",
         "Port must be between 1 and 65535",
         "not a URL or path",
@@ -103,7 +103,7 @@ def main() -> int:
     if "PromiscuousVerifier" in connection:
         fail("connection validation references a permissive SFTP verifier")
 
-    remote_paths = require("android/app/src/main/java/com/byftp/client/model/RemotePaths.java", (
+    remote_paths = require("android/app/src/main/java/com/GhostFTP/client/model/RemotePaths.java", (
         "Remote path is not canonical.",
         "Remote path contains an unsafe component.",
         "!name.equals(name.trim())",
@@ -114,7 +114,7 @@ def main() -> int:
         if forbidden in remote_paths:
             fail("Android remote path handling still normalizes unsafe separators")
 
-    entry_list = require("android/app/src/main/java/com/byftp/client/model/RemoteEntryList.java", (
+    entry_list = require("android/app/src/main/java/com/GhostFTP/client/model/RemoteEntryList.java", (
         "comparing(RemoteEntry::directory).reversed()",
         "String.CASE_INSENSITIVE_ORDER",
         "toLowerCase(Locale.ROOT)",
@@ -123,7 +123,7 @@ def main() -> int:
     if "source.sort(" in entry_list:
         fail("Android list presentation must not mutate the transport-owned source list")
 
-    diagnostics = require("android/app/src/main/java/com/byftp/client/model/SharedHostingDiagnostics.java", (
+    diagnostics = require("android/app/src/main/java/com/GhostFTP/client/model/SharedHostingDiagnostics.java", (
         "record SharedHostingDiagnostics",
         '"public_html", "httpdocs", "htdocs", "www", "web", "html"',
         "protocol != ConnectionConfig.Protocol.FTP",
@@ -135,7 +135,7 @@ def main() -> int:
         if forbidden in diagnostics:
             fail(f"Android shared-hosting diagnostics gained secret/network behavior: {forbidden}")
 
-    transfer_streams = require("android/app/src/main/java/com/byftp/client/remote/TransferStreams.java", (
+    transfer_streams = require("android/app/src/main/java/com/GhostFTP/client/remote/TransferStreams.java", (
         "final class TransferStreams",
         "FilterInputStream", "FilterOutputStream",
         "void onBytesTransferred(long bytes)",
@@ -144,7 +144,7 @@ def main() -> int:
     if "Thread.interrupted" in transfer_streams or "close()" in transfer_streams:
         fail("Android transfer progress wrapper must observe bytes without injecting transport cancellation")
 
-    sftp = require("android/app/src/main/java/com/byftp/client/remote/SftpRemoteClient.java", (
+    sftp = require("android/app/src/main/java/com/GhostFTP/client/remote/SftpRemoteClient.java", (
         "next.addHostKeyVerifier(fingerprint)",
         "next.authPassword(username, loginPassword)",
         "RemotePaths.validateName(name)",
@@ -155,7 +155,7 @@ def main() -> int:
     if "PromiscuousVerifier" in sftp or "new Promiscuous" in sftp:
         fail("Android SFTP permits unverified host keys")
 
-    ftp = require("android/app/src/main/java/com/byftp/client/remote/FtpRemoteClient.java", (
+    ftp = require("android/app/src/main/java/com/GhostFTP/client/remote/FtpRemoteClient.java", (
         "ftps.setTrustManager(null)", "ftps.setEndpointCheckingEnabled(true)", 'ftps.execPROT("P")',
         "enterLocalPassiveMode()", "FTP.BINARY_FILE_TYPE",
         "loginRoot = normalizeLoginRoot(next.printWorkingDirectory())",
@@ -177,7 +177,7 @@ def main() -> int:
         if forbidden in java_source:
             fail(f"Android source contains forbidden permissive TLS/SSH marker: {forbidden}")
 
-    activity = require("android/app/src/main/java/com/byftp/client/MainActivity.java", (
+    activity = require("android/app/src/main/java/com/GhostFTP/client/MainActivity.java", (
         "Intent.ACTION_OPEN_DOCUMENT", "Intent.ACTION_CREATE_DOCUMENT", "Intent.EXTRA_ALLOW_MULTIPLE",
         "getContentResolver().openInputStream", "getContentResolver().openOutputStream",
         "Executors.newSingleThreadExecutor()", "connectingClient", "destroyed",
@@ -201,7 +201,7 @@ def main() -> int:
         if forbidden in activity:
             fail(f"Android activity contains forbidden persistence/normalization/analytics/cancel/auto-navigation marker: {forbidden}")
 
-    preset = require("android/app/src/main/java/com/byftp/client/ConnectionPresetStore.java", (
+    preset = require("android/app/src/main/java/com/GhostFTP/client/ConnectionPresetStore.java", (
         "SharedPreferences", "Context.MODE_PRIVATE", "KEY_PROTOCOL", "KEY_HOST", "KEY_PORT", "KEY_USERNAME", "KEY_FINGERPRINT",
         "void save(ConnectionConfig.Protocol protocol, String host, int port, String username, String fingerprint)",
         "ConnectionConfig.create(", "preferences.edit().clear().apply()",
@@ -214,45 +214,45 @@ def main() -> int:
     if "mavenLocal()" in settings:
         fail("Android dependency resolution must not use mavenLocal")
 
-    require("android/app/src/test/java/com/byftp/client/model/ConnectionConfigSecurityTest.java", (
+    require("android/app/src/test/java/com/GhostFTP/client/model/ConnectionConfigSecurityTest.java", (
         "validatesAndCanonicalizesSftpSha256Fingerprint",
         "rejectsRawEndpointAndCredentialControlCharactersBeforeTrimming",
         '"example.com\\r\\n"',
         '"21\\r\\n"',
         'VALID_SHA256 + "\\r\\n"',
     ))
-    require("android/app/src/test/java/com/byftp/client/model/RemotePathsTest.java", (
+    require("android/app/src/test/java/com/GhostFTP/client/model/RemotePathsTest.java", (
         "rejectsWhitespaceAndProtocolControlCharacters",
         '"line\\nbreak.txt"',
         '"line\\rbreak.txt"',
     ))
-    require("android/app/src/test/java/com/byftp/client/model/RemotePathsTraversalTest.java", (
+    require("android/app/src/test/java/com/GhostFTP/client/model/RemotePathsTraversalTest.java", (
         "directoryRejectsTraversalAndSeparatorRewrites",
         "public_html//assets",
     ))
-    require("android/app/src/test/java/com/byftp/client/model/RemoteEntryListTest.java", (
+    require("android/app/src/test/java/com/GhostFTP/client/model/RemoteEntryListTest.java", (
         "sortsDirectoriesFirstThenNamesCaseInsensitively",
         "filtersWithoutMutatingSortedSource",
     ))
-    require("android/app/src/test/java/com/byftp/client/model/SharedHostingDiagnosticsTest.java", (
+    require("android/app/src/test/java/com/GhostFTP/client/model/SharedHostingDiagnosticsTest.java", (
         "prefersPublicHtmlAndReportsSecureFtps",
         "plainFtpRemainsVisibleAsInsecureAndFilesAreNotWebRoots",
         "sftpUsesHomeRootWithoutInventingWebRoot",
         'assertEquals("public_html", got.webRoot())',
         'assertEquals("htdocs", got.webRoot())',
     ))
-    require("android/app/src/test/java/com/byftp/client/remote/TransferStreamsTest.java", (
+    require("android/app/src/test/java/com/GhostFTP/client/remote/TransferStreamsTest.java", (
         "inputReportsCumulativeBytesWithoutChangingPayload",
         "outputReportsCumulativeBytesWithoutChangingPayload",
         "List.of(4L, 5L, 6L)", "List.of(3L, 4L)",
     ))
-    require("android/app/src/test/java/com/byftp/client/remote/FtpRemoteClientPathTest.java", (
+    require("android/app/src/test/java/com/GhostFTP/client/remote/FtpRemoteClientPathTest.java", (
         "rejectsUnsafeServerLoginDirectory",
         '"/home/example\\r"',
         '"/home/example\\n"',
     ))
     for rel in (
-        "android/app/src/test/java/com/byftp/client/model/ConnectionConfigTest.java",
+        "android/app/src/test/java/com/GhostFTP/client/model/ConnectionConfigTest.java",
         "android/README.md",
     ):
         read(rel)

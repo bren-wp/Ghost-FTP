@@ -1,18 +1,18 @@
 <?php
 declare(strict_types=1);
 
-const BYFTP_ROOT = __DIR__ . '/..';
-const BYFTP_STORAGE = BYFTP_ROOT . '/storage';
+const GhostFTP_ROOT = __DIR__ . '/..';
+const GhostFTP_STORAGE = GhostFTP_ROOT . '/storage';
 
-$version = trim((string)@file_get_contents(BYFTP_ROOT . '/VERSION'));
+$version = trim((string)@file_get_contents(GhostFTP_ROOT . '/VERSION'));
 if (!preg_match('/^\d+\.\d+\.\d+$/', $version)) {
-    throw new RuntimeException('ByFTP WEB VERSION datoteka nedostaje ili nije valjana.');
+    throw new RuntimeException('GhostFTP WEB VERSION datoteka nedostaje ili nije valjana.');
 }
-define('BYFTP_WEB_VERSION', $version);
-define('BYFTP_VERSION', BYFTP_WEB_VERSION);
+define('GhostFTP_WEB_VERSION', $version);
+define('GhostFTP_VERSION', GhostFTP_WEB_VERSION);
 
 spl_autoload_register(static function (string $class): void {
-    $prefix = 'ByFTP\\';
+    $prefix = 'GhostFTP\\';
     if (!str_starts_with($class, $prefix)) {
         return;
     }
@@ -25,7 +25,7 @@ spl_autoload_register(static function (string $class): void {
 
 require __DIR__ . '/helpers.php';
 
-foreach ([BYFTP_STORAGE, BYFTP_STORAGE . '/tmp', BYFTP_STORAGE . '/logs', BYFTP_STORAGE . '/users'] as $directory) {
+foreach ([GhostFTP_STORAGE, GhostFTP_STORAGE . '/tmp', GhostFTP_STORAGE . '/logs', GhostFTP_STORAGE . '/users'] as $directory) {
     if (!is_dir($directory)) {
         @mkdir($directory, 0700, true);
     }
@@ -35,7 +35,7 @@ foreach ([BYFTP_STORAGE, BYFTP_STORAGE . '/tmp', BYFTP_STORAGE . '/logs', BYFTP_
 // probabilistic cleanup keeps shared-hosting storage healthy without requiring cron.
 try {
     if (random_int(1, 100) === 1) {
-        byftp_cleanup_stale_temp_files();
+        GhostFTP_cleanup_stale_temp_files();
     }
 } catch (Throwable) {
     // Temp cleanup is maintenance only and must never prevent application startup.
@@ -75,9 +75,9 @@ if (!headers_sent()) {
 ini_set('session.use_strict_mode', '1');
 ini_set('session.use_only_cookies', '1');
 ini_set('session.cookie_httponly', '1');
-$cookieBase = byftp_base_path();
+$cookieBase = GhostFTP_base_path();
 $cookiePath = $cookieBase === '' ? '/' : rtrim($cookieBase, '/') . '/';
-session_name('BYFTPSESSID');
+session_name('GhostFTPSESSID');
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => $cookiePath,
@@ -86,9 +86,9 @@ session_set_cookie_params([
     'samesite' => 'Strict',
 ]);
 
-// Keep PHP's own session garbage collector from undercutting the configured ByFTP
+// Keep PHP's own session garbage collector from undercutting the configured GhostFTP
 // idle/max lifetime (many shared hosts default gc_maxlifetime to only 24 minutes).
-$sessionLimits = byftp_session_limits(byftp_config());
+$sessionLimits = GhostFTP_session_limits(GhostFTP_config());
 @ini_set('session.gc_maxlifetime', (string)$sessionLimits['gc']);
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -103,7 +103,7 @@ if (!isset($_SESSION['session_started_at'])) {
 }
 
 if (!empty($_SESSION['authenticated'])) {
-    $limits = byftp_session_limits();
+    $limits = GhostFTP_session_limits();
     $idleSeconds = $limits['idle'];
     $maxSeconds = $limits['max'];
     $lastActivity = (int)($_SESSION['last_activity'] ?? $now);

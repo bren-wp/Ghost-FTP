@@ -1,6 +1,6 @@
-package com.byftp.client.remote;
+package com.GhostFTP.client.remote;
 
-import com.byftp.client.model.ConnectionConfig;
+import com.GhostFTP.client.model.ConnectionConfig;
 
 public final class RemoteClientFactory {
     private RemoteClientFactory() {}

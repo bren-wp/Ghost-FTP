@@ -27,7 +27,7 @@ func TestBuildSFTPCommandStreamRejectsInjection(t *testing.T) {
 }
 
 func TestSFTPCommandArgsKeepAskPassEnabled(t *testing.T) {
-	s := &SFTP{host: "example.test", port: 22, sshConfig: `C:\\data\\ssh.conf`, sessionHost: "byftp-session"}
+	s := &SFTP{host: "example.test", port: 22, sshConfig: `C:\\data\\ssh.conf`, sessionHost: "GhostFTP-session"}
 	args := s.commandArgs()
 	batchNo := false
 	for i, arg := range args {

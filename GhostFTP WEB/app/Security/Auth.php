@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Security;
+namespace GhostFTP\Security;
 
-use ByFTP\Storage\UserStore;
+use GhostFTP\Storage\UserStore;
 
 final class Auth
 {
@@ -58,7 +58,7 @@ final class Auth
         $_SESSION['last_activity'] = $now;
         unset($_SESSION['csrf']);
         self::$cachedUser = $user;
-        \byftp_csrf_token();
+        \GhostFTP_csrf_token();
     }
 
     public static function user(): ?array
@@ -97,7 +97,7 @@ final class Auth
     public static function requireAuth(): void
     {
         if (!self::check()) {
-            \byftp_redirect('login');
+            \GhostFTP_redirect('login');
         }
     }
 

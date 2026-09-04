@@ -46,17 +46,17 @@ func TestSharedHostingFTPDisablesRepeatedMLSDWhenListFallbackWorks(t *testing.T)
 	dir := t.TempDir()
 	prependTestToolDirectory(t, dir)
 	calls := filepath.Join(dir, "calls.txt")
-	t.Setenv("BYFTP_TEST_CALLS", calls)
+	t.Setenv("GhostFTP_TEST_CALLS", calls)
 	writeExecutable(t, filepath.Join(dir, "curl"), `#!/bin/sh
 cfg="$(cat)"
 case "$cfg" in
   *'request = "MLSD"'*)
-    printf 'M' >> "$BYFTP_TEST_CALLS"
+    printf 'M' >> "$GhostFTP_TEST_CALLS"
     printf '%s\n' 'legacy server response without MLSD facts'
     exit 0
     ;;
 esac
-printf 'L' >> "$BYFTP_TEST_CALLS"
+printf 'L' >> "$GhostFTP_TEST_CALLS"
 printf '%s\n' '-rw-r--r-- 1 user group 4 Aug 19 12:00 index.php'
 `)
 

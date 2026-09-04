@@ -6,24 +6,24 @@ val canonicalVersion = rootProject.file("../VERSION").readText().trim()
 val versionParts = canonicalVersion.split('.').map { it.toInt() }
 require(versionParts.size == 3) { "VERSION must be semantic major.minor.patch" }
 
-// Ghost FTP keeps the existing com.byftp.client application identity so installed
+// Ghost FTP keeps the existing com.GhostFTP.client application identity so installed
 // users can upgrade in place. Store version codes therefore need a monotonic epoch
-// that remains above the highest published ByFTP code even though the public product
+// that remains above the highest published GhostFTP code even though the public product
 // version restarts at 1.0.0.
 val semanticVersionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
 val ghostFtpVersionCodeEpoch = 1_000_000
-val legacyByFtpVersionCodeFloor = 10_902
+val legacyGhostFTPVersionCodeFloor = 10_902
 val canonicalVersionCode = ghostFtpVersionCodeEpoch + semanticVersionCode
-require(canonicalVersionCode > legacyByFtpVersionCodeFloor) {
-    "Ghost FTP Android versionCode must stay above the published ByFTP versionCode floor"
+require(canonicalVersionCode > legacyGhostFTPVersionCodeFloor) {
+    "Ghost FTP Android versionCode must stay above the published GhostFTP versionCode floor"
 }
 
 android {
-    namespace = "com.byftp.client"
+    namespace = "com.GhostFTP.client"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.byftp.client"
+        applicationId = "com.GhostFTP.client"
         minSdk = 26
         targetSdk = 37
         versionCode = canonicalVersionCode

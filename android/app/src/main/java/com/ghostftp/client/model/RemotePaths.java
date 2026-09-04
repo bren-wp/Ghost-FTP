@@ -1,4 +1,4 @@
-package com.byftp.client.model;
+package com.GhostFTP.client.model;
 
 public final class RemotePaths {
     private RemotePaths() {}

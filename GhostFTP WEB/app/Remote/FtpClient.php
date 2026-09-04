@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Remote;
+namespace GhostFTP\Remote;
 
-use ByFTP\Security\HostGuard;
+use GhostFTP\Security\HostGuard;
 use RuntimeException;
 
 final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
@@ -24,7 +24,7 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
         }
 
         $host = (string)$this->profile['host'];
-        $targets = HostGuard::connectionTargets($host, \byftp_private_hosts_allowed());
+        $targets = HostGuard::connectionTargets($host, \GhostFTP_private_hosts_allowed());
         $port = (int)$this->profile['port'];
         $protocol = (string)$this->profile['protocol'];
         $timeout = max(5, min(120, (int)($this->profile['timeout'] ?? 30)));
@@ -206,8 +206,8 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
         $remote = $this->full($remotePath);
         $expected = @ftp_size($this->connection, $remote);
         if (is_int($expected) && $expected > $maxBytes) throw new RuntimeException('Datoteka je prevelika za uređivanje u pregledniku.');
-        \byftp_assert_temp_capacity($maxBytes);
-        $tmp = tempnam(BYFTP_STORAGE . '/tmp', 'read-');
+        \GhostFTP_assert_temp_capacity($maxBytes);
+        $tmp = tempnam(GhostFTP_STORAGE . '/tmp', 'read-');
         if ($tmp === false) throw new RuntimeException('Ne mogu stvoriti privremenu datoteku.');
         try {
             $this->downloadBounded($remotePath, $tmp, $maxBytes);
@@ -221,7 +221,7 @@ final class FtpClient implements RemoteClientInterface, BoundedDownloadInterface
 
     public function write(string $remotePath, string $content): void
     {
-        $tmp = tempnam(BYFTP_STORAGE . '/tmp', 'write-');
+        $tmp = tempnam(GhostFTP_STORAGE . '/tmp', 'write-');
         if ($tmp === false) throw new RuntimeException('Ne mogu stvoriti privremenu datoteku.');
         try {
             if (file_put_contents($tmp, $content, LOCK_EX) === false) throw new RuntimeException('Ne mogu pripremiti sadržaj za spremanje.');

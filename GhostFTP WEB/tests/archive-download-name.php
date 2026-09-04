@@ -17,29 +17,29 @@ function check(bool $condition, string $label): void
     fwrite(STDERR, "FAIL: {$label}\n");
 }
 
-$long = byftp_archive_download_name(str_repeat('a', 200) . '.zip');
+$long = GhostFTP_archive_download_name(str_repeat('a', 200) . '.zip');
 check(strlen($long) === 120, 'long archive name is capped at 120 ASCII bytes');
 check(str_ends_with($long, '.zip'), 'long archive name preserves zip extension after truncation');
 check(substr($long, 0, -4) === str_repeat('a', 116), 'long archive name truncates the base before appending extension');
 
 check(
-    byftp_archive_download_name('backup.ZIP') === 'backup.zip',
+    GhostFTP_archive_download_name('backup.ZIP') === 'backup.zip',
     'existing ZIP extension is normalized without duplication'
 );
 check(
-    byftp_archive_download_name('backup') === 'backup.zip',
+    GhostFTP_archive_download_name('backup') === 'backup.zip',
     'missing ZIP extension is appended'
 );
 check(
-    byftp_archive_download_name('.zip') === 'ghost-ftp-download.zip',
+    GhostFTP_archive_download_name('.zip') === 'ghost-ftp-download.zip',
     'empty archive basename falls back to a stable filename'
 );
 check(
-    byftp_archive_download_name(" report\r\n2026?.zip ") === 'report-2026-.zip',
+    GhostFTP_archive_download_name(" report\r\n2026?.zip ") === 'report-2026-.zip',
     'unsafe archive filename characters are sanitized before header use'
 );
 check(
-    str_ends_with(byftp_archive_download_name(str_repeat('č', 200)), '.zip'),
+    str_ends_with(GhostFTP_archive_download_name(str_repeat('č', 200)), '.zip'),
     'multibyte long archive name still preserves zip extension'
 );
 

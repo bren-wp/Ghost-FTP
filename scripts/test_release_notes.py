@@ -45,7 +45,7 @@ class ReleaseNotesTests(unittest.TestCase):
         ):
             self.assertIn(marker, notes)
         for retired in (
-            "ByFTP 1.4.0",
+            "GhostFTP 1.4.0",
             "Official desktop packages",
             "Android release-unsigned APK",
             "iOS arm64 unsigned app ZIP",

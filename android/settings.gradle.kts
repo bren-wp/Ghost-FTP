@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ByFTP-Android"
+rootProject.name = "GhostFTP-Android"
 include(":app")

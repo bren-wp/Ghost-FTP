@@ -1,4 +1,4 @@
-package com.byftp.client;
+package com.GhostFTP.client;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -26,15 +26,15 @@ import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
-import com.byftp.client.model.ConnectionConfig;
-import com.byftp.client.model.DocumentName;
-import com.byftp.client.model.RemoteEntry;
-import com.byftp.client.model.RemoteEntryList;
-import com.byftp.client.model.RemotePaths;
-import com.byftp.client.model.SharedHostingDiagnostics;
-import com.byftp.client.remote.RemoteClient;
-import com.byftp.client.remote.RemoteClientFactory;
-import com.byftp.client.remote.TransferStreams;
+import com.GhostFTP.client.model.ConnectionConfig;
+import com.GhostFTP.client.model.DocumentName;
+import com.GhostFTP.client.model.RemoteEntry;
+import com.GhostFTP.client.model.RemoteEntryList;
+import com.GhostFTP.client.model.RemotePaths;
+import com.GhostFTP.client.model.SharedHostingDiagnostics;
+import com.GhostFTP.client.remote.RemoteClient;
+import com.GhostFTP.client.remote.RemoteClientFactory;
+import com.GhostFTP.client.remote.TransferStreams;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -107,7 +107,7 @@ public final class MainActivity extends Activity {
         header.setPadding(0, 0, 0, dp(10));
 
         ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.ic_byftp);
+        logo.setImageResource(R.drawable.ic_GhostFTP);
         logo.setContentDescription(getString(R.string.app_name));
         header.addView(logo, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
@@ -813,7 +813,7 @@ public final class MainActivity extends Activity {
             Thread closeThread = new Thread(() -> {
                 if (current != null) current.close();
                 if (pending != null && pending != current) pending.close();
-            }, "byftp-close");
+            }, "GhostFTP-close");
             closeThread.start();
         }
         super.onDestroy();

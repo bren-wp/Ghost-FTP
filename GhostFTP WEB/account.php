@@ -2,9 +2,9 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Security\AppLogger;
-use ByFTP\Security\Auth;
-use ByFTP\Storage\UserStore;
+use GhostFTP\Security\AppLogger;
+use GhostFTP\Security\Auth;
+use GhostFTP\Storage\UserStore;
 
 Auth::requireAuth();
 $store = new UserStore();
@@ -13,7 +13,7 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+    if (!GhostFTP_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
         $error = 'Sigurnosni token nije valjan.';
     } else {
         try {
@@ -46,31 +46,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = 'Moj račun · ' . byftp_app_name();
+$pageTitle = 'Moj račun · ' . GhostFTP_app_name();
 $activeSettingsPage = 'account';
 ?><!doctype html><html lang="hr"><head>
 <?php require __DIR__ . '/app/Views/head.php'; ?>
 </head><body class="settings-page">
 <?php require __DIR__ . '/app/Views/settings-nav.php'; ?>
 <main class="settings-main">
-    <section class="settings-hero"><p class="eyebrow">Korisnički račun</p><h1>Moj ByFTP</h1><p>Upravljaj identitetom i sigurnošću svog računa. Spremljene FTP/SFTP veze i preference ostaju povezane s ovim korisnikom.</p></section>
-    <?php if ($error): ?><div class="alert error" role="alert"><?= byftp_e($error) ?></div><?php endif; ?>
-    <?php if ($success): ?><div class="alert success" role="status"><?= byftp_e($success) ?></div><?php endif; ?>
+    <section class="settings-hero"><p class="eyebrow">Korisnički račun</p><h1>Moj GhostFTP</h1><p>Upravljaj identitetom i sigurnošću svog računa. Spremljene FTP/SFTP veze i preference ostaju povezane s ovim korisnikom.</p></section>
+    <?php if ($error): ?><div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div><?php endif; ?>
+    <?php if ($success): ?><div class="alert success" role="status"><?= GhostFTP_e($success) ?></div><?php endif; ?>
     <div class="settings-grid">
         <section class="settings-card">
             <div class="settings-card-head"><div><p class="eyebrow">Profil</p><h2>Podaci računa</h2></div><span class="role-badge"><?= ($currentUser['role'] ?? '') === 'admin' ? 'Administrator' : 'Korisnik' ?></span></div>
             <form method="post" class="stack">
-                <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>"><input type="hidden" name="action" value="profile">
-                <label>Ime<input name="name" maxlength="80" value="<?= byftp_e((string)($currentUser['name'] ?? '')) ?>" required autocomplete="name"></label>
-                <label>E-mail<input type="email" name="email" maxlength="254" value="<?= byftp_e((string)($currentUser['email'] ?? '')) ?>" required autocomplete="email"></label>
+                <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>"><input type="hidden" name="action" value="profile">
+                <label>Ime<input name="name" maxlength="80" value="<?= GhostFTP_e((string)($currentUser['name'] ?? '')) ?>" required autocomplete="name"></label>
+                <label>E-mail<input type="email" name="email" maxlength="254" value="<?= GhostFTP_e((string)($currentUser['email'] ?? '')) ?>" required autocomplete="email"></label>
                 <button class="button primary" type="submit">Spremi promjene</button>
             </form>
-            <dl class="account-meta"><div><dt>Račun izrađen</dt><dd><?= byftp_e(byftp_human_date($currentUser['created_at'] ?? null)) ?></dd></div><div><dt>Zadnja prijava</dt><dd><?= byftp_e(byftp_human_date($currentUser['last_login_at'] ?? null)) ?></dd></div></dl>
+            <dl class="account-meta"><div><dt>Račun izrađen</dt><dd><?= GhostFTP_e(GhostFTP_human_date($currentUser['created_at'] ?? null)) ?></dd></div><div><dt>Zadnja prijava</dt><dd><?= GhostFTP_e(GhostFTP_human_date($currentUser['last_login_at'] ?? null)) ?></dd></div></dl>
         </section>
         <section class="settings-card">
             <div class="settings-card-head"><div><p class="eyebrow">Sigurnost</p><h2>Promijeni lozinku</h2></div></div>
             <form method="post" class="stack" autocomplete="off">
-                <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>"><input type="hidden" name="action" value="password">
+                <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>"><input type="hidden" name="action" value="password">
                 <label>Trenutačna lozinka<input type="password" name="current_password" autocomplete="current-password" required></label>
                 <label>Nova lozinka<input type="password" name="new_password" minlength="12" autocomplete="new-password" required></label>
                 <label>Ponovi novu lozinku<input type="password" name="confirm_password" minlength="12" autocomplete="new-password" required></label>
@@ -80,5 +80,5 @@ $activeSettingsPage = 'account';
         </section>
     </div>
 </main>
-<script src="<?= byftp_e(byftp_asset('js/pwa.js')) ?>" defer></script>
+<script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
 </body></html>

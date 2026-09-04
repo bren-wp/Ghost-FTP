@@ -14,7 +14,7 @@ ghostftp-v1.0.1
 ghostftp-v1.0.2
 ```
 
-Historical ByFTP tags remain immutable. The workflow must never force-move an existing tag. Before updating an existing Ghost FTP release, it verifies that the tag already points to the exact release commit; otherwise publication stops.
+Historical GhostFTP tags remain immutable. The workflow must never force-move an existing tag. Before updating an existing Ghost FTP release, it verifies that the tag already points to the exact release commit; otherwise publication stops.
 
 ## Public release contract
 

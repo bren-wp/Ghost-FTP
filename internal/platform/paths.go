@@ -3,10 +3,10 @@ package platform
 import (
 	"path/filepath"
 
-	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
 )
 
-// InstallDir returns the canonical per-user ByFTP installation directory.
+// InstallDir returns the canonical per-user GhostFTP installation directory.
 func InstallDir() (string, error) {
 	base, err := LocalAppData()
 	if err != nil {

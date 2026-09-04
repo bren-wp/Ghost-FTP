@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Storage;
+namespace GhostFTP\Storage;
 
 use RuntimeException;
 

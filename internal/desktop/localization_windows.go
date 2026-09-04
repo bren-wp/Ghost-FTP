@@ -8,11 +8,11 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/bren-wp/by-ftp/internal/brand"
-	"github.com/bren-wp/by-ftp/internal/i18n"
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/platform"
-	"github.com/bren-wp/by-ftp/internal/usererror"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
 const (

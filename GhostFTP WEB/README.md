@@ -2,7 +2,7 @@
 
 This directory contains the shared-hosting web/PWA edition of **Ghost FTP**.
 
-> The source directory is still named `ByFTP WEB` as a migration/compatibility detail. The public product, UI and release package are Ghost FTP.
+> The source directory is still named `GhostFTP WEB` as a migration/compatibility detail. The public product, UI and release package are Ghost FTP.
 
 ## Requirements
 
@@ -46,7 +46,7 @@ The manifest identifies the application as **Ghost FTP** and supports standalone
 
 ## Internal compatibility names
 
-PHP namespaces, helper functions, constants and some storage/session keys may retain the legacy `ByFTP`/`byftp` prefix so existing deployments, sessions and stored configuration can migrate safely. These are implementation identifiers only. New user-visible strings and downloadable packages must use **Ghost FTP**.
+PHP namespaces, helper functions, constants and some storage/session keys may retain the legacy `GhostFTP`/`GhostFTP` prefix so existing deployments, sessions and stored configuration can migrate safely. These are implementation identifiers only. New user-visible strings and downloadable packages must use **Ghost FTP**.
 
 ## Version
 

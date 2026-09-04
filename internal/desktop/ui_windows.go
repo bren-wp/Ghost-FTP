@@ -4,7 +4,7 @@ package desktop
 
 import (
 	"fmt"
-	"github.com/bren-wp/by-ftp/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
 	"syscall"
 	"unsafe"
 )

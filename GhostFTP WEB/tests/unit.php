@@ -1,18 +1,18 @@
 <?php
 declare(strict_types=1);
 
-function byftp_truncate(string $value, int $length): string
+function GhostFTP_truncate(string $value, int $length): string
 {
     return substr($value, 0, $length);
 }
 
-function byftp_config(bool $fresh = false): array
+function GhostFTP_config(bool $fresh = false): array
 {
     return ['secret_key' => base64_encode(str_repeat('K', 32))];
 }
 
-$testStorage = sys_get_temp_dir() . '/byftp-web-unit-' . bin2hex(random_bytes(6));
-define('BYFTP_STORAGE', $testStorage);
+$testStorage = sys_get_temp_dir() . '/GhostFTP-web-unit-' . bin2hex(random_bytes(6));
+define('GhostFTP_STORAGE', $testStorage);
 
 require __DIR__ . '/../app/Remote/PathGuard.php';
 require __DIR__ . '/../app/Remote/RemoteClientInterface.php';
@@ -25,13 +25,13 @@ require __DIR__ . '/../app/Storage/UserStore.php';
 require __DIR__ . '/../app/Security/RateLimiter.php';
 require __DIR__ . '/../app/Storage/ProfileStore.php';
 
-use ByFTP\Operations\RemoteOperations;
-use ByFTP\Remote\PathGuard;
-use ByFTP\Remote\RemoteClientInterface;
-use ByFTP\Security\HostGuard;
-use ByFTP\Security\RateLimiter;
-use ByFTP\Storage\ProfileStore;
-use ByFTP\Storage\UserStore;
+use GhostFTP\Operations\RemoteOperations;
+use GhostFTP\Remote\PathGuard;
+use GhostFTP\Remote\RemoteClientInterface;
+use GhostFTP\Security\HostGuard;
+use GhostFTP\Security\RateLimiter;
+use GhostFTP\Storage\ProfileStore;
+use GhostFTP\Storage\UserStore;
 
 final class BatchRenameFakeClient implements RemoteClientInterface
 {
@@ -315,25 +315,25 @@ check(
 
 // Reproduce a shared-hosting workspace failure without relying on chmod semantics:
 // replace storage/users with a regular file so recursive user directory creation fails.
-$profileDir = BYFTP_STORAGE . '/users/profile-binding-test';
+$profileDir = GhostFTP_STORAGE . '/users/profile-binding-test';
 foreach (glob($profileDir . '/*') ?: [] as $path) {
     if (is_file($path)) {
         @unlink($path);
     }
 }
 @rmdir($profileDir);
-@rmdir(BYFTP_STORAGE . '/users');
-file_put_contents(BYFTP_STORAGE . '/users', 'workspace-blocker');
+@rmdir(GhostFTP_STORAGE . '/users');
+file_put_contents(GhostFTP_STORAGE . '/users', 'workspace-blocker');
 $userStore = new UserStore();
 throws(
     fn() => $userStore->create('Blocked User', 'blocked@example.com', 'strong-password-123', 'user'),
     'user create fails before registry commit when workspace is unavailable'
 );
 check(
-    !is_file(BYFTP_STORAGE . '/users.json') && !is_file(BYFTP_STORAGE . '/users.json.bak'),
+    !is_file(GhostFTP_STORAGE . '/users.json') && !is_file(GhostFTP_STORAGE . '/users.json.bak'),
     'failed user workspace leaves no registry or ghost backup generation'
 );
-@unlink(BYFTP_STORAGE . '/users');
+@unlink(GhostFTP_STORAGE . '/users');
 
 $renameClient = new BatchRenameFakeClient(['/a' => 'A', '/x-a' => 'B'], 4);
 $renameOps = new RemoteOperations($renameClient);
@@ -346,7 +346,7 @@ check(
     'batch rename rollback restores every original path after partial promotion'
 );
 check(
-    count(array_filter(array_keys($renameClient->files()), static fn(string $path): bool => str_contains($path, 'byftp-rename-'))) === 0,
+    count(array_filter(array_keys($renameClient->files()), static fn(string $path): bool => str_contains($path, 'GhostFTP-rename-'))) === 0,
     'batch rename rollback leaves no staging path after recoverable failure'
 );
 
@@ -359,7 +359,7 @@ try {
     $limiter->clear($rateKey);
     check(!$limiter->blocked($rateKey), 'rate limiter clear removes stale backup hits');
 } finally {
-    $logDir = BYFTP_STORAGE . '/logs';
+    $logDir = GhostFTP_STORAGE . '/logs';
     foreach (glob($logDir . '/*') ?: [] as $path) {
         if (is_file($path)) {
             @unlink($path);
@@ -367,25 +367,25 @@ try {
     }
     @rmdir($logDir);
 
-    $profileDir = BYFTP_STORAGE . '/users/profile-binding-test';
+    $profileDir = GhostFTP_STORAGE . '/users/profile-binding-test';
     foreach (glob($profileDir . '/*') ?: [] as $path) {
         if (is_file($path)) {
             @unlink($path);
         }
     }
     @rmdir($profileDir);
-    if (is_file(BYFTP_STORAGE . '/users')) {
-        @unlink(BYFTP_STORAGE . '/users');
+    if (is_file(GhostFTP_STORAGE . '/users')) {
+        @unlink(GhostFTP_STORAGE . '/users');
     }
-    @rmdir(BYFTP_STORAGE . '/users');
+    @rmdir(GhostFTP_STORAGE . '/users');
     foreach ([
-        BYFTP_STORAGE . '/users.json',
-        BYFTP_STORAGE . '/users.json.bak',
-        BYFTP_STORAGE . '/users.json.lock',
+        GhostFTP_STORAGE . '/users.json',
+        GhostFTP_STORAGE . '/users.json.bak',
+        GhostFTP_STORAGE . '/users.json.lock',
     ] as $path) {
         @unlink($path);
     }
-    @rmdir(BYFTP_STORAGE);
+    @rmdir(GhostFTP_STORAGE);
 }
 
 if ($failed > 0) {

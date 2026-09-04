@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t d">
-  <title id="t">ByFTP</title><desc id="d">ByFTP transfer mark</desc>
+  <title id="t">GhostFTP</title><desc id="d">GhostFTP transfer mark</desc>
   <defs>
     <linearGradient id="bg" x1="64" y1="56" x2="448" y2="456" gradientUnits="userSpaceOnUse">
       <stop stop-color="#6288ff"/><stop offset=".55" stop-color="#3d65e8"/><stop offset="1" stop-color="#2443ad"/>

@@ -9,7 +9,7 @@ import (
 
 func TestTypedEngineSettingsAndTransferEvents(t *testing.T) {
 	dir := t.TempDir()
-	engine, err := New(dir, filepath.Join(dir, "ByFTP.exe"))
+	engine, err := New(dir, filepath.Join(dir, "GhostFTP.exe"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,11 +35,11 @@ func TestNewRemovesLegacyLocalDiagnosticsWithoutFollowingSymlink(t *testing.T) {
 	if err := os.WriteFile(target, []byte("outside"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(dir, "byftp.log")
+	link := filepath.Join(dir, "GhostFTP.log")
 	if err := os.Symlink(target, link); err != nil {
 		t.Skipf("symlink unavailable: %v", err)
 	}
-	engine, err := New(dir, filepath.Join(dir, "ByFTP.exe"))
+	engine, err := New(dir, filepath.Join(dir, "GhostFTP.exe"))
 	if err != nil {
 		t.Fatal(err)
 	}

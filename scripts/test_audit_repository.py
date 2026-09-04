@@ -15,7 +15,7 @@ class RepositoryAuditTests(unittest.TestCase):
         self.assertTrue(any("case-insensitive path collision" in item for item in errors))
 
     def test_rejects_generated_and_reserved_paths(self) -> None:
-        errors = audit_repository.validate_path("dist/ByFTP.exe", "100644", {})
+        errors = audit_repository.validate_path("dist/GhostFTP.exe", "100644", {})
         self.assertTrue(any("generated/cache path" in item for item in errors))
         errors = audit_repository.validate_path("docs/CON.txt", "100644", {})
         self.assertTrue(any("Windows-reserved" in item for item in errors))

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/profilebinding"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/profilebinding"
 )
 
 var managerTestFingerprint = "SHA256:" + strings.Repeat("A", 43)

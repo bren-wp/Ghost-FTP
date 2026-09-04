@@ -2,30 +2,30 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Security\AppLogger;
-use ByFTP\Security\Auth;
+use GhostFTP\Security\AppLogger;
+use GhostFTP\Security\Auth;
 
 Auth::requireAdmin();
 $currentUser = Auth::user() ?? [];
-$config = byftp_config();
+$config = GhostFTP_config();
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!byftp_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
+    if (!GhostFTP_verify_csrf(is_string($_POST['csrf'] ?? null) ? $_POST['csrf'] : null)) {
         $error = 'Sigurnosni token nije valjan.';
     } else {
         try {
-            $appName = trim((string)($_POST['app_name'] ?? 'ByFTP')) ?: 'ByFTP';
+            $appName = trim((string)($_POST['app_name'] ?? 'GhostFTP')) ?: 'GhostFTP';
             $idle = max(15, min(1440, (int)($_POST['session_idle_minutes'] ?? 120)));
             $maxHours = max(1, min(168, (int)($_POST['session_max_hours'] ?? 12)));
-            $config = byftp_update_config([
-                'app_name' => byftp_truncate($appName, 80),
+            $config = GhostFTP_update_config([
+                'app_name' => GhostFTP_truncate($appName, 80),
                 'allow_registration' => !empty($_POST['allow_registration']),
                 'allow_private_hosts' => !empty($_POST['allow_private_hosts']),
                 'session_idle_minutes' => $idle,
                 'session_max_hours' => $maxHours,
-                'version' => BYFTP_VERSION,
+                'version' => GhostFTP_VERSION,
             ]);
             AppLogger::event('admin.settings_update', ['user_id' => Auth::id()]);
             $success = 'Postavke aplikacije su spremljene.';
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = 'Aplikacija · ' . byftp_app_name();
+$pageTitle = 'Aplikacija · ' . GhostFTP_app_name();
 $activeSettingsPage = 'settings';
 ?>
 <!doctype html>
@@ -53,18 +53,18 @@ $activeSettingsPage = 'settings';
     </section>
 
     <?php if ($error): ?>
-        <div class="alert error" role="alert"><?= byftp_e($error) ?></div>
+        <div class="alert error" role="alert"><?= GhostFTP_e($error) ?></div>
     <?php endif; ?>
     <?php if ($success): ?>
-        <div class="alert success" role="status"><?= byftp_e($success) ?></div>
+        <div class="alert success" role="status"><?= GhostFTP_e($success) ?></div>
     <?php endif; ?>
 
     <section class="settings-card settings-card-narrow">
         <form method="post" class="stack">
-            <input type="hidden" name="csrf" value="<?= byftp_e(byftp_csrf_token()) ?>">
+            <input type="hidden" name="csrf" value="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
             <label>
                 Naziv instalacije
-                <input name="app_name" maxlength="80" value="<?= byftp_e((string)($config['app_name'] ?? 'ByFTP')) ?>" required>
+                <input name="app_name" maxlength="80" value="<?= GhostFTP_e((string)($config['app_name'] ?? 'GhostFTP')) ?>" required>
             </label>
 
             <label class="check-card">
@@ -97,6 +97,6 @@ $activeSettingsPage = 'settings';
         </form>
     </section>
 </main>
-<script src="<?= byftp_e(byftp_asset('js/pwa.js')) ?>" defer></script>
+<script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
 </body>
 </html>

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../app/Remote/TransferLimiter.php';
 
-use ByFTP\Remote\TransferLimiter;
+use GhostFTP\Remote\TransferLimiter;
 
 $failures = [];
 
@@ -23,7 +23,7 @@ if (TransferLimiter::effectiveLimit(100, 120, 80) !== 80) {
     $failures[] = 'fresh source size did not tighten the requested transfer limit';
 }
 
-$destinationProbe = tempnam(sys_get_temp_dir(), 'byftp-limit-');
+$destinationProbe = tempnam(sys_get_temp_dir(), 'GhostFTP-limit-');
 if ($destinationProbe === false) {
     fwrite(STDERR, "Unable to create destination capacity fixture.\n");
     exit(1);

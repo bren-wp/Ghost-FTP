@@ -22,7 +22,7 @@ Ghost FTP uses `VERSION` plus namespaced tags:
 ghostftp-vX.Y.Z
 ```
 
-Historical ByFTP tags are immutable and are not reused.
+Historical GhostFTP tags are immutable and are not reused.
 
 ## Build invariants
 

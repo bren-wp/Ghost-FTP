@@ -1,8 +1,8 @@
-package com.byftp.client.remote;
+package com.GhostFTP.client.remote;
 
-import com.byftp.client.model.ConnectionConfig;
-import com.byftp.client.model.RemoteEntry;
-import com.byftp.client.model.RemotePaths;
+import com.GhostFTP.client.model.ConnectionConfig;
+import com.GhostFTP.client.model.RemoteEntry;
+import com.GhostFTP.client.model.RemotePaths;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

@@ -233,7 +233,7 @@ final class SessionStore: ObservableObject {
 
         clearDownloadedFile()
         let destination = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ByFTP-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("GhostFTP-\(UUID().uuidString)", isDirectory: true)
             .appendingPathComponent(entry.name, isDirectory: false)
         let temporaryParent = destination.deletingLastPathComponent()
         do {
@@ -443,7 +443,7 @@ final class SessionStore: ObservableObject {
 }
 
 private enum ConnectionPresetKeychain {
-    private static let service = "com.byftp.client.connection-preset"
+    private static let service = "com.GhostFTP.client.connection-preset"
     private static let account = "last-connection"
 
     static func load() -> ConnectionPreset? {

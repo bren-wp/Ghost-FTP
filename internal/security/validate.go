@@ -222,7 +222,7 @@ func EnsureLocalWithinRoot(root, target string) error {
 // EnsureNoRedirectPath verifies that every existing component below root is a
 // normal filesystem object, not a symlink/junction/reparse point. The trusted
 // root itself is intentionally allowed to be a Windows Known Folder redirect;
-// ByFTP-owned descendants may not redirect elsewhere.
+// GhostFTP-owned descendants may not redirect elsewhere.
 func EnsureNoRedirectPath(root, target string) error {
 	rootAbs, err := filepath.Abs(filepath.Clean(root))
 	if err != nil {
@@ -253,7 +253,7 @@ func EnsureNoRedirectPath(root, target string) error {
 			return statErr
 		}
 		if st.Mode()&os.ModeSymlink != 0 || isReparsePoint(current) {
-			return errors.New("ByFTP putanja ne smije biti preusmjerena simboličkom poveznicom ili junctionom")
+			return errors.New("GhostFTP putanja ne smije biti preusmjerena simboličkom poveznicom ili junctionom")
 		}
 	}
 	return nil
@@ -261,7 +261,7 @@ func EnsureNoRedirectPath(root, target string) error {
 
 // EnsureNoRedirectDirectory creates missing descendants of root one component at
 // a time and verifies every existing/created component is a real directory, not
-// a symlink/junction/reparse point. It is intended for ByFTP-owned state/session
+// a symlink/junction/reparse point. It is intended for GhostFTP-owned state/session
 // directories where redirecting files into another location would weaken privacy.
 func EnsureNoRedirectDirectory(root, target string) error {
 	rootAbs, err := filepath.Abs(filepath.Clean(root))
@@ -296,7 +296,7 @@ func EnsureNoRedirectDirectory(root, target string) error {
 			return statErr
 		}
 		if !st.IsDir() || st.Mode()&os.ModeSymlink != 0 || isReparsePoint(current) {
-			return errors.New("ByFTP putanja mora biti obična lokalna mapa bez preusmjeravanja")
+			return errors.New("GhostFTP putanja mora biti obična lokalna mapa bez preusmjeravanja")
 		}
 	}
 	return nil

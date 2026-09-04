@@ -2,7 +2,7 @@
 
 package desktop
 
-import "github.com/bren-wp/by-ftp/internal/i18n"
+import "github.com/bren-wp/Ghost-FTP/internal/i18n"
 
 func localizedPair(language string, values [12]string) string {
 	codes := []string{"en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja"}
@@ -23,8 +23,8 @@ func okLabel(language string) string {
 
 func closeQuestion(language string) string {
 	return localizedPair(language, [12]string{
-		"Close ByFTP?", "Zatvoriti ByFTP?", "ByFTP schließen?", "Fermer ByFTP ?", "¿Cerrar ByFTP?", "ByFTP kapatılsın mı?",
-		"Κλείσιμο του ByFTP;", "Fechar o ByFTP?", "关闭 ByFTP？", "Закрыть ByFTP?", "ByFTP बंद करें?", "ByFTP を終了しますか？",
+		"Close GhostFTP?", "Zatvoriti GhostFTP?", "GhostFTP schließen?", "Fermer GhostFTP ?", "¿Cerrar GhostFTP?", "GhostFTP kapatılsın mı?",
+		"Κλείσιμο του GhostFTP;", "Fechar o GhostFTP?", "关闭 GhostFTP？", "Закрыть GhostFTP?", "GhostFTP बंद करें?", "GhostFTP を終了しますか？",
 	})
 }
 
@@ -69,8 +69,8 @@ func allFilesFilterLabel(language string) string {
 
 func directoryDialogTitle(language string) string {
 	return localizedPair(language, [12]string{
-		"Select local folder for ByFTP", "Odaberi lokalnu mapu za ByFTP", "Lokalen Ordner für ByFTP auswählen", "Sélectionner le dossier local pour ByFTP",
-		"Seleccionar carpeta local para ByFTP", "ByFTP için yerel klasör seç", "Επιλογή τοπικού φακέλου για το ByFTP", "Selecionar pasta local para o ByFTP",
-		"选择 ByFTP 本地文件夹", "Выберите локальную папку для ByFTP", "ByFTP के लिए स्थानीय फ़ोल्डर चुनें", "ByFTP のローカルフォルダーを選択",
+		"Select local folder for GhostFTP", "Odaberi lokalnu mapu za GhostFTP", "Lokalen Ordner für GhostFTP auswählen", "Sélectionner le dossier local pour GhostFTP",
+		"Seleccionar carpeta local para GhostFTP", "GhostFTP için yerel klasör seç", "Επιλογή τοπικού φακέλου για το GhostFTP", "Selecionar pasta local para o GhostFTP",
+		"选择 GhostFTP 本地文件夹", "Выберите локальную папку для GhostFTP", "GhostFTP के लिए स्थानीय फ़ोल्डर चुनें", "GhostFTP のローカルフォルダーを選択",
 	})
 }

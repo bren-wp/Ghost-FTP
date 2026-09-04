@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"os"
 	"path/filepath"
 	"sync"
@@ -161,7 +161,7 @@ func TestSettingsStoreCachesAfterFirstRead(t *testing.T) {
 	if first.Parallelism != 4 {
 		t.Fatalf("first parallelism=%d want 4", first.Parallelism)
 	}
-	// External edits during a running ByFTP process are intentionally ignored;
+	// External edits during a running GhostFTP process are intentionally ignored;
 	// the settings store is the single writer and hot-path reads stay in memory.
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"parallelism":1,"backupBeforeOverwrite":false,"confirmDelete":false,"retryDelaySeconds":3}`), 0600); err != nil {
 		t.Fatal(err)

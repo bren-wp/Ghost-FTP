@@ -68,7 +68,7 @@ def main() -> int:
         if marker not in windows:
             fail(f"Windows live localization is missing: {marker}")
 
-    entrypoint = read("cmd/byftp/main.go")
+    entrypoint = read("cmd/GhostFTP/main.go")
     for marker in (
         "credential is not available",
         "invalid authentication request",
@@ -80,11 +80,11 @@ def main() -> int:
 
     # User-facing fallback text must not regress to the retired product name.
     for legacy in (
-        "ByFTP closed unexpectedly.",
-        "ByFTP could not start.",
-        "ByFTP could not access the local application-data folder.",
-        "The ByFTP data folder is not safe to use.",
-        "The ByFTP window could not be opened.",
+        "GhostFTP closed unexpectedly.",
+        "GhostFTP could not start.",
+        "GhostFTP could not access the local application-data folder.",
+        "The GhostFTP data folder is not safe to use.",
+        "The GhostFTP window could not be opened.",
     ):
         if legacy in entrypoint:
             fail(f"legacy public brand remains in Windows fallback text: {legacy}")
@@ -97,7 +97,7 @@ def main() -> int:
     forbidden_primary = {
         "README.md": ("Trenutačno izdanje:", "## Preuzimanje", "## Dokumentacija"),
         ".github/pull_request_template.md": ("## Ovlaštenje", "## Sažetak"),
-        "cmd/byftp/main.go": (
+        "cmd/GhostFTP/main.go": (
             "vjerodajnica nije dostupna",
             "neispravan zahtjev za prijavu",
             "nepouzdan nadređeni proces",

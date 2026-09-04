@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
 )
 
 func countStateEvents(events []Event) int {

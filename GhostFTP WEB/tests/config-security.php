@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-use ByFTP\Storage\JsonStore;
+use GhostFTP\Storage\JsonStore;
 
-$storage = sys_get_temp_dir() . '/byftp-config-security-' . bin2hex(random_bytes(6));
-define('BYFTP_STORAGE', $storage);
+$storage = sys_get_temp_dir() . '/GhostFTP-config-security-' . bin2hex(random_bytes(6));
+define('GhostFTP_STORAGE', $storage);
 
 require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/helpers.php';
@@ -32,12 +32,12 @@ function config_throws(callable $callback, string $label): void
 }
 
 try {
-    @mkdir(BYFTP_STORAGE, 0700, true);
-    $path = byftp_config_path();
+    @mkdir(GhostFTP_STORAGE, 0700, true);
+    $path = GhostFTP_config_path();
     $key = base64_encode(str_repeat('C', 32));
 
     $oldConfig = [
-        'app_name' => 'ByFTP',
+        'app_name' => 'GhostFTP',
         'secret_key' => $key,
         'allow_registration' => true,
         'allow_private_hosts' => true,
@@ -46,7 +46,7 @@ try {
         'version' => '1.7.1',
     ];
     $currentConfig = [
-        'app_name' => 'ByFTP',
+        'app_name' => 'GhostFTP',
         'secret_key' => $key,
         'allow_registration' => false,
         'allow_private_hosts' => false,
@@ -70,15 +70,15 @@ try {
     );
 
     file_put_contents($path, '{corrupt-app-config');
-    $config = byftp_config(true);
+    $config = GhostFTP_config(true);
     config_check($config === [], 'runtime config does not recover stale app.json backup automatically');
-    config_check(isset($GLOBALS['byftp_config_error']), 'runtime config exposes recovery-required state');
-    config_check(!byftp_registration_enabled(), 'registration fails closed while config recovery is required');
-    config_check(!byftp_private_hosts_allowed(), 'private host access fails closed while config recovery is required');
+    config_check(isset($GLOBALS['GhostFTP_config_error']), 'runtime config exposes recovery-required state');
+    config_check(!GhostFTP_registration_enabled(), 'registration fails closed while config recovery is required');
+    config_check(!GhostFTP_private_hosts_allowed(), 'private host access fails closed while config recovery is required');
 
     $corruptPrimary = (string)@file_get_contents($path);
     config_throws(
-        fn() => byftp_update_config(['allow_registration' => true]),
+        fn() => GhostFTP_update_config(['allow_registration' => true]),
         'config update is blocked while the primary config is corrupt'
     );
     config_check(
@@ -93,19 +93,19 @@ try {
     );
 
     @unlink($path);
-    $backupOnly = byftp_config(true);
+    $backupOnly = GhostFTP_config(true);
     config_check($backupOnly === [], 'runtime config fails closed when only app.json.bak remains');
-    config_check(isset($GLOBALS['byftp_config_error']), 'backup-only config remains marked for manual recovery');
-    config_check(!byftp_is_configured(), 'backup-only stale config does not silently configure the application');
+    config_check(isset($GLOBALS['GhostFTP_config_error']), 'backup-only config remains marked for manual recovery');
+    config_check(!GhostFTP_is_configured(), 'backup-only stale config does not silently configure the application');
 } finally {
     foreach ([
-        BYFTP_STORAGE . '/app.json',
-        BYFTP_STORAGE . '/app.json.bak',
-        BYFTP_STORAGE . '/app.json.lock',
+        GhostFTP_STORAGE . '/app.json',
+        GhostFTP_STORAGE . '/app.json.bak',
+        GhostFTP_STORAGE . '/app.json.lock',
     ] as $file) {
         @unlink($file);
     }
-    @rmdir(BYFTP_STORAGE);
+    @rmdir(GhostFTP_STORAGE);
 }
 
 if ($failed) {

@@ -199,7 +199,7 @@ function Build-GhostFTPArchitecture {
     Write-Host "      [$Label] Ghost FTP client"
     Invoke-Native -FilePath $go -ArgumentList @(
         'build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$ldflags,
-        '-o',$portable,'./cmd/byftp'
+        '-o',$portable,'./cmd/GhostFTP'
     ) -FailureMessage "Client $Label build failed"
 
     Invoke-Native -FilePath $python -ArgumentList @(
@@ -209,7 +209,7 @@ function Build-GhostFTPArchitecture {
 
     Write-Host "      [$Label] Verified installer payload"
     try {
-        # make_payload.py intentionally stores the inner executable as ByFTP.exe:
+        # make_payload.py intentionally stores the inner executable as GhostFTP.exe:
         # that filename is a legacy installed-app compatibility boundary only.
         Invoke-Native -FilePath $python -ArgumentList @(
             'scripts/make_payload.py','--app',$portable,'--output',$payloadZip

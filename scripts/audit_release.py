@@ -45,7 +45,7 @@ def main() -> int:
     version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
-    if read("ByFTP WEB/VERSION").strip() != version:
+    if read("GhostFTP WEB/VERSION").strip() != version:
         fail("web VERSION does not match the repository VERSION")
 
     run_python_audit("scripts/audit_repository.py", "repository-wide tracked-file audit")
@@ -86,7 +86,7 @@ def main() -> int:
     for obsolete in (
         "scripts/package_windows_bundles.ps1", "scripts/prepare_release.ps1", "scripts/publish_release.ps1",
         "Expected 18 public release files", "PUBLIC_PLATFORM_ARTIFACTS=15",
-        "path: dist/ByFTP-*-Setup-*.exe", 'staging/windows/ByFTP-${VERSION}-Setup-',
+        "path: dist/GhostFTP-*-Setup-*.exe", 'staging/windows/GhostFTP-${VERSION}-Setup-',
     ):
         if obsolete in workflow:
             fail(f"release workflow still references obsolete release surface: {obsolete}")
@@ -103,7 +103,7 @@ def main() -> int:
         ),
         ".github/workflows/ci.yml",
     )
-    if 'dist\\ByFTP-$v-Setup-$arch.exe' in ci:
+    if 'dist\\GhostFTP-$v-Setup-$arch.exe' in ci:
         fail("CI still expects the retired public Windows build filename")
 
     release_notes = read("scripts/release_notes.py")
@@ -143,8 +143,8 @@ def main() -> int:
         "BUILD-WINDOWS.ps1",
     )
     for forbidden in (
-        "function Build-ByFTPArchitecture", '"ByFTP-$version-Portable-$Label.exe"',
-        '"ByFTP-$version-Setup-$Label.exe"', "./cmd/uninstaller", "--uninstaller", "-Uninstall-", "'uninstaller'",
+        "function Build-GhostFTPArchitecture", '"GhostFTP-$version-Portable-$Label.exe"',
+        '"GhostFTP-$version-Setup-$Label.exe"', "./cmd/uninstaller", "--uninstaller", "-Uninstall-", "'uninstaller'",
     ):
         if forbidden in windows_build:
             fail(f"Windows build still contains obsolete public/release path: {forbidden}")
@@ -169,16 +169,16 @@ def main() -> int:
         "scripts/verify_release.py",
     )
 
-    # ByFTP.exe and old registry keys remain intentional Windows upgrade-compatibility identifiers.
+    # GhostFTP.exe and old registry keys remain intentional Windows upgrade-compatibility identifiers.
     payload = read("scripts/make_payload.py")
-    require(payload, ("PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "ByFTP.exe")'), "scripts/make_payload.py")
+    require(payload, ("PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "GhostFTP.exe")'), "scripts/make_payload.py")
     installer = read("cmd/installer/main.go")
     require(
         installer,
         (
-            'legacyUninstallKey = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ByFTP`',
-            'appPathsKey        = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\ByFTP.exe`',
-            'appPath := filepath.Join(dir, "ByFTP.exe")',
+            'legacyUninstallKey = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GhostFTP`',
+            'appPathsKey        = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\GhostFTP.exe`',
+            'appPath := filepath.Join(dir, "GhostFTP.exe")',
             'brand.ProductName + " will be installed for your Windows user account',
             '"Remove any redirect from the Ghost FTP installation folder and try again."',
             "All user-visible branding is Ghost FTP",
@@ -186,16 +186,16 @@ def main() -> int:
         "cmd/installer/main.go",
     )
 
-    web_manifest = read("ByFTP WEB/manifest.webmanifest")
-    require(web_manifest, ('"name": "Ghost FTP Remote File Client"', '"short_name": "Ghost FTP"'), "ByFTP WEB/manifest.webmanifest")
+    web_manifest = read("GhostFTP WEB/manifest.webmanifest")
+    require(web_manifest, ('"name": "Ghost FTP Remote File Client"', '"short_name": "Ghost FTP"'), "GhostFTP WEB/manifest.webmanifest")
 
     changelog = read("CHANGELOG.md")
-    require(changelog, (f"## {version} - 2026-09-04", "Legacy ByFTP history", "ghostftp-v1.0.0"), "CHANGELOG.md")
+    require(changelog, (f"## {version} - 2026-09-04", "Legacy GhostFTP history", "ghostftp-v1.0.0"), "CHANGELOG.md")
 
     obsolete_files = (
         "scripts/prepare_release.ps1", "scripts/publish_release.ps1", "scripts/package_windows_bundles.ps1",
         "scripts/audit_release_version_guard.py", "scripts/test_release_version_guard.py", "scripts/test_release_tools.py",
-        "linux/byftp.desktop", "docs/images/byftp-header.png", "cmd/uninstaller",
+        "linux/GhostFTP.desktop", "docs/images/GhostFTP-header.png", "cmd/uninstaller",
     )
     for rel in obsolete_files:
         if (ROOT / rel).exists():

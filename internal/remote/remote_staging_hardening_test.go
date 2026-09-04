@@ -4,26 +4,26 @@ import (
 	"context"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 func TestRevalidateRemoteCommitRejectsUnsafeStagingObject(t *testing.T) {
 	for _, staged := range []model.Item{
-		{Name: ".byftp-part-x", IsDirectory: true},
-		{Name: ".byftp-part-x", IsSymlink: true},
+		{Name: ".GhostFTP-part-x", IsDirectory: true},
+		{Name: ".GhostFTP-part-x", IsSymlink: true},
 	} {
 		deleted := false
 		_, err := revalidateRemoteCommit(
 			context.Background(),
 			"/dir",
 			"file.txt",
-			".byftp-part-x",
+			".GhostFTP-part-x",
 			false,
 			func(context.Context, string) ([]model.Item, error) {
 				return []model.Item{staged}, nil
 			},
 			func(_ context.Context, base, name string, isDir bool) error {
-				if base != "/dir" || name != ".byftp-part-x" || isDir {
+				if base != "/dir" || name != ".GhostFTP-part-x" || isDir {
 					t.Fatalf("unexpected cleanup target: base=%q name=%q dir=%v", base, name, isDir)
 				}
 				deleted = true
@@ -44,7 +44,7 @@ func TestRevalidateRemoteCommitAllowsHiddenStagingToBeAbsentFromListing(t *testi
 		context.Background(),
 		"/dir",
 		"file.txt",
-		".byftp-part-x",
+		".GhostFTP-part-x",
 		false,
 		func(context.Context, string) ([]model.Item, error) {
 			return []model.Item{{Name: "file.txt", Size: 5}}, nil

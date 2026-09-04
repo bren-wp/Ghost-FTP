@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
-	"github.com/bren-wp/by-ftp/internal/transfer"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/transfer"
 )
 
 func TestApplyTransferEventsToJobsUpdatesAndAppends(t *testing.T) {

@@ -6,7 +6,7 @@ require __DIR__ . '/../app/Remote/BoundedDownloadInterface.php';
 require __DIR__ . '/../app/Remote/TransferLimiter.php';
 require __DIR__ . '/../app/Remote/FtpClient.php';
 
-use ByFTP\Remote\FtpClient;
+use GhostFTP\Remote\FtpClient;
 
 $client = new FtpClient([]);
 $parse = new \ReflectionMethod(FtpClient::class, 'parseRawList');

@@ -41,9 +41,9 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("TestPromptUsesFallbackOnlyForEmptyLine", tests)
 
     def test_android_document_provider_name_is_nullable_safe(self) -> None:
-        helper = read("android/app/src/main/java/com/byftp/client/model/DocumentName.java")
-        activity = read("android/app/src/main/java/com/byftp/client/MainActivity.java")
-        tests = read("android/app/src/test/java/com/byftp/client/model/DocumentNameTest.java")
+        helper = read("android/app/src/main/java/com/GhostFTP/client/model/DocumentName.java")
+        activity = read("android/app/src/main/java/com/GhostFTP/client/MainActivity.java")
+        tests = read("android/app/src/test/java/com/GhostFTP/client/model/DocumentNameTest.java")
         self.assertIn("providerName != null && !providerName.isBlank()", helper)
         self.assertIn('return "upload.bin";', helper)
         self.assertIn("DocumentName.resolve(providerName, uri.getLastPathSegment())", activity)
@@ -51,7 +51,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("usesDeterministicFallbackWhenMetadataIsMissing", tests)
 
     def test_ios_preset_replacement_is_atomic(self) -> None:
-        src = read("ios/ByFTP/SessionStore.swift")
+        src = read("ios/GhostFTP/SessionStore.swift")
         save = between(src, "static func save(_ preset: ConnectionPreset) -> Bool", "static func clear()")
         self.assertIn("SecItemUpdate", save)
         self.assertIn("errSecItemNotFound", save)
@@ -70,7 +70,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
 
     def test_ghostftp_product_line_starts_at_1_0_0_without_rewriting_history(self) -> None:
         self.assertEqual("1.0.0", read("VERSION").strip())
-        self.assertEqual("1.0.0", read("ByFTP WEB/VERSION").strip())
+        self.assertEqual("1.0.0", read("GhostFTP WEB/VERSION").strip())
         readme = read("README.md")
         changelog = read("CHANGELOG.md")
         self.assertIn("Current Ghost FTP version: **1.0.0**", readme)
@@ -78,10 +78,10 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("ghostftp-v1.0.0", readme)
         self.assertIn("historical `v1.0.0` tag", readme)
         self.assertIn("## 1.0.0", changelog)
-        self.assertIn("Legacy ByFTP history", changelog)
+        self.assertIn("Legacy GhostFTP history", changelog)
 
     def test_web_version_brand_and_fail_closed_boundaries(self) -> None:
-        web = ROOT / "ByFTP WEB"
+        web = ROOT / "GhostFTP WEB"
         self.assertTrue(web.is_dir(), "legacy-named web source directory is required")
         root_version = read("VERSION").strip()
         self.assertEqual(root_version, (web / "VERSION").read_text(encoding="utf-8").strip())
@@ -98,8 +98,8 @@ class MaintenanceRegressionTests(unittest.TestCase):
 
         self.assertIn('"name": "brendigo/ghost-ftp-web"', composer)
         self.assertIn(f'"version": "{root_version}"', composer)
-        self.assertIn("BYFTP_ROOT . '/VERSION'", bootstrap)
-        self.assertNotRegex(bootstrap, r"const\s+BYFTP_VERSION\s*=\s*['\"]\d")
+        self.assertIn("GhostFTP_ROOT . '/VERSION'", bootstrap)
+        self.assertNotRegex(bootstrap, r"const\s+GhostFTP_VERSION\s*=\s*['\"]\d")
         self.assertIn("str_contains($path, '\\\\')", paths)
         self.assertIn("str_contains($path, '//')", paths)
         self.assertIn("$part === '.' || $part === '..'", paths)
@@ -111,7 +111,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("$this->profile['password'] = '';", ftp)
         self.assertIn("$this->profile['private_key'] = '';", sftp)
         self.assertIn(f"ghostftp-static-v{root_version}", sw)
-        self.assertIn("key.startsWith('byftp-static-')", sw)
+        self.assertIn("key.startsWith('GhostFTP-static-')", sw)
         self.assertIn("request.mode === 'navigate'", sw)
         self.assertIn("preview", sw)
         self.assertIn("WEB_UNIT_TESTS=PASS", tests)

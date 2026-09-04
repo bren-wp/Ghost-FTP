@@ -14,7 +14,7 @@ const (
 
 // parseTerminalArgs parsira interaktivnu naredbu bez pokretanja ljuske.
 // Navodnici služe samo grupiranju argumenata s razmacima; rezultat se i dalje
-// prosljeđuje isključivo tipiziranim ByFTP operacijama, nikada shellu.
+// prosljeđuje isključivo tipiziranim GhostFTP operacijama, nikada shellu.
 func parseTerminalArgs(line string) ([]string, error) {
 	line = strings.TrimSuffix(line, "\n")
 	line = strings.TrimSuffix(line, "\r")

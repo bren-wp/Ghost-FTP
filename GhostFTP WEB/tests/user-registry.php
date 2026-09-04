@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-use ByFTP\Security\RateLimiter;
-use ByFTP\Storage\JsonStore;
-use ByFTP\Storage\UserStore;
-use ByFTP\Storage\UserWorkspace;
+use GhostFTP\Security\RateLimiter;
+use GhostFTP\Storage\JsonStore;
+use GhostFTP\Storage\UserStore;
+use GhostFTP\Storage\UserWorkspace;
 
-$storage = sys_get_temp_dir() . '/byftp-user-registry-' . bin2hex(random_bytes(6));
-$externalTarget = sys_get_temp_dir() . '/byftp-user-delete-target-' . bin2hex(random_bytes(6));
-define('BYFTP_STORAGE', $storage);
+$storage = sys_get_temp_dir() . '/GhostFTP-user-registry-' . bin2hex(random_bytes(6));
+$externalTarget = sys_get_temp_dir() . '/GhostFTP-user-delete-target-' . bin2hex(random_bytes(6));
+define('GhostFTP_STORAGE', $storage);
 
 require __DIR__ . '/../app/Storage/JsonStore.php';
 require __DIR__ . '/../app/Storage/UserWorkspace.php';
@@ -178,7 +178,7 @@ try {
     $limiter = new RateLimiter(3, 3600);
     $limiter->hit($rateKey);
     $limiter->hit($rateKey);
-    $ratePath = BYFTP_STORAGE . '/logs/rl-' . hash('sha256', $rateKey) . '.json';
+    $ratePath = GhostFTP_STORAGE . '/logs/rl-' . hash('sha256', $rateKey) . '.json';
     $rateBackup = $ratePath . '.bak';
     $rateBackupRaw = @file_get_contents($rateBackup);
     $rateBackupData = is_string($rateBackupRaw) ? json_decode($rateBackupRaw, true) : null;
@@ -216,7 +216,7 @@ try {
         true
     );
 
-    $backupPath = BYFTP_STORAGE . '/users.json.bak';
+    $backupPath = GhostFTP_STORAGE . '/users.json.bak';
     $backupRaw = @file_get_contents($backupPath);
     $backupRows = is_string($backupRaw) ? json_decode($backupRaw, true) : null;
     $backupHash = '';
@@ -233,7 +233,7 @@ try {
         'backup contains the prior password generation used by the regression scenario'
     );
 
-    $primaryPath = BYFTP_STORAGE . '/users.json';
+    $primaryPath = GhostFTP_STORAGE . '/users.json';
     file_put_contents($primaryPath, '{corrupt-user-registry');
 
     registry_throws(
@@ -258,7 +258,7 @@ try {
         @rmdir($externalTarget);
     }
 
-    $logsDir = BYFTP_STORAGE . '/logs';
+    $logsDir = GhostFTP_STORAGE . '/logs';
     if (is_dir($logsDir)) {
         foreach (glob($logsDir . '/*') ?: [] as $path) {
             @unlink($path);
@@ -266,7 +266,7 @@ try {
         @rmdir($logsDir);
     }
 
-    $usersDir = BYFTP_STORAGE . '/users';
+    $usersDir = GhostFTP_STORAGE . '/users';
     if (is_dir($usersDir)) {
         foreach (glob($usersDir . '/*') ?: [] as $path) {
             if (is_link($path)) {
@@ -293,13 +293,13 @@ try {
         @rmdir($usersDir);
     }
     foreach ([
-        BYFTP_STORAGE . '/users.json',
-        BYFTP_STORAGE . '/users.json.bak',
-        BYFTP_STORAGE . '/users.json.lock',
+        GhostFTP_STORAGE . '/users.json',
+        GhostFTP_STORAGE . '/users.json.bak',
+        GhostFTP_STORAGE . '/users.json.lock',
     ] as $path) {
         @unlink($path);
     }
-    @rmdir(BYFTP_STORAGE);
+    @rmdir(GhostFTP_STORAGE);
 }
 
 if ($failed) {

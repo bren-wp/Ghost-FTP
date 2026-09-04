@@ -13,7 +13,7 @@ struct ContentView: View {
                 }
             }
         }
-        .alert("ByFTP", isPresented: Binding(
+        .alert("GhostFTP", isPresented: Binding(
             get: { store.errorMessage != nil },
             set: { if !$0 { store.errorMessage = nil } }
         )) {

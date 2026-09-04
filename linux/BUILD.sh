@@ -42,7 +42,7 @@ build_arch() {
   mkdir -p "$root/DEBIAN" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/icons/hicolor/512x512/apps"
 
   echo "[Linux ${debarch}] Building Ghost FTP"
-  GOARCH="$goarch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$root/usr/bin/ghostftp" ./cmd/byftp
+  GOARCH="$goarch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$root/usr/bin/ghostftp" ./cmd/GhostFTP
   chmod 0755 "$root/usr/bin/ghostftp"
   cp build/icon.png "$root/usr/share/icons/hicolor/512x512/apps/ghost-ftp.png"
   cp linux/ghost-ftp.desktop "$root/usr/share/applications/ghost-ftp.desktop"

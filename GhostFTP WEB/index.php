@@ -2,42 +2,42 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 
-use ByFTP\Security\Auth;
+use GhostFTP\Security\Auth;
 
 Auth::requireAuth();
 $currentUser = Auth::user() ?? [];
-$pageTitle = byftp_app_name();
+$pageTitle = GhostFTP_app_name();
 $initial = strtoupper(function_exists('mb_substr') ? mb_substr((string)($currentUser['name'] ?? 'U'), 0, 1) : substr((string)($currentUser['name'] ?? 'U'), 0, 1));
 ?>
 <!doctype html>
 <html lang="hr">
 <head>
 <?php require __DIR__ . '/app/Views/head.php'; ?>
-<meta name="csrf-token" content="<?= byftp_e(byftp_csrf_token()) ?>">
-<meta name="api-url" content="<?= byftp_e(byftp_url('api')) ?>">
-<meta name="login-url" content="<?= byftp_e(byftp_url('login')) ?>">
-<meta name="download-url" content="<?= byftp_e(byftp_url('download')) ?>">
-<meta name="download-archive-url" content="<?= byftp_e(byftp_url('download_archive')) ?>">
-<meta name="preview-url" content="<?= byftp_e(byftp_url('preview')) ?>">
-<meta name="upload-max-bytes" content="<?= byftp_e((string)byftp_upload_limit_bytes()) ?>">
+<meta name="csrf-token" content="<?= GhostFTP_e(GhostFTP_csrf_token()) ?>">
+<meta name="api-url" content="<?= GhostFTP_e(GhostFTP_url('api')) ?>">
+<meta name="login-url" content="<?= GhostFTP_e(GhostFTP_url('login')) ?>">
+<meta name="download-url" content="<?= GhostFTP_e(GhostFTP_url('download')) ?>">
+<meta name="download-archive-url" content="<?= GhostFTP_e(GhostFTP_url('download_archive')) ?>">
+<meta name="preview-url" content="<?= GhostFTP_e(GhostFTP_url('preview')) ?>">
+<meta name="upload-max-bytes" content="<?= GhostFTP_e((string)GhostFTP_upload_limit_bytes()) ?>">
 </head>
 <body class="app-page">
 <a class="skip-link" href="#workspace">Preskoči na datoteke</a>
 <div class="app-shell" id="app">
 <header class="topbar">
     <button id="sidebarToggle" class="icon-button mobile-only" type="button" aria-label="Otvori izbornik" aria-controls="sidebar" aria-expanded="false">☰</button>
-    <a class="brand" href="<?= byftp_e(byftp_url('app')) ?>"><img src="<?= byftp_e(byftp_asset('images/logo.svg')) ?>" alt="ByFTP"></a>
+    <a class="brand" href="<?= GhostFTP_e(GhostFTP_url('app')) ?>"><img src="<?= GhostFTP_e(GhostFTP_asset('images/logo.svg')) ?>" alt="GhostFTP"></a>
     <div class="connection-summary"><strong id="connectionName">Nije odabran server</strong><span id="connectionMeta">Odaberi vezu iz izbornika</span></div>
     <div class="topbar-search"><span aria-hidden="true">⌕</span><input id="remoteSearch" type="search" placeholder="Pretraži server…" autocomplete="off"><button id="searchBtn" class="icon-button" type="button" aria-label="Pretraži">↵</button></div>
     <div class="user-menu-wrap">
-        <button id="userMenuBtn" class="user-menu-button" type="button" aria-haspopup="menu" aria-expanded="false"><span class="user-avatar"><?= byftp_e($initial) ?></span><span class="desktop-only"><?= byftp_e((string)($currentUser['name'] ?? 'Korisnik')) ?></span></button>
+        <button id="userMenuBtn" class="user-menu-button" type="button" aria-haspopup="menu" aria-expanded="false"><span class="user-avatar"><?= GhostFTP_e($initial) ?></span><span class="desktop-only"><?= GhostFTP_e((string)($currentUser['name'] ?? 'Korisnik')) ?></span></button>
         <div id="userMenu" class="user-menu hidden" role="menu">
-            <strong><?= byftp_e((string)($currentUser['email'] ?? '')) ?></strong>
-            <a href="<?= byftp_e(byftp_url('account')) ?>">Moj račun</a>
-            <?php if (($currentUser['role'] ?? '') === 'admin'): ?><a href="<?= byftp_e(byftp_url('users')) ?>">Korisnici</a><a href="<?= byftp_e(byftp_url('settings')) ?>">Postavke</a><?php endif; ?>
-            <a href="<?= byftp_e(byftp_url('diagnostics')) ?>">Dijagnostika</a>
+            <strong><?= GhostFTP_e((string)($currentUser['email'] ?? '')) ?></strong>
+            <a href="<?= GhostFTP_e(GhostFTP_url('account')) ?>">Moj račun</a>
+            <?php if (($currentUser['role'] ?? '') === 'admin'): ?><a href="<?= GhostFTP_e(GhostFTP_url('users')) ?>">Korisnici</a><a href="<?= GhostFTP_e(GhostFTP_url('settings')) ?>">Postavke</a><?php endif; ?>
+            <a href="<?= GhostFTP_e(GhostFTP_url('diagnostics')) ?>">Dijagnostika</a>
             <button type="button" data-install-app>Instaliraj aplikaciju</button>
-            <a class="danger-text" href="<?= byftp_e(byftp_url('logout')) ?>">Odjava</a>
+            <a class="danger-text" href="<?= GhostFTP_e(GhostFTP_url('logout')) ?>">Odjava</a>
         </div>
     </div>
 </header>
@@ -48,20 +48,20 @@ $initial = strtoupper(function_exists('mb_substr') ? mb_substr((string)($current
     <div id="profiles" class="profile-list"></div>
     <div class="sidebar-section"><div class="sidebar-heading small-heading"><div><span class="eyebrow">Brzi pristup</span><strong>Favoriti</strong></div></div><div id="favorites" class="favorite-list"><span class="muted tiny">Odaberi server.</span></div></div>
     <nav class="app-nav">
-        <a href="<?= byftp_e(byftp_url('account')) ?>">● Moj račun</a>
-        <?php if (($currentUser['role'] ?? '') === 'admin'): ?><a href="<?= byftp_e(byftp_url('users')) ?>">◎ Korisnici</a><?php endif; ?>
-        <a href="<?= byftp_e(byftp_url('diagnostics')) ?>">◇ Dijagnostika</a>
-        <button type="button" data-install-app>↓ Instaliraj ByFTP</button>
+        <a href="<?= GhostFTP_e(GhostFTP_url('account')) ?>">● Moj račun</a>
+        <?php if (($currentUser['role'] ?? '') === 'admin'): ?><a href="<?= GhostFTP_e(GhostFTP_url('users')) ?>">◎ Korisnici</a><?php endif; ?>
+        <a href="<?= GhostFTP_e(GhostFTP_url('diagnostics')) ?>">◇ Dijagnostika</a>
+        <button type="button" data-install-app>↓ Instaliraj GhostFTP</button>
     </nav>
-    <div class="sidebar-footer"><span id="connectionStatus" class="status-dot offline"></span><span id="statusText">Nije povezano</span><small>v<?= byftp_e(BYFTP_VERSION) ?></small></div>
+    <div class="sidebar-footer"><span id="connectionStatus" class="status-dot offline"></span><span id="statusText">Nije povezano</span><small>v<?= GhostFTP_e(GhostFTP_VERSION) ?></small></div>
 </aside>
 
 <main id="workspace" class="workspace" tabindex="-1">
     <section id="welcome" class="welcome-card">
-        <img src="<?= byftp_e(byftp_asset('images/mark.svg')) ?>" class="welcome-mark" alt="">
+        <img src="<?= GhostFTP_e(GhostFTP_asset('images/mark.svg')) ?>" class="welcome-mark" alt="">
         <p class="eyebrow">FTP · FTPS · SFTP</p><h1>Datoteke pod kontrolom.</h1>
         <p>Siguran web file manager za shared hosting, desktop, tablet i mobitel — bez CDN-a, telemetrije ili vanjskog backenda.</p>
-        <div class="welcome-actions"><button id="welcomeAdd" class="button primary" type="button">Dodaj server</button><a class="button ghost" href="<?= byftp_e(byftp_url('diagnostics')) ?>">Provjeri hosting</a></div>
+        <div class="welcome-actions"><button id="welcomeAdd" class="button primary" type="button">Dodaj server</button><a class="button ghost" href="<?= GhostFTP_e(GhostFTP_url('diagnostics')) ?>">Provjeri hosting</a></div>
     </section>
 
     <section id="fileApp" class="file-app hidden">
@@ -118,10 +118,10 @@ $initial = strtoupper(function_exists('mb_substr') ? mb_substr((string)($current
 
 <nav id="contextMenu" class="context-menu hidden"><button data-action="open" type="button">Otvori</button><button data-action="download" type="button">Preuzmi</button><button data-action="edit" type="button">Uredi</button><button data-action="preview" type="button">Pregled slike</button><hr><button data-action="duplicate" type="button">Dupliciraj</button><button data-action="copy" type="button">Kopiraj u…</button><button data-action="move" type="button">Premjesti u…</button><button data-action="rename" type="button">Preimenuj</button><button data-action="chmod" type="button">Dozvole</button><button data-action="extract" type="button">Raspakiraj ZIP</button><hr><button class="danger-text" data-action="delete" type="button">Obriši</button></nav>
 
-<div id="installModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card install-card"><div class="modal-head"><div><p class="eyebrow">PWA</p><h2>Instaliraj ByFTP</h2></div><button class="icon-button" type="button" data-close-install>×</button></div><div class="install-visual"><img src="<?= byftp_e(byftp_asset('images/mark.svg')) ?>" alt="ByFTP"><p>Dodaj ByFTP na početni zaslon. Autentificirane stranice i FTP podaci ne spremaju se u offline cache.</p></div><ol data-ios-install hidden><li>U Safariju odaberi <strong>Dijeli</strong>.</li><li>Odaberi <strong>Dodaj na početni zaslon</strong>.</li></ol><p data-generic-install>U izborniku preglednika odaberi <strong>Instaliraj aplikaciju</strong>.</p></div></div>
+<div id="installModal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card install-card"><div class="modal-head"><div><p class="eyebrow">PWA</p><h2>Instaliraj GhostFTP</h2></div><button class="icon-button" type="button" data-close-install>×</button></div><div class="install-visual"><img src="<?= GhostFTP_e(GhostFTP_asset('images/mark.svg')) ?>" alt="GhostFTP"><p>Dodaj GhostFTP na početni zaslon. Autentificirane stranice i FTP podaci ne spremaju se u offline cache.</p></div><ol data-ios-install hidden><li>U Safariju odaberi <strong>Dijeli</strong>.</li><li>Odaberi <strong>Dodaj na početni zaslon</strong>.</li></ol><p data-generic-install>U izborniku preglednika odaberi <strong>Instaliraj aplikaciju</strong>.</p></div></div>
 
 <div id="toastHost" class="toast-host" aria-live="polite"></div>
-<script src="<?= byftp_e(byftp_asset('js/pwa.js')) ?>" defer></script>
-<script type="module" src="<?= byftp_e(byftp_asset('js/app.js')) ?>"></script>
+<script src="<?= GhostFTP_e(GhostFTP_asset('js/pwa.js')) ?>" defer></script>
+<script type="module" src="<?= GhostFTP_e(GhostFTP_asset('js/app.js')) ?>"></script>
 </body>
 </html>

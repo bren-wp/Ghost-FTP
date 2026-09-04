@@ -1,4 +1,4 @@
-package com.byftp.client.model;
+package com.GhostFTP.client.model;
 
 import static org.junit.Assert.*;
 import org.junit.Test;

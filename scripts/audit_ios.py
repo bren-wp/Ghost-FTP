@@ -36,11 +36,11 @@ def main() -> int:
         fail(f"invalid VERSION: {version!r}")
 
     required_files = (
-        "ios/ByFTP/ByFTPApp.swift", "ios/ByFTP/ContentView.swift", "ios/ByFTP/ConnectionView.swift",
-        "ios/ByFTP/RemoteBrowserView.swift", "ios/ByFTP/SessionStore.swift", "ios/ByFTP/ConnectionConfig.swift",
-        "ios/ByFTP/RemoteModels.swift", "ios/ByFTP/SocketConnection.swift", "ios/ByFTP/FTPRemoteClient.swift",
-        "ios/ByFTP/Info.plist", "ios/ByFTP/Assets.xcassets/AppIcon.appiconset/Contents.json",
-        "ios/ByFTP.xcodeproj/project.pbxproj", "ios/ByFTP.xcodeproj/xcshareddata/xcschemes/ByFTP.xcscheme",
+        "ios/GhostFTP/GhostFTPApp.swift", "ios/GhostFTP/ContentView.swift", "ios/GhostFTP/ConnectionView.swift",
+        "ios/GhostFTP/RemoteBrowserView.swift", "ios/GhostFTP/SessionStore.swift", "ios/GhostFTP/ConnectionConfig.swift",
+        "ios/GhostFTP/RemoteModels.swift", "ios/GhostFTP/SocketConnection.swift", "ios/GhostFTP/FTPRemoteClient.swift",
+        "ios/GhostFTP/Info.plist", "ios/GhostFTP/Assets.xcassets/AppIcon.appiconset/Contents.json",
+        "ios/GhostFTP.xcodeproj/project.pbxproj", "ios/GhostFTP.xcodeproj/xcshareddata/xcschemes/GhostFTP.xcscheme",
         "ios/Tests/ModelTests.swift", "ios/README.md", "ios/BUILD.sh", "scripts/package_ios.py",
     )
     for rel in required_files:
@@ -48,7 +48,7 @@ def main() -> int:
     if (ROOT / "scripts/BUILD-IOS.sh").exists():
         fail("legacy scripts/BUILD-IOS.sh must not duplicate the canonical ios/BUILD.sh entry point")
 
-    config = require("ios/ByFTP/ConnectionConfig.swift", (
+    config = require("ios/GhostFTP/ConnectionConfig.swift", (
         "case ftp", "case ftpsImplicit", "rejectControlCharacters", "Port must be between 1 and 65535",
         'rejectControlCharacters(rawHost, field: "Host")',
         'rejectControlCharacters(rawPort, field: "Port")',
@@ -75,7 +75,7 @@ def main() -> int:
     if re.search(r"\b(?:let|var)\s+(?:password|passphrase|secret)\s*:", preset_model, re.IGNORECASE):
         fail("iOS persistent connection preset contains a secret field")
 
-    paths = require("ios/ByFTP/RemoteModels.swift", (
+    paths = require("ios/GhostFTP/RemoteModels.swift", (
         "struct SharedHostingDiagnostics: Equatable, Sendable",
         'let priority = ["public_html", "httpdocs", "htdocs", "www", "web", "html"]',
         "for entry in entries where entry.isDirectory",
@@ -102,7 +102,7 @@ def main() -> int:
     if login_fn < 0 or login_guard < 0 or login_trim < 0 or login_guard > login_trim:
         fail("iOS server login-root controls are normalized before rejection")
 
-    socket = require("ios/ByFTP/SocketConnection.swift", (
+    socket = require("ios/GhostFTP/SocketConnection.swift", (
         "import Network", "NWParameters(tls:", "responseTooLarge", "sendLine", "receiveToFile",
         "StartContinuationBox", "@unchecked Sendable", "private let lock = NSLock()",
         "guard FileManager.default.createFile",
@@ -115,7 +115,7 @@ def main() -> int:
     if "NWParameters(tls: nil" in socket:
         fail("iOS FTPS disables TLS")
 
-    ftp = require("ios/ByFTP/FTPRemoteClient.swift", (
+    ftp = require("ios/GhostFTP/FTPRemoteClient.swift", (
         'command("EPSV")', 'command("PASV")', 'command("PBSZ", "0"', 'command("PROT", "P"',
         "FTPPathMapper.map", "Intentionally ignore the server-supplied PASV host", "MLSD", "LIST",
         "private var password: String", 'defer { password = "" }', 'password = ""',
@@ -128,7 +128,7 @@ def main() -> int:
         if forbidden.lower() in ftp.lower():
             fail(f"unsafe iOS transport marker found: {forbidden}")
 
-    session = require("ios/ByFTP/SessionStore.swift", (
+    session = require("ios/GhostFTP/SessionStore.swift", (
         "import Combine", "import Security", "ObservableObject", "@Published", "generation &+= 1", 'password = ""',
         "startAccessingSecurityScopedResource", "clearDownloadedFile",
         "private var connectingClient: FTPRemoteClient?", "connectingClient = next",
@@ -139,7 +139,7 @@ def main() -> int:
         "ConnectionPresetKeychain.save(preset)", "func forgetSavedConnection()",
         "func upload(_ urls: [URL])", "var remoteNames = Set<String>()", "private func sortedEntries",
         "SecItemCopyMatching", "SecItemAdd", "SecItemDelete", "kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
-        'service = "com.byftp.client.connection-preset"',
+        'service = "com.GhostFTP.client.connection-preset"',
         "@Published private(set) var transferFraction", "@Published private(set) var transferDetail",
         "@Published private(set) var canStopAfterCurrent", "func requestStopAfterCurrent()",
         "stopAfterCurrentRequested", "if stopAfterCurrentRequested && index + 1 < jobs.count { break }",
@@ -169,7 +169,7 @@ def main() -> int:
         if request_fn >= 0 and next_fn > request_fn and forbidden in session[request_fn:next_fn]:
             fail("iOS batch-stop UI tears down the active transport mid-file")
 
-    browser = require("ios/ByFTP/RemoteBrowserView.swift", (
+    browser = require("ios/GhostFTP/RemoteBrowserView.swift", (
         ".searchable(text: $searchText", "allowsMultipleSelection: true", "store.upload(urls)",
         'Label("Go to path"', "store.openDirectory(goToPath)", "store.forgetSavedConnection()",
         "visibleEntries", "safeAreaInset(edge: .bottom)",
@@ -184,15 +184,15 @@ def main() -> int:
     if "ContentUnavailableView" in browser:
         fail("iOS mobile browser uses an API newer than the supported iOS 16 deployment target")
 
-    connection_view = require("ios/ByFTP/ConnectionView.swift", (
+    connection_view = require("ios/GhostFTP/ConnectionView.swift", (
         "store.hasSavedConnection", "Your password is never stored", "store.forgetSavedConnection()",
         ".privacySensitive()",
     ))
     if not connection_view:
         fail("iOS connection screen mobile privacy state is unavailable")
 
-    app = require("ios/ByFTP/ByFTPApp.swift", ("scenePhase", "store.disconnect()"))
-    combined_source = "\n".join(path.read_text(encoding="utf-8") for path in (IOS / "ByFTP").glob("*.swift"))
+    app = require("ios/GhostFTP/GhostFTPApp.swift", ("scenePhase", "store.disconnect()"))
+    combined_source = "\n".join(path.read_text(encoding="utf-8") for path in (IOS / "GhostFTP").glob("*.swift"))
     for forbidden in ("UserDefaults", "WKWebView", "Analytics", "FirebaseAnalytics", "NSAllowsArbitraryLoads"):
         if forbidden in combined_source:
             fail(f"forbidden iOS privacy/runtime marker found: {forbidden}")
@@ -201,27 +201,27 @@ def main() -> int:
     if not session or not app:
         fail("iOS lifecycle contract is unavailable")
 
-    plist = read("ios/ByFTP/Info.plist")
+    plist = read("ios/GhostFTP/Info.plist")
     if "NSAllowsArbitraryLoads" in plist:
         fail("iOS Info.plist weakens App Transport Security globally")
     for marker in ("$(MARKETING_VERSION)", "$(CURRENT_PROJECT_VERSION)", "$(PRODUCT_BUNDLE_IDENTIFIER)"):
         if marker not in plist:
             fail(f"Info.plist is not build-version bound: missing {marker}")
 
-    project = read("ios/ByFTP.xcodeproj/project.pbxproj")
+    project = read("ios/GhostFTP.xcodeproj/project.pbxproj")
     for marker in (
-        "com.apple.product-type.application", "PRODUCT_BUNDLE_IDENTIFIER = com.byftp.client",
+        "com.apple.product-type.application", "PRODUCT_BUNDLE_IDENTIFIER = com.GhostFTP.client",
         "IPHONEOS_DEPLOYMENT_TARGET = 16.0", "MARKETING_VERSION = 0.0.0", "SWIFT_VERSION = 5.0",
-        "000000000000000000000002 /* ByFTP */",
+        "000000000000000000000002 /* GhostFTP */",
     ):
         if marker not in project:
             fail(f"Xcode project is missing: {marker}")
     if re.search(r"MARKETING_VERSION = (?!0\.0\.0)\d+\.\d+\.\d+", project):
         fail("Xcode project hard-codes a production release version")
 
-    scheme = read("ios/ByFTP.xcodeproj/xcshareddata/xcschemes/ByFTP.xcscheme")
+    scheme = read("ios/GhostFTP.xcodeproj/xcshareddata/xcschemes/GhostFTP.xcscheme")
     if 'BlueprintIdentifier="000000000000000000000002"' not in scheme:
-        fail("shared Xcode scheme is not bound to the ByFTP target")
+        fail("shared Xcode scheme is not bound to the GhostFTP target")
 
     build = read("ios/BUILD.sh")
     for marker in (
@@ -249,7 +249,7 @@ def main() -> int:
 
     packager = read("scripts/package_ios.py")
     for marker in (
-        "IOS_PACKAGE_FAILED", "Payload/ByFTP.app", "iOS-arm64-unsigned.ipa",
+        "IOS_PACKAGE_FAILED", "Payload/GhostFTP.app", "iOS-arm64-unsigned.ipa",
         "iOS-arm64-unsigned-app.zip", "CFBundleIdentifier", "CFBundleShortVersionString", "Mach-O",
     ):
         if marker not in packager:

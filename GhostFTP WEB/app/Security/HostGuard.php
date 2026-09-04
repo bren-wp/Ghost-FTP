@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Security;
+namespace GhostFTP\Security;
 
 use RuntimeException;
 
-/** Prevents authenticated users from turning ByFTP WEB into an internal-network probe by default. */
+/** Prevents authenticated users from turning GhostFTP WEB into an internal-network probe by default. */
 final class HostGuard
 {
     public static function assertAllowed(string $host, bool $allowPrivate = false): void

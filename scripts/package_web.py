@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-WEB_ROOT = ROOT / "ByFTP WEB"  # Legacy source-directory name retained for compatibility.
+WEB_ROOT = ROOT / "GhostFTP WEB"  # Legacy source-directory name retained for compatibility.
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 FIXED_ZIP_TIME = (2026, 1, 1, 0, 0, 0)
 
@@ -35,7 +35,7 @@ def canonical_version() -> str:
 def tracked_web_files() -> list[Path]:
     try:
         proc = subprocess.run(
-            ["git", "ls-files", "-z", "--", "ByFTP WEB"],
+            ["git", "ls-files", "-z", "--", "GhostFTP WEB"],
             cwd=ROOT,
             check=True,
             stdout=subprocess.PIPE,
@@ -53,7 +53,7 @@ def tracked_web_files() -> list[Path]:
         except UnicodeDecodeError as exc:
             fail(f"tracked web path is not UTF-8: {exc}")
         rel = PurePosixPath(rel_text)
-        if rel.is_absolute() or ".." in rel.parts or not rel.parts or rel.parts[0] != "ByFTP WEB":
+        if rel.is_absolute() or ".." in rel.parts or not rel.parts or rel.parts[0] != "GhostFTP WEB":
             fail(f"unsafe tracked web path: {rel_text!r}")
         path = ROOT.joinpath(*rel.parts)
         if path.is_symlink():

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ByFTP\Storage;
+namespace GhostFTP\Storage;
 
 use InvalidArgumentException;
 use RuntimeException;
@@ -19,7 +19,7 @@ final class UserWorkspace
 
     public static function directory(string $userId): string
     {
-        return BYFTP_STORAGE . '/users/' . self::id($userId);
+        return GhostFTP_STORAGE . '/users/' . self::id($userId);
     }
 
     public static function file(string $userId, string $name): string
@@ -34,7 +34,7 @@ final class UserWorkspace
     {
         $directory = self::ensure($userId);
         foreach (['profiles.json', 'preferences.json'] as $name) {
-            $source = BYFTP_STORAGE . '/' . $name;
+            $source = GhostFTP_STORAGE . '/' . $name;
             $target = $directory . '/' . $name;
             $sourceExists = is_file($source) || is_file($source . '.bak');
             if (!$sourceExists || is_file($target) || is_file($target . '.bak')) {

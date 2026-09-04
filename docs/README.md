@@ -25,10 +25,10 @@ This directory contains the maintained technical and operator documentation for 
 - [macOS](../macos/README.md)
 - [Android](../android/README.md)
 - [iOS](../ios/README.md)
-- [Web/PWA](../ByFTP%20WEB/README.md) — the source-directory name is retained as a legacy compatibility path; the product is Ghost FTP.
+- [Web/PWA](../GhostFTP%20WEB/README.md) — the source-directory name is retained as a legacy compatibility path; the product is Ghost FTP.
 
 ## Current product line
 
 Ghost FTP starts at version **1.0.0** and uses tags named `ghostftp-vX.Y.Z`. Patch releases advance sequentially (`1.0.1`, `1.0.2`, ...).
 
-Historical ByFTP identifiers may remain in internal source paths and migration-sensitive package identifiers solely for compatibility. They are not the public product name. Public UI, documentation and release assets use **Ghost FTP**.
+Historical GhostFTP identifiers may remain in internal source paths and migration-sensitive package identifiers solely for compatibility. They are not the public product name. Public UI, documentation and release assets use **Ghost FTP**.

@@ -22,10 +22,10 @@ The installer validates its embedded payload manifest and digest, stages verifie
 
 A small set of historical identifiers is intentionally retained only to preserve safe upgrades from existing installations:
 
-- installed executable name `ByFTP.exe`;
-- old Windows App Paths entry for `ByFTP.exe`;
-- old ByFTP uninstall registry key used for migration/cleanup;
-- installer payload member name `ByFTP.exe`.
+- installed executable name `GhostFTP.exe`;
+- old Windows App Paths entry for `GhostFTP.exe`;
+- old GhostFTP uninstall registry key used for migration/cleanup;
+- installer payload member name `GhostFTP.exe`.
 
 These are compatibility identifiers, not public branding. Setup dialogs, build outputs, PE VERSIONINFO and manifests use **Ghost FTP**. Public Windows release files are `Ghost-FTP-X.Y.Z-Setup-x64.exe`, `Ghost-FTP-X.Y.Z-Setup-x86.exe` and the byte-identical x32 alias of x86.
 
@@ -46,7 +46,7 @@ Android uses a separate native protocol boundary:
 - Storage Access Framework is used instead of broad storage permissions.
 - Lifecycle generation guards prevent stale callbacks from mutating a newer/disconnected session.
 
-The Android package/application identifier may retain a legacy `byftp` namespace for installed-app identity compatibility. The visible application name is **Ghost FTP**.
+The Android package/application identifier may retain a legacy `GhostFTP` namespace for installed-app identity compatibility. The visible application name is **Ghost FTP**.
 
 CI produces an installable APK. A production Play signing key must remain outside the repository; a debug-signed CI artifact must never be represented as store-signed production software.
 
@@ -65,13 +65,13 @@ The native iOS application currently uses platform networking for its supported 
 - Failed/stale temporary downloads are cleaned up.
 - No analytics SDK, WebView wrapper or fixed Ghost FTP backend endpoint is part of the app.
 
-The existing Xcode project/bundle identifiers may retain legacy `ByFTP` naming for application identity compatibility. Public application naming is **Ghost FTP**.
+The existing Xcode project/bundle identifiers may retain legacy `GhostFTP` naming for application identity compatibility. Public application naming is **Ghost FTP**.
 
 The CI IPA is a real arm64 device build but is unsigned. Normal device/TestFlight/App Store distribution requires a legitimate Apple signing identity and provisioning profile managed outside the repository.
 
 ## Web/PWA
 
-`ByFTP WEB/` is the legacy-named source directory for the **Ghost FTP** shared-hosting application. The source path and some internal PHP symbols are retained for compatibility; the product/UI/package metadata are Ghost FTP.
+`GhostFTP WEB/` is the legacy-named source directory for the **Ghost FTP** shared-hosting application. The source path and some internal PHP symbols are retained for compatibility; the product/UI/package metadata are Ghost FTP.
 
 Authentication, encrypted profiles, runtime state, archive processing and temporary-transfer budgets are security state:
 
@@ -89,7 +89,7 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 
 Ghost FTP Web uses SameSite=Strict/HttpOnly cookies, CSRF tokens, cross-site POST filtering, CSP, HSTS on HTTPS, no-store behavior for sensitive surfaces and explicit no-index protections. Saved connection secrets use authenticated encryption with an installation-specific key.
 
-The PWA cache namespace is `ghostftp-static-vX.Y.Z`; activation removes superseded Ghost FTP caches and legacy `byftp-static-*` caches. Navigation, API, account, setup, diagnostics, download and preview responses are never stored in the offline cache.
+The PWA cache namespace is `ghostftp-static-vX.Y.Z`; activation removes superseded Ghost FTP caches and legacy `GhostFTP-static-*` caches. Navigation, API, account, setup, diagnostics, download and preview responses are never stored in the offline cache.
 
 `scripts/package_web.py` builds `Ghost-FTP-X.Y.Z-Web.zip` from tracked production files only and rejects symlinks, unsafe paths and case-fold collisions. Runtime users/config/cache/backup data must not enter the public archive.
 
@@ -110,7 +110,7 @@ Security/privacy audits additionally protect:
 
 `.github/workflows/release.yml` is the single production publication path. It assembles exactly eight platform packages plus `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **11 public release files**.
 
-Before publication, the workflow verifies that `main` still points to the release commit. Existing `ghostftp-vX.Y.Z` tags are never moved to another commit. The historical `v1.0.0` and other ByFTP tags remain untouched.
+Before publication, the workflow verifies that `main` still points to the release commit. Existing `ghostftp-vX.Y.Z` tags are never moved to another commit. The historical `v1.0.0` and other GhostFTP tags remain untouched.
 
 ## Package integrity and signing
 

@@ -3,11 +3,11 @@ package remote
 import (
 	"strings"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 // ConnectionDiagnostics contains non-secret facts derived from the connection
-// that ByFTP already established. It intentionally carries no host, username,
+// that GhostFTP already established. It intentionally carries no host, username,
 // credentials, certificate material or server banners.
 type ConnectionDiagnostics struct {
 	Secure          bool   `json:"secure"`

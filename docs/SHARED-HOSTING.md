@@ -1,12 +1,12 @@
 # Shared-hosting compatibility
 
-ByFTP is intentionally compatible with common shared-hosting layouts, chroot/virtual FTP roots and hosting-account credentials.
+GhostFTP is intentionally compatible with common shared-hosting layouts, chroot/virtual FTP roots and hosting-account credentials.
 
 Use the full FTP username provided by the host, including forms such as `account@domain` when required. A web-root path such as `public_html` is resolved inside the authenticated account namespace rather than being rewritten as an arbitrary server filesystem root.
 
 ## Connection diagnostics
 
-After a successful connection, ByFTP derives a small shared-hosting diagnostic result from the **initial remote root listing that the client already needed** to establish a usable session. Diagnostics do not create a second connection, scan ports, try alternative hosts or contact an external service.
+After a successful connection, GhostFTP derives a small shared-hosting diagnostic result from the **initial remote root listing that the client already needed** to establish a usable session. Diagnostics do not create a second connection, scan ports, try alternative hosts or contact an external service.
 
 The recognized web-root candidates use a deterministic priority:
 
@@ -17,7 +17,7 @@ The recognized web-root candidates use a deterministic priority:
 5. `web`
 6. `html`
 
-Only directory entries are candidates. The desktop diagnostic layer also rejects symlink candidates. A match is informational: ByFTP **does not automatically open the detected directory and does not save it into the connection profile**. Existing saved remote paths and explicit user navigation remain authoritative.
+Only directory entries are candidates. The desktop diagnostic layer also rejects symlink candidates. A match is informational: GhostFTP **does not automatically open the detected directory and does not save it into the connection profile**. Existing saved remote paths and explicit user navigation remain authoritative.
 
 The diagnostic payload is deliberately non-secret. It can report whether the selected transport is secure, whether the current root represents an authenticated account root or an SFTP home, the detected web-root name and the initial entry count. It does not contain passwords, passphrases, private keys, usernames, SFTP fingerprints, certificate material or server banners.
 
@@ -25,7 +25,7 @@ A missing common web-root match does not mean the connection is broken. Hosting 
 
 ## Common connection failures
 
-ByFTP keeps raw transport/tool output behind its safe localized error layer. Common shared-hosting failures include:
+GhostFTP keeps raw transport/tool output behind its safe localized error layer. Common shared-hosting failures include:
 
 - FTP `421` connection-limit responses — the hosting account or source address has too many active sessions.
 - FTP `425`/`426` data-channel failures — commonly associated with passive data-channel reachability, firewall/NAT behavior or a server-side transfer interruption.

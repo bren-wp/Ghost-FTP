@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ByFTPApp: App {
+struct GhostFTPApp: App {
     @StateObject private var store = SessionStore()
     @Environment(\.scenePhase) private var scenePhase
 

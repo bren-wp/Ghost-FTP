@@ -22,7 +22,7 @@ go_patch="${BASH_REMATCH[4]:-0}"
 if (( go_major < MIN_GO_MAJOR ||
       (go_major == MIN_GO_MAJOR && go_minor < MIN_GO_MINOR) ||
       (go_major == MIN_GO_MAJOR && go_minor == MIN_GO_MINOR && go_patch < MIN_GO_PATCH) )); then
-  echo "ByFTP production builds require Go 1.26.5 or newer; current: $raw_go" >&2
+  echo "GhostFTP production builds require Go 1.26.5 or newer; current: $raw_go" >&2
   exit 1
 fi
 
@@ -36,19 +36,19 @@ export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS=darwin
 mkdir -p dist
 work="dist/macos-work"
 root="$work/root"
-rm -rf "$work" "dist/ByFTP-${VERSION}-macOS-Universal.pkg"
-mkdir -p "$work/bin" "$root/usr/local/bin" "$root/Applications/ByFTP.app/Contents/MacOS" "$root/Applications/ByFTP.app/Contents/Resources"
+rm -rf "$work" "dist/GhostFTP-${VERSION}-macOS-Universal.pkg"
+mkdir -p "$work/bin" "$root/usr/local/bin" "$root/Applications/GhostFTP.app/Contents/MacOS" "$root/Applications/GhostFTP.app/Contents/Resources"
 
 for arch in amd64 arm64; do
-  echo "[macOS ${arch}] Building ByFTP"
-  GOARCH="$arch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$work/bin/byftp-${arch}" ./cmd/byftp
+  echo "[macOS ${arch}] Building GhostFTP"
+  GOARCH="$arch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$work/bin/GhostFTP-${arch}" ./cmd/GhostFTP
 done
-lipo -create "$work/bin/byftp-amd64" "$work/bin/byftp-arm64" -output "$root/usr/local/bin/byftp"
-chmod 0755 "$root/usr/local/bin/byftp"
-cp "$root/usr/local/bin/byftp" "$root/Applications/ByFTP.app/Contents/Resources/byftp"
-chmod 0755 "$root/Applications/ByFTP.app/Contents/Resources/byftp"
+lipo -create "$work/bin/GhostFTP-amd64" "$work/bin/GhostFTP-arm64" -output "$root/usr/local/bin/GhostFTP"
+chmod 0755 "$root/usr/local/bin/GhostFTP"
+cp "$root/usr/local/bin/GhostFTP" "$root/Applications/GhostFTP.app/Contents/Resources/GhostFTP"
+chmod 0755 "$root/Applications/GhostFTP.app/Contents/Resources/GhostFTP"
 
-iconset="$work/ByFTP.iconset"
+iconset="$work/GhostFTP.iconset"
 mkdir -p "$iconset"
 sips -z 16 16 build/icon.png --out "$iconset/icon_16x16.png" >/dev/null
 sips -z 32 32 build/icon.png --out "$iconset/icon_16x16@2x.png" >/dev/null
@@ -60,16 +60,16 @@ sips -z 256 256 build/icon.png --out "$iconset/icon_256x256.png" >/dev/null
 sips -z 512 512 build/icon.png --out "$iconset/icon_256x256@2x.png" >/dev/null
 sips -z 512 512 build/icon.png --out "$iconset/icon_512x512.png" >/dev/null
 sips -z 1024 1024 build/icon.png --out "$iconset/icon_512x512@2x.png" >/dev/null
-iconutil -c icns "$iconset" -o "$root/Applications/ByFTP.app/Contents/Resources/ByFTP.icns"
+iconutil -c icns "$iconset" -o "$root/Applications/GhostFTP.app/Contents/Resources/GhostFTP.icns"
 
-sed "s/@VERSION@/${VERSION}/g" macos/Info.plist.in > "$root/Applications/ByFTP.app/Contents/Info.plist"
-cp macos/launcher.zsh "$root/Applications/ByFTP.app/Contents/MacOS/ByFTP"
-chmod 0755 "$root/Applications/ByFTP.app/Contents/MacOS/ByFTP"
+sed "s/@VERSION@/${VERSION}/g" macos/Info.plist.in > "$root/Applications/GhostFTP.app/Contents/Info.plist"
+cp macos/launcher.zsh "$root/Applications/GhostFTP.app/Contents/MacOS/GhostFTP"
+chmod 0755 "$root/Applications/GhostFTP.app/Contents/MacOS/GhostFTP"
 
-pkg="dist/ByFTP-${VERSION}-macOS-Universal.pkg"
-pkgbuild --root "$root" --identifier io.github.bren-wp.byftp --version "$VERSION" --install-location / "$pkg" >/dev/null
+pkg="dist/GhostFTP-${VERSION}-macOS-Universal.pkg"
+pkgbuild --root "$root" --identifier io.github.bren-wp.GhostFTP --version "$VERSION" --install-location / "$pkg" >/dev/null
 test -s "$pkg"
 rm -rf "$work"
 echo "MACOS_PACKAGE_OK=$pkg"
-echo "ByFTP ${VERSION} macOS package built with ${raw_go} and telemetry=${telemetry}."
+echo "GhostFTP ${VERSION} macOS package built with ${raw_go} and telemetry=${telemetry}."
 echo 'Note: the package is not Developer ID signed until a valid Apple signing certificate is configured.'

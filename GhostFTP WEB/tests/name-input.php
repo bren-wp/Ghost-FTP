@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../app/Remote/PathGuard.php';
 
-use ByFTP\Remote\PathGuard;
+use GhostFTP\Remote\PathGuard;
 
 $passed = 0;
 $failed = 0;

@@ -1,15 +1,15 @@
-package com.byftp.client;
+package com.GhostFTP.client;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import com.byftp.client.model.ConnectionConfig;
+import com.GhostFTP.client.model.ConnectionConfig;
 
 /**
  * Persists only non-secret connection metadata in the app-private preferences
  * file. Passwords and other authentication secrets are deliberately absent.
  */
 final class ConnectionPresetStore {
-    private static final String STORE = "byftp_connection_preset";
+    private static final String STORE = "GhostFTP_connection_preset";
     private static final String KEY_PROTOCOL = "protocol";
     private static final String KEY_HOST = "host";
     private static final String KEY_PORT = "port";

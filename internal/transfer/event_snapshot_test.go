@@ -3,7 +3,7 @@ package transfer
 import (
 	"testing"
 
-	"github.com/bren-wp/by-ftp/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 func TestEventsVracaNeovisneSnimke(t *testing.T) {
