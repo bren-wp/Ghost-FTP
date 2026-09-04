@@ -133,21 +133,49 @@ final class FtpClient implements RemoteClientInterface
         }
     }
 
-    public function download(string $remotePath, string $localFile): void
+    public function download(string $remotePath, string $localFile, ?int $maxBytes = null): int
     {
         $this->ensureConnected();
+        $maxBytes = TransferLimiter::normalizeLimit($maxBytes);
         $remote = $this->full($remotePath);
         $expected = @ftp_size($this->connection, $remote);
+        if ($maxBytes !== null && is_int($expected) && $expected > $maxBytes) {
+            throw new RuntimeException('Download prelazi dopuštenu veličinu.');
+        }
+
         $fp = @fopen($localFile, 'wb');
         if (!is_resource($fp)) throw new RuntimeException('Ne mogu otvoriti privremenu datoteku.');
         try {
-            if (!@ftp_fget($this->connection, $fp, $remote, FTP_BINARY)) throw new RuntimeException('Download nije uspio.');
-            @fflush($fp);
-            $stat = @fstat($fp);
-            $actual = is_array($stat) ? (int)($stat['size'] ?? -1) : -1;
+            $status = @ftp_nb_fget($this->connection, $fp, $remote, FTP_BINARY);
+            if (!is_int($status)) {
+                throw new RuntimeException('Download nije uspio.');
+            }
+            while ($status === FTP_MOREDATA) {
+                TransferLimiter::assertWithinLimit($fp, $maxBytes);
+                $status = @ftp_nb_continue($this->connection);
+                if (!is_int($status)) {
+                    throw new RuntimeException('Download nije uspio.');
+                }
+            }
+            if ($status !== FTP_FINISHED) {
+                throw new RuntimeException('Download nije uspio.');
+            }
+
+            $actual = TransferLimiter::assertWithinLimit($fp, $maxBytes);
             if (is_int($expected) && $expected >= 0 && $actual >= 0 && $actual !== $expected) {
                 throw new RuntimeException('Download je završio s neočekivanom veličinom datoteke. Prijenos nije pouzdan.');
             }
+            if ($actual < 0) {
+                throw new RuntimeException('Nije moguće potvrditi veličinu preuzete datoteke.');
+            }
+            return $actual;
+        } catch (\Throwable $e) {
+            @ftruncate($fp, 0);
+            if ($this->connection) {
+                @ftp_close($this->connection);
+                $this->connection = null;
+            }
+            throw $e;
         } finally {
             fclose($fp);
         }
@@ -159,13 +187,11 @@ final class FtpClient implements RemoteClientInterface
         $remote = $this->full($remotePath);
         $expected = @ftp_size($this->connection, $remote);
         if (is_int($expected) && $expected > $maxBytes) throw new RuntimeException('Datoteka je prevelika za uređivanje u pregledniku.');
-        if (is_int($expected) && $expected > 0) \byftp_assert_temp_capacity($expected);
+        \byftp_assert_temp_capacity($maxBytes);
         $tmp = tempnam(BYFTP_STORAGE . '/tmp', 'read-');
         if ($tmp === false) throw new RuntimeException('Ne mogu stvoriti privremenu datoteku.');
         try {
-            $this->download($remotePath, $tmp);
-            $size = filesize($tmp);
-            if ($size !== false && $size > $maxBytes) throw new RuntimeException('Datoteka je prevelika za uređivanje u pregledniku.');
+            $this->download($remotePath, $tmp, $maxBytes);
             $content = file_get_contents($tmp);
             if (!is_string($content) || str_contains(substr($content, 0, 8192), "\0")) throw new RuntimeException('Binarne datoteke nije moguće uređivati u editoru.');
             return $content;
