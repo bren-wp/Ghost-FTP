@@ -205,8 +205,25 @@ final class RemoteOperations
                 $this->client->rename($staging, $remotePath);
                 $staged = false;
             } catch (\Throwable $promoteError) {
-                if ($backup !== null && !$this->exists($remotePath)) {
-                    try { $this->client->rename($backup, $remotePath); $backup = null; } catch (\Throwable) {}
+                if ($backup !== null) {
+                    if (!$this->exists($remotePath)) {
+                        try {
+                            $this->client->rename($backup, $remotePath);
+                            $backup = null;
+                        } catch (\Throwable $restoreError) {
+                            throw new RuntimeException(
+                                'Nova datoteka nije aktivirana, a izvornu datoteku nije moguće automatski vratiti. Sigurnosna kopija je sačuvana kao ' . PathGuard::basename($backup) . '. Nemoj ponavljati operaciju dok se kopija ne vrati.',
+                                0,
+                                $restoreError
+                            );
+                        }
+                    } else {
+                        throw new RuntimeException(
+                            'Remote server je prijavio pogrešku tijekom aktivacije nove datoteke, ali odredišna putanja je dostupna. Izvorna verzija je sačuvana kao ' . PathGuard::basename($backup) . '. Provjeri obje datoteke prije nastavka.',
+                            0,
+                            $promoteError
+                        );
+                    }
                 }
                 throw $promoteError;
             }

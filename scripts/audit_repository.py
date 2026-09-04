@@ -157,6 +157,14 @@ def main() -> int:
     if missing:
         errors.append("required tracked files missing: " + ", ".join(missing))
 
+    one_shot_workflows = sorted(
+        path for path in tracked_paths if path.startswith(".github/workflows/one-shot-")
+    )
+    if one_shot_workflows:
+        errors.append(
+            "temporary one-shot workflow is tracked: " + ", ".join(one_shot_workflows)
+        )
+
     text_count = 0
     binary_count = 0
     for mode, path in tracked:
@@ -185,6 +193,7 @@ def main() -> int:
     print(f"REPOSITORY_BINARY_FILES={binary_count}")
     print("REPOSITORY_PATH_COLLISIONS=BLOCKED")
     print("REPOSITORY_GENERATED_ARTIFACTS=BLOCKED")
+    print("REPOSITORY_ONE_SHOT_WORKFLOWS=BLOCKED")
     print("REPOSITORY_TEXT_UTF8_AND_WHITESPACE=ENFORCED")
     print("REPOSITORY_CURRENT_RELEASE_DRIFT=BLOCKED")
     return 0

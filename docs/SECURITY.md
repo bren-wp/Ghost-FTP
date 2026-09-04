@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current Ghost FTP release: 1.0.5**
+**Current Ghost FTP release: 1.0.6**
 
 ## Desktop core
 
@@ -83,6 +83,7 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 - SFTP key temp files are permission-restricted before key material is written, and uploads verify the resulting remote size when the server exposes it.
 - Destructive/batch mutation inputs fail closed before partial application when their shape or source set is invalid.
 - Multi-file upload validates the complete request shape, temporary upload identity and normalized remote destination set before the first remote mutation.
+- Atomic overwrite recovery treats failed backup restoration and ambiguous promotion outcomes as explicit recoverable states: the original backup name is retained for manual recovery without exposing nested transport error text.
 - Public Web error responses expose deliberate validation messages but replace unexpected PHP/extension Throwable details with a generic internal-error response.
 - Known application validation failures use HTTP 400; unexpected internal `Throwable` failures use HTTP 500 without exposing their raw message to the client.
 - The same public-error mapping is used by account, registration, settings, user-administration, login-migration and setup HTML flows; nested internal exceptions are preserved as causes without concatenating their raw text into a user-visible `RuntimeException`.
@@ -103,7 +104,7 @@ The PWA cache namespace is `ghostftp-static-vX.Y.Z`; activation removes supersed
 
 ## Repository, privacy and release integrity
 
-The repository-wide audit checks tracked files for case-insensitive path collisions, Windows-reserved components, symlinks, generated/cache artifacts, malformed UTF-8 text, NUL/BOM issues, trailing whitespace, missing final newlines, merge-conflict markers and stale current-release references.
+The repository-wide audit checks tracked files for case-insensitive path collisions, Windows-reserved components, symlinks, generated/cache artifacts, temporary one-shot workflows, malformed UTF-8 text, NUL/BOM issues, trailing whitespace, missing final newlines, merge-conflict markers and stale current-release references.
 
 Security/privacy audits additionally protect:
 
