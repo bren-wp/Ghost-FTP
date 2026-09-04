@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression coverage for the deployable ByFTP WEB release archive."""
+"""Regression coverage for the deployable Ghost FTP web release archive."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class WebPackageTests(unittest.TestCase):
                 cwd=ROOT,
                 check=True,
             )
-            package = Path(temp_dir) / f"ByFTP-{version}-WEB-shared-hosting.zip"
+            package = Path(temp_dir) / f"Ghost-FTP-{version}-Web.zip"
             self.assertTrue(package.is_file())
             self.assertGreater(package.stat().st_size, 0)
 
@@ -45,7 +45,9 @@ class WebPackageTests(unittest.TestCase):
                 names = zf.namelist()
                 self.assertEqual(expected, names)
                 self.assertEqual(version, zf.read("VERSION").decode("utf-8").strip())
-                self.assertIn(f"byftp-static-v{version}", zf.read("service-worker.js").decode("utf-8"))
+                self.assertIn(f"ghostftp-static-v{version}", zf.read("service-worker.js").decode("utf-8"))
+                composer = zf.read("composer.json").decode("utf-8")
+                self.assertIn('"name": "brendigo/ghost-ftp-web"', composer)
                 self.assertIn("storage/.htaccess", names)
                 self.assertNotIn("storage/users.json", names)
                 self.assertNotIn("storage/config.json", names)
