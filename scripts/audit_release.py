@@ -103,7 +103,7 @@ def main() -> int:
     require(
         "cmd/installer/main.go",
         'uninstallKey = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\GhostFTP`',
-        'appPathsKey        = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\GhostFTP.exe`',
+        'appPathsKey  = `Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\GhostFTP.exe`',
         'appPath := filepath.Join(dir, "GhostFTP.exe")',
     )
     require("scripts/make_payload.py", "PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "GhostFTP.exe")')
