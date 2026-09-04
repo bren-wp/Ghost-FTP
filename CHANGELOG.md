@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.6 - 2026-09-05
+
+- Hardened Web atomic overwrite recovery so a failed promotion cannot silently hide a failed restoration of the original file.
+- Detects ambiguous remote rename outcomes where the server reports a promotion error after the destination path becomes available; both the new destination and original recovery backup are preserved for inspection.
+- Recovery errors expose the generated backup name needed for manual restoration while never concatenating raw nested transport exception text into the public message.
+- Added a focused runtime regression covering failed restore, ambiguous promotion, backup preservation and staging cleanup.
+- Removed the leaked one-shot 1.0.5 audit workflow from production source and made the repository audit reject tracked `.github/workflows/one-shot-*` helpers permanently.
+
 ## 1.0.5 - 2026-09-05
 
 - Extended the shared Web public-error boundary to account, login migration, registration, user administration, application settings and first-run setup HTML flows so unexpected Throwable details are no longer rendered in pages.
