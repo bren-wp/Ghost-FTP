@@ -23,7 +23,7 @@ func selectInstallerLanguage() (string, bool) {
 
 	index, ok := platform.SelectLanguageDialog(
 		brand.ProductName+" Setup",
-		"Choose the language to use in ByFTP. You can change it later in Settings.",
+		"Choose the language to use in Ghost FTP. You can change it later in Settings.",
 		options,
 		0,
 	)
