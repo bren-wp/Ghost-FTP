@@ -4,9 +4,10 @@
 
 - Required a canonical pinned SHA-256 SFTP host fingerprint before Web profiles can be persisted, while retaining the connection-boundary pin requirement as defense in depth.
 - Centralized the Web editor/new-file 4 MiB content limit and required complete local staging writes before atomic remote promotion.
-- Hardened SFTP temporary key handling with restrictive permissions before key material is written and exact write-length checks.
+- Hardened SFTP temporary key handling with fail-closed Unix `0600` permissions before key material is written and exact write-length checks.
 - Added SFTP upload size verification against remote metadata when available so staging fails closed on incomplete transfers.
-- Made batch rename and destructive Web API input validation reject malformed item types and duplicate sources before partial mutation.
+- Made destructive Web batch deletion use a two-pass preflight so every item and type is validated before the first remote delete.
+- Made batch rename reject malformed rows and duplicate source paths before any remote mutation.
 - Removed duplicate archive-processing code commentary and expanded regression coverage for the new fail-closed boundaries.
 - Bound documentation current-release markers and the 10-artifact/13-file release contract to the canonical VERSION audit.
 
