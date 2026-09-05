@@ -1,6 +1,8 @@
 # Architecture
 
-Ghost FTP 2.x is a **Windows + Linux** desktop product with one shared transfer/security core and platform-specific presentation layers.
+Ghost FTP is a **Windows + Linux** desktop product with one shared transfer/security core and platform-specific presentation layers.
+
+The active desktop development baseline is **0.1.0 Beta**. Version maturity does not change the architecture contract: all `0.x.y` builds use the same maintained Windows/Linux core and move toward the first stable **1.0.0** release.
 
 The repository also retains the Ghost FTP Web companion as a separate shared-hosting/PWA source surface. The Web companion is not part of the Windows/Linux desktop application artifact contract.
 
@@ -15,13 +17,16 @@ The architecture is optimized for:
 - platform-native behavior where it improves security or usability;
 - no external Go module dependency graph in the desktop/core module;
 - explicit, auditable OS transport prerequisites;
-- no application telemetry, analytics or background tracking.
+- no application telemetry, analytics or background tracking;
+- one canonical application version shared by Windows Setup, Windows Portable and Linux packages.
 
 ## Layer overview
 
 ### `cmd/ghostftp`
 
 Application entrypoint and secure AskPass helper mode. It owns startup, single-instance/process setup and the narrowly scoped credential prompt bridge required by OpenSSH.
+
+Production builds inject the canonical numeric version from the root `VERSION` file. User-facing pre-1.0 surfaces may append **Beta**, while package metadata remains strict numeric semantic versioning.
 
 ### `internal/desktop`
 
@@ -31,6 +36,8 @@ Platform presentation layer.
 - Linux uses the terminal frontend in `other.go` with a `linux` build tag.
 
 Both frontends call the same typed `internal/api.Engine` methods.
+
+The Windows presentation includes the main dual-pane workspace and a native Site Manager. Site Manager is a UI workflow over the same profile/connection engine rather than a second connection implementation.
 
 ### `internal/api`
 
@@ -112,6 +119,10 @@ Local filesystem browser/action layer. It applies no-follow/reparse-point and re
 
 Canonical English-first runtime registry and catalogs. English is the default/fallback and the current registry contains 24 languages.
 
+### `internal/brand`
+
+Canonical product identity plus user-facing version presentation helpers. The root `VERSION` file remains the machine-readable source of truth; the brand layer may render a `0.x.y` value as `0.x.y Beta` for the UI without changing binary/package metadata.
+
 ### `internal/platform`
 
 OS-specific native behavior such as Windows hardening/dialogs/credential protection/file moves and cross-platform equivalents where appropriate.
@@ -130,6 +141,16 @@ A desktop connection follows this sequence:
 8. the transfer manager is enabled only after a confirmed connection.
 
 Saved credentials must not silently migrate to a different endpoint/account/key identity.
+
+## Site Manager flow
+
+The native Windows Site Manager provides one place for saved sites and quick connections.
+
+A saved site contains public endpoint/profile metadata and references protected credentials through the existing profile/security implementation. Selecting a saved site must never reveal an existing stored password or key passphrase as plaintext.
+
+A quick connection can provide protocol, host, port, username, password, local path, remote path, SFTP private key and passphrase. Pressing **Connect** applies those values to the main connection state and invokes the same `connectNow()` path used by the primary connection UI.
+
+The one-click **Sites** toolbar button and the native menu both open the same Site Manager implementation. The control is disabled while connected or while a connection transition is in progress so profile editing cannot race active session state.
 
 ## SFTP process boundary
 
@@ -158,27 +179,47 @@ Upload/download operations use staging and validation before final promotion. Hi
 
 ## Windows presentation
 
-Windows is the graphical reference frontend. The 2.0 visual system uses a premium graphite/navy palette, high-DPI scaling and native owner-drawn buttons while remaining free of a third-party GUI framework.
+Windows is the graphical reference frontend. The current visual system uses a graphite/navy palette, high-DPI scaling and native owner-drawn buttons while remaining free of a third-party GUI framework.
 
-The Win32 layer owns only presentation/input orchestration; core connection/transfer/security behavior remains outside the UI files.
+The main workspace intentionally follows the information architecture expected from a professional FTP client:
+
+- compact application/header state;
+- saved-site toolbar;
+- connection controls;
+- visible session/status strip;
+- balanced local and server panes;
+- direct upload/download actions between panes;
+- full-width transfer queue and queue actions.
+
+The layout is reapplied after resize, DPI, protocol and language changes so the production UI does not regress to obsolete geometry after the initial render.
+
+The Win32 layer owns presentation/input orchestration only; core connection/transfer/security behavior remains outside the UI files.
 
 ## Linux presentation
 
-Linux 2.0 uses a hardened terminal interface over the same engine. It supports the same SFTP password/private-key/passphrase model, remote actions, transfer scheduler and validated settings store.
+Linux uses a hardened terminal interface over the same engine. It supports the same SFTP password/private-key/passphrase model, remote actions, transfer scheduler and validated settings store.
 
-The frontend build tag is explicitly `linux`; retired macOS application handling no longer shares this source path.
+The frontend build tag is explicitly `linux`; retired macOS application handling does not share this source path.
 
 See [Platform parity](PLATFORM-PARITY.md) for the current exposed-feature matrix.
+
+## Version and packaging boundary
+
+The root `VERSION` file is the only canonical package version.
+
+Windows Setup and Portable are separate package forms but never separate version lines. Linux packages use the same value. During the Beta phase the canonical version is `0.x.y`; the first stable version is reserved as `1.0.0`.
+
+See [Versioning policy](VERSIONING.md).
 
 ## Web companion boundary
 
 `GhostFTP WEB/` is a separate PHP/PWA implementation intended for shared hosting. It has its own web threat model, session/CSRF boundaries and PHP extension requirements.
 
-It is kept in the same repository for product/source continuity but must not be described as a Windows/Linux desktop runtime component or counted as a 2.x desktop release platform artifact.
+It is kept in the same repository for product/source continuity but must not be described as a Windows/Linux desktop runtime component or counted as a desktop release platform artifact.
 
 ## Retired platforms
 
-Android, iOS and macOS application source trees were removed from active 2.x. Their 1.x implementation history remains in Git and published release provenance.
+Android, iOS and macOS application source trees are not part of the active Windows/Linux product matrix. Their historical implementation/release information remains in Git provenance and historical documentation where applicable.
 
 New desktop work must not reintroduce those platform roots without an explicit future product decision and a new compatibility/release review.
 
