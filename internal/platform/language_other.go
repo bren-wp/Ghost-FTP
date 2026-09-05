@@ -1,10 +1,10 @@
-//go:build !windows
+//go:build linux
 
 package platform
 
-// SelectLanguageDialog is a non-Windows build stub. The graphical installer is
-// distributed for Windows; keeping this symbol available preserves cross-platform
-// package builds and tests.
+// SelectLanguageDialog is the Linux build stub. Ghost FTP Setup is a Windows
+// application, but keeping this symbol on Linux preserves shared package tests
+// without advertising support for any additional application platform.
 func SelectLanguageDialog(_ string, _ string, options []string, defaultIndex int) (int, bool) {
 	if len(options) == 0 {
 		return 0, false
