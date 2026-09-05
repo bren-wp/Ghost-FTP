@@ -16,6 +16,14 @@ RETIRED_SCRIPTS = {
     "scripts/package_android.py",
     "scripts/package_ios.py",
 }
+LINUX_PLATFORM_STUBS = {
+    "internal/platform/delete_other.go",
+    "internal/platform/language_other.go",
+    "internal/platform/other.go",
+    "internal/platform/prompt_other.go",
+    "internal/platform/registry_other.go",
+    "internal/platform/shortcut_other.go",
+}
 
 
 def fail(message: str) -> None:
@@ -41,12 +49,26 @@ def read(rel: str) -> str:
 
 def main() -> int:
     paths = tracked_paths()
+    path_set = set(paths)
     for path in paths:
         normalized = path.replace("\\", "/")
+        lowered = normalized.lower()
         if normalized.startswith(RETIRED_ROOTS):
             fail(f"retired application platform is tracked: {path}")
         if normalized in RETIRED_SCRIPTS:
             fail(f"retired platform tooling is tracked: {path}")
+        if lowered.endswith("_darwin.go"):
+            fail(f"retired macOS/Darwin platform source is tracked: {path}")
+
+    if "internal/platform/filemove_other.go" in path_set:
+        fail("generic unsupported-OS filemove fallback must not be restored")
+
+    for rel in sorted(LINUX_PLATFORM_STUBS):
+        if rel not in path_set:
+            fail(f"required Linux platform stub is not tracked: {rel}")
+        first_line = read(rel).splitlines()[0] if read(rel).splitlines() else ""
+        if first_line != "//go:build linux":
+            fail(f"Linux platform stub has a broad/non-Linux build contract: {rel}")
 
     ci = read(".github/workflows/ci.yml")
     release = read(".github/workflows/release.yml")
@@ -67,6 +89,8 @@ def main() -> int:
     print("PLATFORM_CONTRACT_AUDIT=PASS")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
     print("RETIRED_APPLICATION_PLATFORMS=ANDROID,IOS,MACOS")
+    print("LINUX_PLATFORM_STUBS=EXPLICIT")
+    print("DARWIN_SOURCE=BLOCKED")
     return 0
 
 
