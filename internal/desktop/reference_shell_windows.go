@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
@@ -262,9 +263,8 @@ func (a *app) showDiagnostics() {
 		state = a.tr("badge.connected")
 	}
 	body := fmt.Sprintf(
-		"%s\n\nProtocol: %s\nState: %s\nRemote path: %s\n\nPrivacy: telemetry and tracking are disabled. Diagnostics are generated locally and are not uploaded.",
-		"Ghost FTP  "+a.version,
-		strings.ToUpper(a.protocolValue()), state, a.remoteCurrent,
+		"Ghost FTP %s\n\nProtocol: %s\nState: %s\nRemote path: %s\n\nPrivacy: telemetry and tracking are disabled. Diagnostics are generated locally and are not uploaded.",
+		a.version, strings.ToUpper(a.protocolValue()), state, a.remoteCurrent,
 	)
 	platform.InfoDialog("Ghost FTP — "+words.Diagnostics, words.Diagnostics, body)
 }
