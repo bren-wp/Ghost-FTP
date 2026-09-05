@@ -80,6 +80,7 @@ class UIStabilityHardeningTests(unittest.TestCase):
             "if width >= 1540",
             "applyReferenceFileColumnOrder",
             "[4]int32{0, 2, 1, 3}",
+            "[5]int32{0, 2, 1, 3, 4}",
         ):
             self.assertIn(marker, layout)
         for marker in ("idRemoteSearch", "applyRemoteSearch", "toolbarTargetsRemote", "showDiagnostics"):
@@ -107,21 +108,41 @@ class UIStabilityHardeningTests(unittest.TestCase):
         ):
             self.assertIn(marker, commands)
 
+    def test_remote_permissions_column_is_backed_by_real_metadata(self) -> None:
+        model = self.read("internal/model/types.go")
+        permissions = self.read("internal/remote/permissions.go")
+        util = self.read("internal/remote/util.go")
+        ftp = self.read("internal/remote/curl_ftp.go")
+        ui = self.read("internal/desktop/ui_windows.go")
+        localization = self.read("internal/desktop/localization_windows.go")
+        layout = self.read("internal/desktop/workspace_layout_windows.go")
+
+        self.assertIn('Permissions string    `json:"permissions,omitempty"`', model)
+        for marker in ("normalizePermissionDisplay", 'strings.ContainsRune("-bcdlps"', 'strings.ContainsRune("rwxstST-"'):
+            self.assertIn(marker, permissions)
+        self.assertIn("Permissions: normalizePermissionDisplay(f[0])", util)
+        self.assertIn('item.Permissions = normalizePermissionDisplay(facts["unix.mode"])', ftp)
+        self.assertNotIn('normalizePermissionDisplay(facts["perm"])', ftp)
+        self.assertIn("a.setupFileColumns(a.localList, false)", ui)
+        self.assertIn("a.setupFileColumns(a.remoteList, true)", ui)
+        self.assertIn('a.insertColumn(list, 4, a.tr("common.permissions"), 112)', ui)
+        self.assertIn('a.setColumnTitle(a.remoteList, 4, a.tr("common.permissions"))', localization)
+        self.assertIn("columns = append(columns, item.Permissions)", localization)
+        self.assertIn("[5]int32{0, 2, 1, 3, 4}", layout)
+
     def test_settings_do_not_replace_helpful_host_hint(self) -> None:
         settings = self.read("internal/desktop/settings_windows.go")
         ui = self.read("internal/desktop/ui_windows.go")
         catalogs = self.read("internal/i18n/catalogs.go")
-        # Settings must not replace the connection form's localized cue text.
         self.assertNotIn("cue(a.host", settings)
         self.assertIn('cue(a.host, a.tr("cue.host"))', ui)
-        # The canonical English hint remains useful for shared-hosting users,
-        # while other locales can provide their own equivalent cue text.
         self.assertIn('"cue.host":           "FTP/SFTP server, e.g. ftp.example.com"', catalogs)
         self.assertIn('"cue.user": "Username, may be user@example.com"', catalogs)
 
     def test_windows_connection_surface_never_overwrites_locale_with_croatian_literals(self) -> None:
         profiles = self.read("internal/desktop/connection_profiles_windows.go")
         transfers = self.read("internal/desktop/transfers_windows.go")
+        actions = self.read("internal/desktop/files_actions_windows.go")
 
         for forbidden in (
             '"Brzi spoj (bez profila)"',
@@ -150,6 +171,20 @@ class UIStabilityHardeningTests(unittest.TestCase):
         self.assertIn('a.tr("transfer.summary", running, queued, done)', transfers)
         self.assertIn('a.tr("transfer.summary_skipped", skipped)', transfers)
         self.assertIn('a.tr("transfer.summary_failed", failed)', transfers)
+
+        for forbidden in (
+            "Odaberite jednu ili više",
+            "Mapa nije stvorena",
+            "Preimenovanje nije uspjelo",
+            "Nisu obrisane sve stavke",
+            "Brisanje na poslužitelju",
+            "Dozvole promijenjene",
+            "Dodano u red",
+            "Veza više nije dostupna",
+        ):
+            self.assertNotIn(forbidden, actions)
+        for marker in ('a.userMessage(err, "error.generic")', 'a.tr("common.delete")', 'a.tr("common.permissions")'):
+            self.assertIn(marker, actions)
 
     def test_site_manager_labels_are_public_brand_clean_and_24_language_aware(self) -> None:
         site = self.read("internal/desktop/site_manager_windows.go")
@@ -182,6 +217,7 @@ class UIStabilityHardeningTests(unittest.TestCase):
             "queueWidths := []int{82, 86, 82, 78, 132}",
             "showMutations := needed <= availableToolbar",
             "remotePathW < 72",
+            "permissionsW := 108",
         ):
             self.assertIn(marker, layout)
         for marker in (
@@ -191,6 +227,7 @@ class UIStabilityHardeningTests(unittest.TestCase):
             "strings.Contains(strings.ToLower(item.Name), query)",
         ):
             self.assertIn(marker, shell)
+        self.assertNotIn("Diagnostics are generated locally and are not uploaded.", shell)
 
 
 if __name__ == "__main__":
