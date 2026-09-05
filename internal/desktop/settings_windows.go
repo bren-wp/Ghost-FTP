@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
@@ -43,6 +44,68 @@ func (a *app) promptNumber(instructionKey string, current, min, max int) (int, b
 		return current, false
 	}
 	return number, true
+}
+
+func conflictPolicyIndex(settings model.Settings) int {
+	switch settings.ConflictPolicy {
+	case model.ConflictPolicySkip:
+		return 0
+	case model.ConflictPolicyReplace:
+		return 1
+	case model.ConflictPolicyReplaceBackup:
+		return 2
+	}
+	if settings.SkipExisting {
+		return 0
+	}
+	if settings.BackupBeforeOverwrite {
+		return 2
+	}
+	return 1
+}
+
+func applyConflictPolicySelection(settings *model.Settings, index int) {
+	if settings == nil {
+		return
+	}
+	switch index {
+	case 0:
+		settings.ConflictPolicy = model.ConflictPolicySkip
+		settings.SkipExisting = true
+		settings.BackupBeforeOverwrite = false
+	case 1:
+		settings.ConflictPolicy = model.ConflictPolicyReplace
+		settings.SkipExisting = false
+		settings.BackupBeforeOverwrite = false
+	default:
+		settings.ConflictPolicy = model.ConflictPolicyReplaceBackup
+		settings.SkipExisting = false
+		settings.BackupBeforeOverwrite = true
+	}
+}
+
+func (a *app) promptConflictPolicy(settings model.Settings) (model.Settings, bool) {
+	title := a.tr("settings.title")
+	options := []string{
+		a.tr("settings.skip_existing"),
+		a.tr("settings.overwrite"),
+		a.tr("settings.overwrite") + " + " + a.tr("settings.backup_title"),
+	}
+	instruction := a.tr("settings.skip_body") + "\n" + a.tr("settings.backup_body")
+	index, ok := platform.SelectOptionDialog(
+		title,
+		instruction,
+		brand.ProductName+" · "+a.tr("settings.title"),
+		okLabel(a.languageCode()),
+		a.tr("common.cancel"),
+		options,
+		conflictPolicyIndex(settings),
+	)
+	if !ok {
+		return settings, false
+	}
+	applyConflictPolicySelection(&settings, index)
+	return settings, true
 }
 
 func (a *app) openSettings() {
@@ -85,9 +148,12 @@ func (a *app) openSettings() {
 		settings.RetryDelaySeconds = delay
 	}
 
+	settings, ok = a.promptConflictPolicy(settings)
+	if !ok {
+		return
+	}
+
 	title := a.tr("settings.title")
-	settings.BackupBeforeOverwrite = platform.ConfirmDialog(title, a.tr("settings.backup_title"), a.tr("settings.backup_body"))
-	settings.SkipExisting = platform.ConfirmDialog(title, a.tr("settings.skip_title"), a.tr("settings.skip_body"))
 	settings.ConfirmDelete = platform.ConfirmDialog(title, a.tr("settings.confirm_delete_title"), a.tr("settings.confirm_delete_body"))
 
 	a.goSafe(func() {
