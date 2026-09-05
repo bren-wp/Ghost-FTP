@@ -13,7 +13,7 @@ on:
       - '.github/workflows/ui-screenshots.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ghostftp-ui-screenshots-${{ github.ref }}
@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -77,6 +79,44 @@ jobs:
               throw "Authentic UI screenshot is unexpectedly small: $path"
             }
           }
+
+      - name: Persist authentic screenshots in repository
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $branch = '${{ github.ref_name }}'
+          if ([string]::IsNullOrWhiteSpace($branch)) {
+            throw 'Unable to resolve branch for screenshot persistence.'
+          }
+
+          New-Item -ItemType Directory -Force -Path 'docs\images' | Out-Null
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-main-workspace.png' -Destination 'docs\images\ghost-ftp-main-workspace.png' -Force
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-site-manager.png' -Destination 'docs\images\ghost-ftp-site-manager.png' -Force
+
+          git add -- 'docs/images/ghost-ftp-main-workspace.png' 'docs/images/ghost-ftp-site-manager.png'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'AUTHENTIC_UI_SCREENSHOTS=UNCHANGED'
+            exit 0
+          }
+          if ($LASTEXITCODE -ne 1) {
+            throw 'Unable to determine whether authentic screenshots changed.'
+          }
+
+          git fetch origin $branch
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to refresh screenshot target branch.' }
+          $remote = (git rev-parse "origin/$branch").Trim()
+          if ($remote -ne '${{ github.sha }}') {
+            throw "Branch moved from the capture commit (${{ github.sha }}) to $remote; refusing a stale screenshot commit."
+          }
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update authentic Ghost FTP UI screenshots [skip ci]'
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to commit authentic screenshots.' }
+          git push origin "HEAD:$branch"
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to push authentic screenshots.' }
+          Write-Host 'AUTHENTIC_UI_SCREENSHOTS=PERSISTED'
 
       - name: Publish authentic UI screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
