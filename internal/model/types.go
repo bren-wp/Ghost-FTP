@@ -2,6 +2,12 @@ package model
 
 import "time"
 
+const (
+	ConflictPolicySkip          = "skip"
+	ConflictPolicyReplace       = "replace"
+	ConflictPolicyReplaceBackup = "replace_backup"
+)
+
 type Item struct {
 	Name        string    `json:"name"`
 	Size        int64     `json:"size"`
@@ -60,6 +66,7 @@ type ProfileInput struct {
 type Settings struct {
 	Language                 string `json:"language,omitempty"`
 	Parallelism              int    `json:"parallelism"`
+	ConflictPolicy           string `json:"conflictPolicy,omitempty"`
 	BackupBeforeOverwrite    bool   `json:"backupBeforeOverwrite"`
 	ConfirmDelete            bool   `json:"confirmDelete"`
 	AutoRetryCount           int    `json:"autoRetryCount,omitempty"`
