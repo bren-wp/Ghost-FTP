@@ -1,0 +1,101 @@
+name: Ghost FTP one-shot X11 keymap runtime fix
+
+on:
+  push:
+    branches:
+      - work/premium-parity-release-hardening-0.1.1
+    paths:
+      - .github/workflows/fix-x11-keymap-runtime.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: off
+      GOSUMDB: off
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: work/premium-parity-release-hardening-0.1.1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Correct GetKeyboardMapping wire offsets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('internal/desktop/x11_linux.go')
+          s = p.read_text(encoding='utf-8')
+          old = '''\tbuf[0] = 101
+          \tbuf[1] = x.minKey
+          \tbuf[4] = byte(count)
+          '''
+          new = '''\tbuf[0] = 101
+          \tbuf[4] = x.minKey
+          \tbuf[5] = byte(count)
+          '''
+          if s.count(old) != 1:
+              raise SystemExit(f'expected exactly one malformed GetKeyboardMapping request, found {s.count(old)}')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+          gofmt -w internal/desktop/x11_linux.go
+          git diff --check
+
+      - name: Start isolated X11 server
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/.X98-lock
+          Xvfb :98 -screen 0 1280x800x24 -ac -nolisten tcp >/tmp/ghostftp-xvfb98.log 2>&1 &
+          echo $! >/tmp/ghostftp-xvfb98.pid
+          for i in $(seq 1 50); do
+            test -S /tmp/.X11-unix/X98 && exit 0
+            sleep 0.1
+          done
+          cat /tmp/ghostftp-xvfb98.log >&2 || true
+          exit 1
+
+      - name: Prove X11 handshake CreateWindow and render
+        shell: bash
+        env:
+          DISPLAY: ':98'
+          GHOSTFTP_X11_SMOKE: '1'
+          HOME: /tmp/ghostftp-x11-test-home
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME"
+          chmod 700 "$HOME"
+          go test -run '^TestX11RuntimeSmoke$' -v ./internal/desktop
+          go test ./internal/desktop ./internal/security ./internal/config
+          go vet ./internal/desktop
+
+      - name: Commit verified X11 fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo'
+          git config user.email 'info@brendigo.com'
+          git add internal/desktop/x11_linux.go
+          git commit -m 'Fix X11 keyboard mapping wire request'
+          git push origin HEAD:work/premium-parity-release-hardening-0.1.1
+
+      - name: Cleanup X11 server
+        if: always()
+        shell: bash
+        run: |
+          if test -f /tmp/ghostftp-xvfb98.pid; then kill "$(cat /tmp/ghostftp-xvfb98.pid)" 2>/dev/null || true; fi
