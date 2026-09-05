@@ -28,7 +28,9 @@ func (a *app) updateActionControls() {
 		return
 	}
 
+	a.ensureSiteManagerButton()
 	profileEditable := !a.connected && !a.connectionBusy
+	setControlEnabled(a.siteManagerBtn, profileEditable)
 	setControlEnabled(a.saveProfile, profileEditable)
 	setControlEnabled(a.removeProfile, profileEditable && a.selectedProfileID != "")
 	setControlEnabled(a.settingsBtn, !a.connectionBusy)
