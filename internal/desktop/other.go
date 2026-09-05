@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build linux
 
 package desktop
 
@@ -140,6 +140,10 @@ func waitTransfer(engine *api.Engine, language, jobID string) error {
 	}
 }
 
+// connectTerminal deliberately uses the same ConnectionConfig model and Engine
+// as Windows. SFTP accepts either password authentication or a private key with
+// an optional passphrase; the Linux frontend must not impose a stricter,
+// incompatible authentication subset on top of the shared engine.
 func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) (model.ConnectionConfig, error) {
 	protocol, err := prompt(reader, i18n.T(language, "terminal.protocol"), "sftp")
 	if err != nil {
@@ -168,16 +172,19 @@ func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) 
 		if err != nil {
 			return model.ConnectionConfig{}, err
 		}
-		cfg.PrivateKeyPath = keyPath
+		cfg.PrivateKeyPath = strings.TrimSpace(keyPath)
 		if cfg.PrivateKeyPath == "" {
-			return model.ConnectionConfig{}, errors.New(i18n.T(language, "terminal.sftp_key_required"))
-		}
-		passphrase, err := promptSecret(reader, language, i18n.T(language, "terminal.key_passphrase"))
-		if err != nil {
-			return model.ConnectionConfig{}, err
-		}
-		if passphrase != "" {
-			return model.ConnectionConfig{}, errors.New(i18n.T(language, "terminal.sftp_passphrase_unsupported"))
+			password, err := promptSecret(reader, language, i18n.T(language, "terminal.password"))
+			if err != nil {
+				return model.ConnectionConfig{}, err
+			}
+			cfg.Password = password
+		} else {
+			passphrase, err := promptSecret(reader, language, i18n.T(language, "terminal.key_passphrase"))
+			if err != nil {
+				return model.ConnectionConfig{}, err
+			}
+			cfg.Passphrase = passphrase
 		}
 	} else {
 		password, err := promptSecret(reader, language, i18n.T(language, "terminal.password"))
@@ -191,6 +198,7 @@ func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) 
 	defer cancel()
 	result, err := engine.Connect(ctx, "", cfg, "", false)
 	if err != nil {
+		cfg.Password, cfg.Passphrase = "", ""
 		return model.ConnectionConfig{}, err
 	}
 	if result.RequiresTrust {
@@ -198,20 +206,24 @@ func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) 
 		answer, err := prompt(reader, i18n.T(language, "terminal.trust"), "no")
 		if err != nil {
 			engine.CancelPendingTrust()
+			cfg.Password, cfg.Passphrase = "", ""
 			return model.ConnectionConfig{}, err
 		}
 		if !i18n.IsAffirmative(language, answer) {
 			engine.CancelPendingTrust()
+			cfg.Password, cfg.Passphrase = "", ""
 			return model.ConnectionConfig{}, context.Canceled
 		}
 		ctx2, cancel2 := context.WithTimeout(context.Background(), 75*time.Second)
 		defer cancel2()
 		result, err = engine.Connect(ctx2, "", cfg, result.Fingerprint, false)
 		if err != nil {
+			cfg.Password, cfg.Passphrase = "", ""
 			return model.ConnectionConfig{}, err
 		}
 	}
 	if !result.Connected {
+		cfg.Password, cfg.Passphrase = "", ""
 		return model.ConnectionConfig{}, errors.New(i18n.T(language, "terminal.server_not_connected"))
 	}
 	cfg.Password, cfg.Passphrase = "", ""
@@ -239,19 +251,96 @@ func setTerminalLanguage(engine *api.Engine, settings model.Settings, code strin
 	return saved, i18n.Normalize(saved.Language), nil
 }
 
+func printTerminalSettings(settings model.Settings) {
+	fmt.Printf("language=%s\n", settings.Language)
+	fmt.Printf("parallelism=%d\n", settings.Parallelism)
+	fmt.Printf("conflict=%s\n", settings.ConflictPolicy)
+	fmt.Printf("retries=%d\n", settings.AutoRetryCount)
+	fmt.Printf("retry-delay=%d\n", settings.RetryDelaySeconds)
+	fmt.Printf("timeout=%d\n", settings.ConnectionTimeoutSeconds)
+	fmt.Printf("confirm-delete=%t\n", settings.ConfirmDelete)
+}
+
+func parseTerminalBool(value string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true, nil
+	case "0", "false", "no", "off":
+		return false, nil
+	default:
+		return false, errors.New("expected true/false, yes/no, on/off or 1/0")
+	}
+}
+
+func updateTerminalSetting(settings model.Settings, option, value string) (model.Settings, error) {
+	next := settings
+	var err error
+	switch strings.ToLower(option) {
+	case "parallelism":
+		next.Parallelism, err = strconv.Atoi(value)
+	case "conflict":
+		next.ConflictPolicy = strings.ToLower(strings.TrimSpace(value))
+	case "retries":
+		next.AutoRetryCount, err = strconv.Atoi(value)
+	case "retry-delay":
+		next.RetryDelaySeconds, err = strconv.Atoi(value)
+	case "timeout":
+		next.ConnectionTimeoutSeconds, err = strconv.Atoi(value)
+	case "confirm-delete":
+		next.ConfirmDelete, err = parseTerminalBool(value)
+	default:
+		return settings, errors.New("unknown setting")
+	}
+	if err != nil {
+		return settings, err
+	}
+	return next, nil
+}
+
+func printTransferJobs(engine *api.Engine) {
+	jobs := engine.Transfers()
+	if len(jobs) == 0 {
+		fmt.Println("jobs=0")
+		return
+	}
+	for _, job := range jobs {
+		fmt.Printf("%s  %-9s %-10s %6.1f%%  %s -> %s\n", job.ID, job.Direction, job.Status, job.Progress*100, job.LocalPath, job.RemotePath)
+	}
+}
+
+func printProfiles(engine *api.Engine) error {
+	profiles, err := engine.Profiles()
+	if err != nil {
+		return err
+	}
+	if len(profiles) == 0 {
+		fmt.Println("profiles=0")
+		return nil
+	}
+	for _, profile := range profiles {
+		fmt.Printf("%s  %s  %s://%s:%d  %s\n", profile.ID, profile.Name, profile.Protocol, profile.Host, profile.Port, profile.Username)
+	}
+	return nil
+}
+
 func usage(language, syntax string) string {
 	prefix := map[string]string{
 		"en": "Usage", "hr": "Upotreba", "de": "Verwendung", "fr": "Utilisation", "es": "Uso", "tr": "Kullanım",
 		"el": "Χρήση", "pt": "Utilização", "zh": "用法", "ru": "Использование", "hi": "उपयोग", "ja": "使用法",
 	}[i18n.Normalize(language)]
+	if prefix == "" {
+		prefix = "Usage"
+	}
 	return prefix + ": " + syntax
 }
 
 func runTerminal(engine *api.Engine, version string) error {
 	reader := bufio.NewReader(os.Stdin)
 	settings, language := terminalLanguage(engine)
+	fmt.Println("────────────────────────────────────────────────────────")
 	fmt.Println(i18n.T(language, "terminal.title", version, runtime.GOOS))
 	fmt.Println(i18n.T(language, "terminal.privacy"))
+	fmt.Println("────────────────────────────────────────────────────────")
 	cfg, err := connectTerminal(engine, reader, language)
 	if err != nil {
 		return errors.New(usererror.MessageFor(language, err, i18n.T(language, "terminal.connect_failed")))
@@ -268,6 +357,7 @@ func runTerminal(engine *api.Engine, version string) error {
 	fmt.Println(i18n.T(language, "terminal.connected", cfg.Host, cfg.Port))
 	fmt.Println(i18n.T(language, "terminal.commands"))
 	fmt.Println(i18n.T(language, "terminal.quote_paths"))
+	fmt.Println("jobs | pause | resume | cancel <id> | retry <id> | clear | profiles | settings | set <option> <value>")
 	for {
 		fmt.Printf("GhostFTP:%s> ", current)
 		line, readErr := reader.ReadString('\n')
@@ -296,6 +386,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			fmt.Println(i18n.T(language, "terminal.commands"))
 			fmt.Println(i18n.T(language, "terminal.quote_paths"))
+			fmt.Println("jobs | pause | resume | cancel <id> | retry <id> | clear | profiles | settings | set <option> <value>")
 		case "language":
 			if len(fields) != 2 || !i18n.IsSupported(fields[1]) {
 				fmt.Println(i18n.T(language, "terminal.language_usage"))
@@ -308,6 +399,85 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			settings, language = next, nextLanguage
 			fmt.Println(i18n.T(language, "terminal.language_saved", i18n.LanguageByCode(language).NativeName))
+		case "settings":
+			if len(fields) != 1 {
+				fmt.Println(usage(language, "settings"))
+				continue
+			}
+			currentSettings, settingsErr := engine.Settings()
+			if settingsErr != nil {
+				fmt.Println(usererror.MessageFor(language, settingsErr, i18n.T(language, "error.generic")))
+				continue
+			}
+			settings = currentSettings
+			printTerminalSettings(settings)
+		case "set":
+			if len(fields) != 3 {
+				fmt.Println(usage(language, "set <parallelism|conflict|retries|retry-delay|timeout|confirm-delete> <value>"))
+				continue
+			}
+			next, updateErr := updateTerminalSetting(settings, fields[1], fields[2])
+			if updateErr != nil {
+				fmt.Println(updateErr)
+				continue
+			}
+			saved, saveErr := engine.SetSettings(next)
+			if saveErr != nil {
+				fmt.Println(usererror.MessageFor(language, saveErr, i18n.T(language, "settings.save_failed_body")))
+				continue
+			}
+			settings = saved
+			fmt.Println("saved")
+		case "profiles":
+			if len(fields) != 1 {
+				fmt.Println(usage(language, "profiles"))
+				continue
+			}
+			if profileErr := printProfiles(engine); profileErr != nil {
+				fmt.Println(usererror.MessageFor(language, profileErr, i18n.T(language, "error.generic")))
+			}
+		case "jobs":
+			if len(fields) != 1 {
+				fmt.Println(usage(language, "jobs"))
+				continue
+			}
+			printTransferJobs(engine)
+		case "pause":
+			if len(fields) != 1 {
+				fmt.Println(usage(language, "pause"))
+				continue
+			}
+			engine.PauseTransfers()
+			fmt.Println("paused")
+		case "resume":
+			if len(fields) != 1 {
+				fmt.Println(usage(language, "resume"))
+				continue
+			}
+			engine.ResumeTransfers()
+			fmt.Println("resumed")
+		case "cancel":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "cancel <id>"))
+				continue
+			}
+			if cancelErr := engine.CancelTransfer(fields[1]); cancelErr != nil {
+				fmt.Println(usererror.MessageFor(language, cancelErr, i18n.T(language, "error.generic")))
+			}
+		case "retry":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "retry <id>"))
+				continue
+			}
+			if retryErr := engine.RetryTransfer(fields[1]); retryErr != nil {
+				fmt.Println(usererror.MessageFor(language, retryErr, i18n.T(language, "error.generic")))
+			}
+		case "clear":
+			if len(fields) != 1 {
+				fmt.Println(usage(language, "clear"))
+				continue
+			}
+			engine.ClearFinishedTransfers()
 		case "pwd":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "pwd"))
