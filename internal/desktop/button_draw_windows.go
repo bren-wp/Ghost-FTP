@@ -64,31 +64,17 @@ func (a *app) drawButton(dis *drawItemStruct) bool {
 	setBkMode.Call(dis.HDC, transparentBkMode)
 	setTextColor.Call(dis.HDC, fg)
 	content := r
-	content.Left += 12
-	content.Right -= 12
+	content.Left += 10
+	content.Right -= 10
 	if pressed {
 		content.Top++
 		content.Bottom++
 	}
 
-	if visual.Icon != "" && a.iconFont != 0 {
-		iconRect := content
-		if visual.Label == "" {
-			old, _, _ := selectObject.Call(dis.HDC, a.iconFont)
-			drawText(dis.HDC, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
-			selectObject.Call(dis.HDC, old)
-		} else {
-			iconRect.Right = iconRect.Left + 24
-			old, _, _ := selectObject.Call(dis.HDC, a.iconFont)
-			drawText(dis.HDC, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
-			selectObject.Call(dis.HDC, old)
-			content.Left += 32
-		}
-	}
-	if visual.Label != "" {
-		old, _, _ := selectObject.Call(dis.HDC, a.font)
-		drawText(dis.HDC, visual.Label, &content, dtLeft|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
-		selectObject.Call(dis.HDC, old)
+	if visual.Vertical {
+		a.drawVerticalToolbarContent(dis.HDC, content, visual)
+	} else {
+		a.drawHorizontalButtonContent(dis.HDC, content, visual)
 	}
 	if dis.ItemState&odsFocus != 0 && !disabled {
 		focus := r
@@ -99,6 +85,47 @@ func (a *app) drawButton(dis *drawItemStruct) bool {
 		drawFocusRect.Call(dis.HDC, uintptr(unsafe.Pointer(&focus)))
 	}
 	return true
+}
+
+func (a *app) drawHorizontalButtonContent(hdc uintptr, content rect, visual buttonVisual) {
+	if visual.Icon != "" && a.iconFont != 0 {
+		iconRect := content
+		if visual.Label == "" {
+			old, _, _ := selectObject.Call(hdc, a.iconFont)
+			drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+			selectObject.Call(hdc, old)
+		} else {
+			iconRect.Right = iconRect.Left + 24
+			old, _, _ := selectObject.Call(hdc, a.iconFont)
+			drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+			selectObject.Call(hdc, old)
+			content.Left += 32
+		}
+	}
+	if visual.Label != "" {
+		old, _, _ := selectObject.Call(hdc, a.font)
+		drawText(hdc, visual.Label, &content, dtLeft|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
+		selectObject.Call(hdc, old)
+	}
+}
+
+func (a *app) drawVerticalToolbarContent(hdc uintptr, content rect, visual buttonVisual) {
+	height := content.Bottom - content.Top
+	iconRect := content
+	iconRect.Bottom = content.Top + height*58/100
+	labelRect := content
+	labelRect.Top = iconRect.Bottom - 1
+
+	if visual.Icon != "" && a.iconFont != 0 {
+		old, _, _ := selectObject.Call(hdc, a.iconFont)
+		drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+		selectObject.Call(hdc, old)
+	}
+	if visual.Label != "" {
+		old, _, _ := selectObject.Call(hdc, a.smallFont)
+		drawText(hdc, visual.Label, &labelRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
+		selectObject.Call(hdc, old)
+	}
 }
 
 func drawText(hdc uintptr, text string, r *rect, flags uint32) {
