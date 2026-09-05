@@ -95,7 +95,7 @@ These images are **not mockups**. GitHub Actions builds the production Windows x
 
 ![Ghost FTP authentic Windows Site Manager](docs/images/ghost-ftp-site-manager.png)
 
-The current reference images were reproduced from the production Portable executable on commit `9219cc7fa526f17750667dc4aa9a2d3d8ed4ed92`. The verification run confirmed that the generated images are byte-identical to the repository copies:
+The current reference images were reproduced from the production Portable executable during the final validation sequence and verified byte-identical to the repository copies:
 
 - main workspace: `1080x700`, SHA-256 `15acccd3285ce7dc2bac482ea89fca3727a6afde3683426068b5dcb56d34b99a`;
 - Site Manager: `920x610`, SHA-256 `da5a9f02b309c962ca5472c44b99db3559ead813dbb3f02c7496229551c7ea38`.
