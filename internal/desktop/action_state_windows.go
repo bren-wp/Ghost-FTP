@@ -52,6 +52,7 @@ func (a *app) updateActionControls() {
 				chmodSelected++
 			}
 		}
+	}
 	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
 
 	transferState := deriveTransferActionState(a.transferJobs, selectedIndices(a.transferList), a.connected && !a.connectionBusy, a.queuePaused)
