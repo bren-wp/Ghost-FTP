@@ -67,20 +67,48 @@ jobs:
       - name: Verify screenshot outputs
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Drawing
           $expected = @(
             'ui-screenshots\Ghost-FTP-main-workspace.png',
             'ui-screenshots\Ghost-FTP-site-manager.png'
           )
+          $pngSignature = [byte[]](137, 80, 78, 71, 13, 10, 26, 10)
+
           foreach ($path in $expected) {
             if (-not (Test-Path $path -PathType Leaf)) {
               throw "Missing authentic UI screenshot: $path"
             }
-            if ((Get-Item $path).Length -lt 10000) {
-              throw "Authentic UI screenshot is unexpectedly small: $path"
+
+            $file = Get-Item -LiteralPath $path
+            if ($file.Length -lt 10000) {
+              throw "Authentic UI screenshot is unexpectedly small: $path ($($file.Length) bytes)"
+            }
+
+            $bytes = [IO.File]::ReadAllBytes($file.FullName)
+            if ($bytes.Length -lt $pngSignature.Length) {
+              throw "Authentic UI screenshot has an invalid PNG header: $path"
+            }
+            for ($i = 0; $i -lt $pngSignature.Length; $i++) {
+              if ($bytes[$i] -ne $pngSignature[$i]) {
+                throw "Authentic UI screenshot has an invalid PNG signature: $path"
+              }
+            }
+
+            $image = [System.Drawing.Image]::FromFile($file.FullName)
+            try {
+              if ($image.Width -lt 320 -or $image.Height -lt 200 -or $image.Width -gt 8000 -or $image.Height -gt 8000) {
+                throw "Authentic UI screenshot has implausible dimensions: $path ($($image.Width)x$($image.Height))"
+              }
+              Write-Host "SCREENSHOT_VERIFIED=$($file.Name) DIMENSIONS=$($image.Width)x$($image.Height) BYTES=$($file.Length) SHA256=$((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+            }
+            finally {
+              $image.Dispose()
             }
           }
 
       - name: Persist authentic screenshots in repository
+        if: github.event_name == 'push'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
