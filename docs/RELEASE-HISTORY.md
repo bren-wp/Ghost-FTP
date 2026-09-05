@@ -2,6 +2,89 @@
 
 This document expands the concise `CHANGELOG.md` into a durable explanation of the current Ghost FTP release line. Published tags and their artifacts remain immutable; documentation may add context but never rewrites release provenance.
 
+## 2.0.0 — 2026-09-05
+
+Theme: **Windows/Linux consolidation, premium desktop hardening and explicit platform scope**.
+
+Status:
+
+`2.0.0` is the current development/release-candidate line on the Windows/Linux consolidation branch. It must not be represented as a published release until the verified branch is merged to `main`, the complete release gate succeeds and the immutable `ghostftp-v2.0.0` release is created from that validated commit.
+
+Why this is a major release:
+
+The active application-platform contract changes from the 1.x multi-platform model to **Windows and Linux only**. Removing supported application targets is intentionally treated as a semantic-version breaking change rather than hidden inside a patch release. Historical Android, iOS and macOS source/releases remain available through immutable Git history and existing 1.x tags, but those targets are no longer part of the maintained 2.x application source tree or production build matrix.
+
+What changed — platform architecture:
+
+- Removed active Android, iOS and macOS application source trees and their package/audit tooling from the maintained 2.x tree.
+- Added a fail-closed platform-contract audit that rejects reintroduction of retired application roots/tooling and requires Windows/Linux production jobs.
+- Consolidated CI into three maintained gates: shared core/security/documentation, Windows x64/x86 production build and Linux amd64/arm64/i386 production build.
+- Consolidated the desktop release contract to nine platform artifacts and twelve public release files including `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`.
+- Kept the existing Ghost FTP Web companion as a separately audited source surface; it is not counted as a Windows/Linux application-platform artifact in the 2.x desktop release contract.
+- Restricted Linux desktop/terminal build tags explicitly to Linux rather than relying on broad `!windows` selectors that could accidentally reactivate an unsupported platform.
+
+What changed — Linux parity and FTP workflow:
+
+- Linux SFTP authentication now supports password authentication when no private key is supplied.
+- Linux SFTP supports a private key with an optional passphrase through the same typed Engine/remote manager used by Windows.
+- Removed the former Linux frontend restriction that effectively required a private key and rejected normal passphrase-based key authentication.
+- Preserved explicit SFTP host-key fingerprint trust and endpoint-bound stored trust behavior.
+- Added transfer-queue inspection and controls for pause, resume, cancel, retry and clear-finished operations.
+- Added validated runtime transfer settings for parallelism, conflict policy, automatic retry count, retry delay, connection timeout and delete confirmation.
+- Added saved-profile inspection while keeping password/passphrase values out of terminal output.
+- Preserved remote list/navigation/create/rename/delete/chmod/upload/download operations on the shared typed engine instead of adding a separate Linux protocol implementation.
+- Preserved the bounded terminal parser: no shell evaluation, bounded command length/argument count and rejection of embedded NUL/newline control characters.
+
+What changed — Windows experience and setup:
+
+- Refreshed the native Windows visual system with a deeper graphite/navy palette, stronger contrast, clearer primary/destructive/subtle action hierarchy and more consistent interaction states.
+- Improved owner-drawn button rendering and focus treatment while retaining the native Win32 frontend and avoiding an additional GUI framework dependency.
+- Kept Windows x64 and x86 Setup plus Portable artifacts as canonical production outputs; x32 remains an explicitly verified byte-identical release alias of x86 where the public release contract requires it.
+- Preserved the localized Windows Setup flow and installer transaction boundaries: verified embedded payload, staged write, digest validation, rollback-aware replacement and guarded registry/application-path updates.
+- Continued to report Authenticode state explicitly rather than presenting unsigned binaries as Verified Publisher software.
+
+What changed — localization:
+
+- English remains the canonical source language, first language in the registry and safe fallback for damaged/unknown locale state.
+- The maintained registry remains at 24 languages: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian, Swedish, Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
+- Localization CI now validates the active Windows/Linux contract: Windows live localization, localized Windows Setup, Linux runtime language switching, key/catalog compatibility, format verbs and meaningful translation coverage.
+- Removed obsolete iOS/Android localization-resource requirements from the active 2.x release gate without rewriting their historical 1.x release record.
+
+What changed — security and privacy:
+
+- Desktop/core remains free of external Go modules and bundled third-party Go libraries.
+- The dependency audit explicitly distinguishes library dependencies from operating-system transport prerequisites instead of making a misleading zero-runtime-dependency claim.
+- FTP/FTPS currently use the operating-system `curl` executable; SFTP currently uses OpenSSH `ssh`/`sftp`. Linux packages declare those runtime prerequisites and Windows relies on suitable system-provided components.
+- Application telemetry, analytics, advertising and external crash-reporting SDKs remain forbidden by policy and automated audits.
+- Fixed runtime analytics/update HTTP destinations remain blocked in the desktop core.
+- Saved credentials remain endpoint/account/private-key bound and cannot silently cross to a changed connection identity.
+- SFTP AskPass credential material remains protected without writing a reusable plaintext password/passphrase file.
+- SFTP host-key changes remain fail-closed.
+- Download staging, local rename/delete, recursive delete, remote session shutdown and profile/state-file operations retain no-follow/no-replace/bounded-lifecycle protections.
+- The 2.x filesystem regressions now explicitly test both Linux no-replace rename behavior and Windows `MoveFileExW` no-replace/write-through behavior while ensuring retired application targets remain absent.
+
+What changed — release integrity and regression quality:
+
+- Reworked stale 1.x Python regression tests so they validate the maintained Windows/Linux platform contract instead of attempting to load removed Android/iOS/macOS files.
+- Restored the stronger production-release readback that was temporarily lost during the platform-workflow rewrite.
+- After release publication, CI verifies the complete remote asset set by file name and size, downloads the published `SHA256.txt` and compares it byte-for-byte with the local release manifest.
+- The release is verified immediately and again after a delay; `main` is checked again between those validations so publication cannot silently succeed after the branch moves.
+- Existing `ghostftp-vX.Y.Z` tags are never moved to another commit.
+- GitHub Packages/NuGet publication includes remote version readback before the workflow reports success.
+- The build and audit suite verifies repository hygiene, version binding, localization, privacy, security, dependencies, Web-companion integrity and documentation before production artifacts are accepted.
+
+Validation evidence for the current 2.0 branch:
+
+- Go race tests and vet pass across the maintained core packages.
+- Repository, platform-contract, dependency, version, localization, security, privacy, documentation, Web companion and release audits pass.
+- The complete Python regression suite passes after the Windows/Linux contract migration.
+- Linux production packaging passes for amd64, arm64 and i386 including Debian package metadata verification.
+- Windows production build passes for x64 and x86 Setup/Portable artifacts including release verification and artifact upload.
+
+Release integrity:
+
+The 2.0 release contract contains exactly nine platform artifacts and twelve public files. Publication is allowed only from the validated `main` commit, with immutable tag behavior, SHA-256 integrity metadata, GitHub Release remote readback and package-registry readback. Until those publication conditions are satisfied, the branch remains a validated development/release-candidate line rather than a published release.
+
 ## 1.1.0 — 2026-09-05
 
 Theme: **24-language localization, settings clarity and cross-platform quality**.
