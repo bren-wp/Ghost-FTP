@@ -106,10 +106,11 @@ class RuntimeHardeningTests(unittest.TestCase):
         delayed = "assert_release_asset_set delayed"
         for marker in (
             "assert_release_asset_set()",
-            "RELEASE_ASSET_READBACK=PASS ($phase)",
+            "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL; windows_signing=$WINDOWS_SIGNING_STATE)",
             "gh release view \"$RELEASE_TAG\" --repo \"$repo\" --json assets",
             "gh release download \"$RELEASE_TAG\" --repo \"$repo\" --pattern 'SHA256.txt'",
             "cmp release/SHA256.txt \"$readback_dir/SHA256.txt\"",
+            "remote_prerelease=\"$(gh api \"repos/$repo/releases/tags/$RELEASE_TAG\" --jq .prerelease)\"",
             immediate,
             delay,
             main_guard,
