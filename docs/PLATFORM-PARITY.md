@@ -42,6 +42,8 @@ There is no alternate Linux protocol implementation and no alternate Windows tra
 
 Ghost FTP 2.0 corrected a Linux defect from the 1.x line where the terminal frontend required an SFTP private key and rejected a non-empty key passphrase. Linux now passes the same password/key/passphrase model to the shared engine as Windows.
 
+When a Linux user explicitly accepts a new SFTP host key, the accepted public fingerprint is retained in the in-process connection metadata so a later `profile-save` can persist the verified endpoint pin. Passwords and private-key passphrases are still removed from the session config after connection and are not printed by profile commands.
+
 ## File-operation parity
 
 | Capability | Windows | Linux |
@@ -51,12 +53,28 @@ Ghost FTP 2.0 corrected a Linux defect from the 1.x line where the terminal fron
 | Remote rename | GUI | `rename` |
 | Remote delete | GUI | `delete` |
 | Remote permissions/chmod | GUI | `chmod` |
+| Local list/navigation | GUI | `lls`, `lcd`, `lpwd` |
+| Local create folder | GUI | `lmkdir` |
+| Local rename | GUI | `lrename` |
+| Local delete | GUI | `ldelete` |
 | Upload file | GUI | `put` |
 | Download file | GUI | `get` |
+| Upload folder/tree | GUI/shared tree planner | `puttree` |
+| Download folder/tree | GUI/shared tree planner | `gettree` |
 | Upload/download scheduling | Shared engine | Shared engine |
-| Tree-transfer engine | Shared engine | Shared engine |
+| Tree-transfer limits/security | Shared engine | Shared engine |
 
-The same validation and transfer code owns the operation regardless of presentation.
+Linux local commands call `Engine.LocalList`, `LocalMkdir`, `LocalRename` and `LocalDelete`. They therefore retain the same no-follow/no-replace/root-delete protections used by the Windows local panel instead of falling back to shell commands.
+
+`get` and `put` now resolve relative local paths from the Linux local panel directory rather than from the process working directory. Relative remote paths resolve from the active remote directory. This makes the two-panel terminal workflow predictable and consistent with the Windows file-manager model.
+
+`gettree` and `puttree` call `Engine.AddTreeTransfer`; they inherit the shared tree planner's bounded depth/item count, symlink handling, path validation and normal transfer queue/conflict policy behavior.
+
+## Delete confirmation parity
+
+The canonical `confirm-delete` setting is enforced on both frontends. Linux remote `delete` and local `ldelete` now fail closed unless the user explicitly confirms the operation when confirmation is enabled.
+
+Disabling confirmation is itself a validated persisted settings change (`set confirm-delete false`). The terminal does not silently bypass the setting for convenience.
 
 ## Transfer queue parity
 
@@ -70,6 +88,17 @@ Windows exposes queue actions as buttons and the transfer list. Linux exposes th
 - `clear`
 
 The command surface does not create a separate queue implementation.
+
+## Saved-profile parity
+
+Linux profile commands use the same protected profile store as Windows:
+
+- `profiles` lists public profile metadata;
+- `profile-show <id>` displays non-secret profile state, including whether a password/passphrase exists;
+- `profile-save <name>` stores the active endpoint, verified SFTP fingerprint when applicable, private-key path and current local/remote working paths;
+- `profile-remove <id>` removes a profile through the shared store.
+
+`profile-save` intentionally does **not** copy an already-used password or passphrase from the active connection. Those secrets are cleared after authentication, so the command never reconstructs or prints them merely to create a profile. Credential persistence remains an explicit protected-profile operation rather than an implicit side effect of connecting.
 
 ## Settings parity
 
@@ -112,6 +141,8 @@ CI verifies:
 - Windows Setup primary copy remains localized;
 - Linux runtime language switching remains wired.
 
+Command names remain stable English technical tokens so scripts/documentation do not change when the UI language changes. User-facing status/error copy continues to use the localization layer and English fallback when a reviewed translation is unavailable.
+
 ## Visual presentation
 
 ### Windows
@@ -129,7 +160,9 @@ Windows is the premium reference GUI. It uses:
 
 ### Linux
 
-Linux is currently a terminal presentation over the same core. This keeps the application free of a bundled cross-platform GUI framework and allows amd64, arm64 and i386 package targets to remain small and auditable.
+Linux is currently a terminal presentation over the same core. The prompt exposes both remote and local working directories, and the command groups are separated into Remote, Local, Files, Queue, Profiles and Options to keep the expanded capability discoverable.
+
+This presentation keeps the application free of a bundled cross-platform GUI framework and allows amd64, arm64 and i386 package targets to remain small and auditable.
 
 A future Linux graphical frontend is acceptable only if it can preserve the project's dependency, security and reproducibility requirements. A visual change must never fork the transfer/security engine.
 
@@ -138,6 +171,19 @@ A future Linux graphical frontend is acceptable only if it can preserve the proj
 Android, iOS and macOS application targets were retired from the active 2.x source tree. Historical 1.x commits and releases remain immutable and may still contain those platform sources and artifacts.
 
 The existing Web companion remains in the repository as a separate source surface. It is not counted as a Windows/Linux desktop application platform artifact in 2.x releases.
+
+## Parity regression coverage
+
+Linux-specific regressions now verify:
+
+- remote relative paths resolve from the active remote directory;
+- local relative paths resolve from the active local panel directory;
+- absolute local paths remain absolute;
+- delete confirmation is bypassed only when the validated setting explicitly disables it;
+- empty, negative or unrecognized confirmations remain fail-closed;
+- explicit affirmative confirmation is accepted through the localization-aware affirmative parser.
+
+The repository/platform audits additionally ensure retired application targets do not return and both maintained platform production builds remain present.
 
 ## Parity change rule
 
