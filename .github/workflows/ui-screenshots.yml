@@ -1,3 +1,4 @@
+# Reproducible evidence workflow for authentic production Windows UI captures.
 name: Ghost FTP Authentic UI Screenshots
 
 on:
