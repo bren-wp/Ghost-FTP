@@ -2,22 +2,31 @@
 
 This document expands the concise `CHANGELOG.md` into a durable explanation of the current Ghost FTP release line. Published tags and their artifacts remain immutable; documentation may add context but never rewrites release provenance.
 
-## 1.1.0 — in development
+## 1.1.0 — 2026-09-05
 
-Status: **unreleased**. The canonical repository `VERSION` remains on the last published release until the complete 1.1.0 feature set passes the production release gate.
+Theme: **24-language localization, settings clarity and cross-platform quality**.
 
-Primary goals:
+What changed:
 
-- Make English the explicit primary/fallback language while expanding the canonical language registry beyond 20 languages.
-- Improve real translation coverage instead of treating mostly-English fallback catalogs as complete localization.
-- Localize the Windows setup flow without adding a UI framework dependency or weakening installer payload verification/rollback.
-- Align Android, iOS and Web/PWA localization with the same language contract before release.
-- Add dependency provenance/allowlist checks and keep telemetry, advertising and external crash-reporting SDKs forbidden.
-- Reduce avoidable runtime-tool dependencies, beginning with a tested native FTP/FTPS path where protocol parity can be proven.
-- Expand settings/option validation and connection/transfer regressions rather than adding cosmetic toggles that are not enforced by the engine.
-- Expand documentation for localization, dependencies, settings, protocol behavior and release provenance.
+- English remains the canonical primary/fallback language while the supported registry expands to 24 languages: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian, Swedish, Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
+- Regional aliases normalize safely, including Simplified Chinese variants and Norwegian `nb`/`nn` forms.
+- Translation quality is measured rather than inferred from key presence; weak mostly-English supplemental catalogs are blocked by minimum real-translation coverage.
+- Windows Setup localizes its primary confirmation/completion/launch/warning flow for the canonical language registry while keeping English as the safe technical fallback.
+- Android ships native localized resources for the same 24-language set with fail-closed key, placeholder, locale-directory and translation-coverage audits.
+- iOS ships native core localization resources for all 24 canonical languages. The Xcode project packages them through a real localized resource variant group, with `zh-Hans` and `nb` platform mappings.
+- Web/PWA adds a per-user 24-language core registry and selector through the existing preference API. High-frequency dynamic file-browser copy is localized with English fallback, and locale-sensitive filtering is no longer hard-coded to Croatian.
+- Destination-conflict behavior is consolidated behind one canonical three-state `conflictPolicy` (`skip`, `replace`, `replace_backup`) while legacy booleans remain synchronized for backward compatibility.
+- The Windows settings UI replaces potentially contradictory overwrite prompts with one native three-state selector.
+- Dependency provenance remains fail-closed: no external Go modules, zero third-party Web Composer packages, pinned Android dependencies, and rejection of telemetry/ads/crash SDKs or dynamic dependency versions.
+- Cross-platform release documentation and audits are bound to the canonical `VERSION` so stale release metadata blocks publication.
 
-No `ghostftp-v1.1.0` tag should be created until the full cross-platform CI and release readback pass.
+Security/stability effect:
+
+The release reduces configuration ambiguity, prevents locale/catalog drift from silently reaching production, preserves English recovery paths when translated copy is unavailable, and keeps localization changes inside the existing credential, CSRF, session, transport and signing trust boundaries.
+
+Release integrity:
+
+`ghostftp-v1.1.0` may be published only from the verified `main` merge commit after the full Core, Windows, Linux, macOS, Android and iOS release workflow succeeds and the GitHub Release/package readback checks pass. Signing limitations remain explicit: Windows/macOS publisher signing requires external identities, Android public CI is development/debug-signed unless production credentials are supplied, and iOS remains arm64 unsigned for external signing/provisioning.
 
 ## 1.0.7 — 2026-09-05
 
