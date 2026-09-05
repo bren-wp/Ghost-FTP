@@ -1,6 +1,6 @@
 name: Apply Ghost FTP 1.1.0 foundation
 
-# validation revision 3: commit source only; workflow cleanup is connector-managed
+# validation revision 4: write validated non-workflow source through Contents API
 on:
   push:
     branches: [release/ghost-ftp-1.1.0-quality]
@@ -71,22 +71,60 @@ jobs:
           python scripts/audit_docs.py
           python scripts/audit_security.py
           python scripts/audit_privacy.py
-      - name: Commit validated source without workflow mutation
+      - name: Publish validated non-workflow source through GitHub API
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # GitHub Actions tokens without workflows scope cannot delete their own
-          # workflow file. Restore only this helper after auditing the clean index;
-          # it is deleted immediately afterwards through the GitHub connector.
+          repo="$GITHUB_REPOSITORY"
+          branch='release/ghost-ftp-1.1.0-quality'
+
+          # Keep the temporary workflow on the remote branch only until this job
+          # has published every validated source change. It is deleted by the
+          # controlling GitHub connector immediately after this job succeeds.
           git restore --staged .github/workflows/one-shot-110-foundation.yml
           git restore .github/workflows/one-shot-110-foundation.yml
-          if git diff --cached --quiet; then
-            echo 'No validated source changes to commit.'
-            exit 0
-          fi
-          git config user.name 'Brendigo'
-          git config user.email 'info@brendigo.com'
-          git commit -m 'Build English-first 24-language 1.1.0 foundation'
-          git push origin HEAD:release/ghost-ftp-1.1.0-quality
+
+          git diff --cached --name-status -z | while IFS= read -r -d '' status && IFS= read -r -d '' path; do
+            case "$path" in
+              .github/workflows/*)
+                echo "Refusing to mutate workflow through this source writer: $path" >&2
+                exit 1
+                ;;
+            esac
+
+            encoded_path="$(python -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="/"))' "$path")"
+            endpoint="repos/$repo/contents/$encoded_path"
+
+            case "$status" in
+              D*)
+                sha="$(gh api "$endpoint?ref=$branch" --jq .sha)"
+                gh api --method DELETE "$endpoint" \
+                  -f message="Remove validated temporary 1.1.0 tooling" \
+                  -f branch="$branch" \
+                  -f sha="$sha" >/dev/null
+                ;;
+              A*|M*)
+                content="$(base64 -w0 "$path")"
+                if sha="$(gh api "$endpoint?ref=$branch" --jq .sha 2>/dev/null)"; then
+                  gh api --method PUT "$endpoint" \
+                    -f message="Apply validated Ghost FTP 1.1.0 foundation: $path" \
+                    -f branch="$branch" \
+                    -f sha="$sha" \
+                    -f content="$content" >/dev/null
+                else
+                  gh api --method PUT "$endpoint" \
+                    -f message="Add validated Ghost FTP 1.1.0 foundation: $path" \
+                    -f branch="$branch" \
+                    -f content="$content" >/dev/null
+                fi
+                ;;
+              *)
+                echo "Unsupported staged status $status for $path" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          echo 'FOUNDATION_CONTENTS_API_WRITE=PASS'
