@@ -24,12 +24,17 @@ func styleWorkspaceList(list uintptr) {
 	}
 }
 
-func applyReferenceFileColumnOrder(list uintptr) {
+func applyReferenceFileColumnOrder(list uintptr, remote bool) {
 	if list == 0 {
 		return
 	}
-	// Logical storage remains Name, Type, Size, Modified. The visual reference
-	// order is Name, Size, Type, Modified, so no data/index semantics change.
+	if remote {
+		// Logical storage: Name, Type, Size, Modified, Permissions.
+		// Reference order: Name, Size, Type, Modified, Permissions.
+		order := [5]int32{0, 2, 1, 3, 4}
+		sendMessageW.Call(list, workspaceLVMSetColumnOrderArray, uintptr(len(order)), uintptr(unsafe.Pointer(&order[0])))
+		return
+	}
 	order := [4]int32{0, 2, 1, 3}
 	sendMessageW.Call(list, workspaceLVMSetColumnOrderArray, uintptr(len(order)), uintptr(unsafe.Pointer(&order[0])))
 }
@@ -39,17 +44,26 @@ func (a *app) resizeReferenceWorkspaceColumns(panelW, mainW int) {
 		return
 	}
 	sizeW, typeW, modifiedW := 84, 92, 130
-	nameW := panelW - sizeW - typeW - modifiedW - 24
-	if nameW < 116 {
-		nameW = 116
+	localNameW := panelW - sizeW - typeW - modifiedW - 24
+	if localNameW < 116 {
+		localNameW = 116
 	}
-	for _, list := range []uintptr{a.localList, a.remoteList} {
-		applyReferenceFileColumnOrder(list)
-		// Widths address logical indices: Name, Type, Size, Modified.
-		for index, columnW := range []int{nameW, typeW, sizeW, modifiedW} {
-			if list != 0 {
-				sendMessageW.Call(list, lvmSetColumnWidth, uintptr(index), uintptr(a.scale(columnW)))
-			}
+	applyReferenceFileColumnOrder(a.localList, false)
+	for index, columnW := range []int{localNameW, typeW, sizeW, modifiedW} {
+		if a.localList != 0 {
+			sendMessageW.Call(a.localList, lvmSetColumnWidth, uintptr(index), uintptr(a.scale(columnW)))
+		}
+	}
+
+	permissionsW := 108
+	remoteNameW := panelW - sizeW - typeW - modifiedW - permissionsW - 24
+	if remoteNameW < 94 {
+		remoteNameW = 94
+	}
+	applyReferenceFileColumnOrder(a.remoteList, true)
+	for index, columnW := range []int{remoteNameW, typeW, sizeW, modifiedW, permissionsW} {
+		if a.remoteList != 0 {
+			sendMessageW.Call(a.remoteList, lvmSetColumnWidth, uintptr(index), uintptr(a.scale(columnW)))
 		}
 	}
 
