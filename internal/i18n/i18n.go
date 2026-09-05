@@ -41,6 +41,14 @@ var supportedLanguages = []Language{
 	{Code: "ko", EnglishName: "Korean", NativeName: "한국어"},
 }
 
+var languageAliases = map[string]string{
+	"nb": "no",
+	"nn": "no",
+	"zh-cn": "zh",
+	"zh-hans": "zh",
+	"zh-sg": "zh",
+}
+
 func Languages() []Language {
 	out := make([]Language, len(supportedLanguages))
 	copy(out, supportedLanguages)
@@ -53,11 +61,17 @@ func canonical(code string) string {
 	if code == "" {
 		return ""
 	}
+	if alias, ok := languageAliases[code]; ok {
+		code = alias
+	}
 	if _, ok := catalogs[code]; ok {
 		return code
 	}
 	if i := strings.IndexByte(code, '-'); i > 0 {
 		primary := code[:i]
+		if alias, ok := languageAliases[primary]; ok {
+			primary = alias
+		}
 		if _, ok := catalogs[primary]; ok {
 			return primary
 		}
