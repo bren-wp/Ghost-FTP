@@ -48,11 +48,25 @@ Ghost FTP uses OS OpenSSH `ssh`/`sftp`. The application-created SSH configuratio
 
 SFTP credentials are exposed to the child process only through the bounded AskPass/runtime-secret mechanism. The application does not write an AskPass password/passphrase file to disk.
 
+## GUI dependency boundary
+
+The Windows reference workspace is implemented with native Win32 APIs and operating-system fonts/controls. Setup and Portable therefore do not bundle a third-party cross-platform GUI runtime merely to render the application shell.
+
+Linux currently uses a hardened terminal frontend over the same shared engine. This is a presentation difference, not a second transfer/security implementation.
+
+A future pixel-equivalent Linux GUI may use an operating-system display/toolkit prerequisite only after that dependency is explicitly reviewed and documented. It must not be described as “dependency-free” if it requires X11, Wayland, GTK, Qt, WebKit or another runtime component, even when that component is normally installed by the distribution.
+
+Ghost FTP will not silently introduce a large GUI framework solely to make a visual-parity claim. The dependency policy requires the project to state the presentation gap accurately until a reviewed Linux graphical implementation exists.
+
+See [Desktop reference UI](REFERENCE-UI.md) and [Platform parity](PLATFORM-PARITY.md).
+
 ## Windows prerequisites
 
 Supported Windows installations normally provide the required curl/OpenSSH components, but the build does not silently bundle an untracked third-party copy.
 
 If a required system component is unavailable, Ghost FTP must fail with an actionable connection error rather than downloading a dependency in the background.
+
+The graphical application itself uses Win32/DWM/common-control facilities supplied by Windows.
 
 ## Linux prerequisites
 
@@ -60,11 +74,13 @@ Linux packages declare the operating-system packages required for the transport 
 
 At runtime Ghost FTP expects suitable `curl`, `ssh` and `sftp` executables to be available through the supported system paths/environment.
 
+The maintained terminal frontend does not require a bundled GUI toolkit.
+
 ## Why this is not called “zero runtime dependencies”
 
-The phrase would be inaccurate today. Ghost FTP has **zero external Go modules in the desktop/core module**, but protocol execution still depends on OS-provided `curl` and OpenSSH tools.
+The phrase would be inaccurate today. Ghost FTP has **zero external Go modules in the desktop/core module**, but protocol execution still depends on OS-provided `curl` and OpenSSH tools. Windows graphical presentation also necessarily uses operating-system Win32 APIs.
 
-The repository audit intentionally preserves that distinction. A future embedded transport implementation would require a separate security review because changing a protocol implementation is much more sensitive than replacing a UI component.
+The repository audit intentionally preserves that distinction. A future embedded transport implementation or Linux graphical toolkit would require a separate security/dependency review because changing a protocol implementation or application runtime boundary is much more sensitive than replacing a small UI helper.
 
 ## Web companion
 
@@ -86,11 +102,15 @@ Ghost FTP must not add application dependencies for:
 
 CI audits dependency surfaces and runtime source for known vendor markers and fixed telemetry-style network endpoints.
 
+The local Diagnostics window is not a telemetry channel. It renders local application state and does not upload a report.
+
 ## Build-time actions
 
 GitHub Actions uses pinned action revisions for checkout, Go setup, Python setup and artifact upload/download. These are build-system dependencies, not installed-application runtime dependencies.
 
 Production builds also execute `go telemetry off` and verify that telemetry is disabled before compiling.
+
+The authentic Windows screenshot workflow additionally uses Windows `PrintWindow(PW_RENDERFULLCONTENT)` and image verification on the CI runner. That tooling is build/test infrastructure and is not installed into Ghost FTP.
 
 ## Change-control rules
 
