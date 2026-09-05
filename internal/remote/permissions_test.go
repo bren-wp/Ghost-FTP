@@ -12,7 +12,7 @@ func TestNormalizePermissionDisplay(t *testing.T) {
 		"adfrw":      "",
 		"0999":       "",
 		"rwxr-xr-x":  "",
-		"":            "",
+		"":           "",
 	} {
 		if got := normalizePermissionDisplay(input); got != want {
 			t.Fatalf("normalizePermissionDisplay(%q) = %q, want %q", input, got, want)
