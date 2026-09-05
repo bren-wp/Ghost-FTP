@@ -42,11 +42,11 @@ var supportedLanguages = []Language{
 }
 
 var languageAliases = map[string]string{
-	"nb": "no",
-	"nn": "no",
-	"zh-cn": "zh",
+	"nb":      "no",
+	"nn":      "no",
+	"zh-cn":   "zh",
 	"zh-hans": "zh",
-	"zh-sg": "zh",
+	"zh-sg":   "zh",
 }
 
 func Languages() []Language {
