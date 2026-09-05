@@ -100,9 +100,8 @@ func (a *app) refineWorkspaceLayout() {
 	a.move(a.languageCombo, languageX, headerY+1, languageW, rowH)
 	a.move(a.connectionBadge, width-margin-badgeW, headerY+7, badgeW, 20)
 
-	// Saved-site/utility strip. The explicit Sites button mirrors the fast access
-	// expected in a desktop FTP client, while the profile combo remains wide
-	// enough to identify saved servers at laptop-class widths.
+	// Keep the complete action labels visible at the 976px authentic-capture
+	// width. The profile selector remains elastic and absorbs the remaining room.
 	toolbarY := 45
 	buttonGap := 6
 	if a.siteManagerBtn != 0 {
@@ -112,11 +111,11 @@ func (a *app) refineWorkspaceLayout() {
 		h uintptr
 		w int
 	}{
-		{a.siteManagerBtn, 104},
-		{a.saveProfile, 112},
-		{a.removeProfile, 112},
-		{a.settingsBtn, 102},
-		{a.aboutBtn, 90},
+		{a.siteManagerBtn, 110},
+		{a.saveProfile, 128},
+		{a.removeProfile, 132},
+		{a.settingsBtn, 116},
+		{a.aboutBtn, 96},
 	}
 	fixedToolbar := 0
 	for _, button := range toolbarButtons {
@@ -124,8 +123,8 @@ func (a *app) refineWorkspaceLayout() {
 	}
 	fixedToolbar += len(toolbarButtons) * buttonGap
 	profileW := width - 2*margin - fixedToolbar
-	if profileW < 250 {
-		profileW = 250
+	if profileW < 220 {
+		profileW = 220
 	}
 	x := margin
 	a.move(a.profilesCombo, x, toolbarY, profileW, rowH)
@@ -140,7 +139,7 @@ func (a *app) refineWorkspaceLayout() {
 	connectionBottom := connectionY + rowH
 	if compact {
 		// Row 1: protocol / server / port. Row 2: identity / secret / session
-		// actions. This eliminates clipped fields at ~940–1100px widths.
+		// actions. Wider action buttons avoid ellipsized Connect/Disconnect text.
 		protocolW, portW := 112, 70
 		hostW := contentW - protocolW - portW - 2*gap
 		if hostW < 260 {
@@ -154,7 +153,7 @@ func (a *app) refineWorkspaceLayout() {
 		a.move(a.port, x, connectionY, portW, rowH)
 
 		identityY := connectionY + rowH + 6
-		connectW, disconnectW := 106, 106
+		connectW, disconnectW := 120, 124
 		fieldsW := contentW - connectW - disconnectW - 3*gap
 		userW := fieldsW * 48 / 100
 		passW := fieldsW - userW
@@ -168,7 +167,7 @@ func (a *app) refineWorkspaceLayout() {
 		a.move(a.disconnect, x, identityY, disconnectW, rowH)
 		connectionBottom = identityY + rowH
 	} else {
-		protocolW, portW, userW, passW, connectW, disconnectW := 118, 70, 205, 190, 112, 112
+		protocolW, portW, userW, passW, connectW, disconnectW := 118, 70, 205, 190, 120, 124
 		fixed := protocolW + portW + userW + passW + connectW + disconnectW + 6*gap
 		hostW := contentW - fixed
 		if hostW < 250 {
@@ -198,7 +197,7 @@ func (a *app) refineWorkspaceLayout() {
 	}
 	if sftp {
 		keyY := connectionBottom + 6
-		chooseW, passphraseW := 138, 238
+		chooseW, passphraseW := 148, 238
 		keyW := contentW - chooseW - passphraseW - 2*gap
 		if keyW < 260 {
 			passphraseW = 190
@@ -217,9 +216,9 @@ func (a *app) refineWorkspaceLayout() {
 	a.move(a.status, margin, statusY, contentW, 21)
 
 	sectionY := statusY + 27
-	centerW, panelGap := 82, 8
+	centerW, panelGap := 96, 8
 	if width >= 1320 {
-		centerW, panelGap = 96, 10
+		centerW, panelGap = 108, 10
 	}
 	panelW := (contentW - centerW - 2*panelGap) / 2
 	leftX := margin
@@ -297,11 +296,10 @@ func (a *app) refineWorkspaceLayout() {
 	a.move(a.upload, centerX, uploadY, centerW, transferButtonH)
 	a.move(a.download, centerX, uploadY+transferButtonH+8, centerW, transferButtonH)
 
-	// Queue label, summary and queue actions share one toolbar row. The full-width
-	// job list remains directly below, leaving substantially more vertical room
-	// for the two file browsers on smaller screens.
+	// Queue label, summary and queue actions share one toolbar row. Widths are
+	// tuned for icon + full English label rather than relying on ellipsis.
 	a.move(a.sectionTransfers, margin, queueToolsY+6, 108, 18)
-	queueWidths := []int{84, 84, 78, 78, 124}
+	queueWidths := []int{92, 96, 92, 88, 142}
 	queueGap := 5
 	queueButtonsW := 0
 	for _, buttonW := range queueWidths {
