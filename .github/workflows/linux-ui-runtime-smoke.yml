@@ -5,6 +5,7 @@ on:
     branches:
       - work/premium-parity-release-hardening-0.1.1
     paths:
+      - internal/desktop/**
       - .github/workflows/linux-ui-runtime-smoke.yml
 
 permissions:
