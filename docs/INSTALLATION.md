@@ -16,6 +16,10 @@ Ghost FTP publishes both Setup and portable builds for x64 and x86 Windows syste
 
 The Setup flow is localized through the same canonical language registry used by the application. English is the default/fallback. The installer validates its embedded payload before installation and registers the application using the stable `GhostFTP` technical identity while presenting **Ghost FTP** as the public product name.
 
+The first language/option surface is a dependency-free native Win32 dialog with a consistent premium Ghost FTP shell: centered placement, clearer header/instruction hierarchy, larger action targets, a default primary action and best-effort modern Windows dark-title-bar/rounded-corner hints. The same visual helper is used by native edit prompts so Setup and the application do not drift into unrelated dialog styles.
+
+These visual changes do **not** weaken the installer boundary. Payload digest verification, staging, no-redirect path checks, rollback-aware activation, registry/application-path changes and final readback remain separate from presentation code. Normal confirmation/completion/error steps continue to use native Windows Task Dialog behavior where available.
+
 ### Portable packages
 
 - `Ghost-FTP-X.Y.Z-Portable-x64.exe`
@@ -51,6 +55,8 @@ sudo apt install ./Ghost-FTP-X.Y.Z-Linux-amd64.deb
 ```
 
 The package installs the `ghostftp` executable and Linux desktop/package metadata. The current Linux frontend is terminal-based but uses the same transfer/security engine as Windows.
+
+Linux 2.0 exposes both remote and local working directories, local file-management commands, single-file transfer commands, bounded directory/tree transfer commands, transfer queue controls, validated settings and saved-profile metadata operations. See [Windows and Linux platform parity](PLATFORM-PARITY.md) and [Linux packaging/usage](../linux/README.md).
 
 ### Linux runtime prerequisites
 
@@ -95,6 +101,8 @@ Ghost FTP stores settings/profiles in the platform-specific user application-dat
 
 Saved secrets follow platform security handling. Windows uses DPAPI-backed protection; Linux runtime secrets are protected within the process and saved profile handling is governed by the platform/profile crypto implementation.
 
+The Linux `profile-save` command intentionally saves public connection metadata/current paths without reconstructing a password/passphrase that has already been cleared after authentication. This keeps profile creation from turning into an implicit secret-persistence side effect.
+
 ## Release verification
 
 Before deploying an installer/package in a managed environment:
@@ -103,6 +111,8 @@ Before deploying an installer/package in a managed environment:
 2. verify its SHA-256 hash against `SHA256.txt`;
 3. review `BUILD-METADATA.txt` for the expected commit/version/platform;
 4. review `RELEASE-NOTES.txt` for behavior and compatibility changes.
+
+The production release workflow performs its own immediate and delayed GitHub Release readback, verifies exact asset names/sizes and compares the published `SHA256.txt` with the locally assembled manifest before publication is allowed to report success.
 
 See [Release verification](RELEASE-VERIFICATION.md).
 
