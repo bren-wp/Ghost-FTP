@@ -20,6 +20,33 @@ if (-not $IsWindows) {
     throw 'Authenticode signing is supported only on Windows.'
 }
 
+function Test-CodeSigningEku {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RequiredOid
+    )
+
+    $ekuExtension = @($Certificate.Extensions | Where-Object {
+        $_.Oid -and $_.Oid.Value -eq '2.5.29.37'
+    } | Select-Object -First 1)
+
+    if ($ekuExtension.Count -ne 1) {
+        return $false
+    }
+
+    $decoded = New-Object System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension
+    $decoded.CopyFrom($ekuExtension[0])
+    foreach ($oid in $decoded.EnhancedKeyUsages) {
+        if ($oid.Value -eq $RequiredOid) {
+            return $true
+        }
+    }
+    return $false
+}
+
 $pfx = (Resolve-Path -LiteralPath $PfxPath).Path
 if (-not (Test-Path -LiteralPath $pfx -PathType Leaf)) {
     throw "Signing PFX is missing: $pfx"
@@ -55,7 +82,7 @@ try {
         $_.HasPrivateKey -and
         $_.NotBefore -le $now -and
         $_.NotAfter -gt $now -and
-        @($_.EnhancedKeyUsageList | ForEach-Object { $_.ObjectId.Value }) -contains $codeSigningOid
+        (Test-CodeSigningEku -Certificate $_ -RequiredOid $codeSigningOid)
     })
     if ($candidates.Count -ne 1) {
         throw "PFX must import exactly one currently valid code-signing certificate with a private key; found $($candidates.Count)."
