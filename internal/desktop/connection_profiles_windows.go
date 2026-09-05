@@ -8,7 +8,6 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 	"github.com/bren-wp/Ghost-FTP/internal/profilebinding"
 	"github.com/bren-wp/Ghost-FTP/internal/remote"
-	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 	"strconv"
 	"strings"
 	"time"
