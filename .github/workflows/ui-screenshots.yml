@@ -1,4 +1,4 @@
-# Final reproducible evidence workflow for authentic production Windows UI captures.
+# Current-head reproducible evidence workflow for authentic production Windows UI captures.
 name: Ghost FTP Authentic UI Screenshots
 
 on:
