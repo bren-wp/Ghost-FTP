@@ -2,9 +2,9 @@
 
 Ghost FTP keeps transport, credential, remote-path, local-filesystem, account-state and transfer/recovery boundaries fail-closed.
 
-**Current Ghost FTP release: 2.0.0**
+**Current Ghost FTP release: 0.1.0**
 
-The active 2.x desktop application platforms are **Windows and Linux**. Historical 1.x releases may document additional platforms that existed at the time; those historical facts are not the active security/support contract.
+The active desktop application platforms are **Windows and Linux**. The current `0.x` line is Beta until the complete stability/release criteria are met; the first stable release is `1.0.0`. Historical releases may document additional platforms that existed at the time, but those historical facts are not the active security/support contract.
 
 ## Desktop security boundary
 
@@ -31,7 +31,9 @@ Saved profile secrets use Windows DPAPI-backed protection. Runtime secret materi
 
 ### Linux
 
-Linux uses the shared profile/runtime secret infrastructure. The 2.0 frontend supports both SFTP password authentication and private-key authentication with an optional key passphrase; it no longer imposes the old key-only/passphrase-rejection behavior.
+Linux uses the shared profile/runtime secret infrastructure. The current frontend supports SFTP password authentication and private-key authentication with an optional key passphrase.
+
+Persisted Linux profile envelopes use authenticated AES-GCM storage with a per-user key file. The Ghost FTP state directory is required to be owned by the current user and private; the implementation may tighten only the verified leaf state directory to `0700`. The key file is a regular non-symlink file restricted to `0600`, and authenticated-encryption tampering is rejected.
 
 ### Process handoff
 
@@ -139,21 +141,9 @@ Production build workflows explicitly execute `go telemetry off` and verify the 
 
 `GhostFTP WEB/` remains a separate shared-hosting/PWA implementation with its own PHP/session/CSRF threat model. It is not a Windows/Linux desktop runtime component.
 
-Its maintained security properties include:
+Its maintained security properties include strict session/CSRF controls, authenticated encryption for saved secrets, bounded operations, host/path validation, SFTP fingerprint checks, staged remote writes and safe public-error handling.
 
-- strict session cookies and session rotation;
-- CSRF protection and cross-site POST filtering;
-- CSP/HSTS/noindex/no-store protections where applicable;
-- bounded JSON/state access;
-- authenticated encryption for saved connection secrets;
-- exact host/path validation;
-- SFTP SHA-256 fingerprint requirements;
-- bounded editor/download/archive processing;
-- staged/atomic remote writes and explicit rollback/recovery states;
-- generic public errors for unexpected PHP/extension failures;
-- runtime/user storage excluded from tracked/release source.
-
-The Web companion is still audited by CI even though it is not published as a desktop platform artifact.
+The Web companion is audited separately and is not published as a desktop platform artifact.
 
 ## Repository and release integrity
 
@@ -168,7 +158,9 @@ Before publication:
 - Linux production build must pass;
 - `main` must still point to the build commit;
 - an existing `ghostftp-vX.Y.Z` tag must already point to that same commit or publication fails;
-- final release asset count is read back and verified.
+- final release asset count is read back and verified;
+- every `0.x.y` GitHub release is marked Beta/Prerelease;
+- stable publication starts at `1.0.0`.
 
 Published historical tags/releases are not moved to another commit.
 
