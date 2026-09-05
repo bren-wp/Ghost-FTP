@@ -481,8 +481,8 @@ func (x *x11Client) queryKeyboardMapping() error {
 	}
 	buf := make([]byte, 8)
 	buf[0] = 101
-	buf[1] = x.minKey
-	buf[4] = byte(count)
+	buf[4] = x.minKey
+	buf[5] = byte(count)
 	if err := x.request(buf); err != nil {
 		return err
 	}
