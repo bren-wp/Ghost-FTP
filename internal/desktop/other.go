@@ -863,4 +863,13 @@ func runTerminal(engine *api.Engine, version string) error {
 	}
 }
 
-func Run(engine *api.Engine, version string) error { return runTerminal(engine, version) }
+func Run(engine *api.Engine, version string) error {
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("GHOSTFTP_UI")))
+	if mode == "terminal" || strings.TrimSpace(os.Getenv("DISPLAY")) == "" {
+		return runTerminal(engine, version)
+	}
+	if mode != "" && mode != "desktop" && mode != "gui" {
+		return errors.New("GHOSTFTP_UI must be desktop, gui or terminal")
+	}
+	return runLinuxGUI(engine, version)
+}

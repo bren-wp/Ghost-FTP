@@ -61,12 +61,12 @@ type linuxDesktopLayout struct {
 	protocol, host, port, user, password, key, passphrase linuxRect
 	profile, saveProfile, removeProfile                   linuxRect
 	connect, disconnect, trust, cancelTrust               linuxRect
-	localPath, localUp, localRefresh                       linuxRect
-	remotePath, remoteUp, remoteRefresh                    linuxRect
-	localList, remoteList                                  linuxRect
-	upload, download                                       linuxRect
-	pause, resume, cancelJob, retryJob, clearQueue         linuxRect
-	queue                                                  linuxRect
+	localPath, localUp, localRefresh                      linuxRect
+	remotePath, remoteUp, remoteRefresh                   linuxRect
+	localList, remoteList                                 linuxRect
+	upload, download                                      linuxRect
+	pause, resume, cancelJob, retryJob, clearQueue        linuxRect
+	queue                                                 linuxRect
 }
 
 func buildLinuxDesktopLayout(width, height int) linuxDesktopLayout {
@@ -116,7 +116,7 @@ func buildLinuxDesktopLayout(width, height int) linuxDesktopLayout {
 	x += 118 + rowGap
 	layout.removeProfile = linuxRectWH(x, secondY, 118, fieldH)
 	x += 118 + rowGap
-	keyW := (contentWidth - (x-gap) - 120 - 118 - 4*rowGap) / 2
+	keyW := (contentWidth - (x - gap) - 120 - 118 - 4*rowGap) / 2
 	if keyW < 150 {
 		keyW = 150
 	}
@@ -835,7 +835,7 @@ func (u *linuxDesktop) cycleProfile() {
 	if p.RemotePath != "" {
 		u.remoteCurrent = p.RemotePath
 	}
-	u.pendingFingerprint = p.Fingerprint
+	u.pendingFingerprint = ""
 	u.setStatus("Loaded profile: " + p.Name + ". Linux login secrets are not persisted.")
 }
 
