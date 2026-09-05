@@ -24,7 +24,7 @@ type app struct {
 	brush                                uintptr
 
 	brandTitle, brandSubtitle, connectionBadge, sectionLocal, sectionRemote, sectionTransfers uintptr
-	profilesCombo, languageCombo, saveProfile, removeProfile, settingsBtn, aboutBtn           uintptr
+	profilesCombo, languageCombo, siteManagerBtn, saveProfile, removeProfile, settingsBtn, aboutBtn uintptr
 	protocol, host, port, user, pass                                                          uintptr
 	keyPath, chooseKey, passphrase                                                            uintptr
 	connect, disconnect                                                                       uintptr
