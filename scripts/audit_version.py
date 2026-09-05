@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify VERSION is the canonical production version source for the desktop application."""
+"""Verify VERSION is the canonical release version and follows the beta/stable policy."""
 
 from __future__ import annotations
 
@@ -33,9 +33,10 @@ def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
-    major = int(version.split(".", 1)[0])
-    if major < 2:
-        fail("Windows/Linux-only application contract requires the 2.x major line")
+
+    major, minor, patch = (int(part) for part in version.split("."))
+    if major == 0 and minor == 0 and patch == 0:
+        fail("0.0.0 is reserved and cannot be used as a distributable build")
 
     gomod = read("go.mod")
     if f"go {GO_TOOLCHAIN}" not in gomod:
@@ -48,11 +49,37 @@ def main() -> int:
         if re.search(r'var\s+version\s*=\s*"\d+\.\d+\.\d+"', text):
             fail(f"{rel} hard-codes a production version")
 
+    brand_version = read("internal/brand/version.go")
+    require(
+        brand_version,
+        (
+            'strings.HasPrefix(version, "0.")',
+            'return version + " Beta"',
+        ),
+        "internal/brand/version.go",
+    )
+
     readme = read("README.md")
     if f"Current Ghost FTP version: **{version}**" not in readme:
         fail("README does not expose canonical Ghost FTP VERSION")
     if f"## {version}" not in read("CHANGELOG.md"):
         fail("CHANGELOG does not contain a section for VERSION")
+
+    versioning = read("docs/VERSIONING.md")
+    require(
+        versioning,
+        (
+            "0.1.0",
+            "0.x.y",
+            "1.0.0",
+            "Beta",
+            "Portable",
+            "Setup",
+        ),
+        "docs/VERSIONING.md",
+    )
+    if major == 0 and "Development status: **Beta**" not in readme:
+        fail("pre-1.0 VERSION must be visibly documented as Beta")
 
     windows_build = read("BUILD-WINDOWS.ps1")
     require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS.ps1")
@@ -87,6 +114,8 @@ def main() -> int:
             "manual='${{ inputs.version }}'",
             "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
             "RELEASE_TAG=ghostftp-v$version",
+            "RELEASE_CHANNEL",
+            "--prerelease",
             "PUBLIC_PLATFORM_ARTIFACTS=9",
             "PUBLIC_RELEASE_FILES=12",
         ),
@@ -104,11 +133,14 @@ def main() -> int:
     if 'version = read("VERSION").strip()' not in localization_audit:
         fail("localization audit does not read VERSION dynamically")
 
-    print(f"VERSION_AUDIT=PASS ({version})")
+    channel = "beta" if major == 0 else "stable"
+    print(f"VERSION_AUDIT=PASS ({version}; channel={channel})")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("PRE_1_0_CHANNEL=BETA")
+    print("FIRST_STABLE_VERSION=1.0.0")
     print("WEB_COMPANION_VERSIONING=INDEPENDENT_FROM_DESKTOP_RELEASE")
     return 0
 
