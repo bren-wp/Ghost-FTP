@@ -93,14 +93,14 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	})
 
 	const (
-		wsOverlapped   = 0x00C80000
-		wsChild        = 0x40000000
-		wsVisible      = 0x10000000
-		wsTabStop      = 0x00010000
-		wsVScroll      = 0x00200000
-		cbsDropdown    = 0x0003
+		wsOverlapped    = 0x00C80000
+		wsChild         = 0x40000000
+		wsVisible       = 0x10000000
+		wsTabStop       = 0x00010000
+		wsVScroll       = 0x00200000
+		cbsDropdown     = 0x0003
 		bsDefPushButton = 0x00000001
-		ssEtchedHorz   = 0x00000010
+		ssEtchedHorz    = 0x00000010
 	)
 	const (
 		windowWidth  = 680
@@ -124,15 +124,15 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	languageStates.Store(hwnd, state)
 	defer languageStates.Delete(hwnd)
 
-	font, _, _ := promptCreateFontW.Call(uintptr(uint32(int32(-16))), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	font := premiumDialogFont(-16, 400)
 	if font != 0 {
 		defer promptDeleteObject.Call(font)
 	}
-	headerFont, _, _ := promptCreateFontW.Call(uintptr(uint32(int32(-26))), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	headerFont := premiumDialogFont(-26, 600)
 	if headerFont != 0 {
 		defer promptDeleteObject.Call(headerFont)
 	}
-	captionFont, _, _ := promptCreateFontW.Call(uintptr(uint32(int32(-14))), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	captionFont := premiumDialogFont(-14, 400)
 	if captionFont != 0 {
 		defer promptDeleteObject.Call(captionFont)
 	}
