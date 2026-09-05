@@ -56,8 +56,8 @@ func TestLanguagesAndNormalization(t *testing.T) {
 		t.Fatalf("English must remain the primary/default language: first=%q default=%q", languages[0].Code, DefaultLanguage)
 	}
 	cases := map[string]string{
-		"": "en", "EN": "en", "pt-BR": "pt", "zh_CN": "zh", "de-DE": "de", "it-IT": "it", "uk-UA": "uk",
-		"ro-RO": "ro", "hu-HU": "hu", "da-DK": "da", "fi-FI": "fi", "nb-NO": "en", "no-NO": "no", "ko-KR": "ko", "unknown": "en",
+		"": "en", "EN": "en", "pt-BR": "pt", "zh_CN": "zh", "zh-Hans": "zh", "de-DE": "de", "it-IT": "it", "uk-UA": "uk",
+		"ro-RO": "ro", "hu-HU": "hu", "da-DK": "da", "fi-FI": "fi", "nb-NO": "no", "nn-NO": "no", "no-NO": "no", "ko-KR": "ko", "unknown": "en",
 	}
 	for input, want := range cases {
 		if got := Normalize(input); got != want {
@@ -67,7 +67,7 @@ func TestLanguagesAndNormalization(t *testing.T) {
 	if IsSupported("unknown") {
 		t.Fatal("unknown language must not be reported as supported")
 	}
-	for _, code := range []string{"sv-SE", "ro-RO", "hu-HU", "da-DK", "fi-FI", "no-NO", "ko-KR"} {
+	for _, code := range []string{"sv-SE", "ro-RO", "hu-HU", "da-DK", "fi-FI", "nb-NO", "no-NO", "ko-KR"} {
 		if !IsSupported(code) {
 			t.Fatalf("regional form of supported language should be supported: %s", code)
 		}
@@ -77,7 +77,7 @@ func TestLanguagesAndNormalization(t *testing.T) {
 func TestAffirmativeAnswers(t *testing.T) {
 	cases := []struct{ language, answer string }{
 		{"en", "yes"}, {"hr", "da"}, {"de", "ja"}, {"fr", "oui"}, {"es", "sí"}, {"tr", "evet"}, {"el", "ναι"}, {"pt", "sim"}, {"zh", "是"}, {"ru", "да"}, {"hi", "हाँ"}, {"ja", "はい"},
-		{"it", "sì"}, {"pl", "tak"}, {"nl", "ja"}, {"cs", "ano"}, {"uk", "так"}, {"sv", "ja"}, {"ro", "da"}, {"hu", "igen"}, {"da", "ja"}, {"fi", "kyllä"}, {"no", "ja"}, {"ko", "예"},
+		{"it", "sì"}, {"pl", "tak"}, {"nl", "ja"}, {"cs", "ano"}, {"uk", "так"}, {"sv", "ja"}, {"ro", "da"}, {"hu", "igen"}, {"da", "ja"}, {"fi", "kyllä"}, {"no", "ja"}, {"ko", "예"}, {"nb-NO", "ja"},
 	}
 	for _, tc := range cases {
 		if !IsAffirmative(tc.language, tc.answer) {
