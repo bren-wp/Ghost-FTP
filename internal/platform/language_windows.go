@@ -26,7 +26,7 @@ type languageDialogState struct {
 var (
 	languageStates sync.Map
 	languageOnce   sync.Once
-	languageClass  = "GhostFTP.LanguageDialog"
+	languageClass  = "GhostFTP.OptionDialog"
 	languageProc   = syscall.NewCallback(languageWndProc)
 )
 
@@ -61,15 +61,20 @@ func languageWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 	return r
 }
 
-// SelectLanguageDialog shows a compact native Windows setup-language picker.
-// It intentionally accepts display strings from the installer so platform code
-// stays independent from the application's localization package.
-func SelectLanguageDialog(title, instruction string, options []string, defaultIndex int) (int, bool) {
+// SelectOptionDialog shows a small native Windows selector with no framework
+// dependency. It is suitable for bounded settings choices and installer flows.
+func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel string, options []string, defaultIndex int) (int, bool) {
 	if len(options) == 0 {
 		return 0, false
 	}
 	if defaultIndex < 0 || defaultIndex >= len(options) {
 		defaultIndex = 0
+	}
+	if acceptLabel == "" {
+		acceptLabel = "OK"
+	}
+	if cancelLabel == "" {
+		cancelLabel = "Cancel"
 	}
 
 	hinst, _, _ := promptGetModuleHandleW.Call(0)
@@ -110,9 +115,6 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 	languageStates.Store(hwnd, state)
 	defer languageStates.Delete(hwnd)
 
-	// CreateFontW accepts a signed LONG height. syscall.Proc.Call takes uintptr,
-	// so preserve the signed 32-bit Win32 representation at runtime instead of
-	// attempting an invalid constant conversion from -16 to uint32.
 	fontHeight := int32(-16)
 	font, _, _ := promptCreateFontW.Call(uintptr(uint32(fontHeight)), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
 	if font != 0 {
@@ -139,9 +141,9 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 		promptSendMessageW.Call(state.combo, languageCBAdd, 0, uintptr(unsafe.Pointer(promptWstr(option))))
 	}
 	promptSendMessageW.Call(state.combo, languageCBSet, uintptr(defaultIndex), 0)
-	makeControl("STATIC", "Ghost FTP Setup · private by design · local-first settings", 0, 32, 140, 576, 24, 0)
-	makeControl("BUTTON", "Continue", wsTabStop, 420, 182, 90, 34, languageIDInstall)
-	makeControl("BUTTON", "Cancel", wsTabStop, 518, 182, 90, 34, languageIDCancel)
+	makeControl("STATIC", footer, 0, 32, 140, 576, 24, 0)
+	makeControl("BUTTON", acceptLabel, wsTabStop, 420, 182, 90, 34, languageIDInstall)
+	makeControl("BUTTON", cancelLabel, wsTabStop, 518, 182, 90, 34, languageIDCancel)
 
 	promptSetFocus.Call(state.combo)
 	promptShowWindow.Call(hwnd, 5)
@@ -157,4 +159,18 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 		promptDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
 	}
 	return state.selected, state.accepted
+}
+
+// SelectLanguageDialog is the installer-facing wrapper. It intentionally
+// accepts display strings so platform code stays independent from i18n data.
+func SelectLanguageDialog(title, instruction string, options []string, defaultIndex int) (int, bool) {
+	return SelectOptionDialog(
+		title,
+		instruction,
+		"Ghost FTP Setup · private by design · local-first settings",
+		"Continue",
+		"Cancel",
+		options,
+		defaultIndex,
+	)
 }
