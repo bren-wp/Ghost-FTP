@@ -5,16 +5,16 @@ package desktop
 import (
 	"context"
 	"errors"
-	"github.com/bren-wp/Ghost-FTP/internal/api"
-	"github.com/bren-wp/Ghost-FTP/internal/model"
-	"github.com/bren-wp/Ghost-FTP/internal/platform"
-	"github.com/bren-wp/Ghost-FTP/internal/security"
-	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bren-wp/Ghost-FTP/internal/api"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 func (a *app) suppressExpectedDisconnectError(err error) bool {
@@ -24,7 +24,7 @@ func (a *app) suppressExpectedDisconnectError(err error) bool {
 func (a *app) chooseLocalDirectory() {
 	p, err := a.engine.ChooseDirectory()
 	if err != nil {
-		platform.ErrorDialog("GhostFTP", "Odabir mape nije uspio", usererror.Message(err, "Mapu trenutačno nije moguće odabrati."))
+		platform.ErrorDialog("Ghost FTP — "+a.tr("common.folder"), a.tr("error.generic"), a.userMessage(err, "error.generic"))
 		return
 	}
 	if p != "" {
@@ -53,7 +53,7 @@ func (a *app) refreshLocal(p string) {
 			}
 			a.localNavCancel = nil
 			if err != nil {
-				a.setStatus(usererror.Message(err, "Lokalnu mapu nije moguće otvoriti."))
+				a.setStatus(a.userMessage(err, "error.generic"))
 				a.updateActionControls()
 				return
 			}
@@ -104,15 +104,16 @@ func (a *app) refreshRemote(p string) {
 				if a.suppressExpectedDisconnectError(err) {
 					return
 				}
-				a.setStatus(usererror.Message(err, "Mapu na poslužitelju nije moguće otvoriti."))
+				a.setStatus(a.userMessage(err, "error.generic"))
 				a.checkConnectionAfterError()
 				return
 			}
 			a.remoteCurrent = cleanRemote(target)
-			a.remoteItems = items
+			a.remoteAllItems = append(a.remoteAllItems[:0], items...)
+			a.remoteItems = append(a.remoteItems[:0], items...)
 			setText(a.remotePath, a.remoteCurrent)
-			fillItems(a.remoteList, items)
-			restoreItemSelection(a.remoteList, items, selected)
+			fillItems(a.remoteList, a.remoteItems)
+			restoreItemSelection(a.remoteList, a.remoteItems, selected)
 			a.updateActionControls()
 		})
 	})
@@ -144,7 +145,7 @@ func (a *app) openSelectedRemote() {
 	}
 	it := a.remoteItems[idx]
 	if err := security.ValidateRemoteName(it.Name); err != nil {
-		a.setStatus("Ovu stavku nije moguće sigurno otvoriti.")
+		a.setStatus(a.tr("error.invalid_name"))
 		return
 	}
 	if it.IsDirectory {
@@ -152,19 +153,19 @@ func (a *app) openSelectedRemote() {
 		return
 	}
 	if it.IsSymlink {
-		a.setStatus("Simbolička poveznica nije automatski preuzeta radi sigurnosti.")
+		a.setStatus(a.tr("status.skipped") + ": " + a.tr("type.link"))
 		return
 	}
 	local, err := security.SafeLocalChild(a.localCurrent, it.Name)
 	if err != nil {
-		a.setStatus("Ovu stavku nije moguće sigurno spremiti na lokalno računalo.")
+		a.setStatus(a.tr("error.invalid_name"))
 		return
 	}
 	a.addTransfer("download", local, path.Join(a.remoteCurrent, it.Name), a.localCurrent)
 }
 
 func (a *app) localMkdirAction() {
-	name, ok := platform.PromptDialog("GhostFTP — nova lokalna mapa", "Naziv nove mape:", "Nova mapa")
+	name, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.new_folder"), a.tr("column.name")+":", a.tr("common.new_folder"))
 	if !ok {
 		return
 	}
@@ -174,11 +175,11 @@ func (a *app) localMkdirAction() {
 		err := a.engine.LocalMkdir(base, name)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("GhostFTP", "Mapa nije stvorena", usererror.Message(err, "Mapu nije moguće stvoriti."))
+				platform.ErrorDialog("Ghost FTP", a.tr("common.new_folder"), a.userMessage(err, "error.generic"))
 				return
 			}
 			a.refreshLocal(a.localCurrent)
-			a.setStatus("Lokalna mapa stvorena: " + name)
+			a.setStatus(a.tr("common.new_folder") + ": " + name)
 		})
 	})
 }
@@ -186,11 +187,11 @@ func (a *app) localMkdirAction() {
 func (a *app) localRenameAction() {
 	indices := selectedIndices(a.localList)
 	if len(indices) != 1 || indices[0] < 0 || indices[0] >= len(a.localItems) {
-		a.setStatus("Za preimenovanje odaberite točno jednu lokalnu stavku.")
+		a.setStatus(a.tr("common.rename") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	item := a.localItems[indices[0]]
-	name, ok := platform.PromptDialog("GhostFTP — preimenuj lokalno", "Novi naziv:", item.Name)
+	name, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.rename"), a.tr("column.name")+":", item.Name)
 	if !ok || strings.TrimSpace(name) == item.Name {
 		return
 	}
@@ -199,11 +200,11 @@ func (a *app) localRenameAction() {
 		err := a.engine.LocalRename(base, item.Name, strings.TrimSpace(name))
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("GhostFTP", "Preimenovanje nije uspjelo", usererror.Message(err, "Stavku nije moguće preimenovati."))
+				platform.ErrorDialog("Ghost FTP", a.tr("common.rename"), a.userMessage(err, "error.generic"))
 				return
 			}
 			a.refreshLocal(a.localCurrent)
-			a.setStatus("Lokalna stavka preimenovana.")
+			a.setStatus(a.tr("common.rename") + ": " + item.Name)
 		})
 	})
 }
@@ -211,7 +212,7 @@ func (a *app) localRenameAction() {
 func (a *app) localDeleteAction() {
 	indices := selectedIndices(a.localList)
 	if len(indices) == 0 {
-		a.setStatus("Odaberite jednu ili više lokalnih stavki za brisanje.")
+		a.setStatus(a.tr("common.delete") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	items := make([]model.Item, 0, len(indices))
@@ -224,11 +225,11 @@ func (a *app) localDeleteAction() {
 		return
 	}
 	if a.settings.ConfirmDelete {
-		message := items[0].Name
+		detail := items[0].Name
 		if len(items) > 1 {
-			message = strconv.Itoa(len(items)) + " odabranih stavki"
+			detail = strconv.Itoa(len(items)) + " × " + a.tr("column.name")
 		}
-		if !platform.ConfirmDialog("GhostFTP — brisanje", "Obrisati odabrane lokalne stavke?", message+"\n\nOva radnja se ne može poništiti kroz GhostFTP.") {
+		if !platform.ConfirmDialog("Ghost FTP — "+a.tr("common.delete"), a.tr("common.delete")+"?", detail) {
 			return
 		}
 	}
@@ -246,10 +247,10 @@ func (a *app) localDeleteAction() {
 		err := errors.Join(errs...)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("GhostFTP", "Nisu obrisane sve stavke", usererror.Message(err, "Dio odabranih stavki nije moguće obrisati."))
+				platform.ErrorDialog("Ghost FTP", a.tr("common.delete"), a.userMessage(err, "error.generic"))
 			}
 			a.refreshLocal(a.localCurrent)
-			a.setStatus("Obrisano lokalnih stavki: " + strconv.Itoa(deleted) + " • neuspjelo: " + strconv.Itoa(len(items)-deleted))
+			a.setStatus(a.tr("common.delete") + ": " + strconv.Itoa(deleted) + " • " + a.tr("status.failed") + ": " + strconv.Itoa(len(items)-deleted))
 		})
 	})
 }
@@ -258,46 +259,46 @@ func (a *app) remoteMkdirAction() {
 	if !a.connected || a.connectionBusy {
 		return
 	}
-	name, ok := platform.PromptDialog("GhostFTP — nova mapa na poslužitelju", "Naziv nove mape:", "Nova mapa")
+	name, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.new_folder"), a.tr("column.name")+":", a.tr("common.new_folder"))
 	if !ok {
 		return
 	}
 	if err := security.ValidateRemoteName(name); err != nil {
-		platform.ErrorDialog("GhostFTP", "Mapa nije stvorena", usererror.Message(err, "Naziv udaljene mape nije valjan."))
+		platform.ErrorDialog("Ghost FTP", a.tr("common.new_folder"), a.userMessage(err, "error.invalid_name"))
 		return
 	}
 	base := a.remoteCurrent
-	a.runRemoteMutation("Stvaranje mape", func(ctx context.Context) error { return a.engine.RemoteMkdir(ctx, base, name) }, "Mapa stvorena: "+name)
+	a.runRemoteMutation(a.tr("common.new_folder"), func(ctx context.Context) error { return a.engine.RemoteMkdir(ctx, base, name) }, a.tr("common.new_folder")+": "+name)
 }
 
 func (a *app) remoteRenameAction() {
 	indices := selectedIndices(a.remoteList)
 	if len(indices) != 1 || indices[0] < 0 || indices[0] >= len(a.remoteItems) || a.connectionBusy {
-		a.setStatus("Za preimenovanje odaberite točno jednu udaljenu stavku.")
+		a.setStatus(a.tr("common.rename") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	item := a.remoteItems[indices[0]]
 	base := a.remoteCurrent
-	name, ok := platform.PromptDialog("GhostFTP — preimenuj na poslužitelju", "Novi naziv:", item.Name)
+	name, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.rename"), a.tr("column.name")+":", item.Name)
 	if !ok {
 		return
 	}
 	if err := security.ValidateRemoteName(name); err != nil {
-		platform.ErrorDialog("GhostFTP", "Preimenovanje nije uspjelo", usererror.Message(err, "Novi naziv udaljene stavke nije valjan."))
+		platform.ErrorDialog("Ghost FTP", a.tr("common.rename"), a.userMessage(err, "error.invalid_name"))
 		return
 	}
 	if name == item.Name {
 		return
 	}
-	a.runRemoteMutation("Preimenovanje", func(ctx context.Context) error {
+	a.runRemoteMutation(a.tr("common.rename"), func(ctx context.Context) error {
 		return a.engine.RemoteRename(ctx, base, item.Name, name)
-	}, "Udaljena stavka preimenovana.")
+	}, a.tr("common.rename")+": "+name)
 }
 
 func (a *app) remoteDeleteAction() {
 	indices := selectedIndices(a.remoteList)
 	if len(indices) == 0 || a.connectionBusy {
-		a.setStatus("Odaberite jednu ili više udaljenih stavki za brisanje.")
+		a.setStatus(a.tr("common.delete") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	items := make([]model.Item, 0, len(indices))
@@ -310,29 +311,29 @@ func (a *app) remoteDeleteAction() {
 		return
 	}
 	if a.settings.ConfirmDelete {
-		message := items[0].Name
+		detail := items[0].Name
 		if len(items) > 1 {
-			message = strconv.Itoa(len(items)) + " odabranih stavki"
+			detail = strconv.Itoa(len(items)) + " × " + a.tr("column.name")
 		}
-		if !platform.ConfirmDialog("GhostFTP — brisanje na poslužitelju", "Obrisati odabrane stavke?", message+"\n\nBrisanje na poslužitelju može biti nepovratno.") {
+		if !platform.ConfirmDialog("Ghost FTP — "+a.tr("common.delete"), a.tr("common.delete")+"?", detail) {
 			return
 		}
 	}
 	base := a.remoteCurrent
-	a.runRemoteBatchMutationWithTimeout("Brisanje", remoteBatchTimeout(len(items)), len(items), func(ctx context.Context, index int) error {
+	a.runRemoteBatchMutationWithTimeout(a.tr("common.delete"), remoteBatchTimeout(len(items)), len(items), func(ctx context.Context, index int) error {
 		item := items[index]
 		return a.engine.RemoteDelete(ctx, base, item.Name, item.IsDirectory)
-	}, "Obrisano udaljenih stavki: ", 0)
+	}, a.tr("common.delete")+": ", 0)
 }
 
 func (a *app) remoteChmodAction() {
 	indices := selectedIndices(a.remoteList)
 	if len(indices) == 0 || a.connectionBusy {
-		a.setStatus("Odaberite jednu ili više stavki za promjenu dozvola.")
+		a.setStatus(a.tr("common.permissions") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	if len(indices) > 1000 {
-		a.setStatus("Za jednu promjenu dozvola odaberite najviše 1000 stavki.")
+		a.setStatus(a.tr("error.structure_large"))
 		return
 	}
 	items := make([]model.Item, 0, len(indices))
@@ -349,18 +350,18 @@ func (a *app) remoteChmodAction() {
 		items = append(items, item)
 	}
 	if len(items) == 0 {
-		a.setStatus("Dozvole nisu mijenjane: simboličke poveznice preskaču se radi sigurnosti.")
+		a.setStatus(a.tr("status.skipped") + ": " + a.tr("type.link"))
 		return
 	}
 	base := a.remoteCurrent
-	mode, ok := platform.PromptDialog("GhostFTP — dozvole", "Dozvole za odabrane stavke, npr. 644 ili 755:", "644")
+	mode, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.permissions"), a.tr("common.permissions")+" (644 / 755):", "644")
 	if !ok {
 		return
 	}
 	mode = strings.TrimSpace(mode)
-	a.runRemoteBatchMutationWithTimeout("Promjena dozvola", remoteBatchTimeout(len(items)), len(items), func(ctx context.Context, index int) error {
+	a.runRemoteBatchMutationWithTimeout(a.tr("common.permissions"), remoteBatchTimeout(len(items)), len(items), func(ctx context.Context, index int) error {
 		return a.engine.RemoteChmod(ctx, base, items[index].Name, mode)
-	}, "Dozvole promijenjene za stavki: ", skippedLinks)
+	}, a.tr("common.permissions")+": ", skippedLinks)
 }
 
 func remoteBatchTimeout(count int) time.Duration {
@@ -397,8 +398,8 @@ func (a *app) runRemoteMutationWithTimeout(label string, timeout time.Duration, 
 				if a.suppressExpectedDisconnectError(err) {
 					return
 				}
-				platform.ErrorDialog("GhostFTP — poslužitelj", label+" nije uspjelo", usererror.Message(err, "Radnju na poslužitelju nije moguće dovršiti."))
-				a.setStatus(usererror.Message(err, label+" nije uspjelo."))
+				platform.ErrorDialog("Ghost FTP — "+a.tr("section.remote"), label, a.userMessage(err, "error.generic"))
+				a.setStatus(a.userMessage(err, "error.generic"))
 				a.checkConnectionAfterError()
 				return
 			}
@@ -427,18 +428,16 @@ func (a *app) runRemoteBatchMutationWithTimeout(label string, timeout time.Durat
 			}
 			status := successPrefix + strconv.Itoa(result.Succeeded)
 			if result.Failed > 0 {
-				status += " • neuspjelo: " + strconv.Itoa(result.Failed)
+				status += " • " + a.tr("status.failed") + ": " + strconv.Itoa(result.Failed)
 			}
 			if skipped > 0 {
-				status += " • preskočeno poveznica: " + strconv.Itoa(skipped)
+				status += " • " + a.tr("status.skipped") + ": " + strconv.Itoa(skipped)
 			}
 			a.setStatus(status)
 			if result.Err != nil && !a.suppressExpectedDisconnectError(result.Err) {
-				platform.ErrorDialog("GhostFTP — poslužitelj", label+" nije dovršeno za sve stavke", usererror.Message(result.Err, "Dio odabranih stavki nije moguće promijeniti."))
+				platform.ErrorDialog("Ghost FTP — "+a.tr("section.remote"), label, a.userMessage(result.Err, "error.generic"))
 			}
 			if result.Succeeded > 0 && baseNavGeneration == a.remoteNavSeq {
-				// Refresh itself proves whether the connection is still usable, so do
-				// not start a redundant probe in parallel after partial success.
 				a.refreshRemote(a.remoteCurrent)
 				return
 			}
@@ -457,14 +456,14 @@ type selectedTreeTransfer struct {
 func (a *app) queueSelection(direction string, files []api.TransferRequest, trees []selectedTreeTransfer, skipped int) {
 	if len(files) == 0 && len(trees) == 0 {
 		if skipped > 0 {
-			a.setStatus("Odabrane poveznice nisu prenesene radi sigurnosti.")
+			a.setStatus(a.tr("status.skipped") + ": " + a.tr("type.link"))
 		} else {
-			a.setStatus("Nema stavki za prijenos.")
+			a.setStatus(a.tr("section.transfers") + ": 0")
 		}
 		return
 	}
 	generation := a.connectionGeneration
-	a.setStatus("Dodavanje odabranih stavki u red prijenosa…")
+	a.setStatus(a.tr("section.transfers") + "…")
 	a.goSafe(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
@@ -503,17 +502,14 @@ func (a *app) queueSelection(direction string, files []api.TransferRequest, tree
 				return
 			}
 			if err != nil && !a.suppressExpectedDisconnectError(err) {
-				platform.ErrorDialog("GhostFTP — prijenos", "Nisu dodane sve odabrane stavke", usererror.Message(err, "Dio odabranih stavki nije moguće dodati u prijenos."))
+				platform.ErrorDialog("Ghost FTP — "+a.tr("section.transfers"), a.tr("status.failed"), a.userMessage(err, "error.generic"))
 			}
-			text := "Dodano u red: " + strconv.Itoa(queuedFiles) + " datoteka"
-			if queuedDirs > 0 {
-				text += ", " + strconv.Itoa(queuedDirs) + " mapa"
-			}
+			text := a.tr("section.transfers") + ": " + strconv.Itoa(queuedFiles+queuedDirs)
 			if failedSelections > 0 {
-				text += " • neuspjelo odabira: " + strconv.Itoa(failedSelections)
+				text += " • " + a.tr("status.failed") + ": " + strconv.Itoa(failedSelections)
 			}
 			if skipped > 0 {
-				text += " • preskočeno poveznica: " + strconv.Itoa(skipped)
+				text += " • " + a.tr("status.skipped") + ": " + strconv.Itoa(skipped)
 			}
 			a.setStatus(text)
 			a.refreshTransfers()
@@ -524,7 +520,7 @@ func (a *app) queueSelection(direction string, files []api.TransferRequest, tree
 func (a *app) uploadSelected() {
 	indices := selectedIndices(a.localList)
 	if len(indices) == 0 {
-		a.setStatus("Odaberite jednu ili više lokalnih datoteka ili mapa za prijenos.")
+		a.setStatus(a.tr("transfer.upload") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	localBase, remoteBase := a.localCurrent, a.remoteCurrent
@@ -554,7 +550,7 @@ func (a *app) uploadSelected() {
 func (a *app) downloadSelected() {
 	indices := selectedIndices(a.remoteList)
 	if len(indices) == 0 {
-		a.setStatus("Odaberite jednu ili više datoteka ili mapa na poslužitelju za preuzimanje.")
+		a.setStatus(a.tr("transfer.download") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	localBase, remoteBase := a.localCurrent, a.remoteCurrent
@@ -591,7 +587,7 @@ func (a *app) downloadSelected() {
 
 func (a *app) addTreeTransfer(direction, local, remotePath string) {
 	generation := a.connectionGeneration
-	a.setStatus("Priprema prijenosa cijele mape…")
+	a.setStatus(a.tr("section.transfers") + "…")
 	a.goSafe(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
@@ -604,11 +600,11 @@ func (a *app) addTreeTransfer(direction, local, remotePath string) {
 				if a.suppressExpectedDisconnectError(err) {
 					return
 				}
-				platform.ErrorDialog("GhostFTP — prijenos mape", "Mapa nije dodana u prijenos", usererror.Message(err, "Prijenos mape nije moguće pokrenuti."))
-				a.setStatus(usererror.Message(err, "Prijenos mape nije moguće pokrenuti."))
+				platform.ErrorDialog("Ghost FTP — "+a.tr("section.transfers"), a.tr("status.failed"), a.userMessage(err, "error.generic"))
+				a.setStatus(a.userMessage(err, "error.generic"))
 				return
 			}
-			a.setStatus("Mapa dodana: " + strconv.Itoa(result.Queued) + " datoteka, " + strconv.Itoa(result.Directories) + " mapa.")
+			a.setStatus(a.tr("section.transfers") + ": " + strconv.Itoa(result.Queued+result.Directories))
 			a.refreshTransfers()
 		})
 	})
@@ -640,7 +636,7 @@ func (a *app) checkConnectionAfterError() {
 
 			disconnectGeneration := a.beginConnectionTransition()
 			a.setConnectionBusy(true)
-			a.setStatus("Veza više nije dostupna. Zaustavljanje prijenosa…")
+			a.setStatus(a.tr("error.connection_lost"))
 			a.goSafe(func() {
 				disconnectCtx, disconnectCancel := context.WithTimeout(context.Background(), 10*time.Second)
 				disconnectErr := a.engine.Disconnect(disconnectCtx)
@@ -649,9 +645,9 @@ func (a *app) checkConnectionAfterError() {
 					if disconnectGeneration != a.connectionGeneration {
 						return
 					}
-					status := "Veza više nije dostupna. Aktivni prijenosi su zaustavljeni; poslužitelj i korisničko ime ostali su uneseni."
+					status := a.tr("error.connection_lost")
 					if disconnectErr != nil {
-						status = usererror.Message(disconnectErr, status)
+						status = a.userMessage(disconnectErr, "error.connection_lost")
 					}
 					a.finishDisconnected(status)
 				})
