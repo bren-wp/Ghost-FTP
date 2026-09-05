@@ -134,6 +134,7 @@
 					000000000000000000000002 = {
 						CreatedOnToolsVersion = 16.0;
 					};
+				};
 			};
 			buildConfigurationList = 00000000000000000000000A /* Build configuration list for PBXProject "GhostFTP" */;
 			compatibilityVersion = "Xcode 14.0";
