@@ -5,14 +5,15 @@ package desktop
 import (
 	"context"
 	"fmt"
-	"github.com/bren-wp/Ghost-FTP/internal/api"
-	"github.com/bren-wp/Ghost-FTP/internal/brand"
-	"github.com/bren-wp/Ghost-FTP/internal/model"
-	"github.com/bren-wp/Ghost-FTP/internal/platform"
 	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"github.com/bren-wp/Ghost-FTP/internal/api"
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
 type app struct {
@@ -21,7 +22,7 @@ type app struct {
 	version                              string
 	font, titleFont, smallFont, iconFont uintptr
 	dpi                                  uint32
-	brush                                uintptr
+	brush, panelBrush                    uintptr
 
 	brandTitle, brandSubtitle, connectionBadge, sectionLocal, sectionRemote, sectionTransfers uintptr
 	profilesCombo, languageCombo, saveProfile, removeProfile, settingsBtn, aboutBtn           uintptr
@@ -39,10 +40,19 @@ type app struct {
 
 	siteManagerBtn uintptr
 
+	// Reference-shell controls are presentation-only aliases around the existing
+	// command and action-state layer. They never bypass Engine validation.
+	shellSidebar, shellToolbar, shellLogCard, shellQuickCard, shellLocalCard, shellRemoteCard, shellQueueCard uintptr
+	sidebarServersLabel, sidebarPrivacyTitle, sidebarPrivacyBody, logTitle, quickTitle, localDeviceLabel, remoteStateLabel uintptr
+	remoteSearch                                                                                                      uintptr
+	toolbarConnect, toolbarDisconnect, toolbarUpload, toolbarDownload, toolbarRefresh                                uintptr
+	toolbarNewFolder, toolbarRename, toolbarDelete, toolbarSites, toolbarSettings, toolbarDiagnostics                uintptr
+
 	mu                   sync.Mutex
 	dispatchQ            []func()
 	localItems           []model.Item
 	remoteItems          []model.Item
+	remoteAllItems       []model.Item
 	transferJobs         []model.TransferJob
 	profiles             []model.PublicProfile
 	settings             model.Settings
@@ -63,6 +73,7 @@ type app struct {
 	closing              bool
 	localNavSeq          uint64
 	remoteNavSeq         uint64
+	statusLog            []string
 }
 
 var apps sync.Map
@@ -79,6 +90,7 @@ func Run(engine *api.Engine, version string) error {
 	cursor, _, _ := loadCursorW.Call(0, 32512)
 	icon, _, _ := loadIconW.Call(hinst, 1)
 	brush, _, _ := createSolidBrush.Call(windowColor())
+	panelBrush, _, _ := createSolidBrush.Call(panelColor())
 	className := wstr("GhostFTP.NativeWindow")
 	wc := wndClassEx{
 		CbSize:     uint32(unsafe.Sizeof(wndClassEx{})),
@@ -94,10 +106,17 @@ func Run(engine *api.Engine, version string) error {
 		if brush != 0 {
 			deleteObject.Call(brush)
 		}
+		if panelBrush != 0 {
+			deleteObject.Call(panelBrush)
+		}
 		return fmt.Errorf("unable to register GhostFTP window: %v", err)
 	}
 
-	a := &app{engine: engine, version: version, remoteCurrent: "/", seenDone: map[string]bool{}, brush: brush, buttons: make(map[uintptr]buttonVisual), settings: model.Settings{Language: "en"}}
+	a := &app{
+		engine: engine, version: version, remoteCurrent: "/", seenDone: map[string]bool{},
+		brush: brush, panelBrush: panelBrush, buttons: make(map[uintptr]buttonVisual),
+		settings: model.Settings{Language: "en"},
+	}
 	hwnd, _, err := createWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
@@ -109,6 +128,9 @@ func Run(engine *api.Engine, version string) error {
 	if hwnd == 0 {
 		if brush != 0 {
 			deleteObject.Call(brush)
+		}
+		if panelBrush != 0 {
+			deleteObject.Call(panelBrush)
 		}
 		return fmt.Errorf("unable to open GhostFTP window: %v", err)
 	}
@@ -126,8 +148,10 @@ func Run(engine *api.Engine, version string) error {
 				deleteObject.Call(f)
 			}
 		}
-		if a.brush != 0 {
-			deleteObject.Call(a.brush)
+		for _, b := range []uintptr{a.brush, a.panelBrush} {
+			if b != 0 {
+				deleteObject.Call(b)
+			}
 		}
 		return err
 	}
@@ -180,8 +204,10 @@ func Run(engine *api.Engine, version string) error {
 			deleteObject.Call(f)
 		}
 	}
-	if a.brush != 0 {
-		deleteObject.Call(a.brush)
+	for _, b := range []uintptr{a.brush, a.panelBrush} {
+		if b != 0 {
+			deleteObject.Call(b)
+		}
 	}
 	return nil
 }
@@ -197,8 +223,8 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmGetMinMaxInfo:
 		if lParam != 0 {
 			info := minMaxInfoFromLParam(lParam)
-			info.MinTrackSize.X = int32(a.scale(940))
-			info.MinTrackSize.Y = int32(a.scale(680))
+			info.MinTrackSize.X = int32(a.scale(1080))
+			info.MinTrackSize.Y = int32(a.scale(700))
 			minMaxInfoToLParam(lParam, info)
 		}
 		return 0
@@ -238,6 +264,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.refineWorkspaceLayout()
 			return 0
 		}
+		if id == idRemoteSearch && notify == enChange {
+			a.applyRemoteSearch()
+			return 0
+		}
 		if notify == bnClicked {
 			a.command(id)
 			return 0
@@ -274,17 +304,21 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmCtlColorEdit, wmCtlColorBtn, wmCtlColorStatic:
 		color := textColor()
 		if lParam == a.brandTitle {
-			color = accentColor()
-		} else if lParam == a.brandSubtitle || lParam == a.sectionLocal || lParam == a.sectionRemote || lParam == a.sectionTransfers || lParam == a.status {
+			color = textColor()
+		} else if lParam == a.brandSubtitle || lParam == a.sectionLocal || lParam == a.sectionRemote || lParam == a.sectionTransfers || lParam == a.status || lParam == a.sidebarPrivacyBody || lParam == a.localDeviceLabel || lParam == a.remoteStateLabel {
 			color = mutedColor()
 		} else if lParam == a.connectionBadge {
 			if a.connected {
 				color = successColor()
 			} else {
-				color = warnColor()
+				color = mutedColor()
 			}
 		}
 		setTextColor.Call(wParam, color)
+		if message == wmCtlColorStatic && a.panelBrush != 0 {
+			setBkColor.Call(wParam, panelColor())
+			return a.panelBrush
+		}
 		setBkColor.Call(wParam, windowColor())
 		return a.brush
 	case wmAppDispatch:
@@ -292,7 +326,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		return 0
 	case wmClose:
 		if a.connected || a.connectionBusy || a.hasActiveTransfers() {
-			if !platform.ConfirmDialog("GhostFTP", closeQuestion(a.languageCode()), closeBody(a.languageCode())) {
+			if !platform.ConfirmDialog("Ghost FTP", closeQuestion(a.languageCode()), closeBody(a.languageCode())) {
 				return 0
 			}
 		}
