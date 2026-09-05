@@ -2,19 +2,20 @@
 /dist/
 /cmd/installer/payload/*.exe
 /cmd/installer/payload/payload.zip
+/ui-screenshots/
+/dev-signing/
 
-# Generated release artifacts
+# Generated release/package artifacts
 *.exe
 *.zip
+*.deb
+*.nupkg
 *.sha256
-*.apk
-*.aab
-*.ipa
 
-# Generated iOS/Xcode state
-/ios/GhostFTP/Assets.xcassets/AppIcon.appiconset/*.png
-/ios/**/xcuserdata/
-*.xcuserstate
+# Signing secrets and local development identities
+*.pfx
+*.p12
+*.key
 
 # Temporary/runtime files
 *.tmp
