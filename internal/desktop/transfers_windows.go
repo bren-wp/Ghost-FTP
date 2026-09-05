@@ -7,7 +7,6 @@ import (
 
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 	"github.com/bren-wp/Ghost-FTP/internal/transfer"
-	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
 func (a *app) updateTransferSummary() {
