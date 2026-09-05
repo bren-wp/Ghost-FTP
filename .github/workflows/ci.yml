@@ -78,6 +78,7 @@ jobs:
           python scripts/audit_dependencies.py
           python scripts/audit_version.py
           python scripts/audit_localization.py
+          python scripts/audit_android_localization.py
           python scripts/audit_docs.py
           python scripts/audit_release.py
       - name: Security, privacy and web audits
