@@ -93,9 +93,9 @@ function Find-ProcessWindow {
         $callback = [GhostFtpCaptureNative+EnumWindowsProc]{
             param([IntPtr]$hWnd, [IntPtr]$lParam)
 
-            [uint32]$pid = 0
-            [GhostFtpCaptureNative]::GetWindowThreadProcessId($hWnd, [ref]$pid) | Out-Null
-            if ($pid -ne $script:ghostFtpTargetPid -or -not [GhostFtpCaptureNative]::IsWindowVisible($hWnd)) {
+            [uint32]$windowProcessId = 0
+            [GhostFtpCaptureNative]::GetWindowThreadProcessId($hWnd, [ref]$windowProcessId) | Out-Null
+            if ($windowProcessId -ne $script:ghostFtpTargetPid -or -not [GhostFtpCaptureNative]::IsWindowVisible($hWnd)) {
                 return $true
             }
 
