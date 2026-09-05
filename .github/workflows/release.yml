@@ -169,7 +169,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Resolve version
+      - name: Resolve version and release channel
         id: version
         shell: bash
         run: |
@@ -179,9 +179,21 @@ jobs:
           if [[ -n "$manual" ]]; then version="$manual"; else version="$source_version"; fi
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
           test "$version" = "$source_version"
+
+          major="${version%%.*}"
+          if [[ "$major" = '0' ]]; then
+            release_channel='beta'
+            release_title="Ghost FTP $version Beta"
+          else
+            release_channel='stable'
+            release_title="Ghost FTP $version"
+          fi
+
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"
+          echo "RELEASE_CHANNEL=$release_channel" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=$release_title" >> "$GITHUB_ENV"
       - name: Download Windows
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with: { name: ghostftp-windows-stage, path: staging/windows }
@@ -223,6 +235,7 @@ jobs:
           TECHNICAL_IDENTITY=GhostFTP
           VERSION=${VERSION}
           RELEASE_TAG=${RELEASE_TAG}
+          RELEASE_CHANNEL=${RELEASE_CHANNEL}
           COMMIT=${GITHUB_SHA}
           ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
           WINDOWS_SETUP=x64,x86,x32-alias-of-x86
@@ -255,6 +268,11 @@ jobs:
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
           command -v dotnet >/dev/null || { echo 'dotnet CLI is required for NuGet publication' >&2; exit 1; }
 
+          prerelease_args=()
+          if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
           if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
             tag_sha="$(git rev-list -n 1 "$RELEASE_TAG" 2>/dev/null || true)"
             if [[ -z "$tag_sha" ]]; then
@@ -263,9 +281,16 @@ jobs:
             fi
             test "$tag_sha" = "$GITHUB_SHA" || { echo "Existing $RELEASE_TAG points to $tag_sha, not $GITHUB_SHA; refusing to rewrite it." >&2; exit 1; }
             gh release upload "$RELEASE_TAG" release/* --repo "$repo" --clobber
-            gh release edit "$RELEASE_TAG" --repo "$repo" --title "Ghost FTP $VERSION" --notes-file release/RELEASE-NOTES.txt
+            gh release edit "$RELEASE_TAG" --repo "$repo" --title "$RELEASE_TITLE" --notes-file release/RELEASE-NOTES.txt
           else
-            gh release create "$RELEASE_TAG" release/* --repo "$repo" --target "$GITHUB_SHA" --title "Ghost FTP $VERSION" --notes-file release/RELEASE-NOTES.txt
+            gh release create "$RELEASE_TAG" release/* --repo "$repo" --target "$GITHUB_SHA" --title "$RELEASE_TITLE" --notes-file release/RELEASE-NOTES.txt "${prerelease_args[@]}"
+          fi
+
+          release_id="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .id)"
+          if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
+            gh api --method PATCH "repos/$repo/releases/$release_id" -F prerelease=true -f name="$RELEASE_TITLE" >/dev/null
+          else
+            gh api --method PATCH "repos/$repo/releases/$release_id" -F prerelease=false -f name="$RELEASE_TITLE" >/dev/null
           fi
 
           dotnet nuget push "packages-out/GhostFTP.${VERSION}.nupkg" \
@@ -275,7 +300,7 @@ jobs:
 
           package_versions="$(gh api "/users/${GITHUB_REPOSITORY_OWNER}/packages/nuget/GhostFTP/versions" --jq '.[].name')"
           grep -Fx "$VERSION" <<< "$package_versions"
-          echo "GITHUB_PACKAGE_READBACK=PASS (GhostFTP $VERSION)"
+          echo "GITHUB_PACKAGE_READBACK=PASS (GhostFTP $VERSION; channel=$RELEASE_CHANNEL)"
 
           assert_release_asset_set() {
             phase="$1"
@@ -289,7 +314,14 @@ jobs:
             diff -u "$local_manifest" "$remote_manifest"
             gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir"
             cmp release/SHA256.txt "$readback_dir/SHA256.txt"
-            echo "RELEASE_ASSET_READBACK=PASS ($phase)"
+
+            remote_prerelease="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)"
+            if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
+              test "$remote_prerelease" = 'true'
+            else
+              test "$remote_prerelease" = 'false'
+            fi
+            echo "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL)"
           }
 
           assert_release_asset_set immediate
