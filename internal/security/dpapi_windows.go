@@ -21,6 +21,12 @@ var cryptProtectData = crypt32.NewProc("CryptProtectData")
 var cryptUnprotectData = crypt32.NewProc("CryptUnprotectData")
 var localFree = kernel32.NewProc("LocalFree")
 
+func PersistentSecretStorageAvailable() bool { return true }
+
+// Windows DPAPI ciphertext is persistent by design. There is no process-owned
+// broker entry to forget when a session closes.
+func ForgetProtectedSecret(string) {}
+
 func blob(data []byte) dataBlob {
 	if len(data) == 0 {
 		return dataBlob{}
@@ -78,6 +84,7 @@ func UnprotectBytes(encoded string) ([]byte, error) {
 	}
 	return bytesFromBlob(out), nil
 }
+
 func ProtectBytes(value []byte) (string, error) {
 	if len(value) == 0 {
 		return "", nil
