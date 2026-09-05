@@ -6,6 +6,13 @@ namespace GhostFTP\Storage;
 use GhostFTP\I18n;
 use GhostFTP\Remote\PathGuard;
 
+// PreferenceStore is also exercised by standalone CLI recovery tools that do not
+// bootstrap the application autoloader. Keep this dependency explicit and local
+// so language normalization remains available in those fail-closed code paths.
+if (!class_exists(I18n::class, false)) {
+    require_once dirname(__DIR__) . '/I18n.php';
+}
+
 final class PreferenceStore
 {
     private JsonStore $store;
