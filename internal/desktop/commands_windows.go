@@ -6,11 +6,11 @@ import "path/filepath"
 
 func (a *app) command(id int) {
 	switch id {
-	case idConnect:
+	case idConnect, idToolbarConnect:
 		a.connectNow()
-	case idDisconnect:
+	case idDisconnect, idToolbarDisconnect:
 		a.disconnectNow()
-	case idSiteManager:
+	case idSiteManager, idToolbarSites:
 		a.openSiteManager()
 	case idExitApp:
 		postMessageW.Call(a.hwnd, wmClose, 0, 0)
@@ -20,10 +20,12 @@ func (a *app) command(id int) {
 		a.saveCurrentProfile()
 	case idRemoveProfile:
 		a.removeCurrentProfile()
-	case idSettings:
+	case idSettings, idToolbarSettings:
 		a.openSettings()
 	case idAbout:
 		a.openAbout()
+	case idToolbarDiagnostics:
+		a.showDiagnostics()
 	case idLocalRefresh:
 		a.refreshLocal(getText(a.localPath))
 	case idLocalChoose:
@@ -48,10 +50,16 @@ func (a *app) command(id int) {
 		a.remoteDeleteAction()
 	case idRemoteChmod:
 		a.remoteChmodAction()
-	case idUpload:
+	case idUpload, idToolbarUpload:
 		a.uploadSelected()
-	case idDownload:
+	case idDownload, idToolbarDownload:
 		a.downloadSelected()
+	case idToolbarNewFolder:
+		a.toolbarNewFolderAction()
+	case idToolbarRename:
+		a.toolbarRenameAction()
+	case idToolbarDelete:
+		a.toolbarDeleteAction()
 	case idPauseQueue:
 		a.pauseTransfers()
 	case idResumeQueue:
@@ -62,7 +70,7 @@ func (a *app) command(id int) {
 		a.retrySelectedTransfer()
 	case idClearQueue:
 		a.clearFinishedTransfers()
-	case idRefreshAll:
+	case idRefreshAll, idToolbarRefresh:
 		a.refreshLocal(getText(a.localPath))
 		if a.connected {
 			a.refreshRemote(getText(a.remotePath))
