@@ -90,3 +90,17 @@ func TestLockFileNameIsPathSafe(t *testing.T) {
 		t.Fatalf("unexpected lock filename: %q", name)
 	}
 }
+
+func TestTrustedLinuxAskPassParentPath(t *testing.T) {
+	accepted := []string{"/usr/bin/ssh", "/usr/bin/sftp", "ssh", "SFTP"}
+	for _, path := range accepted {
+		if !trustedLinuxAskPassParentPath(path) {
+			t.Fatalf("trusted OpenSSH parent rejected: %q", path)
+		}
+	}
+	for _, path := range []string{"/bin/bash", "/tmp/ssh-wrapper", "ghostftp", ""} {
+		if trustedLinuxAskPassParentPath(path) {
+			t.Fatalf("untrusted AskPass parent accepted: %q", path)
+		}
+	}
+}
