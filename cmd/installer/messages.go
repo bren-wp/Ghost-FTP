@@ -171,15 +171,33 @@ func installerCopyFor(language string) installerCopy {
 	if !ok {
 		return base
 	}
-	if localized.ConfirmTitle == "" { localized.ConfirmTitle = base.ConfirmTitle }
-	if localized.ConfirmBody == "" { localized.ConfirmBody = base.ConfirmBody }
-	if localized.CompletedTitle == "" { localized.CompletedTitle = base.CompletedTitle }
-	if localized.ReadyBody == "" { localized.ReadyBody = base.ReadyBody }
-	if localized.LaunchQuestion == "" { localized.LaunchQuestion = base.LaunchQuestion }
-	if localized.InstalledTitle == "" { localized.InstalledTitle = base.InstalledTitle }
-	if localized.LaunchFailed == "" { localized.LaunchFailed = base.LaunchFailed }
-	if localized.LanguageWarning == "" { localized.LanguageWarning = base.LanguageWarning }
-	if localized.ShortcutWarning == "" { localized.ShortcutWarning = base.ShortcutWarning }
+	if localized.ConfirmTitle == "" {
+		localized.ConfirmTitle = base.ConfirmTitle
+	}
+	if localized.ConfirmBody == "" {
+		localized.ConfirmBody = base.ConfirmBody
+	}
+	if localized.CompletedTitle == "" {
+		localized.CompletedTitle = base.CompletedTitle
+	}
+	if localized.ReadyBody == "" {
+		localized.ReadyBody = base.ReadyBody
+	}
+	if localized.LaunchQuestion == "" {
+		localized.LaunchQuestion = base.LaunchQuestion
+	}
+	if localized.InstalledTitle == "" {
+		localized.InstalledTitle = base.InstalledTitle
+	}
+	if localized.LaunchFailed == "" {
+		localized.LaunchFailed = base.LaunchFailed
+	}
+	if localized.LanguageWarning == "" {
+		localized.LanguageWarning = base.LanguageWarning
+	}
+	if localized.ShortcutWarning == "" {
+		localized.ShortcutWarning = base.ShortcutWarning
+	}
 	return localized
 }
 
