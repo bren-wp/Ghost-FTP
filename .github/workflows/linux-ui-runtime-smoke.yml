@@ -1,0 +1,102 @@
+name: Ghost FTP one-shot Linux UI runtime smoke
+
+on:
+  push:
+    branches:
+      - work/premium-parity-release-hardening-0.1.1
+    paths:
+      - .github/workflows/linux-ui-runtime-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: off
+      GOSUMDB: off
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: work/premium-parity-release-hardening-0.1.1
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Build production Linux UI binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.1-beta-runtime-smoke" -o /tmp/ghostftp-ui ./cmd/ghostftp
+
+      - name: Start isolated local X11 server
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v Xvfb
+          rm -f /tmp/.X99-lock
+          Xvfb :99 -screen 0 1280x800x24 -ac -nolisten tcp >/tmp/ghostftp-xvfb.log 2>&1 &
+          echo $! >/tmp/ghostftp-xvfb.pid
+          for i in $(seq 1 50); do
+            test -S /tmp/.X11-unix/X99 && exit 0
+            sleep 0.1
+          done
+          cat /tmp/ghostftp-xvfb.log >&2 || true
+          exit 1
+
+      - name: Launch and verify real Ghost FTP window
+        shell: bash
+        env:
+          DISPLAY: ':99'
+          GHOSTFTP_UI: desktop
+          HOME: /tmp/ghostftp-home
+          XDG_DATA_HOME: /tmp/ghostftp-data
+          XDG_RUNTIME_DIR: /tmp/ghostftp-runtime
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME" "$XDG_DATA_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$HOME" "$XDG_DATA_HOME" "$XDG_RUNTIME_DIR"
+          /tmp/ghostftp-ui >/tmp/ghostftp-ui.stdout 2>/tmp/ghostftp-ui.stderr &
+          pid=$!
+          echo "$pid" >/tmp/ghostftp-ui.pid
+          found=0
+          for i in $(seq 1 80); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo 'Ghost FTP exited before its Linux UI became visible.' >&2
+              cat /tmp/ghostftp-ui.stderr >&2 || true
+              exit 1
+            fi
+            if xwininfo -root -tree 2>/dev/null | grep -F 'Ghost FTP' >/tmp/ghostftp-window-line; then
+              found=1
+              break
+            fi
+            sleep 0.1
+          done
+          if [ "$found" -ne 1 ]; then
+            echo 'Ghost FTP Linux window was not mapped.' >&2
+            cat /tmp/ghostftp-ui.stderr >&2 || true
+            exit 1
+          fi
+          sleep 3
+          kill -0 "$pid"
+          printf 'LINUX_UI_RUNTIME=PASS\n'
+          cat /tmp/ghostftp-window-line
+          kill "$pid"
+          wait "$pid" || true
+
+      - name: Cleanup X11 server
+        if: always()
+        shell: bash
+        run: |
+          if test -f /tmp/ghostftp-ui.pid; then kill "$(cat /tmp/ghostftp-ui.pid)" 2>/dev/null || true; fi
+          if test -f /tmp/ghostftp-xvfb.pid; then kill "$(cat /tmp/ghostftp-xvfb.pid)" 2>/dev/null || true; fi
