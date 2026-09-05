@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build linux
 
 package desktop
 
@@ -12,17 +12,17 @@ const (
 	maxTerminalArguments     = 64
 )
 
-// parseTerminalArgs parsira interaktivnu naredbu bez pokretanja ljuske.
-// Navodnici služe samo grupiranju argumenata s razmacima; rezultat se i dalje
-// prosljeđuje isključivo tipiziranim GhostFTP operacijama, nikada shellu.
+// parseTerminalArgs parses the interactive Linux command line without invoking
+// a shell. Quotes only group arguments containing spaces; parsed values are
+// passed exclusively to typed Ghost FTP operations.
 func parseTerminalArgs(line string) ([]string, error) {
 	line = strings.TrimSuffix(line, "\n")
 	line = strings.TrimSuffix(line, "\r")
 	if len(line) > maxTerminalCommandLength {
-		return nil, errors.New("naredba je preduga")
+		return nil, errors.New("command is too long")
 	}
 	if strings.ContainsAny(line, "\x00\r\n") {
-		return nil, errors.New("naredba sadrži nedopuštene kontrolne znakove")
+		return nil, errors.New("command contains disallowed control characters")
 	}
 
 	args := make([]string, 0, 4)
@@ -35,7 +35,7 @@ func parseTerminalArgs(line string) ([]string, error) {
 		token.Reset()
 		tokenStarted = false
 		if len(args) > maxTerminalArguments {
-			return errors.New("naredba ima previše argumenata")
+			return errors.New("command has too many arguments")
 		}
 		return nil
 	}
@@ -75,7 +75,7 @@ func parseTerminalArgs(line string) ([]string, error) {
 		}
 	}
 	if quote != 0 {
-		return nil, errors.New("navodnik u naredbi nije zatvoren")
+		return nil, errors.New("command contains an unclosed quote")
 	}
 	if tokenStarted {
 		if err := appendToken(); err != nil {
