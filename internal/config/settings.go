@@ -80,7 +80,10 @@ func migrateConflictPolicy(v model.Settings, persisted bool) model.Settings {
 	switch v.ConflictPolicy {
 	case model.ConflictPolicySkip:
 		v.SkipExisting = true
-		v.BackupBeforeOverwrite = false
+		// Keep the legacy backup flag conservative for older components. It is
+		// operationally irrelevant while SkipExisting is true because no
+		// destination overwrite occurs.
+		v.BackupBeforeOverwrite = true
 	case model.ConflictPolicyReplace:
 		v.SkipExisting = false
 		v.BackupBeforeOverwrite = false
