@@ -5,6 +5,10 @@ This directory contains the maintained technical and operator documentation for 
 ## Start here
 
 - [Installation](INSTALLATION.md) — platform packages, installation expectations and prerequisites.
+- [Localization](LOCALIZATION.md) — English-first language registry, translation coverage and platform rules.
+- [Settings](SETTINGS.md) — persisted options, safe defaults and migration semantics.
+- [Dependencies](DEPENDENCIES.md) — dependency allowlist, provenance and no-tracking policy.
+- [Release history](RELEASE-HISTORY.md) — detailed immutable history of published Ghost FTP releases and unreleased development scope.
 - [Architecture](ARCHITECTURE.md) — core structure and platform boundaries.
 - [Security](SECURITY.md) — threat boundaries, credential handling and transfer hardening.
 - [Privacy](PRIVACY.md) — telemetry and data-handling policy.
