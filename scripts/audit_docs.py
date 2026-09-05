@@ -29,6 +29,26 @@ STALE_ACTIVE_LINE_MARKERS = (
 )
 STALE_EXEMPT = {DOCS / "RELEASE-HISTORY.md"}
 
+# These are current operator/contributor documents, not historical release notes.
+# Fail closed if retired-platform instructions return to them even without a
+# Markdown link that RETIRED_ACTIVE_LINKS could detect.
+FORBIDDEN_ACTIVE_GUIDANCE = {
+    DOCS / "CONTRIBUTING.md": (
+        "Android-native code belongs",
+        "iOS-native Swift/Xcode code belongs",
+        "native Android or iOS applications",
+        "new mobile transports",
+    ),
+    DOCS / "RELEASE-VERIFICATION.md": (
+        "### macOS",
+        "### Android / iOS / Web",
+        "universal macOS",
+        "public Android CI package",
+        "public iOS package",
+        "For 1.0.x, the public platform contract",
+    ),
+}
+
 
 def fail(message: str) -> None:
     raise SystemExit("DOCS_AUDIT_FAILED: " + message)
@@ -90,6 +110,14 @@ def main() -> int:
     if stale_hits:
         fail("stale active version-line documentation: " + "; ".join(stale_hits))
 
+    for path, markers in FORBIDDEN_ACTIVE_GUIDANCE.items():
+        if not path.is_file():
+            fail(f"missing required active guidance document: {path.relative_to(ROOT)}")
+        text = path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker.lower() in text.lower():
+                fail(f"retired platform guidance in {path.relative_to(ROOT)}: {marker}")
+
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid canonical VERSION: {version!r}")
@@ -136,7 +164,16 @@ def main() -> int:
         if not (ROOT / required).is_file():
             fail(f"missing required active-platform/companion documentation: {required}")
 
-    for rel in ("README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md", "docs/ROADMAP.md", "docs/GITHUB-RELEASES.md"):
+    for rel in (
+        "README.md",
+        "docs/README.md",
+        "docs/INSTALLATION.md",
+        "docs/ARCHITECTURE.md",
+        "docs/ROADMAP.md",
+        "docs/GITHUB-RELEASES.md",
+        "docs/RELEASE-VERIFICATION.md",
+        "docs/CONTRIBUTING.md",
+    ):
         text = (ROOT / rel).read_text(encoding="utf-8")
         lowered = text.lower()
         for retired in RETIRED_ACTIVE_LINKS:
@@ -159,6 +196,35 @@ def main() -> int:
         if marker not in versioning:
             fail(f"versioning documentation is missing marker: {marker}")
 
+    verification = (DOCS / "RELEASE-VERIFICATION.md").read_text(encoding="utf-8")
+    for marker in (
+        "0.1.0 Beta",
+        "9 platform artifacts",
+        "12 public release files",
+        "Get-AuthenticodeSignature",
+        "WINDOWS_AUTHENTICODE",
+        "Linux-amd64.deb",
+        "Linux-arm64.deb",
+        "Linux-i386.deb",
+        "delayed readback",
+        "Windows and Linux only",
+    ):
+        if marker not in verification:
+            fail(f"release verification documentation is missing marker: {marker}")
+
+    signing = (DOCS / "SIGNING.md").read_text(encoding="utf-8")
+    for marker in (
+        "0.1.0 Beta",
+        "Sign-WindowsArtifacts.ps1",
+        "New-DevCodeSigningCertificate.ps1",
+        "GHOSTFTP_SIGNING_PFX_PATH",
+        "private key",
+        "self-signed",
+        "1.0.0",
+    ):
+        if marker not in signing:
+            fail(f"signing documentation is missing marker: {marker}")
+
     print(f"DOCS_AUDIT=PASS ({version}; {len(files)} Markdown files, {len(detailed_docs)} detailed documents)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
@@ -166,6 +232,7 @@ def main() -> int:
     print("FIRST_STABLE_VERSION=1.0.0")
     print("PUBLIC_PLATFORM_ARTIFACTS=9")
     print("PUBLIC_RELEASE_FILES=12")
+    print("RETIRED_PLATFORM_ACTIVE_GUIDANCE=BLOCKED")
     return 0
 
 
