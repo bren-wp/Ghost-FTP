@@ -29,6 +29,7 @@ func (a *app) updateActionControls() {
 	}
 
 	a.ensureSiteManagerButton()
+	a.ensureReferenceShellControls()
 	profileEditable := !a.connected && !a.connectionBusy
 	setControlEnabled(a.siteManagerBtn, profileEditable)
 	setControlEnabled(a.saveProfile, profileEditable)
@@ -38,14 +39,16 @@ func (a *app) updateActionControls() {
 	localSelected := validSelectionCount(a.localList, len(a.localItems))
 	setControlEnabled(a.localRename, localSelected == 1)
 	setControlEnabled(a.localDelete, localSelected > 0)
-	setControlEnabled(a.upload, a.connected && !a.connectionBusy && localSelected > 0)
+	canUpload := a.connected && !a.connectionBusy && localSelected > 0
+	setControlEnabled(a.upload, canUpload)
 
 	remoteSelected := validSelectionCount(a.remoteList, len(a.remoteItems))
 	remoteReady := a.connected && !a.connectionBusy
 	setControlEnabled(a.remoteMkdir, remoteReady)
 	setControlEnabled(a.remoteRename, remoteReady && remoteSelected == 1)
 	setControlEnabled(a.remoteDelete, remoteReady && remoteSelected > 0)
-	setControlEnabled(a.download, remoteReady && remoteSelected > 0)
+	canDownload := remoteReady && remoteSelected > 0
+	setControlEnabled(a.download, canDownload)
 
 	chmodSelected := 0
 	if remoteReady {
@@ -53,7 +56,6 @@ func (a *app) updateActionControls() {
 			if index >= 0 && index < len(a.remoteItems) && !a.remoteItems[index].IsSymlink {
 				chmodSelected++
 			}
-		}
 	}
 	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
 
@@ -70,8 +72,19 @@ func (a *app) updateActionControls() {
 	setControlEnabled(a.retryJob, transferState.Retry)
 	setControlEnabled(a.clearQueue, transferState.Clear && !a.connectionBusy)
 
-	// The canonical action state still owns enable/disable semantics. Layout is a
-	// pure presentation pass applied afterwards so clearer pane proportions never
-	// bypass connection, selection or transfer safety checks.
+	// Reference toolbar mirrors the canonical action state; it never introduces
+	// a second authorization or validation path.
+	setControlEnabled(a.toolbarConnect, !a.connected && !a.connectionBusy)
+	setControlEnabled(a.toolbarDisconnect, a.connected || a.connectionBusy)
+	setControlEnabled(a.toolbarUpload, canUpload)
+	setControlEnabled(a.toolbarDownload, canDownload)
+	setControlEnabled(a.toolbarRefresh, !a.connectionBusy)
+	setControlEnabled(a.toolbarNewFolder, !a.connectionBusy)
+	setControlEnabled(a.toolbarRename, !a.connectionBusy && (localSelected == 1 || (remoteReady && remoteSelected == 1)))
+	setControlEnabled(a.toolbarDelete, !a.connectionBusy && (localSelected > 0 || (remoteReady && remoteSelected > 0)))
+	setControlEnabled(a.toolbarSites, profileEditable)
+	setControlEnabled(a.toolbarSettings, !a.connectionBusy)
+	setControlEnabled(a.toolbarDiagnostics, true)
+
 	a.refineWorkspaceLayout()
 }
