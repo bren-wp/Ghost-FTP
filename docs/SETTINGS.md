@@ -4,18 +4,18 @@ Ghost FTP settings are part of transfer safety. An option is not added to the UI
 
 ## Current persisted settings
 
-The desktop settings model currently stores:
+The desktop settings model stores:
 
 - `language` — canonical UI language. Unknown/invalid locale codes normalize safely to English when loading old state; new saves reject unsupported languages.
 - `parallelism` — number of concurrent transfers, range 1–8, safe default 2.
 - `connectionTimeoutSeconds` — connection timeout, range 5–60 seconds, safe default 15.
 - `autoRetryCount` — automatic retry count, range 0–3, safe default 0.
 - `retryDelaySeconds` — delay between automatic retries, range 1–30 seconds, safe default 3.
-- `backupBeforeOverwrite` — retain a recovery backup of an existing destination during safe overwrite behavior.
-- `skipExisting` — do not overwrite a destination item that already exists.
+- `conflictPolicy` — canonical behavior when the transfer destination already exists.
+- `backupBeforeOverwrite` and `skipExisting` — compatibility mirrors retained for older state/readers; they are synchronized from `conflictPolicy` and are no longer independent user choices.
 - `confirmDelete` — require an explicit confirmation before user-initiated delete operations in the desktop UI.
 
-Corrupt or unavailable settings storage does not grant a more permissive transfer policy. `DefaultSettings()` is conservative: overwrite recovery and delete confirmation remain enabled.
+Corrupt or unavailable settings storage does not grant a more permissive transfer policy. `DefaultSettings()` is conservative: replace-with-recovery and delete confirmation remain enabled.
 
 ## Validation and migration
 
@@ -23,20 +23,23 @@ Corrupt or unavailable settings storage does not grant a more permissive transfe
 
 New saves are validated before the file is written. A rejected save does not mutate the in-memory effective settings.
 
-## Existing-file behavior
+### Conflict policy migration
 
-There are currently two persisted booleans involved in destination conflicts:
+Ghost FTP 1.1.0 development consolidates the former pair of overwrite booleans into one policy:
 
-1. `skipExisting=true` means the destination is not overwritten.
-2. When existing files are not skipped, `backupBeforeOverwrite` controls whether the safe temporary recovery backup is kept according to the transfer implementation.
+- `skip` — **Skip existing**. Existing destinations are left untouched. Compatibility values become `skipExisting=true` and `backupBeforeOverwrite=false`.
+- `replace` — **Replace safely**. Existing destinations may be replaced through the transfer implementation's safe commit path without retaining the recovery backup after success. Compatibility values become `skipExisting=false` and `backupBeforeOverwrite=false`.
+- `replace_backup` — **Replace safely + keep recovery backup**. This is the conservative default. Compatibility values become `skipExisting=false` and `backupBeforeOverwrite=true`.
 
-This model is backward compatible but is not the final 1.1.x settings UX. A future settings UI should present one explicit conflict policy instead of making users reason about combinations of two booleans. Migration must preserve the meaning of existing settings:
+Legacy files are migrated deterministically:
 
-- `skipExisting=true` → **Skip existing**.
-- `skipExisting=false` + `backupBeforeOverwrite=true` → **Replace safely and keep recovery backup**.
-- `skipExisting=false` + `backupBeforeOverwrite=false` → **Replace safely and remove temporary recovery backup after commit**.
+- `skipExisting=true` maps to `skip`, even if an old file also had the irrelevant backup flag enabled.
+- `skipExisting=false` + `backupBeforeOverwrite=true` maps to `replace_backup`.
+- both false maps to `replace`.
 
-The storage migration must be introduced only together with engine/UI tests; the current booleans remain the canonical persisted contract until that migration lands.
+An unknown/corrupt policy read from persisted state fails closed to `replace_backup`. An unknown policy supplied by a new settings save is rejected instead of silently accepted.
+
+The Windows settings flow presents these three states as one native selector. Users no longer have to reason about contradictory combinations of two Yes/No dialogs.
 
 ## Retry behavior
 
@@ -52,7 +55,7 @@ The configured timeout is applied to connection establishment. Long-running file
 
 English is the primary/default language. The canonical language registry is documented in [Localization](LOCALIZATION.md). Regional codes normalize to supported canonical codes where appropriate.
 
-## Planned option-quality rules for 1.1.x
+## Option-quality rules for 1.1.x
 
 New advanced settings must meet all of these conditions before release:
 
@@ -64,4 +67,4 @@ New advanced settings must meet all of these conditions before release:
 - Unit/regression tests proving both enabled and disabled behavior.
 - No option may disable certificate validation, accept any SFTP host key, enable telemetry, bypass remote/local path guards or persist plaintext secrets.
 
-Candidates that satisfy those rules include a consolidated conflict policy, configurable transfer verification policy where the protocol can provide reliable metadata, and explicit UI visibility preferences. Security-bypass toggles are intentionally out of scope.
+Candidates that satisfy those rules include configurable transfer verification policy where the protocol can provide reliable metadata and explicit UI visibility preferences. Security-bypass toggles are intentionally out of scope.
