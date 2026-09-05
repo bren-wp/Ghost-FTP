@@ -87,17 +87,29 @@ jobs:
             if ! kill -0 "$pid" 2>/dev/null; then
               echo 'Ghost FTP exited before its Linux UI became visible.' >&2
               cat /tmp/ghostftp-ui.stderr >&2 || true
+              cat /tmp/ghostftp-ui.stdout >&2 || true
               exit 1
             fi
-            if xwininfo -root -tree 2>/dev/null | grep -F 'Ghost FTP' >/tmp/ghostftp-window-line; then
+            tree="$(xwininfo -root -tree 2>&1 || true)"
+            printf '%s\n' "$tree" >/tmp/ghostftp-x11-tree
+            if printf '%s\n' "$tree" | grep -F 'Ghost FTP' >/tmp/ghostftp-window-line; then
               found=1
               break
             fi
             sleep 0.1
           done
           if [ "$found" -ne 1 ]; then
-            echo 'Ghost FTP Linux window was not mapped.' >&2
+            echo 'Ghost FTP Linux window was not found by title.' >&2
+            echo '--- complete X11 tree ---' >&2
+            cat /tmp/ghostftp-x11-tree >&2 || true
+            echo '--- process state ---' >&2
+            ps -o pid,ppid,stat,wchan:32,etime,args -p "$pid" >&2 || true
+            echo '--- stdout ---' >&2
+            cat /tmp/ghostftp-ui.stdout >&2 || true
+            echo '--- stderr ---' >&2
             cat /tmp/ghostftp-ui.stderr >&2 || true
+            echo '--- Xvfb ---' >&2
+            cat /tmp/ghostftp-xvfb.log >&2 || true
             exit 1
           fi
           sleep 3
