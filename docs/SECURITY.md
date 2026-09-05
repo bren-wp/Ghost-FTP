@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current Ghost FTP release: 1.0.6**
+**Current Ghost FTP release: 1.0.7**
 
 ## Desktop core
 
@@ -84,6 +84,10 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 - Destructive/batch mutation inputs fail closed before partial application when their shape or source set is invalid.
 - Multi-file upload validates the complete request shape, temporary upload identity and normalized remote destination set before the first remote mutation.
 - Atomic overwrite recovery treats failed backup restoration and ambiguous promotion outcomes as explicit recoverable states: the original backup name is retained for manual recovery without exposing nested transport error text.
+- Backup creation is also reconciled after rename errors: Ghost FTP re-reads the target and candidate backup paths so a move-then-error response cannot hide the confirmed recovery filename or accidentally continue promotion.
+- Staging cleanup ownership begins before FTP/SFTP upload starts, so a partial transport failure triggers verified remote-temp cleanup; an unverifiable cleanup exposes only the generated staging recovery name.
+- Remote temporary cleanup re-checks absence after a delete error before escalating, so servers that report an error after actually removing a temp object do not produce false residual-data warnings.
+- After successful promotion, failure to remove the previous-version backup is reported as an explicit partial-success state with the backup name and a do-not-retry warning instead of silently retaining old remote data.
 - Public Web error responses expose deliberate validation messages but replace unexpected PHP/extension Throwable details with a generic internal-error response.
 - Known application validation failures use HTTP 400; unexpected internal `Throwable` failures use HTTP 500 without exposing their raw message to the client.
 - The same public-error mapping is used by account, registration, settings, user-administration, login-migration and setup HTML flows; nested internal exceptions are preserved as causes without concatenating their raw text into a user-visible `RuntimeException`.

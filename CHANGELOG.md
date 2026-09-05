@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.7 - 2026-09-05
+
+- Took atomic-upload staging cleanup ownership before FTP/SFTP transfer begins, closing the gap where a partial remote staging file could survive when the transport failed before returning success.
+- Added verified cleanup for residual staging files; if deletion/absence cannot be confirmed, Ghost FTP reports the generated staging recovery name without exposing nested transport error text.
+- Reconciles ambiguous backup-creation renames where a server moves the original file but still reports an error, surfacing the confirmed recovery backup name and cleaning staging without activating the replacement.
+- Stopped silently swallowing failure to remove an old-version backup after successful promotion. The new file remains active and the user receives an explicit partial-success warning with the retained backup name and a do-not-retry instruction.
+- Added runtime regression coverage for partial-upload cleanup success, cleanup failure, target preservation, old-backup retention and nested-error non-disclosure.
+- Extended the Web source audit so future changes cannot reintroduce post-success staging ownership or silent backup-deletion swallowing.
+
 ## 1.0.6 - 2026-09-05
 
 - Hardened Web atomic overwrite recovery so a failed promotion cannot silently hide a failed restoration of the original file.
