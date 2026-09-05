@@ -6,7 +6,7 @@ async function parseJsonResponse(response) {
     try {
         return await response.json();
     } catch {
-        throw new Error(`Neispravan odgovor servera (HTTP ${response.status}).`);
+        throw new Error(`Invalid server response (HTTP ${response.status}).`);
     }
 }
 
@@ -41,7 +41,7 @@ export async function api(action, data = {}, { signal } = {}) {
     const payload = await parseJsonResponse(response);
     if (!response.ok || !payload.ok) {
         handleAuthFailure(response.status);
-        throw new Error(payload.error || `Zahtjev nije uspio (HTTP ${response.status}).`);
+        throw new Error(payload.error || `Request failed (HTTP ${response.status}).`);
     }
     return payload;
 }
@@ -68,17 +68,17 @@ export function uploadRequest({ profileId, path, file, relativePath = '', confli
         xhr.addEventListener('load', () => {
             const data = xhr.response;
             if (handleAuthFailure(xhr.status)) {
-                reject(new Error('Sesija je istekla.'));
+                reject(new Error('Your session has expired.'));
                 return;
             }
             if (xhr.status < 200 || xhr.status >= 300 || !data?.ok) {
-                reject(new Error(data?.error || `Upload nije uspio (HTTP ${xhr.status}).`));
+                reject(new Error(data?.error || `Upload failed (HTTP ${xhr.status}).`));
                 return;
             }
             resolve(data);
         });
-        xhr.addEventListener('error', () => reject(new Error('Mrežna greška tijekom uploada.')));
-        xhr.addEventListener('abort', () => reject(new DOMException('Upload je otkazan.', 'AbortError')));
+        xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
+        xhr.addEventListener('abort', () => reject(new DOMException('Upload cancelled.', 'AbortError')));
         xhr.send(body);
     });
     return { xhr, promise };
