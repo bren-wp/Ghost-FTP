@@ -24,7 +24,7 @@ type app struct {
 	brush                                uintptr
 
 	brandTitle, brandSubtitle, connectionBadge, sectionLocal, sectionRemote, sectionTransfers uintptr
-	profilesCombo, languageCombo, siteManagerBtn, saveProfile, removeProfile, settingsBtn, aboutBtn uintptr
+	profilesCombo, languageCombo, saveProfile, removeProfile, settingsBtn, aboutBtn           uintptr
 	protocol, host, port, user, pass                                                          uintptr
 	keyPath, chooseKey, passphrase                                                            uintptr
 	connect, disconnect                                                                       uintptr
@@ -36,6 +36,8 @@ type app struct {
 	transferList, pauseQueue, resumeQueue, cancelJob, retryJob, clearQueue                    uintptr
 	status, statusVersion, transferSummary                                                    uintptr
 	buttons                                                                                   map[uintptr]buttonVisual
+
+	siteManagerBtn uintptr
 
 	mu                   sync.Mutex
 	dispatchQ            []func()
@@ -212,6 +214,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			newDPI = 96
 		}
 		a.applyDPI(newDPI)
+		a.ensureSiteManagerButton()
 		if lParam != 0 {
 			r := rectFromLParam(lParam)
 			moveWindow.Call(hwnd, uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), 1)
