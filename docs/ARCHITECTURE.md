@@ -1,99 +1,187 @@
 # Architecture
 
-Ghost FTP is a multi-platform file-transfer product with separate native/runtime implementations that share product, security, versioning and release policy.
+Ghost FTP 2.x is a **Windows + Linux** desktop product with one shared transfer/security core and platform-specific presentation layers.
 
-## Runtime surfaces
+The repository also retains the Ghost FTP Web companion as a separate shared-hosting/PWA source surface. The Web companion is not part of the Windows/Linux desktop application artifact contract.
 
-### Desktop core — Windows, Linux and macOS
+## Design goals
 
-The desktop core is written in Go:
+The architecture is optimized for:
 
-- `cmd/ghostftp/` is the legacy-named desktop entry point retained for source compatibility.
-- `cmd/installer/` owns the Windows installation transaction.
-- `internal/api/` exposes typed application operations.
-- `internal/desktop/` contains platform presentation and desktop interaction.
-- `internal/remote/` owns FTP, FTPS and SFTP connection boundaries.
-- `internal/transfer/` owns transfer state and queue lifecycle.
-- `internal/config/` owns durable settings and profiles.
-- `internal/security/` centralizes path, secret and process hardening.
-- `internal/i18n/` owns runtime localization.
-- `internal/platform/` isolates operating-system primitives.
+- one protocol/transfer implementation shared across desktop frontends;
+- typed in-process UI-to-engine calls rather than browser/localhost IPC;
+- strict credential lifetime and trust boundaries;
+- conservative remote overwrite/recovery semantics;
+- platform-native behavior where it improves security or usability;
+- no external Go module dependency graph in the desktop/core module;
+- explicit, auditable OS transport prerequisites;
+- no application telemetry, analytics or background tracking.
 
-Linux packaging lives under `linux/`; macOS packaging lives under `macos/`. Both build the shared Go core rather than carrying forked protocol implementations.
+## Layer overview
 
-The maintained Go toolchain is pinned by CI and version audits. Production build scripts disable Go telemetry before building and keep external module fetching disabled for the dependency-free Go module graph.
+### `cmd/ghostftp`
 
-### Windows installation boundary
+Application entrypoint and secure AskPass helper mode. It owns startup, single-instance/process setup and the narrowly scoped credential prompt bridge required by OpenSSH.
 
-The Windows installer uses an application-only verified payload. Legacy identifiers such as `GhostFTP.exe`, old App Paths entries and old uninstall registry keys may remain where required to upgrade or clean existing installations safely. They are compatibility identifiers, not public branding.
+### `internal/desktop`
 
-The installer validates its embedded payload, stages verified bytes, protects against redirected/reparse installation paths and uses rollback-aware file/registry transactions. Ghost FTP does not publish a standalone uninstaller binary from this pipeline.
+Platform presentation layer.
 
-### Android
+- Windows files use Win32 controls, custom owner-drawn visual elements, high-DPI layout, native dialogs and graphical local/remote/queue panels.
+- Linux uses the terminal frontend in `other.go` with a `linux` build tag.
 
-`android/` is a native Android application. It contains its own connection, remote-browser and lifecycle implementation and does not depend on a project-controlled backend service.
+Both frontends call the same typed `internal/api.Engine` methods.
 
-The package/application identifiers may retain `GhostFTP` for update identity compatibility, while the visible application name is **Ghost FTP**. Android release CI tests, lints and assembles an installable APK. A production store signing identity is intentionally external to the repository.
+### `internal/api`
 
-### iOS
+The stable in-process application boundary. It exposes typed operations for:
 
-`ios/` is a native Swift/Xcode application. The existing Xcode project/bundle identifiers may retain legacy identifiers where changing them would break application identity. User-visible naming is **Ghost FTP**.
+- profiles and settings;
+- connect/disconnect/trust;
+- local filesystem actions;
+- remote filesystem actions;
+- transfer queue control;
+- single-file and tree transfer planning.
 
-The iOS build derives its marketing version from root `VERSION`, builds a real arm64 iPhoneOS application and packages an unsigned IPA. Normal device/TestFlight/App Store distribution requires an externally managed Apple signing identity and provisioning profile.
+There is no generic JSON dispatcher, localhost HTTP server or browser IPC layer between UI and engine.
 
-### Web/PWA
+### `internal/remote`
 
-`GhostFTP WEB/` is the legacy-named source directory for the Ghost FTP PHP/shared-hosting application. The directory and internal PHP namespace are retained to avoid unnecessary migration churn; public application naming is **Ghost FTP**.
+Connection/session ownership and protocol adapters.
 
-The web runtime contains:
+Responsibilities include:
 
-- `app/Remote/` — FTP/SFTP transport and remote-path boundaries.
-- `app/Security/` — authentication, rate limiting, host validation, encryption and security logging.
-- `app/Storage/` — durable users, preferences and encrypted connection profiles.
-- `app/Operations/` — higher-level remote operations.
-- `tests/` — executable PHP regression tests.
-- `assets/` plus `manifest.webmanifest` and `service-worker.js` — PWA presentation/runtime assets.
+- endpoint/account/private-key identity binding;
+- protected secret handoff;
+- SFTP host-key trust;
+- connection probing/diagnostics;
+- safe session operation acquisition/release;
+- bounded disconnect cleanup;
+- protocol-specific FTP/FTPS/SFTP operations.
 
-Sensitive navigation/API/download responses are never cached by the service worker. Ghost FTP uses a `ghostftp-static-vX.Y.Z` cache namespace and removes legacy `GhostFTP-static-*` caches during activation.
+Current protocol execution delegates to OS tools:
 
-## Security boundaries
+- `curl` for FTP/FTPS;
+- OpenSSH `ssh`/`sftp` for SFTP.
 
-Security-sensitive design principles are shared across implementations:
+Ghost FTP supplies constrained configuration/environment rather than inheriting unsafe ambient proxy/SSH behavior.
 
-- user-selected server destinations only;
-- no application telemetry or advertising SDKs;
-- strict host/path/port validation;
-- fail-closed traversal and noncanonical path handling;
-- SFTP host-key/fingerprint verification where SFTP is supported;
-- platform TLS verification for FTPS;
-- bounded temporary-file and transfer handling;
-- minimized credential lifetime and no persistent plaintext secret logging;
-- rollback/cleanup paths for interrupted operations;
-- no hidden network probes or background scanners.
+### `internal/transfer`
 
-The web application additionally enforces strict session cookies, CSRF protection, cross-site POST rejection, security headers, rate limiting and runtime-storage exclusion from release archives.
+Shared transfer scheduler and queue. It owns:
 
-## Version source
+- parallelism;
+- pause/resume;
+- cancellation;
+- retry and retry delay;
+- conflict policy;
+- event/snapshot reporting;
+- safe final status handling.
 
-Root `VERSION` is the canonical production version source. Ghost FTP starts at **1.0.0**. Platform build metadata is derived from that version and CI rejects drift between desktop, Android, iOS, Linux, macOS and web packaging.
+Windows buttons and Linux terminal queue commands invoke this same manager.
 
-Historical Git tags are not rewritten. Ghost FTP releases use the separate namespace `ghostftp-vX.Y.Z`.
+### `internal/config`
 
-## Release architecture
+Persistent settings/profile storage with validation, migration and guarded atomic writes.
 
-`.github/workflows/ci.yml` validates pull requests and `main`. `.github/workflows/release.yml` is the single production publication path.
+The canonical conflict policy is one of:
 
-The release workflow builds independent platform stages and assembles exactly eight public platform packages:
+- `skip`;
+- `replace`;
+- `replace_backup`.
 
-1. Windows x64 Setup
-2. Windows x86 Setup
-3. Windows x32 alias of the x86 Setup
-4. Linux multiarch archive containing amd64/arm64/i386 DEBs
-5. macOS Universal PKG
-6. Android APK
-7. iOS arm64 unsigned IPA
-8. Web shared-hosting ZIP
+`replace_backup` is the conservative default and persisted unknown states migrate back to it.
 
-It also creates `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for exactly **11 public release files**.
+### `internal/security`
 
-Publication verifies that `main` still points to the release commit and refuses to move an existing `ghostftp-vX.Y.Z` tag to a different commit.
+Reusable validation and filesystem/secret primitives, including:
+
+- connection validation;
+- secret validation;
+- SFTP fingerprint validation;
+- runtime secret protection/forgetting;
+- local path/root checks;
+- recursive remove-without-follow protections;
+- reparse/symlink checks.
+
+### `internal/localfs`
+
+Local filesystem browser/action layer. It applies no-follow/reparse-point and rename/delete safeguards rather than allowing each UI to manipulate files directly.
+
+### `internal/i18n`
+
+Canonical English-first runtime registry and catalogs. English is the default/fallback and the current registry contains 24 languages.
+
+### `internal/platform`
+
+OS-specific native behavior such as Windows hardening/dialogs/credential protection/file moves and cross-platform equivalents where appropriate.
+
+## Connection flow
+
+A desktop connection follows this sequence:
+
+1. frontend collects raw protocol/endpoint/credential input;
+2. strict raw connection validation runs before normalization can hide malformed input;
+3. profile resolution may supply saved secrets only when endpoint/account/private-key identity still matches;
+4. protected runtime secret objects are created near the transport boundary;
+5. SFTP performs host-key discovery/trust validation when needed;
+6. the remote manager creates the session;
+7. the existing initial listing is used for lightweight connection diagnostics;
+8. the transfer manager is enabled only after a confirmed connection.
+
+Saved credentials must not silently migrate to a different endpoint/account/key identity.
+
+## SFTP process boundary
+
+Ghost FTP creates a constrained OpenSSH configuration that disables ambient features such as proxy commands, jump hosts, identity agents and forwarding.
+
+Password/passphrase prompts use the Ghost FTP AskPass helper with an unpredictable runtime token and protected secret blob. The application rejects untrusted helper-parent context and does not create an on-disk password/passphrase file.
+
+## FTP/FTPS process boundary
+
+Ghost FTP invokes curl with configuration supplied on standard input, suppresses ambient curl config, clears proxy use and sanitizes proxy-related environment variables. Passwords are not placed in command-line arguments.
+
+FTPS certificate validation remains enabled and the application does not use a blanket revocation-check bypass.
+
+## Transfer safety
+
+Upload/download operations use staging and validation before final promotion. High-risk invariants include:
+
+- destination paths validated before queueing;
+- local path constrained to the expected root;
+- download part file validated against symlink/reparse substitution;
+- overwrite recovery controlled by conflict policy;
+- directory transfer planning bounded by depth/item limits;
+- symlink handling is explicit;
+- cancellation cannot rewrite a completed result after success;
+- disconnect waits for active session operations within bounded cleanup rules.
+
+## Windows presentation
+
+Windows is the graphical reference frontend. The 2.0 visual system uses a premium graphite/navy palette, high-DPI scaling and native owner-drawn buttons while remaining free of a third-party GUI framework.
+
+The Win32 layer owns only presentation/input orchestration; core connection/transfer/security behavior remains outside the UI files.
+
+## Linux presentation
+
+Linux 2.0 uses a hardened terminal interface over the same engine. It supports the same SFTP password/private-key/passphrase model, remote actions, transfer scheduler and validated settings store.
+
+The frontend build tag is explicitly `linux`; retired macOS application handling no longer shares this source path.
+
+See [Platform parity](PLATFORM-PARITY.md) for the current exposed-feature matrix.
+
+## Web companion boundary
+
+`GhostFTP WEB/` is a separate PHP/PWA implementation intended for shared hosting. It has its own web threat model, session/CSRF boundaries and PHP extension requirements.
+
+It is kept in the same repository for product/source continuity but must not be described as a Windows/Linux desktop runtime component or counted as a 2.x desktop release platform artifact.
+
+## Retired platforms
+
+Android, iOS and macOS application source trees were removed from active 2.x. Their 1.x implementation history remains in Git and published release provenance.
+
+New desktop work must not reintroduce those platform roots without an explicit future product decision and a new compatibility/release review.
+
+## Architectural change rule
+
+New connection/transfer options should be implemented in shared core first, then exposed by Windows and Linux frontends. A frontend-specific duplicate protocol or scheduler implementation is considered architectural drift and should fail review.
