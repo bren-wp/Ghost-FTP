@@ -100,14 +100,19 @@ func (a *app) refineWorkspaceLayout() {
 	a.move(a.languageCombo, languageX, headerY+1, languageW, rowH)
 	a.move(a.connectionBadge, width-margin-badgeW, headerY+7, badgeW, 20)
 
-	// Saved-site/utility strip. Wider profile selection is more useful than large
-	// decorative buttons, especially on the 1024px-class laptop layout.
+	// Saved-site/utility strip. The explicit Sites button mirrors the fast access
+	// expected in a desktop FTP client, while the profile combo remains wide
+	// enough to identify saved servers at laptop-class widths.
 	toolbarY := 45
 	buttonGap := 6
+	if a.siteManagerBtn != 0 {
+		a.setButtonLabel(a.siteManagerBtn, nativeMenuWords(a.languageCode())[1])
+	}
 	toolbarButtons := []struct {
 		h uintptr
 		w int
 	}{
+		{a.siteManagerBtn, 104},
 		{a.saveProfile, 112},
 		{a.removeProfile, 112},
 		{a.settingsBtn, 102},
