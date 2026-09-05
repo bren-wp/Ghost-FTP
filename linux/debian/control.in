@@ -7,6 +7,6 @@ Maintainer: Ghost FTP <https://github.com/bren-wp/Ghost-FTP/issues>
 Depends: ca-certificates, curl, openssh-client
 Homepage: https://github.com/bren-wp/Ghost-FTP
 Description: Privacy-focused FTP, FTPS and SFTP client
- Ghost FTP is a file-transfer client without application telemetry. The Linux
- package uses a terminal interface and the same security and transfer core
- as the other supported platforms.
+ Ghost FTP is a graphical file-transfer client without application telemetry.
+ The Linux desktop uses the same transfer engine and premium visual contract as
+ Windows, with a terminal fallback available for headless sessions.
