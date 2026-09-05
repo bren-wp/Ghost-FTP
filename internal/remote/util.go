@@ -222,7 +222,14 @@ func parseListLine(line string) (model.Item, bool) {
 		if name == "." || name == ".." {
 			return model.Item{}, false
 		}
-		return model.Item{Name: name, Size: parseListingSize(f[4]), IsDirectory: isDirectory, IsSymlink: isSymlink, Modified: time.Time{}}, true
+		return model.Item{
+			Name:        name,
+			Size:        parseListingSize(f[4]),
+			IsDirectory: isDirectory,
+			IsSymlink:   isSymlink,
+			Modified:    time.Time{},
+			Permissions: normalizePermissionDisplay(f[0]),
+		}, true
 	}
 	if len(f) >= 4 && strings.Contains(f[0], "-") {
 		isDir := strings.EqualFold(f[2], "<DIR>")

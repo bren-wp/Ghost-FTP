@@ -3,39 +3,57 @@
 package desktop
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/remote"
 )
 
-func TestConnectionDiagnosticStatusShowsSecureWebRoot(t *testing.T) {
-	got := connectionDiagnosticStatus("example.test", remote.ConnectionDiagnostics{
+func TestConnectionDiagnosticStatusUsesActiveEnglishLocale(t *testing.T) {
+	a := &app{settings: model.Settings{Language: "en"}}
+	host := "example.test"
+	got := a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
 		Secure: true, RootMode: "account", WebRoot: "public_html", WebRootDetected: true,
 	})
-	for _, want := range []string{"Povezano: example.test", "siguran prijenos", "web root: public_html"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status %q is missing %q", got, want)
-		}
+	want := i18n.T("en", "connection.connected", host)
+	if got != want {
+		t.Fatalf("English connection status = %q, want %q", got, want)
 	}
 }
 
-func TestConnectionDiagnosticStatusShowsPlainFTPAccountRoot(t *testing.T) {
-	got := connectionDiagnosticStatus("example.test", remote.ConnectionDiagnostics{
+func TestConnectionDiagnosticStatusUsesActiveCroatianLocale(t *testing.T) {
+	a := &app{settings: model.Settings{Language: "hr"}}
+	host := "example.test"
+	got := a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
 		Secure: false, RootMode: "account",
 	})
-	for _, want := range []string{"FTP bez enkripcije", "account root spreman"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("status %q is missing %q", got, want)
-		}
+	want := i18n.T("hr", "connection.connected", host)
+	if got != want {
+		t.Fatalf("Croatian connection status = %q, want %q", got, want)
 	}
 }
 
-func TestConnectionDiagnosticStatusShowsSFTPHome(t *testing.T) {
-	got := connectionDiagnosticStatus("example.test", remote.ConnectionDiagnostics{
-		Secure: true, RootMode: "home",
-	})
-	if !strings.Contains(got, "SFTP home spreman") {
-		t.Fatalf("unexpected SFTP status: %q", got)
+func TestConnectionDiagnosticStatusDoesNotMixTransportDiagnosticsIntoConciseStatus(t *testing.T) {
+	a := &app{settings: model.Settings{Language: "en"}}
+	host := "example.test"
+
+	statuses := map[string]string{
+		"secure web root": a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
+			Secure: true, RootMode: "account", WebRoot: "public_html", WebRootDetected: true,
+		}),
+		"plain account root": a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
+			Secure: false, RootMode: "account",
+		}),
+		"sftp home": a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
+			Secure: true, RootMode: "home",
+		}),
+	}
+
+	want := i18n.T("en", "connection.connected", host)
+	for name, got := range statuses {
+		if got != want {
+			t.Fatalf("%s status = %q, want concise localized status %q", name, got, want)
+		}
 	}
 }

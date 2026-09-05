@@ -9,29 +9,29 @@ import (
 
 func buttonColors(v buttonVariant, pressed, disabled bool) (bg, border, fg uintptr) {
 	if disabled {
-		return rgb(20, 27, 36), rgb(38, 49, 63), rgb(100, 116, 139)
+		return rgb(7, 24, 38), rgb(24, 48, 67), rgb(82, 111, 146)
 	}
 	switch v {
 	case buttonAccent:
 		if pressed {
-			return rgb(2, 132, 199), rgb(125, 211, 252), rgb(248, 250, 252)
+			return accentStrongColor(), rgb(145, 132, 255), rgb(248, 250, 255)
 		}
-		return rgb(3, 105, 161), rgb(56, 189, 248), rgb(248, 250, 252)
+		return accentColor(), rgb(132, 155, 255), rgb(248, 250, 255)
 	case buttonDanger:
 		if pressed {
-			return rgb(127, 29, 29), rgb(248, 113, 113), rgb(255, 247, 247)
+			return rgb(112, 31, 49), rgb(245, 111, 132), rgb(255, 246, 248)
 		}
-		return rgb(101, 28, 38), rgb(239, 68, 68), rgb(255, 241, 242)
+		return rgb(73, 28, 43), rgb(190, 73, 99), rgb(255, 236, 241)
 	case buttonSubtle:
 		if pressed {
-			return rgb(30, 41, 54), rgb(71, 85, 105), textColor()
+			return rgb(12, 36, 54), rgb(47, 91, 120), textColor()
 		}
-		return rgb(15, 23, 32), rgb(42, 55, 72), textColor()
+		return panelColor(), borderColor(), rgb(173, 202, 236)
 	default:
 		if pressed {
-			return rgb(36, 49, 64), rgb(100, 116, 139), textColor()
+			return rgb(15, 43, 63), rgb(67, 111, 143), textColor()
 		}
-		return rgb(24, 33, 45), rgb(55, 70, 89), textColor()
+		return rgb(9, 31, 47), rgb(38, 75, 101), textColor()
 	}
 }
 
@@ -64,31 +64,17 @@ func (a *app) drawButton(dis *drawItemStruct) bool {
 	setBkMode.Call(dis.HDC, transparentBkMode)
 	setTextColor.Call(dis.HDC, fg)
 	content := r
-	content.Left += 12
-	content.Right -= 12
+	content.Left += 10
+	content.Right -= 10
 	if pressed {
 		content.Top++
 		content.Bottom++
 	}
 
-	if visual.Icon != "" && a.iconFont != 0 {
-		iconRect := content
-		if visual.Label == "" {
-			old, _, _ := selectObject.Call(dis.HDC, a.iconFont)
-			drawText(dis.HDC, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
-			selectObject.Call(dis.HDC, old)
-		} else {
-			iconRect.Right = iconRect.Left + 24
-			old, _, _ := selectObject.Call(dis.HDC, a.iconFont)
-			drawText(dis.HDC, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
-			selectObject.Call(dis.HDC, old)
-			content.Left += 32
-		}
-	}
-	if visual.Label != "" {
-		old, _, _ := selectObject.Call(dis.HDC, a.font)
-		drawText(dis.HDC, visual.Label, &content, dtLeft|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
-		selectObject.Call(dis.HDC, old)
+	if visual.Vertical {
+		a.drawVerticalToolbarContent(dis.HDC, content, visual)
+	} else {
+		a.drawHorizontalButtonContent(dis.HDC, content, visual)
 	}
 	if dis.ItemState&odsFocus != 0 && !disabled {
 		focus := r
@@ -99,6 +85,47 @@ func (a *app) drawButton(dis *drawItemStruct) bool {
 		drawFocusRect.Call(dis.HDC, uintptr(unsafe.Pointer(&focus)))
 	}
 	return true
+}
+
+func (a *app) drawHorizontalButtonContent(hdc uintptr, content rect, visual buttonVisual) {
+	if visual.Icon != "" && a.iconFont != 0 {
+		iconRect := content
+		if visual.Label == "" {
+			old, _, _ := selectObject.Call(hdc, a.iconFont)
+			drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+			selectObject.Call(hdc, old)
+		} else {
+			iconRect.Right = iconRect.Left + 24
+			old, _, _ := selectObject.Call(hdc, a.iconFont)
+			drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+			selectObject.Call(hdc, old)
+			content.Left += 32
+		}
+	}
+	if visual.Label != "" {
+		old, _, _ := selectObject.Call(hdc, a.font)
+		drawText(hdc, visual.Label, &content, dtLeft|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
+		selectObject.Call(hdc, old)
+	}
+}
+
+func (a *app) drawVerticalToolbarContent(hdc uintptr, content rect, visual buttonVisual) {
+	height := content.Bottom - content.Top
+	iconRect := content
+	iconRect.Bottom = content.Top + height*58/100
+	labelRect := content
+	labelRect.Top = iconRect.Bottom - 1
+
+	if visual.Icon != "" && a.iconFont != 0 {
+		old, _, _ := selectObject.Call(hdc, a.iconFont)
+		drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+		selectObject.Call(hdc, old)
+	}
+	if visual.Label != "" {
+		old, _, _ := selectObject.Call(hdc, a.smallFont)
+		drawText(hdc, visual.Label, &labelRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
+		selectObject.Call(hdc, old)
+	}
 }
 
 func drawText(hdc uintptr, text string, r *rect, flags uint32) {

@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
@@ -44,6 +45,55 @@ const (
 	siteWindowStyle         = 0x00C80000 // WS_CAPTION | WS_SYSMENU
 	siteWMCtlColorListBox   = 0x0134
 )
+
+var sitePathLabels = map[string][2]string{
+	"en": {"Local path", "Remote path"},
+	"hr": {"Lokalna putanja", "Udaljena putanja"},
+	"de": {"Lokaler Pfad", "Remote-Pfad"},
+	"fr": {"Chemin local", "Chemin distant"},
+	"es": {"Ruta local", "Ruta remota"},
+	"tr": {"Yerel yol", "Uzak yol"},
+	"el": {"Τοπική διαδρομή", "Απομακρυσμένη διαδρομή"},
+	"pt": {"Caminho local", "Caminho remoto"},
+	"zh": {"本地路径", "远程路径"},
+	"ru": {"Локальный путь", "Удалённый путь"},
+	"hi": {"स्थानीय पथ", "दूरस्थ पथ"},
+	"ja": {"ローカルパス", "リモートパス"},
+	"it": {"Percorso locale", "Percorso remoto"},
+	"pl": {"Ścieżka lokalna", "Ścieżka zdalna"},
+	"nl": {"Lokaal pad", "Extern pad"},
+	"cs": {"Místní cesta", "Vzdálená cesta"},
+	"uk": {"Локальний шлях", "Віддалений шлях"},
+	"sv": {"Lokal sökväg", "Fjärrsökväg"},
+	"ro": {"Cale locală", "Cale la distanță"},
+	"hu": {"Helyi elérési út", "Távoli elérési út"},
+	"da": {"Lokal sti", "Fjernsti"},
+	"fi": {"Paikallinen polku", "Etäpolku"},
+	"no": {"Lokal sti", "Ekstern sti"},
+	"ko": {"로컬 경로", "원격 경로"},
+}
+
+func sitePathLabel(language string, remote bool) string {
+	pair, ok := sitePathLabels[i18n.Normalize(language)]
+	if !ok {
+		pair = sitePathLabels[i18n.DefaultLanguage]
+	}
+	if remote {
+		return pair[1]
+	}
+	return pair[0]
+}
+
+func cleanSFTPSecurityTitle(value string) string {
+	value = strings.TrimSpace(value)
+	for _, prefix := range []string{"GhostFTP —", "Ghost FTP —"} {
+		value = strings.TrimSpace(strings.TrimPrefix(value, prefix))
+	}
+	if value == "" {
+		return "SFTP security"
+	}
+	return value
+}
 
 type siteManagerState struct {
 	parent       *app
@@ -236,7 +286,7 @@ func (state *siteManagerState) securitySummary(profile model.PublicProfile) stri
 		parts = append(parts, "● "+state.parent.tr("terminal.private_key"))
 	}
 	if profile.HasPassphrase {
-		parts = append(parts, "● "+state.parent.tr("terminal.key_passphrase"))
+		parts = append(parts, "● "+state.parent.tr("cue.passphrase"))
 	}
 	if profile.Fingerprint != "" {
 		parts = append(parts, "● "+strings.TrimSuffix(state.parent.tr("terminal.fingerprint"), ":")+" "+profile.Fingerprint)
@@ -378,36 +428,36 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 		setWindowTheme.Call(state.list, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
 	}
 
-	label(parent.tr("column.name"), 310, 54, 130)
-	state.name = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 48, 430, 30, siteIDName)
+	label(parent.tr("column.name"), 310, 54, 160)
+	state.name = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 48, 390, 30, siteIDName)
 
-	label(parent.tr("terminal.protocol"), 310, 96, 130)
-	state.protocol = mk("COMBOBOX", "", cbsDropDownList|wsTabStop|wsVScroll, 450, 90, 180, 220, siteIDProtocol)
+	label(parent.tr("terminal.protocol"), 310, 96, 160)
+	state.protocol = mk("COMBOBOX", "", cbsDropDownList|wsTabStop|wsVScroll, 490, 90, 180, 220, siteIDProtocol)
 	for _, spec := range protocolSpecs {
 		sendMessageW.Call(state.protocol, cbAddString, 0, uintptr(unsafe.Pointer(wstr(protocolLabel(parent.languageCode(), spec.Value)))))
 	}
-	label(parent.tr("terminal.port"), 650, 96, 60)
-	state.port = mk("EDIT", "21", wsBorder|wsTabStop|esAutoHScroll, 720, 90, 160, 30, siteIDPort)
+	label(parent.tr("terminal.port"), 690, 96, 60)
+	state.port = mk("EDIT", "21", wsBorder|wsTabStop|esAutoHScroll, 760, 90, 120, 30, siteIDPort)
 
-	label(parent.tr("terminal.server"), 310, 138, 130)
-	state.host = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 132, 430, 30, siteIDHost)
+	label(parent.tr("terminal.server"), 310, 138, 160)
+	state.host = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 132, 390, 30, siteIDHost)
 
-	label(parent.tr("terminal.username"), 310, 180, 130)
-	state.user = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 174, 180, 30, siteIDUser)
-	label(parent.tr("terminal.password"), 650, 180, 60)
-	state.password = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, 720, 174, 160, 30, siteIDPassword)
+	label(parent.tr("terminal.username"), 310, 180, 160)
+	state.user = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 174, 180, 30, siteIDUser)
+	label(parent.tr("terminal.password"), 690, 180, 60)
+	state.password = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, 760, 174, 120, 30, siteIDPassword)
 
-	label(parent.tr("column.local"), 310, 222, 130)
-	state.localPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 216, 430, 30, siteIDLocal)
-	label(parent.tr("column.remote"), 310, 264, 130)
-	state.remotePath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 258, 430, 30, siteIDRemote)
+	label(sitePathLabel(parent.languageCode(), false), 310, 222, 160)
+	state.localPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 216, 390, 30, siteIDLocal)
+	label(sitePathLabel(parent.languageCode(), true), 310, 264, 160)
+	state.remotePath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 258, 390, 30, siteIDRemote)
 
-	label(parent.tr("terminal.private_key"), 310, 306, 130)
-	state.keyPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 300, 430, 30, siteIDKey)
-	label(parent.tr("terminal.key_passphrase"), 310, 348, 130)
-	state.passphrase = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, 450, 342, 430, 30, siteIDPassphrase)
+	label(parent.tr("terminal.private_key"), 310, 306, 160)
+	state.keyPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 300, 390, 30, siteIDKey)
+	label(parent.tr("cue.passphrase"), 310, 348, 160)
+	state.passphrase = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, 490, 342, 390, 30, siteIDPassphrase)
 
-	label(parent.tr("sftp.security"), 310, 390, 570)
+	label(cleanSFTPSecurityTitle(parent.tr("sftp.security")), 310, 390, 570)
 	state.security = mk("STATIC", "", wsBorder, 310, 416, 570, 58, siteIDSecurity)
 
 	state.save = mk("BUTTON", parent.tr("profile.save"), wsTabStop, 310, 500, 146, 34, siteIDSave)

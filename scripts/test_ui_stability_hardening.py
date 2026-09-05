@@ -56,32 +56,178 @@ class UIStabilityHardeningTests(unittest.TestCase):
         for marker in ("selectedTransferIDSet", "restoreTransferSelection", 'event.Type == "state"', "event.Paused"):
             self.assertIn(marker, transfers)
 
-    def test_windows_layout_and_actions_follow_current_context(self) -> None:
+    def test_windows_layout_and_actions_follow_reference_shell_context(self) -> None:
         ui = self.read("internal/desktop/ui_windows.go")
+        layout = self.read("internal/desktop/workspace_layout_windows.go")
+        shell = self.read("internal/desktop/reference_shell_windows.go")
         windows = self.read("internal/desktop/windows.go")
         win32 = self.read("internal/desktop/win32_defs_windows.go")
         actions = self.read("internal/desktop/action_state_windows.go")
-        for marker in ("preferredWindowBounds", "compact := width < 1180", "resizeListColumns", "layoutPanelWidth"):
+        commands = self.read("internal/desktop/commands_windows.go")
+
+        for marker in ("preferredWindowBounds", "resizeListColumns", "layoutPanelWidth"):
             self.assertIn(marker, ui)
+        for marker in (
+            "compact := width < 1280",
+            "veryCompact := width < 1080",
+            "a.shellSidebar",
+            "a.shellToolbar",
+            "a.shellLogCard",
+            "a.shellQuickCard",
+            "a.shellLocalCard",
+            "a.shellRemoteCard",
+            "a.shellQueueCard",
+            "if width >= 1540",
+            "applyReferenceFileColumnOrder",
+            "[4]int32{0, 2, 1, 3}",
+            "[5]int32{0, 2, 1, 3, 4}",
+        ):
+            self.assertIn(marker, layout)
+        for marker in ("idRemoteSearch", "applyRemoteSearch", "toolbarTargetsRemote", "showDiagnostics"):
+            self.assertIn(marker, shell)
         for marker in ("wmGetMinMaxInfo", "lvnItemChanged", "updateActionControls()", "minMaxInfoFromLParam", "minMaxInfoToLParam"):
             self.assertIn(marker, windows)
         self.assertNotIn("(*minMaxInfo)(unsafe.Pointer(lParam))", windows)
         for marker in ("func minMaxInfoFromLParam", "func minMaxInfoToLParam", "rtlMoveMemory.Call"):
             self.assertIn(marker, win32)
-        for marker in ("localSelected == 1", "remoteSelected == 1", "deriveTransferActionState"):
+        for marker in (
+            "localSelected == 1",
+            "remoteSelected == 1",
+            "deriveTransferActionState",
+            "a.toolbarUpload",
+            "a.toolbarDownload",
+            "a.toolbarDelete",
+        ):
             self.assertIn(marker, actions)
+        for marker in (
+            "idToolbarConnect",
+            "idToolbarDisconnect",
+            "idToolbarUpload",
+            "idToolbarDownload",
+            "idToolbarDiagnostics",
+        ):
+            self.assertIn(marker, commands)
+
+    def test_remote_permissions_column_is_backed_by_real_metadata(self) -> None:
+        model = self.read("internal/model/types.go")
+        permissions = self.read("internal/remote/permissions.go")
+        util = self.read("internal/remote/util.go")
+        ftp = self.read("internal/remote/curl_ftp.go")
+        ui = self.read("internal/desktop/ui_windows.go")
+        localization = self.read("internal/desktop/localization_windows.go")
+        layout = self.read("internal/desktop/workspace_layout_windows.go")
+
+        self.assertIn('Permissions string    `json:"permissions,omitempty"`', model)
+        for marker in ("normalizePermissionDisplay", 'strings.ContainsRune("-bcdlps"', 'strings.ContainsRune("rwxstST-"'):
+            self.assertIn(marker, permissions)
+        self.assertIn("Permissions: normalizePermissionDisplay(f[0])", util)
+        self.assertIn('item.Permissions = normalizePermissionDisplay(facts["unix.mode"])', ftp)
+        self.assertNotIn('normalizePermissionDisplay(facts["perm"])', ftp)
+        self.assertIn("a.setupFileColumns(a.localList, false)", ui)
+        self.assertIn("a.setupFileColumns(a.remoteList, true)", ui)
+        self.assertIn('a.insertColumn(list, 4, a.tr("common.permissions"), 112)', ui)
+        self.assertIn('a.setColumnTitle(a.remoteList, 4, a.tr("common.permissions"))', localization)
+        self.assertIn("columns = append(columns, item.Permissions)", localization)
+        self.assertIn("[5]int32{0, 2, 1, 3, 4}", layout)
 
     def test_settings_do_not_replace_helpful_host_hint(self) -> None:
         settings = self.read("internal/desktop/settings_windows.go")
         ui = self.read("internal/desktop/ui_windows.go")
         catalogs = self.read("internal/i18n/catalogs.go")
-        # Settings must not replace the connection form's localized cue text.
         self.assertNotIn("cue(a.host", settings)
         self.assertIn('cue(a.host, a.tr("cue.host"))', ui)
-        # The canonical English hint remains useful for shared-hosting users,
-        # while other locales can provide their own equivalent cue text.
         self.assertIn('"cue.host":           "FTP/SFTP server, e.g. ftp.example.com"', catalogs)
         self.assertIn('"cue.user": "Username, may be user@example.com"', catalogs)
+
+    def test_windows_connection_surface_never_overwrites_locale_with_croatian_literals(self) -> None:
+        profiles = self.read("internal/desktop/connection_profiles_windows.go")
+        transfers = self.read("internal/desktop/transfers_windows.go")
+        actions = self.read("internal/desktop/files_actions_windows.go")
+
+        for forbidden in (
+            '"Brzi spoj (bez profila)"',
+            '"FTP / SFTP lozinka"',
+            '"Zaporka privatnog ključa"',
+            '"● POVEZANO"',
+            '"● NIJE POVEZANO"',
+            '"Povezivanje s "',
+            '"Provjera SFTP ključa i povezivanje…"',
+        ):
+            self.assertNotIn(forbidden, profiles)
+
+        for marker in (
+            'a.tr("profile.quick")',
+            'a.tr("cue.password")',
+            'a.tr("cue.passphrase")',
+            'a.tr("badge.connected")',
+            'a.tr("badge.disconnected")',
+            'a.tr("connection.connecting", host)',
+            'a.tr("sftp.verifying")',
+        ):
+            self.assertIn(marker, profiles)
+
+        self.assertNotIn("%d aktivnih", transfers)
+        self.assertNotIn("na čekanju", transfers)
+        self.assertIn('a.tr("transfer.summary", running, queued, done)', transfers)
+        self.assertIn('a.tr("transfer.summary_skipped", skipped)', transfers)
+        self.assertIn('a.tr("transfer.summary_failed", failed)', transfers)
+
+        for forbidden in (
+            "Odaberite jednu ili više",
+            "Mapa nije stvorena",
+            "Preimenovanje nije uspjelo",
+            "Nisu obrisane sve stavke",
+            "Brisanje na poslužitelju",
+            "Dozvole promijenjene",
+            "Dodano u red",
+            "Veza više nije dostupna",
+        ):
+            self.assertNotIn(forbidden, actions)
+        for marker in ('a.userMessage(err, "error.generic")', 'a.tr("common.delete")', 'a.tr("common.permissions")'):
+            self.assertIn(marker, actions)
+
+    def test_site_manager_labels_are_public_brand_clean_and_24_language_aware(self) -> None:
+        site = self.read("internal/desktop/site_manager_windows.go")
+        supported = (
+            "en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja",
+            "it", "pl", "nl", "cs", "uk", "sv", "ro", "hu", "da", "fi", "no", "ko",
+        )
+        for code in supported:
+            self.assertIn(f'"{code}": {{', site)
+        for marker in (
+            '"en": {"Local path", "Remote path"}',
+            '"hr": {"Lokalna putanja", "Udaljena putanja"}',
+            "cleanSFTPSecurityTitle",
+            'label(parent.tr("cue.passphrase")',
+            "sitePathLabel(parent.languageCode(), false)",
+            "sitePathLabel(parent.languageCode(), true)",
+        ):
+            self.assertIn(marker, site)
+        self.assertNotIn('label(parent.tr("sftp.security")', site)
+        self.assertNotIn('"GhostFTP — SFTP security"', site)
+
+    def test_reference_shell_remains_usable_at_authentic_capture_width(self) -> None:
+        layout = self.read("internal/desktop/workspace_layout_windows.go")
+        shell = self.read("internal/desktop/reference_shell_windows.go")
+        for marker in (
+            "sidebarW := 244",
+            "sidebarW = 210",
+            "sidebarW = 184",
+            "if width >= 1540",
+            "queueWidths := []int{82, 86, 82, 78, 132}",
+            "showMutations := needed <= availableToolbar",
+            "remotePathW < 72",
+            "permissionsW := 108",
+        ):
+            self.assertIn(marker, layout)
+        for marker in (
+            "Search remote files…",
+            "No telemetry or tracking.",
+            "limitEdit(a.remoteSearch, 256)",
+            "strings.Contains(strings.ToLower(item.Name), query)",
+        ):
+            self.assertIn(marker, shell)
+        self.assertNotIn("Diagnostics are generated locally and are not uploaded.", shell)
 
 
 if __name__ == "__main__":

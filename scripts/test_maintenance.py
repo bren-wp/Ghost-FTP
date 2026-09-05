@@ -78,10 +78,15 @@ class MaintenanceRegressionTests(unittest.TestCase):
         changelog = read("CHANGELOG.md")
         history = read("docs/RELEASE-HISTORY.md")
         self.assertIn(f"Current Ghost FTP version: **{version}**", readme)
-        self.assertIn("The 2.x product line", readme)
-        self.assertIn("published 1.x tags", readme)
+        self.assertIn("Development status: **Beta**", readme)
+        self.assertIn("starts at **0.1.0 Beta**", readme)
+        self.assertIn("first stable", readme.lower())
+        self.assertIn("**1.0.0**", readme)
+        self.assertIn("Historical repository tags/releases remain untouched", readme)
         self.assertIn(f"## {version}", changelog)
+        self.assertIn("## 2.0.0", changelog)
         self.assertIn("## 1.0.0", changelog)
+        self.assertIn("## 2.0.0", history)
         self.assertIn("## 1.0.0", history)
         self.assertIn("ghostftp-vX.Y.Z", readme)
 
@@ -89,6 +94,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
             match.group(1)
             for match in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)
         ]
+        self.assertIn("2.0.0", version_sections)
         self.assertIn("1.0.0", version_sections)
         self.assertIn(version, version_sections)
 

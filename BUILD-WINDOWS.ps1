@@ -11,6 +11,7 @@ $payloadDir = Join-Path $PSScriptRoot 'cmd\installer\payload'
 $payloadZip = Join-Path $payloadDir 'payload.zip'
 $icon = Join-Path $PSScriptRoot 'build\icon.ico'
 $goMod = Join-Path $PSScriptRoot 'go.mod'
+$signingScript = Join-Path $PSScriptRoot 'scripts\Sign-WindowsArtifacts.ps1'
 
 function Assert-File {
     param(
@@ -88,9 +89,61 @@ function Test-SamePath {
     catch { return $false }
 }
 
+function Get-SigningConfiguration {
+    $pfx = [Environment]::GetEnvironmentVariable('GHOSTFTP_SIGNING_PFX_PATH')
+    $passwordText = [Environment]::GetEnvironmentVariable('GHOSTFTP_SIGNING_PASSWORD')
+    $timestamp = [Environment]::GetEnvironmentVariable('GHOSTFTP_SIGNING_TIMESTAMP_URL')
+    $allowUntrusted = [Environment]::GetEnvironmentVariable('GHOSTFTP_ALLOW_UNTRUSTED_SIGNER')
+
+    if ([string]::IsNullOrWhiteSpace($pfx)) {
+        if (-not [string]::IsNullOrWhiteSpace($passwordText)) {
+            throw 'GHOSTFTP_SIGNING_PASSWORD is set without GHOSTFTP_SIGNING_PFX_PATH.'
+        }
+        return $null
+    }
+    if ([string]::IsNullOrWhiteSpace($passwordText)) {
+        throw 'GHOSTFTP_SIGNING_PFX_PATH is set but GHOSTFTP_SIGNING_PASSWORD is missing.'
+    }
+
+    Assert-File -Path $pfx -Description 'Authenticode signing PFX'
+    Assert-File -Path $signingScript -Description 'Authenticode signing helper'
+
+    return [pscustomobject]@{
+        Pfx = (Resolve-Path -LiteralPath $pfx).Path
+        Password = (ConvertTo-SecureString $passwordText -AsPlainText -Force)
+        Timestamp = if ([string]::IsNullOrWhiteSpace($timestamp)) { '' } else { $timestamp.Trim() }
+        AllowUntrusted = ($allowUntrusted -eq '1' -or $allowUntrusted -ieq 'true')
+    }
+}
+
+function Sign-WindowsTarget {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not $script:signing) {
+        return
+    }
+
+    $arguments = @{
+        PfxPath = $script:signing.Pfx
+        Password = $script:signing.Password
+        Paths = @($Path)
+    }
+    if ($script:signing.Timestamp) {
+        $arguments.TimestampUrl = $script:signing.Timestamp
+    }
+    if ($script:signing.AllowUntrusted) {
+        $arguments.AllowUntrustedSigner = $true
+    }
+
+    & $signingScript @arguments
+    if (-not $?) {
+        throw "Authenticode signing failed: $Path"
+    }
+}
+
 Assert-File -Path $versionFile -Description 'VERSION file'
 Assert-File -Path $goMod -Description 'go.mod'
 Assert-File -Path $icon -Description 'Application icon'
+Assert-File -Path $signingScript -Description 'Authenticode signing helper'
 
 $version = (Get-Content -LiteralPath $versionFile -Raw).Trim()
 if ($version -notmatch '^\d+\.\d+\.\d+$') {
@@ -145,8 +198,15 @@ if ($telemetryMode -ne 'off') {
     throw "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetryMode)"
 }
 
+$script:signing = Get-SigningConfiguration
+$signingLabel = if ($script:signing) {
+    if ($script:signing.AllowUntrusted) { 'configured-development' } else { 'configured-production' }
+} else {
+    'not-configured'
+}
+
 Write-Host "Ghost FTP $version"
-Write-Host "Go: $rawGoVersion | Python: $pythonVersionText | telemetry=$telemetryMode"
+Write-Host "Go: $rawGoVersion | Python: $pythonVersionText | telemetry=$telemetryMode | signing=$signingLabel"
 
 Write-Host '[1/8] Brand, localization and canonical version'
 Invoke-Native -FilePath $python -ArgumentList @('scripts/generate_brand_assets.py','--check') -FailureMessage 'Brand asset verification failed'
@@ -207,10 +267,14 @@ function Build-GhostFTPArchitecture {
         '--role','portable','--original-filename',"Ghost-FTP-$version-Portable-$Label.exe"
     ) -FailureMessage "Client $Label PE resource processing failed"
 
+    # Sign the Portable executable before creating payload.zip so Setup embeds
+    # the same signed client bytes that are published as the Portable artifact.
+    Sign-WindowsTarget -Path $portable
+
     Write-Host "      [$Label] Verified installer payload"
     try {
         # make_payload.py intentionally stores the inner executable as GhostFTP.exe:
-        # that filename is a legacy installed-app compatibility boundary only.
+        # that filename is an installed-app compatibility boundary only.
         Invoke-Native -FilePath $python -ArgumentList @(
             'scripts/make_payload.py','--app',$portable,'--output',$payloadZip
         ) -FailureMessage "$Label installer payload compression failed"
@@ -229,6 +293,8 @@ function Build-GhostFTPArchitecture {
         'scripts/pe_resources.py',$setup,'--ico',$icon,'--version',$version,
         '--role','setup','--original-filename',"Ghost-FTP-$version-Setup-$Label.exe"
     ) -FailureMessage "Setup $Label PE resource processing failed"
+
+    Sign-WindowsTarget -Path $setup
 
     Invoke-NativeTee -FilePath $python -ArgumentList @(
         'scripts/verify_release.py',$setup,$portable,'--arch',$Label
@@ -266,8 +332,18 @@ foreach ($verification in $verificationFiles) {
     $text = Get-Content -LiteralPath $verification -Raw
     if ($text -match '(?m)^(SETUP|PORTABLE)_AUTHENTICODE_SIGNED=NO\s*$') { $unsigned = $true }
 }
+if ($script:signing -and $unsigned) {
+    throw 'Signing was configured, but release verification still reports an unsigned Windows executable.'
+}
+if (-not $script:signing -and -not $unsigned) {
+    throw 'Windows verification unexpectedly reports signed executables without a configured signing identity.'
+}
 if ($unsigned) {
-    Write-Warning 'Binaries are not Authenticode-signed. Verified Publisher requires a valid Ghost FTP code-signing certificate.'
+    Write-Warning 'Binaries are not Authenticode-signed. Verified Publisher requires a valid code-signing certificate.'
+    Write-Host 'WINDOWS_SIGNING=UNSIGNED'
+}
+else {
+    Write-Host 'WINDOWS_SIGNING=AUTHENTICODE'
 }
 
 Write-Host '[8/8] Final output verification'

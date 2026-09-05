@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 RETIRED_ROOTS = ("android/", "ios/", "macos/")
 RETIRED_SCRIPTS = {
     "scripts/audit_android.py",
@@ -66,7 +68,8 @@ def main() -> int:
     for rel in sorted(LINUX_PLATFORM_STUBS):
         if rel not in path_set:
             fail(f"required Linux platform stub is not tracked: {rel}")
-        first_line = read(rel).splitlines()[0] if read(rel).splitlines() else ""
+        lines = read(rel).splitlines()
+        first_line = lines[0] if lines else ""
         if first_line != "//go:build linux":
             fail(f"Linux platform stub has a broad/non-Linux build contract: {rel}")
 
@@ -83,14 +86,18 @@ def main() -> int:
             fail(f"Windows/Linux workflow contract is incomplete: missing {marker}")
 
     version = read("VERSION").strip()
-    if not version.startswith("2."):
-        fail("Windows/Linux-only product contract requires the 2.x major line")
+    if not VERSION_RE.fullmatch(version):
+        fail(f"VERSION is not semantic: {version!r}")
+    major, minor, patch = (int(part) for part in version.split("."))
+    if (major, minor, patch) < (0, 1, 0):
+        fail("active Windows/Linux product baseline must not precede 0.1.0")
 
-    print("PLATFORM_CONTRACT_AUDIT=PASS")
+    print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
     print("RETIRED_APPLICATION_PLATFORMS=ANDROID,IOS,MACOS")
     print("LINUX_PLATFORM_STUBS=EXPLICIT")
     print("DARWIN_SOURCE=BLOCKED")
+    print("VERSIONING_PLATFORM_INDEPENDENT=YES")
     return 0
 
 

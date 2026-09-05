@@ -4,13 +4,14 @@ package desktop
 
 import (
 	"fmt"
-	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 func (a *app) goSafe(fn func()) {
@@ -18,7 +19,7 @@ func (a *app) goSafe(fn func()) {
 		defer func() {
 			if recover() != nil {
 				a.dispatch(func() {
-					a.setStatus("Radnja nije dovršena. Pokušajte ponovno.")
+					a.setStatus(a.tr("error.generic"))
 				})
 			}
 		}()
@@ -46,7 +47,7 @@ func (a *app) runDispatch() {
 		func() {
 			defer func() {
 				if recover() != nil {
-					a.setStatus("Radnja nije dovršena. Pokušajte ponovno.")
+					a.setStatus(a.tr("error.generic"))
 				}
 			}()
 			f()
@@ -54,7 +55,25 @@ func (a *app) runDispatch() {
 	}
 }
 
-func (a *app) setStatus(text string) { setText(a.status, text) }
+func (a *app) setStatus(text string) {
+	if a == nil || a.status == 0 {
+		return
+	}
+	text = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", " "), "\n", " "))
+	if text == "" {
+		return
+	}
+	const maxStatusChars = 800
+	if len(text) > maxStatusChars {
+		text = text[:maxStatusChars] + "…"
+	}
+	a.statusLog = append(a.statusLog, time.Now().Format("15:04:05")+"    "+text)
+	const maxLogLines = 8
+	if len(a.statusLog) > maxLogLines {
+		a.statusLog = append([]string(nil), a.statusLog[len(a.statusLog)-maxLogLines:]...)
+	}
+	setText(a.status, strings.Join(a.statusLog, "\r\n"))
+}
 
 func setText(hwnd uintptr, text string) {
 	if hwnd != 0 {
@@ -134,10 +153,38 @@ func setListRowSelected(list uintptr, row int, selected bool) {
 	sendMessageW.Call(list, lvmSetItemState, uintptr(row), uintptr(unsafe.Pointer(&item)))
 }
 
+func ownerForItemList(list uintptr) *app {
+	var owner *app
+	apps.Range(func(_, value any) bool {
+		candidate, ok := value.(*app)
+		if ok && (candidate.localList == list || candidate.remoteList == list) {
+			owner = candidate
+			return false
+		}
+		return true
+	})
+	return owner
+}
+
+func effectiveItemsForList(list uintptr, fallback []model.Item) []model.Item {
+	owner := ownerForItemList(list)
+	if owner == nil {
+		return fallback
+	}
+	if list == owner.remoteList {
+		return owner.remoteItems
+	}
+	if list == owner.localList {
+		return owner.localItems
+	}
+	return fallback
+}
+
 func restoreItemSelection(list uintptr, items []model.Item, selected map[string]struct{}) {
 	if len(selected) == 0 {
 		return
 	}
+	items = effectiveItemsForList(list, items)
 	for i, item := range items {
 		if _, ok := selected[item.Name]; ok {
 			setListRowSelected(list, i, true)
@@ -161,62 +208,20 @@ func setListRedraw(list uintptr, enabled bool) {
 	}
 }
 
+// fillItems is the narrow compatibility bridge used by asynchronous navigation
+// callbacks. Rendering itself remains centralized in app.fillItemList so the
+// active locale and remote-search model cannot drift from the visible rows.
 func fillItems(list uintptr, items []model.Item) {
-	setListRedraw(list, false)
-	defer setListRedraw(list, true)
-	clearList(list)
-	for i, it := range items {
-		insertListRowWithImage(list, i, []string{it.Name, formatItemType(it), formatSize(it.Size, it.IsDirectory), formatTime(it.Modified)}, systemIconIndex(it.Name, it.IsDirectory))
+	owner := ownerForItemList(list)
+	if owner == nil {
+		return
 	}
-}
-
-func fillTransfers(list uintptr, jobs []model.TransferJob) {
-	setListRedraw(list, false)
-	defer setListRedraw(list, true)
-	clearList(list)
-	for i, j := range jobs {
-		dir := "Preuzimanje"
-		if j.Direction == "upload" {
-			dir = "Slanje"
-		}
-		status := transferStatusLabel(j.Status)
-		if j.Status == "running" && j.Attempts > 1 {
-			status += fmt.Sprintf(" — pokušaj %d", j.Attempts)
-		}
-		if j.Error != "" {
-			status += ": " + j.Error
-		}
-		progress := j.Progress
-		if progress > 0 && progress <= 1 {
-			progress *= 100
-		}
-		if progress < 0 {
-			progress = 0
-		}
-		if progress > 100 {
-			progress = 100
-		}
-		insertListRow(list, i, []string{dir, j.LocalPath, j.RemotePath, status, fmt.Sprintf("%.0f%%", progress)})
+	if list == owner.remoteList {
+		owner.remoteAllItems = append(owner.remoteAllItems[:0], items...)
+		owner.applyRemoteSearch()
+		return
 	}
-}
-
-func transferStatusLabel(status string) string {
-	switch status {
-	case "queued":
-		return "Na čekanju"
-	case "running":
-		return "U tijeku"
-	case "done":
-		return "Završeno"
-	case "failed":
-		return "Greška"
-	case "cancelled":
-		return "Otkazano"
-	case "skipped":
-		return "Preskočeno"
-	default:
-		return status
-	}
+	owner.fillItemList(list, items)
 }
 
 func insertListRow(list uintptr, row int, cols []string) {
@@ -287,26 +292,9 @@ func systemIconIndex(name string, directory bool) int32 {
 	return info.IconIndex
 }
 
-func formatItemType(it model.Item) string {
-	if it.IsSymlink {
-		return "Veza"
-	}
-	if it.IsDirectory {
-		return "Mapa"
-	}
-	ext := strings.TrimPrefix(strings.ToUpper(filepath.Ext(it.Name)), ".")
-	if ext == "" {
-		return "Datoteka"
-	}
-	if len(ext) > 8 {
-		ext = ext[:8]
-	}
-	return ext
-}
-
 func formatSize(n int64, dir bool) string {
 	if dir {
-		return "Mapa"
+		return "—"
 	}
 	const kb = 1024
 	if n < kb {

@@ -67,6 +67,8 @@ jobs:
     name: Windows setup and portable x64/x86
     runs-on: windows-latest
     timeout-minutes: 40
+    outputs:
+      signing_state: ${{ steps.signing.outputs.state }}
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,8 +89,46 @@ jobs:
         run: |
           go telemetry off
           if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
+      - name: Prepare protected Authenticode identity
+        id: signing
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.GHOSTFTP_SIGNING_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.GHOSTFTP_SIGNING_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64)) {
+            if (-not [string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
+              throw 'Signing password is configured without GHOSTFTP_SIGNING_PFX_BASE64.'
+            }
+            "state=unsigned" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host 'WINDOWS_RELEASE_SIGNING=UNSIGNED'
+            exit 0
+          }
+          if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
+            throw 'GHOSTFTP_SIGNING_PFX_BASE64 is configured but GHOSTFTP_SIGNING_PASSWORD is missing.'
+          }
+
+          try {
+            $bytes = [Convert]::FromBase64String($env:PFX_BASE64)
+          }
+          catch {
+            throw 'GHOSTFTP_SIGNING_PFX_BASE64 is not valid Base64.'
+          }
+          if ($bytes.Length -lt 256) {
+            throw 'Decoded Authenticode PFX is unexpectedly small.'
+          }
+
+          $pfx = Join-Path $env:RUNNER_TEMP 'ghostftp-release-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, $bytes)
+          "GHOSTFTP_SIGNING_PFX_PATH=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "state=signed" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host 'WINDOWS_RELEASE_SIGNING=CONFIGURED'
       - name: Build Windows artifacts
         shell: pwsh
+        env:
+          GHOSTFTP_SIGNING_PASSWORD: ${{ secrets.GHOSTFTP_SIGNING_PASSWORD }}
+          GHOSTFTP_SIGNING_TIMESTAMP_URL: ${{ secrets.GHOSTFTP_SIGNING_TIMESTAMP_URL }}
         run: .\BUILD-WINDOWS.ps1
       - name: Verify Windows artifacts
         shell: pwsh
@@ -100,7 +140,20 @@ jobs:
               if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) {
                 throw "Missing Windows artifact: $path"
               }
+              if ('${{ steps.signing.outputs.state }}' -eq 'signed') {
+                $signature = Get-AuthenticodeSignature -FilePath $path
+                if (-not $signature.SignerCertificate -or $signature.Status -ne 'Valid') {
+                  throw "Production Authenticode verification failed for $path: $($signature.Status) $($signature.StatusMessage)"
+                }
+              }
             }
+          }
+      - name: Remove protected Authenticode identity
+        if: always()
+        shell: pwsh
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:GHOSTFTP_SIGNING_PFX_PATH) -and (Test-Path -LiteralPath $env:GHOSTFTP_SIGNING_PFX_PATH)) {
+            Remove-Item -LiteralPath $env:GHOSTFTP_SIGNING_PFX_PATH -Force
           }
       - name: Store Windows artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -160,6 +213,8 @@ jobs:
     needs: [quality, windows, linux]
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      WINDOWS_SIGNING_STATE: ${{ needs.windows.outputs.signing_state }}
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -169,7 +224,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Resolve version
+      - name: Resolve version and release channel
         id: version
         shell: bash
         run: |
@@ -179,9 +234,27 @@ jobs:
           if [[ -n "$manual" ]]; then version="$manual"; else version="$source_version"; fi
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
           test "$version" = "$source_version"
+
+          major="${version%%.*}"
+          if [[ "$major" = '0' ]]; then
+            release_channel='beta'
+            release_title="Ghost FTP $version Beta"
+          else
+            release_channel='stable'
+            release_title="Ghost FTP $version"
+            test "$WINDOWS_SIGNING_STATE" = 'signed' || { echo 'Stable Windows releases require a configured trusted Authenticode identity.' >&2; exit 1; }
+          fi
+
+          case "$WINDOWS_SIGNING_STATE" in
+            signed|unsigned) ;;
+            *) echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2; exit 1 ;;
+          esac
+
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"
+          echo "RELEASE_CHANNEL=$release_channel" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=$release_title" >> "$GITHUB_ENV"
       - name: Download Windows
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with: { name: ghostftp-windows-stage, path: staging/windows }
@@ -223,10 +296,12 @@ jobs:
           TECHNICAL_IDENTITY=GhostFTP
           VERSION=${VERSION}
           RELEASE_TAG=${RELEASE_TAG}
+          RELEASE_CHANNEL=${RELEASE_CHANNEL}
           COMMIT=${GITHUB_SHA}
           ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
           WINDOWS_SETUP=x64,x86,x32-alias-of-x86
           WINDOWS_PORTABLE=x64,x86
+          WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}
           LINUX_DEB=amd64,arm64,i386
           LINUX_BUNDLE=multiarch-amd64-arm64-i386
           LANGUAGES=24
@@ -255,6 +330,11 @@ jobs:
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
           command -v dotnet >/dev/null || { echo 'dotnet CLI is required for NuGet publication' >&2; exit 1; }
 
+          prerelease_args=()
+          if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
           if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
             tag_sha="$(git rev-list -n 1 "$RELEASE_TAG" 2>/dev/null || true)"
             if [[ -z "$tag_sha" ]]; then
@@ -263,9 +343,16 @@ jobs:
             fi
             test "$tag_sha" = "$GITHUB_SHA" || { echo "Existing $RELEASE_TAG points to $tag_sha, not $GITHUB_SHA; refusing to rewrite it." >&2; exit 1; }
             gh release upload "$RELEASE_TAG" release/* --repo "$repo" --clobber
-            gh release edit "$RELEASE_TAG" --repo "$repo" --title "Ghost FTP $VERSION" --notes-file release/RELEASE-NOTES.txt
+            gh release edit "$RELEASE_TAG" --repo "$repo" --title "$RELEASE_TITLE" --notes-file release/RELEASE-NOTES.txt
           else
-            gh release create "$RELEASE_TAG" release/* --repo "$repo" --target "$GITHUB_SHA" --title "Ghost FTP $VERSION" --notes-file release/RELEASE-NOTES.txt
+            gh release create "$RELEASE_TAG" release/* --repo "$repo" --target "$GITHUB_SHA" --title "$RELEASE_TITLE" --notes-file release/RELEASE-NOTES.txt "${prerelease_args[@]}"
+          fi
+
+          release_id="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .id)"
+          if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
+            gh api --method PATCH "repos/$repo/releases/$release_id" -F prerelease=true -f name="$RELEASE_TITLE" >/dev/null
+          else
+            gh api --method PATCH "repos/$repo/releases/$release_id" -F prerelease=false -f name="$RELEASE_TITLE" >/dev/null
           fi
 
           dotnet nuget push "packages-out/GhostFTP.${VERSION}.nupkg" \
@@ -275,7 +362,7 @@ jobs:
 
           package_versions="$(gh api "/users/${GITHUB_REPOSITORY_OWNER}/packages/nuget/GhostFTP/versions" --jq '.[].name')"
           grep -Fx "$VERSION" <<< "$package_versions"
-          echo "GITHUB_PACKAGE_READBACK=PASS (GhostFTP $VERSION)"
+          echo "GITHUB_PACKAGE_READBACK=PASS (GhostFTP $VERSION; channel=$RELEASE_CHANNEL)"
 
           assert_release_asset_set() {
             phase="$1"
@@ -289,7 +376,14 @@ jobs:
             diff -u "$local_manifest" "$remote_manifest"
             gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir"
             cmp release/SHA256.txt "$readback_dir/SHA256.txt"
-            echo "RELEASE_ASSET_READBACK=PASS ($phase)"
+
+            remote_prerelease="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)"
+            if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
+              test "$remote_prerelease" = 'true'
+            else
+              test "$remote_prerelease" = 'false'
+            fi
+            echo "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL; windows_signing=$WINDOWS_SIGNING_STATE)"
           }
 
           assert_release_asset_set immediate

@@ -1,3 +1,4 @@
+# Current-head reproducible evidence workflow for authentic production Windows UI captures.
 name: Ghost FTP Authentic UI Screenshots
 
 on:
@@ -13,7 +14,7 @@ on:
       - '.github/workflows/ui-screenshots.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ghostftp-ui-screenshots-${{ github.ref }}
@@ -32,6 +33,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -65,18 +68,84 @@ jobs:
       - name: Verify screenshot outputs
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Drawing
           $expected = @(
             'ui-screenshots\Ghost-FTP-main-workspace.png',
             'ui-screenshots\Ghost-FTP-site-manager.png'
           )
+          $pngSignature = [byte[]](137, 80, 78, 71, 13, 10, 26, 10)
+
           foreach ($path in $expected) {
             if (-not (Test-Path $path -PathType Leaf)) {
               throw "Missing authentic UI screenshot: $path"
             }
-            if ((Get-Item $path).Length -lt 10000) {
-              throw "Authentic UI screenshot is unexpectedly small: $path"
+
+            $file = Get-Item -LiteralPath $path
+            if ($file.Length -lt 10000) {
+              throw "Authentic UI screenshot is unexpectedly small: $path ($($file.Length) bytes)"
+            }
+
+            $bytes = [IO.File]::ReadAllBytes($file.FullName)
+            if ($bytes.Length -lt $pngSignature.Length) {
+              throw "Authentic UI screenshot has an invalid PNG header: $path"
+            }
+            for ($i = 0; $i -lt $pngSignature.Length; $i++) {
+              if ($bytes[$i] -ne $pngSignature[$i]) {
+                throw "Authentic UI screenshot has an invalid PNG signature: $path"
+              }
+            }
+
+            $image = [System.Drawing.Image]::FromFile($file.FullName)
+            try {
+              if ($image.Width -lt 320 -or $image.Height -lt 200 -or $image.Width -gt 8000 -or $image.Height -gt 8000) {
+                throw "Authentic UI screenshot has implausible dimensions: $path ($($image.Width)x$($image.Height))"
+              }
+              Write-Host "SCREENSHOT_VERIFIED=$($file.Name) DIMENSIONS=$($image.Width)x$($image.Height) BYTES=$($file.Length) SHA256=$((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+            }
+            finally {
+              $image.Dispose()
             }
           }
+
+      - name: Persist authentic screenshots in repository
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $branch = '${{ github.ref_name }}'
+          if ([string]::IsNullOrWhiteSpace($branch)) {
+            throw 'Unable to resolve branch for screenshot persistence.'
+          }
+
+          New-Item -ItemType Directory -Force -Path 'docs\images' | Out-Null
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-main-workspace.png' -Destination 'docs\images\ghost-ftp-main-workspace.png' -Force
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-site-manager.png' -Destination 'docs\images\ghost-ftp-site-manager.png' -Force
+
+          git add -- 'docs/images/ghost-ftp-main-workspace.png' 'docs/images/ghost-ftp-site-manager.png'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'AUTHENTIC_UI_SCREENSHOTS=UNCHANGED'
+            exit 0
+          }
+          if ($LASTEXITCODE -ne 1) {
+            throw 'Unable to determine whether authentic screenshots changed.'
+          }
+
+          git fetch origin $branch
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to refresh screenshot target branch.' }
+          $remote = (git rev-parse "origin/$branch").Trim()
+          if ($remote -ne '${{ github.sha }}') {
+            throw "Branch moved from the capture commit (${{ github.sha }}) to $remote; refusing a stale screenshot commit."
+          }
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update authentic Ghost FTP UI screenshots [skip ci]'
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to commit authentic screenshots.' }
+          git push origin "HEAD:$branch"
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to push authentic screenshots.' }
+          Write-Host 'AUTHENTIC_UI_SCREENSHOTS=PERSISTED'
 
       - name: Publish authentic UI screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -14,6 +14,7 @@ type Item struct {
 	IsDirectory bool      `json:"isDirectory"`
 	IsSymlink   bool      `json:"isSymlink"`
 	Modified    time.Time `json:"modified,omitempty"`
+	Permissions string    `json:"permissions,omitempty"`
 }
 
 type Profile struct {

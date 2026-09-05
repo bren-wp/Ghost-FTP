@@ -1,6 +1,45 @@
 # Changelog
 
-## 2.0.0 - Unreleased
+## 0.1.0 - Unreleased Beta
+
+### Active version baseline
+
+- Reset the active product-development baseline to **0.1.0 Beta** while preserving all existing implementation work, commits, tags and historical release records.
+- Defined the active maturity path as `0.1.0 Beta → 0.x.y Beta → 1.0.0 stable`.
+- Reserved **1.0.0** for the first release that passes the complete stable product-quality gate rather than assigning a stable version before the Windows/Linux application is fully finished and verified.
+- Kept the root `VERSION` file as the single machine-readable `X.Y.Z` source for Windows PE metadata, Linux package metadata, build scripts, release tags and CI.
+- Added a user-facing Beta display policy for pre-1.0 versions without corrupting numeric package metadata.
+- Made GitHub Releases for `0.x.y` versions publish and verify as prereleases with a Beta release title and explicit `RELEASE_CHANNEL=beta` metadata.
+- Kept Windows Setup and Windows Portable on one shared canonical version; they never have independent version counters.
+
+### Windows native FTP workflow
+
+- Preserved and refined the native graphite/navy Windows interface rather than replacing prior work.
+- Reworked the main workspace around a professional dual-pane FTP layout with balanced local/server panes, visible session state and a full-width transfer queue.
+- Improved layout persistence across resize, DPI, protocol and language changes so the refined workspace does not fall back to the previous geometry.
+- Added one-click **Sites** access to the main toolbar while retaining the same Site Manager implementation used by the native menu.
+- Expanded Site Manager with protocol, server, port, username, password, local path, remote path, SFTP private key, SFTP key passphrase and security state.
+- Fixed Quick connection so the Site Manager **Connect** action performs a real connection instead of only copying fields back to the main window.
+- Kept saved credentials protected: stored passwords/passphrases are not displayed back as plaintext when a saved site is selected.
+- Kept controls fail-closed while connected or during a connection transition.
+
+### Windows/Linux reliability and packaging
+
+- Preserved the shared Windows/Linux core, protocol, transfer, settings, localization and security work completed before the version-baseline reset.
+- Kept Windows x64/x86 Setup and Portable production builds driven by the canonical `VERSION`.
+- Kept Linux amd64/arm64/i386 package generation driven by the same canonical version.
+- Preserved the nine-platform-artifact / twelve-public-file release contract with SHA-256 verification.
+- Kept CI gates for formatting, race tests, vet, repository integrity, security, privacy, dependencies, localization, documentation, Web companion integrity and Windows/Linux production builds.
+
+### Documentation
+
+- Added a dedicated versioning policy describing the 0.x Beta progression, the 1.0.0 stable gate and the Setup/Portable shared-version invariant.
+- Reframed the README, documentation index, roadmap and release documentation around the active 0.1.0 Beta baseline.
+- Preserved previous changelog/release-history entries as historical provenance instead of deleting or rewriting them.
+
+## 2.0.0 - Unreleased historical development snapshot
+
+> This was an internal pre-publication development line. It is preserved as historical engineering context, but it was superseded by the active 0.1.0 Beta maturity baseline and is not the current product version.
 
 ### Platform consolidation
 
@@ -50,7 +89,7 @@
 
 ### Documentation and release quality
 
-- Rewrote the root README around the 2.x Windows/Linux product contract, supported protocols, transfer settings, 24 languages, privacy/security boundaries, dependency provenance and release artifacts.
+- Rewrote the root README around the then-planned 2.x Windows/Linux product contract, supported protocols, transfer settings, 24 languages, privacy/security boundaries, dependency provenance and release artifacts.
 - Added/updated detailed documentation for platform parity, installation, dependencies, releases, verification, security, testing, localization and roadmap direction.
 - Clarified that the existing Ghost FTP Web companion source is maintained separately from the Windows/Linux desktop application release contract.
 - Preserved detailed notes for all previously published 1.x releases below so every version continues to document what changed and why.
@@ -137,7 +176,7 @@
 ## 1.0.0 - 2026-09-04
 
 - Established **Ghost FTP** as the canonical public product identity across Windows, Linux, macOS, Android, iOS and Web/PWA surfaces.
-- Started the Ghost FTP semantic-version line at **1.0.0** with sequential patch releases.
+- Started the historical Ghost FTP semantic-version line at **1.0.0** with sequential patch releases.
 - Introduced namespaced release tags (`ghostftp-vX.Y.Z`) so current releases never collide with historical generic tags.
 - Standardized Linux packaging as `ghost-ftp` with the `ghostftp` executable and Ghost FTP desktop entry.
 - Established the multi-platform Release contract and SHA-256/build-metadata verification model.
@@ -146,4 +185,4 @@
 
 ## Historical provenance
 
-Git tags, releases and commits created before the 2.x product line remain immutable for repository provenance, troubleshooting and reproducibility. The detailed 1.x notes above intentionally describe the platform matrix that existed at the time those releases were published; they are historical facts, not the active 2.x support contract. Current product releases exclusively use the `ghostftp-vX.Y.Z` namespace.
+All previously created Git tags, releases and commits remain immutable for provenance, troubleshooting and reproducibility. The historical 2.0 development snapshot and 1.x notes above describe the repository state and platform matrix that existed at those times. They are retained intentionally and are not the active maturity baseline. Going forward, the active product line starts at **0.1.0 Beta**, advances through `0.x.y` Beta milestones and reaches the first stable line only at **1.0.0** after the complete stability gate is satisfied.

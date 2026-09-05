@@ -164,6 +164,7 @@ func (a *app) applyColumnLanguage() {
 		a.setColumnTitle(list, 2, a.tr("column.size"))
 		a.setColumnTitle(list, 3, a.tr("column.modified"))
 	}
+	a.setColumnTitle(a.remoteList, 4, a.tr("common.permissions"))
 	for index, key := range []string{"column.direction", "column.local", "column.remote", "column.status", "column.progress"} {
 		a.setColumnTitle(a.transferList, index, a.tr(key))
 	}
@@ -320,7 +321,11 @@ func (a *app) fillItemList(list uintptr, items []model.Item) {
 		if item.IsDirectory {
 			size = a.tr("type.folder")
 		}
-		insertListRowWithImage(list, index, []string{item.Name, a.localizedItemType(item), size, formatTime(item.Modified)}, systemIconIndex(item.Name, item.IsDirectory))
+		columns := []string{item.Name, a.localizedItemType(item), size, formatTime(item.Modified)}
+		if list == a.remoteList {
+			columns = append(columns, item.Permissions)
+		}
+		insertListRowWithImage(list, index, columns, systemIconIndex(item.Name, item.IsDirectory))
 	}
 }
 

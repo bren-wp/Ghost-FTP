@@ -19,6 +19,7 @@ BINARY_EXTENSIONS = {
     ".ipa", ".jar", ".jpeg", ".jpg", ".otf", ".pdf", ".pkg", ".png", ".so",
     ".ttf", ".webp", ".woff", ".woff2", ".zip",
 }
+PRIVATE_KEY_EXTENSIONS = {".pfx", ".p12", ".key"}
 FORBIDDEN_TRACKED_PREFIXES = (
     ".gradle/",
     ".idea/",
@@ -26,11 +27,13 @@ FORBIDDEN_TRACKED_PREFIXES = (
     "android/.gradle/",
     "android/app/build/",
     "coverage/",
+    "dev-signing/",
     "dist/",
     "ios/build/",
     "linux/out/",
     "macos/out/",
     "tmp/",
+    "ui-screenshots/",
 )
 FORBIDDEN_BASENAMES = {".DS_Store", "Thumbs.db", "desktop.ini"}
 WINDOWS_RESERVED = {
@@ -81,6 +84,10 @@ def validate_path(path: str, mode: str, seen_casefold: dict[str, str]) -> list[s
         errors.append(f"tracked symlink is not allowed in release source: {path}")
 
     normalized = path.replace("\\", "/")
+    suffix = Path(normalized).suffix.lower()
+    if suffix in PRIVATE_KEY_EXTENSIONS:
+        errors.append(f"private signing/key artifact is tracked: {path}")
+
     for prefix in FORBIDDEN_TRACKED_PREFIXES:
         if normalized.startswith(prefix):
             errors.append(f"generated/cache path is tracked: {path}")
@@ -193,6 +200,7 @@ def main() -> int:
     print(f"REPOSITORY_BINARY_FILES={binary_count}")
     print("REPOSITORY_PATH_COLLISIONS=BLOCKED")
     print("REPOSITORY_GENERATED_ARTIFACTS=BLOCKED")
+    print("REPOSITORY_PRIVATE_SIGNING_KEYS=BLOCKED")
     print("REPOSITORY_ONE_SHOT_WORKFLOWS=BLOCKED")
     print("REPOSITORY_TEXT_UTF8_AND_WHITESPACE=ENFORCED")
     print("REPOSITORY_CURRENT_RELEASE_DRIFT=BLOCKED")

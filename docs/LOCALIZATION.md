@@ -4,7 +4,7 @@ Ghost FTP uses an **English-first** localization model. English (`en`) is the ca
 
 ## Supported languages
 
-Ghost FTP 2.x exposes 24 canonical language codes:
+Ghost FTP 0.1.0 Beta exposes 24 canonical language codes:
 
 | Code | Language | Native name |
 | --- | --- | --- |
@@ -116,4 +116,4 @@ Localization drift is therefore a release failure, not a documentation-only defe
 
 ## Retired platform history
 
-Historical 1.x commits may contain Android/iOS localization resources because those applications were active at that time. They are not part of the 2.x localization gate and must not be treated as current platform requirements.
+Historical commits may contain Android/iOS localization resources because those applications were active at that time. They are not part of the current Windows/Linux localization gate and must not be treated as current platform requirements.

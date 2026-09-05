@@ -41,8 +41,9 @@ def main() -> int:
     version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
-    if int(version.split(".", 1)[0]) < 2:
-        fail("Windows/Linux-only release contract requires the 2.x major line")
+    parts = tuple(int(part) for part in version.split("."))
+    if parts < (0, 1, 0):
+        fail("active release baseline must not precede 0.1.0")
 
     run("scripts/audit_brand_hardcut.py")
     run("scripts/audit_repository.py")
@@ -55,6 +56,14 @@ def main() -> int:
         "packages: write",
         "needs: [quality, windows, linux]",
         "RELEASE_TAG=ghostftp-v$version",
+        "release_title=\"Ghost FTP $version Beta\"",
+        "release_channel='beta'",
+        "prerelease_args+=(--prerelease)",
+        "GHOSTFTP_SIGNING_PFX_BASE64",
+        "GHOSTFTP_SIGNING_PASSWORD",
+        "GHOSTFTP_SIGNING_TIMESTAMP_URL",
+        "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
+        "Stable Windows releases require a configured trusted Authenticode identity.",
         "python scripts/audit_platform_contract.py",
         "python scripts/package_nuget.py",
         "dotnet nuget push",
@@ -85,16 +94,38 @@ def main() -> int:
         "go test -race ./...",
         "Windows x64 and x86 production build",
         "Linux amd64 arm64 i386 production build",
+        "Authenticode private-key pipeline smoke test",
+        "New-DevCodeSigningCertificate.ps1",
+        "Sign-WindowsArtifacts.ps1",
     )
 
     require(
         "BUILD-WINDOWS.ps1",
         "function Build-GhostFTPArchitecture",
+        "function Sign-WindowsTarget",
+        "GHOSTFTP_SIGNING_PFX_PATH",
+        "GHOSTFTP_SIGNING_PASSWORD",
+        "GHOSTFTP_SIGNING_TIMESTAMP_URL",
         '"Ghost-FTP-$version-Portable-$Label.exe"',
         '"Ghost-FTP-$version-Setup-$Label.exe"',
-        "./cmd/ghostftp",
+        "Sign-WindowsTarget -Path $portable",
         "scripts/make_payload.py",
+        "Sign-WindowsTarget -Path $setup",
         "scripts/verify_release.py",
+    )
+    require(
+        "scripts/Sign-WindowsArtifacts.ps1",
+        "Set-AuthenticodeSignature",
+        "Get-AuthenticodeSignature",
+        "HashAlgorithm = 'SHA256'",
+        "code-signing certificate with a private key",
+    )
+    require(
+        "scripts/New-DevCodeSigningCertificate.ps1",
+        "-Type CodeSigningCert",
+        "-KeyAlgorithm RSA",
+        "-KeyLength 3072",
+        "-HashAlgorithm SHA256",
     )
     require(
         "cmd/installer/main.go",
@@ -118,11 +149,16 @@ def main() -> int:
         if (ROOT / retired).exists():
             fail(f"retired platform directory exists: {retired}/")
 
-    print(f"RELEASE_AUDIT=PASS ({version})")
+    channel = "beta" if parts[0] == 0 else "stable"
+    print(f"RELEASE_AUDIT=PASS ({version}; channel={channel})")
     print("PUBLIC_BRAND=Ghost FTP")
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("PRE_1_0_CHANNEL=BETA")
+    print("FIRST_STABLE_VERSION=1.0.0")
+    print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
+    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
     print("PUBLIC_PLATFORM_ARTIFACTS=9")
     print("PUBLIC_RELEASE_FILES=12")
     print("GITHUB_PACKAGE_ID=GhostFTP")
