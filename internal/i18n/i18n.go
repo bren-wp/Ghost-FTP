@@ -33,6 +33,12 @@ var supportedLanguages = []Language{
 	{Code: "cs", EnglishName: "Czech", NativeName: "Čeština"},
 	{Code: "uk", EnglishName: "Ukrainian", NativeName: "Українська"},
 	{Code: "sv", EnglishName: "Swedish", NativeName: "Svenska"},
+	{Code: "ro", EnglishName: "Romanian", NativeName: "Română"},
+	{Code: "hu", EnglishName: "Hungarian", NativeName: "Magyar"},
+	{Code: "da", EnglishName: "Danish", NativeName: "Dansk"},
+	{Code: "fi", EnglishName: "Finnish", NativeName: "Suomi"},
+	{Code: "no", EnglishName: "Norwegian", NativeName: "Norsk"},
+	{Code: "ko", EnglishName: "Korean", NativeName: "한국어"},
 }
 
 func Languages() []Language {
@@ -106,7 +112,8 @@ func IsAffirmative(language, answer string) bool {
 		"es": {"sí", "si", "s"}, "tr": {"evet", "e"}, "el": {"ναι", "ν"}, "pt": {"sim", "s"},
 		"zh": {"是", "是的"}, "ru": {"да", "д"}, "hi": {"हाँ", "हां", "ह"}, "ja": {"はい"},
 		"it": {"sì", "si", "s"}, "pl": {"tak", "t"}, "nl": {"ja", "j"}, "cs": {"ano", "a"},
-		"uk": {"так", "т"}, "sv": {"ja", "j"},
+		"uk": {"так", "т"}, "sv": {"ja", "j"}, "ro": {"da", "d"}, "hu": {"igen", "i"},
+		"da": {"ja", "j"}, "fi": {"kyllä", "kylla", "k"}, "no": {"ja", "j"}, "ko": {"예", "네"},
 	}
 	for _, value := range accepted[Normalize(language)] {
 		if answer == value {
@@ -116,10 +123,33 @@ func IsAffirmative(language, answer string) bool {
 	return false
 }
 
+// TranslationCoverage reports how many runtime strings differ from the canonical
+// English catalog. It is intentionally simple: CI uses it to prevent a locale
+// from being advertised while almost every user-visible string is only the
+// English fallback.
+func TranslationCoverage(code string) (translated, total int) {
+	code = Normalize(code)
+	english := catalogs[DefaultLanguage]
+	catalog := catalogs[code]
+	for key, englishValue := range english {
+		total++
+		if value, ok := catalog[key]; ok && strings.TrimSpace(value) != "" && value != englishValue {
+			translated++
+		}
+	}
+	return translated, total
+}
+
 func ValidateCatalogs() error {
 	english := catalogs[DefaultLanguage]
 	if len(english) == 0 {
 		return fmt.Errorf("English localization catalog is empty")
+	}
+	if len(supportedLanguages) < 21 {
+		return fmt.Errorf("Ghost FTP must expose at least 21 supported languages")
+	}
+	if supportedLanguages[0].Code != DefaultLanguage {
+		return fmt.Errorf("English must be the first and default supported language")
 	}
 	codes := make(map[string]struct{}, len(supportedLanguages))
 	for _, language := range supportedLanguages {
