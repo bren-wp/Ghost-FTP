@@ -61,8 +61,9 @@ func languageWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 	return r
 }
 
-// SelectOptionDialog shows a small native Windows selector with no framework
-// dependency. It is suitable for bounded settings choices and installer flows.
+// SelectOptionDialog shows a bounded native Windows selector with no framework
+// dependency. The visual shell is shared by Setup and small option flows while
+// the caller still owns all actual validation/security behavior.
 func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel string, options []string, defaultIndex int) (int, bool) {
 	if len(options) == 0 {
 		return 0, false
@@ -71,7 +72,7 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 		defaultIndex = 0
 	}
 	if acceptLabel == "" {
-		acceptLabel = "OK"
+		acceptLabel = "Continue"
 	}
 	if cancelLabel == "" {
 		cancelLabel = "Cancel"
@@ -92,47 +93,70 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	})
 
 	const (
-		wsOverlapped = 0x00C80000
-		wsVisible    = 0x10000000
-		wsChild      = 0x40000000
-		wsTabStop    = 0x00010000
-		wsVScroll    = 0x00200000
-		cbsDropdown  = 0x0003
+		wsOverlapped   = 0x00C80000
+		wsChild        = 0x40000000
+		wsVisible      = 0x10000000
+		wsTabStop      = 0x00010000
+		wsVScroll      = 0x00200000
+		cbsDropdown    = 0x0003
+		bsDefPushButton = 0x00000001
+		ssEtchedHorz   = 0x00000010
 	)
-
+	const (
+		windowWidth  = 680
+		windowHeight = 342
+	)
+	x, y := premiumDialogPosition(windowWidth, windowHeight)
 	hwnd, _, _ := promptCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(promptWstr(languageClass))),
 		uintptr(unsafe.Pointer(promptWstr(title))),
-		wsOverlapped|wsVisible,
-		360, 210, 640, 300,
+		wsOverlapped,
+		uintptr(x), uintptr(y), windowWidth, windowHeight,
 		0, 0, hinst, 0,
 	)
 	if hwnd == 0 {
 		return defaultIndex, false
 	}
+	applyPremiumDialogWindow(hwnd)
+
 	state := &languageDialogState{selected: defaultIndex}
 	languageStates.Store(hwnd, state)
 	defer languageStates.Delete(hwnd)
 
-	fontHeight := int32(-16)
-	font, _, _ := promptCreateFontW.Call(uintptr(uint32(fontHeight)), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	font, _, _ := promptCreateFontW.Call(uintptr(uint32(int32(-16))), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
 	if font != 0 {
 		defer promptDeleteObject.Call(font)
 	}
-	makeControl := func(class, text string, style uint32, x, y, w, h, id int) uintptr {
+	headerFont, _, _ := promptCreateFontW.Call(uintptr(uint32(int32(-26))), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	if headerFont != 0 {
+		defer promptDeleteObject.Call(headerFont)
+	}
+	captionFont, _, _ := promptCreateFontW.Call(uintptr(uint32(int32(-14))), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	if captionFont != 0 {
+		defer promptDeleteObject.Call(captionFont)
+	}
+
+	makeControl := func(class, text string, style uint32, x, y, w, h, id int, controlFont uintptr) uintptr {
 		child, _, _ := promptCreateWindowExW.Call(
-			0, uintptr(unsafe.Pointer(promptWstr(class))), uintptr(unsafe.Pointer(promptWstr(text))),
-			uintptr(wsChild|wsVisible|style), uintptr(x), uintptr(y), uintptr(w), uintptr(h), hwnd, uintptr(id), hinst, 0,
+			0,
+			uintptr(unsafe.Pointer(promptWstr(class))),
+			uintptr(unsafe.Pointer(promptWstr(text))),
+			uintptr(wsChild|wsVisible|style),
+			uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+			hwnd, uintptr(id), hinst, 0,
 		)
-		if child != 0 && font != 0 {
-			promptSendMessageW.Call(child, promptWMSetFont, font, 1)
+		if child != 0 && controlFont != 0 {
+			promptSendMessageW.Call(child, promptWMSetFont, controlFont, 1)
 		}
 		return child
 	}
 
-	makeControl("STATIC", instruction, 0, 32, 28, 576, 54, 0)
-	state.combo = makeControl("COMBOBOX", "", wsTabStop|wsVScroll|cbsDropdown, 32, 92, 576, 260, languageIDCombo)
+	makeControl("STATIC", "Ghost FTP", 0, 38, 26, 602, 38, 0, headerFont)
+	makeControl("STATIC", "Secure Windows setup", 0, 40, 66, 600, 24, 0, captionFont)
+	makeControl("STATIC", instruction, 0, 40, 104, 600, 42, 0, font)
+
+	state.combo = makeControl("COMBOBOX", "", wsTabStop|wsVScroll|cbsDropdown, 40, 154, 600, 270, languageIDCombo, font)
 	if state.combo == 0 {
 		promptDestroyWindow.Call(hwnd)
 		return defaultIndex, false
@@ -141,9 +165,11 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 		promptSendMessageW.Call(state.combo, languageCBAdd, 0, uintptr(unsafe.Pointer(promptWstr(option))))
 	}
 	promptSendMessageW.Call(state.combo, languageCBSet, uintptr(defaultIndex), 0)
-	makeControl("STATIC", footer, 0, 32, 140, 576, 24, 0)
-	makeControl("BUTTON", acceptLabel, wsTabStop, 420, 182, 90, 34, languageIDInstall)
-	makeControl("BUTTON", cancelLabel, wsTabStop, 518, 182, 90, 34, languageIDCancel)
+
+	makeControl("STATIC", "", ssEtchedHorz, 40, 207, 600, 2, 0, font)
+	makeControl("STATIC", footer, 0, 40, 222, 386, 38, 0, captionFont)
+	makeControl("BUTTON", acceptLabel, wsTabStop|bsDefPushButton, 438, 224, 98, 38, languageIDInstall, font)
+	makeControl("BUTTON", cancelLabel, wsTabStop, 544, 224, 96, 38, languageIDCancel, font)
 
 	promptSetFocus.Call(state.combo)
 	promptShowWindow.Call(hwnd, 5)
@@ -167,7 +193,7 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 	return SelectOptionDialog(
 		title,
 		instruction,
-		"Ghost FTP Setup · private by design · local-first settings",
+		"Private by design  ·  No telemetry  ·  FTP / FTPS / SFTP",
 		"Continue",
 		"Cancel",
 		options,
