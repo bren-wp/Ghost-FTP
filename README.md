@@ -85,7 +85,7 @@ The maintained Windows layout contract is documented in [docs/REFERENCE-UI.md](d
 
 ## Authentic Windows UI
 
-These images are **not mockups**. GitHub Actions builds the production Windows x64 Portable executable, launches that real executable on a Windows runner, captures its native Win32 windows with `PrintWindow(PW_RENDERFULLCONTENT)`, validates the PNG signature/dimensions/size, records SHA-256 evidence and only then persists the images into this repository.
+These images are **not mockups**. GitHub Actions builds the production Windows x64 Portable executable, launches that real executable on a Windows runner, captures its native Win32 windows with `PrintWindow(PW_RENDERFULLCONTENT)`, validates the PNG signature/dimensions/size, records SHA-256 evidence and only then compares/persists the images in this repository.
 
 ### Main workspace
 
@@ -94,6 +94,11 @@ These images are **not mockups**. GitHub Actions builds the production Windows x
 ### Site Manager
 
 ![Ghost FTP authentic Windows Site Manager](docs/images/ghost-ftp-site-manager.png)
+
+The current reference images were reproduced from the production Portable executable on commit `9219cc7fa526f17750667dc4aa9a2d3d8ed4ed92`. The verification run confirmed that the generated images are byte-identical to the repository copies:
+
+- main workspace: `1080x700`, SHA-256 `15acccd3285ce7dc2bac482ea89fca3727a6afde3683426068b5dcb56d34b99a`;
+- Site Manager: `920x610`, SHA-256 `da5a9f02b309c962ca5472c44b99db3559ead813dbb3f02c7496229551c7ea38`.
 
 The capture workflow deliberately uses no real FTP credentials, customer data or production server. See `.github/workflows/ui-screenshots.yml` and `scripts/capture_windows_screenshots.ps1` for the reproducible capture contract.
 
@@ -351,4 +356,4 @@ CI runs fail-closed checks for:
 
 `0.1.0` is the current Beta baseline. Existing functionality and hardening work already completed in the repository is preserved; the version reset changes release maturity labeling, not the implementation history.
 
-The next `0.x.y` version should be raised only when a meaningful tested milestone is completed. The project remains Beta until the full stable checklist is satisfied and the canonical `VERSION` is intentionally advanced to `1.0.0`.
+The current reference head has passed the complete Core, Windows x64/x86, Linux amd64/arm64/i386 and authentic Windows UI capture gates. The next `0.x.y` version should be raised only when another meaningful tested milestone is completed. The project remains Beta until the full stable checklist is satisfied and the canonical `VERSION` is intentionally advanced to `1.0.0`.
