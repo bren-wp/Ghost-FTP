@@ -5,6 +5,7 @@ This directory contains maintained product, security, operator and release docum
 ## Start here
 
 - [Installation](INSTALLATION.md) — Windows/Linux packages, prerequisites and installation expectations.
+- [Desktop reference UI](REFERENCE-UI.md) — canonical Windows shell, real permissions metadata, Setup/Portable equivalence, authentic capture and Linux presentation boundary.
 - [Platform parity](PLATFORM-PARITY.md) — exact Windows/Linux functional parity, presentation differences and parity rules.
 - [Localization](LOCALIZATION.md) — English-first 24-language registry and runtime/setup coverage.
 - [Settings](SETTINGS.md) — persisted options, safe defaults, validation and migration semantics.
@@ -28,8 +29,8 @@ This directory contains maintained product, security, operator and release docum
 
 Ghost FTP currently maintains:
 
-- **Windows** — native Win32 GUI, Setup and Portable packages for x64/x86.
-- **Linux** — shared core with hardened terminal frontend and DEB packages for amd64/arm64/i386.
+- **Windows** — native Win32 GUI, Setup and Portable packages for x64/x86. The current graphical workspace follows the maintained reference-shell contract and exposes only real engine-backed actions/state.
+- **Linux** — shared core with hardened terminal frontend and DEB packages for amd64/arm64/i386. Functional parity is substantially broader than visual parity; Linux is not currently described as pixel-identical to the Windows GUI.
 
 Android, iOS and macOS application targets are not part of the active source/build matrix. Historical commits, tags and releases remain available for provenance and must not be rewritten.
 
@@ -43,7 +44,7 @@ Development status: **Beta**
 
 The active product baseline begins at **0.1.0 Beta**. Every `0.x.y` build remains Beta/prerelease while the application is being completed and stabilized. The first version that may be treated as stable is **1.0.0**.
 
-Windows Setup and Portable are packaging variants of the same release and always use the same canonical `VERSION`.
+Windows Setup and Portable are packaging variants of the same release and always use the same canonical `VERSION` and Windows application source.
 
 Release tags use `ghostftp-vX.Y.Z`. Published tags remain immutable.
 
@@ -54,6 +55,7 @@ Every release must pass the shared quality/security/documentation gate and both 
 ## Platform documentation
 
 - [Windows release/build information](../README.md#windows-experience)
+- [Canonical desktop reference UI](REFERENCE-UI.md)
 - [Linux packaging](../linux/README.md)
 - [Windows/Linux parity](PLATFORM-PARITY.md)
 - [Web companion](../GhostFTP%20WEB/README.md)
@@ -65,8 +67,11 @@ Long-lived documentation must describe the current product contract without dele
 - historical release notes may mention platforms, package matrices or versions that existed at the time;
 - current installation, architecture, release and roadmap documents must describe the maintained Windows/Linux contract;
 - current versioning documentation must preserve the `0.1.0 → 0.x.y Beta → 1.0.0 stable` policy;
-- Windows Setup and Portable must never claim independent release versions;
+- Windows Setup and Portable must never claim independent release versions or different application workspaces;
+- the remote Permissions column must be described as server-supplied LIST/SFTP/MLSD `unix.mode` metadata, never a guessed mode;
 - dependency documentation must distinguish zero external Go modules from OS-provided runtime transport tools;
 - privacy documentation must not imply communication with an application analytics/update service that does not exist;
+- Linux functional parity must not be mislabeled as pixel-identical GUI parity while the maintained Linux frontend remains terminal-based;
 - release asset counts must match the workflow contract;
+- repository UI screenshots must come from the authentic production capture workflow rather than mockup/image-generation output;
 - historical tags/releases remain immutable and are never rewritten merely because the active maturity baseline changed.
