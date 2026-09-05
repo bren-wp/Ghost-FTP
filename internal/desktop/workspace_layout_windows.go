@@ -5,8 +5,9 @@ package desktop
 import "unsafe"
 
 const (
-	workspaceLVMGetHeader = 0x101F
-	workspaceSWHide       = 0
+	workspaceLVMGetHeader           = 0x101F
+	workspaceLVMSetColumnOrderArray = lvmFirst + 58
+	workspaceSWHide                 = 0
 )
 
 func styleWorkspaceList(list uintptr) {
@@ -23,19 +24,29 @@ func styleWorkspaceList(list uintptr) {
 	}
 }
 
+func applyReferenceFileColumnOrder(list uintptr) {
+	if list == 0 {
+		return
+	}
+	// Logical storage remains Name, Type, Size, Modified. The visual reference
+	// order is Name, Size, Type, Modified, so no data/index semantics change.
+	order := [4]int32{0, 2, 1, 3}
+	sendMessageW.Call(list, workspaceLVMSetColumnOrderArray, uintptr(len(order)), uintptr(unsafe.Pointer(&order[0])))
+}
+
 func (a *app) resizeReferenceWorkspaceColumns(panelW, mainW int) {
 	if panelW <= 0 || mainW <= 0 {
 		return
 	}
-	// Reference order is Name, Size, Type, Modified. Column creation is kept in
-	// ui_windows.go; this pass only sizes them responsively.
 	sizeW, typeW, modifiedW := 84, 92, 130
 	nameW := panelW - sizeW - typeW - modifiedW - 24
 	if nameW < 116 {
 		nameW = 116
 	}
 	for _, list := range []uintptr{a.localList, a.remoteList} {
-		for index, columnW := range []int{nameW, sizeW, typeW, modifiedW} {
+		applyReferenceFileColumnOrder(list)
+		// Widths address logical indices: Name, Type, Size, Modified.
+		for index, columnW := range []int{nameW, typeW, sizeW, modifiedW} {
 			if list != 0 {
 				sendMessageW.Call(list, lvmSetColumnWidth, uintptr(index), uintptr(a.scale(columnW)))
 			}
@@ -203,50 +214,71 @@ func (a *app) refineWorkspaceLayout() {
 	quickInnerX := quickX + 12
 	quickInnerW := quickW - 24
 	fieldY := topY + 38
-	protocolW, portW := 112, 64
-	connectW := 104
 	fieldGap := 7
-	if compact {
-		protocolW, connectW = 94, 88
+	quickBottom := fieldY + rowH
+	if width >= 1540 {
+		protocolW, portW, connectW := 112, 64, 104
+		remaining := quickInnerW - protocolW - portW - connectW - 5*fieldGap
+		hostW := remaining * 30 / 100
+		userW := remaining * 35 / 100
+		passW := remaining - hostW - userW
+		if hostW < 100 {
+			hostW = 100
+		}
+		if userW < 92 {
+			userW = 92
+		}
+		if passW < 92 {
+			passW = 92
+		}
+		x := quickInnerX
+		a.move(a.host, x, fieldY, hostW, rowH)
+		x += hostW + fieldGap
+		a.move(a.port, x, fieldY, portW, rowH)
+		x += portW + fieldGap
+		a.move(a.protocol, x, fieldY, protocolW, rowH)
+		x += protocolW + fieldGap
+		a.move(a.user, x, fieldY, userW, rowH)
+		x += userW + fieldGap
+		a.move(a.pass, x, fieldY, passW, rowH)
+		x += passW + fieldGap
+		a.move(a.connect, x, fieldY, connectW, rowH)
+	} else {
+		protocolW, portW := 94, 62
+		hostW := quickInnerW - protocolW - portW - 2*fieldGap
+		if hostW < 110 {
+			hostW = 110
+		}
+		x := quickInnerX
+		a.move(a.host, x, fieldY, hostW, rowH)
+		x += hostW + fieldGap
+		a.move(a.port, x, fieldY, portW, rowH)
+		x += portW + fieldGap
+		a.move(a.protocol, x, fieldY, protocolW, rowH)
+
+		identityY := fieldY + rowH + 8
+		connectW := 92
+		identityFieldsW := quickInnerW - connectW - 2*fieldGap
+		userW := identityFieldsW / 2
+		passW := identityFieldsW - userW
+		a.move(a.user, quickInnerX, identityY, userW, rowH)
+		a.move(a.pass, quickInnerX+userW+fieldGap, identityY, passW, rowH)
+		a.move(a.connect, quickInnerX+userW+fieldGap+passW+fieldGap, identityY, connectW, rowH)
+		quickBottom = identityY + rowH
 	}
-	remaining := quickInnerW - protocolW - portW - connectW - 5*fieldGap
-	hostW := remaining * 30 / 100
-	userW := remaining * 35 / 100
-	passW := remaining - hostW - userW
-	if hostW < 100 {
-		hostW = 100
-	}
-	if userW < 92 {
-		userW = 92
-	}
-	if passW < 92 {
-		passW = 92
-	}
-	x := quickInnerX
-	a.move(a.host, x, fieldY, hostW, rowH)
-	x += hostW + fieldGap
-	a.move(a.port, x, fieldY, portW, rowH)
-	x += portW + fieldGap
-	a.move(a.protocol, x, fieldY, protocolW, rowH)
-	x += protocolW + fieldGap
-	a.move(a.user, x, fieldY, userW, rowH)
-	x += userW + fieldGap
-	a.move(a.pass, x, fieldY, passW, rowH)
-	x += passW + fieldGap
-	a.move(a.connect, x, fieldY, connectW, rowH)
 	showControls(true, a.connect)
 	showControls(false, a.disconnect)
 
-	// SFTP-specific secret controls occupy the second card row only for SFTP;
+	// SFTP-specific secret controls occupy the next card row only for SFTP;
 	// FTP/FTPS keeps the card visually quiet, as in the reference.
 	sftp := a.protocolValue() == "sftp"
 	if sftp {
 		showControls(true, a.keyPath, a.chooseKey, a.passphrase)
-		keyY := fieldY + rowH + 14
-		chooseW, passphraseW := 136, 190
+		keyY := quickBottom + 8
+		chooseW, passphraseW := 126, 170
 		keyW := quickInnerW - chooseW - passphraseW - 2*fieldGap
-		if keyW < 160 {
-			passphraseW = 150
+		if keyW < 130 {
+			passphraseW = 135
 			keyW = quickInnerW - chooseW - passphraseW - 2*fieldGap
 		}
 		a.move(a.keyPath, quickInnerX, keyY, keyW, rowH)
@@ -294,6 +326,9 @@ func (a *app) refineWorkspaceLayout() {
 	searchW := clampInt(panelW/4, 100, 190)
 	chmodW := 38
 	remotePathW := panelW - 20 - 2*(navW+navGap) - searchW - navGap - chmodW - navGap
+	if remotePathW < 72 {
+		remotePathW = 72
+	}
 	a.move(a.remoteUp, rightX+10, pathY, navW, rowH)
 	a.move(a.remoteRefresh, rightX+10+navW+navGap, pathY, navW, rowH)
 	a.move(a.remotePath, remotePathX, pathY, remotePathW, rowH)
