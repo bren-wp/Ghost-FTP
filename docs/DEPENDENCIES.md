@@ -1,6 +1,6 @@
 # Dependencies and external-component policy
 
-Ghost FTP 2.x minimizes third-party code, prohibits application tracking, and makes every remaining operating-system prerequisite explicit.
+Ghost FTP 0.1.0 Beta minimizes third-party code, prohibits application tracking, and makes every remaining operating-system prerequisite explicit.
 
 ## Scope
 
@@ -70,7 +70,7 @@ The repository audit intentionally preserves that distinction. A future embedded
 
 The Web companion has no third-party Composer runtime packages. Its `composer.json` contains only the supported PHP platform requirement and documents optional PHP extension capabilities.
 
-Suggested extensions are capability declarations, not Composer-installed packages. The Web companion remains separate from the 2.x desktop application release artifact count.
+Suggested extensions are capability declarations, not Composer-installed packages. The Web companion remains separate from the active desktop application release artifact count.
 
 ## Tracking/analytics policy
 
