@@ -96,7 +96,7 @@ func (a *app) refreshTransfers() {
 		a.updateActionControls()
 		return
 	}
-	fillTransfers(a.transferList, a.transferJobs)
+	a.fillTransferList(a.transferList, a.transferJobs)
 	a.restoreTransferSelection(selected)
 	a.updateTransferSummary()
 	a.updateActionControls()
