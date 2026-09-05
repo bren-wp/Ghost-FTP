@@ -89,9 +89,9 @@ func (a *app) setConnectionUI(connected bool) {
 		for _, h := range []uintptr{a.keyPath, a.chooseKey, a.passphrase} {
 			setControlEnabled(h, false)
 		}
-		setText(a.connectionBadge, "● POVEZANO")
+		setText(a.connectionBadge, a.tr("badge.connected"))
 	} else {
-		setText(a.connectionBadge, "● NIJE POVEZANO")
+		setText(a.connectionBadge, a.tr("badge.disconnected"))
 		a.updateProtocolControls()
 	}
 	a.setRemoteControls(connected)
@@ -110,9 +110,9 @@ func (a *app) connectNow() {
 	port, err := validateRawConnectionInput(protocol, host, getText(a.port), user)
 	if err != nil {
 		if err == errInvalidConnectionPort {
-			platform.ErrorDialog("GhostFTP", "Neispravan port", "Port mora biti broj između 1 i 65535.")
+			platform.ErrorDialog("Ghost FTP", a.tr("connection.invalid_port"), a.tr("connection.invalid_port_body"))
 		} else {
-			platform.ErrorDialog("GhostFTP — povezivanje", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+			platform.ErrorDialog("Ghost FTP", a.tr("connection.invalid_data"), a.userMessage(err, "connection.invalid_data_body"))
 		}
 		return
 	}
@@ -126,11 +126,11 @@ func (a *app) connectNow() {
 		Passphrase:     getText(a.passphrase),
 	}
 	generation := a.beginConnectionTransition()
-	// Unesene tajne ostaju u zaključanim edit kontrolama dok veza stvarno ne
-	// uspije. Time korisnik nakon mrežne/port greške može ponoviti pokušaj bez
-	// ponovnog upisa, a onConnected ih briše odmah nakon potvrđenog spajanja.
+	// Entered secrets stay in the disabled edit controls until the connection
+	// succeeds. This lets a user retry a network/port failure without retyping a
+	// secret, while onConnected clears them immediately after confirmed login.
 	a.setConnectionBusy(true)
-	a.setStatus("Povezivanje s " + host + "…")
+	a.setStatus(a.tr("connection.connecting", host))
 	profileID := a.selectedProfileID
 	ctx, cancel := a.connectionContext(75 * time.Second)
 	a.goSafe(func() {
@@ -145,15 +145,15 @@ func (a *app) connectNow() {
 			a.connectionCancel = nil
 			if err != nil {
 				a.setConnectionUI(false)
-				a.setStatus(usererror.Message(err, "Povezivanje nije uspjelo. Provjerite podatke i pokušajte ponovno."))
-				platform.ErrorDialog("GhostFTP — povezivanje", "Povezivanje nije uspjelo", usererror.Message(err, "Provjerite podatke za prijavu i mrežnu vezu."))
+				a.setStatus(a.userMessage(err, "connection.failed_status"))
+				platform.ErrorDialog("Ghost FTP", a.tr("connection.failed"), a.userMessage(err, "connection.failed_body"))
 				return
 			}
 			if r.RequiresTrust {
-				if !platform.ConfirmDialog("GhostFTP — SFTP sigurnost", "Novi SFTP ključ poslužitelja", "Provjerite otisak sigurnosnog ključa prije prihvaćanja:\n\n"+r.Fingerprint+"\n\nVjerujete li ovom poslužitelju?") {
+				if !platform.ConfirmDialog(a.tr("sftp.security"), a.tr("sftp.new_key"), a.tr("sftp.trust_body", r.Fingerprint)) {
 					a.engine.CancelPendingTrust()
 					a.setConnectionUI(false)
-					a.setStatus("SFTP povezivanje otkazano.")
+					a.setStatus(a.tr("sftp.cancelled"))
 					return
 				}
 				a.connectTrusted(profileID, cfg, r.Fingerprint, generation)
@@ -168,17 +168,17 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 	if generation != a.connectionGeneration {
 		return
 	}
-	// Brzi SFTP spoj ne ovisi samo o kratkotrajnom pending-trust cacheu.
-	// Kontrole su tijekom pokušaja zaključane pa se upravo unesena tajna može
-	// sigurno ponovno uzeti. Za spremljeni profil prazno polje i dalje dopušta
-	// Resolveu korištenje pravilno vezane spremljene vjerodajnice.
+	// A quick SFTP connection cannot rely only on the short-lived pending-trust
+	// cache. Controls are locked during the attempt, so the just-entered secret
+	// can safely be read again. For a saved profile an empty field still lets
+	// Resolve use the correctly bound stored credential.
 	if cfg.Password == "" {
 		cfg.Password = getText(a.pass)
 	}
 	if cfg.Passphrase == "" {
 		cfg.Passphrase = getText(a.passphrase)
 	}
-	a.setStatus("Provjera SFTP ključa i povezivanje…")
+	a.setStatus(a.tr("sftp.verifying"))
 	ctx, cancel := a.connectionContext(75 * time.Second)
 	a.goSafe(func() {
 		defer cancel()
@@ -192,8 +192,8 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 			a.connectionCancel = nil
 			if err != nil {
 				a.setConnectionUI(false)
-				a.setStatus(usererror.Message(err, "SFTP povezivanje nije uspjelo."))
-				platform.ErrorDialog("GhostFTP — SFTP", "Povezivanje nije uspjelo", usererror.Message(err, "Provjerite podatke za prijavu i SFTP postavke."))
+				a.setStatus(a.userMessage(err, "sftp.failed_status"))
+				platform.ErrorDialog("Ghost FTP — SFTP", a.tr("connection.failed"), a.userMessage(err, "sftp.failed_body"))
 				return
 			}
 			a.onConnected(cfg.Host, r.Diagnostics)
@@ -212,21 +212,13 @@ func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
 	)
 }
 
-func connectionDiagnosticStatus(host string, diagnostics remote.ConnectionDiagnostics) string {
-	parts := []string{"Povezano: " + host}
-	if diagnostics.Secure {
-		parts = append(parts, "siguran prijenos")
-	} else {
-		parts = append(parts, "FTP bez enkripcije")
-	}
-	if diagnostics.WebRootDetected {
-		parts = append(parts, "web root: "+diagnostics.WebRoot)
-	} else if diagnostics.RootMode == "home" {
-		parts = append(parts, "SFTP home spreman")
-	} else {
-		parts = append(parts, "account root spreman")
-	}
-	return strings.Join(parts, " • ")
+func (a *app) connectionDiagnosticStatus(host string, diagnostics remote.ConnectionDiagnostics) string {
+	// Diagnostics remain available to the connection engine, but the concise
+	// workspace status uses the current UI catalog instead of mixing one locale
+	// into another. Detailed transport diagnostics belong in explicit error or
+	// security flows, not an unlocalized status sentence.
+	_ = diagnostics
+	return a.tr("connection.connected", host)
 }
 
 func (a *app) onConnected(host string, diagnostics remote.ConnectionDiagnostics) {
@@ -234,7 +226,7 @@ func (a *app) onConnected(host string, diagnostics remote.ConnectionDiagnostics)
 	setText(a.passphrase, "")
 	a.queuePaused = false
 	a.setConnectionUI(true)
-	a.setStatus(connectionDiagnosticStatus(host, diagnostics))
+	a.setStatus(a.connectionDiagnosticStatus(host, diagnostics))
 	remoteStart := "/"
 	if a.protocolValue() == "sftp" {
 		remoteStart = "."
@@ -274,13 +266,13 @@ func (a *app) disconnectNow() {
 		return
 	}
 	if a.hasActiveTransfers() {
-		if !platform.ConfirmDialog("GhostFTP — prekid veze", "Prekinuti vezu i aktivne prijenose?", "Svi prijenosi koji su na čekanju ili u tijeku bit će otkazani prije prekida veze.") {
+		if !platform.ConfirmDialog(a.tr("disconnect.title"), a.tr("disconnect.question"), a.tr("disconnect.body")) {
 			return
 		}
 	}
 	generation := a.beginConnectionTransition()
 	a.setConnectionBusy(true)
-	a.setStatus("Prekid veze…")
+	a.setStatus(a.tr("disconnect.progress"))
 	a.goSafe(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -290,9 +282,9 @@ func (a *app) disconnectNow() {
 				return
 			}
 			if err != nil {
-				a.finishDisconnected(usererror.Message(err, "Veza je zatvorena uz upozorenje."))
+				a.finishDisconnected(a.userMessage(err, "disconnect.warning"))
 			} else {
-				a.finishDisconnected("Veza prekinuta.")
+				a.finishDisconnected(a.tr("disconnect.done"))
 			}
 		})
 	})
@@ -301,7 +293,7 @@ func (a *app) disconnectNow() {
 func (a *app) choosePrivateKey() {
 	p, err := a.engine.ChoosePrivateKey()
 	if err != nil {
-		platform.ErrorDialog("GhostFTP", "Odabir privatnog ključa nije uspio", usererror.Message(err, "Privatni ključ trenutačno nije moguće odabrati."))
+		platform.ErrorDialog("Ghost FTP", a.tr("key.choose_failed"), a.userMessage(err, "key.choose_failed_body"))
 		return
 	}
 	if p != "" {
@@ -310,20 +302,20 @@ func (a *app) choosePrivateKey() {
 }
 
 func (a *app) resetProfileCredentialCues() {
-	cue(a.pass, "FTP / SFTP lozinka")
-	cue(a.passphrase, "Zaporka privatnog ključa")
+	cue(a.pass, a.tr("cue.password"))
+	cue(a.passphrase, a.tr("cue.passphrase"))
 }
 
 func (a *app) setProfileCredentialCues(p model.PublicProfile) {
 	if p.HasPassword {
-		cue(a.pass, "Spremljena lozinka — prazno koristi spremljenu")
+		cue(a.pass, a.tr("cue.saved_password"))
 	} else {
-		cue(a.pass, "FTP / SFTP lozinka")
+		cue(a.pass, a.tr("cue.password"))
 	}
 	if p.HasPassphrase && p.PrivateKeyPath != "" {
-		cue(a.passphrase, "Spremljena zaporka ključa — prazno koristi spremljenu")
+		cue(a.passphrase, a.tr("cue.saved_passphrase"))
 	} else {
-		cue(a.passphrase, "Zaporka privatnog ključa")
+		cue(a.passphrase, a.tr("cue.passphrase"))
 	}
 }
 
@@ -338,13 +330,13 @@ func (a *app) loadProfiles() {
 
 func (a *app) applyProfiles(profiles []model.PublicProfile, loadErr error) {
 	if loadErr != nil {
-		a.setStatus(usererror.Message(loadErr, "Spremljene profile trenutačno nije moguće učitati."))
+		a.setStatus(a.userMessage(loadErr, "profile.load_failed"))
 		return
 	}
 	a.profiles = profiles
 	const cbResetContent = 0x014B
 	sendMessageW.Call(a.profilesCombo, cbResetContent, 0, 0)
-	sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr("Brzi spoj (bez profila)"))))
+	sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr(a.tr("profile.quick")))))
 	for _, p := range profiles {
 		label := p.Name + " — " + p.Host
 		sendMessageW.Call(a.profilesCombo, cbAddString, 0, uintptr(unsafe.Pointer(wstr(label))))
@@ -416,7 +408,7 @@ func (a *app) selectProfile() {
 
 func (a *app) saveCurrentProfile() {
 	if a.connected || a.connectionBusy {
-		platform.InfoDialog("GhostFTP", "Profil nije moguće mijenjati tijekom veze", "Pričekajte završetak povezivanja ili prekinite vezu pa spremite promjene profila.")
+		platform.InfoDialog("Ghost FTP", "Profile changes are unavailable during a connection", "Wait for the connection attempt to finish or disconnect before saving profile changes.")
 		return
 	}
 	existing, editing := a.currentProfile()
@@ -424,13 +416,13 @@ func (a *app) saveCurrentProfile() {
 	if editing {
 		defaultName = existing.Name
 	}
-	name, ok := platform.PromptDialog("GhostFTP — profil", "Naziv profila:", defaultName)
+	name, ok := platform.PromptDialog("Ghost FTP — profile", "Profile name:", defaultName)
 	if !ok {
 		return
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		platform.ErrorDialog("GhostFTP — profil", "Naziv profila nedostaje", "Upišite naziv po kojem ćete prepoznati ovu vezu.")
+		platform.ErrorDialog("Ghost FTP — profile", "Profile name is required", "Enter a name that identifies this connection.")
 		return
 	}
 	protocol := a.protocolValue()
@@ -439,9 +431,9 @@ func (a *app) saveCurrentProfile() {
 	port, err := validateRawConnectionInput(protocol, host, getText(a.port), username)
 	if err != nil {
 		if err == errInvalidConnectionPort {
-			platform.ErrorDialog("GhostFTP — profil", "Neispravan port", "Port mora biti broj između 1 i 65535.")
+			platform.ErrorDialog("Ghost FTP — profile", a.tr("connection.invalid_port"), a.tr("connection.invalid_port_body"))
 		} else {
-			platform.ErrorDialog("GhostFTP — profil", "Neispravni podaci veze", usererror.Message(err, "Provjerite poslužitelj, port i korisničko ime."))
+			platform.ErrorDialog("Ghost FTP — profile", a.tr("connection.invalid_data"), a.userMessage(err, "connection.invalid_data_body"))
 		}
 		return
 	}
@@ -466,9 +458,9 @@ func (a *app) saveCurrentProfile() {
 
 	if password != "" || passphrase != "" {
 		if !platform.ConfirmDialog(
-			"GhostFTP — privatnost",
-			"Spremiti vjerodajnice na ovom računalu?",
-			"Da = upisane vjerodajnice spremit će se u GhostFTP spremište zaštićeno sustavom Windows.\nNe = profil će se spremiti bez spremljene lozinke i zaporke privatnog ključa.",
+			"Ghost FTP — privacy",
+			"Save credentials on this computer?",
+			"Yes = store the entered credentials in the Windows-protected Ghost FTP profile store.\nNo = save the profile without a stored password or private-key passphrase.",
 		) {
 			password = ""
 			passphrase = ""
@@ -487,11 +479,11 @@ func (a *app) saveCurrentProfile() {
 		retainPassphrase := existing.HasPassphrase && !clearPassphrase
 		autoRemoved := clearPassword || clearPassphrase
 		if retainPassword || retainPassphrase {
-			message := "Profil već sadrži spremljene vjerodajnice koje još pripadaju ovom identitetu.\n\nDa = zadrži ih.\nNe = ukloni ih iz GhostFTP spremišta."
+			message := "This profile already contains stored credentials that still belong to the same identity.\n\nYes = retain them.\nNo = remove them from the Ghost FTP profile store."
 			if autoRemoved {
-				message = "Vjerodajnice koje više ne pripadaju novom poslužitelju, korisniku ili privatnom ključu bit će automatski uklonjene.\n\n" + message
+				message = "Credentials that no longer belong to the changed server, account or private key will be removed automatically.\n\n" + message
 			}
-			if !platform.ConfirmDialog("GhostFTP — privatnost", "Zadržati spremljene vjerodajnice?", message) {
+			if !platform.ConfirmDialog("Ghost FTP — privacy", "Retain stored credentials?", message) {
 				if retainPassword {
 					clearPassword = true
 				}
@@ -501,9 +493,9 @@ func (a *app) saveCurrentProfile() {
 			}
 		} else if autoRemoved {
 			platform.InfoDialog(
-				"GhostFTP — sigurnost profila",
-				"Stare vjerodajnice neće se prenijeti",
-				"Promijenili ste poslužitelj, port, korisničko ime ili privatni ključ. Radi zaštite stare spremljene vjerodajnice uklanjaju se iz ovog profila. Ako ih želite spremiti za novi identitet, upišite ih ponovno.",
+				"Ghost FTP — profile security",
+				"Old credentials will not be transferred",
+				"The server, port, username or private key changed. For safety, old stored credentials are removed from this profile. Enter them again if you want to store credentials for the new identity.",
 			)
 		}
 	}
@@ -533,14 +525,14 @@ func (a *app) saveCurrentProfile() {
 		payload.Passphrase = ""
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("GhostFTP — profil", "Profil nije spremljen", usererror.Message(err, "Profil trenutačno nije moguće spremiti."))
+				platform.ErrorDialog("Ghost FTP — profile", a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
 				return
 			}
 			a.selectedProfileID = saved.ID
 			setText(a.pass, "")
 			setText(a.passphrase, "")
 			a.setProfileCredentialCues(saved)
-			a.setStatus("Profil spremljen: " + saved.Name)
+			a.setStatus(a.tr("profile.save") + ": " + saved.Name)
 			a.loadProfiles()
 		})
 	})
@@ -552,14 +544,14 @@ func (a *app) removeCurrentProfile() {
 	}
 	p, ok := a.currentProfile()
 	if !ok {
-		platform.InfoDialog("GhostFTP", "Nije odabran spremljeni profil", "Odaberite profil koji želite obrisati.")
+		platform.InfoDialog("Ghost FTP", a.tr("profile.delete"), a.tr("profile.load_failed"))
 		return
 	}
 	if a.connected {
-		platform.InfoDialog("GhostFTP", "Profil se ne briše tijekom veze", "Prvo prekinite vezu.")
+		platform.InfoDialog("Ghost FTP", a.tr("profile.delete"), a.tr("disconnect.question"))
 		return
 	}
-	if !platform.ConfirmDialog("GhostFTP — profili", "Obrisati profil?", p.Name+"\n\nSpremljene vjerodajnice bit će uklonjene iz GhostFTP spremišta.") {
+	if !platform.ConfirmDialog("Ghost FTP — profiles", a.tr("profile.delete"), p.Name) {
 		return
 	}
 	id := p.ID
@@ -567,13 +559,13 @@ func (a *app) removeCurrentProfile() {
 		err := a.engine.RemoveProfile(id)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("GhostFTP — profili", "Profil nije obrisan", usererror.Message(err, "Profil trenutačno nije moguće obrisati."))
+				platform.ErrorDialog("Ghost FTP — profiles", a.tr("profile.delete"), a.userMessage(err, "error.generic"))
 				return
 			}
 			a.selectedProfileID = ""
 			a.resetProfileCredentialCues()
 			a.loadProfiles()
-			a.setStatus("Profil obrisan.")
+			a.setStatus(a.tr("profile.delete"))
 			a.updateActionControls()
 		})
 	})
