@@ -91,10 +91,10 @@ try {
             throw "Signed file thumbprint mismatch: $target"
         }
         if ($verification.Status -eq 'HashMismatch' -or $verification.Status -eq 'NotSigned') {
-            throw "Authenticode verification failed for $target: $($verification.Status)"
+            throw "Authenticode verification failed for ${target}: $($verification.Status)"
         }
         if (-not $AllowUntrustedSigner -and $verification.Status -ne 'Valid') {
-            throw "Authenticode signer is not trusted/valid for production: $target ($($verification.Status): $($verification.StatusMessage))"
+            throw "Authenticode signer is not trusted/valid for production: ${target} ($($verification.Status): $($verification.StatusMessage))"
         }
 
         Write-Host "AUTHENTICODE_SIGNED=$([IO.Path]::GetFileName($target))"
