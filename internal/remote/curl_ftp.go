@@ -228,6 +228,7 @@ func parseMLSDLine(line string) (model.Item, bool) {
 	item := model.Item{Name: name}
 	item.IsDirectory = typeLower == "dir"
 	item.IsSymlink = strings.Contains(typeLower, "slink") || strings.Contains(typeLower, "symlink")
+	item.Permissions = normalizePermissionDisplay(facts["unix.mode"])
 	if raw := facts["size"]; raw != "" {
 		if n, err := strconv.ParseInt(raw, 10, 64); err == nil && n >= 0 {
 			item.Size = n
