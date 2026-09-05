@@ -271,6 +271,10 @@ def validate_http_session_and_csrf_boundaries() -> None:
         (
             "$staged = true;",
             "private function cleanupRemoteTemporary(string $path): bool",
+            "private function remotePathPresence(string $path): ?bool",
+            "$backupCandidate = $this->temporarySibling($parent, 'GhostFTP-backup');",
+            "pogrešku tijekom izrade sigurnosne kopije",
+            "$recoveryHint = $backupCandidate;",
             "cleanupRemoteTemporary($staging)",
             "cleanupRemoteTemporary($backup)",
             "Nova datoteka je aktivna, ali sigurnosnu kopiju prethodne verzije nije moguće potvrđeno ukloniti.",
@@ -282,6 +286,8 @@ def validate_http_session_and_csrf_boundaries() -> None:
         fail("atomic upload silently swallows old-backup deletion failure")
     if "$this->client->upload($localFile, $staging);\n            $staged = true;" in operations:
         fail("atomic upload takes staging cleanup ownership only after transport success")
+    if "$backup = $this->temporarySibling($parent, 'GhostFTP-backup');\n                $this->client->rename($remotePath, $backup);" in operations:
+        fail("atomic upload does not reconcile ambiguous backup-creation rename outcomes")
 
     remote_interface = read("GhostFTP WEB/app/Remote/RemoteClientInterface.php")
     ftp_client = read("GhostFTP WEB/app/Remote/FtpClient.php")

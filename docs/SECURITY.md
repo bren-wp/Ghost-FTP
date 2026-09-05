@@ -84,6 +84,7 @@ Authentication, encrypted profiles, runtime state, archive processing and tempor
 - Destructive/batch mutation inputs fail closed before partial application when their shape or source set is invalid.
 - Multi-file upload validates the complete request shape, temporary upload identity and normalized remote destination set before the first remote mutation.
 - Atomic overwrite recovery treats failed backup restoration and ambiguous promotion outcomes as explicit recoverable states: the original backup name is retained for manual recovery without exposing nested transport error text.
+- Backup creation is also reconciled after rename errors: Ghost FTP re-reads the target and candidate backup paths so a move-then-error response cannot hide the confirmed recovery filename or accidentally continue promotion.
 - Staging cleanup ownership begins before FTP/SFTP upload starts, so a partial transport failure triggers verified remote-temp cleanup; an unverifiable cleanup exposes only the generated staging recovery name.
 - Remote temporary cleanup re-checks absence after a delete error before escalating, so servers that report an error after actually removing a temp object do not produce false residual-data warnings.
 - After successful promotion, failure to remove the previous-version backup is reported as an explicit partial-success state with the backup name and a do-not-retry warning instead of silently retaining old remote data.

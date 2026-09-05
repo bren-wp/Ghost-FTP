@@ -195,6 +195,7 @@ final class RemoteOperations
         $backup = null;
         $staged = true;
         $operationError = null;
+        $recoveryHint = null;
 
         try {
             // Take cleanup ownership before transport upload starts. FTP/SFTP can create
@@ -202,8 +203,34 @@ final class RemoteOperations
             // after upload() returns successfully.
             $this->client->upload($localFile, $staging);
             if ($existing !== null) {
-                $backup = $this->temporarySibling($parent, 'GhostFTP-backup');
-                $this->client->rename($remotePath, $backup);
+                $backupCandidate = $this->temporarySibling($parent, 'GhostFTP-backup');
+                try {
+                    $this->client->rename($remotePath, $backupCandidate);
+                    $backup = $backupCandidate;
+                } catch (\Throwable $backupError) {
+                    // Some servers can complete a rename and still report a transport error.
+                    // Re-read both paths before deciding whether the original stayed in place,
+                    // moved to the recovery name or entered an unverifiable state.
+                    $targetPresence = $this->remotePathPresence($remotePath);
+                    $backupPresence = $this->remotePathPresence($backupCandidate);
+                    if ($backupPresence === true) {
+                        $backup = $backupCandidate;
+                        throw new RuntimeException(
+                            'Remote server je prijavio pogrešku tijekom izrade sigurnosne kopije, ali sigurnosna kopija je dostupna kao ' . PathGuard::basename($backup) . '. Nova datoteka nije aktivirana. Provjeri odredišnu putanju i sigurnosnu kopiju prije ponavljanja operacije.',
+                            0,
+                            $backupError
+                        );
+                    }
+                    if ($backupPresence === false && $targetPresence === true) {
+                        throw $backupError;
+                    }
+                    $recoveryHint = $backupCandidate;
+                    throw new RuntimeException(
+                        'Remote server je prijavio pogrešku tijekom izrade sigurnosne kopije i nije moguće potvrditi potpuno stanje izvorne datoteke. Nova datoteka nije aktivirana. Prije ponavljanja operacije provjeri odredišnu putanju i moguću recovery putanju ' . PathGuard::basename($backupCandidate) . '.',
+                        0,
+                        $backupError
+                    );
+                }
             }
             try {
                 $this->client->rename($staging, $remotePath);
@@ -249,6 +276,8 @@ final class RemoteOperations
                 $message = 'Operacija nije dovršena, a privremenu remote datoteku nije moguće potvrđeno ukloniti. Prije ponavljanja operacije provjeri i po potrebi obriši ' . PathGuard::basename($staging) . '.';
                 if ($backup !== null) {
                     $message .= ' Izvorna verzija je sačuvana kao ' . PathGuard::basename($backup) . '.';
+                } elseif ($recoveryHint !== null) {
+                    $message .= ' Provjeri i moguću recovery putanju ' . PathGuard::basename($recoveryHint) . '.';
                 }
                 throw new RuntimeException($message, 0, $operationError);
             }
@@ -685,6 +714,15 @@ final class RemoteOperations
         $this->client->chmod($path, $dirMode);
         foreach ($this->client->list($path) as $item) {
             $this->chmodNode(PathGuard::child($path,(string)$item['name']), (string)($item['type'] ?? 'file'), $fileMode, $dirMode, $depth + 1);
+        }
+    }
+
+    private function remotePathPresence(string $path): ?bool
+    {
+        try {
+            return $this->exists($path);
+        } catch (\Throwable) {
+            return null;
         }
     }
 
