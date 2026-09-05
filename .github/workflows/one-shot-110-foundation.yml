@@ -1,0 +1,83 @@
+name: Apply Ghost FTP 1.1.0 foundation
+
+on:
+  push:
+    branches: [release/ghost-ftp-1.1.0-quality]
+    paths:
+      - '.github/workflows/one-shot-110-foundation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: off
+      GOSUMDB: off
+    steps:
+      - name: Checkout foundation branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: release/ghost-ftp-1.1.0-quality
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Apply foundation patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/one_shot_110_foundation.py
+          gofmt -w \
+            cmd/installer/messages.go \
+            cmd/installer/main.go \
+            internal/i18n/i18n.go \
+            internal/i18n/i18n_test.go \
+            internal/i18n/locale_additional.go \
+            internal/platform/language_windows.go
+      - name: Remove and stage one-shot tooling before audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f scripts/one_shot_110_foundation.py .github/workflows/one-shot-110-foundation.yml
+          git add -A
+          test -z "$(git ls-files '.github/workflows/one-shot-*')"
+      - name: Validate clean production tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+          test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*' -print))"
+          go test ./...
+          go vet ./...
+          python scripts/audit_repository.py
+          python scripts/audit_dependencies.py
+          python scripts/audit_localization.py
+          python scripts/audit_docs.py
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
+      - name: Commit validated foundation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --cached --quiet; then
+            echo 'No validated changes to commit.'
+            exit 0
+          fi
+          git config user.name 'Brendigo'
+          git config user.email 'info@brendigo.com'
+          git commit -m 'Build English-first 24-language 1.1.0 foundation'
+          git push origin HEAD:release/ghost-ftp-1.1.0-quality
