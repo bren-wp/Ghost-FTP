@@ -1,6 +1,6 @@
 name: Apply Ghost FTP 1.1.0 foundation
 
-# validation revision 2: distinguish PHP platform requirements from Composer packages
+# validation revision 3: commit source only; workflow cleanup is connector-managed
 on:
   push:
     branches: [release/ghost-ftp-1.1.0-quality]
@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/one_shot_110_foundation.py
+          python scripts/one_shot_110_finalize.py
           gofmt -w \
             cmd/installer/messages.go \
             cmd/installer/main.go \
@@ -50,7 +50,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f scripts/one_shot_110_foundation.py .github/workflows/one-shot-110-foundation.yml
+          rm -f \
+            scripts/one_shot_110_foundation.py \
+            scripts/one_shot_110_finalize.py \
+            .github/workflows/one-shot-110-foundation.yml
           git add -A
           test -z "$(git ls-files '.github/workflows/one-shot-*')"
       - name: Validate clean production tree
@@ -68,14 +71,19 @@ jobs:
           python scripts/audit_docs.py
           python scripts/audit_security.py
           python scripts/audit_privacy.py
-      - name: Commit validated foundation
+      - name: Commit validated source without workflow mutation
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # GitHub Actions tokens without workflows scope cannot delete their own
+          # workflow file. Restore only this helper after auditing the clean index;
+          # it is deleted immediately afterwards through the GitHub connector.
+          git restore --staged .github/workflows/one-shot-110-foundation.yml
+          git restore .github/workflows/one-shot-110-foundation.yml
           if git diff --cached --quiet; then
-            echo 'No validated changes to commit.'
+            echo 'No validated source changes to commit.'
             exit 0
           fi
           git config user.name 'Brendigo'
