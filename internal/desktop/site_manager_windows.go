@@ -15,20 +15,20 @@ import (
 )
 
 const (
-	siteIDList       = 8101
-	siteIDName       = 8102
-	siteIDProtocol   = 8103
-	siteIDHost       = 8104
-	siteIDPort       = 8105
-	siteIDUser       = 8106
-	siteIDLocal      = 8107
-	siteIDRemote     = 8108
-	siteIDKey        = 8109
-	siteIDSecurity   = 8110
-	siteIDSave       = 8111
-	siteIDDelete     = 8112
-	siteIDConnect    = 8113
-	siteIDClose      = 8114
+	siteIDList     = 8101
+	siteIDName     = 8102
+	siteIDProtocol = 8103
+	siteIDHost     = 8104
+	siteIDPort     = 8105
+	siteIDUser     = 8106
+	siteIDLocal    = 8107
+	siteIDRemote   = 8108
+	siteIDKey      = 8109
+	siteIDSecurity = 8110
+	siteIDSave     = 8111
+	siteIDDelete   = 8112
+	siteIDConnect  = 8113
+	siteIDClose    = 8114
 
 	siteLBSNotify           = 0x0001
 	siteLBSNoIntegralHeight = 0x0100
@@ -283,7 +283,7 @@ func (state *siteManagerState) saveCurrent() {
 	state.parent.selectedProfileID = saved.ID
 	state.parent.applyProfiles(profiles, nil)
 	state.refillProfiles(saved.ID)
-	state.parent.setStatus(state.parent.tr("profile.save")+": "+saved.Name)
+	state.parent.setStatus(state.parent.tr("profile.save") + ": " + saved.Name)
 	if (previous.HasPassword && !saved.HasPassword) || (previous.HasPassphrase && !saved.HasPassphrase) {
 		platform.InfoDialog(
 			"Ghost FTP — "+state.parent.tr("sftp.security"),
