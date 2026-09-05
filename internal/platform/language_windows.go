@@ -100,7 +100,7 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 		uintptr(unsafe.Pointer(promptWstr(languageClass))),
 		uintptr(unsafe.Pointer(promptWstr(title))),
 		wsOverlapped|wsVisible,
-		420, 250, 560, 230,
+		360, 210, 640, 300,
 		0, 0, hinst, 0,
 	)
 	if hwnd == 0 {
@@ -129,8 +129,8 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 		return child
 	}
 
-	makeControl("STATIC", instruction, 0, 24, 22, 500, 42, 0)
-	state.combo = makeControl("COMBOBOX", "", wsTabStop|wsVScroll|cbsDropdown, 24, 70, 500, 260, languageIDCombo)
+	makeControl("STATIC", instruction, 0, 32, 28, 576, 54, 0)
+	state.combo = makeControl("COMBOBOX", "", wsTabStop|wsVScroll|cbsDropdown, 32, 92, 576, 260, languageIDCombo)
 	if state.combo == 0 {
 		promptDestroyWindow.Call(hwnd)
 		return defaultIndex, false
@@ -139,8 +139,9 @@ func SelectLanguageDialog(title, instruction string, options []string, defaultIn
 		promptSendMessageW.Call(state.combo, languageCBAdd, 0, uintptr(unsafe.Pointer(promptWstr(option))))
 	}
 	promptSendMessageW.Call(state.combo, languageCBSet, uintptr(defaultIndex), 0)
-	makeControl("BUTTON", "Install", wsTabStop, 338, 132, 88, 32, languageIDInstall)
-	makeControl("BUTTON", "Cancel", wsTabStop, 436, 132, 88, 32, languageIDCancel)
+	makeControl("STATIC", "Ghost FTP Setup · private by design · local-first settings", 0, 32, 140, 576, 24, 0)
+	makeControl("BUTTON", "Continue", wsTabStop, 420, 182, 90, 34, languageIDInstall)
+	makeControl("BUTTON", "Cancel", wsTabStop, 518, 182, 90, 34, languageIDCancel)
 
 	promptSetFocus.Call(state.combo)
 	promptShowWindow.Call(hwnd, 5)
