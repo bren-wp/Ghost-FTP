@@ -13,7 +13,7 @@ struct ConnectionView: View {
                         .frame(width: 44, height: 44)
                         .background(.indigo.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("GhostFTP")
+                        Text("Ghost FTP")
                             .font(.title2.bold())
                         Text("Private, direct file transfer")
                             .font(.subheadline)
@@ -73,7 +73,7 @@ struct ConnectionView: View {
                     HStack {
                         Spacer()
                         if store.busy { ProgressView().padding(.trailing, 8) }
-                        Text(store.busy ? "Connecting…" : "Connect")
+                        Text(store.busy ? String(localized: "Connecting…") : String(localized: "Connect"))
                             .fontWeight(.semibold)
                         Spacer()
                     }
@@ -83,7 +83,7 @@ struct ConnectionView: View {
             }
 
             Section("iOS transport") {
-                Text("This native iOS release supports FTP and implicit FTPS. Explicit FTPS and SFTP remain available on the other GhostFTP platforms and are not falsely emulated on iOS.")
+                Text("This native iOS release supports FTP and implicit FTPS. Explicit FTPS and SFTP remain available on the other Ghost FTP platforms and are not falsely emulated on iOS.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

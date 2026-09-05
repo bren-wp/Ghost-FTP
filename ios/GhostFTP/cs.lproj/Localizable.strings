@@ -1,0 +1,14 @@
+/* Ghost FTP iOS core localization. English is the canonical source. */
+
+"Ghost FTP" = "Ghost FTP";
+"Private, direct file transfer" = "Soukromý, přímý přenos souborů";
+"Saved connection" = "Uložené připojení";
+"Forget saved connection" = "Zapomenout uložené připojení";
+"Connection" = "Připojení";
+"Protocol" = "Protokol";
+"Host" = "Hostitel";
+"Username" = "Uživatelské jméno";
+"Password" = "Heslo";
+"FTP is unencrypted. Prefer FTPS whenever the server supports it." = "FTP není šifrované. Pokud to server podporuje, upřednostněte FTPS.";
+"Connecting…" = "Připojování…";
+"Connect" = "Připojit";

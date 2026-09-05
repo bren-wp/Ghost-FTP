@@ -1,0 +1,14 @@
+/* Ghost FTP iOS core localization. English is the canonical source. */
+
+"Ghost FTP" = "Ghost FTP";
+"Private, direct file transfer" = "Privat, direkt filöverföring";
+"Saved connection" = "Sparad anslutning";
+"Forget saved connection" = "Glöm sparad anslutning";
+"Connection" = "Anslutning";
+"Protocol" = "Protokoll";
+"Host" = "Värd";
+"Username" = "Användarnamn";
+"Password" = "Lösenord";
+"FTP is unencrypted. Prefer FTPS whenever the server supports it." = "FTP är okrypterat. Föredra FTPS när servern stöder det.";
+"Connecting…" = "Ansluter…";
+"Connect" = "Anslut";

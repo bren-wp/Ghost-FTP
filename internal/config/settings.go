@@ -39,12 +39,59 @@ func DefaultSettings() model.Settings {
 	return model.Settings{
 		Language:                 i18n.DefaultLanguage,
 		Parallelism:              DefaultParallelism,
+		ConflictPolicy:           model.ConflictPolicyReplaceBackup,
 		BackupBeforeOverwrite:    true,
 		ConfirmDelete:            true,
 		AutoRetryCount:           DefaultAutoRetryCount,
 		RetryDelaySeconds:        DefaultRetryDelaySeconds,
 		ConnectionTimeoutSeconds: DefaultConnectionTimeoutSeconds,
 	}
+}
+
+func validConflictPolicy(policy string) bool {
+	switch policy {
+	case model.ConflictPolicySkip, model.ConflictPolicyReplace, model.ConflictPolicyReplaceBackup:
+		return true
+	default:
+		return false
+	}
+}
+
+// migrateConflictPolicy converts the former pair of overwrite booleans into
+// one explicit policy and then synchronizes the legacy fields. The legacy JSON
+// fields remain present so older components can continue to read state while
+// the canonical policy removes contradictory combinations for new code.
+func migrateConflictPolicy(v model.Settings, persisted bool) model.Settings {
+	if v.ConflictPolicy == "" {
+		switch {
+		case v.SkipExisting:
+			v.ConflictPolicy = model.ConflictPolicySkip
+		case v.BackupBeforeOverwrite:
+			v.ConflictPolicy = model.ConflictPolicyReplaceBackup
+		default:
+			v.ConflictPolicy = model.ConflictPolicyReplace
+		}
+	} else if !validConflictPolicy(v.ConflictPolicy) && persisted {
+		// Corrupt or unknown persisted state must not silently weaken overwrite
+		// recovery. Fall back to the conservative policy.
+		v.ConflictPolicy = model.ConflictPolicyReplaceBackup
+	}
+
+	switch v.ConflictPolicy {
+	case model.ConflictPolicySkip:
+		v.SkipExisting = true
+		// Keep the legacy backup flag conservative for older components. It is
+		// operationally irrelevant while SkipExisting is true because no
+		// destination overwrite occurs.
+		v.BackupBeforeOverwrite = true
+	case model.ConflictPolicyReplace:
+		v.SkipExisting = false
+		v.BackupBeforeOverwrite = false
+	case model.ConflictPolicyReplaceBackup:
+		v.SkipExisting = false
+		v.BackupBeforeOverwrite = true
+	}
+	return v
 }
 
 func normalizeSettings(v model.Settings) model.Settings {
@@ -61,7 +108,7 @@ func normalizeSettings(v model.Settings) model.Settings {
 	if v.ConnectionTimeoutSeconds < MinConnectionTimeoutSeconds || v.ConnectionTimeoutSeconds > MaxConnectionTimeoutSeconds {
 		v.ConnectionTimeoutSeconds = DefaultConnectionTimeoutSeconds
 	}
-	return v
+	return migrateConflictPolicy(v, true)
 }
 
 func validateSettings(v model.Settings) error {
@@ -70,6 +117,9 @@ func validateSettings(v model.Settings) error {
 	}
 	if v.Parallelism < MinParallelism || v.Parallelism > MaxParallelism {
 		return errors.New("parallel transfers must be between 1 and 8")
+	}
+	if !validConflictPolicy(v.ConflictPolicy) {
+		return errors.New("conflict policy must be skip, replace, or replace_backup")
 	}
 	if v.AutoRetryCount < MinAutoRetryCount || v.AutoRetryCount > MaxAutoRetryCount {
 		return errors.New("automatic retries must be between 0 and 3")
@@ -116,7 +166,8 @@ func (s *SettingsStore) Effective() model.Settings {
 func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Missing values from older settings files migrate to current safe defaults.
+	// Missing values from older clients migrate to current safe defaults and
+	// legacy overwrite booleans are converted into the canonical policy.
 	if v.Language == "" {
 		v.Language = i18n.DefaultLanguage
 	}
@@ -126,6 +177,7 @@ func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 	if v.RetryDelaySeconds == 0 {
 		v.RetryDelaySeconds = DefaultRetryDelaySeconds
 	}
+	v = migrateConflictPolicy(v, false)
 	if err := validateSettings(v); err != nil {
 		return v, err
 	}

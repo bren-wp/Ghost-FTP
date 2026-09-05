@@ -3,8 +3,15 @@ declare(strict_types=1);
 
 namespace GhostFTP\Storage;
 
+use GhostFTP\I18n;
 use GhostFTP\Remote\PathGuard;
-use RuntimeException;
+
+// PreferenceStore is also exercised by standalone CLI recovery tools that do not
+// bootstrap the application autoloader. Keep this dependency explicit and local
+// so language normalization remains available in those fail-closed code paths.
+if (!class_exists(I18n::class, false)) {
+    require_once dirname(__DIR__) . '/I18n.php';
+}
 
 final class PreferenceStore
 {
@@ -56,18 +63,24 @@ final class PreferenceStore
 
     public function saveClientState(array $input): array
     {
-        $clean = $this->sanitizeClientState($input);
-        $this->store->update(function (array $data) use ($clean): array {
-            $data['client_state'] = $clean;
+        $result = [];
+        $this->store->update(function (array $data) use ($input, &$result): array {
+            $current = is_array($data['client_state'] ?? null) ? $data['client_state'] : [];
+            if (!array_key_exists('language', $input)) {
+                $input['language'] = (string)($current['language'] ?? I18n::DEFAULT_LANGUAGE);
+            }
+            $result = $this->sanitizeClientState($input);
+            $data['client_state'] = $result;
             $data['updated_at'] = gmdate('c');
             return $data;
         });
-        return $clean;
+        return $result;
     }
 
     private function sanitizeClientState(array $input): array
     {
         $out = [];
+        $out['language'] = I18n::normalize((string)($input['language'] ?? I18n::DEFAULT_LANGUAGE));
         $out['lastProfile'] = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($input['lastProfile'] ?? '')) ?? '';
         $out['showHidden'] = !array_key_exists('showHidden', $input) || (bool)$input['showHidden'];
         $out['compactRows'] = !empty($input['compactRows']);

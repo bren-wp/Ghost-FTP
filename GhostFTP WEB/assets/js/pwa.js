@@ -36,9 +36,9 @@ async function installApp() {
     }
 
     if (isIos()) {
-        alert('Na iPhone/iPad uređaju otvori Dijeli (Share) i odaberi “Dodaj na početni zaslon”.');
+        alert('On iPhone or iPad, open Share and choose “Add to Home Screen”.');
     } else {
-        alert('U izborniku preglednika odaberi “Instaliraj aplikaciju” ili “Dodaj na početni zaslon”.');
+        alert('In your browser menu, choose “Install app” or “Add to Home Screen”.');
     }
 }
 

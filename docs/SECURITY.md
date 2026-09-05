@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
 
-**Current Ghost FTP release: 1.0.7**
+**Current Ghost FTP release: 1.1.0**
 
 ## Desktop core
 

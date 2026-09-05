@@ -43,7 +43,7 @@ struct RemoteBrowserView: View {
                     )
                     if let webRoot = diagnostics.webRoot {
                         Label("Detected web root: \(webRoot)", systemImage: "globe")
-                        Text("Detected from the authenticated root listing. GhostFTP does not open or save this path automatically.")
+                        Text("Detected from the authenticated root listing. Ghost FTP does not open or save this path automatically.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -142,7 +142,7 @@ struct RemoteBrowserView: View {
             }
         }
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Filter files")
-        .navigationTitle("GhostFTP")
+        .navigationTitle("Ghost FTP")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
