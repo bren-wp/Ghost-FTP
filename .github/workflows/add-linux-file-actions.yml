@@ -1,0 +1,475 @@
+name: Ghost FTP one-shot Linux file action parity
+
+on:
+  push:
+    branches:
+      - work/premium-parity-release-hardening-0.1.1
+    paths:
+      - .github/workflows/add-linux-file-actions.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-test:
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: off
+      GOSUMDB: off
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: work/premium-parity-release-hardening-0.1.1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Add typed Linux file actions and prompt overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > internal/desktop/gui_linux_actions.go <<'GO'
+          //go:build linux
+
+          package desktop
+
+          import (
+              "context"
+              "fmt"
+              "strings"
+              "time"
+
+              "github.com/bren-wp/Ghost-FTP/internal/i18n"
+              "github.com/bren-wp/Ghost-FTP/internal/usererror"
+          )
+
+          const (
+              linuxPromptNone = iota
+              linuxPromptLocalMkdir
+              linuxPromptLocalRename
+              linuxPromptRemoteMkdir
+              linuxPromptRemoteRename
+              linuxPromptRemoteChmod
+          )
+
+          func (u *linuxDesktop) openPrompt(kind int, title, initial string) {
+              if u.busy || kind == linuxPromptNone {
+                  return
+              }
+              u.promptKind = kind
+              u.promptTitle = title
+              u.promptValue = initial
+          }
+
+          func (u *linuxDesktop) closePrompt() {
+              u.promptKind = linuxPromptNone
+              u.promptTitle = ""
+              u.promptValue = ""
+          }
+
+          func (u *linuxDesktop) handlePromptKey(sym uint32) bool {
+              if u.promptKind == linuxPromptNone {
+                  return false
+              }
+              switch sym {
+              case x11KeyEscape:
+                  u.closePrompt()
+                  u.setStatus("Operation cancelled.")
+              case x11KeyReturn:
+                  u.submitPrompt()
+              case x11KeyBackSpace, x11KeyDelete:
+                  if len(u.promptValue) != 0 {
+                      u.promptValue = u.promptValue[:len(u.promptValue)-1]
+                  }
+              default:
+                  if text, ok := linuxKeysymText(sym); ok && len(u.promptValue)+len(text) <= 255 {
+                      u.promptValue += text
+                  }
+              }
+              return true
+          }
+
+          func (u *linuxDesktop) renderPromptOverlay() error {
+              if u.promptKind == linuxPromptNone {
+                  return nil
+              }
+              width := min(620, u.width-80)
+              height := 158
+              left := (u.width - width) / 2
+              top := (u.height - height) / 2
+              panel := linuxRectWH(left, top, width, height)
+              if err := u.drawPanel(panel); err != nil {
+                  return err
+              }
+              if err := u.x.text(left+20, top+30, linuxTrimForUI(u.promptTitle, 72), premiumTheme.Text, premiumTheme.Panel); err != nil {
+                  return err
+              }
+              u.layout.promptInput = linuxRectWH(left+20, top+52, width-40, 32)
+              if err := u.x.fillRect(u.layout.promptInput.left, u.layout.promptInput.top, width-40, 32, premiumTheme.List); err != nil {
+                  return err
+              }
+              if err := u.x.strokeRect(u.layout.promptInput.left, u.layout.promptInput.top, width-40, 32, premiumTheme.Accent); err != nil {
+                  return err
+              }
+              shown := u.promptValue
+              if shown == "" {
+                  shown = "Type a value"
+              }
+              if err := u.x.text(left+29, top+73, linuxTrimForUI(shown, max(16, (width-58)/7)), premiumTheme.Text, premiumTheme.List); err != nil {
+                  return err
+              }
+              u.layout.promptOK = linuxRectWH(left+width-224, top+108, 94, 30)
+              u.layout.promptCancel = linuxRectWH(left+width-120, top+108, 94, 30)
+              if err := u.drawButton(u.layout.promptOK, "Apply", strings.TrimSpace(u.promptValue) != "" && !u.busy, true); err != nil {
+                  return err
+              }
+              return u.drawButton(u.layout.promptCancel, "Cancel", !u.busy, false)
+          }
+
+          func (u *linuxDesktop) handlePromptMouse(x, y int) bool {
+              if u.promptKind == linuxPromptNone {
+                  return false
+              }
+              if u.layout.promptOK.contains(x, y) {
+                  u.submitPrompt()
+                  return true
+              }
+              if u.layout.promptCancel.contains(x, y) {
+                  u.closePrompt()
+                  u.setStatus("Operation cancelled.")
+                  return true
+              }
+              return true
+          }
+
+          func (u *linuxDesktop) submitPrompt() {
+              value := strings.TrimSpace(u.promptValue)
+              if value == "" || u.busy {
+                  return
+              }
+              kind := u.promptKind
+              u.closePrompt()
+              switch kind {
+              case linuxPromptLocalMkdir:
+                  if err := u.engine.LocalMkdir(u.localCurrent, value); err != nil {
+                      u.setStatus(usererror.MessageFor(u.language, err, i18n.T(u.language, "error.generic")))
+                      return
+                  }
+                  u.refreshLocal(u.localCurrent)
+              case linuxPromptLocalRename:
+                  item, ok := u.selectedLocalItem()
+                  if !ok {
+                      u.setStatus("Select a local item first.")
+                      return
+                  }
+                  if err := u.engine.LocalRename(u.localCurrent, item.Name, value); err != nil {
+                      u.setStatus(usererror.MessageFor(u.language, err, i18n.T(u.language, "error.generic")))
+                      return
+                  }
+                  u.refreshLocal(u.localCurrent)
+              case linuxPromptRemoteMkdir:
+                  u.remoteMutation("Creating server folder...", func(ctx context.Context) error {
+                      return u.engine.RemoteMkdir(ctx, u.remoteCurrent, value)
+                  })
+              case linuxPromptRemoteRename:
+                  item, ok := u.selectedRemoteItem()
+                  if !ok {
+                      u.setStatus("Select a server item first.")
+                      return
+                  }
+                  oldName := item.Name
+                  u.remoteMutation("Renaming server item...", func(ctx context.Context) error {
+                      return u.engine.RemoteRename(ctx, u.remoteCurrent, oldName, value)
+                  })
+              case linuxPromptRemoteChmod:
+                  item, ok := u.selectedRemoteItem()
+                  if !ok {
+                      u.setStatus("Select a server item first.")
+                      return
+                  }
+                  name := item.Name
+                  u.remoteMutation("Changing server permissions...", func(ctx context.Context) error {
+                      return u.engine.RemoteChmod(ctx, u.remoteCurrent, name, value)
+                  })
+              }
+          }
+
+          func (u *linuxDesktop) remoteMutation(status string, mutation func(context.Context) error) {
+              if !u.connected || u.busy {
+                  return
+              }
+              current := u.remoteCurrent
+              u.setStatus(status)
+              u.startAction(linuxActionRemoteRefresh, func() linuxUIResult {
+                  ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+                  defer cancel()
+                  if err := mutation(ctx); err != nil {
+                      return linuxUIResult{err: err}
+                  }
+                  items, err := u.engine.RemoteList(ctx, current)
+                  return linuxUIResult{remoteItems: items, localBase: current, err: err}
+              })
+          }
+
+          func (u *linuxDesktop) destructiveConfirmed(key, label string) bool {
+              settings, err := u.engine.Settings()
+              if err == nil && !settings.ConfirmDelete {
+                  u.confirmKind = ""
+                  return true
+              }
+              now := time.Now()
+              if u.confirmKind == key && now.Before(u.confirmUntil) {
+                  u.confirmKind = ""
+                  u.confirmUntil = time.Time{}
+                  return true
+              }
+              u.confirmKind = key
+              u.confirmUntil = now.Add(8 * time.Second)
+              u.setStatus("Safety confirmation: click Delete again within 8 seconds to remove " + label + ".")
+              return false
+          }
+
+          func (u *linuxDesktop) deleteSelectedLocal() {
+              item, ok := u.selectedLocalItem()
+              if !ok || u.busy {
+                  return
+              }
+              key := "local:" + u.localCurrent + "\x00" + item.Name
+              if !u.destructiveConfirmed(key, item.Name) {
+                  return
+              }
+              if err := u.engine.LocalDelete(u.localCurrent, item.Name); err != nil {
+                  u.setStatus(usererror.MessageFor(u.language, err, i18n.T(u.language, "error.generic")))
+                  return
+              }
+              u.refreshLocal(u.localCurrent)
+          }
+
+          func (u *linuxDesktop) deleteSelectedRemote() {
+              item, ok := u.selectedRemoteItem()
+              if !ok || u.busy || !u.connected {
+                  return
+              }
+              key := "remote:" + u.remoteCurrent + "\x00" + item.Name
+              if !u.destructiveConfirmed(key, item.Name) {
+                  return
+              }
+              name, isDir := item.Name, item.IsDirectory
+              u.remoteMutation("Deleting server item...", func(ctx context.Context) error {
+                  return u.engine.RemoteDelete(ctx, u.remoteCurrent, name, isDir)
+              })
+          }
+
+          func (u *linuxDesktop) openSelectedLocalRename() {
+              if item, ok := u.selectedLocalItem(); ok {
+                  u.openPrompt(linuxPromptLocalRename, "Rename local item", item.Name)
+              }
+          }
+
+          func (u *linuxDesktop) openSelectedRemoteRename() {
+              if item, ok := u.selectedRemoteItem(); ok {
+                  u.openPrompt(linuxPromptRemoteRename, "Rename server item", item.Name)
+              }
+          }
+
+          func (u *linuxDesktop) openSelectedRemoteChmod() {
+              if item, ok := u.selectedRemoteItem(); ok {
+                  initial := item.Permissions
+                  if initial == "" || len(initial) > 4 {
+                      initial = "0644"
+                  }
+                  u.openPrompt(linuxPromptRemoteChmod, fmt.Sprintf("Permissions for %s", item.Name), initial)
+              }
+          }
+          GO
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('internal/desktop/gui_linux.go')
+          s = p.read_text(encoding='utf-8')
+
+          replacements = []
+          replacements.append((
+          '''\tlocalPath, localUp, localRefresh                      linuxRect
+          \tremotePath, remoteUp, remoteRefresh                   linuxRect
+          \tlocalList, remoteList                                 linuxRect
+          \tupload, download                                      linuxRect
+          ''',
+          '''\tlocalPath, localUp, localRefresh                      linuxRect
+          \tremotePath, remoteUp, remoteRefresh                   linuxRect
+          \tlocalNew, localRename, localDelete                    linuxRect
+          \tremoteNew, remoteRename, remoteDelete, remoteChmod    linuxRect
+          \tlocalList, remoteList                                 linuxRect
+          \tupload, download                                      linuxRect
+          \tpromptInput, promptOK, promptCancel                   linuxRect
+          '''))
+
+          replacements.append((
+          '''\tlistY := pathY + pathH + 10
+          \tlistBottom := workspaceBottom - 44
+          ''',
+          '''\ttoolbarY := pathY + pathH + 8
+          \ttoolW := 80
+          \tlayout.localNew = linuxRectWH(gap, toolbarY, toolW, 28)
+          \tlayout.localRename = linuxRectWH(gap+toolW+rowGap, toolbarY, toolW, 28)
+          \tlayout.localDelete = linuxRectWH(gap+2*(toolW+rowGap), toolbarY, toolW, 28)
+          \tlayout.remoteNew = linuxRectWH(rightX, toolbarY, toolW, 28)
+          \tlayout.remoteRename = linuxRectWH(rightX+toolW+rowGap, toolbarY, toolW, 28)
+          \tlayout.remoteDelete = linuxRectWH(rightX+2*(toolW+rowGap), toolbarY, toolW, 28)
+          \tlayout.remoteChmod = linuxRectWH(rightX+3*(toolW+rowGap), toolbarY, toolW, 28)
+
+          \tlistY := toolbarY + 36
+          \tlistBottom := workspaceBottom - 44
+          '''))
+
+          replacements.append((
+          '''\tconfirmKind        string
+          \tconfirmUntil       time.Time
+
+          \tresultCh chan linuxUIResult
+          ''',
+          '''\tconfirmKind        string
+          \tconfirmUntil       time.Time
+          \tpromptKind         int
+          \tpromptTitle        string
+          \tpromptValue        string
+
+          \tresultCh chan linuxUIResult
+          '''))
+
+          replacements.append((
+          '''\tif err := u.drawButton(u.layout.remoteRefresh, "Refresh", u.connected && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.renderItemRows(u.layout.localList, u.localItems, u.selectedLocal); err != nil {
+          ''',
+          '''\tif err := u.drawButton(u.layout.remoteRefresh, "Refresh", u.connected && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.drawButton(u.layout.localNew, "New folder", !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.drawButton(u.layout.localRename, "Rename", u.selectedLocal >= 0 && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.drawButton(u.layout.localDelete, "Delete", u.selectedLocal >= 0 && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.drawButton(u.layout.remoteNew, "New folder", u.connected && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.drawButton(u.layout.remoteRename, "Rename", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.drawButton(u.layout.remoteDelete, "Delete", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.drawButton(u.layout.remoteChmod, "Permissions", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+          \t\treturn err
+          \t}
+          \tif err := u.renderItemRows(u.layout.localList, u.localItems, u.selectedLocal); err != nil {
+          '''))
+
+          replacements.append((
+          '''\tcase l.remoteRefresh.contains(x, y):
+          \t\tu.refreshRemote(u.remoteCurrent)
+          \tcase l.localList.contains(x, y):
+          ''',
+          '''\tcase l.remoteRefresh.contains(x, y):
+          \t\tu.refreshRemote(u.remoteCurrent)
+          \tcase l.localNew.contains(x, y):
+          \t\tu.openPrompt(linuxPromptLocalMkdir, "New local folder", "New folder")
+          \tcase l.localRename.contains(x, y):
+          \t\tu.openSelectedLocalRename()
+          \tcase l.localDelete.contains(x, y):
+          \t\tu.deleteSelectedLocal()
+          \tcase l.remoteNew.contains(x, y):
+          \t\tu.openPrompt(linuxPromptRemoteMkdir, "New server folder", "New folder")
+          \tcase l.remoteRename.contains(x, y):
+          \t\tu.openSelectedRemoteRename()
+          \tcase l.remoteDelete.contains(x, y):
+          \t\tu.deleteSelectedRemote()
+          \tcase l.remoteChmod.contains(x, y):
+          \t\tu.openSelectedRemoteChmod()
+          \tcase l.localList.contains(x, y):
+          '''))
+
+          replacements.append((
+          '''func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
+          \tsym := u.x.keysym(keycode, state)
+          \tif state&x11ControlMask != 0 {
+          ''',
+          '''func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
+          \tsym := u.x.keysym(keycode, state)
+          \tif u.handlePromptKey(sym) {
+          \t\treturn true
+          \t}
+          \tif state&x11ControlMask != 0 {
+          '''))
+
+          replacements.append((
+          '''func (u *linuxDesktop) renderAll() error {
+          \tif err := u.render(); err != nil {
+          \t\treturn err
+          \t}
+          \treturn u.renderTrustOverlay()
+          }
+          ''',
+          '''func (u *linuxDesktop) renderAll() error {
+          \tif err := u.render(); err != nil {
+          \t\treturn err
+          \t}
+          \tif u.promptKind != linuxPromptNone {
+          \t\treturn u.renderPromptOverlay()
+          \t}
+          \treturn u.renderTrustOverlay()
+          }
+          '''))
+
+          replacements.append((
+          '''func (u *linuxDesktop) handleOverlayMouse(x, y int) bool {
+          \tif u.pendingFingerprint == "" || u.connected {
+          ''',
+          '''func (u *linuxDesktop) handleOverlayMouse(x, y int) bool {
+          \tif u.handlePromptMouse(x, y) {
+          \t\treturn true
+          \t}
+          \tif u.pendingFingerprint == "" || u.connected {
+          '''))
+
+          for old, new in replacements:
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'GUI parity patch marker expected once, found {count}: {old[:80]!r}')
+              s = s.replace(old, new)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          gofmt -w internal/desktop/gui_linux.go internal/desktop/gui_linux_actions.go
+          test -z "$(gofmt -l internal/desktop/gui_linux.go internal/desktop/gui_linux_actions.go)"
+          git diff --check
+
+      - name: Run focused tests and vet
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./internal/desktop ./internal/localfs ./internal/security ./internal/config
+          go vet ./internal/desktop ./internal/localfs
+
+      - name: Commit verified parity actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo'
+          git config user.email 'info@brendigo.com'
+          git add internal/desktop/gui_linux.go internal/desktop/gui_linux_actions.go
+          git commit -m 'Add safe Linux GUI file operation parity'
+          git push origin HEAD:work/premium-parity-release-hardening-0.1.1
