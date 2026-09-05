@@ -42,11 +42,11 @@ type app struct {
 
 	// Reference-shell controls are presentation-only aliases around the existing
 	// command and action-state layer. They never bypass Engine validation.
-	shellSidebar, shellToolbar, shellLogCard, shellQuickCard, shellLocalCard, shellRemoteCard, shellQueueCard uintptr
+	shellSidebar, shellToolbar, shellLogCard, shellQuickCard, shellLocalCard, shellRemoteCard, shellQueueCard              uintptr
 	sidebarServersLabel, sidebarPrivacyTitle, sidebarPrivacyBody, logTitle, quickTitle, localDeviceLabel, remoteStateLabel uintptr
-	remoteSearch                                                                                                      uintptr
-	toolbarConnect, toolbarDisconnect, toolbarUpload, toolbarDownload, toolbarRefresh                                uintptr
-	toolbarNewFolder, toolbarRename, toolbarDelete, toolbarSites, toolbarSettings, toolbarDiagnostics                uintptr
+	remoteSearch                                                                                                           uintptr
+	toolbarConnect, toolbarDisconnect, toolbarUpload, toolbarDownload, toolbarRefresh                                      uintptr
+	toolbarNewFolder, toolbarRename, toolbarDelete, toolbarSites, toolbarSettings, toolbarDiagnostics                      uintptr
 
 	mu                   sync.Mutex
 	dispatchQ            []func()
