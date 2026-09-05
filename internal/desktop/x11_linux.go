@@ -545,7 +545,7 @@ func (x *x11Client) createWindow(width, height int, title string) error {
 		return err
 	}
 
-	gcMask := uint32((1 << 2) | (1 << 3) | (1 << 14))
+	gcMask := uint32((1 << 2) | (1 << 3))
 	gcReq := make([]byte, 24)
 	gcReq[0] = 55
 	x.order.PutUint32(gcReq[4:8], gc)
