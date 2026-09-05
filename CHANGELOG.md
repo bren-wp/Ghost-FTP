@@ -6,9 +6,13 @@
 - Added regional locale normalization including Norwegian `nb`/`nn` and Simplified Chinese aliases.
 - Replaced the weak eight-string supplemental-locale threshold with measured translation coverage and a 30-string translated-core floor for supplemental catalogs.
 - Added localized primary Windows Setup confirmation/completion/launch/warning copy for all 24 canonical languages while retaining English as the safe fallback.
+- Added complete Android resource catalogs for the same 24-language set and a fail-closed CI audit for exact key parity, format placeholders, locale-directory drift and minimum real translation coverage.
+- Consolidated destination-conflict behavior into one canonical `conflictPolicy` (`skip`, `replace`, `replace_backup`) while preserving and synchronizing legacy overwrite booleans for backward compatibility.
+- Replaced the two potentially contradictory Windows overwrite Yes/No prompts with one native three-state conflict-policy selector.
+- Added regression coverage for legacy conflict-policy migration, contradictory compatibility flags, invalid new saves and fail-closed recovery from unknown persisted policy values.
 - Improved the dependency provenance contract: no external Go modules, zero third-party Web Composer packages, exactly pinned Android dependencies, and fail-closed rejection of tracking/ads/crash SDKs or dynamic versions.
 - Added detailed localization, dependency, settings and immutable release-history documentation.
-- 1.1.0 remains unreleased until Android, iOS and Web/PWA localization plus protocol/option work pass the full cross-platform release gate.
+- 1.1.0 remains unreleased until iOS and Web/PWA localization plus remaining protocol/option work pass the full cross-platform release gate.
 
 ## 1.0.7 - 2026-09-05
 
