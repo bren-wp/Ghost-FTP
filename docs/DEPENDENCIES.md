@@ -42,9 +42,19 @@ The native iOS client uses Apple platform networking for its supported FTP/FTPS 
 
 ## Web/PWA
 
-The shared-hosting Web/PWA package has no Composer runtime dependencies. The public package is assembled from tracked project files and uses server-provided PHP extensions for protocol functionality.
+The shared-hosting Web/PWA package has **zero third-party Composer packages**. Its Composer `require` section contains only the platform requirement `php >=8.1`; this describes the PHP runtime supplied by the hosting environment and does not download a vendor library.
 
-No CDN, remote JavaScript bundle or analytics script is required for normal operation.
+`composer.json` also documents these server-provided PHP extension capabilities in `suggest`:
+
+- `ext-ftp` — FTP/FTPS support.
+- `ext-ssh2` — SFTP support.
+- `ext-zip` — ZIP creation/extraction and directory downloads.
+- `ext-sodium` — preferred credential encryption implementation.
+- `ext-openssl` — encryption fallback when sodium is unavailable.
+
+These are hosting/runtime capabilities, not Composer packages bundled or fetched by Ghost FTP. `scripts/audit_dependencies.py` pins the allowed PHP requirement and the exact extension-capability list; adding a third-party package or an unexpected capability makes CI fail.
+
+The public Web package is assembled from tracked project files only. No CDN, remote JavaScript bundle, analytics script or Ghost FTP cloud backend is required for normal operation.
 
 ## GitHub Actions and build tooling
 
