@@ -1,0 +1,14 @@
+/* Ghost FTP iOS core localization. English is the canonical source. */
+
+"Ghost FTP" = "Ghost FTP";
+"Private, direct file transfer" = "Özel, doğrudan dosya aktarımı";
+"Saved connection" = "Kayıtlı bağlantı";
+"Forget saved connection" = "Kayıtlı bağlantıyı unut";
+"Connection" = "Bağlantı";
+"Protocol" = "Protokol";
+"Host" = "Sunucu";
+"Username" = "Kullanıcı adı";
+"Password" = "Parola";
+"FTP is unencrypted. Prefer FTPS whenever the server supports it." = "FTP şifrelenmemiştir. Sunucu destekliyorsa FTPS kullanın.";
+"Connecting…" = "Bağlanıyor…";
+"Connect" = "Bağlan";

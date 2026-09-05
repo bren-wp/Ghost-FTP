@@ -73,7 +73,7 @@ struct ConnectionView: View {
                     HStack {
                         Spacer()
                         if store.busy { ProgressView().padding(.trailing, 8) }
-                        Text(store.busy ? "Connecting…" : "Connect")
+                        Text(store.busy ? String(localized: "Connecting…") : String(localized: "Connect"))
                             .fontWeight(.semibold)
                         Spacer()
                     }

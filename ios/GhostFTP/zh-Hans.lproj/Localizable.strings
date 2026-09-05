@@ -1,0 +1,14 @@
+/* Ghost FTP iOS core localization. English is the canonical source. */
+
+"Ghost FTP" = "Ghost FTP";
+"Private, direct file transfer" = "私密、直接的文件传输";
+"Saved connection" = "已保存的连接";
+"Forget saved connection" = "忘记已保存的连接";
+"Connection" = "连接";
+"Protocol" = "协议";
+"Host" = "主机";
+"Username" = "用户名";
+"Password" = "密码";
+"FTP is unencrypted. Prefer FTPS whenever the server supports it." = "FTP 未加密。服务器支持时请优先使用 FTPS。";
+"Connecting…" = "正在连接…";
+"Connect" = "连接";

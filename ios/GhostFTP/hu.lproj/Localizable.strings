@@ -1,0 +1,14 @@
+/* Ghost FTP iOS core localization. English is the canonical source. */
+
+"Ghost FTP" = "Ghost FTP";
+"Private, direct file transfer" = "Privát, közvetlen fájlátvitel";
+"Saved connection" = "Mentett kapcsolat";
+"Forget saved connection" = "Mentett kapcsolat elfelejtése";
+"Connection" = "Kapcsolat";
+"Protocol" = "Protokoll";
+"Host" = "Kiszolgáló";
+"Username" = "Felhasználónév";
+"Password" = "Jelszó";
+"FTP is unencrypted. Prefer FTPS whenever the server supports it." = "Az FTP nincs titkosítva. Ha a kiszolgáló támogatja, használjon FTPS-t.";
+"Connecting…" = "Kapcsolódás…";
+"Connect" = "Kapcsolódás";
