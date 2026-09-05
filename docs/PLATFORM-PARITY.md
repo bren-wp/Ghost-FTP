@@ -1,6 +1,8 @@
 # Windows and Linux platform parity
 
-Ghost FTP 2.x supports two application platforms: **Windows** and **Linux**. Both editions use the same transfer, profile, settings, localization and security core. The presentation layer differs intentionally: Windows is a native Win32 graphical application, while Linux uses a hardened terminal interface.
+Ghost FTP currently maintains two desktop application platforms: **Windows** and **Linux**. Both editions use the same transfer, profile, settings, localization and security core. The presentation layer differs intentionally: Windows is a native Win32 graphical application, while Linux uses a hardened terminal interface.
+
+The active maturity baseline is **0.1.0 Beta**. Functional parity work completed before the version reset is preserved; changing the active version line does not remove or downgrade existing capabilities.
 
 The objective is functional parity without introducing a third-party cross-platform GUI runtime solely to make the interfaces visually identical.
 
@@ -40,9 +42,27 @@ There is no alternate Linux protocol implementation and no alternate Windows tra
 | SFTP host fingerprint confirmation | Yes | Yes |
 | Saved endpoint-bound credentials | Core support | Core support |
 
-Ghost FTP 2.0 corrected a Linux defect from the 1.x line where the terminal frontend required an SFTP private key and rejected a non-empty key passphrase. Linux now passes the same password/key/passphrase model to the shared engine as Windows.
+Earlier repository work corrected a Linux defect where the terminal frontend required an SFTP private key and rejected a non-empty key passphrase. That completed fix remains part of the 0.1.0 Beta baseline. Linux now passes the same password/key/passphrase model to the shared engine as Windows.
 
 When a Linux user explicitly accepts a new SFTP host key, the accepted public fingerprint is retained in the in-process connection metadata so a later `profile-save` can persist the verified endpoint pin. Passwords and private-key passphrases are still removed from the session config after connection and are not printed by profile commands.
+
+## Windows Site Manager parity boundary
+
+Windows additionally provides a graphical Site Manager because it is the native GUI reference frontend. Site Manager does not create a separate connection stack.
+
+It uses the same profile store and connection engine for:
+
+- saved site selection;
+- protocol, server and port;
+- username and protected password handling;
+- local and remote start paths;
+- SFTP private key and key passphrase;
+- endpoint-bound stored credentials;
+- normal connection validation and SFTP host trust.
+
+The one-click **Sites** toolbar button and the application menu open the same Site Manager implementation. Quick connection uses the normal `connectNow()` path after transferring the entered values to the main connection state.
+
+Linux exposes the same underlying profile/connection capabilities through terminal commands rather than reproducing the Windows dialog.
 
 ## File-operation parity
 
@@ -66,13 +86,13 @@ When a Linux user explicitly accepts a new SFTP host key, the accepted public fi
 
 Linux local commands call `Engine.LocalList`, `LocalMkdir`, `LocalRename` and `LocalDelete`. They therefore retain the same no-follow/no-replace/root-delete protections used by the Windows local panel instead of falling back to shell commands.
 
-`get` and `put` now resolve relative local paths from the Linux local panel directory rather than from the process working directory. Relative remote paths resolve from the active remote directory. This makes the two-panel terminal workflow predictable and consistent with the Windows file-manager model.
+`get` and `put` resolve relative local paths from the Linux local panel directory rather than from the process working directory. Relative remote paths resolve from the active remote directory. This makes the two-panel terminal workflow predictable and consistent with the Windows file-manager model.
 
 `gettree` and `puttree` call `Engine.AddTreeTransfer`; they inherit the shared tree planner's bounded depth/item count, symlink handling, path validation and normal transfer queue/conflict policy behavior.
 
 ## Delete confirmation parity
 
-The canonical `confirm-delete` setting is enforced on both frontends. Linux remote `delete` and local `ldelete` now fail closed unless the user explicitly confirms the operation when confirmation is enabled.
+The canonical `confirm-delete` setting is enforced on both frontends. Linux remote `delete` and local `ldelete` fail closed unless the user explicitly confirms the operation when confirmation is enabled.
 
 Disabling confirmation is itself a validated persisted settings change (`set confirm-delete false`). The terminal does not silently bypass the setting for convenience.
 
@@ -99,6 +119,8 @@ Linux profile commands use the same protected profile store as Windows:
 - `profile-remove <id>` removes a profile through the shared store.
 
 `profile-save` intentionally does **not** copy an already-used password or passphrase from the active connection. Those secrets are cleared after authentication, so the command never reconstructs or prints them merely to create a profile. Credential persistence remains an explicit protected-profile operation rather than an implicit side effect of connecting.
+
+On Windows, selecting a saved profile or Site Manager entry also does not reveal a protected saved password or private-key passphrase as plaintext. Credential reuse stays inside the protected profile-resolution boundary.
 
 ## Settings parity
 
@@ -147,16 +169,21 @@ Command names remain stable English technical tokens so scripts/documentation do
 
 ### Windows
 
-Windows is the premium reference GUI. It uses:
+Windows is the graphical reference GUI. It uses:
 
 - a native Win32 window;
 - high-DPI scaling;
 - graphite/navy dark surfaces;
 - owner-drawn action buttons;
-- local/remote file panels;
+- a balanced local/server dual-pane workspace;
+- a visible status/session strip;
+- direct upload/download controls between panes;
+- a full-width transfer queue;
 - connection/profile controls;
-- transfer queue controls;
+- one-click Sites access and native Site Manager;
 - native dialogs and file/folder pickers.
+
+The refined layout is reapplied after resize, DPI, protocol and language changes so the application does not fall back to obsolete geometry after startup.
 
 ### Linux
 
@@ -166,15 +193,23 @@ This presentation keeps the application free of a bundled cross-platform GUI fra
 
 A future Linux graphical frontend is acceptable only if it can preserve the project's dependency, security and reproducibility requirements. A visual change must never fork the transfer/security engine.
 
+## Active version and packaging parity
+
+The root `VERSION` file is shared by both maintained platforms.
+
+During the pre-stable line, `0.x.y` builds are Beta releases. Windows Setup, Windows Portable and Linux packages all use the same numeric version. The first stable version is reserved as **1.0.0**.
+
+See [Versioning policy](VERSIONING.md).
+
 ## Retired application platforms
 
-Android, iOS and macOS application targets were retired from the active 2.x source tree. Historical 1.x commits and releases remain immutable and may still contain those platform sources and artifacts.
+Android, iOS and macOS application targets are not part of the active Windows/Linux source/build matrix. Historical commits and releases remain immutable and may still contain those platform sources and artifacts.
 
-The existing Web companion remains in the repository as a separate source surface. It is not counted as a Windows/Linux desktop application platform artifact in 2.x releases.
+The existing Web companion remains in the repository as a separate source surface. It is not counted as a Windows/Linux desktop application platform artifact in current releases.
 
 ## Parity regression coverage
 
-Linux-specific regressions now verify:
+Linux-specific regressions verify:
 
 - remote relative paths resolve from the active remote directory;
 - local relative paths resolve from the active local panel directory;
@@ -183,7 +218,9 @@ Linux-specific regressions now verify:
 - empty, negative or unrecognized confirmations remain fail-closed;
 - explicit affirmative confirmation is accepted through the localization-aware affirmative parser.
 
-The repository/platform audits additionally ensure retired application targets do not return and both maintained platform production builds remain present.
+Windows production validation additionally exercises native package builds, control creation, Site Manager construction and authentic UI capture on a real Windows runner.
+
+The repository/platform audits ensure retired application targets do not return and both maintained platform production builds remain present.
 
 ## Parity change rule
 
