@@ -58,11 +58,13 @@ class UIStabilityHardeningTests(unittest.TestCase):
 
     def test_windows_layout_and_actions_follow_current_context(self) -> None:
         ui = self.read("internal/desktop/ui_windows.go")
+        layout = self.read("internal/desktop/workspace_layout_windows.go")
         windows = self.read("internal/desktop/windows.go")
         win32 = self.read("internal/desktop/win32_defs_windows.go")
         actions = self.read("internal/desktop/action_state_windows.go")
-        for marker in ("preferredWindowBounds", "compact := width < 1180", "resizeListColumns", "layoutPanelWidth"):
+        for marker in ("preferredWindowBounds", "resizeListColumns", "layoutPanelWidth"):
             self.assertIn(marker, ui)
+        self.assertIn("compact := width < 1320", layout)
         for marker in ("wmGetMinMaxInfo", "lvnItemChanged", "updateActionControls()", "minMaxInfoFromLParam", "minMaxInfoToLParam"):
             self.assertIn(marker, windows)
         self.assertNotIn("(*minMaxInfo)(unsafe.Pointer(lParam))", windows)
@@ -82,6 +84,70 @@ class UIStabilityHardeningTests(unittest.TestCase):
         # while other locales can provide their own equivalent cue text.
         self.assertIn('"cue.host":           "FTP/SFTP server, e.g. ftp.example.com"', catalogs)
         self.assertIn('"cue.user": "Username, may be user@example.com"', catalogs)
+
+    def test_windows_connection_surface_never_overwrites_locale_with_croatian_literals(self) -> None:
+        profiles = self.read("internal/desktop/connection_profiles_windows.go")
+        transfers = self.read("internal/desktop/transfers_windows.go")
+
+        for forbidden in (
+            '"Brzi spoj (bez profila)"',
+            '"FTP / SFTP lozinka"',
+            '"Zaporka privatnog ključa"',
+            '"● POVEZANO"',
+            '"● NIJE POVEZANO"',
+            '"Povezivanje s "',
+            '"Provjera SFTP ključa i povezivanje…"',
+        ):
+            self.assertNotIn(forbidden, profiles)
+
+        for marker in (
+            'a.tr("profile.quick")',
+            'a.tr("cue.password")',
+            'a.tr("cue.passphrase")',
+            'a.tr("badge.connected")',
+            'a.tr("badge.disconnected")',
+            'a.tr("connection.connecting", host)',
+            'a.tr("sftp.verifying")',
+        ):
+            self.assertIn(marker, profiles)
+
+        self.assertNotIn("%d aktivnih", transfers)
+        self.assertNotIn("na čekanju", transfers)
+        self.assertIn('a.tr("transfer.summary", running, queued, done)', transfers)
+        self.assertIn('a.tr("transfer.summary_skipped", skipped)', transfers)
+        self.assertIn('a.tr("transfer.summary_failed", failed)', transfers)
+
+    def test_site_manager_labels_are_public_brand_clean_and_24_language_aware(self) -> None:
+        site = self.read("internal/desktop/site_manager_windows.go")
+        supported = (
+            "en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja",
+            "it", "pl", "nl", "cs", "uk", "sv", "ro", "hu", "da", "fi", "no", "ko",
+        )
+        for code in supported:
+            self.assertIn(f'"{code}": {{', site)
+        for marker in (
+            '"en": {"Local path", "Remote path"}',
+            '"hr": {"Lokalna putanja", "Udaljena putanja"}',
+            "cleanSFTPSecurityTitle",
+            'label(parent.tr("cue.passphrase")',
+            "sitePathLabel(parent.languageCode(), false)",
+            "sitePathLabel(parent.languageCode(), true)",
+        ):
+            self.assertIn(marker, site)
+        self.assertNotIn('label(parent.tr("sftp.security")', site)
+        self.assertNotIn('"GhostFTP — SFTP security"', site)
+
+    def test_authentic_capture_width_has_room_for_complete_primary_actions(self) -> None:
+        layout = self.read("internal/desktop/workspace_layout_windows.go")
+        for marker in (
+            "{a.saveProfile, 128}",
+            "{a.removeProfile, 132}",
+            "{a.settingsBtn, 116}",
+            "connectW, disconnectW := 120, 124",
+            "queueWidths := []int{92, 96, 92, 88, 142}",
+        ):
+            self.assertIn(marker, layout)
+        self.assertIn("profileW < 220", layout)
 
 
 if __name__ == "__main__":
