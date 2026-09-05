@@ -8,7 +8,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SUPPORTED = ("en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja", "it", "pl", "nl", "cs", "uk", "sv")
+SUPPORTED = (
+    "en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja",
+    "it", "pl", "nl", "cs", "uk", "sv", "ro", "hu", "da", "fi", "no", "ko",
+)
 
 
 def fail(message: str) -> None:
@@ -27,12 +30,18 @@ def main() -> int:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
 
+    if len(SUPPORTED) < 21 or SUPPORTED[0] != "en":
+        fail("localization registry must remain English-first with at least 21 languages")
+
     runtime = read("internal/i18n/i18n.go")
     if 'const DefaultLanguage = "en"' not in runtime:
         fail("English must remain the default runtime language")
     for code in SUPPORTED:
         if f'Code: "{code}"' not in runtime:
             fail(f"missing supported runtime language: {code}")
+    for marker in ("TranslationCoverage", "Ghost FTP must expose at least 21 supported languages", "English must be the first"):
+        if marker not in runtime:
+            fail(f"runtime localization invariant is missing: {marker}")
 
     required_catalog_files = (
         "internal/i18n/catalogs.go",
@@ -50,10 +59,32 @@ def main() -> int:
     catalog = read("internal/i18n/catalogs.go")
     if '"en": {' not in catalog or '"hr": {' not in catalog:
         fail("canonical English and Croatian catalogs must be explicit")
+
     test_text = read("internal/i18n/i18n_test.go")
-    for marker in ("ValidateCatalogs()", "expected 18 supported languages", "format verbs differ"):
+    for marker in (
+        "ValidateCatalogs()",
+        "expected 24 supported languages",
+        "format verbs differ",
+        "supplemental catalog",
+        "TranslationCoverage",
+    ):
         if marker not in test_text:
             fail(f"localization regression test is missing marker: {marker}")
+
+    installer_messages = read("cmd/installer/messages.go")
+    installer_language = read("cmd/installer/language.go")
+    installer_main = read("cmd/installer/main.go")
+    for code in SUPPORTED:
+        if f'\"{code}\": {{' not in installer_messages:
+            fail(f"installer primary copy is missing language: {code}")
+    for marker in ("installerCopyFor", "installerConfirmTitle"):
+        if marker not in installer_messages:
+            fail(f"installer localization helper is missing: {marker}")
+    for marker in ("setupCopy.CompletedTitle", "setupCopy.LaunchQuestion"):
+        if marker not in installer_main:
+            fail(f"installer localized primary flow is missing marker: {marker}")
+    if "i18n.Languages()" not in installer_language:
+        fail("installer language list is not derived from the canonical registry")
 
     settings = read("internal/model/types.go")
     if 'Language' not in settings or 'json:\"language,omitempty\"' not in settings:
@@ -78,7 +109,6 @@ def main() -> int:
         if marker not in entrypoint:
             fail(f"Windows English fallback marker is missing: {marker}")
 
-    # User-facing fallback text must not regress to the retired product name.
     for legacy in (
         "GhostFTP closed unexpectedly.",
         "GhostFTP could not start.",
@@ -119,6 +149,8 @@ def main() -> int:
     print("WINDOWS_STARTUP_FALLBACKS=en")
     print("PUBLIC_BRAND=Ghost FTP")
     print("SUPPORTED_LANGUAGES=" + ",".join(SUPPORTED))
+    print(f"SUPPORTED_LANGUAGE_COUNT={len(SUPPORTED)}")
+    print("INSTALLER_PRIMARY_FLOW_LOCALIZED=YES")
     return 0
 
 
