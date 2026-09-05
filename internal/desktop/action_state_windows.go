@@ -56,6 +56,7 @@ func (a *app) updateActionControls() {
 			if index >= 0 && index < len(a.remoteItems) && !a.remoteItems[index].IsSymlink {
 				chmodSelected++
 			}
+		}
 	}
 	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
 
