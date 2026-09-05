@@ -38,27 +38,22 @@ func TestConnectionDiagnosticStatusDoesNotMixTransportDiagnosticsIntoConciseStat
 	a := &app{settings: model.Settings{Language: "en"}}
 	host := "example.test"
 
-	secureWebRoot := a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
-		Secure: true, RootMode: "account", WebRoot: "public_html", WebRootDetected: true,
-	})
-	plainAccountRoot := a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
-		Secure: false, RootMode: "account",
-	})
-	sftpHome := a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
-		Secure: true, RootMode: "home",
-	})
+	statuses := map[string]string{
+		"secure web root": a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
+			Secure: true, RootMode: "account", WebRoot: "public_html", WebRootDetected: true,
+		}),
+		"plain account root": a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
+			Secure: false, RootMode: "account",
+		}),
+		"sftp home": a.connectionDiagnosticStatus(host, remote.ConnectionDiagnostics{
+			Secure: true, RootMode: "home",
+		}),
+	}
 
 	want := i18n.T("en", "connection.connected", host)
-	for name, got := range map[string]string{
-		"secure web root": secureWebRoot,
-		"plain account root": plainAccountRoot,
-		"sftp home": plainAccountRoot,
-	} {
+	for name, got := range statuses {
 		if got != want {
 			t.Fatalf("%s status = %q, want concise localized status %q", name, got, want)
 		}
-	}
-	if sftpHome != want {
-		t.Fatalf("sftp home status = %q, want concise localized status %q", sftpHome, want)
 	}
 }
