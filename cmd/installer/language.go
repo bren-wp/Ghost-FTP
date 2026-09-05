@@ -23,7 +23,7 @@ func selectInstallerLanguage() (string, bool) {
 
 	index, ok := platform.SelectLanguageDialog(
 		brand.ProductName+" Setup",
-		"Choose the language to use in Ghost FTP. You can change it later in Settings.",
+		"Choose the setup language. English is the default.\nNo telemetry · No ads · FTP · FTPS · SFTP",
 		options,
 		0,
 	)
