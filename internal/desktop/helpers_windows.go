@@ -4,13 +4,14 @@ package desktop
 
 import (
 	"fmt"
-	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 func (a *app) goSafe(fn func()) {
@@ -18,7 +19,7 @@ func (a *app) goSafe(fn func()) {
 		defer func() {
 			if recover() != nil {
 				a.dispatch(func() {
-					a.setStatus("Radnja nije dovršena. Pokušajte ponovno.")
+					a.setStatus(a.tr("error.generic"))
 				})
 			}
 		}()
@@ -46,7 +47,7 @@ func (a *app) runDispatch() {
 		func() {
 			defer func() {
 				if recover() != nil {
-					a.setStatus("Radnja nije dovršena. Pokušajte ponovno.")
+					a.setStatus(a.tr("error.generic"))
 				}
 			}()
 			f()
@@ -161,64 +162,6 @@ func setListRedraw(list uintptr, enabled bool) {
 	}
 }
 
-func fillItems(list uintptr, items []model.Item) {
-	setListRedraw(list, false)
-	defer setListRedraw(list, true)
-	clearList(list)
-	for i, it := range items {
-		insertListRowWithImage(list, i, []string{it.Name, formatItemType(it), formatSize(it.Size, it.IsDirectory), formatTime(it.Modified)}, systemIconIndex(it.Name, it.IsDirectory))
-	}
-}
-
-func fillTransfers(list uintptr, jobs []model.TransferJob) {
-	setListRedraw(list, false)
-	defer setListRedraw(list, true)
-	clearList(list)
-	for i, j := range jobs {
-		dir := "Preuzimanje"
-		if j.Direction == "upload" {
-			dir = "Slanje"
-		}
-		status := transferStatusLabel(j.Status)
-		if j.Status == "running" && j.Attempts > 1 {
-			status += fmt.Sprintf(" — pokušaj %d", j.Attempts)
-		}
-		if j.Error != "" {
-			status += ": " + j.Error
-		}
-		progress := j.Progress
-		if progress > 0 && progress <= 1 {
-			progress *= 100
-		}
-		if progress < 0 {
-			progress = 0
-		}
-		if progress > 100 {
-			progress = 100
-		}
-		insertListRow(list, i, []string{dir, j.LocalPath, j.RemotePath, status, fmt.Sprintf("%.0f%%", progress)})
-	}
-}
-
-func transferStatusLabel(status string) string {
-	switch status {
-	case "queued":
-		return "Na čekanju"
-	case "running":
-		return "U tijeku"
-	case "done":
-		return "Završeno"
-	case "failed":
-		return "Greška"
-	case "cancelled":
-		return "Otkazano"
-	case "skipped":
-		return "Preskočeno"
-	default:
-		return status
-	}
-}
-
 func insertListRow(list uintptr, row int, cols []string) {
 	insertListRowWithImage(list, row, cols, -1)
 }
@@ -287,26 +230,9 @@ func systemIconIndex(name string, directory bool) int32 {
 	return info.IconIndex
 }
 
-func formatItemType(it model.Item) string {
-	if it.IsSymlink {
-		return "Veza"
-	}
-	if it.IsDirectory {
-		return "Mapa"
-	}
-	ext := strings.TrimPrefix(strings.ToUpper(filepath.Ext(it.Name)), ".")
-	if ext == "" {
-		return "Datoteka"
-	}
-	if len(ext) > 8 {
-		ext = ext[:8]
-	}
-	return ext
-}
-
 func formatSize(n int64, dir bool) string {
 	if dir {
-		return "Mapa"
+		return "—"
 	}
 	const kb = 1024
 	if n < kb {
