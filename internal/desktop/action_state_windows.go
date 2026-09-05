@@ -52,7 +52,6 @@ func (a *app) updateActionControls() {
 				chmodSelected++
 			}
 		}
-	}
 	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
 
 	transferState := deriveTransferActionState(a.transferJobs, selectedIndices(a.transferList), a.connected && !a.connectionBusy, a.queuePaused)
@@ -67,4 +66,9 @@ func (a *app) updateActionControls() {
 	setControlEnabled(a.cancelJob, transferState.Cancel)
 	setControlEnabled(a.retryJob, transferState.Retry)
 	setControlEnabled(a.clearQueue, transferState.Clear && !a.connectionBusy)
+
+	// The canonical action state still owns enable/disable semantics. Layout is a
+	// pure presentation pass applied afterwards so clearer pane proportions never
+	// bypass connection, selection or transfer safety checks.
+	a.refineWorkspaceLayout()
 }
