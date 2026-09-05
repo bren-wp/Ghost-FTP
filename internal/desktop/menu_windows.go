@@ -29,34 +29,38 @@ var (
 // menuWords contains only native-menu nouns that are not part of the shared
 // application catalog. Action labels reuse i18n.T so the menu follows the same
 // 24-language runtime selection as the rest of the Windows UI.
-var menuWords = map[string][7]string{
-	"en": {"File", "Sites", "Transfers", "View", "Help", "Site Manager", "Exit"},
-	"hr": {"Datoteka", "Web-mjesta", "Prijenosi", "Prikaz", "Pomoć", "Upravitelj web-mjesta", "Izlaz"},
-	"de": {"Datei", "Server", "Übertragungen", "Ansicht", "Hilfe", "Serververwaltung", "Beenden"},
-	"fr": {"Fichier", "Sites", "Transferts", "Affichage", "Aide", "Gestionnaire de sites", "Quitter"},
-	"es": {"Archivo", "Sitios", "Transferencias", "Ver", "Ayuda", "Gestor de sitios", "Salir"},
-	"tr": {"Dosya", "Siteler", "Aktarımlar", "Görünüm", "Yardım", "Site Yöneticisi", "Çıkış"},
-	"el": {"Αρχείο", "Ιστότοποι", "Μεταφορές", "Προβολή", "Βοήθεια", "Διαχείριση τοποθεσιών", "Έξοδος"},
-	"pt": {"Ficheiro", "Sites", "Transferências", "Ver", "Ajuda", "Gestor de sites", "Sair"},
-	"zh": {"文件", "站点", "传输", "查看", "帮助", "站点管理器", "退出"},
-	"ru": {"Файл", "Сайты", "Передачи", "Вид", "Справка", "Менеджер сайтов", "Выход"},
-	"hi": {"फ़ाइल", "साइटें", "स्थानांतरण", "दृश्य", "सहायता", "साइट प्रबंधक", "बाहर निकलें"},
-	"ja": {"ファイル", "サイト", "転送", "表示", "ヘルプ", "サイトマネージャー", "終了"},
-	"it": {"File", "Siti", "Trasferimenti", "Visualizza", "Aiuto", "Gestione siti", "Esci"},
-	"pl": {"Plik", "Witryny", "Transfery", "Widok", "Pomoc", "Menedżer witryn", "Wyjście"},
-	"nl": {"Bestand", "Sites", "Overdrachten", "Beeld", "Help", "Sitebeheer", "Afsluiten"},
-	"cs": {"Soubor", "Servery", "Přenosy", "Zobrazení", "Nápověda", "Správce serverů", "Konec"},
-	"uk": {"Файл", "Сайти", "Передавання", "Вигляд", "Довідка", "Менеджер сайтів", "Вихід"},
-	"sv": {"Arkiv", "Platser", "Överföringar", "Visa", "Hjälp", "Platshanterare", "Avsluta"},
-	"ro": {"Fișier", "Site-uri", "Transferuri", "Vizualizare", "Ajutor", "Manager site-uri", "Ieșire"},
-	"hu": {"Fájl", "Helyek", "Átvitelek", "Nézet", "Súgó", "Helykezelő", "Kilépés"},
-	"da": {"Filer", "Websteder", "Overførsler", "Vis", "Hjælp", "Webstedsadministrator", "Afslut"},
-	"fi": {"Tiedosto", "Sivustot", "Siirrot", "Näytä", "Ohje", "Sivustojen hallinta", "Lopeta"},
-	"no": {"Fil", "Nettsteder", "Overføringer", "Vis", "Hjelp", "Nettstedsbehandling", "Avslutt"},
-	"ko": {"파일", "사이트", "전송", "보기", "도움말", "사이트 관리자", "종료"},
+//
+// Index contract: File, Servers, Transfers, View, Help, Site Manager, Exit,
+// Tools, Diagnostics. Keep the stable indices because the reference shell also
+// reuses the localized Servers and Site Manager nouns.
+var menuWords = map[string][9]string{
+	"en": {"File", "Servers", "Transfers", "View", "Help", "Site Manager", "Exit", "Tools", "Diagnostics"},
+	"hr": {"Datoteka", "Poslužitelji", "Prijenosi", "Prikaz", "Pomoć", "Upravitelj poslužitelja", "Izlaz", "Alati", "Dijagnostika"},
+	"de": {"Datei", "Server", "Übertragungen", "Ansicht", "Hilfe", "Serververwaltung", "Beenden", "Werkzeuge", "Diagnose"},
+	"fr": {"Fichier", "Serveurs", "Transferts", "Affichage", "Aide", "Gestionnaire de serveurs", "Quitter", "Outils", "Diagnostics"},
+	"es": {"Archivo", "Servidores", "Transferencias", "Ver", "Ayuda", "Gestor de servidores", "Salir", "Herramientas", "Diagnóstico"},
+	"tr": {"Dosya", "Sunucular", "Aktarımlar", "Görünüm", "Yardım", "Sunucu Yöneticisi", "Çıkış", "Araçlar", "Tanılama"},
+	"el": {"Αρχείο", "Διακομιστές", "Μεταφορές", "Προβολή", "Βοήθεια", "Διαχείριση διακομιστών", "Έξοδος", "Εργαλεία", "Διαγνωστικά"},
+	"pt": {"Ficheiro", "Servidores", "Transferências", "Ver", "Ajuda", "Gestor de servidores", "Sair", "Ferramentas", "Diagnóstico"},
+	"zh": {"文件", "服务器", "传输", "查看", "帮助", "服务器管理器", "退出", "工具", "诊断"},
+	"ru": {"Файл", "Серверы", "Передачи", "Вид", "Справка", "Менеджер серверов", "Выход", "Инструменты", "Диагностика"},
+	"hi": {"फ़ाइल", "सर्वर", "स्थानांतरण", "दृश्य", "सहायता", "सर्वर प्रबंधक", "बाहर निकलें", "उपकरण", "निदान"},
+	"ja": {"ファイル", "サーバー", "転送", "表示", "ヘルプ", "サーバーマネージャー", "終了", "ツール", "診断"},
+	"it": {"File", "Server", "Trasferimenti", "Visualizza", "Aiuto", "Gestione server", "Esci", "Strumenti", "Diagnostica"},
+	"pl": {"Plik", "Serwery", "Transfery", "Widok", "Pomoc", "Menedżer serwerów", "Wyjście", "Narzędzia", "Diagnostyka"},
+	"nl": {"Bestand", "Servers", "Overdrachten", "Beeld", "Help", "Serverbeheer", "Afsluiten", "Hulpmiddelen", "Diagnostiek"},
+	"cs": {"Soubor", "Servery", "Přenosy", "Zobrazení", "Nápověda", "Správce serverů", "Konec", "Nástroje", "Diagnostika"},
+	"uk": {"Файл", "Сервери", "Передавання", "Вигляд", "Довідка", "Менеджер серверів", "Вихід", "Інструменти", "Діагностика"},
+	"sv": {"Arkiv", "Servrar", "Överföringar", "Visa", "Hjälp", "Serverhanterare", "Avsluta", "Verktyg", "Diagnostik"},
+	"ro": {"Fișier", "Servere", "Transferuri", "Vizualizare", "Ajutor", "Manager servere", "Ieșire", "Instrumente", "Diagnosticare"},
+	"hu": {"Fájl", "Kiszolgálók", "Átvitelek", "Nézet", "Súgó", "Kiszolgálókezelő", "Kilépés", "Eszközök", "Diagnosztika"},
+	"da": {"Filer", "Servere", "Overførsler", "Vis", "Hjælp", "Serveradministrator", "Afslut", "Værktøjer", "Diagnostik"},
+	"fi": {"Tiedosto", "Palvelimet", "Siirrot", "Näytä", "Ohje", "Palvelinten hallinta", "Lopeta", "Työkalut", "Diagnostiikka"},
+	"no": {"Fil", "Servere", "Overføringer", "Vis", "Hjelp", "Serverbehandling", "Avslutt", "Verktøy", "Diagnostikk"},
+	"ko": {"파일", "서버", "전송", "보기", "도움말", "서버 관리자", "종료", "도구", "진단"},
 }
 
-func nativeMenuWords(language string) [7]string {
+func nativeMenuWords(language string) [9]string {
 	if words, ok := menuWords[i18n.Normalize(language)]; ok {
 		return words
 	}
@@ -82,11 +86,12 @@ func (a *app) installMainMenu() {
 		return
 	}
 	fileMenu, _, _ := createPopupMenuW.Call()
-	sitesMenu, _, _ := createPopupMenuW.Call()
-	transferMenu, _, _ := createPopupMenuW.Call()
 	viewMenu, _, _ := createPopupMenuW.Call()
+	transferMenu, _, _ := createPopupMenuW.Call()
+	serversMenu, _, _ := createPopupMenuW.Call()
+	toolsMenu, _, _ := createPopupMenuW.Call()
 	helpMenu, _, _ := createPopupMenuW.Call()
-	if fileMenu == 0 || sitesMenu == 0 || transferMenu == 0 || viewMenu == 0 || helpMenu == 0 {
+	if fileMenu == 0 || viewMenu == 0 || transferMenu == 0 || serversMenu == 0 || toolsMenu == 0 || helpMenu == 0 {
 		destroyMenuW.Call(root)
 		return
 	}
@@ -97,24 +102,28 @@ func (a *app) installMainMenu() {
 	appendMenuSeparator(fileMenu)
 	appendMenuItem(fileMenu, idExitApp, words[6])
 
-	appendMenuItem(sitesMenu, idSiteManager, words[5])
-	appendMenuSeparator(sitesMenu)
-	appendMenuItem(sitesMenu, idSaveProfile, a.tr("profile.save"))
-	appendMenuItem(sitesMenu, idRemoveProfile, a.tr("profile.delete"))
+	appendMenuItem(viewMenu, idRefreshAll, a.tr("common.refresh"))
 
-	appendMenuItem(transferMenu, idRefreshAll, a.tr("common.refresh"))
-	appendMenuSeparator(transferMenu)
 	appendMenuItem(transferMenu, idPauseQueue, a.tr("transfer.pause"))
 	appendMenuItem(transferMenu, idResumeQueue, a.tr("transfer.resume"))
+	appendMenuSeparator(transferMenu)
 	appendMenuItem(transferMenu, idClearQueue, a.tr("transfer.clear"))
 
-	appendMenuItem(viewMenu, idSettings, a.tr("common.settings"))
+	appendMenuItem(serversMenu, idSiteManager, words[5])
+	appendMenuSeparator(serversMenu)
+	appendMenuItem(serversMenu, idSaveProfile, a.tr("profile.save"))
+	appendMenuItem(serversMenu, idRemoveProfile, a.tr("profile.delete"))
+
+	appendMenuItem(toolsMenu, idSettings, a.tr("common.settings"))
+	appendMenuItem(toolsMenu, idToolbarDiagnostics, words[8])
+
 	appendMenuItem(helpMenu, idAbout, a.tr("common.about"))
 
 	appendPopup(root, fileMenu, words[0])
-	appendPopup(root, sitesMenu, words[1])
-	appendPopup(root, transferMenu, words[2])
 	appendPopup(root, viewMenu, words[3])
+	appendPopup(root, transferMenu, words[2])
+	appendPopup(root, serversMenu, words[1])
+	appendPopup(root, toolsMenu, words[7])
 	appendPopup(root, helpMenu, words[4])
 
 	old, _, _ := getMenuW.Call(a.hwnd)
