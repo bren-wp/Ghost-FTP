@@ -23,6 +23,63 @@ const (
 
 var linuxProfileAAD = []byte("Ghost FTP secure profiles v1")
 
+func validateLinuxProfileDirectoryIdentity(info os.FileInfo) error {
+	if info == nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("Linux profile storage path is not a safe directory")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || stat.Uid != uint32(os.Geteuid()) {
+		return errors.New("Linux profile storage directory is not owned by the current user")
+	}
+	return nil
+}
+
+// ensurePrivateLinuxProfileDirectory is deliberately allowed to tighten the
+// leaf Ghost FTP data directory to 0700 when it is already owned by the current
+// user. It never chmods an unverified path: Lstat rejects symlinks/non-directories
+// first, ownership is checked before chmod, and the same directory identity is
+// revalidated afterwards. Parent directories are not modified.
+func ensurePrivateLinuxProfileDirectory(dir string) error {
+	if strings.TrimSpace(dir) == "" || !filepath.IsAbs(dir) {
+		return errors.New("Linux profile storage directory is invalid")
+	}
+
+	info, err := os.Lstat(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return err
+		}
+		info, err = os.Lstat(dir)
+	}
+	if err != nil {
+		return err
+	}
+	if err := validateLinuxProfileDirectoryIdentity(info); err != nil {
+		return err
+	}
+
+	if info.Mode().Perm()&0077 != 0 {
+		if err := os.Chmod(dir, 0700); err != nil {
+			return errors.New("Linux profile storage directory permissions could not be tightened")
+		}
+	}
+
+	after, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if err := validateLinuxProfileDirectoryIdentity(after); err != nil {
+		return err
+	}
+	if !os.SameFile(info, after) {
+		return errors.New("Linux profile storage directory changed during permission hardening")
+	}
+	if after.Mode().Perm()&0077 != 0 {
+		return errors.New("Linux profile storage directory is not private")
+	}
+	return nil
+}
+
 func validateLinuxProfileKeyInfo(info os.FileInfo) error {
 	if info == nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
 		return errors.New("Linux profile key is not a safe regular file")
@@ -149,18 +206,8 @@ func createLinuxProfileKey(dir, path string) ([]byte, error) {
 }
 
 func linuxProfileKey(dir string) ([]byte, error) {
-	if strings.TrimSpace(dir) == "" || !filepath.IsAbs(dir) {
-		return nil, errors.New("Linux profile storage directory is invalid")
-	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := ensurePrivateLinuxProfileDirectory(dir); err != nil {
 		return nil, err
-	}
-	info, err := os.Lstat(dir)
-	if err != nil {
-		return nil, err
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm()&0077 != 0 {
-		return nil, errors.New("Linux profile storage directory is not private")
 	}
 	path := filepath.Join(dir, linuxProfileKeyFile)
 	key, err := readLinuxProfileKey(path)
