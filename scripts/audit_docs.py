@@ -18,6 +18,16 @@ VERSIONED_DOC_TITLE_RE = re.compile(r"(?m)^#\s+(?:Ghost FTP|GhostFTP)\s+\d+\.\d+
 CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d+)\*\*")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 RETIRED_ACTIVE_LINKS = ("../android/", "../ios/", "../macos/")
+STALE_ACTIVE_LINE_MARKERS = (
+    "Ghost FTP 2.x",
+    "active 2.x",
+    "current 2.x",
+    "2.0 line",
+    "2.0 branch",
+    "2.x release contract",
+    "2.x desktop release",
+)
+STALE_EXEMPT = {DOCS / "RELEASE-HISTORY.md"}
 
 
 def fail(message: str) -> None:
@@ -59,6 +69,7 @@ def main() -> int:
     if not INDEX.is_file():
         fail("docs/README.md is missing")
 
+    stale_hits: list[str] = []
     for path in files:
         text = path.read_text(encoding="utf-8")
         if path.parent == DOCS and VERSIONED_DOC_TITLE_RE.search(text):
@@ -68,12 +79,22 @@ def main() -> int:
         for match in HTML_LINK_RE.finditer(text):
             check_link(path, match.group(1))
 
+        # Historical release history may truthfully describe an earlier 2.x
+        # development concept. Current product/operator docs may not present it
+        # as the active line after the 0.1.0 Beta baseline was established.
+        if path not in STALE_EXEMPT and path.name != "CHANGELOG.md":
+            for marker in STALE_ACTIVE_LINE_MARKERS:
+                if marker.lower() in text.lower():
+                    stale_hits.append(f"{path.relative_to(ROOT)}: {marker}")
+
+    if stale_hits:
+        fail("stale active version-line documentation: " + "; ".join(stale_hits))
+
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid canonical VERSION: {version!r}")
-    if int(version.split(".", 1)[0]) < 2:
-        fail("active documentation contract requires the 2.x Windows/Linux line")
 
+    major = int(version.split(".", 1)[0])
     index_text = INDEX.read_text(encoding="utf-8")
     root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
     if not root_readme.startswith("# Ghost FTP\n"):
@@ -82,6 +103,11 @@ def main() -> int:
         fail("root README current-version marker does not match VERSION")
     if f"**Current Ghost FTP release: {version}**" not in index_text:
         fail("documentation index current-release marker does not match VERSION")
+
+    if major == 0:
+        for where, text in (("README.md", root_readme), ("docs/README.md", index_text)):
+            if "Development status: **Beta**" not in text:
+                fail(f"{where} does not label the pre-1.0 line as Beta")
 
     for path in files:
         text = path.read_text(encoding="utf-8")
@@ -95,9 +121,9 @@ def main() -> int:
 
     if not index_text.startswith("# Ghost FTP documentation\n"):
         fail("documentation index does not use the Ghost FTP public title")
-    for marker in ("Windows", "Linux", "PLATFORM-PARITY.md", "Web companion"):
+    for marker in ("Windows", "Linux", "PLATFORM-PARITY.md", "VERSIONING.md", "Web companion"):
         if marker not in index_text:
-            fail(f"documentation index is missing platform marker: {marker}")
+            fail(f"documentation index is missing platform/version marker: {marker}")
 
     detailed_docs = sorted(path for path in DOCS.glob("*.md") if path.name != "README.md")
     for path in detailed_docs:
@@ -106,7 +132,7 @@ def main() -> int:
         if f"docs/{path.name}" not in root_readme:
             fail(f"root README does not link docs/{path.name}")
 
-    for required in ("docs/PLATFORM-PARITY.md", "linux/README.md", "GhostFTP WEB/README.md"):
+    for required in ("docs/PLATFORM-PARITY.md", "docs/VERSIONING.md", "linux/README.md", "GhostFTP WEB/README.md"):
         if not (ROOT / required).is_file():
             fail(f"missing required active-platform/companion documentation: {required}")
 
@@ -128,9 +154,16 @@ def main() -> int:
         if marker not in parity:
             fail(f"platform parity documentation is missing marker: {marker}")
 
+    versioning = (DOCS / "VERSIONING.md").read_text(encoding="utf-8")
+    for marker in ("0.1.0", "0.x.y", "Beta", "1.0.0", "Setup", "Portable"):
+        if marker not in versioning:
+            fail(f"versioning documentation is missing marker: {marker}")
+
     print(f"DOCS_AUDIT=PASS ({version}; {len(files)} Markdown files, {len(detailed_docs)} detailed documents)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("PRE_1_0_CHANNEL=BETA")
+    print("FIRST_STABLE_VERSION=1.0.0")
     print("PUBLIC_PLATFORM_ARTIFACTS=9")
     print("PUBLIC_RELEASE_FILES=12")
     return 0
