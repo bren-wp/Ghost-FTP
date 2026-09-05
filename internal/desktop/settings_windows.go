@@ -72,7 +72,9 @@ func applyConflictPolicySelection(settings *model.Settings, index int) {
 	case 0:
 		settings.ConflictPolicy = model.ConflictPolicySkip
 		settings.SkipExisting = true
-		settings.BackupBeforeOverwrite = false
+		// Legacy consumers historically saw backup enabled together with skip.
+		// The backup flag has no effect because skip performs no overwrite.
+		settings.BackupBeforeOverwrite = true
 	case 1:
 		settings.ConflictPolicy = model.ConflictPolicyReplace
 		settings.SkipExisting = false
