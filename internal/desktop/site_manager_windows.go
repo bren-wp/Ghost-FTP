@@ -40,6 +40,7 @@ const (
 	siteLBNDblClk           = 2
 	siteBSDefPushButton     = 0x00000001
 	siteWindowStyle         = 0x00C80000 // WS_CAPTION | WS_SYSMENU
+	siteWMCtlColorListBox   = 0x0134
 )
 
 type siteManagerState struct {
@@ -113,7 +114,7 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 					return 0
 				}
 			}
-		case wmCtlColorEdit, wmCtlColorBtn, wmCtlColorStatic:
+		case wmCtlColorEdit, wmCtlColorBtn, wmCtlColorStatic, siteWMCtlColorListBox:
 			setTextColor.Call(wParam, textColor())
 			setBkColor.Call(wParam, windowColor())
 			return state.parent.brush
@@ -221,7 +222,7 @@ func (state *siteManagerState) securitySummary(profile model.PublicProfile) stri
 		parts = append(parts, "● "+state.parent.tr("terminal.key_passphrase"))
 	}
 	if profile.Fingerprint != "" {
-		parts = append(parts, "● SFTP fingerprint "+profile.Fingerprint)
+		parts = append(parts, "● "+strings.TrimSuffix(state.parent.tr("terminal.fingerprint"), ":")+" "+profile.Fingerprint)
 	}
 	if len(parts) == 0 {
 		return "—"
@@ -265,10 +266,6 @@ func (state *siteManagerState) saveCurrent() {
 		platform.ErrorDialog("Ghost FTP — "+nativeMenuWords(state.parent.languageCode())[5], state.parent.tr("settings.invalid_value"), state.parent.userMessage(err, "error.generic"))
 		return
 	}
-	var previous model.PublicProfile
-	if state.selected > 0 && state.selected <= len(state.profiles) {
-		previous = state.profiles[state.selected-1]
-	}
 	saved, err := state.parent.engine.SaveProfile(input)
 	if err != nil {
 		platform.ErrorDialog("Ghost FTP — "+nativeMenuWords(state.parent.languageCode())[5], state.parent.tr("settings.save_failed"), state.parent.userMessage(err, "settings.save_failed_body"))
@@ -284,13 +281,6 @@ func (state *siteManagerState) saveCurrent() {
 	state.parent.applyProfiles(profiles, nil)
 	state.refillProfiles(saved.ID)
 	state.parent.setStatus(state.parent.tr("profile.save") + ": " + saved.Name)
-	if (previous.HasPassword && !saved.HasPassword) || (previous.HasPassphrase && !saved.HasPassphrase) {
-		platform.InfoDialog(
-			"Ghost FTP — "+state.parent.tr("sftp.security"),
-			state.parent.tr("profile.save"),
-			"Stored credentials were removed because the server, account or private-key identity changed. Enter the credential again in the main connection bar if you want to save it for the new identity.",
-		)
-	}
 }
 
 func (state *siteManagerState) deleteCurrent() {
@@ -361,6 +351,9 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	label(strings.ToUpper(words[5]), 310, 18, 570)
 
 	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight, 20, 48, 270, 446, siteIDList)
+	if state.list != 0 {
+		setWindowTheme.Call(state.list, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
+	}
 
 	label(parent.tr("column.name"), 310, 54, 130)
 	state.name = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 48, 430, 30, siteIDName)
