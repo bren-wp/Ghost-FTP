@@ -115,6 +115,40 @@ jobs:
               }
             }
           }
+      - name: Authenticode private-key pipeline smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = (Get-Content VERSION -Raw).Trim()
+          $work = Join-Path $env:RUNNER_TEMP 'ghostftp-signing-smoke'
+          Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+
+          $passwordText = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+          $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
+          .\scripts\New-DevCodeSigningCertificate.ps1 -OutputDirectory $work -Password $password -ValidDays 2
+
+          $pfx = Join-Path $work 'Ghost-FTP-Development-Code-Signing.pfx'
+          $targets = @(
+            (Join-Path $work 'Ghost-FTP-Portable-signing-smoke.exe'),
+            (Join-Path $work 'Ghost-FTP-Setup-signing-smoke.exe')
+          )
+          Copy-Item -LiteralPath "dist\Ghost-FTP-$v-Portable-x64.exe" -Destination $targets[0]
+          Copy-Item -LiteralPath "dist\Ghost-FTP-$v-Setup-x64.exe" -Destination $targets[1]
+
+          .\scripts\Sign-WindowsArtifacts.ps1 -PfxPath $pfx -Password $password -Paths $targets -AllowUntrustedSigner
+          foreach ($target in $targets) {
+            $signature = Get-AuthenticodeSignature -FilePath $target
+            if (-not $signature.SignerCertificate) {
+              throw "Signing smoke target has no signer: $target"
+            }
+            if ($signature.Status -eq 'HashMismatch' -or $signature.Status -eq 'NotSigned') {
+              throw "Signing smoke verification failed: $target ($($signature.Status))"
+            }
+          }
+
+          Remove-Item -LiteralPath $work -Recurse -Force
+          Write-Host 'AUTHENTICODE_SIGNING_SMOKE=PASS'
       - name: Store Windows artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
