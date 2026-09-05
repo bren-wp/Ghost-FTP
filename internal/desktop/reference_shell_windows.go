@@ -263,8 +263,8 @@ func (a *app) showDiagnostics() {
 		state = a.tr("badge.connected")
 	}
 	body := fmt.Sprintf(
-		"Ghost FTP %s\n\nProtocol: %s\nState: %s\nRemote path: %s\n\nPrivacy: telemetry and tracking are disabled. Diagnostics are generated locally and are not uploaded.",
-		a.version, strings.ToUpper(a.protocolValue()), state, a.remoteCurrent,
+		"Ghost FTP %s\n\n%s · %s\n%s\n\n%s",
+		a.version, strings.ToUpper(a.protocolValue()), state, a.remoteCurrent, words.PrivacyBody,
 	)
 	platform.InfoDialog("Ghost FTP — "+words.Diagnostics, words.Diagnostics, body)
 }
