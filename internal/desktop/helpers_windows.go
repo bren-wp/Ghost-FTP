@@ -55,7 +55,25 @@ func (a *app) runDispatch() {
 	}
 }
 
-func (a *app) setStatus(text string) { setText(a.status, text) }
+func (a *app) setStatus(text string) {
+	if a == nil || a.status == 0 {
+		return
+	}
+	text = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", " "), "\n", " "))
+	if text == "" {
+		return
+	}
+	const maxStatusChars = 800
+	if len(text) > maxStatusChars {
+		text = text[:maxStatusChars] + "…"
+	}
+	a.statusLog = append(a.statusLog, time.Now().Format("15:04:05")+"    "+text)
+	const maxLogLines = 8
+	if len(a.statusLog) > maxLogLines {
+		a.statusLog = append([]string(nil), a.statusLog[len(a.statusLog)-maxLogLines:]...)
+	}
+	setText(a.status, strings.Join(a.statusLog, "\r\n"))
+}
 
 func setText(hwnd uintptr, text string) {
 	if hwnd != 0 {
@@ -135,10 +153,38 @@ func setListRowSelected(list uintptr, row int, selected bool) {
 	sendMessageW.Call(list, lvmSetItemState, uintptr(row), uintptr(unsafe.Pointer(&item)))
 }
 
+func ownerForItemList(list uintptr) *app {
+	var owner *app
+	apps.Range(func(_, value any) bool {
+		candidate, ok := value.(*app)
+		if ok && (candidate.localList == list || candidate.remoteList == list) {
+			owner = candidate
+			return false
+		}
+		return true
+	})
+	return owner
+}
+
+func effectiveItemsForList(list uintptr, fallback []model.Item) []model.Item {
+	owner := ownerForItemList(list)
+	if owner == nil {
+		return fallback
+	}
+	if list == owner.remoteList {
+		return owner.remoteItems
+	}
+	if list == owner.localList {
+		return owner.localItems
+	}
+	return fallback
+}
+
 func restoreItemSelection(list uintptr, items []model.Item, selected map[string]struct{}) {
 	if len(selected) == 0 {
 		return
 	}
+	items = effectiveItemsForList(list, items)
 	for i, item := range items {
 		if _, ok := selected[item.Name]; ok {
 			setListRowSelected(list, i, true)
@@ -160,6 +206,22 @@ func setListRedraw(list uintptr, enabled bool) {
 	if enabled {
 		invalidateRect.Call(list, 0, 1)
 	}
+}
+
+// fillItems is the narrow compatibility bridge used by asynchronous navigation
+// callbacks. Rendering itself remains centralized in app.fillItemList so the
+// active locale and remote-search model cannot drift from the visible rows.
+func fillItems(list uintptr, items []model.Item) {
+	owner := ownerForItemList(list)
+	if owner == nil {
+		return
+	}
+	if list == owner.remoteList {
+		owner.remoteAllItems = append(owner.remoteAllItems[:0], items...)
+		owner.applyRemoteSearch()
+		return
+	}
+	owner.fillItemList(list, items)
 }
 
 func insertListRow(list uintptr, row int, cols []string) {
