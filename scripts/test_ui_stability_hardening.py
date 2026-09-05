@@ -56,22 +56,56 @@ class UIStabilityHardeningTests(unittest.TestCase):
         for marker in ("selectedTransferIDSet", "restoreTransferSelection", 'event.Type == "state"', "event.Paused"):
             self.assertIn(marker, transfers)
 
-    def test_windows_layout_and_actions_follow_current_context(self) -> None:
+    def test_windows_layout_and_actions_follow_reference_shell_context(self) -> None:
         ui = self.read("internal/desktop/ui_windows.go")
         layout = self.read("internal/desktop/workspace_layout_windows.go")
+        shell = self.read("internal/desktop/reference_shell_windows.go")
         windows = self.read("internal/desktop/windows.go")
         win32 = self.read("internal/desktop/win32_defs_windows.go")
         actions = self.read("internal/desktop/action_state_windows.go")
+        commands = self.read("internal/desktop/commands_windows.go")
+
         for marker in ("preferredWindowBounds", "resizeListColumns", "layoutPanelWidth"):
             self.assertIn(marker, ui)
-        self.assertIn("compact := width < 1320", layout)
+        for marker in (
+            "compact := width < 1280",
+            "veryCompact := width < 1080",
+            "a.shellSidebar",
+            "a.shellToolbar",
+            "a.shellLogCard",
+            "a.shellQuickCard",
+            "a.shellLocalCard",
+            "a.shellRemoteCard",
+            "a.shellQueueCard",
+            "if width >= 1540",
+            "applyReferenceFileColumnOrder",
+            "[4]int32{0, 2, 1, 3}",
+        ):
+            self.assertIn(marker, layout)
+        for marker in ("idRemoteSearch", "applyRemoteSearch", "toolbarTargetsRemote", "showDiagnostics"):
+            self.assertIn(marker, shell)
         for marker in ("wmGetMinMaxInfo", "lvnItemChanged", "updateActionControls()", "minMaxInfoFromLParam", "minMaxInfoToLParam"):
             self.assertIn(marker, windows)
         self.assertNotIn("(*minMaxInfo)(unsafe.Pointer(lParam))", windows)
         for marker in ("func minMaxInfoFromLParam", "func minMaxInfoToLParam", "rtlMoveMemory.Call"):
             self.assertIn(marker, win32)
-        for marker in ("localSelected == 1", "remoteSelected == 1", "deriveTransferActionState"):
+        for marker in (
+            "localSelected == 1",
+            "remoteSelected == 1",
+            "deriveTransferActionState",
+            "a.toolbarUpload",
+            "a.toolbarDownload",
+            "a.toolbarDelete",
+        ):
             self.assertIn(marker, actions)
+        for marker in (
+            "idToolbarConnect",
+            "idToolbarDisconnect",
+            "idToolbarUpload",
+            "idToolbarDownload",
+            "idToolbarDiagnostics",
+        ):
+            self.assertIn(marker, commands)
 
     def test_settings_do_not_replace_helpful_host_hint(self) -> None:
         settings = self.read("internal/desktop/settings_windows.go")
@@ -137,17 +171,26 @@ class UIStabilityHardeningTests(unittest.TestCase):
         self.assertNotIn('label(parent.tr("sftp.security")', site)
         self.assertNotIn('"GhostFTP — SFTP security"', site)
 
-    def test_authentic_capture_width_has_room_for_complete_primary_actions(self) -> None:
+    def test_reference_shell_remains_usable_at_authentic_capture_width(self) -> None:
         layout = self.read("internal/desktop/workspace_layout_windows.go")
+        shell = self.read("internal/desktop/reference_shell_windows.go")
         for marker in (
-            "{a.saveProfile, 128}",
-            "{a.removeProfile, 132}",
-            "{a.settingsBtn, 116}",
-            "connectW, disconnectW := 120, 124",
-            "queueWidths := []int{92, 96, 92, 88, 142}",
+            "sidebarW := 244",
+            "sidebarW = 210",
+            "sidebarW = 184",
+            "if width >= 1540",
+            "queueWidths := []int{82, 86, 82, 78, 132}",
+            "showMutations := needed <= availableToolbar",
+            "remotePathW < 72",
         ):
             self.assertIn(marker, layout)
-        self.assertIn("profileW < 220", layout)
+        for marker in (
+            "Search remote files…",
+            "No telemetry or tracking.",
+            "limitEdit(a.remoteSearch, 256)",
+            "strings.Contains(strings.ToLower(item.Name), query)",
+        ):
+            self.assertIn(marker, shell)
 
 
 if __name__ == "__main__":
