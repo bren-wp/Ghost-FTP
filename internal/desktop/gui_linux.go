@@ -59,7 +59,7 @@ func linuxRectWH(left, top, width, height int) linuxRect {
 
 type linuxDesktopLayout struct {
 	protocol, host, port, user, password, key, passphrase linuxRect
-	profile, saveProfile, removeProfile                   linuxRect
+	profile, saveProfile, removeProfile, settings         linuxRect
 	connect, disconnect, trust, cancelTrust               linuxRect
 	localPath, localUp, localRefresh                      linuxRect
 	remotePath, remoteUp, remoteRefresh                   linuxRect
@@ -128,6 +128,7 @@ func buildLinuxDesktopLayout(width, height int) linuxDesktopLayout {
 	layout.passphrase = linuxRectWH(x, secondY, keyW, fieldH)
 	x += keyW + rowGap
 	layout.disconnect = linuxRectWH(x, secondY, 118, fieldH)
+	layout.settings = linuxRectWH(width-gap-92, 20, 76, 30)
 
 	workspaceTop := secondY + fieldH + 24
 	queueHeight := 164
@@ -232,6 +233,9 @@ type linuxDesktop struct {
 	promptKind         int
 	promptTitle        string
 	promptValue        string
+	settingsOpen       bool
+	settingsDraft      model.Settings
+	settingsRects      linuxSettingsRects
 
 	resultCh chan linuxUIResult
 }
@@ -433,7 +437,10 @@ func (u *linuxDesktop) renderHeader() error {
 		badge = "WORKING"
 		color = premiumTheme.Warn
 	}
-	return u.x.text(u.width-190, 34, badge+"  "+u.version, color, premiumTheme.Panel)
+	if err := u.x.text(u.width-300, 34, badge+"  "+u.version, color, premiumTheme.Panel); err != nil {
+		return err
+	}
+	return u.drawButton(u.layout.settings, "Settings", !u.busy, false)
 }
 
 func (u *linuxDesktop) renderQuickConnect() error {
@@ -1004,6 +1011,8 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		u.connectToServer("")
 	case l.disconnect.contains(x, y):
 		u.disconnect()
+	case l.settings.contains(x, y):
+		u.openSettings()
 	case l.profile.contains(x, y):
 		u.cycleProfile()
 	case l.saveProfile.contains(x, y):
@@ -1076,6 +1085,9 @@ func linuxKeysymText(sym uint32) (string, bool) {
 
 func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 	sym := u.x.keysym(keycode, state)
+	if u.handleSettingsKey(sym) {
+		return true
+	}
 	if u.handlePromptKey(sym) {
 		return true
 	}
@@ -1175,6 +1187,9 @@ func (u *linuxDesktop) renderAll() error {
 	if err := u.render(); err != nil {
 		return err
 	}
+	if u.settingsOpen {
+		return u.renderSettingsOverlay()
+	}
 	if u.promptKind != linuxPromptNone {
 		return u.renderPromptOverlay()
 	}
@@ -1182,6 +1197,9 @@ func (u *linuxDesktop) renderAll() error {
 }
 
 func (u *linuxDesktop) handleOverlayMouse(x, y int) bool {
+	if u.handleSettingsMouse(x, y) {
+		return true
+	}
 	if u.handlePromptMouse(x, y) {
 		return true
 	}
