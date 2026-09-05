@@ -79,6 +79,20 @@ The Windows edition is the reference graphical experience. It includes:
 
 The current visual work keeps Ghost FTP native and recognizably its own product while adopting the information density and workflow clarity expected from a professional desktop FTP client. The UI does not add decorative controls for features that the backend does not actually implement.
 
+## Authentic Windows UI
+
+These images are **not mockups**. GitHub Actions builds the production Windows x64 Portable executable, launches that real executable on a Windows runner, captures its native Win32 windows with `PrintWindow(PW_RENDERFULLCONTENT)`, validates the PNG signature/dimensions/size, records SHA-256 evidence and only then persists the images into this repository.
+
+### Main workspace
+
+![Ghost FTP authentic Windows main workspace](docs/images/ghost-ftp-main-workspace.png)
+
+### Site Manager
+
+![Ghost FTP authentic Windows Site Manager](docs/images/ghost-ftp-site-manager.png)
+
+The capture workflow deliberately uses no real FTP credentials, customer data or production server. See `.github/workflows/ui-screenshots.yml` and `scripts/capture_windows_screenshots.ps1` for the reproducible capture contract.
+
 ## Linux experience
 
 Linux uses the same `internal/api`, remote/session, transfer, settings, profile, localization and security layers as Windows.
