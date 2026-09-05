@@ -75,7 +75,7 @@ func defaultPort(protocol string) int {
 	}
 }
 
-func printRemoteItems(language string, items []model.Item) {
+func printItems(language string, items []model.Item) {
 	for _, item := range items {
 		kind := i18n.T(language, "terminal.item_file")
 		if item.IsDirectory {
@@ -87,6 +87,9 @@ func printRemoteItems(language string, items []model.Item) {
 	}
 	fmt.Println(i18n.T(language, "terminal.items", len(items)))
 }
+
+func printRemoteItems(language string, items []model.Item) { printItems(language, items) }
+func printLocalItems(language string, items []model.Item)  { printItems(language, items) }
 
 func terminalStatus(status string) bool {
 	switch status {
@@ -201,8 +204,10 @@ func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) 
 		cfg.Password, cfg.Passphrase = "", ""
 		return model.ConnectionConfig{}, err
 	}
+	trustedFingerprint := ""
 	if result.RequiresTrust {
-		fmt.Printf("\n%s\n%s\n", i18n.T(language, "terminal.fingerprint"), result.Fingerprint)
+		trustedFingerprint = result.Fingerprint
+		fmt.Printf("\n%s\n%s\n", i18n.T(language, "terminal.fingerprint"), trustedFingerprint)
 		answer, err := prompt(reader, i18n.T(language, "terminal.trust"), "no")
 		if err != nil {
 			engine.CancelPendingTrust()
@@ -216,7 +221,7 @@ func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) 
 		}
 		ctx2, cancel2 := context.WithTimeout(context.Background(), 75*time.Second)
 		defer cancel2()
-		result, err = engine.Connect(ctx2, "", cfg, result.Fingerprint, false)
+		result, err = engine.Connect(ctx2, "", cfg, trustedFingerprint, false)
 		if err != nil {
 			cfg.Password, cfg.Passphrase = "", ""
 			return model.ConnectionConfig{}, err
@@ -225,6 +230,12 @@ func connectTerminal(engine *api.Engine, reader *bufio.Reader, language string) 
 	if !result.Connected {
 		cfg.Password, cfg.Passphrase = "", ""
 		return model.ConnectionConfig{}, errors.New(i18n.T(language, "terminal.server_not_connected"))
+	}
+	if cfg.Protocol == "sftp" && trustedFingerprint != "" {
+		// Keep only the public host identity in the returned session metadata so
+		// a later profile-save can persist the verified endpoint pin. Secrets are
+		// still cleared before leaving this function.
+		cfg.Fingerprint = trustedFingerprint
 	}
 	cfg.Password, cfg.Passphrase = "", ""
 	return cfg, nil
@@ -323,6 +334,34 @@ func printProfiles(engine *api.Engine) error {
 	return nil
 }
 
+func terminalProfile(engine *api.Engine, id string) (model.PublicProfile, error) {
+	profiles, err := engine.Profiles()
+	if err != nil {
+		return model.PublicProfile{}, err
+	}
+	for _, profile := range profiles {
+		if profile.ID == id {
+			return profile, nil
+		}
+	}
+	return model.PublicProfile{}, errors.New("profile not found")
+}
+
+func printProfile(profile model.PublicProfile) {
+	fmt.Printf("id=%s\n", profile.ID)
+	fmt.Printf("name=%s\n", profile.Name)
+	fmt.Printf("protocol=%s\n", profile.Protocol)
+	fmt.Printf("host=%s\n", profile.Host)
+	fmt.Printf("port=%d\n", profile.Port)
+	fmt.Printf("username=%s\n", profile.Username)
+	fmt.Printf("password-saved=%t\n", profile.HasPassword)
+	fmt.Printf("private-key=%s\n", profile.PrivateKeyPath)
+	fmt.Printf("passphrase-saved=%t\n", profile.HasPassphrase)
+	fmt.Printf("fingerprint=%s\n", profile.Fingerprint)
+	fmt.Printf("remote-path=%s\n", profile.RemotePath)
+	fmt.Printf("local-path=%s\n", profile.LocalPath)
+}
+
 func usage(language, syntax string) string {
 	prefix := map[string]string{
 		"en": "Usage", "hr": "Upotreba", "de": "Verwendung", "fr": "Utilisation", "es": "Uso", "tr": "Kullanım",
@@ -332,6 +371,58 @@ func usage(language, syntax string) string {
 		prefix = "Usage"
 	}
 	return prefix + ": " + syntax
+}
+
+func terminalRemotePath(current, value string) string {
+	if strings.HasPrefix(value, "/") {
+		return path.Clean(value)
+	}
+	if current == "." {
+		if value == "." {
+			return "."
+		}
+		return path.Clean(value)
+	}
+	return path.Join(current, value)
+}
+
+func terminalLocalPath(current, value string) string {
+	if filepath.IsAbs(value) {
+		return filepath.Clean(value)
+	}
+	return filepath.Join(current, value)
+}
+
+func initialTerminalLocalPath(engine *api.Engine) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	base, _, err := engine.LocalList(ctx, "")
+	if err == nil && base != "" {
+		return base
+	}
+	if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+		return cwd
+	}
+	return "."
+}
+
+func confirmTerminalDelete(reader *bufio.Reader, language string, settings model.Settings, target string) bool {
+	if !settings.ConfirmDelete {
+		return true
+	}
+	answer, err := prompt(reader, "Delete "+target+"?", "no")
+	return err == nil && i18n.IsAffirmative(language, answer)
+}
+
+func printTerminalHelp(language string) {
+	fmt.Println(i18n.T(language, "terminal.commands"))
+	fmt.Println(i18n.T(language, "terminal.quote_paths"))
+	fmt.Println("Remote: pwd | ls [path] | cd <path> | mkdir <name> | rename <old> <new> | delete <name> | chmod <mode> <name>")
+	fmt.Println("Local:  lpwd | lls [path] | lcd <path> | lmkdir <name> | lrename <old> <new> | ldelete <name>")
+	fmt.Println("Files:  get <remote> <local> | put <local> <remote> | gettree <remote-dir> <local-dir> | puttree <local-dir> <remote-dir>")
+	fmt.Println("Queue:  jobs | pause | resume | cancel <id> | retry <id> | clear")
+	fmt.Println("Profiles: profiles | profile-show <id> | profile-save <name> | profile-remove <id>")
+	fmt.Println("Options: settings | set <option> <value> | language <code> | help | quit")
 }
 
 func runTerminal(engine *api.Engine, version string) error {
@@ -350,16 +441,17 @@ func runTerminal(engine *api.Engine, version string) error {
 		defer cancel()
 		_ = engine.Disconnect(ctx)
 	}()
+
 	current := "/"
 	if cfg.Protocol == "sftp" {
 		current = "."
 	}
+	currentLocal := initialTerminalLocalPath(engine)
 	fmt.Println(i18n.T(language, "terminal.connected", cfg.Host, cfg.Port))
-	fmt.Println(i18n.T(language, "terminal.commands"))
-	fmt.Println(i18n.T(language, "terminal.quote_paths"))
-	fmt.Println("jobs | pause | resume | cancel <id> | retry <id> | clear | profiles | settings | set <option> <value>")
+	printTerminalHelp(language)
+
 	for {
-		fmt.Printf("GhostFTP:%s> ", current)
+		fmt.Printf("GhostFTP:%s [%s]> ", current, currentLocal)
 		line, readErr := reader.ReadString('\n')
 		if readErr != nil && len(line) == 0 {
 			return nil
@@ -372,6 +464,7 @@ func runTerminal(engine *api.Engine, version string) error {
 		if len(fields) == 0 {
 			continue
 		}
+
 		switch strings.ToLower(fields[0]) {
 		case "quit", "exit":
 			if len(fields) != 1 {
@@ -379,14 +472,14 @@ func runTerminal(engine *api.Engine, version string) error {
 				continue
 			}
 			return nil
+
 		case "help":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "help"))
 				continue
 			}
-			fmt.Println(i18n.T(language, "terminal.commands"))
-			fmt.Println(i18n.T(language, "terminal.quote_paths"))
-			fmt.Println("jobs | pause | resume | cancel <id> | retry <id> | clear | profiles | settings | set <option> <value>")
+			printTerminalHelp(language)
+
 		case "language":
 			if len(fields) != 2 || !i18n.IsSupported(fields[1]) {
 				fmt.Println(i18n.T(language, "terminal.language_usage"))
@@ -399,6 +492,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			settings, language = next, nextLanguage
 			fmt.Println(i18n.T(language, "terminal.language_saved", i18n.LanguageByCode(language).NativeName))
+
 		case "settings":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "settings"))
@@ -411,6 +505,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			settings = currentSettings
 			printTerminalSettings(settings)
+
 		case "set":
 			if len(fields) != 3 {
 				fmt.Println(usage(language, "set <parallelism|conflict|retries|retry-delay|timeout|confirm-delete> <value>"))
@@ -428,6 +523,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			settings = saved
 			fmt.Println("saved")
+
 		case "profiles":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "profiles"))
@@ -436,12 +532,59 @@ func runTerminal(engine *api.Engine, version string) error {
 			if profileErr := printProfiles(engine); profileErr != nil {
 				fmt.Println(usererror.MessageFor(language, profileErr, i18n.T(language, "error.generic")))
 			}
+
+		case "profile-show":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "profile-show <id>"))
+				continue
+			}
+			profile, profileErr := terminalProfile(engine, fields[1])
+			if profileErr != nil {
+				fmt.Println(usererror.MessageFor(language, profileErr, i18n.T(language, "error.generic")))
+				continue
+			}
+			printProfile(profile)
+
+		case "profile-save":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "profile-save <name>"))
+				continue
+			}
+			profile, profileErr := engine.SaveProfile(model.ProfileInput{
+				Name:           fields[1],
+				Protocol:       cfg.Protocol,
+				Host:           cfg.Host,
+				Port:           cfg.Port,
+				Username:       cfg.Username,
+				PrivateKeyPath: cfg.PrivateKeyPath,
+				Fingerprint:    cfg.Fingerprint,
+				RemotePath:     current,
+				LocalPath:      currentLocal,
+			})
+			if profileErr != nil {
+				fmt.Println(usererror.MessageFor(language, profileErr, i18n.T(language, "error.generic")))
+				continue
+			}
+			fmt.Printf("saved profile %s (%s); credential not saved\n", profile.Name, profile.ID)
+
+		case "profile-remove":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "profile-remove <id>"))
+				continue
+			}
+			if removeErr := engine.RemoveProfile(fields[1]); removeErr != nil {
+				fmt.Println(usererror.MessageFor(language, removeErr, i18n.T(language, "error.generic")))
+				continue
+			}
+			fmt.Println("profile removed")
+
 		case "jobs":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "jobs"))
 				continue
 			}
 			printTransferJobs(engine)
+
 		case "pause":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "pause"))
@@ -449,6 +592,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			engine.PauseTransfers()
 			fmt.Println("paused")
+
 		case "resume":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "resume"))
@@ -456,6 +600,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			engine.ResumeTransfers()
 			fmt.Println("resumed")
+
 		case "cancel":
 			if len(fields) != 2 {
 				fmt.Println(usage(language, "cancel <id>"))
@@ -464,6 +609,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			if cancelErr := engine.CancelTransfer(fields[1]); cancelErr != nil {
 				fmt.Println(usererror.MessageFor(language, cancelErr, i18n.T(language, "error.generic")))
 			}
+
 		case "retry":
 			if len(fields) != 2 {
 				fmt.Println(usage(language, "retry <id>"))
@@ -472,26 +618,29 @@ func runTerminal(engine *api.Engine, version string) error {
 			if retryErr := engine.RetryTransfer(fields[1]); retryErr != nil {
 				fmt.Println(usererror.MessageFor(language, retryErr, i18n.T(language, "error.generic")))
 			}
+
 		case "clear":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "clear"))
 				continue
 			}
 			engine.ClearFinishedTransfers()
+
 		case "pwd":
 			if len(fields) != 1 {
 				fmt.Println(usage(language, "pwd"))
 				continue
 			}
 			fmt.Println(current)
+
 		case "ls":
 			if len(fields) > 2 {
 				fmt.Println(usage(language, "ls [path]"))
 				continue
 			}
 			target := current
-			if len(fields) > 1 {
-				target = fields[1]
+			if len(fields) == 2 {
+				target = terminalRemotePath(current, fields[1])
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			items, e := engine.RemoteList(ctx, target)
@@ -501,15 +650,13 @@ func runTerminal(engine *api.Engine, version string) error {
 				continue
 			}
 			printRemoteItems(language, items)
+
 		case "cd":
 			if len(fields) != 2 {
 				fmt.Println(usage(language, "cd <path>"))
 				continue
 			}
-			target := fields[1]
-			if !strings.HasPrefix(target, "/") && target != "." {
-				target = path.Join(current, target)
-			}
+			target := terminalRemotePath(current, fields[1])
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			items, e := engine.RemoteList(ctx, target)
 			cancel()
@@ -519,6 +666,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			}
 			current = target
 			printRemoteItems(language, items)
+
 		case "mkdir":
 			if len(fields) != 2 {
 				fmt.Println(usage(language, "mkdir <name>"))
@@ -530,6 +678,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			if e != nil {
 				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
 			}
+
 		case "rename":
 			if len(fields) != 3 {
 				fmt.Println(usage(language, "rename <old> <new>"))
@@ -541,9 +690,14 @@ func runTerminal(engine *api.Engine, version string) error {
 			if e != nil {
 				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
 			}
+
 		case "delete":
 			if len(fields) != 2 {
 				fmt.Println(usage(language, "delete <name>"))
+				continue
+			}
+			if !confirmTerminalDelete(reader, language, settings, path.Join(current, fields[1])) {
+				fmt.Println("delete cancelled")
 				continue
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
@@ -571,6 +725,7 @@ func runTerminal(engine *api.Engine, version string) error {
 			if e != nil {
 				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
 			}
+
 		case "chmod":
 			if len(fields) != 3 {
 				fmt.Println(usage(language, "chmod <mode> <name>"))
@@ -582,6 +737,80 @@ func runTerminal(engine *api.Engine, version string) error {
 			if e != nil {
 				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
 			}
+
+		case "lpwd":
+			if len(fields) != 1 {
+				fmt.Println(usage(language, "lpwd"))
+				continue
+			}
+			fmt.Println(currentLocal)
+
+		case "lls":
+			if len(fields) > 2 {
+				fmt.Println(usage(language, "lls [path]"))
+				continue
+			}
+			target := currentLocal
+			if len(fields) == 2 {
+				target = terminalLocalPath(currentLocal, fields[1])
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			base, items, e := engine.LocalList(ctx, target)
+			cancel()
+			if e != nil {
+				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
+				continue
+			}
+			fmt.Println(base)
+			printLocalItems(language, items)
+
+		case "lcd":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "lcd <path>"))
+				continue
+			}
+			target := terminalLocalPath(currentLocal, fields[1])
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			base, items, e := engine.LocalList(ctx, target)
+			cancel()
+			if e != nil {
+				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
+				continue
+			}
+			currentLocal = base
+			printLocalItems(language, items)
+
+		case "lmkdir":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "lmkdir <name>"))
+				continue
+			}
+			if e := engine.LocalMkdir(currentLocal, fields[1]); e != nil {
+				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
+			}
+
+		case "lrename":
+			if len(fields) != 3 {
+				fmt.Println(usage(language, "lrename <old> <new>"))
+				continue
+			}
+			if e := engine.LocalRename(currentLocal, fields[1], fields[2]); e != nil {
+				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
+			}
+
+		case "ldelete":
+			if len(fields) != 2 {
+				fmt.Println(usage(language, "ldelete <name>"))
+				continue
+			}
+			if !confirmTerminalDelete(reader, language, settings, filepath.Join(currentLocal, fields[1])) {
+				fmt.Println("delete cancelled")
+				continue
+			}
+			if e := engine.LocalDelete(currentLocal, fields[1]); e != nil {
+				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
+			}
+
 		case "get", "put":
 			if len(fields) != 3 {
 				fmt.Println(usage(language, fields[0]+" <source> <destination>"))
@@ -594,15 +823,9 @@ func runTerminal(engine *api.Engine, version string) error {
 			} else {
 				direction = "download"
 			}
-			localPath, e := filepath.Abs(localArg)
-			if e != nil {
-				fmt.Println(i18n.T(language, "error.invalid_name"))
-				continue
-			}
-			if !strings.HasPrefix(remoteArg, "/") {
-				remoteArg = path.Join(current, remoteArg)
-			}
-			job, e := engine.AddTransfer(direction, localPath, remoteArg, filepath.Dir(localPath))
+			localPath := terminalLocalPath(currentLocal, localArg)
+			remotePath := terminalRemotePath(current, remoteArg)
+			job, e := engine.AddTransfer(direction, localPath, remotePath, currentLocal)
 			if e != nil {
 				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
 				continue
@@ -610,6 +833,30 @@ func runTerminal(engine *api.Engine, version string) error {
 			if e = waitTransfer(engine, language, job.ID); e != nil {
 				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "terminal.transfer_failed")))
 			}
+
+		case "gettree", "puttree":
+			if len(fields) != 3 {
+				fmt.Println(usage(language, fields[0]+" <source-dir> <destination-dir>"))
+				continue
+			}
+			direction := strings.ToLower(fields[0])
+			localArg, remoteArg := fields[2], fields[1]
+			if direction == "puttree" {
+				direction, localArg, remoteArg = "upload", fields[1], fields[2]
+			} else {
+				direction = "download"
+			}
+			localPath := terminalLocalPath(currentLocal, localArg)
+			remotePath := terminalRemotePath(current, remoteArg)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			result, e := engine.AddTreeTransfer(ctx, direction, localPath, remotePath)
+			cancel()
+			if e != nil {
+				fmt.Println(usererror.MessageFor(language, e, i18n.T(language, "error.generic")))
+				continue
+			}
+			fmt.Printf("queued=%d directories=%d skipped-symlinks=%d\n", result.Queued, result.Directories, result.SkippedSymlinks)
+
 		default:
 			fmt.Println(i18n.T(language, "terminal.unknown_command"))
 		}
