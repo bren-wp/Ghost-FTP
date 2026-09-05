@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -17,6 +18,15 @@ ALLOWED_ANDROID = {
     "testImplementation": {
         "junit:junit:4.13.2",
     },
+}
+
+ALLOWED_WEB_PLATFORM_REQUIREMENTS = {"php": ">=8.1"}
+ALLOWED_WEB_SUGGESTED_EXTENSIONS = {
+    "ext-ftp": "Required for FTP/FTPS support",
+    "ext-ssh2": "Required for SFTP support",
+    "ext-zip": "Required for ZIP create/extract and folder downloads",
+    "ext-sodium": "Preferred for credential encryption",
+    "ext-openssl": "Encryption fallback when sodium is unavailable",
 }
 
 FORBIDDEN_TRACKING = (
@@ -74,14 +84,33 @@ def audit_android() -> None:
 
 
 def audit_web() -> None:
-    composer = read("GhostFTP WEB/composer.json")
-    if '"require": {}' not in composer.replace("\n", " ").replace("  ", " "):
-        # Parse without importing third-party tooling; exact empty require is the
-        # contract for the shared-hosting package.
-        import json
-        data = json.loads(composer)
-        if data.get("require") not in ({}, None):
-            fail("Web/PWA Composer runtime dependencies must remain empty")
+    try:
+        data = json.loads(read("GhostFTP WEB/composer.json"))
+    except json.JSONDecodeError as exc:
+        fail(f"Web/PWA composer.json is invalid JSON: {exc}")
+
+    require = data.get("require")
+    if require != ALLOWED_WEB_PLATFORM_REQUIREMENTS:
+        fail(
+            "Web/PWA Composer require must contain only the pinned PHP platform requirement "
+            f"{ALLOWED_WEB_PLATFORM_REQUIREMENTS!r}; found={require!r}"
+        )
+    third_party_require = [
+        name for name in require
+        if name != "php" and not str(name).startswith("ext-")
+    ]
+    if third_party_require:
+        fail("Web/PWA third-party Composer packages are forbidden: " + ", ".join(sorted(third_party_require)))
+
+    suggest = data.get("suggest")
+    if suggest != ALLOWED_WEB_SUGGESTED_EXTENSIONS:
+        fail(
+            "Web/PWA suggested extension capability list drifted; "
+            f"found={suggest!r} expected={ALLOWED_WEB_SUGGESTED_EXTENSIONS!r}"
+        )
+    invalid_suggest = [name for name in suggest if not str(name).startswith("ext-")]
+    if invalid_suggest:
+        fail("Web/PWA suggest may contain only PHP extension capabilities: " + ", ".join(sorted(invalid_suggest)))
 
 
 def audit_repository_tracking_markers() -> None:
@@ -104,7 +133,9 @@ def main() -> int:
     print("DEPENDENCY_AUDIT=PASS")
     print("GO_EXTERNAL_MODULES=0")
     print("ANDROID_RUNTIME_DEPENDENCIES=2_PINNED")
-    print("WEB_COMPOSER_RUNTIME_DEPENDENCIES=0")
+    print("WEB_THIRD_PARTY_COMPOSER_PACKAGES=0")
+    print("WEB_PLATFORM_REQUIREMENTS=php>=8.1")
+    print("WEB_SUGGESTED_EXTENSIONS=" + ",".join(sorted(ALLOWED_WEB_SUGGESTED_EXTENSIONS)))
     print("TRACKING_ADS_CRASH_SDKS=FORBIDDEN")
     return 0
 
