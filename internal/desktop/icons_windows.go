@@ -5,8 +5,8 @@ package desktop
 import "unsafe"
 
 // Windows system icon glyphs. The core code points are shared by Segoe Fluent
-// Icons and Segoe MDL2 Assets, which lets GhostFTP use the modern Windows 11 font
-// while retaining a Windows 10 fallback without shipping font files.
+// Icons and Segoe MDL2 Assets, which lets Ghost FTP use the modern Windows 11
+// font while retaining a Windows 10 fallback without shipping font files.
 const (
 	iconConnect     = "\uE703"
 	iconCancel      = "\uE711"
@@ -27,6 +27,8 @@ const (
 	iconOpenLocal   = "\uE8DA"
 	iconNewFolder   = "\uE8F4"
 	iconInfo        = "\uE946"
+	iconSearch      = "\uE721"
+	iconDiagnostics = "\uE9D9"
 )
 
 type buttonVariant uint8
@@ -39,9 +41,10 @@ const (
 )
 
 type buttonVisual struct {
-	Icon    string
-	Label   string
-	Variant buttonVariant
+	Icon     string
+	Label    string
+	Variant  buttonVariant
+	Vertical bool
 }
 
 func (a *app) registerButton(hwnd uintptr, icon, label string, variant buttonVariant) uintptr {
@@ -50,6 +53,16 @@ func (a *app) registerButton(hwnd uintptr, icon, label string, variant buttonVar
 			a.buttons = make(map[uintptr]buttonVisual)
 		}
 		a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant}
+	}
+	return hwnd
+}
+
+func (a *app) registerToolbarButton(hwnd uintptr, icon, label string, variant buttonVariant) uintptr {
+	if hwnd != 0 {
+		if a.buttons == nil {
+			a.buttons = make(map[uintptr]buttonVisual)
+		}
+		a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant, Vertical: true}
 	}
 	return hwnd
 }
