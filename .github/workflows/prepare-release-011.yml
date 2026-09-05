@@ -1,0 +1,230 @@
+name: Ghost FTP 0.1.1 release preparation
+
+on:
+  push:
+    branches:
+      - work/premium-parity-release-hardening-0.1.1
+    paths:
+      - .github/workflows/prepare-release-011.yml
+
+permissions:
+  contents: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: work/premium-parity-release-hardening-0.1.1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.x'
+
+      - name: Prepare 0.1.1 source and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          ROOT = Path('.')
+          VERSION = '0.1.1'
+
+          def read(path):
+              return (ROOT / path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              (ROOT / path).write_text(text, encoding='utf-8')
+
+          def replace(path, old, new, *, count=None):
+              text = read(path)
+              actual = text.count(old)
+              if actual == 0:
+                  raise SystemExit(f'{path}: required text not found: {old[:100]!r}')
+              if count is not None and actual != count:
+                  raise SystemExit(f'{path}: expected {count} matches, found {actual}: {old[:100]!r}')
+              write(path, text.replace(old, new))
+
+          def regex_replace(path, pattern, repl, *, count=0, min_count=1, flags=0):
+              text = read(path)
+              updated, n = re.subn(pattern, repl, text, count=count, flags=flags)
+              if n < min_count:
+                  raise SystemExit(f'{path}: regex did not match: {pattern}')
+              write(path, updated)
+
+          # Canonical version surfaces.
+          write('VERSION', VERSION + '\n')
+          write('GhostFTP WEB/VERSION', VERSION + '\n')
+          composer = json.loads(read('GhostFTP WEB/composer.json'))
+          composer['version'] = VERSION
+          write('GhostFTP WEB/composer.json', json.dumps(composer, indent=2, ensure_ascii=False) + '\n')
+          replace('GhostFTP WEB/service-worker.js', "ghostftp-static-v0.1.0", "ghostftp-static-v0.1.1", count=1)
+
+          # Root product documentation.
+          replace('README.md', 'Current Ghost FTP version: **0.1.0**', 'Current Ghost FTP version: **0.1.1**', count=1)
+          replace('README.md', '- **Linux** — the same shared transfer/security engine, packaged for amd64, arm64 and i386, with a hardened terminal interface.', '- **Linux** — the same shared transfer/security engine, packaged for amd64, arm64 and i386, with a native dependency-free X11/XWayland GUI and hardened terminal fallback.', count=1)
+          replace('README.md', 'Explicit FTPS is supported with certificate validation enabled. Ghost FTP does not silently disable TLS certificate revocation checks.', 'Explicit FTPS and implicit FTPS are supported with certificate validation enabled. Ghost FTP does not silently disable TLS certificate revocation checks.', count=1)
+          replace('README.md', '\nImplicit FTPS is not part of the supported desktop protocol contract.\n', '\nImplicit FTPS uses the dedicated `ftpsi` transport mode and the conventional port 990 while retaining certificate validation.\n', count=1)
+          replace('README.md', '- native dark graphite/navy interface;', '- native near-black Ghost FTP interface aligned with the maintained Web brand tokens;', count=1)
+          replace('README.md', 'Windows and Linux share the functional core contract, but their presentation layers intentionally differ: Windows is a native Win32 GUI and Linux is a terminal UI. A pixel-identical cross-platform GUI would require introducing or maintaining an additional GUI/runtime dependency, which the current dependency policy deliberately avoids.', 'Windows and Linux now both provide graphical desktop frontends over the same functional core. Windows uses native Win32; Linux uses a dependency-free raw X11/XWayland-compatible frontend and retains the hardened terminal interface for headless or explicit fallback use. Their native control implementations are not claimed to be pixel-identical, but they share the same Ghost FTP palette, action model and security boundaries without adding a third-party GUI framework.', count=1)
+          replace('README.md', 'Ghost-FTP-0.1.0-Setup-x64.exe\nGhost-FTP-0.1.0-Setup-x86.exe\nGhost-FTP-0.1.0-Portable-x64.exe\nGhost-FTP-0.1.0-Portable-x86.exe', 'Ghost-FTP-0.1.1-Setup-x64.exe\nGhost-FTP-0.1.1-Setup-x86.exe\nGhost-FTP-0.1.1-Portable-x64.exe\nGhost-FTP-0.1.1-Portable-x86.exe', count=1)
+          # Screenshot hashes are updated after the final 0.1.1 authentic capture.
+          regex_replace('README.md', r'- main workspace: `1080x700`, SHA-256 `[0-9a-f]{64}`;', '- main workspace: `1080x700`, SHA-256 recorded by the current authentic capture workflow;', count=1)
+          regex_replace('README.md', r'- Site Manager: `920x610`, SHA-256 `[0-9a-f]{64}`\.', '- Site Manager: `920x610`, SHA-256 recorded by the current authentic capture workflow.', count=1)
+
+          # Documentation index and active-platform truth.
+          replace('docs/README.md', '**Current Ghost FTP release: 0.1.0**', '**Current Ghost FTP release: 0.1.1**', count=1)
+          replace('docs/README.md', '- **Linux** — shared core with hardened terminal frontend and DEB packages for amd64/arm64/i386. Functional parity is substantially broader than visual parity; Linux is not currently described as pixel-identical to the Windows GUI.', '- **Linux** — shared core with a native dependency-free X11/XWayland graphical frontend, hardened terminal fallback and DEB packages for amd64/arm64/i386. Native Win32 and X11 rendering are not claimed to be pixel-identical.', count=1)
+          replace('docs/README.md', '- Linux functional parity must not be mislabeled as pixel-identical GUI parity while the maintained Linux frontend remains terminal-based;', '- Linux graphical parity must not be mislabeled as pixel-identical Win32 parity; the native X11 frontend and terminal fallback must continue to use the shared Engine boundary;', count=1)
+
+          # Platform parity: current native Linux GUI plus terminal fallback.
+          replace('docs/PLATFORM-PARITY.md', 'Both editions use the same transfer, profile, settings, localization and security core. The presentation layer still differs: Windows is the native graphical reference frontend, while Linux currently uses a hardened terminal frontend.', 'Both editions use the same transfer, profile, settings, localization and security core. Windows uses the native Win32 reference frontend; Linux now uses a dependency-free native X11/XWayland graphical frontend and retains the hardened terminal frontend for headless or explicit fallback use.', count=1)
+          replace('docs/PLATFORM-PARITY.md', 'Linux exposes the same underlying profile/connection capabilities through terminal commands rather than reproducing the Windows dialog.', 'Linux exposes the same underlying profile/connection capabilities through its graphical profile controls and through terminal fallback commands; neither path creates a second connection stack.', count=1)
+          replace('docs/PLATFORM-PARITY.md', 'Linux users can navigate/list through the terminal command surface. A future Linux GUI search field must reuse the same item model and must not introduce a separate server/indexing service simply to mimic the Windows control.', 'Linux users can navigate/list through the graphical file panel or terminal fallback. Any graphical search enhancement must reuse the same item model and must not introduce a separate server/indexing service.', count=1)
+          replace('docs/PLATFORM-PARITY.md', 'Windows exposes queue actions as buttons and the transfer list. Linux exposes the same transfer-manager actions as commands:', 'Windows exposes queue actions as buttons and the transfer list. Linux exposes the same transfer-manager actions in its GUI and preserves these terminal fallback commands:', count=1)
+          replace('docs/PLATFORM-PARITY.md', 'Linux profile commands use the shared protected profile store:', 'Linux graphical profile controls and terminal profile commands use the shared protected profile store:', count=1)
+          replace('docs/PLATFORM-PARITY.md', 'Linux can inspect settings using `settings` and modify supported values with:', 'Linux can edit the same validated settings through its graphical Settings overlay and can also inspect/modify them through the terminal fallback:', count=1)
+          replace('docs/PLATFORM-PARITY.md', 'The canonical registry contains 24 languages and English is the default/fallback. Windows supports live language switching and localized Setup primary flows. Linux resolves the same stored locale, can change it at runtime and uses the same translation catalogs for terminal operations.', 'The canonical registry contains 24 languages and English is the default/fallback. Windows supports live language switching and localized Setup primary flows. Linux resolves the same stored locale for its graphical and terminal surfaces and uses the same translation catalogs/fallback normalization.', count=1)
+          old_linux_visual = '''### Linux\n\nLinux is currently a terminal presentation over the same core. The prompt exposes both remote and local working directories, and command groups are separated into Remote, Local, Files, Queue, Profiles and Options.\n\nThis keeps the current package free of a bundled cross-platform GUI framework and allows amd64, arm64 and i386 package targets to remain small and auditable.\n\n**Linux is not currently pixel-identical to the Windows graphical reference.** That gap is explicitly documented. A future Linux graphical frontend is acceptable only if it preserves the dependency, security and reproducibility requirements and does not fork the transfer/security engine.\n\nIf such a GUI requires an OS toolkit/display runtime, that prerequisite must be documented accurately; it must not be called “no dependency” merely because distributions commonly ship it.\n'''
+          new_linux_visual = '''### Linux\n\nLinux now provides a real graphical desktop presentation over the same core. The frontend speaks directly to the local X11/XWayland display protocol using the Go standard library and the existing typed `api.Engine`; it does not bundle GTK, Qt, Electron, a webview, a tracking runtime or another transfer engine. The hardened terminal frontend remains available for headless systems or explicit `GHOSTFTP_UI=terminal` use.\n\nThe GUI exposes Quick Connect, SFTP host-key trust, profiles, local/server panes, file and tree transfers, transfer queue controls, local/remote file operations, remote permissions and validated transfer settings. Destructive actions retain the shared confirm-delete policy.\n\n**Linux is not claimed to be pixel-identical to native Win32.** It follows the same Ghost FTP brand palette and interaction hierarchy while preserving native platform/runtime constraints and small auditable amd64, arm64 and i386 packages.\n\nThe Linux desktop requires a local X11-compatible display (native X11 or XWayland). Protocol transport prerequisites remain the system `curl` and OpenSSH tools documented elsewhere.\n'''
+          replace('docs/PLATFORM-PARITY.md', old_linux_visual, new_linux_visual, count=1)
+
+          # Linux usage now starts graphical; terminal commands remain documented fallback.
+          linux_readme = read('linux/README.md')
+          marker = 'Runtime dependencies declared by the package are `ca-certificates`, `curl` and `openssh-client`. Ghost FTP does not bundle those projects or add external Go modules to the desktop/core module.\n'
+          if marker not in linux_readme:
+              raise SystemExit('linux/README.md: GUI insertion marker missing')
+          gui_section = '''\n## Graphical desktop\n\nWhen a local `DISPLAY` is available, `ghostftp` starts the native Ghost FTP graphical frontend by default. The GUI is implemented directly against X11/XWayland-compatible display transport without GTK, Qt, Electron, a webview or an external Go GUI module.\n\nThe graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, single-file and tree transfers, queue controls, local/remote file operations, remote permissions and validated transfer settings.\n\nFor a headless session, or to explicitly use the hardened command interface, set:\n\n```text\nGHOSTFTP_UI=terminal ghostftp\n```\n\nA graphical session requires a local X11-compatible display (native X11 or XWayland). The file-transfer protocols continue to use the system transport prerequisites documented below.\n'''
+          linux_readme = linux_readme.replace(marker, marker + gui_section, 1)
+          linux_readme = linux_readme.replace('## Remote file commands', '## Terminal fallback: remote file commands', 1)
+          linux_readme = linux_readme.replace('## Local file commands', '## Terminal fallback: local file commands', 1)
+          linux_readme = linux_readme.replace('The Linux terminal now exposes a real local working directory rather than resolving relative transfer paths from the process working directory:', 'The terminal fallback exposes a real local working directory rather than resolving relative transfer paths from the process working directory:', 1)
+          write('linux/README.md', linux_readme)
+
+          # Installation examples and Linux launch behavior.
+          replace('docs/INSTALLATION.md', 'Ghost-FTP-0.1.0-Setup-x64.exe', 'Ghost-FTP-0.1.1-Setup-x64.exe', count=1)
+          replace('docs/INSTALLATION.md', 'Ghost-FTP-0.1.0-Setup-x86.exe', 'Ghost-FTP-0.1.1-Setup-x86.exe', count=1)
+          replace('docs/INSTALLATION.md', 'Ghost-FTP-0.1.0-Portable-x64.exe', 'Ghost-FTP-0.1.1-Portable-x64.exe', count=1)
+          replace('docs/INSTALLATION.md', 'Ghost-FTP-0.1.0-Portable-x86.exe', 'Ghost-FTP-0.1.1-Portable-x86.exe', count=1)
+          replace('docs/INSTALLATION.md', 'For the current Beta baseline, replace `X.Y.Z` with `0.1.0`.', 'For the current Beta release, replace `X.Y.Z` with `0.1.1`.', count=1)
+          replace('docs/INSTALLATION.md', 'sudo apt install ./Ghost-FTP-0.1.0-Linux-amd64.deb', 'sudo apt install ./Ghost-FTP-0.1.1-Linux-amd64.deb', count=1)
+          replace('docs/INSTALLATION.md', 'The package installs the `ghostftp` executable and Linux desktop/package metadata. The current Linux frontend is terminal-based but uses the same transfer/security engine as Windows.', 'The package installs the `ghostftp` executable and Linux desktop/package metadata. With a local X11-compatible display it starts the native graphical frontend by default; headless systems can use the hardened terminal fallback. Both use the same transfer/security Engine as Windows.', count=1)
+
+          # Reference UI: canonical brand tokens and current Linux GUI boundary.
+          replace('docs/REFERENCE-UI.md', 'The intended visual character is a dense professional desktop file manager using deep navy surfaces, cool blue borders, muted secondary text and a blue-violet primary accent. The UI remains native Win32 and does not load a web UI, tracking runtime or third-party GUI framework.', 'The intended visual character is a dense professional desktop file manager using the maintained Ghost FTP near-black surfaces, cool neutral borders, muted secondary text and blue primary accent. These tokens mirror the maintained Web companion brand source while the UI remains native Win32 and does not load a web UI, tracking runtime or third-party GUI framework.', count=1)
+          regex_replace('docs/REFERENCE-UI.md', r'\| Window \| `5, 17, 29` \|\n\| Panel \| `7, 25, 39` \|\n\| List \| `8, 28, 43` \|\n\| Border \| `28, 62, 86` \|\n\| Primary text \| `224, 237, 255` \|\n\| Muted text \| `126, 161, 201` \|\n\| Accent \| `96, 126, 255` \|\n\| Strong accent \| `110, 84, 255` \|\n\| Success \| `57, 216, 166` \|\n\| Warning \| `247, 190, 72` \|', '| Window | `8, 10, 15` (`#080A0F`) |\n| Panel | `15, 19, 28` (`#0F131C`) |\n| List | `21, 26, 37` (`#151A25`) |\n| Border | `37, 45, 60` (`#252D3C`) |\n| Primary text | `244, 247, 255` (`#F4F7FF`) |\n| Muted text | `142, 153, 173` (`#8E99AD`) |\n| Accent | `82, 119, 245` (`#5277F5`) |\n| Strong accent | `114, 147, 255` (`#7293FF`) |\n| Success | `74, 215, 155` (`#4AD79B`) |\n| Warning | `242, 186, 85` (`#F2BA55`) |', count=1)
+          linux_boundary_pattern = r'## Linux presentation boundary\n\nLinux currently uses the same transfer/security/settings/profile engine with a hardened terminal frontend\..*?reviewed under the dependency policy\.\n'
+          linux_boundary_repl = '''## Linux presentation boundary\n\nLinux now uses the same transfer/security/settings/profile engine with a real dependency-free X11/XWayland graphical frontend. It remains **native-platform different** from Win32 rather than pretending to be pixel-identical.\n\nThe Linux GUI was accepted only after satisfying the same boundary rules: no fork of the connection/transfer/security engine, no telemetry, no hidden web/service runtime, reproducible amd64/arm64/i386 packaging, shared destructive-operation safeguards and a real production-binary X11 runtime smoke test. The hardened terminal frontend remains available for headless or explicit fallback use.\n\nNo cross-platform GUI toolkit is bundled. A local X11-compatible display is the graphical runtime prerequisite; FTP/FTPS and SFTP continue to use the documented system `curl` and OpenSSH prerequisites.\n'''
+          regex_replace('docs/REFERENCE-UI.md', linux_boundary_pattern, linux_boundary_repl, count=1, flags=re.S)
+
+          # Active docs that still used the pre-GUI description.
+          for path in ['docs/ARCHITECTURE.md', 'docs/ROADMAP.md', 'docs/TESTING.md', 'docs/DEPENDENCIES.md', 'docs/SECURITY.md']:
+              text = read(path)
+              text = text.replace('hardened terminal frontend', 'native X11 GUI with hardened terminal fallback')
+              text = text.replace('hardened terminal interface', 'native X11 GUI with hardened terminal fallback')
+              text = text.replace('Linux terminal frontend', 'Linux native X11 GUI and terminal fallback')
+              text = text.replace('Linux terminal interface', 'Linux native X11 GUI and terminal fallback')
+              write(path, text)
+
+          # Changelog and release history. Preserve 0.1.0 as the baseline/history.
+          changelog = read('CHANGELOG.md')
+          if '## 0.1.1' not in changelog:
+              heading_end = changelog.find('\n', changelog.find('#')) + 1
+              entry = '''\n## 0.1.1 - 2026-09-06 Beta\n\n### Added\n\n- Native dependency-free Linux X11/XWayland graphical desktop with Quick Connect, SFTP host trust, profiles, dual file panes, file/tree transfer actions and transfer queue controls.\n- Linux graphical local/remote New folder, Rename and Delete actions plus remote Permissions/chmod.\n- Linux graphical transfer Settings overlay for parallelism, conflict policy, retry count/delay, connection timeout and delete confirmation.\n- Production X11 runtime smoke coverage that verifies protocol setup, a real mapped Ghost FTP window and stable process lifetime.\n\n### Changed\n\n- Desktop palette now mirrors the maintained Ghost FTP Web brand tokens (`#080A0F`, `#0F131C`, `#151A25`, `#5277F5`, `#7293FF`) while retaining native Win32/X11 rendering.\n- Linux desktop packaging launches the graphical application by default when a display is present; the hardened terminal remains an explicit/headless fallback.\n- Documentation, package examples and authentic Windows runtime screenshots are refreshed for the 0.1.1 Beta line.\n- Implicit FTPS (`ftpsi`, conventional port 990) is documented as a maintained desktop protocol option.\n\n### Fixed / hardened\n\n- Corrected raw X11 CreateGC value-mask handling and GetKeyboardMapping wire offsets found by real runtime testing.\n- Destructive Linux GUI actions honor the canonical confirm-delete setting and retain typed Engine validation.\n- No Linux password/passphrase persistence was introduced; existing secret-lifetime boundaries remain unchanged.\n\n'''
+              changelog = changelog[:heading_end] + entry + changelog[heading_end:]
+              write('CHANGELOG.md', changelog)
+
+          history = read('docs/RELEASE-HISTORY.md')
+          if '## 0.1.1' not in history:
+              pos = history.find('\n') + 1
+              entry = '''\n## 0.1.1 — 2026-09-06 Beta\n\nGhost FTP 0.1.1 advances the pre-1.0 Windows/Linux line with a real Linux graphical frontend, stronger runtime verification and a unified Ghost FTP visual system. Windows remains native Win32; Linux uses a dependency-free raw X11/XWayland-compatible frontend over the same typed Engine and retains the terminal for headless/explicit fallback.\n\nThe release also refreshes native Windows runtime screenshots, documents implicit FTPS, aligns desktop palette tokens with the maintained Web brand source, and preserves the existing no-telemetry, SFTP host-trust, credential-lifetime, filesystem and release-readback protections.\n\n'''
+              history = history[:pos] + entry + history[pos:]
+              write('docs/RELEASE-HISTORY.md', history)
+
+          # Release workflow: allow an exact-main release branch creation to trigger
+          # publication after this PR is merged. Existing main-SHA and immutable-tag
+          # checks remain authoritative.
+          release = read('.github/workflows/release.yml')
+          if '\n  create:\n' not in release:
+              release = release.replace("        type: string\n\npermissions:", "        type: string\n  create:\n\npermissions:", 1)
+          gate = "${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/ghostftp-v')) }}"
+          for job in ['quality', 'windows', 'linux']:
+              needle = f'  {job}:\n    name:'
+              if needle not in release:
+                  raise SystemExit(f'release workflow job marker missing: {job}')
+              replacement = f'  {job}:\n    if: {gate}\n    name:'
+              release = release.replace(needle, replacement, 1)
+          needle = '  publish:\n    name:'
+          if needle not in release:
+              raise SystemExit('release workflow publish marker missing')
+          release = release.replace(needle, f'  publish:\n    if: {gate}\n    name:', 1)
+          write('.github/workflows/release.yml', release)
+
+          # Release docs explain the controlled branch trigger without changing
+          # the immutable ghostftp-vX.Y.Z tag contract.
+          ghrel = read('docs/GITHUB-RELEASES.md')
+          if 'release/ghostftp-vX.Y.Z' not in ghrel:
+              ghrel += '''\n## Automated production trigger\n\nAfter the release candidate is merged and the exact `main` commit has passed all required gates, maintainers may create `release/ghostftp-vX.Y.Z` at that exact `main` SHA. The release workflow accepts only that branch namespace (or an explicit manual dispatch), re-runs the full production gates, rechecks that `main` still equals the release commit, and then creates the immutable `ghostftp-vX.Y.Z` release tag.\n'''
+              write('docs/GITHUB-RELEASES.md', ghrel)
+
+          print('RELEASE_PREP_TRANSFORMS=PASS')
+          PY
+
+          gofmt -w internal/desktop/theme.go
+
+      - name: Run release-quality gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+          test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
+          go test -race ./...
+          go vet ./...
+          python scripts/audit_brand_hardcut.py
+          python scripts/audit_repository.py
+          python scripts/audit_platform_contract.py
+          python scripts/audit_dependencies.py
+          python scripts/audit_version.py
+          python scripts/audit_localization.py
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
+          python scripts/audit_docs.py
+          python scripts/audit_web.py
+          python scripts/audit_release.py
+          python -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Commit verified 0.1.1 preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          git add -- VERSION README.md CHANGELOG.md 'GhostFTP WEB/VERSION' 'GhostFTP WEB/composer.json' 'GhostFTP WEB/service-worker.js' internal/desktop/theme.go linux/README.md docs .github/workflows/release.yml
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No release-preparation changes found.' >&2; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Prepare Ghost FTP 0.1.1 Beta release'
+          git pull --rebase origin work/premium-parity-release-hardening-0.1.1
+          git push origin HEAD:work/premium-parity-release-hardening-0.1.1
