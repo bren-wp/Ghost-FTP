@@ -41,6 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/prepare_release_011.py
+          python scripts/prepare_release_011_fix.py
           gofmt -w internal/desktop/theme.go
       - name: Run production quality gates
         shell: bash
