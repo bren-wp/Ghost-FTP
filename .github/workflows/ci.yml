@@ -48,7 +48,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
+          unformatted="$(gofmt -l $(find cmd internal -name '*.go' -print))"
+          if [[ -n "$unformatted" ]]; then
+            printf 'The following Go files are not gofmt-clean:\n%s\n' "$unformatted" >&2
+            exit 1
+          fi
           go test -race ./...
           go vet ./...
       - name: Repository and platform contract audits
