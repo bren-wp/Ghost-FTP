@@ -1,10 +1,10 @@
 # Localization
 
-Ghost FTP uses an English-first localization model. English (`en`) is the canonical source language, the first safe setup/runtime fallback, and the language used whenever a translated string is unavailable or cannot be loaded safely.
+Ghost FTP uses an **English-first** localization model. English (`en`) is the canonical source language, default locale and safe fallback whenever a translated string is unavailable or invalid.
 
-## Supported language registry
+## Supported languages
 
-Ghost FTP 1.1.0 defines 24 canonical language codes:
+Ghost FTP 2.x exposes 24 canonical language codes:
 
 | Code | Language | Native name |
 | --- | --- | --- |
@@ -33,82 +33,87 @@ Ghost FTP 1.1.0 defines 24 canonical language codes:
 | `no` | Norwegian | Norsk |
 | `ko` | Korean | 한국어 |
 
-Common regional forms normalize to the canonical code. For example, `pt-BR` resolves to `pt`, `de-DE` to `de`, `zh-Hans`/`zh-CN` to `zh`, and `nb-NO`/`nn-NO` to `no`.
+Common regional forms normalize to the canonical registry. Examples include `pt-BR` → `pt`, `de-DE` → `de`, `zh-Hans`/`zh-CN` → `zh`, and `nb`/`nn` → `no`.
 
-Platform resource identifiers are allowed to use the native platform convention while preserving the same canonical meaning. iOS therefore maps canonical `zh` to `zh-Hans` and canonical `no` to `nb` in its localized resource directories.
+## Canonical runtime registry
 
-## Runtime rules
+`internal/i18n/i18n.go` owns:
 
-`internal/i18n/i18n.go` owns the canonical desktop/setup registry, normalization, fallback and catalog validation. Every advertised desktop/setup language must have the exact English key set with compatible formatting verbs. Empty translations, unknown keys, duplicate language codes and invalid aliases are release-blocking.
+- supported language metadata;
+- normalization/aliases;
+- English fallback;
+- catalog validation;
+- affirmative-answer matching;
+- translation coverage measurement.
 
-Full legacy catalogs must remain substantially localized. Supplemental catalogs introduced later must contain a meaningful translated core instead of merely copying the English catalog. `TranslationCoverage` and localization tests measure this directly.
+Every advertised runtime language must preserve the English key/format contract. Empty strings, incompatible format verbs, duplicate language codes or invalid aliases are release-blocking.
 
-Language selection is persisted in normal application settings. Unknown or unsupported persisted language values normalize safely to English.
+## Translation coverage
+
+Ghost FTP does not count an English copy as a completed translation. Supplemental catalogs must exceed the minimum translated-core coverage enforced by tests/audits.
+
+Security-sensitive copy—credential prompts, destructive actions, recovery/overwrite warnings and trust decisions—requires human review before the corresponding surface is described as translation-complete.
+
+Machine translation can be used as a drafting aid but does not override review requirements.
 
 ## Windows application
 
-The Windows desktop application persists the selected language and supports live label, column and protocol refresh without requiring the user to recreate a profile.
+The native Windows frontend supports live language switching. A language change refreshes labels, protocol names, list columns and supported status/action text without requiring a new profile.
 
-Startup and catastrophic-error text remains English-first because those paths may run before settings or localization state can be loaded safely.
+Startup/catastrophic fallback text remains English-first because those paths may execute before persisted localization state is safely available.
 
 ## Windows Setup
 
-The first setup language selector is intentionally English-first so a damaged or unknown locale never makes setup unusable. After the user selects a language, the primary confirmation, completion, launch and warning flow uses `cmd/installer/messages.go` and the same canonical locale normalization as the application.
+Setup uses the same canonical language registry. The language selector is English-first and localized primary confirmation/completion/launch/warning copy is maintained for all canonical languages.
 
-Installer payload verification, rollback and error containment are not weakened by localization. Technical failure detail may fall back to English where no reviewed localized recovery message exists; an English fallback is preferable to an empty or misleading security message.
+Installer integrity, rollback and path validation remain independent of translated text. Technical recovery detail may safely fall back to English instead of rendering an empty or misleading localized security message.
 
-## Android
+## Linux
 
-Android ships native resource catalogs for the same 24-language registry. User-visible resource keys are validated for exact parity with the canonical Android English resource set, including format placeholders and locale-directory drift.
+Linux reads the same persisted language setting and uses the same catalogs as the Windows core.
 
-`scripts/audit_android_localization.py` is fail-closed: a missing language, missing/extra key, incompatible formatting placeholder, dynamic dependency drift or effectively untranslated locale blocks the release gate.
+The terminal frontend can change language at runtime using the supported canonical code. Invalid language state normalizes to English.
 
-Android follows platform locale selection. Passwords/passphrases remain session-only and are not persisted as part of localization or remembered connection state.
+The Linux localization contract covers connection prompts/status, remote operations, transfer status and other catalog-backed terminal messages. Additional hard-coded terminal helper text should continue moving into the canonical catalog as translations are reviewed.
 
-## iOS
+## Web companion
 
-iOS ships native `Localizable.strings` resources for all 24 canonical languages. The Xcode project includes them through a `PBXVariantGroup` in the application Resources build phase rather than leaving translation files disconnected from the packaged app.
+The separate Web companion uses its own PHP/PWA registry synchronized to the same 24-language product set and English fallback principle.
 
-Canonical platform mappings are explicit:
+The Web companion does not use an external translation service, localization tracking cookie or third-party i18n framework. User language preference is stored in existing authenticated client state and sensitive navigation/API responses remain excluded from PWA caching.
 
-- `zh` → `zh-Hans.lproj`
-- `no` → `nb.lproj`
-
-The localization audit verifies the exact locale set, key parity, non-empty values, meaningful translated coverage, Xcode resource wiring and the dynamic runtime lookup used by the connection status control. The public iOS artifact remains an unsigned arm64 IPA; localization does not change its signing/provisioning status.
-
-## Web/PWA
-
-Web/PWA uses `GhostFTP\\I18n` as its server-side language registry and persists the canonical language in the existing per-user `client_state`. No localization cookie, telemetry identifier, external translation service or third-party i18n framework is required.
-
-The authenticated shell receives only the normalized language code and an HTML-escaped JSON core catalog through same-origin page metadata. JavaScript uses English fallback text when a core key is unavailable. Changing language uses the existing CSRF-protected `me` / `save_preferences` preference API and then reloads the shell so server-rendered document language and runtime catalog remain synchronized.
-
-The Web/PWA 1.1.0 core localization covers the connection-oriented catalog and high-frequency dynamic file-browser statuses/actions. The remaining static administrative/support shell copy is intentionally English-first until reviewed translations are added; Ghost FTP does not represent untranslated English fallback copy as a completed translation.
-
-Locale-sensitive client operations, including file-name filtering/sorting, use the persisted canonical locale rather than a hard-coded Croatian locale. The PWA continues to exclude authenticated navigation, API, account, setup, diagnostics, download and preview responses from offline cache.
-
-Runtime Web tests validate:
-
-- exactly 24 canonical codes;
-- English as the default/fallback;
-- regional alias normalization;
-- equal core key sets;
-- non-empty translations and minimum real translation coverage;
-- persisted language sanitization;
-- server-to-JavaScript language/catalog wiring;
-- absence of the previous hard-coded Croatian file-filter locale;
-- English-first network/PWA fallback behavior.
+The Web companion is not a Windows/Linux desktop platform artifact.
 
 ## Adding or changing a language
 
-1. Add or update the canonical language entry in `internal/i18n/i18n.go`.
-2. Add a complete desktop/setup catalog or a reviewed supplemental catalog with sufficient real translation coverage.
-3. Preserve all `%s`, `%d` and other formatting verbs required by the English source string.
-4. Update Windows Setup copy where the language is setup-supported.
-5. Add or update Android native resources with exact key/placeholder parity.
-6. Add or update the corresponding iOS localized resource and Xcode resource membership.
-7. Add or update the Web/PWA core catalog where the user-facing surface is supported.
-8. Add normalization/affirmative-answer tests when the locale has relevant regional forms.
-9. Run `go test ./...`, `python scripts/audit_localization.py`, `python scripts/audit_android_localization.py` and `python scripts/audit_web.py`.
-10. Run the complete multi-platform CI matrix before publication.
+For desktop/setup changes:
 
-Machine translation may be used as a draft. Security, credential, destructive-action, recovery and overwrite messages require review before a release is described as translation-complete for that surface.
+1. add/update the canonical language in `internal/i18n/i18n.go`;
+2. add/update the catalog while preserving every required key;
+3. preserve `%s`, `%d` and all other English format verbs;
+4. update Windows Setup primary copy;
+5. verify Windows live localization;
+6. verify Linux runtime language switching;
+7. add alias/affirmative tests when regional forms require them;
+8. run the localization audit and complete CI.
+
+For Web companion translation changes, update its registry/catalog separately and run `scripts/audit_web.py`.
+
+## CI contract
+
+`scripts/audit_localization.py` verifies:
+
+- English is the first/default locale;
+- exactly the canonical 24-language desktop registry is present;
+- required catalog source/test files exist;
+- translation coverage and format-contract tests remain wired;
+- Windows live localization remains wired;
+- Windows Setup copy covers every supported language;
+- Linux runtime localization remains wired;
+- root documentation advertises the same 24-language/English-first contract.
+
+Localization drift is therefore a release failure, not a documentation-only defect.
+
+## Retired platform history
+
+Historical 1.x commits may contain Android/iOS localization resources because those applications were active at that time. They are not part of the 2.x localization gate and must not be treated as current platform requirements.

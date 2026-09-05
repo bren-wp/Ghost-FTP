@@ -1,76 +1,108 @@
 # Dependencies and external-component policy
 
-Ghost FTP is designed to minimize third-party runtime dependencies, forbid application telemetry, and make every remaining dependency explicit and auditable.
+Ghost FTP 2.x minimizes third-party code, prohibits application tracking, and makes every remaining operating-system prerequisite explicit.
 
-## Policy goals
+## Scope
 
-- No application analytics, advertising, behavioral tracking or external crash-reporting SDKs.
-- No hidden Ghost FTP backend, remote configuration service or mandatory account service.
-- No dynamic dependency versions such as `+`, `latest` or `SNAPSHOT` in production build inputs.
-- No unreviewed dependency may be added merely for convenience.
-- Security-sensitive protocol behavior must remain covered by regression tests even when a platform library is used.
-- Dependency and signing claims in documentation must match the actual build.
+The active desktop application targets are **Windows and Linux**. The existing Web companion source is audited separately and is not a Windows/Linux desktop release artifact.
 
-`scripts/audit_dependencies.py` is a fail-closed CI gate for the currently approved dependency surface.
+## Desktop/core Go dependency contract
 
-## Go desktop/core
+The root Go module is intentionally standard-library-only.
 
-The Go module currently has no external Go module requirements. `go.mod` contains the Ghost FTP module declaration and Go/toolchain metadata only. Production CI also sets `GOPROXY=off` and `GOSUMDB=off` so a build cannot silently download a new Go module.
+CI rejects:
 
-The desktop FTP/FTPS implementation currently uses the operating system's `curl` executable as a hardened transport helper. Ghost FTP disables proxy inheritance for that process, supplies credentials through an ephemeral standard-input configuration, bounds child-process output, minimizes inherited environment state and requires normal TLS certificate validation for FTPS.
+- `require`, `replace`, `exclude` or `retract` directives in `go.mod`;
+- an unexpected `go.sum` dependency graph;
+- a vendored Go module tree;
+- telemetry/analytics/advertising/crash-reporting dependency markers.
 
-This system-tool dependency is not the same as an embedded analytics or cloud dependency, but it is still an external runtime component. The 1.1.x roadmap is to make the standard-library native FTP/FTPS transport the primary implementation after protocol-parity integration tests pass.
+This means Ghost FTP does not pull a GUI toolkit, FTP library, SSH library, analytics library or updater framework into the desktop Go module.
 
-Desktop SFTP currently uses the operating system OpenSSH client/tooling rather than a third-party Go SSH module. Go's standard library does not provide an SSH/SFTP client, so documentation must continue to state this requirement until a reviewed in-repository implementation exists.
+## Runtime transport prerequisites
 
-## Android
+The current transport layer deliberately delegates protocol execution to mature operating-system tools instead of embedding third-party protocol stacks into the Go module.
 
-Android currently has two pinned runtime libraries:
+### FTP and FTPS
 
-- `commons-net:commons-net:3.13.0` for FTP/FTPS protocol support.
-- `com.hierynomus:sshj:0.40.0` for SSH/SFTP support.
+Ghost FTP invokes OS `curl` using a generated stdin configuration. The application:
 
-Unit tests use pinned `junit:junit:4.13.2`.
+- starts curl with `-q` so ambient user curl configuration is not loaded;
+- disables proxy use for the transfer session;
+- sanitizes proxy-related environment state;
+- passes credentials through protected runtime handling rather than command-line arguments;
+- validates download staging paths before promotion;
+- keeps FTPS certificate verification enabled;
+- does not opt into a blanket `ssl-no-revoke` bypass.
 
-These coordinates are explicitly allowlisted by `scripts/audit_dependencies.py`. A new runtime library, version change or test framework change makes CI fail until the dependency is reviewed and the allowlist/documentation are intentionally updated.
+### SFTP
 
-The dependency audit also rejects known analytics, advertising and crash-reporting SDK markers.
+Ghost FTP uses OS OpenSSH `ssh`/`sftp`. The application-created SSH configuration disables ambient features that would change the connection boundary, including:
 
-## iOS
+- `ProxyCommand`;
+- `ProxyJump`;
+- global known-host inheritance;
+- DNS host-key verification/update behavior;
+- identity-agent inheritance;
+- forwarding and agent forwarding.
 
-The native iOS client uses Apple platform networking for its supported FTP/FTPS transport surface and does not embed an analytics SDK, WebView wrapper or Ghost FTP cloud service.
+SFTP credentials are exposed to the child process only through the bounded AskPass/runtime-secret mechanism. The application does not write an AskPass password/passphrase file to disk.
 
-## Web/PWA
+## Windows prerequisites
 
-The shared-hosting Web/PWA package has **zero third-party Composer packages**. Its Composer `require` section contains only the platform requirement `php >=8.1`; this describes the PHP runtime supplied by the hosting environment and does not download a vendor library.
+Supported Windows installations normally provide the required curl/OpenSSH components, but the build does not silently bundle an untracked third-party copy.
 
-`composer.json` also documents these server-provided PHP extension capabilities in `suggest`:
+If a required system component is unavailable, Ghost FTP must fail with an actionable connection error rather than downloading a dependency in the background.
 
-- `ext-ftp` — FTP/FTPS support.
-- `ext-ssh2` — SFTP support.
-- `ext-zip` — ZIP creation/extraction and directory downloads.
-- `ext-sodium` — preferred credential encryption implementation.
-- `ext-openssl` — encryption fallback when sodium is unavailable.
+## Linux prerequisites
 
-These are hosting/runtime capabilities, not Composer packages bundled or fetched by Ghost FTP. `scripts/audit_dependencies.py` pins the allowed PHP requirement and the exact extension-capability list; adding a third-party package or an unexpected capability makes CI fail.
+Linux packages declare the operating-system packages required for the transport implementation. The canonical DEB build is the source of truth for package metadata.
 
-The public Web package is assembled from tracked project files only. No CDN, remote JavaScript bundle, analytics script or Ghost FTP cloud backend is required for normal operation.
+At runtime Ghost FTP expects suitable `curl`, `ssh` and `sftp` executables to be available through the supported system paths/environment.
 
-## GitHub Actions and build tooling
+## Why this is not called “zero runtime dependencies”
 
-CI actions are pinned to immutable commit SHAs. Android builds require the Android/Gradle toolchain, Windows builds require the Go/Windows toolchain, and Apple builds require Xcode/macOS runners. These are build-environment requirements, not Ghost FTP application telemetry services.
+The phrase would be inaccurate today. Ghost FTP has **zero external Go modules in the desktop/core module**, but protocol execution still depends on OS-provided `curl` and OpenSSH tools.
 
-## Adding a dependency
+The repository audit intentionally preserves that distinction. A future embedded transport implementation would require a separate security review because changing a protocol implementation is much more sensitive than replacing a UI component.
 
-A proposed new dependency must document:
+## Web companion
 
-1. The capability that cannot reasonably be implemented with existing project/platform code.
-2. Exact version and upstream provenance.
-3. License and redistribution implications.
-4. Network behavior and whether any telemetry exists or can be disabled.
-5. Credential, filesystem and process-boundary impact.
-6. Security update strategy.
-7. Regression tests proving that the dependency cannot weaken Ghost FTP trust boundaries.
-8. Removal/fallback strategy.
+The Web companion has no third-party Composer runtime packages. Its `composer.json` contains only the supported PHP platform requirement and documents optional PHP extension capabilities.
 
-The change must update `scripts/audit_dependencies.py`, this document, `THIRD-PARTY-NOTICES.md` when applicable, and pass the full release CI matrix.
+Suggested extensions are capability declarations, not Composer-installed packages. The Web companion remains separate from the 2.x desktop application release artifact count.
+
+## Tracking/analytics policy
+
+Ghost FTP must not add application dependencies for:
+
+- analytics;
+- advertising;
+- behavioral tracking;
+- remote crash collection;
+- user/session replay;
+- automatic marketing attribution;
+- background application telemetry.
+
+CI audits dependency surfaces and runtime source for known vendor markers and fixed telemetry-style network endpoints.
+
+## Build-time actions
+
+GitHub Actions uses pinned action revisions for checkout, Go setup, Python setup and artifact upload/download. These are build-system dependencies, not installed-application runtime dependencies.
+
+Production builds also execute `go telemetry off` and verify that telemetry is disabled before compiling.
+
+## Change-control rules
+
+Any proposal that introduces a new runtime/library dependency must document:
+
+1. why existing standard-library/OS facilities are insufficient;
+2. exact package/component and version;
+3. license and provenance;
+4. security/update ownership;
+5. telemetry/network behavior;
+6. whether the dependency is bundled or system-provided;
+7. rollback/removal strategy;
+8. CI checks required to prevent unreviewed drift.
+
+Dependencies must never be added merely to simplify a small UI or helper function when the current platform layer can implement it safely.

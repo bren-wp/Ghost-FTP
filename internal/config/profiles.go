@@ -57,7 +57,7 @@ func (p *Profiles) loadSecure() ([]model.Profile, bool, error) {
 	if envelope.Version != 1 {
 		return nil, true, errors.New("spremljeni profili koriste nepodržan format")
 	}
-	plain, err := unprotectProfileData(envelope.Protected)
+	plain, err := unprotectProfileData(envelope.Protected, p.store.Dir())
 	if err != nil {
 		return nil, true, errors.New("spremljene profile nije moguće otključati")
 	}
@@ -69,6 +69,11 @@ func (p *Profiles) loadSecure() ([]model.Profile, bool, error) {
 	var items []model.Profile
 	if err := json.Unmarshal(plain, &items); err != nil {
 		return nil, true, errors.New("spremljeni profili su oštećeni")
+	}
+	if profileDataNeedsMigration(envelope.Protected) {
+		if err := p.saveAll(items); err != nil {
+			return nil, true, errors.New("spremljene profile nije moguće sigurno migrirati")
+		}
 	}
 	return items, true, nil
 }
@@ -108,7 +113,7 @@ func (p *Profiles) saveAll(items []model.Profile) error {
 			plain[i] = 0
 		}
 	}()
-	protected, err := protectProfileData(plain)
+	protected, err := protectProfileData(plain, p.store.Dir())
 	if err != nil {
 		return err
 	}

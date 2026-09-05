@@ -124,16 +124,15 @@ func promptWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr
 	return r
 }
 
-// PromptDialog displays a small native edit dialog using English action labels.
+// PromptDialog displays a native edit dialog using English action labels.
 // Localized UI call sites should use PromptDialogWithLabels.
 func PromptDialog(title, instruction, defaultValue string) (string, bool) {
 	return PromptDialogWithLabels(title, instruction, defaultValue, "OK", "Cancel")
 }
 
-// PromptDialogWithLabels displays a native edit dialog whose action labels are
-// supplied by the caller. Keeping the labels outside the platform package lets
-// the application use one selected runtime locale without introducing a second
-// localization system in the Win32 helper layer.
+// PromptDialogWithLabels keeps the platform layer dependency-free while using
+// the same premium native shell as Setup. Action labels remain caller-owned so
+// the application can use its selected locale without a second i18n system.
 func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLabel string) (string, bool) {
 	if okLabel == "" {
 		okLabel = "OK"
@@ -155,42 +154,71 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 		promptRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
 	})
 
-	const wsOverlapped = 0x00C80000
-	const wsVisible = 0x10000000
-	const wsChild = 0x40000000
-	const wsTabStop = 0x00010000
-	const wsBorder = 0x00800000
+	const (
+		wsOverlapped    = 0x00C80000
+		wsVisible       = 0x10000000
+		wsChild         = 0x40000000
+		wsTabStop       = 0x00010000
+		wsBorder        = 0x00800000
+		bsDefPushButton = 0x00000001
+		ssEtchedHorz    = 0x00000010
+	)
+	const (
+		windowWidth  = 600
+		windowHeight = 226
+	)
+	x, y := premiumDialogPosition(windowWidth, windowHeight)
 	state := &promptState{}
 	hwnd, _, _ := promptCreateWindowExW.Call(
-		0, uintptr(unsafe.Pointer(promptWstr(promptClass))), uintptr(unsafe.Pointer(promptWstr(title))),
-		wsOverlapped|wsVisible, 420, 280, 520, 185, 0, 0, hinst, 0,
+		0,
+		uintptr(unsafe.Pointer(promptWstr(promptClass))),
+		uintptr(unsafe.Pointer(promptWstr(title))),
+		wsOverlapped,
+		uintptr(x), uintptr(y), windowWidth, windowHeight,
+		0, 0, hinst, 0,
 	)
 	if hwnd == 0 {
 		return "", false
 	}
+	applyPremiumDialogWindow(hwnd)
 	state.hwnd = hwnd
 	promptStates.Store(hwnd, state)
 	defer promptStates.Delete(hwnd)
 
-	fontHeight := int32(-15)
-	font, _, _ := promptCreateFontW.Call(uintptr(uint32(fontHeight)), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(promptWstr("Segoe UI"))))
+	font := premiumDialogFont(-15, 400)
 	if font != 0 {
 		defer promptDeleteObject.Call(font)
 	}
-	mk := func(class, text string, style uint32, x, y, w, h, id int) uintptr {
-		ch, _, _ := promptCreateWindowExW.Call(0, uintptr(unsafe.Pointer(promptWstr(class))), uintptr(unsafe.Pointer(promptWstr(text))), uintptr(wsChild|wsVisible|style), uintptr(x), uintptr(y), uintptr(w), uintptr(h), hwnd, uintptr(id), hinst, 0)
-		if ch != 0 && font != 0 {
-			promptSendMessageW.Call(ch, promptWMSetFont, font, 1)
+	captionFont := premiumDialogFont(-13, 400)
+	if captionFont != 0 {
+		defer promptDeleteObject.Call(captionFont)
+	}
+
+	mk := func(class, text string, style uint32, x, y, w, h, id int, controlFont uintptr) uintptr {
+		ch, _, _ := promptCreateWindowExW.Call(
+			0,
+			uintptr(unsafe.Pointer(promptWstr(class))),
+			uintptr(unsafe.Pointer(promptWstr(text))),
+			uintptr(wsChild|wsVisible|style),
+			uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+			hwnd, uintptr(id), hinst, 0,
+		)
+		if ch != 0 && controlFont != 0 {
+			promptSendMessageW.Call(ch, promptWMSetFont, controlFont, 1)
 		}
 		return ch
 	}
-	mk("STATIC", instruction, 0, 18, 16, 470, 40, 0)
-	state.edit = mk("EDIT", defaultValue, wsBorder|wsTabStop|0x0080, 18, 62, 470, 28, promptIDEdit)
+
+	mk("STATIC", instruction, 0, 28, 22, 544, 42, 0, font)
+	state.edit = mk("EDIT", defaultValue, wsBorder|wsTabStop|0x0080, 28, 72, 544, 32, promptIDEdit, font)
 	if state.edit != 0 {
 		promptSendMessageW.Call(state.edit, promptEMSetLimitText, 1024, 0)
 	}
-	mk("BUTTON", okLabel, wsTabStop, 310, 108, 86, 30, promptIDOK)
-	mk("BUTTON", cancelLabel, wsTabStop, 402, 108, 86, 30, promptIDCancel)
+	mk("STATIC", "", ssEtchedHorz, 28, 120, 544, 2, 0, captionFont)
+	mk("STATIC", "Ghost FTP · local native dialog", 0, 28, 138, 300, 26, 0, captionFont)
+	mk("BUTTON", okLabel, wsTabStop|bsDefPushButton, 374, 134, 94, 36, promptIDOK, font)
+	mk("BUTTON", cancelLabel, wsTabStop, 478, 134, 94, 36, promptIDCancel, font)
+
 	promptSetFocus.Call(state.edit)
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)

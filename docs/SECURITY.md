@@ -1,142 +1,200 @@
 # Security
 
-Ghost FTP keeps transport, credential, remote-path, account-state, archive-processing and filesystem checks fail-closed.
+Ghost FTP keeps transport, credential, remote-path, local-filesystem, account-state and transfer/recovery boundaries fail-closed.
 
-**Current Ghost FTP release: 1.1.0**
+**Current Ghost FTP release: 2.0.0**
 
-## Desktop core
+The active 2.x desktop application platforms are **Windows and Linux**. Historical 1.x releases may document additional platforms that existed at the time; those historical facts are not the active security/support contract.
 
-FTP over TLS validates certificates. SFTP pins and verifies the host key. Uploads use stable local snapshots, remote writes use temporary staging and destination revalidation, and overwrite paths use backup/rollback logic. Local recursive operations guard against symlinks, junctions and reparse-point traversal.
+## Desktop security boundary
 
-Private upload-source snapshots retain their owned cleanup path if fail-closed removal itself fails, allowing cleanup to be retried instead of losing the only reference to residual sensitive data. After a downloaded replacement is committed locally, failure to remove a rollback copy is reported instead of silently returning success.
+Windows and Linux use the same typed `internal/api.Engine`, remote manager, transfer manager, settings/profile stores and security primitives. Frontends do not implement their own FTP/SFTP stack or queue scheduler.
 
-Credentials must never be logged. Windows saved profile secrets are protected with DPAPI. Runtime secret material is kept ephemeral on supported platforms. External processes receive a minimized environment and bounded output. OpenSSH AskPass is parent/token constrained, clears inherited credential state before secret use and refuses unknown/MFA-style prompts instead of supplying a stored secret.
+Important invariants include:
 
-The maintained desktop toolchain is pinned by CI. Production builds disable Go telemetry and external module downloads before compiling.
+- no generic JSON dispatcher or localhost/browser IPC between desktop UI and engine;
+- strict raw connection validation before normalization can hide malformed input;
+- secrets never written to application logs;
+- endpoint/account/private-key binding for saved profile credentials;
+- SFTP host-key fingerprint trust;
+- bounded connection/session cleanup;
+- staging and destination validation before final transfer promotion;
+- recursive local operations protected against symlink/junction/reparse traversal;
+- filesystem-root recursive deletion blocked;
+- conflict/retry behavior centralized in the transfer engine.
 
-## Windows installer and upgrade boundary
+## Credential handling
 
-Ghost FTP Setup uses an application-only verified payload and does not publish a standalone `Uninstall.exe`.
+### Windows
 
-The installer validates its embedded payload manifest and digest, stages verified bytes, protects installation paths against unsafe redirection/reparse behavior and uses rollback-aware file/registry transactions.
+Saved profile secrets use Windows DPAPI-backed protection. Runtime secret material is kept near the transport boundary and cleared/forgotten where practical.
 
-A small set of historical identifiers is intentionally retained only to preserve safe upgrades from existing installations:
+### Linux
 
-- installed executable name `GhostFTP.exe`;
-- old Windows App Paths entry for `GhostFTP.exe`;
-- old GhostFTP uninstall registry key used for migration/cleanup;
-- installer payload member name `GhostFTP.exe`.
+Linux uses the shared profile/runtime secret infrastructure. The 2.0 frontend supports both SFTP password authentication and private-key authentication with an optional key passphrase; it no longer imposes the old key-only/passphrase-rejection behavior.
 
-These are compatibility identifiers, not public branding. Setup dialogs, build outputs, PE VERSIONINFO and manifests use **Ghost FTP**. Public Windows release files are `Ghost-FTP-X.Y.Z-Setup-x64.exe`, `Ghost-FTP-X.Y.Z-Setup-x86.exe` and the byte-identical x32 alias of x86.
+### Process handoff
 
-## Android
+External protocol processes receive a minimized environment. Password/passphrase values are not exposed as ordinary command-line arguments.
 
-Android uses a separate native protocol boundary:
+OpenSSH AskPass is constrained by an unpredictable runtime token and trusted parent-process checks. Ghost FTP does **not** create an on-disk AskPass password/passphrase file. Unknown/MFA-style prompts are refused instead of receiving a stored secret.
 
-- SFTP requires an OpenSSH-style `SHA256:` host-key fingerprint.
-- Fingerprints are decoded and validated before use by the SSH layer.
-- Permissive/promiscuous SFTP verifiers are forbidden.
-- Explicit/implicit FTPS use platform trust, endpoint/hostname validation and protected data channels.
-- Plain FTP remains available only as an explicitly unencrypted compatibility mode.
-- Remote paths fail closed on traversal, dot components, duplicate separators, backslashes, NULs and noncanonical names.
-- Host/port input is bounded and credential control characters are rejected.
-- Passwords/passphrases are session-only and are not persisted by Ghost FTP.
-- Remembered connection metadata excludes secrets.
-- Password UI state is cleared after connection attempts and lifecycle teardown.
-- Storage Access Framework is used instead of broad storage permissions.
-- Lifecycle generation guards prevent stale callbacks from mutating a newer/disconnected session.
+## SFTP
 
-The Android package/application identifier may retain a legacy `GhostFTP` namespace for installed-app identity compatibility. The visible application name is **Ghost FTP**.
+Ghost FTP uses OS OpenSSH `ssh`/`sftp` with an application-generated constrained configuration.
 
-CI produces an installable APK. A production Play signing key must remain outside the repository; a debug-signed CI artifact must never be represented as store-signed production software.
+The configuration disables ambient behaviors that could change the trust/network boundary, including:
 
-## iOS
+- ProxyCommand;
+- ProxyJump;
+- identity-agent inheritance;
+- agent forwarding;
+- ordinary forwarding;
+- global known-host inheritance;
+- DNS/update-host-key behavior used outside the application's explicit trust flow.
 
-The native iOS application currently uses platform networking for its supported FTP/FTPS transport surface.
+Private-key paths are checked using `Lstat`/reparse-point protections before use.
 
-- TLS validation remains platform-controlled; there is no trust-all callback or global ATS bypass.
-- Remote paths and server-reported roots reject traversal, backslashes, duplicate separators, NULs and dot components.
-- EPSV is preferred and PASV fallback does not trust a server-supplied alternate host.
-- FTP commands/arguments and credentials reject CR/LF/NUL injection.
-- Reads/listings are bounded and downloads use temporary files instead of unbounded in-memory accumulation.
-- Session generation prevents stale asynchronous work from mutating a newer session.
-- Credential UI/runtime copies are cleared after use where practical.
-- Persisted connection metadata excludes secrets and uses restrictive Keychain accessibility.
-- Failed/stale temporary downloads are cleaned up.
-- No analytics SDK, WebView wrapper or fixed Ghost FTP backend endpoint is part of the app.
+A new server key requires explicit fingerprint confirmation. Saved trust is bound to the expected endpoint rather than silently reused across a different server.
 
-The existing Xcode project/bundle identifiers may retain legacy `GhostFTP` naming for application identity compatibility. Public application naming is **Ghost FTP**.
+## FTP and FTPS
 
-The CI IPA is a real arm64 device build but is unsigned. Normal device/TestFlight/App Store distribution requires a legitimate Apple signing identity and provisioning profile managed outside the repository.
+FTP/FTPS uses OS `curl` with configuration supplied through standard input.
 
-## Web/PWA
+Ghost FTP:
 
-`GhostFTP WEB/` is the legacy-named source directory for the **Ghost FTP** shared-hosting application. The source path and some internal PHP symbols are retained for compatibility; the product/UI/package metadata are Ghost FTP.
+- starts curl in a mode that suppresses ambient user curl config;
+- disables proxy use for the session;
+- strips proxy-related environment variables;
+- protects password lifetime around invocation;
+- validates download staging files before promotion.
 
-Authentication, encrypted profiles, runtime state, archive processing and temporary-transfer budgets are security state:
+Explicit FTPS keeps certificate validation enabled. The application does not add a blanket `ssl-no-revoke` bypass.
 
-- JSON state reads/writes are bounded and fail closed on malformed/corrupt primary state.
-- Login/registration rate-limit budgets are consumed before sensitive account mutation work.
-- Saved connection secrets are bound to the exact endpoint/account/key identity.
-- SFTP requires a pinned SHA-256 host fingerprint before a profile can be persisted and verifies the connected server key against that pin again at the client boundary.
-- Inline editor/new-file content is centrally bounded and local staging must be complete before any remote promotion.
-- SFTP key temp files are permission-restricted before key material is written, and uploads verify the resulting remote size when the server exposes it.
-- Destructive/batch mutation inputs fail closed before partial application when their shape or source set is invalid.
-- Multi-file upload validates the complete request shape, temporary upload identity and normalized remote destination set before the first remote mutation.
-- Atomic overwrite recovery treats failed backup restoration and ambiguous promotion outcomes as explicit recoverable states: the original backup name is retained for manual recovery without exposing nested transport error text.
-- Backup creation is also reconciled after rename errors: Ghost FTP re-reads the target and candidate backup paths so a move-then-error response cannot hide the confirmed recovery filename or accidentally continue promotion.
-- Staging cleanup ownership begins before FTP/SFTP upload starts, so a partial transport failure triggers verified remote-temp cleanup; an unverifiable cleanup exposes only the generated staging recovery name.
-- Remote temporary cleanup re-checks absence after a delete error before escalating, so servers that report an error after actually removing a temp object do not produce false residual-data warnings.
-- After successful promotion, failure to remove the previous-version backup is reported as an explicit partial-success state with the backup name and a do-not-retry warning instead of silently retaining old remote data.
-- Public Web error responses expose deliberate validation messages but replace unexpected PHP/extension Throwable details with a generic internal-error response.
-- Known application validation failures use HTTP 400; unexpected internal `Throwable` failures use HTTP 500 without exposing their raw message to the client.
-- The same public-error mapping is used by account, registration, settings, user-administration, login-migration and setup HTML flows; nested internal exceptions are preserved as causes without concatenating their raw text into a user-visible `RuntimeException`.
-- Browser editor/new-file writes use only `RemoteOperations::writeAtomic()`; the unused direct transport `write()` contract has been removed to prevent a weaker duplicate write path from drifting back into use.
-- Password changes/rehashes use generation-aware compare-and-swap behavior.
-- User deletion is two-phase/retryable and does not traverse unsafe workspace-root symlinks.
-- Encryption keys are not rotated over pre-existing encrypted data during recovery.
-- Connection target validation resolves/validates exact targets before transport use.
-- FTP/FTPS and SFTP downloads are bounded; partial/oversized temporary files are cleaned.
-- ZIP extraction validates archive topology, existing-remote conflicts and decompressed size before remote writes.
-- Diagnostics are authorization-protected because hosting/runtime capability information is operationally sensitive.
+Plain FTP remains supported only as an explicitly unencrypted compatibility option.
 
-Ghost FTP Web uses SameSite=Strict/HttpOnly cookies, CSRF tokens, cross-site POST filtering, CSP, HSTS on HTTPS, no-store behavior for sensitive surfaces and explicit no-index protections. Saved connection secrets use authenticated encryption with an installation-specific key.
+## Transfer and overwrite safety
 
-The PWA cache namespace is `ghostftp-static-vX.Y.Z`; activation removes superseded Ghost FTP caches and legacy `GhostFTP-static-*` caches. Navigation, API, account, setup, diagnostics, download and preview responses are never stored in the offline cache.
+The transfer engine uses staging/recovery logic rather than directly replacing destinations whenever safe recovery is required.
 
-`scripts/package_web.py` builds `Ghost-FTP-X.Y.Z-Web.zip` from tracked production files only and rejects symlinks, unsafe paths and case-fold collisions. Runtime users/config/cache/backup data must not enter the public archive.
+Security/reliability properties include:
 
-## Repository, privacy and release integrity
+- remote destination validation before queueing;
+- local path constrained to the expected local root;
+- download part files checked against symlink/reparse substitution;
+- conservative default `replace_backup` conflict policy;
+- bounded automatic retries and retry delay;
+- safe final-status handling so late cancellation cannot overwrite a completed result;
+- directory/tree planning bounded by maximum depth/item count;
+- explicit symlink handling;
+- bounded disconnect while active operations are released.
 
-The repository-wide audit checks tracked files for case-insensitive path collisions, Windows-reserved components, symlinks, generated/cache artifacts, temporary one-shot workflows, malformed UTF-8 text, NUL/BOM issues, trailing whitespace, missing final newlines, merge-conflict markers and stale current-release references.
+## Profile identity binding
 
-Temporary audit/patch workflows must run only on isolated branches and must be removed before production validation or merge; `scripts/audit_repository.py` rejects any tracked `.github/workflows/one-shot-*` file in a release tree.
+Saved passwords are reused only when the account identity still matches. Saved private-key passphrases require matching private-key identity. SFTP fingerprints are associated with the expected endpoint.
 
-Security/privacy audits additionally protect:
+Editing a saved profile to another host/account/key must not silently carry secrets/trust into the new identity.
 
-- no application telemetry/analytics vendor integrations;
-- no fixed runtime HTTP(S) destination in the desktop core;
-- no plaintext credential artifacts written for AskPass;
-- minimized proxy/network-tool environment;
-- SFTP fingerprint/trust invariants;
-- local/remote path boundaries;
-- transfer ownership/generation checks;
-- safe state-file opening and cleanup behavior.
+## Local filesystem protections
 
-`.github/workflows/release.yml` is the single production publication path. It assembles exactly **10 platform artifacts** plus `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, for **13 public files** total.
+Local file operations are routed through the local filesystem/security layers rather than direct UI filesystem mutation.
 
-Before publication, the workflow verifies that `main` still points to the release commit. Existing `ghostftp-vX.Y.Z` tags are never moved to another commit. The historical `v1.0.0` and other GhostFTP tags remain untouched.
+Protections include:
 
-## Package integrity and signing
+- no-follow/symlink/reparse checks;
+- guarded recursive removal;
+- filesystem-root deletion refusal;
+- bounded recursion/item counts;
+- no-replace rename semantics where supported;
+- guarded atomic state-file writes;
+- checks that opened/replaced state files are still the expected filesystem object.
 
-Release consumers should verify `SHA256.txt` before installation.
+## Windows process and installer hardening
 
-Windows PE metadata is verified for architecture, GUI subsystem, resource presence and platform mitigations. Authenticode signing status is reported explicitly; Verified Publisher requires a legitimate external Ghost FTP code-signing certificate.
+Windows startup uses process error/DLL-loading hardening and safe native picker flags.
 
-Android CI signing is installable/development signing unless an external production identity is configured. iOS release artifacts are unsigned. Publisher credentials and private signing keys must not be committed to this repository.
+Ghost FTP Setup uses an application-only verified payload and rollback-aware file/registry behavior. Stable internal identifiers such as `GhostFTP.exe` may remain where required for installed-app compatibility while public product naming remains **Ghost FTP**.
 
-See [Signing](SIGNING.md), [Release verification](RELEASE-VERIFICATION.md) and [GitHub Releases](GITHUB-RELEASES.md).
+The repository does not contain publisher secrets. Authenticode signing requires an external legitimate signing identity; unsigned artifacts must be described as unsigned.
+
+## Linux packaging boundary
+
+Linux DEB packages are built from the same source version and verified for package name/version/architecture in CI. Current transport prerequisites are system-provided `curl` and OpenSSH tools; they are documented rather than hidden or downloaded by the application.
+
+## Privacy and tracking
+
+Ghost FTP desktop runtime contains no application analytics/advertising/crash-reporting SDK and no fixed application telemetry backend.
+
+Privacy auditing rejects:
+
+- known telemetry/vendor markers;
+- fixed HTTP(S) URLs in desktop runtime source;
+- general-purpose runtime network imports outside the constrained protocol architecture;
+- credential/proxy environment leakage;
+- ineffective production telemetry-disable configuration.
+
+Production build workflows explicitly execute `go telemetry off` and verify the state.
+
+## Web companion security boundary
+
+`GhostFTP WEB/` remains a separate shared-hosting/PWA implementation with its own PHP/session/CSRF threat model. It is not a Windows/Linux desktop runtime component.
+
+Its maintained security properties include:
+
+- strict session cookies and session rotation;
+- CSRF protection and cross-site POST filtering;
+- CSP/HSTS/noindex/no-store protections where applicable;
+- bounded JSON/state access;
+- authenticated encryption for saved connection secrets;
+- exact host/path validation;
+- SFTP SHA-256 fingerprint requirements;
+- bounded editor/download/archive processing;
+- staged/atomic remote writes and explicit rollback/recovery states;
+- generic public errors for unexpected PHP/extension failures;
+- runtime/user storage excluded from tracked/release source.
+
+The Web companion is still audited by CI even though it is not published as a desktop platform artifact.
+
+## Repository and release integrity
+
+Repository audits reject unsafe/generated source-tree drift, including tracked one-shot workflows and retired platform application roots.
+
+The production release workflow publishes **9 platform artifacts** plus `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`, for **12 public files** total.
+
+Before publication:
+
+- shared quality/security/docs must pass;
+- Windows production build must pass;
+- Linux production build must pass;
+- `main` must still point to the build commit;
+- an existing `ghostftp-vX.Y.Z` tag must already point to that same commit or publication fails;
+- final release asset count is read back and verified.
+
+Published historical tags/releases are not moved to another commit.
+
+## Dependency integrity
+
+The desktop/core Go module has no external Go modules and CI rejects a new module/vendor graph.
+
+This is distinct from OS runtime prerequisites. Current protocol execution uses:
+
+- `curl` for FTP/FTPS;
+- `ssh`/`sftp` for SFTP.
+
+Any future embedded protocol library would require explicit license/provenance and protocol-security review.
+
+## Package integrity and publisher identity
+
+Release consumers should verify `SHA256.txt` and `BUILD-METADATA.txt` before installation in managed environments.
+
+Checksums prove file integrity relative to the published manifest; they do not replace publisher signing. See [Signing](SIGNING.md) and [Release verification](RELEASE-VERIFICATION.md).
+
+## Security regression gates
+
+`scripts/audit_security.py`, `scripts/audit_privacy.py`, `scripts/audit_dependencies.py`, `scripts/audit_platform_contract.py` and the Go/Python regression suites are release gates, not informational reports.
+
+A high-risk invariant removed from code must either be replaced with an equivalent/stronger reviewed mechanism and tests or the change must fail review.
 
 ## Reporting
 
-Report vulnerabilities through the repository Security policy. Never publish working passwords, private keys, signing credentials, production endpoints or customer data in a public issue.
+Report vulnerabilities through the repository Security policy. Never place working passwords, private keys, signing credentials, production endpoints or customer data in a public issue.

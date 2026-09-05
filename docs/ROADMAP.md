@@ -1,63 +1,105 @@
 # Roadmap
 
-Ghost FTP starts a new product line at **1.0.0**. The roadmap is capability- and quality-based; historical GhostFTP release numbers do not define future Ghost FTP sequencing.
+Ghost FTP 2.x focuses product development on **Windows and Linux**. The roadmap prioritizes reliability, security, protocol correctness, parity and premium usability over expanding the number of application platforms.
 
-## 1.0.x priorities
+## 2.0 consolidation goals
 
-The initial 1.0.x series focuses on stability, compatibility and distribution quality rather than rapid feature expansion:
+The 2.0 line establishes the new baseline:
 
-- remove remaining user-visible legacy branding while preserving only migration-sensitive internal identifiers;
-- keep Windows x64/x86 installation and upgrade behavior rollback-safe;
-- broaden Linux package compatibility across amd64, arm64 and i386 without forking the shared desktop core;
-- improve macOS packaging/signing readiness while preserving the Universal build;
-- harden Android lifecycle, file-picker and secure credential behavior;
-- expand iOS transport capability only when certificate/host verification and credential handling meet the same fail-closed security model;
-- continue web/PWA shared-hosting compatibility, storage durability and strict no-cache boundaries for sensitive responses;
-- reduce duplicate build/audit code and keep one canonical production release pipeline.
+- Windows and Linux are the only active desktop application targets;
+- Android, iOS and macOS application source/packaging are removed from active development;
+- Windows remains the native graphical reference frontend;
+- Linux uses the same shared core and closes authentication/queue/settings parity gaps;
+- English remains the canonical/default language with 24 supported runtime languages;
+- release CI is reduced to shared quality + Windows + Linux production gates;
+- release artifacts are reproducible and checksummed;
+- dependency provenance and no-tracking rules are fail-closed;
+- documentation describes each release and preserves immutable 1.x history.
 
-Patch versions advance sequentially: `1.0.0`, `1.0.1`, `1.0.2`, and so on.
+## Near-term priorities
 
-## Protocol and transfer work
+### Transfer correctness
 
-Future protocol work must not weaken existing trust boundaries. New or expanded transport features require:
+- continue expanding regression tests for interrupted upload/download, overwrite rollback and ambiguous server responses;
+- strengthen retry classification so transient failures retry while authentication/validation failures fail immediately;
+- improve progress/speed/ETA presentation without introducing persistent tracking/logging;
+- keep directory/tree transfer planning bounded and symlink-safe;
+- improve queue ergonomics and multi-selection operations on Windows and equivalent command operations on Linux.
 
-- platform-appropriate TLS or host-key verification;
-- strict path and connection-input validation;
-- deterministic temporary-file cleanup;
-- bounded transfer behavior;
-- explicit failure semantics;
-- regression coverage on every affected platform.
+### FTP/FTPS interoperability
 
-True mid-file cancellation remains a future capability only if the active protocol can abort safely and Ghost FTP can deterministically handle partial local/remote files. A UI button must not claim that a remote write was safely cancelled when the protocol state cannot prove it.
+- expand passive/data-channel error diagnostics for common shared-hosting servers;
+- improve server capability detection without weakening validation;
+- preserve strict FTPS certificate validation and avoid insecure compatibility switches;
+- continue testing Unicode/path/listing edge cases.
 
-## Mobile distribution
+### SFTP interoperability
 
-Android CI currently produces an installable APK. Production Play distribution requires an externally managed production signing key and an explicit signing verification gate; repository automation must never substitute a debug or fabricated identity and label it production-signed.
+- improve actionable errors for key format, passphrase, host-key and authentication failures;
+- expand OpenSSH process smoke tests across supported Linux environments;
+- preserve explicit host-key trust and endpoint binding;
+- avoid inheriting ambient proxy/jump/agent forwarding state.
 
-iOS CI produces a real unsigned arm64 IPA. Device/TestFlight/App Store distribution requires a legitimate Apple signing identity and provisioning profile managed outside the repository. New iOS protocol support is advertised only after its trust, path, credential and lifecycle behavior is covered by native tests and CI.
+### Windows experience
 
-## Desktop distribution
+- continue refining spacing, typography, status hierarchy and transfer queue readability;
+- improve profile management and connection diagnostics;
+- improve keyboard accessibility/focus behavior;
+- keep high-DPI behavior stable across common scale factors;
+- keep Setup/portable packaging consistent and localized;
+- pursue code signing when an appropriate signing identity/certificate is available, without pretending unsigned artifacts are signed.
 
-Windows remains a primary desktop target. The installer and upgrade transaction will continue to receive additional regression coverage for payload integrity, path redirection, rollback and legacy-install cleanup.
+### Linux parity
 
-Linux packaging will remain based on the shared Go core and canonical `linux/BUILD.sh`. macOS packaging will remain based on the shared core and canonical `macos/BUILD.sh`; code signing/notarization can be added when valid publisher credentials are available.
+- keep every new core connection/transfer option accessible from Linux;
+- improve terminal discoverability/help and structured status output;
+- expose additional local/profile workflows where they can reuse shared engine methods;
+- consider a native/lightweight Linux graphical frontend only if it meets dependency, security, reproducibility and maintenance requirements without forking protocol logic.
 
-## Web/PWA
+### Localization
 
-The shared-hosting application will continue prioritizing:
+- continue improving real translation coverage across all 24 locales;
+- eliminate remaining hard-coded frontend text by moving it into the canonical catalog;
+- preserve English fallback for incomplete future translations;
+- validate placeholders/format verbs and live language switching in CI.
 
-- safe deployment on ordinary PHP hosting;
-- no indexing of authenticated/private application surfaces;
-- strict session/CSRF/rate-limit behavior;
-- encrypted profile storage;
-- fail-closed host and remote-path validation;
-- bounded archive/upload/download operations;
-- deterministic migration of PWA caches and application state.
+### Security and privacy
 
-Ghost FTP will not add background port scanning, hidden diagnostic destinations, certificate/host-key bypasses or secret-bearing analytics to obtain a richer status screen.
+- preserve zero application telemetry/analytics/advertising;
+- preserve fixed-runtime-URL and tracking-vendor audit gates;
+- continue credential-lifetime reduction and secret-zeroing work;
+- expand tests around symlink/reparse-point races and malicious local state;
+- keep SFTP AskPass free of disk secret artifacts;
+- keep release/tag provenance immutable.
 
-## Release engineering
+### Dependency strategy
 
-Every production release must keep root `VERSION` as the canonical version source and must pass all applicable platform gates. The public release contract remains intentionally small: eight platform packages plus checksum, release notes and build metadata.
+The desktop/core Go module should remain standard-library-only unless a reviewed change demonstrates clear security/reliability benefit.
 
-A feature is complete only when its failure modes are understood, regression coverage exists where practical and every affected build/security gate remains green.
+Current OS-provided transport tools (`curl`, `ssh`, `sftp`) are explicit prerequisites. Replacing them with embedded protocol stacks is not a cosmetic dependency change; it would require protocol-level security review, compatibility testing, license/provenance review and a migration plan.
+
+## Web companion
+
+The existing shared-hosting Web companion remains a separate source surface. Work may continue on its PHP/PWA security, localization and hosting compatibility, but it is not part of the Windows/Linux desktop artifact matrix.
+
+## Out of scope for the current 2.x line
+
+The following are intentionally not active application targets:
+
+- Android;
+- iOS;
+- macOS.
+
+Historical sources/releases remain in Git provenance. Reintroducing any retired application platform would require an explicit future product decision, a new support/CI/release contract and compatibility analysis rather than quietly adding a directory back to the tree.
+
+## Release quality principle
+
+A roadmap item is not considered complete because UI code exists. It must have the relevant combination of:
+
+- shared-core implementation;
+- Windows/Linux exposure where applicable;
+- regression/security tests;
+- localization coverage;
+- documentation;
+- release notes;
+- CI/package verification.

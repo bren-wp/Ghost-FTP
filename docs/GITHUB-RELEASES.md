@@ -1,65 +1,110 @@
-# Ghost FTP GitHub Releases
+# GitHub Releases
 
-Ghost FTP publishes release assets from `.github/workflows/release.yml` after the version change is merged to `main` and all platform quality gates pass.
+Ghost FTP uses immutable namespaced tags and a fail-closed release workflow.
 
 ## Version and tag policy
 
-The Ghost FTP line starts at **1.0.0**. Versions follow Semantic Versioning and patch releases advance sequentially (`1.0.1`, `1.0.2`, ...).
+The canonical source version is the root `VERSION` file and must be semantic `X.Y.Z`.
 
-Ghost FTP tags are namespaced:
+Current source line: **2.0.0**.
 
-```text
-ghostftp-v1.0.0
-ghostftp-v1.0.1
-ghostftp-v1.0.2
-```
-
-Historical GhostFTP tags remain immutable. The workflow must never force-move an existing tag. Before updating an existing Ghost FTP release, it verifies that the tag already points to the exact release commit; otherwise publication stops.
-
-## Public release contract
-
-For version `X.Y.Z`, Releases contains these platform assets:
+Release tags use:
 
 ```text
-Ghost-FTP-X.Y.Z-Setup-x64.exe
-Ghost-FTP-X.Y.Z-Setup-x86.exe
-Ghost-FTP-X.Y.Z-Setup-x32.exe
-Ghost-FTP-X.Y.Z-Linux-multiarch.zip
-Ghost-FTP-X.Y.Z-macOS-Universal.pkg
-Ghost-FTP-X.Y.Z-Android.apk
-Ghost-FTP-X.Y.Z-iOS-arm64-unsigned.ipa
-Ghost-FTP-X.Y.Z-Web.zip
+ghostftp-vX.Y.Z
 ```
 
-It also contains:
+The release workflow refuses to move an existing release tag to a different commit. Published 1.x tags/releases remain historical provenance and are not rewritten when the active platform contract changes.
 
-```text
-SHA256.txt
-RELEASE-NOTES.txt
-BUILD-METADATA.txt
-```
+## Active 2.x application platforms
 
-`Setup-x32.exe` is intentionally byte-identical to `Setup-x86.exe`; x32 and x86 are two labels for the same 32-bit Windows architecture in this release contract.
+Ghost FTP 2.x publishes desktop application artifacts for:
 
-The Linux archive contains the verified `amd64`, `arm64` and `i386` Debian packages. The macOS package is universal for Intel x86_64 and Apple Silicon arm64.
+- Windows;
+- Linux.
 
-## Signing status
+Android, iOS and macOS application artifacts are not part of the 2.x release matrix.
 
-Release automation does not invent trust identities.
+The existing Web companion source is maintained separately and is not counted as a desktop/platform artifact in this release contract.
 
-- Windows installers may be unsigned unless a real Authenticode signing identity is supplied outside the public repository.
-- The Android asset produced by public CI is an installable debug-signed APK, not a Play Store production-signed package.
-- The iOS asset is an unsigned arm64 IPA that requires valid Apple signing/provisioning for ordinary device, TestFlight or App Store distribution.
-- macOS Developer ID signing and notarization likewise require real Apple credentials.
+## Platform artifact contract
 
-The exact signing/provenance state is recorded in `BUILD-METADATA.txt` and described in `RELEASE-NOTES.txt`.
+A complete 2.x release contains **9 platform artifacts**:
 
-## Publication safety
+1. `Ghost-FTP-X.Y.Z-Setup-x64.exe`
+2. `Ghost-FTP-X.Y.Z-Setup-x86.exe`
+3. `Ghost-FTP-X.Y.Z-Setup-x32.exe`
+4. `Ghost-FTP-X.Y.Z-Portable-x64.exe`
+5. `Ghost-FTP-X.Y.Z-Portable-x86.exe`
+6. `Ghost-FTP-X.Y.Z-Linux-amd64.deb`
+7. `Ghost-FTP-X.Y.Z-Linux-arm64.deb`
+8. `Ghost-FTP-X.Y.Z-Linux-i386.deb`
+9. `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`
 
-The publish job runs only after core, Windows, Linux, macOS, Android and iOS jobs succeed. Immediately before publishing it verifies that `main` still points to the workflow commit. This prevents a delayed run from publishing stale binaries as the newest release.
+`Setup-x32` is intentionally a compatibility alias of the x86 setup build and the workflow verifies that both files have the same SHA-256 digest.
 
-The job creates `SHA256.txt` after assembling the final public filenames and verifies the expected file count before release creation.
+## Release support files
 
-## Manual dispatch
+Each release also contains:
 
-`workflow_dispatch` accepts an optional semantic version, but the requested value must match the repository `VERSION` file. Manual dispatch is therefore not a mechanism for publishing arbitrary or uncommitted versions.
+- `RELEASE-NOTES.txt` — release-specific changes derived from maintained release notes;
+- `BUILD-METADATA.txt` — version, commit and platform/build contract;
+- `SHA256.txt` — SHA-256 for every other public release file.
+
+Therefore a complete 2.x release has **12 public files**.
+
+## NuGet/GitHub Package
+
+The workflow also builds/publishes the `GhostFTP` NuGet/GitHub Package containing the Windows portable executables for x64 and x86.
+
+This package is separate from the 12 public GitHub Release files.
+
+## Release quality gate
+
+Publication depends on all three jobs:
+
+1. shared quality/security/documentation gate;
+2. Windows production build;
+3. Linux production build.
+
+The quality gate includes:
+
+- formatting;
+- Go race tests and vet;
+- repository integrity;
+- Windows/Linux platform-contract audit;
+- dependency/no-tracking audit;
+- version/release audit;
+- 24-language localization audit;
+- security/privacy audits;
+- documentation audit;
+- Web companion source/runtime audit.
+
+## Publication protections
+
+Before a release is created or updated, the workflow verifies that `main` still points at the release commit. If `main` moved, publication stops.
+
+If a release tag already exists, the workflow verifies that it resolves to the current release commit. If not, publication stops with a refusal to rewrite historical provenance.
+
+After upload, the workflow reads the published asset list back and verifies that exactly 12 public files are present.
+
+## Release metadata
+
+`BUILD-METADATA.txt` identifies:
+
+- public brand and technical identity;
+- semantic version;
+- release tag;
+- commit SHA;
+- active application platforms;
+- Windows architectures/package types;
+- Linux package architectures;
+- language count and default language;
+- telemetry status;
+- artifact/file counts.
+
+## Historical 1.x releases
+
+Older 1.x releases may contain Android, iOS, macOS or Web artifacts because those platforms were part of the release contract at that time. Their presence in historical release notes/assets is expected and must not be confused with current 2.x support.
+
+See [Release history](RELEASE-HISTORY.md) and [Release verification](RELEASE-VERIFICATION.md).

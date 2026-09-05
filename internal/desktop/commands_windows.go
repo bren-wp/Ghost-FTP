@@ -10,6 +10,10 @@ func (a *app) command(id int) {
 		a.connectNow()
 	case idDisconnect:
 		a.disconnectNow()
+	case idSiteManager:
+		a.openSiteManager()
+	case idExitApp:
+		postMessageW.Call(a.hwnd, wmClose, 0, 0)
 	case idChooseKey:
 		a.choosePrivateKey()
 	case idSaveProfile:
@@ -63,6 +67,6 @@ func (a *app) command(id int) {
 		if a.connected {
 			a.refreshRemote(getText(a.remotePath))
 		}
-		a.setStatus("Osvježavanje lokalnog i udaljenog prikaza…")
+		a.setStatus(a.tr("status.refresh_all"))
 	}
 }

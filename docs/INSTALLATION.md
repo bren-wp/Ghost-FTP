@@ -1,67 +1,121 @@
-# Installing Ghost FTP
+# Installation
 
-Download Ghost FTP only from the repository Releases page and verify the matching entry in `SHA256.txt` before installation.
+Ghost FTP 2.x is distributed as a desktop application for **Windows** and **Linux**.
+
+Android, iOS and macOS application packages are not part of the active 2.x distribution. Historical 1.x releases remain available through immutable release/tag history.
 
 ## Windows
 
-Choose one installer:
+Ghost FTP publishes both Setup and portable builds for x64 and x86 Windows systems.
 
-- `Ghost-FTP-X.Y.Z-Setup-x64.exe` for 64-bit Windows.
-- `Ghost-FTP-X.Y.Z-Setup-x86.exe` for 32-bit x86 Windows.
-- `Ghost-FTP-X.Y.Z-Setup-x32.exe` is a compatibility alias of the x86 installer and has identical bytes/checksum.
+### Setup packages
 
-The public product name is **Ghost FTP**. Some migration-sensitive internal identifiers can retain the former `GhostFTP` name so existing profiles and cleanup paths continue to work.
+- `Ghost-FTP-X.Y.Z-Setup-x64.exe`
+- `Ghost-FTP-X.Y.Z-Setup-x86.exe`
+- `Ghost-FTP-X.Y.Z-Setup-x32.exe` — compatibility alias of the x86 setup artifact
+
+The Setup flow is localized through the same canonical language registry used by the application. English is the default/fallback. The installer validates its embedded payload before installation and registers the application using the stable `GhostFTP` technical identity while presenting **Ghost FTP** as the public product name.
+
+The first language/option surface is a dependency-free native Win32 dialog with a consistent premium Ghost FTP shell: centered placement, clearer header/instruction hierarchy, larger action targets, a default primary action and best-effort modern Windows dark-title-bar/rounded-corner hints. The same visual helper is used by native edit prompts so Setup and the application do not drift into unrelated dialog styles.
+
+These visual changes do **not** weaken the installer boundary. Payload digest verification, staging, no-redirect path checks, rollback-aware activation, registry/application-path changes and final readback remain separate from presentation code. Normal confirmation/completion/error steps continue to use native Windows Task Dialog behavior where available.
+
+### Portable packages
+
+- `Ghost-FTP-X.Y.Z-Portable-x64.exe`
+- `Ghost-FTP-X.Y.Z-Portable-x86.exe`
+
+Portable builds do not require a traditional installation. Place the executable in a user-writable folder and run it directly.
+
+### Windows runtime prerequisites
+
+Ghost FTP does not download protocol components in the background. The current transport implementation expects suitable operating-system `curl` and OpenSSH components. On supported Windows installations these are normally present as system components.
+
+If a required transport executable is unavailable, the connection must fail with an actionable error rather than silently fetching third-party software.
 
 ## Linux
 
-Download `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`, extract it and install the Debian package matching the machine architecture:
+Ghost FTP publishes Debian packages for:
+
+- amd64
+- arm64
+- i386
+
+Release file names:
+
+- `Ghost-FTP-X.Y.Z-Linux-amd64.deb`
+- `Ghost-FTP-X.Y.Z-Linux-arm64.deb`
+- `Ghost-FTP-X.Y.Z-Linux-i386.deb`
+- `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`
+
+Install a matching package using the distribution package manager, for example:
 
 ```text
-Ghost-FTP-X.Y.Z-Linux-amd64.deb
-Ghost-FTP-X.Y.Z-Linux-arm64.deb
-Ghost-FTP-X.Y.Z-Linux-i386.deb
+sudo apt install ./Ghost-FTP-X.Y.Z-Linux-amd64.deb
 ```
 
-The installed Debian package name is `ghost-ftp` and the command is:
+The package installs the `ghostftp` executable and Linux desktop/package metadata. The current Linux frontend is terminal-based but uses the same transfer/security engine as Windows.
 
-```bash
-ghostftp
-```
+Linux 2.0 exposes both remote and local working directories, local file-management commands, single-file transfer commands, bounded directory/tree transfer commands, transfer queue controls, validated settings and saved-profile metadata operations. See [Windows and Linux platform parity](PLATFORM-PARITY.md) and [Linux packaging/usage](../linux/README.md).
 
-Runtime dependencies declared by the package are `ca-certificates`, `curl` and `openssh-client`.
+### Linux runtime prerequisites
 
-## macOS
+The DEB metadata is the source of truth for package dependencies. The current protocol implementation requires system-provided:
 
-Use `Ghost-FTP-X.Y.Z-macOS-Universal.pkg`. The package contains a universal application build for Intel x86_64 and Apple Silicon arm64.
+- `curl` for FTP/FTPS;
+- OpenSSH `ssh` and `sftp` for SFTP.
 
-A package built without a configured Apple Developer ID may trigger Gatekeeper warnings. Production Developer ID signing and notarization require real Apple credentials and are never simulated by CI.
+These are system packages, not hidden bundled libraries.
 
-## Android
-
-Use `Ghost-FTP-X.Y.Z-Android.apk` for direct testing/installations that allow sideloading.
-
-The public CI artifact is debug-signed. It is installable for testing but is not presented as a Play Store production-signed package. Store distribution requires a private production keystore and the appropriate release process.
-
-## iOS
-
-`Ghost-FTP-X.Y.Z-iOS-arm64-unsigned.ipa` is an unsigned device archive. It cannot replace normal Apple distribution signing. A valid Apple signing identity, provisioning profile and entitlements must be applied for the intended distribution channel.
-
-## Web / shared hosting
-
-Use `Ghost-FTP-X.Y.Z-Web.zip`.
-
-The web client requires a supported PHP environment and writable application storage. Deploy the package over HTTPS, keep the application storage protected from direct web access and complete the setup flow before normal use.
-
-The web client is intentionally marked `noindex` and includes defensive session/security headers. See [Shared hosting](SHARED-HOSTING.md) for deployment details.
-
-## Verify before installation
+## First connection
 
 For every platform:
 
-1. Download the package and `SHA256.txt` from the same Ghost FTP Release.
-2. Compute the local SHA-256 digest.
-3. Compare it exactly with the value in `SHA256.txt`.
-4. Read `BUILD-METADATA.txt` for signing/provenance status.
-5. Do not install a package whose checksum or expected release tag does not match.
+1. choose the protocol;
+2. enter the exact server host, port and username;
+3. provide password or SFTP key credentials as appropriate;
+4. verify the SFTP host fingerprint when the server is first trusted;
+5. begin browsing/transferring only after the connection succeeds.
 
-See [Release verification](RELEASE-VERIFICATION.md) for platform-specific commands.
+### SFTP authentication
+
+SFTP supports:
+
+- password authentication;
+- private-key authentication;
+- private key protected by a passphrase.
+
+A private key is not mandatory when the server supports password authentication.
+
+### FTPS
+
+Use explicit FTPS when supported by the server. Certificate validation remains enabled.
+
+### FTP
+
+Plain FTP is unencrypted. Use it only when the server does not provide a secure alternative.
+
+## Settings and user data
+
+Ghost FTP stores settings/profiles in the platform-specific user application-data location. Files are created with conservative permissions where supported and state writes use guarded atomic replacement.
+
+Saved secrets follow platform security handling. Windows uses DPAPI-backed protection; Linux runtime secrets are protected within the process and saved profile handling is governed by the platform/profile crypto implementation.
+
+The Linux `profile-save` command intentionally saves public connection metadata/current paths without reconstructing a password/passphrase that has already been cleared after authentication. This keeps profile creation from turning into an implicit secret-persistence side effect.
+
+## Release verification
+
+Before deploying an installer/package in a managed environment:
+
+1. download the release artifact from the matching `ghostftp-vX.Y.Z` release;
+2. verify its SHA-256 hash against `SHA256.txt`;
+3. review `BUILD-METADATA.txt` for the expected commit/version/platform;
+4. review `RELEASE-NOTES.txt` for behavior and compatibility changes.
+
+The production release workflow performs its own immediate and delayed GitHub Release readback, verifies exact asset names/sizes and compares the published `SHA256.txt` with the locally assembled manifest before publication is allowed to report success.
+
+See [Release verification](RELEASE-VERIFICATION.md).
+
+## Web companion
+
+The repository also contains a Web companion for shared-hosting deployment. It is not installed as a Windows/Linux desktop package and is not counted in the 2.x desktop application artifact contract. See [Shared hosting](SHARED-HOSTING.md).

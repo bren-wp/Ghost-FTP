@@ -1,0 +1,87 @@
+name: Ghost FTP Authentic UI Screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'work/**'
+      - 'release/**'
+    paths:
+      - 'internal/desktop/**'
+      - 'internal/platform/**'
+      - 'scripts/capture_windows_screenshots.ps1'
+      - '.github/workflows/ui-screenshots.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-ui-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+
+jobs:
+  capture:
+    name: Build and capture real Ghost FTP windows
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Disable Go telemetry
+        shell: pwsh
+        run: |
+          go telemetry off
+          if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') {
+            throw 'Go telemetry is not disabled.'
+          }
+
+      - name: Build production Windows packages
+        shell: pwsh
+        run: .\BUILD-WINDOWS.ps1
+
+      - name: Capture authentic main and Site Manager windows
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $exe = "dist\Ghost-FTP-$version-Portable-x64.exe"
+          if (-not (Test-Path $exe -PathType Leaf)) {
+            throw "Missing production executable: $exe"
+          }
+          .\scripts\capture_windows_screenshots.ps1 -Executable $exe -OutputDirectory "ui-screenshots"
+
+      - name: Verify screenshot outputs
+        shell: pwsh
+        run: |
+          $expected = @(
+            'ui-screenshots\Ghost-FTP-main-workspace.png',
+            'ui-screenshots\Ghost-FTP-site-manager.png'
+          )
+          foreach ($path in $expected) {
+            if (-not (Test-Path $path -PathType Leaf)) {
+              throw "Missing authentic UI screenshot: $path"
+            }
+            if ((Get-Item $path).Length -lt 10000) {
+              throw "Authentic UI screenshot is unexpectedly small: $path"
+            }
+          }
+
+      - name: Publish authentic UI screenshots
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-authentic-ui-screenshots
+          if-no-files-found: error
+          retention-days: 30
+          path: ui-screenshots/*.png

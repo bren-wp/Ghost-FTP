@@ -76,14 +76,18 @@ class SharedHostingFTPTests(unittest.TestCase):
         self.assertIn("a.move(a.user, x, y, 220, rowH)", ui)
         self.assertIn("limitEdit(a.user, 1024)", ui)
 
-    def test_marketing_docs_include_shared_hosting_path(self) -> None:
+    def test_product_docs_link_to_detailed_shared_hosting_guide(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         guide = (ROOT / "docs/SHARED-HOSTING.md").read_text(encoding="utf-8")
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
+
+        # The 2.x root README is desktop-first. Shared-hosting operational
+        # detail lives in the dedicated guide and the separately maintained Web
+        # companion, both of which must stay discoverable from the product docs.
         for marker in (
-            "## Shared hosting",
-            "public_html",
-            "[Shared hosting](docs/SHARED-HOSTING.md)",
+            "Ghost FTP Web companion",
+            "[Shared-hosting/Web companion](docs/SHARED-HOSTING.md)",
+            "FTP, FTPS and SFTP",
         ):
             self.assertIn(marker, readme)
         for marker in (

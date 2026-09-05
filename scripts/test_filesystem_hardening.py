@@ -15,17 +15,25 @@ def require(path: str, markers: tuple[str, ...]) -> None:
     text = read(path)
     for marker in markers:
         if marker not in text:
-            raise AssertionError(f"{path}: nedostaje sigurnosni marker {marker!r}")
+            raise AssertionError(f"{path}: missing security marker {marker!r}")
 
 
 def forbid(path: str, markers: tuple[str, ...]) -> None:
     text = read(path)
     for marker in markers:
         if marker in text:
-            raise AssertionError(f"{path}: zabranjeni obrazac {marker!r}")
+            raise AssertionError(f"{path}: forbidden pattern {marker!r}")
+
+
+def require_absent(path: str) -> None:
+    if (ROOT / path).exists():
+        raise AssertionError(f"retired platform path must remain absent: {path}")
 
 
 def run_checks() -> None:
+    # Linux no-replace moves must remain race-safe on the three released
+    # package architectures. Other Linux architectures retain the hard-link
+    # fallback without silently overwriting an existing destination.
     require("internal/platform/filemove_linux.go", (
         "sysRenameat2",
         "renameNoReplace = 1",
@@ -46,10 +54,27 @@ def run_checks() -> None:
         "os.Link(src, dst)",
         "os.Remove(src)",
     ))
-    require("internal/platform/filemove_darwin.go", (
-        "os.Link(src, dst)",
-        "os.Remove(src)",
+
+    # Windows must use MoveFileExW without a replace-existing flag and request
+    # write-through semantics so local activation cannot regress to a
+    # check-then-os.Rename race.
+    require("internal/platform/filemove_windows.go", (
+        'NewProc("MoveFileExW")',
+        "const moveFileWriteThrough = 0x8",
+        "moveFileNoReplaceW.Call",
+        "return os.ErrExist",
     ))
+    forbid("internal/platform/filemove_windows.go", (
+        "MOVEFILE_REPLACE_EXISTING",
+        "os.Rename(src, dst)",
+    ))
+
+    # 2.x intentionally supports only Windows and Linux application targets.
+    # Regression tests must not silently recreate platform-specific source for
+    # retired application targets.
+    for retired in ("android", "ios", "macos", "internal/platform/filemove_darwin.go"):
+        require_absent(retired)
+
     require("internal/security/remove_tree.go", (
         "readStableDirectory",
         "f.ReadDir(-1)",

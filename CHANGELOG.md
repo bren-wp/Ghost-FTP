@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.0.0 - Unreleased
+
+### Platform consolidation
+
+- Started a new semantic-major line because the supported application-platform contract changed from the former multi-platform 1.x matrix to **Windows + Linux**.
+- Removed Android, iOS and macOS application source trees from active 2.x development together with their packaging and platform-specific audit scripts.
+- Preserved the complete 1.x Git/tag/release history instead of rewriting or deleting historical provenance.
+- Added a fail-closed platform-contract audit that rejects reintroduction of retired application roots/tooling and requires both Windows and Linux CI/release jobs.
+- Rebuilt CI around one shared quality/security/documentation gate plus Windows and Linux production build gates.
+- Rebuilt publishing around 9 application artifacts: 5 Windows and 4 Linux artifacts, plus release notes, build metadata and SHA-256 manifest for 12 public files total.
+- Linux DEB packages are now published individually for amd64, arm64 and i386 in addition to the multiarch bundle.
+
+### Linux parity and connection reliability
+
+- Restricted the non-Windows desktop frontend build target explicitly to Linux for the 2.x application line.
+- Fixed a major SFTP parity defect where Linux previously required a private key and rejected a non-empty key passphrase.
+- Linux SFTP now uses the same shared `ConnectionConfig`/`Engine` authentication model as Windows: password authentication when no key is supplied, or private-key authentication with an optional passphrase.
+- Preserved explicit SFTP host-key fingerprint trust and the shared fail-closed remote/session layer for both Windows and Linux.
+- Added Linux transfer-queue controls for listing jobs, pause, resume, cancel, retry and clear-finished operations through the same transfer manager used by Windows.
+- Added Linux inspection/editing of shared validated transfer settings including parallelism, conflict policy, retries, retry delay, connection timeout and delete confirmation.
+- Added Linux saved-profile inspection through the shared profile store.
+- Retained localized remote navigation, listing, create, rename, delete, chmod, upload and download behavior.
+- Added a compact premium terminal header while retaining a dependency-light terminal presentation instead of introducing a cross-platform GUI framework.
+
+### Windows design and interaction quality
+
+- Refined the native Windows dark theme to a deeper graphite/navy surface system with softer contrast for long transfer sessions.
+- Improved action hierarchy for primary, destructive, default and subtle owner-drawn buttons.
+- Increased button corner radius, spacing and focus inset while preserving keyboard focus visibility and existing high-DPI behavior.
+- Kept the Windows UI native and dependency-free at the Go module level; no external GUI framework was introduced.
+
+### Localization
+
+- Retained the canonical English-first registry of **24 languages**: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian, Swedish, Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
+- English remains the first/default locale and safe fallback for invalid or missing locale state.
+- Removed obsolete iOS localization release gates from the active audit while continuing to verify exact desktop catalog integrity, format verbs and translation coverage.
+- CI now explicitly verifies Windows live localization, all-language Windows Setup primary copy and Linux runtime language switching.
+
+### Security, privacy and dependency policy
+
+- Updated security auditing for the Windows/Linux product boundary, including Linux SFTP password/key/passphrase parity, transfer controls and shared settings paths.
+- Retained protected runtime secret handling, AskPass no-secret-file policy, SFTP private-key reparse/symlink checks, endpoint-bound host trust, session-close race protection and root-delete protections.
+- Retained FTP/FTPS proxy-environment isolation and prohibition on fully disabling FTPS revocation checking.
+- Removed obsolete mobile dependency allowlists from the active dependency audit.
+- Desktop/core remains standard-library-only at the Go module level: no external Go modules, `go.sum` dependency graph or vendored module tree.
+- Made the remaining OS transport prerequisites explicit and audited instead of making a misleading zero-runtime-dependency claim: FTP/FTPS uses OS `curl`; SFTP uses OS OpenSSH `ssh`/`sftp`.
+- Retained fail-closed telemetry/analytics/ads/crash-SDK rejection and runtime fixed-URL privacy checks.
+
+### Documentation and release quality
+
+- Rewrote the root README around the 2.x Windows/Linux product contract, supported protocols, transfer settings, 24 languages, privacy/security boundaries, dependency provenance and release artifacts.
+- Added/updated detailed documentation for platform parity, installation, dependencies, releases, verification, security, testing, localization and roadmap direction.
+- Clarified that the existing Ghost FTP Web companion source is maintained separately from the Windows/Linux desktop application release contract.
+- Preserved detailed notes for all previously published 1.x releases below so every version continues to document what changed and why.
+
 ## 1.1.0 - 2026-09-05
 
 - Expanded the canonical English-first desktop/setup language registry from 18 to 24 languages, adding Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
@@ -91,4 +146,4 @@
 
 ## Historical provenance
 
-Git tags and commits created before the current Ghost FTP release sequence remain immutable for repository provenance and reproducibility. Current product releases exclusively use the `ghostftp-vX.Y.Z` namespace.
+Git tags, releases and commits created before the 2.x product line remain immutable for repository provenance, troubleshooting and reproducibility. The detailed 1.x notes above intentionally describe the platform matrix that existed at the time those releases were published; they are historical facts, not the active 2.x support contract. Current product releases exclusively use the `ghostftp-vX.Y.Z` namespace.

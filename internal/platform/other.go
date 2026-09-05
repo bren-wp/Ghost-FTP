@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build linux
 
 package platform
 
@@ -6,16 +6,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 func LocalAppData() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		return "", errors.New("korisnička mapa nije dostupna")
-	}
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(home, "Library", "Application Support"), nil
 	}
 	if xdg := os.Getenv("XDG_DATA_HOME"); filepath.IsAbs(xdg) {
 		return xdg, nil

@@ -212,6 +212,7 @@ func (a *app) applyLanguage(code string) {
 	cue(a.passphrase, a.tr("cue.passphrase"))
 	a.reloadProtocolLabels()
 	a.reloadProfileLabels()
+	a.installMainMenu()
 	a.applyColumnLanguage()
 	a.fillItemList(a.localList, a.localItems)
 	a.fillItemList(a.remoteList, a.remoteItems)
