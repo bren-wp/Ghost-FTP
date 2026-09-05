@@ -69,15 +69,19 @@ The Windows edition is the reference graphical experience. It includes:
 - SFTP private-key and passphrase controls;
 - upload and download actions;
 - remote create, rename, delete and permissions operations;
+- a remote **Permissions** column populated only from validated server-provided UNIX mode metadata (`LIST`/SFTP symbolic mode or MLSD `unix.mode`); unsupported listings remain blank rather than displaying invented permissions;
 - local create, rename and delete operations;
 - transfer queue with pause, resume, cancel, retry and clear-finished actions;
 - conflict policies: `skip`, `replace`, and `replace_backup`;
 - automatic retry, retry-delay, parallelism and connection-timeout settings;
 - live language switching;
 - localized Windows Setup flow;
-- x64 and x86 Setup/Portable packages.
+- x64 and x86 Setup/Portable packages;
+- the same application UI and transfer/security engine in both Setup-installed and Portable editions.
 
 The current visual work keeps Ghost FTP native and recognizably its own product while adopting the information density and workflow clarity expected from a professional desktop FTP client. The UI does not add decorative controls for features that the backend does not actually implement.
+
+The maintained Windows layout contract is documented in [docs/REFERENCE-UI.md](docs/REFERENCE-UI.md).
 
 ## Authentic Windows UI
 
@@ -320,6 +324,7 @@ CI runs fail-closed checks for:
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Reference UI contract](docs/REFERENCE-UI.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Installation](docs/INSTALLATION.md)
 - [Platform parity](docs/PLATFORM-PARITY.md)
