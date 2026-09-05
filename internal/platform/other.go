@@ -40,22 +40,22 @@ func HardenProcessPrivacy() {
 	_, _, _ = syscall.Syscall6(syscall.SYS_PRCTL, prSetDumpable, 0, 0, 0, 0, 0)
 }
 
+func trustedLinuxAskPassParentPath(parentExe string) bool {
+	name := strings.ToLower(filepath.Base(strings.TrimSpace(parentExe)))
+	return name == "ssh" || name == "sftp"
+}
+
 // TrustedAskPassParent is deliberately narrower than a generic same-user
-// parent check. Linux AskPass is accepted only when Ghost FTP supplied a
-// memory-broker token and the immediate parent is an OpenSSH executable.
-// The broker independently validates the peer UID and unpredictable token.
+// parent check. askpassMode clears inherited credential environment variables
+// before this function runs, so trust is derived from the immediate executable
+// identity only. The independent memory broker still requires a same-UID peer
+// and a cryptographically random secret token before returning any credential.
 func TrustedAskPassParent() bool {
-	passwordBlob := os.Getenv("GhostFTP_PASSWORD_BLOB")
-	passphraseBlob := os.Getenv("GhostFTP_PASSPHRASE_BLOB")
-	if !strings.HasPrefix(passwordBlob, "linux-secret-v1:") && !strings.HasPrefix(passphraseBlob, "linux-secret-v1:") {
-		return false
-	}
 	parentExe, err := os.Readlink("/proc/" + strconv.Itoa(os.Getppid()) + "/exe")
 	if err != nil {
 		return false
 	}
-	name := strings.ToLower(filepath.Base(parentExe))
-	return name == "ssh" || name == "sftp"
+	return trustedLinuxAskPassParentPath(parentExe)
 }
 
 func ChoosePrivateKey() (string, error) {
