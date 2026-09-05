@@ -1,5 +1,6 @@
 name: Apply Ghost FTP 1.1.0 foundation
 
+# validation revision 2: distinguish PHP platform requirements from Composer packages
 on:
   push:
     branches: [release/ghost-ftp-1.1.0-quality]
