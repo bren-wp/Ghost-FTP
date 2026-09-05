@@ -10,7 +10,13 @@ Tests, audits and native platform builds are release requirements for Ghost FTP.
 2. **Windows x64/x86 production build**;
 3. **Linux amd64/arm64/i386 production build**.
 
-Android, iOS and macOS application build jobs were removed from the active 2.x matrix.
+Android, iOS and macOS application build jobs are not part of the active Windows/Linux matrix.
+
+## Active release lifecycle
+
+The current baseline is **0.1.0 Beta**. Every `0.x.y` build is a Beta/Prerelease. The first stable release is **1.0.0**.
+
+Setup and Portable artifacts always use the same canonical `VERSION` value.
 
 ## Go toolchain and core gates
 
@@ -38,14 +44,14 @@ CI uses `GOTOOLCHAIN=local`, `GOPROXY=off` and `GOSUMDB=off` so a production val
 `scripts/audit_platform_contract.py` requires:
 
 - active Windows and Linux workflow jobs;
-- a 2.x VERSION line;
+- a semantic VERSION at or above the 0.1.0 product baseline;
 - absence of active `android/`, `ios/` and `macos/` roots;
 - absence of retired mobile packaging/audit tooling;
 - no retired-platform markers in the active CI/release workflow.
 
 ### Version and release contract
 
-`scripts/audit_version.py` binds root `VERSION` to Windows/Linux build metadata and the 2.x release workflow.
+`scripts/audit_version.py` binds root `VERSION` to Windows/Linux build metadata, the Beta/stable channel rule and release workflow.
 
 `scripts/audit_release.py` verifies the Windows/Linux artifact names, release counts, immutable tag rules, Windows installer/payload identity, NuGet packaging and Linux package contract.
 
@@ -71,7 +77,8 @@ CI uses `GOTOOLCHAIN=local`, `GOPROXY=off` and `GOSUMDB=off` so a production val
 - root-delete protection;
 - session close/race handling;
 - Linux SFTP password/key/passphrase parity;
-- Linux queue/settings access through the shared engine.
+- Linux queue/settings access through the shared engine;
+- Linux authenticated profile-storage handling.
 
 `scripts/audit_privacy.py` rejects:
 
@@ -101,15 +108,14 @@ The gate checks:
 - local Markdown/HTML links resolve;
 - documentation is indexed from `docs/README.md` and the root README;
 - current version markers match `VERSION`;
-- the 2.x release contract remains **9 platform artifacts / 12 public files**;
+- the release contract remains **9 platform artifacts / 12 public files**;
+- active documentation does not present a retired version line as current;
 - current installation/architecture/roadmap/release documentation does not link to retired application roots;
-- the Windows/Linux parity document remains present.
+- the Windows/Linux parity and versioning documents remain present.
 
 ## Web companion gate
 
 The Web companion remains a separate source surface but is still validated by `scripts/audit_web.py`.
-
-The web gate checks PHP/JavaScript syntax, regression tests, state/storage exclusion, HTTP/session/CSRF protections, strict remote path/host validation, credential handling, SFTP fingerprint requirements, PWA cache/version metadata and public-error boundaries.
 
 This does not make the Web companion a Windows/Linux desktop release artifact.
 
@@ -127,6 +133,28 @@ The CI job verifies non-empty:
 The release workflow also creates the x32 compatibility alias from the x86 Setup artifact and verifies byte/hash identity.
 
 Windows production validation additionally protects installer payload integrity, architecture/subsystem metadata, manifest/icon/version resources, hardening flags where applicable and signing-status reporting.
+
+## Authenticode signing gate
+
+`scripts/Sign-WindowsArtifacts.ps1` is the only supported Windows artifact-signing helper.
+
+When a PFX is configured:
+
+1. the Portable executable is signed after final PE resource mutation;
+2. the signed Portable bytes are embedded in Setup;
+3. Setup is signed after its own final PE resource mutation;
+4. release verification confirms signed state;
+5. SHA-256 manifests are generated only after signing.
+
+A development self-signed certificate can be created with `scripts/New-DevCodeSigningCertificate.ps1` to test the pipeline. Development/self-signed certificates are not trusted publisher identities and must never be committed to the repository.
+
+Production signing requires a protected external PFX/private key. If production signing is configured, build verification fails if any Setup/Portable artifact remains unsigned.
+
+## Authentic UI screenshot gate
+
+`.github/workflows/ui-screenshots.yml` builds the real Windows Portable x64 executable, launches it, captures the real main workspace and Site Manager native windows, verifies the PNG outputs and persists changed captures under `docs/images/`.
+
+The workflow does not generate a mockup or AI illustration. Screenshot persistence refuses to overwrite a branch that moved after capture.
 
 ## Linux production gate
 
@@ -189,6 +217,8 @@ The release contains **9 platform artifacts**:
 9. Linux multiarch ZIP
 
 The workflow adds `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`, for **12 public files**.
+
+Every `0.x.y` release is marked Beta/Prerelease. Stable publication begins at `1.0.0`.
 
 Before publication it verifies `main` still points at the build commit. Existing `ghostftp-vX.Y.Z` tags are never moved to another commit.
 
