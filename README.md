@@ -93,9 +93,9 @@ Always verify `SHA256.txt` before installation. See [Signing](docs/SIGNING.md) a
 
 ## Languages
 
-English is the default runtime language. Ghost FTP currently includes localization catalogs for English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian and Swedish.
+English is the primary and fallback runtime language. The 1.1.0 development line defines 24 canonical desktop/setup languages: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Simplified Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian, Swedish, Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
 
-Language selection is persisted in application settings. New canonical user-facing text is maintained English-first and translated through the localization system.
+Language selection is persisted in application settings. Regional locale aliases normalize to canonical codes, and CI measures real translation coverage instead of counting an English-filled catalog as fully localized. Android, iOS and Web/PWA are being aligned to the same contract before 1.1.0 can be released. See [Localization](docs/LOCALIZATION.md).
 
 ## Documentation
 
@@ -104,6 +104,10 @@ Language selection is persisted in application settings. New canonical user-faci
 - [Contributing](docs/CONTRIBUTING.md)
 - [GitHub Releases](docs/GITHUB-RELEASES.md)
 - [Installation](docs/INSTALLATION.md)
+- [Localization](docs/LOCALIZATION.md)
+- [Settings](docs/SETTINGS.md)
+- [Dependencies](docs/DEPENDENCIES.md)
+- [Release history](docs/RELEASE-HISTORY.md)
 - [Privacy](docs/PRIVACY.md)
 - [Release verification](docs/RELEASE-VERIFICATION.md)
 - [Roadmap](docs/ROADMAP.md)
@@ -132,6 +136,8 @@ go test ./...
 go test -race ./...
 go vet ./...
 python scripts/audit_repository.py
+python scripts/audit_dependencies.py
+python scripts/audit_localization.py
 python scripts/audit_security.py
 python scripts/audit_privacy.py
 python scripts/audit_web.py

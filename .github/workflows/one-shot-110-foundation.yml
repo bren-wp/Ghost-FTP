@@ -1,0 +1,130 @@
+name: Apply Ghost FTP 1.1.0 foundation
+
+# validation revision 4: write validated non-workflow source through Contents API
+on:
+  push:
+    branches: [release/ghost-ftp-1.1.0-quality]
+    paths:
+      - '.github/workflows/one-shot-110-foundation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: off
+      GOSUMDB: off
+    steps:
+      - name: Checkout foundation branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: release/ghost-ftp-1.1.0-quality
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Apply foundation patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/one_shot_110_finalize.py
+          gofmt -w \
+            cmd/installer/messages.go \
+            cmd/installer/main.go \
+            internal/i18n/i18n.go \
+            internal/i18n/i18n_test.go \
+            internal/i18n/locale_additional.go \
+            internal/platform/language_windows.go
+      - name: Remove and stage one-shot tooling before audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            scripts/one_shot_110_foundation.py \
+            scripts/one_shot_110_finalize.py \
+            .github/workflows/one-shot-110-foundation.yml
+          git add -A
+          test -z "$(git ls-files '.github/workflows/one-shot-*')"
+      - name: Validate clean production tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+          test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*' -print))"
+          go test ./...
+          go vet ./...
+          python scripts/audit_repository.py
+          python scripts/audit_dependencies.py
+          python scripts/audit_localization.py
+          python scripts/audit_docs.py
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
+      - name: Publish validated non-workflow source through GitHub API
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          branch='release/ghost-ftp-1.1.0-quality'
+
+          # Keep the temporary workflow on the remote branch only until this job
+          # has published every validated source change. It is deleted by the
+          # controlling GitHub connector immediately after this job succeeds.
+          git restore --staged .github/workflows/one-shot-110-foundation.yml
+          git restore .github/workflows/one-shot-110-foundation.yml
+
+          git diff --cached --name-status -z | while IFS= read -r -d '' status && IFS= read -r -d '' path; do
+            case "$path" in
+              .github/workflows/*)
+                echo "Refusing to mutate workflow through this source writer: $path" >&2
+                exit 1
+                ;;
+            esac
+
+            encoded_path="$(python -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="/"))' "$path")"
+            endpoint="repos/$repo/contents/$encoded_path"
+
+            case "$status" in
+              D*)
+                sha="$(gh api "$endpoint?ref=$branch" --jq .sha)"
+                gh api --method DELETE "$endpoint" \
+                  -f message="Remove validated temporary 1.1.0 tooling" \
+                  -f branch="$branch" \
+                  -f sha="$sha" >/dev/null
+                ;;
+              A*|M*)
+                content="$(base64 -w0 "$path")"
+                if sha="$(gh api "$endpoint?ref=$branch" --jq .sha 2>/dev/null)"; then
+                  gh api --method PUT "$endpoint" \
+                    -f message="Apply validated Ghost FTP 1.1.0 foundation: $path" \
+                    -f branch="$branch" \
+                    -f sha="$sha" \
+                    -f content="$content" >/dev/null
+                else
+                  gh api --method PUT "$endpoint" \
+                    -f message="Add validated Ghost FTP 1.1.0 foundation: $path" \
+                    -f branch="$branch" \
+                    -f content="$content" >/dev/null
+                fi
+                ;;
+              *)
+                echo "Unsupported staged status $status for $path" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          echo 'FOUNDATION_CONTENTS_API_WRITE=PASS'

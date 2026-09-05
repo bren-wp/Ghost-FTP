@@ -345,13 +345,13 @@ func runInstaller() (exitCode int) {
 	if !ok {
 		return 0
 	}
+	setupCopy := installerCopyFor(installLanguage)
 
-	content := brand.Website + "\n" + brand.Support + "\n\n" +
-		brand.ProductName + " will be installed for your Windows user account and will be available from the Start menu."
+	content := brand.Website + "\n" + brand.Support + "\n\n" + setupCopy.ConfirmBody
 
 	if !platform.ConfirmDialog(
 		installerTitle(),
-		"Install "+brand.ProductFull+" "+version+"?",
+		installerConfirmTitle(installLanguage, version),
 		content,
 	) {
 		return 0
@@ -487,25 +487,25 @@ func runInstaller() (exitCode int) {
 
 	languageWarning := ""
 	if err := persistInstallerLanguage(installLanguage); err != nil {
-		languageWarning = "\n\nThe selected language could not be saved. Ghost FTP will start in English; you can change the language in Settings."
+		languageWarning = "\n\n" + setupCopy.LanguageWarning
 	}
 
 	shortcutWarning := ""
 	if err := platform.CreateShortcuts(appPath); err != nil {
-		shortcutWarning = "\n\nA shortcut could not be created. You can start Ghost FTP from its installation folder."
+		shortcutWarning = "\n\n" + setupCopy.ShortcutWarning
 	}
 
 	if platform.ConfirmDialog(
 		installerTitle(),
-		"Setup completed successfully",
-		"Ghost FTP is ready to use."+legacyCleanupWarning+languageWarning+shortcutWarning+"\n\nLaunch Ghost FTP now?",
+		setupCopy.CompletedTitle,
+		setupCopy.ReadyBody+legacyCleanupWarning+languageWarning+shortcutWarning+"\n\n"+setupCopy.LaunchQuestion,
 	) {
 		cmd := exec.Command(appPath)
 		if err := cmd.Start(); err != nil {
 			platform.ErrorDialog(
 				installerTitle(),
-				"Ghost FTP is installed",
-				"Ghost FTP could not be launched automatically. Start it from the Windows Start menu.",
+				setupCopy.InstalledTitle,
+				setupCopy.LaunchFailed,
 			)
 		}
 	}

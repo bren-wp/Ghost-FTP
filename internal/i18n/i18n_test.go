@@ -13,7 +13,10 @@ func TestCatalogsAreCompleteAndFormatCompatible(t *testing.T) {
 		t.Fatal(err)
 	}
 	english := catalogs[DefaultLanguage]
-	partial := map[string]bool{"it": true, "pl": true, "nl": true, "cs": true, "uk": true, "sv": true}
+	supplemental := map[string]bool{
+		"it": true, "pl": true, "nl": true, "cs": true, "uk": true, "sv": true,
+		"ro": true, "hu": true, "da": true, "fi": true, "no": true, "ko": true,
+	}
 	for _, language := range Languages() {
 		catalog := catalogs[language.Code]
 		different := 0
@@ -28,9 +31,13 @@ func TestCatalogsAreCompleteAndFormatCompatible(t *testing.T) {
 		if language.Code == DefaultLanguage {
 			continue
 		}
-		if partial[language.Code] {
-			if different < 8 {
-				t.Fatalf("catalog %s needs at least 8 translated core strings, got %d", language.Code, different)
+		translated, total := TranslationCoverage(language.Code)
+		if translated != different || total != len(english) {
+			t.Fatalf("coverage accounting drift for %s: translated=%d/%d different=%d/%d", language.Code, translated, total, different, len(english))
+		}
+		if supplemental[language.Code] {
+			if different < 30 {
+				t.Fatalf("supplemental catalog %s needs at least 30 genuinely localized strings, got %d", language.Code, different)
 			}
 			continue
 		}
@@ -41,10 +48,17 @@ func TestCatalogsAreCompleteAndFormatCompatible(t *testing.T) {
 }
 
 func TestLanguagesAndNormalization(t *testing.T) {
-	if got := len(Languages()); got != 18 {
-		t.Fatalf("expected 18 supported languages, got %d", got)
+	languages := Languages()
+	if got := len(languages); got != 24 {
+		t.Fatalf("expected 24 supported languages, got %d", got)
 	}
-	cases := map[string]string{"": "en", "EN": "en", "pt-BR": "pt", "zh_CN": "zh", "de-DE": "de", "it-IT": "it", "uk-UA": "uk", "unknown": "en"}
+	if languages[0].Code != DefaultLanguage || DefaultLanguage != "en" {
+		t.Fatalf("English must remain the primary/default language: first=%q default=%q", languages[0].Code, DefaultLanguage)
+	}
+	cases := map[string]string{
+		"": "en", "EN": "en", "pt-BR": "pt", "zh_CN": "zh", "zh-Hans": "zh", "de-DE": "de", "it-IT": "it", "uk-UA": "uk",
+		"ro-RO": "ro", "hu-HU": "hu", "da-DK": "da", "fi-FI": "fi", "nb-NO": "no", "nn-NO": "no", "no-NO": "no", "ko-KR": "ko", "unknown": "en",
+	}
 	for input, want := range cases {
 		if got := Normalize(input); got != want {
 			t.Fatalf("Normalize(%q)=%q want %q", input, got, want)
@@ -53,15 +67,17 @@ func TestLanguagesAndNormalization(t *testing.T) {
 	if IsSupported("unknown") {
 		t.Fatal("unknown language must not be reported as supported")
 	}
-	if !IsSupported("sv-SE") {
-		t.Fatal("regional form of supported language should be supported")
+	for _, code := range []string{"sv-SE", "ro-RO", "hu-HU", "da-DK", "fi-FI", "nb-NO", "no-NO", "ko-KR"} {
+		if !IsSupported(code) {
+			t.Fatalf("regional form of supported language should be supported: %s", code)
+		}
 	}
 }
 
 func TestAffirmativeAnswers(t *testing.T) {
 	cases := []struct{ language, answer string }{
 		{"en", "yes"}, {"hr", "da"}, {"de", "ja"}, {"fr", "oui"}, {"es", "sí"}, {"tr", "evet"}, {"el", "ναι"}, {"pt", "sim"}, {"zh", "是"}, {"ru", "да"}, {"hi", "हाँ"}, {"ja", "はい"},
-		{"it", "sì"}, {"pl", "tak"}, {"nl", "ja"}, {"cs", "ano"}, {"uk", "так"}, {"sv", "ja"},
+		{"it", "sì"}, {"pl", "tak"}, {"nl", "ja"}, {"cs", "ano"}, {"uk", "так"}, {"sv", "ja"}, {"ro", "da"}, {"hu", "igen"}, {"da", "ja"}, {"fi", "kyllä"}, {"no", "ja"}, {"ko", "예"}, {"nb-NO", "ja"},
 	}
 	for _, tc := range cases {
 		if !IsAffirmative(tc.language, tc.answer) {
