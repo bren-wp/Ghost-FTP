@@ -4,11 +4,11 @@ package platform
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -158,22 +158,16 @@ func AcquireSingleInstance(identity string) (func(), bool) {
 		return fail()
 	}
 
-	released := false
+	var once sync.Once
 	release := func() {
-		if released {
-			return
-		}
-		released = true
-		_ = syscall.Flock(fd, syscall.LOCK_UN)
-		_ = file.Close()
-		current, currentErr := os.Lstat(lockPath)
-		if currentErr == nil && os.SameFile(info, current) {
-			_ = os.Remove(lockPath)
-		}
+		once.Do(func() {
+			_ = syscall.Flock(fd, syscall.LOCK_UN)
+			_ = file.Close()
+			current, currentErr := os.Lstat(lockPath)
+			if currentErr == nil && os.SameFile(info, current) {
+				_ = os.Remove(lockPath)
+			}
+		})
 	}
 	return release, true
-}
-
-func linuxRuntimeSecuritySummary() string {
-	return fmt.Sprintf("uid=%d umask=0077 dumpable=disabled", os.Geteuid())
 }
