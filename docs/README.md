@@ -13,36 +13,43 @@ This directory contains maintained product, security, operator and release docum
 - [Security](SECURITY.md) — threat boundaries, credentials, host trust, filesystem and transfer hardening.
 - [Privacy](PRIVACY.md) — telemetry prohibition and data/network handling policy.
 - [Testing](TESTING.md) — automated quality, security and Windows/Linux build gates.
-- [Release history](RELEASE-HISTORY.md) — detailed immutable release history and current development scope.
-- [GitHub Releases](GITHUB-RELEASES.md) — 2.x release assets and version/tag policy.
+- [Versioning](VERSIONING.md) — active 0.1.0 Beta baseline, 0.x progression and stable 1.0.0 gate.
+- [Release history](RELEASE-HISTORY.md) — current development scope plus immutable historical release provenance.
+- [GitHub Releases](GITHUB-RELEASES.md) — prerelease/stable channel rules, release assets and tag policy.
 - [Release verification](RELEASE-VERIFICATION.md) — SHA-256, metadata and provenance verification.
 - [Signing](SIGNING.md) — Windows signing and Linux package provenance expectations.
 - [Shared hosting](SHARED-HOSTING.md) — separate Web companion deployment guidance.
-- [Roadmap](ROADMAP.md) — Windows/Linux product direction and quality priorities.
+- [Roadmap](ROADMAP.md) — Windows/Linux Beta stabilization and 1.0 quality priorities.
 - [Third-party notices](THIRD-PARTY-NOTICES.md) — operating-system transport components and attribution boundary.
 - [Contributing](CONTRIBUTING.md) — contribution workflow and quality expectations.
 - [Support](SUPPORT.md) — issue reporting and support boundaries.
 
 ## Active application platforms
 
-Ghost FTP 2.x supports:
+Ghost FTP currently maintains:
 
-- **Windows** — native Win32 GUI, Setup and portable packages for x64/x86.
+- **Windows** — native Win32 GUI, Setup and Portable packages for x64/x86.
 - **Linux** — shared core with hardened terminal frontend and DEB packages for amd64/arm64/i386.
 
-Android, iOS and macOS application targets were retired from active 2.x source. Historical 1.x tags/releases remain available for provenance and must not be rewritten.
+Android, iOS and macOS application targets are not part of the active source/build matrix. Historical commits, tags and releases remain available for provenance and must not be rewritten.
 
-The existing **Ghost FTP Web companion** remains in the repository as a separate shared-hosting/PWA source surface. It is not counted as a Windows/Linux desktop application artifact in the 2.x release contract.
+The existing **Ghost FTP Web companion** remains in the repository as a separate shared-hosting/PWA source surface. It is not counted as a Windows/Linux desktop application artifact in the desktop release contract.
 
 ## Current product line
 
-**Current Ghost FTP release: 2.0.0**
+**Current Ghost FTP release: 0.1.0**
 
-The 2.x line uses tags named `ghostftp-vX.Y.Z`. The platform consolidation is a semantic-major change because supported application targets changed.
+Development status: **Beta**
 
-A complete 2.x desktop release contains **9 platform artifacts** plus `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`, for **12 public files** total.
+The active product baseline begins at **0.1.0 Beta**. Every `0.x.y` build remains Beta/prerelease while the application is being completed and stabilized. The first version that may be treated as stable is **1.0.0**.
 
-The active 2.x release must pass the shared quality/security/documentation gate and both Windows and Linux production build gates before publication.
+Windows Setup and Portable are packaging variants of the same release and always use the same canonical `VERSION`.
+
+Release tags use `ghostftp-vX.Y.Z`. Published tags remain immutable.
+
+A complete desktop release contains **9 platform artifacts** plus `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`, for **12 public files** total.
+
+Every release must pass the shared quality/security/documentation gate and both Windows and Linux production build gates before publication. Pre-1.0 releases are additionally required to be published as GitHub prereleases.
 
 ## Platform documentation
 
@@ -53,10 +60,13 @@ The active 2.x release must pass the shared quality/security/documentation gate 
 
 ## Documentation invariants
 
-Long-lived documentation must describe the current product contract without deleting historical release facts. In particular:
+Long-lived documentation must describe the current product contract without deleting historical facts. In particular:
 
-- old 1.x release notes may mention platforms that existed at the time;
-- current installation, architecture, release and roadmap documents must not advertise retired application platforms as supported;
+- historical release notes may mention platforms, package matrices or versions that existed at the time;
+- current installation, architecture, release and roadmap documents must describe the maintained Windows/Linux contract;
+- current versioning documentation must preserve the `0.1.0 → 0.x.y Beta → 1.0.0 stable` policy;
+- Windows Setup and Portable must never claim independent release versions;
 - dependency documentation must distinguish zero external Go modules from OS-provided runtime transport tools;
 - privacy documentation must not imply communication with an application analytics/update service that does not exist;
-- release asset counts must match the workflow contract.
+- release asset counts must match the workflow contract;
+- historical tags/releases remain immutable and are never rewritten merely because the active maturity baseline changed.
