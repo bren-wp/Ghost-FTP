@@ -25,7 +25,9 @@ func LocalAppData() (string, error) {
 	return filepath.Join(home, ".local", "share"), nil
 }
 
-func SystemDirectory() (string, error) { return "", errors.New("Windows system directory is unavailable on Linux") }
+func SystemDirectory() (string, error) {
+	return "", errors.New("Windows system directory is unavailable on Linux")
+}
 
 // HardenProcessPrivacy is deliberately called before any application state or
 // credential material is created. A restrictive umask protects newly-created
@@ -38,22 +40,43 @@ func HardenProcessPrivacy() {
 	_, _, _ = syscall.Syscall6(syscall.SYS_PRCTL, prSetDumpable, 0, 0, 0, 0, 0)
 }
 
-func TrustedAskPassParent() bool { return false }
+// TrustedAskPassParent is deliberately narrower than a generic same-user
+// parent check. Linux AskPass is accepted only when Ghost FTP supplied a
+// memory-broker token and the immediate parent is an OpenSSH executable.
+// The broker independently validates the peer UID and unpredictable token.
+func TrustedAskPassParent() bool {
+	passwordBlob := os.Getenv("GhostFTP_PASSWORD_BLOB")
+	passphraseBlob := os.Getenv("GhostFTP_PASSPHRASE_BLOB")
+	if !strings.HasPrefix(passwordBlob, "linux-secret-v1:") && !strings.HasPrefix(passphraseBlob, "linux-secret-v1:") {
+		return false
+	}
+	parentExe, err := os.Readlink("/proc/" + strconv.Itoa(os.Getppid()) + "/exe")
+	if err != nil {
+		return false
+	}
+	name := strings.ToLower(filepath.Base(parentExe))
+	return name == "ssh" || name == "sftp"
+}
 
 func ChoosePrivateKey() (string, error) {
 	return "", errors.New("private-key selection is provided by the Linux desktop UI")
 }
+
 func ChooseDirectory() (string, error) {
 	return "", errors.New("directory selection is provided by the Linux desktop UI")
 }
+
 func MessageBox(title, text string, flags uintptr) int {
 	_, _ = os.Stderr.WriteString(title + ": " + text + "\n")
 	return 0
 }
+
 func ConfirmDialog(string, string, string) bool { return false }
+
 func InfoDialog(title, instruction, content string) {
 	_, _ = os.Stdout.WriteString(title + ": " + instruction + "\n" + content + "\n")
 }
+
 func ErrorDialog(title, instruction, content string) {
 	_, _ = os.Stderr.WriteString(title + ": " + instruction + "\n" + content + "\n")
 }
