@@ -63,8 +63,11 @@ type linuxDesktopLayout struct {
 	connect, disconnect, trust, cancelTrust               linuxRect
 	localPath, localUp, localRefresh                      linuxRect
 	remotePath, remoteUp, remoteRefresh                   linuxRect
+	localNew, localRename, localDelete                    linuxRect
+	remoteNew, remoteRename, remoteDelete, remoteChmod    linuxRect
 	localList, remoteList                                 linuxRect
 	upload, download                                      linuxRect
+	promptInput, promptOK, promptCancel                   linuxRect
 	pause, resume, cancelJob, retryJob, clearQueue        linuxRect
 	queue                                                 linuxRect
 }
@@ -147,7 +150,17 @@ func buildLinuxDesktopLayout(width, height int) linuxDesktopLayout {
 	layout.remoteUp = linuxRectWH(layout.remotePath.right+rowGap, pathY, buttonW, pathH)
 	layout.remoteRefresh = linuxRectWH(layout.remoteUp.right+rowGap, pathY, buttonW, pathH)
 
-	listY := pathY + pathH + 10
+	toolbarY := pathY + pathH + 8
+	toolW := 80
+	layout.localNew = linuxRectWH(gap, toolbarY, toolW, 28)
+	layout.localRename = linuxRectWH(gap+toolW+rowGap, toolbarY, toolW, 28)
+	layout.localDelete = linuxRectWH(gap+2*(toolW+rowGap), toolbarY, toolW, 28)
+	layout.remoteNew = linuxRectWH(rightX, toolbarY, toolW, 28)
+	layout.remoteRename = linuxRectWH(rightX+toolW+rowGap, toolbarY, toolW, 28)
+	layout.remoteDelete = linuxRectWH(rightX+2*(toolW+rowGap), toolbarY, toolW, 28)
+	layout.remoteChmod = linuxRectWH(rightX+3*(toolW+rowGap), toolbarY, toolW, 28)
+
+	listY := toolbarY + 36
 	listBottom := workspaceBottom - 44
 	layout.localList = linuxRect{left: gap, top: listY, right: gap + panelWidth, bottom: listBottom}
 	layout.remoteList = linuxRect{left: rightX, top: listY, right: rightX + panelWidth, bottom: listBottom}
@@ -216,6 +229,9 @@ type linuxDesktop struct {
 	status             string
 	confirmKind        string
 	confirmUntil       time.Time
+	promptKind         int
+	promptTitle        string
+	promptValue        string
 
 	resultCh chan linuxUIResult
 }
@@ -544,6 +560,27 @@ func (u *linuxDesktop) renderWorkspace() error {
 		return err
 	}
 	if err := u.drawButton(u.layout.remoteRefresh, "Refresh", u.connected && !u.busy, false); err != nil {
+		return err
+	}
+	if err := u.drawButton(u.layout.localNew, "New folder", !u.busy, false); err != nil {
+		return err
+	}
+	if err := u.drawButton(u.layout.localRename, "Rename", u.selectedLocal >= 0 && !u.busy, false); err != nil {
+		return err
+	}
+	if err := u.drawButton(u.layout.localDelete, "Delete", u.selectedLocal >= 0 && !u.busy, false); err != nil {
+		return err
+	}
+	if err := u.drawButton(u.layout.remoteNew, "New folder", u.connected && !u.busy, false); err != nil {
+		return err
+	}
+	if err := u.drawButton(u.layout.remoteRename, "Rename", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+		return err
+	}
+	if err := u.drawButton(u.layout.remoteDelete, "Delete", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+		return err
+	}
+	if err := u.drawButton(u.layout.remoteChmod, "Permissions", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
 		return err
 	}
 	if err := u.renderItemRows(u.layout.localList, u.localItems, u.selectedLocal); err != nil {
@@ -981,6 +1018,20 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		u.refreshRemote(terminalRemotePath(u.remoteCurrent, ".."))
 	case l.remoteRefresh.contains(x, y):
 		u.refreshRemote(u.remoteCurrent)
+	case l.localNew.contains(x, y):
+		u.openPrompt(linuxPromptLocalMkdir, "New local folder", "New folder")
+	case l.localRename.contains(x, y):
+		u.openSelectedLocalRename()
+	case l.localDelete.contains(x, y):
+		u.deleteSelectedLocal()
+	case l.remoteNew.contains(x, y):
+		u.openPrompt(linuxPromptRemoteMkdir, "New server folder", "New folder")
+	case l.remoteRename.contains(x, y):
+		u.openSelectedRemoteRename()
+	case l.remoteDelete.contains(x, y):
+		u.deleteSelectedRemote()
+	case l.remoteChmod.contains(x, y):
+		u.openSelectedRemoteChmod()
 	case l.localList.contains(x, y):
 		u.selectedLocal = u.selectRow(l.localList, y, len(u.localItems))
 	case l.remoteList.contains(x, y):
@@ -1025,6 +1076,9 @@ func linuxKeysymText(sym uint32) (string, bool) {
 
 func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 	sym := u.x.keysym(keycode, state)
+	if u.handlePromptKey(sym) {
+		return true
+	}
 	if state&x11ControlMask != 0 {
 		if sym == 'q' || sym == 'Q' {
 			return false
@@ -1121,10 +1175,16 @@ func (u *linuxDesktop) renderAll() error {
 	if err := u.render(); err != nil {
 		return err
 	}
+	if u.promptKind != linuxPromptNone {
+		return u.renderPromptOverlay()
+	}
 	return u.renderTrustOverlay()
 }
 
 func (u *linuxDesktop) handleOverlayMouse(x, y int) bool {
+	if u.handlePromptMouse(x, y) {
+		return true
+	}
 	if u.pendingFingerprint == "" || u.connected {
 		return false
 	}
