@@ -1,10 +1,10 @@
 # Windows and Linux platform parity
 
-Ghost FTP currently maintains two desktop application platforms: **Windows** and **Linux**. Both editions use the same transfer, profile, settings, localization and security core. The presentation layer differs intentionally: Windows is a native Win32 graphical application, while Linux uses a hardened terminal interface.
+Ghost FTP currently maintains two desktop application platforms: **Windows** and **Linux**. Both editions use the same transfer, profile, settings, localization and security core. The presentation layer still differs: Windows is the native graphical reference frontend, while Linux currently uses a hardened terminal frontend.
 
 The active maturity baseline is **0.1.0 Beta**. Functional parity work completed before the version reset is preserved; changing the active version line does not remove or downgrade existing capabilities.
 
-The objective is functional parity without introducing a third-party cross-platform GUI runtime solely to make the interfaces visually identical.
+The project does not claim pixel-identical visual parity where it does not yet exist. See [Desktop reference UI](REFERENCE-UI.md).
 
 ## Shared core
 
@@ -40,15 +40,33 @@ There is no alternate Linux protocol implementation and no alternate Windows tra
 | SFTP private key | Yes | Yes |
 | SFTP key passphrase | Yes | Yes |
 | SFTP host fingerprint confirmation | Yes | Yes |
-| Saved endpoint-bound credentials | Core support | Core support |
+| Endpoint-bound saved profile metadata | Yes | Yes |
+| Windows DPAPI secret persistence | Yes | No |
 
-Earlier repository work corrected a Linux defect where the terminal frontend required an SFTP private key and rejected a non-empty key passphrase. That completed fix remains part of the 0.1.0 Beta baseline. Linux now passes the same password/key/passphrase model to the shared engine as Windows.
+Linux intentionally does not emulate Windows DPAPI with plaintext or weak reversible storage. Linux profile metadata is protected by the documented Linux profile envelope, while already-used password/passphrase material is not reconstructed merely to make `profile-save` convenient.
 
-When a Linux user explicitly accepts a new SFTP host key, the accepted public fingerprint is retained in the in-process connection metadata so a later `profile-save` can persist the verified endpoint pin. Passwords and private-key passphrases are still removed from the session config after connection and are not printed by profile commands.
+When a Linux user explicitly accepts a new SFTP host key, the accepted public fingerprint is retained in the in-process connection metadata so a later `profile-save` can persist the verified endpoint pin. Passwords and private-key passphrases are removed from the session config after connection and are not printed by profile commands.
+
+## Windows reference-shell boundary
+
+Windows Setup and Windows Portable package the same application executable/source. Once the app starts, both expose the same:
+
+- deep navy reference shell;
+- left profile/navigation sidebar;
+- menu and top action toolbar;
+- Connection Log and Quick Connect cards;
+- Local/Remote file cards;
+- remote search;
+- transfer queue;
+- live localization;
+- command/action-state validation;
+- Site Manager and settings surfaces.
+
+The graphical shell is presentation only. Toolbar/menu actions route to the same canonical connection, file-operation and transfer code paths used elsewhere in the application.
 
 ## Windows Site Manager parity boundary
 
-Windows additionally provides a graphical Site Manager because it is the native GUI reference frontend. Site Manager does not create a separate connection stack.
+Windows provides a graphical Site Manager because it is the native GUI reference frontend. Site Manager does not create a separate connection stack.
 
 It uses the same profile store and connection engine for:
 
@@ -60,7 +78,7 @@ It uses the same profile store and connection engine for:
 - endpoint-bound stored credentials;
 - normal connection validation and SFTP host trust.
 
-The one-click **Sites** toolbar button and the application menu open the same Site Manager implementation. Quick connection uses the normal `connectNow()` path after transferring the entered values to the main connection state.
+The one-click **Sites** toolbar button and the application menu open the same Site Manager implementation. Quick connection uses the normal connection path after transferring entered values to the main connection state.
 
 Linux exposes the same underlying profile/connection capabilities through terminal commands rather than reproducing the Windows dialog.
 
@@ -73,6 +91,7 @@ Linux exposes the same underlying profile/connection capabilities through termin
 | Remote rename | GUI | `rename` |
 | Remote delete | GUI | `delete` |
 | Remote permissions/chmod | GUI | `chmod` |
+| Remote mode visibility when server supplies it | Permissions column | Listing metadata/command output path |
 | Local list/navigation | GUI | `lls`, `lcd`, `lpwd` |
 | Local create folder | GUI | `lmkdir` |
 | Local rename | GUI | `lrename` |
@@ -84,17 +103,39 @@ Linux exposes the same underlying profile/connection capabilities through termin
 | Upload/download scheduling | Shared engine | Shared engine |
 | Tree-transfer limits/security | Shared engine | Shared engine |
 
-Linux local commands call `Engine.LocalList`, `LocalMkdir`, `LocalRename` and `LocalDelete`. They therefore retain the same no-follow/no-replace/root-delete protections used by the Windows local panel instead of falling back to shell commands.
+Linux local commands call `Engine.LocalList`, `LocalMkdir`, `LocalRename` and `LocalDelete`. They therefore retain the same no-follow/no-replace/root-delete protections used by the Windows local panel instead of falling back to arbitrary shell commands.
 
-`get` and `put` resolve relative local paths from the Linux local panel directory rather than from the process working directory. Relative remote paths resolve from the active remote directory. This makes the two-panel terminal workflow predictable and consistent with the Windows file-manager model.
+`get` and `put` resolve relative local paths from the Linux local panel directory rather than from the process working directory. Relative remote paths resolve from the active remote directory.
 
 `gettree` and `puttree` call `Engine.AddTreeTransfer`; they inherit the shared tree planner's bounded depth/item count, symlink handling, path validation and normal transfer queue/conflict policy behavior.
+
+## Remote permission metadata
+
+The shared `model.Item` can carry optional remote permission display metadata.
+
+Ghost FTP currently derives it from real server listing data:
+
+- UNIX-style FTP `LIST` modes;
+- SFTP `ls -la` modes through the shared UNIX listing parser;
+- MLSD `unix.mode` when provided.
+
+MLSD `perm=` capabilities are not misrepresented as POSIX modes. Unknown or malformed values remain empty.
+
+The Windows Remote card displays this as the fifth **Permissions** column. The local card intentionally remains four columns because local authorization semantics are not inferred through the remote listing model.
+
+## Remote-search parity boundary
+
+The current Windows remote search is a local in-memory filter over the already loaded directory. It does not create another remote search protocol or third-party query service.
+
+Linux users can navigate/list through the terminal command surface. A future Linux GUI search field must reuse the same item model and must not introduce a separate server/indexing service simply to mimic the Windows control.
 
 ## Delete confirmation parity
 
 The canonical `confirm-delete` setting is enforced on both frontends. Linux remote `delete` and local `ldelete` fail closed unless the user explicitly confirms the operation when confirmation is enabled.
 
 Disabling confirmation is itself a validated persisted settings change (`set confirm-delete false`). The terminal does not silently bypass the setting for convenience.
+
+Windows destructive controls use the same canonical settings/action-state boundary and are disabled when the current selection/connection state does not permit the requested operation.
 
 ## Transfer queue parity
 
@@ -109,16 +150,18 @@ Windows exposes queue actions as buttons and the transfer list. Linux exposes th
 
 The command surface does not create a separate queue implementation.
 
+The graphical UI does not fabricate transfer speed, ETA or remaining-byte values merely to look like another client. Such columns may be added only when the shared transfer model exposes real data.
+
 ## Saved-profile parity
 
-Linux profile commands use the same protected profile store as Windows:
+Linux profile commands use the shared protected profile store:
 
 - `profiles` lists public profile metadata;
-- `profile-show <id>` displays non-secret profile state, including whether a password/passphrase exists;
+- `profile-show <id>` displays non-secret profile state;
 - `profile-save <name>` stores the active endpoint, verified SFTP fingerprint when applicable, private-key path and current local/remote working paths;
 - `profile-remove <id>` removes a profile through the shared store.
 
-`profile-save` intentionally does **not** copy an already-used password or passphrase from the active connection. Those secrets are cleared after authentication, so the command never reconstructs or prints them merely to create a profile. Credential persistence remains an explicit protected-profile operation rather than an implicit side effect of connecting.
+`profile-save` intentionally does **not** copy an already-used password or passphrase from the active connection. Those secrets are cleared after authentication, so the command never reconstructs or prints them merely to create a profile.
 
 On Windows, selecting a saved profile or Site Manager entry also does not reveal a protected saved password or private-key passphrase as plaintext. Credential reuse stays inside the protected profile-resolution boundary.
 
@@ -163,7 +206,9 @@ CI verifies:
 - Windows Setup primary copy remains localized;
 - Linux runtime language switching remains wired.
 
-Command names remain stable English technical tokens so scripts/documentation do not change when the UI language changes. User-facing status/error copy continues to use the localization layer and English fallback when a reviewed translation is unavailable.
+The Windows UI regression suite additionally rejects a return of hardcoded Croatian action strings that would overwrite another selected runtime locale.
+
+Command names remain stable English technical tokens so scripts/documentation do not change when the UI language changes.
 
 ## Visual presentation
 
@@ -171,15 +216,16 @@ Command names remain stable English technical tokens so scripts/documentation do
 
 Windows is the graphical reference GUI. It uses:
 
-- a native Win32 window;
+- native Win32/DWM/common-control facilities;
 - high-DPI scaling;
-- graphite/navy dark surfaces;
-- owner-drawn action buttons;
-- a balanced local/server dual-pane workspace;
-- a visible status/session strip;
-- direct upload/download controls between panes;
-- a full-width transfer queue;
-- connection/profile controls;
+- deep navy/graphite surfaces and blue-violet accent hierarchy;
+- owner-drawn toolbar/action buttons;
+- persistent left sidebar;
+- Connection Log and Quick Connect cards;
+- balanced local/server dual-pane workspace;
+- remote in-memory search;
+- real remote Permissions column when metadata exists;
+- full-width transfer queue;
 - one-click Sites access and native Site Manager;
 - native dialogs and file/folder pickers.
 
@@ -187,11 +233,19 @@ The refined layout is reapplied after resize, DPI, protocol and language changes
 
 ### Linux
 
-Linux is currently a terminal presentation over the same core. The prompt exposes both remote and local working directories, and the command groups are separated into Remote, Local, Files, Queue, Profiles and Options to keep the expanded capability discoverable.
+Linux is currently a terminal presentation over the same core. The prompt exposes both remote and local working directories, and command groups are separated into Remote, Local, Files, Queue, Profiles and Options.
 
-This presentation keeps the application free of a bundled cross-platform GUI framework and allows amd64, arm64 and i386 package targets to remain small and auditable.
+This keeps the current package free of a bundled cross-platform GUI framework and allows amd64, arm64 and i386 package targets to remain small and auditable.
 
-A future Linux graphical frontend is acceptable only if it can preserve the project's dependency, security and reproducibility requirements. A visual change must never fork the transfer/security engine.
+**Linux is not currently pixel-identical to the Windows graphical reference.** That gap is explicitly documented. A future Linux graphical frontend is acceptable only if it preserves the dependency, security and reproducibility requirements and does not fork the transfer/security engine.
+
+If such a GUI requires an OS toolkit/display runtime, that prerequisite must be documented accurately; it must not be called “no dependency” merely because distributions commonly ship it.
+
+## Authentic UI evidence
+
+Windows production validation includes a dedicated workflow that builds the real x64 Portable executable and captures the native main workspace and Site Manager with `PrintWindow(PW_RENDERFULLCONTENT)`.
+
+The workflow verifies PNG signature, dimensions, size and SHA-256 and refuses to persist a capture if the branch moved after the source commit. Mockup/image-generation output is not accepted as production UI evidence.
 
 ## Active version and packaging parity
 
@@ -218,7 +272,17 @@ Linux-specific regressions verify:
 - empty, negative or unrecognized confirmations remain fail-closed;
 - explicit affirmative confirmation is accepted through the localization-aware affirmative parser.
 
-Windows production validation additionally exercises native package builds, control creation, Site Manager construction and authentic UI capture on a real Windows runner.
+Windows/reference regressions verify:
+
+- canonical sidebar/toolbar/cards remain wired;
+- toolbar actions mirror canonical action state;
+- remote search retains a full unfiltered model;
+- local file columns remain four-column reference order;
+- remote file columns remain five-column reference order with Permissions;
+- permissions are backed by validated LIST/SFTP/MLSD `unix.mode` data;
+- live language switching updates the Permissions heading;
+- hardcoded Croatian file-action strings do not return;
+- authentic capture remains buildable on a real Windows runner.
 
 The repository/platform audits ensure retired application targets do not return and both maintained platform production builds remain present.
 
