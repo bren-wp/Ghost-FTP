@@ -15,20 +15,22 @@ import (
 )
 
 const (
-	siteIDList     = 8101
-	siteIDName     = 8102
-	siteIDProtocol = 8103
-	siteIDHost     = 8104
-	siteIDPort     = 8105
-	siteIDUser     = 8106
-	siteIDLocal    = 8107
-	siteIDRemote   = 8108
-	siteIDKey      = 8109
-	siteIDSecurity = 8110
-	siteIDSave     = 8111
-	siteIDDelete   = 8112
-	siteIDConnect  = 8113
-	siteIDClose    = 8114
+	siteIDList       = 8101
+	siteIDName       = 8102
+	siteIDProtocol   = 8103
+	siteIDHost       = 8104
+	siteIDPort       = 8105
+	siteIDUser       = 8106
+	siteIDLocal      = 8107
+	siteIDRemote     = 8108
+	siteIDKey        = 8109
+	siteIDSecurity   = 8110
+	siteIDSave       = 8111
+	siteIDDelete     = 8112
+	siteIDConnect    = 8113
+	siteIDClose      = 8114
+	siteIDPassword   = 8115
+	siteIDPassphrase = 8116
 
 	siteLBSNotify           = 0x0001
 	siteLBSNoIntegralHeight = 0x0100
@@ -52,9 +54,11 @@ type siteManagerState struct {
 	host         uintptr
 	port         uintptr
 	user         uintptr
+	password     uintptr
 	localPath    uintptr
 	remotePath   uintptr
 	keyPath      uintptr
+	passphrase   uintptr
 	security     uintptr
 	save         uintptr
 	delete       uintptr
@@ -104,9 +108,8 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 				case siteIDConnect:
 					if state.selected == 0 {
 						state.applyQuickConnectToMain()
-					} else {
-						state.connectAfter = true
 					}
+					state.connectAfter = true
 					destroyWindow.Call(hwnd)
 					return 0
 				case siteIDClose:
@@ -140,6 +143,16 @@ func (state *siteManagerState) protocolValue() string {
 
 func (state *siteManagerState) setProtocol(protocol string) {
 	sendMessageW.Call(state.protocol, cbSetCurSel, protocolIndex(protocol), 0)
+	state.syncProtocolControls()
+}
+
+func (state *siteManagerState) syncProtocolControls() {
+	sftp := state.protocolValue() == "sftp"
+	setControlEnabled(state.keyPath, sftp)
+	setControlEnabled(state.passphrase, sftp)
+	if !sftp {
+		setText(state.passphrase, "")
+	}
 }
 
 func (state *siteManagerState) syncProtocolPort() {
@@ -148,12 +161,14 @@ func (state *siteManagerState) syncProtocolPort() {
 	for _, spec := range protocolSpecs {
 		if current == spec.Port {
 			setText(state.port, protocolSpecs[protocolIndex(protocol)].Port)
+			state.syncProtocolControls()
 			return
 		}
 	}
 	if current == "" {
 		setText(state.port, protocolSpecs[protocolIndex(protocol)].Port)
 	}
+	state.syncProtocolControls()
 }
 
 func (state *siteManagerState) refillProfiles(selectedID string) {
@@ -183,6 +198,8 @@ func (state *siteManagerState) loadCurrentSelection() {
 
 func (state *siteManagerState) loadSelection(index int) {
 	state.selected = index
+	setText(state.password, "")
+	setText(state.passphrase, "")
 	if index <= 0 || index > len(state.profiles) {
 		state.selected = 0
 		setText(state.name, "")
@@ -254,7 +271,9 @@ func (state *siteManagerState) profileInput() (model.ProfileInput, error) {
 		Host:           host,
 		Port:           port,
 		Username:       username,
+		Password:       getText(state.password),
 		PrivateKeyPath: getText(state.keyPath),
+		Passphrase:     getText(state.passphrase),
 		LocalPath:      getText(state.localPath),
 		RemotePath:     remotePath,
 	}, nil
@@ -267,6 +286,10 @@ func (state *siteManagerState) saveCurrent() {
 		return
 	}
 	saved, err := state.parent.engine.SaveProfile(input)
+	input.Password = ""
+	input.Passphrase = ""
+	setText(state.password, "")
+	setText(state.passphrase, "")
 	if err != nil {
 		platform.ErrorDialog("Ghost FTP — "+nativeMenuWords(state.parent.languageCode())[5], state.parent.tr("settings.save_failed"), state.parent.userMessage(err, "settings.save_failed_body"))
 		return
@@ -316,9 +339,9 @@ func (state *siteManagerState) applyQuickConnectToMain() {
 	setText(state.parent.host, getText(state.host))
 	setText(state.parent.port, getText(state.port))
 	setText(state.parent.user, getText(state.user))
+	setText(state.parent.pass, getText(state.password))
 	setText(state.parent.keyPath, getText(state.keyPath))
-	setText(state.parent.pass, "")
-	setText(state.parent.passphrase, "")
+	setText(state.parent.passphrase, getText(state.passphrase))
 	setText(state.parent.localPath, getText(state.localPath))
 	setText(state.parent.remotePath, getText(state.remotePath))
 	state.parent.resetProfileCredentialCues()
@@ -350,39 +373,53 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	label(strings.ToUpper(words[1]), 20, 18, 260)
 	label(strings.ToUpper(words[5]), 310, 18, 570)
 
-	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight, 20, 48, 270, 446, siteIDList)
+	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight, 20, 48, 270, 486, siteIDList)
 	if state.list != 0 {
 		setWindowTheme.Call(state.list, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
 	}
 
 	label(parent.tr("column.name"), 310, 54, 130)
 	state.name = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 48, 430, 30, siteIDName)
+
 	label(parent.tr("terminal.protocol"), 310, 96, 130)
 	state.protocol = mk("COMBOBOX", "", cbsDropDownList|wsTabStop|wsVScroll, 450, 90, 180, 220, siteIDProtocol)
 	for _, spec := range protocolSpecs {
 		sendMessageW.Call(state.protocol, cbAddString, 0, uintptr(unsafe.Pointer(wstr(protocolLabel(parent.languageCode(), spec.Value)))))
 	}
+	label(parent.tr("terminal.port"), 650, 96, 60)
+	state.port = mk("EDIT", "21", wsBorder|wsTabStop|esAutoHScroll, 720, 90, 160, 30, siteIDPort)
+
 	label(parent.tr("terminal.server"), 310, 138, 130)
 	state.host = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 132, 430, 30, siteIDHost)
-	label(parent.tr("terminal.port"), 310, 180, 130)
-	state.port = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 174, 110, 30, siteIDPort)
-	label(parent.tr("terminal.username"), 580, 180, 110)
-	state.user = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 690, 174, 190, 30, siteIDUser)
+
+	label(parent.tr("terminal.username"), 310, 180, 130)
+	state.user = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 174, 180, 30, siteIDUser)
+	label(parent.tr("terminal.password"), 650, 180, 60)
+	state.password = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, 720, 174, 160, 30, siteIDPassword)
+
 	label(parent.tr("column.local"), 310, 222, 130)
 	state.localPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 216, 430, 30, siteIDLocal)
 	label(parent.tr("column.remote"), 310, 264, 130)
 	state.remotePath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 258, 430, 30, siteIDRemote)
+
 	label(parent.tr("terminal.private_key"), 310, 306, 130)
 	state.keyPath = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 450, 300, 430, 30, siteIDKey)
-	label(parent.tr("sftp.security"), 310, 348, 570)
-	state.security = mk("STATIC", "", wsBorder, 310, 374, 570, 72, siteIDSecurity)
+	label(parent.tr("terminal.key_passphrase"), 310, 348, 130)
+	state.passphrase = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, 450, 342, 430, 30, siteIDPassphrase)
 
-	state.save = mk("BUTTON", parent.tr("profile.save"), wsTabStop, 310, 464, 146, 34, siteIDSave)
-	state.delete = mk("BUTTON", parent.tr("profile.delete"), wsTabStop, 466, 464, 146, 34, siteIDDelete)
-	state.connect = mk("BUTTON", parent.tr("common.connect"), wsTabStop|siteBSDefPushButton, 622, 464, 120, 34, siteIDConnect)
-	state.close = mk("BUTTON", parent.tr("common.cancel"), wsTabStop, 752, 464, 128, 34, siteIDClose)
+	label(parent.tr("sftp.security"), 310, 390, 570)
+	state.security = mk("STATIC", "", wsBorder, 310, 416, 570, 58, siteIDSecurity)
 
-	for _, control := range []uintptr{state.list, state.name, state.protocol, state.host, state.port, state.user, state.localPath, state.remotePath, state.keyPath, state.security, state.save, state.delete, state.connect, state.close} {
+	state.save = mk("BUTTON", parent.tr("profile.save"), wsTabStop, 310, 500, 146, 34, siteIDSave)
+	state.delete = mk("BUTTON", parent.tr("profile.delete"), wsTabStop, 466, 500, 146, 34, siteIDDelete)
+	state.connect = mk("BUTTON", parent.tr("common.connect"), wsTabStop|siteBSDefPushButton, 622, 500, 120, 34, siteIDConnect)
+	state.close = mk("BUTTON", parent.tr("common.cancel"), wsTabStop, 752, 500, 128, 34, siteIDClose)
+
+	for _, control := range []uintptr{
+		state.list, state.name, state.protocol, state.host, state.port, state.user, state.password,
+		state.localPath, state.remotePath, state.keyPath, state.passphrase, state.security,
+		state.save, state.delete, state.connect, state.close,
+	} {
 		if control == 0 {
 			return fmt.Errorf("Site Manager control initialization failed")
 		}
@@ -391,9 +428,13 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	limitEdit(state.host, 253)
 	limitEdit(state.port, 5)
 	limitEdit(state.user, 1024)
+	limitEdit(state.password, 8192)
 	limitEdit(state.localPath, 32767)
 	limitEdit(state.remotePath, 4096)
 	limitEdit(state.keyPath, 32767)
+	limitEdit(state.passphrase, 8192)
+	cue(state.password, parent.tr("cue.password"))
+	cue(state.passphrase, parent.tr("cue.passphrase"))
 	return nil
 }
 
@@ -415,7 +456,7 @@ func (a *app) openSiteManager() {
 		registerClassExW.Call(uintptr(unsafe.Pointer(&class)))
 	})
 
-	logicalW, logicalH := 920, 560
+	logicalW, logicalH := 920, 610
 	pixelW, pixelH := a.scale(logicalW), a.scale(logicalH)
 	screenW, _, _ := getSystemMetrics.Call(smCxScreen)
 	screenH, _, _ := getSystemMetrics.Call(smCyScreen)
@@ -465,8 +506,6 @@ func (a *app) openSiteManager() {
 			break
 		}
 		if result == 0 {
-			// Preserve the application's quit request if the main window is closed
-			// by the operating system while this modal dialog is active.
 			postQuitMessage.Call(0)
 			break
 		}
@@ -475,7 +514,11 @@ func (a *app) openSiteManager() {
 	}
 	enableWindow.Call(a.hwnd, 1)
 	showWindow.Call(a.hwnd, swShow)
-	if state.connectAfter && state.selected > 0 && state.selected <= len(state.profiles) {
+
+	if !state.connectAfter {
+		return
+	}
+	if state.selected > 0 && state.selected <= len(state.profiles) {
 		selectedID = state.profiles[state.selected-1].ID
 		a.selectedProfileID = selectedID
 		a.applyProfiles(state.profiles, nil)
@@ -486,6 +529,6 @@ func (a *app) openSiteManager() {
 				break
 			}
 		}
-		a.connectNow()
 	}
+	a.connectNow()
 }
