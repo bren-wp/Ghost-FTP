@@ -266,6 +266,23 @@ def validate_http_session_and_csrf_boundaries() -> None:
     if "ponovi brisanje: ' . $e->getMessage()" in user_store:
         fail("user-delete wrapper re-exposes raw nested Throwable text")
 
+    require(
+        operations,
+        (
+            "$staged = true;",
+            "private function cleanupRemoteTemporary(string $path): bool",
+            "cleanupRemoteTemporary($staging)",
+            "cleanupRemoteTemporary($backup)",
+            "Nova datoteka je aktivna, ali sigurnosnu kopiju prethodne verzije nije moguće potvrđeno ukloniti.",
+            "privremenu remote datoteku nije moguće potvrđeno ukloniti",
+        ),
+        "app/Operations/RemoteOperations.php",
+    )
+    if "try { $this->client->delete($backup, false); } catch (\\Throwable) {}" in operations:
+        fail("atomic upload silently swallows old-backup deletion failure")
+    if "$this->client->upload($localFile, $staging);\n            $staged = true;" in operations:
+        fail("atomic upload takes staging cleanup ownership only after transport success")
+
     remote_interface = read("GhostFTP WEB/app/Remote/RemoteClientInterface.php")
     ftp_client = read("GhostFTP WEB/app/Remote/FtpClient.php")
     sftp_client = read("GhostFTP WEB/app/Remote/SftpClient.php")

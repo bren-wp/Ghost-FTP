@@ -1,6 +1,6 @@
 {
   "name": "brendigo/ghost-ftp-web",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Ghost FTP hardened multi-user shared-hosting FTP/FTPS/SFTP PWA client",
   "type": "project",
   "require": {

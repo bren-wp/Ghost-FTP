@@ -2,7 +2,7 @@
 
 **Ghost FTP** is a privacy-focused FTP, FTPS and SFTP client for Windows, Linux, macOS, Android, iOS and the web. The project prioritizes predictable file-transfer behavior, explicit trust boundaries, reproducible releases and zero application telemetry.
 
-Current Ghost FTP version: **1.0.6**
+Current Ghost FTP version: **1.0.7**
 
 ## Identity
 
@@ -28,7 +28,7 @@ Canonical locations:
 
 Remote paths, local paths, temporary files, credentials and release provenance are treated as security boundaries. Regression coverage includes traversal rejection, host-key policy, transfer cleanup, configuration durability, process lifecycle, runtime-secret handling and fail-closed recovery behavior.
 
-Ghost FTP 1.0.6 hardens atomic Web overwrite recovery: a failed promotion can no longer hide a failed restore or an ambiguous server-side rename outcome. The original version remains discoverable under its recovery backup name and the public error stays actionable without exposing nested transport internals. Repository hygiene now also rejects temporary one-shot workflows in production source.
+Ghost FTP 1.0.7 closes residual-data gaps around atomic Web uploads. Cleanup ownership now begins before FTP/SFTP staging starts, so partial transport failures cannot silently bypass staging cleanup; if cleanup cannot be verified, the recovery filename is surfaced safely. A successfully promoted file also reports an explicit partial-success state when the old backup cannot be removed, preventing silent retention of the previous remote contents.
 
 The web application uses CSRF protection, strict sessions, secure cookies, security headers, rate limiting and `noindex` directives. Production CI runs Go formatting, unit tests, the race detector, `go vet`, repository/version/documentation/release/security/privacy/web audits, PHP/JavaScript validation and native platform builds.
 
@@ -42,7 +42,7 @@ Usernames such as `account@domain` are supported. FTP directory listings retain 
 
 ## Releases
 
-Ghost FTP releases use `ghostftp-vX.Y.Z`. The current product line starts at `ghostftp-v1.0.0` and advances sequentially through patch releases such as `ghostftp-v1.0.1`, `ghostftp-v1.0.2`, `ghostftp-v1.0.3`, `ghostftp-v1.0.4`, `ghostftp-v1.0.5` and `ghostftp-v1.0.6`.
+Ghost FTP releases use `ghostftp-vX.Y.Z`. The current product line starts at `ghostftp-v1.0.0` and advances sequentially through patch releases such as `ghostftp-v1.0.1`, `ghostftp-v1.0.2`, `ghostftp-v1.0.3`, `ghostftp-v1.0.4`, `ghostftp-v1.0.5`, `ghostftp-v1.0.6` and `ghostftp-v1.0.7`.
 
 | Platform | Public package |
 | --- | --- |
@@ -63,7 +63,7 @@ Windows portable binaries are additionally published as the GitHub Packages NuGe
 
 ## Versioning policy
 
-Ghost FTP starts at **1.0.0** and follows Semantic Versioning. Patch releases advance sequentially (`1.0.0` → `1.0.1` → `1.0.2` → `1.0.3` → `1.0.4` → `1.0.5` → `1.0.6`), backward-compatible feature releases advance the minor version, and breaking compatibility requires a major-version change.
+Ghost FTP starts at **1.0.0** and follows Semantic Versioning. Patch releases advance sequentially (`1.0.0` → `1.0.1` → `1.0.2` → `1.0.3` → `1.0.4` → `1.0.5` → `1.0.6` → `1.0.7`), backward-compatible feature releases advance the minor version, and breaking compatibility requires a major-version change.
 
 Published historical tags remain immutable for provenance. Current Ghost FTP releases use the dedicated `ghostftp-vX.Y.Z` namespace so they do not collide with historical generic `vX.Y.Z` tags.
 

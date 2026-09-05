@@ -193,10 +193,14 @@ final class RemoteOperations
         $parent = PathGuard::parent($remotePath);
         $staging = $this->temporarySibling($parent, 'GhostFTP-upload');
         $backup = null;
-        $staged = false;
+        $staged = true;
+        $operationError = null;
+
         try {
+            // Take cleanup ownership before transport upload starts. FTP/SFTP can create
+            // a partial remote file and then report failure, so ownership cannot begin only
+            // after upload() returns successfully.
             $this->client->upload($localFile, $staging);
-            $staged = true;
             if ($existing !== null) {
                 $backup = $this->temporarySibling($parent, 'GhostFTP-backup');
                 $this->client->rename($remotePath, $backup);
@@ -227,13 +231,32 @@ final class RemoteOperations
                 }
                 throw $promoteError;
             }
+
             if ($backup !== null) {
-                try { $this->client->delete($backup, false); } catch (\Throwable) {}
+                if (!$this->cleanupRemoteTemporary($backup)) {
+                    throw new RuntimeException(
+                        'Nova datoteka je aktivna, ali sigurnosnu kopiju prethodne verzije nije moguće potvrđeno ukloniti. Nemoj ponavljati upload. Nakon provjere nove datoteke ručno obriši ' . PathGuard::basename($backup) . '.',
+                    );
+                }
+                $backup = null;
             }
-        } finally {
-            if ($staged) {
-                try { $this->client->delete($staging, false); } catch (\Throwable) {}
+        } catch (\Throwable $e) {
+            $operationError = $e;
+        }
+
+        if ($staged) {
+            if (!$this->cleanupRemoteTemporary($staging)) {
+                $message = 'Operacija nije dovršena, a privremenu remote datoteku nije moguće potvrđeno ukloniti. Prije ponavljanja operacije provjeri i po potrebi obriši ' . PathGuard::basename($staging) . '.';
+                if ($backup !== null) {
+                    $message .= ' Izvorna verzija je sačuvana kao ' . PathGuard::basename($backup) . '.';
+                }
+                throw new RuntimeException($message, 0, $operationError);
             }
+            $staged = false;
+        }
+
+        if ($operationError !== null) {
+            throw $operationError;
         }
     }
 
@@ -662,6 +685,23 @@ final class RemoteOperations
         $this->client->chmod($path, $dirMode);
         foreach ($this->client->list($path) as $item) {
             $this->chmodNode(PathGuard::child($path,(string)$item['name']), (string)($item['type'] ?? 'file'), $fileMode, $dirMode, $depth + 1);
+        }
+    }
+
+    private function cleanupRemoteTemporary(string $path): bool
+    {
+        try {
+            $this->client->delete($path, false);
+            return true;
+        } catch (\Throwable) {
+            // A transport can report delete failure even when the object is already gone.
+            // Verify absence before escalating; if verification itself is unavailable, fail
+            // closed so the caller can expose the recovery name instead of silently leaking data.
+            try {
+                return !$this->exists($path);
+            } catch (\Throwable) {
+                return false;
+            }
         }
     }
 
