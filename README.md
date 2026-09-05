@@ -2,16 +2,20 @@
 
 **Ghost FTP** is a privacy-first FTP, FTPS and SFTP desktop client focused on dependable transfers, conservative security defaults and a clean professional workflow.
 
-Current Ghost FTP version: **2.0.0**
+Current Ghost FTP version: **0.1.0**
 
-The 2.x product line is intentionally focused on two application platforms:
+Development status: **Beta**
 
-- **Windows** — native Win32 desktop UI, x64 and x86, with setup and portable packages.
+The active development line starts at **0.1.0 Beta** and advances through `0.x.y` while the product is being completed and stabilized. The first release that may be presented as fully stable is **1.0.0**. Windows Setup and Windows Portable always carry the same canonical version.
+
+The maintained desktop application targets are:
+
+- **Windows** — native Win32 desktop UI, x64 and x86, with Setup and Portable packages.
 - **Linux** — the same shared transfer/security engine, packaged for amd64, arm64 and i386, with a hardened terminal interface.
 
-Android, iOS and macOS application targets were retired from the active source tree for 2.0. Their historical source and releases remain available through immutable Git history and published 1.x tags.
+Android, iOS and macOS application targets are not part of the active application source/build matrix. Their historical commits, tags and releases remain available as immutable repository provenance and are not deleted or rewritten.
 
-The repository also contains the existing **Ghost FTP Web companion** source. It is maintained separately from the Windows/Linux desktop release contract and is not counted as an application platform artifact in the 2.x desktop release.
+The repository also contains the existing **Ghost FTP Web companion** source. It is maintained separately from the Windows/Linux desktop release contract and has independent deployment concerns.
 
 ## Product principles
 
@@ -25,7 +29,7 @@ Ghost FTP is built around a small set of non-negotiable rules:
 - bounded transfer retries and timeouts;
 - atomic state writes and conservative overwrite recovery;
 - reproducible Windows/Linux release artifacts with SHA-256 verification;
-- English as the canonical/default language with more than 20 maintained languages;
+- English as the canonical/default language with 24 maintained languages;
 - no third-party Go modules in the desktop/core module.
 
 ## Protocols
@@ -56,10 +60,11 @@ Implicit FTPS is not part of the supported desktop protocol contract.
 
 The Windows edition is the reference graphical experience. It includes:
 
-- premium dark graphite/navy interface;
-- local and remote file panels;
+- native dark graphite/navy interface;
+- persistent one-click **Sites** access and a dedicated Site Manager;
+- saved connection profiles and quick connections;
+- local and remote file panels with balanced dual-pane layout;
 - high-DPI-aware layout and typography;
-- saved connection profiles;
 - protocol/host/port/user/password controls;
 - SFTP private-key and passphrase controls;
 - upload and download actions;
@@ -70,25 +75,28 @@ The Windows edition is the reference graphical experience. It includes:
 - automatic retry, retry-delay, parallelism and connection-timeout settings;
 - live language switching;
 - localized Windows Setup flow;
-- x64 and x86 setup/portable packages.
+- x64 and x86 Setup/Portable packages.
 
-The 2.0 visual refresh uses a deeper graphite/navy surface system, stronger action hierarchy and refined owner-drawn buttons without introducing a GUI framework dependency.
+The current visual work keeps Ghost FTP native and recognizably its own product while adopting the information density and workflow clarity expected from a professional desktop FTP client. The UI does not add decorative controls for features that the backend does not actually implement.
 
 ## Linux experience
 
-Linux uses the same `internal/api`, remote/session, transfer, settings, profile, localization and security layers as Windows. The 2.0 terminal frontend closes important historical parity gaps:
+Linux uses the same `internal/api`, remote/session, transfer, settings, profile, localization and security layers as Windows.
 
-- SFTP now accepts **password authentication** when no private key is supplied;
-- SFTP accepts a **private key plus optional passphrase** instead of rejecting passphrases;
-- FTP/FTPS password authentication remains available;
-- transfer jobs can be listed, paused, resumed, cancelled, retried and cleared;
-- core transfer settings can be inspected and changed through the shared validated settings store;
-- saved profiles can be inspected;
-- remote list, navigation, create, rename, delete and chmod operations use the same engine boundaries;
-- upload/download jobs use the same transfer scheduler and conflict policy as Windows;
-- runtime language can be changed using the canonical localization registry.
+The maintained Linux frontend includes:
 
-The Windows and Linux editions now share the **functional core contract**, but the presentation layer is intentionally different: Windows is a native Win32 GUI and Linux is a terminal UI. A pixel-identical cross-platform GUI would require introducing or maintaining a GUI/runtime dependency, which the current dependency policy deliberately avoids.
+- FTP/FTPS password authentication;
+- SFTP password authentication when no private key is supplied;
+- SFTP private-key authentication with an optional passphrase;
+- explicit host-key trust through the shared engine;
+- remote list, navigation, create, rename, delete and chmod operations;
+- upload/download jobs through the shared transfer scheduler;
+- transfer queue listing, pause, resume, cancel, retry and clear-finished operations;
+- shared validated settings for parallelism, conflict policy, retries, retry delay, connection timeout and delete confirmation;
+- saved-profile inspection without exposing saved secrets;
+- runtime language selection using the canonical localization registry.
+
+Windows and Linux share the functional core contract, but their presentation layers intentionally differ: Windows is a native Win32 GUI and Linux is a terminal UI. A pixel-identical cross-platform GUI would require introducing or maintaining an additional GUI/runtime dependency, which the current dependency policy deliberately avoids.
 
 ## Languages
 
@@ -119,7 +127,7 @@ Ghost FTP is English-first and currently exposes **24 languages**:
 23. Norwegian (`no`)
 24. Korean (`ko`)
 
-Regional aliases such as Norwegian `nb`/`nn` and Simplified Chinese aliases normalize to the canonical registry. Missing/invalid locale state falls back safely to English.
+Regional aliases such as Norwegian `nb`/`nn` and Simplified Chinese aliases normalize to the canonical registry. Missing or invalid locale state falls back safely to English.
 
 CI validates the language registry, catalog parity, format verbs, translation coverage, Windows live localization, Windows Setup localization and Linux runtime localization.
 
@@ -145,7 +153,7 @@ Ghost FTP does not contain application analytics, advertising, tracking pixels, 
 
 The desktop runtime deliberately blocks fixed HTTP(S) URLs in `cmd/` and `internal/`, and CI runs a privacy audit that rejects known telemetry/vendor markers and unexpected network-client imports.
 
-The application communicates with the server address entered by the user for the purpose of FTP/FTPS/SFTP file transfer. Build and release workflows use GitHub infrastructure only for source/build/release automation; that is separate from the installed application's runtime behavior.
+The application communicates with the server address entered by the user for FTP/FTPS/SFTP file transfer. Build and release workflows use GitHub infrastructure only for source/build/release automation; that is separate from the installed application's runtime behavior.
 
 See [docs/PRIVACY.md](docs/PRIVACY.md).
 
@@ -167,20 +175,20 @@ Important enforced boundaries include:
 - profile credentials cannot silently cross account/endpoint/private-key identity boundaries;
 - settings/profile state uses guarded atomic writes.
 
-See [docs/SECURITY.md](docs/SECURITY.md) for the maintained threat and invariant documentation.
+See [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Dependencies
 
 The desktop/core Go module intentionally has **zero external Go modules**: no `require`, `replace`, vendored module tree or `go.sum` dependency graph is accepted by CI.
 
-That does **not** mean the current transport implementation has zero operating-system prerequisites. The desktop transport layer currently uses OS-provided tools:
+That does not mean the current transport implementation has zero operating-system prerequisites. The desktop transport layer currently uses OS-provided tools:
 
 - FTP/FTPS: `curl`
 - SFTP: OpenSSH `ssh` and `sftp`
 
-Windows normally provides suitable system components on supported installations; Linux packages declare the required runtime packages. Ghost FTP does not bundle those projects as hidden third-party libraries.
+Linux packages declare the required runtime packages. Windows relies on suitable system-provided components. Ghost FTP does not bundle those projects as hidden third-party Go libraries.
 
-This distinction is documented and audited so releases do not make a misleading “zero runtime dependencies” claim. See [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
+See [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
 
 ## Build from source
 
@@ -203,7 +211,16 @@ Use:
 .\BUILD-WINDOWS.ps1
 ```
 
-The canonical build creates setup and portable x64/x86 artifacts in `dist/` and injects the root `VERSION` into the binaries.
+The canonical build creates Setup and Portable x64/x86 artifacts in `dist/` and injects the root `VERSION` into every binary/package. Setup and Portable never advance independently.
+
+For the current baseline the primary Windows names are:
+
+```text
+Ghost-FTP-0.1.0-Setup-x64.exe
+Ghost-FTP-0.1.0-Setup-x86.exe
+Ghost-FTP-0.1.0-Portable-x64.exe
+Ghost-FTP-0.1.0-Portable-x86.exe
+```
 
 ### Linux
 
@@ -215,11 +232,25 @@ bash linux/BUILD.sh
 
 The canonical Linux build creates DEB packages for amd64, arm64 and i386.
 
-See [docs/INSTALLATION.md](docs/INSTALLATION.md) and [docs/TESTING.md](docs/TESTING.md).
+See [docs/INSTALLATION.md](docs/INSTALLATION.md), [docs/TESTING.md](docs/TESTING.md) and [docs/VERSIONING.md](docs/VERSIONING.md).
+
+## Versioning and stability
+
+The active version baseline is intentionally reset to the pre-stable line:
+
+```text
+0.1.0 Beta → 0.x.y Beta → 1.0.0 stable
+```
+
+A `0.x.y` build is a Beta build. It may include substantial completed functionality, but it remains pre-1.0 until the complete product-quality gate is satisfied.
+
+The first stable public milestone is **1.0.0**. That version is reserved for the point where the maintained Windows/Linux application, packaging, security, localization, documentation and release verification are considered complete and stable.
+
+Historical repository tags/releases remain untouched and are documented separately. They do not force the active development baseline to skip directly to a stable version.
+
+See [docs/VERSIONING.md](docs/VERSIONING.md) for the complete policy.
 
 ## Releases
-
-Ghost FTP follows semantic versioning. Removing application platforms is a breaking public contract change, therefore the Windows/Linux consolidation starts at **2.0.0** instead of being published as another 1.x patch.
 
 Release tags use:
 
@@ -227,7 +258,9 @@ Release tags use:
 ghostftp-vX.Y.Z
 ```
 
-The 2.x release contract contains **9 platform artifacts**:
+Every `0.x.y` GitHub Release is treated as a **prerelease/Beta**. A release at `1.0.0` or later may be stable once all release gates pass.
+
+The current Windows/Linux release contract contains **9 platform artifacts**:
 
 - Windows Setup x64
 - Windows Setup x86
@@ -239,7 +272,7 @@ The 2.x release contract contains **9 platform artifacts**:
 - Linux i386 DEB
 - Linux multiarch ZIP
 
-Each release also contains:
+Each complete release also contains:
 
 - `RELEASE-NOTES.txt`
 - `BUILD-METADATA.txt`
@@ -249,7 +282,7 @@ That produces **12 public files** per complete desktop release.
 
 Published tags/releases are treated as immutable historical provenance. The release workflow refuses to move an existing release tag to another commit.
 
-See [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE-HISTORY.md](docs/RELEASE-HISTORY.md), [docs/GITHUB-RELEASES.md](docs/GITHUB-RELEASES.md) and [docs/RELEASE-VERIFICATION.md](docs/RELEASE-VERIFICATION.md).
+See [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE-HISTORY.md](docs/RELEASE-HISTORY.md), [docs/GITHUB-RELEASES.md](docs/GITHUB-RELEASES.md), [docs/RELEASE-VERIFICATION.md](docs/RELEASE-VERIFICATION.md) and [docs/VERSIONING.md](docs/VERSIONING.md).
 
 ## Repository quality gates
 
@@ -259,6 +292,7 @@ CI runs fail-closed checks for:
 - repository path/case/generated-file integrity;
 - Windows/Linux-only application platform contract;
 - version/release artifact contract;
+- pre-1.0 Beta versus stable release-channel rules;
 - no external Go module dependency drift;
 - no telemetry/analytics/ads/crash SDK dependency markers;
 - runtime privacy boundaries;
@@ -281,6 +315,7 @@ CI runs fail-closed checks for:
 - [Security](docs/SECURITY.md)
 - [Privacy](docs/PRIVACY.md)
 - [Testing](docs/TESTING.md)
+- [Versioning](docs/VERSIONING.md)
 - [Release history](docs/RELEASE-HISTORY.md)
 - [GitHub Releases](docs/GITHUB-RELEASES.md)
 - [Release verification](docs/RELEASE-VERIFICATION.md)
@@ -293,6 +328,8 @@ CI runs fail-closed checks for:
 - [Linux packaging](linux/README.md)
 - [Web companion](GhostFTP%20WEB/README.md)
 
-## Status of the 2.0 line
+## Current development status
 
-The `2.0.0` development line is the Windows/Linux consolidation and quality release. A version becomes a published release only after the complete CI and release gate passes and the immutable `ghostftp-v2.0.0` release is created from the validated `main` commit.
+`0.1.0` is the current Beta baseline. Existing functionality and hardening work already completed in the repository is preserved; the version reset changes release maturity labeling, not the implementation history.
+
+The next `0.x.y` version should be raised only when a meaningful tested milestone is completed. The project remains Beta until the full stable checklist is satisfied and the canonical `VERSION` is intentionally advanced to `1.0.0`.
