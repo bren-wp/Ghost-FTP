@@ -153,8 +153,8 @@ func (a *app) createControls(hinst uintptr) error {
 	}
 	attachSystemImageList(a.localList)
 	attachSystemImageList(a.remoteList)
-	a.setupFileColumns(a.localList)
-	a.setupFileColumns(a.remoteList)
+	a.setupFileColumns(a.localList, false)
+	a.setupFileColumns(a.remoteList, true)
 	a.setupTransferColumns(a.transferList)
 	a.setRemoteControls(false)
 	a.updateProtocolControls()
@@ -297,16 +297,24 @@ func (a *app) resizeListColumns() {
 	// Type/status text can be longer in German/French/Portuguese; reserve a
 	// little more room while keeping the filename column elastic.
 	typeW, sizeW, modifiedW := 82, 92, 132
-	nameW := panelW - typeW - sizeW - modifiedW - 8
-	if nameW < 120 {
-		nameW = 120
+	localNameW := panelW - typeW - sizeW - modifiedW - 8
+	if localNameW < 120 {
+		localNameW = 120
 	}
-	fileWidths := []int{nameW, typeW, sizeW, modifiedW}
-	for _, list := range []uintptr{a.localList, a.remoteList} {
-		for i, width := range fileWidths {
-			if list != 0 {
-				sendMessageW.Call(list, lvmSetColumnWidth, uintptr(i), uintptr(a.scale(width)))
-			}
+	for i, width := range []int{localNameW, typeW, sizeW, modifiedW} {
+		if a.localList != 0 {
+			sendMessageW.Call(a.localList, lvmSetColumnWidth, uintptr(i), uintptr(a.scale(width)))
+		}
+	}
+
+	permissionsW := 112
+	remoteNameW := panelW - typeW - sizeW - modifiedW - permissionsW - 8
+	if remoteNameW < 100 {
+		remoteNameW = 100
+	}
+	for i, width := range []int{remoteNameW, typeW, sizeW, modifiedW, permissionsW} {
+		if a.remoteList != 0 {
+			sendMessageW.Call(a.remoteList, lvmSetColumnWidth, uintptr(i), uintptr(a.scale(width)))
 		}
 	}
 
@@ -350,11 +358,14 @@ func limitEdit(hwnd uintptr, maxChars uintptr) {
 	}
 }
 
-func (a *app) setupFileColumns(list uintptr) {
+func (a *app) setupFileColumns(list uintptr, remote bool) {
 	a.insertColumn(list, 0, a.tr("column.name"), 300)
 	a.insertColumn(list, 1, a.tr("column.type"), 92)
 	a.insertColumn(list, 2, a.tr("column.size"), 104)
 	a.insertColumn(list, 3, a.tr("column.modified"), 150)
+	if remote {
+		a.insertColumn(list, 4, a.tr("common.permissions"), 112)
+	}
 }
 
 func (a *app) setupTransferColumns(list uintptr) {
