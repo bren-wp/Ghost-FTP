@@ -54,6 +54,18 @@ jobs:
           cat /tmp/ghostftp-xvfb.log >&2 || true
           exit 1
 
+      - name: Verify X11 protocol handshake and window creation
+        shell: bash
+        env:
+          DISPLAY: ':99'
+          GHOSTFTP_X11_SMOKE: '1'
+          HOME: /tmp/ghostftp-home
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME"
+          chmod 700 "$HOME"
+          go test -run '^TestX11RuntimeSmoke$' -v ./internal/desktop
+
       - name: Launch and verify real Ghost FTP window
         shell: bash
         env:
