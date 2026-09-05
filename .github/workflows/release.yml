@@ -12,6 +12,10 @@ permissions:
   contents: write
   packages: write
 
+concurrency:
+  group: ghostftp-release
+  cancel-in-progress: false
+
 env:
   GOTOOLCHAIN: local
   GOPROXY: off
@@ -21,7 +25,7 @@ jobs:
   quality:
     name: Release quality gate
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,6 +61,7 @@ jobs:
           python scripts/audit_docs.py
           python scripts/audit_web.py
           python scripts/audit_release.py
+          python -m unittest discover -s scripts -p 'test_*.py'
 
   windows:
     name: Windows setup and portable x64/x86
@@ -154,7 +159,7 @@ jobs:
     name: Assemble and publish Windows and Linux release
     needs: [quality, windows, linux]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -248,6 +253,7 @@ jobs:
           repo="$GITHUB_REPOSITORY"
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
+          command -v dotnet >/dev/null || { echo 'dotnet CLI is required for NuGet publication' >&2; exit 1; }
 
           if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
             tag_sha="$(git rev-list -n 1 "$RELEASE_TAG" 2>/dev/null || true)"
@@ -266,12 +272,37 @@ jobs:
             --api-key "$GH_TOKEN" \
             --source "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json" \
             --skip-duplicate
-      - name: Verify published release assets
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          count="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')"
-          test "$count" = '12'
-          echo 'RELEASE_ASSET_READBACK=PASS'
+
+          package_versions="$(gh api "/users/${GITHUB_REPOSITORY_OWNER}/packages/nuget/GhostFTP/versions" --jq '.[].name')"
+          grep -Fx "$VERSION" <<< "$package_versions"
+          echo "GITHUB_PACKAGE_READBACK=PASS (GhostFTP $VERSION)"
+
+          assert_release_asset_set() {
+            phase="$1"
+            local_manifest="$(mktemp)"
+            remote_manifest="$(mktemp)"
+            readback_dir="$(mktemp -d)"
+            trap 'rm -f "$local_manifest" "$remote_manifest"; rm -rf "$readback_dir"' RETURN
+            find release -maxdepth 1 -type f -printf '%f\t%s\n' | LC_ALL=C sort > "$local_manifest"
+            gh release view "$RELEASE_TAG" --repo "$repo" --json assets \
+              --jq '.assets[] | [.name, (.size | tostring)] | @tsv' | LC_ALL=C sort > "$remote_manifest"
+            diff -u "$local_manifest" "$remote_manifest"
+            gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir"
+            cmp release/SHA256.txt "$readback_dir/SHA256.txt"
+            echo "RELEASE_ASSET_READBACK=PASS ($phase)"
+          }
+
+          assert_release_asset_set immediate
+          sleep 5
+          main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
+          test "$main_sha" = "$GITHUB_SHA" || { echo "main moved before delayed release verification" >&2; exit 1; }
+          assert_release_asset_set delayed
+      - name: Store complete release artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-${{ steps.version.outputs.version }}-complete-release
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            release/*
+            packages-out/GhostFTP.*.nupkg
