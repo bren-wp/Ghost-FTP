@@ -1,160 +1,197 @@
 # Testing and quality gates
 
-Tests, audits and native platform builds are release requirements for Ghost FTP, not optional evidence.
+Tests, audits and native platform builds are release requirements for Ghost FTP. A feature is not considered production-ready merely because it compiles or appears in one frontend.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on pull requests and `main`. The current matrix contains six independent jobs:
+`.github/workflows/ci.yml` runs three release-relevant jobs:
 
-- core/security/privacy/web;
-- Android;
-- Linux;
-- Windows x64/x86;
-- macOS Universal;
-- iOS arm64 unsigned.
+1. **Core quality, security and documentation** on Linux;
+2. **Windows x64/x86 production build**;
+3. **Linux amd64/arm64/i386 production build**.
 
-A failure in a platform-specific job blocks merge/release readiness even when the shared Go core passes.
+Android, iOS and macOS application build jobs were removed from the active 2.x matrix.
 
-## Core Go gates
+## Go toolchain and core gates
 
-The maintained CI toolchain is Go **1.27.1**. Core verification includes:
+The maintained Go toolchain is **1.27.1**. The desktop/core module intentionally has no external Go module dependency graph.
 
-```bash
+Core verification includes:
+
+```text
 go telemetry off
 gofmt
-go test ./...
 go test -race ./...
 go vet ./...
 ```
 
-Production scripts keep `GOTOOLCHAIN=local`, disable module downloads and require the dependency-free Go module graph. Go telemetry must be explicitly disabled before production builds.
+CI uses `GOTOOLCHAIN=local`, `GOPROXY=off` and `GOSUMDB=off` so a production validation run cannot silently fetch an undeclared Go dependency.
 
-## Repository and version audits
+## Repository audits
 
-`scripts/audit_repository.py` validates all tracked paths/files for release hygiene. It rejects non-portable paths, case-insensitive collisions, tracked symlinks, generated/cache output, common OS/editor artifacts, malformed UTF-8 text, trailing whitespace and merge-conflict markers.
+### Repository integrity
 
-`scripts/audit_version.py` enforces root `VERSION` as the canonical production version source and verifies version binding for desktop, Linux, macOS, Android, iOS and web metadata. Ghost FTP starts at **1.0.0** and release tags use `ghostftp-vX.Y.Z`.
+`scripts/audit_repository.py` protects tracked-source hygiene including unsafe/generated paths, case collisions, malformed text and accidental one-shot workflow/tooling leakage.
 
-`scripts/audit_docs.py` validates local Markdown/HTML links and requires all maintained technical documents to be indexed from `docs/README.md` and the root README.
+### Platform contract
 
-## Security and privacy gates
+`scripts/audit_platform_contract.py` requires:
 
-`scripts/audit_security.py` protects connection, credential, path, temporary-file, process-lifecycle and transfer invariants in the desktop core.
+- active Windows and Linux workflow jobs;
+- a 2.x VERSION line;
+- absence of active `android/`, `ios/` and `macos/` roots;
+- absence of retired mobile packaging/audit tooling;
+- no retired-platform markers in the active CI/release workflow.
 
-`scripts/audit_privacy.py` rejects application telemetry/vendor markers, forbidden runtime network libraries/fixed HTTP(S) destinations and insecure secret handling. The application policy remains user-selected server communication only.
+### Version and release contract
 
-Web security is additionally executed through `scripts/audit_web.py`, which validates:
+`scripts/audit_version.py` binds root `VERSION` to Windows/Linux build metadata and the 2.x release workflow.
 
-- PHP 8.1+ availability and syntax for every PHP file;
-- JavaScript/service-worker syntax with Node;
-- all PHP regression tests under `GhostFTP WEB/tests/`;
-- root/web/composer/PWA version consistency;
-- Ghost FTP public manifest/cache branding;
-- runtime storage exclusion from tracked/release files;
-- strict session cookies, CSRF/session rotation and cross-site POST blocking;
-- CSP/HSTS/noindex/security headers;
-- remote path and host fail-closed validation;
-- FTP/SFTP secret cleanup;
-- SFTP SHA-256 host fingerprint verification;
-- direct HTTP denial for the storage directory.
+`scripts/audit_release.py` verifies the Windows/Linux artifact names, release counts, immutable tag rules, Windows installer/payload identity, NuGet packaging and Linux package contract.
 
-The `GhostFTP WEB` path is a legacy source-directory identifier only; the public application is Ghost FTP.
+### Dependencies
 
-## Windows gate
+`scripts/audit_dependencies.py` verifies:
 
-`BUILD-WINDOWS.ps1` is the canonical Windows production build entry point. It runs brand/localization/version/docs/security/privacy/release audits and Python regression tests before compiling x64 and x86 binaries.
+- zero external Go modules;
+- no `go.sum`/vendored module graph;
+- zero third-party Web Composer packages;
+- explicit documentation of OS `curl`, `ssh` and `sftp` transport prerequisites;
+- tracking/advertising/crash SDK markers remain forbidden.
 
-Windows validation covers:
+## Security and privacy audits
 
-- application-only installer payload integrity;
-- rollback-aware installation transactions;
-- path/reparse safety;
-- PE architecture and GUI subsystem;
-- ASLR/NX and architecture-appropriate PE mitigations;
-- embedded icon, VERSIONINFO and application manifest;
-- absence of telemetry/vendor signatures;
-- Authenticode signing status reporting;
-- no standalone uninstaller binary.
+`scripts/audit_security.py` protects high-risk invariants including:
 
-Legacy `GhostFTP.exe`/registry identifiers may remain only where required to upgrade existing installations. User-facing product metadata must identify Ghost FTP.
+- SFTP AskPass behavior and no disk password/passphrase artifact;
+- private-key symlink/reparse validation;
+- protected runtime credential handling;
+- profile endpoint/account/private-key identity binding;
+- transfer staging validation;
+- root-delete protection;
+- session close/race handling;
+- Linux SFTP password/key/passphrase parity;
+- Linux queue/settings access through the shared engine.
 
-## Linux gate
+`scripts/audit_privacy.py` rejects:
 
-Linux CI runs `bash linux/BUILD.sh` and requires non-empty amd64, arm64 and i386 Debian packages. Each package must report:
+- application telemetry/vendor markers;
+- forbidden general-purpose runtime network imports;
+- fixed HTTP(S) URLs in desktop runtime source;
+- proxy/credential environment leakage;
+- ineffective build-time telemetry-disable configuration.
+
+## Localization gate
+
+`scripts/audit_localization.py` verifies the English-first 24-language registry.
+
+The gate checks:
+
+- English is first/default;
+- all 24 runtime catalogs are present;
+- catalog/test invariants and format placeholders remain valid;
+- Windows live localization remains wired;
+- Windows Setup primary copy remains available for the canonical language set;
+- Linux resolves and changes language through the shared settings/localization layer.
+
+## Documentation gate
+
+`scripts/audit_docs.py` verifies:
+
+- local Markdown/HTML links resolve;
+- documentation is indexed from `docs/README.md` and the root README;
+- current version markers match `VERSION`;
+- the 2.x release contract remains **9 platform artifacts / 12 public files**;
+- current installation/architecture/roadmap/release documentation does not link to retired application roots;
+- the Windows/Linux parity document remains present.
+
+## Web companion gate
+
+The Web companion remains a separate source surface but is still validated by `scripts/audit_web.py`.
+
+The web gate checks PHP/JavaScript syntax, regression tests, state/storage exclusion, HTTP/session/CSRF protections, strict remote path/host validation, credential handling, SFTP fingerprint requirements, PWA cache/version metadata and public-error boundaries.
+
+This does not make the Web companion a Windows/Linux desktop release artifact.
+
+## Windows production gate
+
+`BUILD-WINDOWS.ps1` is the canonical Windows build entry point.
+
+The CI job verifies non-empty:
+
+- Setup x64;
+- Setup x86;
+- Portable x64;
+- Portable x86.
+
+The release workflow also creates the x32 compatibility alias from the x86 Setup artifact and verifies byte/hash identity.
+
+Windows production validation additionally protects installer payload integrity, architecture/subsystem metadata, manifest/icon/version resources, hardening flags where applicable and signing-status reporting.
+
+## Linux production gate
+
+`linux/BUILD.sh` builds Debian packages for:
+
+- amd64;
+- arm64;
+- i386.
+
+CI verifies each package is non-empty and reports:
 
 - package name `ghost-ftp`;
-- canonical root `VERSION`;
-- correct Debian architecture.
+- VERSION matching root `VERSION`;
+- the expected Debian architecture.
 
-The packages use the shared desktop core and expose the `ghostftp` command plus the Ghost FTP desktop entry.
+The release workflow also combines those three DEBs into `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`.
 
-## macOS gate
+## Runtime parity verification
 
-macOS CI runs `bash macos/BUILD.sh`, building amd64 and arm64 desktop binaries and combining them into the Universal package. The resulting PKG must be non-empty and use canonical version metadata.
+High-value parity is protected by shared-core use rather than duplicate platform implementations.
 
-Production signing/notarization is a separate publisher-credential concern; an unsigned CI artifact must never be represented as notarized or signed.
+Linux frontend security auditing explicitly requires access to shared-engine operations for:
 
-## Android gate
+- connect/list/transfer;
+- SFTP password and key+passphrase authentication;
+- pause/resume/cancel/retry/clear queue controls;
+- settings persistence;
+- profile listing.
 
-Android CI uses JDK 17, Gradle **9.7.1** and Android Gradle Plugin **9.4.0**. It runs unit tests, lint and assembles an installable debug-signed APK:
+See [Platform parity](PLATFORM-PARITY.md).
 
-```bash
-gradle -p android :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
-```
+## Python tooling regression suite
 
-The Android source/audit coverage protects connection validation, credential/control-character rejection, canonical remote paths/names, fingerprint validation, storage/backup policy, lifecycle cleanup and version binding.
-
-A debug-signed CI APK is installable but is not represented as Play Store production-signed.
-
-## iOS gate
-
-iOS CI runs:
-
-```bash
-bash ios/BUILD.sh
-```
-
-The build compiles a real arm64 iPhoneOS application, derives marketing version from root `VERSION`, validates the bundle and packages an unsigned IPA. Tests/audits protect path handling, connection input, platform TLS behavior, session generation/lifecycle cleanup and archive structure.
-
-An unsigned IPA requires a legitimate Apple signing identity and provisioning profile before normal device/TestFlight/App Store distribution.
-
-## Web package gate
-
-`scripts/package_web.py` creates:
+Maintenance/security tooling regressions run with:
 
 ```text
-Ghost-FTP-X.Y.Z-Web.zip
-```
-
-The ZIP contains tracked production web files only. The packager verifies canonical VERSION, `brendigo/ghost-ftp-web` Composer metadata, the `ghostftp-static-vX.Y.Z` service-worker cache namespace and safe archive paths. Runtime `users.json`, configuration secrets and temporary/log files must not enter the package.
-
-`scripts/test_package_web.py` supplies deterministic packaging regression coverage.
-
-## Python tooling regressions
-
-Repository hardening and packaging regressions are run with:
-
-```bash
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-These tests protect maintenance/security assumptions such as raw input preservation, installer transaction behavior, platform lifecycle cleanup, package validation and Ghost FTP release/tag rules.
+When a platform/tooling contract is removed, its obsolete tests must be removed or rewritten in the same change so CI does not preserve dead requirements.
 
 ## Production release gate
 
-`.github/workflows/release.yml` is the single production publication path. Publication waits for quality, Windows, Linux, macOS, Android and iOS jobs.
+`.github/workflows/release.yml` publishes only after:
 
-The release assembles exactly eight platform packages:
+- quality succeeds;
+- Windows succeeds;
+- Linux succeeds.
 
-1. `Ghost-FTP-X.Y.Z-Setup-x64.exe`
-2. `Ghost-FTP-X.Y.Z-Setup-x86.exe`
-3. `Ghost-FTP-X.Y.Z-Setup-x32.exe` — byte-identical alias of x86
-4. `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`
-5. `Ghost-FTP-X.Y.Z-macOS-Universal.pkg`
-6. `Ghost-FTP-X.Y.Z-Android.apk`
-7. `Ghost-FTP-X.Y.Z-iOS-arm64-unsigned.ipa`
-8. `Ghost-FTP-X.Y.Z-Web.zip`
+The release contains **9 platform artifacts**:
 
-It then adds `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt`, producing exactly **11 public release files**.
+1. Setup x64
+2. Setup x86
+3. Setup x32 compatibility alias
+4. Portable x64
+5. Portable x86
+6. Linux amd64 DEB
+7. Linux arm64 DEB
+8. Linux i386 DEB
+9. Linux multiarch ZIP
 
-Before creating/updating a Release, the workflow verifies that `main` still points to the build commit. If a `ghostftp-vX.Y.Z` tag already exists on another commit, publication fails instead of rewriting history.
+The workflow adds `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`, for **12 public files**.
+
+Before publication it verifies `main` still points at the build commit. Existing `ghostftp-vX.Y.Z` tags are never moved to another commit.
+
+## Release-readiness rule
+
+Do not describe a release as stable/ready solely from source review. Release readiness requires the current branch/commit to pass the complete automated quality and platform build gates, followed by verification of the assembled release metadata/assets.
