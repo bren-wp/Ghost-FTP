@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	connectTimeout  = 75 * time.Second
+	connectTimeout   = 75 * time.Second
 	operationTimeout = 60 * time.Second
-	transferTimeout = 2 * time.Minute
+	transferTimeout  = 2 * time.Minute
 )
 
 type liveConfig struct {

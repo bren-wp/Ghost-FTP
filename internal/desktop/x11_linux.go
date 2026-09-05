@@ -18,34 +18,34 @@ import (
 )
 
 const (
-	x11KeyPress         = 2
-	x11ButtonPress      = 4
-	x11Expose           = 12
-	x11DestroyNotify    = 17
-	x11ConfigureNotify  = 22
-	x11ClientMessage    = 33
-	x11ExposureMask     = 1 << 15
-	x11KeyPressMask     = 1 << 0
-	x11ButtonPressMask  = 1 << 2
-	x11StructureMask    = 1 << 17
-	x11ShiftMask        = 1 << 0
-	x11ControlMask      = 1 << 2
-	x11AtomAtom         = 4
-	x11AtomString       = 31
-	x11AtomWMName       = 39
-	x11AtomWMClass      = 67
-	x11InputOutput      = 1
-	x11CopyFromParent   = 0
-	x11ZPixmap          = 2
-	x11KeyBackSpace     = 0xff08
-	x11KeyTab           = 0xff09
-	x11KeyReturn        = 0xff0d
-	x11KeyEscape        = 0xff1b
-	x11KeyLeft          = 0xff51
-	x11KeyUp            = 0xff52
-	x11KeyRight         = 0xff53
-	x11KeyDown          = 0xff54
-	x11KeyDelete        = 0xffff
+	x11KeyPress        = 2
+	x11ButtonPress     = 4
+	x11Expose          = 12
+	x11DestroyNotify   = 17
+	x11ConfigureNotify = 22
+	x11ClientMessage   = 33
+	x11ExposureMask    = 1 << 15
+	x11KeyPressMask    = 1 << 0
+	x11ButtonPressMask = 1 << 2
+	x11StructureMask   = 1 << 17
+	x11ShiftMask       = 1 << 0
+	x11ControlMask     = 1 << 2
+	x11AtomAtom        = 4
+	x11AtomString      = 31
+	x11AtomWMName      = 39
+	x11AtomWMClass     = 67
+	x11InputOutput     = 1
+	x11CopyFromParent  = 0
+	x11ZPixmap         = 2
+	x11KeyBackSpace    = 0xff08
+	x11KeyTab          = 0xff09
+	x11KeyReturn       = 0xff0d
+	x11KeyEscape       = 0xff1b
+	x11KeyLeft         = 0xff51
+	x11KeyUp           = 0xff52
+	x11KeyRight        = 0xff53
+	x11KeyDown         = 0xff54
+	x11KeyDelete       = 0xffff
 )
 
 type x11Display struct {

@@ -46,11 +46,11 @@ var premiumTheme = PremiumTheme{
 // Windows layer scales them for DPI; Linux X11/XWayland uses the window's
 // actual pixel dimensions and the same proportions.
 const (
-	premiumMinWidth   = 1080
-	premiumMinHeight  = 700
-	premiumStartWidth = 1200
+	premiumMinWidth    = 1080
+	premiumMinHeight   = 700
+	premiumStartWidth  = 1200
 	premiumStartHeight = 780
-	premiumOuterGap   = 18
-	premiumPanelGap   = 12
-	premiumRadius     = 8
+	premiumOuterGap    = 18
+	premiumPanelGap    = 12
+	premiumRadius      = 8
 )
