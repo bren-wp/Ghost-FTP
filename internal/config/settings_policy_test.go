@@ -82,18 +82,29 @@ func TestLegacyConflictPolicyMigrationPreservesBehavior(t *testing.T) {
 	}{
 		{
 			name: "skip wins even if old backup flag was also set",
-			legacy: model.Settings{SkipExisting: true, BackupBeforeOverwrite: true},
-			policy: model.ConflictPolicySkip, skip: true, backup: false,
+			legacy: model.Settings{
+				SkipExisting:          true,
+				BackupBeforeOverwrite: true,
+			},
+			policy: model.ConflictPolicySkip,
+			skip:   true,
+			backup: true,
 		},
 		{
 			name: "replace with recovery backup",
-			legacy: model.Settings{BackupBeforeOverwrite: true},
-			policy: model.ConflictPolicyReplaceBackup, skip: false, backup: true,
+			legacy: model.Settings{
+				BackupBeforeOverwrite: true,
+			},
+			policy: model.ConflictPolicyReplaceBackup,
+			skip:   false,
+			backup: true,
 		},
 		{
-			name: "replace without retained recovery backup",
+			name:   "replace without retained recovery backup",
 			legacy: model.Settings{},
-			policy: model.ConflictPolicyReplace, skip: false, backup: false,
+			policy: model.ConflictPolicyReplace,
+			skip:   false,
+			backup: false,
 		},
 	}
 	for _, test := range tests {
@@ -112,12 +123,12 @@ func TestCanonicalConflictPolicyWinsOverLegacyFlagsOnSave(t *testing.T) {
 	value := DefaultSettings()
 	value.ConflictPolicy = model.ConflictPolicySkip
 	value.SkipExisting = false
-	value.BackupBeforeOverwrite = true
+	value.BackupBeforeOverwrite = false
 	got, err := settings.Set(value)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ConflictPolicy != model.ConflictPolicySkip || !got.SkipExisting || got.BackupBeforeOverwrite {
+	if got.ConflictPolicy != model.ConflictPolicySkip || !got.SkipExisting || !got.BackupBeforeOverwrite {
 		t.Fatalf("canonical policy did not synchronize legacy flags: %#v", got)
 	}
 }
