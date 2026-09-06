@@ -40,4 +40,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add cmd/installer/main.go internal/desktop/gui_linux.go internal/desktop/theme.go
           git commit -m "Apply 0.2.0 desktop polish"
+          git pull --rebase origin work/ghostftp-0.2.0-desktop-quality
           git push origin HEAD:work/ghostftp-0.2.0-desktop-quality
