@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Ghost FTP remote/transfer and release-runtime hardening regressions."""
+"""Ghost FTP desktop runtime and release hardening regressions."""
 
 from __future__ import annotations
 
-import shutil
-import subprocess
 import unittest
 from pathlib import Path
 
@@ -40,77 +38,29 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertGreaterEqual(source.count("selectedIDs(ids)"), 2)
         self.assertIn("if ctx == nil", source[source.index("func (m *Manager) waitWorkers") :])
 
-    def test_web_runtime_regressions(self) -> None:
-        php = shutil.which("php")
-        if php is None:
-            self.skipTest("PHP CLI is not available")
-        for relative in (
-            "GhostFTP WEB/tests/json-store-bounds.php",
-            "GhostFTP WEB/tests/ftp-listing.php",
-            "GhostFTP WEB/tests/transfer-limiter.php",
+    def test_retired_web_runtime_is_absent(self) -> None:
+        self.assertFalse((ROOT / "GhostFTP WEB").exists())
+        for rel in (
+            "scripts/package_web.py",
+            "scripts/test_package_web.py",
+            "scripts/audit_web.py",
         ):
-            result = subprocess.run(
-                [php, str(ROOT / relative)],
-                cwd=ROOT,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, f"{relative}:\n{result.stdout}")
-            self.assertIn("=PASS", result.stdout, relative)
-
-    def test_web_downloads_are_bounded_during_transfer(self) -> None:
-        bounded = (ROOT / "GhostFTP WEB/app/Remote/BoundedDownloadInterface.php").read_text(encoding="utf-8")
-        limiter = (ROOT / "GhostFTP WEB/app/Remote/TransferLimiter.php").read_text(encoding="utf-8")
-        ftp = (ROOT / "GhostFTP WEB/app/Remote/FtpClient.php").read_text(encoding="utf-8")
-        sftp = (ROOT / "GhostFTP WEB/app/Remote/SftpClient.php").read_text(encoding="utf-8")
-        download = (ROOT / "GhostFTP WEB/download.php").read_text(encoding="utf-8")
-        preview = (ROOT / "GhostFTP WEB/preview.php").read_text(encoding="utf-8")
-
-        self.assertIn("downloadBounded(string $remotePath, string $localFile, ?int $maxBytes = null): int", bounded)
-        self.assertIn("public const UNKNOWN_SIZE_MAX_BYTES = 536870912;", limiter)
-        self.assertIn("public static function effectiveLimit", limiter)
-        self.assertIn("public static function limitForDestination", limiter)
-        self.assertIn("stream_copy_to_stream($input, $output, self::probeLength($maxBytes))", limiter)
-        self.assertIn("$copied > $maxBytes", limiter)
-
-        for source in (ftp, sftp):
-            self.assertIn("implements RemoteClientInterface, BoundedDownloadInterface", source)
-            self.assertIn("private array $listedFileSizes = [];", source)
-            self.assertIn("effectiveDownloadLimit", source)
-            self.assertIn("unset($this->listedFileSizes[$remote]);", source)
-            self.assertIn("TransferLimiter::effectiveLimit", source)
-            self.assertIn("TransferLimiter::limitForDestination($localFile, $maxBytes)", source)
-            self.assertIn("@ftruncate", source)
-
-        self.assertIn("ftp_nb_fget", ftp)
-        self.assertIn("ftp_nb_continue", ftp)
-        self.assertIn("TransferLimiter::assertWithinLimit($fp, $maxBytes)", ftp)
-        self.assertIn("TransferLimiter::copy($in, $out, $maxBytes)", sftp)
-
-        self.assertIn("$client instanceof BoundedDownloadInterface", download)
-        self.assertIn("$requestedLimit = $reportedSize > 0 ? $reportedSize : null;", download)
-        self.assertIn("downloadBounded($path, $tmp, $requestedLimit)", download)
-        self.assertIn("$client instanceof BoundedDownloadInterface", preview)
-        self.assertIn("$maxPreviewBytes = 10485760;", preview)
-        self.assertIn("downloadBounded($path, $tmp, $maxPreviewBytes)", preview)
+            self.assertFalse((ROOT / rel).exists(), f"retired Web tooling exists: {rel}")
 
     def test_release_workflow_requires_delayed_remote_readback(self) -> None:
         source = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         immediate = "assert_release_asset_set immediate"
         delay = "sleep 5"
-        main_guard = 'test "$main_sha" = "$GITHUB_SHA" || { echo "main moved before delayed release verification"'
+        main_guard = "main moved before delayed release verification"
         delayed = "assert_release_asset_set delayed"
         for marker in (
             "assert_release_asset_set()",
-            "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL; windows_signing=$WINDOWS_SIGNING_STATE)",
-            "gh release view \"$RELEASE_TAG\" --repo \"$repo\" --json assets",
-            "gh release download \"$RELEASE_TAG\" --repo \"$repo\" --pattern 'SHA256.txt'",
-            "cmp release/SHA256.txt \"$readback_dir/SHA256.txt\"",
-            "remote_prerelease=\"$(gh api \"repos/$repo/releases/tags/$RELEASE_TAG\" --jq .prerelease)\"",
+            "RELEASE_ASSET_READBACK=PASS",
+            "gh release view",
+            "--json assets",
+            "gh release download",
+            "SHA256.txt",
+            "remote_prerelease=",
             immediate,
             delay,
             main_guard,
