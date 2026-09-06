@@ -21,6 +21,7 @@ STALE_SIGNING_POLICY_MARKERS = (
     "a stable windows release is blocked unless",
     "stable release whose windows signing state is not trusted/configured",
     "stable windows authenticode gate",
+    "stable windows signing gate",
     "stable windows publication requires",
     "stable windows publication additionally requires",
 )
@@ -193,6 +194,24 @@ def main() -> int:
     ):
         if marker not in contributing:
             fail(f"contributing documentation missing signing marker: {marker}")
+
+    roadmap = (DOCS / "ROADMAP.md").read_text(encoding="utf-8")
+    for marker in (
+        "truthful Windows signing-state metadata",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "no generated/self-signed production identity represented as a trusted publisher",
+    ):
+        if marker not in roadmap:
+            fail(f"roadmap documentation missing signing marker: {marker}")
+
+    support = (DOCS / "SUPPORT.md").read_text(encoding="utf-8")
+    for marker in (
+        "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
+        "official file is explicitly `unsigned`",
+        "if metadata says `signed` and Windows signature verification fails",
+    ):
+        if marker not in support:
+            fail(f"support documentation missing signing-state guidance: {marker}")
 
     scripts_readme = (ROOT / "scripts/README.md").read_text(encoding="utf-8")
     for marker in (
