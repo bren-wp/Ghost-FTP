@@ -263,9 +263,9 @@ func (state *siteManagerState) loadSelection(index int) {
 	if index <= 0 || index > len(state.profiles) {
 		state.selected = 0
 		setText(state.name, "")
-		state.setProtocol("ftp")
+		state.setProtocol(defaultConnectionProtocol)
 		setText(state.host, "")
-		setText(state.port, "21")
+		setText(state.port, protocolSpecs[0].Port)
 		setText(state.user, "")
 		setText(state.localPath, state.parent.localCurrent)
 		setText(state.remotePath, "/")
@@ -344,6 +344,15 @@ func (state *siteManagerState) saveCurrent() {
 	if err != nil {
 		platform.ErrorDialog("Ghost FTP — "+nativeMenuWords(state.parent.languageCode())[5], state.parent.tr("settings.invalid_value"), state.parent.userMessage(err, "error.generic"))
 		return
+	}
+	if input.Password != "" || input.Passphrase != "" {
+		words := credentialConsentText(state.parent.languageCode())
+		if !platform.ConfirmDialog(words.Title, words.Question, words.Body) {
+			input.Password = ""
+			input.Passphrase = ""
+			input.ClearPassword = true
+			input.ClearPassphrase = true
+		}
 	}
 	saved, err := state.parent.engine.SaveProfile(input)
 	input.Password = ""
@@ -447,7 +456,7 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 		sendMessageW.Call(state.protocol, cbAddString, 0, uintptr(unsafe.Pointer(wstr(protocolLabel(parent.languageCode(), spec.Value)))))
 	}
 	label(parent.tr("terminal.port"), 690, 96, 60)
-	state.port = mk("EDIT", "21", wsBorder|wsTabStop|esAutoHScroll, 760, 90, 120, 30, siteIDPort)
+	state.port = mk("EDIT", protocolSpecs[0].Port, wsBorder|wsTabStop|esAutoHScroll, 760, 90, 120, 30, siteIDPort)
 
 	label(parent.tr("terminal.server"), 310, 138, 160)
 	state.host = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 132, 390, 30, siteIDHost)
