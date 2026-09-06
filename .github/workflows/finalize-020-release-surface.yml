@@ -1,5 +1,5 @@
 name: Finalize Ghost FTP 0.2.0 release surface
-# Final desktop release/documentation/dead-code cleanup gate.
+# Final desktop release/documentation/dead-code cleanup gate after helper cleanup.
 
 on:
   push:
