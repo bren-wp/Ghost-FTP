@@ -438,11 +438,14 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 		return err
 	}
 	defer source.Close()
+	total := source.Size()
+	reportTransferProgress(options.Progress, 0, total)
 	tempPath := remoteJoin(dir, tempName)
 	lines := []string{"url = " + cfgQuote(c.baseURL(tempPath)), "upload-file = " + cfgQuote(source.Path()), "speed-time = 30", "speed-limit = 1"}
 	if _, err = c.run(ctx, lines); err != nil {
 		return cleanupFailure(err, dir, tempName, c.Delete)
 	}
+	reportTransferProgress(options.Progress, total, total)
 	if err = source.Verify(); err != nil {
 		return cleanupFailure(err, dir, tempName, c.Delete)
 	}
@@ -467,6 +470,7 @@ func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, option
 			return err
 		}
 	}
+	total := bestEffortRemoteFileSize(ctx, remotePath, c.List)
 	if err := os.MkdirAll(filepath.Dir(local), 0755); err != nil {
 		return err
 	}
@@ -474,10 +478,13 @@ func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, option
 	if err != nil {
 		return err
 	}
+	stopProgress := startLocalFileProgressMonitor(ctx, part, total, options.Progress)
 	lines := []string{"url = " + cfgQuote(c.baseURL(remotePath)), "output = " + cfgQuote(part), "speed-time = 30", "speed-limit = 1"}
-	if _, err := c.run(ctx, lines); err != nil {
+	_, runErr := c.run(ctx, lines)
+	stopProgress()
+	if runErr != nil {
 		_ = os.Remove(part)
-		return err
+		return runErr
 	}
 	if err := validateDownloadedPart(part); err != nil {
 		_ = os.Remove(part)

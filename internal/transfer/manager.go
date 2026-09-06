@@ -467,7 +467,7 @@ func (m *Manager) RetryBatch(ids []string) error {
 	for _, i := range indices {
 		m.jobs[i].Status = "queued"
 		m.jobs[i].Error = ""
-		m.jobs[i].Progress = 0
+		resetTransferMetrics(&m.jobs[i], false)
 		m.jobs[i].Attempts = 0
 		j := m.jobs[i]
 		m.emitLocked(Event{Type: "job", Job: &j})
@@ -515,7 +515,7 @@ func (m *Manager) pump() {
 			return
 		}
 		m.jobs[idx].Status = "running"
-		m.jobs[idx].Progress = 0
+		resetTransferMetrics(&m.jobs[idx], true)
 		j := m.jobs[idx]
 		m.running++
 		ctx, cancel := context.WithCancel(context.Background())
@@ -571,15 +571,22 @@ func (m *Manager) finishJob(ctx context.Context, id string, err error) {
 		} else if errors.Is(err, remote.ErrSkipped) {
 			m.jobs[i].Status = "skipped"
 			m.jobs[i].Progress = 100
+			m.jobs[i].ETASeconds = 0
 			m.jobs[i].Error = "Datoteka već postoji"
 		} else if err == nil {
 			m.jobs[i].Status = "done"
 			m.jobs[i].Progress = 100
+			m.jobs[i].ETASeconds = 0
+			if m.jobs[i].BytesTotal > 0 {
+				m.jobs[i].BytesTransferred = m.jobs[i].BytesTotal
+			}
 		} else if ctx.Err() != nil || errors.Is(err, context.Canceled) {
 			m.jobs[i].Status = "cancelled"
+			m.jobs[i].ETASeconds = 0
 			m.jobs[i].Error = "Otkazano"
 		} else {
 			m.jobs[i].Status = "failed"
+			m.jobs[i].ETASeconds = 0
 			m.jobs[i].Error = usererror.Message(err, "Prijenos nije uspio. Provjerite vezu i pokušajte ponovno.")
 		}
 		j := m.jobs[i]
@@ -600,6 +607,9 @@ func (m *Manager) setAttempt(id string, attempt int) {
 			continue
 		}
 		m.jobs[i].Attempts = attempt
+		if attempt > 1 {
+			resetTransferMetrics(&m.jobs[i], true)
+		}
 		j := m.jobs[i]
 		m.emitLocked(Event{Type: "job", Job: &j})
 		return
@@ -631,7 +641,13 @@ func (m *Manager) runAttempt(ctx context.Context, job model.TransferJob, setting
 		return err
 	}
 	defer release()
-	options := remote.TransferOptions{KeepBackup: settings.BackupBeforeOverwrite, SkipExisting: settings.SkipExisting}
+	options := remote.TransferOptions{
+		KeepBackup:   settings.BackupBeforeOverwrite,
+		SkipExisting: settings.SkipExisting,
+		Progress: func(transferred, total int64) {
+			m.updateProgress(job.ID, transferred, total)
+		},
+	}
 	if job.Direction == "upload" {
 		return sess.Upload(opCtx, job.LocalPath, job.RemotePath, options)
 	}

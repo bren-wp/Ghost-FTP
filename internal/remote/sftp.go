@@ -121,8 +121,6 @@ func cleanupStaleSFTPArtifacts(dir string) {
 			_ = os.Remove(filepath.Join(dir, name))
 		}
 	}
-	// 2.8 and older used one persistent generic SSH config. It contains no
-	// credential, but it is obsolete once every session receives its own config.
 	_ = os.Remove(filepath.Join(dir, "ssh-client.conf"))
 }
 
@@ -163,9 +161,6 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if err != nil {
 		return "", "", "", err
 	}
-
-	// Keep the user-entered host out of both the process command line and disk.
-	// OpenSSH ssh-keyscan accepts -f - to read targets directly from stdin.
 	scanCtx, scanCancel := context.WithTimeout(ctx, 12*time.Second)
 	defer scanCancel()
 	cmd := exec.CommandContext(scanCtx, scan, "-T", "8", "-t", "ed25519,ecdsa,rsa", "-p", strconv.Itoa(port), "-f", "-")
@@ -199,7 +194,6 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if len(lines) == 0 {
 		return "", "", "", errors.New("poslužitelj nije vratio SSH host ključ")
 	}
-
 	selected := lines[0]
 	rank := func(line string) int {
 		switch alg := scanKeyAlgorithm(line); {
@@ -222,7 +216,6 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if algorithm == "" {
 		return "", "", "", errors.New("poslužitelj je vratio nepodržan SSH host ključ")
 	}
-
 	name, err := writePrivateTempFile(tempDir, "GhostFTP-key-*.known_hosts", []byte(selected+"\n"))
 	if err != nil {
 		return "", "", "", err
@@ -290,9 +283,6 @@ func validatePrivateKeyPath(keyPath string) error {
 	return nil
 }
 
-// snapshotPrivateKey closes the check-then-open window around a user-selected
-// key. OpenSSH only sees a private 0600 copy made from one verified stable file
-// handle, never the original path that can be swapped after validation.
 func snapshotPrivateKey(dir, keyPath string) (string, error) {
 	if keyPath == "" {
 		return "", nil
@@ -640,7 +630,6 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 	} else if st.IsDir() {
 		return errors.New("upload očekuje datoteku")
 	}
-
 	dir, base, tempName, savedName, err := remoteTransferNames(remotePath)
 	if err != nil {
 		return err
@@ -662,10 +651,13 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 		return err
 	}
 	defer source.Close()
+	total := source.Size()
+	reportTransferProgress(options.Progress, 0, total)
 	tempPath := remoteJoin(dir, tempName)
 	if _, err = s.run(ctx, "put "+sftpQuote(source.Path())+" "+sftpQuote(tempPath)); err != nil {
 		return cleanupFailure(err, dir, tempName, s.Delete)
 	}
+	reportTransferProgress(options.Progress, total, total)
 	if err = source.Verify(); err != nil {
 		return cleanupFailure(err, dir, tempName, s.Delete)
 	}
@@ -693,6 +685,7 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
 			return err
 		}
 	}
+	total := bestEffortRemoteFileSize(ctx, remotePath, s.List)
 	if err := os.MkdirAll(filepath.Dir(local), 0755); err != nil {
 		return err
 	}
@@ -700,9 +693,12 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
 	if err != nil {
 		return err
 	}
-	if _, err := s.run(ctx, "get "+sftpQuote(remotePath)+" "+sftpQuote(part)); err != nil {
+	stopProgress := startLocalFileProgressMonitor(ctx, part, total, options.Progress)
+	_, runErr := s.run(ctx, "get "+sftpQuote(remotePath)+" "+sftpQuote(part))
+	stopProgress()
+	if runErr != nil {
 		_ = os.Remove(part)
-		return err
+		return runErr
 	}
 	if err := validateDownloadedPart(part); err != nil {
 		_ = os.Remove(part)
