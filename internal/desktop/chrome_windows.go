@@ -101,6 +101,10 @@ func (a *app) stabilizeWorkspaceChrome() {
 	}
 	styleWorkspaceCombos(a.languageCombo, a.profilesCombo, a.protocol)
 	for _, list := range []uintptr{a.localList, a.remoteList, a.transferList} {
+		// Native Header controls notify their immediate ListView parent. Install
+		// that route before applying the dark list theme so header text and fill
+		// stay under Ghost FTP control on both light and dark Windows desktops.
+		installWorkspaceHeaderDraw(a, list)
 		styleWorkspaceList(list)
 	}
 	// Remote operations remain disabled by updateActionControls. The list itself
