@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, local-filesystem, account-state and transfer/recovery boundaries fail-closed.
 
-**Current Ghost FTP release: 0.1.1**
+**Current Ghost FTP release: 0.2.0**
 
 The active desktop application platforms are **Windows and Linux**. The current `0.x` line is Beta until the complete stability/release criteria are met; the first stable release is `1.0.0`. Historical releases may document additional platforms that existed at the time, but those historical facts are not the active security/support contract.
 
@@ -78,153 +78,41 @@ Explicit FTPS keeps certificate validation enabled. The application does not add
 
 Plain FTP remains supported only as an explicitly unencrypted compatibility option.
 
-## Remote listing and permission metadata
+## Transfer and filesystem hardening
 
-The Windows reference UI exposes a remote **Permissions** column only when the remote listing supplies a usable mode. The value is treated as display metadata, not as authorization proof.
+Transfers use staging/commit semantics and conflict-policy handling rather than overwriting destinations in an uncontrolled sequence. Temporary artifacts and recovery backups are named and validated within the intended destination namespace.
 
-Accepted display forms are intentionally narrow:
+Remote cleanup and commit operations revalidate state where necessary so a server-side topology change cannot silently redirect finalization to an unsafe path.
 
-- UNIX-style symbolic modes such as `-rw-r--r--` and `drwxr-xr-x` from FTP `LIST` or SFTP `ls -la`;
-- three/four-digit octal `unix.mode` values supplied by MLSD.
+Local recursive operations reject traversal through symlink/junction/reparse structures and block destructive recursion at filesystem roots.
 
-MLSD `perm=` values such as `adfrw` are capability strings and are not presented as POSIX file modes. Malformed or unexpected mode strings are discarded instead of being rendered as trusted permissions.
+## Privacy and network boundaries
 
-The permission display never relaxes the real server-side permission checks. Mutations still succeed or fail according to the remote transport/server response and normal Ghost FTP validation.
+Ghost FTP has no telemetry, analytics, advertising SDK, background account service or external crash-reporting service.
 
-## Remote search boundary
+The application initiates network traffic only as required for the user's configured FTP/FTPS/SFTP destination and for explicit operating-system transport operations. There is no Ghost FTP cloud account or hidden synchronization endpoint.
 
-The Windows remote-search field filters the already loaded directory model in memory. It does not transmit the search term to a Ghost FTP service or third party and does not issue a new remote-server request for every keystroke.
+See [Privacy](PRIVACY.md) and [Dependencies](DEPENDENCIES.md) for the maintained data and dependency contracts.
 
-A separate full directory model is retained so filtered list indexes cannot accidentally redirect rename/delete/download operations to a different unfiltered item.
+## Installer and release security
 
-## Transfer and overwrite safety
+Windows Setup uses the same application binary as Portable for product functionality. Setup owns installation registration, shortcuts and the Windows Installed Apps uninstall entry; uninstall is integrated through the installed `GhostFTP.exe --uninstall` path rather than a separate uninstaller executable.
 
-The transfer engine uses staging/recovery logic rather than directly replacing destinations whenever safe recovery is required.
+Installation mutations are transactional where supported. Registry values changed by Setup are snapshotted so a failed install/upgrade can restore the previous App Paths and Installed Apps registration state.
 
-Security/reliability properties include:
+Production release workflows:
 
-- remote destination validation before queueing;
-- local path constrained to the expected local root;
-- download part files checked against symlink/reparse substitution;
-- conservative default `replace_backup` conflict policy;
-- bounded automatic retries and retry delay;
-- safe final-status handling so late cancellation cannot overwrite a completed result;
-- directory/tree planning bounded by maximum depth/item count;
-- explicit symlink handling;
-- bounded disconnect while active operations are released.
+- derive version metadata from the root `VERSION` file;
+- disable Go telemetry;
+- build Windows and Linux in independent jobs;
+- refuse mutable reuse of an existing release tag;
+- generate SHA-256 checksums for all public release files;
+- perform release asset read-back verification;
+- keep signing credentials outside the repository;
+- require a trusted Authenticode identity for stable Windows releases.
 
-## Profile identity binding
+Pre-1.0 Beta Windows artifacts may be unsigned when no production signing identity is configured; that state is recorded explicitly in build metadata instead of being misrepresented as signed.
 
-Saved passwords are reused only when the account identity still matches. Saved private-key passphrases require matching private-key identity. SFTP fingerprints are associated with the expected endpoint.
+## Security issue reporting
 
-Editing a saved profile to another host/account/key must not silently carry secrets/trust into the new identity.
-
-## Local filesystem protections
-
-Local file operations are routed through the local filesystem/security layers rather than direct UI filesystem mutation.
-
-Protections include:
-
-- no-follow/symlink/reparse checks;
-- guarded recursive removal;
-- filesystem-root deletion refusal;
-- bounded recursion/item counts;
-- no-replace rename semantics where supported;
-- guarded atomic state-file writes;
-- checks that opened/replaced state files are still the expected filesystem object.
-
-## Windows process, UI and installer hardening
-
-Windows startup uses process error/DLL-loading hardening and safe native picker flags.
-
-The reference shell is a presentation layer over existing command/action-state paths. Toolbar/menu actions do not create alternate unchecked implementations of upload, download, rename, delete, connection or queue operations.
-
-The local connection log is bounded and sanitizes embedded line-breaking control characters before display. The Diagnostics action renders local state only; it does not contain an upload endpoint.
-
-Ghost FTP Setup uses an application-only verified payload and rollback-aware file/registry behavior. Setup and Portable package the same Windows application source, so security behavior after application startup does not fork by package type.
-
-The repository does not contain publisher secrets. Authenticode signing requires an external legitimate signing identity; unsigned artifacts must be described as unsigned.
-
-## Linux packaging and presentation boundary
-
-Linux DEB packages are built from the same source version and verified for package name/version/architecture in CI. Current transport prerequisites are system-provided `curl` and OpenSSH tools; they are documented rather than hidden or downloaded by the application.
-
-The maintained Linux frontend is currently terminal-based. A future Linux GUI must not fork the transfer/security engine or add hidden tracking. Any GUI runtime/toolkit prerequisite must be reviewed and documented rather than mislabeled as “zero dependency.”
-
-## Privacy and tracking
-
-Ghost FTP desktop runtime contains no application analytics/advertising/crash-reporting SDK and no fixed application telemetry backend.
-
-Privacy auditing rejects:
-
-- known telemetry/vendor markers;
-- fixed HTTP(S) URLs in desktop runtime source;
-- general-purpose runtime network imports outside the constrained protocol architecture;
-- credential/proxy environment leakage;
-- ineffective production telemetry-disable configuration.
-
-Production build workflows explicitly execute `go telemetry off` and verify the state.
-
-## Web companion security boundary
-
-`GhostFTP WEB/` remains a separate shared-hosting/PWA implementation with its own PHP/session/CSRF threat model. It is not a Windows/Linux desktop runtime component.
-
-Its maintained security properties include strict session/CSRF controls, authenticated encryption for saved secrets, bounded operations, host/path validation, SFTP fingerprint checks, staged remote writes and safe public-error handling.
-
-The Web companion is audited separately and is not published as a desktop platform artifact.
-
-## Repository and release integrity
-
-Repository audits reject unsafe/generated source-tree drift, including tracked one-shot workflows and retired platform application roots.
-
-The production release workflow publishes **9 platform artifacts** plus `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`, for **12 public files** total.
-
-Before publication:
-
-- shared quality/security/docs must pass;
-- Windows production build must pass;
-- Linux production build must pass;
-- `main` must still point to the build commit;
-- an existing `ghostftp-vX.Y.Z` tag must already point to that same commit or publication fails;
-- final release asset count is read back and verified;
-- every `0.x.y` GitHub release is marked Beta/Prerelease;
-- stable publication starts at `1.0.0`.
-
-Published historical tags/releases are not moved to another commit.
-
-## Dependency integrity
-
-The desktop/core Go module has no external Go modules and CI rejects a new module/vendor graph.
-
-This is distinct from OS runtime prerequisites. Current protocol execution uses:
-
-- `curl` for FTP/FTPS;
-- `ssh`/`sftp` for SFTP.
-
-Any future embedded protocol library or Linux graphical runtime would require explicit license/provenance and security/dependency review.
-
-## Package integrity and publisher identity
-
-Release consumers should verify `SHA256.txt` and `BUILD-METADATA.txt` before installation in managed environments.
-
-Checksums prove file integrity relative to the published manifest; they do not replace publisher signing. See [Signing](SIGNING.md) and [Release verification](RELEASE-VERIFICATION.md).
-
-## Authentic UI evidence
-
-The Windows UI screenshots used by maintained documentation are captured from the real production x64 Portable executable by the dedicated Actions workflow. The workflow validates PNG structure, dimensions, file size and SHA-256 and refuses to persist a stale capture if the source branch moved.
-
-Mockup or generated-image output is not accepted as evidence that the production executable renders the claimed UI.
-
-See [Desktop reference UI](REFERENCE-UI.md).
-
-## Security regression gates
-
-`scripts/audit_security.py`, `scripts/audit_privacy.py`, `scripts/audit_dependencies.py`, `scripts/audit_platform_contract.py` and the Go/Python regression suites are release gates, not informational reports.
-
-The UI stability regression suite additionally checks that the remote Permissions column remains backed by validated LIST/SFTP/MLSD metadata and that Windows action surfaces do not revert to hardcoded Croatian strings when another runtime language is selected.
-
-A high-risk invariant removed from code must either be replaced with an equivalent/stronger reviewed mechanism and tests or the change must fail review.
-
-## Reporting
-
-Report vulnerabilities through the repository Security policy. Never place working passwords, private keys, signing credentials, production endpoints or customer data in a public issue.
+Do not include production credentials, private keys, customer server addresses or secret material in public issues, screenshots, logs or test fixtures. Reports should contain the minimum reproduction data needed to demonstrate the issue safely.
