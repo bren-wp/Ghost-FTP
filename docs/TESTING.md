@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **1.0.0 Stable** is release-ready only when source tests, audits, native production builds, signing-state checks and distribution read-back all pass for the exact release revision.
+Ghost FTP **1.1.1 Stable** is release-ready only when source tests, audits, native production builds, signing-state checks, authentic UI evidence and distribution read-back all pass for the exact release revision.
 
 ## Continuous integration
 
@@ -49,19 +49,37 @@ and then the Python tooling regressions:
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
+## Protocol and connection regressions
+
+The maintained loopback FTP test server exercises real protocol behavior rather than only mocks. Coverage includes authentication, listing, directory creation, upload, size/list verification, rename, download with byte-content equality, delete and final listing, plus invalid credentials.
+
+Ghost FTP 1.1.1 also covers the application connection manager lifecycle used by the frontends:
+
+- `remote.Manager.Connect()` establishes the session;
+- initial remote `List`/operation access works after successful login;
+- connection identity/generation is available to downstream transfer logic;
+- `Disconnect()` closes the active session cleanly;
+- invalid FTP credentials do not produce a connected/operational session;
+- FTPS against a plaintext-only FTP endpoint fails instead of silently downgrading to plain FTP.
+
+External public FTP/SFTP services are not required for deterministic CI. SFTP host-key, credential-lifetime, tool invocation and trust behavior are covered by local regression/unit paths and production platform builds.
+
 ## High-risk regression areas
 
 Go tests cover, among other areas:
 
 - FTP/FTPS/SFTP validation and protocol/tool behavior;
 - SFTP host-key fingerprints and key paths;
-- runtime secret/AskPass handling;
+- runtime secret/AskPass handling and protected-secret ownership;
+- pending SFTP trust credential cleanup/transfer;
 - endpoint/profile binding;
 - process lifecycle and disconnect races;
 - transfer staging, source snapshots and commit cleanup;
 - retry/cancel/terminal state correctness;
 - symlink/reparse-aware filesystem operations;
 - settings/profile validation and recovery;
+- Classic Light/Dark persisted appearance behavior;
+- FTPS fresh/default protocol policy;
 - privacy-safe connection diagnostics;
 - truthful transfer metrics.
 
@@ -96,11 +114,19 @@ DEB metadata is verified for package name, semantic version and architecture. Th
 
 Windows UI regression tests protect native workspace geometry, connection/action state, Site Manager behavior, localization, keyboard workflow and screenshot capture contracts.
 
+For 1.1.1, fresh/fallback appearance must resolve to Classic Light while an explicitly persisted Dark choice remains Dark. Fresh quick-connect protocol must resolve to explicit FTPS/21 while plain FTP remains an explicit compatibility choice. Privacy-sensitive profile credential persistence uses the same opt-in semantics in the main profile flow and Site Manager.
+
 Linux tests protect shared Engine access, SFTP password/key/passphrase parity, queue controls, settings/profile behavior and native renderer operation. Idle redraw behavior is optimized so unchanged state does not force unnecessary full-workspace redraw.
+
+## Authentic screenshot gate
+
+Documentation screenshots in `docs/images/` are not hand-authored release evidence. The dedicated Windows screenshot workflow builds and launches the real x64 Portable executable, captures the maintained main workspace and Site Manager windows, verifies the outputs and persists only those authentic screenshots.
+
+A screenshot workflow failure is a release-documentation failure, not permission to substitute a mockup.
 
 ## Localization gate
 
-Localization checks require exactly 24 canonical languages, English default/fallback, valid catalog keys/format verbs, Windows live localization, Setup primary copy coverage and Linux runtime switching.
+Localization checks require exactly 24 canonical languages, English default/fallback, valid catalog keys/format verbs, Windows live localization, Setup primary copy coverage and Linux runtime switching. Security/privacy-sensitive profile credential consent copy is part of the maintained localization surface.
 
 ## Privacy gate
 
@@ -112,7 +138,7 @@ The release-package contract additionally ensures the GHCR bundle copies only th
 
 `.github/workflows/release.yml` runs the quality, Windows and Linux jobs before publication.
 
-The assembled GitHub Release contains **9 platform artifacts** and **12 public files** total. Stable version `1.0.0` is published with `prerelease=false`.
+The assembled GitHub Release contains **9 platform artifacts** and **12 public files** total. Stable version `1.1.1` is published with `prerelease=false` only after the exact merged revision passes the required post-merge gate.
 
 Before and after publication, the workflow verifies that `main` is still the exact release commit and that an existing version tag is not being rewritten.
 
