@@ -42,7 +42,10 @@ Every stable package is produced only after the same release quality gates used 
 - Linux amd64/arm64/i386 DEB builds;
 - release asset allow-list verification;
 - SHA-256 manifest generation;
-- trusted Authenticode requirement for stable Windows publication.
+- Authenticode verification **when a trusted production certificate is configured**;
+- explicit `WINDOWS_AUTHENTICODE=unsigned` metadata when no production certificate is configured.
+
+Production signing is optional, but its state is never ambiguous. A configured trusted signing identity is verified fail-closed; absence of a production certificate does not cause Ghost FTP to fabricate a self-signed publisher identity or label unsigned files as signed.
 
 The OCI package carries repository source, version and commit labels. The release workflow performs a registry read-back with `docker buildx imagetools inspect` after push.
 
@@ -62,6 +65,7 @@ For high-assurance automation:
 2. pin the digest in downstream automation;
 3. extract `/ghostftp-release/SHA256.txt`;
 4. verify every release file before use;
-5. compare the expected source commit with `BUILD-METADATA.txt` and the OCI revision label.
+5. compare the expected source commit with `BUILD-METADATA.txt` and the OCI revision label;
+6. inspect `WINDOWS_AUTHENTICODE` before interpreting Windows publisher-signature state.
 
-This provides two independent integrity references: the OCI manifest digest and the per-file SHA-256 manifest.
+This provides two independent integrity references: the OCI manifest digest and the per-file SHA-256 manifest, plus an explicit signing-state declaration for Windows artifacts.
