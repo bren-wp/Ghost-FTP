@@ -90,10 +90,12 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("Immutable tag rule", releases)
         self.assertIn(f"## {version}", changelog)
 
-        # Historical development provenance remains present instead of being rewritten.
+        # Current public changelog stays concise, while detailed older engineering
+        # provenance remains available in RELEASE-HISTORY.md and Git history.
         self.assertIn("## 0.2.1", changelog)
-        self.assertIn("## 2.0.0", changelog)
-        self.assertIn("## 1.0.0", changelog)
+        self.assertIn("## 0.2.0", changelog)
+        self.assertIn("## Historical engineering history", changelog)
+        self.assertIn("docs/RELEASE-HISTORY.md", changelog)
         self.assertIn("## 2.0.0", history)
         self.assertIn("## 1.0.0", history)
 
@@ -101,7 +103,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
             match.group(1)
             for match in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)
         ]
-        for expected in (version, "0.2.1", "2.0.0", "1.0.0"):
+        for expected in (version, "0.2.1", "0.2.0"):
             self.assertIn(expected, sections)
 
 
