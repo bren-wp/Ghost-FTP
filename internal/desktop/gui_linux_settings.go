@@ -6,11 +6,13 @@ import (
 	"fmt"
 
 	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
 type linuxSettingsRects struct {
+	language                    linuxRect
 	parallelMinus, parallelPlus linuxRect
 	retriesMinus, retriesPlus   linuxRect
 	delayMinus, delayPlus       linuxRect
@@ -19,15 +21,28 @@ type linuxSettingsRects struct {
 	save, close                 linuxRect
 }
 
+func (u *linuxDesktop) tr(key string, args ...any) string {
+	return i18n.T(u.language, key, args...)
+}
+
+func (u *linuxDesktop) draftTr(key string, args ...any) string {
+	language := u.language
+	if u.settingsOpen {
+		language = i18n.Normalize(u.settingsDraft.Language)
+	}
+	return i18n.T(language, key, args...)
+}
+
 func (u *linuxDesktop) openSettings() {
 	if u.busy || u.promptKind != linuxPromptNone || u.pendingFingerprint != "" {
 		return
 	}
 	settings, err := u.engine.Settings()
 	if err != nil {
-		u.setStatus(usererror.MessageFor(u.language, err, "Settings could not be loaded."))
+		u.setStatus(usererror.MessageFor(u.language, err, u.tr("settings.load_failed")))
 		return
 	}
+	settings.Language = i18n.Normalize(settings.Language)
 	u.settingsDraft = settings
 	u.settingsOpen = true
 }
@@ -58,27 +73,56 @@ func nextConflictPolicy(current string) string {
 	}
 }
 
-func conflictPolicyLabel(policy string) string {
+func (u *linuxDesktop) conflictPolicyLabel(policy string) string {
 	switch policy {
 	case model.ConflictPolicySkip:
-		return "Skip existing"
+		return u.draftTr("settings.skip_existing")
 	case model.ConflictPolicyReplace:
-		return "Replace"
+		return u.draftTr("settings.overwrite")
 	default:
-		return "Replace + backup"
+		return u.draftTr("settings.overwrite") + " + " + u.draftTr("settings.backup_title")
 	}
 }
 
+func nextLanguage(code string) string {
+	languages := i18n.Languages()
+	if len(languages) == 0 {
+		return i18n.DefaultLanguage
+	}
+	code = i18n.Normalize(code)
+	for index, language := range languages {
+		if language.Code == code {
+			return languages[(index+1)%len(languages)].Code
+		}
+	}
+	return i18n.DefaultLanguage
+}
+
 func (u *linuxDesktop) saveSettings() {
+	u.settingsDraft.Language = i18n.Normalize(u.settingsDraft.Language)
 	saved, err := u.engine.SetSettings(u.settingsDraft)
 	if err != nil {
-		u.setStatus(usererror.MessageFor(u.language, err, "Settings were not saved."))
+		u.setStatus(usererror.MessageFor(u.language, err, u.tr("settings.save_failed_body")))
 		return
 	}
 	u.settingsDraft = saved
-	u.language = saved.Language
+	u.language = i18n.Normalize(saved.Language)
 	u.closeSettings()
-	u.setStatus("Settings saved.")
+	u.setStatus(u.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, linuxRetrySummary(u, saved), linuxConflictSummary(u, saved)))
+}
+
+func linuxRetrySummary(u *linuxDesktop, settings model.Settings) string {
+	if settings.AutoRetryCount <= 0 {
+		return u.tr("settings.retry_none")
+	}
+	return u.tr("settings.retry_count", settings.AutoRetryCount)
+}
+
+func linuxConflictSummary(u *linuxDesktop, settings model.Settings) string {
+	if settings.ConflictPolicy == model.ConflictPolicySkip {
+		return u.tr("settings.skip_existing")
+	}
+	return u.tr("settings.overwrite")
 }
 
 func (u *linuxDesktop) settingsStep(rectMinus, rectPlus linuxRect, x, y int, value *int, low, high, step int) bool {
@@ -98,6 +142,10 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 		return false
 	}
 	r := u.settingsRects
+	if r.language.contains(x, y) {
+		u.settingsDraft.Language = nextLanguage(u.settingsDraft.Language)
+		return true
+	}
 	if u.settingsStep(r.parallelMinus, r.parallelPlus, x, y, &u.settingsDraft.Parallelism, config.MinParallelism, config.MaxParallelism, 1) {
 		return true
 	}
@@ -124,7 +172,7 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 	}
 	if r.close.contains(x, y) {
 		u.closeSettings()
-		u.setStatus("Settings changes discarded.")
+		u.setStatus(u.tr("status.ready"))
 		return true
 	}
 	return true
@@ -137,7 +185,7 @@ func (u *linuxDesktop) handleSettingsKey(sym uint32) bool {
 	switch sym {
 	case x11KeyEscape:
 		u.closeSettings()
-		u.setStatus("Settings changes discarded.")
+		u.setStatus(u.tr("status.ready"))
 	case x11KeyReturn:
 		u.saveSettings()
 	}
@@ -147,7 +195,7 @@ func (u *linuxDesktop) handleSettingsKey(sym uint32) bool {
 func (u *linuxDesktop) drawSettingStepper(label string, value int, top int, minus *linuxRect, plus *linuxRect) error {
 	left := (u.width - min(700, u.width-100)) / 2
 	width := min(700, u.width-100)
-	if err := u.x.text(left+24, top+20, label, premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, top+20, linuxTrimForUI(label, 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	valueRect := linuxRectWH(left+width-210, top, 84, 30)
@@ -162,7 +210,7 @@ func (u *linuxDesktop) drawSettingStepper(label string, value int, top int, minu
 	if err := u.x.text(valueRect.left+12, valueRect.top+20, fmt.Sprintf("%d", value), premiumTheme.Text, premiumTheme.List); err != nil {
 		return err
 	}
-	if err := u.drawButton(*minus, "-", true, false); err != nil {
+	if err := u.drawButton(*minus, "−", true, false); err != nil {
 		return err
 	}
 	return u.drawButton(*plus, "+", true, false)
@@ -173,52 +221,62 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return nil
 	}
 	width := min(700, u.width-100)
-	height := 430
+	height := 486
 	left := (u.width - width) / 2
 	top := (u.height - height) / 2
 	panel := linuxRectWH(left, top, width, height)
 	if err := u.drawPanel(panel); err != nil {
 		return err
 	}
-	if err := u.x.text(left+24, top+32, "SETTINGS", premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, top+32, linuxTrimForUI(u.draftTr("settings.title"), 54), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(left+24, top+54, "Transfer, overwrite and safety behavior", premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, top+54, linuxTrimForUI(u.draftTr("settings.confirm_delete_body"), 82), premiumTheme.Muted, premiumTheme.Panel); err != nil {
 		return err
 	}
 
-	row := top + 78
-	if err := u.drawSettingStepper("Parallel transfers", u.settingsDraft.Parallelism, row, &u.settingsRects.parallelMinus, &u.settingsRects.parallelPlus); err != nil {
+	row := top + 76
+	language := i18n.LanguageByCode(u.settingsDraft.Language)
+	if err := u.x.text(left+24, row+20, "Aa", premiumTheme.Text, premiumTheme.Panel); err != nil {
+		return err
+	}
+	u.settingsRects.language = linuxRectWH(left+width-246, row, 230, 30)
+	languageLabel := language.NativeName + " (" + language.Code + ")"
+	if err := u.drawButton(u.settingsRects.language, linuxTrimForUI(languageLabel, 30), true, false); err != nil {
+		return err
+	}
+	row += 45
+	if err := u.drawSettingStepper(u.draftTr("settings.parallel"), u.settingsDraft.Parallelism, row, &u.settingsRects.parallelMinus, &u.settingsRects.parallelPlus); err != nil {
+		return err
+	}
+	row += 45
+	if err := u.drawSettingStepper(u.draftTr("settings.retries"), u.settingsDraft.AutoRetryCount, row, &u.settingsRects.retriesMinus, &u.settingsRects.retriesPlus); err != nil {
+		return err
+	}
+	row += 45
+	if err := u.drawSettingStepper(u.draftTr("settings.retry_delay"), u.settingsDraft.RetryDelaySeconds, row, &u.settingsRects.delayMinus, &u.settingsRects.delayPlus); err != nil {
+		return err
+	}
+	row += 45
+	if err := u.drawSettingStepper(u.draftTr("settings.timeout"), u.settingsDraft.ConnectionTimeoutSeconds, row, &u.settingsRects.timeoutMinus, &u.settingsRects.timeoutPlus); err != nil {
 		return err
 	}
 	row += 48
-	if err := u.drawSettingStepper("Automatic retries", u.settingsDraft.AutoRetryCount, row, &u.settingsRects.retriesMinus, &u.settingsRects.retriesPlus); err != nil {
-		return err
-	}
-	row += 48
-	if err := u.drawSettingStepper("Retry delay (seconds)", u.settingsDraft.RetryDelaySeconds, row, &u.settingsRects.delayMinus, &u.settingsRects.delayPlus); err != nil {
-		return err
-	}
-	row += 48
-	if err := u.drawSettingStepper("Connection timeout (seconds)", u.settingsDraft.ConnectionTimeoutSeconds, row, &u.settingsRects.timeoutMinus, &u.settingsRects.timeoutPlus); err != nil {
-		return err
-	}
-	row += 52
-	if err := u.x.text(left+24, row+20, "Existing destination files", premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.skip_title"), 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	u.settingsRects.conflict = linuxRectWH(left+width-246, row, 230, 30)
-	if err := u.drawButton(u.settingsRects.conflict, conflictPolicyLabel(u.settingsDraft.ConflictPolicy), true, false); err != nil {
+	if err := u.drawButton(u.settingsRects.conflict, linuxTrimForUI(u.conflictPolicyLabel(u.settingsDraft.ConflictPolicy), 31), true, false); err != nil {
 		return err
 	}
-	row += 46
-	if err := u.x.text(left+24, row+20, "Confirm destructive deletes", premiumTheme.Text, premiumTheme.Panel); err != nil {
+	row += 44
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.confirm_delete_title"), 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	u.settingsRects.confirmDelete = linuxRectWH(left+width-156, row, 140, 30)
-	confirm := "Enabled"
-	if !u.settingsDraft.ConfirmDelete {
-		confirm = "Disabled"
+	confirm := "○"
+	if u.settingsDraft.ConfirmDelete {
+		confirm = "✓"
 	}
 	if err := u.drawButton(u.settingsRects.confirmDelete, confirm, true, u.settingsDraft.ConfirmDelete); err != nil {
 		return err
@@ -226,8 +284,8 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 
 	u.settingsRects.save = linuxRectWH(left+width-226, top+height-48, 98, 30)
 	u.settingsRects.close = linuxRectWH(left+width-118, top+height-48, 98, 30)
-	if err := u.drawButton(u.settingsRects.save, "Save", true, true); err != nil {
+	if err := u.drawButton(u.settingsRects.save, "OK", true, true); err != nil {
 		return err
 	}
-	return u.drawButton(u.settingsRects.close, "Cancel", true, false)
+	return u.drawButton(u.settingsRects.close, u.draftTr("common.cancel"), true, false)
 }
