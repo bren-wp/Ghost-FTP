@@ -94,6 +94,24 @@ func applyConflictPolicySelection(settings *model.Settings, index int) {
 	}
 }
 
+func (a *app) promptAppearance(settings model.Settings) (model.Settings, bool) {
+	words := appearanceText(a.languageCode())
+	index, ok := platform.SelectOptionDialog(
+		a.tr("settings.title"),
+		words.Hint,
+		brand.ProductName+" · "+words.Title,
+		okLabel(a.languageCode()),
+		a.tr("common.cancel"),
+		[]string{words.Dark, words.Light},
+		appearanceIndex(settings.Appearance),
+	)
+	if !ok {
+		return settings, false
+	}
+	applyAppearanceSelection(&settings, index)
+	return settings, true
+}
+
 func (a *app) promptConflictPolicy(settings model.Settings) (model.Settings, bool) {
 	title := a.tr("settings.title")
 	options := []string{
@@ -123,6 +141,9 @@ func (a *app) openSettings() {
 		return
 	}
 	settings := a.settings
+	if settings.Appearance == "" {
+		settings.Appearance = model.AppearanceDark
+	}
 	if settings.Parallelism < 1 {
 		settings.Parallelism = 2
 	}
@@ -131,6 +152,12 @@ func (a *app) openSettings() {
 	}
 	if settings.ConnectionTimeoutSeconds < 5 {
 		settings.ConnectionTimeoutSeconds = 15
+	}
+
+	var ok bool
+	settings, ok = a.promptAppearance(settings)
+	if !ok {
+		return
 	}
 
 	parallel, ok := a.promptNumber("settings.parallel", settings.Parallelism, 1, 8)
@@ -175,7 +202,11 @@ func (a *app) openSettings() {
 			}
 			a.settings = saved
 			a.applyLanguage(saved.Language)
-			a.setStatus(a.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, retrySummary(a, saved), overwriteSummary(a, saved)))
+			status := a.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, retrySummary(a, saved), overwriteSummary(a, saved))
+			if isDarkAppearance(saved.Appearance) != activeThemeIsDark() {
+				status += " · " + appearanceText(saved.Language).Hint
+			}
+			a.setStatus(status)
 			a.updateActionControls()
 		})
 	})
