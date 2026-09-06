@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	ghostFTPUninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
-	ghostFTPAppPathsKey  = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
+	ghostFTPUninstallKey     = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
+	ghostFTPAppPathsKey      = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
 	moveFileDelayUntilReboot = 0x4
 )
 

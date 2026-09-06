@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.2.0 - 2026-09-06 Beta
+
+### Desktop product scope
+
+- Restricted the active application source and release contract to Windows and Linux; retired Web/PWA, Android, iOS and macOS application surfaces are not part of the 0.2.0 product.
+- Kept one shared FTP/FTPS/SFTP Engine, settings model, profile model and transfer queue across Windows and Linux.
+- Preserved English as the default/fallback language and the canonical 24-language registry for desktop and Setup surfaces.
+
+### Windows UX and Setup
+
+- Simplified the Windows workspace toward one canonical dual-pane file manager instead of presenting overlapping duplicate action layers.
+- Kept native resize, minimize, maximize, restore and DPI-aware relayout behavior and improved compact-width geometry.
+- Made protocol-specific SFTP credential controls contextual so FTP/FTPS sessions do not show irrelevant key/passphrase fields.
+- Added an integrated Installed Apps uninstall path through the installed GhostFTP.exe using `--uninstall`, without shipping a separate Uninstall.exe.
+- Portable builds reject the integrated uninstall command because only the canonical installed executable may remove installation-owned artifacts.
+- Setup now writes a real Windows Installed Apps registration with display metadata and uninstall commands, and the registration participates in rollback-safe registry snapshots.
+- Uninstall removes application-owned shortcuts/registrations and schedules the running executable for final deletion while preserving saved profiles/settings by default.
+
+### Linux parity and localization
+
+- Added a real 24-language selector to the Linux graphical Settings surface using the same normalized locale registry as Windows.
+- Moved shared desktop geometry constants out of Windows-only source so Linux compiles independently and uses the same minimum/start workspace contract.
+- Kept the native Linux X11/XWayland graphical client, headless terminal fallback and the same FTP/FTPS/SFTP operations exposed through the shared Engine.
+
+### Security, privacy and stability
+
+- Kept telemetry, analytics, advertising and external crash-reporting SDKs prohibited by fail-closed audits.
+- Preserved SFTP host-key trust/pinning, transfer path validation, local symlink/reparse protections, atomic staging/rollback protections and bounded retry/timeout settings.
+- Retained zero external Go modules and no third-party GUI framework; OS curl and OpenSSH remain explicit audited transport prerequisites.
+- Strengthened Setup rollback so App Paths and every Installed Apps value modified by 0.2.0 can be restored if installation fails before commit.
+
+### Repository, CI and release quality
+
+- Removed the retired GhostFTP WEB application tree and continued blocking Web/PWA/mobile application roots from returning to active desktop source.
+- Updated README/documentation around the Windows/Linux-only product contract, 24 languages, security/privacy boundaries and Setup/Portable behavior.
+- Continued Windows x64/x86 Setup + Portable builds and Linux amd64/arm64/i386 DEB builds from one numeric VERSION source.
+- Preserved detailed historical changelog entries instead of rewriting older release provenance.
+
 ## 0.1.1 - 2026-09-06 Beta
 
 ### Added
