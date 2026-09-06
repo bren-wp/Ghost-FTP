@@ -13,7 +13,7 @@ type protocolSpec struct {
 // Linux. Plain FTP remains available for legacy servers but is never selected
 // implicitly when protocol state is missing or invalid.
 var protocolSpecs = []protocolSpec{
-	{Value: "ftps", Port: "21"},
+	{Value: defaultConnectionProtocol, Port: "21"},
 	{Value: "sftp", Port: "22"},
 	{Value: "ftp", Port: "21"},
 	{Value: "ftpsi", Port: "990"},
