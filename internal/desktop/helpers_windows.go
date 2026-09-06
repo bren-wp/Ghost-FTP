@@ -205,12 +205,15 @@ func setListRedraw(list uintptr, enabled bool) {
 
 // fillItems is the narrow compatibility bridge used by asynchronous navigation
 // callbacks. Rendering is centralized in app.fillItemList so locale handling
-// and row construction have one authoritative implementation.
+// and row construction have one authoritative implementation. The active pane
+// sort is applied here so refresh/navigation cannot silently reset a user-selected
+// column ordering.
 func fillItems(list uintptr, items []model.Item) {
 	owner := ownerForItemList(list)
 	if owner == nil {
 		return
 	}
+	owner.sortFileItems(list, items)
 	owner.fillItemList(list, items)
 }
 
