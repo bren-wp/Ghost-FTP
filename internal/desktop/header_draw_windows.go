@@ -137,7 +137,9 @@ func headerItemText(header, itemIndex uintptr, buffer *[256]uint16) (int, bool) 
 
 // drawWorkspaceHeader owns both the background and text pixels so header
 // contrast remains deterministic even when the host Windows account uses a
-// light system theme while Ghost FTP is dark.
+// light system theme while Ghost FTP is dark. Local/Server sort direction is
+// drawn here as well so the indicator remains visible without returning any
+// part of the header to Windows default painting.
 func (a *app) drawWorkspaceHeader(lParam uintptr) uintptr {
 	d := customDrawFromLParam(lParam)
 	switch d.DrawStage {
@@ -151,9 +153,13 @@ func (a *app) drawWorkspaceHeader(lParam uintptr) uintptr {
 		var text [256]uint16
 		length, ok := headerItemText(d.Hdr.HwndFrom, d.ItemSpec, &text)
 		if ok && length > 0 {
+			descending, sorted := a.fileSortDirectionForHeader(d.Hdr.HwndFrom, int(d.ItemSpec))
 			textRect := d.Rc
 			textRect.Left += int32(a.scale(8))
 			textRect.Right -= int32(a.scale(6))
+			if sorted {
+				textRect.Right -= int32(a.scale(20))
+			}
 			setTextColor.Call(d.HDC, textColor())
 			setBkMode.Call(d.HDC, transparentBkMode)
 			oldFont := uintptr(0)
@@ -167,6 +173,24 @@ func (a *app) drawWorkspaceHeader(lParam uintptr) uintptr {
 				uintptr(unsafe.Pointer(&textRect)),
 				dtLeft|dtVCenter|dtSingleLine|dtEndEllipsis|dtNoPrefix,
 			)
+			if sorted {
+				arrow := "↑"
+				if descending {
+					arrow = "↓"
+				}
+				arrowText := syscall.StringToUTF16(arrow)
+				arrowRect := d.Rc
+				arrowRect.Left = arrowRect.Right - int32(a.scale(24))
+				arrowRect.Right -= int32(a.scale(4))
+				setTextColor.Call(d.HDC, accentColor())
+				drawTextW.Call(
+					d.HDC,
+					uintptr(unsafe.Pointer(&arrowText[0])),
+					uintptr(len(arrowText)-1),
+					uintptr(unsafe.Pointer(&arrowRect)),
+					dtCenter|dtVCenter|dtSingleLine|dtNoPrefix,
+				)
+			}
 			if oldFont != 0 {
 				selectObject.Call(d.HDC, oldFont)
 			}

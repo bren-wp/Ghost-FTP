@@ -64,6 +64,10 @@ type app struct {
 	closing              bool
 	localNavSeq          uint64
 	remoteNavSeq         uint64
+	localSortColumn      int
+	remoteSortColumn     int
+	localSortDescending  bool
+	remoteSortDescending bool
 }
 
 var apps sync.Map
@@ -275,6 +279,11 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			h := nmhdrFromLParam(lParam)
 			if h.Code == nmCustomDraw && a.isWorkspaceHeader(h.HwndFrom) {
 				return a.drawWorkspaceHeader(lParam)
+			}
+			if h.Code == lvnColumnClick && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList) {
+				n := nmListViewFromLParam(lParam)
+				a.handleFileColumnClick(h.HwndFrom, int(n.SubItem))
+				return 0
 			}
 			if h.Code == lvnItemChanged && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList || h.HwndFrom == a.transferList) {
 				a.updateActionControls()
