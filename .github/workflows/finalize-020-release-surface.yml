@@ -1,5 +1,5 @@
 name: Finalize Ghost FTP 0.2.0 release surface
-# Final desktop release/documentation/dead-code cleanup gate after helper cleanup.
+# Final desktop release/documentation/dead-code cleanup gate; workflow changes are applied separately.
 
 on:
   push:
@@ -50,9 +50,6 @@ jobs:
           path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
           PY
           python scripts/finalize_020_dead_code.py
-          # The migration rewrites two regression files from its historical
-          # template. Restore the canonical desktop-only tests committed on the
-          # branch before running the release-surface cleanup.
           git checkout HEAD -- scripts/test_runtime_hardening.py scripts/test_maintenance.py
           python - <<'PY'
           from pathlib import Path
@@ -78,13 +75,17 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -o /tmp/GhostFTP-Setup-x64.exe ./cmd/installer
           GOOS=windows GOARCH=386 go build -o /tmp/GhostFTP-x86.exe ./cmd/ghostftp
           GOOS=windows GOARCH=386 go build -o /tmp/GhostFTP-Setup-x86.exe ./cmd/installer
-      - name: Commit verified desktop release cleanup
+      - name: Commit verified non-workflow cleanup
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
+          # GitHub's Actions token cannot modify workflow files. Keep those two
+          # verified changes out of the bot commit; they are applied separately
+          # through the authorized GitHub connection after this commit lands.
+          git reset -- .github/workflows/release.yml .github/workflows/finalize-020-release-surface.yml
           git diff --cached --quiet && exit 0
-          git commit -m 'Finalize 0.2.0 canonical desktop UI and release surface'
+          git commit -m 'Finalize 0.2.0 canonical desktop UI and source cleanup'
           git push origin HEAD:work/ghostftp-0.2.0-desktop-quality
