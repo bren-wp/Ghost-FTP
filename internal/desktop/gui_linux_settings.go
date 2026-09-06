@@ -12,7 +12,7 @@ import (
 )
 
 type linuxSettingsRects struct {
-	language                    linuxRect
+	language, appearance        linuxRect
 	parallelMinus, parallelPlus linuxRect
 	retriesMinus, retriesPlus   linuxRect
 	delayMinus, delayPlus       linuxRect
@@ -43,6 +43,9 @@ func (u *linuxDesktop) openSettings() {
 		return
 	}
 	settings.Language = i18n.Normalize(settings.Language)
+	if settings.Appearance == "" {
+		settings.Appearance = model.AppearanceDark
+	}
 	u.settingsDraft = settings
 	u.settingsOpen = true
 }
@@ -98,6 +101,21 @@ func nextLanguage(code string) string {
 	return i18n.DefaultLanguage
 }
 
+func nextAppearance(current string) string {
+	if current == model.AppearanceLight {
+		return model.AppearanceDark
+	}
+	return model.AppearanceLight
+}
+
+func (u *linuxDesktop) appearanceLabel() string {
+	words := appearanceText(u.settingsDraft.Language)
+	if u.settingsDraft.Appearance == model.AppearanceLight {
+		return words.Light
+	}
+	return words.Dark
+}
+
 func (u *linuxDesktop) saveSettings() {
 	u.settingsDraft.Language = i18n.Normalize(u.settingsDraft.Language)
 	saved, err := u.engine.SetSettings(u.settingsDraft)
@@ -108,7 +126,11 @@ func (u *linuxDesktop) saveSettings() {
 	u.settingsDraft = saved
 	u.language = i18n.Normalize(saved.Language)
 	u.closeSettings()
-	u.setStatus(u.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, linuxRetrySummary(u, saved), linuxConflictSummary(u, saved)))
+	status := u.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, linuxRetrySummary(u, saved), linuxConflictSummary(u, saved))
+	if isDarkAppearance(saved.Appearance) != activeThemeIsDark() {
+		status += " · " + appearanceText(saved.Language).Hint
+	}
+	u.setStatus(status)
 }
 
 func linuxRetrySummary(u *linuxDesktop, settings model.Settings) string {
@@ -144,6 +166,10 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 	r := u.settingsRects
 	if r.language.contains(x, y) {
 		u.settingsDraft.Language = nextLanguage(u.settingsDraft.Language)
+		return true
+	}
+	if r.appearance.contains(x, y) {
+		u.settingsDraft.Appearance = nextAppearance(u.settingsDraft.Appearance)
 		return true
 	}
 	if u.settingsStep(r.parallelMinus, r.parallelPlus, x, y, &u.settingsDraft.Parallelism, config.MinParallelism, config.MaxParallelism, 1) {
@@ -221,7 +247,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return nil
 	}
 	width := min(700, u.width-100)
-	height := 486
+	height := 538
 	left := (u.width - width) / 2
 	top := (u.height - height) / 2
 	panel := linuxRectWH(left, top, width, height)
@@ -245,7 +271,21 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	if err := u.drawButton(u.settingsRects.language, linuxTrimForUI(languageLabel, 30), true, false); err != nil {
 		return err
 	}
-	row += 45
+
+	row += 43
+	appearance := appearanceText(u.settingsDraft.Language)
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(appearance.Title, 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
+		return err
+	}
+	u.settingsRects.appearance = linuxRectWH(left+width-246, row, 230, 30)
+	if err := u.drawButton(u.settingsRects.appearance, linuxTrimForUI(u.appearanceLabel(), 30), true, false); err != nil {
+		return err
+	}
+	if err := u.x.text(left+24, row+40, linuxTrimForUI(appearance.Hint, 88), premiumTheme.Muted, premiumTheme.Panel); err != nil {
+		return err
+	}
+
+	row += 56
 	if err := u.drawSettingStepper(u.draftTr("settings.parallel"), u.settingsDraft.Parallelism, row, &u.settingsRects.parallelMinus, &u.settingsRects.parallelPlus); err != nil {
 		return err
 	}
