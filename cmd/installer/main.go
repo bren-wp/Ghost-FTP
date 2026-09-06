@@ -309,10 +309,6 @@ func cleanupLegacyUninstaller(dir string) string {
 		warnings = append(warnings, "The legacy Uninstall.exe path could not be checked safely.")
 	}
 
-	if err := platform.DeleteRegistryKey(uninstallKey); err != nil {
-		warnings = append(warnings, "The legacy Windows uninstall registry entry could not be removed.")
-	}
-
 	if len(warnings) == 0 {
 		return ""
 	}
@@ -478,6 +474,15 @@ func runInstaller() (exitCode int) {
 		showInstallError(
 			"Setup did not finish",
 			"Windows could not finish registering the application. Try again."+extra,
+		)
+		return 1
+	}
+
+	if err := registerIntegratedUninstall(appPath, version); err != nil {
+		extra := rollbackMessage()
+		showInstallError(
+			"Setup did not finish",
+			"Windows could not register the Installed Apps uninstall entry. Try again."+extra,
 		)
 		return 1
 	}

@@ -185,6 +185,7 @@ func (a *app) applyLanguage(code string) {
 	}
 	a.setButtonLabel(a.saveProfile, a.tr("profile.save"))
 	a.setButtonLabel(a.removeProfile, a.tr("profile.delete"))
+	a.setButtonLabel(a.siteManagerBtn, nativeMenuWords(a.languageCode())[5])
 	a.setButtonLabel(a.settingsBtn, a.tr("common.settings"))
 	a.setButtonLabel(a.aboutBtn, a.tr("common.about"))
 	a.setButtonLabel(a.connect, a.tr("common.connect"))

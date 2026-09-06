@@ -7,10 +7,15 @@ on:
         description: 'Optional version guard; must equal VERSION'
         required: false
         type: string
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+      - .github/workflows/release.yml
 
 permissions:
   contents: write
-  packages: write
 
 concurrency:
   group: ghostftp-release
@@ -50,16 +55,17 @@ jobs:
           test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
           go test -race ./...
           go vet ./...
+          python scripts/generate_brand_assets.py --check
           python scripts/audit_brand_hardcut.py
           python scripts/audit_repository.py
           python scripts/audit_platform_contract.py
+          python scripts/audit_desktop_surface.py
           python scripts/audit_dependencies.py
           python scripts/audit_version.py
           python scripts/audit_localization.py
           python scripts/audit_security.py
           python scripts/audit_privacy.py
           python scripts/audit_docs.py
-          python scripts/audit_web.py
           python scripts/audit_release.py
           python -m unittest discover -s scripts -p 'test_*.py'
 
@@ -88,7 +94,9 @@ jobs:
         shell: pwsh
         run: |
           go telemetry off
-          if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
+          if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') {
+            throw 'Go telemetry is not disabled.'
+          }
       - name: Prepare protected Authenticode identity
         id: signing
         shell: pwsh
@@ -108,7 +116,6 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
             throw 'GHOSTFTP_SIGNING_PFX_BASE64 is configured but GHOSTFTP_SIGNING_PASSWORD is missing.'
           }
-
           try {
             $bytes = [Convert]::FromBase64String($env:PFX_BASE64)
           }
@@ -118,7 +125,6 @@ jobs:
           if ($bytes.Length -lt 256) {
             throw 'Decoded Authenticode PFX is unexpectedly small.'
           }
-
           $pfx = Join-Path $env:RUNNER_TEMP 'ghostftp-release-signing.pfx'
           [IO.File]::WriteAllBytes($pfx, $bytes)
           "GHOSTFTP_SIGNING_PFX_PATH=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -234,7 +240,6 @@ jobs:
           if [[ -n "$manual" ]]; then version="$manual"; else version="$source_version"; fi
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
           test "$version" = "$source_version"
-
           major="${version%%.*}"
           if [[ "$major" = '0' ]]; then
             release_channel='beta'
@@ -244,12 +249,10 @@ jobs:
             release_title="Ghost FTP $version"
             test "$WINDOWS_SIGNING_STATE" = 'signed' || { echo 'Stable Windows releases require a configured trusted Authenticode identity.' >&2; exit 1; }
           fi
-
           case "$WINDOWS_SIGNING_STATE" in
             signed|unsigned) ;;
             *) echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2; exit 1 ;;
           esac
-
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"
@@ -257,22 +260,24 @@ jobs:
           echo "RELEASE_TITLE=$release_title" >> "$GITHUB_ENV"
       - name: Download Windows
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: ghostftp-windows-stage, path: staging/windows }
+        with:
+          name: ghostftp-windows-stage
+          path: staging/windows
       - name: Download Linux
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
-        with: { name: ghostftp-linux-stage, path: staging/linux }
-      - name: Assemble public release and NuGet package
+        with:
+          name: ghostftp-linux-stage
+          path: staging/linux
+      - name: Assemble public Windows and Linux release
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release packages-out
-
+          mkdir -p release
           cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x64.exe" "release/Ghost-FTP-${VERSION}-Setup-x64.exe"
           cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x86.exe"
           cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x32.exe"
           cp "staging/windows/Ghost-FTP-${VERSION}-Portable-x64.exe" "release/Ghost-FTP-${VERSION}-Portable-x64.exe"
           cp "staging/windows/Ghost-FTP-${VERSION}-Portable-x86.exe" "release/Ghost-FTP-${VERSION}-Portable-x86.exe"
-
           for arch in amd64 arm64 i386; do
             cp "staging/linux/Ghost-FTP-${VERSION}-Linux-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-${arch}.deb"
           done
@@ -283,13 +288,6 @@ jobs:
               "Ghost-FTP-${VERSION}-Linux-arm64.deb" \
               "Ghost-FTP-${VERSION}-Linux-i386.deb"
           )
-
-          python scripts/package_nuget.py \
-            --x64 "staging/windows/Ghost-FTP-${VERSION}-Portable-x64.exe" \
-            --x86 "staging/windows/Ghost-FTP-${VERSION}-Portable-x86.exe" \
-            --output-dir packages-out
-          test -s "packages-out/GhostFTP.${VERSION}.nupkg"
-
           python scripts/release_notes.py --version "$VERSION" --output release/RELEASE-NOTES.txt
           cat > release/BUILD-METADATA.txt <<EOF
           BRAND=Ghost FTP
@@ -311,7 +309,6 @@ jobs:
           PUBLIC_RELEASE_FILES=12
           EOF
           sed -i 's/^          //' release/BUILD-METADATA.txt
-
           (
             cd release
             find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs sha256sum > SHA256.txt
@@ -319,7 +316,7 @@ jobs:
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
           test "$count" = '12'
           test "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x86.exe" | awk '{print $1}')" = "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x32.exe" | awk '{print $1}')"
-      - name: Publish GitHub Release and GhostFTP package
+      - name: Publish verified GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -328,55 +325,57 @@ jobs:
           repo="$GITHUB_REPOSITORY"
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
-          command -v dotnet >/dev/null || { echo 'dotnet CLI is required for NuGet publication' >&2; exit 1; }
 
           prerelease_args=()
           if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
             prerelease_args+=(--prerelease)
           fi
 
-          if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
-            tag_sha="$(git rev-list -n 1 "$RELEASE_TAG" 2>/dev/null || true)"
-            if [[ -z "$tag_sha" ]]; then
-              git fetch --tags --force
-              tag_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
-            fi
+          git fetch --tags --force
+          if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
+            tag_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
             test "$tag_sha" = "$GITHUB_SHA" || { echo "Existing $RELEASE_TAG points to $tag_sha, not $GITHUB_SHA; refusing to rewrite it." >&2; exit 1; }
+          fi
+
+          if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" release/* --repo "$repo" --clobber
-            gh release edit "$RELEASE_TAG" --repo "$repo" --title "$RELEASE_TITLE" --notes-file release/RELEASE-NOTES.txt
           else
-            gh release create "$RELEASE_TAG" release/* --repo "$repo" --target "$GITHUB_SHA" --title "$RELEASE_TITLE" --notes-file release/RELEASE-NOTES.txt "${prerelease_args[@]}"
+            gh release create "$RELEASE_TAG" release/* \
+              --repo "$repo" \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release/RELEASE-NOTES.txt \
+              "${prerelease_args[@]}"
           fi
 
-          release_id="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .id)"
-          if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
-            gh api --method PATCH "repos/$repo/releases/$release_id" -F prerelease=true -f name="$RELEASE_TITLE" >/dev/null
-          else
-            gh api --method PATCH "repos/$repo/releases/$release_id" -F prerelease=false -f name="$RELEASE_TITLE" >/dev/null
-          fi
-
-          dotnet nuget push "packages-out/GhostFTP.${VERSION}.nupkg" \
-            --api-key "$GH_TOKEN" \
-            --source "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json" \
-            --skip-duplicate
-
-          package_versions="$(gh api "/users/${GITHUB_REPOSITORY_OWNER}/packages/nuget/GhostFTP/versions" --jq '.[].name')"
-          grep -Fx "$VERSION" <<< "$package_versions"
-          echo "GITHUB_PACKAGE_READBACK=PASS (GhostFTP $VERSION; channel=$RELEASE_CHANNEL)"
+          expected_assets="$(cat <<EOF
+          BUILD-METADATA.txt
+          Ghost-FTP-${VERSION}-Linux-amd64.deb
+          Ghost-FTP-${VERSION}-Linux-arm64.deb
+          Ghost-FTP-${VERSION}-Linux-i386.deb
+          Ghost-FTP-${VERSION}-Linux-multiarch.zip
+          Ghost-FTP-${VERSION}-Portable-x64.exe
+          Ghost-FTP-${VERSION}-Portable-x86.exe
+          Ghost-FTP-${VERSION}-Setup-x32.exe
+          Ghost-FTP-${VERSION}-Setup-x64.exe
+          Ghost-FTP-${VERSION}-Setup-x86.exe
+          RELEASE-NOTES.txt
+          SHA256.txt
+          EOF
+          )"
+          expected_assets="$(sed 's/^          //' <<< "$expected_assets" | LC_ALL=C sort)"
 
           assert_release_asset_set() {
             phase="$1"
-            local_manifest="$(mktemp)"
-            remote_manifest="$(mktemp)"
+            remote_assets="$(gh release view "$RELEASE_TAG" --repo "$repo" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
+            test "$remote_assets" = "$expected_assets" || {
+              echo "GitHub Release asset set mismatch during $phase verification." >&2
+              diff -u <(printf '%s\n' "$expected_assets") <(printf '%s\n' "$remote_assets") || true
+              exit 1
+            }
             readback_dir="$(mktemp -d)"
-            trap 'rm -f "$local_manifest" "$remote_manifest"; rm -rf "$readback_dir"' RETURN
-            find release -maxdepth 1 -type f -printf '%f\t%s\n' | LC_ALL=C sort > "$local_manifest"
-            gh release view "$RELEASE_TAG" --repo "$repo" --json assets \
-              --jq '.assets[] | [.name, (.size | tostring)] | @tsv' | LC_ALL=C sort > "$remote_manifest"
-            diff -u "$local_manifest" "$remote_manifest"
-            gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir"
+            gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir" --clobber
             cmp release/SHA256.txt "$readback_dir/SHA256.txt"
-
             remote_prerelease="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)"
             if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
               test "$remote_prerelease" = 'true'
@@ -391,12 +390,10 @@ jobs:
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved before delayed release verification" >&2; exit 1; }
           assert_release_asset_set delayed
-      - name: Store complete release artifact
+      - name: Store verified release bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ghostftp-${{ steps.version.outputs.version }}-complete-release
+          name: ghostftp-release-${{ steps.version.outputs.version }}
           if-no-files-found: error
           retention-days: 30
-          path: |
-            release/*
-            packages-out/GhostFTP.*.nupkg
+          path: release/*

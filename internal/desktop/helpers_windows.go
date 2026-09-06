@@ -67,12 +67,7 @@ func (a *app) setStatus(text string) {
 	if len(text) > maxStatusChars {
 		text = text[:maxStatusChars] + "…"
 	}
-	a.statusLog = append(a.statusLog, time.Now().Format("15:04:05")+"    "+text)
-	const maxLogLines = 8
-	if len(a.statusLog) > maxLogLines {
-		a.statusLog = append([]string(nil), a.statusLog[len(a.statusLog)-maxLogLines:]...)
-	}
-	setText(a.status, strings.Join(a.statusLog, "\r\n"))
+	setText(a.status, text)
 }
 
 func setText(hwnd uintptr, text string) {
@@ -209,16 +204,11 @@ func setListRedraw(list uintptr, enabled bool) {
 }
 
 // fillItems is the narrow compatibility bridge used by asynchronous navigation
-// callbacks. Rendering itself remains centralized in app.fillItemList so the
-// active locale and remote-search model cannot drift from the visible rows.
+// callbacks. Rendering is centralized in app.fillItemList so locale handling
+// and row construction have one authoritative implementation.
 func fillItems(list uintptr, items []model.Item) {
 	owner := ownerForItemList(list)
 	if owner == nil {
-		return
-	}
-	if list == owner.remoteList {
-		owner.remoteAllItems = append(owner.remoteAllItems[:0], items...)
-		owner.applyRemoteSearch()
 		return
 	}
 	owner.fillItemList(list, items)

@@ -1,10 +1,25 @@
 package desktop
 
+// Canonical desktop geometry primitives. Linux uses these values directly and
+// Windows applies its own DPI scaling around the same minimum workspace model.
+// Keeping them outside a platform build tag prevents Win/Linux UI drift and
+// ensures the Linux GUI can be compiled independently in CI.
+const (
+	premiumStartWidth  = 1280
+	premiumStartHeight = 820
+	premiumMinWidth    = 940
+	premiumMinHeight   = 680
+	premiumOuterGap    = 14
+	premiumPanelGap    = 12
+)
+
 // PremiumTheme is the canonical cross-platform Ghost FTP desktop palette.
-// The values intentionally mirror the maintained Ghost FTP Web design tokens
-// so Windows, Linux and the web companion present one coherent product brand.
+// Windows and Linux use the same restrained dark surfaces, high-contrast text,
+// accessible state colors and selection treatment. The palette is owned by the
+// desktop product and does not depend on a browser runtime, remote stylesheet,
+// external font, theme service or third-party GUI framework.
 //
-// Web source of truth (GhostFTP WEB/assets/css/app.css):
+// Canonical palette:
 //
 //	bg       #080A0F   surface   #0F131C   surface-2 #151A25
 //	line     #252D3C   text      #F4F7FF   muted     #8E99AD
@@ -35,29 +50,16 @@ type RGB struct {
 }
 
 var premiumTheme = PremiumTheme{
-	Window:       RGB{R: 8, G: 10, B: 15},     // #080A0F -- --bg
-	Panel:        RGB{R: 15, G: 19, B: 28},    // #0F131C -- --surface
-	List:         RGB{R: 21, G: 26, B: 37},    // #151A25 -- --surface-2
-	Border:       RGB{R: 37, G: 45, B: 60},    // #252D3C -- --line
-	Text:         RGB{R: 244, G: 247, B: 255}, // #F4F7FF -- --text
-	Muted:        RGB{R: 142, G: 153, B: 173}, // #8E99AD -- --muted
-	Accent:       RGB{R: 82, G: 119, B: 245},  // #5277F5 -- --accent
-	AccentStrong: RGB{R: 114, G: 147, B: 255}, // #7293FF -- --accent-2
-	Success:      RGB{R: 74, G: 215, B: 155},  // #4AD79B -- --success
-	Warn:         RGB{R: 242, G: 186, B: 85},  // #F2BA55 -- --warning
-	Danger:       RGB{R: 255, G: 100, B: 118}, // #FF6476 -- --danger
-	Selection:    RGB{R: 27, G: 35, B: 58},    // accent at ~10% over surface-2
+	Window:       RGB{0x08, 0x0A, 0x0F},
+	Panel:        RGB{0x0F, 0x13, 0x1C},
+	List:         RGB{0x15, 0x1A, 0x25},
+	Border:       RGB{0x25, 0x2D, 0x3C},
+	Text:         RGB{0xF4, 0xF7, 0xFF},
+	Muted:        RGB{0x8E, 0x99, 0xAD},
+	Accent:       RGB{0x52, 0x77, 0xF5},
+	AccentStrong: RGB{0x72, 0x93, 0xFF},
+	Success:      RGB{0x4A, 0xD7, 0x9B},
+	Warn:         RGB{0xF2, 0xBA, 0x55},
+	Danger:       RGB{0xFF, 0x64, 0x76},
+	Selection:    RGB{0x1D, 0x2A, 0x4A},
 }
-
-// Shared desktop layout metrics are expressed in logical 96-DPI pixels. The
-// Windows layer scales them for DPI; Linux X11/XWayland uses actual window
-// pixels and keeps the same proportions. Radii follow the Web token contract.
-const (
-	premiumMinWidth    = 1080
-	premiumMinHeight   = 700
-	premiumStartWidth  = 1200
-	premiumStartHeight = 780
-	premiumOuterGap    = 18
-	premiumPanelGap    = 12
-	premiumRadius      = 16
-)

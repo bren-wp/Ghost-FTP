@@ -109,7 +109,6 @@ func (a *app) refreshRemote(p string) {
 				return
 			}
 			a.remoteCurrent = cleanRemote(target)
-			a.remoteAllItems = append(a.remoteAllItems[:0], items...)
 			a.remoteItems = append(a.remoteItems[:0], items...)
 			setText(a.remotePath, a.remoteCurrent)
 			fillItems(a.remoteList, a.remoteItems)

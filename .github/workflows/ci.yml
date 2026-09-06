@@ -62,17 +62,17 @@ jobs:
           python scripts/audit_brand_hardcut.py
           python scripts/audit_repository.py
           python scripts/audit_platform_contract.py
+          python scripts/audit_desktop_surface.py
           python scripts/audit_dependencies.py
           python scripts/audit_version.py
           python scripts/audit_localization.py
-      - name: Security, privacy, docs and companion-web audits
+      - name: Security, privacy, documentation and release audits
         shell: bash
         run: |
           set -euo pipefail
           python scripts/audit_security.py
           python scripts/audit_privacy.py
           python scripts/audit_docs.py
-          python scripts/audit_web.py
           python scripts/audit_release.py
       - name: Python regression suite
         shell: bash

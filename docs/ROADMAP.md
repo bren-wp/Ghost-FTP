@@ -1,6 +1,6 @@
 # Roadmap
 
-Ghost FTP is currently on the **0.x Beta** development line, beginning at **0.1.0 Beta**. Product development remains focused on **Windows and Linux**, with reliability, security, protocol correctness, parity and professional usability taking priority over expanding the number of application platforms.
+Ghost FTP is currently on **0.2.0 Beta**, within the `0.x` development line that began at 0.1.0. Product development remains focused on **Windows and Linux**, with reliability, security, protocol correctness, parity and professional usability taking priority over expanding the number of application platforms.
 
 The first stable milestone is **1.0.0**. Reaching it requires the maintained product and release pipeline to be complete and stable as a whole; it is not triggered merely by finishing one feature.
 
@@ -123,7 +123,7 @@ At minimum:
 - keep every new shared-core connection/transfer option accessible from Linux where appropriate;
 - improve terminal discoverability/help and structured status output;
 - expose additional local/profile workflows where they can reuse shared engine methods;
-- consider a native/lightweight Linux graphical frontend only if it meets dependency, security, reproducibility and maintenance requirements without forking protocol logic.
+- continue refining the existing dependency-free native Linux graphical frontend without forking protocol logic or weakening the terminal fallback.
 
 ### Localization
 
@@ -147,9 +147,6 @@ The desktop/core Go module should remain standard-library-only unless a reviewed
 
 Current OS-provided transport tools (`curl`, `ssh`, `sftp`) are explicit prerequisites. Replacing them with embedded protocol stacks is not a cosmetic dependency change; it would require protocol-level security review, compatibility testing, license/provenance review and a migration plan.
 
-## Web companion
-
-The existing shared-hosting Web companion remains a separate source surface. Work may continue on its PHP/PWA security, localization and hosting compatibility, but it is not part of the Windows/Linux desktop artifact matrix.
 
 ## Out of scope for the active Beta line
 
