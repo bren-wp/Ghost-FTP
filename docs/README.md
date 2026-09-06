@@ -1,10 +1,10 @@
 # Ghost FTP documentation
 
-**Current Ghost FTP release: 1.0.0**  
-Development status: **Stable**  
-Platforms: **Windows and Linux**  
-Protocols: **FTP, FTPS and SFTP**  
-Languages: **24 selectable local languages**
+- **Current Ghost FTP release: 1.0.0**
+- Development status: **Stable**
+- Platforms: **Windows and Linux**
+- Protocols: **FTP, FTPS and SFTP**
+- Languages: **24 selectable local languages**
 
 This directory contains the maintained engineering, operations, privacy, security, release and user documentation for Ghost FTP. The root [`VERSION`](../VERSION) file is the authoritative production version source.
 
