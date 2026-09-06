@@ -41,4 +41,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/finalize_0_2_1.py')
+          text = p.read_text(encoding='utf-8')
+          local_line = "        ('u.openPrompt(linuxPromptLocalMkdir, \"New local folder\", \"New folder\")', 'u.openPrompt(linuxPromptLocalMkdir, u.tr(\"common.new_folder\")+\" · \"+u.tr(\"section.local\"), u.tr(\"common.new_folder\"))'),\n"
+          remote_line = "        ('u.openPrompt(linuxPromptRemoteMkdir, \"New server folder\", \"New folder\")', 'u.openPrompt(linuxPromptRemoteMkdir, u.tr(\"common.new_folder\")+\" · \"+u.tr(\"section.remote\"), u.tr(\"common.new_folder\"))'),\n"
+          if text.count(local_line) != 1 or text.count(remote_line) != 1:
+              raise SystemExit('migration target fix guard failed')
+          text = text.replace(local_line, '', 1).replace(remote_line, '', 1)
+          needle = 'replace_all_checked(\n    "internal/desktop/gui_linux_actions.go",\n'
+          if text.count(needle) != 1:
+              raise SystemExit('migration insertion guard failed')
+          block = '''replace_all_checked(\n    "internal/desktop/gui_linux.go",\n    [\n        ('u.openPrompt(linuxPromptLocalMkdir, "New local folder", "New folder")', 'u.openPrompt(linuxPromptLocalMkdir, u.tr("common.new_folder")+" · "+u.tr("section.local"), u.tr("common.new_folder"))'),\n        ('u.openPrompt(linuxPromptRemoteMkdir, "New server folder", "New folder")', 'u.openPrompt(linuxPromptRemoteMkdir, u.tr("common.new_folder")+" · "+u.tr("section.remote"), u.tr("common.new_folder"))'),\n    ],\n)\n\n'''
+          text = text.replace(needle, block + needle, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
           python scripts/finalize_0_2_1.py
