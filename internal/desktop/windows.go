@@ -12,6 +12,7 @@ import (
 
 	"github.com/bren-wp/Ghost-FTP/internal/api"
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
@@ -80,6 +81,12 @@ func Run(engine *api.Engine, version string) error {
 	icc := initCommonControls{Size: uint32(unsafe.Sizeof(initCommonControls{})), ICC: 0x00000001 | 0x00004000}
 	_, _, _ = initCommonControlsEx.Call(uintptr(unsafe.Pointer(&icc)))
 
+	startupSettings, settingsErr := engine.Settings()
+	if settingsErr != nil {
+		startupSettings = config.DefaultSettings()
+	}
+	setActiveTheme(startupSettings.Appearance)
+
 	hinst, _, _ := getModuleHandleW.Call(0)
 	cursor, _, _ := loadCursorW.Call(0, 32512)
 	icon, _, _ := loadIconW.Call(hinst, 1)
@@ -109,7 +116,7 @@ func Run(engine *api.Engine, version string) error {
 	a := &app{
 		engine: engine, version: version, remoteCurrent: "/", seenDone: map[string]bool{},
 		brush: brush, panelBrush: panelBrush, buttons: make(map[uintptr]buttonVisual),
-		settings: model.Settings{Language: "en"},
+		settings: startupSettings,
 	}
 	hwnd, _, err := createWindowExW.Call(
 		0,
@@ -170,9 +177,15 @@ func Run(engine *api.Engine, version string) error {
 		defer destroyAcceleratorTable.Call(accelTable)
 	}
 	a.loadProfiles()
-	a.loadSettings()
+	if settingsErr != nil {
+		a.setStatus(a.userMessage(settingsErr, "settings.load_failed"))
+	} else {
+		a.loadSettings()
+	}
 	a.refreshLocal("")
-	a.setStatus(a.tr("status.ready"))
+	if settingsErr == nil {
+		a.setStatus(a.tr("status.ready"))
+	}
 
 	var m msg
 	for {

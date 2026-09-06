@@ -14,15 +14,17 @@ func styleWorkspaceList(list uintptr) {
 	if list == 0 {
 		return
 	}
-	setWindowTheme.Call(list, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
+	applyDarkControl(list, "SysListView32")
 	sendMessageW.Call(list, lvmSetBkColor, 0, listColor())
 	sendMessageW.Call(list, lvmSetTextBkColor, 0, listColor())
 	sendMessageW.Call(list, lvmSetTextColor, 0, textColor())
 	header, _, _ := sendMessageW.Call(list, workspaceLVMGetHeader, 0, 0)
 	if header != 0 {
-		// Immersive dark mode is enabled before controls are created, allowing
-		// ItemsView to render a dark column header with readable system text.
-		setWindowTheme.Call(header, uintptr(unsafe.Pointer(wstr("DarkMode_ItemsView"))), 0)
+		if activeThemeIsDark() {
+			setWindowTheme.Call(header, uintptr(unsafe.Pointer(wstr("DarkMode_ItemsView"))), 0)
+		} else {
+			setWindowTheme.Call(header, 0, 0)
+		}
 	}
 }
 

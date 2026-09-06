@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.1.0 - 2026-09-07 Stable
+
+### Appearance and desktop quality
+
+- Added **Classic Light** as a restrained, professional light appearance inspired by traditional two-pane FTP clients while retaining Ghost FTP branding, icons and assets.
+- Kept appearance configuration intentionally compact: Dark and Classic Light are one canonical choice rather than duplicated background/accent/control toggles.
+- Hardened native Windows appearance handling so title bar, menus, combo boxes, list views, headers and owner-drawn buttons do not mix incompatible dark/light surfaces.
+- Added appearance model/config migration and validation with regression coverage for missing or invalid persisted values.
+- Updated authentic production UI screenshot evidence from the real Windows x64 Portable build.
+
+### Security and stability
+
+- Added explicit SFTP protected-secret ownership so session-owned Linux broker secrets are forgotten on close while borrowed profile credentials remain valid for reconnect.
+- Added constructor failure cleanup for session-owned SFTP password/passphrase blobs.
+- Hardened pending SFTP host-key trust credential ownership and cleanup across cancel, expiry, mismatch, replacement, disconnect and abandoned connection setup paths.
+- Preserved the credential captured for the confirmed trust attempt instead of allowing a stale re-resolved profile blob to silently take precedence.
+- Added Linux regression coverage for owned/borrowed secret lifetime and pending trust cleanup.
+- Preserved host-key verification, FTPS certificate validation, path/symlink/reparse protections and no secure-to-plain protocol downgrade.
+
+### Release and documentation
+
+- Bumped the maintained stable line to **Ghost FTP 1.1.0** without moving or rewriting `ghostftp-v1.0.0`.
+- Updated README, settings/UI documentation, release history and verification guidance for the 1.1.0 appearance and security contract.
+- Continued the 9-platform-artifact / 12-public-file Windows/Linux release contract.
+- Production Authenticode remains optional and fail-closed when configured; unsigned Windows builds remain explicitly identified rather than using a self-signed production identity.
+- No telemetry, analytics, advertising, tracking, hidden network service or new external Go module dependency was added.
+
+### Required verification
+
+The 1.1.0 stable candidate must pass before publication:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- Go formatting checks;
+- repository/platform/desktop/dependency/version/localization/security/privacy/docs/release audits;
+- full Python regression suite;
+- Windows x64/x86 Setup + Portable production builds and artifact verification;
+- Linux amd64/arm64/i386 production builds and DEB verification;
+- Authenticode pipeline verification under the configured signing policy;
+- GitHub Release, tag and GHCR read-back after publication.
+
 ## 1.0.0 - 2026-09-06 Stable
 
 ### First stable release
@@ -97,4 +138,4 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 
 ## Historical engineering history
 
-Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.0.0 Stable Windows/Linux contract.
+Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.0 Stable Windows/Linux contract.

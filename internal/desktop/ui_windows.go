@@ -337,13 +337,23 @@ func (a *app) resizeListColumns() {
 
 func applyDarkTitleBar(hwnd uintptr) {
 	enableImmersiveDarkMode(hwnd)
-	value := int32(1)
+	value := int32(0)
+	if activeThemeIsDark() {
+		value = 1
+	}
 	_, _, _ = dwmSetWindowAttribute.Call(hwnd, 20, uintptr(unsafe.Pointer(&value)), unsafe.Sizeof(value))
 }
 
 func applyDarkControl(hwnd uintptr, class string) {
+	if hwnd == 0 {
+		return
+	}
+	if !activeThemeIsDark() {
+		setWindowTheme.Call(hwnd, 0, 0)
+		return
+	}
 	switch class {
-	case "SysListView32", "BUTTON":
+	case "SysListView32", "LISTBOX", "BUTTON":
 		setWindowTheme.Call(hwnd, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
 	case "COMBOBOX", "EDIT":
 		setWindowTheme.Call(hwnd, uintptr(unsafe.Pointer(wstr("DarkMode_CFD"))), 0)

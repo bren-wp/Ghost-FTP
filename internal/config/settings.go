@@ -38,6 +38,7 @@ func NewSettings(s *Store) *SettingsStore { return &SettingsStore{store: s} }
 func DefaultSettings() model.Settings {
 	return model.Settings{
 		Language:                 i18n.DefaultLanguage,
+		Appearance:               model.AppearanceDark,
 		Parallelism:              DefaultParallelism,
 		ConflictPolicy:           model.ConflictPolicyReplaceBackup,
 		BackupBeforeOverwrite:    true,
@@ -45,6 +46,15 @@ func DefaultSettings() model.Settings {
 		AutoRetryCount:           DefaultAutoRetryCount,
 		RetryDelaySeconds:        DefaultRetryDelaySeconds,
 		ConnectionTimeoutSeconds: DefaultConnectionTimeoutSeconds,
+	}
+}
+
+func validAppearance(appearance string) bool {
+	switch appearance {
+	case model.AppearanceDark, model.AppearanceLight:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -96,6 +106,9 @@ func migrateConflictPolicy(v model.Settings, persisted bool) model.Settings {
 
 func normalizeSettings(v model.Settings) model.Settings {
 	v.Language = i18n.Normalize(v.Language)
+	if !validAppearance(v.Appearance) {
+		v.Appearance = model.AppearanceDark
+	}
 	if v.Parallelism < MinParallelism || v.Parallelism > MaxParallelism {
 		v.Parallelism = DefaultParallelism
 	}
@@ -114,6 +127,9 @@ func normalizeSettings(v model.Settings) model.Settings {
 func validateSettings(v model.Settings) error {
 	if !i18n.IsSupported(v.Language) {
 		return errors.New("unsupported language")
+	}
+	if !validAppearance(v.Appearance) {
+		return errors.New("appearance must be dark or light")
 	}
 	if v.Parallelism < MinParallelism || v.Parallelism > MaxParallelism {
 		return errors.New("parallel transfers must be between 1 and 8")
@@ -170,6 +186,9 @@ func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 	// legacy overwrite booleans are converted into the canonical policy.
 	if v.Language == "" {
 		v.Language = i18n.DefaultLanguage
+	}
+	if v.Appearance == "" {
+		v.Appearance = model.AppearanceDark
 	}
 	if v.ConnectionTimeoutSeconds == 0 {
 		v.ConnectionTimeoutSeconds = DefaultConnectionTimeoutSeconds

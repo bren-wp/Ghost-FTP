@@ -8,6 +8,34 @@ import (
 )
 
 func buttonColors(v buttonVariant, pressed, disabled bool) (bg, border, fg uintptr) {
+	if !activeThemeIsDark() {
+		if disabled {
+			return rgb(241, 243, 245), rgb(213, 217, 224), rgb(152, 162, 179)
+		}
+		switch v {
+		case buttonAccent:
+			if pressed {
+				return accentStrongColor(), rgb(31, 66, 158), rgb(255, 255, 255)
+			}
+			return accentColor(), rgb(52, 85, 191), rgb(255, 255, 255)
+		case buttonDanger:
+			if pressed {
+				return rgb(245, 194, 199), rgb(166, 27, 27), rgb(127, 29, 29)
+			}
+			return rgb(253, 236, 238), rgb(214, 96, 96), rgb(153, 27, 27)
+		case buttonSubtle:
+			if pressed {
+				return selectionColor(), accentColor(), textColor()
+			}
+			return panelColor(), borderColor(), mutedColor()
+		default:
+			if pressed {
+				return selectionColor(), accentColor(), textColor()
+			}
+			return panelColor(), borderColor(), textColor()
+		}
+	}
+
 	if disabled {
 		return rgb(7, 24, 38), rgb(24, 48, 67), rgb(82, 111, 146)
 	}

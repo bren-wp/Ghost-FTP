@@ -84,17 +84,15 @@ func (a *app) refineBrandHeader() {
 }
 
 func styleWorkspaceCombos(combos ...uintptr) {
-	theme := uintptr(unsafe.Pointer(wstr("DarkMode_CFD")))
 	for _, combo := range combos {
-		if combo != 0 {
-			setWindowTheme.Call(combo, theme, 0)
-		}
+		applyDarkControl(combo, "COMBOBOX")
 	}
 }
 
 // stabilizeWorkspaceChrome is intentionally idempotent because state changes
-// and resizes both flow through refineWorkspaceLayout. It prevents a disabled
-// list-view from reverting to the bright system background while disconnected.
+// and resizes both flow through refineWorkspaceLayout. It keeps native child
+// controls aligned with the active Ghost FTP appearance on both light and dark
+// Windows desktops without duplicating theme state per control.
 func (a *app) stabilizeWorkspaceChrome() {
 	if a == nil {
 		return
@@ -102,14 +100,13 @@ func (a *app) stabilizeWorkspaceChrome() {
 	styleWorkspaceCombos(a.languageCombo, a.profilesCombo, a.protocol)
 	for _, list := range []uintptr{a.localList, a.remoteList, a.transferList} {
 		// Native Header controls notify their immediate ListView parent. Install
-		// that route before applying the dark list theme so header text and fill
-		// stay under Ghost FTP control on both light and dark Windows desktops.
+		// that route before applying the list theme so header text and fill stay
+		// under Ghost FTP control in either supported appearance.
 		installWorkspaceHeaderDraw(a, list)
 		styleWorkspaceList(list)
 	}
 	// Remote operations remain disabled by updateActionControls. The list itself
-	// stays enabled so Windows does not replace the dark list surface with the
-	// disabled light theme seen on disconnected workspaces.
+	// stays enabled so Windows does not substitute its disabled-control palette.
 	setControlEnabled(a.remoteList, true)
 	a.refineBrandHeader()
 }
