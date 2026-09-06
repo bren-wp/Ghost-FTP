@@ -142,7 +142,7 @@ func (a *app) openSettings() {
 	}
 	settings := a.settings
 	if settings.Appearance == "" {
-		settings.Appearance = model.AppearanceDark
+		settings.Appearance = model.AppearanceLight
 	}
 	if settings.Parallelism < 1 {
 		settings.Parallelism = 2
