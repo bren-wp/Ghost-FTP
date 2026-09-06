@@ -1,12 +1,13 @@
 # Ghost FTP security
 
-Ghost FTP **1.0.0 Stable** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed Go code and covered by platform-specific regression tests plus repository audits.
+Ghost FTP **1.1.1 Stable** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed Go code and covered by platform-specific regression tests plus repository audits.
 
 ## Supported transport security
 
 Ghost FTP supports FTP, FTPS and SFTP.
 
 - Plain FTP is an unencrypted compatibility mode and must not be confused with a secure transport.
+- Fresh/quick-connect defaults use explicit **FTPS on port 21** on Windows and Linux.
 - FTPS uses TLS protection and does not silently downgrade a failed secure request to plain FTP.
 - SFTP uses SSH semantics and enforces host-key trust/fingerprint validation before a server is treated as trusted.
 
@@ -18,9 +19,17 @@ SFTP host-key fingerprints are normalized and validated by the shared security l
 
 Private-key authentication validates local key paths and keeps passphrases out of durable plaintext profile fields.
 
+### Protected-secret ownership
+
+Linux runtime protected secrets use explicit ownership semantics. Session-owned password/passphrase handles are forgotten when the session closes, while borrowed profile-owned handles remain available to the profile store. Constructor/setup failure paths clean newly owned secrets.
+
+Pending host-key trust state follows the same rule: owned temporary credentials are cleaned on cancel, expiry, mismatch, replacement or abandoned setup, and successful confirmation transfers ownership only when the exact protected blob is accepted by the SFTP session. A credential captured for the actual trust attempt is not silently replaced by stale profile state unless the user explicitly supplies a new value.
+
 ## FTPS certificate trust
 
 FTPS relies on normal certificate/hostname verification for the selected server. The application does not ship a general “trust everything” mode for production use. A TLS failure is surfaced as a connection error rather than retried through a weaker transport.
+
+Regression coverage explicitly verifies that an FTPS request aimed at a plaintext-only FTP endpoint fails instead of producing a plain FTP session.
 
 ## Input and path validation
 
@@ -44,13 +53,13 @@ The goal is fail-closed behavior when the source/destination identity changes wh
 
 ## Process execution boundary
 
-Some FTP/SFTP functionality uses explicitly detected system transfer tools. Process construction, environment handling, tool capability probing and lifecycle are covered by regression tests. Credentials are not intentionally placed into user-visible command output.
+Some FTP/SFTP functionality uses explicitly detected system transfer tools. Process construction, environment handling, tool capability probing and lifecycle are covered by regression tests. Credentials are not intentionally placed into user-visible command output or persisted runtime credential files.
 
 Tool availability is diagnosed; the application does not silently download replacement networking tools.
 
 ## Saved credential protection
 
-Saved credentials are opt-in.
+Saved credentials are opt-in. The main Save Profile flow and Windows Site Manager use the same explicit consent policy before a newly entered password or private-key passphrase is persisted.
 
 ### Windows
 
@@ -58,13 +67,13 @@ Protected profile secrets use the current-user Windows protection boundary. Sens
 
 ### Linux
 
-Saved secrets use local authenticated encryption with user-private key material. Key/profile handling includes local permission and binding checks.
+Saved secrets use local authenticated encryption with user-private key material. Runtime session secret handles are process-local and ownership-aware; session-only credentials are not promoted into persistent state merely because a connection was attempted.
 
 If protected data cannot be safely decrypted, Ghost FTP should require the user to re-enter the secret rather than falling back to plaintext persistence.
 
 ## Runtime secret minimization
 
-Runtime secrets are kept only as long as required for the selected operation. Diagnostic/error classification is deliberately separated from secret values. Tests cover privacy-safe error reporting and profile-secret guards.
+Runtime secrets are kept only as long as required for the selected operation. Diagnostic/error classification is deliberately separated from secret values. Tests cover privacy-safe error reporting, profile-secret binding and owned/borrowed secret lifetime.
 
 ## Settings/profile durability
 
@@ -102,7 +111,7 @@ The stable package at `ghcr.io/bren-wp/ghost-ftp` is a release distribution bund
 
 ## Security testing
 
-The exact 1.0.0 candidate is expected to pass:
+The exact 1.1.1 candidate is expected to pass:
 
 ```text
 go test -race ./...
@@ -115,7 +124,7 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Dedicated Go tests additionally cover host validation, SFTP fingerprints, private-key handling, FTP protocol behavior, transfer staging/cleanup, process lifecycle, filesystem hardening and configuration recovery.
+Dedicated Go tests additionally cover host validation, SFTP fingerprints, private-key handling, FTP/FTPS protocol behavior, `remote.Manager.Connect()` lifecycle, transfer staging/cleanup, process lifecycle, filesystem hardening, configuration recovery and protected-secret ownership.
 
 ## Reporting a vulnerability
 
