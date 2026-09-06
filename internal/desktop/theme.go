@@ -1,5 +1,18 @@
 package desktop
 
+// Canonical desktop geometry primitives. Linux uses these values directly and
+// Windows applies its own DPI scaling around the same minimum workspace model.
+// Keeping them outside a platform build tag prevents Win/Linux UI drift and
+// ensures the Linux GUI can be compiled independently in CI.
+const (
+	premiumStartWidth  = 1280
+	premiumStartHeight = 820
+	premiumMinWidth    = 940
+	premiumMinHeight   = 680
+	premiumOuterGap    = 14
+	premiumPanelGap    = 12
+)
+
 // PremiumTheme is the canonical cross-platform Ghost FTP desktop palette.
 // Windows and Linux use the same restrained dark surfaces, high-contrast text,
 // accessible state colors and selection treatment. The palette is owned by the
