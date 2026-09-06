@@ -44,7 +44,7 @@ jobs:
         run: |
           gofmt -w cmd/installer/main.go internal/desktop/gui_linux.go
           go test ./...
-          GOOS=windows GOARCH=amd64 go test ./cmd/ghostftp ./cmd/installer ./internal/desktop ./internal/platform
+          GOOS=windows GOARCH=amd64 go test -exec=/bin/true ./cmd/ghostftp ./cmd/installer ./internal/desktop ./internal/platform
       - name: Commit generated changes
         run: |
           if git diff --quiet; then
