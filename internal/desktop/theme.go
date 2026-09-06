@@ -89,3 +89,7 @@ func setActiveTheme(appearance string) {
 func isDarkAppearance(appearance string) bool {
 	return appearance != model.AppearanceLight
 }
+
+func activeThemeIsDark() bool {
+	return premiumTheme != lightTheme
+}
