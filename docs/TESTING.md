@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **1.0.0 Stable** is release-ready only when source tests, audits, native production builds, signing checks and distribution read-back all pass for the exact release revision.
+Ghost FTP **1.0.0 Stable** is release-ready only when source tests, audits, native production builds, signing-state checks and distribution read-back all pass for the exact release revision.
 
 ## Continuous integration
 
@@ -78,7 +78,7 @@ Portable x86
 
 The release assembly also creates the byte-identical x32 Setup compatibility alias from x86.
 
-CI validates executable/package metadata and runs the development Authenticode pipeline smoke test. Stable publication then requires the protected trusted Authenticode identity in the release workflow.
+CI validates executable/package metadata and runs the development Authenticode pipeline smoke test with a short-lived development certificate. Production publication does not convert that test identity into a trusted publisher. When real protected Authenticode secrets are configured, the release workflow signs and verifies each Windows artifact; when they are absent, the release is explicitly marked unsigned.
 
 ## Linux production gate
 
@@ -116,6 +116,8 @@ The assembled GitHub Release contains **9 platform artifacts** and **12 public f
 
 Before and after publication, the workflow verifies that `main` is still the exact release commit and that an existing version tag is not being rewritten.
 
+The release gate also validates that `WINDOWS_SIGNING_STATE` is either `signed` or `unsigned`. A configured signing identity that does not produce valid signatures fails. Absence of a production certificate does not fail the release; it is carried through as `WINDOWS_AUTHENTICODE=unsigned` in release metadata.
+
 ## GitHub Packages gate
 
 Stable releases publish:
@@ -128,6 +130,6 @@ The OCI distribution bundle is built from `FROM scratch`, copies only `release/`
 
 ## Release-readiness rule
 
-A source branch that merely compiles is not a release. Stable readiness requires all automated gates plus exact artifact/signing/package/release verification on the final source revision.
+A source branch that merely compiles is not a release. Stable readiness requires all automated gates plus exact artifact/signing-state/package/release verification on the final source revision.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md), [Privacy](PRIVACY.md) and [Packages](PACKAGES.md).
