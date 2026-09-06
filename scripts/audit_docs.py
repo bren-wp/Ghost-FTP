@@ -16,6 +16,12 @@ HTML_LINK_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"']([^\"']+)[\"']", re.IGNORE
 CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d+)\*\*")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 RETIRED_ACTIVE_MARKERS = ("android/", "ios/", "macos/", "ghostftp web/", "web companion", "pwa")
+STALE_SIGNING_POLICY_MARKERS = (
+    "trusted Authenticode requirement for stable Windows publication",
+    "A stable Windows release is blocked unless",
+    "stable release whose Windows signing state is not trusted/configured",
+    "stable Authenticode gate",
+)
 ACTIVE_DOCS = (
     "README.md",
     "docs/README.md",
@@ -118,10 +124,14 @@ def main() -> int:
         path = ROOT / rel
         if not path.is_file():
             fail(f"missing active document: {rel}")
-        lowered = path.read_text(encoding="utf-8").lower()
+        text = path.read_text(encoding="utf-8")
+        lowered = text.lower()
         for marker in RETIRED_ACTIVE_MARKERS:
             if marker in lowered:
                 fail(f"retired application surface appears in active guidance: {rel} -> {marker}")
+        for marker in STALE_SIGNING_POLICY_MARKERS:
+            if marker in text:
+                fail(f"stale mandatory-signing policy appears in active guidance: {rel} -> {marker}")
 
     for marker in ("Windows", "Linux", "24", "FTP", "FTPS", "SFTP"):
         if marker not in readme:
@@ -143,7 +153,18 @@ def main() -> int:
             fail(f"platform parity documentation missing marker: {marker}")
 
     versioning = (DOCS / "VERSIONING.md").read_text(encoding="utf-8")
-    for marker in ("0.1.0", "0.x.y", "Beta", "Stable", "1.0.0", "Setup", "Portable"):
+    for marker in (
+        "0.1.0",
+        "0.x.y",
+        "Beta",
+        "Stable",
+        "1.0.0",
+        "Setup",
+        "Portable",
+        "optional production hardening layer",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "Absence of a production Authenticode certificate by itself is not a versioning failure.",
+    ):
         if marker not in versioning:
             fail(f"versioning documentation missing marker: {marker}")
 
@@ -154,9 +175,30 @@ def main() -> int:
         "not a runtime container",
         "/ghostftp-release/",
         "SHA256.txt",
+        "Authenticode verification **when a trusted production certificate is configured**",
+        "WINDOWS_AUTHENTICODE=unsigned",
     ):
         if marker not in packages:
             fail(f"packages documentation missing marker: {marker}")
+
+    signing = (DOCS / "SIGNING.md").read_text(encoding="utf-8")
+    for marker in (
+        "supports Windows Authenticode signing as an optional production hardening layer",
+        "WINDOWS_AUTHENTICODE=signed",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "production workflow never creates its own long-lived publisher key",
+    ):
+        if marker not in signing:
+            fail(f"signing documentation missing marker: {marker}")
+
+    release_verification = (DOCS / "RELEASE-VERIFICATION.md").read_text(encoding="utf-8")
+    for marker in (
+        "truthful supported publication state",
+        "does not create a self-signed production identity",
+        "explicit unsigned metadata when no production certificate is configured",
+    ):
+        if marker not in release_verification:
+            fail(f"release verification documentation missing signing marker: {marker}")
 
     print(f"DOCS_AUDIT=PASS ({version}; {len(files)} Markdown files)")
     print("PUBLIC_BRAND=Ghost FTP")
@@ -164,6 +206,9 @@ def main() -> int:
     print("PRE_1_0_CHANNEL=BETA")
     print("FIRST_STABLE_VERSION=1.0.0")
     print("STABLE_GITHUB_RELEASE_PRERELEASE=FALSE")
+    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
+    print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=9")
     print("PUBLIC_RELEASE_FILES=12")
     print("STABLE_GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp")
