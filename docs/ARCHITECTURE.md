@@ -97,7 +97,7 @@ Platform transfer capabilities are explicit system-runtime dependencies and are 
 
 Windows uses native Win32 surfaces and controls. The release pipeline produces x64 and x86 Setup/Portable packages; the x32 Setup name is a byte-identical compatibility alias of x86.
 
-Stable release publication requires the protected trusted Authenticode identity. Signing key material is never stored in the repository.
+Production Authenticode is an optional hardening layer. If a protected trusted certificate is configured, the release pipeline signs and verifies the Windows artifacts. If it is absent, the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. The production workflow never creates a self-signed publisher identity as a substitute for a real trusted certificate.
 
 ## Linux architecture
 
@@ -111,7 +111,7 @@ The release workflow runs a complete quality gate before artifact publication:
 2. repository, platform, dependency, security, privacy, localization and documentation audits;
 3. Python regression suites;
 4. Windows and Linux production builds;
-5. signing/metadata checks;
+5. signing-state/metadata checks, plus Authenticode verification when configured;
 6. explicit release allow-list assembly;
 7. SHA-256 manifest generation;
 8. GitHub Release publication and read-back;
