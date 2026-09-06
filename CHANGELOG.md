@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.2.1 - 2026-09-06 Beta
+
+### Windows visual quality and flicker
+
+- Added the canonical packaged Ghost FTP icon directly to the Windows workspace and corrected header geometry so the full **Ghost FTP** name remains visible beside it.
+- Enabled best-effort immersive dark rendering for modern Windows native menus/controls and aligned combo boxes and file headers with the application palette.
+- Upgraded Site Manager action buttons to the same owner-drawn premium control system used by the main workspace and gave the Site Manager the packaged application icon.
+- Batched resize relayout into one non-erasing redraw and removed full-parent erase operations from connection-state/DPI refresh paths that could cause visible flashing.
+- Kept the disconnected SERVER pane dark and enabled as a surface while individual remote actions remain correctly disabled.
+
+### Connection reliability and settings correctness
+
+- Connected the persisted **Connection timeout** option to actual Windows and Linux connection attempts, with a validated 5–60 second range and a safe 15-second fallback.
+- Allowed an in-progress Windows connection attempt to be cancelled immediately from the visible Disconnect control; stale async callbacks are rejected through the existing generation guard.
+- Added secure WOW64/Sysnative discovery for Windows x86 OpenSSH tools so SFTP does not fail simply because a 32-bit process sees redirected System32 paths.
+- Retained the secure Windows curl lookup that never trusts the user PATH, and extended the same architecture-aware principle to SFTP executables.
+- Normalized low-level transport fallback errors to English, while user-facing desktop error mapping remains localized through the shared catalog.
+
+### Linux parity, localization and efficiency
+
+- Replaced major hard-coded Linux workspace labels with the shared 24-language catalog: connection fields, profile actions, file panes, transfer controls, queue headings, session badges and trust/cancel actions now follow the selected language.
+- Made Linux use the same validated connection-timeout setting as Windows.
+- Stopped redrawing the complete Linux X11 workspace every 750 ms when transfer state has not changed, reducing idle CPU/GPU/X11 work and eliminating unnecessary visual churn.
+
+### Validation and regression coverage
+
+- Added shared connection-timeout policy tests, Windows x86 OpenSSH/Sysnative tests and expanded Windows visual regression guards for dark chrome, full branding, resize batching and cancellable connects.
+- Re-ran Go tests/race/vet, repository/platform/security/privacy/localization/documentation audits and Windows cross-build gates before release.
+
 ## 0.2.0 - 2026-09-06 Beta
 
 ### Desktop product scope

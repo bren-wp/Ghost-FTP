@@ -221,8 +221,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmSize:
 		w := int(lParam & 0xffff)
 		h := int((lParam >> 16) & 0xffff)
-		a.layout(w, h)
-		a.refineWorkspaceLayout()
+		a.reflowWorkspace(w, h)
 		return 0
 	case wmDpiChanged:
 		newDPI := uint32((wParam >> 16) & 0xffff)

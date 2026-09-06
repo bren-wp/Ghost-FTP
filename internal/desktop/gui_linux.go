@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -256,12 +257,12 @@ func newLinuxDesktop(x *x11Client, engine *api.Engine, version string) *linuxDes
 		selectedRemote:   -1,
 		selectedTransfer: -1,
 		remoteCurrent:    "/",
-		status:           "Ready. Enter server details or select a saved profile.",
 		resultCh:         make(chan linuxUIResult, 8),
 	}
 	if settings, err := engine.Settings(); err == nil {
 		u.language = i18n.Normalize(settings.Language)
 	}
+	u.status = i18n.T(u.language, "status.ready")
 	if profiles, err := engine.Profiles(); err == nil {
 		u.profiles = profiles
 	}
@@ -422,70 +423,70 @@ func (u *linuxDesktop) renderHeader() error {
 	if err := u.x.fillRect(0, 0, u.width, 72, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(premiumOuterGap, 30, "GHOST FTP", premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(premiumOuterGap, 30, strings.ToUpper(brand.ProductName), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(premiumOuterGap, 51, "FTP / FTPS / SFTP  |  private by design", premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(premiumOuterGap, 51, "FTP / FTPS / SFTP  |  "+u.tr("app.subtitle"), premiumTheme.Muted, premiumTheme.Panel); err != nil {
 		return err
 	}
-	badge := "OFFLINE"
+	badge := strings.ToUpper(u.tr("badge.disconnected"))
 	color := premiumTheme.Muted
 	if u.connected {
-		badge = "CONNECTED"
+		badge = strings.ToUpper(u.tr("badge.connected"))
 		color = premiumTheme.Success
 	} else if u.busy {
-		badge = "WORKING"
+		badge = strings.ToUpper(linuxTrimForUI(u.tr("connection.connecting", u.host), 24))
 		color = premiumTheme.Warn
 	}
 	if err := u.x.text(u.width-300, 34, badge+"  "+u.version, color, premiumTheme.Panel); err != nil {
 		return err
 	}
-	return u.drawButton(u.layout.settings, "Settings", !u.busy, false)
+	return u.drawButton(u.layout.settings, u.tr("common.settings"), !u.busy, false)
 }
 
 func (u *linuxDesktop) renderQuickConnect() error {
-	if err := u.x.text(premiumOuterGap, 84, "QUICK CONNECT", premiumTheme.Muted, premiumTheme.Window); err != nil {
+	if err := u.x.text(premiumOuterGap, 84, strings.ToUpper(linuxTrimForUI(u.tr("profile.quick"), 28)), premiumTheme.Muted, premiumTheme.Window); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldProtocol, "Protocol"); err != nil {
+	if err := u.drawField(linuxFieldProtocol, u.tr("terminal.protocol")); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldHost, "Server"); err != nil {
+	if err := u.drawField(linuxFieldHost, u.tr("terminal.server")); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldPort, "Port"); err != nil {
+	if err := u.drawField(linuxFieldPort, u.tr("terminal.port")); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldUser, "Username"); err != nil {
+	if err := u.drawField(linuxFieldUser, u.tr("terminal.username")); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldPassword, "Password"); err != nil {
+	if err := u.drawField(linuxFieldPassword, u.tr("terminal.password")); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.connect, "Connect", !u.connected && !u.busy, true); err != nil {
+	if err := u.drawButton(u.layout.connect, u.tr("common.connect"), !u.connected && !u.busy, true); err != nil {
 		return err
 	}
 
-	profileLabel := "Profiles"
+	profileLabel := u.tr("profile.quick")
 	if u.profileIndex >= 0 && u.profileIndex < len(u.profiles) {
 		profileLabel = u.profiles[u.profileIndex].Name
 	}
 	if err := u.drawButton(u.layout.profile, profileLabel, len(u.profiles) > 0, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.saveProfile, "Save profile", u.host != "" && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.saveProfile, u.tr("profile.save"), u.host != "" && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.removeProfile, "Remove", u.selectedProfileID != "" && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.removeProfile, u.tr("profile.delete"), u.selectedProfileID != "" && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldKey, "SFTP private key path"); err != nil {
+	if err := u.drawField(linuxFieldKey, u.tr("cue.private_key")); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldPassphrase, "Key passphrase"); err != nil {
+	if err := u.drawField(linuxFieldPassphrase, u.tr("cue.passphrase")); err != nil {
 		return err
 	}
-	return u.drawButton(u.layout.disconnect, "Disconnect", u.connected && !u.busy, false)
+	return u.drawButton(u.layout.disconnect, u.tr("common.disconnect"), u.connected && !u.busy, false)
 }
 
 func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected int) error {
@@ -500,10 +501,10 @@ func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected 
 	if err := u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, premiumTheme.Border); err != nil {
 		return err
 	}
-	if err := u.x.text(r.left+8, r.top+17, "NAME", premiumTheme.Muted, premiumTheme.List); err != nil {
+	if err := u.x.text(r.left+8, r.top+17, strings.ToUpper(u.tr("column.name")), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
 	}
-	if err := u.x.text(r.right-112, r.top+17, "SIZE", premiumTheme.Muted, premiumTheme.List); err != nil {
+	if err := u.x.text(r.right-112, r.top+17, strings.ToUpper(u.tr("column.size")), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
 	}
 	for i := 0; i < len(items) && i < maxRows; i++ {
@@ -545,49 +546,49 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.drawPanel(rightPanel); err != nil {
 		return err
 	}
-	if err := u.x.text(premiumOuterGap, leftPanel.top+20, "LOCAL COMPUTER", premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(premiumOuterGap, leftPanel.top+20, strings.ToUpper(u.tr("section.local")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.remotePath.left, leftPanel.top+20, "SERVER", premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(u.layout.remotePath.left, leftPanel.top+20, strings.ToUpper(u.tr("section.remote")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldLocalPath, "Local path"); err != nil {
+	if err := u.drawField(linuxFieldLocalPath, u.tr("column.local")); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.localUp, "Up", !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.localUp, u.tr("common.up"), !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.localRefresh, "Refresh", !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.localRefresh, u.tr("common.refresh"), !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawField(linuxFieldRemotePath, "Remote path"); err != nil {
+	if err := u.drawField(linuxFieldRemotePath, u.tr("column.remote")); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.remoteUp, "Up", u.connected && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.remoteUp, u.tr("common.up"), u.connected && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.remoteRefresh, "Refresh", u.connected && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.remoteRefresh, u.tr("common.refresh"), u.connected && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.localNew, "New folder", !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.localNew, u.tr("common.new_folder"), !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.localRename, "Rename", u.selectedLocal >= 0 && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.localRename, u.tr("common.rename"), u.selectedLocal >= 0 && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.localDelete, "Delete", u.selectedLocal >= 0 && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.localDelete, u.tr("common.delete"), u.selectedLocal >= 0 && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.remoteNew, "New folder", u.connected && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.remoteNew, u.tr("common.new_folder"), u.connected && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.remoteRename, "Rename", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.remoteRename, u.tr("common.rename"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.remoteDelete, "Delete", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.remoteDelete, u.tr("common.delete"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.remoteChmod, "Permissions", u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
+	if err := u.drawButton(u.layout.remoteChmod, u.tr("common.permissions"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
 		return err
 	}
 	if err := u.renderItemRows(u.layout.localList, u.localItems, u.selectedLocal); err != nil {
@@ -596,29 +597,29 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.renderItemRows(u.layout.remoteList, u.remoteItems, u.selectedRemote); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.upload, "Upload ->", u.connected && u.selectedLocal >= 0 && !u.busy, true); err != nil {
+	if err := u.drawButton(u.layout.upload, u.tr("transfer.upload")+" →", u.connected && u.selectedLocal >= 0 && !u.busy, true); err != nil {
 		return err
 	}
-	return u.drawButton(u.layout.download, "<- Download", u.connected && u.selectedRemote >= 0 && !u.busy, true)
+	return u.drawButton(u.layout.download, "← "+u.tr("transfer.download"), u.connected && u.selectedRemote >= 0 && !u.busy, true)
 }
 
 func (u *linuxDesktop) renderQueue() error {
-	if err := u.x.text(premiumOuterGap, u.layout.pause.top+19, "TRANSFERS", premiumTheme.Muted, premiumTheme.Window); err != nil {
+	if err := u.x.text(premiumOuterGap, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.pause, "Pause", !u.queuePaused, false); err != nil {
+	if err := u.drawButton(u.layout.pause, u.tr("transfer.pause"), !u.queuePaused, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.resume, "Resume", u.queuePaused, false); err != nil {
+	if err := u.drawButton(u.layout.resume, u.tr("transfer.resume"), u.queuePaused, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.cancelJob, "Cancel", u.selectedTransfer >= 0, false); err != nil {
+	if err := u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), u.selectedTransfer >= 0, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.retryJob, "Retry", u.selectedTransfer >= 0, false); err != nil {
+	if err := u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), u.selectedTransfer >= 0, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.clearQueue, "Clear done", len(u.transferJobs) > 0, false); err != nil {
+	if err := u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), len(u.transferJobs) > 0, false); err != nil {
 		return err
 	}
 	if err := u.x.fillRect(u.layout.queue.left, u.layout.queue.top, u.layout.queue.right-u.layout.queue.left, u.layout.queue.bottom-u.layout.queue.top, premiumTheme.List); err != nil {
@@ -627,7 +628,7 @@ func (u *linuxDesktop) renderQueue() error {
 	if err := u.x.strokeRect(u.layout.queue.left, u.layout.queue.top, u.layout.queue.right-u.layout.queue.left, u.layout.queue.bottom-u.layout.queue.top, premiumTheme.Border); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+17, "DIRECTION   LOCAL / SERVER", premiumTheme.Muted, premiumTheme.List); err != nil {
+	if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+17, strings.ToUpper(u.tr("column.direction")+"   "+u.tr("column.local")+" / "+u.tr("column.remote")), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
 	}
 	rowH := 22
@@ -700,7 +701,7 @@ func (u *linuxDesktop) refreshLocal(target string) {
 	if target == "" {
 		target = u.localCurrent
 	}
-	u.setStatus("Refreshing local files...")
+	u.setStatus(u.tr("common.refresh") + " · " + u.tr("section.local"))
 	u.startAction(linuxActionLocalRefresh, func() linuxUIResult {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -716,7 +717,7 @@ func (u *linuxDesktop) refreshRemote(target string) {
 	if target == "" {
 		target = u.remoteCurrent
 	}
-	u.setStatus("Refreshing server files...")
+	u.setStatus(u.tr("common.refresh") + " · " + u.tr("section.remote"))
 	u.startAction(linuxActionRemoteRefresh, func() linuxUIResult {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
@@ -754,13 +755,13 @@ func (u *linuxDesktop) connectToServer(trust string) {
 	u.lastConnectConfig.Passphrase = ""
 	u.password = ""
 	u.passphrase = ""
-	u.setStatus("Connecting securely...")
+	u.setStatus(u.tr("connection.connecting", u.host))
 	u.startAction(linuxActionConnect, func() linuxUIResult {
 		defer func() {
 			cfg.Password = ""
 			cfg.Passphrase = ""
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), connectionTimeoutDuration(func() model.Settings { settings, _ := u.engine.Settings(); return settings }()))
 		defer cancel()
 		result, err := u.engine.Connect(ctx, profileID, cfg, trust, trust != "")
 		return linuxUIResult{
@@ -776,7 +777,7 @@ func (u *linuxDesktop) disconnect() {
 	if u.busy || !u.connected {
 		return
 	}
-	u.setStatus("Disconnecting and cancelling active transfers...")
+	u.setStatus(u.tr("disconnect.progress"))
 	u.startAction(linuxActionDisconnect, func() linuxUIResult {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -938,7 +939,7 @@ func (u *linuxDesktop) removeProfile() {
 	if profiles, err := u.engine.Profiles(); err == nil {
 		u.profiles = profiles
 	}
-	u.setStatus("Profile removed.")
+	u.setStatus(u.tr("profile.delete"))
 }
 
 func (u *linuxDesktop) handleResult(result linuxUIResult) {
@@ -960,7 +961,7 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 			if u.protocol == "sftp" && u.remoteCurrent == "/" {
 				u.remoteCurrent = "."
 			}
-			u.setStatus("Connected securely to " + u.host + ".")
+			u.setStatus(u.tr("connection.connected", u.host))
 			return
 		}
 	case linuxActionDisconnect:
@@ -968,7 +969,7 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 		u.pendingFingerprint = ""
 		u.remoteItems = nil
 		u.selectedRemote = -1
-		u.setStatus("Disconnected.")
+		u.setStatus(u.tr("disconnect.done"))
 	case linuxActionLocalRefresh:
 		u.localCurrent = result.localBase
 		u.localItems = result.localItems
@@ -1028,13 +1029,13 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 	case l.remoteRefresh.contains(x, y):
 		u.refreshRemote(u.remoteCurrent)
 	case l.localNew.contains(x, y):
-		u.openPrompt(linuxPromptLocalMkdir, "New local folder", "New folder")
+		u.openPrompt(linuxPromptLocalMkdir, u.tr("common.new_folder")+" · "+u.tr("section.local"), u.tr("common.new_folder"))
 	case l.localRename.contains(x, y):
 		u.openSelectedLocalRename()
 	case l.localDelete.contains(x, y):
 		u.deleteSelectedLocal()
 	case l.remoteNew.contains(x, y):
-		u.openPrompt(linuxPromptRemoteMkdir, "New server folder", "New folder")
+		u.openPrompt(linuxPromptRemoteMkdir, u.tr("common.new_folder")+" · "+u.tr("section.remote"), u.tr("common.new_folder"))
 	case l.remoteRename.contains(x, y):
 		u.openSelectedRemoteRename()
 	case l.remoteDelete.contains(x, y):
@@ -1109,7 +1110,7 @@ func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 		if u.pendingFingerprint != "" && !u.connected {
 			u.engine.CancelPendingTrust()
 			u.pendingFingerprint = ""
-			u.setStatus("SFTP host-key trust was cancelled.")
+			u.setStatus(u.tr("sftp.cancelled"))
 		}
 		return true
 	case x11KeyTab:
@@ -1177,10 +1178,10 @@ func (u *linuxDesktop) renderTrustOverlay() error {
 	}
 	u.layout.trust = linuxRectWH(left+w-230, top+h-42, 96, 28)
 	u.layout.cancelTrust = linuxRectWH(left+w-124, top+h-42, 96, 28)
-	if err := u.drawButton(u.layout.trust, "Trust", !u.busy, true); err != nil {
+	if err := u.drawButton(u.layout.trust, u.tr("sftp.trust"), !u.busy, true); err != nil {
 		return err
 	}
-	return u.drawButton(u.layout.cancelTrust, "Cancel", !u.busy, false)
+	return u.drawButton(u.layout.cancelTrust, u.tr("common.cancel"), !u.busy, false)
 }
 
 func (u *linuxDesktop) renderAll() error {
@@ -1213,7 +1214,7 @@ func (u *linuxDesktop) handleOverlayMouse(x, y int) bool {
 	if u.layout.cancelTrust.contains(x, y) {
 		u.engine.CancelPendingTrust()
 		u.pendingFingerprint = ""
-		u.setStatus("SFTP host-key trust was cancelled.")
+		u.setStatus(u.tr("sftp.cancelled"))
 		return true
 	}
 	return true
@@ -1302,7 +1303,11 @@ func runLinuxGUI(engine *api.Engine, version string) error {
 				return nil
 			}
 		case <-ticker.C:
-			u.transferJobs = u.engine.Transfers()
+			jobs := u.engine.Transfers()
+			if reflect.DeepEqual(jobs, u.transferJobs) {
+				continue
+			}
+			u.transferJobs = jobs
 			if u.selectedTransfer >= len(u.transferJobs) {
 				u.selectedTransfer = -1
 			}

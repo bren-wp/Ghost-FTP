@@ -71,7 +71,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
     def test_version_history_and_current_desktop_contract(self) -> None:
         version = read("VERSION").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
-        self.assertEqual(version, "0.2.0")
+        self.assertEqual(version, "0.2.1")
         readme = read("README.md")
         changelog = read("CHANGELOG.md")
         history = read("docs/RELEASE-HISTORY.md")

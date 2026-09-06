@@ -2,7 +2,7 @@
 
 **Ghost FTP** is a privacy-first FTP, FTPS and SFTP client for **Windows and Linux**. It is designed for dependable day-to-day server administration, clear dual-pane file management, conservative security defaults and a modern desktop workflow without application telemetry, advertising or hidden tracking.
 
-Current Ghost FTP version: **0.2.0**
+Current Ghost FTP version: **0.2.1**
 
 Development status: **Beta**
 
@@ -15,23 +15,22 @@ Ghost FTP follows the pre-stable `0.x.y` line until the Windows/Linux product, p
 
 The active application source, CI contract, documentation and release matrix are desktop-only. Windows and Linux are the only maintained application platforms.
 
-## What 0.2.0 changes
+## What 0.2.1 changes
 
-Ghost FTP 0.2.0 is a desktop quality, parity and cleanup release. It focuses on making the application less cluttered, more predictable and easier to maintain rather than adding decorative options that are not backed by the transfer engine.
+Ghost FTP 0.2.1 is a Windows/Linux polish and reliability release driven by real runtime screenshots and connection-path regression testing.
 
 Key changes include:
 
-- one canonical Windows dual-pane workspace instead of overlapping presentation layers and duplicate action aliases;
-- cleaner context-sensitive controls for connection state and SFTP authentication;
-- improved resize, minimize, maximize and high-DPI behavior while retaining native Windows window management;
-- Linux graphical settings aligned with the same validated settings model used by Windows;
-- runtime language selection on Linux using the shared 24-language registry;
-- additional Linux GUI localization for connection, file-panel and transfer-queue controls;
-- Windows Installed Apps integration without shipping a separate `Uninstall.exe`;
-- integrated uninstall through the installed `GhostFTP.exe --uninstall` maintenance mode, with saved profiles/settings preserved by default;
-- removal of retired non-desktop application source and one-shot legacy release tooling from the active repository tree;
-- stricter CI guards that prevent retired application surfaces, analytics SDKs or external Go module drift from silently returning;
-- updated dependency, platform, version and documentation audits for the Windows/Linux-only product contract.
+- complete **Ghost FTP** branding in the Windows workspace using the canonical packaged PE icon;
+- immersive dark-mode integration for native Windows menus, combo boxes, file headers and the Site Manager;
+- owner-drawn Site Manager actions matching the main premium toolbar instead of mixed bright native buttons;
+- batched, non-erasing Windows resize redraws plus narrower repaint regions during connection-state changes to reduce visible flicker;
+- the persisted **Connection timeout** setting now controls real Windows and Linux connection attempts instead of being bypassed by a hard-coded timeout;
+- a pending Windows connection can be cancelled immediately through the visible Disconnect control rather than forcing the user to wait for timeout;
+- secure Windows x86/WOW64 `Sysnative` resolution for both the OS `curl.exe` FTP/FTPS transport and Windows OpenSSH/SFTP tools, without trusting user `PATH`;
+- additional Linux GUI localization through the shared 24-language registry and removal of the idle 750 ms full-window repaint when transfer state has not changed;
+- continued zero-telemetry, zero-external-Go-module, explicit SFTP host-key trust and fail-closed path/credential protections;
+- refreshed automated visual, transport, timeout, localization and platform-parity regression coverage.
 
 See [CHANGELOG.md](CHANGELOG.md) for the complete version-by-version record.
 

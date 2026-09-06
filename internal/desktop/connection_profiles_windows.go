@@ -67,11 +67,14 @@ func (a *app) setConnectionBusy(busy bool) {
 		return
 	}
 	for _, h := range []uintptr{
-		a.connect, a.disconnect, a.profilesCombo, a.protocol, a.host, a.port, a.user, a.pass,
+		a.connect, a.profilesCombo, a.protocol, a.host, a.port, a.user, a.pass,
 		a.keyPath, a.chooseKey, a.passphrase, a.saveProfile, a.removeProfile, a.settingsBtn,
 	} {
 		setControlEnabled(h, false)
 	}
+	// The visible Disconnect control doubles as a safe cancel action while a
+	// connection attempt is pending, so users are never trapped behind timeout.
+	setControlEnabled(a.disconnect, true)
 	a.setRemoteControls(false)
 	a.updateActionControls()
 }
@@ -95,7 +98,9 @@ func (a *app) setConnectionUI(connected bool) {
 	}
 	a.setRemoteControls(connected)
 	a.updateActionControls()
-	invalidateRect.Call(a.hwnd, 0, 1)
+	// Repaint only the session badge. Erasing the entire parent on every
+	// connection transition caused a visible flash on real Windows systems.
+	invalidateRect.Call(a.connectionBadge, 0, 0)
 }
 
 func (a *app) connectNow() {
@@ -131,7 +136,7 @@ func (a *app) connectNow() {
 	a.setConnectionBusy(true)
 	a.setStatus(a.tr("connection.connecting", host))
 	profileID := a.selectedProfileID
-	ctx, cancel := a.connectionContext(75 * time.Second)
+	ctx, cancel := a.connectionContext(connectionTimeoutDuration(a.settings))
 	a.goSafe(func() {
 		defer cancel()
 		r, err := a.engine.Connect(ctx, profileID, cfg, "", false)
@@ -178,7 +183,7 @@ func (a *app) connectTrusted(profileID string, cfg model.ConnectionConfig, finge
 		cfg.Passphrase = getText(a.passphrase)
 	}
 	a.setStatus(a.tr("sftp.verifying"))
-	ctx, cancel := a.connectionContext(75 * time.Second)
+	ctx, cancel := a.connectionContext(connectionTimeoutDuration(a.settings))
 	a.goSafe(func() {
 		defer cancel()
 		r, err := a.engine.Connect(ctx, profileID, cfg, fingerprint, profileID != "")
@@ -261,7 +266,14 @@ func (a *app) finishDisconnected(status string) {
 }
 
 func (a *app) disconnectNow() {
-	if a.connectionBusy || !a.connected {
+	if a.connectionBusy && !a.connected {
+		a.beginConnectionTransition()
+		a.cancelConnectionAttempt()
+		a.setConnectionUI(false)
+		a.setStatus(a.tr("common.cancel"))
+		return
+	}
+	if !a.connected {
 		return
 	}
 	if a.hasActiveTransfers() {

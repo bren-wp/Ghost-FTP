@@ -31,15 +31,32 @@ type SFTP struct {
 	exePath, sftp                      string
 }
 
+func windowsOpenSSHCandidates(systemDir, arch, name string) []string {
+	systemDir = filepath.Clean(strings.TrimSpace(systemDir))
+	if systemDir == "" || systemDir == "." {
+		return nil
+	}
+	candidates := []string{filepath.Join(systemDir, "OpenSSH", name)}
+	if arch == "386" && strings.EqualFold(filepath.Base(systemDir), "SysWOW64") {
+		candidates = append(candidates, filepath.Join(filepath.Dir(systemDir), "Sysnative", "OpenSSH", name))
+	}
+	return candidates
+}
+
 func findOpenSSH(name string) (string, error) {
+	if runtime.GOOS == "windows" {
+		if systemDir, err := systemDirectory(); err == nil && systemDir != "" {
+			if p := existingRegularFile(windowsOpenSSHCandidates(systemDir, runtime.GOARCH, name)...); p != "" {
+				return p, nil
+			}
+		}
+		return "", errors.New("SFTP support is not available on this Windows installation")
+	}
 	if systemDir, err := systemDirectory(); err == nil && systemDir != "" {
 		p := filepath.Join(systemDir, "OpenSSH", name)
 		if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() {
 			return p, nil
 		}
-	}
-	if runtime.GOOS == "windows" {
-		return "", errors.New("SFTP podrška nije dostupna u sustavu Windows")
 	}
 	if strings.HasSuffix(strings.ToLower(name), ".exe") {
 		name = strings.TrimSuffix(name, filepath.Ext(name))
@@ -47,7 +64,7 @@ func findOpenSSH(name string) (string, error) {
 	if p, err := exec.LookPath(name); err == nil {
 		return p, nil
 	}
-	return "", errors.New("SFTP komponenta nije pronađena")
+	return "", errors.New("SFTP component was not found")
 }
 
 func writePrivateTempFile(dir, pattern string, data []byte) (string, error) {
@@ -133,7 +150,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	}
 	scanHost := strings.Trim(host, "[]")
 	if port < 1 || port > 65535 {
-		return "", "", "", errors.New("neispravan SFTP port")
+		return "", "", "", errors.New("invalid SFTP port")
 	}
 	if err := os.MkdirAll(tempDir, 0700); err != nil {
 		return "", "", "", err

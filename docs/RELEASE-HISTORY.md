@@ -1,5 +1,17 @@
 # Ghost FTP release history
 
+## 0.2.1 — 2026-09-06 Beta
+
+Theme: **runtime-verified Windows polish, effective connection settings, stronger x86 transport discovery and deeper Linux localization**.
+
+Ghost FTP 0.2.1 follows the real Windows screenshot review performed after 0.2.0. The release fixes the clipped product title, mixed bright/dark native controls and remaining repaint paths that could produce visible flashing. Site Manager now uses the same branded icon and owner-drawn action language as the main workspace, while modern Windows receives a best-effort immersive dark-menu path without adding external UI dependencies.
+
+Connection behavior is also tightened. The user-configured connection-timeout value now governs actual Windows and Linux connection attempts, Windows users can cancel a pending connection without waiting for timeout, and the Windows x86 build resolves OpenSSH through the secure Sysnative path when WOW64 redirects System32. FTP/FTPS and SFTP continue to reject untrusted PATH-based Windows tool discovery.
+
+Linux receives broader 24-language coverage across the visible workspace and no longer performs a full X11 repaint every 750 ms while transfer state is unchanged. These changes preserve the same typed Engine, profile/settings model, SFTP host-key trust, transfer validation and privacy boundaries shared with Windows.
+
+Validation for this release includes Go race tests and vet, repository/platform/security/privacy/localization/documentation audits, Windows amd64/386 cross-builds, production CI packaging and authentic Windows screenshot capture before merge.
+
 ## 0.1.1 — 2026-09-06 Beta
 
 Ghost FTP 0.1.1 advances the pre-1.0 Windows/Linux line with a real Linux graphical frontend, stronger runtime verification and a unified Ghost FTP visual system. Windows remains native Win32; Linux uses a dependency-free raw X11/XWayland-compatible frontend over the same typed Engine and retains the terminal for headless/explicit fallback.

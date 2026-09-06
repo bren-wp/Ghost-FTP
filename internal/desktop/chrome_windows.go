@@ -65,10 +65,10 @@ func (a *app) refineBrandHeader() {
 	if logo == 0 {
 		return
 	}
-	// The existing subtitle begins at x=166, so this keeps the original header
-	// rhythm while adding a real 32 px product mark instead of a text-only logo.
+	// Geometry for the title/subtitle remains owned by app.layout. This helper
+	// only anchors the canonical PE icon so the full “Ghost FTP” wordmark never
+	// gets clipped by a second competing layout rule.
 	a.move(logo, 14, 11, 32, 32)
-	a.move(a.brandTitle, 54, 10, 106, 35)
 }
 
 func styleWorkspaceCombos(combos ...uintptr) {
