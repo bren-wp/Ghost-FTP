@@ -8,13 +8,15 @@ Ghost FTP publishes a verified **distribution bundle** to GitHub Packages for ea
 ghcr.io/bren-wp/ghost-ftp:<version>
 ```
 
-For Ghost FTP 1.0.0 the canonical immutable version tag is:
+For the Ghost FTP 1.1.1 Stable candidate, the canonical immutable version tag will be:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.0.0
+ghcr.io/bren-wp/ghost-ftp:1.1.1
 ```
 
-Stable releases also update the compatible aliases `1.0`, `1`, and `latest`. Automation that requires reproducibility should use the full semantic version and, when possible, pin the registry digest.
+Stable publication also updates the compatible aliases `1.1`, `1`, and `latest` only after successful registry publication/read-back. Automation that requires reproducibility should use the full semantic version and, when possible, pin the registry digest.
+
+Published 1.1.0 and 1.0.0 package versions remain historical distribution identities and are not rewritten for 1.1.1.
 
 ## What the package contains
 
@@ -59,9 +61,9 @@ Pre-1.0 historical builds were Beta prereleases. Beginning with Ghost FTP 1.0.0,
 
 ## Digest-first automation
 
-For high-assurance automation:
+For high-assurance automation after 1.1.1 has actually been published:
 
-1. resolve `ghcr.io/bren-wp/ghost-ftp:1.0.0` to its OCI digest;
+1. resolve `ghcr.io/bren-wp/ghost-ftp:1.1.1` to its OCI digest;
 2. pin the digest in downstream automation;
 3. extract `/ghostftp-release/SHA256.txt`;
 4. verify every release file before use;
@@ -69,3 +71,5 @@ For high-assurance automation:
 6. inspect `WINDOWS_AUTHENTICODE` before interpreting Windows publisher-signature state.
 
 This provides two independent integrity references: the OCI manifest digest and the per-file SHA-256 manifest, plus an explicit signing-state declaration for Windows artifacts.
+
+Do not treat the presence of this documentation as proof that 1.1.1 has already been published. Publication is complete only after the release workflow and remote GitHub Release/GHCR read-back succeed.
