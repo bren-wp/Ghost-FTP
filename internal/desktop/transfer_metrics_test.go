@@ -13,6 +13,20 @@ func TestTransferProgressTextUsesRuntimeBytes(t *testing.T) {
 	}
 }
 
+func TestTransferProgressTextDoesNotInventPercentWithoutTotal(t *testing.T) {
+	job := model.TransferJob{Status: "running", BytesTransferred: 5 * 1024 * 1024}
+	if got := transferProgressText(job); got != "5.00 MB" {
+		t.Fatalf("transferProgressText()=%q", got)
+	}
+}
+
+func TestTransferProgressTextKeepsLegacyFractionCompatibility(t *testing.T) {
+	job := model.TransferJob{Progress: 0.42}
+	if got := transferProgressText(job); got != "42%" {
+		t.Fatalf("transferProgressText()=%q", got)
+	}
+}
+
 func TestTransferRuntimeSuffixShowsSpeedAndETAOnlyWhileUseful(t *testing.T) {
 	running := model.TransferJob{Status: "running", BytesPerSecond: 2 * 1024 * 1024, ETASeconds: 65}
 	if got := transferRuntimeSuffix(running); got != " · 2.00 MB/s · 01:05" {

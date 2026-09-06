@@ -9,17 +9,22 @@ import (
 )
 
 func transferProgressText(job model.TransferJob) string {
-	progress := job.Progress
 	if job.BytesTotal > 0 {
-		progress = float64(job.BytesTransferred) * 100 / float64(job.BytesTotal)
+		progress := float64(job.BytesTransferred) * 100 / float64(job.BytesTotal)
+		progress = math.Max(0, math.Min(100, progress))
+		return fmt.Sprintf("%.0f%% · %s", progress, formatTransferBytes(job.BytesTransferred))
 	}
-	if progress > 0 && progress <= 1 && job.BytesTotal == 0 {
+	if job.BytesTransferred > 0 {
+		// A server that cannot provide reliable size metadata still gives us
+		// truthful staged bytes. Do not render a fabricated 0% percentage when
+		// the denominator is unknown.
+		return formatTransferBytes(job.BytesTransferred)
+	}
+	progress := job.Progress
+	if progress > 0 && progress <= 1 {
 		progress *= 100
 	}
 	progress = math.Max(0, math.Min(100, progress))
-	if job.BytesTransferred > 0 || job.BytesTotal > 0 {
-		return fmt.Sprintf("%.0f%% · %s", progress, formatTransferBytes(job.BytesTransferred))
-	}
 	return fmt.Sprintf("%.0f%%", progress)
 }
 

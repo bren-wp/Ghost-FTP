@@ -29,6 +29,37 @@ func TestUpdateProgressCalculatesRuntimeMetrics(t *testing.T) {
 	}
 }
 
+func TestResetTransferMetricsDefersClockUntilFirstProgressSample(t *testing.T) {
+	job := model.TransferJob{
+		Status:           "running",
+		Progress:         75,
+		BytesTransferred: 75,
+		BytesTotal:       100,
+		BytesPerSecond:   25,
+		ETASeconds:       1,
+		StartedAt:        time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano),
+	}
+	resetTransferMetrics(&job, true)
+	if job.StartedAt != "" || job.Progress != 0 || job.BytesTransferred != 0 || job.BytesTotal != 0 || job.BytesPerSecond != 0 || job.ETASeconds != 0 {
+		t.Fatalf("metrics were not fully reset: %+v", job)
+	}
+
+	job.ID = "job"
+	m := &Manager{jobs: []model.TransferJob{job}}
+	before := time.Now().UTC().Add(-time.Second)
+	m.updateProgress("job", 0, 1024)
+	started, err := time.Parse(time.RFC3339Nano, m.jobs[0].StartedAt)
+	if err != nil {
+		t.Fatalf("StartedAt parse: %v", err)
+	}
+	if started.Before(before) || started.After(time.Now().UTC().Add(time.Second)) {
+		t.Fatalf("StartedAt=%v was not set by first progress sample", started)
+	}
+	if m.jobs[0].BytesPerSecond != 0 || m.jobs[0].ETASeconds != 0 {
+		t.Fatalf("first zero-byte sample should not invent speed/ETA: %+v", m.jobs[0])
+	}
+}
+
 func TestUpdateProgressClampsReportedBytes(t *testing.T) {
 	started := time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano)
 	m := &Manager{jobs: []model.TransferJob{{ID: "job", Status: "running", StartedAt: started}}}

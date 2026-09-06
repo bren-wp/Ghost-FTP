@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 type TransferProgressFunc func(transferred, total int64)
@@ -65,8 +66,11 @@ func startLocalFileProgressMonitor(ctx context.Context, file string, total int64
 		ticker := time.NewTicker(transferProgressInterval)
 		defer ticker.Stop()
 		reportCurrent := func() {
-			st, err := os.Stat(file)
-			if err != nil || !st.Mode().IsRegular() {
+			// The progress sampler is read-only, but it still must not follow a path
+			// that was replaced by a symlink/junction while the child transfer tool
+			// is running. Report bytes only for the expected regular staging file.
+			st, err := os.Lstat(file)
+			if err != nil || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(file) {
 				return
 			}
 			reportTransferProgress(report, st.Size(), total)

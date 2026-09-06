@@ -6,7 +6,7 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
-func resetTransferMetrics(job *model.TransferJob, started bool) {
+func resetTransferMetrics(job *model.TransferJob, _ bool) {
 	if job == nil {
 		return
 	}
@@ -15,10 +15,10 @@ func resetTransferMetrics(job *model.TransferJob, started bool) {
 	job.BytesTotal = 0
 	job.BytesPerSecond = 0
 	job.ETASeconds = 0
+	// Start the throughput clock on the first real transport progress sample,
+	// not when a worker is merely scheduled. This excludes destination checks,
+	// upload snapshot creation and other pre-transfer setup from speed/ETA.
 	job.StartedAt = ""
-	if started {
-		job.StartedAt = time.Now().UTC().Format(time.RFC3339Nano)
-	}
 }
 
 func (m *Manager) updateProgress(id string, transferred, total int64) {
