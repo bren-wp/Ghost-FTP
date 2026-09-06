@@ -76,3 +76,5 @@ jobs:
           git commit -m 'Prepare Ghost FTP 0.1.1 Beta release'
           git pull --rebase origin work/premium-parity-release-hardening-0.1.1
           git push origin HEAD:work/premium-parity-release-hardening-0.1.1
+
+# marker-normalization-pass: 3
