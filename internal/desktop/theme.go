@@ -73,13 +73,16 @@ var lightTheme = PremiumTheme{
 	Selection:    RGB{0xDC, 0xE8, 0xFF},
 }
 
-var premiumTheme = darkTheme
+// Classic Light is the product-default desktop surface. Windows startup then
+// applies the user's persisted appearance before controls are created, so an
+// explicit Dark preference remains stable without a light-to-dark flash.
+var premiumTheme = lightTheme
 
 func themeForAppearance(appearance string) PremiumTheme {
-	if appearance == model.AppearanceLight {
-		return lightTheme
+	if appearance == model.AppearanceDark {
+		return darkTheme
 	}
-	return darkTheme
+	return lightTheme
 }
 
 func setActiveTheme(appearance string) {
@@ -87,9 +90,9 @@ func setActiveTheme(appearance string) {
 }
 
 func isDarkAppearance(appearance string) bool {
-	return appearance != model.AppearanceLight
+	return appearance == model.AppearanceDark
 }
 
 func activeThemeIsDark() bool {
-	return premiumTheme != lightTheme
+	return premiumTheme == darkTheme
 }
