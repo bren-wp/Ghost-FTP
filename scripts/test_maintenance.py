@@ -71,26 +71,39 @@ class MaintenanceRegressionTests(unittest.TestCase):
     def test_version_history_and_current_desktop_contract(self) -> None:
         version = read("VERSION").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
-        self.assertEqual(version, "0.2.1")
+        major = int(version.split(".", 1)[0])
+        self.assertGreaterEqual(major, 1, "current production line must be stable")
+
         readme = read("README.md")
+        docs_index = read("docs/README.md")
         changelog = read("CHANGELOG.md")
         history = read("docs/RELEASE-HISTORY.md")
+        releases = read("docs/GITHUB-RELEASES.md")
+
         self.assertIn(f"Current Ghost FTP version: **{version}**", readme)
-        self.assertIn("Development status: **Beta**", readme)
-        self.assertIn("0.1.0 Beta → 0.1.1 Beta → 0.2.0 Beta", readme)
-        self.assertIn("first stable", readme.lower())
-        self.assertIn("**1.0.0**", readme)
+        self.assertIn("Development status: **Stable**", readme)
+        self.assertIn("Release channel: **Stable**", readme)
+        self.assertIn("First stable release: **Ghost FTP 1.0.0**", readme)
+        self.assertIn(f"**Current Ghost FTP release: {version}**", docs_index)
+        self.assertIn("prerelease=false", docs_index)
+        self.assertIn(f"Tag: ghostftp-v{version}", releases)
+        self.assertIn("Immutable tag rule", releases)
         self.assertIn(f"## {version}", changelog)
-        self.assertIn("## 2.0.0", changelog)
-        self.assertIn("## 1.0.0", changelog)
+
+        # Current public changelog stays concise, while detailed older engineering
+        # provenance remains available in RELEASE-HISTORY.md and Git history.
+        self.assertIn("## 0.2.1", changelog)
+        self.assertIn("## 0.2.0", changelog)
+        self.assertIn("## Historical engineering history", changelog)
+        self.assertIn("docs/RELEASE-HISTORY.md", changelog)
         self.assertIn("## 2.0.0", history)
         self.assertIn("## 1.0.0", history)
-        self.assertIn("ghostftp-vX.Y.Z", readme)
+
         sections = [
             match.group(1)
             for match in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)
         ]
-        for expected in (version, "2.0.0", "1.0.0"):
+        for expected in (version, "0.2.1", "0.2.0"):
             self.assertIn(expected, sections)
 
 

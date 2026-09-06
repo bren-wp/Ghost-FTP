@@ -1,10 +1,10 @@
-# Localization
+# Ghost FTP localization
 
-Ghost FTP uses an **English-first** localization model. English (`en`) is the canonical source language, default locale and safe fallback whenever a translated string is unavailable or invalid.
+Ghost FTP **1.0.0 Stable** uses an English-first, entirely local localization model. English (`en`) is the canonical source language, default locale and safe fallback when a translated value is unavailable or invalid.
 
 ## Supported languages
 
-Ghost FTP 0.1.0 Beta exposes 24 canonical language codes:
+The maintained desktop catalog contains exactly **24 selectable languages**:
 
 | Code | Language | Native name |
 | --- | --- | --- |
@@ -33,87 +33,64 @@ Ghost FTP 0.1.0 Beta exposes 24 canonical language codes:
 | `no` | Norwegian | Norsk |
 | `ko` | Korean | 한국어 |
 
-Common regional forms normalize to the canonical registry. Examples include `pt-BR` → `pt`, `de-DE` → `de`, `zh-Hans`/`zh-CN` → `zh`, and `nb`/`nn` → `no`.
+Common regional forms normalize to the canonical registry where defined, for example `pt-BR` → `pt`, `de-DE` → `de`, Simplified Chinese regional aliases → `zh`, and Norwegian variants → `no`.
 
-## Canonical runtime registry
+## Canonical registry
 
-`internal/i18n/i18n.go` owns:
+`internal/i18n/i18n.go` owns supported-language metadata, normalization/aliases, English fallback, catalog validation, affirmative-answer matching and translation coverage measurement.
 
-- supported language metadata;
-- normalization/aliases;
-- English fallback;
-- catalog validation;
-- affirmative-answer matching;
-- translation coverage measurement.
+Every advertised locale must preserve the English key/format contract. Empty strings, incompatible formatting verbs, duplicate codes and invalid aliases are release-blocking defects.
 
-Every advertised runtime language must preserve the English key/format contract. Empty strings, incompatible format verbs, duplicate language codes or invalid aliases are release-blocking.
+## Offline privacy boundary
 
-## Translation coverage
+Localization requires no online translation service. Ghost FTP does not send filenames, hostnames, credentials, server diagnostics or selected language to a translation provider.
 
-Ghost FTP does not count an English copy as a completed translation. Supplemental catalogs must exceed the minimum translated-core coverage enforced by tests/audits.
+Language selection is local settings state, not analytics/profile-segmentation data.
 
-Security-sensitive copy—credential prompts, destructive actions, recovery/overwrite warnings and trust decisions—requires human review before the corresponding surface is described as translation-complete.
+## Windows
 
-Machine translation can be used as a drafting aid but does not override review requirements.
+The native Windows frontend supports live language switching for catalog-backed UI. A language change refreshes visible product text without changing protocol/security state.
 
-## Windows application
-
-The native Windows frontend supports live language switching. A language change refreshes labels, protocol names, list columns and supported status/action text without requiring a new profile.
-
-Startup/catastrophic fallback text remains English-first because those paths may execute before persisted localization state is safely available.
+Startup/catastrophic fallback copy can remain English because those paths may execute before persisted settings are safely available.
 
 ## Windows Setup
 
-Setup uses the same canonical language registry. The language selector is English-first and localized primary confirmation/completion/launch/warning copy is maintained for all canonical languages.
+Setup consumes the same canonical language registry and maintains localized primary install/maintenance copy. Install integrity, rollback, signing and file validation remain independent of translated text.
 
-Installer integrity, rollback and path validation remain independent of translated text. Technical recovery detail may safely fall back to English instead of rendering an empty or misleading localized security message.
+A missing translation must fall back to English rather than weakening a security decision or rendering an empty warning.
 
 ## Linux
 
-Linux reads the same persisted language setting and uses the same catalogs as the Windows core.
+The native Linux frontend consumes the same stored locale and translation catalog. Runtime language switching and normalization use the same canonical codes/fallback rules.
 
-The terminal frontend can change language at runtime using the supported canonical code. Invalid language state normalizes to English.
+Linux UI localization must not create a second set of protocol strings with different security semantics.
 
-The Linux localization contract covers connection prompts/status, remote operations, transfer status and other catalog-backed terminal messages. Additional hard-coded terminal helper text should continue moving into the canonical catalog as translations are reviewed.
+## Security-sensitive text
 
-## Web companion
+Credential prompts, destructive-operation confirmations, recovery/overwrite warnings and host-trust decisions require careful review. Translation code must never infer transport or trust state from human-readable labels; typed protocol/security state remains authoritative.
 
-The separate Web companion uses its own PHP/PWA registry synchronized to the same 24-language product set and English fallback principle.
+## Adding or improving a language
 
-The Web companion does not use an external translation service, localization tracking cookie or third-party i18n framework. User language preference is stored in existing authenticated client state and sensitive navigation/API responses remain excluded from PWA caching.
-
-The Web companion is not a Windows/Linux desktop platform artifact.
-
-## Adding or changing a language
-
-For desktop/setup changes:
-
-1. add/update the canonical language in `internal/i18n/i18n.go`;
-2. add/update the catalog while preserving every required key;
-3. preserve `%s`, `%d` and all other English format verbs;
-4. update Windows Setup primary copy;
-5. verify Windows live localization;
+1. update the canonical language/catalog source;
+2. preserve every required English key;
+3. preserve compatible format verbs/placeholders;
+4. update Setup primary copy where relevant;
+5. verify Windows live language switching;
 6. verify Linux runtime language switching;
-7. add alias/affirmative tests when regional forms require them;
-8. run the localization audit and complete CI.
-
-For Web companion translation changes, update its registry/catalog separately and run `scripts/audit_web.py`.
+7. add alias/affirmative tests where needed;
+8. run `scripts/audit_localization.py` and the full regression suite.
 
 ## CI contract
 
-`scripts/audit_localization.py` verifies:
+Localization verification checks:
 
-- English is the first/default locale;
-- exactly the canonical 24-language desktop registry is present;
-- required catalog source/test files exist;
-- translation coverage and format-contract tests remain wired;
-- Windows live localization remains wired;
-- Windows Setup copy covers every supported language;
-- Linux runtime localization remains wired;
-- root documentation advertises the same 24-language/English-first contract.
+- English is first/default/fallback;
+- exactly 24 canonical languages remain registered;
+- catalog keys and format verbs are valid;
+- minimum real translation coverage remains satisfied;
+- Windows localization wiring remains active;
+- Setup primary copy remains covered;
+- Linux runtime switching remains active;
+- README/docs advertise the same 24-language contract.
 
-Localization drift is therefore a release failure, not a documentation-only defect.
-
-## Retired platform history
-
-Historical commits may contain Android/iOS localization resources because those applications were active at that time. They are not part of the current Windows/Linux localization gate and must not be treated as current platform requirements.
+Localization drift is a release failure, not a documentation-only issue.

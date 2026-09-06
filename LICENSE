@@ -1,59 +1,67 @@
-Brendigo GhostFTP vlasnička licenca izvornog koda
-Verzija 1.1 — Sva prava pridržana
+Ghost FTP vlasnička licenca izvornog koda — BRENDIGO LTD
+Verzija 1.2 — Sva prava pridržana
 
-Copyright (c) 2026 Brendigo. Sva prava pridržana.
+Copyright (c) 2026 BRENDIGO LTD. Sva prava pridržana.
 
 1. VLASNIŠTVO
 
-GhostFTP, uključujući izvorni kod, objektni kod, korisničko sučelje, brending, dokumentaciju, grafiku, ikone, build skripte i povezane materijale (zajedno: „Softver”), vlasnički je softver tvrtke Brendigo i zaštićen je primjenjivim autorskim i drugim pravima intelektualnog vlasništva.
+Ghost FTP (tehnički identitet: GhostFTP), uključujući izvorni kod, objektni kod, korisničko sučelje, brending, dokumentaciju, grafiku, ikone, build i release skripte, instalacijske pakete te povezane materijale (zajedno: „Softver”), vlasnički je softver tvrtke BRENDIGO LTD i zaštićen je primjenjivim autorskim i drugim pravima intelektualnog vlasništva.
 
 2. OGRANIČENO DOPUŠTENJE
 
-Dopušteno je pregledavati izvorni kod u ovom repozitoriju te preuzeti i koristiti službena, neizmijenjena binarna GhostFTP izdanja za njihovu namijenjenu svrhu, pod uvjetima ove Licence.
+Dopušteno je pregledavati izvorni kod u ovom repozitoriju te preuzeti i koristiti službena, neizmijenjena binarna Ghost FTP izdanja za njihovu namijenjenu svrhu, pod uvjetima ove Licence.
 
-Izvorni kod objavljen je radi transparentnosti, sigurnosne provjere i evaluacije. Sama objava izvornog koda ne čini GhostFTP open-source softverom i ne daje opće pravo izmjene, redistribucije ili izrade izvedenih djela.
+Izvorni kod objavljen je radi transparentnosti, sigurnosne provjere i evaluacije. Sama objava izvornog koda ne čini Ghost FTP open-source softverom i ne daje opće pravo izmjene, redistribucije ili izrade izvedenih djela.
 
-3. ZABRANJENO BEZ PRETHODNOG PISANOG DOPUŠTENJA TVRTKE BRENDIGO
+3. ZABRANJENO BEZ PRETHODNOG PISANOG DOPUŠTENJA TVRTKE BRENDIGO LTD
 
-Osim prava koja se prema zakonu ne mogu ograničiti, bez prethodnog pisanog dopuštenja tvrtke Brendigo nije dopušteno:
+Osim prava koja se prema zakonu ne mogu ograničiti, bez prethodnog pisanog dopuštenja tvrtke BRENDIGO LTD nije dopušteno:
 
 (a) mijenjati, prilagođavati, prevoditi, patchirati ili izrađivati izvedena djela Softvera;
 (b) distribuirati, objavljivati, sublicencirati, prodavati, iznajmljivati ili na drugi način davati trećim osobama izmijenjeni izvorni kod ili binarne datoteke;
 (c) redistribuirati izvorni kod ili službene binarne datoteke kao dio drugog proizvoda, instalacijskog paketa, bundlea, usluge ili repozitorija;
-(d) rebrandirati, white-labelati, ukloniti, zamijeniti ili prikriti nazive GhostFTP/Brendigo, autorska prava, identitet proizvoda ili atribuciju;
+(d) rebrandirati, white-labelati, ukloniti, zamijeniti ili prikriti naziv Ghost FTP/GhostFTP, BRENDIGO LTD, autorska prava, identitet proizvoda ili atribuciju;
 (e) koristiti dio izvornog koda u drugom projektu ili proizvodu;
 (f) izrađivati ili distribuirati konkurentski ili izvedeni proizvod koji se u bitnom temelji na Softveru;
 (g) tvrditi autorstvo ili vlasništvo nad Softverom ili njegovim bitnim dijelom;
 (h) sublicencirati ili prenositi prava dana ovom Licencom;
-(i) koristiti žigove, logotipe, ikone ili brending Brendigo/GhostFTP na način koji stvara dojam neodobrene podrške, povezanosti ili autorizacije.
+(i) koristiti žigove, logotipe, ikone ili brending BRENDIGO LTD/Ghost FTP na način koji stvara dojam neodobrene podrške, povezanosti ili autorizacije.
 
 4. PRAVA VEZANA UZ JAVNI GITHUB REPOZITORIJ
 
-Ako je ovaj repozitorij javan na GitHubu, GitHubovi uvjeti korištenja mogu korisnicima platforme dati ograničena prava nužna za pregled i fork sadržaja javnog repozitorija kroz GitHubovu uslugu. Takva platformska prava ne daju dopuštenje za izmjenu, distribuciju, komercijalizaciju, rebranding, sublicenciranje ili uporabu Softvera izvan prava koja su nužna prema GitHubovim uvjetima ili zasebno pisano odobrena od tvrtke Brendigo.
+Ako je ovaj repozitorij javan na GitHubu, GitHubovi uvjeti korištenja mogu korisnicima platforme dati ograničena prava nužna za pregled i fork sadržaja javnog repozitorija kroz GitHubovu uslugu. Takva platformska prava ne daju dopuštenje za izmjenu, distribuciju, komercijalizaciju, rebranding, sublicenciranje ili uporabu Softvera izvan prava koja su nužna prema GitHubovim uvjetima ili zasebno pisano odobrena od tvrtke BRENDIGO LTD.
 
 5. OVLAŠTENI DOPRINOSI
 
-Otvaranje issuea, forka ili pull requesta samo po sebi ne daje dopuštenje za izmjenu ili redistribuciju GhostFTP-a. Doprinosi izvornom kodu dopušteni su samo kada ih Brendigo izričito zatraži ili odobri. Prihvaćeni doprinosi podliježu pravilima doprinosa ovog repozitorija i ne smiju sadržavati kod treće strane koji Brendigo nema pravo distribuirati prema ovom modelu licence.
+Otvaranje issuea, forka ili pull requesta samo po sebi ne daje dopuštenje za izmjenu ili redistribuciju Ghost FTP-a. Doprinosi izvornom kodu dopušteni su samo kada ih BRENDIGO LTD izričito zatraži ili odobri. Prihvaćeni doprinosi podliježu pravilima doprinosa ovog repozitorija i ne smiju sadržavati kod treće strane koji BRENDIGO LTD nema pravo distribuirati prema ovom modelu licence.
 
-6. SLUŽBENA IZDANJA
+6. SLUŽBENA IZDANJA I DISTRIBUCIJSKI KANALI
 
-Službena su samo binarna izdanja koja Brendigo distribuira kroz službeni GhostFTP/Brendigo kanal. Izmijenjeni, prepakirani ili rebrandirani buildovi nisu službena izdanja.
+Službena su samo neizmijenjena izdanja koja BRENDIGO LTD objavi kroz službene Ghost FTP kanale. Službeni GitHub Release mora biti vezan uz odgovarajući Ghost FTP tag i provjerene release artefakte.
 
-7. BEZ JAMSTVA
+GitHub Packages/GHCR distribucijski bundle službeni je kanal samo kada ga je proizveo release workflow ovog repozitorija, kada je povezan s odgovarajućom verzijom i kada sadržaj odgovara verificiranom release skupu. OCI/GHCR bundle nije dodatna licenca niti daje nova prava redistribucije.
+
+Izmijenjeni, prepakirani, rebrandirani ili neslužbeno potpisani buildovi nisu službena izdanja BRENDIGO LTD.
+
+7. INTEGRITET SLUŽBENIH DATOTEKA
+
+SHA-256 manifesti, build metapodaci, digitalni potpisi i registry digest služe provjeri integriteta i podrijetla. Njihova dostupnost ne daje pravo uklanjanja oznaka, mijenjanja sadržaja ili predstavljanja modificiranih datoteka kao službenog Ghost FTP izdanja.
+
+8. BEZ JAMSTVA
 
 U NAJVEĆOJ MJERI DOPUŠTENOJ ZAKONOM, SOFTVER SE DAJE „KAKAV JEST” BEZ IKAKVIH IZRIČITIH ILI PREŠUTNIH JAMSTAVA, UKLJUČUJUĆI JAMSTVA TRŽIŠNE PRIKLADNOSTI, PRIKLADNOSTI ZA ODREĐENU SVRHU I NEPOVREĐIVANJA PRAVA TREĆIH OSOBA.
 
-8. OGRANIČENJE ODGOVORNOSTI
+9. OGRANIČENJE ODGOVORNOSTI
 
-U NAJVEĆOJ MJERI DOPUŠTENOJ ZAKONOM, BRENDIGO NE ODGOVARA ZA NEIZRAVNU, SLUČAJNU, POSEBNU, POSLJEDIČNU ILI KAZNENU ŠTETU, NITI ZA GUBITAK PODATAKA, DOBITI, POSLOVANJA ILI MOGUĆNOSTI UPORABE, KOJI NASTANU IZ ILI U VEZI SA SOFTVEROM.
+U NAJVEĆOJ MJERI DOPUŠTENOJ ZAKONOM, BRENDIGO LTD NE ODGOVARA ZA NEIZRAVNU, SLUČAJNU, POSEBNU, POSLJEDIČNU ILI KAZNENU ŠTETU, NITI ZA GUBITAK PODATAKA, DOBITI, POSLOVANJA ILI MOGUĆNOSTI UPORABE, KOJI NASTANU IZ ILI U VEZI SA SOFTVEROM.
 
-9. PRESTANAK PRAVA
+10. PRESTANAK PRAVA
 
 Sva prava dana ovom Licencom automatski prestaju kršenjem njezinih uvjeta. Nakon prestanka potrebno je prekinuti svaku uporabu koja je ovisila o tim pravima i zaustaviti neovlaštenu distribuciju Softvera.
 
-10. KOMERCIJALNO ILI DRUGO POSEBNO DOPUŠTENJE
+11. KOMERCIJALNO ILI DRUGO POSEBNO DOPUŠTENJE
 
-Za izmjene, redistribuciju, integraciju, white-labeling, komercijalno licenciranje ili druga posebna prava potrebno je prethodno pisano dopuštenje tvrtke Brendigo.
+Za izmjene, redistribuciju, integraciju, white-labeling, komercijalno licenciranje ili druga posebna prava potrebno je prethodno pisano dopuštenje tvrtke BRENDIGO LTD.
 
 Kontakt: info@brendigo.com
 Web: https://brendigo.com

@@ -1,187 +1,117 @@
-# Installation
+# Ghost FTP installation
 
-Ghost FTP 0.2.0 Beta is distributed as a desktop application for **Windows** and **Linux** only. The root `VERSION` file is the canonical version source for every application binary and package.
-
-Every `0.x.y` release is a Beta/prerelease. The first version that may be treated as stable is **1.0.0**, after the complete desktop security, stability, packaging and release gate is intentionally satisfied.
-
-Only Windows and Linux desktop packages belong to the active product and release contract. Historical tags/releases remain immutable historical records.
+Ghost FTP **1.0.0 Stable** ships as native Windows and Linux packages. Use only official artifacts whose version and SHA-256 values match the corresponding GitHub Release.
 
 ## Windows
 
-Ghost FTP publishes Setup and Portable builds for x64 and x86 Windows systems. Setup and Portable contain the same application functionality and always use the same canonical version.
-
 ### Setup packages
 
-Canonical names:
+```text
+Ghost-FTP-1.0.0-Setup-x64.exe
+Ghost-FTP-1.0.0-Setup-x86.exe
+Ghost-FTP-1.0.0-Setup-x32.exe
+```
 
-- `Ghost-FTP-X.Y.Z-Setup-x64.exe`
-- `Ghost-FTP-X.Y.Z-Setup-x86.exe`
-- `Ghost-FTP-X.Y.Z-Setup-x32.exe` — compatibility alias of the x86 Setup artifact
+`x32` is a compatibility alias of the x86 Setup file and is byte-identical to it.
 
-0.2.0 Beta names:
-
-- `Ghost-FTP-0.2.0-Setup-x64.exe`
-- `Ghost-FTP-0.2.0-Setup-x86.exe`
-- `Ghost-FTP-0.2.0-Setup-x32.exe`
-
-Setup uses the shared Ghost FTP language registry. English is the default/fallback language. The installer validates its embedded payload before activation and uses the stable `GhostFTP` technical identity while presenting **Ghost FTP** as the public product name.
-
-The Setup UI is dependency-free native Win32 and follows the same premium dark visual direction as the application: centered layout, clear hierarchy, larger action targets, explicit primary actions and native Windows title-bar behavior where supported.
-
-Presentation does not bypass installer safety. The installation transaction retains payload digest verification, controlled staging, path checks, rollback-aware activation, shortcut/registry updates and final readback.
-
-### Installed Apps and uninstall
-
-Ghost FTP 0.2.0 registers a normal Windows Installed Apps entry during Setup. The registration includes the installed version, publisher, install location, application icon and uninstall commands.
-
-Ghost FTP does **not** ship a separate `Uninstall.exe`. Uninstallation is integrated into the installed application binary through the protected `GhostFTP.exe --uninstall` mode.
-
-The integrated uninstall path:
-
-- is accepted only from the canonical installed application location;
-- removes application-owned shortcuts and Windows registration;
-- schedules deletion of the running application binary safely after process exit;
-- preserves saved profiles/settings by default so removing or upgrading the application does not silently destroy user configuration;
-- is rejected by Portable copies so an arbitrary Portable executable cannot uninstall the installed product.
-
-Setup snapshots the registry values it owns. If installation/upgrade fails before commit, the previous App Paths and Installed Apps registration can be restored as part of rollback.
+Setup is a per-user installation/maintenance application. It stages and validates payloads before replacement, keeps rollback state through the transaction, writes the maintained uninstall registration and supports update/uninstall from the installed product path.
 
 ### Portable packages
 
-Canonical names:
+```text
+Ghost-FTP-1.0.0-Portable-x64.exe
+Ghost-FTP-1.0.0-Portable-x86.exe
+```
 
-- `Ghost-FTP-X.Y.Z-Portable-x64.exe`
-- `Ghost-FTP-X.Y.Z-Portable-x86.exe`
+Portable mode does not create the normal Setup registration and keeps its portable state boundary beside the application as documented by the product. Do not mix an installed data directory and portable data directory manually.
 
-0.2.0 Beta names:
+### Stable signing
 
-- `Ghost-FTP-0.2.0-Portable-x64.exe`
-- `Ghost-FTP-0.2.0-Portable-x86.exe`
-
-Portable builds require no traditional installation. Place the executable in a user-writable folder and run it directly. Portable and Setup builds use the same connection, file-management, transfer, security, localization and settings engine.
-
-### Window behavior
-
-The Windows client is a normal desktop window and supports:
-
-- resize;
-- minimize;
-- maximize;
-- restore;
-- DPI-aware relayout;
-- a maintained minimum workspace size so controls do not collapse into unusable geometry.
-
-### Windows runtime prerequisites
-
-Ghost FTP does not silently download protocol components. The current transport layer uses operating-system `curl` for FTP/FTPS and OpenSSH `ssh`/`sftp` for SFTP.
-
-On supported Windows installations these are normally available as system components. If a required executable is unavailable or does not provide the required secure capability, Ghost FTP fails with an actionable error instead of downloading an unverified substitute.
+Stable Windows publication is blocked unless the protected release environment supplies the configured trusted Authenticode identity. Verify the Windows digital signature and `SHA256.txt` before deployment.
 
 ## Linux
 
-Ghost FTP publishes Debian packages for:
-
-- amd64;
-- arm64;
-- i386.
-
-Release file names:
-
-- `Ghost-FTP-X.Y.Z-Linux-amd64.deb`
-- `Ghost-FTP-X.Y.Z-Linux-arm64.deb`
-- `Ghost-FTP-X.Y.Z-Linux-i386.deb`
-- `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`
-
-0.2.0 Beta names:
-
-- `Ghost-FTP-0.2.0-Linux-amd64.deb`
-- `Ghost-FTP-0.2.0-Linux-arm64.deb`
-- `Ghost-FTP-0.2.0-Linux-i386.deb`
-- `Ghost-FTP-0.2.0-Linux-multiarch.zip`
-
-Example for an amd64 Debian-family system:
+Official Debian packages are:
 
 ```text
-sudo apt install ./Ghost-FTP-0.2.0-Linux-amd64.deb
+Ghost-FTP-1.0.0-Linux-amd64.deb
+Ghost-FTP-1.0.0-Linux-arm64.deb
+Ghost-FTP-1.0.0-Linux-i386.deb
 ```
 
-The package installs the `ghostftp` executable and desktop/package metadata. With a local X11/XWayland-compatible display it starts the graphical frontend by default; headless environments can use the hardened terminal fallback.
+A convenience archive contains all three verified packages:
 
-Windows and Linux use the same typed `internal/api.Engine`, connection model, transfer manager, profile/settings model and security validation. Native presentation can differ where required by the operating system, but the application operations and safety boundaries remain aligned.
+```text
+Ghost-FTP-1.0.0-Linux-multiarch.zip
+```
 
-Linux 0.2.0 also exposes runtime selection from the same 24-language registry used by Windows, with English as the default/fallback language.
+Install the package matching the machine architecture with the system package manager. The package installs the `ghostftp` application and desktop integration expected by the maintained Linux build.
 
-### Linux runtime prerequisites
+## Upgrade to 1.0.0
 
-The DEB metadata is the source of truth for Linux package dependencies. The protocol implementation uses system-provided:
+Ghost FTP 1.0.0 is the first stable release. Existing 0.2.x local settings/profiles are intended to remain compatible. Before upgrading critical systems, keep a copy of local configuration and verify the stable package checksum/signature.
 
-- `curl` for FTP/FTPS;
-- OpenSSH `ssh` and `sftp` for SFTP.
+Windows Setup performs a staged replacement and rollback-oriented transaction. Linux upgrades use the standard package manager semantics of the DEB package.
 
-These are explicit operating-system prerequisites, not hidden bundled libraries or Go module dependencies.
+## Saved credentials
 
-## First connection
+Saved credentials remain local and are opt-in. An upgrade must not require exporting plaintext passwords. Windows uses the current-user protection boundary; Linux uses local authenticated encryption with user-private key material.
 
-For Windows and Linux:
+If a protected secret cannot be decrypted under the current user/device context, Ghost FTP must require the credential again rather than silently weakening protection.
 
-1. choose FTP, explicit FTPS, implicit FTPS or SFTP as appropriate;
-2. enter the exact host, port and username supplied by the server provider;
-3. provide the password or SFTP private-key credentials required by that server;
-4. for SFTP, verify the server host-key fingerprint before first trust;
-5. connect;
-6. browse the local and remote panes;
-7. upload/download only after the connection is confirmed.
+## GitHub Packages
 
-Ghost FTP does not send credentials to a Ghost FTP account service or analytics endpoint. Connection credentials are used for the user-selected server connection.
+The stable release is also mirrored as:
 
-### SFTP authentication
+```text
+ghcr.io/bren-wp/ghost-ftp:1.0.0
+```
 
-SFTP supports:
+This OCI object is a verified distribution bundle containing `/ghostftp-release/`; it is not a runtime container and is not the normal desktop installation path. See [Packages](PACKAGES.md).
 
-- password authentication;
-- private-key authentication;
-- a private key protected by a passphrase.
+## Verifying files
 
-A private key is not mandatory when the server permits password authentication. Host-key verification remains active regardless of the authentication method.
+Each GitHub Release contains `SHA256.txt`. Compare the checksum of every downloaded installer/package before use.
 
-### FTPS
+The corresponding `BUILD-METADATA.txt` binds the version, source commit, release tag, platform set, signing state and GitHub Package reference.
 
-Use FTPS when supported by the server. Certificate validation remains enabled. Ghost FTP does not add a blanket certificate/revocation bypass merely to make a failing server appear connected.
+## Uninstall
 
-### FTP
+### Windows
 
-Plain FTP is unencrypted. It remains available for compatibility with servers that provide no secure alternative, but FTPS or SFTP should be preferred whenever available.
+Use the registered Ghost FTP uninstall entry. The integrated maintenance/uninstall path belongs to the installed Ghost FTP binary/Setup transaction and does not depend on an unrelated external uninstaller.
 
-## Settings and user data
+### Linux
 
-Ghost FTP stores settings and saved profiles in the platform-specific user application-data location. State writes use guarded replacement and conservative filesystem permissions where supported.
+Remove the `ghost-ftp` package with the distribution package manager. User-local profiles/settings are separate data; removing application binaries does not imply deletion of all user data unless the product explicitly offers that operation.
 
-Windows saved profile secrets use DPAPI-backed protection. Linux persisted secret envelopes use the maintained authenticated-encryption/profile security implementation and private per-user state/key permissions.
+## Troubleshooting
 
-The same validated Settings model controls operational options such as:
+### Windows signature validation fails
 
-- language;
-- transfer parallelism;
-- conflict behavior;
-- retry count;
-- retry delay;
-- operation timeout;
-- destructive-action confirmation.
+Do not bypass stable signature verification. Re-download from the official Release, verify `SHA256.txt`, and confirm that the release itself is the expected `ghostftp-v1.0.0` tag.
 
-Settings that are displayed by the UI are wired to the shared engine/configuration model rather than being presentation-only toggles.
+### Linux package architecture mismatch
 
-## Release verification
+Use `amd64`, `arm64` or `i386` according to the target host. Do not force an incompatible DEB architecture.
 
-Before deploying a package in a managed environment:
+### Saved profile cannot decrypt
 
-1. download it from the matching `ghostftp-vX.Y.Z` GitHub Release;
-2. verify its SHA-256 hash against `SHA256.txt`;
-3. review `BUILD-METADATA.txt` for the expected commit, version, channel and platform;
-4. review `RELEASE-NOTES.txt` for compatibility and behavior changes;
-5. for any `0.x.y` version, verify the GitHub Release is marked as a Beta/prerelease.
+Confirm that the same operating-system user and local secret-protection state are being used. Re-enter the password/passphrase if the original protected context is unavailable.
 
-A complete Ghost FTP desktop release contains **9 platform artifacts** and **12 public files** after release notes, build metadata and checksums are included.
+### Connection fails after installation
 
-The production release workflow performs immediate and delayed GitHub Release readback, verifies exact asset names/sizes, compares the published checksum manifest with the locally assembled manifest and verifies the intended Beta/stable channel.
+Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host, port, server policy and system transfer-tool availability without pasting real credentials into issue reports.
 
-See [Release verification](RELEASE-VERIFICATION.md), [GitHub Releases](GITHUB-RELEASES.md), [Platform parity](PLATFORM-PARITY.md), [Security](SECURITY.md) and [Versioning](VERSIONING.md).
+## Production deployment checklist
+
+1. download from the official stable GitHub Release;
+2. verify release tag/version;
+3. verify `SHA256.txt`;
+4. verify Windows Authenticode when installing on Windows;
+5. choose the correct architecture;
+6. preserve needed local configuration before upgrade;
+7. test the target server using its intended FTP/FTPS/SFTP mode;
+8. keep private credentials out of logs and support reports.
+
+See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).

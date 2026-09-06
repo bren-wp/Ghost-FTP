@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify VERSION is canonical and bound to the Windows/Linux Beta release line."""
+"""Verify canonical Ghost FTP versioning across Windows/Linux release surfaces."""
 
 from __future__ import annotations
 
@@ -56,11 +56,17 @@ def main() -> int:
         fail("README does not expose canonical VERSION")
     if f"## {version}" not in read("CHANGELOG.md"):
         fail("CHANGELOG does not contain a section for VERSION")
-    if major == 0 and "Development status: **Beta**" not in readme:
-        fail("pre-1.0 VERSION must be documented as Beta")
+    if major == 0:
+        if "Development status: **Beta**" not in readme:
+            fail("pre-1.0 VERSION must be documented as Beta")
+    else:
+        if "Development status: **Stable**" not in readme:
+            fail("1.x+ VERSION must be documented as Stable")
+        if version == "1.0.0" and "First stable release" not in readme:
+            fail("1.0.0 README must explicitly identify the first stable release")
 
     versioning = read("docs/VERSIONING.md")
-    require(versioning, ("0.1.0", "0.x.y", "1.0.0", "Beta", "Portable", "Setup"), "docs/VERSIONING.md")
+    require(versioning, ("0.1.0", "0.x.y", "1.0.0", "Beta", "Stable", "Portable", "Setup"), "docs/VERSIONING.md")
 
     windows_build = read("BUILD-WINDOWS.ps1")
     require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS.ps1")
@@ -96,12 +102,15 @@ def main() -> int:
         "RELEASE_TAG=ghostftp-v$version",
         "RELEASE_CHANNEL",
         "--prerelease",
+        "packages: write",
+        "ghcr.io/${owner}/ghost-ftp",
+        "if: env.RELEASE_CHANNEL == 'stable'",
         "PUBLIC_PLATFORM_ARTIFACTS=9",
         "PUBLIC_RELEASE_FILES=12",
     ), ".github/workflows/release.yml")
 
     require(read("scripts/audit_platform_contract.py"), ("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", "RETIRED_APPLICATION_SURFACES=WEB,PWA"), "scripts/audit_platform_contract.py")
-    require(read("scripts/audit_release.py"), ("PUBLIC_PLATFORM_ARTIFACTS=9", "PUBLIC_RELEASE_FILES=12"), "scripts/audit_release.py")
+    require(read("scripts/audit_release.py"), ("PUBLIC_PLATFORM_ARTIFACTS=9", "PUBLIC_RELEASE_FILES=12", "STABLE_GHCR_BUNDLE=REQUIRED"), "scripts/audit_release.py")
 
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
@@ -120,6 +129,8 @@ def main() -> int:
     print("RETIRED_APPLICATION_SURFACES=ANDROID,IOS,MACOS,WEB,PWA")
     print("PRE_1_0_CHANNEL=BETA")
     print("FIRST_STABLE_VERSION=1.0.0")
+    print("STABLE_RELEASE_PRERELEASE_FLAG=FALSE")
+    print("STABLE_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
     return 0
 
 

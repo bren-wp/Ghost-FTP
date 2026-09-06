@@ -1,120 +1,134 @@
-# Versioning policy
+# Ghost FTP versioning
 
-Ghost FTP uses one canonical desktop application version from the root `VERSION` file. Windows Setup, Windows Portable, Linux packages, release tags, release notes and build metadata must all resolve from that same value.
+Ghost FTP uses semantic versioning with the root `VERSION` file as the authoritative production version source.
 
-## Current baseline
+Current source baseline: **1.0.0 Stable**.
 
-The active development line began at **0.1.0** and the current source baseline is **0.2.0 Beta**.
-
-All versions in the `0.x.y` range are **Beta** builds. They are intended for active development, testing, compatibility work and stabilization. They may be distributed for evaluation, but they are not represented as the first fully stable Ghost FTP release.
-
-The first release that may be presented as fully stable is **1.0.0**. Moving to 1.0.0 is a product-quality decision, not merely a calendar or feature-count milestone.
-
-## Version progression
-
-The normal sequence is:
+## Version format
 
 ```text
-0.1.0 Beta
-0.1.1 Beta
-0.2.0 Beta
-0.3.0 Beta
-...
-0.9.x Beta
-1.0.0
+MAJOR.MINOR.PATCH
+```
+
+Production tags use:
+
+```text
+ghostftp-vMAJOR.MINOR.PATCH
+```
+
+For the current release:
+
+```text
+VERSION=1.0.0
+TAG=ghostftp-v1.0.0
+CHANNEL=Stable
+PRERELEASE=false
+```
+
+## Historical pre-1.0 policy
+
+The maintained public line began at **0.1.0**. Every **0.x.y** release was a **Beta** prerelease. Historical tags/releases remain unchanged for traceability.
+
+Version **1.0.0** is the first **Stable** public release. Stable does not mean development stops; it means the maintained release contract is no longer published as a prerelease and backward compatibility/stability receive normal production-release priority.
+
+## Post-1.0 increments
+
+### PATCH
+
+Use a patch increment for compatible bug fixes, security/privacy hardening, performance improvements, documentation corrections and packaging/release fixes that do not intentionally break supported workflows.
+
+Example:
+
+```text
 1.0.1
+```
+
+### MINOR
+
+Use a minor increment for backward-compatible functionality, substantial workflow improvements or new optional capabilities.
+
+Example:
+
+```text
 1.1.0
-...
 ```
 
-Patch increments (`0.1.1`, `0.1.2`) are used for compatible fixes and refinements inside the same development milestone. Minor increments (`0.2.0`, `0.3.0`) mark meaningful development milestones or capability groups. Before 1.0.0, compatibility may still evolve when required for correctness, security or architecture cleanup, but changes must remain documented.
+### MAJOR
 
-## Beta rule
+Use a major increment for intentionally incompatible product contracts that require clear migration guidance.
 
-A build whose canonical major version is `0` is a Beta build.
+## Binary/package identity
 
-The machine-readable value remains plain semantic versioning such as `0.1.0`. This is required for:
+The same semantic version is injected into:
 
-- Windows PE file/product version metadata;
-- Debian package metadata;
-- release workflow comparison and validation;
-- `ghostftp-vX.Y.Z` tag generation;
-- update/release automation that expects numeric `X.Y.Z` values.
+- Windows application binaries;
+- Windows **Setup** packages;
+- Windows **Portable** packages;
+- Linux DEB metadata;
+- release notes and build metadata;
+- GitHub Release tag/title;
+- stable GitHub Package version tag.
 
-The user-facing application version may append the word `Beta`, for example **0.1.0 Beta**. This presentation label must never replace the canonical numeric value inside package metadata.
+Source entry points retain `version = "dev"` and receive production versions only through build linker flags.
 
-GitHub Releases created from a `0.x.y` version are prereleases. The release workflow must not publish a `0.x.y` build as a stable release.
+## Stable GitHub Release rule
 
-## Stable 1.0.0 gate
+For `MAJOR >= 1`, the publication workflow selects the stable channel and does not apply the GitHub prerelease flag. A stable Windows release is blocked unless the protected trusted Authenticode identity is configured and the produced files verify successfully.
 
-Ghost FTP moves to **1.0.0** only when the maintained product is considered complete and stable enough for the first stable public line. At minimum, the following areas must be release-ready:
+The official stable release must point to the exact `main` commit that passed release quality gates.
 
-- Windows native UI and Site Manager behavior;
-- Linux maintained frontend and shared-core parity;
-- FTP, FTPS and SFTP connection reliability;
-- SFTP host-key trust and credential handling;
-- upload/download correctness and transfer queue lifecycle;
-- overwrite, retry, cancellation and recovery behavior;
-- Windows Setup transaction, rollback and upgrade behavior;
-- Windows Portable startup and runtime behavior;
-- supported localization coverage and fallback behavior;
-- security, privacy and dependency audits;
-- release artifact verification and SHA-256 manifest generation;
-- documentation, installation and support guidance;
-- successful Windows and Linux production CI gates.
+## GitHub Packages versioning
 
-No individual feature completion automatically changes the version to 1.0.0. The stable cut happens only after the complete release contract is satisfied.
-
-## Windows Setup and Portable
-
-Setup and Portable are two packaging forms of the same Ghost FTP release. They must always carry the **same canonical version**.
-
-For the current baseline this means:
+Stable releases publish the verified distribution bundle using the immutable semantic tag:
 
 ```text
-Ghost-FTP-0.2.0-Setup-x64.exe
-Ghost-FTP-0.2.0-Setup-x86.exe
-Ghost-FTP-0.2.0-Portable-x64.exe
-Ghost-FTP-0.2.0-Portable-x86.exe
+ghcr.io/bren-wp/ghost-ftp:1.0.0
 ```
 
-When the first stable version is reached, the corresponding packages become:
+and compatible stable aliases:
 
 ```text
-Ghost-FTP-1.0.0-Setup-x64.exe
-Ghost-FTP-1.0.0-Setup-x86.exe
-Ghost-FTP-1.0.0-Portable-x64.exe
-Ghost-FTP-1.0.0-Portable-x86.exe
+1.0
+1
+latest
 ```
 
-The release workflow also creates the documented x32 compatibility alias of the x86 Setup build. The alias does not have an independent version.
+Downstream automation should prefer the full semantic version or an immutable OCI digest. Historical Beta channel logic does not publish stable package aliases.
 
-## Canonical source of truth
+## Version source integrity
 
-Do not hard-code a production version in Go source, documentation templates, workflow defaults or package templates. The root `VERSION` file is authoritative.
+The release workflow rejects:
 
-Production builds inject that value into the application and installer at link time. Build scripts and CI validate that Windows and Linux package metadata match it exactly.
+- a malformed semantic version;
+- a manual version different from `VERSION`;
+- an existing release tag that points to a different commit;
+- a stable release whose Windows signing state is not trusted/configured;
+- release output whose expected asset set is incomplete;
+- release/package read-back failures.
 
-## Historical repository versions
+## Changelog and release notes
 
-Existing tags, releases, commits and changelog entries from earlier repository work are retained as immutable historical provenance. They are not deleted or rewritten.
+`CHANGELOG.md` must contain a `## <VERSION>` section. `scripts/release_notes.py` extracts only that exact section for the public `RELEASE-NOTES.txt` file.
 
-The current **0.1.0 → 1.0.0** policy is the active product-development baseline going forward. Historical version numbers document earlier repository states; they do not change the active baseline and must not be used to skip the Beta stabilization process.
+Historical release notes retain their original version/channel wording. Active documentation must describe the current stable baseline.
 
-## Release tags
+## First stable checklist
 
-Current release tags remain namespaced:
+Ghost FTP 1.0.0 is considered release-ready only when the exact candidate passes:
 
-```text
-ghostftp-vX.Y.Z
-```
+- Windows and Linux production CI;
+- FTP/FTPS/SFTP reliability regressions;
+- SFTP host-key trust/fingerprint validation;
+- transfer correctness, retry/cancel/recovery and generation binding;
+- Windows Setup transaction/rollback and Portable verification;
+- localization checks;
+- security/privacy/dependency/repository audits;
+- release asset allow-list and SHA-256 verification;
+- stable Authenticode gate;
+- GitHub Release normal-release verification;
+- stable GitHub Package publication/read-back;
+- current documentation/support/license synchronization.
 
-Examples:
+## Historical numbering
 
-```text
-ghostftp-v0.1.0
-ghostftp-v0.2.0
-ghostftp-v1.0.0
-```
-
-Published tags are immutable. A tag already pointing to a released commit must never be moved to another commit.
+Old 0.x references in `CHANGELOG.md` and `docs/RELEASE-HISTORY.md` are intentional historical records and must not be mass-rewritten to 1.0.0.

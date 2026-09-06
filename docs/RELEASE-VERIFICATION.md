@@ -1,170 +1,141 @@
-# Verifying Ghost FTP releases
+# Ghost FTP release verification
 
-Every current Ghost FTP desktop release publishes `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt` together with the Windows/Linux platform packages. Verification should be performed before installation or redistribution.
+This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. Verification covers source identity, Windows signing, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
 
-The active baseline is **0.2.0 Beta**. Every `0.x.y` GitHub Release must be marked **Prerelease**. The first version eligible for the stable channel is **1.0.0**.
-
-## 1. Verify the release identity
-
-The expected tag format is:
+## Expected release identity
 
 ```text
-ghostftp-vX.Y.Z
+VERSION=1.0.0
+TAG=ghostftp-v1.0.0
+TITLE=Ghost FTP 1.0.0
+PRERELEASE=false
 ```
 
-The version in the tag, package filename, root `VERSION`, release title and `BUILD-METADATA.txt` must agree.
+A stable release must not be marked as a prerelease.
 
-For a pre-1.0 release, the release title must include `Beta` and GitHub must report the release as a prerelease.
+## Source revision
 
-Historical tags/releases remain available for provenance. They do not define the active Windows/Linux package matrix and must not be reused or moved to another commit.
+`BUILD-METADATA.txt` contains the source commit. The GitHub Release tag must resolve to that exact commit. The release workflow also proves that `main` still points to the release commit immediately before and after publication.
 
-## 2. Expected current release files
+## Public file set
 
-The desktop release contains **9 platform artifacts**:
+The expected contract is **9 platform artifacts** and **12 public files** total. Extra or missing files fail the publication read-back.
 
-1. `Ghost-FTP-X.Y.Z-Setup-x64.exe`
-2. `Ghost-FTP-X.Y.Z-Setup-x86.exe`
-3. `Ghost-FTP-X.Y.Z-Setup-x32.exe` — byte-identical compatibility alias of x86
-4. `Ghost-FTP-X.Y.Z-Portable-x64.exe`
-5. `Ghost-FTP-X.Y.Z-Portable-x86.exe`
-6. `Ghost-FTP-X.Y.Z-Linux-amd64.deb`
-7. `Ghost-FTP-X.Y.Z-Linux-arm64.deb`
-8. `Ghost-FTP-X.Y.Z-Linux-i386.deb`
-9. `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`
-
-The release also contains:
-
-- `RELEASE-NOTES.txt`
-- `BUILD-METADATA.txt`
-- `SHA256.txt`
-
-That is **12 public release files** total.
-
-## 3. Verify SHA-256
-
-### Windows PowerShell
-
-For the current Beta baseline:
-
-```powershell
-Get-FileHash .\Ghost-FTP-0.2.0-Setup-x64.exe -Algorithm SHA256
-Get-FileHash .\Ghost-FTP-0.2.0-Portable-x64.exe -Algorithm SHA256
-```
-
-Compare each returned digest with the exact filename entry in `SHA256.txt`.
-
-### Linux
-
-```bash
-sha256sum Ghost-FTP-0.2.0-Linux-amd64.deb
-sha256sum Ghost-FTP-0.2.0-Linux-multiarch.zip
-```
-
-A mismatch means the package must not be installed or redistributed.
-
-`SHA256.txt` is generated **after** all final Windows PE-resource and Authenticode mutations so the manifest describes the actual published bytes.
-
-## 4. Verify Windows Authenticode
-
-A SHA-256 match proves byte integrity relative to the GitHub Release. It does not by itself establish publisher identity.
-
-Check a Windows executable with:
-
-```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-0.2.0-Setup-x64.exe | Format-List Status,StatusMessage,SignerCertificate,TimeStamperCertificate
-```
-
-Or for Portable:
-
-```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-0.2.0-Portable-x64.exe | Format-List Status,StatusMessage,SignerCertificate,TimeStamperCertificate
-```
-
-Interpretation:
-
-- `Valid` means Windows validates the Authenticode signature under the local trust policy.
-- `NotSigned` means the artifact is unsigned.
-- `UnknownError`, `NotTrusted` or equivalent trust failure must not be presented as a verified publisher identity.
-- `HashMismatch` means the executable changed after signing and must be rejected.
-
-`BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=signed` or `WINDOWS_AUTHENTICODE=unsigned` for the publication workflow.
-
-Beta releases may be explicitly unsigned when no protected production signing identity is configured. Stable releases at `1.0.0` or later are blocked by the release workflow unless a trusted production Authenticode identity is configured.
-
-A development/self-signed certificate used by CI is only a signing-pipeline test. It is never a substitute for a trusted production publisher certificate and its private key is never published.
-
-See [Signing](SIGNING.md).
-
-## 5. Verify the x32 compatibility alias
-
-`Setup-x32.exe` is intentionally a compatibility alias of `Setup-x86.exe`. The files must be byte-identical.
-
-Windows PowerShell:
-
-```powershell
-(Get-FileHash .\Ghost-FTP-0.2.0-Setup-x86.exe -Algorithm SHA256).Hash
-(Get-FileHash .\Ghost-FTP-0.2.0-Setup-x32.exe -Algorithm SHA256).Hash
-```
-
-The two hashes must match exactly. If they differ, treat the release as invalid.
-
-## 6. Verify Linux package metadata
-
-For each Debian package:
-
-```bash
-dpkg-deb -f Ghost-FTP-0.2.0-Linux-amd64.deb Package Version Architecture
-```
-
-Expected values for the amd64 package are:
+The platform artifacts are five Windows files and four Linux files. The remaining three files are:
 
 ```text
-Package: ghost-ftp
-Version: 0.2.0
-Architecture: amd64
+BUILD-METADATA.txt
+RELEASE-NOTES.txt
+SHA256.txt
 ```
 
-Repeat for `arm64` and `i386` and verify the architecture matches the filename.
+## SHA-256 verification
 
-The multiarch ZIP must contain exactly the three verified Debian packages for amd64, arm64 and i386.
+`SHA256.txt` contains hashes for every other public release file. On Linux:
 
-## 7. Verify build metadata
+```bash
+sha256sum -c SHA256.txt
+```
 
-`BUILD-METADATA.txt` records the publication boundary, including:
+On Windows, use `Get-FileHash -Algorithm SHA256` and compare each value to the manifest.
 
-- public brand and technical identity;
-- version and release tag;
-- release channel (`beta` or `stable`);
-- Git commit SHA;
-- active application platforms (`WINDOWS,LINUX`);
-- Windows Setup/Portable architecture coverage;
-- Windows Authenticode state;
-- Linux package architecture coverage;
-- language count/default language;
-- telemetry build policy;
-- expected platform-artifact and public-file counts.
+Do not treat a matching filename as proof of authenticity; verify the digest and official release location.
 
-For `0.x.y`, `RELEASE_CHANNEL` must be `beta`.
+## Windows Authenticode
 
-## 8. Verify source provenance
+Stable Windows publication is blocked unless the protected workflow reports a trusted signing identity as configured and every Setup/Portable artifact passes Authenticode verification during the production build.
 
-The production release workflow verifies that `main` still points at the workflow commit immediately before publication. It refuses to move an existing `ghostftp-vX.Y.Z` tag to another commit.
+On Windows, inspect the signature with PowerShell:
 
-After upload, the workflow performs two remote checks:
+```powershell
+Get-AuthenticodeSignature .\Ghost-FTP-1.0.0-Setup-x64.exe | Format-List
+```
 
-1. immediate release-asset readback;
-2. a delayed readback after another `main` commit check.
+A stable file should have a valid signature and the expected publisher identity. If signature validation fails, do not bypass it by disabling operating-system security checks.
 
-Both passes compare the remote asset name/size set and download the published `SHA256.txt` for byte-for-byte comparison with the local manifest.
+## x86/x32 alias verification
 
-For high-assurance deployments, record together:
+The two Setup names:
 
-- release tag;
-- Git commit SHA;
-- artifact filename;
-- SHA-256 digest;
-- Authenticode signer/thumbprint and timestamp state for Windows artifacts when signed.
+```text
+Ghost-FTP-1.0.0-Setup-x86.exe
+Ghost-FTP-1.0.0-Setup-x32.exe
+```
 
-## 9. Active versus historical platforms
+must be byte-identical. The release workflow compares their SHA-256 values before publication.
 
-Current application release verification covers **Windows and Linux only**. Historical Android, iOS and macOS artifacts may remain attached to older historical releases, but they are not part of the active release matrix and must not be expected in the current 0.2.0 Beta Windows/Linux release.
+## Linux DEB verification
+
+For each Linux package, verify:
+
+```bash
+dpkg-deb -f Ghost-FTP-1.0.0-Linux-amd64.deb Package
+dpkg-deb -f Ghost-FTP-1.0.0-Linux-amd64.deb Version
+dpkg-deb -f Ghost-FTP-1.0.0-Linux-amd64.deb Architecture
+```
+
+Expected package name is `ghost-ftp`; version must equal `1.0.0`; architecture must match the file suffix.
+
+The same checks apply to arm64 and i386.
+
+## GitHub Release verification
+
+Confirm that:
+
+- tag is `ghostftp-v1.0.0`;
+- title is `Ghost FTP 1.0.0`;
+- `prerelease` is false;
+- tag resolves to the documented source commit;
+- remote asset names exactly match the 12-file allow-list;
+- `SHA256.txt` verifies the downloaded content.
+
+The production workflow performs immediate and delayed Release read-back; manual verification is still useful before broad deployment.
+
+## GitHub Packages verification
+
+Stable releases publish:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:1.0.0
+```
+
+The package is a verified distribution bundle, not a runtime container. Its OCI metadata must identify the Ghost FTP source repository, stable version and release source revision.
+
+Recommended automation resolves the full version tag to an immutable OCI digest and pins that digest downstream. After extracting `/ghostftp-release/`, verify its `SHA256.txt` exactly as for a GitHub Release download.
+
+## Privacy verification
+
+A release/package must not contain:
+
+- saved site profiles;
+- plaintext passwords;
+- private-key passphrases;
+- signing private keys/PFX material;
+- user files or local application data;
+- developer machine paths or secrets.
+
+The GHCR build copies only the already assembled `release/` allow-list, and Docker build networking is disabled.
+
+## CI/release gate verification
+
+Before trusting a new stable version, inspect that the exact revision passed:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- formatting checks;
+- repository/platform/dependency audits;
+- security and privacy audits;
+- localization and documentation audits;
+- release contract audit;
+- Python regression suite;
+- Windows production package build;
+- Linux production package build;
+- Authenticode stable gate;
+- GitHub Package push/read-back;
+- GitHub Release asset/read-back verification.
+
+## Failure interpretation
+
+A failed gate is meaningful. Do not manually relabel a failed candidate as stable or bypass integrity checks to make a release appear complete. Fix the source, documentation, packaging or protected release configuration and rerun the exact workflow.
+
+See [GitHub Releases](GITHUB-RELEASES.md), [Packages](PACKAGES.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).

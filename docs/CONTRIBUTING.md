@@ -1,77 +1,48 @@
-# Contributing
+# Contributing to Ghost FTP
 
-Keep changes small, testable and consistent with the existing security model. English is the canonical language for source-facing user text, documentation and repository metadata; desktop runtime translations belong in `internal/i18n` and must preserve the canonical English key/format contract.
+Ghost FTP **1.0.0 Stable** is source-available proprietary software maintained by **BRENDIGO LTD**. A public repository does not automatically grant permission to redistribute modified builds; contributions must also respect the repository [`LICENSE`](../LICENSE).
 
-The active desktop application targets are **Windows and Linux only**. Android, iOS and macOS are historical repository provenance and must not be reintroduced into the maintained application tree, build matrix or release workflow.
+## Contribution priorities
 
-## Code boundaries
+Preferred changes improve:
 
-Platform code must stay within its intended boundary:
+- crash/race/deadlock resistance;
+- FTP/FTPS/SFTP correctness and interoperability;
+- transfer staging/rollback/retry/cancel behavior;
+- privacy-safe diagnostics and secret lifetime;
+- local filesystem/path safety;
+- Windows/Linux parity;
+- native UI accessibility and efficiency;
+- localization correctness;
+- Setup/Portable/DEB reliability;
+- release verification and documentation accuracy.
 
-- shared desktop/core behavior belongs in `cmd/` and `internal/`;
-- Windows-native UI/platform behavior belongs in Windows build-tagged files under the existing desktop/platform packages;
-- Linux graphical/terminal platform behavior belongs in Linux build-tagged files and `linux/` packaging.
+## Before changing code
 
-Do not broaden a `//go:build linux` or `//go:build windows` implementation into a generic fallback merely to make another operating system compile. Adding another maintained application platform would require an explicit product decision, complete security/build/release design and a corresponding platform-contract change.
+Identify the correct layer first. Protocol/transfer behavior belongs in the shared core where possible; platform frontends should not fork security or transfer semantics just to expose a UI control.
 
-## Security and privacy
+Do not add a new dependency, remote service, telemetry path or signing mechanism without explicit review of its security, privacy, provenance and release impact.
 
-Do not add:
+## Required local checks
 
-- telemetry, analytics, advertising or session-replay SDKs;
-- hidden product-controlled network destinations;
-- insecure credential transport or plaintext persisted secrets;
-- certificate, TLS or SFTP host-key bypasses;
-- proxy/jump/agent behavior that escapes the application connection boundary;
-- unsafe recursive filesystem operations;
-- private signing keys or signing passwords.
-
-Add regression tests for transfer, installer, profile-storage, filesystem and security-sensitive behavior whenever practical.
-
-## Dependencies
-
-The desktop/core Go module intentionally has no external Go module dependency graph. A new dependency requires explicit provenance, license, security/update ownership and documented justification. Do not add a GUI or protocol library merely to simplify a small helper that the maintained platform layer can safely implement.
-
-Current protocol execution uses operating-system `curl` for FTP/FTPS and OpenSSH `ssh`/`sftp` for SFTP. Changes to that transport boundary require security regression coverage.
-
-## Localization
-
-English (`en`) is the canonical/default/fallback language. Changes to user-facing catalog-backed text must:
-
-1. preserve the complete English key set;
-2. preserve compatible format verbs/placeholders;
-3. keep all 24 canonical locale registrations valid;
-4. update Windows Setup copy when the same concept appears in installation;
-5. keep Windows live switching and Linux runtime switching functional.
-
-## Versioning
-
-The current lifecycle is:
+For Go changes:
 
 ```text
-0.1.0 Beta → 0.x.y Beta → 1.0.0 stable
-```
-
-`VERSION` is the single production version source. Windows Setup and Portable always carry the same version. Do not increment the version for an untested cosmetic edit; advance it only for a meaningful tested milestone.
-
-Every `0.x.y` GitHub Release is a Beta/Prerelease. Stable publication begins at `1.0.0` and requires all stable release gates, including a trusted Windows Authenticode signing identity.
-
-## Windows signing
-
-Never commit a PFX/P12/private key, certificate password, hardware-token PIN or cloud signing credential.
-
-Development signing may use the short-lived self-signed helper documented in `SIGNING.md`, but it is only a pipeline test. Production signing credentials must remain outside source control and must be supplied through the protected release boundary.
-
-## Before opening or merging a pull request
-
-Run the relevant repository audits and platform build gates. At minimum, changes affecting the maintained desktop/release surface must remain compatible with:
-
-```text
+go telemetry off
 gofmt
 go test -race ./...
 go vet ./...
+```
+
+Run relevant repository audits after changes:
+
+```text
 python scripts/audit_repository.py
 python scripts/audit_platform_contract.py
+python scripts/audit_desktop_surface.py
+python scripts/audit_dependencies.py
+python scripts/audit_version.py
+python scripts/audit_localization.py
 python scripts/audit_security.py
 python scripts/audit_privacy.py
 python scripts/audit_docs.py
@@ -79,6 +50,59 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Windows changes must pass the x64/x86 Setup/Portable production build and Authenticode signing smoke test. Linux changes must pass amd64/arm64/i386 DEB builds and metadata verification.
+## Security/privacy requirements
 
-Changes that affect release packaging must keep the exact artifact allowlist, Beta/stable channel rule, immutable tag behavior, SHA-256 metadata and documentation synchronized.
+Do not commit or paste:
+
+- real FTP/SFTP passwords;
+- private keys or key passphrases;
+- protected saved-profile payloads;
+- code-signing private keys/certificates with private material;
+- production server private data;
+- CI secret values.
+
+Tests use synthetic credentials and isolated fixtures.
+
+## Dependency policy
+
+The maintained Go module has no external module requirements. A proposal to add one must demonstrate why the standard library/system-runtime approach is insufficient and include security, license, update and reproducibility analysis.
+
+Production workflows intentionally use `GOPROXY=off` and `GOSUMDB=off`.
+
+## UI changes
+
+Windows changes should preserve DPI/resize behavior, keyboard focus, native control semantics and the approved dual-pane hierarchy. Linux changes should preserve the same typed Engine behavior and avoid unnecessary continuous redraw.
+
+Do not add decorative controls with no backend behavior. A visible option must map to a real validated setting/operation.
+
+## Documentation changes
+
+Update active documentation when user-visible behavior, package names, security/privacy boundaries or release behavior changes. Historical release records should remain historical rather than being rewritten to the current version.
+
+All local links must pass `scripts/audit_docs.py`.
+
+## Release changes
+
+Changes to `.github/workflows/release.yml`, packaging or signing must preserve fail-closed behavior:
+
+- stable Windows Authenticode gate;
+- exact `main` commit binding;
+- immutable version tags;
+- explicit 9-platform-artifact / 12-public-file allow-list;
+- SHA-256 generation;
+- GitHub Release read-back;
+- stable GitHub Package/GHCR distribution-bundle read-back;
+- no release secret material inside artifacts.
+
+## Pull request expectations
+
+A pull request should explain:
+
+1. the defect/requirement;
+2. the implementation approach;
+3. security/privacy implications;
+4. Windows/Linux impact;
+5. tests/audits run;
+6. documentation/release changes if applicable.
+
+A green compile alone is not sufficient for security-, transfer- or release-sensitive changes.

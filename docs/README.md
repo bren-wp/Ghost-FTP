@@ -1,127 +1,77 @@
 # Ghost FTP documentation
 
-This directory contains the maintained product, architecture, security, privacy, operator, packaging and release documentation for **Ghost FTP**.
+- **Current Ghost FTP release: 1.0.0**
+- Development status: **Stable**
+- Platforms: **Windows and Linux**
+- Protocols: **FTP, FTPS and SFTP**
+- Languages: **24 selectable local languages**
 
-**Current Ghost FTP release: 0.2.1**
+This directory contains the maintained engineering, operations, privacy, security, release and user documentation for Ghost FTP. The root [`VERSION`](../VERSION) file is the authoritative production version source.
 
-Development status: **Beta**
+## Product and architecture
 
-Ghost FTP currently maintains one application product for two desktop platforms: **Windows and Linux**. The root `VERSION` is canonical for both platforms and for every Setup, Portable and Linux package produced by the release workflow.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — component boundaries, protocol architecture, persistence, transfer and release design.
+- [`REFERENCE-UI.md`](REFERENCE-UI.md) — workstation visual/interaction reference and authentic screenshot contract.
+- [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux behavior parity contract.
+- [`SETTINGS.md`](SETTINGS.md) — persisted settings, normalization and recovery behavior.
+- [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language offline localization model.
 
-## Start here
+## Installation and distribution
 
-- [Installation](INSTALLATION.md) — Windows/Linux prerequisites, Setup, Portable and Linux packages.
-- [Desktop reference UI](REFERENCE-UI.md) — maintained workspace hierarchy, authentic capture and native presentation rules.
-- [Platform parity](PLATFORM-PARITY.md) — shared actions/security/settings and deliberate native presentation differences.
-- [Localization](LOCALIZATION.md) — English-first 24-language registry and runtime/setup coverage.
-- [Settings](SETTINGS.md) — real persisted options, safe defaults, validation and migration semantics.
-- [Dependencies](DEPENDENCIES.md) — zero external Go modules, OS transport prerequisites and tracking-SDK prohibition.
-- [Architecture](ARCHITECTURE.md) — shared typed engine and native Windows/Linux frontend boundaries.
-- [Security](SECURITY.md) — credentials, host trust, path protections and transfer hardening.
-- [Privacy](PRIVACY.md) — telemetry prohibition and runtime network/data boundaries.
-- [Testing](TESTING.md) — automated quality, security, localization and production-build gates.
-- [Versioning](VERSIONING.md) — the `0.x.y` Beta progression and the stable 1.0.0 gate.
-- [Release history](RELEASE-HISTORY.md) — immutable historical engineering/release provenance.
-- [GitHub Releases](GITHUB-RELEASES.md) — release channel, asset and tag policy.
-- [Release verification](RELEASE-VERIFICATION.md) — SHA-256, metadata and provenance verification.
-- [Signing](SIGNING.md) — Windows signing and Linux package provenance expectations.
-- [Roadmap](ROADMAP.md) — desktop Beta stabilization and 1.0 quality priorities.
-- [Third-party notices](THIRD-PARTY-NOTICES.md) — operating-system transport attribution boundary.
-- [Contributing](CONTRIBUTING.md) — contribution workflow and quality requirements.
-- [Support](SUPPORT.md) — issue reporting and support boundaries.
-- [Linux packaging](../linux/README.md) — Linux build/package details.
+- [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux DEB installation/upgrade guidance.
+- [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical GitHub Release structure and release-channel rules.
+- [`PACKAGES.md`](PACKAGES.md) — stable GHCR distribution bundle published through GitHub Packages.
+- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — artifact, metadata, SHA-256, signing and package verification.
+- [`SIGNING.md`](SIGNING.md) — protected Authenticode signing model for stable Windows publication.
+- [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable/prerelease policy.
 
-## Active application platforms
+The stable workflow publishes **9 platform artifacts** and **12 public files** on each canonical GitHub Release. The same verified release directory is also mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
 
-### Windows
+## Security and privacy
 
-- native Win32 UI;
-- normal resizable/minimizable/maximizable desktop window;
-- x64 and x86 builds;
-- Setup and Portable editions;
-- one canonical dual-pane workspace;
-- integrated Windows Installed Apps uninstall without a separate uninstall executable;
-- the same shared transfer/security engine used by Linux.
+- [`SECURITY.md`](SECURITY.md) — transport, SFTP trust, path validation, staged transfer, secret and process boundaries.
+- [`PRIVACY.md`](PRIVACY.md) — no-telemetry policy, local data handling, diagnostics redaction and distribution privacy.
+- [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency/runtime-tool policy and offline Go build boundary.
+- [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) — notices for platform/runtime tooling used by Ghost FTP.
 
-### Linux
+## Quality and engineering
 
-- native X11/XWayland-compatible graphical frontend;
-- hardened terminal fallback;
-- amd64, arm64 and i386 packages;
-- the same typed `internal/api.Engine` used by Windows;
-- the same connection, transfer, settings, profile, localization and security model;
-- runtime selection from the shared 24-language registry.
+- [`TESTING.md`](TESTING.md) — Go race tests, protocol regressions, UI/runtime checks and Python repository audits.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution and release-quality expectations.
+- [`ROADMAP.md`](ROADMAP.md) — post-1.0 maintenance priorities and product constraints.
+- [`SUPPORT.md`](SUPPORT.md) — support information and safe issue-reporting guidance.
 
-Native Win32 and Linux controls are not claimed to be pixel-identical. Product actions, settings semantics, security boundaries, palette and versioning are kept aligned.
+## Release history
 
-## Current product line
+- [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — cumulative release narrative.
+- [`../CHANGELOG.md`](../CHANGELOG.md) — public version-by-version change log.
 
-The maintained maturity sequence is:
+Historical sections intentionally preserve older version numbers and Beta terminology. They are history, not the current support state.
+
+## Stable 1.0 release contract
+
+Ghost FTP 1.0.0 is the first stable release. It is published as a normal GitHub Release with `prerelease=false`. Stable Windows publication remains gated on the protected trusted Authenticode identity. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
+
+The production workflow also publishes:
 
 ```text
-0.1.0 Beta → 0.1.1 Beta → 0.2.0 Beta → 0.2.1 Beta → 0.x.y Beta → 1.0.0 stable
+ghcr.io/bren-wp/ghost-ftp:1.0.0
 ```
 
-Every `0.x.y` build is a Beta/prerelease. The first release that may be treated as stable is **1.0.0**, after the complete desktop quality gate is intentionally satisfied.
+with compatible stable aliases. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
 
-Windows Setup and Portable are packaging variants of the same application release and therefore always use the same canonical version.
+## Privacy-safe documentation rule
 
-Release tags use:
+Documentation and build logs must never include real passwords, private-key passphrases, protected profile payloads, signing private keys or private user data. Examples use synthetic values only. Connection diagnostics should describe categories and remediation without reproducing credentials.
 
-```text
-ghostftp-vX.Y.Z
-```
+## Source-of-truth hierarchy
 
-Published release tags are immutable.
+When documentation and implementation appear to disagree, verify in this order:
 
-## Release artifact contract
+1. current `VERSION` and source code;
+2. security/privacy/release audit scripts;
+3. CI and release workflow behavior;
+4. current active documentation;
+5. historical release notes.
 
-A complete Windows/Linux release contains **9 platform artifacts**:
-
-1. Windows Setup x64
-2. Windows Setup x86
-3. Windows Setup x32 compatibility alias
-4. Windows Portable x64
-5. Windows Portable x86
-6. Linux amd64 DEB
-7. Linux arm64 DEB
-8. Linux i386 DEB
-9. Linux multiarch ZIP
-
-The release also publishes:
-
-- `RELEASE-NOTES.txt`
-- `BUILD-METADATA.txt`
-- `SHA256.txt`
-
-This produces **12 public files** for a complete release.
-
-## 0.2.0 documentation focus
-
-Version 0.2.0 documents and verifies the desktop-only product contract introduced by the current source cleanup:
-
-- one canonical Windows workspace instead of overlapping presentation layers;
-- Linux graphical runtime language selection using the same 24-language registry;
-- real settings parity for parallelism, conflict policy, retries, retry delay, timeout and delete confirmation;
-- integrated Windows uninstall through the installed application;
-- removal of retired non-desktop application source from the active tree;
-- explicit distinction between zero external Go modules and OS-provided `curl`, `ssh` and `sftp` transport executables;
-- fail-closed privacy/dependency/platform audits;
-- authentic Windows UI screenshots generated from the real production executable.
-
-## Documentation invariants
-
-Maintained documentation must follow these rules:
-
-- current guides describe Windows and Linux as the only supported application platforms;
-- historical release notes remain historical facts and are not rewritten to pretend earlier releases had the current platform matrix;
-- root `VERSION` remains the single machine-readable semantic version source;
-- Windows Setup and Portable never have separate version numbers or divergent application functionality;
-- remote permission metadata is shown only when supplied and validated from server listing/mode data;
-- dependency guidance distinguishes Go module dependencies from operating-system prerequisites;
-- privacy guidance does not imply an analytics/update service that the application does not have;
-- Linux native presentation is allowed to differ from Win32 presentation while using the same typed Engine contract;
-- the 24-language registry remains English-first with safe English fallback;
-- release asset counts must match the release workflow;
-- screenshots used as application evidence come from the authentic production capture workflow rather than generated mockups;
-- published release tags remain immutable.
+A public release is considered complete only when the exact source revision passes all required gates and both GitHub Release and stable GitHub Package publication have been verified.

@@ -1,128 +1,88 @@
-# Dependencies and external-component policy
+# Ghost FTP dependencies
 
-Ghost FTP 0.1.0 Beta minimizes third-party code, prohibits application tracking, and makes every remaining operating-system prerequisite explicit.
+Ghost FTP **1.0.0 Stable** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit.
 
-## Scope
+## Go module contract
 
-The active desktop application targets are **Windows and Linux**. The existing Web companion source is audited separately and is not a Windows/Linux desktop release artifact.
+The root Go module is intentionally standard-library-only. CI rejects unexpected `require`, `replace`, `exclude` or `retract` directives, an unreviewed `go.sum` graph and vendored Go modules.
 
-## Desktop/core Go dependency contract
+Production workflows use:
 
-The root Go module is intentionally standard-library-only.
+```text
+GOPROXY=off
+GOSUMDB=off
+```
 
-CI rejects:
+and explicitly disable Go telemetry before build/test.
 
-- `require`, `replace`, `exclude` or `retract` directives in `go.mod`;
-- an unexpected `go.sum` dependency graph;
-- a vendored Go module tree;
-- telemetry/analytics/advertising/crash-reporting dependency markers.
+## Runtime protocol prerequisites
 
-This means Ghost FTP does not pull a GUI toolkit, FTP library, SSH library, analytics library or updater framework into the desktop Go module.
+Ghost FTP delegates protocol execution to audited system tools rather than embedding a second third-party networking stack into the Go module.
 
-## Runtime transport prerequisites
+### FTP / FTPS
 
-The current transport layer deliberately delegates protocol execution to mature operating-system tools instead of embedding third-party protocol stacks into the Go module.
+The maintained transport uses system `curl`. Ghost FTP supplies a controlled configuration/environment so ambient proxy/configuration state cannot silently redirect a selected FTP/FTPS connection.
 
-### FTP and FTPS
+Security invariants include:
 
-Ghost FTP invokes OS `curl` using a generated stdin configuration. The application:
-
-- starts curl with `-q` so ambient user curl configuration is not loaded;
-- disables proxy use for the transfer session;
-- sanitizes proxy-related environment state;
-- passes credentials through protected runtime handling rather than command-line arguments;
-- validates download staging paths before promotion;
-- keeps FTPS certificate verification enabled;
-- does not opt into a blanket `ssl-no-revoke` bypass.
+- no user curl config inheritance for the managed operation;
+- proxy-environment sanitization;
+- protected runtime credential handling;
+- download staging validation;
+- FTPS certificate validation;
+- no blanket certificate-revocation disable switch.
 
 ### SFTP
 
-Ghost FTP uses OS OpenSSH `ssh`/`sftp`. The application-created SSH configuration disables ambient features that would change the connection boundary, including:
+The maintained SFTP transport uses system OpenSSH `ssh`/`sftp`. Ghost FTP creates a constrained SSH configuration that disables ambient proxy/jump/agent/forwarding behavior that would escape the selected connection boundary.
 
-- `ProxyCommand`;
-- `ProxyJump`;
-- global known-host inheritance;
-- DNS host-key verification/update behavior;
-- identity-agent inheritance;
-- forwarding and agent forwarding.
+Passwords/passphrases use the bounded AskPass/runtime-secret path and are not intentionally written into a password file.
 
-SFTP credentials are exposed to the child process only through the bounded AskPass/runtime-secret mechanism. The application does not write an AskPass password/passphrase file to disk.
+## Windows UI dependency boundary
 
-## GUI dependency boundary
+The Windows desktop frontend uses native Win32/DWM/common-control facilities. Ghost FTP does not bundle a large cross-platform UI runtime solely to render the workstation.
 
-The Windows reference workspace is implemented with native Win32 APIs and operating-system fonts/controls. Setup and Portable therefore do not bundle a third-party cross-platform GUI runtime merely to render the application shell.
+Windows production packages are native application executables/Setup wrappers generated from the repository build.
 
-Linux currently uses a native X11 GUI with hardened terminal fallback over the same shared engine. This is a presentation difference, not a second transfer/security implementation.
+## Linux UI dependency boundary
 
-A future pixel-equivalent Linux GUI may use an operating-system display/toolkit prerequisite only after that dependency is explicitly reviewed and documented. It must not be described as “dependency-free” if it requires X11, Wayland, GTK, Qt, WebKit or another runtime component, even when that component is normally installed by the distribution.
+Linux uses the maintained native X11/XWayland-compatible frontend backed by the same Engine. The Linux package therefore requires the normal display/runtime environment appropriate to that frontend in addition to protocol tools.
 
-Ghost FTP will not silently introduce a large GUI framework solely to make a visual-parity claim. The dependency policy requires the project to state the presentation gap accurately until a reviewed Linux graphical implementation exists.
+The Linux renderer is not a second protocol implementation.
 
-See [Desktop reference UI](REFERENCE-UI.md) and [Platform parity](PLATFORM-PARITY.md).
+## Accurate dependency wording
 
-## Windows prerequisites
+Ghost FTP has **zero external Go modules** in the maintained root module, but it does have operating-system runtime prerequisites. Documentation must not misrepresent that distinction as “zero runtime dependencies.”
 
-Supported Windows installations normally provide the required curl/OpenSSH components, but the build does not silently bundle an untracked third-party copy.
+## GitHub Actions dependencies
 
-If a required system component is unavailable, Ghost FTP must fail with an actionable connection error rather than downloading a dependency in the background.
+CI/release workflows use pinned GitHub Actions revisions for checkout, language setup and artifact transfer. These are build-system dependencies, not installed-application dependencies.
 
-The graphical application itself uses Win32/DWM/common-control facilities supplied by Windows.
+The stable release additionally uses Docker available on the GitHub-hosted Ubuntu runner to construct the GHCR distribution bundle from `FROM scratch`. Docker is not bundled into Ghost FTP and is not required to run the desktop application.
 
-## Linux prerequisites
+## GitHub Packages
 
-Linux packages declare the operating-system packages required for the transport implementation. The canonical DEB build is the source of truth for package metadata.
+The OCI release package has no runtime base image. It copies the already verified `release/` directory into `/ghostftp-release/`. The package is a distribution bundle only and does not add a runtime dependency to Ghost FTP.
 
-At runtime Ghost FTP expects suitable `curl`, `ssh` and `sftp` executables to be available through the supported system paths/environment.
+## Tracking and analytics prohibition
 
-The maintained terminal frontend does not require a bundled GUI toolkit.
+Do not add runtime dependencies for application telemetry, advertising, behavior analytics, session replay, marketing attribution or automatic remote crash collection.
 
-## Why this is not called “zero runtime dependencies”
+Repository privacy/dependency audits scan for known tracking/vendor markers and unexpected network behavior.
 
-The phrase would be inaccurate today. Ghost FTP has **zero external Go modules in the desktop/core module**, but protocol execution still depends on OS-provided `curl` and OpenSSH tools. Windows graphical presentation also necessarily uses operating-system Win32 APIs.
+## Adding a dependency
 
-The repository audit intentionally preserves that distinction. A future embedded transport implementation or Linux graphical toolkit would require a separate security/dependency review because changing a protocol implementation or application runtime boundary is much more sensitive than replacing a small UI helper.
+Any proposal for a new runtime/library dependency must document:
 
-## Web companion
-
-The Web companion has no third-party Composer runtime packages. Its `composer.json` contains only the supported PHP platform requirement and documents optional PHP extension capabilities.
-
-Suggested extensions are capability declarations, not Composer-installed packages. The Web companion remains separate from the active desktop application release artifact count.
-
-## Tracking/analytics policy
-
-Ghost FTP must not add application dependencies for:
-
-- analytics;
-- advertising;
-- behavioral tracking;
-- remote crash collection;
-- user/session replay;
-- automatic marketing attribution;
-- background application telemetry.
-
-CI audits dependency surfaces and runtime source for known vendor markers and fixed telemetry-style network endpoints.
-
-The local Diagnostics window is not a telemetry channel. It renders local application state and does not upload a report.
-
-## Build-time actions
-
-GitHub Actions uses pinned action revisions for checkout, Go setup, Python setup and artifact upload/download. These are build-system dependencies, not installed-application runtime dependencies.
-
-Production builds also execute `go telemetry off` and verify that telemetry is disabled before compiling.
-
-The authentic Windows screenshot workflow additionally uses Windows `PrintWindow(PW_RENDERFULLCONTENT)` and image verification on the CI runner. That tooling is build/test infrastructure and is not installed into Ghost FTP.
-
-## Change-control rules
-
-Any proposal that introduces a new runtime/library dependency must document:
-
-1. why existing standard-library/OS facilities are insufficient;
-2. exact package/component and version;
-3. license and provenance;
+1. exact component/version;
+2. why existing standard-library/system facilities are insufficient;
+3. license/provenance;
 4. security/update ownership;
-5. telemetry/network behavior;
-6. whether the dependency is bundled or system-provided;
-7. rollback/removal strategy;
-8. CI checks required to prevent unreviewed drift.
+5. network/telemetry behavior;
+6. whether it is bundled or system-provided;
+7. rollback/removal plan;
+8. CI/audit changes that prevent unreviewed drift.
 
-Dependencies must never be added merely to simplify a small UI or helper function when the current platform layer can implement it safely.
+A dependency should not be introduced merely to simplify a small helper that the existing platform layer can implement safely.
+
+See [Third-party notices](THIRD-PARTY-NOTICES.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).

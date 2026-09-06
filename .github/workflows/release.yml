@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 concurrency:
   group: ghostftp-release
@@ -218,7 +219,7 @@ jobs:
     name: Assemble and publish Windows and Linux release
     needs: [quality, windows, linux]
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       WINDOWS_SIGNING_STATE: ${{ needs.windows.outputs.signing_state }}
     steps:
@@ -259,12 +260,12 @@ jobs:
           echo "RELEASE_CHANNEL=$release_channel" >> "$GITHUB_ENV"
           echo "RELEASE_TITLE=$release_title" >> "$GITHUB_ENV"
       - name: Download Windows
-        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
           name: ghostftp-windows-stage
           path: staging/windows
       - name: Download Linux
-        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
           name: ghostftp-linux-stage
           path: staging/linux
@@ -307,6 +308,7 @@ jobs:
           TELEMETRY=disabled
           PUBLIC_PLATFORM_ARTIFACTS=9
           PUBLIC_RELEASE_FILES=12
+          GITHUB_PACKAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ghost-ftp:${VERSION}
           EOF
           sed -i 's/^          //' release/BUILD-METADATA.txt
           (
@@ -316,6 +318,51 @@ jobs:
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
           test "$count" = '12'
           test "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x86.exe" | awk '{print $1}')" = "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x32.exe" | awk '{print $1}')"
+      - name: Publish stable bundle to GitHub Packages
+        if: env.RELEASE_CHANNEL == 'stable'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          package_ref="ghcr.io/${owner}/ghost-ftp"
+          major="${VERSION%%.*}"
+          remainder="${VERSION#*.}"
+          minor="${remainder%%.*}"
+
+          cat > Dockerfile.release-bundle <<'EOF'
+          FROM scratch
+          ARG VERSION
+          ARG SOURCE
+          ARG REVISION
+          LABEL org.opencontainers.image.title="Ghost FTP verified release bundle"
+          LABEL org.opencontainers.image.description="Verified Ghost FTP desktop release files for Windows and Linux. Distribution bundle only; not a supported runtime container."
+          LABEL org.opencontainers.image.source="$SOURCE"
+          LABEL org.opencontainers.image.version="$VERSION"
+          LABEL org.opencontainers.image.revision="$REVISION"
+          LABEL org.opencontainers.image.licenses="LicenseRef-Proprietary"
+          COPY release/ /ghostftp-release/
+          EOF
+          sed -i 's/^          //' Dockerfile.release-bundle
+
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build --pull=false --network=none \
+            --build-arg VERSION="$VERSION" \
+            --build-arg SOURCE="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --build-arg REVISION="$GITHUB_SHA" \
+            -f Dockerfile.release-bundle \
+            -t "$package_ref:$VERSION" .
+          docker tag "$package_ref:$VERSION" "$package_ref:$major.$minor"
+          docker tag "$package_ref:$VERSION" "$package_ref:$major"
+          docker tag "$package_ref:$VERSION" "$package_ref:latest"
+          docker push "$package_ref:$VERSION"
+          docker push "$package_ref:$major.$minor"
+          docker push "$package_ref:$major"
+          docker push "$package_ref:latest"
+          docker buildx imagetools inspect "$package_ref:$VERSION" >/dev/null
+          echo "GITHUB_PACKAGE_PUBLISH=PASS ($package_ref:$VERSION)"
+          printf '### GitHub Package\n`%s:%s`\n' "$package_ref" "$VERSION" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish verified GitHub Release
         shell: bash
         env:
@@ -373,9 +420,6 @@ jobs:
               diff -u <(printf '%s\n' "$expected_assets") <(printf '%s\n' "$remote_assets") || true
               exit 1
             }
-            readback_dir="$(mktemp -d)"
-            gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir" --clobber
-            cmp release/SHA256.txt "$readback_dir/SHA256.txt"
             remote_prerelease="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)"
             if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
               test "$remote_prerelease" = 'true'

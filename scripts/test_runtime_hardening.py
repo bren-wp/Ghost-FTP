@@ -47,7 +47,7 @@ class RuntimeHardeningTests(unittest.TestCase):
         ):
             self.assertFalse((ROOT / rel).exists(), f"retired Web tooling exists: {rel}")
 
-    def test_release_workflow_requires_delayed_remote_readback(self) -> None:
+    def test_release_workflow_requires_delayed_remote_metadata_readback(self) -> None:
         source = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         immediate = "assert_release_asset_set immediate"
         delay = "sleep 5"
@@ -58,9 +58,9 @@ class RuntimeHardeningTests(unittest.TestCase):
             "RELEASE_ASSET_READBACK=PASS",
             "gh release view",
             "--json assets",
-            "gh release download",
             "SHA256.txt",
             "remote_prerelease=",
+            "test \"$remote_prerelease\" = 'false'",
             immediate,
             delay,
             main_guard,
@@ -75,6 +75,27 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertLess(immediate_pos, delay_pos)
         self.assertLess(delay_pos, main_guard_pos)
         self.assertLess(main_guard_pos, delayed_pos)
+
+    def test_stable_package_publication_is_offline_and_read_back(self) -> None:
+        source = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        for marker in (
+            "packages: write",
+            "Publish stable bundle to GitHub Packages",
+            "if: env.RELEASE_CHANNEL == 'stable'",
+            "FROM scratch",
+            "COPY release/ /ghostftp-release/",
+            "--network=none",
+            "ghcr.io/${owner}/ghost-ftp",
+            "docker buildx imagetools inspect",
+            "GITHUB_PACKAGE_PUBLISH=PASS",
+        ):
+            self.assertIn(marker, source)
+
+        self.assertNotIn("COPY . /ghostftp-release/", source)
+        self.assertLess(
+            source.index("COPY release/ /ghostftp-release/"),
+            source.index("docker buildx imagetools inspect"),
+        )
 
 
 if __name__ == "__main__":
