@@ -25,9 +25,23 @@ Ghost-FTP-1.0.0-Portable-x86.exe
 
 Portable mode does not create the normal Setup registration and keeps its portable state boundary beside the application as documented by the product. Do not mix an installed data directory and portable data directory manually.
 
-### Stable signing
+### Windows signing state
 
-Stable Windows publication is blocked unless the protected release environment supplies the configured trusted Authenticode identity. Verify the Windows digital signature and `SHA256.txt` before deployment.
+Production Authenticode signing is optional. Read `BUILD-METADATA.txt` from the same official release:
+
+```text
+WINDOWS_AUTHENTICODE=signed
+```
+
+means the release workflow used a configured trusted production certificate and verified the produced signatures.
+
+```text
+WINDOWS_AUTHENTICODE=unsigned
+```
+
+means the official Windows artifacts are intentionally unsigned. The workflow does not generate a self-signed production identity merely to make the files appear signed.
+
+In both cases verify `SHA256.txt`. For a signed release, also verify the Authenticode publisher. Unsigned builds may trigger Windows SmartScreen/publisher warnings depending on local policy.
 
 ## Linux
 
@@ -49,7 +63,7 @@ Install the package matching the machine architecture with the system package ma
 
 ## Upgrade to 1.0.0
 
-Ghost FTP 1.0.0 is the first stable release. Existing 0.2.x local settings/profiles are intended to remain compatible. Before upgrading critical systems, keep a copy of local configuration and verify the stable package checksum/signature.
+Ghost FTP 1.0.0 is the first stable release. Existing 0.2.x local settings/profiles are intended to remain compatible. Before upgrading critical systems, keep a copy of local configuration and verify the stable package checksum and, when present, its signing state.
 
 Windows Setup performs a staged replacement and rollback-oriented transaction. Linux upgrades use the standard package manager semantics of the DEB package.
 
@@ -87,9 +101,11 @@ Remove the `ghost-ftp` package with the distribution package manager. User-local
 
 ## Troubleshooting
 
-### Windows signature validation fails
+### Windows shows an unknown-publisher or SmartScreen warning
 
-Do not bypass stable signature verification. Re-download from the official Release, verify `SHA256.txt`, and confirm that the release itself is the expected `ghostftp-v1.0.0` tag.
+First inspect `BUILD-METADATA.txt`. If it says `WINDOWS_AUTHENTICODE=unsigned`, the missing trusted signature is expected for that release. Verify the official release tag and `SHA256.txt`, and follow your Windows/organization security policy rather than disabling protections globally.
+
+If metadata says `WINDOWS_AUTHENTICODE=signed` but signature validation fails, re-download from the official Release and treat the mismatch as a verification failure.
 
 ### Linux package architecture mismatch
 
@@ -108,7 +124,7 @@ Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host,
 1. download from the official stable GitHub Release;
 2. verify release tag/version;
 3. verify `SHA256.txt`;
-4. verify Windows Authenticode when installing on Windows;
+4. inspect `WINDOWS_AUTHENTICODE` and verify Authenticode when the release is signed;
 5. choose the correct architecture;
 6. preserve needed local configuration before upgrade;
 7. test the target server using its intended FTP/FTPS/SFTP mode;
