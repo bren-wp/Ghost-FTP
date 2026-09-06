@@ -2,7 +2,7 @@
 
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**, developed and published by **BRENDIGO LTD**. It provides one professional dual-pane workstation for **FTP, FTPS and SFTP**, with local profiles, protected saved-secret handling, bounded transfer management, secure release verification and no application telemetry.
 
-- Current Ghost FTP version: **1.1.0**
+- Current Ghost FTP version: **1.1.1**
 - Development status: **Stable**
 - Release channel: **Stable**
 - First stable release: **Ghost FTP 1.0.0**
@@ -15,20 +15,21 @@
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
 
-## 1.1.0 stable release
+## 1.1.1 stable quality release
 
-Ghost FTP 1.1.0 is the first feature release after the 1.0 stable baseline. It keeps the same Windows/Linux FTP, FTPS and SFTP product scope while concentrating on desktop clarity, credential lifetime, stability and release/documentation fidelity.
+Ghost FTP 1.1.1 is the maintenance/hardening release after the 1.1.0 appearance release. It keeps the same Windows/Linux FTP, FTPS and SFTP product scope while making the safer choices the actual defaults and adding stronger end-to-end connection/privacy regression coverage.
 
 Highlights:
 
-- **Classic Light appearance**: a clean, information-dense light workspace inspired by established two-pane FTP clients while retaining Ghost FTP branding and original assets;
-- Dark remains available on Windows, with one Appearance choice rather than a collection of overlapping cosmetic toggles;
-- native Windows chrome, menus, lists, headers, buttons and title-bar treatment are appearance-aware so light mode does not leave dark fragments behind;
+- **Classic Light is the primary appearance** for fresh installs and missing/invalid appearance state;
+- an explicitly persisted Windows Dark choice remains respected and is never overwritten by normalization;
+- **explicit FTPS on port 21 is the fresh/quick-connect default** on both Windows and Linux; plain FTP remains an explicit legacy compatibility option;
+- secure protocol selection never silently downgrades FTPS to plaintext FTP;
+- Windows Site Manager and the main Save Profile flow use the same explicit credential-persistence consent model;
+- credential-persistence consent is available for all 24 supported UI languages;
+- a real loopback FTP integration test now exercises the production `remote.Manager.Connect` lifecycle, initial remote listing, operation admission, connection identity and disconnect cleanup;
+- wrong FTP authentication and FTPS-to-plain downgrade attempts are regression-tested to ensure they never publish a false connected session;
 - authentic production Windows screenshots are rebuilt by CI from the real x64 Portable executable and persisted into `docs/images`;
-- Linux keeps the same shared Core/API, transfer engine and release contract; platform-specific UI behavior is verified independently in CI;
-- SFTP protected-secret ownership now distinguishes session-owned and borrowed profile credentials;
-- pending SFTP host-key trust credentials are forgotten promptly on cancel, expiry, mismatch and abandoned setup paths without invalidating borrowed profile credentials;
-- host-key confirmation preserves the credential from the confirmation attempt instead of silently falling back to stale profile state;
 - no telemetry, analytics, advertising, hidden network service or new external Go module dependency was added.
 
 ## Privacy by design
@@ -37,7 +38,7 @@ Ghost FTP does not include application analytics, advertising, tracking pixels, 
 
 Normal network activity is limited to user-directed FTP/FTPS/SFTP operations and the operating-system tools required for those protocols. Connection errors are converted into privacy-safe user-facing categories; passwords, private-key passphrases and protected profile secrets are not intentionally copied into diagnostics.
 
-Saved credentials are opt-in. Windows uses the current-user Windows protection boundary. Linux persistent profile state remains local and platform-protected according to the documented Linux storage model; session-only credentials are not intentionally promoted into persistent profile state.
+Saved credentials are opt-in. On Windows, both the main Save Profile flow and Site Manager require explicit consent before newly entered credentials are persisted. Windows uses the current-user Windows protection boundary. Linux persistent profile state remains local and platform-protected according to the documented Linux storage model; session-only credentials are not intentionally promoted into persistent profile state.
 
 See [Privacy](docs/PRIVACY.md) and [Security](docs/SECURITY.md).
 
@@ -46,6 +47,7 @@ See [Privacy](docs/PRIVACY.md) and [Security](docs/SECURITY.md).
 The maintained security boundary includes:
 
 - host, port, path and protocol validation before connection/transfer;
+- **FTPS as the fresh connection default** while retaining explicit plain FTP compatibility;
 - TLS certificate/hostname validation for FTPS with no silent downgrade;
 - explicit treatment of plain FTP as an unencrypted transport;
 - SFTP host-key fingerprint policy and private-key validation;
@@ -58,7 +60,7 @@ The maintained security boundary includes:
 - no private signing material committed to the repository;
 - zero external Go module requirements in the maintained source tree.
 
-Security-sensitive behavior is covered by Go regression tests plus repository-level Python audits. See [Security](docs/SECURITY.md), [Testing](docs/TESTING.md) and [Dependencies](docs/DEPENDENCIES.md).
+Security-sensitive behavior is covered by Go regression tests plus repository-level Python audits. Real loopback FTP tests cover both the transport lifecycle and the production connection manager. See [Security](docs/SECURITY.md), [Testing](docs/TESTING.md) and [Dependencies](docs/DEPENDENCIES.md).
 
 ## Desktop workflow
 
@@ -78,34 +80,36 @@ The Windows frontend uses native Win32 drawing and controls. The Linux frontend 
 
 ## Appearance
 
-Ghost FTP 1.1.0 introduces **Classic Light** alongside the existing dark Windows appearance. Appearance is intentionally a single two-choice setting rather than multiple overlapping switches for background, accent, icon and control colors. The selected Windows appearance is persisted locally and applied on the next application start so the complete native control tree is created consistently, avoiding half-themed controls and repaint races.
+**Classic Light is the primary Ghost FTP 1.1.1 appearance.** Fresh installs and invalid/missing appearance state resolve to Classic Light. Windows users who explicitly choose Dark keep that persisted preference.
+
+Appearance remains intentionally a single two-choice Windows setting rather than multiple overlapping switches for background, accent, icon and control colors. The selected Windows appearance is applied on the next application start so the complete native control tree is created consistently, avoiding half-themed controls and repaint races.
 
 Classic Light uses neutral near-white surfaces, subtle grey borders, dark readable text and a restrained blue selection/accent treatment. It is inspired by the clarity of classic professional FTP clients, but uses Ghost FTP's own iconography, branding and palette rather than copying third-party assets.
 
 ## Supported protocols
 
-### FTP
+### FTPS — fresh default
 
-Standard FTP is available for compatibility. It is unencrypted and should be used only when the server/environment explicitly requires it.
-
-### FTPS
-
-Ghost FTP supports TLS-protected FTP modes and preserves certificate/hostname validation. Failed TLS negotiation is not silently converted into plain FTP.
+Ghost FTP uses explicit FTPS on port 21 as the fresh/quick-connect default on Windows and Linux. TLS certificate/hostname validation is preserved. Failed TLS negotiation is not silently converted into plain FTP.
 
 ### SFTP
 
 SFTP uses SSH transport semantics with host-key verification. Password and key-based authentication are supported by the maintained system-tool integration and validation layer.
+
+### FTP — explicit compatibility
+
+Standard FTP remains available when a legacy server/environment explicitly requires it. It is unencrypted and is not selected as the fresh default.
 
 ## Windows installation
 
 Choose the architecture and packaging mode that matches the machine:
 
 ```text
-Ghost-FTP-1.1.0-Setup-x64.exe
-Ghost-FTP-1.1.0-Setup-x86.exe
-Ghost-FTP-1.1.0-Setup-x32.exe
-Ghost-FTP-1.1.0-Portable-x64.exe
-Ghost-FTP-1.1.0-Portable-x86.exe
+Ghost-FTP-1.1.1-Setup-x64.exe
+Ghost-FTP-1.1.1-Setup-x86.exe
+Ghost-FTP-1.1.1-Setup-x32.exe
+Ghost-FTP-1.1.1-Portable-x64.exe
+Ghost-FTP-1.1.1-Portable-x86.exe
 ```
 
 `x32` is a compatibility alias of the verified x86 Setup build; it is not a separate architecture build.
@@ -121,10 +125,10 @@ See [Installation](docs/INSTALLATION.md) and [Signing](docs/SIGNING.md).
 Stable Linux artifacts are:
 
 ```text
-Ghost-FTP-1.1.0-Linux-amd64.deb
-Ghost-FTP-1.1.0-Linux-arm64.deb
-Ghost-FTP-1.1.0-Linux-i386.deb
-Ghost-FTP-1.1.0-Linux-multiarch.zip
+Ghost-FTP-1.1.1-Linux-amd64.deb
+Ghost-FTP-1.1.1-Linux-arm64.deb
+Ghost-FTP-1.1.1-Linux-i386.deb
+Ghost-FTP-1.1.1-Linux-multiarch.zip
 ```
 
 The DEB metadata is generated from the root `VERSION` file and verified in CI/release jobs before publication.
@@ -138,10 +142,10 @@ The canonical user-installable files are attached to the official GitHub Release
 Stable releases also publish an OCI **distribution bundle** to GitHub Packages:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.0
+ghcr.io/bren-wp/ghost-ftp:1.1.1
 ```
 
-The GHCR package mirrors `/ghostftp-release/` from the verified release assembly. It is **not a runtime container**; it is a versioned distribution surface for automation, mirrors and integrity verification. For 1.1.0, stable aliases are expected to include `1.1`, `1` and `latest` after successful publication and registry read-back.
+The GHCR package mirrors `/ghostftp-release/` from the verified release assembly. It is **not a runtime container**; it is a versioned distribution surface for automation, mirrors and integrity verification. For the 1.1 stable line, successful publication updates `1.1`, `1` and `latest` only after the exact release workflow passes and registry read-back succeeds.
 
 See [GitHub Packages](docs/PACKAGES.md), [GitHub Releases](docs/GITHUB-RELEASES.md) and [Release verification](docs/RELEASE-VERIFICATION.md).
 
@@ -155,7 +159,7 @@ For automated environments, the GHCR distribution bundle adds an OCI manifest di
 
 ## Languages
 
-Ghost FTP ships **24 languages** selectable locally, with English as the default/fallback. Localization is resolved locally; the desktop client does not send filenames, hostnames, credentials or UI strings to a translation service.
+Ghost FTP ships **24 languages** selectable locally, with English as the default/fallback. Localization is resolved locally; the desktop client does not send filenames, hostnames, credentials or UI strings to a translation service. Credential-persistence consent is included in the maintained 24-language desktop surface.
 
 See [Localization](docs/LOCALIZATION.md).
 
