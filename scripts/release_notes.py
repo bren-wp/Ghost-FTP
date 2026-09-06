@@ -80,7 +80,7 @@ Release contract
 
 Signing and trust
 -----------------
-The workflow never fabricates publisher identities. Stable Windows publication requires the configured trusted Authenticode identity. Release signing secrets are supplied only through protected GitHub Actions secrets and are removed from the runner after use. Always verify SHA256.txt before installation or deployment.
+The workflow never fabricates publisher identities. Production Authenticode signing is optional: when a protected trusted certificate is configured, Windows artifacts are signed and verified; when it is not configured, the release remains explicitly unsigned and BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned. Never treat a locally generated or self-signed certificate as a trusted public publisher identity. Always verify SHA256.txt and the official GitHub release location before installation or deployment.
 
 Privacy
 -------
