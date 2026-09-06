@@ -45,3 +45,25 @@ func TestNativeWindowsPromptsCoverCanonicalLanguages(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeWindowsPromptsUseEnglishFallbackForUnknownLocale(t *testing.T) {
+	const unknown = "zz-ZZ"
+	checks := []struct {
+		name    string
+		got     string
+		english string
+	}{
+		{"ok", okLabel(unknown), okLabel("en")},
+		{"close question", closeQuestion(unknown), closeQuestion("en")},
+		{"close body", closeBody(unknown), closeBody("en")},
+		{"private-key title", privateKeyDialogTitle(unknown), privateKeyDialogTitle("en")},
+		{"private-key filter", privateKeyFilterLabel(unknown), privateKeyFilterLabel("en")},
+		{"all-files filter", allFilesFilterLabel(unknown), allFilesFilterLabel("en")},
+		{"directory title", directoryDialogTitle(unknown), directoryDialogTitle("en")},
+	}
+	for _, check := range checks {
+		if check.got != check.english {
+			t.Fatalf("%s fallback = %q, want English %q", check.name, check.got, check.english)
+		}
+	}
+}
