@@ -17,10 +17,12 @@ CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 RETIRED_ACTIVE_MARKERS = ("android/", "ios/", "macos/", "ghostftp web/", "web companion", "pwa")
 STALE_SIGNING_POLICY_MARKERS = (
-    "trusted Authenticode requirement for stable Windows publication",
-    "A stable Windows release is blocked unless",
-    "stable release whose Windows signing state is not trusted/configured",
-    "stable Authenticode gate",
+    "trusted authenticode requirement for stable windows publication",
+    "a stable windows release is blocked unless",
+    "stable release whose windows signing state is not trusted/configured",
+    "stable windows authenticode gate",
+    "stable windows publication requires",
+    "stable windows publication additionally requires",
 )
 ACTIVE_DOCS = (
     "README.md",
@@ -130,7 +132,7 @@ def main() -> int:
             if marker in lowered:
                 fail(f"retired application surface appears in active guidance: {rel} -> {marker}")
         for marker in STALE_SIGNING_POLICY_MARKERS:
-            if marker in text:
+            if marker in lowered:
                 fail(f"stale mandatory-signing policy appears in active guidance: {rel} -> {marker}")
 
     for marker in ("Windows", "Linux", "24", "FTP", "FTPS", "SFTP"):
@@ -148,6 +150,8 @@ def main() -> int:
         "SFTP key passphrase",
         "24-language",
         "same typed `internal/api.Engine`",
+        "Production Authenticode is optional.",
+        "WINDOWS_AUTHENTICODE=unsigned",
     ):
         if marker not in parity:
             fail(f"platform parity documentation missing marker: {marker}")
@@ -180,6 +184,24 @@ def main() -> int:
     ):
         if marker not in packages:
             fail(f"packages documentation missing marker: {marker}")
+
+    contributing = (DOCS / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    for marker in (
+        "truthful Windows signing state",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "A missing production code-signing certificate alone is not a release failure.",
+    ):
+        if marker not in contributing:
+            fail(f"contributing documentation missing signing marker: {marker}")
+
+    scripts_readme = (ROOT / "scripts/README.md").read_text(encoding="utf-8")
+    for marker in (
+        "Windows production signing is optional.",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "self-signed development certificate must never be substituted",
+    ):
+        if marker not in scripts_readme:
+            fail(f"scripts README missing signing marker: {marker}")
 
     signing = (DOCS / "SIGNING.md").read_text(encoding="utf-8")
     for marker in (
