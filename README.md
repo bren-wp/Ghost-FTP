@@ -108,7 +108,7 @@ Ghost-FTP-1.0.0-Portable-x86.exe
 
 Setup installs per user, registers integrated maintenance/uninstall information and uses a transaction/rollback path for replacement. Portable runs without installation registration and keeps its portable data boundary separate.
 
-Stable Windows publication remains gated on a configured trusted Authenticode identity in the protected release environment.
+Production Authenticode signing is optional. When a trusted certificate is configured in protected Actions secrets, Windows artifacts are signed and verified; when it is absent, the official release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. Ghost FTP never generates a self-signed certificate and presents it as a trusted production publisher identity.
 
 See [Installation](docs/INSTALLATION.md) and [Signing](docs/SIGNING.md).
 
