@@ -1,11 +1,11 @@
 # Ghost FTP settings
 
-Ghost FTP **1.1.0 Stable** treats settings as validated runtime policy, not decorative UI state. A persisted option is accepted only within the bounds enforced by `internal/config/settings.go`.
+Ghost FTP **1.1.1 Stable** treats settings as validated runtime policy, not decorative UI state. A persisted option is accepted only within the bounds enforced by `internal/config/settings.go`.
 
 ## Current persisted settings
 
 - `language` — canonical local UI language; invalid stored values normalize to English.
-- `appearance` — Windows desktop appearance: `dark` or `light`; missing/invalid legacy state normalizes safely to `dark`.
+- `appearance` — Windows desktop appearance: `dark` or `light`; **fresh, missing or invalid state resolves to `light` / Classic Light**. An explicitly stored `dark` choice remains preserved.
 - `parallelism` — concurrent transfers, range **1–8**, default **2**.
 - `connectionTimeoutSeconds` — connection establishment timeout, range **5–60 seconds**, default **15**.
 - `autoRetryCount` — automatic retries, range **0–3**, default **0**.
@@ -22,16 +22,30 @@ Ghost FTP deliberately exposes only one appearance decision rather than separate
 
 ### Windows
 
-- `dark` — the established Ghost FTP dark workspace.
-- `light` — **Classic Light**, a bright neutral two-pane workspace inspired by the clarity of traditional professional FTP clients while using Ghost FTP's own branding, iconography and palette.
+- `light` — **Classic Light**, the primary/fresh Ghost FTP appearance: a bright neutral two-pane workspace inspired by the clarity of traditional professional FTP clients while using Ghost FTP's own branding, iconography and palette.
+- `dark` — the optional established Ghost FTP dark workspace. If the user explicitly selects and saves it, normalization preserves that preference.
 
 The Windows selection is persisted locally and is applied on the next application start. This is intentional: native title bar, menu, combo, edit, list/header and owner-drawn control styling are selected before the complete window tree is created, preventing mixed-theme fragments and avoiding runtime repaint races.
+
+Unknown or missing appearance state fails to Classic Light rather than Dark. This keeps fresh-install behavior aligned with the documented product default without overriding an intentional stored Dark preference.
 
 ### Linux
 
 The native Linux desktop uses the **Classic Light** palette as the canonical 1.1 workspace. No extra Linux appearance toggle is exposed until complete runtime switching can be provided without introducing redraw/race complexity. This keeps the settings surface honest and avoids a control whose backend behavior would differ from its label.
 
 Appearance changes do not load remote styles, fonts, images or theme services and do not create network traffic.
+
+## Fresh connection protocol
+
+Protocol selection itself is not persisted as a global preference. For a new/quick connection, both maintained desktop frontends start on **explicit FTPS, port 21**. This is a secure default, not a hidden downgrade policy:
+
+- FTPS stays selected unless the user explicitly chooses another protocol or loads a profile;
+- SFTP remains available with its SSH host-key policy;
+- plain FTP remains available for legacy compatibility but must be selected explicitly;
+- failed FTPS negotiation is never retried automatically as plain FTP;
+- invalid/missing Windows protocol-selection state falls back to the first canonical FTPS entry.
+
+Saved profiles continue to restore their explicitly saved protocol/port; the fresh default does not rewrite an existing profile.
 
 ## Conflict policy
 
@@ -55,7 +69,7 @@ Legacy boolean combinations are migrated deterministically to one of these canon
 
 Automatic retry is for errors classified as retryable by the shared remote/transfer layer. Validation failures, trust failures, unsafe paths and explicit cancellation must not be turned into blind retry loops.
 
-Retry count/delay remain bounded to avoid accidental server hammering.
+Retry count/delay remain bounded to avoid accidental server hammering. Retries are also bound to the connection generation/identity so queued work cannot silently migrate to a later server session.
 
 ## Connection timeout
 
@@ -63,7 +77,17 @@ The configured timeout applies to connection establishment. It is validated iden
 
 ## Language
 
-English is default/fallback and the canonical registry contains 24 languages. Unsupported locale values never create online translation traffic. See [Localization](LOCALIZATION.md).
+English is default/fallback and the canonical registry contains 24 languages. Unsupported locale values never create online translation traffic. Credential-persistence consent is also covered for all 24 maintained languages. See [Localization](LOCALIZATION.md).
+
+## Credential persistence
+
+Credential persistence is intentionally **not** a global on/off setting. It is a per-save privacy decision so there is no hidden background behavior or duplicate switch:
+
+- entering a password or SFTP private-key passphrase and saving a Windows profile requires explicit consent before those new credentials are persisted;
+- both the main Save Profile flow and Site Manager use the same localized consent model;
+- declining consent still permits saving the non-secret connection profile and clears/removes stored credential fields for that profile;
+- profile binding logic prevents old credentials from being silently carried across a changed server/account/private-key identity;
+- Linux session-only protected-secret handles are not promoted into persistent profile data.
 
 ## Delete confirmation
 

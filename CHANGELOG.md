@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.1.1 - 2026-09-07 Stable
+
+### Defaults, UX and privacy
+
+- Made **Classic Light** the actual fresh-install and invalid/missing-state fallback appearance while preserving an explicitly saved Dark preference.
+- Made explicit **FTPS on port 21** the fresh/quick-connect protocol on both Windows and Linux; plain FTP remains available only as an explicit compatibility choice and secure protocols never silently downgrade.
+- Unified Windows Site Manager and the main Save Profile flow around explicit, localized credential-persistence consent.
+- Added privacy-consent copy for all 24 supported UI languages and removed the Site Manager path that could persist newly entered password/private-key passphrase data without the same explicit opt-in used by the main profile flow.
+- Kept Settings intentionally compact: no duplicate theme, color, credential or protocol toggles were added.
+
+### Connection and stability verification
+
+- Added a real loopback FTP integration test through the production `remote.Manager.Connect` lifecycle rather than testing only the transport adapter.
+- The manager integration coverage verifies successful authentication, the initial remote listing probe, operation admission, connection identity, plaintext-secret redaction from public connection state and clean disconnect behavior.
+- Added regression coverage proving a wrong FTP password cannot publish a connected/operational session.
+- Added regression coverage proving explicit FTPS refuses a plaintext-only FTP endpoint rather than silently downgrading.
+- Retained the existing real FTP protocol lifecycle coverage for list, directory creation, upload, size/list validation, rename, byte-equal download, delete and final listing.
+
+### Security, performance and release discipline
+
+- Preserved SFTP host-key trust, owned-vs-borrowed protected-secret lifetime rules, pending-trust cleanup and private-key snapshot protections from 1.1.0.
+- Preserved FTPS certificate/hostname verification, retry-generation/session binding, local symlink/reparse protections, bounded transfer events and atomic staging/rollback behavior.
+- Verified that Windows transfer refresh remains event-driven rather than repainting the full queue every timer tick, and retained the badge-only connection-state repaint path to avoid whole-window flicker.
+- Continued the zero-telemetry, zero-advertising, zero-tracking and zero-new-external-Go-module contract.
+- The published `ghostftp-v1.1.0` and `ghostftp-v1.0.0` tags/releases remain historical and are never rewritten by the 1.1.1 line.
+
+### Required verification
+
+The 1.1.1 stable candidate must pass before publication:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- Go formatting checks;
+- repository/platform/desktop/dependency/version/localization/security/privacy/docs/release audits;
+- full Python regression suite;
+- real loopback FTP manager/protocol regression coverage;
+- Windows x64/x86 Setup + Portable production builds and artifact verification;
+- Linux amd64/arm64/i386 production builds and DEB verification;
+- authentic Windows x64 Portable screenshot capture/verification for documentation evidence;
+- Authenticode pipeline verification under the configured signing policy;
+- GitHub Release, tag and GHCR read-back after publication.
+
 ## 1.1.0 - 2026-09-07 Stable
 
 ### Appearance and desktop quality
@@ -138,4 +180,4 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 
 ## Historical engineering history
 
-Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.0 Stable Windows/Linux contract.
+Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.1 Stable Windows/Linux contract.

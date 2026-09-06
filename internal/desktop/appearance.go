@@ -47,19 +47,19 @@ func appearanceText(language string) appearanceWords {
 }
 
 func appearanceIndex(appearance string) int {
-	if appearance == model.AppearanceLight {
-		return 1
+	if appearance == model.AppearanceDark {
+		return 0
 	}
-	return 0
+	return 1
 }
 
 func applyAppearanceSelection(settings *model.Settings, index int) {
 	if settings == nil {
 		return
 	}
-	if index == 1 {
-		settings.Appearance = model.AppearanceLight
+	if index == 0 {
+		settings.Appearance = model.AppearanceDark
 		return
 	}
-	settings.Appearance = model.AppearanceDark
+	settings.Appearance = model.AppearanceLight
 }

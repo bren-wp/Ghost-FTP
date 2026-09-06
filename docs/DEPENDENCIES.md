@@ -1,6 +1,6 @@
 # Ghost FTP dependencies
 
-Ghost FTP **1.0.0 Stable** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit.
+Ghost FTP **1.1.1 Stable** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit.
 
 ## Go module contract
 
@@ -30,19 +30,22 @@ Security invariants include:
 - protected runtime credential handling;
 - download staging validation;
 - FTPS certificate validation;
-- no blanket certificate-revocation disable switch.
+- no blanket certificate-revocation disable switch;
+- no silent FTPS-to-plain-FTP downgrade.
+
+Explicit FTPS/21 is the fresh quick-connect default; plain FTP remains an intentional compatibility selection rather than a fallback dependency mode.
 
 ### SFTP
 
 The maintained SFTP transport uses system OpenSSH `ssh`/`sftp`. Ghost FTP creates a constrained SSH configuration that disables ambient proxy/jump/agent/forwarding behavior that would escape the selected connection boundary.
 
-Passwords/passphrases use the bounded AskPass/runtime-secret path and are not intentionally written into a password file.
+Passwords/passphrases use the bounded AskPass/runtime-secret path and are not intentionally written into a password file. Linux supports password authentication and private-key authentication with an optional key passphrase; documentation/runtime strings must not claim a narrower obsolete capability set.
 
 ## Windows UI dependency boundary
 
 The Windows desktop frontend uses native Win32/DWM/common-control facilities. Ghost FTP does not bundle a large cross-platform UI runtime solely to render the workstation.
 
-Windows production packages are native application executables/Setup wrappers generated from the repository build.
+Windows production packages are native application executables/Setup wrappers generated from the repository build. Classic Light/Dark rendering uses local native drawing state and does not load a remote theme service.
 
 ## Linux UI dependency boundary
 

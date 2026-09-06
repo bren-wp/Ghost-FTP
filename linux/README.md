@@ -1,6 +1,6 @@
 # Ghost FTP for Linux
 
-Ghost FTP Linux packages are built by `linux/BUILD.sh` for `amd64`, `arm64` and `i386`. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings and localization engine as the Windows application.
+Ghost FTP **1.1.1 Stable** is the current source candidate. Linux packages are built by `linux/BUILD.sh` for `amd64`, `arm64` and `i386`. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings and localization engine as the Windows application.
 
 ## Build
 
@@ -38,6 +38,10 @@ When a local `DISPLAY` is available, `ghostftp` starts the native Ghost FTP grap
 
 The graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, single-file and tree transfers, queue controls, local/remote file operations, remote permissions and validated transfer settings.
 
+**Classic Light is the canonical Linux appearance.** The Linux frontend does not expose a theme switch whose backend cannot provide complete native runtime switching.
+
+The fresh Quick Connect protocol is **explicit FTPS on port 21**. Plain FTP remains available as an explicit compatibility choice for servers that intentionally require unencrypted FTP; failed FTPS is not silently retried as FTP.
+
 For a headless session, or to explicitly use the hardened command interface, set:
 
 ```text
@@ -56,7 +60,15 @@ Linux supports the maintained desktop protocol contract:
 - SFTP with a private key and optional passphrase;
 - explicit SFTP host-key fingerprint confirmation.
 
-Passwords and key passphrases are cleared from the connection config after authentication. The accepted public SFTP fingerprint can remain as non-secret session metadata so a saved profile can retain the verified endpoint identity.
+Passwords and key passphrases are cleared from the public connection config after authentication. Runtime protected-secret handles distinguish session-owned and borrowed profile-owned material so session close/failed setup can forget owned secrets without invalidating stored-profile credentials needed for a later reconnect.
+
+The accepted public SFTP fingerprint can remain as non-secret session metadata so a saved profile can retain the verified endpoint identity.
+
+## Connection lifecycle
+
+Linux uses the same shared remote manager as Windows. Regression coverage exercises successful manager connection, remote listing/operation access and disconnect, plus invalid FTP credentials and failure of FTPS against a plaintext-only FTP endpoint.
+
+Connection/transfer generation binding prevents stale work from silently continuing against a later session after reconnect.
 
 ## Terminal fallback: remote file commands
 
@@ -109,7 +121,7 @@ retry <id>
 clear
 ```
 
-These commands operate on the same transfer manager used by Windows.
+These commands operate on the same transfer manager used by Windows. Transfer progress/state is derived from real queue snapshots; the graphical renderer suppresses unnecessary idle full-workspace redraw when relevant state is unchanged.
 
 ## Profiles
 
@@ -139,7 +151,7 @@ language <code>
 
 Delete confirmation applies to both remote `delete` and local `ldelete` when enabled.
 
-English is the canonical/default language. The maintained registry contains 24 languages, and Linux uses the same catalogs/fallback normalization as the Windows application and Setup.
+English is the canonical/default language. The maintained registry contains **24 languages**, and Linux uses the same catalogs/fallback normalization as the Windows application and Setup.
 
 ## Safety model
 

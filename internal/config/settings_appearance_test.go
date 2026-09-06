@@ -6,25 +6,33 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
-func TestDefaultSettingsUseDarkAppearance(t *testing.T) {
-	if got := DefaultSettings().Appearance; got != model.AppearanceDark {
-		t.Fatalf("default appearance=%q, want %q", got, model.AppearanceDark)
+func TestDefaultSettingsUseLightAppearance(t *testing.T) {
+	if got := DefaultSettings().Appearance; got != model.AppearanceLight {
+		t.Fatalf("default appearance=%q, want %q", got, model.AppearanceLight)
 	}
 }
 
-func TestNormalizeSettingsMigratesMissingAppearance(t *testing.T) {
+func TestNormalizeSettingsMigratesMissingAppearanceToLight(t *testing.T) {
 	settings := DefaultSettings()
 	settings.Appearance = ""
-	if got := normalizeSettings(settings).Appearance; got != model.AppearanceDark {
-		t.Fatalf("normalized missing appearance=%q, want %q", got, model.AppearanceDark)
+	if got := normalizeSettings(settings).Appearance; got != model.AppearanceLight {
+		t.Fatalf("normalized missing appearance=%q, want %q", got, model.AppearanceLight)
 	}
 }
 
-func TestNormalizeSettingsRepairsUnknownPersistedAppearance(t *testing.T) {
+func TestNormalizeSettingsRepairsUnknownPersistedAppearanceToLight(t *testing.T) {
 	settings := DefaultSettings()
 	settings.Appearance = "unexpected-theme"
+	if got := normalizeSettings(settings).Appearance; got != model.AppearanceLight {
+		t.Fatalf("normalized unknown appearance=%q, want %q", got, model.AppearanceLight)
+	}
+}
+
+func TestNormalizeSettingsPreservesExplicitDarkAppearance(t *testing.T) {
+	settings := DefaultSettings()
+	settings.Appearance = model.AppearanceDark
 	if got := normalizeSettings(settings).Appearance; got != model.AppearanceDark {
-		t.Fatalf("normalized unknown appearance=%q, want %q", got, model.AppearanceDark)
+		t.Fatalf("normalized explicit dark appearance=%q, want %q", got, model.AppearanceDark)
 	}
 }
 

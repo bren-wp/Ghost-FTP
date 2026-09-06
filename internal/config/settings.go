@@ -34,11 +34,13 @@ func NewSettings(s *Store) *SettingsStore { return &SettingsStore{store: s} }
 
 // DefaultSettings is the single safe runtime fallback for settings. Runtime
 // callers use the same values as settings migration instead of carrying their
-// own copies of timeout, retry and parallelism defaults.
+// own copies of timeout, retry and parallelism defaults. Classic Light is the
+// primary appearance for fresh installs; an explicitly persisted Dark choice
+// remains canonical and is never overwritten by normalization.
 func DefaultSettings() model.Settings {
 	return model.Settings{
 		Language:                 i18n.DefaultLanguage,
-		Appearance:               model.AppearanceDark,
+		Appearance:               model.AppearanceLight,
 		Parallelism:              DefaultParallelism,
 		ConflictPolicy:           model.ConflictPolicyReplaceBackup,
 		BackupBeforeOverwrite:    true,
@@ -107,7 +109,7 @@ func migrateConflictPolicy(v model.Settings, persisted bool) model.Settings {
 func normalizeSettings(v model.Settings) model.Settings {
 	v.Language = i18n.Normalize(v.Language)
 	if !validAppearance(v.Appearance) {
-		v.Appearance = model.AppearanceDark
+		v.Appearance = model.AppearanceLight
 	}
 	if v.Parallelism < MinParallelism || v.Parallelism > MaxParallelism {
 		v.Parallelism = DefaultParallelism
@@ -188,7 +190,7 @@ func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 		v.Language = i18n.DefaultLanguage
 	}
 	if v.Appearance == "" {
-		v.Appearance = model.AppearanceDark
+		v.Appearance = model.AppearanceLight
 	}
 	if v.ConnectionTimeoutSeconds == 0 {
 		v.ConnectionTimeoutSeconds = DefaultConnectionTimeoutSeconds

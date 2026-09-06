@@ -28,16 +28,19 @@ func TestApplyAppearanceSelectionUsesOnlyCanonicalValues(t *testing.T) {
 		t.Fatalf("dark selection=%q", settings.Appearance)
 	}
 	applyAppearanceSelection(&settings, 99)
-	if settings.Appearance != model.AppearanceDark {
-		t.Fatalf("unknown selection did not fail closed: %q", settings.Appearance)
+	if settings.Appearance != model.AppearanceLight {
+		t.Fatalf("unknown selection did not fall back to primary light: %q", settings.Appearance)
 	}
 }
 
-func TestAppearanceIndexFallsBackToDark(t *testing.T) {
+func TestAppearanceIndexFallsBackToLight(t *testing.T) {
 	if appearanceIndex(model.AppearanceLight) != 1 {
 		t.Fatal("light appearance index is incorrect")
 	}
-	if appearanceIndex(model.AppearanceDark) != 0 || appearanceIndex("unexpected") != 0 {
-		t.Fatal("dark/default appearance index is incorrect")
+	if appearanceIndex(model.AppearanceDark) != 0 {
+		t.Fatal("dark appearance index is incorrect")
+	}
+	if appearanceIndex("unexpected") != 1 {
+		t.Fatal("default appearance index is not light")
 	}
 }

@@ -1,6 +1,6 @@
 # Ghost FTP desktop reference UI
 
-This document defines the maintained visual and interaction contract for **Ghost FTP 1.1.0 Stable** and later compatible desktop releases.
+This document defines the maintained visual and interaction contract for **Ghost FTP 1.1.1 Stable** and later compatible desktop releases.
 
 It is a **source/runtime contract**, not a mockup specification. Controls shown by the application must map to real engine capabilities and real state. Decorative controls that imply unsupported backend behavior are not acceptable.
 
@@ -21,30 +21,11 @@ Windows Setup and Portable package the same application executable and therefore
 
 ## Appearance contract
 
-Ghost FTP 1.1.0 adds **Classic Light** without creating a collection of overlapping cosmetic switches.
+**Classic Light is the fresh-install, missing-state and invalid-state primary appearance in 1.1.1.** An explicitly persisted Dark selection remains respected on Windows. Appearance is one canonical decision rather than a collection of overlapping cosmetic switches.
 
-### Dark
+### Classic Light — primary
 
-The established dark appearance remains available on Windows.
-
-| Role | RGB |
-| --- | --- |
-| Window | `8, 10, 15` (`#080A0F`) |
-| Panel | `15, 19, 28` (`#0F131C`) |
-| List | `21, 26, 37` (`#151A25`) |
-| Border | `37, 45, 60` (`#252D3C`) |
-| Primary text | `244, 247, 255` (`#F4F7FF`) |
-| Muted text | `142, 153, 173` (`#8E99AD`) |
-| Accent | `82, 119, 245` (`#5277F5`) |
-| Strong accent | `114, 147, 255` (`#7293FF`) |
-| Success | `74, 215, 155` (`#4AD79B`) |
-| Warning | `242, 186, 85` (`#F2BA55`) |
-| Danger | `255, 100, 118` (`#FF6476`) |
-| Selection | `29, 42, 74` (`#1D2A4A`) |
-
-### Classic Light
-
-Classic Light follows the clarity and information density associated with traditional professional FTP clients, but does not copy FileZilla artwork, branding or proprietary assets.
+Classic Light follows the clarity and information density associated with traditional professional FTP clients, but does not copy third-party artwork, branding or proprietary assets.
 
 | Role | RGB |
 | --- | --- |
@@ -61,17 +42,38 @@ Classic Light follows the clarity and information density associated with tradit
 | Danger | `198, 40, 40` (`#C62828`) |
 | Selection | `220, 232, 255` (`#DCE8FF`) |
 
+### Dark — explicit Windows choice
+
+The established dark appearance remains available on Windows and is preserved when the user explicitly selected it.
+
+| Role | RGB |
+| --- | --- |
+| Window | `8, 10, 15` (`#080A0F`) |
+| Panel | `15, 19, 28` (`#0F131C`) |
+| List | `21, 26, 37` (`#151A25`) |
+| Border | `37, 45, 60` (`#252D3C`) |
+| Primary text | `244, 247, 255` (`#F4F7FF`) |
+| Muted text | `142, 153, 173` (`#8E99AD`) |
+| Accent | `82, 119, 245` (`#5277F5`) |
+| Strong accent | `114, 147, 255` (`#7293FF`) |
+| Success | `74, 215, 155` (`#4AD79B`) |
+| Warning | `242, 186, 85` (`#F2BA55`) |
+| Danger | `255, 100, 118` (`#FF6476`) |
+| Selection | `29, 42, 74` (`#1D2A4A`) |
+
 Theme data is local source data only. No remote stylesheet, font service, theme API, analytics endpoint or browser runtime is loaded.
 
-On Windows, the appearance choice is applied on the next start so title bar, menus, native controls, headers and owner-drawn controls are initialized consistently. The settings UI explicitly communicates this behavior.
+On Windows, an explicit appearance choice is applied on the next start so title bar, menus, native controls, headers and owner-drawn controls are initialized consistently. Fresh/fallback state resolves to Classic Light before the native control tree is created.
 
-The Linux graphical frontend uses Classic Light as the canonical 1.1 palette. It deliberately does not expose a runtime appearance toggle until complete native switching can be implemented without mixed-state rendering or race-prone global palette mutation.
+The Linux graphical frontend uses Classic Light as the canonical palette. It deliberately does not expose a runtime appearance toggle until complete native switching can be implemented without mixed-state rendering or race-prone global palette mutation.
 
 ## Menu and action contract
 
 Menu/button surfaces are alternate entry points to the same canonical commands. They must not create second implementations of connect, transfer, rename, delete, Site Manager or settings behavior.
 
 Actions are enabled from real state. A disabled operation must remain disabled regardless of whether the user reaches it through a button, menu, list gesture or keyboard shortcut.
+
+Connection attempts have a visible cancel/disconnect path; users must not be trapped behind a long timeout. Stale asynchronous callbacks are invalidated by connection-generation state so an old attempt cannot repaint or attach itself to a newer session.
 
 ## Icons
 
@@ -92,7 +94,15 @@ The product logo comes from the same canonical executable resource used by produ
 
 Quick Connect uses the normal connection path and normal validation. It is not a lightweight or less-secure alternate connector.
 
+The fresh/default protocol is **explicit FTPS on port 21** on both active platforms. Plain FTP remains available for legacy compatibility but must be selected explicitly. SFTP remains available with password or private-key authentication. A failed FTPS negotiation is never silently downgraded to FTP.
+
 On sufficiently wide windows the main connection fields fit on one row. At narrower supported widths the controls reflow so fields do not overlap or become unusable. SFTP private-key/passphrase controls are enabled only for the relevant protocol state.
+
+## Profiles and credential-consent UX
+
+Saving profile identity/path data and saving credentials are distinct decisions. A password/private-key passphrase is persisted only after explicit consent through the maintained privacy prompt. The main Save Profile flow and Windows Site Manager use the same consent semantics and localized catalog text.
+
+If consent is declined, the non-secret profile can still be saved while newly entered credentials are not persisted. Existing credentials that no longer belong to the changed endpoint/account/private-key identity are removed rather than silently transferred to a different identity.
 
 ## Local and Remote panes
 
@@ -108,7 +118,7 @@ Sorting, double-click navigation, keyboard actions and selection restoration mus
 
 Pause, resume, cancel, retry and clear-finished actions operate through the canonical transfer manager. Visual progress, speed, ETA or byte counts may be shown only when backed by real transfer state.
 
-The queue must not invent values simply to resemble another FTP client.
+The queue must not invent values simply to resemble another FTP client. Transfer refresh is event/state driven; unchanged transfer state should not trigger needless whole-window redraw.
 
 ## No duplicated options
 
@@ -120,7 +130,7 @@ Appearance follows the same rule: one Dark/Classic Light decision on Windows, no
 
 English is the default/fallback language. The maintained catalog contains 24 selectable local languages.
 
-Appearance labels/help are local strings and do not require a translation service. File actions, dialogs, menus, status text and settings must not silently replace the selected locale with hardcoded developer text.
+Appearance labels/help and credential/privacy prompts are local strings and do not require a translation service. File actions, dialogs, menus, status text and settings must not silently replace the selected locale with hardcoded developer text.
 
 ## Authentic screenshot evidence
 
@@ -134,6 +144,13 @@ The workflow:
 4. captures the native main workspace and Site Manager window;
 5. verifies PNG signature, plausible dimensions, file size and SHA-256;
 6. persists the images only when the capture commit is still the branch head.
+
+The 1.1.1 candidate evidence was regenerated by authentic UI workflow run **#117** from source commit `52435aac3ab77b90216252118a44a1bc7f4b56f2` and persisted by screenshot commit `907469403cea8c218d7394e8c0fa7245e012184b`:
+
+- `docs/images/ghost-ftp-main-workspace.png` — 976×696, 47,431 bytes, SHA-256 `3b1e82695bcd3cbd87c15ed62ef20fe7c5870d4120d22dba6b44fe69141cce90`;
+- `docs/images/ghost-ftp-site-manager.png` — 920×610, 24,584 bytes, SHA-256 `cb4d085eb0226dccd47424cf1d7631683e11c95e525d406ea725fa643207e890`.
+
+These hashes bind the maintained screenshots to the verified candidate capture. A future UI change must regenerate the images and update this evidence instead of retaining stale screenshot hashes.
 
 Mockups, image-generation output and manually composed approximations are not accepted as production UI evidence.
 

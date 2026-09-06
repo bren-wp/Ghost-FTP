@@ -1,6 +1,6 @@
 # Ghost FTP documentation
 
-- **Current Ghost FTP release: 1.1.0**
+- **Current Ghost FTP release: 1.1.1**
 - Development status: **Stable**
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
@@ -11,10 +11,10 @@ This directory contains the maintained engineering, operations, privacy, securit
 ## Product and architecture
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — component boundaries, protocol architecture, persistence, transfer and release design.
-- [`REFERENCE-UI.md`](REFERENCE-UI.md) — workstation visual/interaction reference, Classic Light palette and authentic screenshot contract.
+- [`REFERENCE-UI.md`](REFERENCE-UI.md) — workstation visual/interaction reference, primary Classic Light palette and authentic screenshot contract.
 - [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux behavior parity contract.
-- [`SETTINGS.md`](SETTINGS.md) — persisted settings, appearance policy, normalization and recovery behavior.
-- [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language offline localization model.
+- [`SETTINGS.md`](SETTINGS.md) — persisted settings, primary-light appearance policy, normalization and recovery behavior.
+- [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language offline localization model, including credential-persistence consent.
 
 ## Installation and distribution
 
@@ -29,14 +29,14 @@ The stable workflow publishes **9 platform artifacts** and **12 public files** o
 
 ## Security and privacy
 
-- [`SECURITY.md`](SECURITY.md) — transport, SFTP trust, path validation, staged transfer, protected-secret ownership and process boundaries.
-- [`PRIVACY.md`](PRIVACY.md) — no-telemetry policy, local data handling, diagnostics redaction and distribution privacy.
+- [`SECURITY.md`](SECURITY.md) — transport, secure protocol defaults, SFTP trust, path validation, staged transfer, protected-secret ownership and process boundaries.
+- [`PRIVACY.md`](PRIVACY.md) — no-telemetry policy, local data handling, explicit credential-persistence consent, diagnostics redaction and distribution privacy.
 - [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency/runtime-tool policy and offline Go build boundary.
 - [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) — notices for platform/runtime tooling used by Ghost FTP.
 
 ## Quality and engineering
 
-- [`TESTING.md`](TESTING.md) — Go race tests, protocol regressions, UI/runtime checks, authentic screenshot verification and Python repository audits.
+- [`TESTING.md`](TESTING.md) — Go race tests, real loopback FTP manager/protocol regressions, UI/runtime checks, authentic screenshot verification and Python repository audits.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution and release-quality expectations.
 - [`ROADMAP.md`](ROADMAP.md) — post-1.0 maintenance priorities and product constraints.
 - [`SUPPORT.md`](SUPPORT.md) — support information and safe issue-reporting guidance.
@@ -48,23 +48,27 @@ The stable workflow publishes **9 platform artifacts** and **12 public files** o
 
 Historical sections intentionally preserve older version numbers and Beta terminology. They are history, not the current support state.
 
-## Stable 1.1 release contract
+## Stable 1.1.1 release contract
 
-Ghost FTP 1.1.0 is a backward-compatible stable feature release built on the immutable 1.0.0 baseline. It adds Classic Light desktop styling and includes the post-1.0 SFTP credential-lifetime hardening while preserving the Windows/Linux-only product scope and release artifact contract.
+Ghost FTP 1.1.1 is a backward-compatible maintenance/hardening release built on the published 1.1.0 and immutable 1.0.0 baselines. It makes Classic Light the actual fresh/fallback appearance, aligns Windows and Linux on explicit FTPS as the fresh/quick-connect default, adds real `remote.Manager.Connect` loopback FTP coverage and gives Windows Site Manager the same explicit credential-persistence consent policy as the main profile flow.
 
-A stable 1.1.0 publication is a normal GitHub Release with `prerelease=false`. Windows Authenticode remains optional: when a trusted production certificate is configured the workflow signs and verifies Windows artifacts; otherwise the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
+A stable 1.1.1 publication is a normal GitHub Release with `prerelease=false`. Windows Authenticode remains optional: when a trusted production certificate is configured the workflow signs and verifies Windows artifacts; otherwise the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
 
 The production workflow publishes:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.0
+ghcr.io/bren-wp/ghost-ftp:1.1.1
 ```
 
 with stable aliases only after successful registry publication and read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
 
+## Connection verification rule
+
+The maintained regression suite distinguishes transport-level protocol tests from application-lifecycle tests. Real loopback FTP coverage exercises login/list/mkdir/upload/rename/download/delete at the adapter layer and also verifies `remote.Manager.Connect` publishes a session only after successful authentication and initial listing. Wrong credentials and explicit-FTPS-to-plaintext endpoints must not produce a connected state. SFTP host-key and credential lifecycle behavior is covered separately by deterministic local tests; documentation must not claim an external live SFTP/FTPS service test when one was not performed.
+
 ## UI evidence rule
 
-The maintained screenshots in `docs/images/` must come from the dedicated authentic screenshot workflow, which builds and launches the real Windows x64 Portable executable. Mockups or generated approximations are not valid production evidence.
+The maintained screenshots in `docs/images/` must come from the dedicated authentic screenshot workflow, which builds and launches the real Windows x64 Portable executable. Mockups or generated approximations are not valid production evidence. For the 1.1.1 line the expected fresh UI is Classic Light with FTPS selected as the default quick-connect protocol.
 
 ## Privacy-safe documentation rule
 

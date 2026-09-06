@@ -1,17 +1,17 @@
 # Ghost FTP release verification
 
-This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
+This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. The current candidate is **1.1.1 Stable**. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
 
-## Expected release identity
+## Expected 1.1.1 release identity
 
 ```text
-VERSION=1.0.0
-TAG=ghostftp-v1.0.0
-TITLE=Ghost FTP 1.0.0
+VERSION=1.1.1
+TAG=ghostftp-v1.1.1
+TITLE=Ghost FTP 1.1.1
 PRERELEASE=false
 ```
 
-A stable release must not be marked as a prerelease.
+A stable release must not be marked as a prerelease. Previously published tags, including `ghostftp-v1.0.0` and `ghostftp-v1.1.0`, remain historical identities and must not be moved or reused.
 
 ## Source revision
 
@@ -64,7 +64,7 @@ then the release intentionally contains unsigned Windows artifacts. This is a tr
 On Windows, inspect the signature with PowerShell:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-1.0.0-Setup-x64.exe | Format-List
+Get-AuthenticodeSignature .\Ghost-FTP-1.1.1-Setup-x64.exe | Format-List
 ```
 
 For a signed release, verify that the signature is valid and that the publisher identity is the expected trusted identity. For an unsigned release, Windows may show SmartScreen/publisher warnings. Do not bypass enterprise or operating-system security policy solely to suppress such warnings.
@@ -76,8 +76,8 @@ The release workflow does not create a self-signed production identity. Short-li
 The two Setup names:
 
 ```text
-Ghost-FTP-1.0.0-Setup-x86.exe
-Ghost-FTP-1.0.0-Setup-x32.exe
+Ghost-FTP-1.1.1-Setup-x86.exe
+Ghost-FTP-1.1.1-Setup-x32.exe
 ```
 
 must be byte-identical. The release workflow compares their SHA-256 values before publication.
@@ -87,21 +87,19 @@ must be byte-identical. The release workflow compares their SHA-256 values befor
 For each Linux package, verify:
 
 ```bash
-dpkg-deb -f Ghost-FTP-1.0.0-Linux-amd64.deb Package
-dpkg-deb -f Ghost-FTP-1.0.0-Linux-amd64.deb Version
-dpkg-deb -f Ghost-FTP-1.0.0-Linux-amd64.deb Architecture
+dpkg-deb -f Ghost-FTP-1.1.1-Linux-amd64.deb Package
+dpkg-deb -f Ghost-FTP-1.1.1-Linux-amd64.deb Version
+dpkg-deb -f Ghost-FTP-1.1.1-Linux-amd64.deb Architecture
 ```
 
-Expected package name is `ghost-ftp`; version must equal `1.0.0`; architecture must match the file suffix.
-
-The same checks apply to arm64 and i386.
+Expected package name is `ghost-ftp`; version must equal `1.1.1`; architecture must match the file suffix. The same checks apply to arm64 and i386.
 
 ## GitHub Release verification
 
 Confirm that:
 
-- tag is `ghostftp-v1.0.0`;
-- title is `Ghost FTP 1.0.0`;
+- tag is `ghostftp-v1.1.1`;
+- title is `Ghost FTP 1.1.1`;
 - `prerelease` is false;
 - tag resolves to the documented source commit;
 - remote asset names exactly match the 12-file allow-list;
@@ -112,10 +110,10 @@ The production workflow performs immediate and delayed Release read-back; manual
 
 ## GitHub Packages verification
 
-Stable releases publish:
+Stable 1.1.1 publishes:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.0.0
+ghcr.io/bren-wp/ghost-ftp:1.1.1
 ```
 
 The package is a verified distribution bundle, not a runtime container. Its OCI metadata must identify the Ghost FTP source repository, stable version and release source revision.
@@ -135,6 +133,18 @@ A release/package must not contain:
 
 The GHCR build copies only the already assembled `release/` allow-list, and Docker build networking is disabled.
 
+## Connection and UI verification for 1.1.1
+
+The release candidate must preserve the maintained runtime contract in addition to packaging integrity:
+
+- fresh/fallback appearance is Classic Light while an explicitly saved Dark choice remains respected;
+- fresh quick-connect protocol is explicit FTPS on port 21 on Windows and Linux;
+- plain FTP remains available only as an explicit compatibility choice and FTPS must not silently downgrade to it;
+- loopback protocol regressions exercise authentication, list, mkdir, upload, size/list, rename, download/content equality and delete;
+- `remote.Manager.Connect()` regression coverage exercises connect, remote list/operation state and disconnect, including invalid-password and secure-to-plain failure paths;
+- credential persistence remains opt-in and privacy-sensitive save prompts use the maintained localization catalog;
+- documentation screenshots come from the real Windows x64 Portable executable built by the dedicated screenshot workflow.
+
 ## CI/release gate verification
 
 Before trusting a new stable version, inspect that the exact revision passed:
@@ -146,13 +156,13 @@ Before trusting a new stable version, inspect that the exact revision passed:
 - security and privacy audits;
 - localization and documentation audits;
 - release contract audit;
-- Python regression suite;
-- Windows production package build;
-- Linux production package build;
+- full Python regression suite;
+- Windows x64/x86 Setup + Portable production package build and artifact verification;
+- Linux amd64/arm64/i386 production package build and DEB verification;
 - Authenticode verification when a production certificate is configured;
 - explicit unsigned metadata when no production certificate is configured;
 - GitHub Package push/read-back;
-- GitHub Release asset/read-back verification.
+- GitHub Release asset/tag/prerelease read-back verification.
 
 ## Failure interpretation
 
