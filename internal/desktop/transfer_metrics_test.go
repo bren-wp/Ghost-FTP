@@ -44,6 +44,25 @@ func TestTransferRuntimeSuffixShowsSpeedAndETAOnlyWhileUseful(t *testing.T) {
 	}
 }
 
+func TestFormatTransferBytesBoundaries(t *testing.T) {
+	tests := []struct {
+		bytes int64
+		want  string
+	}{
+		{bytes: 0, want: "0 B"},
+		{bytes: 1023, want: "1023 B"},
+		{bytes: 1024, want: "1.00 KB"},
+		{bytes: 10 * 1024, want: "10.0 KB"},
+		{bytes: 100 * 1024, want: "100 KB"},
+		{bytes: 1024 * 1024, want: "1.00 MB"},
+	}
+	for _, tc := range tests {
+		if got := formatTransferBytes(tc.bytes); got != tc.want {
+			t.Fatalf("formatTransferBytes(%d)=%q want %q", tc.bytes, got, tc.want)
+		}
+	}
+}
+
 func TestFormatTransferETAHours(t *testing.T) {
 	if got := formatTransferETA(3661); got != "1:01:01" {
 		t.Fatalf("formatTransferETA()=%q", got)
