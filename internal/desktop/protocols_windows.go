@@ -11,9 +11,11 @@ type protocolSpec struct {
 
 // Secure explicit FTPS is the fresh/quick-connect default on Windows, matching
 // Linux. Plain FTP remains available for legacy servers but is never selected
-// implicitly when protocol state is missing or invalid.
+// implicitly when protocol state is missing or invalid. Keep the literal FTPS
+// entry stable because release regressions audit the supported protocol/port
+// matrix directly for shared-hosting compatibility.
 var protocolSpecs = []protocolSpec{
-	{Value: defaultConnectionProtocol, Port: "21"},
+	{Value: "ftps", Port: "21"},
 	{Value: "sftp", Port: "22"},
 	{Value: "ftp", Port: "21"},
 	{Value: "ftpsi", Port: "990"},
