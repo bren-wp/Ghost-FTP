@@ -22,38 +22,44 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertIn("current change", section)
         self.assertNotIn("previous change", section)
 
-    def test_public_notes_are_english_first_and_describe_release_artifacts(self) -> None:
-        notes = build_notes("1.4.0", "- Native iOS release packaging.")
+    def test_stable_notes_match_windows_linux_release_contract(self) -> None:
+        notes = build_notes("1.4.0", "- Production stability improvement.")
         for marker in (
             "Ghost FTP 1.4.0",
-            "Privacy-focused FTP, FTPS and SFTP client",
-            "Windows, Linux, macOS, Android, iOS and the web",
-            "Highlights",
+            "Privacy-first FTP, FTPS and SFTP desktop client for Windows and Linux",
+            "Release channel: Stable",
             "ghostftp-v1.4.0",
-            "Public platform packages",
             "Ghost-FTP-1.4.0-Setup-x64.exe",
+            "Ghost-FTP-1.4.0-Setup-x32.exe",
+            "Ghost-FTP-1.4.0-Linux-amd64.deb",
+            "Ghost-FTP-1.4.0-Linux-arm64.deb",
+            "Ghost-FTP-1.4.0-Linux-i386.deb",
             "Ghost-FTP-1.4.0-Linux-multiarch.zip",
-            "Ghost-FTP-1.4.0-macOS-Universal.pkg",
-            "Ghost-FTP-1.4.0-Android.apk",
-            "Android debug signing",
-            "Ghost-FTP-1.4.0-iOS-arm64-unsigned.ipa",
-            "Ghost-FTP-1.4.0-Web.zip",
+            "ghcr.io/bren-wp/ghost-ftp:1.4.0",
+            "distribution bundle, not a runtime container",
+            "9 platform artifacts",
+            "12 public release files",
             "SHA256.txt",
             "BUILD-METADATA.txt",
-            "Signing and trust",
-            "never fabricates publisher identities",
+            "Stable Windows publication requires the configured trusted Authenticode identity",
+            "Application telemetry: disabled",
         ):
             self.assertIn(marker, notes)
         for retired in (
-            "GhostFTP 1.4.0",
-            "Official desktop packages",
-            "Android release-unsigned APK",
-            "iOS arm64 unsigned app ZIP",
-            "Najvažnije promjene",
-            "Službeni paketi",
-            "Provjera izdanja",
+            "macOS",
+            "Android",
+            "iOS",
+            "Web.zip",
+            "NuGet",
+            "nuget.pkg.github.com",
         ):
             self.assertNotIn(retired, notes)
+
+    def test_beta_notes_do_not_claim_stable_package_aliases(self) -> None:
+        notes = build_notes("0.9.9", "- Beta verification.")
+        self.assertIn("Release channel: Beta prerelease", notes)
+        self.assertNotIn("ghcr.io/bren-wp/ghost-ftp:0.9.9", notes)
+        self.assertNotIn("Stable aliases", notes)
 
 
 if __name__ == "__main__":
