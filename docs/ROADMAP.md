@@ -1,172 +1,84 @@
-# Roadmap
+# Ghost FTP roadmap
 
-Ghost FTP is currently on **0.2.1 Beta**, within the `0.x` development line that began at 0.1.0. Product development remains focused on **Windows and Linux**, with reliability, security, protocol correctness, parity and professional usability taking priority over expanding the number of application platforms.
+Ghost FTP **1.0.0 Stable** is the maintained production baseline. The roadmap after 1.0 prioritizes reliability, security, privacy, performance and Windows/Linux parity before adding broad new surface area.
 
-The first stable milestone is **1.0.0**. Reaching it requires the maintained product and release pipeline to be complete and stable as a whole; it is not triggered merely by finishing one feature.
+## Completed for 1.0
 
-## 0.1.0 baseline
+The stable gate includes:
 
-The 0.1.0 Beta baseline preserves the substantial implementation and hardening work already present in the repository while resetting the active maturity/version line to a pre-stable sequence.
+- native Windows and Linux desktop clients backed by one typed Engine;
+- FTP, FTPS and SFTP workflows;
+- SFTP password/key/passphrase authentication and host-key trust;
+- local-only profiles with platform-local protected secret storage;
+- validated connection timeout, retry, conflict and parallel-transfer settings;
+- transfer generation binding, source snapshots and staged/rollback-oriented operations;
+- privacy-safe connection diagnostics;
+- truthful transfer progress, speed and ETA;
+- native Windows Setup/Portable packaging and Linux DEB packaging;
+- 24-language local catalog with English default/fallback;
+- production race/vet/security/privacy/dependency/documentation audits;
+- normal stable GitHub Release publication with `prerelease=false`;
+- stable GitHub Packages/GHCR distribution-bundle publication and read-back.
 
-The baseline includes:
+## 1.0.x priorities
 
-- Windows and Linux as the maintained desktop application targets;
-- native Windows Win32 GUI with a professional dual-pane FTP workflow;
-- one-click Sites access and a dedicated Site Manager;
-- saved profiles plus quick connection flow;
-- FTP, FTPS and SFTP support through the shared core;
-- SFTP password, private-key and passphrase authentication;
-- explicit SFTP host-key trust;
-- local and remote file operations;
-- transfer queue lifecycle controls;
-- validated transfer/retry/conflict settings;
-- English-first localization with 24 maintained languages;
-- Windows Setup and Portable x64/x86 outputs using one canonical version;
-- Linux amd64/arm64/i386 packages using the same canonical version;
-- reproducible/checksummed release artifacts;
-- fail-closed dependency, privacy, security, documentation and release audits;
-- immutable historical repository provenance.
+Patch releases should focus on compatible fixes:
 
-Android, iOS and macOS are not active application targets. Their historical source/releases remain available in Git history where applicable and are not deleted to create the new Beta baseline.
+1. crash/deadlock/race fixes found by production usage;
+2. protocol interoperability edge cases that can be reproduced deterministically;
+3. transfer-state and rollback correctness;
+4. large-directory/list performance and redraw efficiency;
+5. privacy-safe diagnostic quality;
+6. Setup/update/uninstall rollback reliability;
+7. localization corrections without changing protocol semantics;
+8. release/package integrity and signing pipeline maintenance;
+9. documentation accuracy.
 
-## Version milestones
+## 1.1 priorities
 
-### 0.1.x — baseline correctness
+Potential backward-compatible improvements include:
 
-Priorities:
+- richer transfer filtering/history while preserving bounded state;
+- better per-site connection option ergonomics;
+- additional keyboard and accessibility refinements;
+- improved Linux visual parity without adding a heavy runtime framework;
+- deeper deterministic FTP/FTPS/SFTP interoperability fixtures;
+- optional export/import of non-secret profile metadata with explicit security boundaries;
+- more operational diagnostics that remain local and credential-safe.
 
-- keep the current Windows UI stable across resize, DPI and localization changes;
-- verify Site Manager quick connections and saved-site connections across FTP/FTPS/SFTP;
-- close remaining connection-state and control-state inconsistencies;
-- improve transfer queue state correctness and failure recovery;
-- keep Windows Setup and Portable build/version metadata identical;
-- expand automated regressions for current behavior before larger feature additions.
+Features are not considered accepted merely because they are visually attractive. They must have a clear security/privacy model, tests, documentation and Windows/Linux behavior.
 
-### 0.2.x — workflow refinement
+## Non-negotiable constraints
 
-Priorities:
+Future work must preserve:
 
-- continue improving file-pane ergonomics, keyboard workflow and multi-selection operations;
-- improve connection diagnostics and actionable server/authentication errors;
-- improve queue progress, speed and ETA presentation without telemetry or persistent tracking;
-- improve profile-management discoverability and validation;
-- continue localization cleanup of remaining hard-coded frontend text.
+- no application telemetry/advertising/fingerprinting;
+- no mandatory Ghost FTP account;
+- no silent secure-transport downgrade;
+- SFTP host-key verification;
+- protected saved-secret handling;
+- local path containment and symlink/reparse safety;
+- fail-closed transfer cleanup/commit behavior;
+- exact source/version binding for public releases;
+- stable Windows signing gate;
+- verified GitHub Release and GitHub Package publication;
+- no unreviewed external Go dependencies.
 
-### 0.3.x and later Beta milestones
+## Performance direction
 
-Priorities are driven by verified gaps discovered through real FTP/FTPS/SFTP use, CI, authentic Windows UI captures and release testing. Minor Beta bumps should represent meaningful tested capability or quality milestones rather than arbitrary numbering.
+Optimization work should target measured hotspots:
 
-### 0.9.x — release-candidate stabilization
+- avoid full-workspace redraw when state is unchanged;
+- keep UI work out of transfer/network critical paths;
+- avoid repeated filesystem scans when a validated snapshot is sufficient;
+- keep transfer progress publication bounded and truthful;
+- reduce unnecessary allocations/copies in listing and transfer planning;
+- keep CI deterministic and offline for the Go dependency graph.
 
-The final Beta phase should emphasize:
+## Security/privacy direction
 
-- regression closure rather than feature expansion;
-- install/upgrade/uninstall and Portable smoke testing;
-- protocol interoperability with representative shared-hosting and SSH servers;
-- localization and accessibility review;
-- documentation completeness;
-- release artifact and checksum verification;
-- signing readiness and explicit unsigned-state communication where required;
-- zero known release-blocking defects.
+Security hardening should favor deterministic rejection and actionable errors over permissive fallback. Privacy improvements should reduce secret lifetime and diagnostic exposure rather than adding remote reporting.
 
-### 1.0.0 — first stable release
+## Definition of roadmap completion
 
-The project advances to 1.0.0 only after the complete stable gate in [VERSIONING.md](VERSIONING.md) is satisfied.
-
-At minimum:
-
-- Windows Setup and Portable are production-ready and carry version 1.0.0 together;
-- Windows native UI and Site Manager are stable for normal desktop use;
-- Linux maintained functionality satisfies the shared-core contract;
-- FTP/FTPS/SFTP authentication and transfers are reliable under expected conditions;
-- transfer conflict/retry/cancel/recovery behavior is covered by regression tests;
-- SFTP host-key and credential protections remain fail-closed;
-- all quality/security/privacy/dependency/documentation gates pass;
-- release publication and remote readback pass;
-- current documentation accurately describes the shipped product.
-
-## Near-term priorities
-
-### Transfer correctness
-
-- continue expanding regression tests for interrupted upload/download, overwrite rollback and ambiguous server responses;
-- strengthen retry classification so transient failures retry while authentication/validation failures fail immediately;
-- improve progress/speed/ETA presentation without introducing persistent tracking/logging;
-- keep directory/tree transfer planning bounded and symlink-safe;
-- improve queue ergonomics and multi-selection operations on Windows and equivalent command operations on Linux.
-
-### FTP/FTPS interoperability
-
-- expand passive/data-channel error diagnostics for common shared-hosting servers;
-- improve server capability detection without weakening validation;
-- preserve strict FTPS certificate validation and avoid insecure compatibility switches;
-- continue testing Unicode/path/listing edge cases.
-
-### SFTP interoperability
-
-- improve actionable errors for key format, passphrase, host-key and authentication failures;
-- expand OpenSSH process smoke tests across supported Linux environments;
-- preserve explicit host-key trust and endpoint binding;
-- avoid inheriting ambient proxy/jump/agent forwarding state.
-
-### Windows experience
-
-- continue refining spacing, typography, status hierarchy and transfer queue readability;
-- continue improving Site Manager without adding decorative options that lack backend behavior;
-- improve keyboard accessibility/focus behavior;
-- keep high-DPI behavior stable across common scale factors;
-- keep Setup/Portable packaging consistent and localized;
-- pursue code signing when an appropriate signing identity/certificate is available, without representing unsigned artifacts as signed.
-
-### Linux parity
-
-- keep every new shared-core connection/transfer option accessible from Linux where appropriate;
-- improve terminal discoverability/help and structured status output;
-- expose additional local/profile workflows where they can reuse shared engine methods;
-- continue refining the existing dependency-free native Linux graphical frontend without forking protocol logic or weakening the terminal fallback.
-
-### Localization
-
-- continue improving real translation coverage across all 24 locales;
-- eliminate remaining hard-coded frontend text by moving it into the canonical catalog;
-- preserve English fallback for incomplete future translations;
-- validate placeholders/format verbs and live language switching in CI.
-
-### Security and privacy
-
-- preserve zero application telemetry/analytics/advertising;
-- preserve fixed-runtime-URL and tracking-vendor audit gates;
-- continue credential-lifetime reduction and secret-zeroing work;
-- expand tests around symlink/reparse-point races and malicious local state;
-- keep SFTP AskPass free of disk secret artifacts;
-- keep release/tag provenance immutable.
-
-### Dependency strategy
-
-The desktop/core Go module should remain standard-library-only unless a reviewed change demonstrates a clear security or reliability benefit.
-
-Current OS-provided transport tools (`curl`, `ssh`, `sftp`) are explicit prerequisites. Replacing them with embedded protocol stacks is not a cosmetic dependency change; it would require protocol-level security review, compatibility testing, license/provenance review and a migration plan.
-
-## Out of scope for the active Beta line
-
-The following are intentionally not active application targets:
-
-- Android;
-- iOS;
-- macOS.
-
-Reintroducing a retired application platform would require an explicit product decision, a support/CI/release contract and compatibility analysis rather than quietly adding a directory back to the tree.
-
-## Release quality principle
-
-A roadmap item is not considered complete because UI code exists. It must have the relevant combination of:
-
-- shared-core implementation;
-- Windows/Linux exposure where applicable;
-- regression/security tests;
-- localization coverage;
-- documentation;
-- release notes;
-- CI/package verification.
-
-Beta version numbers should advance only after that evidence exists for the milestone being claimed.
+A roadmap item is complete only after code, regression tests, security/privacy implications, active documentation and production CI/release gates agree on the behavior.
