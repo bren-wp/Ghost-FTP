@@ -45,7 +45,13 @@ jobs:
           new = 'for rel in (".github/workflows/release.yml", "scripts/README.md"):'
           if text.count(old) != 1:
               raise SystemExit('release cleanup guard patch target is not unique')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          text = text.replace(old, new, 1)
+          marker = '# Verify the changed policy before committing it.\n'
+          staged = 'subprocess.run(["git", "add", "-A"], cwd=ROOT, check=True)\n'
+          if text.count(marker) != 1:
+              raise SystemExit('release cleanup staging patch target is not unique')
+          text = text.replace(marker, marker + staged, 1)
+          path.write_text(text, encoding='utf-8', newline='\n')
           PY
           python scripts/finalize_020_release_surface.py
           test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
