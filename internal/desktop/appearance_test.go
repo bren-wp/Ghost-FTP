@@ -11,7 +11,7 @@ import (
 func TestAppearanceLabelsCoverEverySupportedLanguage(t *testing.T) {
 	for _, language := range i18n.Languages() {
 		words := appearanceText(language.Code)
-		if strings.TrimSpace(words.Title) == "" || strings.TrimSpace(words.Dark) == "" || strings.TrimSpace(words.Light) == "" {
+		if strings.TrimSpace(words.Title) == "" || strings.TrimSpace(words.Dark) == "" || strings.TrimSpace(words.Light) == "" || strings.TrimSpace(words.Hint) == "" {
 			t.Fatalf("appearance labels are incomplete for %s: %#v", language.Code, words)
 		}
 	}
