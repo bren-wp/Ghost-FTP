@@ -1,5 +1,5 @@
 name: Finalize Ghost FTP 0.2.0 release surface
-# Final desktop release/documentation cleanup gate.
+# Final desktop release/documentation/dead-code cleanup gate.
 
 on:
   push:
@@ -19,7 +19,7 @@ env:
 jobs:
   finalize:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,6 +39,7 @@ jobs:
           go telemetry off
           test "$(go telemetry)" = 'off'
           python scripts/finalize_020_docs.py
+          python scripts/finalize_020_dead_code.py
           python - <<'PY'
           from pathlib import Path
           path = Path('scripts/finalize_020_release_surface.py')
@@ -57,9 +58,12 @@ jobs:
           PY
           python scripts/finalize_020_release_surface.py
           test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
+          python -m unittest discover -s scripts -p 'test_*.py'
           go test ./...
-          GOOS=windows GOARCH=amd64 go build -o /tmp/GhostFTP.exe ./cmd/ghostftp
-          GOOS=windows GOARCH=amd64 go build -o /tmp/GhostFTP-Setup.exe ./cmd/installer
+          GOOS=windows GOARCH=amd64 go build -o /tmp/GhostFTP-x64.exe ./cmd/ghostftp
+          GOOS=windows GOARCH=amd64 go build -o /tmp/GhostFTP-Setup-x64.exe ./cmd/installer
+          GOOS=windows GOARCH=386 go build -o /tmp/GhostFTP-x86.exe ./cmd/ghostftp
+          GOOS=windows GOARCH=386 go build -o /tmp/GhostFTP-Setup-x86.exe ./cmd/installer
       - name: Commit verified desktop release cleanup
         shell: bash
         run: |
@@ -68,5 +72,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git diff --cached --quiet && exit 0
-          git commit -m 'Finalize 0.2.0 desktop release documentation and tooling'
+          git commit -m 'Finalize 0.2.0 canonical desktop UI and release surface'
           git push origin HEAD:work/ghostftp-0.2.0-desktop-quality
