@@ -56,5 +56,14 @@ jobs:
           block = '''replace_all_checked(\n    "internal/desktop/gui_linux.go",\n    [\n        ('u.openPrompt(linuxPromptLocalMkdir, "New local folder", "New folder")', 'u.openPrompt(linuxPromptLocalMkdir, u.tr("common.new_folder")+" · "+u.tr("section.local"), u.tr("common.new_folder"))'),\n        ('u.openPrompt(linuxPromptRemoteMkdir, "New server folder", "New folder")', 'u.openPrompt(linuxPromptRemoteMkdir, u.tr("common.new_folder")+" · "+u.tr("section.remote"), u.tr("common.new_folder"))'),\n    ],\n)\n\n'''
           text = text.replace(needle, block + needle, 1)
           p.write_text(text, encoding='utf-8')
+
+          security = Path('docs/SECURITY.md')
+          security_text = security.read_text(encoding='utf-8')
+          old = '**Current Ghost FTP release: 0.2.0**'
+          new = '**Current Ghost FTP release: 0.2.1**'
+          if security_text.count(old) != 1:
+              raise SystemExit('security release marker guard failed')
+          security.write_text(security_text.replace(old, new, 1), encoding='utf-8')
           PY
+          git add docs/SECURITY.md
           python scripts/finalize_0_2_1.py
