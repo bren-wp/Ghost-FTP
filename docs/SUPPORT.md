@@ -9,9 +9,11 @@ https://github.com/bren-wp/Ghost-FTP/issues
 1. confirm the installed version and architecture;
 2. confirm the file came from the official stable GitHub Release;
 3. verify `SHA256.txt`;
-4. on Windows, verify the Authenticode signature;
+4. on Windows, inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`; verify Authenticode when it says `signed`, or record that the official file is explicitly `unsigned` when it says `unsigned`;
 5. confirm the intended protocol (FTP, FTPS or SFTP), host and port;
 6. reproduce with the smallest safe example possible.
+
+An unsigned Stable artifact is not automatically a corrupted artifact. Its integrity must still match the official tag/release location and SHA-256 manifest. Conversely, if metadata says `signed` and Windows signature verification fails, treat that as a release-integrity problem.
 
 ## Bug report information
 
@@ -20,6 +22,7 @@ Include:
 - Ghost FTP version/tag;
 - Windows or Linux and architecture;
 - Setup/Portable/DEB package used;
+- Windows signing state from `BUILD-METADATA.txt` when relevant;
 - protocol and authentication type;
 - exact reproduction steps;
 - expected vs actual behavior;
@@ -48,7 +51,7 @@ For SFTP host-key problems, provide only the public fingerprint if it is safe to
 
 ## Release/package problems
 
-For GitHub Release issues include the exact filename and SHA-256 value.
+For GitHub Release issues include the exact filename and SHA-256 value. For Windows artifacts also include only the public signing status (`signed`/`unsigned`) and signature-verification result when applicable; never share certificate private material or Actions secrets.
 
 For GitHub Packages issues include the semantic tag/digest for:
 
