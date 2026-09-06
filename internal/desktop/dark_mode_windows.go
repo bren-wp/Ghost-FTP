@@ -29,6 +29,10 @@ func enableImmersiveDarkMode(hwnd uintptr) {
 	defer freeLibrary.Call(module)
 
 	dark := activeThemeIsDark()
+	// On supported Windows builds uxtheme ordinal 135 is SetPreferredAppMode.
+	// Keep ordinal lookup because this private compatibility API is not exported
+	// by name consistently, while retaining the semantic name for maintenance
+	// audits and future platform updates.
 	preferred, _, _ := getProcAddress.Call(module, 135)
 	if preferred != 0 {
 		if build >= 18362 {
