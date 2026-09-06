@@ -6,7 +6,7 @@ Ghost FTP uses immutable namespaced tags and a fail-closed release workflow.
 
 The canonical desktop application version is the root `VERSION` file and must be semantic `X.Y.Z`.
 
-Current source version: **0.1.1**.
+Current source version: **0.2.0**.
 
 Current release channel: **Beta / prerelease**.
 
@@ -33,7 +33,7 @@ All `0.x.y` versions are pre-1.0 **Beta** builds.
 When the release workflow resolves a version whose major component is `0`, it automatically:
 
 - sets `RELEASE_CHANNEL=beta`;
-- uses a release title such as `Ghost FTP 0.1.1 Beta`;
+- uses a release title such as `Ghost FTP 0.2.0 Beta`;
 - creates or updates the GitHub Release with `prerelease=true`;
 - verifies the prerelease flag again during remote release readback;
 - records the release channel in `BUILD-METADATA.txt`.
@@ -52,8 +52,6 @@ Ghost FTP publishes maintained desktop application artifacts for:
 - Linux.
 
 Android, iOS and macOS application artifacts are not part of the active release matrix.
-
-The existing Web companion source is maintained separately and is not counted as a desktop/platform artifact in this release contract.
 
 ## Platform artifact contract
 
@@ -78,10 +76,10 @@ Windows Setup and Portable are packaging forms of the same Ghost FTP release. Th
 For the current Beta release:
 
 ```text
-Ghost-FTP-0.1.1-Setup-x64.exe
-Ghost-FTP-0.1.1-Setup-x86.exe
-Ghost-FTP-0.1.1-Portable-x64.exe
-Ghost-FTP-0.1.1-Portable-x86.exe
+Ghost-FTP-0.2.0-Setup-x64.exe
+Ghost-FTP-0.2.0-Setup-x86.exe
+Ghost-FTP-0.2.0-Portable-x64.exe
+Ghost-FTP-0.2.0-Portable-x86.exe
 ```
 
 For the first stable release:
@@ -105,11 +103,6 @@ Each release also contains:
 
 Therefore a complete release has **12 public files**.
 
-## NuGet/GitHub Package
-
-The workflow also builds/publishes the `GhostFTP` NuGet/GitHub Package containing the Windows portable executables for x64 and x86.
-
-The package uses the same canonical numeric version as the desktop release and is separate from the 12 public GitHub Release files.
 
 ## Release quality gate
 
@@ -131,7 +124,7 @@ The quality gate includes:
 - 24-language localization audit;
 - security/privacy audits;
 - documentation audit;
-- Web companion source/runtime audit.
+- retired-surface/desktop-source audit.
 
 ## Publication protections
 
@@ -163,7 +156,7 @@ The workflow also reads the GitHub Release metadata back and verifies that `prer
 
 Older repository releases may contain Android, iOS, macOS or Web artifacts because those surfaces existed in earlier release contracts. Their presence in historical release notes/assets is expected and must not be confused with the active Windows/Linux product matrix.
 
-Historical version numbers are retained for reproducibility. The current pre-1.0 line started at **0.1.0 Beta**; the active release prepared here is **0.1.1 Beta**, advancing toward the first stable **1.0.0** release.
+Historical version numbers are retained for reproducibility. The current pre-1.0 line started at **0.1.0 Beta**; the active release prepared here is **0.2.0 Beta**, advancing toward the first stable **1.0.0** release.
 
 See [Release history](RELEASE-HISTORY.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning policy](VERSIONING.md).
 

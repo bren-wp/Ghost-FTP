@@ -2,7 +2,7 @@
 
 Every current Ghost FTP desktop release publishes `SHA256.txt`, `RELEASE-NOTES.txt` and `BUILD-METADATA.txt` together with the Windows/Linux platform packages. Verification should be performed before installation or redistribution.
 
-The active baseline is **0.1.0 Beta**. Every `0.x.y` GitHub Release must be marked **Prerelease**. The first version eligible for the stable channel is **1.0.0**.
+The active baseline is **0.2.0 Beta**. Every `0.x.y` GitHub Release must be marked **Prerelease**. The first version eligible for the stable channel is **1.0.0**.
 
 ## 1. Verify the release identity
 
@@ -47,8 +47,8 @@ That is **12 public release files** total.
 For the current Beta baseline:
 
 ```powershell
-Get-FileHash .\Ghost-FTP-0.1.0-Setup-x64.exe -Algorithm SHA256
-Get-FileHash .\Ghost-FTP-0.1.0-Portable-x64.exe -Algorithm SHA256
+Get-FileHash .\Ghost-FTP-0.2.0-Setup-x64.exe -Algorithm SHA256
+Get-FileHash .\Ghost-FTP-0.2.0-Portable-x64.exe -Algorithm SHA256
 ```
 
 Compare each returned digest with the exact filename entry in `SHA256.txt`.
@@ -56,8 +56,8 @@ Compare each returned digest with the exact filename entry in `SHA256.txt`.
 ### Linux
 
 ```bash
-sha256sum Ghost-FTP-0.1.0-Linux-amd64.deb
-sha256sum Ghost-FTP-0.1.0-Linux-multiarch.zip
+sha256sum Ghost-FTP-0.2.0-Linux-amd64.deb
+sha256sum Ghost-FTP-0.2.0-Linux-multiarch.zip
 ```
 
 A mismatch means the package must not be installed or redistributed.
@@ -71,13 +71,13 @@ A SHA-256 match proves byte integrity relative to the GitHub Release. It does no
 Check a Windows executable with:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-0.1.0-Setup-x64.exe | Format-List Status,StatusMessage,SignerCertificate,TimeStamperCertificate
+Get-AuthenticodeSignature .\Ghost-FTP-0.2.0-Setup-x64.exe | Format-List Status,StatusMessage,SignerCertificate,TimeStamperCertificate
 ```
 
 Or for Portable:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-0.1.0-Portable-x64.exe | Format-List Status,StatusMessage,SignerCertificate,TimeStamperCertificate
+Get-AuthenticodeSignature .\Ghost-FTP-0.2.0-Portable-x64.exe | Format-List Status,StatusMessage,SignerCertificate,TimeStamperCertificate
 ```
 
 Interpretation:
@@ -102,8 +102,8 @@ See [Signing](SIGNING.md).
 Windows PowerShell:
 
 ```powershell
-(Get-FileHash .\Ghost-FTP-0.1.0-Setup-x86.exe -Algorithm SHA256).Hash
-(Get-FileHash .\Ghost-FTP-0.1.0-Setup-x32.exe -Algorithm SHA256).Hash
+(Get-FileHash .\Ghost-FTP-0.2.0-Setup-x86.exe -Algorithm SHA256).Hash
+(Get-FileHash .\Ghost-FTP-0.2.0-Setup-x32.exe -Algorithm SHA256).Hash
 ```
 
 The two hashes must match exactly. If they differ, treat the release as invalid.
@@ -113,14 +113,14 @@ The two hashes must match exactly. If they differ, treat the release as invalid.
 For each Debian package:
 
 ```bash
-dpkg-deb -f Ghost-FTP-0.1.0-Linux-amd64.deb Package Version Architecture
+dpkg-deb -f Ghost-FTP-0.2.0-Linux-amd64.deb Package Version Architecture
 ```
 
 Expected values for the amd64 package are:
 
 ```text
 Package: ghost-ftp
-Version: 0.1.0
+Version: 0.2.0
 Architecture: amd64
 ```
 
@@ -167,4 +167,4 @@ For high-assurance deployments, record together:
 
 ## 9. Active versus historical platforms
 
-Current application release verification covers **Windows and Linux only**. Historical Android, iOS and macOS artifacts may remain attached to older historical releases, but they are not part of the active release matrix and must not be expected in `0.1.0 Beta` or later current Windows/Linux releases.
+Current application release verification covers **Windows and Linux only**. Historical Android, iOS and macOS artifacts may remain attached to older historical releases, but they are not part of the active release matrix and must not be expected in the current 0.2.0 Beta Windows/Linux release.

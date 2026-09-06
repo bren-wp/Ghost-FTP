@@ -2,9 +2,7 @@
 
 Ghost FTP is a **Windows + Linux** desktop product with one shared transfer/security core and platform-specific presentation layers.
 
-The active desktop development baseline is **0.1.0 Beta**. Version maturity does not change the architecture contract: all `0.x.y` builds use the same maintained Windows/Linux core and move toward the first stable **1.0.0** release.
-
-The repository also retains the Ghost FTP Web companion as a separate shared-hosting/PWA source surface. The Web companion is not part of the Windows/Linux desktop application artifact contract.
+The current desktop development baseline is **0.2.0 Beta**. Version maturity does not change the architecture contract: all `0.x.y` builds use the same maintained Windows/Linux core and move toward the first stable **1.0.0** release.
 
 ## Design goals
 
@@ -33,7 +31,7 @@ Production builds inject the canonical numeric version from the root `VERSION` f
 Platform presentation layer.
 
 - Windows files use Win32 controls, custom owner-drawn visual elements, high-DPI layout, native dialogs and graphical local/remote/queue panels.
-- Linux uses the terminal frontend in `other.go` with a `linux` build tag.
+- Linux uses the dependency-free native X11/XWayland-compatible graphical frontend and retains the hardened terminal frontend for headless or explicit fallback use.
 
 Both frontends call the same typed `internal/api.Engine` methods.
 
@@ -85,7 +83,7 @@ Shared transfer scheduler and queue. It owns:
 - event/snapshot reporting;
 - safe final status handling.
 
-Windows buttons and Linux terminal queue commands invoke this same manager.
+Windows and Linux graphical/terminal queue actions invoke this same manager.
 
 ### `internal/config`
 
@@ -211,11 +209,6 @@ Windows Setup and Portable are separate package forms but never separate version
 
 See [Versioning policy](VERSIONING.md).
 
-## Web companion boundary
-
-`GhostFTP WEB/` is a separate PHP/PWA implementation intended for shared hosting. It has its own web threat model, session/CSRF boundaries and PHP extension requirements.
-
-It is kept in the same repository for product/source continuity but must not be described as a Windows/Linux desktop runtime component or counted as a desktop release platform artifact.
 
 ## Retired platforms
 

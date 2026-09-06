@@ -4,7 +4,7 @@ Ghost FTP uses one canonical desktop application version from the root `VERSION`
 
 ## Current baseline
 
-The active development line starts at **0.1.0**.
+The active development line began at **0.1.0** and the current source baseline is **0.2.0 Beta**.
 
 All versions in the `0.x.y` range are **Beta** builds. They are intended for active development, testing, compatibility work and stabilization. They may be distributed for evaluation, but they are not represented as the first fully stable Ghost FTP release.
 
@@ -37,7 +37,6 @@ The machine-readable value remains plain semantic versioning such as `0.1.0`. Th
 
 - Windows PE file/product version metadata;
 - Debian package metadata;
-- NuGet/GitHub Package versions;
 - release workflow comparison and validation;
 - `ghostftp-vX.Y.Z` tag generation;
 - update/release automation that expects numeric `X.Y.Z` values.
@@ -73,10 +72,10 @@ Setup and Portable are two packaging forms of the same Ghost FTP release. They m
 For the current baseline this means:
 
 ```text
-Ghost-FTP-0.1.0-Setup-x64.exe
-Ghost-FTP-0.1.0-Setup-x86.exe
-Ghost-FTP-0.1.0-Portable-x64.exe
-Ghost-FTP-0.1.0-Portable-x86.exe
+Ghost-FTP-0.2.0-Setup-x64.exe
+Ghost-FTP-0.2.0-Setup-x86.exe
+Ghost-FTP-0.2.0-Portable-x64.exe
+Ghost-FTP-0.2.0-Portable-x86.exe
 ```
 
 When the first stable version is reached, the corresponding packages become:

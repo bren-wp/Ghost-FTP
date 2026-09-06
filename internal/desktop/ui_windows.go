@@ -65,6 +65,7 @@ func (a *app) createControls(hinst uintptr) error {
 	sendMessageW.Call(a.profilesCombo, cbSetCurSel, 0, 0)
 	a.saveProfile = mkButton(a.tr("profile.save"), iconSave, buttonDefault, idSaveProfile)
 	a.removeProfile = mkButton(a.tr("profile.delete"), iconDelete, buttonDanger, idRemoveProfile)
+	a.siteManagerBtn = mkButton(nativeMenuWords(a.languageCode())[5], iconOpenLocal, buttonDefault, idSiteManager)
 	a.settingsBtn = mkButton(a.tr("common.settings"), iconSettings, buttonSubtle, idSettings)
 	a.aboutBtn = mkButton(a.tr("common.about"), iconInfo, buttonSubtle, idAbout)
 
@@ -204,11 +205,11 @@ func (a *app) preferredWindowBounds() (x, y, width, height int) {
 	if maxH := screenH - 72; maxH > 0 && height > maxH {
 		height = maxH
 	}
-	if width < 940 {
-		width = 940
+	if width < premiumMinWidth {
+		width = premiumMinWidth
 	}
-	if height < 680 {
-		height = 680
+	if height < premiumMinHeight {
+		height = premiumMinHeight
 	}
 	x = (screenW - width) / 2
 	y = (screenH - height) / 2
@@ -262,7 +263,7 @@ func (a *app) applyDPI(dpi uint32) {
 
 func (a *app) defaultFontControls() []uintptr {
 	return []uintptr{
-		a.profilesCombo, a.languageCombo, a.saveProfile, a.removeProfile, a.settingsBtn, a.aboutBtn,
+		a.profilesCombo, a.languageCombo, a.saveProfile, a.removeProfile, a.siteManagerBtn, a.settingsBtn, a.aboutBtn,
 		a.protocol, a.host, a.port, a.user, a.pass, a.keyPath, a.chooseKey, a.passphrase, a.connect, a.disconnect,
 		a.localPath, a.localUp, a.localRefresh, a.localChoose, a.localList, a.localMkdir, a.localRename, a.localDelete,
 		a.remotePath, a.remoteUp, a.remoteRefresh, a.remoteList, a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod,
@@ -395,11 +396,11 @@ func clampInt(v, min, max int) int {
 func (a *app) layout(width, height int) {
 	width = a.unscale(width)
 	height = a.unscale(height)
-	if width < 900 {
-		width = 900
+	if width < premiumMinWidth {
+		width = premiumMinWidth
 	}
-	if height < 620 {
-		height = 620
+	if height < premiumMinHeight {
+		height = premiumMinHeight
 	}
 	margin, gap, rowH := 14, 8, 29
 	compact := width < 1180
@@ -424,15 +425,19 @@ func (a *app) layout(width, height int) {
 
 	toolbarY := 51
 	availableToolbar := width - 2*margin
-	profileW := clampInt(availableToolbar-126-126-110-112-4*gap, 220, 360)
+	buttonWidths := []int{120, 120, 132, 108, 108}
+	if compact {
+		buttonWidths = []int{112, 112, 120, 100, 100}
+	}
+	fixedButtons := 0
+	for _, buttonW := range buttonWidths {
+		fixedButtons += buttonW
+	}
+	profileW := clampInt(availableToolbar-fixedButtons-len(buttonWidths)*gap, 200, 340)
 	x := margin
 	a.move(a.profilesCombo, x, toolbarY, profileW, rowH)
 	x += profileW + gap
-	buttonWidths := []int{126, 126, 110, 112}
-	if compact {
-		buttonWidths = []int{118, 118, 104, 104}
-	}
-	for index, h := range []uintptr{a.saveProfile, a.removeProfile, a.settingsBtn, a.aboutBtn} {
+	for index, h := range []uintptr{a.saveProfile, a.removeProfile, a.siteManagerBtn, a.settingsBtn, a.aboutBtn} {
 		a.move(h, x, toolbarY, buttonWidths[index], rowH)
 		x += buttonWidths[index] + gap
 	}
@@ -626,7 +631,7 @@ func (a *app) validateControls() error {
 		h    uintptr
 	}{
 		{"title", a.brandTitle}, {"subtitle", a.brandSubtitle}, {"connection badge", a.connectionBadge}, {"language", a.languageCombo},
-		{"profiles", a.profilesCombo}, {"save profile", a.saveProfile}, {"delete profile", a.removeProfile}, {"settings", a.settingsBtn}, {"about", a.aboutBtn},
+		{"profiles", a.profilesCombo}, {"save profile", a.saveProfile}, {"delete profile", a.removeProfile}, {"site manager", a.siteManagerBtn}, {"settings", a.settingsBtn}, {"about", a.aboutBtn},
 		{"protocol", a.protocol}, {"server", a.host}, {"port", a.port}, {"username", a.user}, {"password", a.pass},
 		{"private key", a.keyPath}, {"choose key", a.chooseKey}, {"key passphrase", a.passphrase}, {"connect", a.connect}, {"disconnect", a.disconnect},
 		{"local path", a.localPath}, {"local up", a.localUp}, {"local choose", a.localChoose}, {"local refresh", a.localRefresh},

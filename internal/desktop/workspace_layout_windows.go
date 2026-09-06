@@ -10,8 +10,6 @@ const (
 	workspaceSWHide                 = 0
 )
 
-// styleWorkspaceList keeps the native list controls visually consistent with
-// the Ghost FTP dark desktop surface without introducing a second UI toolkit.
 func styleWorkspaceList(list uintptr) {
 	if list == 0 {
 		return
@@ -26,7 +24,7 @@ func styleWorkspaceList(list uintptr) {
 	}
 }
 
-func applyReferenceFileColumnOrder(list uintptr, remote bool) {
+func applyFileColumnOrder(list uintptr, remote bool) {
 	if list == 0 {
 		return
 	}
@@ -37,18 +35,6 @@ func applyReferenceFileColumnOrder(list uintptr, remote bool) {
 	}
 	order := [4]int32{0, 2, 1, 3}
 	sendMessageW.Call(list, workspaceLVMSetColumnOrderArray, uintptr(len(order)), uintptr(unsafe.Pointer(&order[0])))
-}
-
-// resizeReferenceWorkspaceColumns is retained as the compatibility entry point
-// used by the native shell. One canonical column-sizing implementation now
-// owns the geometry, avoiding the previous double-layout drift.
-func (a *app) resizeReferenceWorkspaceColumns(_, _ int) {
-	if a == nil {
-		return
-	}
-	applyReferenceFileColumnOrder(a.localList, false)
-	applyReferenceFileColumnOrder(a.remoteList, true)
-	a.resizeListColumns()
 }
 
 func showControls(show bool, controls ...uintptr) {
@@ -63,55 +49,16 @@ func showControls(show bool, controls ...uintptr) {
 	}
 }
 
-// refineWorkspaceLayout deliberately does not build a second presentation
-// layer. Earlier Beta builds first laid out the real controls and then overlaid
-// a separate reference shell with duplicate toolbar aliases. That increased
-// visual noise and created resize/language regressions. The 0.2 line keeps one
-// canonical native workspace: profiles + Quick Connect, two file panes and one
-// transfer queue. Every visible action maps directly to the Engine command that
-// owns its validation and security checks.
+// refineWorkspaceLayout applies visibility/style rules to the single canonical
+// native workspace. Geometry itself is owned by app.layout so resize/DPI state
+// has exactly one source of truth.
 func (a *app) refineWorkspaceLayout() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
 
-	// The legacy reference-shell controls can still be created by old action
-	// state paths for binary/source compatibility, but they are never presented.
-	showControls(false,
-		a.shellSidebar, a.shellToolbar, a.shellLogCard, a.shellQuickCard,
-		a.shellLocalCard, a.shellRemoteCard, a.shellQueueCard,
-		a.sidebarServersLabel, a.sidebarPrivacyTitle, a.sidebarPrivacyBody,
-		a.logTitle, a.quickTitle, a.localDeviceLabel, a.remoteStateLabel,
-		a.remoteSearch,
-		a.toolbarConnect, a.toolbarDisconnect, a.toolbarUpload, a.toolbarDownload,
-		a.toolbarRefresh, a.toolbarNewFolder, a.toolbarRename, a.toolbarDelete,
-		a.toolbarSites, a.toolbarSettings, a.toolbarDiagnostics,
-	)
-
-	var client rect
-	if result, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); result != 0 {
-		a.layout(int(client.Right-client.Left), int(client.Bottom-client.Top))
-	}
-
-	// Keep the real native controls visible. Protocol-specific secrets and the
-	// connect/disconnect pair are context-sensitive to reduce clutter.
-	showControls(true,
-		a.brandTitle, a.brandSubtitle, a.connectionBadge, a.languageCombo,
-		a.profilesCombo, a.saveProfile, a.removeProfile, a.settingsBtn, a.aboutBtn,
-		a.protocol, a.host, a.port, a.user, a.pass,
-		a.sectionLocal, a.sectionRemote, a.sectionTransfers,
-		a.localPath, a.localUp, a.localRefresh, a.localChoose, a.localList,
-		a.localMkdir, a.localRename, a.localDelete,
-		a.remotePath, a.remoteUp, a.remoteRefresh, a.remoteList,
-		a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod,
-		a.upload, a.download,
-		a.transferList, a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob, a.clearQueue,
-		a.status, a.statusVersion, a.transferSummary,
-	)
-
-	sftp := a.protocolValue() == "sftp" && !a.connected
+	sftp := a.protocolValue() == "sftp" && !a.connected && !a.connectionBusy
 	showControls(sftp, a.keyPath, a.chooseKey, a.passphrase)
-
 	if a.connected || a.connectionBusy {
 		showControls(false, a.connect)
 		showControls(true, a.disconnect)
@@ -123,8 +70,8 @@ func (a *app) refineWorkspaceLayout() {
 	for _, list := range []uintptr{a.localList, a.remoteList, a.transferList} {
 		styleWorkspaceList(list)
 	}
-	applyReferenceFileColumnOrder(a.localList, false)
-	applyReferenceFileColumnOrder(a.remoteList, true)
+	applyFileColumnOrder(a.localList, false)
+	applyFileColumnOrder(a.remoteList, true)
 	a.resizeListColumns()
 	invalidateRect.Call(a.hwnd, 0, 1)
 }

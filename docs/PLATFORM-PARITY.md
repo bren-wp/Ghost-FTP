@@ -2,7 +2,7 @@
 
 Ghost FTP currently maintains two desktop application platforms: **Windows** and **Linux**. Both editions use the same transfer, profile, settings, localization and security core. Windows uses the native Win32 reference frontend; Linux now uses a dependency-free native X11/XWayland graphical frontend and retains the hardened terminal frontend for headless or explicit fallback use.
 
-The active maturity baseline is **0.1.0 Beta**. Functional parity work completed before the version reset is preserved; changing the active version line does not remove or downgrade existing capabilities.
+The active maturity baseline is **0.2.0 Beta**. Functional parity work completed in earlier Beta milestones is preserved unless a duplicated or presentation-only surface is intentionally removed in favor of the canonical shared workflow.
 
 The project does not claim pixel-identical visual parity where it does not yet exist. See [Desktop reference UI](REFERENCE-UI.md).
 
@@ -47,22 +47,21 @@ Linux intentionally does not emulate Windows DPAPI with plaintext or weak revers
 
 When a Linux user explicitly accepts a new SFTP host key, the accepted public fingerprint is retained in the in-process connection metadata so a later `profile-save` can persist the verified endpoint pin. Passwords and private-key passphrases are removed from the session config after connection and are not printed by profile commands.
 
-## Windows reference-shell boundary
+## Windows desktop boundary
 
-Windows Setup and Windows Portable package the same application executable/source. Once the app starts, both expose the same:
+Windows Setup and Windows Portable package the same application executable/source. Once the app starts, both expose the same canonical desktop workflow:
 
-- deep navy reference shell;
-- left profile/navigation sidebar;
-- menu and top action toolbar;
-- Connection Log and Quick Connect cards;
-- Local/Remote file cards;
-- remote search;
-- transfer queue;
+- brand, connection state and language header;
+- saved Sites/profile controls;
+- Quick Connect;
+- balanced Local/Remote file panes;
+- local and remote file-operation controls;
+- transfer queue and queue actions;
 - live localization;
 - command/action-state validation;
-- Site Manager and settings surfaces.
+- Site Manager and Settings surfaces.
 
-The graphical shell is presentation only. Toolbar/menu actions route to the same canonical connection, file-operation and transfer code paths used elsewhere in the application.
+The Win32 layer is presentation/input orchestration only. Menu/button actions route to the same canonical connection, file-operation and transfer code paths used by the shared engine.
 
 ## Windows Site Manager parity boundary
 
@@ -123,11 +122,6 @@ MLSD `perm=` capabilities are not misrepresented as POSIX modes. Unknown or malf
 
 The Windows Remote card displays this as the fifth **Permissions** column. The local card intentionally remains four columns because local authorization semantics are not inferred through the remote listing model.
 
-## Remote-search parity boundary
-
-The current Windows remote search is a local in-memory filter over the already loaded directory. It does not create another remote search protocol or third-party query service.
-
-Linux users can navigate/list through the graphical file panel or terminal fallback. Any graphical search enhancement must reuse the same item model and must not introduce a separate server/indexing service.
 
 ## Delete confirmation parity
 
@@ -220,10 +214,9 @@ Windows is the graphical reference GUI. It uses:
 - high-DPI scaling;
 - deep navy/graphite surfaces and blue-violet accent hierarchy;
 - owner-drawn toolbar/action buttons;
-- persistent left sidebar;
-- Connection Log and Quick Connect cards;
+- compact brand/state/profile controls;
+- Quick Connect;
 - balanced local/server dual-pane workspace;
-- remote in-memory search;
 - real remote Permissions column when metadata exists;
 - full-width transfer queue;
 - one-click Sites access and native Site Manager;
@@ -259,7 +252,7 @@ See [Versioning policy](VERSIONING.md).
 
 Android, iOS and macOS application targets are not part of the active Windows/Linux source/build matrix. Historical commits and releases remain immutable and may still contain those platform sources and artifacts.
 
-The existing Web companion remains in the repository as a separate source surface. It is not counted as a Windows/Linux desktop application platform artifact in current releases.
+Only Windows and Linux are part of the maintained application source/build/release matrix.
 
 ## Parity regression coverage
 
@@ -272,13 +265,12 @@ Linux-specific regressions verify:
 - empty, negative or unrecognized confirmations remain fail-closed;
 - explicit affirmative confirmation is accepted through the localization-aware affirmative parser.
 
-Windows/reference regressions verify:
+Windows regressions verify:
 
-- canonical sidebar/toolbar/cards remain wired;
-- toolbar actions mirror canonical action state;
-- remote search retains a full unfiltered model;
-- local file columns remain four-column reference order;
-- remote file columns remain five-column reference order with Permissions;
+- the canonical dual-pane workspace remains wired across resize and DPI changes;
+- visible actions mirror canonical action state instead of bypassing Engine validation;
+- local file columns remain four-column order;
+- remote file columns remain five-column order with Permissions;
 - permissions are backed by validated LIST/SFTP/MLSD `unix.mode` data;
 - live language switching updates the Permissions heading;
 - hardcoded Croatian file-action strings do not return;

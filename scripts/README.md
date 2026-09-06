@@ -1,18 +1,24 @@
 # Ghost FTP build and audit scripts
 
-This directory contains the maintained packaging, security, privacy and verification tooling used by Ghost FTP.
+This directory contains the maintained Windows/Linux packaging, security, privacy and verification tooling used by Ghost FTP.
 
 ## Canonical release path
 
-GitHub Releases are assembled by `.github/workflows/release.yml`. There is no second PowerShell release publisher: keeping one publication path reduces version/tag drift and stale artifact naming.
+GitHub Releases are assembled by `.github/workflows/release.yml`. There is one public release publication surface: the immutable GitHub Release for `ghostftp-vX.Y.Z`. Keeping one path prevents version, tag and artifact drift.
 
 Important maintained tools include:
 
-- `release_notes.py` — generates Ghost FTP release notes from `CHANGELOG.md`.
-- `package_web.py` — creates the shared-hosting web archive used by CI.
+- `release_notes.py` — generates release notes from `CHANGELOG.md`.
+- `make_payload.py` — creates the verified Windows Setup payload.
+- `verify_release.py` / `verify_bundle.py` — verify release/bundle structure and integrity.
+- `audit_desktop_surface.py` — rejects retired Web/PWA application surfaces.
+- `audit_platform_contract.py` — enforces Windows/Linux-only application targets.
 - `audit_security.py` — security-policy regression checks.
 - `audit_privacy.py` — privacy/telemetry regression checks.
-- platform build/package helpers that are still referenced by CI or local documented workflows.
+- `audit_dependencies.py` — rejects unexpected dependency and tracking SDK drift.
+- platform build/package helpers referenced by CI or documented local workflows.
+
+NuGet, Web/PWA and mobile application packaging are not part of the maintained Ghost FTP desktop release contract.
 
 ## Release identity
 
@@ -26,9 +32,9 @@ Historical GhostFTP tags are immutable and are not reused.
 
 ## Build invariants
 
-Production workflows disable Go telemetry and use controlled dependency resolution. Final release filenames are assembled only after all platform jobs pass, then checksummed in `SHA256.txt`.
+Production workflows disable Go telemetry and use controlled dependency resolution. Windows and Linux artifacts are assembled only after all platform jobs pass, then checksummed in `SHA256.txt`.
 
-Do not add a second script that independently creates or force-updates GitHub Releases. New release logic belongs in the canonical workflow and must preserve tag immutability, checksum generation and explicit signing status.
+Do not add another script or package registry that independently publishes Ghost FTP. New release logic belongs in the canonical GitHub Release workflow and must preserve tag immutability, checksum generation, read-back verification and explicit signing status.
 
 ## Security
 

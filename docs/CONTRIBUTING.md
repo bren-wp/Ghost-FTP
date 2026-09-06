@@ -10,8 +10,7 @@ Platform code must stay within its intended boundary:
 
 - shared desktop/core behavior belongs in `cmd/` and `internal/`;
 - Windows-native UI/platform behavior belongs in Windows build-tagged files under the existing desktop/platform packages;
-- Linux terminal/platform behavior belongs in Linux build-tagged files and `linux/` packaging;
-- the separate Web companion remains under `GhostFTP WEB/` and must not be used as a hidden replacement for the Windows or Linux desktop frontend.
+- Linux graphical/terminal platform behavior belongs in Linux build-tagged files and `linux/` packaging.
 
 Do not broaden a `//go:build linux` or `//go:build windows` implementation into a generic fallback merely to make another operating system compile. Adding another maintained application platform would require an explicit product decision, complete security/build/release design and a corresponding platform-contract change.
 

@@ -10,6 +10,7 @@ import (
 const (
 	idSiteManager = 701
 	idExitApp     = 702
+	idDiagnostics = 703
 
 	mfString    = 0x0000
 	mfPopup     = 0x0010
@@ -31,8 +32,8 @@ var (
 // 24-language runtime selection as the rest of the Windows UI.
 //
 // Index contract: File, Servers, Transfers, View, Help, Site Manager, Exit,
-// Tools, Diagnostics. Keep the stable indices because the reference shell also
-// reuses the localized Servers and Site Manager nouns.
+// Tools, Diagnostics. Keep the stable indices because Site Manager and the
+// Tools menu use the same localized nouns across runtime language changes.
 var menuWords = map[string][9]string{
 	"en": {"File", "Servers", "Transfers", "View", "Help", "Site Manager", "Exit", "Tools", "Diagnostics"},
 	"hr": {"Datoteka", "Poslužitelji", "Prijenosi", "Prikaz", "Pomoć", "Upravitelj poslužitelja", "Izlaz", "Alati", "Dijagnostika"},
@@ -115,7 +116,7 @@ func (a *app) installMainMenu() {
 	appendMenuItem(serversMenu, idRemoveProfile, a.tr("profile.delete"))
 
 	appendMenuItem(toolsMenu, idSettings, a.tr("common.settings"))
-	appendMenuItem(toolsMenu, idToolbarDiagnostics, words[8])
+	appendMenuItem(toolsMenu, idDiagnostics, words[8])
 
 	appendMenuItem(helpMenu, idAbout, a.tr("common.about"))
 

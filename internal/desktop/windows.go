@@ -40,19 +40,10 @@ type app struct {
 
 	siteManagerBtn uintptr
 
-	// Reference-shell controls are presentation-only aliases around the existing
-	// command and action-state layer. They never bypass Engine validation.
-	shellSidebar, shellToolbar, shellLogCard, shellQuickCard, shellLocalCard, shellRemoteCard, shellQueueCard              uintptr
-	sidebarServersLabel, sidebarPrivacyTitle, sidebarPrivacyBody, logTitle, quickTitle, localDeviceLabel, remoteStateLabel uintptr
-	remoteSearch                                                                                                           uintptr
-	toolbarConnect, toolbarDisconnect, toolbarUpload, toolbarDownload, toolbarRefresh                                      uintptr
-	toolbarNewFolder, toolbarRename, toolbarDelete, toolbarSites, toolbarSettings, toolbarDiagnostics                      uintptr
-
 	mu                   sync.Mutex
 	dispatchQ            []func()
 	localItems           []model.Item
 	remoteItems          []model.Item
-	remoteAllItems       []model.Item
 	transferJobs         []model.TransferJob
 	profiles             []model.PublicProfile
 	settings             model.Settings
@@ -73,7 +64,6 @@ type app struct {
 	closing              bool
 	localNavSeq          uint64
 	remoteNavSeq         uint64
-	statusLog            []string
 }
 
 var apps sync.Map
@@ -223,8 +213,8 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmGetMinMaxInfo:
 		if lParam != 0 {
 			info := minMaxInfoFromLParam(lParam)
-			info.MinTrackSize.X = int32(a.scale(1080))
-			info.MinTrackSize.Y = int32(a.scale(700))
+			info.MinTrackSize.X = int32(a.scale(premiumMinWidth))
+			info.MinTrackSize.Y = int32(a.scale(premiumMinHeight))
 			minMaxInfoToLParam(lParam, info)
 		}
 		return 0
@@ -240,7 +230,6 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			newDPI = 96
 		}
 		a.applyDPI(newDPI)
-		a.ensureSiteManagerButton()
 		if lParam != 0 {
 			r := rectFromLParam(lParam)
 			moveWindow.Call(hwnd, uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), 1)
@@ -262,10 +251,6 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		if id == idLanguage && notify == cbnSelChange {
 			a.changeLanguageFromUI()
 			a.refineWorkspaceLayout()
-			return 0
-		}
-		if id == idRemoteSearch && notify == enChange {
-			a.applyRemoteSearch()
 			return 0
 		}
 		if notify == bnClicked {
@@ -305,7 +290,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		color := textColor()
 		if lParam == a.brandTitle {
 			color = textColor()
-		} else if lParam == a.brandSubtitle || lParam == a.sectionLocal || lParam == a.sectionRemote || lParam == a.sectionTransfers || lParam == a.status || lParam == a.sidebarPrivacyBody || lParam == a.localDeviceLabel || lParam == a.remoteStateLabel {
+		} else if lParam == a.brandSubtitle || lParam == a.sectionLocal || lParam == a.sectionRemote || lParam == a.sectionTransfers || lParam == a.status {
 			color = mutedColor()
 		} else if lParam == a.connectionBadge {
 			if a.connected {
