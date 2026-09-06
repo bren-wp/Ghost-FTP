@@ -162,6 +162,8 @@ func Run(engine *api.Engine, version string) error {
 	accelerators := []accel{
 		{FVirt: fvirtKey, Key: vkF5, Cmd: idRefreshAll},
 		{FVirt: fvirtKey | fcontrol, Key: 'S', Cmd: idSaveProfile},
+		{FVirt: fvirtKey | fcontrol, Key: 'L', Cmd: idFocusLocalPath},
+		{FVirt: fvirtKey | fcontrol | fshiftKeyboard, Key: 'L', Cmd: idFocusRemotePath},
 	}
 	accelTable, _, _ := createAcceleratorTableW.Call(uintptr(unsafe.Pointer(&accelerators[0])), uintptr(len(accelerators)))
 	if accelTable != 0 {
@@ -256,7 +258,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.refineWorkspaceLayout()
 			return 0
 		}
-		if notify == bnClicked {
+		if notify == bnClicked || notify == acceleratorCommandNotification {
 			a.command(id)
 			return 0
 		}
@@ -284,6 +286,12 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 				n := nmListViewFromLParam(lParam)
 				a.handleFileColumnClick(h.HwndFrom, int(n.SubItem))
 				return 0
+			}
+			if h.Code == lvnKeyDown && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList) {
+				n := nmLVKeyDownFromLParam(lParam)
+				if a.handleFileListKey(h.HwndFrom, n.VKey) {
+					return 0
+				}
 			}
 			if h.Code == lvnItemChanged && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList || h.HwndFrom == a.transferList) {
 				a.updateActionControls()

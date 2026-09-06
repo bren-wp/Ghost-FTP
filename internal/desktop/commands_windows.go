@@ -70,5 +70,11 @@ func (a *app) command(id int) {
 			a.refreshRemote(getText(a.remotePath))
 		}
 		a.setStatus(a.tr("status.refresh_all"))
+	case idFocusLocalPath:
+		focusAndSelectEdit(a.localPath)
+	case idFocusRemotePath:
+		if a.connected && !a.connectionBusy {
+			focusAndSelectEdit(a.remotePath)
+		}
 	}
 }
