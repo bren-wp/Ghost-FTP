@@ -662,10 +662,13 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 		return err
 	}
 	defer source.Close()
+	total := source.Size()
+	reportTransferProgress(options.Progress, 0, total)
 	tempPath := remoteJoin(dir, tempName)
 	if _, err = s.run(ctx, "put "+sftpQuote(source.Path())+" "+sftpQuote(tempPath)); err != nil {
 		return cleanupFailure(err, dir, tempName, s.Delete)
 	}
+	reportTransferProgress(options.Progress, total, total)
 	if err = source.Verify(); err != nil {
 		return cleanupFailure(err, dir, tempName, s.Delete)
 	}
@@ -693,6 +696,7 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
 			return err
 		}
 	}
+	total := bestEffortRemoteFileSize(ctx, remotePath, s.List)
 	if err := os.MkdirAll(filepath.Dir(local), 0755); err != nil {
 		return err
 	}
@@ -700,9 +704,12 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
 	if err != nil {
 		return err
 	}
-	if _, err := s.run(ctx, "get "+sftpQuote(remotePath)+" "+sftpQuote(part)); err != nil {
+	stopProgress := startLocalFileProgressMonitor(ctx, part, total, options.Progress)
+	_, runErr := s.run(ctx, "get "+sftpQuote(remotePath)+" "+sftpQuote(part))
+	stopProgress()
+	if runErr != nil {
 		_ = os.Remove(part)
-		return err
+		return runErr
 	}
 	if err := validateDownloadedPart(part); err != nil {
 		_ = os.Remove(part)

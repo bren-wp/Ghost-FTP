@@ -11,6 +11,7 @@ var ErrSkipped = errors.New("prijenos je preskočen jer odredišna datoteka već
 type TransferOptions struct {
 	KeepBackup   bool
 	SkipExisting bool
+	Progress     TransferProgressFunc
 }
 
 type Session interface {

@@ -354,19 +354,10 @@ func (a *app) fillTransferList(list uintptr, jobs []model.TransferJob) {
 		if job.Status == "running" && job.Attempts > 1 {
 			status += fmt.Sprintf(" · #%d", job.Attempts)
 		}
+		status += transferRuntimeSuffix(job)
 		if job.Error != "" {
 			status += ": " + job.Error
 		}
-		progress := job.Progress
-		if progress > 0 && progress <= 1 {
-			progress *= 100
-		}
-		if progress < 0 {
-			progress = 0
-		}
-		if progress > 100 {
-			progress = 100
-		}
-		insertListRow(list, index, []string{direction, job.LocalPath, job.RemotePath, status, fmt.Sprintf("%.0f%%", progress)})
+		insertListRow(list, index, []string{direction, job.LocalPath, job.RemotePath, status, transferProgressText(job)})
 	}
 }

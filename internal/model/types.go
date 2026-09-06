@@ -88,14 +88,19 @@ type ConnectionConfig struct {
 }
 
 type TransferJob struct {
-	ID         string  `json:"id"`
-	Direction  string  `json:"direction"`
-	LocalPath  string  `json:"localPath"`
-	RemotePath string  `json:"remotePath"`
-	LocalRoot  string  `json:"-"`
-	Status     string  `json:"status"`
-	Progress   float64 `json:"progress"`
-	Attempts   int     `json:"attempts,omitempty"`
-	Error      string  `json:"error,omitempty"`
-	CreatedAt  string  `json:"createdAt"`
+	ID               string  `json:"id"`
+	Direction        string  `json:"direction"`
+	LocalPath        string  `json:"localPath"`
+	RemotePath       string  `json:"remotePath"`
+	LocalRoot        string  `json:"-"`
+	Status           string  `json:"status"`
+	Progress         float64 `json:"progress"`
+	BytesTransferred int64   `json:"bytesTransferred,omitempty"`
+	BytesTotal       int64   `json:"bytesTotal,omitempty"`
+	BytesPerSecond   float64 `json:"bytesPerSecond,omitempty"`
+	ETASeconds       int64   `json:"etaSeconds,omitempty"`
+	StartedAt        string  `json:"-"`
+	Attempts         int     `json:"attempts,omitempty"`
+	Error            string  `json:"error,omitempty"`
+	CreatedAt        string  `json:"createdAt"`
 }
