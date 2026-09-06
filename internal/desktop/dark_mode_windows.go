@@ -16,7 +16,9 @@ var (
 // enableImmersiveDarkMode enables the native dark-menu/control path on modern
 // Windows without adding a runtime dependency. The uxtheme ordinals are used
 // only on Windows 10 1809+ where Microsoft ships the corresponding functions;
-// older systems simply retain their normal system menu rendering.
+// older systems simply retain their normal system menu rendering. The main
+// window invokes this before child controls are created so combo drop-downs,
+// native menus and later Site Manager controls inherit the preferred app mode.
 func enableImmersiveDarkMode(hwnd uintptr) {
 	build := windowsBuildNumber()
 	if hwnd == 0 || build < 17763 {
