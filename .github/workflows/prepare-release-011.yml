@@ -1,0 +1,84 @@
+name: Ghost FTP 0.1.1 release preparation
+
+on:
+  push:
+    branches:
+      - work/premium-parity-release-hardening-0.1.1
+    paths:
+      - .github/workflows/prepare-release-011.yml
+
+permissions:
+  contents: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: work/premium-parity-release-hardening-0.1.1
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.x'
+      - name: Apply 0.1.1 preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/prepare_release_011.py
+          python scripts/prepare_release_011_fix.py
+          gofmt -w internal/desktop/theme.go
+      - name: Run production quality gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+          test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
+          go test -race ./...
+          go vet ./...
+          python scripts/audit_brand_hardcut.py
+          python scripts/audit_repository.py
+          python scripts/audit_platform_contract.py
+          python scripts/audit_dependencies.py
+          python scripts/audit_version.py
+          python scripts/audit_localization.py
+          python scripts/audit_security.py
+          python scripts/audit_privacy.py
+          python scripts/audit_docs.py
+          python scripts/audit_web.py
+          python scripts/audit_release.py
+          python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Commit verified preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          # release.yml was included in the quality gate above. GitHub's Actions
+          # token cannot update workflow files, so the tested workflow change is
+          # applied separately through the authorized repository connector.
+          git restore .github/workflows/release.yml
+          git add -A
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No release preparation changes were produced.' >&2; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Prepare Ghost FTP 0.1.1 Beta release'
+          git pull --rebase origin work/premium-parity-release-hardening-0.1.1
+          git push origin HEAD:work/premium-parity-release-hardening-0.1.1
+
+# release-prep-pass: 4

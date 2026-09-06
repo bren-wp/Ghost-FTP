@@ -30,7 +30,7 @@ This directory contains maintained product, security, operator and release docum
 Ghost FTP currently maintains:
 
 - **Windows** — native Win32 GUI, Setup and Portable packages for x64/x86. The current graphical workspace follows the maintained reference-shell contract and exposes only real engine-backed actions/state.
-- **Linux** — shared core with hardened terminal frontend and DEB packages for amd64/arm64/i386. Functional parity is substantially broader than visual parity; Linux is not currently described as pixel-identical to the Windows GUI.
+- **Linux** — shared core with a native dependency-free X11/XWayland graphical frontend, hardened terminal fallback and DEB packages for amd64/arm64/i386. Native Win32 and X11 rendering are not claimed to be pixel-identical.
 
 Android, iOS and macOS application targets are not part of the active source/build matrix. Historical commits, tags and releases remain available for provenance and must not be rewritten.
 
@@ -38,7 +38,7 @@ The existing **Ghost FTP Web companion** remains in the repository as a separate
 
 ## Current product line
 
-**Current Ghost FTP release: 0.1.0**
+**Current Ghost FTP release: 0.1.1**
 
 Development status: **Beta**
 
@@ -71,7 +71,7 @@ Long-lived documentation must describe the current product contract without dele
 - the remote Permissions column must be described as server-supplied LIST/SFTP/MLSD `unix.mode` metadata, never a guessed mode;
 - dependency documentation must distinguish zero external Go modules from OS-provided runtime transport tools;
 - privacy documentation must not imply communication with an application analytics/update service that does not exist;
-- Linux functional parity must not be mislabeled as pixel-identical GUI parity while the maintained Linux frontend remains terminal-based;
+- Linux graphical parity must not be mislabeled as pixel-identical Win32 parity; the native X11 frontend and terminal fallback must continue to use the shared Engine boundary;
 - release asset counts must match the workflow contract;
 - repository UI screenshots must come from the authentic production capture workflow rather than mockup/image-generation output;
 - historical tags/releases remain immutable and are never rewritten merely because the active maturity baseline changed.

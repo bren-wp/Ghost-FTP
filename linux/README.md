@@ -32,6 +32,20 @@ Ghost-FTP-X.Y.Z-Linux-multiarch.zip
 
 Runtime dependencies declared by the package are `ca-certificates`, `curl` and `openssh-client`. Ghost FTP does not bundle those projects or add external Go modules to the desktop/core module.
 
+## Graphical desktop
+
+When a local `DISPLAY` is available, `ghostftp` starts the native Ghost FTP graphical frontend by default. The GUI is implemented directly against X11/XWayland-compatible display transport without GTK, Qt, Electron, a webview or an external Go GUI module.
+
+The graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, single-file and tree transfers, queue controls, local/remote file operations, remote permissions and validated transfer settings.
+
+For a headless session, or to explicitly use the hardened command interface, set:
+
+```text
+GHOSTFTP_UI=terminal ghostftp
+```
+
+A graphical session requires a local X11-compatible display (native X11 or XWayland). The file-transfer protocols continue to use the system transport prerequisites documented below.
+
 ## Authentication
 
 Linux supports the maintained desktop protocol contract:
@@ -44,7 +58,7 @@ Linux supports the maintained desktop protocol contract:
 
 Passwords and key passphrases are cleared from the connection config after authentication. The accepted public SFTP fingerprint can remain as non-secret session metadata so a saved profile can retain the verified endpoint identity.
 
-## Remote file commands
+## Terminal fallback: remote file commands
 
 ```text
 pwd
@@ -56,9 +70,9 @@ delete <name>
 chmod <mode> <name>
 ```
 
-## Local file commands
+## Terminal fallback: local file commands
 
-The Linux terminal now exposes a real local working directory rather than resolving relative transfer paths from the process working directory:
+The terminal fallback exposes a real local working directory rather than resolving relative transfer paths from the process working directory:
 
 ```text
 lpwd

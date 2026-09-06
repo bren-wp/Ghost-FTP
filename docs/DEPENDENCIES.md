@@ -52,7 +52,7 @@ SFTP credentials are exposed to the child process only through the bounded AskPa
 
 The Windows reference workspace is implemented with native Win32 APIs and operating-system fonts/controls. Setup and Portable therefore do not bundle a third-party cross-platform GUI runtime merely to render the application shell.
 
-Linux currently uses a hardened terminal frontend over the same shared engine. This is a presentation difference, not a second transfer/security implementation.
+Linux currently uses a native X11 GUI with hardened terminal fallback over the same shared engine. This is a presentation difference, not a second transfer/security implementation.
 
 A future pixel-equivalent Linux GUI may use an operating-system display/toolkit prerequisite only after that dependency is explicitly reviewed and documented. It must not be described as “dependency-free” if it requires X11, Wayland, GTK, Qt, WebKit or another runtime component, even when that component is normally installed by the distribution.
 

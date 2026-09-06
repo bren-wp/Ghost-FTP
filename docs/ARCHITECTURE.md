@@ -197,7 +197,7 @@ The Win32 layer owns presentation/input orchestration only; core connection/tran
 
 ## Linux presentation
 
-Linux uses a hardened terminal interface over the same engine. It supports the same SFTP password/private-key/passphrase model, remote actions, transfer scheduler and validated settings store.
+Linux uses a native X11 GUI with hardened terminal fallback over the same engine. It supports the same SFTP password/private-key/passphrase model, remote actions, transfer scheduler and validated settings store.
 
 The frontend build tag is explicitly `linux`; retired macOS application handling does not share this source path.
 

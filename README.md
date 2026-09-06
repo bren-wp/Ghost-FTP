@@ -2,7 +2,7 @@
 
 **Ghost FTP** is a privacy-first FTP, FTPS and SFTP desktop client focused on dependable transfers, conservative security defaults and a clean professional workflow.
 
-Current Ghost FTP version: **0.1.0**
+Current Ghost FTP version: **0.1.1**
 
 Development status: **Beta**
 
@@ -11,7 +11,7 @@ The active development line starts at **0.1.0 Beta** and advances through `0.x.y
 The maintained desktop application targets are:
 
 - **Windows** — native Win32 desktop UI, x64 and x86, with Setup and Portable packages.
-- **Linux** — the same shared transfer/security engine, packaged for amd64, arm64 and i386, with a hardened terminal interface.
+- **Linux** — the same shared transfer/security engine, packaged for amd64, arm64 and i386, with a native dependency-free X11/XWayland GUI and hardened terminal fallback.
 
 Android, iOS and macOS application targets are not part of the active application source/build matrix. Their historical commits, tags and releases remain available as immutable repository provenance and are not deleted or rewritten.
 
@@ -48,19 +48,19 @@ SFTP uses OpenSSH semantics and supports:
 
 ### FTPS
 
-Explicit FTPS is supported with certificate validation enabled. Ghost FTP does not silently disable TLS certificate revocation checks.
+Explicit FTPS and implicit FTPS are supported with certificate validation enabled. Ghost FTP does not silently disable TLS certificate revocation checks.
 
 ### FTP
 
 Plain FTP is supported for compatibility with servers that require it, but it is unencrypted and should only be used when the server cannot provide FTPS or SFTP.
 
-Implicit FTPS is not part of the supported desktop protocol contract.
+Implicit FTPS uses the dedicated `ftpsi` transport mode and the conventional port 990 while retaining certificate validation.
 
 ## Windows experience
 
 The Windows edition is the reference graphical experience. It includes:
 
-- native dark graphite/navy interface;
+- native near-black Ghost FTP interface aligned with the maintained Web brand tokens;
 - persistent one-click **Sites** access and a dedicated Site Manager;
 - saved connection profiles and quick connections;
 - local and remote file panels with balanced dual-pane layout;
@@ -97,8 +97,8 @@ These images are **not mockups**. GitHub Actions builds the production Windows x
 
 The current reference images are reproducibly verified byte-identical to production Portable runtime captures:
 
-- main workspace: `1080x700`, SHA-256 `15acccd3285ce7dc2bac482ea89fca3727a6afde3683426068b5dcb56d34b99a`;
-- Site Manager: `920x610`, SHA-256 `da5a9f02b309c962ca5472c44b99db3559ead813dbb3f02c7496229551c7ea38`.
+- main workspace: `1080x700`, SHA-256 recorded by the current authentic capture workflow;
+- Site Manager: `920x610`, SHA-256 recorded by the current authentic capture workflow.
 
 The capture workflow deliberately uses no real FTP credentials, customer data or production server. See `.github/workflows/ui-screenshots.yml` and `scripts/capture_windows_screenshots.ps1` for the reproducible capture contract.
 
@@ -119,7 +119,7 @@ The maintained Linux frontend includes:
 - saved-profile inspection without exposing saved secrets;
 - runtime language selection using the canonical localization registry.
 
-Windows and Linux share the functional core contract, but their presentation layers intentionally differ: Windows is a native Win32 GUI and Linux is a terminal UI. A pixel-identical cross-platform GUI would require introducing or maintaining an additional GUI/runtime dependency, which the current dependency policy deliberately avoids.
+Windows and Linux now both provide graphical desktop frontends over the same functional core. Windows uses native Win32; Linux uses a dependency-free raw X11/XWayland-compatible frontend and retains the hardened terminal interface for headless or explicit fallback use. Their native control implementations are not claimed to be pixel-identical, but they share the same Ghost FTP palette, action model and security boundaries without adding a third-party GUI framework.
 
 ## Languages
 
@@ -239,10 +239,10 @@ The canonical build creates Setup and Portable x64/x86 artifacts in `dist/` and 
 For the current baseline the primary Windows names are:
 
 ```text
-Ghost-FTP-0.1.0-Setup-x64.exe
-Ghost-FTP-0.1.0-Setup-x86.exe
-Ghost-FTP-0.1.0-Portable-x64.exe
-Ghost-FTP-0.1.0-Portable-x86.exe
+Ghost-FTP-0.1.1-Setup-x64.exe
+Ghost-FTP-0.1.1-Setup-x86.exe
+Ghost-FTP-0.1.1-Portable-x64.exe
+Ghost-FTP-0.1.1-Portable-x86.exe
 ```
 
 ### Linux

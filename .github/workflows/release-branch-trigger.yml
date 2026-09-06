@@ -1,0 +1,63 @@
+name: Trigger Ghost FTP Release
+
+on:
+  create:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ghostftp-release-trigger
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/ghostftp-v') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate exact-main release branch and dispatch canonical workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CREATED_REF: ${{ github.event.ref }}
+        run: |
+          set -euo pipefail
+          prefix='release/ghostftp-v'
+          case "$CREATED_REF" in
+            "$prefix"*) ;;
+            *) echo "Unexpected release ref: $CREATED_REF" >&2; exit 1 ;;
+          esac
+
+          version="${CREATED_REF#${prefix}}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Invalid release branch version: $version" >&2
+            exit 1
+          }
+
+          source_version="$(tr -d '\r\n' < VERSION)"
+          test "$version" = "$source_version" || {
+            echo "Release branch version $version does not match main VERSION $source_version" >&2
+            exit 1
+          }
+
+          main_sha="$(git rev-parse HEAD)"
+          test "$GITHUB_SHA" = "$main_sha" || {
+            echo "Release branch points to $GITHUB_SHA, but current main is $main_sha" >&2
+            exit 1
+          }
+
+          gh workflow run release.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f version="$version"
+
+          echo "RELEASE_DISPATCH=PASS (Ghost FTP $version; commit=$main_sha)"

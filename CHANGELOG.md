@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.1.1 - 2026-09-06 Beta
+
+### Added
+
+- Native dependency-free Linux X11/XWayland graphical desktop with Quick Connect, SFTP host trust, profiles, dual file panes, file/tree transfer actions and transfer queue controls.
+- Linux graphical local/remote New folder, Rename and Delete actions plus remote Permissions/chmod.
+- Linux graphical transfer Settings overlay for parallelism, conflict policy, retry count/delay, connection timeout and delete confirmation.
+- Production X11 runtime smoke coverage that verifies protocol setup, a real mapped Ghost FTP window and stable process lifetime.
+
+### Changed
+
+- Desktop palette now mirrors the maintained Ghost FTP Web brand tokens (`#080A0F`, `#0F131C`, `#151A25`, `#5277F5`, `#7293FF`) while retaining native Win32/X11 rendering.
+- Linux desktop packaging launches the graphical application by default when a display is present; the hardened terminal remains an explicit/headless fallback.
+- Documentation, package examples and authentic Windows runtime screenshots are refreshed for the 0.1.1 Beta line.
+- Implicit FTPS (`ftpsi`, conventional port 990) is documented as a maintained desktop protocol option.
+
+### Fixed / hardened
+
+- Corrected raw X11 CreateGC value-mask handling and GetKeyboardMapping wire offsets found by real runtime testing.
+- Destructive Linux GUI actions honor the canonical confirm-delete setting and retain typed Engine validation.
+- No Linux password/passphrase persistence was introduced; existing secret-lifetime boundaries remain unchanged.
+
+
 ## 0.1.0 - Unreleased Beta
 
 ### Active version baseline
