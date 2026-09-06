@@ -86,7 +86,8 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("First stable release: **Ghost FTP 1.0.0**", readme)
         self.assertIn(f"**Current Ghost FTP release: {version}**", docs_index)
         self.assertIn("prerelease=false", docs_index)
-        self.assertIn("ghostftp-vX.Y.Z", releases)
+        self.assertIn(f"Tag: ghostftp-v{version}", releases)
+        self.assertIn("Immutable tag rule", releases)
         self.assertIn(f"## {version}", changelog)
 
         # Historical development provenance remains present instead of being rewritten.
