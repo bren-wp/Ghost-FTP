@@ -20,7 +20,10 @@ func styleWorkspaceList(list uintptr) {
 	sendMessageW.Call(list, lvmSetTextColor, 0, textColor())
 	header, _, _ := sendMessageW.Call(list, workspaceLVMGetHeader, 0, 0)
 	if header != 0 {
-		setWindowTheme.Call(header, uintptr(unsafe.Pointer(wstr("DarkMode_ItemsView"))), 0)
+		// Explorer's dark header theme keeps the column text readable on Windows
+		// versions where DarkMode_ItemsView falls back to a dark face with dark
+		// text. The screenshot pipeline guards this native-control regression.
+		setWindowTheme.Call(header, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
 	}
 }
 
@@ -49,9 +52,12 @@ func showControls(show bool, controls ...uintptr) {
 	}
 }
 
-// refineWorkspaceLayout applies visibility/style rules to the single canonical
-// native workspace. Geometry itself is owned by app.layout so resize/DPI state
-// has exactly one source of truth.
+// refineWorkspaceLayout applies visibility and native-theme rules to the
+// canonical workspace. Geometry remains owned by app.layout. Importantly this
+// function does not invalidate the entire parent window: MoveWindow and the
+// individual owner-drawn controls already repaint their own changed bounds.
+// Avoiding a full background erase removes the startup/resize flash that was
+// visible on real Windows systems.
 func (a *app) refineWorkspaceLayout() {
 	if a == nil || a.hwnd == 0 {
 		return
@@ -67,11 +73,8 @@ func (a *app) refineWorkspaceLayout() {
 		showControls(false, a.disconnect)
 	}
 
-	for _, list := range []uintptr{a.localList, a.remoteList, a.transferList} {
-		styleWorkspaceList(list)
-	}
+	a.stabilizeWorkspaceChrome()
 	applyFileColumnOrder(a.localList, false)
 	applyFileColumnOrder(a.remoteList, true)
 	a.resizeListColumns()
-	invalidateRect.Call(a.hwnd, 0, 1)
 }

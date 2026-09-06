@@ -16,7 +16,9 @@ class SFTPTransferHardeningTests(unittest.TestCase):
     def test_unix_curl_path_does_not_prefer_windows_name(self):
         tools = (ROOT / "internal/remote/tools.go").read_text(encoding="utf-8")
         windows_block, unix_block = tools.split('if runtime.GOOS == "windows"', 1)[1].split('if p, err := exec.LookPath("curl")', 1)
-        self.assertIn('filepath.Join(systemDir, "curl.exe")', windows_block)
+        self.assertIn("windowsCurlCandidates(systemDir, runtime.GOARCH)", windows_block)
+        self.assertIn('filepath.Join(systemDir, "curl.exe")', tools)
+        self.assertIn('"Sysnative", "curl.exe"', tools)
         self.assertNotIn('exec.LookPath("curl.exe")', unix_block)
 
     def test_engine_validates_file_target_before_queue(self):

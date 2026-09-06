@@ -19,8 +19,16 @@ func (a *app) loadSettings() {
 				a.setStatus(a.userMessage(err, "settings.load_failed"))
 				return
 			}
+			previousLanguage := a.languageCode()
 			a.settings = settings
-			a.applyLanguage(settings.Language)
+			// The controls were already created in the canonical startup locale.
+			// Reapplying the same locale used to refill every list, relayout every
+			// control and erase the whole client immediately after ShowWindow,
+			// producing a visible startup flash. Only rebuild localized UI when the
+			// persisted locale actually differs.
+			if a.languageCode() != previousLanguage {
+				a.applyLanguage(settings.Language)
+			}
 			a.updateActionControls()
 		})
 	})
