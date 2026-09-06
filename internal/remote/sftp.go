@@ -458,6 +458,8 @@ func (s *SFTP) Close() error {
 			errs = append(errs, err)
 		}
 	}
+	security.ForgetProtectedSecret(s.passwordBlob)
+	security.ForgetProtectedSecret(s.passphraseBlob)
 	s.passwordBlob = ""
 	s.passphraseBlob = ""
 	s.host = ""
