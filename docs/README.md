@@ -21,8 +21,8 @@ This directory contains the maintained engineering, operations, privacy, securit
 - [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux DEB installation/upgrade guidance.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical GitHub Release structure and release-channel rules.
 - [`PACKAGES.md`](PACKAGES.md) — stable GHCR distribution bundle published through GitHub Packages.
-- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — artifact, metadata, SHA-256, signing and package verification.
-- [`SIGNING.md`](SIGNING.md) — protected Authenticode signing model for stable Windows publication.
+- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — artifact, metadata, SHA-256, signing-state and package verification.
+- [`SIGNING.md`](SIGNING.md) — optional protected Authenticode signing model and truthful unsigned-release policy.
 - [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable/prerelease policy.
 
 The stable workflow publishes **9 platform artifacts** and **12 public files** on each canonical GitHub Release. The same verified release directory is also mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
@@ -50,7 +50,7 @@ Historical sections intentionally preserve older version numbers and Beta termin
 
 ## Stable 1.0 release contract
 
-Ghost FTP 1.0.0 is the first stable release. It is published as a normal GitHub Release with `prerelease=false`. Stable Windows publication remains gated on the protected trusted Authenticode identity. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
+Ghost FTP 1.0.0 is the first stable release. It is published as a normal GitHub Release with `prerelease=false`. Windows Authenticode is optional: when a trusted production certificate is configured the workflow signs and verifies the Windows artifacts; otherwise it publishes them explicitly as unsigned and records `WINDOWS_AUTHENTICODE=unsigned` in release metadata. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
 
 The production workflow also publishes:
 

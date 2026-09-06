@@ -64,8 +64,10 @@ def main() -> int:
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_SIGNING_PASSWORD",
         "GHOSTFTP_SIGNING_TIMESTAMP_URL",
+        "state=unsigned",
+        "state=signed",
+        "Publishing Stable with explicitly unsigned Windows artifacts",
         "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
-        "Stable Windows releases require a configured trusted Authenticode identity.",
         "python scripts/audit_platform_contract.py",
         "python scripts/audit_desktop_surface.py",
         "Ghost-FTP-${VERSION}-Portable-x64.exe",
@@ -96,6 +98,11 @@ def main() -> int:
     ):
         if forbidden in lowered:
             fail(f"release workflow contains retired publication/platform marker: {forbidden}")
+
+    if "Stable Windows releases require a configured trusted Authenticode identity." in workflow:
+        fail("stable release workflow still blocks publication solely because Authenticode secrets are absent")
+    if "New-DevCodeSigningCertificate.ps1" in workflow:
+        fail("production release workflow must not create a self-signed publisher identity")
 
     # Stable package aliases must never be emitted by the pre-1.0 branch of the channel switch.
     stable_package_pos = workflow.find("Publish stable bundle to GitHub Packages")
@@ -173,7 +180,9 @@ def main() -> int:
     print("PRE_1_0_CHANNEL=BETA")
     print("FIRST_STABLE_VERSION=1.0.0")
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
-    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
+    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
+    print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=9")
     print("PUBLIC_RELEASE_FILES=12")
     print("WINDOWS_PORTABLE=x64,x86")

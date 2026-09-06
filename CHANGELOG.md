@@ -6,7 +6,7 @@
 
 - Promoted the maintained Windows/Linux product line from the 0.x Beta channel to **Ghost FTP 1.0.0 Stable**.
 - Stable GitHub Releases are normal releases (`prerelease=false`) using the immutable `ghostftp-v1.0.0` tag contract.
-- Stable Windows publication remains fail-closed unless the protected trusted Authenticode signing identity is configured and produced binaries verify successfully.
+- Production Authenticode is optional: configured trusted certificates are verified fail-closed, while releases without a production certificate remain explicitly unsigned in `BUILD-METADATA.txt` rather than generating or pretending to use a trusted publisher key.
 
 ### Stability and transfer correctness
 
@@ -73,7 +73,8 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 - Python regression suite;
 - Windows x64/x86 production Setup + Portable build;
 - Linux amd64/arm64/i386 production package build;
-- stable Authenticode gate;
+- Authenticode verification when a production certificate is configured;
+- explicit `WINDOWS_AUTHENTICODE=unsigned` metadata when no production certificate is configured;
 - GitHub Package push/read-back;
 - GitHub Release asset/prerelease read-back.
 

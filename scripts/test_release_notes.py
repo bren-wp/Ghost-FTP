@@ -41,7 +41,9 @@ class ReleaseNotesTests(unittest.TestCase):
             "12 public release files",
             "SHA256.txt",
             "BUILD-METADATA.txt",
-            "Stable Windows publication requires the configured trusted Authenticode identity",
+            "Production Authenticode signing is optional",
+            "WINDOWS_AUTHENTICODE=unsigned",
+            "Never treat a locally generated or self-signed certificate as a trusted public publisher identity",
             "Application telemetry: disabled",
         ):
             self.assertIn(marker, notes)

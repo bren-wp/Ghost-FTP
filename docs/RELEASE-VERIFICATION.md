@@ -1,6 +1,6 @@
 # Ghost FTP release verification
 
-This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. Verification covers source identity, Windows signing, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
+This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
 
 ## Expected release identity
 
@@ -43,7 +43,23 @@ Do not treat a matching filename as proof of authenticity; verify the digest and
 
 ## Windows Authenticode
 
-Stable Windows publication is blocked unless the protected workflow reports a trusted signing identity as configured and every Setup/Portable artifact passes Authenticode verification during the production build.
+Read `WINDOWS_AUTHENTICODE` from `BUILD-METADATA.txt` before interpreting the Windows signature state.
+
+If it is:
+
+```text
+WINDOWS_AUTHENTICODE=signed
+```
+
+then the protected workflow used a configured production certificate and every Setup/Portable artifact was required to pass Authenticode verification during the production build.
+
+If it is:
+
+```text
+WINDOWS_AUTHENTICODE=unsigned
+```
+
+then the release intentionally contains unsigned Windows artifacts. This is a truthful supported publication state, not a failed or partially signed release.
 
 On Windows, inspect the signature with PowerShell:
 
@@ -51,7 +67,9 @@ On Windows, inspect the signature with PowerShell:
 Get-AuthenticodeSignature .\Ghost-FTP-1.0.0-Setup-x64.exe | Format-List
 ```
 
-A stable file should have a valid signature and the expected publisher identity. If signature validation fails, do not bypass it by disabling operating-system security checks.
+For a signed release, verify that the signature is valid and that the publisher identity is the expected trusted identity. For an unsigned release, Windows may show SmartScreen/publisher warnings. Do not bypass enterprise or operating-system security policy solely to suppress such warnings.
+
+The release workflow does not create a self-signed production identity. Short-lived self-signed certificates are allowed only in CI signing smoke tests and are not public publisher credentials.
 
 ## x86/x32 alias verification
 
@@ -87,7 +105,8 @@ Confirm that:
 - `prerelease` is false;
 - tag resolves to the documented source commit;
 - remote asset names exactly match the 12-file allow-list;
-- `SHA256.txt` verifies the downloaded content.
+- `SHA256.txt` verifies the downloaded content;
+- `BUILD-METADATA.txt` truthfully reports `WINDOWS_AUTHENTICODE=signed` or `unsigned`.
 
 The production workflow performs immediate and delayed Release read-back; manual verification is still useful before broad deployment.
 
@@ -130,12 +149,13 @@ Before trusting a new stable version, inspect that the exact revision passed:
 - Python regression suite;
 - Windows production package build;
 - Linux production package build;
-- Authenticode stable gate;
+- Authenticode verification when a production certificate is configured;
+- explicit unsigned metadata when no production certificate is configured;
 - GitHub Package push/read-back;
 - GitHub Release asset/read-back verification.
 
 ## Failure interpretation
 
-A failed gate is meaningful. Do not manually relabel a failed candidate as stable or bypass integrity checks to make a release appear complete. Fix the source, documentation, packaging or protected release configuration and rerun the exact workflow.
+A failed gate is meaningful. Do not manually relabel a failed candidate as stable or bypass integrity checks to make a release appear complete. Fix the source, documentation, packaging, configured signing identity or publication infrastructure and rerun the exact workflow.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Packages](PACKAGES.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).

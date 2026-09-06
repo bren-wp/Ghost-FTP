@@ -98,7 +98,7 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') {
             throw 'Go telemetry is not disabled.'
           }
-      - name: Prepare protected Authenticode identity
+      - name: Prepare optional protected Authenticode identity
         id: signing
         shell: pwsh
         env:
@@ -112,6 +112,7 @@ jobs:
             }
             "state=unsigned" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host 'WINDOWS_RELEASE_SIGNING=UNSIGNED'
+            Write-Host 'No production signing identity is configured; artifacts will remain explicitly unsigned.'
             exit 0
           }
           if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
@@ -248,12 +249,15 @@ jobs:
           else
             release_channel='stable'
             release_title="Ghost FTP $version"
-            test "$WINDOWS_SIGNING_STATE" = 'signed' || { echo 'Stable Windows releases require a configured trusted Authenticode identity.' >&2; exit 1; }
           fi
           case "$WINDOWS_SIGNING_STATE" in
             signed|unsigned) ;;
             *) echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2; exit 1 ;;
           esac
+          if [[ "$release_channel" = 'stable' && "$WINDOWS_SIGNING_STATE" = 'unsigned' ]]; then
+            echo '::warning::Publishing Stable with explicitly unsigned Windows artifacts. BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned.'
+            printf '### Windows signing\nStable release is being published with **unsigned** Windows artifacts. Integrity remains bound to the exact release commit and SHA256.txt.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"

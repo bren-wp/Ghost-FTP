@@ -82,16 +82,19 @@ The production release workflow:
 - disables Go telemetry and external Go module resolution;
 - runs race tests, vet and security/privacy/dependency audits;
 - builds Windows/Linux artifacts from exact source;
-- requires protected trusted Authenticode for stable Windows publication;
-- removes temporary signing material from the runner;
+- optionally signs Windows artifacts with a protected trusted Authenticode identity when configured;
+- verifies every configured production signature and never labels unsigned artifacts as signed;
+- never generates a self-signed production publisher identity;
+- removes temporary signing material from the runner when signing is used;
 - assembles only an explicit release file set;
+- records the Windows signing state in `BUILD-METADATA.txt`;
 - generates SHA-256 checksums;
 - prevents an existing version tag from being rewritten to another commit;
 - verifies the published GitHub Release asset set and stable `prerelease=false` state;
 - publishes the stable GHCR release bundle only from the verified `release/` directory;
 - verifies the registry artifact can be read back.
 
-Private signing material must never be committed to source.
+Private signing material must never be committed to source. Absence of a production code-signing certificate is represented truthfully as an unsigned Windows release rather than “fixed” with an untrusted generated key.
 
 ## GitHub Packages boundary
 
