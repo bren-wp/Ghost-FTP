@@ -22,8 +22,8 @@ Canonical names:
 
 Current Beta examples:
 
-- `Ghost-FTP-0.1.0-Setup-x64.exe`
-- `Ghost-FTP-0.1.0-Setup-x86.exe`
+- `Ghost-FTP-0.1.1-Setup-x64.exe`
+- `Ghost-FTP-0.1.1-Setup-x86.exe`
 
 First stable examples:
 
@@ -45,8 +45,8 @@ Canonical names:
 
 Current Beta examples:
 
-- `Ghost-FTP-0.1.0-Portable-x64.exe`
-- `Ghost-FTP-0.1.0-Portable-x86.exe`
+- `Ghost-FTP-0.1.1-Portable-x64.exe`
+- `Ghost-FTP-0.1.1-Portable-x86.exe`
 
 First stable examples:
 
@@ -82,15 +82,15 @@ Release file names:
 - `Ghost-FTP-X.Y.Z-Linux-i386.deb`
 - `Ghost-FTP-X.Y.Z-Linux-multiarch.zip`
 
-For the current Beta baseline, replace `X.Y.Z` with `0.1.0`.
+For the current Beta release, replace `X.Y.Z` with `0.1.1`.
 
 Install a matching package using the distribution package manager, for example:
 
 ```text
-sudo apt install ./Ghost-FTP-0.1.0-Linux-amd64.deb
+sudo apt install ./Ghost-FTP-0.1.1-Linux-amd64.deb
 ```
 
-The package installs the `ghostftp` executable and Linux desktop/package metadata. The current Linux frontend is terminal-based but uses the same transfer/security engine as Windows.
+The package installs the `ghostftp` executable and Linux desktop/package metadata. With a local X11-compatible display it starts the native graphical frontend by default; headless systems can use the hardened terminal fallback. Both use the same transfer/security Engine as Windows.
 
 Linux exposes remote and local working directories, local file-management commands, single-file transfer commands, bounded directory/tree transfer commands, transfer queue controls, validated settings and saved-profile metadata operations. See [Windows and Linux platform parity](PLATFORM-PARITY.md) and [Linux packaging/usage](../linux/README.md).
 

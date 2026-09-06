@@ -1,6 +1,6 @@
 # Windows and Linux platform parity
 
-Ghost FTP currently maintains two desktop application platforms: **Windows** and **Linux**. Both editions use the same transfer, profile, settings, localization and security core. The presentation layer still differs: Windows is the native graphical reference frontend, while Linux currently uses a hardened terminal frontend.
+Ghost FTP currently maintains two desktop application platforms: **Windows** and **Linux**. Both editions use the same transfer, profile, settings, localization and security core. Windows uses the native Win32 reference frontend; Linux now uses a dependency-free native X11/XWayland graphical frontend and retains the hardened terminal frontend for headless or explicit fallback use.
 
 The active maturity baseline is **0.1.0 Beta**. Functional parity work completed before the version reset is preserved; changing the active version line does not remove or downgrade existing capabilities.
 
@@ -80,7 +80,7 @@ It uses the same profile store and connection engine for:
 
 The one-click **Sites** toolbar button and the application menu open the same Site Manager implementation. Quick connection uses the normal connection path after transferring entered values to the main connection state.
 
-Linux exposes the same underlying profile/connection capabilities through terminal commands rather than reproducing the Windows dialog.
+Linux exposes the same underlying profile/connection capabilities through its graphical profile controls and through terminal fallback commands; neither path creates a second connection stack.
 
 ## File-operation parity
 
@@ -127,7 +127,7 @@ The Windows Remote card displays this as the fifth **Permissions** column. The l
 
 The current Windows remote search is a local in-memory filter over the already loaded directory. It does not create another remote search protocol or third-party query service.
 
-Linux users can navigate/list through the terminal command surface. A future Linux GUI search field must reuse the same item model and must not introduce a separate server/indexing service simply to mimic the Windows control.
+Linux users can navigate/list through the graphical file panel or terminal fallback. Any graphical search enhancement must reuse the same item model and must not introduce a separate server/indexing service.
 
 ## Delete confirmation parity
 
@@ -139,7 +139,7 @@ Windows destructive controls use the same canonical settings/action-state bounda
 
 ## Transfer queue parity
 
-Windows exposes queue actions as buttons and the transfer list. Linux exposes the same transfer-manager actions as commands:
+Windows exposes queue actions as buttons and the transfer list. Linux exposes the same transfer-manager actions in its GUI and preserves these terminal fallback commands:
 
 - `jobs`
 - `pause`
@@ -154,7 +154,7 @@ The graphical UI does not fabricate transfer speed, ETA or remaining-byte values
 
 ## Saved-profile parity
 
-Linux profile commands use the shared protected profile store:
+Linux graphical profile controls and terminal profile commands use the shared protected profile store:
 
 - `profiles` lists public profile metadata;
 - `profile-show <id>` displays non-secret profile state;
@@ -179,7 +179,7 @@ The canonical settings model is shared. Current validated values are:
 | Connection timeout | 5–60 s | 15 s |
 | Confirm delete | boolean | enabled |
 
-Linux can inspect settings using `settings` and modify supported values with:
+Linux can edit the same validated settings through its graphical Settings overlay and can also inspect/modify them through the terminal fallback:
 
 ```text
 set parallelism <1-8>
@@ -194,7 +194,7 @@ All writes pass through `Engine.SetSettings` and the same fail-closed validation
 
 ## Localization parity
 
-The canonical registry contains 24 languages and English is the default/fallback. Windows supports live language switching and localized Setup primary flows. Linux resolves the same stored locale, can change it at runtime and uses the same translation catalogs for terminal operations.
+The canonical registry contains 24 languages and English is the default/fallback. Windows supports live language switching and localized Setup primary flows. Linux resolves the same stored locale for its graphical and terminal surfaces and uses the same translation catalogs/fallback normalization.
 
 CI verifies:
 
@@ -233,13 +233,13 @@ The refined layout is reapplied after resize, DPI, protocol and language changes
 
 ### Linux
 
-Linux is currently a terminal presentation over the same core. The prompt exposes both remote and local working directories, and command groups are separated into Remote, Local, Files, Queue, Profiles and Options.
+Linux now provides a real graphical desktop presentation over the same core. The frontend speaks directly to the local X11/XWayland display protocol using the Go standard library and the existing typed `api.Engine`; it does not bundle GTK, Qt, Electron, a webview, a tracking runtime or another transfer engine. The hardened terminal frontend remains available for headless systems or explicit `GHOSTFTP_UI=terminal` use.
 
-This keeps the current package free of a bundled cross-platform GUI framework and allows amd64, arm64 and i386 package targets to remain small and auditable.
+The GUI exposes Quick Connect, SFTP host-key trust, profiles, local/server panes, file and tree transfers, transfer queue controls, local/remote file operations, remote permissions and validated transfer settings. Destructive actions retain the shared confirm-delete policy.
 
-**Linux is not currently pixel-identical to the Windows graphical reference.** That gap is explicitly documented. A future Linux graphical frontend is acceptable only if it preserves the dependency, security and reproducibility requirements and does not fork the transfer/security engine.
+**Linux is not claimed to be pixel-identical to native Win32.** It follows the same Ghost FTP brand palette and interaction hierarchy while preserving native platform/runtime constraints and small auditable amd64, arm64 and i386 packages.
 
-If such a GUI requires an OS toolkit/display runtime, that prerequisite must be documented accurately; it must not be called “no dependency” merely because distributions commonly ship it.
+The Linux desktop requires a local X11-compatible display (native X11 or XWayland). Protocol transport prerequisites remain the system `curl` and OpenSSH tools documented elsewhere.
 
 ## Authentic UI evidence
 

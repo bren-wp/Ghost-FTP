@@ -1,5 +1,12 @@
 # Ghost FTP release history
 
+## 0.1.1 — 2026-09-06 Beta
+
+Ghost FTP 0.1.1 advances the pre-1.0 Windows/Linux line with a real Linux graphical frontend, stronger runtime verification and a unified Ghost FTP visual system. Windows remains native Win32; Linux uses a dependency-free raw X11/XWayland-compatible frontend over the same typed Engine and retains the terminal for headless/explicit fallback.
+
+The release also refreshes native Windows runtime screenshots, documents implicit FTPS, aligns desktop palette tokens with the maintained Web brand source, and preserves the existing no-telemetry, SFTP host-trust, credential-lifetime, filesystem and release-readback protections.
+
+
 This document expands the concise `CHANGELOG.md` into a durable explanation of the current Ghost FTP release line. Published tags and their artifacts remain immutable; documentation may add context but never rewrites release provenance.
 
 ## 0.1.0 — 2026-09-05 — Beta

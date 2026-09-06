@@ -19,7 +19,7 @@ The reference shell is organized as follows:
 7. full-width transfer-queue card;
 8. quiet connection/version status surface.
 
-The intended visual character is a dense professional desktop file manager using deep navy surfaces, cool blue borders, muted secondary text and a blue-violet primary accent. The UI remains native Win32 and does not load a web UI, tracking runtime or third-party GUI framework.
+The intended visual character is a dense professional desktop file manager using the maintained Ghost FTP near-black surfaces, cool neutral borders, muted secondary text and blue primary accent. These tokens mirror the maintained Web companion brand source while the UI remains native Win32 and does not load a web UI, tracking runtime or third-party GUI framework.
 
 ## Menu contract
 
@@ -127,16 +127,16 @@ The native Windows palette is intentionally defined in source rather than downlo
 
 | Role | RGB |
 | --- | --- |
-| Window | `5, 17, 29` |
-| Panel | `7, 25, 39` |
-| List | `8, 28, 43` |
-| Border | `28, 62, 86` |
-| Primary text | `224, 237, 255` |
-| Muted text | `126, 161, 201` |
-| Accent | `96, 126, 255` |
-| Strong accent | `110, 84, 255` |
-| Success | `57, 216, 166` |
-| Warning | `247, 190, 72` |
+| Window | `8, 10, 15` (`#080A0F`) |
+| Panel | `15, 19, 28` (`#0F131C`) |
+| List | `21, 26, 37` (`#151A25`) |
+| Border | `37, 45, 60` (`#252D3C`) |
+| Primary text | `244, 247, 255` (`#F4F7FF`) |
+| Muted text | `142, 153, 173` (`#8E99AD`) |
+| Accent | `82, 119, 245` (`#5277F5`) |
+| Strong accent | `114, 147, 255` (`#7293FF`) |
+| Success | `74, 215, 155` (`#4AD79B`) |
+| Warning | `242, 186, 85` (`#F2BA55`) |
 
 Theme changes must preserve readable contrast, high-DPI behavior and disabled/action-state clarity.
 
@@ -169,19 +169,11 @@ Installer-only screens are a separate native Setup surface and do not fork the a
 
 ## Linux presentation boundary
 
-Linux currently uses the same transfer/security/settings/profile engine with a hardened terminal frontend. It is **not** currently pixel-identical to the Windows graphical shell.
+Linux now uses the same transfer/security/settings/profile engine with a real dependency-free X11/XWayland graphical frontend. It remains **native-platform different** from Win32 rather than pretending to be pixel-identical.
 
-This is an explicit documented gap, not a hidden claim of visual parity. A future Linux graphical implementation must satisfy all of the following before it can be called reference-equivalent:
+The Linux GUI was accepted only after satisfying the same boundary rules: no fork of the connection/transfer/security engine, no telemetry, no hidden web/service runtime, reproducible amd64/arm64/i386 packaging, shared destructive-operation safeguards and a real production-binary X11 runtime smoke test. The hardened terminal frontend remains available for headless or explicit fallback use.
 
-- no fork of the connection/transfer/security engine;
-- no telemetry or tracking dependency;
-- no hidden web/service runtime;
-- reproducible amd64/arm64/i386 packaging as applicable;
-- explicit documentation of every OS GUI runtime prerequisite;
-- equivalent action-state and destructive-operation safeguards;
-- authentic runtime capture/testing rather than mockups.
-
-The project does not call a cross-platform GUI dependency “zero dependency.” If a Linux GUI requires a system toolkit or display protocol library, that prerequisite must be documented accurately and reviewed under the dependency policy.
+No cross-platform GUI toolkit is bundled. A local X11-compatible display is the graphical runtime prerequisite; FTP/FTPS and SFTP continue to use the documented system `curl` and OpenSSH prerequisites.
 
 ## Change rule
 

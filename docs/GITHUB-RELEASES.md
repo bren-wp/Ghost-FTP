@@ -166,3 +166,7 @@ Older repository releases may contain Android, iOS, macOS or Web artifacts becau
 Historical version numbers are retained for reproducibility. The current active development baseline nevertheless starts at **0.1.0 Beta** and advances toward the first stable **1.0.0** release.
 
 See [Release history](RELEASE-HISTORY.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning policy](VERSIONING.md).
+
+## Automated production trigger
+
+After the release candidate is merged and the exact `main` commit has passed all required gates, maintainers may create `release/ghostftp-vX.Y.Z` at that exact `main` SHA. The release workflow accepts only that branch namespace (or an explicit manual dispatch), re-runs the full production gates, rechecks that `main` still equals the release commit, and then creates the immutable `ghostftp-vX.Y.Z` release tag.
