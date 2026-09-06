@@ -149,7 +149,7 @@ jobs:
               if ('${{ steps.signing.outputs.state }}' -eq 'signed') {
                 $signature = Get-AuthenticodeSignature -FilePath $path
                 if (-not $signature.SignerCertificate -or $signature.Status -ne 'Valid') {
-                  throw "Production Authenticode verification failed for $path: $($signature.Status) $($signature.StatusMessage)"
+                  throw "Production Authenticode verification failed for ${path}: $($signature.Status) $($signature.StatusMessage)"
                 }
               }
             }
