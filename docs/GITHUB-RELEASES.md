@@ -6,7 +6,7 @@ Ghost FTP uses immutable namespaced tags and a fail-closed release workflow.
 
 The canonical desktop application version is the root `VERSION` file and must be semantic `X.Y.Z`.
 
-Current source version: **0.1.0**.
+Current source version: **0.1.1**.
 
 Current release channel: **Beta / prerelease**.
 
@@ -20,7 +20,7 @@ Examples:
 
 ```text
 ghostftp-v0.1.0
-ghostftp-v0.2.0
+ghostftp-v0.1.1
 ghostftp-v1.0.0
 ```
 
@@ -33,7 +33,7 @@ All `0.x.y` versions are pre-1.0 **Beta** builds.
 When the release workflow resolves a version whose major component is `0`, it automatically:
 
 - sets `RELEASE_CHANNEL=beta`;
-- uses a release title such as `Ghost FTP 0.1.0 Beta`;
+- uses a release title such as `Ghost FTP 0.1.1 Beta`;
 - creates or updates the GitHub Release with `prerelease=true`;
 - verifies the prerelease flag again during remote release readback;
 - records the release channel in `BUILD-METADATA.txt`.
@@ -75,13 +75,13 @@ A complete desktop release contains **9 platform artifacts**:
 
 Windows Setup and Portable are packaging forms of the same Ghost FTP release. They must always use the identical canonical `VERSION`.
 
-For the current baseline:
+For the current Beta release:
 
 ```text
-Ghost-FTP-0.1.0-Setup-x64.exe
-Ghost-FTP-0.1.0-Setup-x86.exe
-Ghost-FTP-0.1.0-Portable-x64.exe
-Ghost-FTP-0.1.0-Portable-x86.exe
+Ghost-FTP-0.1.1-Setup-x64.exe
+Ghost-FTP-0.1.1-Setup-x86.exe
+Ghost-FTP-0.1.1-Portable-x64.exe
+Ghost-FTP-0.1.1-Portable-x86.exe
 ```
 
 For the first stable release:
@@ -163,10 +163,12 @@ The workflow also reads the GitHub Release metadata back and verifies that `prer
 
 Older repository releases may contain Android, iOS, macOS or Web artifacts because those surfaces existed in earlier release contracts. Their presence in historical release notes/assets is expected and must not be confused with the active Windows/Linux product matrix.
 
-Historical version numbers are retained for reproducibility. The current active development baseline nevertheless starts at **0.1.0 Beta** and advances toward the first stable **1.0.0** release.
+Historical version numbers are retained for reproducibility. The current pre-1.0 line started at **0.1.0 Beta**; the active release prepared here is **0.1.1 Beta**, advancing toward the first stable **1.0.0** release.
 
 See [Release history](RELEASE-HISTORY.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning policy](VERSIONING.md).
 
 ## Automated production trigger
 
-After the release candidate is merged and the exact `main` commit has passed all required gates, maintainers may create `release/ghostftp-vX.Y.Z` at that exact `main` SHA. The release workflow accepts only that branch namespace (or an explicit manual dispatch), re-runs the full production gates, rechecks that `main` still equals the release commit, and then creates the immutable `ghostftp-vX.Y.Z` release tag.
+After the release candidate is merged and the exact `main` commit has passed all required gates, maintainers create `release/ghostftp-vX.Y.Z` at that exact `main` SHA. The dedicated `release-branch-trigger.yml` workflow accepts only that branch namespace, verifies that the branch SHA still equals current `main` and that `X.Y.Z` equals the root `VERSION`, then dispatches the canonical `release.yml` workflow on `main` with the same version guard.
+
+The canonical release workflow then re-runs the complete quality, Windows and Linux production gates, checks `main` again before publication and delayed readback, preserves immutable `ghostftp-vX.Y.Z` tag provenance, publishes the 12-file GitHub Release set and verifies the remote asset manifest/checksum state. A manual `workflow_dispatch` remains available as an explicit maintainer fallback.
