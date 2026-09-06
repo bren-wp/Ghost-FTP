@@ -1,6 +1,6 @@
 # Ghost FTP desktop reference UI
 
-This document defines the maintained visual and interaction contract for the Ghost FTP desktop workspace introduced on the 0.1.0 Beta line.
+This document defines the maintained visual and interaction contract for **Ghost FTP 1.0.0 Stable** and later compatible desktop releases.
 
 It is a **source/runtime contract**, not a mockup specification. Controls shown by the application must map to real engine capabilities and real state. Decorative controls that imply unsupported backend behavior are not acceptable.
 
@@ -19,7 +19,7 @@ The reference shell is organized as follows:
 7. full-width transfer-queue card;
 8. quiet connection/version status surface.
 
-The intended visual character is a dense professional desktop file manager using the maintained Ghost FTP near-black surfaces, cool neutral borders, muted secondary text and blue primary accent. These tokens mirror the maintained Web companion brand source while the UI remains native Win32 and does not load a web UI, tracking runtime or third-party GUI framework.
+The intended visual character is a dense professional desktop file manager using the maintained Ghost FTP near-black surfaces, cool neutral borders, muted secondary text and blue primary accent. These tokens are maintained directly in the desktop source so the UI remains native Win32 and does not load a browser UI, remote theme service, tracking runtime or third-party GUI framework.
 
 ## Menu contract
 
@@ -169,9 +169,9 @@ Installer-only screens are a separate native Setup surface and do not fork the a
 
 ## Linux presentation boundary
 
-Linux now uses the same transfer/security/settings/profile engine with a real dependency-free X11/XWayland graphical frontend. It remains **native-platform different** from Win32 rather than pretending to be pixel-identical.
+Linux uses the same transfer/security/settings/profile engine with a real dependency-free X11/XWayland graphical frontend. It remains **native-platform different** from Win32 rather than pretending to be pixel-identical.
 
-The Linux GUI was accepted only after satisfying the same boundary rules: no fork of the connection/transfer/security engine, no telemetry, no hidden web/service runtime, reproducible amd64/arm64/i386 packaging, shared destructive-operation safeguards and a real production-binary X11 runtime smoke test. The hardened terminal frontend remains available for headless or explicit fallback use.
+The Linux GUI is maintained under the same boundary rules: no fork of the connection/transfer/security engine, no telemetry, no hidden browser/service runtime, reproducible amd64/arm64/i386 packaging, shared destructive-operation safeguards and a real production-binary X11 runtime smoke test. The hardened terminal frontend remains available for headless or explicit fallback use.
 
 No cross-platform GUI toolkit is bundled. A local X11-compatible display is the graphical runtime prerequisite; FTP/FTPS and SFTP continue to use the documented system `curl` and OpenSSH prerequisites.
 
