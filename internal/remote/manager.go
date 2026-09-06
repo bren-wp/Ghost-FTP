@@ -60,13 +60,29 @@ type Manager struct {
 }
 
 type pendingTrustState struct {
-	endpointKey    string
-	username       string
-	keyPath        string
-	fingerprint    string
-	passwordBlob   string
-	passphraseBlob string
-	expires        time.Time
+	endpointKey                          string
+	username                             string
+	keyPath                              string
+	fingerprint                          string
+	passwordBlob, passphraseBlob         string
+	ownsPasswordBlob, ownsPassphraseBlob bool
+	expires                              time.Time
+}
+
+func (p *pendingTrustState) forgetOwnedSecrets() {
+	if p == nil {
+		return
+	}
+	if p.ownsPasswordBlob {
+		security.ForgetProtectedSecret(p.passwordBlob)
+	}
+	if p.ownsPassphraseBlob {
+		security.ForgetProtectedSecret(p.passphraseBlob)
+	}
+	p.passwordBlob = ""
+	p.passphraseBlob = ""
+	p.ownsPasswordBlob = false
+	p.ownsPassphraseBlob = false
 }
 
 func NewManager(p *config.Profiles, settings *config.SettingsStore, dataDir, exePath string) *Manager {
@@ -74,9 +90,42 @@ func NewManager(p *config.Profiles, settings *config.SettingsStore, dataDir, exe
 }
 
 type resolvedConnection struct {
-	Config         model.ConnectionConfig
-	PasswordBlob   string
-	PassphraseBlob string
+	Config                               model.ConnectionConfig
+	PasswordBlob, PassphraseBlob         string
+	ownsPasswordBlob, ownsPassphraseBlob bool
+}
+
+func (r *resolvedConnection) forgetOwnedSecrets() {
+	if r == nil {
+		return
+	}
+	if r.ownsPasswordBlob {
+		security.ForgetProtectedSecret(r.PasswordBlob)
+		r.PasswordBlob = ""
+	}
+	if r.ownsPassphraseBlob {
+		security.ForgetProtectedSecret(r.PassphraseBlob)
+		r.PassphraseBlob = ""
+	}
+	r.ownsPasswordBlob = false
+	r.ownsPassphraseBlob = false
+}
+
+// transferResolvedSecretOwnershipToSFTP moves only process-owned protected
+// secret handles whose exact blob was accepted by the constructed SFTP session.
+// Borrowed profile blobs deliberately remain profile-owned.
+func transferResolvedSecretOwnershipToSFTP(resolved *resolvedConnection, s *SFTP) {
+	if resolved == nil || s == nil {
+		return
+	}
+	if resolved.ownsPasswordBlob && resolved.PasswordBlob != "" && s.passwordBlob == resolved.PasswordBlob {
+		s.ownsPasswordBlob = true
+		resolved.ownsPasswordBlob = false
+	}
+	if resolved.ownsPassphraseBlob && resolved.PassphraseBlob != "" && s.passphraseBlob == resolved.PassphraseBlob {
+		s.ownsPassphraseBlob = true
+		resolved.ownsPassphraseBlob = false
+	}
 }
 
 // sanitizeProtocolState removes fields that have no meaning outside SFTP.
@@ -187,8 +236,15 @@ type ConnectResult struct {
 	Diagnostics   ConnectionDiagnostics `json:"diagnostics"`
 }
 
-func (m *Manager) clearPendingTrustLocked() {
+func (m *Manager) takePendingTrustLocked() pendingTrustState {
+	p := m.pendingTrust
 	m.pendingTrust = pendingTrustState{}
+	return p
+}
+
+func (m *Manager) clearPendingTrustLocked() {
+	p := m.takePendingTrustLocked()
+	p.forgetOwnedSecrets()
 }
 
 func (m *Manager) CancelPendingTrust() {
@@ -198,48 +254,72 @@ func (m *Manager) CancelPendingTrust() {
 }
 
 func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolvedConnection, fingerprint string) error {
+	m.clearPendingTrustLocked()
 	passwordBlob := resolved.PasswordBlob
 	passphraseBlob := resolved.PassphraseBlob
+	ownsPasswordBlob := false
+	ownsPassphraseBlob := false
 	var err error
 	if cfg.Password != "" {
 		passwordBlob, err = security.ProtectString(cfg.Password)
 		if err != nil {
 			return err
 		}
+		ownsPasswordBlob = true
 	}
 	if cfg.Passphrase != "" {
 		passphraseBlob, err = security.ProtectString(cfg.Passphrase)
 		if err != nil {
+			if ownsPasswordBlob {
+				security.ForgetProtectedSecret(passwordBlob)
+			}
 			return err
 		}
+		ownsPassphraseBlob = true
 	}
 	m.pendingTrust = pendingTrustState{
-		endpointKey:    profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port),
-		username:       cfg.Username,
-		keyPath:        cfg.PrivateKeyPath,
-		fingerprint:    fingerprint,
-		passwordBlob:   passwordBlob,
-		passphraseBlob: passphraseBlob,
-		expires:        time.Now().Add(2 * time.Minute),
+		endpointKey:        profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port),
+		username:           cfg.Username,
+		keyPath:            cfg.PrivateKeyPath,
+		fingerprint:        fingerprint,
+		passwordBlob:       passwordBlob,
+		passphraseBlob:     passphraseBlob,
+		ownsPasswordBlob:   ownsPasswordBlob,
+		ownsPassphraseBlob: ownsPassphraseBlob,
+		expires:            time.Now().Add(2 * time.Minute),
 	}
 	return nil
 }
 
 func (m *Manager) applyPendingTrust(cfg model.ConnectionConfig, resolved *resolvedConnection, fingerprint string) {
-	p := m.pendingTrust
-	m.clearPendingTrustLocked()
-	if time.Now().After(p.expires) ||
+	p := m.takePendingTrustLocked()
+	defer p.forgetOwnedSecrets()
+	if resolved == nil || time.Now().After(p.expires) ||
 		p.endpointKey != profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port) ||
 		p.username != cfg.Username ||
 		!profilebinding.PrivateKeyPathMatches(p.keyPath, cfg.PrivateKeyPath) ||
 		p.fingerprint != fingerprint {
 		return
 	}
-	if cfg.Password == "" && resolved.PasswordBlob == "" {
+	// A credential captured for the exact trust prompt belongs to that connection
+	// attempt and takes precedence over a profile blob re-resolved on confirmation.
+	// An explicitly re-entered plaintext credential on the confirmation request
+	// still wins and causes the pending owned blob to be discarded below.
+	if cfg.Password == "" && p.passwordBlob != "" {
+		if resolved.ownsPasswordBlob {
+			security.ForgetProtectedSecret(resolved.PasswordBlob)
+		}
 		resolved.PasswordBlob = p.passwordBlob
+		resolved.ownsPasswordBlob = p.ownsPasswordBlob
+		p.ownsPasswordBlob = false
 	}
-	if cfg.Passphrase == "" && resolved.PassphraseBlob == "" {
+	if cfg.Passphrase == "" && p.passphraseBlob != "" {
+		if resolved.ownsPassphraseBlob {
+			security.ForgetProtectedSecret(resolved.PassphraseBlob)
+		}
 		resolved.PassphraseBlob = p.passphraseBlob
+		resolved.ownsPassphraseBlob = p.ownsPassphraseBlob
+		p.ownsPassphraseBlob = false
 	}
 }
 
@@ -271,6 +351,9 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		m.clearPendingTrustLocked()
 		return ConnectResult{}, err
 	}
+	defer func() {
+		resolved.forgetOwnedSecrets()
+	}()
 	cfg := resolved.Config
 	profileEndpoint := profileEndpointMatches(profile, cfg)
 	connectTimeout := m.settings.Effective().ConnectionTimeoutSeconds
@@ -328,11 +411,13 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 			}
 		}
 		hostKeyConstraint := hostKeyConstraintForScannedKey(keyAlgorithm)
-		s, err = newSFTPWithProtectedSecrets(cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, cfg.PrivateKeyPath, cfg.Passphrase, resolved.PassphraseBlob, kh, hostKeyConstraint, m.exePath, connectTimeout)
+		sftpSession, err := newSFTPWithProtectedSecrets(cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, cfg.PrivateKeyPath, cfg.Passphrase, resolved.PassphraseBlob, kh, hostKeyConstraint, m.exePath, connectTimeout)
 		if err != nil {
 			_ = os.Remove(kh)
 			return ConnectResult{}, err
 		}
+		transferResolvedSecretOwnershipToSFTP(&resolved, sftpSession)
+		s = sftpSession
 		cfg.Fingerprint = fp
 	} else {
 		s, err = newCurlFTPWithProtectedSecret(cfg.Protocol, cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, connectTimeout)
