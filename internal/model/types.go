@@ -99,7 +99,7 @@ type TransferJob struct {
 	BytesTotal       int64   `json:"bytesTotal,omitempty"`
 	BytesPerSecond   float64 `json:"bytesPerSecond,omitempty"`
 	ETASeconds       int64   `json:"etaSeconds,omitempty"`
-	StartedAt        string  `json:"startedAt,omitempty"`
+	StartedAt        string  `json:"-"`
 	Attempts         int     `json:"attempts,omitempty"`
 	Error            string  `json:"error,omitempty"`
 	CreatedAt        string  `json:"createdAt"`
