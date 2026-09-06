@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed validation of the Ghost FTP Windows/Linux release contract."""
+"""Fail-closed validation of the Ghost FTP stable Windows/Linux release contract."""
 
 from __future__ import annotations
 
@@ -42,8 +42,8 @@ def main() -> int:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
     parts = tuple(int(part) for part in version.split("."))
-    if parts < (0, 1, 0):
-        fail("active release baseline must not precede 0.1.0")
+    if parts[0] < 1:
+        fail("the maintained publication workflow is stable-only and requires MAJOR >= 1")
 
     run("scripts/audit_brand_hardcut.py")
     run("scripts/audit_repository.py")
@@ -56,18 +56,19 @@ def main() -> int:
         "contents: write",
         "packages: write",
         "needs: [quality, windows, linux]",
+        "Assemble, publish and verify stable release and package",
         "RELEASE_TAG=ghostftp-v$version",
-        "release_title=\"Ghost FTP $version Beta\"",
-        "release_channel='beta'",
-        "release_channel='stable'",
-        "prerelease_args+=(--prerelease)",
+        "RELEASE_CHANNEL=stable",
+        "RELEASE_TITLE=Ghost FTP $version",
+        "Pre-1.0 prerelease publication is disabled",
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_SIGNING_PASSWORD",
         "GHOSTFTP_SIGNING_TIMESTAMP_URL",
-        "state=unsigned",
-        "state=signed",
-        "Publishing Stable with explicitly unsigned Windows artifacts",
         "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
+        "WINDOWS_TRUST_MODE=${WINDOWS_TRUST_MODE}",
+        "sha256+github-release-provenance",
+        "authenticode+sha256+github-provenance",
+        "GITHUB_RELEASE_PRERELEASE=false",
         "python scripts/audit_platform_contract.py",
         "python scripts/audit_desktop_surface.py",
         "Ghost-FTP-${VERSION}-Portable-x64.exe",
@@ -81,36 +82,42 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Linux-multiarch.zip",
         "PUBLIC_PLATFORM_ARTIFACTS=9",
         "PUBLIC_RELEASE_FILES=12",
-        "ghcr.io/${owner}/ghost-ftp",
-        "org.opencontainers.image.source",
-        "Distribution bundle only; not a supported runtime container.",
+        "PACKAGE_IMAGE=ghcr.io/${owner}/ghost-ftp",
         "docker build --pull=false --network=none",
-        "docker buildx imagetools inspect",
-        "if: env.RELEASE_CHANNEL == 'stable'",
-        "main moved from release commit",
-        "refusing to rewrite it",
+        "docker push \"$PACKAGE_IMAGE:$VERSION\"",
+        "docker pull \"$PACKAGE_IMAGE:$VERSION\"",
+        "PACKAGE_READBACK=PASS",
         "RELEASE_ASSET_READBACK=PASS",
+        "-F prerelease=false",
+        "-F draft=false",
+        "main moved from release commit",
+        "main moved before package publication",
+        "refusing to rewrite it",
+        "DOCKER_CONFIG=\"$docker_config\"",
     )
     lowered = workflow.lower()
     for forbidden in (
-        "package_nuget.py", "dotnet nuget", "nuget.pkg.github.com",
-        "package_web.py", "audit_web.py", "android/", "ios/", "macos/", "runs-on: macos",
+        "--prerelease",
+        "release_channel='beta'",
+        "release_channel=beta",
+        "prerelease_args",
+        "package_nuget.py",
+        "dotnet nuget",
+        "nuget.pkg.github.com",
+        "package_web.py",
+        "audit_web.py",
+        "android/",
+        "ios/",
+        "macos/",
+        "runs-on: macos",
     ):
         if forbidden in lowered:
-            fail(f"release workflow contains retired publication/platform marker: {forbidden}")
+            fail(f"stable release workflow contains retired/prerelease marker: {forbidden}")
 
-    if "Stable Windows releases require a configured trusted Authenticode identity." in workflow:
-        fail("stable release workflow still blocks publication solely because Authenticode secrets are absent")
-    if "New-DevCodeSigningCertificate.ps1" in workflow:
-        fail("production release workflow must not create a self-signed publisher identity")
-
-    # Stable package aliases must never be emitted by the pre-1.0 branch of the channel switch.
-    stable_package_pos = workflow.find("Publish stable bundle to GitHub Packages")
-    prerelease_pos = workflow.find("prerelease_args+=(--prerelease)")
-    if stable_package_pos < 0 or prerelease_pos < 0:
-        fail("release workflow is missing channel-separated release/package publication")
-    if "docker push \"$package_ref:latest\"" not in workflow:
-        fail("stable GitHub Package must publish the latest alias")
+    release_step = workflow.find("Publish and verify GitHub Release")
+    package_step = workflow.find("Publish and verify GitHub Package")
+    if release_step < 0 or package_step < 0 or release_step >= package_step:
+        fail("GitHub Release must be verified before the GHCR package is published")
 
     require(
         ".github/workflows/ci.yml",
@@ -147,42 +154,59 @@ def main() -> int:
     )
     require(
         "cmd/installer/uninstall_registration_windows.go",
-        '"UninstallString"', '"QuietUninstallString"', '"DisplayVersion"', '"NoModify"', '"NoRepair"',
+        '"UninstallString"',
+        '"QuietUninstallString"',
+        '"DisplayVersion"',
+        '"NoModify"',
+        '"NoRepair"',
     )
     require("scripts/make_payload.py", "PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "GhostFTP.exe")')
     require("linux/BUILD.sh", '"$root/usr/bin/ghostftp"', "Ghost-FTP-${VERSION}-Linux-${debarch}.deb")
     require("linux/debian/control.in", "Package: ghost-ftp")
-
+    require(
+        "scripts/release_notes.py",
+        "pre-1.0 prerelease publication is disabled",
+        "GitHub prerelease flag: false",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "WINDOWS_TRUST_MODE=sha256+github-release-provenance",
+    )
     require(
         "docs/PACKAGES.md",
         "ghcr.io/bren-wp/ghost-ftp",
         "distribution bundle",
         "not a runtime container",
         "SHA256.txt",
+        "BUILD-METADATA.txt",
     )
+    require(
+        "docs/SIGNING.md",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "sha256+github-release-provenance",
+        "never fabricates",
+    )
+    require("LICENSE", "Verzija 1.3", "GitHub Packages/GHCR", "ne predstavlja potvrđeni identitet izdavača")
 
     for retired in ("android", "ios", "macos", "GhostFTP WEB"):
         if (ROOT / retired).exists():
             fail(f"retired application directory exists: {retired}/")
     for retired_file in (
-        "scripts/package_nuget.py", "scripts/package_web.py", "scripts/test_package_web.py", "scripts/audit_web.py",
+        "scripts/package_nuget.py",
+        "scripts/package_web.py",
+        "scripts/test_package_web.py",
+        "scripts/audit_web.py",
     ):
         if (ROOT / retired_file).exists():
             fail(f"retired release/tooling file exists: {retired_file}")
 
-    channel = "beta" if parts[0] == 0 else "stable"
-    print(f"RELEASE_AUDIT=PASS ({version}; channel={channel})")
+    print(f"RELEASE_AUDIT=PASS ({version}; channel=stable; prerelease=false)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
     print("PUBLICATION_SURFACES=GITHUB_RELEASE,GITHUB_PACKAGES_GHCR")
-    print("PRE_1_0_CHANNEL=BETA")
-    print("FIRST_STABLE_VERSION=1.0.0")
-    print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
-    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
-    print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
-    print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
+    print("PRERELEASE_PUBLICATION=BLOCKED")
+    print("WINDOWS_SIGNING_STATE=EXPLICIT_SIGNED_OR_UNSIGNED")
+    print("FAKE_OR_SELF_SIGNED_PUBLISHER_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=9")
     print("PUBLIC_RELEASE_FILES=12")
     print("WINDOWS_PORTABLE=x64,x86")

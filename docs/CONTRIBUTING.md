@@ -15,13 +15,13 @@ Preferred changes improve:
 - native UI accessibility and efficiency;
 - localization correctness;
 - Setup/Portable/DEB reliability;
-- release verification and documentation accuracy.
+- release/package verification and documentation accuracy.
 
 ## Before changing code
 
-Identify the correct layer first. Protocol/transfer behavior belongs in the shared core where possible; platform frontends should not fork security or transfer semantics just to expose a UI control.
+Identify the correct layer first. Protocol/transfer behavior belongs in the shared core where possible; platform frontends should not fork security or transfer semantics merely to expose a UI control.
 
-Do not add a new dependency, remote service, telemetry path or signing mechanism without explicit review of its security, privacy, provenance and release impact.
+Do not add a new dependency, remote service, telemetry path or signing mechanism without explicit review of security, privacy, provenance and release impact.
 
 ## Required local checks
 
@@ -57,7 +57,7 @@ Do not commit or paste:
 - real FTP/SFTP passwords;
 - private keys or key passphrases;
 - protected saved-profile payloads;
-- code-signing private keys/certificates with private material;
+- code-signing private keys/certificates containing private material;
 - production server private data;
 - CI secret values.
 
@@ -65,7 +65,7 @@ Tests use synthetic credentials and isolated fixtures.
 
 ## Dependency policy
 
-The maintained Go module has no external module requirements. A proposal to add one must demonstrate why the standard library/system-runtime approach is insufficient and include security, license, update and reproducibility analysis.
+The maintained Go module has no external module requirements. A proposal to add one must demonstrate why standard-library/system-runtime facilities are insufficient and include security, license, update and reproducibility analysis.
 
 Production workflows intentionally use `GOPROXY=off` and `GOSUMDB=off`.
 
@@ -77,22 +77,27 @@ Do not add decorative controls with no backend behavior. A visible option must m
 
 ## Documentation changes
 
-Update active documentation when user-visible behavior, package names, security/privacy boundaries or release behavior changes. Historical release records should remain historical rather than being rewritten to the current version.
+Update active documentation when user-visible behavior, package names, security/privacy boundaries or release behavior changes. Historical release records remain historical rather than being rewritten to the current version.
 
-All local links must pass `scripts/audit_docs.py`.
+All local links and active release-policy markers must pass `scripts/audit_docs.py`.
 
 ## Release changes
 
 Changes to `.github/workflows/release.yml`, packaging or signing must preserve fail-closed behavior:
 
-- stable Windows Authenticode gate;
+- stable-only maintained publication (`MAJOR >= 1`, `draft=false`, `prerelease=false`);
 - exact `main` commit binding;
 - immutable version tags;
 - explicit 9-platform-artifact / 12-public-file allow-list;
-- SHA-256 generation;
-- GitHub Release read-back;
-- stable GitHub Package/GHCR distribution-bundle read-back;
-- no release secret material inside artifacts.
+- SHA-256 generation after final artifact mutation;
+- GitHub Release remote asset/state/SHA read-back;
+- GitHub Package/GHCR fresh-pull metadata and embedded-manifest read-back;
+- truthful Windows signing state;
+- configured production Authenticode signatures must verify;
+- absent production credentials must remain explicitly unsigned, never replaced by a fake/self-signed production identity;
+- no release/registry/signing secret material inside artifacts.
+
+A release change should be designed so a rerun of the **same source/tag** can safely repair a failed publication without rewriting historical provenance.
 
 ## Pull request expectations
 

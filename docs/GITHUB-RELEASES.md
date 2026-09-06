@@ -1,6 +1,6 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.0.0 Stable** is the first normal stable public release in the maintained version line. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
+Ghost FTP **1.0.0 Stable** is the maintained production baseline. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
 
 ## Release identity
 
@@ -9,20 +9,21 @@ For version `1.0.0`:
 ```text
 Tag: ghostftp-v1.0.0
 Title: Ghost FTP 1.0.0
+Draft: false
 Prerelease: false
 ```
 
-The release workflow reads `VERSION` directly and rejects a manual workflow version that differs from the source version.
+The release workflow reads `VERSION` directly and rejects a manual workflow version that differs from source.
 
-## Stable publication rule
+## Stable-only publication
 
-A version with major number `1` or greater is treated as Stable. The release workflow does not pass GitHub's prerelease flag for stable versions.
+The maintained production workflow requires `MAJOR >= 1`. Pre-1.0 publication is rejected before release assembly, so the workflow no longer creates new GitHub prereleases.
 
-Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable.
+Historical 0.x prereleases remain immutable release history. They are not deleted, rewritten or relabeled merely because the current product is stable.
 
 ## Required public files
 
-The stable Release exposes **9 platform artifacts**:
+A complete stable Release exposes **9 platform artifacts**.
 
 Windows:
 
@@ -43,7 +44,7 @@ Ghost-FTP-1.0.0-Linux-i386.deb
 Ghost-FTP-1.0.0-Linux-multiarch.zip
 ```
 
-and three verification/metadata files:
+Verification/metadata:
 
 ```text
 BUILD-METADATA.txt
@@ -51,45 +52,83 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-That is **12 public files** in total.
+That is exactly **12 public files**.
 
 ## Exact-head rule
 
-Before publication, the workflow queries the current `main` SHA and requires it to equal `GITHUB_SHA`. It verifies the condition again after release publication. If `main` moves during the transaction, publication fails instead of silently attaching files to stale source.
+Immediately before GitHub Release publication, the workflow queries current `main` and requires it to equal `GITHUB_SHA`. It verifies the same condition again during delayed read-back and again before GHCR publication. If `main` moves, the transaction fails rather than silently publishing stale source.
 
 ## Immutable tag rule
 
-If `ghostftp-v1.0.0` already exists, it must resolve to the exact release commit. The workflow refuses to rewrite an existing version tag to different source.
+If `ghostftp-v1.0.0` already exists, it must resolve to the exact release commit. The workflow refuses to move an existing release tag to different source.
 
-## Windows signing state
+## Windows signing/trust state
 
-Authenticode signing is optional for stable publication. If protected production signing secrets are configured, the Windows Setup/Portable artifacts are signed and each produced signature must verify successfully. If no production certificate is configured, Windows artifacts are published unsigned and `BUILD-METADATA.txt` explicitly records:
+Windows artifacts may be published in one of two explicit states:
 
 ```text
+WINDOWS_AUTHENTICODE=signed
 WINDOWS_AUTHENTICODE=unsigned
 ```
 
-The workflow never generates a self-signed production publisher identity and never labels an unsigned artifact as signed. Private signing material, when used, is supplied only via protected Actions secrets, written temporarily on the runner and removed after use.
+If protected production Authenticode credentials are configured, every Windows artifact must verify successfully before publication. If they are not configured, the release is explicitly unsigned and `BUILD-METADATA.txt` records:
+
+```text
+WINDOWS_TRUST_MODE=sha256+github-release-provenance
+```
+
+The workflow never uses a self-signed/development certificate as a fake production publisher identity. An unsigned release must be verified through the official Release/tag, `SHA256.txt` and source commit provenance.
 
 ## Artifact allow-list
 
-The publish job assembles a fresh `release/` directory from only the verified Windows and Linux staging artifacts plus generated notes/metadata/checksums. The final file count and expected filenames are checked before upload.
+The publish job creates a fresh `release/` directory from only the verified Windows/Linux staging artifacts plus generated notes, build metadata and checksums. The final count and expected filenames are verified before upload.
 
-`Setup-x32.exe` is intentionally a byte-identical alias of `Setup-x86.exe`; the workflow verifies their SHA-256 values match.
+`Setup-x32.exe` is intentionally a byte-identical alias of `Setup-x86.exe`; their SHA-256 values must match.
+
+## Release creation/update behavior
+
+If the release does not yet exist, the workflow creates it without a prerelease flag. If it already exists at the exact immutable tag, the workflow explicitly patches:
+
+```text
+name=Ghost FTP <version>
+draft=false
+prerelease=false
+```
+
+and then replaces assets with the verified allow-list. This makes a rerun idempotent for the same source/tag while refusing tag rewrites.
 
 ## Read-back verification
 
-After creating/updating the Release, the workflow reads the remote asset set from GitHub and compares it with the expected sorted list. It also reads the `prerelease` property and requires it to be `false` for the stable channel. A delayed second read-back runs after a short wait to catch asynchronous publication issues.
+After upload, the workflow:
+
+1. compares the remote asset names with the exact 12-file allow-list;
+2. downloads the remote `SHA256.txt` and compares it byte-for-byte with the local manifest;
+3. requires `draft=false`;
+4. requires `prerelease=false`;
+5. requires the exact release title;
+6. repeats the checks after a short delay and another exact-`main` verification.
+
+A release workflow is not considered successful until this remote read-back passes.
 
 ## GitHub Packages
 
-Stable publication additionally pushes the verified release directory to:
+After the GitHub Release is verified, the same workflow publishes the verified release directory to:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:1.0.0
 ```
 
-The registry package is an OCI distribution bundle, not a runtime container. The package build uses `FROM scratch`, copies only `release/`, disables Docker build networking, adds source/version/revision labels and verifies registry read-back.
+The registry object is an OCI **distribution bundle**, not a runtime container. The build uses `FROM scratch`, `--network=none` and copies only `release/` into `/ghostftp-release/`.
+
+Stable aliases are:
+
+```text
+1.0
+1
+latest
+```
+
+After push the workflow removes its local image, pulls the semantic-version package from GHCR again, verifies OCI source/version/revision labels and copies `SHA256.txt` plus `BUILD-METADATA.txt` out of the pulled package for byte-for-byte comparison.
 
 See [Packages](PACKAGES.md).
 
@@ -97,13 +136,15 @@ See [Packages](PACKAGES.md).
 
 `BUILD-METADATA.txt` records:
 
-- product and technical identity;
-- semantic version and tag;
+- public and technical product identity;
+- semantic version and immutable tag;
 - source commit;
-- stable/Beta channel;
+- `RELEASE_CHANNEL=stable`;
+- `GITHUB_RELEASE_PRERELEASE=false`;
 - active application platforms;
-- Windows architecture/signing state;
-- Linux architecture set;
+- Windows package architecture and actual Authenticode state;
+- Windows trust mode;
+- Linux package architecture set;
 - language count/default language;
 - telemetry-disabled state;
 - public artifact/file counts;
@@ -111,6 +152,6 @@ See [Packages](PACKAGES.md).
 
 ## Failure behavior
 
-A failed quality gate, production build, configured-signing verification, package push, tag validation, Release upload or read-back check causes the workflow to fail. Absence of a production Authenticode certificate alone does not fail publication; that state is preserved as `unsigned` metadata.
+A failed quality gate, build, configured-signature verification, tag check, Release upload/read-back, GHCR push or GHCR read-back makes the workflow fail. The failure must be corrected and the exact candidate rerun; security state is never changed by pretending an unsigned artifact is signed.
 
-See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
+See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).

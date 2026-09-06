@@ -27,9 +27,9 @@ PRERELEASE=false
 
 ## Historical pre-1.0 policy
 
-The maintained public line began at **0.1.0**. Every **0.x.y** release was a **Beta** prerelease. Historical tags/releases remain unchanged for traceability.
+The maintained public line began at **0.1.0**. Every **0.x.y** release was a **Beta** prerelease. Historical tags/releases remain immutable for traceability.
 
-Version **1.0.0** is the first **Stable** public release. Stable does not mean development stops; it means the maintained release contract is no longer published as a prerelease and backward compatibility/stability receive normal production-release priority.
+Version **1.0.0** is the first **Stable** public release. The current production workflow is stable-only and rejects `MAJOR=0`; it does not publish new prereleases.
 
 ## Post-1.0 increments
 
@@ -37,21 +37,13 @@ Version **1.0.0** is the first **Stable** public release. Stable does not mean d
 
 Use a patch increment for compatible bug fixes, security/privacy hardening, performance improvements, documentation corrections and packaging/release fixes that do not intentionally break supported workflows.
 
-Example:
-
-```text
-1.0.1
-```
+Example: `1.0.1`.
 
 ### MINOR
 
 Use a minor increment for backward-compatible functionality, substantial workflow improvements or new optional capabilities.
 
-Example:
-
-```text
-1.1.0
-```
+Example: `1.1.0`.
 
 ### MAJOR
 
@@ -67,25 +59,50 @@ The same semantic version is injected into:
 - Linux DEB metadata;
 - release notes and build metadata;
 - GitHub Release tag/title;
-- stable GitHub Package version tag.
+- GitHub Package semantic-version tag.
 
-Source entry points retain `version = "dev"` and receive production versions only through build linker flags.
+Source entry points retain development defaults and receive production versions only through the maintained build process.
 
 ## Stable GitHub Release rule
 
-For `MAJOR >= 1`, the publication workflow selects the stable channel and does not apply the GitHub prerelease flag. A stable Windows release is blocked unless the protected trusted Authenticode identity is configured and the produced files verify successfully.
+For `MAJOR >= 1`, the workflow publishes a normal GitHub Release with:
 
-The official stable release must point to the exact `main` commit that passed release quality gates.
+```text
+draft=false
+prerelease=false
+```
+
+The release must point to the exact `main` commit that passed production quality/build gates. Existing version tags are immutable and cannot be moved to different source.
+
+## Windows signing state is not a version channel
+
+Authenticode availability does not create a separate semantic version or prerelease channel. Instead, the actual state is recorded in `BUILD-METADATA.txt`.
+
+When a protected production certificate exists:
+
+```text
+WINDOWS_AUTHENTICODE=signed
+WINDOWS_TRUST_MODE=authenticode+sha256+github-provenance
+```
+
+When no production certificate exists:
+
+```text
+WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_TRUST_MODE=sha256+github-release-provenance
+```
+
+The workflow never substitutes a self-signed/development certificate and represents it as a production identity. Organizations that require Authenticode can enforce that policy independently from semantic versioning.
 
 ## GitHub Packages versioning
 
-Stable releases publish the verified distribution bundle using the immutable semantic tag:
+Stable releases publish the verified distribution bundle using the semantic tag:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:1.0.0
 ```
 
-and compatible stable aliases:
+and compatible aliases:
 
 ```text
 1.0
@@ -93,28 +110,31 @@ and compatible stable aliases:
 latest
 ```
 
-Downstream automation should prefer the full semantic version or an immutable OCI digest. Historical Beta channel logic does not publish stable package aliases.
+Downstream automation should prefer the full semantic version or immutable OCI digest. The production workflow does not publish pre-1.0 package aliases.
 
 ## Version source integrity
 
 The release workflow rejects:
 
-- a malformed semantic version;
-- a manual version different from `VERSION`;
-- an existing release tag that points to a different commit;
-- a stable release whose Windows signing state is not trusted/configured;
-- release output whose expected asset set is incomplete;
-- release/package read-back failures.
+- malformed semantic versions;
+- manual version values different from root `VERSION`;
+- any current `MAJOR=0` publication request;
+- existing release tags pointing to another commit;
+- configured Authenticode output that fails validation;
+- incomplete/extra release asset sets;
+- Release state where `draft` or `prerelease` is true;
+- GitHub Release checksum read-back mismatches;
+- GitHub Package source/version/revision or embedded manifest mismatches.
 
 ## Changelog and release notes
 
-`CHANGELOG.md` must contain a `## <VERSION>` section. `scripts/release_notes.py` extracts only that exact section for the public `RELEASE-NOTES.txt` file.
+`CHANGELOG.md` must contain a `## <VERSION>` section. `scripts/release_notes.py` extracts only that exact section and rejects pre-1.0 publication.
 
-Historical release notes retain their original version/channel wording. Active documentation must describe the current stable baseline.
+Historical release notes retain their original version/channel wording. Active documentation describes the current stable baseline.
 
-## First stable checklist
+## Stable release checklist
 
-Ghost FTP 1.0.0 is considered release-ready only when the exact candidate passes:
+A stable version is release-ready only when the exact candidate passes:
 
 - Windows and Linux production CI;
 - FTP/FTPS/SFTP reliability regressions;
@@ -124,9 +144,9 @@ Ghost FTP 1.0.0 is considered release-ready only when the exact candidate passes
 - localization checks;
 - security/privacy/dependency/repository audits;
 - release asset allow-list and SHA-256 verification;
-- stable Authenticode gate;
-- GitHub Release normal-release verification;
-- stable GitHub Package publication/read-back;
+- truthful Windows signed/unsigned metadata and configured-signature verification;
+- normal GitHub Release (`prerelease=false`) remote read-back;
+- GitHub Package push, fresh pull and embedded metadata/checksum read-back;
 - current documentation/support/license synchronization.
 
 ## Historical numbering

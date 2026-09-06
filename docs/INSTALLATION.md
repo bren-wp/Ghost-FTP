@@ -23,25 +23,30 @@ Ghost-FTP-1.0.0-Portable-x64.exe
 Ghost-FTP-1.0.0-Portable-x86.exe
 ```
 
-Portable mode does not create the normal Setup registration and keeps its portable state boundary beside the application as documented by the product. Do not mix an installed data directory and portable data directory manually.
+Portable mode does not create the normal Setup registration and keeps its portable state boundary separate from an installed copy.
 
-### Windows signing state
+### Windows signing/trust status
 
-Production Authenticode signing is optional. Read `BUILD-METADATA.txt` from the same official release:
+Always read `BUILD-METADATA.txt` from the same Release before deciding how to verify a Windows file.
+
+When the release says:
 
 ```text
 WINDOWS_AUTHENTICODE=signed
 ```
 
-means the release workflow used a configured trusted production certificate and verified the produced signatures.
+verify both Authenticode and `SHA256.txt`.
+
+When it says:
 
 ```text
 WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_TRUST_MODE=sha256+github-release-provenance
 ```
 
-means the official Windows artifacts are intentionally unsigned. The workflow does not generate a self-signed production identity merely to make the files appear signed.
+no production signer is claimed. Verify the official GitHub Release/tag, source commit and `SHA256.txt`. Do not bypass a local enterprise policy that requires signed executables; use a release whose metadata/signature satisfies that policy.
 
-In both cases verify `SHA256.txt`. For a signed release, also verify the Authenticode publisher. Unsigned builds may trigger Windows SmartScreen/publisher warnings depending on local policy.
+Ghost FTP never substitutes a self-signed/development certificate and presents it as a trusted production publisher identity.
 
 ## Linux
 
@@ -59,19 +64,19 @@ A convenience archive contains all three verified packages:
 Ghost-FTP-1.0.0-Linux-multiarch.zip
 ```
 
-Install the package matching the machine architecture with the system package manager. The package installs the `ghostftp` application and desktop integration expected by the maintained Linux build.
+Install the package matching the machine architecture with the system package manager. The package installs the `ghostftp` application and maintained desktop integration.
 
 ## Upgrade to 1.0.0
 
-Ghost FTP 1.0.0 is the first stable release. Existing 0.2.x local settings/profiles are intended to remain compatible. Before upgrading critical systems, keep a copy of local configuration and verify the stable package checksum and, when present, its signing state.
+Ghost FTP 1.0.0 is the first stable release. Existing 0.2.x local settings/profiles are intended to remain compatible. Before upgrading critical systems, keep a copy of local configuration and verify release provenance/checksums.
 
-Windows Setup performs a staged replacement and rollback-oriented transaction. Linux upgrades use the standard package manager semantics of the DEB package.
+Windows Setup performs a staged replacement and rollback-oriented transaction. Linux upgrades use normal DEB/package-manager semantics.
 
 ## Saved credentials
 
 Saved credentials remain local and are opt-in. An upgrade must not require exporting plaintext passwords. Windows uses the current-user protection boundary; Linux uses local authenticated encryption with user-private key material.
 
-If a protected secret cannot be decrypted under the current user/device context, Ghost FTP must require the credential again rather than silently weakening protection.
+If a protected secret cannot be decrypted under the current user/device context, Ghost FTP requires the credential again rather than silently weakening protection.
 
 ## GitHub Packages
 
@@ -87,7 +92,7 @@ This OCI object is a verified distribution bundle containing `/ghostftp-release/
 
 Each GitHub Release contains `SHA256.txt`. Compare the checksum of every downloaded installer/package before use.
 
-The corresponding `BUILD-METADATA.txt` binds the version, source commit, release tag, platform set, signing state and GitHub Package reference.
+`BUILD-METADATA.txt` binds the version, source commit, release tag, Windows signing/trust state, platform set and GitHub Package reference.
 
 ## Uninstall
 
@@ -101,11 +106,13 @@ Remove the `ghost-ftp` package with the distribution package manager. User-local
 
 ## Troubleshooting
 
-### Windows shows an unknown-publisher or SmartScreen warning
+### Windows file is unsigned
 
-First inspect `BUILD-METADATA.txt`. If it says `WINDOWS_AUTHENTICODE=unsigned`, the missing trusted signature is expected for that release. Verify the official release tag and `SHA256.txt`, and follow your Windows/organization security policy rather than disabling protections globally.
+First check `BUILD-METADATA.txt`. If the Release explicitly states `WINDOWS_AUTHENTICODE=unsigned`, compare the file against `SHA256.txt` and verify the official Release/tag/source commit. If your local policy requires an Authenticode-trusted publisher, do not disable that policy; wait for/use a release with a valid production signature.
 
-If metadata says `WINDOWS_AUTHENTICODE=signed` but signature validation fails, re-download from the official Release and treat the mismatch as a verification failure.
+### Windows signature validation fails on a release marked signed
+
+Treat this as a verification failure. Re-download from the official Release, verify `SHA256.txt` and confirm the expected tag. Do not ignore a signature failure when metadata claims the artifact is signed.
 
 ### Linux package architecture mismatch
 
@@ -117,17 +124,18 @@ Confirm that the same operating-system user and local secret-protection state ar
 
 ### Connection fails after installation
 
-Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host, port, server policy and system transfer-tool availability without pasting real credentials into issue reports.
+Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host, port, server policy and system transfer-tool availability without pasting real credentials into public issue reports.
 
 ## Production deployment checklist
 
 1. download from the official stable GitHub Release;
-2. verify release tag/version;
+2. verify `ghostftp-v1.0.0`, title and `prerelease=false`;
 3. verify `SHA256.txt`;
-4. inspect `WINDOWS_AUTHENTICODE` and verify Authenticode when the release is signed;
-5. choose the correct architecture;
-6. preserve needed local configuration before upgrade;
-7. test the target server using its intended FTP/FTPS/SFTP mode;
-8. keep private credentials out of logs and support reports.
+4. read the actual Windows signing/trust state in `BUILD-METADATA.txt`;
+5. if marked signed, verify Authenticode; if marked unsigned, apply your organization policy and GitHub/SHA-256 provenance checks;
+6. choose the correct architecture;
+7. preserve needed local configuration before upgrade;
+8. test the intended FTP/FTPS/SFTP server mode;
+9. keep private credentials out of logs and support reports.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).

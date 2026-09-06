@@ -1,13 +1,13 @@
 # Ghost FTP
 
-**Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**, developed and published by **BRENDIGO LTD**. It provides one professional dual-pane workstation for **FTP, FTPS and SFTP**, with local profiles, encrypted saved-secret handling, bounded transfer management, secure release verification and no application telemetry.
+**Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**, developed and published by **BRENDIGO LTD**. It provides a professional dual-pane workstation for **FTP, FTPS and SFTP**, with local profiles, protected saved-secret handling, bounded transfer management, verified release provenance and no application telemetry.
 
 - Current Ghost FTP version: **1.0.0**
 - Development status: **Stable**
-- Release channel: **Stable**
-- First stable release: **Ghost FTP 1.0.0**
+- Release channel: **Stable — GitHub prerelease flag disabled**
 - Default language: **English**
 - Selectable local languages: **24 languages**
+- Maintained application platforms: **Windows and Linux only**
 
 - Releases: https://github.com/bren-wp/Ghost-FTP/releases
 - Packages: https://github.com/users/bren-wp/packages?repo_name=Ghost-FTP
@@ -15,9 +15,9 @@
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
 
-## 1.0.0 stable release
+## Ghost FTP 1.0.0 Stable
 
-Ghost FTP 1.0.0 is the first release published as a normal stable GitHub Release rather than a prerelease. It consolidates the 0.2.x stabilization line and makes the verified Windows/Linux release contract the maintained production baseline.
+Ghost FTP 1.0.0 is the first maintained release published as a normal stable GitHub Release (`prerelease=false`). It consolidates the 0.2.x stabilization work and makes the verified Windows/Linux release contract the production baseline.
 
 The stable baseline includes:
 
@@ -26,21 +26,22 @@ The stable baseline includes:
 - strict host, path, protocol and remote-operation validation;
 - SFTP host-key trust and fingerprint validation;
 - local-only profile storage with platform-specific saved-secret protection;
-- privacy-safe connection diagnostics that classify failures without exposing credentials;
+- privacy-safe connection diagnostics that classify failures without exposing raw credential/tool details;
 - transfer queue lifecycle with truthful progress, speed and ETA state;
 - upload-source snapshot protection and remote commit/revalidation safeguards;
 - symlink/reparse-aware local filesystem hardening;
 - transactional Windows Setup, rollback, integrated uninstall and Portable builds;
 - deterministic Windows/Linux production CI and security/privacy/documentation audits;
-- stable GitHub Packages publication of the verified release bundle.
+- normal GitHub Release publication with an exact 12-file allow-list;
+- GitHub Packages/GHCR publication of the same verified release directory as an OCI distribution bundle.
 
 ## Privacy by design
 
-Ghost FTP does not include application analytics, advertising, tracking pixels, fingerprinting, automatic crash upload, a mandatory product account or hidden profile synchronization. Go telemetry is explicitly disabled in production CI and release workflows.
+Ghost FTP does not include application analytics, advertising, tracking pixels, fingerprinting, automatic crash upload, a mandatory product account or hidden profile synchronization. Go telemetry is explicitly disabled and verified in production CI/release workflows.
 
-Normal network activity is limited to user-directed FTP/FTPS/SFTP operations and the operating-system tools required for those protocols. Connection errors are converted into privacy-safe user-facing categories; passwords, private-key passphrases and protected profile secrets are not intentionally copied into diagnostics.
+Normal network activity is limited to user-directed FTP/FTPS/SFTP operations and the operating-system tools required for those protocols. Connection errors are converted into privacy-safe user-facing categories; passwords, private-key passphrases, protected profile secrets and raw child-process diagnostics are not intentionally exposed in normal user-facing error text.
 
-Saved credentials are opt-in. Windows uses the current-user Windows protection boundary; Linux uses local authenticated encryption with user-private key material. Session-only credentials remain in runtime state unless the user deliberately saves a profile.
+Saved credentials are opt-in. Windows uses the current-user Windows protection boundary; Linux uses local authenticated encryption with user-private key material. Session-only credentials remain runtime state unless the user deliberately saves a profile.
 
 See [Privacy](docs/PRIVACY.md) and [Security](docs/SECURITY.md).
 
@@ -50,9 +51,9 @@ The maintained security boundary includes:
 
 - host, port, path and protocol validation before connection/transfer;
 - TLS certificate/hostname validation for FTPS with no silent downgrade;
-- explicit treatment of plain FTP as an unencrypted transport;
+- explicit treatment of plain FTP as an unencrypted compatibility transport;
 - SFTP host-key fingerprint policy and private-key validation;
-- bounded process execution and environment handling for system transfer tools;
+- bounded process execution and sanitized environment handling for system transfer tools;
 - staged upload/download behavior and rollback-oriented destination handling;
 - remote destination revalidation before final commit where supported;
 - local path containment and destructive-operation safeguards;
@@ -108,9 +109,16 @@ Ghost-FTP-1.0.0-Portable-x86.exe
 
 Setup installs per user, registers integrated maintenance/uninstall information and uses a transaction/rollback path for replacement. Portable runs without installation registration and keeps its portable data boundary separate.
 
-Production Authenticode signing is optional. When a trusted certificate is configured in protected Actions secrets, Windows artifacts are signed and verified; when it is absent, the official release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. Ghost FTP never generates a self-signed certificate and presents it as a trusted production publisher identity.
+### Windows trust state
 
-See [Installation](docs/INSTALLATION.md) and [Signing](docs/SIGNING.md).
+The production workflow supports two truthful states and never fabricates a publisher identity:
+
+- when a protected production Authenticode certificate is configured, Setup/Portable files are signed and every signature must verify before publication;
+- when no production certificate is configured, publication records `WINDOWS_AUTHENTICODE=unsigned` and `WINDOWS_TRUST_MODE=sha256+github-release-provenance` in `BUILD-METADATA.txt`.
+
+For an explicitly unsigned release, verify `SHA256.txt`, the official `ghostftp-v1.0.0` tag and the GitHub Release source provenance before installation. Ghost FTP does not substitute a self-signed/development certificate and call it a production publisher identity.
+
+See [Installation](docs/INSTALLATION.md), [Signing](docs/SIGNING.md) and [Release verification](docs/RELEASE-VERIFICATION.md).
 
 ## Linux installation
 
@@ -129,15 +137,19 @@ See [Linux documentation](linux/README.md).
 
 ## Releases and Packages
 
-The canonical user-installable files are attached to the official GitHub Release. The stable workflow publishes **9 platform artifacts** plus release metadata, notes and `SHA256.txt`, for **12 public files** in total.
+The canonical user-installable files are attached to the official GitHub Release. The stable workflow publishes **9 platform artifacts** plus release metadata, notes and `SHA256.txt`, for **12 public files** total.
 
-Stable releases also publish an OCI **distribution bundle** to GitHub Packages:
+Pre-1.0 prerelease publication is disabled in the maintained production workflow. Historical 0.x prereleases remain immutable history, but new maintained releases are normal stable releases with `prerelease=false`.
+
+Stable releases also publish the verified release directory to GitHub Packages as an OCI **distribution bundle**:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:1.0.0
 ```
 
-The GHCR package mirrors `/ghostftp-release/` from the verified release assembly. It is **not a runtime container**; it is a versioned distribution surface for automation, mirrors and integrity verification. Stable aliases include `1.0`, `1` and `latest`.
+The GHCR package mirrors `/ghostftp-release/` from the verified release assembly. It is **not a runtime container**. Stable aliases include `1.0`, `1` and `latest`; reproducible automation should prefer the full semantic version or the immutable OCI digest.
+
+The release workflow publishes and verifies the GitHub Release first, then pushes the GHCR bundle, removes the local image, pulls the semantic-version tag back from GHCR and compares package metadata plus `SHA256.txt`/`BUILD-METADATA.txt` with the local verified assembly.
 
 See [GitHub Packages](docs/PACKAGES.md), [GitHub Releases](docs/GITHUB-RELEASES.md) and [Release verification](docs/RELEASE-VERIFICATION.md).
 
@@ -145,7 +157,7 @@ See [GitHub Packages](docs/PACKAGES.md), [GitHub Releases](docs/GITHUB-RELEASES.
 
 Every public release includes `SHA256.txt`. Verify downloaded files before deployment, especially when a file has been mirrored outside GitHub.
 
-The release also includes `BUILD-METADATA.txt`, which binds the version, tag, source commit, platform set, signing state, language count and package reference to the release assembly.
+`BUILD-METADATA.txt` binds the version, tag, source commit, platform set, Windows signing/trust state, language count and package reference to the release assembly.
 
 For automated environments, the GHCR distribution bundle adds an OCI manifest digest on top of the per-file SHA-256 manifest.
 

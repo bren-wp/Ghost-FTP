@@ -12,6 +12,8 @@ The official tag namespace is:
 ghostftp-vX.Y.Z
 ```
 
+Maintained publication requires `MAJOR >= 1` and produces normal GitHub Releases with `draft=false` and `prerelease=false`.
+
 ## Main layers
 
 ### `cmd/ghostftp`
@@ -28,11 +30,11 @@ FTP/FTPS/SFTP connection and transfer implementation. This layer owns protocol c
 
 ### `internal/transfer`
 
-Transfer queue and lifecycle state. Jobs have explicit generations, status transitions, progress snapshots and cancellation/retry boundaries. UI consumers receive immutable/snapshot-style state instead of mutating in-flight protocol objects.
+Transfer queue and lifecycle state. Jobs have explicit generations, status transitions, progress snapshots and cancellation/retry boundaries. UI consumers receive snapshot-style state instead of mutating in-flight protocol objects.
 
 ### `internal/config`
 
-Settings and profile persistence. Writes use bounded local state, atomic/replace-oriented behavior and backup/recovery logic. Saved secrets are encrypted before durable profile storage.
+Settings and profile persistence. Writes use bounded local state, atomic/replace-oriented behavior and backup/recovery logic. Saved secrets are protected before durable profile storage.
 
 ### `internal/security`
 
@@ -44,7 +46,7 @@ Native Windows and Linux frontends. Both use the same typed engine and product s
 
 ### `cmd/installer`
 
-Windows per-user Setup/maintenance application. Installation is staged, validated and rollback-oriented. Integrated uninstall registration points back to the installed Ghost FTP maintenance path rather than a separate unrelated product.
+Windows per-user Setup/maintenance application. Installation is staged, validated and rollback-oriented. Integrated uninstall registration points back to the installed Ghost FTP maintenance path.
 
 ## Connection architecture
 
@@ -56,16 +58,16 @@ A connection profile is normalized and validated before transport setup. Transpo
 
 Failed secure transport is not silently converted to a weaker transport.
 
-Connection errors pass through `internal/usererror` and shared-hosting diagnostic classification before presentation. The user receives actionable categories while passwords, passphrases and protected secret payloads remain excluded from error copy.
+Connection errors pass through structured classification and `internal/usererror` before presentation. The user receives actionable categories while passwords, passphrases, protected secret payloads and raw tool diagnostics remain excluded from normal user-facing copy.
 
 ## Transfer integrity
 
-Ghost FTP uses staged/rollback-oriented operations for remote writes and local destination changes where the protocol/tooling permits it. The transfer layer binds jobs to the connection generation that created them so stale work cannot silently continue against a later connection.
+Ghost FTP uses staged/rollback-oriented operations for remote writes and local destination changes where protocol/tooling permits it. The transfer layer binds jobs to the connection generation that created them so stale work cannot silently continue against a later connection.
 
 Important invariants include:
 
 - local path containment before filesystem mutation;
-- source snapshots for uploads so mid-transfer source changes can be detected/handled deterministically;
+- source snapshots for uploads so mid-transfer source changes are handled deterministically;
 - remote destination validation before commit where available;
 - cleanup that refuses unsafe traversal through symlink/reparse boundaries;
 - bounded retry/cancel lifecycle;
@@ -80,7 +82,7 @@ Saved secrets are opt-in:
 - Windows uses the current-user operating-system protection boundary;
 - Linux uses local authenticated encryption with user-private key material.
 
-Runtime diagnostic text is treated as a privacy boundary. Tests reject credential-like material in user-facing error paths.
+Runtime diagnostic text is treated as a privacy boundary. Tests reject credential-like/raw child-process material in user-facing error paths.
 
 ## Dependency architecture
 
@@ -97,7 +99,7 @@ Platform transfer capabilities are explicit system-runtime dependencies and are 
 
 Windows uses native Win32 surfaces and controls. The release pipeline produces x64 and x86 Setup/Portable packages; the x32 Setup name is a byte-identical compatibility alias of x86.
 
-Production Authenticode is an optional hardening layer. If a protected trusted certificate is configured, the release pipeline signs and verifies the Windows artifacts. If it is absent, the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. The production workflow never creates a self-signed publisher identity as a substitute for a real trusted certificate.
+Production Authenticode is optional but truthful: when protected production signing credentials are configured, artifacts must verify as signed; otherwise `BUILD-METADATA.txt` records an explicit unsigned state and SHA-256/GitHub provenance trust mode. Signing key material is never stored in the repository, and a development/self-signed identity is never promoted as the production publisher.
 
 ## Linux architecture
 
@@ -111,13 +113,15 @@ The release workflow runs a complete quality gate before artifact publication:
 2. repository, platform, dependency, security, privacy, localization and documentation audits;
 3. Python regression suites;
 4. Windows and Linux production builds;
-5. signing-state/metadata checks, plus Authenticode verification when configured;
-6. explicit release allow-list assembly;
+5. truthful signing/metadata checks;
+6. explicit 12-file Release allow-list assembly;
 7. SHA-256 manifest generation;
-8. GitHub Release publication and read-back;
-9. stable GitHub Packages/GHCR distribution-bundle publication and registry read-back.
+8. exact-head/immutable-tag validation;
+9. GitHub Release publication plus immediate/delayed remote state/SHA read-back;
+10. GitHub Packages/GHCR distribution-bundle publication only after Release verification;
+11. fresh GHCR pull and source/version/revision + embedded SHA/build-metadata read-back.
 
-The GitHub Package is built only from the verified `release/` directory with Docker build networking disabled. It is a distribution artifact, not an application runtime container.
+The GHCR object is built from `FROM scratch`, copies only the verified `release/` directory and disables Docker build networking. It is a distribution artifact, not an application runtime container.
 
 ## Supported production boundary
 

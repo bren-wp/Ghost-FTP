@@ -5,8 +5,9 @@
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
 - Languages: **24 selectable local languages**
+- GitHub Release state: **draft=false, prerelease=false**
 
-This directory contains the maintained engineering, operations, privacy, security, release and user documentation for Ghost FTP. The root [`VERSION`](../VERSION) file is the authoritative production version source.
+This directory contains maintained engineering, operations, privacy, security, release and user documentation for Ghost FTP. The root [`VERSION`](../VERSION) file is the authoritative production version source.
 
 ## Product and architecture
 
@@ -19,50 +20,73 @@ This directory contains the maintained engineering, operations, privacy, securit
 ## Installation and distribution
 
 - [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux DEB installation/upgrade guidance.
-- [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical GitHub Release structure and release-channel rules.
-- [`PACKAGES.md`](PACKAGES.md) — stable GHCR distribution bundle published through GitHub Packages.
-- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — artifact, metadata, SHA-256, signing-state and package verification.
-- [`SIGNING.md`](SIGNING.md) — optional protected Authenticode signing model and truthful unsigned-release policy.
-- [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable/prerelease policy.
+- [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — stable-only GitHub Release structure, tag and read-back rules.
+- [`PACKAGES.md`](PACKAGES.md) — GHCR distribution bundle and fresh-pull verification.
+- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — artifact, metadata, SHA-256, signing/trust and package verification.
+- [`SIGNING.md`](SIGNING.md) — truthful Windows signed/unsigned trust model and protected Authenticode integration.
+- [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable-only publication policy.
 
-The stable workflow publishes **9 platform artifacts** and **12 public files** on each canonical GitHub Release. The same verified release directory is also mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
+The production workflow publishes **9 platform artifacts** and **12 public files** on each canonical GitHub Release. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle only after Release verification succeeds.
 
 ## Security and privacy
 
-- [`SECURITY.md`](SECURITY.md) — transport, SFTP trust, path validation, staged transfer, secret and process boundaries.
+- [`SECURITY.md`](SECURITY.md) — transport, SFTP trust, path validation, staged transfer, secret, process and release boundaries.
 - [`PRIVACY.md`](PRIVACY.md) — no-telemetry policy, local data handling, diagnostics redaction and distribution privacy.
 - [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency/runtime-tool policy and offline Go build boundary.
 - [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) — notices for platform/runtime tooling used by Ghost FTP.
 
 ## Quality and engineering
 
-- [`TESTING.md`](TESTING.md) — Go race tests, protocol regressions, UI/runtime checks and Python repository audits.
+- [`TESTING.md`](TESTING.md) — Go race tests, protocol regressions, UI/runtime checks, release/package read-back and Python repository audits.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution and release-quality expectations.
 - [`ROADMAP.md`](ROADMAP.md) — post-1.0 maintenance priorities and product constraints.
 - [`SUPPORT.md`](SUPPORT.md) — support information and safe issue-reporting guidance.
 
 ## Release history
 
-- [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — cumulative release narrative.
+- [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — cumulative historical engineering/release narrative.
 - [`../CHANGELOG.md`](../CHANGELOG.md) — public version-by-version change log.
 
-Historical sections intentionally preserve older version numbers and Beta terminology. They are history, not the current support state.
+Historical sections intentionally preserve old version numbers and Beta/prerelease terminology. They are history, not the current publication policy.
 
 ## Stable 1.0 release contract
 
-Ghost FTP 1.0.0 is the first stable release. It is published as a normal GitHub Release with `prerelease=false`. Windows Authenticode is optional: when a trusted production certificate is configured the workflow signs and verifies the Windows artifacts; otherwise it publishes them explicitly as unsigned and records `WINDOWS_AUTHENTICODE=unsigned` in release metadata. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
+Ghost FTP 1.0.0 is the first stable release. Maintained publication requires:
 
-The production workflow also publishes:
+```text
+MAJOR >= 1
+draft=false
+prerelease=false
+```
+
+The production workflow rejects pre-1.0 publication, so it no longer emits new prereleases. Historical 0.x prereleases remain immutable provenance.
+
+## Windows trust metadata
+
+Every Release records the actual state, rather than assuming that a binary is signed:
+
+```text
+WINDOWS_AUTHENTICODE=signed|unsigned
+WINDOWS_TRUST_MODE=...
+```
+
+A configured production Authenticode certificate must verify successfully. If no production certificate is configured, publication remains explicitly unsigned and uses SHA-256 + official GitHub Release/tag/source provenance. A development/self-signed certificate is never presented as a production publisher identity.
+
+## GitHub Packages contract
+
+The production workflow publishes:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:1.0.0
 ```
 
-with compatible stable aliases. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
+plus compatible stable aliases. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
+
+After push, the workflow removes its local image, pulls the semantic-version tag from GHCR and verifies OCI source/version/revision labels plus embedded `SHA256.txt` and `BUILD-METADATA.txt` against the verified Release assembly.
 
 ## Privacy-safe documentation rule
 
-Documentation and build logs must never include real passwords, private-key passphrases, protected profile payloads, signing private keys or private user data. Examples use synthetic values only. Connection diagnostics should describe categories and remediation without reproducing credentials.
+Documentation, examples and build logs must never include real passwords, private-key passphrases, protected profile payloads, signing private keys or private user data. Examples use synthetic values only. Connection diagnostics should describe categories/remediation without reproducing credentials.
 
 ## Source-of-truth hierarchy
 
@@ -74,4 +98,4 @@ When documentation and implementation appear to disagree, verify in this order:
 4. current active documentation;
 5. historical release notes.
 
-A public release is considered complete only when the exact source revision passes all required gates and both GitHub Release and stable GitHub Package publication have been verified.
+A public release is complete only when the exact source revision passes all required gates and both GitHub Release and GitHub Package remote read-back succeed.

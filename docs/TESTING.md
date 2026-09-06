@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **1.0.0 Stable** is release-ready only when source tests, audits, native production builds, signing-state checks and distribution read-back all pass for the exact release revision.
+Ghost FTP **1.0.0 Stable** is release-ready only when source tests, repository audits, native Windows/Linux production builds and remote distribution read-back pass for the exact release revision.
 
 ## Continuous integration
 
@@ -41,11 +41,6 @@ python scripts/audit_security.py
 python scripts/audit_privacy.py
 python scripts/audit_docs.py
 python scripts/audit_release.py
-```
-
-and then the Python tooling regressions:
-
-```text
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
@@ -63,7 +58,7 @@ Go tests cover, among other areas:
 - symlink/reparse-aware filesystem operations;
 - settings/profile validation and recovery;
 - privacy-safe connection diagnostics;
-- truthful transfer metrics.
+- truthful transfer progress/speed/ETA.
 
 ## Windows production gate
 
@@ -76,9 +71,9 @@ Portable x64
 Portable x86
 ```
 
-The release assembly also creates the byte-identical x32 Setup compatibility alias from x86.
+The release assembly additionally creates the byte-identical x32 Setup compatibility alias from x86.
 
-CI validates executable/package metadata and runs the development Authenticode pipeline smoke test with a short-lived development certificate. Production publication does not convert that test identity into a trusted publisher. When real protected Authenticode secrets are configured, the release workflow signs and verifies each Windows artifact; when they are absent, the release is explicitly marked unsigned.
+CI validates executable/package metadata and runs a development Authenticode pipeline smoke test. During production release, a configured protected Authenticode identity must produce valid signatures. If no protected production identity is configured, the Windows release is explicitly recorded as unsigned instead of being given a fake/self-signed production identity.
 
 ## Linux production gate
 
@@ -94,42 +89,63 @@ DEB metadata is verified for package name, semantic version and architecture. Th
 
 ## Desktop/UI regression
 
-Windows UI regression tests protect native workspace geometry, connection/action state, Site Manager behavior, localization, keyboard workflow and screenshot capture contracts.
+Windows UI regression tests protect native workspace geometry, connection/action state, Site Manager behavior, localization, keyboard workflow and authentic screenshot-capture contracts.
 
 Linux tests protect shared Engine access, SFTP password/key/passphrase parity, queue controls, settings/profile behavior and native renderer operation. Idle redraw behavior is optimized so unchanged state does not force unnecessary full-workspace redraw.
 
 ## Localization gate
 
-Localization checks require exactly 24 canonical languages, English default/fallback, valid catalog keys/format verbs, Windows live localization, Setup primary copy coverage and Linux runtime switching.
+Localization checks require exactly 24 canonical languages, English default/fallback, valid catalog keys/format verbs, Windows live localization, Setup primary-copy coverage and Linux runtime switching.
 
 ## Privacy gate
 
 Privacy audit rejects fixed product telemetry URLs, known tracking vendor markers, forbidden general-purpose network imports in runtime source, credential-file regressions and ineffective build telemetry controls.
 
-The release-package contract additionally ensures the GHCR bundle copies only the verified release directory and builds with Docker networking disabled.
+Release/package tooling additionally verifies that GHCR copies only the explicit `release/` allow-list and does not receive runtime FTP/SFTP credentials or signing private keys.
 
-## Release gate
+## Stable release gate
 
-`.github/workflows/release.yml` runs the quality, Windows and Linux jobs before publication.
+`.github/workflows/release.yml` reruns quality, Windows and Linux jobs before publication. It rejects `MAJOR=0`, so maintained production publication never creates a new prerelease.
 
-The assembled GitHub Release contains **9 platform artifacts** and **12 public files** total. Stable version `1.0.0` is published with `prerelease=false`.
+The assembled GitHub Release contains **9 platform artifacts** and **12 public files** total. Stable releases require:
 
-Before and after publication, the workflow verifies that `main` is still the exact release commit and that an existing version tag is not being rewritten.
+```text
+draft=false
+prerelease=false
+```
 
-The release gate also validates that `WINDOWS_SIGNING_STATE` is either `signed` or `unsigned`. A configured signing identity that does not produce valid signatures fails. Absence of a production certificate does not fail the release; it is carried through as `WINDOWS_AUTHENTICODE=unsigned` in release metadata.
+The workflow verifies exact `main` state before publication, preserves immutable tags, compares the remote asset set and downloads the published `SHA256.txt` for byte-for-byte read-back. It repeats Release verification after a short delay.
+
+## Windows trust verification
+
+`BUILD-METADATA.txt` must describe the actual Windows state:
+
+```text
+WINDOWS_AUTHENTICODE=signed|unsigned
+WINDOWS_TRUST_MODE=...
+```
+
+A signed state requires successful Authenticode validation in the Windows job. An unsigned state is permitted only as an explicit unsigned state and relies on SHA-256 + official GitHub source provenance; no test/self-signed identity may be presented as production signing.
 
 ## GitHub Packages gate
 
-Stable releases publish:
+After the GitHub Release is verified, stable releases publish:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:<version>
 ```
 
-The OCI distribution bundle is built from `FROM scratch`, copies only `release/`, publishes stable semantic aliases and is read back through the registry before the release job is considered complete.
+The OCI distribution bundle uses `FROM scratch`, copies only `release/` and builds with Docker networking disabled. The workflow pushes semantic aliases, removes local images, pulls the semantic-version tag back from GHCR and verifies:
+
+- source/version/revision OCI labels;
+- readable registry manifest/digest;
+- embedded `SHA256.txt` byte-for-byte equality;
+- embedded `BUILD-METADATA.txt` byte-for-byte equality.
+
+The successful remote package gate emits `PACKAGE_READBACK=PASS`.
 
 ## Release-readiness rule
 
-A source branch that merely compiles is not a release. Stable readiness requires all automated gates plus exact artifact/signing-state/package/release verification on the final source revision.
+A branch that merely compiles is not a release. Stable readiness requires all automated gates plus exact Release/Package read-back and truthful cryptographic state on the final source revision.
 
-See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md), [Privacy](PRIVACY.md) and [Packages](PACKAGES.md).
+See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md), [Privacy](PRIVACY.md), [Signing](SIGNING.md) and [Packages](PACKAGES.md).

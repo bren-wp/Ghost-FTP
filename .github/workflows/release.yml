@@ -98,7 +98,7 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') {
             throw 'Go telemetry is not disabled.'
           }
-      - name: Prepare optional protected Authenticode identity
+      - name: Prepare protected Authenticode identity
         id: signing
         shell: pwsh
         env:
@@ -112,7 +112,6 @@ jobs:
             }
             "state=unsigned" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host 'WINDOWS_RELEASE_SIGNING=UNSIGNED'
-            Write-Host 'No production signing identity is configured; artifacts will remain explicitly unsigned.'
             exit 0
           }
           if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
@@ -217,7 +216,7 @@ jobs:
           path: dist/Ghost-FTP-*-Linux-*.deb
 
   publish:
-    name: Assemble and publish Windows and Linux release
+    name: Assemble, publish and verify stable release and package
     needs: [quality, windows, linux]
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -232,7 +231,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.x'
-      - name: Resolve version and release channel
+      - name: Resolve stable version and trust state
         id: version
         shell: bash
         run: |
@@ -242,27 +241,34 @@ jobs:
           if [[ -n "$manual" ]]; then version="$manual"; else version="$source_version"; fi
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
           test "$version" = "$source_version"
+
           major="${version%%.*}"
-          if [[ "$major" = '0' ]]; then
-            release_channel='beta'
-            release_title="Ghost FTP $version Beta"
-          else
-            release_channel='stable'
-            release_title="Ghost FTP $version"
+          if (( major < 1 )); then
+            echo 'Pre-1.0 prerelease publication is disabled by the maintained release workflow.' >&2
+            exit 1
           fi
+
           case "$WINDOWS_SIGNING_STATE" in
-            signed|unsigned) ;;
-            *) echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2; exit 1 ;;
+            signed)
+              windows_trust_mode='authenticode+sha256+github-provenance'
+              ;;
+            unsigned)
+              windows_trust_mode='sha256+github-release-provenance'
+              ;;
+            *)
+              echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2
+              exit 1
+              ;;
           esac
-          if [[ "$release_channel" = 'stable' && "$WINDOWS_SIGNING_STATE" = 'unsigned' ]]; then
-            echo '::warning::Publishing Stable with explicitly unsigned Windows artifacts. BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned.'
-            printf '### Windows signing\nStable release is being published with **unsigned** Windows artifacts. Integrity remains bound to the exact release commit and SHA256.txt.\n' >> "$GITHUB_STEP_SUMMARY"
-          fi
+
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"
-          echo "RELEASE_CHANNEL=$release_channel" >> "$GITHUB_ENV"
-          echo "RELEASE_TITLE=$release_title" >> "$GITHUB_ENV"
+          echo "RELEASE_CHANNEL=stable" >> "$GITHUB_ENV"
+          echo "RELEASE_TITLE=Ghost FTP $version" >> "$GITHUB_ENV"
+          echo "WINDOWS_TRUST_MODE=$windows_trust_mode" >> "$GITHUB_ENV"
+          echo "PACKAGE_IMAGE=ghcr.io/${owner}/ghost-ftp" >> "$GITHUB_ENV"
       - name: Download Windows
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
@@ -300,11 +306,13 @@ jobs:
           VERSION=${VERSION}
           RELEASE_TAG=${RELEASE_TAG}
           RELEASE_CHANNEL=${RELEASE_CHANNEL}
+          GITHUB_RELEASE_PRERELEASE=false
           COMMIT=${GITHUB_SHA}
           ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
           WINDOWS_SETUP=x64,x86,x32-alias-of-x86
           WINDOWS_PORTABLE=x64,x86
           WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}
+          WINDOWS_TRUST_MODE=${WINDOWS_TRUST_MODE}
           LINUX_DEB=amd64,arm64,i386
           LINUX_BUNDLE=multiarch-amd64-arm64-i386
           LANGUAGES=24
@@ -312,7 +320,7 @@ jobs:
           TELEMETRY=disabled
           PUBLIC_PLATFORM_ARTIFACTS=9
           PUBLIC_RELEASE_FILES=12
-          GITHUB_PACKAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ghost-ftp:${VERSION}
+          GITHUB_PACKAGE=${PACKAGE_IMAGE}:${VERSION}
           EOF
           sed -i 's/^          //' release/BUILD-METADATA.txt
           (
@@ -322,52 +330,7 @@ jobs:
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
           test "$count" = '12'
           test "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x86.exe" | awk '{print $1}')" = "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x32.exe" | awk '{print $1}')"
-      - name: Publish stable bundle to GitHub Packages
-        if: env.RELEASE_CHANNEL == 'stable'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          owner="${GITHUB_REPOSITORY_OWNER,,}"
-          package_ref="ghcr.io/${owner}/ghost-ftp"
-          major="${VERSION%%.*}"
-          remainder="${VERSION#*.}"
-          minor="${remainder%%.*}"
-
-          cat > Dockerfile.release-bundle <<'EOF'
-          FROM scratch
-          ARG VERSION
-          ARG SOURCE
-          ARG REVISION
-          LABEL org.opencontainers.image.title="Ghost FTP verified release bundle"
-          LABEL org.opencontainers.image.description="Verified Ghost FTP desktop release files for Windows and Linux. Distribution bundle only; not a supported runtime container."
-          LABEL org.opencontainers.image.source="$SOURCE"
-          LABEL org.opencontainers.image.version="$VERSION"
-          LABEL org.opencontainers.image.revision="$REVISION"
-          LABEL org.opencontainers.image.licenses="LicenseRef-Proprietary"
-          COPY release/ /ghostftp-release/
-          EOF
-          sed -i 's/^          //' Dockerfile.release-bundle
-
-          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker build --pull=false --network=none \
-            --build-arg VERSION="$VERSION" \
-            --build-arg SOURCE="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
-            --build-arg REVISION="$GITHUB_SHA" \
-            -f Dockerfile.release-bundle \
-            -t "$package_ref:$VERSION" .
-          docker tag "$package_ref:$VERSION" "$package_ref:$major.$minor"
-          docker tag "$package_ref:$VERSION" "$package_ref:$major"
-          docker tag "$package_ref:$VERSION" "$package_ref:latest"
-          docker push "$package_ref:$VERSION"
-          docker push "$package_ref:$major.$minor"
-          docker push "$package_ref:$major"
-          docker push "$package_ref:latest"
-          docker buildx imagetools inspect "$package_ref:$VERSION" >/dev/null
-          echo "GITHUB_PACKAGE_PUBLISH=PASS ($package_ref:$VERSION)"
-          printf '### GitHub Package\n`%s:%s`\n' "$package_ref" "$VERSION" >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish verified GitHub Release
+      - name: Publish and verify GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -377,11 +340,6 @@ jobs:
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
 
-          prerelease_args=()
-          if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
-            prerelease_args+=(--prerelease)
-          fi
-
           git fetch --tags --force
           if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
             tag_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
@@ -389,14 +347,19 @@ jobs:
           fi
 
           if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
+            release_id="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .id)"
+            gh api --method PATCH "repos/$repo/releases/$release_id" \
+              -f "name=$RELEASE_TITLE" \
+              -f "body=$(cat release/RELEASE-NOTES.txt)" \
+              -F prerelease=false \
+              -F draft=false >/dev/null
             gh release upload "$RELEASE_TAG" release/* --repo "$repo" --clobber
           else
             gh release create "$RELEASE_TAG" release/* \
               --repo "$repo" \
               --target "$GITHUB_SHA" \
               --title "$RELEASE_TITLE" \
-              --notes-file release/RELEASE-NOTES.txt \
-              "${prerelease_args[@]}"
+              --notes-file release/RELEASE-NOTES.txt
           fi
 
           expected_assets="$(cat <<EOF
@@ -424,13 +387,14 @@ jobs:
               diff -u <(printf '%s\n' "$expected_assets") <(printf '%s\n' "$remote_assets") || true
               exit 1
             }
-            remote_prerelease="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)"
-            if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
-              test "$remote_prerelease" = 'true'
-            else
-              test "$remote_prerelease" = 'false'
-            fi
-            echo "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL; windows_signing=$WINDOWS_SIGNING_STATE)"
+            readback_dir="$(mktemp -d)"
+            gh release download "$RELEASE_TAG" --repo "$repo" --pattern 'SHA256.txt' --dir "$readback_dir" --clobber
+            cmp release/SHA256.txt "$readback_dir/SHA256.txt"
+            rm -rf "$readback_dir"
+            test "$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)" = 'false'
+            test "$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .draft)" = 'false'
+            test "$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .name)" = "$RELEASE_TITLE"
+            echo "RELEASE_ASSET_READBACK=PASS ($phase; prerelease=false; windows_signing=$WINDOWS_SIGNING_STATE; trust=$WINDOWS_TRUST_MODE)"
           }
 
           assert_release_asset_set immediate
@@ -438,6 +402,82 @@ jobs:
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved before delayed release verification" >&2; exit 1; }
           assert_release_asset_set delayed
+      - name: Publish and verify GitHub Package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          test "$main_sha" = "$GITHUB_SHA" || { echo "main moved before package publication" >&2; exit 1; }
+
+          major="${VERSION%%.*}"
+          remainder="${VERSION#*.}"
+          minor="${remainder%%.*}"
+          docker_config="$(mktemp -d)"
+          export DOCKER_CONFIG="$docker_config"
+          cleanup() {
+            docker logout ghcr.io >/dev/null 2>&1 || true
+            rm -rf "$docker_config"
+          }
+          trap cleanup EXIT
+
+          cat > Dockerfile.release-bundle <<'EOF'
+          FROM scratch
+          ARG VERSION
+          ARG SOURCE
+          ARG REVISION
+          LABEL org.opencontainers.image.title="Ghost FTP verified release bundle"
+          LABEL org.opencontainers.image.description="Verified Ghost FTP desktop release files for Windows and Linux. Distribution bundle only; not a supported runtime container."
+          LABEL org.opencontainers.image.source="${SOURCE}"
+          LABEL org.opencontainers.image.version="${VERSION}"
+          LABEL org.opencontainers.image.revision="${REVISION}"
+          LABEL org.opencontainers.image.licenses="LicenseRef-Brendigo-GhostFTP-Proprietary-1.3"
+          COPY release/ /ghostftp-release/
+          EOF
+          sed -i 's/^          //' Dockerfile.release-bundle
+
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build --pull=false --network=none \
+            --build-arg VERSION="$VERSION" \
+            --build-arg SOURCE="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --build-arg REVISION="$GITHUB_SHA" \
+            -f Dockerfile.release-bundle \
+            -t "$PACKAGE_IMAGE:$VERSION" .
+          docker tag "$PACKAGE_IMAGE:$VERSION" "$PACKAGE_IMAGE:$major.$minor"
+          docker tag "$PACKAGE_IMAGE:$VERSION" "$PACKAGE_IMAGE:$major"
+          docker tag "$PACKAGE_IMAGE:$VERSION" "$PACKAGE_IMAGE:latest"
+          docker push "$PACKAGE_IMAGE:$VERSION"
+          docker push "$PACKAGE_IMAGE:$major.$minor"
+          docker push "$PACKAGE_IMAGE:$major"
+          docker push "$PACKAGE_IMAGE:latest"
+          docker buildx imagetools inspect "$PACKAGE_IMAGE:$VERSION" >/dev/null
+
+          docker image rm \
+            "$PACKAGE_IMAGE:latest" \
+            "$PACKAGE_IMAGE:$major" \
+            "$PACKAGE_IMAGE:$major.$minor" \
+            "$PACKAGE_IMAGE:$VERSION" >/dev/null 2>&1 || true
+          docker pull "$PACKAGE_IMAGE:$VERSION"
+          test "$(docker image inspect "$PACKAGE_IMAGE:$VERSION" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')" = "$VERSION"
+          test "$(docker image inspect "$PACKAGE_IMAGE:$VERSION" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          test "$(docker image inspect "$PACKAGE_IMAGE:$VERSION" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$GITHUB_SHA"
+
+          readback_dir="$(mktemp -d)"
+          cid="$(docker create --entrypoint /ghostftp-release/BUILD-METADATA.txt "$PACKAGE_IMAGE:$VERSION")"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true; rm -rf "$readback_dir"; cleanup' EXIT
+          docker cp "$cid:/ghostftp-release/SHA256.txt" "$readback_dir/SHA256.txt"
+          docker cp "$cid:/ghostftp-release/BUILD-METADATA.txt" "$readback_dir/BUILD-METADATA.txt"
+          cmp release/SHA256.txt "$readback_dir/SHA256.txt"
+          cmp release/BUILD-METADATA.txt "$readback_dir/BUILD-METADATA.txt"
+          docker rm "$cid" >/dev/null
+          cid=''
+          rm -rf "$readback_dir"
+          package_digest="$(docker image inspect "$PACKAGE_IMAGE:$VERSION" --format '{{ index .RepoDigests 0 }}')"
+          test -n "$package_digest"
+          echo "PACKAGE_READBACK=PASS ($PACKAGE_IMAGE:$VERSION; $package_digest)"
+          printf '### GitHub Package\n`%s:%s`\n\nDigest: `%s`\n' "$PACKAGE_IMAGE" "$VERSION" "$package_digest" >> "$GITHUB_STEP_SUMMARY"
       - name: Store verified release bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

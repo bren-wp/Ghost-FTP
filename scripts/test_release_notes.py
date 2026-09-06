@@ -28,6 +28,7 @@ class ReleaseNotesTests(unittest.TestCase):
             "Ghost FTP 1.4.0",
             "Privacy-first FTP, FTPS and SFTP desktop client for Windows and Linux",
             "Release channel: Stable",
+            "GitHub prerelease flag: false",
             "ghostftp-v1.4.0",
             "Ghost-FTP-1.4.0-Setup-x64.exe",
             "Ghost-FTP-1.4.0-Setup-x32.exe",
@@ -41,9 +42,9 @@ class ReleaseNotesTests(unittest.TestCase):
             "12 public release files",
             "SHA256.txt",
             "BUILD-METADATA.txt",
-            "Production Authenticode signing is optional",
             "WINDOWS_AUTHENTICODE=unsigned",
-            "Never treat a locally generated or self-signed certificate as a trusted public publisher identity",
+            "WINDOWS_TRUST_MODE=sha256+github-release-provenance",
+            "self-signed or invented publisher identity is never substituted",
             "Application telemetry: disabled",
         ):
             self.assertIn(marker, notes)
@@ -57,11 +58,9 @@ class ReleaseNotesTests(unittest.TestCase):
         ):
             self.assertNotIn(retired, notes)
 
-    def test_beta_notes_do_not_claim_stable_package_aliases(self) -> None:
-        notes = build_notes("0.9.9", "- Beta verification.")
-        self.assertIn("Release channel: Beta prerelease", notes)
-        self.assertNotIn("ghcr.io/bren-wp/ghost-ftp:0.9.9", notes)
-        self.assertNotIn("Stable aliases", notes)
+    def test_pre_1_0_notes_are_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "prerelease publication is disabled"):
+            build_notes("0.9.9", "- Historical Beta verification.")
 
 
 if __name__ == "__main__":

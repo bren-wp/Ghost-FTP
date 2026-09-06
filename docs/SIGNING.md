@@ -1,37 +1,36 @@
-# Ghost FTP signing
+# Ghost FTP signing and Windows trust
 
-Ghost FTP **1.0.0 Stable** supports Windows Authenticode signing as an optional production hardening layer. Signing improves publisher identity and Windows trust UX, but Ghost FTP does not fabricate a trusted identity when no real code-signing certificate is configured.
+Ghost FTP **1.0.0 Stable** treats Windows signing state as explicit release metadata. The project never invents a publisher identity merely to make a release look signed.
 
-## Production policy
+## Two truthful production states
 
-A stable Windows release may be published either:
-
-- **signed** — when the protected GitHub Actions environment provides a real trusted Authenticode certificate and the produced Setup/Portable binaries verify successfully; or
-- **unsigned** — when no production signing certificate is configured.
-
-The release workflow reports the exact state through `WINDOWS_SIGNING_STATE`, and `BUILD-METADATA.txt` records it as:
+The Windows production job reports one of exactly two states:
 
 ```text
 WINDOWS_AUTHENTICODE=signed
-```
-
-or:
-
-```text
 WINDOWS_AUTHENTICODE=unsigned
 ```
 
-Unsigned publication is never relabeled as signed.
+When a protected production Authenticode identity is configured, `BUILD-WINDOWS.ps1` signs the final Portable/Setup artifacts and the release job requires Windows to validate every produced signature before publication.
 
-## Why Ghost FTP does not generate a production key automatically
+When no production identity is configured, the same verified artifacts may be published **explicitly unsigned**. `BUILD-METADATA.txt` then records:
 
-A locally generated/self-signed certificate can prove that the signing code path works, but it does **not** create a publicly trusted Windows publisher identity. Automatically generating such a key and presenting it as production Authenticode would be misleading and would not provide the normal trust benefit expected from a CA-issued code-signing certificate.
+```text
+WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_TRUST_MODE=sha256+github-release-provenance
+```
 
-Therefore the production workflow never creates its own long-lived publisher key. The separate CI smoke test may create a short-lived development certificate only to test signing mechanics.
+An unsigned artifact is never described as publisher-signed. Users should verify `SHA256.txt`, the official GitHub Release/tag and source revision before installation.
 
-## Optional protected secrets
+## Why the workflow does not self-sign production releases
 
-If a real production certificate is available, signing uses protected GitHub Actions secrets:
+A development/self-signed certificate proves that signing plumbing works; it does not prove BRENDIGO LTD publisher identity to another machine. Ghost FTP therefore never fabricates, embeds or substitutes a self-signed development identity for a missing protected production certificate.
+
+CI may still create a short-lived development certificate solely for the **Authenticode pipeline smoke test**. That certificate and private key are ephemeral test fixtures and are never release publisher credentials.
+
+## Protected production secrets
+
+When production signing is enabled, the release job consumes only protected GitHub Actions secrets:
 
 ```text
 GHOSTFTP_SIGNING_PFX_BASE64
@@ -39,58 +38,53 @@ GHOSTFTP_SIGNING_PASSWORD
 GHOSTFTP_SIGNING_TIMESTAMP_URL
 ```
 
-If the PFX and password are absent, Windows artifacts remain unsigned and publication continues with explicit unsigned metadata. If one secret is supplied without its required counterpart, the workflow fails rather than silently guessing a signing state.
-
-Private key material must never be committed to the repository, written into release metadata or copied into GitHub Packages.
+If a PFX is configured without its password, or the PFX payload is malformed, the job fails closed. Private signing material must never be committed to the repository or copied into Release/GHCR artifacts.
 
 ## Runner lifetime
 
-When signing is configured, the Windows release job decodes the protected PFX only into the runner temporary directory, exposes the path through the job environment for the build/signing step and removes the temporary file in an `always()` cleanup step.
-
-The repository stores only the signing integration code, not the production private key.
+The Windows job decodes protected PFX material into the runner temporary directory only. The path is supplied to the build/signing step and removed by an `always()` cleanup operation. The repository stores signing integration code, never the production private key.
 
 ## Build ordering
 
-`BUILD-WINDOWS.ps1` signs the Portable executable before it is embedded into Setup, then signs Setup after its payload/resources are finalized. Checksums are generated after artifact mutation/signing so the published hashes represent final bytes.
+`BUILD-WINDOWS.ps1` finalizes PE resources/payload before final signing. Portable artifacts are finalized/signed before Setup embeds the payload; Setup is signed only after its own payload/resources are complete. Release checksums are generated after final artifact mutation so `SHA256.txt` describes the exact published bytes.
 
-When no signing identity is configured, the same deterministic build/package path is used without the signing mutation.
+## Signed-state verification
 
-## Verification
+If `WINDOWS_AUTHENTICODE=signed`, the production job checks each Windows Setup/Portable file with the operating-system Authenticode verification API. A configured signing identity whose output does not verify as valid fails publication.
 
-For a release whose metadata says `WINDOWS_AUTHENTICODE=signed`, each Windows Setup/Portable artifact is checked with the operating-system Authenticode verification API during the production build. A configured signing state whose produced file does not report a valid signature fails the job.
-
-End users can inspect a downloaded artifact with:
+End users can inspect a signed artifact with:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-1.0.0-Setup-x64.exe | Format-List
+Get-AuthenticodeSignature .\Ghost-FTP-1.0.0-Setup-x64.exe | Format-List Status,StatusMessage,SignerCertificate,TimeStamperCertificate
 ```
 
-If `BUILD-METADATA.txt` says `WINDOWS_AUTHENTICODE=unsigned`, an absent trusted signature is expected. In both cases, verify the file against `SHA256.txt` from the same official GitHub Release.
+A signed-state release should report a valid signature under the local Windows trust policy and must also match `SHA256.txt`.
 
-## Windows warnings for unsigned builds
+## Unsigned-state verification
 
-Unsigned Windows executables may produce SmartScreen or publisher warnings depending on Windows reputation and local policy. Ghost FTP does not recommend bypassing enterprise or operating-system security policy. A future CA-issued certificate can be added through protected secrets without changing the artifact naming/versioning contract.
+If `WINDOWS_AUTHENTICODE=unsigned`, do not expect `Get-AuthenticodeSignature` to report a trusted signer. Instead verify:
 
-## Development signing smoke test
+1. the file came from the official `ghostftp-v1.0.0` GitHub Release;
+2. the file SHA-256 equals the matching entry in `SHA256.txt`;
+3. `BUILD-METADATA.txt` names the expected version/source commit and explicitly says `WINDOWS_AUTHENTICODE=unsigned`;
+4. the Release is `prerelease=false` and the tag resolves to that same source commit.
 
-CI can create a short-lived development code-signing certificate to validate the signing pipeline mechanically. That certificate is a test fixture and must never be represented as the trusted production publisher identity.
-
-The development smoke test exists to catch broken signing scripts and PE-signature plumbing independently from production certificate availability.
+This proves release integrity/provenance within the documented GitHub distribution boundary; it does **not** turn an unsigned binary into a publisher-signed binary.
 
 ## Timestamping
 
-When a production timestamp URL is configured, signing uses it according to the build script policy. A timestamp service is not an application telemetry endpoint; it is used only during release signing by the CI runner.
+When a production timestamp URL is configured, signing uses it according to the build policy. Timestamp traffic exists only in the release CI runner and is not application telemetry.
 
 ## Linux integrity
 
-Linux DEB packages do not use Windows Authenticode. Their direct GitHub Release integrity is established through exact source/release provenance, DEB metadata checks and `SHA256.txt`. A future repository-signing model would require its own protected key, rotation and revocation policy.
+Linux DEB packages do not inherit Windows Authenticode. Their release integrity is established through exact source/version provenance, DEB metadata checks, the Release `SHA256.txt` manifest and the verified GHCR distribution-bundle digest.
 
-## Failure policy
+## GitHub Packages
 
-Do not create or commit a self-signed production identity just to make a release appear signed. If a real Authenticode certificate is configured, verification is fail-closed. If it is not configured, publication remains truthfully unsigned and all release metadata/checksums continue to identify that state.
+The GHCR distribution bundle contains only already-built verified release files. Signing secrets are not part of the package context. `BUILD-METADATA.txt` carries the truthful Windows signing/trust state so mirrors and automation can make policy decisions without guessing.
 
-## Packages
+## Policy invariant
 
-The GHCR distribution bundle contains already-built verified release files. PFX/password material is never part of the bundle context. Package metadata records whether Windows artifacts were signed, but it never carries the signing key.
+Ghost FTP never fabricates or mislabels cryptographic state. If future protected production signing is configured, the same workflow automatically moves from explicit unsigned provenance to verified Authenticode + SHA-256 provenance without changing the application binary contract.
 
-See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md) and [Packages](PACKAGES.md).
+See [Release verification](RELEASE-VERIFICATION.md), [GitHub Releases](GITHUB-RELEASES.md), [Security](SECURITY.md) and [Packages](PACKAGES.md).

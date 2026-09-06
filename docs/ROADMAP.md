@@ -1,10 +1,10 @@
 # Ghost FTP roadmap
 
-Ghost FTP **1.0.0 Stable** is the maintained production baseline. The roadmap after 1.0 prioritizes reliability, security, privacy, performance and Windows/Linux parity before adding broad new surface area.
+Ghost FTP **1.0.0 Stable** is the maintained production baseline. Post-1.0 work prioritizes reliability, security, privacy, performance and Windows/Linux parity before broad new surface area.
 
 ## Completed for 1.0
 
-The stable gate includes:
+The stable baseline includes:
 
 - native Windows and Linux desktop clients backed by one typed Engine;
 - FTP, FTPS and SFTP workflows;
@@ -17,8 +17,9 @@ The stable gate includes:
 - native Windows Setup/Portable packaging and Linux DEB packaging;
 - 24-language local catalog with English default/fallback;
 - production race/vet/security/privacy/dependency/documentation audits;
-- normal stable GitHub Release publication with `prerelease=false`;
-- stable GitHub Packages/GHCR distribution-bundle publication and read-back.
+- normal stable GitHub Release publication with `draft=false` and `prerelease=false`;
+- explicit Windows signed/unsigned trust metadata without fabricated publisher identity;
+- stable GitHub Packages/GHCR distribution-bundle publication and fresh-pull read-back.
 
 ## 1.0.x priorities
 
@@ -31,7 +32,7 @@ Patch releases should focus on compatible fixes:
 5. privacy-safe diagnostic quality;
 6. Setup/update/uninstall rollback reliability;
 7. localization corrections without changing protocol semantics;
-8. release/package integrity and signing pipeline maintenance;
+8. release/package integrity, package read-back and production signing integration;
 9. documentation accuracy.
 
 ## 1.1 priorities
@@ -39,20 +40,20 @@ Patch releases should focus on compatible fixes:
 Potential backward-compatible improvements include:
 
 - richer transfer filtering/history while preserving bounded state;
-- better per-site connection option ergonomics;
+- better per-site connection-option ergonomics;
 - additional keyboard and accessibility refinements;
-- improved Linux visual parity without adding a heavy runtime framework;
+- improved Linux visual parity without a heavy runtime framework;
 - deeper deterministic FTP/FTPS/SFTP interoperability fixtures;
 - optional export/import of non-secret profile metadata with explicit security boundaries;
 - more operational diagnostics that remain local and credential-safe.
 
-Features are not considered accepted merely because they are visually attractive. They must have a clear security/privacy model, tests, documentation and Windows/Linux behavior.
+Features are not accepted merely because they are visually attractive. They require a clear security/privacy model, tests, documentation and Windows/Linux behavior.
 
 ## Non-negotiable constraints
 
 Future work must preserve:
 
-- no application telemetry/advertising/fingerprinting;
+- no application telemetry, advertising or fingerprinting;
 - no mandatory Ghost FTP account;
 - no silent secure-transport downgrade;
 - SFTP host-key verification;
@@ -60,8 +61,9 @@ Future work must preserve:
 - local path containment and symlink/reparse safety;
 - fail-closed transfer cleanup/commit behavior;
 - exact source/version binding for public releases;
-- stable Windows signing gate;
-- verified GitHub Release and GitHub Package publication;
+- stable-only production publication (`MAJOR >= 1`, `prerelease=false`);
+- truthful Windows signing state — valid production Authenticode when configured, explicit unsigned provenance otherwise, never a fake/self-signed production identity;
+- verified GitHub Release and GitHub Package publication/read-back;
 - no unreviewed external Go dependencies.
 
 ## Performance direction
@@ -71,14 +73,23 @@ Optimization work should target measured hotspots:
 - avoid full-workspace redraw when state is unchanged;
 - keep UI work out of transfer/network critical paths;
 - avoid repeated filesystem scans when a validated snapshot is sufficient;
-- keep transfer progress publication bounded and truthful;
+- keep transfer-progress publication bounded and truthful;
 - reduce unnecessary allocations/copies in listing and transfer planning;
 - keep CI deterministic and offline for the Go dependency graph.
 
 ## Security/privacy direction
 
-Security hardening should favor deterministic rejection and actionable errors over permissive fallback. Privacy improvements should reduce secret lifetime and diagnostic exposure rather than adding remote reporting.
+Security hardening should favor deterministic rejection and actionable errors over permissive fallback. Privacy improvements should reduce secret lifetime and diagnostic exposure rather than add remote reporting.
 
-## Definition of roadmap completion
+## Release engineering direction
+
+Further release improvements should strengthen provenance rather than weaken checks:
+
+- production Authenticode can be enabled by adding real protected signing credentials without changing artifact names/versioning;
+- GHCR read-back should continue to pull from the registry after local image removal;
+- release/package metadata should stay machine-readable and explicit about cryptographic state;
+- no prerelease publication path should be reintroduced into the maintained production workflow without an explicit product-policy change.
+
+## Definition of completion
 
 A roadmap item is complete only after code, regression tests, security/privacy implications, active documentation and production CI/release gates agree on the behavior.

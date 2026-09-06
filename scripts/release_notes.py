@@ -25,21 +25,15 @@ def extract_section(changelog: str, version: str) -> str:
 
 def build_notes(version: str, section: str) -> str:
     major = int(version.split(".", 1)[0])
-    channel = "Beta prerelease" if major == 0 else "Stable"
-    package_section = "" if major == 0 else f"""
-GitHub Packages
----------------
-- Package: ghcr.io/bren-wp/ghost-ftp:{version}
-- Type: verified OCI distribution bundle, not a runtime container.
-- Contents: the same verified release directory under /ghostftp-release/.
-- Stable aliases: {major}, {'.'.join(version.split('.')[:2])}, latest.
-- The workflow verifies registry readback before completing publication.
-"""
+    if major < 1:
+        raise ValueError("pre-1.0 prerelease publication is disabled")
 
+    minor = version.split(".")[1]
     return f"""Ghost FTP {version}
 
 Privacy-first FTP, FTPS and SFTP desktop client for Windows and Linux.
-Release channel: {channel}.
+Release channel: Stable.
+GitHub prerelease flag: false.
 
 Highlights
 ----------
@@ -63,12 +57,20 @@ Linux:
 - Ghost-FTP-{version}-Linux-arm64.deb — Debian package for arm64.
 - Ghost-FTP-{version}-Linux-i386.deb — Debian package for i386.
 - Ghost-FTP-{version}-Linux-multiarch.zip — bundle containing the three verified Debian packages.
-{package_section}
+
+GitHub Packages
+---------------
+- Package: ghcr.io/bren-wp/ghost-ftp:{version}
+- Type: verified OCI distribution bundle, not a runtime container.
+- Contents: the same verified release directory under /ghostftp-release/.
+- Stable aliases: {major}.{minor}, {major}, latest.
+- The workflow removes its local package image, pulls the published semantic-version tag back from GHCR and verifies OCI source/version/revision labels plus SHA256.txt and BUILD-METADATA.txt byte-for-byte.
+
 Verification files
 ------------------
 - SHA256.txt — SHA-256 checksums for every public release file except SHA256.txt itself.
 - RELEASE-NOTES.txt — these notes generated from CHANGELOG.md.
-- BUILD-METADATA.txt — version, release tag, source commit, signing state and distribution metadata.
+- BUILD-METADATA.txt — version, release tag, source commit, Windows signing/trust state and distribution metadata.
 
 Release contract
 ----------------
@@ -77,14 +79,15 @@ Release contract
 - Active application platforms: Windows and Linux.
 - Local language catalog: 24 selectable languages with English default/fallback.
 - Application telemetry: disabled.
+- GitHub Release prerelease state: false.
 
-Signing and trust
------------------
-The workflow never fabricates publisher identities. Production Authenticode signing is optional: when a protected trusted certificate is configured, Windows artifacts are signed and verified; when it is not configured, the release remains explicitly unsigned and BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned. Never treat a locally generated or self-signed certificate as a trusted public publisher identity. Always verify SHA256.txt and the official GitHub release location before installation or deployment.
+Windows signing and trust
+-------------------------
+The workflow never fabricates a publisher identity. When a protected production Authenticode identity is configured, the Windows artifacts are signed and each signature must verify successfully before publication. When no production identity is configured, the release is explicitly recorded as WINDOWS_AUTHENTICODE=unsigned and WINDOWS_TRUST_MODE=sha256+github-release-provenance. In that state, verify SHA256.txt and the official GitHub tag/source provenance before installation. A self-signed or invented publisher identity is never substituted for a missing production certificate.
 
 Privacy
 -------
-Release bundles contain only the explicit verified artifact allow-list. They do not contain saved profiles, FTP/SFTP passwords, private-key passphrases, signing private keys, local application data or user files.
+Release bundles contain only the explicit verified artifact allow-list. They do not contain saved profiles, FTP/SFTP passwords, private-key passphrases, signing private keys, local application data or user files. Production Go telemetry is disabled by the build/release gate.
 """
 
 
