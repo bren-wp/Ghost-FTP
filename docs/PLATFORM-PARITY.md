@@ -6,7 +6,19 @@ Parity means equivalent protocol/security semantics and honest native-platform U
 
 ## Shared protocol contract
 
-Both platforms support FTP, FTPS, SFTP password authentication, SFTP private-key authentication, optional key passphrases, SFTP host-key fingerprint trust, local/remote navigation, upload/download/tree transfers, remote file operations where supported, connection timeouts and privacy-safe diagnostics.
+Both platforms support:
+
+- FTP;
+- FTPS;
+- SFTP password authentication;
+- SFTP private-key authentication;
+- SFTP key passphrase handling;
+- SFTP host-key fingerprint trust;
+- local/remote navigation;
+- upload/download/tree transfers;
+- remote file operations where supported;
+- connection timeouts;
+- privacy-safe diagnostics.
 
 A secure transport failure is never silently retried as a weaker protocol.
 
@@ -57,7 +69,13 @@ SFTP protected-secret ownership distinguishes transient/session-owned material f
 
 Windows uses native Win32 UI, DPI-aware layout, native dialogs and the current-user Windows saved-secret protection boundary. Production packages include x64/x86 Setup and Portable binaries.
 
-Production Authenticode is optional. When a trusted protected signing identity is configured, every generated Windows artifact must verify successfully; when it is absent, official stable publication remains explicitly unsigned. A generated/self-signed development certificate is never substituted for trusted production publisher identity.
+Production Authenticode is optional. When a trusted protected signing identity is configured, every generated Windows artifact must verify successfully; when it is absent, official stable publication remains explicitly unsigned and records:
+
+```text
+WINDOWS_AUTHENTICODE=unsigned
+```
+
+A generated/self-signed development certificate is never substituted for trusted production publisher identity.
 
 ## Linux-specific implementation
 
