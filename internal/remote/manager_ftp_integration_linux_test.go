@@ -15,7 +15,7 @@ import (
 // lifecycle used by the desktop application. The loopback server speaks a real
 // FTP control/data protocol, so a green test proves more than adapter setup or
 // mocked state transitions.
-func TestManagerConnectsAndUsesRealFTPSession(t *testing.T) {
+func TestManagerConnectsAndUsesRealFTPProtocolSession(t *testing.T) {
 	if _, err := findCurl(); err != nil {
 		t.Skipf("system curl unavailable: %v", err)
 	}
