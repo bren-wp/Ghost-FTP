@@ -62,8 +62,10 @@ def main() -> int:
     else:
         if "Development status: **Stable**" not in readme:
             fail("1.x+ VERSION must be documented as Stable")
-        if version == "1.0.0" and "First stable release" not in readme:
-            fail("1.0.0 README must explicitly identify the first stable release")
+        if version == "1.0.0":
+            lowered_readme = readme.lower()
+            if "first stable release" not in lowered_readme and "first maintained release published as a normal stable github release" not in lowered_readme:
+                fail("1.0.0 README must explicitly identify the first stable release")
 
     versioning = read("docs/VERSIONING.md")
     require(versioning, ("0.1.0", "0.x.y", "1.0.0", "Beta", "Stable", "Portable", "Setup"), "docs/VERSIONING.md")
@@ -96,21 +98,38 @@ def main() -> int:
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded production version")
-    require(release_workflow, (
-        "manual='${{ inputs.version }}'",
-        "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
-        "RELEASE_TAG=ghostftp-v$version",
-        "RELEASE_CHANNEL",
-        "--prerelease",
-        "packages: write",
-        "ghcr.io/${owner}/ghost-ftp",
-        "if: env.RELEASE_CHANNEL == 'stable'",
-        "PUBLIC_PLATFORM_ARTIFACTS=9",
-        "PUBLIC_RELEASE_FILES=12",
-    ), ".github/workflows/release.yml")
+    require(
+        release_workflow,
+        (
+            "manual='${{ inputs.version }}'",
+            "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
+            "RELEASE_TAG=ghostftp-v$version",
+            "RELEASE_CHANNEL=stable",
+            "GITHUB_RELEASE_PRERELEASE=false",
+            "packages: write",
+            "PACKAGE_IMAGE=ghcr.io/${owner}/ghost-ftp",
+            "PUBLIC_PLATFORM_ARTIFACTS=9",
+            "PUBLIC_RELEASE_FILES=12",
+            "RELEASE_ASSET_READBACK=PASS",
+            "PACKAGE_READBACK=PASS",
+        ),
+        ".github/workflows/release.yml",
+    )
+    if "--prerelease" in release_workflow:
+        fail("maintained stable release workflow must not publish prereleases")
+    if "if: env.RELEASE_CHANNEL == 'stable'" in release_workflow:
+        fail("stable-only package publication must not retain a split prerelease/stable channel gate")
 
-    require(read("scripts/audit_platform_contract.py"), ("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", "RETIRED_APPLICATION_SURFACES=WEB,PWA"), "scripts/audit_platform_contract.py")
-    require(read("scripts/audit_release.py"), ("PUBLIC_PLATFORM_ARTIFACTS=9", "PUBLIC_RELEASE_FILES=12", "STABLE_GHCR_BUNDLE=REQUIRED"), "scripts/audit_release.py")
+    require(
+        read("scripts/audit_platform_contract.py"),
+        ("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", "RETIRED_APPLICATION_SURFACES=WEB,PWA"),
+        "scripts/audit_platform_contract.py",
+    )
+    require(
+        read("scripts/audit_release.py"),
+        ("PUBLIC_PLATFORM_ARTIFACTS=9", "PUBLIC_RELEASE_FILES=12", "STABLE_GHCR_BUNDLE=REQUIRED", "PRERELEASE_PUBLICATION=BLOCKED"),
+        "scripts/audit_release.py",
+    )
 
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
@@ -120,16 +139,17 @@ def main() -> int:
     if 'version = read("VERSION").strip()' not in localization_audit:
         fail("localization audit does not read VERSION dynamically")
 
-    channel = "beta" if major == 0 else "stable"
+    channel = "beta-history" if major == 0 else "stable"
     print(f"VERSION_AUDIT=PASS ({version}; channel={channel})")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
     print("RETIRED_APPLICATION_SURFACES=ANDROID,IOS,MACOS,WEB,PWA")
-    print("PRE_1_0_CHANNEL=BETA")
+    print("PRE_1_0_RELEASES=HISTORICAL_BETA_ONLY")
     print("FIRST_STABLE_VERSION=1.0.0")
     print("STABLE_RELEASE_PRERELEASE_FLAG=FALSE")
+    print("MAINTAINED_PRERELEASE_PUBLICATION=BLOCKED")
     print("STABLE_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
     return 0
 
