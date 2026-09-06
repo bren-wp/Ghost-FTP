@@ -1,24 +1,67 @@
 # Ghost FTP support
 
-Use the GitHub repository issue tracker for reproducible bugs, platform-specific build problems and feature requests:
+Support for Ghost FTP **1.0.0 Stable** should begin with the repository issue tracker for reproducible bugs and platform-specific problems:
 
 https://github.com/bren-wp/Ghost-FTP/issues
 
-## Bug reports
+## Before reporting
+
+1. confirm the installed version and architecture;
+2. confirm the file came from the official stable GitHub Release;
+3. verify `SHA256.txt`;
+4. on Windows, verify the Authenticode signature;
+5. confirm the intended protocol (FTP, FTPS or SFTP), host and port;
+6. reproduce with the smallest safe example possible.
+
+## Bug report information
 
 Include:
 
-- Ghost FTP version and release tag;
-- operating system and architecture;
-- protocol used (FTP, FTPS or SFTP);
+- Ghost FTP version/tag;
+- Windows or Linux and architecture;
+- Setup/Portable/DEB package used;
+- protocol and authentication type;
 - exact reproduction steps;
-- expected and actual behavior;
-- relevant sanitized logs or screenshots.
+- expected vs actual behavior;
+- privacy-safe diagnostic category/message;
+- sanitized screenshot/log excerpt if relevant.
 
-Never post passwords, private keys, session cookies, recovery keys, server secrets or unredacted connection profiles.
+## Do not publish secrets
 
-For release-package problems also include the downloaded filename and its SHA-256 digest from `SHA256.txt`.
+Never put these in public issues:
+
+- passwords;
+- private keys;
+- private-key passphrases;
+- protected saved-profile payloads;
+- server confidential files;
+- CI/signing secrets;
+- recovery credentials/tokens.
+
+Use synthetic values for reproductions.
+
+## Connection failures
+
+Ghost FTP 1.0 uses privacy-safe connection diagnostics. Include the displayed category/remediation instead of pasting raw credentials or a complete private command environment.
+
+For SFTP host-key problems, provide only the public fingerprint if it is safe to disclose. Verify intentional server-key changes through an independent trusted channel.
+
+## Release/package problems
+
+For GitHub Release issues include the exact filename and SHA-256 value.
+
+For GitHub Packages issues include the semantic tag/digest for:
+
+```text
+ghcr.io/bren-wp/ghost-ftp
+```
+
+Remember that the GHCR object is a distribution bundle, not the normal desktop runtime container.
 
 ## Security-sensitive reports
 
-Do not publish working credentials or private exploit data in a public issue. Follow the repository security-reporting guidance in `SECURITY.md` / `.github/SECURITY.md` and provide only the minimum information needed to reproduce the problem safely.
+Avoid posting exploit-ready private details or real secrets publicly. Follow the repository security policy in [Security](SECURITY.md) and provide only the information needed to reproduce the issue safely.
+
+## Documentation issues
+
+Documentation corrections are welcome when current behavior, package names, security/privacy boundaries or release metadata are inaccurate. Historical release text should remain historical rather than being rewritten as current product behavior.
