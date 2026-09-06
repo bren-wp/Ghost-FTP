@@ -11,6 +11,7 @@ const (
 	ssIcon      = 0x00000003
 	stmSetImage = 0x0172
 	imageIcon   = 1
+	lrShared    = 0x00008000
 )
 
 var (
@@ -33,10 +34,10 @@ func (a *app) ensureBrandLogo() uintptr {
 
 	hinst, _, _ := getModuleHandleW.Call(0)
 	iconSize := a.scale(32)
-	icon, _, _ := loadImageW.Call(hinst, 1, imageIcon, uintptr(iconSize), uintptr(iconSize), 0)
+	icon, _, _ := loadImageW.Call(hinst, 1, imageIcon, uintptr(iconSize), uintptr(iconSize), lrShared)
 	if icon == 0 {
-		// The class icon uses the same canonical resource and is a safe fallback
-		// if LoadImage is unavailable on an older Windows build.
+		// LoadIcon returns a shared icon resource too, so neither path requires
+		// Ghost FTP to destroy a handle that Windows owns.
 		icon, _, _ = loadIconW.Call(hinst, 1)
 	}
 	if icon == 0 {
