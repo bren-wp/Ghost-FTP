@@ -38,24 +38,31 @@ func MessageFor(language string, err error, fallback string) string {
 		return i18n.T(language, "error.timeout")
 	}
 
+	// Remote transport errors can expose a stable semantic category without
+	// exposing their raw curl/OpenSSH output. Use a strict whitelist so an
+	// arbitrary wrapped error cannot select an unexpected localization key.
+	if key := classifiedMessageKey(err); key != "" {
+		return i18n.T(language, key)
+	}
+
 	switch {
-	case containsAny(s, "otisak sftp host ključa se promijenio", "fingerprint se promijenio", "host key verification failed", "sftp host-key fingerprint changed"):
+	case containsAny(s, "otisak sftp host ključa se promijenio", "fingerprint se promijenio", "remote host identification has changed", "host key verification failed", "sftp host-key fingerprint changed"):
 		return i18n.T(language, "error.hostkey_changed")
 	case containsAny(s, "sftp podrška nije dostupna u sustavu windows", "sftp komponenta nije pronađena", "openssh client nije instaliran", "nedostaje sftp.exe", "nedostaje ssh-keyscan.exe", "nedostaje ssh-keygen.exe", "sftp support is unavailable", "openssh client is not installed", "missing sftp.exe", "missing ssh-keyscan.exe", "missing ssh-keygen.exe"):
 		return i18n.T(language, "error.sftp_unavailable")
 	case containsAny(s, "nije moguće dohvatiti sftp host ključ", "poslužitelj nije vratio ssh host ključ", "could not retrieve sftp host key", "server did not return an ssh host key"):
 		return i18n.T(language, "error.sftp_hostkey_missing")
-	case containsAny(s, "authentication failed", "permission denied (publickey", "permission denied (password", "permission denied, please try again", "login incorrect", "access denied", "530 login", "530 user", "530 not logged", "authentication rejected"):
+	case containsAny(s, "authentication failed", "permission denied (publickey", "permission denied (password", "permission denied (keyboard-interactive", "permission denied, please try again", "login incorrect", "access denied", "530 login", "530 user", "530 not logged", "authentication rejected"):
 		return i18n.T(language, "error.auth")
 	case containsAny(s, "421 too many connections", "421 service not available", "421 connection", "too many connections"):
 		return i18n.T(language, "error.ftp_limit")
 	case containsAny(s, "425 can't open data connection", "425 cannot open data connection", "425 failed to establish connection", "426 connection closed", "426 transfer aborted"):
 		return i18n.T(language, "error.ftp_data")
-	case containsAny(s, "could not resolve host", "name or service not known", "temporary failure in name resolution", "no such host", "host not found"):
+	case containsAny(s, "could not resolve host", "could not resolve hostname", "name or service not known", "temporary failure in name resolution", "no such host", "host not found"):
 		return i18n.T(language, "error.resolve")
 	case containsAny(s, "connection refused", "actively refused"):
 		return i18n.T(language, "error.refused")
-	case containsAny(s, "timed out", "timeout", "operation timed out"):
+	case containsAny(s, "timed out", "timeout", "operation timed out", "connection timed out"):
 		return i18n.T(language, "error.timeout")
 	case containsAny(s, "connection reset", "connection closed", "broken pipe", "connection aborted", "network is unreachable", "no route to host"):
 		return i18n.T(language, "error.connection_lost")
@@ -90,6 +97,47 @@ func MessageFor(language string, err error, fallback string) string {
 		fallback = i18n.T(language, "error.generic")
 	}
 	return fallback
+}
+
+func classifiedMessageKey(err error) string {
+	var classified interface{ UserErrorKind() string }
+	if !errors.As(err, &classified) {
+		return ""
+	}
+	switch strings.ToLower(strings.TrimSpace(classified.UserErrorKind())) {
+	case "hostkey_changed":
+		return "error.hostkey_changed"
+	case "sftp_unavailable":
+		return "error.sftp_unavailable"
+	case "sftp_hostkey_missing":
+		return "error.sftp_hostkey_missing"
+	case "sftp_settings":
+		return "sftp.failed_body"
+	case "auth":
+		return "error.auth"
+	case "ftp_limit":
+		return "error.ftp_limit"
+	case "ftp_data":
+		return "error.ftp_data"
+	case "resolve":
+		return "error.resolve"
+	case "refused":
+		return "error.refused"
+	case "timeout":
+		return "error.timeout"
+	case "connection_lost":
+		return "error.connection_lost"
+	case "tls":
+		return "error.tls"
+	case "disk":
+		return "error.disk"
+	case "permission":
+		return "error.permission"
+	case "not_found":
+		return "error.not_found"
+	default:
+		return ""
+	}
 }
 
 func containsAny(s string, values ...string) bool {
