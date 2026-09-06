@@ -1,221 +1,126 @@
-# Architecture
+# Ghost FTP architecture
 
-Ghost FTP is a **Windows + Linux** desktop product with one shared transfer/security core and platform-specific presentation layers.
+Ghost FTP **1.0.0 Stable** is a native Windows/Linux desktop client for FTP, FTPS and SFTP. The product is designed around a small typed Go core, explicit platform adapters, local-only persistent state and fail-closed transfer/security boundaries.
 
-The current desktop development baseline is **0.2.0 Beta**. Version maturity does not change the architecture contract: all `0.x.y` builds use the same maintained Windows/Linux core and move toward the first stable **1.0.0** release.
+## Release identity
 
-## Design goals
+The root `VERSION` file is the production version source. Release binaries receive the version through linker flags; development source keeps a `dev` fallback and does not hard-code a production number.
 
-The architecture is optimized for:
+The official tag namespace is:
 
-- one protocol/transfer implementation shared across desktop frontends;
-- typed in-process UI-to-engine calls rather than browser/localhost IPC;
-- strict credential lifetime and trust boundaries;
-- conservative remote overwrite/recovery semantics;
-- platform-native behavior where it improves security or usability;
-- no external Go module dependency graph in the desktop/core module;
-- explicit, auditable OS transport prerequisites;
-- no application telemetry, analytics or background tracking;
-- one canonical application version shared by Windows Setup, Windows Portable and Linux packages.
+```text
+ghostftp-vX.Y.Z
+```
 
-## Layer overview
+## Main layers
 
 ### `cmd/ghostftp`
 
-Application entrypoint and secure AskPass helper mode. It owns startup, single-instance/process setup and the narrowly scoped credential prompt bridge required by OpenSSH.
-
-Production builds inject the canonical numeric version from the root `VERSION` file. User-facing pre-1.0 surfaces may append **Beta**, while package metadata remains strict numeric semantic versioning.
-
-### `internal/desktop`
-
-Platform presentation layer.
-
-- Windows files use Win32 controls, custom owner-drawn visual elements, high-DPI layout, native dialogs and graphical local/remote/queue panels.
-- Linux uses the dependency-free native X11/XWayland-compatible graphical frontend and retains the hardened terminal frontend for headless or explicit fallback use.
-
-Both frontends call the same typed `internal/api.Engine` methods.
-
-The Windows presentation includes the main dual-pane workspace and a native Site Manager. Site Manager is a UI workflow over the same profile/connection engine rather than a second connection implementation.
+Application entry point. It initializes product identity, local state and the platform desktop frontend. It does not own protocol behavior.
 
 ### `internal/api`
 
-The stable in-process application boundary. It exposes typed operations for:
-
-- profiles and settings;
-- connect/disconnect/trust;
-- local filesystem actions;
-- remote filesystem actions;
-- transfer queue control;
-- single-file and tree transfer planning.
-
-There is no generic JSON dispatcher, localhost HTTP server or browser IPC layer between UI and engine.
+Typed application engine used by both desktop frontends. It coordinates local/remote navigation, connection state and tree transfers without exposing platform-specific UI details to protocol code.
 
 ### `internal/remote`
 
-Connection/session ownership and protocol adapters.
-
-Responsibilities include:
-
-- endpoint/account/private-key identity binding;
-- protected secret handoff;
-- SFTP host-key trust;
-- connection probing/diagnostics;
-- safe session operation acquisition/release;
-- bounded disconnect cleanup;
-- protocol-specific FTP/FTPS/SFTP operations.
-
-Current protocol execution delegates to OS tools:
-
-- `curl` for FTP/FTPS;
-- OpenSSH `ssh`/`sftp` for SFTP.
-
-Ghost FTP supplies constrained configuration/environment rather than inheriting unsafe ambient proxy/SSH behavior.
+FTP/FTPS/SFTP connection and transfer implementation. This layer owns protocol command construction, process lifecycle for system transfer tools, host-key trust, remote staging/commit behavior and privacy-safe diagnostic classification.
 
 ### `internal/transfer`
 
-Shared transfer scheduler and queue. It owns:
-
-- parallelism;
-- pause/resume;
-- cancellation;
-- retry and retry delay;
-- conflict policy;
-- event/snapshot reporting;
-- safe final status handling.
-
-Windows and Linux graphical/terminal queue actions invoke this same manager.
+Transfer queue and lifecycle state. Jobs have explicit generations, status transitions, progress snapshots and cancellation/retry boundaries. UI consumers receive immutable/snapshot-style state instead of mutating in-flight protocol objects.
 
 ### `internal/config`
 
-Persistent settings/profile storage with validation, migration and guarded atomic writes.
-
-The canonical conflict policy is one of:
-
-- `skip`;
-- `replace`;
-- `replace_backup`.
-
-`replace_backup` is the conservative default and persisted unknown states migrate back to it.
+Settings and profile persistence. Writes use bounded local state, atomic/replace-oriented behavior and backup/recovery logic. Saved secrets are encrypted before durable profile storage.
 
 ### `internal/security`
 
-Reusable validation and filesystem/secret primitives, including:
+Shared validators and local safety primitives: host/path validation, protected secret handling, remote file path checks, symlink/reparse-aware removal and SFTP fingerprint validation.
 
-- connection validation;
-- secret validation;
-- SFTP fingerprint validation;
-- runtime secret protection/forgetting;
-- local path/root checks;
-- recursive remove-without-follow protections;
-- reparse/symlink checks.
+### `internal/desktop`
 
-### `internal/localfs`
+Native Windows and Linux frontends. Both use the same typed engine and product semantics. Platform-native rendering/input differences are permitted; protocol, privacy and transfer semantics are not duplicated.
 
-Local filesystem browser/action layer. It applies no-follow/reparse-point and rename/delete safeguards rather than allowing each UI to manipulate files directly.
+### `cmd/installer`
 
-### `internal/i18n`
+Windows per-user Setup/maintenance application. Installation is staged, validated and rollback-oriented. Integrated uninstall registration points back to the installed Ghost FTP maintenance path rather than a separate unrelated product.
 
-Canonical English-first runtime registry and catalogs. English is the default/fallback and the current registry contains 24 languages.
+## Connection architecture
 
-### `internal/brand`
+A connection profile is normalized and validated before transport setup. Transport choice is explicit:
 
-Canonical product identity plus user-facing version presentation helpers. The root `VERSION` file remains the machine-readable source of truth; the brand layer may render a `0.x.y` value as `0.x.y Beta` for the UI without changing binary/package metadata.
+- FTP for compatibility where unencrypted transport is deliberately selected;
+- FTPS where TLS protection is requested;
+- SFTP for SSH-based transfer with host-key trust policy.
 
-### `internal/platform`
+Failed secure transport is not silently converted to a weaker transport.
 
-OS-specific native behavior such as Windows hardening/dialogs/credential protection/file moves and cross-platform equivalents where appropriate.
+Connection errors pass through `internal/usererror` and shared-hosting diagnostic classification before presentation. The user receives actionable categories while passwords, passphrases and protected secret payloads remain excluded from error copy.
 
-## Connection flow
+## Transfer integrity
 
-A desktop connection follows this sequence:
+Ghost FTP uses staged/rollback-oriented operations for remote writes and local destination changes where the protocol/tooling permits it. The transfer layer binds jobs to the connection generation that created them so stale work cannot silently continue against a later connection.
 
-1. frontend collects raw protocol/endpoint/credential input;
-2. strict raw connection validation runs before normalization can hide malformed input;
-3. profile resolution may supply saved secrets only when endpoint/account/private-key identity still matches;
-4. protected runtime secret objects are created near the transport boundary;
-5. SFTP performs host-key discovery/trust validation when needed;
-6. the remote manager creates the session;
-7. the existing initial listing is used for lightweight connection diagnostics;
-8. the transfer manager is enabled only after a confirmed connection.
+Important invariants include:
 
-Saved credentials must not silently migrate to a different endpoint/account/key identity.
+- local path containment before filesystem mutation;
+- source snapshots for uploads so mid-transfer source changes can be detected/handled deterministically;
+- remote destination validation before commit where available;
+- cleanup that refuses unsafe traversal through symlink/reparse boundaries;
+- bounded retry/cancel lifecycle;
+- truthful progress, speed and ETA snapshots rather than fabricated completion state.
 
-## Site Manager flow
+## State and privacy architecture
 
-The native Windows Site Manager provides one place for saved sites and quick connections.
+Settings, profiles and protected credentials remain local. Ghost FTP has no application telemetry backend and no product account service. Production workflows explicitly disable Go telemetry.
 
-A saved site contains public endpoint/profile metadata and references protected credentials through the existing profile/security implementation. Selecting a saved site must never reveal an existing stored password or key passphrase as plaintext.
+Saved secrets are opt-in:
 
-A quick connection can provide protocol, host, port, username, password, local path, remote path, SFTP private key and passphrase. Pressing **Connect** applies those values to the main connection state and invokes the same `connectNow()` path used by the primary connection UI.
+- Windows uses the current-user operating-system protection boundary;
+- Linux uses local authenticated encryption with user-private key material.
 
-The one-click **Sites** toolbar button and the native menu both open the same Site Manager implementation. The control is disabled while connected or while a connection transition is in progress so profile editing cannot race active session state.
+Runtime diagnostic text is treated as a privacy boundary. Tests reject credential-like material in user-facing error paths.
 
-## SFTP process boundary
+## Dependency architecture
 
-Ghost FTP creates a constrained OpenSSH configuration that disables ambient features such as proxy commands, jump hosts, identity agents and forwarding.
+The maintained Go module has no external module requirements. CI/release jobs run with:
 
-Password/passphrase prompts use the Ghost FTP AskPass helper with an unpredictable runtime token and protected secret blob. The application rejects untrusted helper-parent context and does not create an on-disk password/passphrase file.
+```text
+GOPROXY=off
+GOSUMDB=off
+```
 
-## FTP/FTPS process boundary
+Platform transfer capabilities are explicit system-runtime dependencies and are checked rather than downloaded dynamically by the application.
 
-Ghost FTP invokes curl with configuration supplied on standard input, suppresses ambient curl config, clears proxy use and sanitizes proxy-related environment variables. Passwords are not placed in command-line arguments.
+## Windows architecture
 
-FTPS certificate validation remains enabled and the application does not use a blanket revocation-check bypass.
+Windows uses native Win32 surfaces and controls. The release pipeline produces x64 and x86 Setup/Portable packages; the x32 Setup name is a byte-identical compatibility alias of x86.
 
-## Transfer safety
+Stable release publication requires the protected trusted Authenticode identity. Signing key material is never stored in the repository.
 
-Upload/download operations use staging and validation before final promotion. High-risk invariants include:
+## Linux architecture
 
-- destination paths validated before queueing;
-- local path constrained to the expected root;
-- download part file validated against symlink/reparse substitution;
-- overwrite recovery controlled by conflict policy;
-- directory transfer planning bounded by depth/item limits;
-- symlink handling is explicit;
-- cancellation cannot rewrite a completed result after success;
-- disconnect waits for active session operations within bounded cleanup rules.
+Linux uses the maintained native X11/XWayland-compatible desktop path and packages the same core for amd64, arm64 and i386. DEB metadata is generated from `VERSION` and verified before publication.
 
-## Windows presentation
+## Release architecture
 
-Windows is the graphical reference frontend. The current visual system uses a graphite/navy palette, high-DPI scaling and native owner-drawn buttons while remaining free of a third-party GUI framework.
+The release workflow runs a complete quality gate before artifact publication:
 
-The main workspace intentionally follows the information architecture expected from a professional FTP client:
+1. formatting, race tests and vet;
+2. repository, platform, dependency, security, privacy, localization and documentation audits;
+3. Python regression suites;
+4. Windows and Linux production builds;
+5. signing/metadata checks;
+6. explicit release allow-list assembly;
+7. SHA-256 manifest generation;
+8. GitHub Release publication and read-back;
+9. stable GitHub Packages/GHCR distribution-bundle publication and registry read-back.
 
-- compact application/header state;
-- saved-site toolbar;
-- connection controls;
-- visible session/status strip;
-- balanced local and server panes;
-- direct upload/download actions between panes;
-- full-width transfer queue and queue actions.
+The GitHub Package is built only from the verified `release/` directory with Docker build networking disabled. It is a distribution artifact, not an application runtime container.
 
-The layout is reapplied after resize, DPI, protocol and language changes so the production UI does not regress to obsolete geometry after the initial render.
+## Supported production boundary
 
-The Win32 layer owns presentation/input orchestration only; core connection/transfer/security behavior remains outside the UI files.
+Ghost FTP 1.0.0 maintains Windows and Linux as the active application platforms. Product behavior, tests, release assets and documentation must stay aligned with that boundary.
 
-## Linux presentation
-
-Linux uses a native X11 GUI with hardened terminal fallback over the same engine. It supports the same SFTP password/private-key/passphrase model, remote actions, transfer scheduler and validated settings store.
-
-The frontend build tag is explicitly `linux`; retired macOS application handling does not share this source path.
-
-See [Platform parity](PLATFORM-PARITY.md) for the current exposed-feature matrix.
-
-## Version and packaging boundary
-
-The root `VERSION` file is the only canonical package version.
-
-Windows Setup and Portable are separate package forms but never separate version lines. Linux packages use the same value. During the Beta phase the canonical version is `0.x.y`; the first stable version is reserved as `1.0.0`.
-
-See [Versioning policy](VERSIONING.md).
-
-
-## Retired platforms
-
-Android, iOS and macOS application source trees are not part of the active Windows/Linux product matrix. Their historical implementation/release information remains in Git provenance and historical documentation where applicable.
-
-New desktop work must not reintroduce those platform roots without an explicit future product decision and a new compatibility/release review.
-
-## Architectural change rule
-
-New connection/transfer options should be implemented in shared core first, then exposed by Windows and Linux frontends. A frontend-specific duplicate protocol or scheduler implementation is considered architectural drift and should fail review.
+See also [Security](SECURITY.md), [Privacy](PRIVACY.md), [Platform parity](PLATFORM-PARITY.md), [Packages](PACKAGES.md) and [Release verification](RELEASE-VERIFICATION.md).
