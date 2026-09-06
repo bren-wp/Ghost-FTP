@@ -121,6 +121,8 @@ func cleanupStaleSFTPArtifacts(dir string) {
 			_ = os.Remove(filepath.Join(dir, name))
 		}
 	}
+	// 2.8 and older used one persistent generic SSH config. It contains no
+	// credential, but it is obsolete once every session receives its own config.
 	_ = os.Remove(filepath.Join(dir, "ssh-client.conf"))
 }
 
@@ -161,6 +163,9 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if err != nil {
 		return "", "", "", err
 	}
+
+	// Keep the user-entered host out of both the process command line and disk.
+	// OpenSSH ssh-keyscan accepts -f - to read targets directly from stdin.
 	scanCtx, scanCancel := context.WithTimeout(ctx, 12*time.Second)
 	defer scanCancel()
 	cmd := exec.CommandContext(scanCtx, scan, "-T", "8", "-t", "ed25519,ecdsa,rsa", "-p", strconv.Itoa(port), "-f", "-")
@@ -194,6 +199,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if len(lines) == 0 {
 		return "", "", "", errors.New("poslužitelj nije vratio SSH host ključ")
 	}
+
 	selected := lines[0]
 	rank := func(line string) int {
 		switch alg := scanKeyAlgorithm(line); {
@@ -216,6 +222,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if algorithm == "" {
 		return "", "", "", errors.New("poslužitelj je vratio nepodržan SSH host ključ")
 	}
+
 	name, err := writePrivateTempFile(tempDir, "GhostFTP-key-*.known_hosts", []byte(selected+"\n"))
 	if err != nil {
 		return "", "", "", err
@@ -283,6 +290,9 @@ func validatePrivateKeyPath(keyPath string) error {
 	return nil
 }
 
+// snapshotPrivateKey closes the check-then-open window around a user-selected
+// key. OpenSSH only sees a private 0600 copy made from one verified stable file
+// handle, never the original path that can be swapped after validation.
 func snapshotPrivateKey(dir, keyPath string) (string, error) {
 	if keyPath == "" {
 		return "", nil
@@ -630,6 +640,7 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 	} else if st.IsDir() {
 		return errors.New("upload očekuje datoteku")
 	}
+
 	dir, base, tempName, savedName, err := remoteTransferNames(remotePath)
 	if err != nil {
 		return err
