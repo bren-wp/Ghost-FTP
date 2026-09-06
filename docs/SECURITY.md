@@ -1,118 +1,121 @@
-# Security
+# Ghost FTP security
 
-Ghost FTP keeps transport, credential, remote-path, local-filesystem, account-state and transfer/recovery boundaries fail-closed.
+Ghost FTP **1.0.0 Stable** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed Go code and covered by platform-specific regression tests plus repository audits.
 
-**Current Ghost FTP release: 0.2.1**
+## Supported transport security
 
-The active desktop application platforms are **Windows and Linux**. The current `0.x` line is Beta until the complete stability/release criteria are met; the first stable release is `1.0.0`. Historical releases may document additional platforms that existed at the time, but those historical facts are not the active security/support contract.
+Ghost FTP supports FTP, FTPS and SFTP.
 
-## Desktop security boundary
+- Plain FTP is an unencrypted compatibility mode and must not be confused with a secure transport.
+- FTPS uses TLS protection and does not silently downgrade a failed secure request to plain FTP.
+- SFTP uses SSH semantics and enforces host-key trust/fingerprint validation before a server is treated as trusted.
 
-Windows and Linux use the same typed `internal/api.Engine`, remote manager, transfer manager, settings/profile stores and security primitives. Frontends do not implement their own FTP/SFTP stack or queue scheduler.
+Connection profiles are validated before use: host, port, protocol, remote path, credential fields and key/fingerprint inputs pass through bounded validation logic.
 
-Important invariants include:
+## SFTP host-key trust
 
-- no generic JSON dispatcher or localhost/browser IPC between desktop UI and engine;
-- strict raw connection validation before normalization can hide malformed input;
-- secrets never written to application logs;
-- endpoint/account/private-key binding for saved profile credentials;
-- SFTP host-key fingerprint trust;
-- bounded connection/session cleanup;
-- staging and destination validation before final transfer promotion;
-- recursive local operations protected against symlink/junction/reparse traversal;
-- filesystem-root recursive deletion blocked;
-- conflict/retry behavior centralized in the transfer engine;
-- UI toolbar/menu actions mirror the canonical action-state checks rather than bypassing them.
+SFTP host-key fingerprints are normalized and validated by the shared security layer. A changed/unexpected key is an identity problem, not a harmless connectivity warning. Users should verify the new fingerprint through an independent trusted channel before accepting an intentional server-key rotation.
 
-## Credential handling
+Private-key authentication validates local key paths and keeps passphrases out of durable plaintext profile fields.
+
+## FTPS certificate trust
+
+FTPS relies on normal certificate/hostname verification for the selected server. The application does not ship a general “trust everything” mode for production use. A TLS failure is surfaced as a connection error rather than retried through a weaker transport.
+
+## Input and path validation
+
+Untrusted values are bounded before use. The maintained validators cover host names/IP addresses, ports, control characters, remote file paths, local containment and destructive filesystem operations.
+
+Remote/local tree operations are designed to avoid traversal through unsafe paths. Local recursive deletion includes symlink/reparse-aware protections so a selected tree cannot silently escape its intended root.
+
+## Transfer staging and commit safety
+
+Transfers are treated as lifecycle operations rather than blind file copies. The maintained release includes tests for:
+
+- upload-source snapshots;
+- staged remote operations and cleanup;
+- remote destination/commit revalidation;
+- local rollback cleanup;
+- transfer generation binding across reconnects;
+- cancellation/failure terminal-state correctness;
+- symlink-safe filesystem handling.
+
+The goal is fail-closed behavior when the source/destination identity changes while an operation is in flight.
+
+## Process execution boundary
+
+Some FTP/SFTP functionality uses explicitly detected system transfer tools. Process construction, environment handling, tool capability probing and lifecycle are covered by regression tests. Credentials are not intentionally placed into user-visible command output.
+
+Tool availability is diagnosed; the application does not silently download replacement networking tools.
+
+## Saved credential protection
+
+Saved credentials are opt-in.
 
 ### Windows
 
-Saved profile secrets use Windows DPAPI-backed protection. Runtime secret material is kept near the transport boundary and cleared/forgotten where practical.
+Protected profile secrets use the current-user Windows protection boundary. Sensitive runtime values are not intended to be serialized as plaintext profile fields.
 
 ### Linux
 
-Linux uses the shared profile/runtime secret infrastructure. The current frontend supports SFTP password authentication and private-key authentication with an optional key passphrase.
+Saved secrets use local authenticated encryption with user-private key material. Key/profile handling includes local permission and binding checks.
 
-Persisted Linux profile envelopes use authenticated AES-GCM storage with a per-user key file. The Ghost FTP state directory is required to be owned by the current user and private; the implementation may tighten only the verified leaf state directory to `0700`. The key file is a regular non-symlink file restricted to `0600`, and authenticated-encryption tampering is rejected.
+If protected data cannot be safely decrypted, Ghost FTP should require the user to re-enter the secret rather than falling back to plaintext persistence.
 
-Linux does not silently downgrade password/passphrase persistence to plaintext merely to imitate Windows DPAPI. Current Linux profile commands can persist non-secret connection metadata and verified public endpoint pins without reconstructing an already-cleared credential.
+## Runtime secret minimization
 
-### Process handoff
+Runtime secrets are kept only as long as required for the selected operation. Diagnostic/error classification is deliberately separated from secret values. Tests cover privacy-safe error reporting and profile-secret guards.
 
-External protocol processes receive a minimized environment. Password/passphrase values are not exposed as ordinary command-line arguments.
+## Settings/profile durability
 
-OpenSSH AskPass is constrained by an unpredictable runtime token and trusted parent-process checks. Ghost FTP does **not** create an on-disk AskPass password/passphrase file. Unknown/MFA-style prompts are refused instead of receiving a stored secret.
+Settings and profiles use local persistence with replacement/recovery behavior rather than unbounded append logs. Validation runs again when data is loaded. Malformed or invalid state must not become trusted merely because it came from a local file.
 
-## SFTP
+## Network privacy boundary
 
-Ghost FTP uses OS OpenSSH `ssh`/`sftp` with an application-generated constrained configuration.
+Ghost FTP has no application telemetry service, ad SDK or account backend. Production CI and release jobs explicitly disable Go telemetry. Network activity is user-directed transport traffic plus the selected server diagnostics required to operate the chosen protocol.
 
-The configuration disables ambient behaviors that could change the trust/network boundary, including:
+## Release supply-chain security
 
-- ProxyCommand;
-- ProxyJump;
-- identity-agent inheritance;
-- agent forwarding;
-- ordinary forwarding;
-- global known-host inheritance;
-- DNS/update-host-key behavior used outside the application's explicit trust flow.
+The production release workflow:
 
-Private-key paths are checked using `Lstat`/reparse-point protections before use.
+- pins GitHub Actions to exact revisions;
+- disables Go telemetry and external Go module resolution;
+- runs race tests, vet and security/privacy/dependency audits;
+- builds Windows/Linux artifacts from exact source;
+- requires protected trusted Authenticode for stable Windows publication;
+- removes temporary signing material from the runner;
+- assembles only an explicit release file set;
+- generates SHA-256 checksums;
+- prevents an existing version tag from being rewritten to another commit;
+- verifies the published GitHub Release asset set and stable `prerelease=false` state;
+- publishes the stable GHCR release bundle only from the verified `release/` directory;
+- verifies the registry artifact can be read back.
 
-A new server key requires explicit fingerprint confirmation. Saved trust is bound to the expected endpoint rather than silently reused across a different server.
+Private signing material must never be committed to source.
 
-## FTP and FTPS
+## GitHub Packages boundary
 
-FTP/FTPS uses OS `curl` with configuration supplied through standard input.
+The stable package at `ghcr.io/bren-wp/ghost-ftp` is a release distribution bundle, not a runtime container. Its build uses `FROM scratch`, copies only the verified release directory and disables Docker networking during build. It must not contain source worktrees, user data or protected release secrets.
 
-Ghost FTP:
+## Security testing
 
-- starts curl in a mode that suppresses ambient user curl config;
-- disables proxy use for the session;
-- strips proxy-related environment variables;
-- protects password lifetime around invocation;
-- validates download staging files before promotion.
+The exact 1.0.0 candidate is expected to pass:
 
-Explicit FTPS keeps certificate validation enabled. The application does not add a blanket `ssl-no-revoke` bypass.
+```text
+go test -race ./...
+go vet ./...
+python scripts/audit_security.py
+python scripts/audit_privacy.py
+python scripts/audit_dependencies.py
+python scripts/audit_repository.py
+python scripts/audit_release.py
+python -m unittest discover -s scripts -p 'test_*.py'
+```
 
-Plain FTP remains supported only as an explicitly unencrypted compatibility option.
+Dedicated Go tests additionally cover host validation, SFTP fingerprints, private-key handling, FTP protocol behavior, transfer staging/cleanup, process lifecycle, filesystem hardening and configuration recovery.
 
-## Transfer and filesystem hardening
+## Reporting a vulnerability
 
-Transfers use staging/commit semantics and conflict-policy handling rather than overwriting destinations in an uncontrolled sequence. Temporary artifacts and recovery backups are named and validated within the intended destination namespace.
+Do not put real passwords, private keys, passphrases, server private data or signing secrets into public issues. Provide the Ghost FTP version, operating system, protocol, a synthetic/minimal reproduction and privacy-safe logs.
 
-Remote cleanup and commit operations revalidate state where necessary so a server-side topology change cannot silently redirect finalization to an unsafe path.
-
-Local recursive operations reject traversal through symlink/junction/reparse structures and block destructive recursion at filesystem roots.
-
-## Privacy and network boundaries
-
-Ghost FTP has no telemetry, analytics, advertising SDK, background account service or external crash-reporting service.
-
-The application initiates network traffic only as required for the user's configured FTP/FTPS/SFTP destination and for explicit operating-system transport operations. There is no Ghost FTP cloud account or hidden synchronization endpoint.
-
-See [Privacy](PRIVACY.md) and [Dependencies](DEPENDENCIES.md) for the maintained data and dependency contracts.
-
-## Installer and release security
-
-Windows Setup uses the same application binary as Portable for product functionality. Setup owns installation registration, shortcuts and the Windows Installed Apps uninstall entry; uninstall is integrated through the installed `GhostFTP.exe --uninstall` path rather than a separate uninstaller executable.
-
-Installation mutations are transactional where supported. Registry values changed by Setup are snapshotted so a failed install/upgrade can restore the previous App Paths and Installed Apps registration state.
-
-Production release workflows:
-
-- derive version metadata from the root `VERSION` file;
-- disable Go telemetry;
-- build Windows and Linux in independent jobs;
-- refuse mutable reuse of an existing release tag;
-- generate SHA-256 checksums for all public release files;
-- perform release asset read-back verification;
-- keep signing credentials outside the repository;
-- require a trusted Authenticode identity for stable Windows releases.
-
-Pre-1.0 Beta Windows artifacts may be unsigned when no production signing identity is configured; that state is recorded explicitly in build metadata instead of being misrepresented as signed.
-
-## Security issue reporting
-
-Do not include production credentials, private keys, customer server addresses or secret material in public issues, screenshots, logs or test fixtures. Reports should contain the minimum reproduction data needed to demonstrate the issue safely.
+See [Support](SUPPORT.md) for reporting guidance and [Privacy](PRIVACY.md) for data-handling guarantees.
