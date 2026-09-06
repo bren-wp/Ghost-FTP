@@ -60,13 +60,13 @@ type Manager struct {
 }
 
 type pendingTrustState struct {
-	endpointKey                            string
-	username                               string
-	keyPath                                string
-	fingerprint                            string
-	passwordBlob, passphraseBlob           string
-	ownsPasswordBlob, ownsPassphraseBlob   bool
-	expires                                time.Time
+	endpointKey                          string
+	username                             string
+	keyPath                              string
+	fingerprint                          string
+	passwordBlob, passphraseBlob         string
+	ownsPasswordBlob, ownsPassphraseBlob bool
+	expires                              time.Time
 }
 
 func (p *pendingTrustState) forgetOwnedSecrets() {
@@ -278,15 +278,15 @@ func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolve
 		ownsPassphraseBlob = true
 	}
 	m.pendingTrust = pendingTrustState{
-		endpointKey:          profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port),
-		username:             cfg.Username,
-		keyPath:              cfg.PrivateKeyPath,
-		fingerprint:          fingerprint,
-		passwordBlob:         passwordBlob,
-		passphraseBlob:       passphraseBlob,
-		ownsPasswordBlob:     ownsPasswordBlob,
-		ownsPassphraseBlob:   ownsPassphraseBlob,
-		expires:              time.Now().Add(2 * time.Minute),
+		endpointKey:        profilebinding.EndpointKey(cfg.Protocol, cfg.Host, cfg.Port),
+		username:           cfg.Username,
+		keyPath:            cfg.PrivateKeyPath,
+		fingerprint:        fingerprint,
+		passwordBlob:       passwordBlob,
+		passphraseBlob:     passphraseBlob,
+		ownsPasswordBlob:   ownsPasswordBlob,
+		ownsPassphraseBlob: ownsPassphraseBlob,
+		expires:            time.Now().Add(2 * time.Minute),
 	}
 	return nil
 }
