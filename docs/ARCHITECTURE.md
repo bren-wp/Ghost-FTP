@@ -1,6 +1,6 @@
 # Ghost FTP architecture
 
-Ghost FTP **1.0.0 Stable** is a native Windows/Linux desktop client for FTP, FTPS and SFTP. The product is designed around a small typed Go core, explicit platform adapters, local-only persistent state and fail-closed transfer/security boundaries.
+Ghost FTP **1.1.1 Stable** is a native Windows/Linux desktop client for FTP, FTPS and SFTP. The product is designed around a small typed Go core, explicit platform adapters, local-only persistent state and fail-closed transfer/security boundaries.
 
 ## Release identity
 
@@ -11,6 +11,8 @@ The official tag namespace is:
 ```text
 ghostftp-vX.Y.Z
 ```
+
+Previously published release tags are immutable history; a new stable candidate uses a new semantic version rather than moving an older tag.
 
 ## Main layers
 
@@ -32,7 +34,7 @@ Transfer queue and lifecycle state. Jobs have explicit generations, status trans
 
 ### `internal/config`
 
-Settings and profile persistence. Writes use bounded local state, atomic/replace-oriented behavior and backup/recovery logic. Saved secrets are encrypted before durable profile storage.
+Settings and profile persistence. Writes use bounded local state, atomic/replace-oriented behavior and backup/recovery logic. Saved secrets are encrypted before durable profile storage. Fresh/fallback appearance state resolves to Classic Light; invalid/missing state does not create a third implicit theme.
 
 ### `internal/security`
 
@@ -50,13 +52,23 @@ Windows per-user Setup/maintenance application. Installation is staged, validate
 
 A connection profile is normalized and validated before transport setup. Transport choice is explicit:
 
-- FTP for compatibility where unencrypted transport is deliberately selected;
-- FTPS where TLS protection is requested;
-- SFTP for SSH-based transfer with host-key trust policy.
+- **FTPS** is the fresh/default quick-connect transport on Windows and Linux;
+- FTP remains an explicit compatibility choice where unencrypted transport is deliberately selected;
+- SFTP provides SSH-based transfer with host-key trust policy.
 
 Failed secure transport is not silently converted to a weaker transport.
 
+The desktop frontends drive the shared `remote.Manager` connection lifecycle. A successful connection exposes remote list/operation state only after the transport session is established. Connection generation/identity invalidates stale asynchronous callbacks and transfer work when the user cancels, disconnects or reconnects.
+
 Connection errors pass through `internal/usererror` and shared-hosting diagnostic classification before presentation. The user receives actionable categories while passwords, passphrases and protected secret payloads remain excluded from error copy.
+
+## SFTP trust and protected-secret architecture
+
+SFTP host-key verification can require a two-step trust flow. Pending trust state distinguishes protected secrets it owns from protected profile blobs it borrows.
+
+Owned temporary credentials are forgotten on cancel, expiry, fingerprint mismatch, replacement or failed/abandoned setup. On successful confirmation, ownership transfers only when the exact protected blob is accepted by the SFTP session. Session Close forgets session-owned secrets but does not invalidate borrowed profile credentials.
+
+This ownership model prevents both unnecessary secret retention and reconnect regressions caused by deleting profile-owned credential handles.
 
 ## Transfer integrity
 
@@ -78,7 +90,9 @@ Settings, profiles and protected credentials remain local. Ghost FTP has no appl
 Saved secrets are opt-in:
 
 - Windows uses the current-user operating-system protection boundary;
-- Linux uses local authenticated encryption with user-private key material.
+- Linux uses local authenticated encryption with user-private key material plus process-local protected-secret handles for runtime lifetime control.
+
+The main profile flow and Windows Site Manager share one credential-persistence consent policy. Entering a password/passphrase does not by itself authorize durable storage.
 
 Runtime diagnostic text is treated as a privacy boundary. Tests reject credential-like material in user-facing error paths.
 
@@ -95,13 +109,17 @@ Platform transfer capabilities are explicit system-runtime dependencies and are 
 
 ## Windows architecture
 
-Windows uses native Win32 surfaces and controls. The release pipeline produces x64 and x86 Setup/Portable packages; the x32 Setup name is a byte-identical compatibility alias of x86.
+Windows uses native Win32 surfaces and controls. Classic Light is the fresh/fallback appearance; Dark remains an explicit persisted choice. The release pipeline produces x64 and x86 Setup/Portable packages; the x32 Setup name is a byte-identical compatibility alias of x86.
 
 Production Authenticode is an optional hardening layer. If a protected trusted certificate is configured, the release pipeline signs and verifies the Windows artifacts. If it is absent, the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. The production workflow never creates a self-signed publisher identity as a substitute for a real trusted certificate.
 
 ## Linux architecture
 
-Linux uses the maintained native X11/XWayland-compatible desktop path and packages the same core for amd64, arm64 and i386. DEB metadata is generated from `VERSION` and verified before publication.
+Linux uses the maintained native X11/XWayland-compatible desktop path and packages the same core for amd64, arm64 and i386. Classic Light is the canonical Linux UI palette. DEB metadata is generated from `VERSION` and verified before publication.
+
+## Authentic UI evidence architecture
+
+The dedicated screenshot workflow builds and launches the real Windows x64 Portable executable, captures maintained product windows and validates/persists PNG evidence only when the capture still corresponds to the branch head. Documentation must not substitute generated or manually composed mockups for production UI evidence.
 
 ## Release architecture
 
@@ -121,6 +139,6 @@ The GitHub Package is built only from the verified `release/` directory with Doc
 
 ## Supported production boundary
 
-Ghost FTP 1.0.0 maintains Windows and Linux as the active application platforms. Product behavior, tests, release assets and documentation must stay aligned with that boundary.
+Ghost FTP 1.1.1 maintains Windows and Linux as the active application platforms. Product behavior, tests, release assets and documentation must stay aligned with that boundary.
 
 See also [Security](SECURITY.md), [Privacy](PRIVACY.md), [Platform parity](PLATFORM-PARITY.md), [Packages](PACKAGES.md) and [Release verification](RELEASE-VERIFICATION.md).
