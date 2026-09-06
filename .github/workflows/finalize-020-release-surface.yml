@@ -1,0 +1,54 @@
+name: Finalize Ghost FTP 0.2.0 release surface
+
+on:
+  push:
+    branches:
+      - work/ghostftp-0.2.0-desktop-quality
+    paths:
+      - .github/workflows/finalize-020-release-surface.yml
+
+permissions:
+  contents: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: work/ghostftp-0.2.0-desktop-quality
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Apply and verify release cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+          python scripts/finalize_020_release_surface.py
+          test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
+          go test ./...
+          GOOS=windows GOARCH=amd64 go build -o /tmp/GhostFTP.exe ./cmd/ghostftp
+          GOOS=windows GOARCH=amd64 go build -o /tmp/GhostFTP-Setup.exe ./cmd/installer
+      - name: Commit release-surface cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'Remove retired Web and NuGet release surfaces'
+          git push origin HEAD:work/ghostftp-0.2.0-desktop-quality
