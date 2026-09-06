@@ -64,6 +64,14 @@ jobs:
           if security_text.count(old) != 1:
               raise SystemExit('security release marker guard failed')
           security.write_text(security_text.replace(old, new, 1), encoding='utf-8')
+
+          maintenance = Path('scripts/test_maintenance.py')
+          maintenance_text = maintenance.read_text(encoding='utf-8')
+          old_test = '        self.assertEqual(version, "0.2.0")'
+          new_test = '        self.assertEqual(version, "0.2.1")'
+          if maintenance_text.count(old_test) != 1:
+              raise SystemExit('maintenance version guard failed')
+          maintenance.write_text(maintenance_text.replace(old_test, new_test, 1), encoding='utf-8')
           PY
-          git add docs/SECURITY.md
+          git add docs/SECURITY.md scripts/test_maintenance.py
           python scripts/finalize_0_2_1.py
