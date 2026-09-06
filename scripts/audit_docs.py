@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Ghost FTP documentation and the Windows/Linux-only product contract."""
+"""Validate Ghost FTP active documentation against the current product/release contract."""
 
 from __future__ import annotations
 
@@ -23,10 +23,22 @@ ACTIVE_DOCS = (
     "docs/ARCHITECTURE.md",
     "docs/ROADMAP.md",
     "docs/GITHUB-RELEASES.md",
+    "docs/PACKAGES.md",
     "docs/RELEASE-VERIFICATION.md",
     "docs/CONTRIBUTING.md",
     "docs/PLATFORM-PARITY.md",
     "docs/VERSIONING.md",
+    "docs/SECURITY.md",
+    "docs/PRIVACY.md",
+    "docs/SIGNING.md",
+    "docs/LOCALIZATION.md",
+    "docs/DEPENDENCIES.md",
+    "docs/SETTINGS.md",
+    "docs/TESTING.md",
+    "docs/SUPPORT.md",
+    "docs/REFERENCE-UI.md",
+    "linux/README.md",
+    "scripts/README.md",
 )
 
 
@@ -64,6 +76,7 @@ def main() -> int:
     version = version_path.read_text(encoding="utf-8").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
+    major = int(version.split(".", 1)[0])
 
     files = sorted(path for path in ROOT.rglob("*.md") if ".git" not in path.parts)
     if not files or not INDEX.is_file():
@@ -90,10 +103,16 @@ def main() -> int:
     if f"**Current Ghost FTP release: {version}**" not in index:
         fail("docs/README release marker is stale")
 
-    if version.startswith("0."):
+    if major == 0:
         for rel, text in (("README.md", readme), ("docs/README.md", index)):
             if "Development status: **Beta**" not in text:
                 fail(f"{rel} must mark pre-1.0 releases as Beta")
+    else:
+        for rel, text in (("README.md", readme), ("docs/README.md", index)):
+            if "Development status: **Stable**" not in text:
+                fail(f"{rel} must mark 1.x+ releases as Stable")
+        if "prerelease=false" not in index:
+            fail("stable documentation index must state prerelease=false")
 
     for rel in ACTIVE_DOCS:
         path = ROOT / rel
@@ -104,10 +123,6 @@ def main() -> int:
             if marker in lowered:
                 fail(f"retired application surface appears in active guidance: {rel} -> {marker}")
 
-    for required in ("docs/PLATFORM-PARITY.md", "docs/VERSIONING.md", "linux/README.md"):
-        if not (ROOT / required).is_file():
-            fail(f"missing required Windows/Linux documentation: {required}")
-
     for marker in ("Windows", "Linux", "24", "FTP", "FTPS", "SFTP"):
         if marker not in readme:
             fail(f"README is missing product marker: {marker}")
@@ -117,22 +132,41 @@ def main() -> int:
             fail(f"release contract marker missing: {marker}")
 
     parity = (DOCS / "PLATFORM-PARITY.md").read_text(encoding="utf-8")
-    for marker in ("Windows and Linux platform parity", "SFTP password", "SFTP key passphrase", "24-language", "same typed `internal/api.Engine`"):
+    for marker in (
+        "Windows and Linux platform parity",
+        "SFTP password",
+        "SFTP key passphrase",
+        "24-language",
+        "same typed `internal/api.Engine`",
+    ):
         if marker not in parity:
             fail(f"platform parity documentation missing marker: {marker}")
 
     versioning = (DOCS / "VERSIONING.md").read_text(encoding="utf-8")
-    for marker in ("0.1.0", "0.x.y", "Beta", "1.0.0", "Setup", "Portable"):
+    for marker in ("0.1.0", "0.x.y", "Beta", "Stable", "1.0.0", "Setup", "Portable"):
         if marker not in versioning:
             fail(f"versioning documentation missing marker: {marker}")
+
+    packages = (DOCS / "PACKAGES.md").read_text(encoding="utf-8")
+    for marker in (
+        "ghcr.io/bren-wp/ghost-ftp",
+        "distribution bundle",
+        "not a runtime container",
+        "/ghostftp-release/",
+        "SHA256.txt",
+    ):
+        if marker not in packages:
+            fail(f"packages documentation missing marker: {marker}")
 
     print(f"DOCS_AUDIT=PASS ({version}; {len(files)} Markdown files)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("RETIRED_APPLICATION_SURFACES=ANDROID,IOS,MACOS,WEB,PWA")
     print("PRE_1_0_CHANNEL=BETA")
+    print("FIRST_STABLE_VERSION=1.0.0")
+    print("STABLE_GITHUB_RELEASE_PRERELEASE=FALSE")
     print("PUBLIC_PLATFORM_ARTIFACTS=9")
     print("PUBLIC_RELEASE_FILES=12")
+    print("STABLE_GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp")
     return 0
 
 
