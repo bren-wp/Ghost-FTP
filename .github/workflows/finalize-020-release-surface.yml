@@ -37,6 +37,16 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/finalize_020_release_surface.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'for rel in (".github/workflows/release.yml", "scripts/audit_release.py", "scripts/README.md"):'
+          new = 'for rel in (".github/workflows/release.yml", "scripts/README.md"):'
+          if text.count(old) != 1:
+              raise SystemExit('release cleanup guard patch target is not unique')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
           python scripts/finalize_020_release_surface.py
           test -z "$(gofmt -l $(find cmd internal -name '*.go' -print))"
           go test ./...
