@@ -9,29 +9,29 @@ import (
 
 func buttonColors(v buttonVariant, pressed, disabled bool) (bg, border, fg uintptr) {
 	if disabled {
-		return rgb(7, 24, 38), rgb(24, 48, 67), rgb(82, 111, 146)
+		return rgb(238, 241, 245), rgb(215, 220, 227), rgb(143, 151, 164)
 	}
 	switch v {
 	case buttonAccent:
 		if pressed {
-			return accentStrongColor(), rgb(145, 132, 255), rgb(248, 250, 255)
+			return accentStrongColor(), rgb(31, 75, 145), rgb(255, 255, 255)
 		}
-		return accentColor(), rgb(132, 155, 255), rgb(248, 250, 255)
+		return accentColor(), rgb(42, 91, 171), rgb(255, 255, 255)
 	case buttonDanger:
 		if pressed {
-			return rgb(112, 31, 49), rgb(245, 111, 132), rgb(255, 246, 248)
+			return rgb(145, 28, 23), rgb(120, 20, 17), rgb(255, 255, 255)
 		}
-		return rgb(73, 28, 43), rgb(190, 73, 99), rgb(255, 236, 241)
+		return rgb(255, 244, 242), rgb(218, 90, 82), dangerColor()
 	case buttonSubtle:
 		if pressed {
-			return rgb(12, 36, 54), rgb(47, 91, 120), textColor()
+			return rgb(229, 238, 250), rgb(158, 183, 218), textColor()
 		}
-		return panelColor(), borderColor(), rgb(173, 202, 236)
+		return panelColor(), borderColor(), rgb(61, 79, 102)
 	default:
 		if pressed {
-			return rgb(15, 43, 63), rgb(67, 111, 143), textColor()
+			return rgb(231, 235, 240), rgb(173, 181, 191), textColor()
 		}
-		return rgb(9, 31, 47), rgb(38, 75, 101), textColor()
+		return rgb(250, 251, 252), borderColor(), textColor()
 	}
 }
 
