@@ -68,6 +68,18 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("gh release create", workflow)
         self.assertLess(workflow.index("main moved from release commit"), workflow.index("gh release create"))
 
+    def test_stable_release_allows_truthfully_unsigned_windows(self) -> None:
+        workflow = read(".github/workflows/release.yml")
+        signing = read("docs/SIGNING.md")
+        self.assertIn("state=unsigned", workflow)
+        self.assertIn("state=signed", workflow)
+        self.assertIn("Publishing Stable with explicitly unsigned Windows artifacts", workflow)
+        self.assertIn("WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}", workflow)
+        self.assertNotIn("Stable Windows releases require a configured trusted Authenticode identity.", workflow)
+        self.assertNotIn("New-DevCodeSigningCertificate.ps1", workflow)
+        self.assertIn("WINDOWS_AUTHENTICODE=unsigned", signing)
+        self.assertIn("does **not** create a publicly trusted Windows publisher identity", signing)
+
     def test_version_history_and_current_desktop_contract(self) -> None:
         version = read("VERSION").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
