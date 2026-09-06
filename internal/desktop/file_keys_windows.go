@@ -11,8 +11,9 @@ const (
 
 	fshiftKeyboard = 0x04
 
-	idFocusLocalPath  = 701
-	idFocusRemotePath = 702
+	// Keep accelerator-only commands away from the control/menu ID ranges.
+	idFocusLocalPath  = 7601
+	idFocusRemotePath = 7602
 
 	emSetSelKeyboard = 0x00B1
 
