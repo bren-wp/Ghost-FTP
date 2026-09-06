@@ -4,7 +4,7 @@ Ghost FTP 0.2.0 Beta is distributed as a desktop application for **Windows** and
 
 Every `0.x.y` release is a Beta/prerelease. The first version that may be treated as stable is **1.0.0**, after the complete desktop security, stability, packaging and release gate is intentionally satisfied.
 
-Android, iOS, macOS, Web and PWA application packages are not part of the active product or release contract. Historical tags/releases remain immutable historical records.
+Only Windows and Linux desktop packages belong to the active product and release contract. Historical tags/releases remain immutable historical records.
 
 ## Windows
 
