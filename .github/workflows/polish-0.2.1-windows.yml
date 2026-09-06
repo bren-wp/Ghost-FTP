@@ -41,4 +41,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The owner-drawn menu migration removes the last real unsafe use from
+          # menu_windows.go. Patch the one-shot migration script at runtime so
+          # its generated file also drops that now-unused import before the
+          # Windows cross-build gate runs.
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/polish_0_2_1_windows_visual.py')
+          s = p.read_text(encoding='utf-8')
+          needle = "\nfiles=['internal/desktop/chrome_windows.go'"
+          insert = "\nrepl('internal/desktop/menu_windows.go', '\\t\"unsafe\"\\n', '')\n"
+          if s.count(needle) != 1:
+              raise SystemExit('visual polish runtime-patch guard failed')
+          p.write_text(s.replace(needle, insert + needle, 1), encoding='utf-8')
+          PY
           python scripts/polish_0_2_1_windows_visual.py
