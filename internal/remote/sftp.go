@@ -23,13 +23,13 @@ import (
 const maxPrivateKeySize = 1 << 20
 
 type SFTP struct {
-	host                               string
-	port                               int
-	passwordBlob, passphraseBlob       string
+	host                                 string
+	port                                 int
+	passwordBlob, passphraseBlob         string
 	ownsPasswordBlob, ownsPassphraseBlob bool
-	knownHosts, sshConfig, sessionHost string
-	privateKeyCopy                     string
-	exePath, sftp                      string
+	knownHosts, sshConfig, sessionHost   string
+	privateKeyCopy                       string
+	exePath, sftp                        string
 }
 
 func windowsOpenSSHCandidates(systemDir, arch, name string) []string {
