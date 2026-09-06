@@ -25,12 +25,11 @@ const (
 )
 
 var (
-	setWindowSubclassHeader    = comctl32.NewProc("SetWindowSubclass")
-	removeWindowSubclassHeader = comctl32.NewProc("RemoveWindowSubclass")
-	defSubclassProcHeader      = comctl32.NewProc("DefSubclassProc")
-	fillRectHeader             = user32.NewProc("FillRect")
-	workspaceListOwners        sync.Map
-	workspaceListSubclassProc  = syscall.NewCallback(workspaceListSubclass)
+	setWindowSubclassHeader   = comctl32.NewProc("SetWindowSubclass")
+	defSubclassProcHeader     = comctl32.NewProc("DefSubclassProc")
+	fillRectHeader            = user32.NewProc("FillRect")
+	workspaceListOwners       sync.Map
+	workspaceListSubclassProc = syscall.NewCallback(workspaceListSubclass)
 )
 
 type nmCustomDrawStruct struct {
@@ -100,10 +99,10 @@ func workspaceListSubclass(hwnd, message, wParam, lParam, _ uintptr, _ uintptr) 
 		}
 	}
 	if uint32(message) == wmNCDestroy {
+		// Common Controls removes installed subclasses as part of window
+		// destruction. Only our owner lookup needs explicit cleanup here; avoiding
+		// a callback self-reference also keeps package initialization acyclic.
 		workspaceListOwners.Delete(hwnd)
-		if err := removeWindowSubclassHeader.Find(); err == nil {
-			removeWindowSubclassHeader.Call(hwnd, workspaceListSubclassProc, workspaceHeaderSubclassID)
-		}
 	}
 	result, _, _ := defSubclassProcHeader.Call(hwnd, message, wParam, lParam)
 	return result
