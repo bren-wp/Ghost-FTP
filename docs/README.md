@@ -1,6 +1,6 @@
 # Ghost FTP documentation
 
-- **Current Ghost FTP release: 1.0.0**
+- **Current Ghost FTP release candidate: 1.1.0**
 - Development status: **Stable**
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
@@ -11,9 +11,9 @@ This directory contains the maintained engineering, operations, privacy, securit
 ## Product and architecture
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — component boundaries, protocol architecture, persistence, transfer and release design.
-- [`REFERENCE-UI.md`](REFERENCE-UI.md) — workstation visual/interaction reference and authentic screenshot contract.
+- [`REFERENCE-UI.md`](REFERENCE-UI.md) — workstation visual/interaction reference, Classic Light palette and authentic screenshot contract.
 - [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux behavior parity contract.
-- [`SETTINGS.md`](SETTINGS.md) — persisted settings, normalization and recovery behavior.
+- [`SETTINGS.md`](SETTINGS.md) — persisted settings, appearance policy, normalization and recovery behavior.
 - [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language offline localization model.
 
 ## Installation and distribution
@@ -25,18 +25,18 @@ This directory contains the maintained engineering, operations, privacy, securit
 - [`SIGNING.md`](SIGNING.md) — optional protected Authenticode signing model and truthful unsigned-release policy.
 - [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable/prerelease policy.
 
-The stable workflow publishes **9 platform artifacts** and **12 public files** on each canonical GitHub Release. The same verified release directory is also mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
+The stable workflow publishes **9 platform artifacts** and **12 public files** on each canonical GitHub Release. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
 
 ## Security and privacy
 
-- [`SECURITY.md`](SECURITY.md) — transport, SFTP trust, path validation, staged transfer, secret and process boundaries.
+- [`SECURITY.md`](SECURITY.md) — transport, SFTP trust, path validation, staged transfer, protected-secret ownership and process boundaries.
 - [`PRIVACY.md`](PRIVACY.md) — no-telemetry policy, local data handling, diagnostics redaction and distribution privacy.
 - [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency/runtime-tool policy and offline Go build boundary.
 - [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) — notices for platform/runtime tooling used by Ghost FTP.
 
 ## Quality and engineering
 
-- [`TESTING.md`](TESTING.md) — Go race tests, protocol regressions, UI/runtime checks and Python repository audits.
+- [`TESTING.md`](TESTING.md) — Go race tests, protocol regressions, UI/runtime checks, authentic screenshot verification and Python repository audits.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution and release-quality expectations.
 - [`ROADMAP.md`](ROADMAP.md) — post-1.0 maintenance priorities and product constraints.
 - [`SUPPORT.md`](SUPPORT.md) — support information and safe issue-reporting guidance.
@@ -48,17 +48,23 @@ The stable workflow publishes **9 platform artifacts** and **12 public files** o
 
 Historical sections intentionally preserve older version numbers and Beta terminology. They are history, not the current support state.
 
-## Stable 1.0 release contract
+## Stable 1.1 release contract
 
-Ghost FTP 1.0.0 is the first stable release. It is published as a normal GitHub Release with `prerelease=false`. Windows Authenticode is optional: when a trusted production certificate is configured the workflow signs and verifies the Windows artifacts; otherwise it publishes them explicitly as unsigned and records `WINDOWS_AUTHENTICODE=unsigned` in release metadata. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
+Ghost FTP 1.1.0 is a backward-compatible stable feature release built on the immutable 1.0.0 baseline. It adds Classic Light desktop styling and includes the post-1.0 SFTP credential-lifetime hardening while preserving the Windows/Linux-only product scope and release artifact contract.
 
-The production workflow also publishes:
+A stable 1.1.0 publication is a normal GitHub Release with `prerelease=false`. Windows Authenticode remains optional: when a trusted production certificate is configured the workflow signs and verifies Windows artifacts; otherwise the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
+
+The production workflow publishes:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.0.0
+ghcr.io/bren-wp/ghost-ftp:1.1.0
 ```
 
-with compatible stable aliases. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
+with stable aliases only after successful registry publication and read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
+
+## UI evidence rule
+
+The maintained screenshots in `docs/images/` must come from the dedicated authentic screenshot workflow, which builds and launches the real Windows x64 Portable executable. Mockups or generated approximations are not valid production evidence.
 
 ## Privacy-safe documentation rule
 
@@ -74,4 +80,4 @@ When documentation and implementation appear to disagree, verify in this order:
 4. current active documentation;
 5. historical release notes.
 
-A public release is considered complete only when the exact source revision passes all required gates and both GitHub Release and stable GitHub Package publication have been verified.
+A public release is complete only when the exact source revision passes all required gates and GitHub Release, tag and stable GitHub Package publication have been read back successfully.
