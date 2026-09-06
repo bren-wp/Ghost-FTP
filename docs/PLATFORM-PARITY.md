@@ -57,7 +57,7 @@ Windows provides richer native keyboard/sorting behavior; Linux maintains equiva
 
 Windows uses native Win32 UI, per-monitor layout handling, native dialogs and the current-user Windows saved-secret protection boundary. Production packages include x64/x86 Setup and Portable binaries.
 
-Stable Windows publication requires the trusted protected Authenticode release identity.
+Production Authenticode is optional. When a trusted protected signing identity is configured, every generated Windows artifact must verify successfully; when it is absent, official Stable publication remains explicitly unsigned and records `WINDOWS_AUTHENTICODE=unsigned`. A generated/self-signed development certificate is never substituted for the trusted production publisher identity.
 
 ## Linux-specific implementation
 
@@ -75,6 +75,8 @@ The production workflow independently builds/verifies both platform families bef
 
 The GitHub Release contains **9 platform artifacts** across Windows/Linux and **12 public files** total. The stable GHCR package mirrors the verified assembled release directory and does not introduce a third application implementation.
 
+Signing parity is represented truthfully rather than forced: a configured Windows production signature is verified fail-closed, while an unsigned Windows release is allowed only when release metadata states that unsigned status explicitly. Linux integrity continues to use exact build provenance, package metadata and SHA-256 verification rather than Windows Authenticode.
+
 ## Definition of parity complete
 
 A cross-platform feature is complete when:
@@ -86,4 +88,4 @@ A cross-platform feature is complete when:
 5. platform tests and production builds pass;
 6. documentation describes only capabilities actually maintained on both platforms or clearly labels a platform-specific difference.
 
-See [Architecture](ARCHITECTURE.md), [Testing](TESTING.md) and [Security](SECURITY.md).
+See [Architecture](ARCHITECTURE.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
