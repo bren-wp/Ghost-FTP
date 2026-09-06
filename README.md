@@ -2,12 +2,12 @@
 
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**, developed and published by **BRENDIGO LTD**. It provides one professional dual-pane workstation for **FTP, FTPS and SFTP**, with local profiles, encrypted saved-secret handling, bounded transfer management, secure release verification and no application telemetry.
 
-Current Ghost FTP version: **1.0.0**  
-Development status: **Stable**  
-Release channel: **Stable**  
-First stable release: **Ghost FTP 1.0.0**  
-Default language: **English**  
-Selectable local languages: **24**
+- Current Ghost FTP version: **1.0.0**
+- Development status: **Stable**
+- Release channel: **Stable**
+- First stable release: **Ghost FTP 1.0.0**
+- Default language: **English**
+- Selectable local languages: **24 languages**
 
 - Releases: https://github.com/bren-wp/Ghost-FTP/releases
 - Packages: https://github.com/users/bren-wp/packages?repo_name=Ghost-FTP
@@ -149,9 +149,9 @@ The release also includes `BUILD-METADATA.txt`, which binds the version, tag, so
 
 For automated environments, the GHCR distribution bundle adds an OCI manifest digest on top of the per-file SHA-256 manifest.
 
-## Localization
+## Languages
 
-Ghost FTP ships **24 selectable local languages** with English as the default/fallback. Localization is resolved locally; the desktop client does not send filenames, hostnames, credentials or UI strings to a translation service.
+Ghost FTP ships **24 languages** selectable locally, with English as the default/fallback. Localization is resolved locally; the desktop client does not send filenames, hostnames, credentials or UI strings to a translation service.
 
 See [Localization](docs/LOCALIZATION.md).
 
