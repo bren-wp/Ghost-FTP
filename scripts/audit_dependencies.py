@@ -13,6 +13,7 @@ FORBIDDEN_TRACKING = (
     "firebase-crashlytics",
     "appcenter",
     "sentry",
+    "getsentry",
     "bugsnag",
     "newrelic",
     "datadog",
@@ -61,19 +62,32 @@ def audit_transport_contract() -> None:
             fail(f"docs/DEPENDENCIES.md must disclose OS transport executable: {executable}")
 
 
+def marker_pattern(marker: str) -> re.Pattern[str]:
+    # Detect SDK/service identifiers as tokens rather than arbitrary substrings.
+    # This still matches sentry, sentry-go, sentry.io, /sentry/ and getsentry,
+    # while avoiding false positives from unrelated identifiers ending in
+    # "sEntry" after case normalization.
+    return re.compile(r"(?<![a-z0-9])" + re.escape(marker) + r"(?![a-z0-9])", re.IGNORECASE)
+
+
+def desktop_source_files() -> list[Path]:
+    files = [ROOT / "go.mod"]
+    for surface in (ROOT / "cmd", ROOT / "internal"):
+        if surface.is_dir():
+            files.extend(sorted(path for path in surface.rglob("*.go") if path.is_file()))
+    return files
+
+
 def audit_tracking_markers() -> None:
-    surfaces = [ROOT / "go.mod", ROOT / "cmd", ROOT / "internal"]
-    chunks: list[str] = []
-    for surface in surfaces:
-        if surface.is_file():
-            chunks.append(surface.read_text(encoding="utf-8", errors="strict").lower())
-        elif surface.is_dir():
-            for path in sorted(surface.rglob("*.go")):
-                chunks.append(path.read_text(encoding="utf-8", errors="strict").lower())
-    combined = "\n".join(chunks)
-    for marker in FORBIDDEN_TRACKING:
-        if marker in combined:
-            fail(f"forbidden tracking/advertising marker present in desktop source: {marker}")
+    patterns = [(marker, marker_pattern(marker)) for marker in FORBIDDEN_TRACKING]
+    for path in desktop_source_files():
+        text = path.read_text(encoding="utf-8", errors="strict")
+        for marker, pattern in patterns:
+            match = pattern.search(text)
+            if match is not None:
+                rel = path.relative_to(ROOT).as_posix()
+                line = text.count("\n", 0, match.start()) + 1
+                fail(f"forbidden tracking/advertising marker {marker!r} present in {rel}:{line}")
 
 
 def main() -> int:
