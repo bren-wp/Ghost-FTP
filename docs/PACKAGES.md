@@ -1,0 +1,67 @@
+# Ghost FTP GitHub Packages
+
+Ghost FTP publishes a verified **distribution bundle** to GitHub Packages for each stable release. The package is an OCI artifact stored in GitHub Container Registry (GHCR) and mirrors the exact verified release files assembled by the production release workflow.
+
+## Package reference
+
+```text
+ghcr.io/bren-wp/ghost-ftp:<version>
+```
+
+For Ghost FTP 1.0.0 the canonical immutable version tag is:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:1.0.0
+```
+
+Stable releases also update the compatible aliases `1.0`, `1`, and `latest`. Automation that requires reproducibility should use the full semantic version and, when possible, pin the registry digest.
+
+## What the package contains
+
+The image contains the verified release directory under:
+
+```text
+/ghostftp-release/
+```
+
+That directory contains the same Windows Setup/Portable packages, Linux DEB packages, release notes, build metadata and `SHA256.txt` manifest published on the corresponding GitHub Release.
+
+This is a **distribution bundle**, not a runtime container. Ghost FTP is a native desktop application for Windows and Linux; the GHCR package exists so CI systems, mirrors and administrators can retrieve a versioned, repository-linked bundle from GitHub Packages.
+
+## Canonical installation source
+
+For normal installation, use the files attached to the official GitHub Release. GitHub Packages is an additional verified distribution surface and does not replace Setup, Portable or DEB packages.
+
+## Verification
+
+Every stable package is produced only after the same release quality gates used for GitHub Releases:
+
+- Go formatting, race tests and vet;
+- security, privacy, dependency, platform and documentation audits;
+- Windows x64/x86 Setup and Portable builds;
+- Linux amd64/arm64/i386 DEB builds;
+- release asset allow-list verification;
+- SHA-256 manifest generation;
+- trusted Authenticode requirement for stable Windows publication.
+
+The OCI package carries repository source, version and commit labels. The release workflow performs a registry read-back with `docker buildx imagetools inspect` after push.
+
+## Privacy boundary
+
+The package is built only from the already assembled `release/` allow-list. It does not contain saved profiles, passwords, local application data, CI secrets, signing key material, source worktrees or user files. The bundle is created with Docker networking disabled during the build itself.
+
+## Release channels
+
+Pre-1.0 historical builds were Beta prereleases. Beginning with Ghost FTP 1.0.0, official stable releases are normal GitHub Releases and the production workflow publishes the stable GHCR bundle. Stable package aliases are not published by the Beta branch of the release-channel logic.
+
+## Digest-first automation
+
+For high-assurance automation:
+
+1. resolve `ghcr.io/bren-wp/ghost-ftp:1.0.0` to its OCI digest;
+2. pin the digest in downstream automation;
+3. extract `/ghostftp-release/SHA256.txt`;
+4. verify every release file before use;
+5. compare the expected source commit with `BUILD-METADATA.txt` and the OCI revision label.
+
+This provides two independent integrity references: the OCI manifest digest and the per-file SHA-256 manifest.
