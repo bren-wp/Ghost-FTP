@@ -1,5 +1,5 @@
 name: Finalize Ghost FTP 0.2.0 release surface
-# Retry after active installation documentation was made desktop-only.
+# Final retry after removing retired-surface wording from active installation guidance.
 
 on:
   push:
