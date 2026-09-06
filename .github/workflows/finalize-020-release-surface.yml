@@ -1,4 +1,5 @@
 name: Finalize Ghost FTP 0.2.0 release surface
+# Retry after canonical 0.2.0 security-document marker update.
 
 on:
   push:
