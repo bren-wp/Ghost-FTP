@@ -39,6 +39,16 @@ jobs:
           go telemetry off
           test "$(go telemetry)" = 'off'
           python scripts/finalize_020_docs.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/finalize_020_dead_code.py')
+          text = path.read_text(encoding='utf-8')
+          old = '"\\t\\ta.remoteAllItems = append(a.remoteAllItems[:0], items...)\\n\\t\\ta.remoteItems = append(a.remoteItems[:0], items...)\\n",\n    "\\t\\ta.remoteItems = append(a.remoteItems[:0], items...)\\n",'
+          new = '"\\t\\t\\ta.remoteAllItems = append(a.remoteAllItems[:0], items...)\\n\\t\\t\\ta.remoteItems = append(a.remoteItems[:0], items...)\\n",\n    "\\t\\t\\ta.remoteItems = append(a.remoteItems[:0], items...)\\n",'
+          if text.count(old) != 1:
+              raise SystemExit('dead-code remote-list patch target is not unique')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
           python scripts/finalize_020_dead_code.py
           python - <<'PY'
           from pathlib import Path
