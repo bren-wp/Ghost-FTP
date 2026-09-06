@@ -2,7 +2,7 @@
 
 Ghost FTP uses semantic versioning with the root `VERSION` file as the authoritative production version source.
 
-Current source baseline: **1.1.0 Stable**.
+Current source candidate: **1.1.1 Stable**. Published **1.1.0 Stable** and **1.0.0 Stable** remain immutable historical releases.
 
 ## Version format
 
@@ -19,13 +19,13 @@ ghostftp-vMAJOR.MINOR.PATCH
 For the current release candidate:
 
 ```text
-VERSION=1.1.0
-TAG=ghostftp-v1.1.0
+VERSION=1.1.1
+TAG=ghostftp-v1.1.1
 CHANNEL=Stable
 PRERELEASE=false
 ```
 
-The previously published `ghostftp-v1.0.0` tag is immutable release history and must remain on its original release commit.
+Previously published `ghostftp-v1.0.0` and `ghostftp-v1.1.0` tags are immutable release history and must remain on their original release commits.
 
 ## Historical pre-1.0 policy
 
@@ -37,15 +37,15 @@ Version **1.0.0** is the first **Stable** public release.
 
 ### PATCH
 
-Use a patch increment for compatible bug fixes, security/privacy hardening, performance improvements, documentation corrections and packaging/release fixes that do not intentionally add product functionality.
+Use a patch increment for compatible bug fixes, security/privacy hardening, performance improvements, documentation corrections and packaging/release fixes that do not intentionally add an incompatible product contract.
 
-Example: `1.1.1`.
+Ghost FTP **1.1.1** is a patch release candidate: it makes the intended Classic Light/FTPS secure defaults effective for fresh state, strengthens connection-manager regressions, aligns Windows profile credential-consent behavior and removes documentation/UI drift while preserving the 1.1 protocol and artifact contract.
 
 ### MINOR
 
 Use a minor increment for backward-compatible functionality, substantial workflow improvements or new optional capabilities.
 
-Ghost FTP **1.1.0** is a minor release because it adds the Classic Light desktop appearance while preserving the 1.x connection/transfer contract.
+Ghost FTP **1.1.0** is a minor release because it added the Classic Light desktop appearance while preserving the 1.x connection/transfer contract.
 
 ### MAJOR
 
@@ -79,10 +79,10 @@ Ghost FTP never generates a self-signed production certificate and presents it a
 
 ## GitHub Packages versioning
 
-Stable 1.1.0 publication uses:
+Stable 1.1.1 publication uses:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.0
+ghcr.io/bren-wp/ghost-ftp:1.1.1
 ```
 
 with compatible stable aliases after successful registry publication/read-back:
@@ -105,27 +105,30 @@ Absence of a production Authenticode certificate by itself is not a versioning f
 
 `CHANGELOG.md` must contain a `## <VERSION>` section. `scripts/release_notes.py` extracts only that exact section for the public release notes.
 
-Historical release notes retain their original version/channel wording. Active documentation describes the current stable baseline.
+Historical release notes retain their original version/channel wording. Active documentation describes the current source candidate and published stable history separately.
 
-## 1.1.0 release checklist
+## 1.1.1 release checklist
 
 The exact candidate must pass:
 
 - `go test -race ./...` and `go vet ./...`;
 - Windows and Linux production CI;
-- FTP/FTPS/SFTP reliability regressions;
+- real loopback FTP workflow and shared `remote.Manager.Connect()` lifecycle regressions;
+- explicit FTPS no-downgrade and invalid-credential failure tests;
 - SFTP host-key trust and protected-secret lifetime regressions;
 - transfer correctness, retry/cancel/recovery and generation binding;
+- Classic Light fresh/fallback state while preserving explicit Dark preference;
+- explicit FTPS/21 fresh quick-connect policy on Windows and Linux;
 - Windows Setup transaction/rollback and Portable verification;
 - Linux amd64/arm64/i386 package and DEB verification;
-- localization, appearance and UI stability checks;
+- 24-language localization and privacy-sensitive credential-consent checks;
 - security/privacy/dependency/repository/documentation audits;
+- authentic Windows UI screenshot capture from the production x64 Portable executable;
 - release asset allow-list and SHA-256 verification;
 - Authenticode verification when configured, otherwise explicit `WINDOWS_AUTHENTICODE=unsigned` metadata;
 - GitHub Release normal-release read-back;
-- stable GHCR publication/read-back;
-- current documentation and authentic screenshot synchronization.
+- stable GHCR publication/read-back.
 
 ## Historical numbering
 
-Old 0.x and 1.0.0 references in `CHANGELOG.md` and `docs/RELEASE-HISTORY.md` are intentional historical records and must not be mass-rewritten.
+Old 0.x, 1.0.0 and 1.1.0 references in historical `CHANGELOG.md`/`docs/RELEASE-HISTORY.md` sections are intentional records and must not be mass-rewritten.
