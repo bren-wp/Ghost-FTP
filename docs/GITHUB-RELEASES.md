@@ -61,9 +61,15 @@ Before publication, the workflow queries the current `main` SHA and requires it 
 
 If `ghostftp-v1.0.0` already exists, it must resolve to the exact release commit. The workflow refuses to rewrite an existing version tag to different source.
 
-## Stable Windows signing rule
+## Windows signing state
 
-A stable Release is blocked unless the protected release environment reports the Windows artifacts as signed using the configured trusted Authenticode identity. Private signing material is supplied only via protected Actions secrets, written temporarily on the runner and removed after use.
+Authenticode signing is optional for stable publication. If protected production signing secrets are configured, the Windows Setup/Portable artifacts are signed and each produced signature must verify successfully. If no production certificate is configured, Windows artifacts are published unsigned and `BUILD-METADATA.txt` explicitly records:
+
+```text
+WINDOWS_AUTHENTICODE=unsigned
+```
+
+The workflow never generates a self-signed production publisher identity and never labels an unsigned artifact as signed. Private signing material, when used, is supplied only via protected Actions secrets, written temporarily on the runner and removed after use.
 
 ## Artifact allow-list
 
@@ -105,6 +111,6 @@ See [Packages](PACKAGES.md).
 
 ## Failure behavior
 
-A failed quality gate, production build, signing check, package push, tag validation, Release upload or read-back check causes the workflow to fail. A failed workflow is not represented as a completed stable release contract.
+A failed quality gate, production build, configured-signing verification, package push, tag validation, Release upload or read-back check causes the workflow to fail. Absence of a production Authenticode certificate alone does not fail publication; that state is preserved as `unsigned` metadata.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
