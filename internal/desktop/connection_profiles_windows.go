@@ -468,11 +468,8 @@ func (a *app) saveCurrentProfile() {
 	}
 
 	if password != "" || passphrase != "" {
-		if !platform.ConfirmDialog(
-			"Ghost FTP — privacy",
-			"Save credentials on this computer?",
-			"Yes = store the entered credentials in the Windows-protected Ghost FTP profile store.\nNo = save the profile without a stored password or private-key passphrase.",
-		) {
+		words := credentialConsentText(a.languageCode())
+		if !platform.ConfirmDialog(words.Title, words.Question, words.Body) {
 			password = ""
 			passphrase = ""
 			clearPassword = true
