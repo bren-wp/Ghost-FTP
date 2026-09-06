@@ -44,6 +44,19 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertNotIn("rdwErase", source)
         self.assertIn("a.reflowWorkspace(w, h)", windows)
 
+    def test_full_wordmark_dark_headers_and_ownerdrawn_menu_are_guarded(self):
+        chrome = self.read("internal/desktop/chrome_windows.go")
+        header = self.read("internal/desktop/header_draw_windows.go")
+        menu = self.read("internal/desktop/menu_draw_windows.go")
+        wnd = self.read("internal/desktop/windows.go")
+        self.assertIn("titleWidth, subtitleX = 54, 168, 230", chrome)
+        self.assertIn("nmCustomDraw", header)
+        self.assertIn("setTextColor.Call(d.HDC, textColor())", header)
+        self.assertIn("mfOwnerDraw", self.read("internal/desktop/menu_windows.go"))
+        self.assertIn("applyDarkMenuBackground", menu)
+        self.assertIn("a.measureMenuItem(lParam)", wnd)
+        self.assertIn("a.drawMenuItem(&d)", wnd)
+
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
         self.assertIn("setControlEnabled(a.remoteList, true)", source)

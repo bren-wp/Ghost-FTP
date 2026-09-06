@@ -4,7 +4,6 @@ package desktop
 
 import (
 	"github.com/bren-wp/Ghost-FTP/internal/i18n"
-	"unsafe"
 )
 
 const (
@@ -14,6 +13,7 @@ const (
 
 	mfString    = 0x0000
 	mfPopup     = 0x0010
+	mfOwnerDraw = 0x0100
 	mfSeparator = 0x0800
 )
 
@@ -69,19 +69,23 @@ func nativeMenuWords(language string) [9]string {
 }
 
 func appendMenuItem(menu uintptr, id int, label string) {
-	appendMenuW.Call(menu, mfString, uintptr(id), uintptr(unsafe.Pointer(wstr(label))))
+	key := uintptr(id)
+	registerMenuVisual(key, label, false)
+	appendMenuW.Call(menu, mfString|mfOwnerDraw, uintptr(id), key)
 }
 
 func appendMenuSeparator(menu uintptr) { appendMenuW.Call(menu, mfSeparator, 0, 0) }
 
 func appendPopup(root, popup uintptr, label string) {
-	appendMenuW.Call(root, mfPopup, popup, uintptr(unsafe.Pointer(wstr(label))))
+	registerMenuVisual(popup, label, true)
+	appendMenuW.Call(root, mfPopup|mfOwnerDraw, popup, popup)
 }
 
 func (a *app) installMainMenu() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
+	resetMenuVisuals()
 	root, _, _ := createMenuW.Call()
 	if root == 0 {
 		return
@@ -126,6 +130,7 @@ func (a *app) installMainMenu() {
 	appendPopup(root, serversMenu, words[1])
 	appendPopup(root, toolsMenu, words[7])
 	appendPopup(root, helpMenu, words[4])
+	applyDarkMenuBackground(root, a.panelBrush)
 
 	old, _, _ := getMenuW.Call(a.hwnd)
 	if ok, _, _ := setMenuW.Call(a.hwnd, root); ok == 0 {

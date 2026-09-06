@@ -66,6 +66,7 @@ const (
 	lvmDeleteAllItems           = lvmFirst + 9
 	lvmGetNextItem              = lvmFirst + 12
 	lvmSetColumnWidth           = lvmFirst + 30
+	lvmGetHeader                = lvmFirst + 31
 	lvmSetTextColor             = lvmFirst + 36
 	lvmSetTextBkColor           = lvmFirst + 38
 	lvmSetItemState             = lvmFirst + 43

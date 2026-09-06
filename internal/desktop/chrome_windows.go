@@ -65,10 +65,22 @@ func (a *app) refineBrandHeader() {
 	if logo == 0 {
 		return
 	}
-	// Geometry for the title/subtitle remains owned by app.layout. This helper
-	// only anchors the canonical PE icon so the full “Ghost FTP” wordmark never
-	// gets clipped by a second competing layout rule.
 	a.move(logo, 14, 11, 32, 32)
+
+	// Reserve a fixed wordmark gutter large enough for the real Segoe UI bold
+	// rendering seen on Windows runners. Keep the subtitle responsive inside
+	// the remaining header space rather than allowing it to overlap the title.
+	const titleX, titleWidth, subtitleX = 54, 168, 230
+	a.move(a.brandTitle, titleX, 10, titleWidth, 35)
+	var client rect
+	if ok, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok != 0 {
+		logicalWidth := a.unscale(int(client.Right - client.Left))
+		subtitleWidth := logicalWidth - subtitleX - 320
+		if subtitleWidth < 120 {
+			subtitleWidth = 120
+		}
+		a.move(a.brandSubtitle, subtitleX, 17, subtitleWidth, 20)
+	}
 }
 
 func styleWorkspaceCombos(combos ...uintptr) {
