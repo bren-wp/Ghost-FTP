@@ -85,7 +85,8 @@ All local links must pass `scripts/audit_docs.py`.
 
 Changes to `.github/workflows/release.yml`, packaging or signing must preserve fail-closed behavior:
 
-- stable Windows Authenticode gate;
+- truthful Windows signing state: verify a configured trusted Authenticode identity fail-closed, otherwise preserve explicit `WINDOWS_AUTHENTICODE=unsigned` metadata;
+- never generate or present a self-signed development certificate as the trusted production publisher identity;
 - exact `main` commit binding;
 - immutable version tags;
 - explicit 9-platform-artifact / 12-public-file allow-list;
@@ -93,6 +94,8 @@ Changes to `.github/workflows/release.yml`, packaging or signing must preserve f
 - GitHub Release read-back;
 - stable GitHub Package/GHCR distribution-bundle read-back;
 - no release secret material inside artifacts.
+
+A missing production code-signing certificate alone is not a release failure. A partially configured certificate or an invalid signature when signing is configured **is** a release failure.
 
 ## Pull request expectations
 
