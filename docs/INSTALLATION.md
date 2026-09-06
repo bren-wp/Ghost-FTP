@@ -1,15 +1,15 @@
 # Ghost FTP installation
 
-Ghost FTP **1.0.0 Stable** ships as native Windows and Linux packages. Use only official artifacts whose version and SHA-256 values match the corresponding GitHub Release.
+Ghost FTP **1.1.1 Stable** is the current source candidate and ships as native Windows and Linux packages after the complete release gate succeeds. Use only official artifacts whose version and SHA-256 values match the corresponding published GitHub Release. Published 1.1.0 and 1.0.0 releases remain valid historical releases and are not rewritten.
 
 ## Windows
 
 ### Setup packages
 
 ```text
-Ghost-FTP-1.0.0-Setup-x64.exe
-Ghost-FTP-1.0.0-Setup-x86.exe
-Ghost-FTP-1.0.0-Setup-x32.exe
+Ghost-FTP-1.1.1-Setup-x64.exe
+Ghost-FTP-1.1.1-Setup-x86.exe
+Ghost-FTP-1.1.1-Setup-x32.exe
 ```
 
 `x32` is a compatibility alias of the x86 Setup file and is byte-identical to it.
@@ -19,8 +19,8 @@ Setup is a per-user installation/maintenance application. It stages and validate
 ### Portable packages
 
 ```text
-Ghost-FTP-1.0.0-Portable-x64.exe
-Ghost-FTP-1.0.0-Portable-x86.exe
+Ghost-FTP-1.1.1-Portable-x64.exe
+Ghost-FTP-1.1.1-Portable-x86.exe
 ```
 
 Portable mode does not create the normal Setup registration and keeps its portable state boundary beside the application as documented by the product. Do not mix an installed data directory and portable data directory manually.
@@ -45,40 +45,48 @@ In both cases verify `SHA256.txt`. For a signed release, also verify the Authent
 
 ## Linux
 
-Official Debian packages are:
+Official Debian packages for 1.1.1 are:
 
 ```text
-Ghost-FTP-1.0.0-Linux-amd64.deb
-Ghost-FTP-1.0.0-Linux-arm64.deb
-Ghost-FTP-1.0.0-Linux-i386.deb
+Ghost-FTP-1.1.1-Linux-amd64.deb
+Ghost-FTP-1.1.1-Linux-arm64.deb
+Ghost-FTP-1.1.1-Linux-i386.deb
 ```
 
 A convenience archive contains all three verified packages:
 
 ```text
-Ghost-FTP-1.0.0-Linux-multiarch.zip
+Ghost-FTP-1.1.1-Linux-multiarch.zip
 ```
 
 Install the package matching the machine architecture with the system package manager. The package installs the `ghostftp` application and desktop integration expected by the maintained Linux build.
 
-## Upgrade to 1.0.0
+## Upgrade to 1.1.1
 
-Ghost FTP 1.0.0 is the first stable release. Existing 0.2.x local settings/profiles are intended to remain compatible. Before upgrading critical systems, keep a copy of local configuration and verify the stable package checksum and, when present, its signing state.
+Ghost FTP 1.1.1 is a compatible maintenance release on top of 1.1.0. Existing 1.x local settings/profiles are intended to remain compatible. The appearance migration is deliberately conservative: an explicitly persisted Dark choice remains Dark, while fresh/missing/invalid appearance state resolves to Classic Light.
+
+Before upgrading critical systems, keep a copy of local configuration and verify the stable package checksum and, when present, its signing state.
 
 Windows Setup performs a staged replacement and rollback-oriented transaction. Linux upgrades use the standard package manager semantics of the DEB package.
 
+## First connection defaults
+
+A fresh/quick connection starts with **explicit FTPS on port 21**. Plain FTP remains available when a legacy server explicitly requires unencrypted FTP, and SFTP remains available for SSH-based transfer. A failed FTPS negotiation is not silently downgraded to FTP.
+
 ## Saved credentials
 
-Saved credentials remain local and are opt-in. An upgrade must not require exporting plaintext passwords. Windows uses the current-user protection boundary; Linux uses local authenticated encryption with user-private key material.
+Saved credentials remain local and are opt-in. An upgrade must not require exporting plaintext passwords. Windows uses the current-user protection boundary; Linux uses local authenticated encryption with user-private key material and bounded runtime secret handling.
+
+The main Save Profile flow and Windows Site Manager require explicit consent before newly entered password/private-key passphrase values are persisted. Saving non-secret profile details does not itself authorize credential storage.
 
 If a protected secret cannot be decrypted under the current user/device context, Ghost FTP must require the credential again rather than silently weakening protection.
 
 ## GitHub Packages
 
-The stable release is also mirrored as:
+After successful stable publication, the 1.1.1 release is mirrored as:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.0.0
+ghcr.io/bren-wp/ghost-ftp:1.1.1
 ```
 
 This OCI object is a verified distribution bundle containing `/ghostftp-release/`; it is not a runtime container and is not the normal desktop installation path. See [Packages](PACKAGES.md).
@@ -117,7 +125,7 @@ Confirm that the same operating-system user and local secret-protection state ar
 
 ### Connection fails after installation
 
-Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host, port, server policy and system transfer-tool availability without pasting real credentials into issue reports.
+Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host, port, server policy and system transfer-tool availability without pasting real credentials into issue reports. For a fresh connection, verify whether the server actually supports explicit FTPS/21 before selecting plain FTP for legacy compatibility.
 
 ## Production deployment checklist
 
@@ -127,7 +135,9 @@ Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host,
 4. inspect `WINDOWS_AUTHENTICODE` and verify Authenticode when the release is signed;
 5. choose the correct architecture;
 6. preserve needed local configuration before upgrade;
-7. test the target server using its intended FTP/FTPS/SFTP mode;
+7. test the target server using its intended FTP/FTPS/SFTP mode and do not bypass failed TLS by silently switching protocols;
 8. keep private credentials out of logs and support reports.
+
+The 1.1.1 filenames above describe the candidate contract; they are not proof of publication. Treat 1.1.1 as downloadable only after the official Release/tag/package read-back has succeeded.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).
