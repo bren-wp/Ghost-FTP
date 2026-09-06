@@ -45,6 +45,8 @@ func (a *app) isWorkspaceHeader(hwnd uintptr) bool {
 	return hwnd == headerForList(a.localList) || hwnd == headerForList(a.remoteList) || hwnd == headerForList(a.transferList)
 }
 
+// drawWorkspaceHeader keeps column-header contrast deterministic even when the
+// host Windows account is using a light system theme while Ghost FTP is dark.
 func (a *app) drawWorkspaceHeader(lParam uintptr) uintptr {
 	d := customDrawFromLParam(lParam)
 	switch d.DrawStage {
