@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
-RETIRED_ROOTS = ("android/", "ios/", "macos/")
+RETIRED_ROOTS = ("android/", "ios/", "macos/", "GhostFTP WEB/")
 RETIRED_SCRIPTS = {
     "scripts/audit_android.py",
     "scripts/audit_android_localization.py",
@@ -56,7 +56,7 @@ def main() -> int:
         normalized = path.replace("\\", "/")
         lowered = normalized.lower()
         if normalized.startswith(RETIRED_ROOTS):
-            fail(f"retired application platform is tracked: {path}")
+            fail(f"retired application platform/surface is tracked: {path}")
         if normalized in RETIRED_SCRIPTS:
             fail(f"retired platform tooling is tracked: {path}")
         if lowered.endswith("_darwin.go"):
@@ -77,7 +77,7 @@ def main() -> int:
     release = read(".github/workflows/release.yml")
     for rel, text in (("ci.yml", ci), ("release.yml", release)):
         lowered = text.lower()
-        for marker in ("runs-on: macos", "android/", "ios/", "macos/"):
+        for marker in ("runs-on: macos", "android/", "ios/", "macos/", "ghostftp web/"):
             if marker in lowered:
                 fail(f"{rel} still references retired application platform marker: {marker}")
 
@@ -95,6 +95,7 @@ def main() -> int:
     print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
     print("RETIRED_APPLICATION_PLATFORMS=ANDROID,IOS,MACOS")
+    print("RETIRED_APPLICATION_SURFACES=WEB,PWA")
     print("LINUX_PLATFORM_STUBS=EXPLICIT")
     print("DARWIN_SOURCE=BLOCKED")
     print("VERSIONING_PLATFORM_INDEPENDENT=YES")
