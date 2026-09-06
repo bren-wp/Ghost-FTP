@@ -73,9 +73,11 @@ Source entry points retain `version = "dev"` and receive production versions onl
 
 ## Stable GitHub Release rule
 
-For `MAJOR >= 1`, the publication workflow selects the stable channel and does not apply the GitHub prerelease flag. A stable Windows release is blocked unless the protected trusted Authenticode identity is configured and the produced files verify successfully.
+For `MAJOR >= 1`, the publication workflow selects the stable channel and does not apply the GitHub prerelease flag. The official stable release must point to the exact `main` commit that passed release quality gates.
 
-The official stable release must point to the exact `main` commit that passed release quality gates.
+Windows Authenticode is an **optional production hardening layer**, not a prerequisite for stable version identity. When a trusted production PFX is configured through protected Actions secrets, every produced Windows artifact must verify successfully or publication fails. When no production certificate is configured, stable publication may continue only with an explicit `WINDOWS_AUTHENTICODE=unsigned` declaration in `BUILD-METADATA.txt`.
+
+Ghost FTP never generates a self-signed production certificate and presents it as a trusted publisher identity.
 
 ## GitHub Packages versioning
 
@@ -102,9 +104,13 @@ The release workflow rejects:
 - a malformed semantic version;
 - a manual version different from `VERSION`;
 - an existing release tag that points to a different commit;
-- a stable release whose Windows signing state is not trusted/configured;
+- a partially configured production signing identity;
+- a configured signing identity whose produced Windows signatures do not verify;
+- any attempt to substitute a generated/self-signed production identity for a trusted publisher certificate;
 - release output whose expected asset set is incomplete;
 - release/package read-back failures.
+
+Absence of a production Authenticode certificate by itself is not a versioning failure. The resulting Windows signing state must instead remain truthfully `unsigned` throughout build metadata, documentation and verification.
 
 ## Changelog and release notes
 
@@ -124,7 +130,7 @@ Ghost FTP 1.0.0 is considered release-ready only when the exact candidate passes
 - localization checks;
 - security/privacy/dependency/repository audits;
 - release asset allow-list and SHA-256 verification;
-- stable Authenticode gate;
+- Authenticode verification when a trusted production certificate is configured, or explicit unsigned metadata when it is absent;
 - GitHub Release normal-release verification;
 - stable GitHub Package publication/read-back;
 - current documentation/support/license synchronization.
