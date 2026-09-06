@@ -1,6 +1,6 @@
 # Ghost FTP documentation
 
-- **Current Ghost FTP release candidate: 1.1.0**
+- **Current Ghost FTP release: 1.1.0**
 - Development status: **Stable**
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
