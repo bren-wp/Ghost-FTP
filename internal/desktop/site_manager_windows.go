@@ -167,6 +167,13 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 					return 0
 				}
 			}
+		case wmDrawItem:
+			if lParam != 0 {
+				d := drawItemFromLParam(lParam)
+				if state.parent.drawButton(&d) {
+					return 1
+				}
+			}
 		case wmCtlColorEdit, wmCtlColorBtn, wmCtlColorStatic, siteWMCtlColorListBox:
 			setTextColor.Call(wParam, textColor())
 			setBkColor.Call(wParam, windowColor())
@@ -175,6 +182,9 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 			destroyWindow.Call(hwnd)
 			return 0
 		case wmDestroy:
+			for _, button := range []uintptr{state.save, state.delete, state.connect, state.close} {
+				delete(state.parent.buttons, button)
+			}
 			state.closed = true
 			return 0
 		}
@@ -460,10 +470,10 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	label(cleanSFTPSecurityTitle(parent.tr("sftp.security")), 310, 390, 570)
 	state.security = mk("STATIC", "", wsBorder, 310, 416, 570, 58, siteIDSecurity)
 
-	state.save = mk("BUTTON", parent.tr("profile.save"), wsTabStop, 310, 500, 146, 34, siteIDSave)
-	state.delete = mk("BUTTON", parent.tr("profile.delete"), wsTabStop, 466, 500, 146, 34, siteIDDelete)
-	state.connect = mk("BUTTON", parent.tr("common.connect"), wsTabStop|siteBSDefPushButton, 622, 500, 120, 34, siteIDConnect)
-	state.close = mk("BUTTON", parent.tr("common.cancel"), wsTabStop, 752, 500, 128, 34, siteIDClose)
+	state.save = parent.registerButton(mk("BUTTON", parent.tr("profile.save"), wsTabStop|bsOwnerDraw, 310, 500, 146, 34, siteIDSave), iconSave, parent.tr("profile.save"), buttonDefault)
+	state.delete = parent.registerButton(mk("BUTTON", parent.tr("profile.delete"), wsTabStop|bsOwnerDraw, 466, 500, 146, 34, siteIDDelete), iconDelete, parent.tr("profile.delete"), buttonDanger)
+	state.connect = parent.registerButton(mk("BUTTON", parent.tr("common.connect"), wsTabStop|siteBSDefPushButton|bsOwnerDraw, 622, 500, 120, 34, siteIDConnect), iconConnect, parent.tr("common.connect"), buttonAccent)
+	state.close = parent.registerButton(mk("BUTTON", parent.tr("common.cancel"), wsTabStop|bsOwnerDraw, 752, 500, 128, 34, siteIDClose), iconCancel, parent.tr("common.cancel"), buttonSubtle)
 
 	for _, control := range []uintptr{
 		state.list, state.name, state.protocol, state.host, state.port, state.user, state.password,
@@ -495,13 +505,16 @@ func (a *app) openSiteManager() {
 	hinst, _, _ := getModuleHandleW.Call(0)
 	siteManagerOnce.Do(func() {
 		cursor, _, _ := loadCursorW.Call(0, 32512)
+		icon, _, _ := loadIconW.Call(hinst, 1)
 		class := wndClassEx{
 			CbSize:     uint32(unsafe.Sizeof(wndClassEx{})),
 			WndProc:    siteManagerProc,
 			Instance:   hinst,
+			Icon:       icon,
 			Cursor:     cursor,
 			Background: a.brush,
 			ClassName:  wstr(siteManagerClass),
+			IconSm:     icon,
 		}
 		registerClassExW.Call(uintptr(unsafe.Pointer(&class)))
 	})

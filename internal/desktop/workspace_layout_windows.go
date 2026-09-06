@@ -20,10 +20,9 @@ func styleWorkspaceList(list uintptr) {
 	sendMessageW.Call(list, lvmSetTextColor, 0, textColor())
 	header, _, _ := sendMessageW.Call(list, workspaceLVMGetHeader, 0, 0)
 	if header != 0 {
-		// Explorer's dark header theme keeps the column text readable on Windows
-		// versions where DarkMode_ItemsView falls back to a dark face with dark
-		// text. The screenshot pipeline guards this native-control regression.
-		setWindowTheme.Call(header, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
+		// Immersive dark mode is enabled before controls are created, allowing
+		// ItemsView to render a dark column header with readable system text.
+		setWindowTheme.Call(header, uintptr(unsafe.Pointer(wstr("DarkMode_ItemsView"))), 0)
 	}
 }
 

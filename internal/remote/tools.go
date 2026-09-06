@@ -49,10 +49,10 @@ func findCurl() (string, error) {
 				return p, nil
 			}
 		}
-		return "", errors.New("Windows mrežna komponenta za FTP nije dostupna")
+		return "", errors.New("Windows FTP transport component is not available")
 	}
 	if p, err := exec.LookPath("curl"); err == nil {
 		return p, nil
 	}
-	return "", errors.New("mrežna komponenta za FTP nije pronađena")
+	return "", errors.New("FTP transport component was not found")
 }

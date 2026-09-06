@@ -2,7 +2,7 @@
 
 Ghost FTP keeps transport, credential, remote-path, local-filesystem, account-state and transfer/recovery boundaries fail-closed.
 
-**Current Ghost FTP release: 0.2.0**
+**Current Ghost FTP release: 0.2.1**
 
 The active desktop application platforms are **Windows and Linux**. The current `0.x` line is Beta until the complete stability/release criteria are met; the first stable release is `1.0.0`. Historical releases may document additional platforms that existed at the time, but those historical facts are not the active security/support contract.
 

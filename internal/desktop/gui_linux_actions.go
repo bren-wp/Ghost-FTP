@@ -43,7 +43,7 @@ func (u *linuxDesktop) handlePromptKey(sym uint32) bool {
 	switch sym {
 	case x11KeyEscape:
 		u.closePrompt()
-		u.setStatus("Operation cancelled.")
+		u.setStatus(u.tr("common.cancel"))
 	case x11KeyReturn:
 		u.submitPrompt()
 	case x11KeyBackSpace, x11KeyDelete:
@@ -92,7 +92,7 @@ func (u *linuxDesktop) renderPromptOverlay() error {
 	if err := u.drawButton(u.layout.promptOK, "Apply", strings.TrimSpace(u.promptValue) != "" && !u.busy, true); err != nil {
 		return err
 	}
-	return u.drawButton(u.layout.promptCancel, "Cancel", !u.busy, false)
+	return u.drawButton(u.layout.promptCancel, u.tr("common.cancel"), !u.busy, false)
 }
 
 func (u *linuxDesktop) handlePromptMouse(x, y int) bool {
@@ -105,7 +105,7 @@ func (u *linuxDesktop) handlePromptMouse(x, y int) bool {
 	}
 	if u.layout.promptCancel.contains(x, y) {
 		u.closePrompt()
-		u.setStatus("Operation cancelled.")
+		u.setStatus(u.tr("common.cancel"))
 		return true
 	}
 	return true

@@ -258,7 +258,7 @@ func (a *app) applyDPI(dpi uint32) {
 			deleteObject.Call(f)
 		}
 	}
-	invalidateRect.Call(a.hwnd, 0, 1)
+	invalidateRect.Call(a.hwnd, 0, 0)
 }
 
 func (a *app) defaultFontControls() []uintptr {
@@ -336,15 +336,16 @@ func (a *app) resizeListColumns() {
 }
 
 func applyDarkTitleBar(hwnd uintptr) {
+	enableImmersiveDarkMode(hwnd)
 	value := int32(1)
 	_, _, _ = dwmSetWindowAttribute.Call(hwnd, 20, uintptr(unsafe.Pointer(&value)), unsafe.Sizeof(value))
 }
 
 func applyDarkControl(hwnd uintptr, class string) {
 	switch class {
-	case "SysListView32", "COMBOBOX", "BUTTON":
+	case "SysListView32", "BUTTON":
 		setWindowTheme.Call(hwnd, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
-	case "EDIT":
+	case "COMBOBOX", "EDIT":
 		setWindowTheme.Call(hwnd, uintptr(unsafe.Pointer(wstr("DarkMode_CFD"))), 0)
 	}
 }
@@ -412,8 +413,10 @@ func (a *app) layout(width, height int) {
 	if compact {
 		languageW = 142
 	}
-	a.move(a.brandTitle, margin, headerY, 145, 35)
-	subtitleX := margin + 152
+	// Reserve a stable icon gutter and enough width for the complete product
+	// name. The previous 106 px post-layout override visibly clipped “FTP”.
+	a.move(a.brandTitle, 54, headerY, 126, 35)
+	subtitleX := 188
 	languageX := width - margin - badgeW - gap - languageW
 	subtitleW := languageX - gap - subtitleX
 	if subtitleW < 180 {

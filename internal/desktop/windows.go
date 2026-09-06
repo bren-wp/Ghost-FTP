@@ -221,8 +221,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmSize:
 		w := int(lParam & 0xffff)
 		h := int((lParam >> 16) & 0xffff)
-		a.layout(w, h)
-		a.refineWorkspaceLayout()
+		a.reflowWorkspace(w, h)
 		return 0
 	case wmDpiChanged:
 		newDPI := uint32((wParam >> 16) & 0xffff)
@@ -257,9 +256,16 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.command(id)
 			return 0
 		}
+	case wmMeasureItem:
+		if a.measureMenuItem(lParam) {
+			return 1
+		}
 	case wmDrawItem:
 		if lParam != 0 {
 			d := drawItemFromLParam(lParam)
+			if a.drawMenuItem(&d) {
+				return 1
+			}
 			if a.drawButton(&d) {
 				return 1
 			}
@@ -267,6 +273,9 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmNotify:
 		if lParam != 0 {
 			h := nmhdrFromLParam(lParam)
+			if h.Code == nmCustomDraw && a.isWorkspaceHeader(h.HwndFrom) {
+				return a.drawWorkspaceHeader(lParam)
+			}
 			if h.Code == lvnItemChanged && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList || h.HwndFrom == a.transferList) {
 				a.updateActionControls()
 				return 0

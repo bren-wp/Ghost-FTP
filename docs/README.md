@@ -2,7 +2,7 @@
 
 This directory contains the maintained product, architecture, security, privacy, operator, packaging and release documentation for **Ghost FTP**.
 
-**Current Ghost FTP release: 0.2.0**
+**Current Ghost FTP release: 0.2.1**
 
 Development status: **Beta**
 
@@ -59,7 +59,7 @@ Native Win32 and Linux controls are not claimed to be pixel-identical. Product a
 The maintained maturity sequence is:
 
 ```text
-0.1.0 Beta → 0.1.1 Beta → 0.2.0 Beta → 0.x.y Beta → 1.0.0 stable
+0.1.0 Beta → 0.1.1 Beta → 0.2.0 Beta → 0.2.1 Beta → 0.x.y Beta → 1.0.0 stable
 ```
 
 Every `0.x.y` build is a Beta/prerelease. The first release that may be treated as stable is **1.0.0**, after the complete desktop quality gate is intentionally satisfied.
