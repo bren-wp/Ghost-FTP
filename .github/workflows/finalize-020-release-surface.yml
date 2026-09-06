@@ -50,6 +50,10 @@ jobs:
           path.write_text(text.replace(old, new, 1), encoding='utf-8', newline='\n')
           PY
           python scripts/finalize_020_dead_code.py
+          # The migration rewrites two regression files from its historical
+          # template. Restore the canonical desktop-only tests committed on the
+          # branch before running the release-surface cleanup.
+          git checkout HEAD -- scripts/test_runtime_hardening.py scripts/test_maintenance.py
           python - <<'PY'
           from pathlib import Path
           path = Path('scripts/finalize_020_release_surface.py')
