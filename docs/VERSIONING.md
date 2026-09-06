@@ -69,7 +69,11 @@ release/ghostftp-v<version>
 
 The trigger rejects a branch whose version differs from `VERSION` or whose commit differs from current `main`.
 
-Windows Authenticode is an **optional production hardening layer**, not a prerequisite for stable version identity. When a trusted production PFX is configured through protected Actions secrets, every produced Windows artifact must verify successfully or publication fails. When no production certificate is configured, stable publication may continue only with explicit unsigned metadata.
+Windows Authenticode is an **optional production hardening layer**, not a prerequisite for stable version identity. When a trusted production PFX is configured through protected Actions secrets, every produced Windows artifact must verify successfully or publication fails. When no production certificate is configured, stable publication may continue only with explicit unsigned metadata:
+
+```text
+WINDOWS_AUTHENTICODE=unsigned
+```
 
 Ghost FTP never generates a self-signed production certificate and presents it as a trusted publisher identity.
 
@@ -95,7 +99,7 @@ Downstream automation should prefer the full semantic version or immutable OCI d
 
 The release workflow rejects a malformed version, a manual version different from `VERSION`, an existing conflicting tag, partially configured signing identity, failed configured signatures, self-signed production substitution, incomplete release assets, or release/package read-back failures.
 
-Absence of a production Authenticode certificate by itself is not a versioning failure. The resulting Windows signing state must remain truthfully `unsigned` throughout build metadata and verification.
+Absence of a production Authenticode certificate by itself is not a versioning failure. The resulting Windows signing state must remain truthfully `unsigned` throughout build metadata and verification, with `WINDOWS_AUTHENTICODE=unsigned` recorded when no production certificate is configured.
 
 ## Changelog and release notes
 
@@ -117,7 +121,7 @@ The exact candidate must pass:
 - localization, appearance and UI stability checks;
 - security/privacy/dependency/repository/documentation audits;
 - release asset allow-list and SHA-256 verification;
-- Authenticode verification when configured, otherwise explicit unsigned metadata;
+- Authenticode verification when configured, otherwise explicit `WINDOWS_AUTHENTICODE=unsigned` metadata;
 - GitHub Release normal-release read-back;
 - stable GHCR publication/read-back;
 - current documentation and authentic screenshot synchronization.
