@@ -23,12 +23,13 @@ import (
 const maxPrivateKeySize = 1 << 20
 
 type SFTP struct {
-	host                               string
-	port                               int
-	passwordBlob, passphraseBlob       string
-	knownHosts, sshConfig, sessionHost string
-	privateKeyCopy                     string
-	exePath, sftp                      string
+	host                                 string
+	port                                 int
+	passwordBlob, passphraseBlob         string
+	ownsPasswordBlob, ownsPassphraseBlob bool
+	knownHosts, sshConfig, sessionHost   string
+	privateKeyCopy                       string
+	exePath, sftp                        string
 }
 
 func windowsOpenSSHCandidates(systemDir, arch, name string) []string {
@@ -412,21 +413,35 @@ func newSFTPWithProtectedSecrets(host string, port int, username, password, pass
 	if err != nil {
 		return nil, err
 	}
+	ownsPasswordBlob := false
+	ownsPassphraseBlob := false
+	forgetOwnedSecrets := func() {
+		if ownsPasswordBlob {
+			security.ForgetProtectedSecret(passwordBlob)
+		}
+		if ownsPassphraseBlob {
+			security.ForgetProtectedSecret(passphraseBlob)
+		}
+	}
 	if password != "" {
 		passwordBlob, err = security.ProtectString(password)
 		if err != nil {
 			return nil, err
 		}
+		ownsPasswordBlob = true
 	}
 	if passphrase != "" {
 		passphraseBlob, err = security.ProtectString(passphrase)
 		if err != nil {
+			forgetOwnedSecrets()
 			return nil, err
 		}
+		ownsPassphraseBlob = true
 	}
 	sessionDir := filepath.Dir(knownHosts)
 	privateKeyCopy, err := snapshotPrivateKey(sessionDir, keyPath)
 	if err != nil {
+		forgetOwnedSecrets()
 		return nil, err
 	}
 	configKeyPath := keyPath
@@ -436,10 +451,12 @@ func newSFTPWithProtectedSecrets(host string, port int, username, password, pass
 	sshConfig, sessionHost, err := createSSHSessionConfig(sessionDir, host, port, username, configKeyPath, knownHosts, hostKeyAlgorithm, connectTimeout)
 	if err != nil {
 		_ = os.Remove(privateKeyCopy)
+		forgetOwnedSecrets()
 		return nil, err
 	}
 	return &SFTP{
 		host: host, port: port, passwordBlob: passwordBlob, passphraseBlob: passphraseBlob,
+		ownsPasswordBlob: ownsPasswordBlob, ownsPassphraseBlob: ownsPassphraseBlob,
 		knownHosts: knownHosts, sshConfig: sshConfig, sessionHost: sessionHost, privateKeyCopy: privateKeyCopy,
 		exePath: exePath, sftp: sftp,
 	}, nil
@@ -458,10 +475,16 @@ func (s *SFTP) Close() error {
 			errs = append(errs, err)
 		}
 	}
-	security.ForgetProtectedSecret(s.passwordBlob)
-	security.ForgetProtectedSecret(s.passphraseBlob)
+	if s.ownsPasswordBlob {
+		security.ForgetProtectedSecret(s.passwordBlob)
+	}
+	if s.ownsPassphraseBlob {
+		security.ForgetProtectedSecret(s.passphraseBlob)
+	}
 	s.passwordBlob = ""
 	s.passphraseBlob = ""
+	s.ownsPasswordBlob = false
+	s.ownsPassphraseBlob = false
 	s.host = ""
 	s.knownHosts = ""
 	s.sshConfig = ""
