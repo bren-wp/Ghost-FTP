@@ -54,10 +54,12 @@ def main() -> int:
         ".github/workflows/release.yml",
         "name: Publish Ghost FTP",
         "contents: write",
+        "packages: write",
         "needs: [quality, windows, linux]",
         "RELEASE_TAG=ghostftp-v$version",
         "release_title=\"Ghost FTP $version Beta\"",
         "release_channel='beta'",
+        "release_channel='stable'",
         "prerelease_args+=(--prerelease)",
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_SIGNING_PASSWORD",
@@ -77,17 +79,31 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Linux-multiarch.zip",
         "PUBLIC_PLATFORM_ARTIFACTS=9",
         "PUBLIC_RELEASE_FILES=12",
+        "ghcr.io/${owner}/ghost-ftp",
+        "org.opencontainers.image.source",
+        "Distribution bundle only; not a supported runtime container.",
+        "docker build --pull=false --network=none",
+        "docker buildx imagetools inspect",
+        "if: env.RELEASE_CHANNEL == 'stable'",
         "main moved from release commit",
         "refusing to rewrite it",
         "RELEASE_ASSET_READBACK=PASS",
     )
     lowered = workflow.lower()
     for forbidden in (
-        "packages: write", "package_nuget.py", "dotnet nuget", "nuget.pkg.github.com",
+        "package_nuget.py", "dotnet nuget", "nuget.pkg.github.com",
         "package_web.py", "audit_web.py", "android/", "ios/", "macos/", "runs-on: macos",
     ):
         if forbidden in lowered:
             fail(f"release workflow contains retired publication/platform marker: {forbidden}")
+
+    # Stable package aliases must never be emitted by the pre-1.0 branch of the channel switch.
+    stable_package_pos = workflow.find("Publish stable bundle to GitHub Packages")
+    prerelease_pos = workflow.find("prerelease_args+=(--prerelease)")
+    if stable_package_pos < 0 or prerelease_pos < 0:
+        fail("release workflow is missing channel-separated release/package publication")
+    if "docker push \"$package_ref:latest\"" not in workflow:
+        fail("stable GitHub Package must publish the latest alias")
 
     require(
         ".github/workflows/ci.yml",
@@ -130,6 +146,14 @@ def main() -> int:
     require("linux/BUILD.sh", '"$root/usr/bin/ghostftp"', "Ghost-FTP-${VERSION}-Linux-${debarch}.deb")
     require("linux/debian/control.in", "Package: ghost-ftp")
 
+    require(
+        "docs/PACKAGES.md",
+        "ghcr.io/bren-wp/ghost-ftp",
+        "distribution bundle",
+        "not a runtime container",
+        "SHA256.txt",
+    )
+
     for retired in ("android", "ios", "macos", "GhostFTP WEB"):
         if (ROOT / retired).exists():
             fail(f"retired application directory exists: {retired}/")
@@ -145,7 +169,7 @@ def main() -> int:
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("PUBLICATION_SURFACE=GITHUB_RELEASE")
+    print("PUBLICATION_SURFACES=GITHUB_RELEASE,GITHUB_PACKAGES_GHCR")
     print("PRE_1_0_CHANNEL=BETA")
     print("FIRST_STABLE_VERSION=1.0.0")
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
@@ -155,6 +179,7 @@ def main() -> int:
     print("WINDOWS_PORTABLE=x64,x86")
     print("WINDOWS_X32_ALIAS_OF_X86=REQUIRED")
     print("LINUX_DEB=amd64,arm64,i386")
+    print("STABLE_GHCR_BUNDLE=REQUIRED")
     return 0
 
 
