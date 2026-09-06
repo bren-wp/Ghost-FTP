@@ -1,8 +1,8 @@
 # Ghost FTP roadmap
 
-Ghost FTP **1.0.0 Stable** is the maintained production baseline. The roadmap after 1.0 prioritizes reliability, security, privacy, performance and Windows/Linux parity before adding broad new surface area.
+Ghost FTP **1.1.1 Stable** is the current maintenance candidate on top of the published 1.1.0 feature line. The roadmap prioritizes reliability, security, privacy, performance and Windows/Linux parity before broad new surface area.
 
-## Completed for 1.0
+## Completed stable foundation
 
 The stable gate includes:
 
@@ -21,31 +21,33 @@ The stable gate includes:
 - truthful Windows signing-state metadata with fail-closed verification when trusted production signing is configured;
 - stable GitHub Packages/GHCR distribution-bundle publication and read-back.
 
-## 1.0.x priorities
+## 1.1.1 maintenance priorities
 
-Patch releases should focus on compatible fixes:
+The 1.1.1 patch line closes compatibility and quality gaps without inventing unrelated features:
 
-1. crash/deadlock/race fixes found by production usage;
-2. protocol interoperability edge cases that can be reproduced deterministically;
-3. transfer-state and rollback correctness;
-4. large-directory/list performance and redraw efficiency;
-5. privacy-safe diagnostic quality;
-6. Setup/update/uninstall rollback reliability;
-7. localization corrections without changing protocol semantics;
-8. release/package integrity and signing pipeline maintenance;
-9. documentation accuracy.
+1. make Classic Light the actual fresh/missing/invalid-state primary appearance while retaining an explicit persisted Dark choice;
+2. use explicit FTPS/21 as the fresh quick-connect default on Windows and Linux while keeping plain FTP as an intentional legacy option;
+3. deepen deterministic `remote.Manager.Connect()` and real loopback FTP lifecycle coverage;
+4. preserve secure-to-plain downgrade blocking and SFTP host-key trust;
+5. align credential-persistence consent between the main profile workflow and Windows Site Manager;
+6. complete 24-language coverage for privacy-sensitive and native auxiliary Windows prompts;
+7. keep large-directory/list and transfer UI redraw work event/state driven;
+8. keep documentation and authentic real-application screenshots synchronized with the executable;
+9. preserve Setup/Portable/DEB and release-package integrity.
 
-## 1.1 priorities
+## Next compatible priorities
 
-Potential backward-compatible improvements include:
+Future patch/minor work should focus on measurable needs:
 
-- richer transfer filtering/history while preserving bounded state;
-- better per-site connection option ergonomics;
-- additional keyboard and accessibility refinements;
+- crash/deadlock/race fixes found by reproducible production usage;
+- protocol interoperability edge cases that can be reproduced deterministically;
+- transfer-state and rollback correctness;
+- large-directory/list performance and redraw efficiency;
+- privacy-safe diagnostic quality;
+- Setup/update/uninstall rollback reliability;
+- accessibility and keyboard refinements;
 - improved Linux visual parity without adding a heavy runtime framework;
-- deeper deterministic FTP/FTPS/SFTP interoperability fixtures;
-- optional export/import of non-secret profile metadata with explicit security boundaries;
-- more operational diagnostics that remain local and credential-safe.
+- optional export/import of non-secret profile metadata with explicit security boundaries.
 
 Features are not considered accepted merely because they are visually attractive. They must have a clear security/privacy model, tests, documentation and Windows/Linux behavior.
 
@@ -85,4 +87,4 @@ Release security should improve publisher trust when a real certificate is avail
 
 ## Definition of roadmap completion
 
-A roadmap item is complete only after code, regression tests, security/privacy implications, active documentation and production CI/release gates agree on the behavior.
+A roadmap item is complete only after code, regression tests, security/privacy implications, active documentation and production CI/release gates agree on the behavior. Published release tags and historical documentation remain immutable evidence rather than being rewritten to match a later roadmap state.
