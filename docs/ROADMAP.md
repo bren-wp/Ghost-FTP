@@ -18,6 +18,7 @@ The stable gate includes:
 - 24-language local catalog with English default/fallback;
 - production race/vet/security/privacy/dependency/documentation audits;
 - normal stable GitHub Release publication with `prerelease=false`;
+- truthful Windows signing-state metadata with fail-closed verification when trusted production signing is configured;
 - stable GitHub Packages/GHCR distribution-bundle publication and read-back.
 
 ## 1.0.x priorities
@@ -60,7 +61,8 @@ Future work must preserve:
 - local path containment and symlink/reparse safety;
 - fail-closed transfer cleanup/commit behavior;
 - exact source/version binding for public releases;
-- stable Windows signing gate;
+- truthful Windows signing states: configured trusted signatures verify fail-closed, otherwise Stable publication remains explicitly `WINDOWS_AUTHENTICODE=unsigned`;
+- no generated/self-signed production identity represented as a trusted publisher;
 - verified GitHub Release and GitHub Package publication;
 - no unreviewed external Go dependencies.
 
@@ -78,6 +80,8 @@ Optimization work should target measured hotspots:
 ## Security/privacy direction
 
 Security hardening should favor deterministic rejection and actionable errors over permissive fallback. Privacy improvements should reduce secret lifetime and diagnostic exposure rather than adding remote reporting.
+
+Release security should improve publisher trust when a real certificate is available without weakening integrity verification or inventing trust when it is not.
 
 ## Definition of roadmap completion
 
