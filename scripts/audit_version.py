@@ -66,7 +66,29 @@ def main() -> int:
             fail("1.0.0 README must explicitly identify the first stable release")
 
     versioning = read("docs/VERSIONING.md")
-    require(versioning, ("0.1.0", "0.x.y", "1.0.0", "Beta", "Stable", "Portable", "Setup"), "docs/VERSIONING.md")
+    require(
+        versioning,
+        (
+            "0.1.0",
+            "0.x.y",
+            "1.0.0",
+            "Beta",
+            "Stable",
+            "Portable",
+            "Setup",
+            "optional production hardening layer",
+            "WINDOWS_AUTHENTICODE=unsigned",
+            "Absence of a production Authenticode certificate by itself is not a versioning failure.",
+        ),
+        "docs/VERSIONING.md",
+    )
+    for stale in (
+        "A stable Windows release is blocked unless",
+        "stable release whose Windows signing state is not trusted/configured",
+        "stable Authenticode gate",
+    ):
+        if stale in versioning:
+            fail(f"docs/VERSIONING.md contains stale mandatory-signing policy: {stale}")
 
     windows_build = read("BUILD-WINDOWS.ps1")
     require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS.ps1")
@@ -105,12 +127,25 @@ def main() -> int:
         "packages: write",
         "ghcr.io/${owner}/ghost-ftp",
         "if: env.RELEASE_CHANNEL == 'stable'",
+        "state=unsigned",
+        "state=signed",
+        "Publishing Stable with explicitly unsigned Windows artifacts",
         "PUBLIC_PLATFORM_ARTIFACTS=9",
         "PUBLIC_RELEASE_FILES=12",
     ), ".github/workflows/release.yml")
+    if "Stable Windows releases require a configured trusted Authenticode identity." in release_workflow:
+        fail("release workflow contradicts the supported explicit-unsigned stable state")
+    if "New-DevCodeSigningCertificate.ps1" in release_workflow:
+        fail("production release workflow must not generate a self-signed publisher identity")
 
     require(read("scripts/audit_platform_contract.py"), ("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", "RETIRED_APPLICATION_SURFACES=WEB,PWA"), "scripts/audit_platform_contract.py")
-    require(read("scripts/audit_release.py"), ("PUBLIC_PLATFORM_ARTIFACTS=9", "PUBLIC_RELEASE_FILES=12", "STABLE_GHCR_BUNDLE=REQUIRED"), "scripts/audit_release.py")
+    require(read("scripts/audit_release.py"), (
+        "PUBLIC_PLATFORM_ARTIFACTS=9",
+        "PUBLIC_RELEASE_FILES=12",
+        "STABLE_GHCR_BUNDLE=REQUIRED",
+        "STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
+        "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
+    ), "scripts/audit_release.py")
 
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
@@ -130,6 +165,9 @@ def main() -> int:
     print("PRE_1_0_CHANNEL=BETA")
     print("FIRST_STABLE_VERSION=1.0.0")
     print("STABLE_RELEASE_PRERELEASE_FLAG=FALSE")
+    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
+    print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("STABLE_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
     return 0
 
