@@ -6,6 +6,9 @@ const (
 	ConflictPolicySkip          = "skip"
 	ConflictPolicyReplace       = "replace"
 	ConflictPolicyReplaceBackup = "replace_backup"
+
+	AppearanceDark  = "dark"
+	AppearanceLight = "light"
 )
 
 type Item struct {
@@ -66,6 +69,7 @@ type ProfileInput struct {
 
 type Settings struct {
 	Language                 string `json:"language,omitempty"`
+	Appearance               string `json:"appearance,omitempty"`
 	Parallelism              int    `json:"parallelism"`
 	ConflictPolicy           string `json:"conflictPolicy,omitempty"`
 	BackupBeforeOverwrite    bool   `json:"backupBeforeOverwrite"`
