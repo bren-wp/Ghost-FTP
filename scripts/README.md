@@ -39,7 +39,9 @@ Historical tags are immutable and are not reused for another commit. `1.0.0` and
 
 Production workflows disable Go telemetry, use `GOTOOLCHAIN=local`, `GOPROXY=off` and `GOSUMDB=off`, and build Windows and Linux from the exact source revision. Public artifacts are assembled only after the platform and quality gates pass, then checksummed in `SHA256.txt`.
 
-Stable Windows publication additionally requires the protected trusted Authenticode identity. The repository must never contain the production private key or password.
+Windows production signing is optional. If protected trusted Authenticode credentials are configured, the workflow must sign and verify the Windows artifacts fail-closed. If no production certificate is configured, the release remains explicitly `WINDOWS_AUTHENTICODE=unsigned`. A partially configured signing identity is an error, and a self-signed development certificate must never be substituted for a trusted production publisher identity.
+
+The repository must never contain the production private key or password.
 
 The GitHub Packages distribution bundle is built with network access disabled from only the already verified `release/` directory. Source worktrees, user data and release secrets must not be copied into that package.
 
@@ -53,6 +55,8 @@ Before publication the maintained workflow and audits verify, as applicable:
 - security, privacy, dependency, version, localization and documentation contracts;
 - Windows x64/x86 Setup and Portable production builds;
 - Linux amd64/arm64/i386 package metadata;
+- Authenticode verification when a trusted production identity is configured;
+- explicit unsigned release metadata when no production certificate is configured;
 - the exact 9-platform-artifact / 12-public-file release set;
 - stable `prerelease=false` state;
 - GitHub Release read-back;
