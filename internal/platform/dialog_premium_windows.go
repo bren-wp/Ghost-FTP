@@ -29,9 +29,9 @@ const (
 )
 
 var (
-	premiumDialogDark     atomic.Bool
-	premiumDarkBrushOnce  sync.Once
-	premiumDarkBrush      uintptr
+	premiumDialogDark    atomic.Bool
+	premiumDarkBrushOnce sync.Once
+	premiumDarkBrush     uintptr
 )
 
 // SetDialogAppearance synchronizes the small native platform dialogs with the
