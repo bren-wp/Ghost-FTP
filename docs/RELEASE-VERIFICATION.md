@@ -1,17 +1,17 @@
 # Ghost FTP release verification
 
-This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. The current maintained release is **1.1.3 Stable**. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
+This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. The current maintained release is **1.1.4 Stable**. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
 
-## Expected 1.1.3 release identity
+## Expected 1.1.4 release identity
 
 ```text
-VERSION=1.1.3
-TAG=ghostftp-v1.1.3
-TITLE=Ghost FTP 1.1.3
+VERSION=1.1.4
+TAG=ghostftp-v1.1.4
+TITLE=Ghost FTP 1.1.4
 PRERELEASE=false
 ```
 
-A stable release must not be marked as a prerelease. Previously published tags, including `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2`, remain historical identities and must not be moved or reused.
+A stable release must not be marked as a prerelease. Previously published tags, including `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1`, `ghostftp-v1.1.2` and `ghostftp-v1.1.3`, remain historical identities and must not be moved or reused.
 
 ## Source revision and canonical publication flow
 
@@ -35,20 +35,20 @@ The expected contract is **9 platform artifacts** and **12 public files** total.
 Windows:
 
 ```text
-Ghost-FTP-1.1.3-Setup-x64.exe
-Ghost-FTP-1.1.3-Setup-x86.exe
-Ghost-FTP-1.1.3-Setup-x32.exe
-Ghost-FTP-1.1.3-Portable-x64.exe
-Ghost-FTP-1.1.3-Portable-x86.exe
+Ghost-FTP-1.1.4-Setup-x64.exe
+Ghost-FTP-1.1.4-Setup-x86.exe
+Ghost-FTP-1.1.4-Setup-x32.exe
+Ghost-FTP-1.1.4-Portable-x64.exe
+Ghost-FTP-1.1.4-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.3-Linux-amd64.deb
-Ghost-FTP-1.1.3-Linux-arm64.deb
-Ghost-FTP-1.1.3-Linux-i386.deb
-Ghost-FTP-1.1.3-Linux-multiarch.zip
+Ghost-FTP-1.1.4-Linux-amd64.deb
+Ghost-FTP-1.1.4-Linux-arm64.deb
+Ghost-FTP-1.1.4-Linux-i386.deb
+Ghost-FTP-1.1.4-Linux-multiarch.zip
 ```
 
 Verification/metadata:
@@ -92,7 +92,7 @@ then the release intentionally contains unsigned Windows artifacts. This is a tr
 Example inspection:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-1.1.3-Setup-x64.exe | Format-List
+Get-AuthenticodeSignature .\Ghost-FTP-1.1.4-Setup-x64.exe | Format-List
 ```
 
 The production workflow does not create a self-signed production identity. Short-lived self-signed certificates are permitted only for CI signing smoke tests. The verification gate requires explicit unsigned metadata when no production certificate is configured.
@@ -102,8 +102,8 @@ The production workflow does not create a self-signed production identity. Short
 The two Setup names:
 
 ```text
-Ghost-FTP-1.1.3-Setup-x86.exe
-Ghost-FTP-1.1.3-Setup-x32.exe
+Ghost-FTP-1.1.4-Setup-x86.exe
+Ghost-FTP-1.1.4-Setup-x32.exe
 ```
 
 must be byte-identical. The release workflow compares their SHA-256 values before publication.
@@ -113,19 +113,19 @@ must be byte-identical. The release workflow compares their SHA-256 values befor
 For each Linux package, verify:
 
 ```bash
-dpkg-deb -f Ghost-FTP-1.1.3-Linux-amd64.deb Package
-dpkg-deb -f Ghost-FTP-1.1.3-Linux-amd64.deb Version
-dpkg-deb -f Ghost-FTP-1.1.3-Linux-amd64.deb Architecture
+dpkg-deb -f Ghost-FTP-1.1.4-Linux-amd64.deb Package
+dpkg-deb -f Ghost-FTP-1.1.4-Linux-amd64.deb Version
+dpkg-deb -f Ghost-FTP-1.1.4-Linux-amd64.deb Architecture
 ```
 
-Expected package name is `ghost-ftp`; version must equal `1.1.3`; architecture must match the file suffix. The same checks apply to arm64 and i386.
+Expected package name is `ghost-ftp`; version must equal `1.1.4`; architecture must match the file suffix. The same checks apply to arm64 and i386.
 
 ## GitHub Release verification
 
 Confirm that:
 
-- tag is `ghostftp-v1.1.3`;
-- title is `Ghost FTP 1.1.3`;
+- tag is `ghostftp-v1.1.4`;
+- title is `Ghost FTP 1.1.4`;
 - `prerelease` is false;
 - tag resolves to the documented source commit;
 - remote asset names exactly match the 12-file allow-list;
@@ -136,33 +136,36 @@ The production workflow performs immediate and delayed Release read-back. Manual
 
 ## GitHub Packages verification
 
-Stable 1.1.3 publishes:
+Stable 1.1.4 publishes:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.3
+ghcr.io/bren-wp/ghost-ftp:1.1.4
 ```
 
 The package is a verified distribution bundle, not a runtime container. OCI metadata must identify the Ghost FTP source repository, stable version and release source revision. Stable aliases `1.1`, `1` and `latest` are updated only after publication and registry read-back succeed.
 
-## 1.1.3 runtime/security verification
+## 1.1.4 runtime/security verification
 
-The release candidate must preserve the maintained runtime contract:
+The release candidate must preserve the maintained runtime contract and the 1.1.4 quality changes:
 
 - fresh/fallback Windows appearance is Classic Light and explicitly saved Dark remains respected;
 - fresh quick-connect protocol is explicit FTPS on port 21 on Windows and Linux;
 - plain FTP remains explicit compatibility only and secure transports never silently downgrade;
 - SFTP host-key verification/pinning and protected-secret ownership/lifetime rules remain enforced;
-- SFTP batch path operands are escaped so literal remote names are not interpreted as globs or command options;
-- remote tree directory preparation rejects symlink and non-directory path components;
-- local downloads preserve the selected `LocalRoot` through the transfer layer and use root-bound `os.Root` staging/activation/rollback;
-- staging identity/sentinel validation and late `SkipExisting` checks are active;
+- local downloads preserve the selected `LocalRoot` and use root-bound `os.Root` staging/activation/rollback;
+- staging identity/sentinel validation, remote path revalidation and late `SkipExisting` checks remain active;
 - Site Manager Duplicate does not silently clone saved password/passphrase material or host-key trust state;
-- Windows reserved device-name validation includes DOS superscript-number variants;
-- installer/uninstaller registry metadata does not advertise a false quiet uninstall command.
+- Windows language selection closes its dropdown immediately after a selection and persistence does not block the native UI message loop;
+- Language and Settings writes remain serialized so stale whole-settings snapshots cannot overwrite newer state;
+- Windows Settings consumes canonical backend limits/defaults and normalizes invalid prompt state safely;
+- non-language settings changes do not trigger unnecessary localization/list/layout rebuilds;
+- idle Windows transfer polling does not redraw/recompute transfer UI state when no new transfer events exist;
+- Windows icon rendering uses the operating-system-local Segoe Fluent/MDL2 path with no remote icon/font runtime;
+- deterministic process-tree cancellation regression coverage remains enabled without weakening production cancellation behavior.
 
 ## CI/release gate verification
 
-Before trusting 1.1.3, inspect that the exact revision passed:
+Before trusting 1.1.4, inspect that the exact revision passed:
 
 - exact PR-head CI before merge;
 - post-merge CI on the exact `main` SHA;
@@ -176,7 +179,7 @@ Before trusting 1.1.3, inspect that the exact revision passed:
 - full Python regression suite;
 - Windows x64/x86 Setup + Portable production package build and artifact verification;
 - Linux amd64/arm64/i386 production package build and DEB verification;
-- authentic Windows UI evidence from the exact revision whenever Windows UI changed;
+- authentic Windows UI evidence from the exact revision whenever a release materially changes layout/visual rendering;
 - Authenticode verification when a production certificate is configured;
 - explicit unsigned metadata when no production certificate is configured;
 - canonical release branch equality/version checks before publication dispatch;
