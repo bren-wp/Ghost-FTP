@@ -205,9 +205,12 @@ function Save-WindowScreenshot {
         $bitmap.Dispose()
     }
 
+    # A compact native dialog can compress below 10 KiB while still being a
+    # complete, authentic image. Keep only a low corruption/truncation guard
+    # here; the workflow performs PNG, dimension and pixel-diversity checks.
     $file = Get-Item -LiteralPath $Path
-    if ($file.Length -lt 10000) {
-        throw "Screenshot output is unexpectedly small: $($file.FullName) ($($file.Length) bytes)."
+    if ($file.Length -lt 2048) {
+        throw "Screenshot output is implausibly small: $($file.FullName) ($($file.Length) bytes)."
     }
 }
 
