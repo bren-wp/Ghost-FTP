@@ -621,5 +621,6 @@ func (a *app) openSiteManager() {
 				break
 			}
 		}
+	}
 	a.connectNow()
 }
