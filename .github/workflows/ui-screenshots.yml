@@ -8,6 +8,7 @@ on:
       - 'work/**'
       - 'release/**'
     paths:
+      - 'VERSION'
       - 'internal/desktop/**'
       - 'internal/platform/**'
       - 'scripts/capture_windows_screenshots.ps1'
