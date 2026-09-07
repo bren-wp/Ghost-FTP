@@ -726,34 +726,22 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
 	if err := security.ValidateRemoteFilePath(remotePath); err != nil {
 		return err
 	}
-	if options.SkipExisting {
-		if st, err := os.Lstat(local); err == nil {
-			if st.IsDir() || st.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(local) {
-				return errors.New("ciljna putanja nije obična datoteka")
-			}
-			return ErrSkipped
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	total := bestEffortRemoteFileSize(ctx, remotePath, s.List)
-	if err := os.MkdirAll(filepath.Dir(local), 0755); err != nil {
-		return err
-	}
-	part, err := localTransferSibling(local, "part", false)
+	target, err := prepareLocalDownloadTarget(local, options.LocalRoot, options.SkipExisting)
 	if err != nil {
 		return err
 	}
-	stopProgress := startLocalFileProgressMonitor(ctx, part, total, options.Progress)
-	_, runErr := s.run(ctx, "get "+sftpQuote(remotePath)+" "+sftpQuote(part))
+	defer target.Close()
+	total := bestEffortRemoteFileSize(ctx, remotePath, s.List)
+	stopProgress := startLocalFileProgressMonitor(ctx, target.partPath, total, options.Progress)
+	_, runErr := s.run(ctx, "get "+sftpQuote(remotePath)+" "+sftpQuote(target.partPath))
 	stopProgress()
 	if runErr != nil {
-		_ = os.Remove(part)
+		target.cleanupPart()
 		return runErr
 	}
-	if err := validateDownloadedPart(part); err != nil {
-		_ = os.Remove(part)
+	if err := target.validatePart(); err != nil {
+		target.cleanupPart()
 		return err
 	}
-	return replaceLocalFileAtomic(local, part, options.KeepBackup)
+	return target.activate(options.KeepBackup, options.SkipExisting)
 }
