@@ -28,16 +28,28 @@ def require(path: str, markers: tuple[str, ...]) -> str:
 
 
 def main() -> int:
-    # Download staging and filesystem traversal protection.
-    require("internal/remote/util.go", (
-        "func validateDownloadedPart(part string) error",
-        "os.Lstat(part)",
-        "security.IsReparsePoint(part)",
-        "func randomTransferToken()",
-        "crypto/rand",
+    # Download staging and filesystem traversal protection. Downloads are
+    # prepared and committed through one open os.Root capability so later
+    # path swaps cannot redirect activation outside the selected local root.
+    require("internal/remote/local_download_root.go", (
+        "func prepareLocalDownloadTarget(",
+        "os.OpenRoot(rootPath)",
+        "root.MkdirAll(parentRel, 0755)",
+        "root.OpenFile(partName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)",
+        "rand.Read(sentinel)",
+        "os.SameFile(d.partInfo, st)",
+        "bytes.Equal(prefix, d.sentinel)",
+        "security.EnsureLocalWithinRoot(d.rootPath, d.targetPath)",
+        "placeholder, err := d.root.OpenFile(d.targetRel, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)",
+        "d.root.Rename(d.partName, d.targetRel)",
     ))
     for path in ("internal/remote/curl_ftp.go", "internal/remote/sftp.go"):
-        require(path, ("validateDownloadedPart(part)",))
+        require(path, (
+            "prepareLocalDownloadTarget(local, options.LocalRoot, options.SkipExisting)",
+            "target.validatePart()",
+            "target.cleanupPart()",
+            "target.activate(options.KeepBackup, options.SkipExisting)",
+        ))
 
     require("internal/security/remove_tree.go", (
         "func RemoveTreeNoFollow(",
@@ -133,7 +145,10 @@ def main() -> int:
         "security.ValidateConnection(protocol, host, username, port)",
     ))
     require("internal/transfer/manager.go", (
-        "security.EnsureLocalWithinRoot(job.LocalRoot, job.LocalPath)",
+        "localRoot := job.LocalRoot",
+        'job.Direction == "download" && localRoot == ""',
+        "security.EnsureLocalWithinRoot(localRoot, job.LocalPath)",
+        "LocalRoot:    localRoot",
         "remote.IsRetryable(err)",
         "errors.Is(err, remote.ErrSkipped)",
         "ConnectionIdentity() (string, error)",
@@ -172,6 +187,16 @@ def main() -> int:
     require("internal/remote/sftp_stream_test.go", ("TestSFTPCommandArgsKeepAskPassEnabled", "sftp -b"))
     require("internal/remote/private_key_validation_test.go", ("TestValidatePrivateKeyPathAcceptsRegularFile", "TestValidatePrivateKeyPathRejectsSymlink"))
     require("internal/remote/manager_test.go", ("TestDisconnectWaitsForActiveOperationRelease", "TestDisconnectTimeoutDefersCloseAndBlocksReconnect"))
+    require("internal/remote/local_download_root_test.go", (
+        "TestLocalDownloadTargetRejectsUnchangedSentinel",
+        "TestLocalDownloadTargetRejectsLateNestedRedirect",
+        "TestLocalDownloadTargetRechecksSkipExistingAtCommit",
+        "TestLocalPathRelativeToRootRejectsEscape",
+    ))
+    require("internal/transfer/local_root_propagation_test.go", (
+        "TestRunAttemptPreservesExplicitDownloadRoot",
+        "TestRunAttemptDerivesSingleFileDownloadRoot",
+    ))
     require("internal/transfer/finish_status_test.go", ("TestFinishJobKeepsSuccessfulResultWhenCancelArrivesAfterSuccess", "TestFinishJobMarksActualCancellation"))
     require("internal/security/remove_tree_root_test.go", ("RemoveTreeNoFollow",))
     require("internal/security/remove_tree_root_windows_test.go", ("TestIsFilesystemRootRejectsWindowsVolumeRoots",))
@@ -183,7 +208,9 @@ def main() -> int:
     print("SFTP_ASKPASS_BATCHMODE_CONFLICT=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("PROFILE_CREDENTIAL_CROSS_ENDPOINT=BLOCKED")
-    print("DOWNLOAD_STAGING_REPARSE_VALIDATION=ENABLED")
+    print("DOWNLOAD_ROOT_CAPABILITY=ENABLED")
+    print("DOWNLOAD_STAGING_IDENTITY_VALIDATION=ENABLED")
+    print("DOWNLOAD_COMMIT_ROOT_RELATIVE=ENABLED")
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
     print("FILESYSTEM_ROOT_DELETE=BLOCKED")
