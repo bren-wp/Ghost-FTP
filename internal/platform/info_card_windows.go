@@ -75,8 +75,8 @@ func InfoCardDialog(title, heading, body, closeLabel string) {
 		ssEtchedHorz    = 0x00000010
 	)
 	const (
-		windowWidth  = 660
-		windowHeight = 360
+		windowWidth  = 760
+		windowHeight = 460
 	)
 	x, y := premiumDialogPosition(windowWidth, windowHeight)
 	hwnd, _, _ := promptCreateWindowExW.Call(
@@ -122,10 +122,13 @@ func InfoCardDialog(title, heading, body, closeLabel string) {
 		return child
 	}
 
-	makeControl("STATIC", heading, 0, 38, 28, 584, 42, 0, headingFont)
-	makeControl("STATIC", body, 0, 40, 84, 580, 174, 0, bodyFont)
-	makeControl("STATIC", "", ssEtchedHorz, 40, 274, 580, 2, 0, bodyFont)
-	closeButton := makeControl("BUTTON", closeLabel, wsTabStop|bsDefPushButton, 516, 290, 104, 38, infoCardIDClose, bodyFont)
+	// About headings vary substantially across the 24 runtime locales. Reserve
+	// enough room for a wrapped three-line heading instead of clipping the second
+	// line, and keep the body comfortably separated from both heading and footer.
+	makeControl("STATIC", heading, 0, 40, 26, 680, 92, 0, headingFont)
+	makeControl("STATIC", body, 0, 40, 132, 680, 220, 0, bodyFont)
+	makeControl("STATIC", "", ssEtchedHorz, 40, 366, 680, 2, 0, bodyFont)
+	closeButton := makeControl("BUTTON", closeLabel, wsTabStop|bsDefPushButton, 616, 382, 104, 38, infoCardIDClose, bodyFont)
 	if closeButton != 0 {
 		promptSetFocus.Call(closeButton)
 	}
