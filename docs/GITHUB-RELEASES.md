@@ -1,14 +1,14 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.1.2 Stable** is the current maintained stable release. Ghost FTP **1.1.1 Stable** remains the previously published maintenance release, **1.1.0 Stable** remains the earlier feature release and **1.0.0 Stable** remains the first normal stable public release; published historical tags/releases must not be rewritten. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
+Ghost FTP **1.1.3 Stable** is the current maintained stable release. Ghost FTP **1.1.2 Stable** remains the previously published maintenance release, **1.1.1 Stable** and **1.1.0 Stable** remain earlier 1.1.x releases and **1.0.0 Stable** remains the first normal stable public release; published historical tags/releases must not be rewritten. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
 
 ## Release identity
 
-For version `1.1.2`:
+For version `1.1.3`:
 
 ```text
-Tag: ghostftp-v1.1.2
-Title: Ghost FTP 1.1.2
+Tag: ghostftp-v1.1.3
+Title: Ghost FTP 1.1.3
 Prerelease: false
 ```
 
@@ -35,20 +35,20 @@ The stable Release exposes **9 platform artifacts**.
 Windows:
 
 ```text
-Ghost-FTP-1.1.2-Setup-x64.exe
-Ghost-FTP-1.1.2-Setup-x86.exe
-Ghost-FTP-1.1.2-Setup-x32.exe
-Ghost-FTP-1.1.2-Portable-x64.exe
-Ghost-FTP-1.1.2-Portable-x86.exe
+Ghost-FTP-1.1.3-Setup-x64.exe
+Ghost-FTP-1.1.3-Setup-x86.exe
+Ghost-FTP-1.1.3-Setup-x32.exe
+Ghost-FTP-1.1.3-Portable-x64.exe
+Ghost-FTP-1.1.3-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.2-Linux-amd64.deb
-Ghost-FTP-1.1.2-Linux-arm64.deb
-Ghost-FTP-1.1.2-Linux-i386.deb
-Ghost-FTP-1.1.2-Linux-multiarch.zip
+Ghost-FTP-1.1.3-Linux-amd64.deb
+Ghost-FTP-1.1.3-Linux-arm64.deb
+Ghost-FTP-1.1.3-Linux-i386.deb
+Ghost-FTP-1.1.3-Linux-multiarch.zip
 ```
 
 and three verification/metadata files:
@@ -71,7 +71,7 @@ The canonical `release/ghostftp-vX.Y.Z` trigger branch must therefore be created
 
 If the new `ghostftp-vX.Y.Z` tag already exists unexpectedly before that release is published, publication must stop. The tag must not be moved, deleted, reused or force-pushed.
 
-The already-published `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2` tags are immutable release history and are never moved or reused.
+The already-published `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2` tags are immutable release history and are never moved or reused. After 1.1.3 is published, `ghostftp-v1.1.3` becomes immutable under the same rule.
 
 ## Windows signing state
 
@@ -97,10 +97,10 @@ A release is not considered published merely because a local build succeeded; re
 
 ## GitHub Packages
 
-Stable 1.1.2 publication additionally pushes the verified release directory to:
+Stable 1.1.3 publication additionally pushes the verified release directory to:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.2
+ghcr.io/bren-wp/ghost-ftp:1.1.3
 ```
 
 Compatible stable aliases are published only after successful registry publication/read-back:
@@ -133,7 +133,7 @@ See [Packages](PACKAGES.md).
 
 ## UI/documentation evidence
 
-The 1.1.2 release documentation must describe the actual maintained behavior: Classic Light remains the fresh/fallback primary appearance, Dark remains an explicit Windows choice, FTPS remains the fresh quick-connect protocol, and Windows application navigation uses the canonical left sidebar. Runtime About must show public `Ghost FTP` branding, BRENDIGO LTD and only official Brendigo destinations without clipping. Repository UI screenshots are produced from the real production Windows x64 Portable executable by the dedicated screenshot workflow; mockups or generated approximations are not accepted as release evidence. The final 1.1.2 candidate requires authentic Main Workspace, Site Manager, Settings and About screenshots from the exact release source revision.
+The 1.1.3 release documentation must describe the actual maintained behavior: Classic Light remains the fresh/fallback primary appearance, Dark remains an explicit Windows choice, FTPS remains the fresh quick-connect protocol, Windows application navigation uses the canonical left sidebar, and Site Manager includes the verified safe Duplicate surface. Runtime About remains public `Ghost FTP` branding with BRENDIGO LTD and official Brendigo destinations. Repository UI screenshots are produced from the real production Windows x64 Portable executable by the dedicated screenshot workflow; mockups or generated approximations are not accepted as release evidence. The UI changes included in the 1.1.3 codebase were already captured and visually reviewed on their exact post-1.1.2 hardening head before merge; the 1.1.3 release-prep commit itself changes version/release documentation only.
 
 ## Failure behavior
 
