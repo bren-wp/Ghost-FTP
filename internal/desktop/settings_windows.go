@@ -218,6 +218,7 @@ func (a *app) openAbout() {
 	// to official BRENDIGO LTD web properties; repository links remain in docs.
 	// Localization catalogs may legitimately use the internal GhostFTP identity
 	// in non-public surfaces, but About always renders the public Ghost FTP name.
+	// Keep this replacement scoped to About so technical/internal identity stays unchanged.
 	aboutBody := strings.ReplaceAll(a.tr("about.body", brand.Website, brand.Support), "GhostFTP", brand.ProductName)
 	body := aboutBody + "\n\n" +
 		brand.Publisher + "\n" +
