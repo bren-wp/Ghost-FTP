@@ -205,6 +205,7 @@ func ValidateCatalogs() error {
 			if _, ok := codes[code]; !ok {
 				extra = append(extra, code)
 			}
+		}
 		sort.Strings(extra)
 		return fmt.Errorf("catalogs contain unsupported language codes: %s", strings.Join(extra, ", "))
 	}
