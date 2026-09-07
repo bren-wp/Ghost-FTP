@@ -268,6 +268,35 @@ func ensureRemoteDirectory(ctx context.Context, sess remote.Session, target stri
 	return ensureRemoteDirectoryCached(ctx, sess, target, make(map[string]struct{}))
 }
 
+func remoteDirectoryEntry(ctx context.Context, sess remote.Session, target string) (bool, error) {
+	target = path.Clean(strings.ReplaceAll(strings.TrimSpace(target), "\\", "/"))
+	if target == "/" || target == "." {
+		return true, nil
+	}
+	parent := path.Dir(target)
+	if parent == "" {
+		parent = "."
+	}
+	name := path.Base(target)
+	items, err := sess.List(ctx, parent)
+	if err != nil {
+		return false, err
+	}
+	for _, item := range items {
+		if item.Name != name {
+			continue
+		}
+		if item.IsSymlink {
+			return false, errors.New("udaljena putanja sadrži simboličku poveznicu")
+		}
+		if !item.IsDirectory {
+			return false, errors.New("udaljena putanja nije mapa")
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
 func ensureRemoteDirectoryCached(ctx context.Context, sess remote.Session, target string, known map[string]struct{}) error {
 	target = path.Clean(strings.ReplaceAll(strings.TrimSpace(target), "\\", "/"))
 	if target == "/" || target == "." {
@@ -277,10 +306,7 @@ func ensureRemoteDirectoryCached(ctx context.Context, sess remote.Session, targe
 	if _, ok := known[target]; ok {
 		return nil
 	}
-	if _, err := sess.List(ctx, target); err == nil {
-		known[target] = struct{}{}
-		return nil
-	}
+
 	parent := path.Dir(target)
 	name := path.Base(target)
 	if parent == "" {
@@ -289,17 +315,37 @@ func ensureRemoteDirectoryCached(ctx context.Context, sess remote.Session, targe
 	if err := ensureRemoteDirectoryCached(ctx, sess, parent, known); err != nil {
 		return err
 	}
+
+	exists, err := remoteDirectoryEntry(ctx, sess, target)
+	if err != nil {
+		return err
+	}
+	if exists {
+		known[target] = struct{}{}
+		return nil
+	}
+
 	if err := sess.Mkdir(ctx, parent, name); err != nil {
 		// A race or server-specific "already exists" response is acceptable only
-		// when a fresh listing proves the directory now exists.
-		if _, listErr := sess.List(ctx, target); listErr == nil {
+		// when a fresh parent listing proves that the exact entry is now a real
+		// directory and not a file or symlink.
+		exists, verifyErr := remoteDirectoryEntry(ctx, sess, target)
+		if verifyErr == nil && exists {
 			known[target] = struct{}{}
 			return nil
 		}
+		if verifyErr != nil {
+			return errors.Join(err, verifyErr)
+		}
 		return err
 	}
-	if _, err := sess.List(ctx, target); err != nil {
+
+	exists, err = remoteDirectoryEntry(ctx, sess, target)
+	if err != nil {
 		return err
+	}
+	if !exists {
+		return errors.New("udaljena mapa nije potvrđena nakon izrade")
 	}
 	known[target] = struct{}{}
 	return nil
