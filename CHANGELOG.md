@@ -1,5 +1,49 @@
 # Changelog
 
+## 1.1.4 - 2026-09-08 Stable
+
+### Settings correctness and language UX
+
+- Made the Windows language selector close immediately after a language is selected.
+- Moved language persistence out of the native UI message-loop path so saving a locale change does not block interaction.
+- Serialized Language and Settings writes through one UI-side gate so an older whole-settings snapshot cannot overwrite a newer save.
+- Reused canonical backend min/max/default settings constants in the Windows Settings UI instead of maintaining duplicated validation ranges.
+- Normalized invalid or out-of-range prompt state to safe canonical defaults before display.
+- Avoided rebuilding localization, local/remote lists and layout for ordinary Settings saves unless the persisted language actually changed.
+- Removed the second redundant workspace-layout refinement after Windows language selection.
+
+### Performance, local UI assets and cleanup
+
+- Added an idle fast path to Windows transfer polling: when `TransferEvents` returns no new events, the timer does not allocate a selection map, recompute transfer summary/action state or redraw the transfer list.
+- Deduplicated native button/icon registration through one canonical helper.
+- Kept Windows icons fully local to the operating system: **Segoe Fluent Icons** is preferred where available with **Segoe MDL2 Assets** as compatibility fallback.
+- Added no web font, CDN, third-party icon runtime or external Go module dependency.
+- Audited repository cleanup candidates and retained active build/platform fallbacks, security regressions, package assets and release contracts instead of deleting files cosmetically.
+
+### Stability and verification
+
+- Stabilized process-tree cancellation regression coverage with a deterministic descendant-ready/post-cancel survival handshake rather than a fixed child-side delay, without weakening production cancellation behavior.
+- Added dedicated 1.1.4 desktop-quality regression contracts for language dropdown closure, asynchronous settings persistence, settings-write serialization, canonical settings bounds, idle transfer behavior, local icon policy and language-layout deduplication.
+- Preserved FTPS certificate/hostname validation, SFTP host-key verification/pinning, protected-secret ownership/lifetime rules, local root containment, staged transfer rollback, retry/cancel generation binding and explicit secure-protocol behavior.
+- Preserved zero telemetry, zero analytics/advertising/tracking and zero hidden product network service.
+
+### Required verification
+
+The 1.1.4 stable candidate must pass before publication:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- Go formatting checks;
+- dependency/repository/platform/desktop/localization/security/privacy/documentation/release audits;
+- full Python regression suite including the 1.1.4 desktop-quality contracts;
+- Windows x64/x86 Setup + Portable production builds, Setup-x32 alias verification and release artifact verification;
+- Linux amd64/arm64/i386 production builds, DEB verification and multiarch packaging contract;
+- Authenticode production-policy verification and private-key pipeline smoke test;
+- exact-head release-prep PR CI;
+- post-merge Core/Windows/Linux verification on the exact `main` SHA;
+- exact-main `release/ghostftp-v1.1.4` branch validation;
+- immutable `ghostftp-v1.1.4` tag, Stable GitHub Release, exact 12-file asset set and GHCR distribution-bundle publication/read-back.
+
 ## 1.1.3 - 2026-09-07 Stable
 
 ### Transfer and filesystem hardening
@@ -268,4 +312,4 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 
 ## Historical engineering history
 
-Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.3 Stable Windows/Linux contract.
+Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.4 Stable Windows/Linux contract.
