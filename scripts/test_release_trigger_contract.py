@@ -18,12 +18,19 @@ class ReleaseTriggerContractTests(unittest.TestCase):
         trigger = (ROOT / ".github/workflows/release-branch-trigger.yml").read_text(encoding="utf-8")
         required = [
             "on:\n  create:",
-            "startsWith(github.ref_name, 'release/ghostftp-v')",
-            'version="${GITHUB_REF_NAME#release/ghostftp-v}"',
+            "github.event.ref_type == 'branch'",
+            "startsWith(github.event.ref, 'release/ghostftp-v')",
+            "CREATED_REF: ${{ github.event.ref }}",
+            "prefix='release/ghostftp-v'",
+            'version="${CREATED_REF#${prefix}}"',
+            'source_version="$(tr -d \'\\r\\n\' < VERSION)"',
+            'test "$version" = "$source_version"',
             'main_sha="$(git rev-parse HEAD)"',
             'test "$GITHUB_SHA" = "$main_sha"',
-            'test "$version" = "$source_version"',
-            'gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref main -f version="$version"',
+            "gh workflow run release.yml",
+            '--repo "$GITHUB_REPOSITORY"',
+            "--ref main",
+            '-f version="$version"',
         ]
         for marker in required:
             self.assertIn(marker, trigger)
