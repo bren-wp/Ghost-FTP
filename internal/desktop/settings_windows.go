@@ -8,6 +8,7 @@ import (
 
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
 	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
@@ -33,6 +34,18 @@ func (a *app) loadSettings() {
 			a.updateActionControls()
 		})
 	})
+}
+
+func (a *app) setSettingsControlsEnabled(enabled bool) {
+	value := uintptr(0)
+	if enabled {
+		value = 1
+	}
+	for _, hwnd := range []uintptr{a.languageCombo, a.settingsBtn} {
+		if hwnd != 0 {
+			enableWindow.Call(hwnd, value)
+		}
+	}
 }
 
 func (a *app) promptNumber(instructionKey string, current, min, max int) (int, bool) {
@@ -222,15 +235,20 @@ func (a *app) openSettings() {
 	title := a.tr("settings.title")
 	settings.ConfirmDelete = platform.ConfirmDialog(title, a.tr("settings.confirm_delete_title"), a.tr("settings.confirm_delete_body"))
 
+	a.setSettingsControlsEnabled(false)
 	a.goSafe(func() {
 		saved, err := a.engine.SetSettings(settings)
 		a.dispatch(func() {
+			a.setSettingsControlsEnabled(true)
 			if err != nil {
 				platform.ErrorDialog(title, a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
 				return
 			}
+			displayedLanguage := a.languageCode()
 			a.settings = saved
-			a.applyLanguage(saved.Language)
+			if i18n.Normalize(saved.Language) != displayedLanguage {
+				a.applyLanguage(saved.Language)
+			}
 			status := a.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, retrySummary(a, saved), overwriteSummary(a, saved))
 			if isDarkAppearance(saved.Appearance) != activeThemeIsDark() {
 				status += " · " + appearanceText(saved.Language).Hint

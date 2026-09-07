@@ -21,14 +21,32 @@ class Release114DesktopQualityTests(unittest.TestCase):
         self.assertIn(
             "sendMessageW.Call(a.languageCombo, cbShowDropDown, 0, 0)", change
         )
-        self.assertIn("enableWindow.Call(a.languageCombo, 0)", change)
-        self.assertIn("enableWindow.Call(a.languageCombo, 1)", change)
+        self.assertIn("a.setSettingsControlsEnabled(false)", change)
+        self.assertIn("a.setSettingsControlsEnabled(true)", change)
         self.assertIn("a.goSafe(func() {", change)
         self.assertIn("a.dispatch(func() {", change)
         self.assertLess(change.index("a.goSafe(func() {"), change.index("a.engine.SetSettings(next)"))
         self.assertEqual(change.count("a.engine.SetSettings(next)"), 1)
         self.assertIn("displayedLanguage := a.languageCode()", change)
         self.assertIn("if i18n.Normalize(saved.Language) != displayedLanguage", change)
+
+    def test_settings_writes_share_one_ui_lock_and_avoid_redundant_locale_refresh(self) -> None:
+        text = self.read("internal/desktop/settings_windows.go")
+        helper = text.split("func (a *app) setSettingsControlsEnabled", 1)[1].split(
+            "func (a *app) promptNumber", 1
+        )[0]
+        save = text.split("func (a *app) openSettings()", 1)[1].split(
+            "func (a *app) openAbout()", 1
+        )[0]
+
+        self.assertIn("a.languageCombo", helper)
+        self.assertIn("a.settingsBtn", helper)
+        self.assertIn("enableWindow.Call(hwnd, value)", helper)
+        self.assertIn("a.setSettingsControlsEnabled(false)", save)
+        self.assertIn("a.setSettingsControlsEnabled(true)", save)
+        self.assertIn("displayedLanguage := a.languageCode()", save)
+        self.assertIn("if i18n.Normalize(saved.Language) != displayedLanguage", save)
+        self.assertNotIn("\n\t\t\ta.applyLanguage(saved.Language)\n", save)
 
     def test_idle_transfer_poll_has_no_redraw_work(self) -> None:
         text = self.read("internal/desktop/transfers_windows.go")
