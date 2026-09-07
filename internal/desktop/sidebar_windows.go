@@ -31,7 +31,7 @@ func (a *app) ensureSidebarDiagnostics() uintptr {
 		}
 	}
 	hinst, _, _ := getModuleHandleW.Call(0)
-	label := nativeMenuWords(a.languageCode())[8]
+	label := navigationLabelsForLanguage(a.languageCode()).Diagnostics
 	hwnd, _, _ := createWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(wstr("BUTTON"))),
@@ -169,10 +169,10 @@ func (a *app) applyApplicationSidebar() {
 		return
 	}
 	diagnostics := a.ensureSidebarDiagnostics()
-	words := nativeMenuWords(a.languageCode())
-	a.setSidebarButtonVisual(a.siteManagerBtn, iconOpenLocal, words[5], buttonDefault)
+	labels := navigationLabelsForLanguage(a.languageCode())
+	a.setSidebarButtonVisual(a.siteManagerBtn, iconOpenLocal, labels.SiteManager, buttonDefault)
 	a.setSidebarButtonVisual(a.settingsBtn, iconSettings, a.tr("common.settings"), buttonSubtle)
-	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, words[8], buttonSubtle)
+	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, labels.Diagnostics, buttonSubtle)
 	a.setSidebarButtonVisual(a.aboutBtn, iconInfo, a.tr("common.about"), buttonSubtle)
 
 	// Rail controls are always anchored explicitly, including state-only passes.
