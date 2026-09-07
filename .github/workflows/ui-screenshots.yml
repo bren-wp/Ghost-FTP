@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - 'hardening/**'
+      - 'release-prep/**'
       - 'work/**'
       - 'release/**'
     paths:
