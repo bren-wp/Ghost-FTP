@@ -93,6 +93,7 @@ def audit_credentials_and_network_tools() -> None:
         '"-q", "--config", "-"', '"proxy = \\\"\\\""', '"noproxy = \\\"*\\\""',
         "sanitizedToolEnv(os.Environ())", "security.ProtectRuntimeString(password)",
         "security.UnprotectRuntimeBytes(c.passwordBlob)", "security.ForgetRuntimeSecret(c.passwordBlob)",
+        "prepareLocalDownloadTarget(local, options.LocalRoot, options.SkipExisting)",
     ))
     if "HTTP_PROXY" in curl or "HTTPS_PROXY" in curl:
         fail("CurlFTP must not directly inherit proxy variables")
@@ -105,6 +106,7 @@ def audit_credentials_and_network_tools() -> None:
         '"  IdentityAgent none"', '"  ClearAllForwardings yes"', '"  ForwardAgent no"',
         "GhostFTP_ASKPASS_TOKEN=", "GhostFTP_PASSWORD_BLOB=", "GhostFTP_PASSPHRASE_BLOB=",
         "sanitizedToolEnv(os.Environ())",
+        "prepareLocalDownloadTarget(local, options.LocalRoot, options.SkipExisting)",
     ))
     for forbidden in ("GhostFTP_ASKPASS_FILE", "askpassFile", "os.WriteFile(askpass"):
         if forbidden in sftp:
@@ -112,7 +114,20 @@ def audit_credentials_and_network_tools() -> None:
 
     require("cmd/ghostftp/main.go", ("GhostFTP_ASKPASS_TOKEN", "GhostFTP_PASSWORD_BLOB", "GhostFTP_PASSPHRASE_BLOB", "TrustedAskPassParent", "selectAskpassSecret"))
     require("internal/remote/util.go", ('"http_proxy"', '"https_proxy"', '"ftp_proxy"', '"all_proxy"', '"no_proxy"', '"sslkeylogfile"', '"ssh_askpass"', '"ssh_auth_sock"', "crypto/rand", "func randomTransferToken()"))
-    require("internal/transfer/manager.go", ("recover() != nil", "ConnectionIdentity() (string, error)", "security.EnsureLocalWithinRoot(job.LocalRoot, job.LocalPath)", "remote.IsRetryable(err)"))
+    require("internal/transfer/manager.go", (
+        "recover() != nil",
+        "ConnectionIdentity() (string, error)",
+        "localRoot := job.LocalRoot",
+        'job.Direction == "download" && localRoot == ""',
+        "security.EnsureLocalWithinRoot(localRoot, job.LocalPath)",
+        "LocalRoot:    localRoot",
+        "remote.IsRetryable(err)",
+    ))
+    require("internal/remote/local_download_root.go", (
+        "os.OpenRoot(rootPath)",
+        "security.EnsureLocalWithinRoot(d.rootPath, d.targetPath)",
+        "d.root.Rename(d.partName, d.targetRel)",
+    ))
     require("internal/localfs/service.go", ("security.IsReparsePoint", "platform.RenameNoReplace"))
     require("internal/security/remove_tree.go", ("func RemoveTreeNoFollow(", "isReparsePoint", "os.ModeSymlink"))
 
@@ -153,6 +168,8 @@ def main() -> None:
     print("FIXED_RUNTIME_HTTP_URLS=BLOCKED")
     print("TELEMETRY_VENDOR_MARKERS=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
+    print("DOWNLOAD_LOCAL_ROOT_PROPAGATION=ENFORCED")
+    print("DOWNLOAD_ROOT_RELATIVE_COMMIT=ENFORCED")
 
 
 if __name__ == "__main__":
