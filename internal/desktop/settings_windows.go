@@ -219,7 +219,7 @@ func (a *app) openAbout() {
 	// Localization catalogs may legitimately use the internal GhostFTP identity
 	// in non-public surfaces, but About always renders the public Ghost FTP name.
 	// Keep this replacement scoped to About so technical/internal identity stays unchanged.
-	// This source path is also part of the authentic final-release screenshot gate.
+	// Changes to this source path intentionally require fresh authentic release screenshots.
 	aboutBody := strings.ReplaceAll(a.tr("about.body", brand.Website, brand.Support), "GhostFTP", brand.ProductName)
 	body := aboutBody + "\n\n" +
 		brand.Publisher + "\n" +
