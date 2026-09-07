@@ -1,25 +1,25 @@
 # Ghost FTP release verification
 
-This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. The current maintained release is **1.1.2 Stable**. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
+This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. The current maintained release is **1.1.3 Stable**. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
 
-## Expected 1.1.2 release identity
+## Expected 1.1.3 release identity
 
 ```text
-VERSION=1.1.2
-TAG=ghostftp-v1.1.2
-TITLE=Ghost FTP 1.1.2
+VERSION=1.1.3
+TAG=ghostftp-v1.1.3
+TITLE=Ghost FTP 1.1.3
 PRERELEASE=false
 ```
 
-A stable release must not be marked as a prerelease. Previously published tags, including `ghostftp-v1.0.0`, `ghostftp-v1.1.0` and `ghostftp-v1.1.1`, remain historical identities and must not be moved or reused.
+A stable release must not be marked as a prerelease. Previously published tags, including `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2`, remain historical identities and must not be moved or reused.
 
-## Source revision
+## Source revision and canonical publication flow
 
-`BUILD-METADATA.txt` contains the source commit. The GitHub Release tag must resolve to that exact commit. The release workflow also proves that `main` still points to the release commit immediately before and after publication.
+`BUILD-METADATA.txt` contains the source commit. The GitHub Release tag must resolve to that exact commit. The release workflow proves that `main` still points to the release commit immediately before and after publication.
 
-For a future release, publication is not triggered merely because `VERSION` changed on `main`. The canonical sequence is:
+Publication is not triggered merely because `VERSION` changed on `main`. The canonical sequence is:
 
-1. feature/release PR passes exact-head CI and any required authentic UI evidence;
+1. feature/release-prep PR passes exact-head CI and any required authentic UI evidence;
 2. the PR is merged;
 3. post-merge CI passes on the exact current `main` SHA;
 4. `release/ghostftp-vX.Y.Z` is created from that exact `main` SHA;
@@ -30,9 +30,28 @@ For a future release, publication is not triggered merely because `VERSION` chan
 
 ## Public file set
 
-The expected contract is **9 platform artifacts** and **12 public files** total. Extra or missing files fail the publication read-back.
+The expected contract is **9 platform artifacts** and **12 public files** total. Extra or missing files fail publication read-back.
 
-The platform artifacts are five Windows files and four Linux files. The remaining three files are:
+Windows:
+
+```text
+Ghost-FTP-1.1.3-Setup-x64.exe
+Ghost-FTP-1.1.3-Setup-x86.exe
+Ghost-FTP-1.1.3-Setup-x32.exe
+Ghost-FTP-1.1.3-Portable-x64.exe
+Ghost-FTP-1.1.3-Portable-x86.exe
+```
+
+Linux:
+
+```text
+Ghost-FTP-1.1.3-Linux-amd64.deb
+Ghost-FTP-1.1.3-Linux-arm64.deb
+Ghost-FTP-1.1.3-Linux-i386.deb
+Ghost-FTP-1.1.3-Linux-multiarch.zip
+```
+
+Verification/metadata:
 
 ```text
 BUILD-METADATA.txt
@@ -48,15 +67,13 @@ SHA256.txt
 sha256sum -c SHA256.txt
 ```
 
-On Windows, use `Get-FileHash -Algorithm SHA256` and compare each value to the manifest.
-
-Do not treat a matching filename as proof of authenticity; verify the digest and official release location.
+On Windows, use `Get-FileHash -Algorithm SHA256` and compare each value to the manifest. A matching filename alone is not proof of authenticity; verify the digest and official release location.
 
 ## Windows Authenticode
 
-Read `WINDOWS_AUTHENTICODE` from `BUILD-METADATA.txt` before interpreting the Windows signature state.
+Read `WINDOWS_AUTHENTICODE` from `BUILD-METADATA.txt` before interpreting Windows signature state.
 
-If it is:
+If metadata says:
 
 ```text
 WINDOWS_AUTHENTICODE=signed
@@ -64,7 +81,7 @@ WINDOWS_AUTHENTICODE=signed
 
 then the protected workflow used a configured production certificate and every Setup/Portable artifact was required to pass Authenticode verification during the production build.
 
-If it is:
+If metadata says:
 
 ```text
 WINDOWS_AUTHENTICODE=unsigned
@@ -72,23 +89,21 @@ WINDOWS_AUTHENTICODE=unsigned
 
 then the release intentionally contains unsigned Windows artifacts. This is a truthful supported publication state, not a failed or partially signed release.
 
-On Windows, inspect the signature with PowerShell:
+Example inspection:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-1.1.2-Setup-x64.exe | Format-List
+Get-AuthenticodeSignature .\Ghost-FTP-1.1.3-Setup-x64.exe | Format-List
 ```
 
-For a signed release, verify that the signature is valid and that the publisher identity is the expected trusted identity. For an unsigned release, Windows may show SmartScreen/publisher warnings. Do not bypass enterprise or operating-system security policy solely to suppress such warnings.
-
-The release workflow does not create a self-signed production identity. Short-lived self-signed certificates are allowed only in CI signing smoke tests and are not public publisher credentials.
+The production workflow does not create a self-signed production identity. Short-lived self-signed certificates are permitted only for CI signing smoke tests. The verification gate requires explicit unsigned metadata when no production certificate is configured.
 
 ## x86/x32 alias verification
 
 The two Setup names:
 
 ```text
-Ghost-FTP-1.1.2-Setup-x86.exe
-Ghost-FTP-1.1.2-Setup-x32.exe
+Ghost-FTP-1.1.3-Setup-x86.exe
+Ghost-FTP-1.1.3-Setup-x32.exe
 ```
 
 must be byte-identical. The release workflow compares their SHA-256 values before publication.
@@ -98,67 +113,56 @@ must be byte-identical. The release workflow compares their SHA-256 values befor
 For each Linux package, verify:
 
 ```bash
-dpkg-deb -f Ghost-FTP-1.1.2-Linux-amd64.deb Package
-dpkg-deb -f Ghost-FTP-1.1.2-Linux-amd64.deb Version
-dpkg-deb -f Ghost-FTP-1.1.2-Linux-amd64.deb Architecture
+dpkg-deb -f Ghost-FTP-1.1.3-Linux-amd64.deb Package
+dpkg-deb -f Ghost-FTP-1.1.3-Linux-amd64.deb Version
+dpkg-deb -f Ghost-FTP-1.1.3-Linux-amd64.deb Architecture
 ```
 
-Expected package name is `ghost-ftp`; version must equal `1.1.2`; architecture must match the file suffix. The same checks apply to arm64 and i386.
+Expected package name is `ghost-ftp`; version must equal `1.1.3`; architecture must match the file suffix. The same checks apply to arm64 and i386.
 
 ## GitHub Release verification
 
 Confirm that:
 
-- tag is `ghostftp-v1.1.2`;
-- title is `Ghost FTP 1.1.2`;
+- tag is `ghostftp-v1.1.3`;
+- title is `Ghost FTP 1.1.3`;
 - `prerelease` is false;
 - tag resolves to the documented source commit;
 - remote asset names exactly match the 12-file allow-list;
-- `SHA256.txt` verifies the downloaded content;
+- `SHA256.txt` verifies downloaded content;
 - `BUILD-METADATA.txt` truthfully reports `WINDOWS_AUTHENTICODE=signed` or `unsigned`.
 
-The production workflow performs immediate and delayed Release read-back; manual verification is still useful before broad deployment.
+The production workflow performs immediate and delayed Release read-back. Manual verification is still useful before broad deployment.
 
 ## GitHub Packages verification
 
-Stable 1.1.2 publishes:
+Stable 1.1.3 publishes:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.2
+ghcr.io/bren-wp/ghost-ftp:1.1.3
 ```
 
-The package is a verified distribution bundle, not a runtime container. Its OCI metadata must identify the Ghost FTP source repository, stable version and release source revision.
+The package is a verified distribution bundle, not a runtime container. OCI metadata must identify the Ghost FTP source repository, stable version and release source revision. Stable aliases `1.1`, `1` and `latest` are updated only after publication and registry read-back succeed.
 
-Recommended automation resolves the full version tag to an immutable OCI digest and pins that digest downstream. After extracting `/ghostftp-release/`, verify its `SHA256.txt` exactly as for a GitHub Release download.
+## 1.1.3 runtime/security verification
 
-## Privacy verification
+The release candidate must preserve the maintained runtime contract:
 
-A release/package must not contain:
-
-- saved site profiles;
-- plaintext passwords;
-- private-key passphrases;
-- signing private keys/PFX material;
-- user files or local application data;
-- developer machine paths or secrets.
-
-The GHCR build copies only the already assembled `release/` allow-list, and Docker build networking is disabled.
-
-## Connection and UI verification for 1.1.2
-
-The release candidate must preserve the maintained runtime contract in addition to packaging integrity:
-
-- fresh/fallback appearance is Classic Light while an explicitly saved Dark choice remains respected where the platform exposes runtime appearance switching;
+- fresh/fallback Windows appearance is Classic Light and explicitly saved Dark remains respected;
 - fresh quick-connect protocol is explicit FTPS on port 21 on Windows and Linux;
-- plain FTP remains available only as an explicit compatibility choice and FTPS must not silently downgrade to it;
-- loopback protocol regressions exercise authentication, list, mkdir, upload, size/list, rename, download/content equality and delete;
-- `remote.Manager.Connect()` regression coverage exercises connect, remote list/operation state and disconnect, including invalid-password and secure-to-plain failure paths;
-- credential persistence remains opt-in and privacy-sensitive save prompts use the maintained localization catalog;
-- documentation screenshots come from the real Windows x64 Portable executable built by the dedicated screenshot workflow.
+- plain FTP remains explicit compatibility only and secure transports never silently downgrade;
+- SFTP host-key verification/pinning and protected-secret ownership/lifetime rules remain enforced;
+- SFTP batch path operands are escaped so literal remote names are not interpreted as globs or command options;
+- remote tree directory preparation rejects symlink and non-directory path components;
+- local downloads preserve the selected `LocalRoot` through the transfer layer and use root-bound `os.Root` staging/activation/rollback;
+- staging identity/sentinel validation and late `SkipExisting` checks are active;
+- Site Manager Duplicate does not silently clone saved password/passphrase material or host-key trust state;
+- Windows reserved device-name validation includes DOS superscript-number variants;
+- installer/uninstaller registry metadata does not advertise a false quiet uninstall command.
 
 ## CI/release gate verification
 
-Before trusting a new stable version, inspect that the exact revision passed:
+Before trusting 1.1.3, inspect that the exact revision passed:
 
 - exact PR-head CI before merge;
 - post-merge CI on the exact `main` SHA;
@@ -178,6 +182,10 @@ Before trusting a new stable version, inspect that the exact revision passed:
 - canonical release branch equality/version checks before publication dispatch;
 - GitHub Package push/read-back;
 - GitHub Release asset/tag/prerelease read-back verification.
+
+## Privacy verification
+
+A release/package must not contain saved profiles, plaintext passwords, private-key passphrases, signing private keys/PFX material, user files, local application data or developer-machine secrets. The GHCR build copies only the already assembled release allow-list and build networking is disabled.
 
 ## Failure interpretation
 

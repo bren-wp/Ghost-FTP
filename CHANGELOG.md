@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.1.3 - 2026-09-07 Stable
+
+### Transfer and filesystem hardening
+
+- Preserved the user-selected download `LocalRoot` through transfer execution into FTP, FTPS and SFTP download implementations.
+- Moved final local download staging, activation and rollback to Go `os.Root` operations so the selected root remains the filesystem capability boundary during commit.
+- Added randomized root-level staging with cryptographic sentinel and file-identity verification before activation.
+- Added late nested symlink/junction/path-swap rejection, late `SkipExisting` revalidation and rollback/backup safeguards around final local activation.
+- Hardened remote tree preparation so existing path components must be real directories; symlink and non-directory components are rejected before child uploads proceed.
+
+### SFTP, Windows and Site Manager correctness
+
+- Escaped SFTP batch glob metacharacters and leading-option edge cases so literal remote names are not reinterpreted as patterns or options.
+- Extended Windows local-name validation to reserved DOS device names using superscript-number variants such as `COM¹`, `COM²`, `COM³`, `LPT¹`, `LPT²` and `LPT³`.
+- Added a safe Site Manager **Duplicate** workflow that creates a new unsaved draft without silently copying a profile ID, password, private-key passphrase or SFTP host-key trust fingerprint.
+- Removed stale `QuietUninstallString` registration because the current Windows uninstaller is intentionally interactive; upgrades remove the obsolete value transactionally and retain rollback protection.
+
+### Release discipline and verification
+
+- Removed the legacy publication path where a `VERSION` change pushed to `main` could trigger release publication.
+- Kept `release.yml` publication-only and `workflow_dispatch`-only.
+- Made `release/ghostftp-vX.Y.Z` created from the exact verified `main` SHA the canonical publication trigger with branch/version equality guards.
+- Added/updated regression contracts for release triggering, documentation version alignment, remote directory types, local root propagation, staging identity, late redirect/path-swap behavior and privacy/security audit invariants.
+- Preserved zero telemetry, zero advertising/tracking, zero hidden product network service and zero external Go module requirements.
+
+### Required verification
+
+The 1.1.3 stable candidate must pass before publication:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- Go formatting checks;
+- dependency/repository/platform/desktop/localization/security/privacy/documentation/release audits;
+- full Python regression suite;
+- Windows x64/x86 Setup + Portable production builds, Setup-x32 alias verification and release artifact verification;
+- Linux amd64/arm64/i386 production builds, DEB verification and multiarch packaging contract;
+- Authenticode production-policy verification and private-key pipeline smoke test;
+- exact-head release-prep PR CI;
+- post-merge Core/Windows/Linux verification on the exact `main` SHA;
+- exact-main `release/ghostftp-v1.1.3` branch validation;
+- immutable `ghostftp-v1.1.3` tag, Stable GitHub Release, exact 12-file asset set and GHCR distribution-bundle publication/read-back.
+
 ## 1.1.2 - 2026-09-07 Stable
 
 ### Native Windows UI and navigation
@@ -226,4 +268,4 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 
 ## Historical engineering history
 
-Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.2 Stable Windows/Linux contract.
+Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.3 Stable Windows/Linux contract.
