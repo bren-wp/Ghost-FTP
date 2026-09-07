@@ -15,9 +15,12 @@ import (
 )
 
 type fakeTreeSession struct {
-	mu        sync.Mutex
-	dirs      map[string]bool
-	listCalls map[string]int
+	mu               sync.Mutex
+	dirs             map[string]bool
+	items            map[string]model.Item
+	listCalls        map[string]int
+	mkdirRaceDirs    map[string]bool
+	mkdirRaceEntries map[string]model.Item
 }
 
 func newFakeTreeSession(dirs ...string) *fakeTreeSession {
@@ -25,7 +28,13 @@ func newFakeTreeSession(dirs ...string) *fakeTreeSession {
 	for _, d := range dirs {
 		m[path.Clean(d)] = true
 	}
-	return &fakeTreeSession{dirs: m, listCalls: make(map[string]int)}
+	return &fakeTreeSession{
+		dirs:             m,
+		items:            make(map[string]model.Item),
+		listCalls:        make(map[string]int),
+		mkdirRaceDirs:    make(map[string]bool),
+		mkdirRaceEntries: make(map[string]model.Item),
+	}
 }
 
 func (f *fakeTreeSession) Protocol() string { return "sftp" }
@@ -39,7 +48,23 @@ func (f *fakeTreeSession) List(_ context.Context, p string) ([]model.Item, error
 	if !f.dirs[p] {
 		return nil, errors.New("not found")
 	}
-	return nil, nil
+	items := make([]model.Item, 0)
+	for full := range f.dirs {
+		if full == p || path.Dir(full) != p {
+			continue
+		}
+		items = append(items, model.Item{Name: path.Base(full), IsDirectory: true})
+	}
+	for full, item := range f.items {
+		if path.Dir(full) != p {
+			continue
+		}
+		if item.Name == "" {
+			item.Name = path.Base(full)
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 func (f *fakeTreeSession) Mkdir(_ context.Context, base, name string) error {
 	f.mu.Lock()
@@ -48,7 +73,19 @@ func (f *fakeTreeSession) Mkdir(_ context.Context, base, name string) error {
 	if !f.dirs[base] {
 		return errors.New("parent missing")
 	}
-	f.dirs[path.Join(base, name)] = true
+	target := path.Join(base, name)
+	if f.mkdirRaceDirs[target] {
+		f.dirs[target] = true
+		return errors.New("already exists")
+	}
+	if item, ok := f.mkdirRaceEntries[target]; ok {
+		if item.Name == "" {
+			item.Name = path.Base(target)
+		}
+		f.items[target] = item
+		return errors.New("already exists")
+	}
+	f.dirs[target] = true
 	return nil
 }
 func (f *fakeTreeSession) Rename(context.Context, string, string, string) error { return nil }
@@ -99,6 +136,46 @@ func TestEnsureRemoteDirectoryRelativeFromHome(t *testing.T) {
 		if !f.dirs[path.Clean(want)] {
 			t.Fatalf("missing relative created directory %q; got %#v", want, f.dirs)
 		}
+	}
+}
+
+func TestEnsureRemoteDirectoryRejectsExistingFile(t *testing.T) {
+	f := newFakeTreeSession()
+	f.items["/blocked"] = model.Item{Name: "blocked"}
+	if err := ensureRemoteDirectory(context.Background(), f, "/blocked/child"); err == nil {
+		t.Fatal("existing remote file was accepted as a directory component")
+	}
+}
+
+func TestEnsureRemoteDirectoryRejectsExistingSymlink(t *testing.T) {
+	f := newFakeTreeSession()
+	f.items["/linked"] = model.Item{Name: "linked", IsDirectory: true, IsSymlink: true}
+	if err := ensureRemoteDirectory(context.Background(), f, "/linked/child"); err == nil {
+		t.Fatal("existing remote symlink was accepted as a directory component")
+	}
+}
+
+func TestEnsureRemoteDirectoryAcceptsMkdirRaceOnlyWhenDirectoryIsVerified(t *testing.T) {
+	f := newFakeTreeSession()
+	f.mkdirRaceDirs["/race"] = true
+	if err := ensureRemoteDirectory(context.Background(), f, "/race"); err != nil {
+		t.Fatalf("verified concurrent directory creation should succeed: %v", err)
+	}
+}
+
+func TestEnsureRemoteDirectoryRejectsMkdirRaceToFile(t *testing.T) {
+	f := newFakeTreeSession()
+	f.mkdirRaceEntries["/race"] = model.Item{Name: "race"}
+	if err := ensureRemoteDirectory(context.Background(), f, "/race"); err == nil {
+		t.Fatal("mkdir race that produced a file was accepted")
+	}
+}
+
+func TestEnsureRemoteDirectoryRejectsMkdirRaceToSymlink(t *testing.T) {
+	f := newFakeTreeSession()
+	f.mkdirRaceEntries["/race"] = model.Item{Name: "race", IsDirectory: true, IsSymlink: true}
+	if err := ensureRemoteDirectory(context.Background(), f, "/race"); err == nil {
+		t.Fatal("mkdir race that produced a symlink was accepted")
 	}
 }
 
@@ -153,11 +230,11 @@ func TestEnsureRemoteDirectoryCacheAvoidsRelistingKnownParents(t *testing.T) {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	// Each missing directory needs one failing existence probe and one successful
-	// verification after creation. Its already-known parent must not be probed again.
-	for _, target := range []string{"/one", "/one/two", "/one/two/three"} {
-		if got := f.listCalls[target]; got != 2 {
-			t.Fatalf("List(%s) calls=%d want 2", target, got)
+	// Each missing directory requires one parent listing before creation and one
+	// read-back after creation. Known ancestors are not recursively revalidated.
+	for _, parent := range []string{"/", "/one", "/one/two"} {
+		if got := f.listCalls[parent]; got != 2 {
+			t.Fatalf("List(%s) calls=%d want 2", parent, got)
 		}
 	}
 }
