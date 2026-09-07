@@ -1,17 +1,17 @@
 # Ghost FTP release verification
 
-This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. The current maintained release is **1.1.4 Stable**. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
+This document defines how to verify Ghost FTP **1.0.0 Stable** and later stable releases. The current maintained release is **1.1.5 Stable**. Verification covers source identity, Windows signing state, Linux package metadata, per-file SHA-256 values, GitHub Release state and GitHub Packages registry state.
 
-## Expected 1.1.4 release identity
+## Expected 1.1.5 release identity
 
 ```text
-VERSION=1.1.4
-TAG=ghostftp-v1.1.4
-TITLE=Ghost FTP 1.1.4
+VERSION=1.1.5
+TAG=ghostftp-v1.1.5
+TITLE=Ghost FTP 1.1.5
 PRERELEASE=false
 ```
 
-A stable release must not be marked as a prerelease. Previously published tags, including `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1`, `ghostftp-v1.1.2` and `ghostftp-v1.1.3`, remain historical identities and must not be moved or reused.
+A stable release must not be marked as a prerelease. Previously published tags, including `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1`, `ghostftp-v1.1.2`, `ghostftp-v1.1.3` and `ghostftp-v1.1.4`, remain historical identities and must not be moved or reused.
 
 ## Source revision and canonical publication flow
 
@@ -19,12 +19,13 @@ A stable release must not be marked as a prerelease. Previously published tags, 
 
 Publication is not triggered merely because `VERSION` changed on `main`. The canonical sequence is:
 
-1. feature/release-prep PR passes exact-head CI and any required authentic UI evidence;
+1. the release-prep PR passes exact-head Core, Windows and Linux CI plus any required authentic UI evidence;
 2. the PR is merged;
 3. post-merge CI passes on the exact current `main` SHA;
 4. `release/ghostftp-vX.Y.Z` is created from that exact `main` SHA;
 5. `.github/workflows/release-branch-trigger.yml` verifies that the branch commit equals current `main` and that the branch version equals `VERSION`;
-6. only then does the branch trigger dispatch `.github/workflows/release.yml` on `main` with the expected version guard.
+6. only then does the branch trigger dispatch `.github/workflows/release.yml` on `main` with the expected version guard;
+7. publication is accepted only after tag, GitHub Release assets and GHCR package read-back all succeed.
 
 `release.yml` is publication-only and `workflow_dispatch`-only. A push to `main`, including a change to `VERSION`, must never publish a release directly.
 
@@ -35,20 +36,20 @@ The expected contract is **9 platform artifacts** and **12 public files** total.
 Windows:
 
 ```text
-Ghost-FTP-1.1.4-Setup-x64.exe
-Ghost-FTP-1.1.4-Setup-x86.exe
-Ghost-FTP-1.1.4-Setup-x32.exe
-Ghost-FTP-1.1.4-Portable-x64.exe
-Ghost-FTP-1.1.4-Portable-x86.exe
+Ghost-FTP-1.1.5-Setup-x64.exe
+Ghost-FTP-1.1.5-Setup-x86.exe
+Ghost-FTP-1.1.5-Setup-x32.exe
+Ghost-FTP-1.1.5-Portable-x64.exe
+Ghost-FTP-1.1.5-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.4-Linux-amd64.deb
-Ghost-FTP-1.1.4-Linux-arm64.deb
-Ghost-FTP-1.1.4-Linux-i386.deb
-Ghost-FTP-1.1.4-Linux-multiarch.zip
+Ghost-FTP-1.1.5-Linux-amd64.deb
+Ghost-FTP-1.1.5-Linux-arm64.deb
+Ghost-FTP-1.1.5-Linux-i386.deb
+Ghost-FTP-1.1.5-Linux-multiarch.zip
 ```
 
 Verification/metadata:
@@ -67,7 +68,7 @@ SHA256.txt
 sha256sum -c SHA256.txt
 ```
 
-On Windows, use `Get-FileHash -Algorithm SHA256` and compare each value to the manifest. A matching filename alone is not proof of authenticity; verify the digest and official release location.
+On Windows, use `Get-FileHash -Algorithm SHA256` and compare each value with the manifest. A matching filename alone is not proof of authenticity; verify both the digest and official release location.
 
 ## Windows Authenticode
 
@@ -92,7 +93,7 @@ then the release intentionally contains unsigned Windows artifacts. This is a tr
 Example inspection:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-1.1.4-Setup-x64.exe | Format-List
+Get-AuthenticodeSignature .\Ghost-FTP-1.1.5-Setup-x64.exe | Format-List
 ```
 
 The production workflow does not create a self-signed production identity. Short-lived self-signed certificates are permitted only for CI signing smoke tests. The verification gate requires explicit unsigned metadata when no production certificate is configured.
@@ -102,8 +103,8 @@ The production workflow does not create a self-signed production identity. Short
 The two Setup names:
 
 ```text
-Ghost-FTP-1.1.4-Setup-x86.exe
-Ghost-FTP-1.1.4-Setup-x32.exe
+Ghost-FTP-1.1.5-Setup-x86.exe
+Ghost-FTP-1.1.5-Setup-x32.exe
 ```
 
 must be byte-identical. The release workflow compares their SHA-256 values before publication.
@@ -113,65 +114,80 @@ must be byte-identical. The release workflow compares their SHA-256 values befor
 For each Linux package, verify:
 
 ```bash
-dpkg-deb -f Ghost-FTP-1.1.4-Linux-amd64.deb Package
-dpkg-deb -f Ghost-FTP-1.1.4-Linux-amd64.deb Version
-dpkg-deb -f Ghost-FTP-1.1.4-Linux-amd64.deb Architecture
+dpkg-deb -f Ghost-FTP-1.1.5-Linux-amd64.deb Package
+dpkg-deb -f Ghost-FTP-1.1.5-Linux-amd64.deb Version
+dpkg-deb -f Ghost-FTP-1.1.5-Linux-amd64.deb Architecture
+dpkg-deb -f Ghost-FTP-1.1.5-Linux-amd64.deb Homepage
+dpkg-deb -f Ghost-FTP-1.1.5-Linux-amd64.deb Maintainer
 ```
 
-Expected package name is `ghost-ftp`; version must equal `1.1.4`; architecture must match the file suffix. The same checks apply to arm64 and i386.
+Expected package name is `ghost-ftp`; version must equal `1.1.5`; architecture must match the file suffix; Homepage must be `https://ghostftp.com`; publisher metadata must identify **BRENDIGO LTD**. The same version/architecture checks apply to arm64 and i386.
 
 ## GitHub Release verification
 
 Confirm that:
 
-- tag is `ghostftp-v1.1.4`;
-- title is `Ghost FTP 1.1.4`;
+- tag is `ghostftp-v1.1.5`;
+- title is `Ghost FTP 1.1.5`;
 - `prerelease` is false;
 - tag resolves to the documented source commit;
 - remote asset names exactly match the 12-file allow-list;
 - `SHA256.txt` verifies downloaded content;
-- `BUILD-METADATA.txt` truthfully reports `WINDOWS_AUTHENTICODE=signed` or `unsigned`.
+- `BUILD-METADATA.txt` truthfully reports `WINDOWS_AUTHENTICODE=signed` or `unsigned`;
+- release notes correspond to the `CHANGELOG.md` 1.1.5 section.
 
-The production workflow performs immediate and delayed Release read-back. Manual verification is still useful before broad deployment.
+The production workflow performs immediate and delayed Release read-back. Manual verification remains useful before broad deployment.
 
 ## GitHub Packages verification
 
-Stable 1.1.4 publishes:
+Stable 1.1.5 publishes:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.4
+ghcr.io/bren-wp/ghost-ftp:1.1.5
 ```
 
 The package is a verified distribution bundle, not a runtime container. OCI metadata must identify the Ghost FTP source repository, stable version and release source revision. Stable aliases `1.1`, `1` and `latest` are updated only after publication and registry read-back succeed.
 
-## 1.1.4 runtime/security verification
+## 1.1.5 runtime, branding and security verification
 
-The release candidate must preserve the maintained runtime contract and the 1.1.4 quality changes:
+The release candidate must preserve the maintained runtime contract while applying the 1.1.5 hardening changes:
 
-- fresh/fallback Windows appearance is Classic Light and explicitly saved Dark remains respected;
-- fresh quick-connect protocol is explicit FTPS on port 21 on Windows and Linux;
+- official product website is `ghostftp.com`;
+- author/publisher website is `brendigo.com`, with BRENDIGO LTD publisher identity;
+- Windows About displays product and publisher destinations separately;
+- public localized strings render the user-facing product name as **Ghost FTP**, never the technical `GhostFTP` identifier where user-visible branding is intended;
+- all 24 supported languages retain complete localization/format compatibility;
+- Linux DEB metadata uses `Homepage: https://ghostftp.com` and BRENDIGO LTD Maintainer identity;
+- fresh/fallback Windows appearance remains Classic Light and explicitly saved Dark remains respected;
+- fresh quick-connect protocol remains explicit FTPS on port 21 on Windows and Linux;
 - plain FTP remains explicit compatibility only and secure transports never silently downgrade;
 - SFTP host-key verification/pinning and protected-secret ownership/lifetime rules remain enforced;
-- local downloads preserve the selected `LocalRoot` and use root-bound `os.Root` staging/activation/rollback;
-- staging identity/sentinel validation, remote path revalidation and late `SkipExisting` checks remain active;
+- local downloads preserve the selected `LocalRoot` and root-bound staging/activation/rollback safeguards;
+- staging identity/sentinel validation, remote path revalidation and late conflict checks remain active;
 - Site Manager Duplicate does not silently clone saved password/passphrase material or host-key trust state;
-- Windows language selection closes its dropdown immediately after a selection and persistence does not block the native UI message loop;
-- Language and Settings writes remain serialized so stale whole-settings snapshots cannot overwrite newer state;
-- Windows Settings consumes canonical backend limits/defaults and normalizes invalid prompt state safely;
-- non-language settings changes do not trigger unnecessary localization/list/layout rebuilds;
-- idle Windows transfer polling does not redraw/recompute transfer UI state when no new transfer events exist;
-- Windows icon rendering uses the operating-system-local Segoe Fluent/MDL2 path with no remote icon/font runtime;
-- deterministic process-tree cancellation regression coverage remains enabled without weakening production cancellation behavior.
+- cancellation/retry/connection-generation safeguards remain enabled;
+- no telemetry, analytics, advertising/tracking SDK, hidden product network service or new external Go module dependency is introduced.
+
+## Authentic Windows UI evidence
+
+Because 1.1.5 changes public About/Settings branding, the exact release-prep source must produce authentic screenshots from the real Windows x64 Portable executable for:
+
+- Main Workspace;
+- Site Manager;
+- Settings;
+- About.
+
+The images must be visually reviewed for clipping, overlap, stale `GhostFTP` public branding and incorrect product/publisher destinations. Mockups or generated approximations are not accepted as release evidence.
 
 ## CI/release gate verification
 
-Before trusting 1.1.4, inspect that the exact revision passed:
+Before trusting 1.1.5, inspect that the exact revision passed:
 
 - exact PR-head CI before merge;
 - post-merge CI on the exact `main` SHA;
 - `go test -race ./...`;
 - `go vet ./...`;
-- formatting checks;
+- Go formatting checks;
 - repository/platform/dependency audits;
 - security and privacy audits;
 - localization and documentation audits;
@@ -179,7 +195,7 @@ Before trusting 1.1.4, inspect that the exact revision passed:
 - full Python regression suite;
 - Windows x64/x86 Setup + Portable production package build and artifact verification;
 - Linux amd64/arm64/i386 production package build and DEB verification;
-- authentic Windows UI evidence from the exact revision whenever a release materially changes layout/visual rendering;
+- authentic Windows UI evidence from the exact revision;
 - Authenticode verification when a production certificate is configured;
 - explicit unsigned metadata when no production certificate is configured;
 - canonical release branch equality/version checks before publication dispatch;
