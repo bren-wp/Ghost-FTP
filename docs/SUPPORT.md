@@ -1,10 +1,12 @@
 # Ghost FTP support
 
-Support for the current Ghost FTP **1.1.1 Stable** candidate and published stable versions should begin with the repository issue tracker for reproducible bugs and platform-specific problems:
+Support for the current published Ghost FTP **1.1.4 Stable** release starts with the official product website at **https://ghostftp.com**. Reproducible software bugs and platform-specific technical problems may also be reported through the repository issue tracker:
 
 https://github.com/bren-wp/Ghost-FTP/issues
 
-Do not treat the 1.1.1 candidate as published until the official tag/Release/package read-back has succeeded. Published 1.1.0 and 1.0.0 remain historical stable releases.
+Ghost FTP is developed and published by **BRENDIGO LTD**. The author's official website is **https://brendigo.com** and the publisher contact destination used by the application is **https://brendigo.com/kontakt**.
+
+Do not treat a future release candidate as published until its canonical tag, GitHub Release and package read-back have succeeded. Published historical stable releases remain immutable release identities.
 
 ## Before reporting
 

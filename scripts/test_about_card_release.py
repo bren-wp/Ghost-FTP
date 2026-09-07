@@ -9,12 +9,18 @@ class AboutCardReleaseRegressionTests(unittest.TestCase):
     def read(self, relative: str) -> str:
         return (ROOT / relative).read_text(encoding="utf-8")
 
-    def test_about_uses_public_product_name(self):
+    def test_about_uses_public_product_and_author_destinations(self):
         source = self.read("internal/desktop/settings_windows.go")
         self.assertIn(
             'strings.ReplaceAll(a.tr("about.body", brand.Website, brand.Support), "GhostFTP", brand.ProductName)',
             source,
         )
+        self.assertIn('brand.Publisher + " · " + brand.AuthorWebsite', source)
+
+        brand = self.read("internal/brand/brand.go")
+        self.assertIn('Website       = "ghostftp.com"', brand)
+        self.assertIn('AuthorWebsite = "brendigo.com"', brand)
+        self.assertIn('Support       = "brendigo.com/kontakt"', brand)
 
     def test_about_card_reserves_multiline_heading_space(self):
         source = self.read("internal/platform/info_card_windows.go")

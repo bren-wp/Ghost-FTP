@@ -3,6 +3,7 @@ package i18n
 import (
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -71,6 +72,29 @@ func TestLanguagesAndNormalization(t *testing.T) {
 		if !IsSupported(code) {
 			t.Fatalf("regional form of supported language should be supported: %s", code)
 		}
+	}
+}
+
+func TestPublicTranslationsNeverExposeTechnicalGhostFTPBrand(t *testing.T) {
+	for _, language := range Languages() {
+		values := map[string]string{
+			"settings.title":   T(language.Code, "settings.title"),
+			"about.body":       T(language.Code, "about.body", "ghostftp.com", "brendigo.com/kontakt"),
+			"sftp.security":    T(language.Code, "sftp.security"),
+			"disconnect.title": T(language.Code, "disconnect.title"),
+			"terminal.title":   T(language.Code, "terminal.title", "1.1.5", "test"),
+		}
+		for key, value := range values {
+			if strings.Contains(value, "GhostFTP") {
+				t.Fatalf("public translation %s/%s leaked technical brand: %q", language.Code, key, value)
+			}
+		}
+	}
+	if got := T("en", "settings.title"); got != "Ghost FTP — Settings" {
+		t.Fatalf("settings title = %q", got)
+	}
+	if got := T("hr", "settings.title"); got != "Ghost FTP — Postavke" {
+		t.Fatalf("Croatian settings title = %q", got)
 	}
 }
 
