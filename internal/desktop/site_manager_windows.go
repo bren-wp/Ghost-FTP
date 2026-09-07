@@ -99,6 +99,7 @@ type siteManagerState struct {
 	parent       *app
 	hwnd         uintptr
 	list         uintptr
+	listBrush    uintptr
 	name         uintptr
 	protocol     uintptr
 	host         uintptr
@@ -167,14 +168,28 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 					return 0
 				}
 			}
+		case wmMeasureItem:
+			if state.measureNavigationItem(lParam) {
+				return 1
+			}
 		case wmDrawItem:
 			if lParam != 0 {
 				d := drawItemFromLParam(lParam)
+				if state.drawNavigationItem(&d) {
+					return 1
+				}
 				if state.parent.drawButton(&d) {
 					return 1
 				}
 			}
-		case wmCtlColorEdit, wmCtlColorBtn, wmCtlColorStatic, siteWMCtlColorListBox:
+		case siteWMCtlColorListBox:
+			setTextColor.Call(wParam, textColor())
+			setBkColor.Call(wParam, listColor())
+			if state.listBrush != 0 {
+				return state.listBrush
+			}
+			return state.parent.panelBrush
+		case wmCtlColorEdit, wmCtlColorBtn, wmCtlColorStatic:
 			setTextColor.Call(wParam, textColor())
 			setBkColor.Call(wParam, windowColor())
 			return state.parent.brush
@@ -184,6 +199,10 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 		case wmDestroy:
 			for _, button := range []uintptr{state.save, state.delete, state.connect, state.close} {
 				delete(state.parent.buttons, button)
+			}
+			if state.listBrush != 0 {
+				deleteObject.Call(state.listBrush)
+				state.listBrush = 0
 			}
 			state.closed = true
 			return 0
@@ -442,9 +461,10 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	label(strings.ToUpper(words[1]), 20, 18, 260)
 	label(strings.ToUpper(words[5]), 310, 18, 570)
 
-	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight, 20, 48, 270, 486, siteIDList)
+	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight|siteLBSOwnerDrawFixed|siteLBSHasStrings, 20, 48, 270, 486, siteIDList)
 	if state.list != 0 {
-		setWindowTheme.Call(state.list, uintptr(unsafe.Pointer(wstr("DarkMode_Explorer"))), 0)
+		applySiteManagerNavigationTheme(state.list)
+		state.listBrush, _, _ = createSolidBrush.Call(listColor())
 	}
 
 	label(parent.tr("column.name"), 310, 54, 160)
