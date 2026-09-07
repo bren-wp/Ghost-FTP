@@ -86,6 +86,7 @@ func Run(engine *api.Engine, version string) error {
 		startupSettings = config.DefaultSettings()
 	}
 	setActiveTheme(startupSettings.Appearance)
+	platform.SetDialogAppearance(activeThemeIsDark())
 
 	hinst, _, _ := getModuleHandleW.Call(0)
 	cursor, _, _ := loadCursorW.Call(0, 32512)
