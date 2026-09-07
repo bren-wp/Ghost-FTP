@@ -48,7 +48,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         chrome = self.read("internal/desktop/chrome_windows.go")
         header = self.read("internal/desktop/header_draw_windows.go")
         sidebar = self.read("internal/desktop/sidebar_windows.go")
-        navigation = self.read("internal/desktop/navigation_windows.go")
+        navigation = self.read("internal/desktop/navigation_labels.go")
         wnd = self.read("internal/desktop/windows.go")
         self.assertIn("titleWidth, subtitleX = 54, 168, 230", chrome)
         self.assertIn("installWorkspaceHeaderDraw(a, list)", chrome)
