@@ -12,8 +12,6 @@ func (a *app) command(id int) {
 		a.disconnectNow()
 	case idSiteManager:
 		a.openSiteManager()
-	case idExitApp:
-		postMessageW.Call(a.hwnd, wmClose, 0, 0)
 	case idChooseKey:
 		a.choosePrivateKey()
 	case idSaveProfile:
