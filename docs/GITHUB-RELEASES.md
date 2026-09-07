@@ -1,14 +1,14 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.1.3 Stable** is the current maintained stable release. Ghost FTP **1.1.2 Stable** remains the previously published maintenance release, **1.1.1 Stable** and **1.1.0 Stable** remain earlier 1.1.x releases and **1.0.0 Stable** remains the first normal stable public release; published historical tags/releases must not be rewritten. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
+Ghost FTP **1.1.4 Stable** is the current maintained stable release candidate. Ghost FTP **1.1.3 Stable** is the previously published maintenance release; earlier published Stable tags/releases remain immutable historical identities. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
-For version `1.1.3`:
+For version `1.1.4`:
 
 ```text
-Tag: ghostftp-v1.1.3
-Title: Ghost FTP 1.1.3
+Tag: ghostftp-v1.1.4
+Title: Ghost FTP 1.1.4
 Prerelease: false
 ```
 
@@ -18,13 +18,13 @@ The release workflow reads `VERSION` directly and rejects a manual workflow vers
 
 A version with major number `1` or greater is treated as Stable. The release workflow does not pass GitHub's prerelease flag for stable versions.
 
-Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2` tags remain bound to their original published release commits.
+Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1`, `ghostftp-v1.1.2` and `ghostftp-v1.1.3` tags remain bound to their original published release commits.
 
 ## Canonical release trigger
 
 `release.yml` is intentionally `workflow_dispatch`-only. A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.
 
-For a future version, the release candidate first passes exact-head PR CI and any required authentic UI evidence. After merge, the exact current `main` SHA must pass post-merge CI. Only then is `release/ghostftp-vX.Y.Z` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verifies both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
+For version 1.1.4, the release-prep PR first passes exact-head CI. After merge, the exact current `main` SHA must pass post-merge Core, Windows and Linux CI. Only then is `release/ghostftp-v1.1.4` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verifies both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
 
 This keeps publication behind one canonical branch trigger and prevents duplicate or premature releases caused by a `VERSION` push.
 
@@ -35,20 +35,20 @@ The stable Release exposes **9 platform artifacts**.
 Windows:
 
 ```text
-Ghost-FTP-1.1.3-Setup-x64.exe
-Ghost-FTP-1.1.3-Setup-x86.exe
-Ghost-FTP-1.1.3-Setup-x32.exe
-Ghost-FTP-1.1.3-Portable-x64.exe
-Ghost-FTP-1.1.3-Portable-x86.exe
+Ghost-FTP-1.1.4-Setup-x64.exe
+Ghost-FTP-1.1.4-Setup-x86.exe
+Ghost-FTP-1.1.4-Setup-x32.exe
+Ghost-FTP-1.1.4-Portable-x64.exe
+Ghost-FTP-1.1.4-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.3-Linux-amd64.deb
-Ghost-FTP-1.1.3-Linux-arm64.deb
-Ghost-FTP-1.1.3-Linux-i386.deb
-Ghost-FTP-1.1.3-Linux-multiarch.zip
+Ghost-FTP-1.1.4-Linux-amd64.deb
+Ghost-FTP-1.1.4-Linux-arm64.deb
+Ghost-FTP-1.1.4-Linux-i386.deb
+Ghost-FTP-1.1.4-Linux-multiarch.zip
 ```
 
 and three verification/metadata files:
@@ -65,13 +65,13 @@ That is **12 public files** in total.
 
 Before publication, the workflow queries the current `main` SHA and requires it to equal `GITHUB_SHA`. It verifies the condition again after release publication. If `main` moves during the transaction, publication fails instead of silently attaching files to stale source.
 
-The canonical `release/ghostftp-vX.Y.Z` trigger branch must therefore be created from the exact `main` commit that passed the complete post-merge quality gate. The release-branch trigger independently verifies that equality before it dispatches publication.
+The canonical `release/ghostftp-v1.1.4` trigger branch must therefore be created from the exact `main` commit that passed the complete post-merge quality gate. The release-branch trigger independently verifies that equality before it dispatches publication.
 
 ## Immutable tag rule
 
-If the new `ghostftp-vX.Y.Z` tag already exists unexpectedly before that release is published, publication must stop. The tag must not be moved, deleted, reused or force-pushed.
+If the new `ghostftp-v1.1.4` tag already exists unexpectedly before publication, the release must stop. The tag must not be moved, deleted, reused or force-pushed.
 
-The already-published `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2` tags are immutable release history and are never moved or reused. After 1.1.3 is published, `ghostftp-v1.1.3` becomes immutable under the same rule.
+The already-published `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1`, `ghostftp-v1.1.2` and `ghostftp-v1.1.3` tags are immutable release history. After successful 1.1.4 publication, `ghostftp-v1.1.4` becomes immutable under the same rule.
 
 ## Windows signing state
 
@@ -91,16 +91,16 @@ The publish job assembles a fresh `release/` directory from only the verified Wi
 
 ## Read-back verification
 
-After creating/updating the Release, the workflow reads the remote asset set from GitHub and compares it with the expected sorted list. It also reads the `prerelease` property and requires it to be `false` for the stable channel. A delayed second read-back runs after a short wait to catch asynchronous publication issues.
+After creating/updating the Release, the workflow reads the remote asset set from GitHub and compares it with the expected sorted list. It also reads the `prerelease` property and requires it to be `false` for the stable channel. A delayed second read-back catches asynchronous publication issues.
 
 A release is not considered published merely because a local build succeeded; remote Release/tag state must agree with the verified source revision and file contract.
 
 ## GitHub Packages
 
-Stable 1.1.3 publication additionally pushes the verified release directory to:
+Stable 1.1.4 publication additionally pushes the verified release directory to:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.3
+ghcr.io/bren-wp/ghost-ftp:1.1.4
 ```
 
 Compatible stable aliases are published only after successful registry publication/read-back:
@@ -131,9 +131,13 @@ See [Packages](PACKAGES.md).
 - public artifact/file counts;
 - GitHub Package reference.
 
-## UI/documentation evidence
+## 1.1.4 UI/documentation evidence
 
-The 1.1.3 release documentation must describe the actual maintained behavior: Classic Light remains the fresh/fallback primary appearance, Dark remains an explicit Windows choice, FTPS remains the fresh quick-connect protocol, Windows application navigation uses the canonical left sidebar, and Site Manager includes the verified safe Duplicate surface. Runtime About remains public `Ghost FTP` branding with BRENDIGO LTD and official Brendigo destinations. Repository UI screenshots are produced from the real production Windows x64 Portable executable by the dedicated screenshot workflow; mockups or generated approximations are not accepted as release evidence. The UI changes included in the 1.1.3 codebase were already captured and visually reviewed on their exact post-1.1.2 hardening head before merge; the 1.1.3 release-prep commit itself changes version/release documentation only.
+The 1.1.4 release documentation describes the maintained native behavior: Classic Light remains the fresh/fallback primary appearance, Dark remains an explicit saved Windows choice, FTPS remains the fresh quick-connect protocol, and Windows navigation remains centralized in the canonical left sidebar.
+
+The 1.1.4 changes improve interaction and UI plumbing rather than introducing a new layout: language dropdown closure, asynchronous language persistence, serialized settings writes, canonical Settings limits/defaults, removal of redundant relayout work, idle transfer fast-path behavior and deduplicated local Segoe Fluent/MDL2 icon registration. No remote icon/font dependency was added.
+
+Repository UI screenshots must be produced from the real production Windows x64 Portable executable whenever a release materially changes visual layout/rendering. Mockups or generated approximations are not accepted as release evidence.
 
 ## Failure behavior
 
