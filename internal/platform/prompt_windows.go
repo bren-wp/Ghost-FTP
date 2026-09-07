@@ -112,6 +112,8 @@ func promptWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr
 				promptDestroyWindow.Call(hwnd)
 				return 0
 			}
+		case premiumWMCtlColorEdit, premiumWMCtlColorListBox, premiumWMCtlColorBtn, premiumWMCtlColorStatic:
+			return premiumDialogControlColor(wParam)
 		case promptWMClose:
 			promptDestroyWindow.Call(hwnd)
 			return 0
@@ -131,8 +133,8 @@ func PromptDialog(title, instruction, defaultValue string) (string, bool) {
 }
 
 // PromptDialogWithLabels keeps the platform layer dependency-free while using
-// the same premium native shell as Setup. Action labels remain caller-owned so
-// the application can use its selected locale without a second i18n system.
+// the same native visual shell as the desktop. Action labels remain caller-owned
+// so the application can use its selected locale without a second i18n system.
 func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLabel string) (string, bool) {
 	if okLabel == "" {
 		okLabel = "OK"
@@ -148,7 +150,7 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 			WndProc:    promptProc,
 			Instance:   hinst,
 			Cursor:     cursor,
-			Background: 6,
+			Background: premiumDialogBackgroundBrush(),
 			ClassName:  promptWstr(promptClass),
 		}
 		promptRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
@@ -165,7 +167,7 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 	)
 	const (
 		windowWidth  = 600
-		windowHeight = 226
+		windowHeight = 210
 	)
 	x, y := premiumDialogPosition(windowWidth, windowHeight)
 	state := &promptState{}
@@ -189,10 +191,6 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 	if font != 0 {
 		defer promptDeleteObject.Call(font)
 	}
-	captionFont := premiumDialogFont(-13, 400)
-	if captionFont != 0 {
-		defer promptDeleteObject.Call(captionFont)
-	}
 
 	mk := func(class, text string, style uint32, x, y, w, h, id int, controlFont uintptr) uintptr {
 		ch, _, _ := promptCreateWindowExW.Call(
@@ -206,6 +204,9 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 		if ch != 0 && controlFont != 0 {
 			promptSendMessageW.Call(ch, promptWMSetFont, controlFont, 1)
 		}
+		if ch != 0 {
+			applyPremiumDialogControl(ch, class)
+		}
 		return ch
 	}
 
@@ -214,8 +215,7 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 	if state.edit != 0 {
 		promptSendMessageW.Call(state.edit, promptEMSetLimitText, 1024, 0)
 	}
-	mk("STATIC", "", ssEtchedHorz, 28, 120, 544, 2, 0, captionFont)
-	mk("STATIC", "Ghost FTP · local native dialog", 0, 28, 138, 300, 26, 0, captionFont)
+	mk("STATIC", "", ssEtchedHorz, 28, 120, 544, 2, 0, font)
 	mk("BUTTON", okLabel, wsTabStop|bsDefPushButton, 374, 134, 94, 36, promptIDOK, font)
 	mk("BUTTON", cancelLabel, wsTabStop, 478, 134, 94, 36, promptIDCancel, font)
 
