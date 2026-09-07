@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	idLanguage     = 96
-	cbResetContent = 0x014B
-	lvmSetColumnW  = lvmFirst + 96
+	idLanguage      = 96
+	cbResetContent  = 0x014B
+	cbShowDropDown  = 0x014F
+	lvmSetColumnW   = lvmFirst + 96
 )
 
 func (a *app) languageCode() string {
@@ -227,23 +228,41 @@ func (a *app) changeLanguageFromUI() {
 	if index < 0 || index >= len(languages) {
 		return
 	}
+	// CBN_SELCHANGE can arrive while the native list is still visible. Close it
+	// explicitly so changing language has an immediate, predictable interaction
+	// on every supported Windows version.
+	sendMessageW.Call(a.languageCombo, cbShowDropDown, 0, 0)
+
 	old := a.settings
 	next := old
 	next.Language = languages[index].Code
-	if next.Language == a.languageCode() {
+	if i18n.Normalize(next.Language) == a.languageCode() {
 		return
 	}
+
+	// Apply the selected locale once, immediately, while persistence happens off
+	// the UI thread. Disable the combo until the write completes so a slower disk
+	// cannot let two language saves race and restore stale state out of order.
+	enableWindow.Call(a.languageCombo, 0)
 	a.applyLanguage(next.Language)
-	saved, err := a.engine.SetSettings(next)
-	if err != nil {
-		a.settings = old
-		a.applyLanguage(old.Language)
-		platform.ErrorDialog(a.tr("settings.title"), a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
-		return
-	}
-	a.settings = saved
-	a.applyLanguage(saved.Language)
-	a.setStatus(a.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, retrySummary(a, saved), overwriteSummary(a, saved)))
+	a.goSafe(func() {
+		saved, err := a.engine.SetSettings(next)
+		a.dispatch(func() {
+			enableWindow.Call(a.languageCombo, 1)
+			if err != nil {
+				a.settings = old
+				a.applyLanguage(old.Language)
+				platform.ErrorDialog(a.tr("settings.title"), a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
+				return
+			}
+			displayedLanguage := a.languageCode()
+			a.settings = saved
+			if i18n.Normalize(saved.Language) != displayedLanguage {
+				a.applyLanguage(saved.Language)
+			}
+			a.setStatus(a.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, retrySummary(a, saved), overwriteSummary(a, saved)))
+		})
+	})
 }
 
 func retrySummary(a *app, settings model.Settings) string {
