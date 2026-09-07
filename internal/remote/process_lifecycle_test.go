@@ -11,7 +11,11 @@ import (
 	"time"
 )
 
-const processHelperEnv = "GhostFTP_PROCESS_HELPER"
+const (
+	processHelperEnv          = "GhostFTP_PROCESS_HELPER"
+	processChildReadyEnv      = "GhostFTP_PROCESS_CHILD_READY"
+	processSurvivalTriggerEnv = "GhostFTP_PROCESS_SURVIVAL_TRIGGER"
+)
 
 func helperEnv(base []string, values map[string]string) []string {
 	out := make([]string, 0, len(base)+len(values))
@@ -41,11 +45,29 @@ func TestProcessLifecycleHelper(t *testing.T) {
 	}
 	marker := os.Getenv("GhostFTP_PROCESS_MARKER")
 	ready := os.Getenv("GhostFTP_PROCESS_READY")
+	childReady := os.Getenv(processChildReadyEnv)
+	survivalTrigger := os.Getenv(processSurvivalTriggerEnv)
 	switch mode {
 	case "child":
-		time.Sleep(700 * time.Millisecond)
-		if marker != "" {
-			_ = os.WriteFile(marker, []byte("orphan"), 0600)
+		if childReady != "" {
+			if err := os.WriteFile(childReady, []byte("ready"), 0600); err != nil {
+				os.Exit(14)
+			}
+		}
+		if survivalTrigger == "" {
+			os.Exit(0)
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(survivalTrigger); err == nil {
+				if marker != "" {
+					_ = os.WriteFile(marker, []byte("orphan"), 0600)
+				}
+				os.Exit(0)
+			} else if !errors.Is(err, os.ErrNotExist) {
+				os.Exit(15)
+			}
+			time.Sleep(10 * time.Millisecond)
 		}
 		os.Exit(0)
 	case "parent":
@@ -54,13 +76,23 @@ func TestProcessLifecycleHelper(t *testing.T) {
 			processHelperEnv:          "child",
 			"GhostFTP_PROCESS_MARKER": marker,
 			"GhostFTP_PROCESS_READY":  "",
+			processChildReadyEnv:       childReady,
+			processSurvivalTriggerEnv:  survivalTrigger,
 		})
 		if err := child.Start(); err != nil {
 			os.Exit(11)
 		}
+		if childReady != "" {
+			if err := waitForProcessMarker(childReady, 3*time.Second); err != nil {
+				_ = child.Process.Kill()
+				_ = child.Wait()
+				os.Exit(16)
+			}
+		}
 		if ready != "" {
 			if err := os.WriteFile(ready, []byte("ready"), 0600); err != nil {
 				_ = child.Process.Kill()
+				_ = child.Wait()
 				os.Exit(12)
 			}
 		}
@@ -91,6 +123,8 @@ func TestConfigureToolCommandCancelsDescendantProcess(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "orphan.txt")
 	ready := filepath.Join(dir, "ready.txt")
+	childReady := filepath.Join(dir, "child-ready.txt")
+	survivalTrigger := filepath.Join(dir, "survival-trigger.txt")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestProcessLifecycleHelper")
@@ -98,10 +132,15 @@ func TestConfigureToolCommandCancelsDescendantProcess(t *testing.T) {
 		processHelperEnv:          "parent",
 		"GhostFTP_PROCESS_MARKER": marker,
 		"GhostFTP_PROCESS_READY":  ready,
+		processChildReadyEnv:       childReady,
+		processSurvivalTriggerEnv:  survivalTrigger,
 	})
 	configureToolCommand(cmd)
 	done := make(chan error, 1)
 	go func() { done <- cmd.Run() }()
+	// The parent publishes ready only after the descendant itself has initialized
+	// and entered its survival-trigger wait. Cancellation therefore always tests
+	// a real descendant process instead of racing a fixed child-side sleep.
 	if err := waitForProcessMarker(ready, 3*time.Second); err != nil {
 		cancel()
 		<-done
@@ -116,9 +155,15 @@ func TestConfigureToolCommandCancelsDescendantProcess(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("canceled helper process did not terminate")
 	}
-	// The descendant writes only if it survives cancellation long enough. Give
-	// it more time than its own delay and prove that no orphan remained alive.
-	time.Sleep(950 * time.Millisecond)
+
+	// Arm the descendant only after cancellation has completed. A child that was
+	// correctly terminated cannot observe this trigger; any surviving orphan will
+	// observe it and write the marker. This avoids depending on scheduler timing
+	// between process launch and context cancellation under the race detector.
+	if err := os.WriteFile(survivalTrigger, []byte("probe"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1 * time.Second)
 	if data, err := os.ReadFile(marker); err == nil {
 		t.Fatalf("descendant survived cancellation and wrote %q", data)
 	} else if !errors.Is(err, os.ErrNotExist) {
