@@ -17,6 +17,7 @@ const (
 	iconSave        = "\uE74E"
 	iconPlay        = "\uE768"
 	iconPause       = "\uE769"
+	iconCopy        = "\uE8C8"
 	iconClear       = "\uE894"
 	iconSync        = "\uE895"
 	iconDownload    = "\uE896"
