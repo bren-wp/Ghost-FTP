@@ -77,14 +77,14 @@ func TestLanguagesAndNormalization(t *testing.T) {
 
 func TestPublicTranslationsNeverExposeTechnicalGhostFTPBrand(t *testing.T) {
 	for _, language := range Languages() {
-		for _, key := range []string{
-			"settings.title",
-			"about.body",
-			"sftp.security",
-			"disconnect.title",
-			"terminal.title",
-		} {
-			value := T(language.Code, key, "1.1.5", "test")
+		values := map[string]string{
+			"settings.title":   T(language.Code, "settings.title"),
+			"about.body":       T(language.Code, "about.body", "ghostftp.com", "brendigo.com/kontakt"),
+			"sftp.security":    T(language.Code, "sftp.security"),
+			"disconnect.title": T(language.Code, "disconnect.title"),
+			"terminal.title":   T(language.Code, "terminal.title", "1.1.5", "test"),
+		}
+		for key, value := range values {
 			if strings.Contains(value, "GhostFTP") {
 				t.Fatalf("public translation %s/%s leaked technical brand: %q", language.Code, key, value)
 			}
