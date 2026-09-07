@@ -1,6 +1,6 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.1.2 Stable** is the current maintained stable candidate line. Ghost FTP **1.1.1 Stable** remains the previously published maintenance release, **1.1.0 Stable** remains the earlier feature release and **1.0.0 Stable** remains the first normal stable public release; published historical tags/releases must not be rewritten. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
+Ghost FTP **1.1.2 Stable** is the current maintained stable release. Ghost FTP **1.1.1 Stable** remains the previously published maintenance release, **1.1.0 Stable** remains the earlier feature release and **1.0.0 Stable** remains the first normal stable public release; published historical tags/releases must not be rewritten. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
 
 ## Release identity
 
@@ -18,7 +18,15 @@ The release workflow reads `VERSION` directly and rejects a manual workflow vers
 
 A version with major number `1` or greater is treated as Stable. The release workflow does not pass GitHub's prerelease flag for stable versions.
 
-Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing `ghostftp-v1.0.0`, `ghostftp-v1.1.0` and `ghostftp-v1.1.1` tags remain bound to their original published release commits.
+Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2` tags remain bound to their original published release commits.
+
+## Canonical release trigger
+
+`release.yml` is intentionally `workflow_dispatch`-only. A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.
+
+For a future version, the release candidate first passes exact-head PR CI and any required authentic UI evidence. After merge, the exact current `main` SHA must pass post-merge CI. Only then is `release/ghostftp-vX.Y.Z` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verifies both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
+
+This keeps publication behind one canonical branch trigger and prevents duplicate or premature releases caused by a `VERSION` push.
 
 ## Required public files
 
@@ -57,13 +65,13 @@ That is **12 public files** in total.
 
 Before publication, the workflow queries the current `main` SHA and requires it to equal `GITHUB_SHA`. It verifies the condition again after release publication. If `main` moves during the transaction, publication fails instead of silently attaching files to stale source.
 
-The canonical `release/ghostftp-v1.1.2` trigger branch must therefore be created from the exact `main` commit that passed the complete post-merge quality gate.
+The canonical `release/ghostftp-vX.Y.Z` trigger branch must therefore be created from the exact `main` commit that passed the complete post-merge quality gate. The release-branch trigger independently verifies that equality before it dispatches publication.
 
 ## Immutable tag rule
 
-If `ghostftp-v1.1.2` already exists unexpectedly before this release is published, publication must stop. The tag must not be moved, deleted, reused or force-pushed.
+If the new `ghostftp-vX.Y.Z` tag already exists unexpectedly before that release is published, publication must stop. The tag must not be moved, deleted, reused or force-pushed.
 
-The already-published `ghostftp-v1.0.0`, `ghostftp-v1.1.0` and `ghostftp-v1.1.1` tags are separate immutable history and are never moved or reused for 1.1.2.
+The already-published `ghostftp-v1.0.0`, `ghostftp-v1.1.0`, `ghostftp-v1.1.1` and `ghostftp-v1.1.2` tags are immutable release history and are never moved or reused.
 
 ## Windows signing state
 
