@@ -49,6 +49,8 @@ func languageWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 				promptDestroyWindow.Call(hwnd)
 				return 0
 			}
+		case premiumWMCtlColorEdit, premiumWMCtlColorListBox, premiumWMCtlColorBtn, premiumWMCtlColorStatic:
+			return premiumDialogControlColor(wParam)
 		case promptWMClose:
 			promptDestroyWindow.Call(hwnd)
 			return 0
@@ -62,8 +64,8 @@ func languageWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 }
 
 // SelectOptionDialog shows a bounded native Windows selector with no framework
-// dependency. The visual shell is shared by Setup and small option flows while
-// the caller still owns all actual validation/security behavior.
+// dependency. The caller owns labels and validation while this platform shell
+// owns consistent Light/Dark rendering.
 func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel string, options []string, defaultIndex int) (int, bool) {
 	if len(options) == 0 {
 		return 0, false
@@ -86,7 +88,7 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 			WndProc:    languageProc,
 			Instance:   hinst,
 			Cursor:     cursor,
-			Background: 6,
+			Background: premiumDialogBackgroundBrush(),
 			ClassName:  promptWstr(languageClass),
 		}
 		promptRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
@@ -104,7 +106,7 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	)
 	const (
 		windowWidth  = 680
-		windowHeight = 342
+		windowHeight = 316
 	)
 	x, y := premiumDialogPosition(windowWidth, windowHeight)
 	hwnd, _, _ := promptCreateWindowExW.Call(
@@ -149,14 +151,16 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 		if child != 0 && controlFont != 0 {
 			promptSendMessageW.Call(child, promptWMSetFont, controlFont, 1)
 		}
+		if child != 0 {
+			applyPremiumDialogControl(child, class)
+		}
 		return child
 	}
 
-	makeControl("STATIC", "Ghost FTP", 0, 38, 26, 602, 38, 0, headerFont)
-	makeControl("STATIC", "Secure Windows setup", 0, 40, 66, 600, 24, 0, captionFont)
-	makeControl("STATIC", instruction, 0, 40, 104, 600, 42, 0, font)
+	makeControl("STATIC", "Ghost FTP", 0, 38, 24, 602, 38, 0, headerFont)
+	makeControl("STATIC", instruction, 0, 40, 74, 600, 48, 0, font)
 
-	state.combo = makeControl("COMBOBOX", "", wsTabStop|wsVScroll|cbsDropdown, 40, 154, 600, 270, languageIDCombo, font)
+	state.combo = makeControl("COMBOBOX", "", wsTabStop|wsVScroll|cbsDropdown, 40, 128, 600, 270, languageIDCombo, font)
 	if state.combo == 0 {
 		promptDestroyWindow.Call(hwnd)
 		return defaultIndex, false
@@ -166,10 +170,10 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	}
 	promptSendMessageW.Call(state.combo, languageCBSet, uintptr(defaultIndex), 0)
 
-	makeControl("STATIC", "", ssEtchedHorz, 40, 207, 600, 2, 0, font)
-	makeControl("STATIC", footer, 0, 40, 222, 386, 38, 0, captionFont)
-	makeControl("BUTTON", acceptLabel, wsTabStop|bsDefPushButton, 438, 224, 98, 38, languageIDInstall, font)
-	makeControl("BUTTON", cancelLabel, wsTabStop, 544, 224, 96, 38, languageIDCancel, font)
+	makeControl("STATIC", "", ssEtchedHorz, 40, 181, 600, 2, 0, font)
+	makeControl("STATIC", footer, 0, 40, 198, 386, 44, 0, captionFont)
+	makeControl("BUTTON", acceptLabel, wsTabStop|bsDefPushButton, 438, 204, 98, 38, languageIDInstall, font)
+	makeControl("BUTTON", cancelLabel, wsTabStop, 544, 204, 96, 38, languageIDCancel, font)
 
 	promptSetFocus.Call(state.combo)
 	promptShowWindow.Call(hwnd, 5)
@@ -187,8 +191,10 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	return state.selected, state.accepted
 }
 
-// SelectLanguageDialog is the installer-facing wrapper. It intentionally
-// accepts display strings so platform code stays independent from i18n data.
+// SelectLanguageDialog is the installer-facing wrapper. The installer supplies
+// its localized title/instruction; this compatibility wrapper keeps its current
+// English action labels until the installer-specific catalog is resolved by the
+// caller rather than by the platform package.
 func SelectLanguageDialog(title, instruction string, options []string, defaultIndex int) (int, bool) {
 	return SelectOptionDialog(
 		title,

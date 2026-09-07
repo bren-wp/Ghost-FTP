@@ -86,6 +86,7 @@ func Run(engine *api.Engine, version string) error {
 		startupSettings = config.DefaultSettings()
 	}
 	setActiveTheme(startupSettings.Appearance)
+	platform.SetDialogAppearance(activeThemeIsDark())
 
 	hinst, _, _ := getModuleHandleW.Call(0)
 	cursor, _, _ := loadCursorW.Call(0, 32512)
@@ -275,16 +276,9 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.command(id)
 			return 0
 		}
-	case wmMeasureItem:
-		if a.measureMenuItem(lParam) {
-			return 1
-		}
 	case wmDrawItem:
 		if lParam != 0 {
 			d := drawItemFromLParam(lParam)
-			if a.drawMenuItem(&d) {
-				return 1
-			}
 			if a.drawButton(&d) {
 				return 1
 			}
@@ -367,6 +361,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.remoteNavCancel()
 			a.remoteNavCancel = nil
 		}
+		if diagnostics := a.sidebarDiagnosticsButton(); diagnostics != 0 {
+			delete(a.buttons, diagnostics)
+		}
+		sidebarDiagnostics.Delete(a.hwnd)
 		a.mu.Lock()
 		a.closing = true
 		a.mu.Unlock()

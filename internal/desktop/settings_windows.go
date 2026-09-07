@@ -213,16 +213,21 @@ func (a *app) openSettings() {
 }
 
 func (a *app) openAbout() {
-	// Keep company/brand metadata out of the working FTP surface. The About
-	// task dialog is the single deliberate brand card: product identity first,
-	// then privacy/security promise, then developer and support metadata.
-	content := a.tr("about.heading") + "\n\n" +
-		"────────────────────────\n" +
-		a.tr("about.body", brand.Website, brand.Support) + "\n\n" +
+	// About is an application-owned card so its Light/Dark appearance does not
+	// drift with the Windows TaskDialog theme. Runtime destinations are limited
+	// to official BRENDIGO LTD web properties; repository links remain in docs.
+	// Localization catalogs may legitimately use the internal GhostFTP identity
+	// in non-public surfaces, but About always renders the public Ghost FTP name.
+	// Keep this replacement scoped to About so technical/internal identity stays unchanged.
+	// Changes to this source path intentionally require fresh authentic release screenshots.
+	aboutBody := strings.ReplaceAll(a.tr("about.body", brand.Website, brand.Support), "GhostFTP", brand.ProductName)
+	body := aboutBody + "\n\n" +
+		brand.Publisher + "\n" +
 		"FTP • FTPS • SFTP  ·  " + brand.ProductName + " " + a.version
-	platform.InfoDialog(
+	platform.InfoCardDialog(
 		brand.ProductName+" — "+a.tr("about.title"),
-		brand.ProductFull+" "+a.version,
-		content,
+		a.tr("about.heading"),
+		body,
+		okLabel(a.languageCode()),
 	)
 }

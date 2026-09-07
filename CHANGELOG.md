@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.1.2 - 2026-09-07 Stable
+
+### Native Windows UI and navigation
+
+- Replaced duplicated application navigation with one **canonical left sidebar** for Language, Site Manager, Settings, Diagnostics and About.
+- Removed the retired native top menu and its menu-specific renderer instead of preserving duplicate File/Servers/Transfers/View/Help command surfaces.
+- Kept the operational FTP workspace focused on genuine connection, file and transfer actions; no duplicate Connect/Save/Delete/Transfer commands were introduced in navigation chrome.
+- Made Prompt, option/language/settings and About surfaces use the shared native Light/Dark-aware dialog shell so the selected appearance does not produce mixed dark-titlebar/white-body windows.
+- Replaced runtime About with a dedicated application-owned native information card using **BRENDIGO LTD** publisher metadata, public **Ghost FTP** naming and official Brendigo-only destinations.
+- Runtime About contains no GitHub/GitHub Issues destination, WebView or hidden web/network request.
+- Increased About heading/body geometry for long localized text and verified the corrected layout through a fresh authentic production screenshot.
+- Added adaptive compact-button rendering: wide controls use icon + label, medium controls preserve a full centered label without a decorative icon, and genuinely narrow secondary actions use intentional centered icon-only presentation rather than accidental ellipsis.
+
+### Localization
+
+- Preserved the canonical 24-language registry with English as default/fallback.
+- Fixed FTPS explicit/implicit labels so all 24 languages render non-empty mode text; the second half of the language registry can no longer produce `FTPS ()`.
+- Added maintained Site Manager and Diagnostics navigation coverage for all 24 languages with fallback regression checks.
+- Kept public runtime About branding as **Ghost FTP** while retaining the technical/internal `GhostFTP` identity where appropriate.
+
+### Security, privacy and release evidence
+
+- Added no external Go module dependencies and no telemetry, analytics, advertising, tracking, tracking pixels, external crash-reporting SDK or hidden network service.
+- Preserved FTPS certificate/hostname validation and the no-secure-to-plaintext-downgrade rule.
+- Preserved SFTP host-key verification/pinning, private-key validation and ownership-aware protected-secret lifetime/transfer semantics.
+- Preserved connection-generation binding, safe retry/cancel lifecycle, randomized `.GhostFTP-part-*` staging, destination revalidation, rollback/backup behavior, atomic local replacement and filesystem symlink/junction/reparse/root-containment protections.
+- Verified production Windows x64/x86 Setup + Portable and Linux amd64/arm64/i386 builds, release artifact checks, DEB verification and Authenticode pipeline policy checks.
+- Generated authentic screenshots from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About; final publication requires those images to be visually inspected on the exact 1.1.2 source head.
+
+### Required verification
+
+The 1.1.2 stable candidate must pass before publication:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- Go formatting checks;
+- dependency/repository/platform/desktop/localization/security/privacy/documentation/release audits;
+- full Python regression suite;
+- Windows x64/x86 Setup + Portable production builds, Setup-x32 alias verification and release artifact verification;
+- Linux amd64/arm64/i386 production builds, DEB verification and multiarch packaging contract;
+- Authenticode production-policy verification and private-key pipeline smoke test;
+- authentic Windows x64 Portable Main/Site Manager/Settings/About screenshot capture and manual visual review;
+- exact-head PR mergeability/read-back;
+- post-merge Core/Windows/Linux verification on `main`;
+- immutable `ghostftp-v1.1.2` tag, Stable GitHub Release, exact 12-file asset set and GHCR distribution-bundle publication/read-back.
+
 ## 1.1.1 - 2026-09-07 Stable
 
 ### Defaults, UX and privacy
@@ -180,4 +226,4 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 
 ## Historical engineering history
 
-Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.1 Stable Windows/Linux contract.
+Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.2 Stable Windows/Linux contract.

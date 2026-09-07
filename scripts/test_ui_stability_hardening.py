@@ -63,7 +63,8 @@ class UIStabilityHardeningTests(unittest.TestCase):
         win32 = self.read("internal/desktop/win32_defs_windows.go")
         actions = self.read("internal/desktop/action_state_windows.go")
         commands = self.read("internal/desktop/commands_windows.go")
-        menu = self.read("internal/desktop/menu_windows.go")
+        sidebar = self.read("internal/desktop/sidebar_windows.go")
+        navigation = self.read("internal/desktop/navigation_windows.go")
 
         for marker in (
             "preferredWindowBounds", "premiumMinWidth", "premiumMinHeight",
@@ -73,12 +74,15 @@ class UIStabilityHardeningTests(unittest.TestCase):
         for marker in (
             "applyFileColumnOrder", "[4]int32{0, 2, 1, 3}", "[5]int32{0, 2, 1, 3, 4}",
             "showControls(sftp, a.keyPath, a.chooseKey, a.passphrase)",
+            "a.applyApplicationSidebar()",
         ):
             self.assertIn(marker, layout)
         for forbidden in ("shellSidebar", "toolbarConnect", "remoteSearch", "ReferenceShell"):
             self.assertNotIn(forbidden, windows + layout + actions + commands)
         self.assertFalse((ROOT / "internal/desktop/reference_shell_windows.go").exists())
         self.assertFalse((ROOT / "internal/desktop/site_toolbar_windows.go").exists())
+        self.assertFalse((ROOT / "internal/desktop/menu_windows.go").exists())
+        self.assertFalse((ROOT / "internal/desktop/menu_draw_windows.go").exists())
         for marker in ("wmGetMinMaxInfo", "lvnItemChanged", "updateActionControls()", "minMaxInfoFromLParam", "minMaxInfoToLParam"):
             self.assertIn(marker, windows)
         self.assertNotIn("(*minMaxInfo)(unsafe.Pointer(lParam))", windows)
@@ -87,10 +91,10 @@ class UIStabilityHardeningTests(unittest.TestCase):
         for marker in ("localSelected == 1", "remoteSelected == 1", "deriveTransferActionState"):
             self.assertIn(marker, actions)
         for forbidden in ("idToolbarConnect", "idToolbarUpload", "idToolbarDelete", "idRemoteSearch"):
-            self.assertNotIn(forbidden, commands + menu)
+            self.assertNotIn(forbidden, commands + sidebar + navigation)
         self.assertIn("idDiagnostics", commands)
-        self.assertIn("idDiagnostics = 703", menu)
-
+        self.assertIn("idDiagnostics = 703", navigation)
+        self.assertIn("applyApplicationSidebar", sidebar)
 
     def test_remote_permissions_column_is_backed_by_real_metadata(self) -> None:
         model = self.read("internal/model/types.go")
@@ -212,7 +216,6 @@ class UIStabilityHardeningTests(unittest.TestCase):
             self.assertIn(marker, ui)
         self.assertNotIn("sidebarW", layout)
         self.assertNotIn("remoteSearch", layout)
-
 
 
 if __name__ == "__main__":

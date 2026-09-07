@@ -116,20 +116,48 @@ func (a *app) drawButton(dis *drawItemStruct) bool {
 }
 
 func (a *app) drawHorizontalButtonContent(hdc uintptr, content rect, visual buttonVisual) {
-	if visual.Icon != "" && a.iconFont != 0 {
-		iconRect := content
-		if visual.Label == "" {
-			old, _, _ := selectObject.Call(hdc, a.iconFont)
-			drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
-			selectObject.Call(hdc, old)
-		} else {
+	contentWidth := int(content.Right - content.Left)
+
+	// A 1024-class desktop leaves less horizontal room after the application
+	// sidebar is reserved. Prefer readable action text over decorative icons:
+	// wide buttons show icon + label, medium buttons show a centered label, and
+	// only genuinely narrow secondary actions become intentional icon buttons.
+	// This avoids accidental "Con…", "Ren…" and similar clipped controls.
+	if visual.Icon != "" && visual.Label != "" {
+		switch {
+		case contentWidth >= 132 && a.iconFont != 0:
+			iconRect := content
 			iconRect.Right = iconRect.Left + 24
 			old, _, _ := selectObject.Call(hdc, a.iconFont)
 			drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
 			selectObject.Call(hdc, old)
 			content.Left += 32
+		case contentWidth >= 68:
+			font := a.font
+			if contentWidth < 104 && a.smallFont != 0 {
+				font = a.smallFont
+			}
+			old, _, _ := selectObject.Call(hdc, font)
+			drawText(hdc, visual.Label, &content, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)
+			selectObject.Call(hdc, old)
+			return
+		default:
+			if a.iconFont != 0 {
+				old, _, _ := selectObject.Call(hdc, a.iconFont)
+				drawText(hdc, visual.Icon, &content, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+				selectObject.Call(hdc, old)
+			}
+			return
+		}
+	} else if visual.Icon != "" && a.iconFont != 0 {
+		old, _, _ := selectObject.Call(hdc, a.iconFont)
+		drawText(hdc, visual.Icon, &content, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
+		selectObject.Call(hdc, old)
+		if visual.Label == "" {
+			return
 		}
 	}
+
 	if visual.Label != "" {
 		old, _, _ := selectObject.Call(hdc, a.font)
 		drawText(hdc, visual.Label, &content, dtLeft|dtVCenter|dtSingleLine|dtNoPrefix|dtEndEllipsis)

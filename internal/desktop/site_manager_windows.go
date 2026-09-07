@@ -522,7 +522,7 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	limitEdit(state.remotePath, 4096)
 	limitEdit(state.keyPath, 32767)
 	limitEdit(state.passphrase, 8192)
-	cue(state.password, parent.tr("cue.password"))
+	cue(state.password, parent.tr("terminal.password"))
 	cue(state.passphrase, parent.tr("cue.passphrase"))
 	return nil
 }

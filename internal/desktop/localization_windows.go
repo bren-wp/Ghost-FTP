@@ -86,13 +86,7 @@ func (a *app) populateLanguageCombo() {
 }
 
 func protocolLabel(language, protocol string) string {
-	words := map[string][2]string{
-		"en": {"explicit", "implicit"}, "hr": {"eksplicitni", "implicitni"}, "de": {"explizit", "implizit"},
-		"fr": {"explicite", "implicite"}, "es": {"explícito", "implícito"}, "tr": {"açık", "örtük"},
-		"el": {"ρητό", "έμμεσο"}, "pt": {"explícito", "implícito"}, "zh": {"显式", "隐式"},
-		"ru": {"явный", "неявный"}, "hi": {"स्पष्ट", "निहित"}, "ja": {"明示", "暗黙"},
-	}
-	pair := words[i18n.Normalize(language)]
+	pair := protocolModeLabelWords(language)
 	switch protocol {
 	case "ftps":
 		return fmt.Sprintf("FTPS (%s)", pair[0])
@@ -214,7 +208,6 @@ func (a *app) applyLanguage(code string) {
 	cue(a.passphrase, a.tr("cue.passphrase"))
 	a.reloadProtocolLabels()
 	a.reloadProfileLabels()
-	a.installMainMenu()
 	a.applyColumnLanguage()
 	a.fillItemList(a.localList, a.localItems)
 	a.fillItemList(a.remoteList, a.remoteItems)
@@ -223,6 +216,7 @@ func (a *app) applyLanguage(code string) {
 	var client rect
 	if r, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); r != 0 {
 		a.layout(int(client.Right-client.Left), int(client.Bottom-client.Top))
+		a.refineWorkspaceLayout()
 	}
 	invalidateRect.Call(a.hwnd, 0, 1)
 }

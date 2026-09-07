@@ -1,6 +1,6 @@
 # Ghost FTP documentation
 
-- **Current Ghost FTP release: 1.1.1**
+- **Current Ghost FTP release: 1.1.2**
 - Development status: **Stable**
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
@@ -48,19 +48,25 @@ The stable workflow publishes **9 platform artifacts** and **12 public files** o
 
 Historical sections intentionally preserve older version numbers and Beta terminology. They are history, not the current support state.
 
-## Stable 1.1.1 release contract
+## Stable 1.1.2 release contract
 
-Ghost FTP 1.1.1 is a backward-compatible maintenance/hardening release built on the published 1.1.0 and immutable 1.0.0 baselines. It makes Classic Light the actual fresh/fallback appearance, aligns Windows and Linux on explicit FTPS as the fresh/quick-connect default, adds real `remote.Manager.Connect` loopback FTP coverage and gives Windows Site Manager the same explicit credential-persistence consent policy as the main profile flow.
+Ghost FTP 1.1.2 is a backward-compatible Windows/Linux native-UI, localization and release-evidence hardening release built on the 1.1.x security baseline. Windows application navigation is centralized in the canonical left sidebar, the duplicated native top menu is removed, and the operational FTP workspace retains only real connection/file/transfer actions.
 
-A stable 1.1.1 publication is a normal GitHub Release with `prerelease=false`. Windows Authenticode remains optional: when a trusted production certificate is configured the workflow signs and verifies Windows artifacts; otherwise the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
+Prompt, option/language/settings and About surfaces use the maintained application-owned Light/Dark-aware native dialog shell. Runtime About is a dedicated native card using public **Ghost FTP** naming, **BRENDIGO LTD** publisher metadata and only official Brendigo destinations. It does not use WebView, GitHub runtime links or hidden network requests. Its layout reserves enough room for longer localized headings and body content.
+
+The canonical 24-language registry remains unchanged. Every supported language has valid FTPS explicit/implicit mode text and Site Manager/Diagnostics navigation coverage, with English as the fallback. Adaptive compact-button rendering prevents accidental clipped labels while preserving intentional icon-only secondary actions when space is genuinely constrained.
+
+A stable 1.1.2 publication is a normal GitHub Release with `prerelease=false`. Windows Authenticode remains optional: when a trusted production certificate is configured the workflow signs and verifies Windows artifacts; otherwise the release remains explicitly unsigned and records that state in `BUILD-METADATA.txt`. Linux packages are generated and metadata-verified for amd64, arm64 and i386.
 
 The production workflow publishes:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.1
+ghcr.io/bren-wp/ghost-ftp:1.1.2
 ```
 
-with stable aliases only after successful registry publication and read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
+with stable aliases `1.1`, `1` and `latest` only after successful registry publication and read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
+
+No telemetry, analytics, advertising, tracking, hidden network service or new external Go module dependency is introduced by 1.1.2. Existing FTPS certificate/hostname validation, SFTP host-key verification/pinning, protected-secret ownership/lifetime rules, transfer generation/cancel/retry safeguards, randomized staging/rollback, destination revalidation and filesystem containment protections remain part of the release contract.
 
 ## Connection verification rule
 
@@ -68,7 +74,7 @@ The maintained regression suite distinguishes transport-level protocol tests fro
 
 ## UI evidence rule
 
-The maintained screenshots in `docs/images/` must come from the dedicated authentic screenshot workflow, which builds and launches the real Windows x64 Portable executable. Mockups or generated approximations are not valid production evidence. For the 1.1.1 line the expected fresh UI is Classic Light with FTPS selected as the default quick-connect protocol.
+The maintained screenshots in `docs/images/` must come from the dedicated authentic screenshot workflow, which builds and launches the real Windows x64 Portable executable. Mockups or generated approximations are not valid production evidence. For the 1.1.2 line the required evidence set is Main Workspace, Site Manager, Settings and About. The final release-version commit must regenerate this evidence from the actual 1.1.2 executable, and all four images must be visually reviewed for clipping, overlap, accidental ellipsis, mixed Dark/Light surfaces, spacing, sidebar/header quality, About branding/links and the correct version label.
 
 ## Privacy-safe documentation rule
 

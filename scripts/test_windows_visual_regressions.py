@@ -20,10 +20,10 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         chrome = self.read("internal/desktop/chrome_windows.go")
         ui = self.read("internal/desktop/ui_windows.go")
         self.assertIn('loadImageW.Call(hinst, 1, imageIcon', chrome)
-        self.assertIn('stmSetImage', chrome)
-        self.assertNotIn('a.move(a.brandTitle, 54, 10, 106, 35)', chrome)
-        self.assertIn('a.move(a.brandTitle, 54, headerY, 126, 35)', ui)
-        self.assertIn('subtitleX := 188', ui)
+        self.assertIn("stmSetImage", chrome)
+        self.assertNotIn("a.move(a.brandTitle, 54, 10, 106, 35)", chrome)
+        self.assertIn("a.move(a.brandTitle, 54, headerY, 126, 35)", ui)
+        self.assertIn("subtitleX := 188", ui)
 
     def test_native_dark_chrome_and_site_manager_use_premium_controls(self):
         dark = self.read("internal/desktop/dark_mode_windows.go")
@@ -44,10 +44,11 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertNotIn("rdwErase", source)
         self.assertIn("a.reflowWorkspace(w, h)", windows)
 
-    def test_full_wordmark_dark_headers_and_ownerdrawn_menu_are_guarded(self):
+    def test_full_wordmark_dark_headers_and_sidebar_are_guarded(self):
         chrome = self.read("internal/desktop/chrome_windows.go")
         header = self.read("internal/desktop/header_draw_windows.go")
-        menu = self.read("internal/desktop/menu_draw_windows.go")
+        sidebar = self.read("internal/desktop/sidebar_windows.go")
+        navigation = self.read("internal/desktop/navigation_labels.go")
         wnd = self.read("internal/desktop/windows.go")
         self.assertIn("titleWidth, subtitleX = 54, 168, 230", chrome)
         self.assertIn("installWorkspaceHeaderDraw(a, list)", chrome)
@@ -57,10 +58,16 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("fillRectHeader.Call", header)
         self.assertIn("setTextColor.Call(d.HDC, textColor())", header)
         self.assertIn("cdrfSkipDefault", header)
-        self.assertIn("mfOwnerDraw", self.read("internal/desktop/menu_windows.go"))
-        self.assertIn("applyDarkMenuBackground", menu)
-        self.assertIn("a.measureMenuItem(lParam)", wnd)
-        self.assertIn("a.drawMenuItem(&d)", wnd)
+        self.assertIn("applyApplicationSidebar", sidebar)
+        self.assertIn("applicationSidebarWidth", sidebar)
+        self.assertIn("applicationContentLeft", sidebar)
+        self.assertIn("setSidebarButtonVisual", sidebar)
+        self.assertIn("navigationLabelsForLanguage", navigation)
+        self.assertIn('"ko": {"서버 관리자", "진단"}', navigation)
+        self.assertFalse((ROOT / "internal/desktop/menu_draw_windows.go").exists())
+        self.assertFalse((ROOT / "internal/desktop/menu_windows.go").exists())
+        self.assertNotIn("a.measureMenuItem(lParam)", wnd)
+        self.assertNotIn("a.drawMenuItem(&d)", wnd)
 
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
