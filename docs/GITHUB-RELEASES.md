@@ -24,7 +24,7 @@ Historical 0.x releases were Beta/prerelease builds and remain part of release h
 
 `release.yml` is intentionally `workflow_dispatch`-only. A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.
 
-For version 1.1.4, the release-prep PR first passes exact-head CI. After merge, the exact current `main` SHA must pass post-merge Core, Windows and Linux CI. Only then is `release/ghostftp-v1.1.4` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verifies both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
+The generic canonical release-branch namespace is `release/ghostftp-vX.Y.Z`. For version 1.1.4, the release-prep PR first passes exact-head CI. After merge, the exact current `main` SHA must pass post-merge Core, Windows and Linux CI. Only then is `release/ghostftp-v1.1.4` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verifies both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
 
 This keeps publication behind one canonical branch trigger and prevents duplicate or premature releases caused by a `VERSION` push.
 
