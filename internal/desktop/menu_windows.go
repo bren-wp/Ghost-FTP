@@ -2,39 +2,22 @@
 
 package desktop
 
-import (
-	"github.com/bren-wp/Ghost-FTP/internal/i18n"
-)
+import "github.com/bren-wp/Ghost-FTP/internal/i18n"
 
 const (
 	idSiteManager = 701
-	idExitApp     = 702
 	idDiagnostics = 703
-
-	mfString    = 0x0000
-	mfPopup     = 0x0010
-	mfOwnerDraw = 0x0100
-	mfSeparator = 0x0800
 )
 
-var (
-	createMenuW      = user32.NewProc("CreateMenu")
-	createPopupMenuW = user32.NewProc("CreatePopupMenu")
-	appendMenuW      = user32.NewProc("AppendMenuW")
-	setMenuW         = user32.NewProc("SetMenu")
-	getMenuW         = user32.NewProc("GetMenu")
-	drawMenuBarW     = user32.NewProc("DrawMenuBar")
-	destroyMenuW     = user32.NewProc("DestroyMenu")
-)
-
-// menuWords contains only native-menu nouns that are not part of the shared
-// application catalog. Action labels reuse i18n.T so the menu follows the same
-// 24-language runtime selection as the rest of the Windows UI.
+// navigationWords contains the small set of application-navigation nouns that
+// are not part of the shared catalog yet. The native top menu was removed in
+// 1.1.2 because it duplicated the canonical workspace/sidebar actions. Stable
+// indices are retained for Site Manager and Diagnostics call sites while the
+// remaining words keep legacy translations available for titles/documentation.
 //
 // Index contract: File, Servers, Transfers, View, Help, Site Manager, Exit,
-// Tools, Diagnostics. Keep the stable indices because Site Manager and the
-// Tools menu use the same localized nouns across runtime language changes.
-var menuWords = map[string][9]string{
+// Tools, Diagnostics.
+var navigationWords = map[string][9]string{
 	"en": {"File", "Servers", "Transfers", "View", "Help", "Site Manager", "Exit", "Tools", "Diagnostics"},
 	"hr": {"Datoteka", "Poslužitelji", "Prijenosi", "Prikaz", "Pomoć", "Upravitelj poslužitelja", "Izlaz", "Alati", "Dijagnostika"},
 	"de": {"Datei", "Server", "Übertragungen", "Ansicht", "Hilfe", "Serververwaltung", "Beenden", "Werkzeuge", "Diagnose"},
@@ -62,83 +45,8 @@ var menuWords = map[string][9]string{
 }
 
 func nativeMenuWords(language string) [9]string {
-	if words, ok := menuWords[i18n.Normalize(language)]; ok {
+	if words, ok := navigationWords[i18n.Normalize(language)]; ok {
 		return words
 	}
-	return menuWords["en"]
-}
-
-func appendMenuItem(menu uintptr, id int, label string) {
-	key := uintptr(id)
-	registerMenuVisual(key, label, false)
-	appendMenuW.Call(menu, mfString|mfOwnerDraw, uintptr(id), key)
-}
-
-func appendMenuSeparator(menu uintptr) { appendMenuW.Call(menu, mfSeparator, 0, 0) }
-
-func appendPopup(root, popup uintptr, label string) {
-	registerMenuVisual(popup, label, true)
-	appendMenuW.Call(root, mfPopup|mfOwnerDraw, popup, popup)
-}
-
-func (a *app) installMainMenu() {
-	if a == nil || a.hwnd == 0 {
-		return
-	}
-	resetMenuVisuals()
-	root, _, _ := createMenuW.Call()
-	if root == 0 {
-		return
-	}
-	fileMenu, _, _ := createPopupMenuW.Call()
-	viewMenu, _, _ := createPopupMenuW.Call()
-	transferMenu, _, _ := createPopupMenuW.Call()
-	serversMenu, _, _ := createPopupMenuW.Call()
-	toolsMenu, _, _ := createPopupMenuW.Call()
-	helpMenu, _, _ := createPopupMenuW.Call()
-	if fileMenu == 0 || viewMenu == 0 || transferMenu == 0 || serversMenu == 0 || toolsMenu == 0 || helpMenu == 0 {
-		destroyMenuW.Call(root)
-		return
-	}
-
-	words := nativeMenuWords(a.languageCode())
-	appendMenuItem(fileMenu, idConnect, a.tr("common.connect"))
-	appendMenuItem(fileMenu, idDisconnect, a.tr("common.disconnect"))
-	appendMenuSeparator(fileMenu)
-	appendMenuItem(fileMenu, idExitApp, words[6])
-
-	appendMenuItem(viewMenu, idRefreshAll, a.tr("common.refresh"))
-
-	appendMenuItem(transferMenu, idPauseQueue, a.tr("transfer.pause"))
-	appendMenuItem(transferMenu, idResumeQueue, a.tr("transfer.resume"))
-	appendMenuSeparator(transferMenu)
-	appendMenuItem(transferMenu, idClearQueue, a.tr("transfer.clear"))
-
-	appendMenuItem(serversMenu, idSiteManager, words[5])
-	appendMenuSeparator(serversMenu)
-	appendMenuItem(serversMenu, idSaveProfile, a.tr("profile.save"))
-	appendMenuItem(serversMenu, idRemoveProfile, a.tr("profile.delete"))
-
-	appendMenuItem(toolsMenu, idSettings, a.tr("common.settings"))
-	appendMenuItem(toolsMenu, idDiagnostics, words[8])
-
-	appendMenuItem(helpMenu, idAbout, a.tr("common.about"))
-
-	appendPopup(root, fileMenu, words[0])
-	appendPopup(root, viewMenu, words[3])
-	appendPopup(root, transferMenu, words[2])
-	appendPopup(root, serversMenu, words[1])
-	appendPopup(root, toolsMenu, words[7])
-	appendPopup(root, helpMenu, words[4])
-	applyDarkMenuBackground(root, a.panelBrush)
-
-	old, _, _ := getMenuW.Call(a.hwnd)
-	if ok, _, _ := setMenuW.Call(a.hwnd, root); ok == 0 {
-		destroyMenuW.Call(root)
-		return
-	}
-	drawMenuBarW.Call(a.hwnd)
-	if old != 0 && old != root {
-		destroyMenuW.Call(old)
-	}
+	return navigationWords[i18n.DefaultLanguage]
 }
