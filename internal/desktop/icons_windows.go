@@ -6,7 +6,8 @@ import "unsafe"
 
 // Windows system icon glyphs. The core code points are shared by Segoe Fluent
 // Icons and Segoe MDL2 Assets, which lets Ghost FTP use the modern Windows 11
-// font while retaining a Windows 10 fallback without shipping font files.
+// font while retaining a Windows 10 fallback without shipping fonts, icon packs
+// or other network-fetched UI assets.
 const (
 	iconConnect     = "\uE703"
 	iconCancel      = "\uE711"
@@ -48,24 +49,23 @@ type buttonVisual struct {
 	Vertical bool
 }
 
-func (a *app) registerButton(hwnd uintptr, icon, label string, variant buttonVariant) uintptr {
-	if hwnd != 0 {
-		if a.buttons == nil {
-			a.buttons = make(map[uintptr]buttonVisual)
-		}
-		a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant}
+func (a *app) registerButtonVisual(hwnd uintptr, icon, label string, variant buttonVariant, vertical bool) uintptr {
+	if hwnd == 0 {
+		return hwnd
 	}
+	if a.buttons == nil {
+		a.buttons = make(map[uintptr]buttonVisual)
+	}
+	a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant, Vertical: vertical}
 	return hwnd
 }
 
+func (a *app) registerButton(hwnd uintptr, icon, label string, variant buttonVariant) uintptr {
+	return a.registerButtonVisual(hwnd, icon, label, variant, false)
+}
+
 func (a *app) registerToolbarButton(hwnd uintptr, icon, label string, variant buttonVariant) uintptr {
-	if hwnd != 0 {
-		if a.buttons == nil {
-			a.buttons = make(map[uintptr]buttonVisual)
-		}
-		a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant, Vertical: true}
-	}
-	return hwnd
+	return a.registerButtonVisual(hwnd, icon, label, variant, true)
 }
 
 func createIconFont(height int32) uintptr {

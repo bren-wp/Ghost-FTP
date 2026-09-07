@@ -88,9 +88,16 @@ func (a *app) restoreTransferSelection(selected map[string]struct{}) {
 }
 
 func (a *app) refreshTransfers() {
-	selected := a.selectedTransferIDSet()
 	events, seq := a.engine.TransferEvents(a.transferSeq)
 	a.transferSeq = seq
+	// The timer polls once per second. When the engine has no new events there is
+	// nothing to redraw or recompute, so keep the idle path allocation-free and
+	// avoid touching selection/action state on every tick.
+	if len(events) == 0 {
+		return
+	}
+
+	selected := a.selectedTransferIDSet()
 	if !a.applyTransferEvents(events) {
 		a.updateTransferSummary()
 		a.updateActionControls()

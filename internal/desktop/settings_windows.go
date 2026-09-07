@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/config"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
@@ -32,6 +34,18 @@ func (a *app) loadSettings() {
 			a.updateActionControls()
 		})
 	})
+}
+
+func (a *app) setSettingsControlsEnabled(enabled bool) {
+	value := uintptr(0)
+	if enabled {
+		value = 1
+	}
+	for _, hwnd := range []uintptr{a.languageCombo, a.settingsBtn} {
+		if hwnd != 0 {
+			enableWindow.Call(hwnd, value)
+		}
+	}
 }
 
 func (a *app) promptNumber(instructionKey string, current, min, max int) (int, bool) {
@@ -136,23 +150,31 @@ func (a *app) promptConflictPolicy(settings model.Settings) (model.Settings, boo
 	return settings, true
 }
 
+func normalizeSettingsForPrompt(settings model.Settings) model.Settings {
+	defaults := config.DefaultSettings()
+	if settings.Appearance == "" {
+		settings.Appearance = defaults.Appearance
+	}
+	if settings.Parallelism < config.MinParallelism || settings.Parallelism > config.MaxParallelism {
+		settings.Parallelism = defaults.Parallelism
+	}
+	if settings.AutoRetryCount < config.MinAutoRetryCount || settings.AutoRetryCount > config.MaxAutoRetryCount {
+		settings.AutoRetryCount = defaults.AutoRetryCount
+	}
+	if settings.RetryDelaySeconds < config.MinRetryDelaySeconds || settings.RetryDelaySeconds > config.MaxRetryDelaySeconds {
+		settings.RetryDelaySeconds = defaults.RetryDelaySeconds
+	}
+	if settings.ConnectionTimeoutSeconds < config.MinConnectionTimeoutSeconds || settings.ConnectionTimeoutSeconds > config.MaxConnectionTimeoutSeconds {
+		settings.ConnectionTimeoutSeconds = defaults.ConnectionTimeoutSeconds
+	}
+	return settings
+}
+
 func (a *app) openSettings() {
 	if a.connectionBusy {
 		return
 	}
-	settings := a.settings
-	if settings.Appearance == "" {
-		settings.Appearance = model.AppearanceLight
-	}
-	if settings.Parallelism < 1 {
-		settings.Parallelism = 2
-	}
-	if settings.RetryDelaySeconds < 1 {
-		settings.RetryDelaySeconds = 3
-	}
-	if settings.ConnectionTimeoutSeconds < 5 {
-		settings.ConnectionTimeoutSeconds = 15
-	}
+	settings := normalizeSettingsForPrompt(a.settings)
 
 	var ok bool
 	settings, ok = a.promptAppearance(settings)
@@ -160,25 +182,45 @@ func (a *app) openSettings() {
 		return
 	}
 
-	parallel, ok := a.promptNumber("settings.parallel", settings.Parallelism, 1, 8)
+	parallel, ok := a.promptNumber(
+		"settings.parallel",
+		settings.Parallelism,
+		config.MinParallelism,
+		config.MaxParallelism,
+	)
 	if !ok {
 		return
 	}
 	settings.Parallelism = parallel
 
-	connectTimeout, ok := a.promptNumber("settings.timeout", settings.ConnectionTimeoutSeconds, 5, 60)
+	connectTimeout, ok := a.promptNumber(
+		"settings.timeout",
+		settings.ConnectionTimeoutSeconds,
+		config.MinConnectionTimeoutSeconds,
+		config.MaxConnectionTimeoutSeconds,
+	)
 	if !ok {
 		return
 	}
 	settings.ConnectionTimeoutSeconds = connectTimeout
 
-	retries, ok := a.promptNumber("settings.retries", settings.AutoRetryCount, 0, 3)
+	retries, ok := a.promptNumber(
+		"settings.retries",
+		settings.AutoRetryCount,
+		config.MinAutoRetryCount,
+		config.MaxAutoRetryCount,
+	)
 	if !ok {
 		return
 	}
 	settings.AutoRetryCount = retries
 	if retries > 0 {
-		delay, ok := a.promptNumber("settings.retry_delay", settings.RetryDelaySeconds, 1, 30)
+		delay, ok := a.promptNumber(
+			"settings.retry_delay",
+			settings.RetryDelaySeconds,
+			config.MinRetryDelaySeconds,
+			config.MaxRetryDelaySeconds,
+		)
 		if !ok {
 			return
 		}
@@ -193,15 +235,20 @@ func (a *app) openSettings() {
 	title := a.tr("settings.title")
 	settings.ConfirmDelete = platform.ConfirmDialog(title, a.tr("settings.confirm_delete_title"), a.tr("settings.confirm_delete_body"))
 
+	a.setSettingsControlsEnabled(false)
 	a.goSafe(func() {
 		saved, err := a.engine.SetSettings(settings)
 		a.dispatch(func() {
+			a.setSettingsControlsEnabled(true)
 			if err != nil {
 				platform.ErrorDialog(title, a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
 				return
 			}
+			displayedLanguage := a.languageCode()
 			a.settings = saved
-			a.applyLanguage(saved.Language)
+			if i18n.Normalize(saved.Language) != displayedLanguage {
+				a.applyLanguage(saved.Language)
+			}
 			status := a.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, retrySummary(a, saved), overwriteSummary(a, saved))
 			if isDarkAppearance(saved.Appearance) != activeThemeIsDark() {
 				status += " · " + appearanceText(saved.Language).Hint
