@@ -2,12 +2,14 @@
 
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**, developed and published by **BRENDIGO LTD**. It provides a professional dual-pane workstation for **FTP, FTPS and SFTP**, local profiles, protected saved-secret handling, bounded transfer management, secure release verification and no application telemetry.
 
-- Current Ghost FTP version: **1.1.4**
+- Current Ghost FTP version: **1.1.5**
 - Development status: **Stable**
 - Release channel: **Stable**
 - First stable release: **Ghost FTP 1.0.0**
 - Default language: **English**
 - Selectable local languages: **24 languages**
+- Official product website: **https://ghostftp.com**
+- Developer/publisher: **BRENDIGO LTD — https://brendigo.com**
 
 - Releases: https://github.com/bren-wp/Ghost-FTP/releases
 - Packages: https://github.com/users/bren-wp/packages?repo_name=Ghost-FTP
@@ -15,27 +17,24 @@
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
 
-## 1.1.4 stable quality, performance and settings release
+## 1.1.5 stable identity, quality and documentation release
 
-Ghost FTP 1.1.4 is a backward-compatible Windows/Linux maintenance release focused on native desktop responsiveness, settings correctness, local-only UI assets and regression stability.
+Ghost FTP 1.1.5 is a backward-compatible Windows/Linux maintenance release focused on public product identity correctness, release-documentation integrity, UI branding consistency and evidence-based repository cleanup.
 
 Highlights:
 
-- the Windows language selector closes immediately after a language is selected;
-- language persistence runs outside the Win32 message-loop path instead of blocking the UI;
-- Language and Settings writes share one UI-side serialization gate so an older whole-settings snapshot cannot overwrite a newer save;
-- Windows Settings uses the canonical backend limits and defaults instead of maintaining duplicated numeric validation ranges;
-- invalid or out-of-range settings shown by the native prompt path are normalized to safe canonical defaults;
-- ordinary Settings saves no longer rebuild localization, local/remote lists and layout unless the persisted language actually changed;
-- the duplicate language-layout refinement path was removed;
-- idle Windows transfer polling returns immediately when there are no new transfer events, avoiding unnecessary selection-map allocation, summary recomputation, action-state work and list redraw;
-- native button/icon registration uses one canonical helper;
-- Windows 11 uses the OS-local **Segoe Fluent Icons** path with **Segoe MDL2 Assets** fallback on Windows 10; no remote icon font, CDN or third-party UI runtime is introduced;
-- process-tree cancellation regression coverage uses a deterministic descendant-ready/post-cancel handshake instead of fixed timing assumptions;
-- repository cleanup remains evidence-based: active platform fallbacks, security regressions, release contracts and package assets are retained rather than deleted cosmetically;
+- **ghostftp.com** is the canonical product website;
+- **brendigo.com** is the author/publisher website and **BRENDIGO LTD** remains the publisher identity;
+- Windows About separates the product website from the publisher website and support destination;
+- public localized strings normalize the technical `GhostFTP` identifier to the user-facing **Ghost FTP** name;
+- all 24 supported languages are regression-tested against public-brand leakage and format drift;
+- Linux DEB metadata uses `Homepage: https://ghostftp.com` and BRENDIGO LTD Maintainer identity;
+- stale release-specific test duplication was removed while evergreen desktop-quality coverage was retained;
+- current Installation, Packages, Support and release-verification documentation is bound to root `VERSION` by regression tests;
+- authentic Windows x64 Portable screenshots are required for Main Workspace, Site Manager, Settings and About because public Settings/About branding changed;
 - no external Go module dependency, telemetry, analytics, advertising, tracking or hidden product network service is added.
 
-The established secure defaults remain unchanged: explicit FTPS on port 21 is the fresh quick-connect protocol, secure transports never silently downgrade to plain FTP, saved credentials remain explicit/local, and Classic Light remains the fresh/fallback Windows appearance while a saved Dark preference is preserved.
+The established secure defaults remain unchanged: explicit FTPS on port 21 is the fresh quick-connect protocol, secure transports never silently downgrade to plain FTP, saved credentials remain explicit/local, and Classic Light remains the fresh/fallback Windows appearance while an explicitly saved Dark preference is preserved.
 
 ## Privacy by design
 
@@ -69,7 +68,7 @@ Security-sensitive behavior is covered by Go regression tests plus repository-le
 
 ## Desktop workflow
 
-Ghost FTP uses the familiar professional two-pane model:
+Ghost FTP uses the professional two-pane file-transfer model:
 
 - **Local** pane for files on the current computer;
 - **Remote** pane for the connected server;
@@ -77,7 +76,7 @@ Ghost FTP uses the familiar professional two-pane model:
 - **Transfers** for queued, running and completed operations;
 - connection diagnostics and status surfaces;
 - keyboard-first navigation, sorting, selection and file actions;
-- a compact set of language, appearance, transfer and connection preferences.
+- language, appearance, transfer and connection preferences.
 
 On Windows, application navigation is centralized in the left sidebar. The operational workspace exposes genuine connection, file and transfer actions without maintaining duplicate command surfaces.
 
@@ -87,7 +86,7 @@ The Windows frontend uses native Win32 drawing and controls. The Linux frontend 
 
 ## Appearance and local icons
 
-**Classic Light is the primary Ghost FTP 1.1.4 appearance.** Fresh installs and invalid/missing appearance state resolve to Classic Light. Windows users who explicitly choose Dark keep that persisted preference.
+**Classic Light is the primary Ghost FTP 1.1.5 appearance.** Fresh installs and invalid/missing appearance state resolve to Classic Light. Windows users who explicitly choose Dark keep that persisted preference.
 
 The native Windows icon path is local to the operating system: Segoe Fluent Icons is preferred when available and Segoe MDL2 Assets is the compatibility fallback. Ghost FTP does not fetch an icon font or UI library from the network.
 
@@ -108,11 +107,11 @@ Standard FTP remains available when a legacy server explicitly requires it. It i
 ## Windows installation
 
 ```text
-Ghost-FTP-1.1.4-Setup-x64.exe
-Ghost-FTP-1.1.4-Setup-x86.exe
-Ghost-FTP-1.1.4-Setup-x32.exe
-Ghost-FTP-1.1.4-Portable-x64.exe
-Ghost-FTP-1.1.4-Portable-x86.exe
+Ghost-FTP-1.1.5-Setup-x64.exe
+Ghost-FTP-1.1.5-Setup-x86.exe
+Ghost-FTP-1.1.5-Setup-x32.exe
+Ghost-FTP-1.1.5-Portable-x64.exe
+Ghost-FTP-1.1.5-Portable-x86.exe
 ```
 
 `x32` is a compatibility alias of the verified x86 Setup build; it is not a separate architecture build.
@@ -124,13 +123,13 @@ See [Installation](docs/INSTALLATION.md) and [Signing](docs/SIGNING.md).
 ## Linux installation
 
 ```text
-Ghost-FTP-1.1.4-Linux-amd64.deb
-Ghost-FTP-1.1.4-Linux-arm64.deb
-Ghost-FTP-1.1.4-Linux-i386.deb
-Ghost-FTP-1.1.4-Linux-multiarch.zip
+Ghost-FTP-1.1.5-Linux-amd64.deb
+Ghost-FTP-1.1.5-Linux-arm64.deb
+Ghost-FTP-1.1.5-Linux-i386.deb
+Ghost-FTP-1.1.5-Linux-multiarch.zip
 ```
 
-The DEB metadata is generated from the root `VERSION` file and verified before publication.
+The DEB metadata is generated from root `VERSION`, uses the product homepage `https://ghostftp.com`, identifies BRENDIGO LTD as publisher/maintainer and is verified before publication.
 
 See [Linux documentation](linux/README.md).
 
@@ -141,7 +140,7 @@ The canonical user-installable files are attached to the official GitHub Release
 Stable releases also publish an OCI **distribution bundle** to GitHub Packages:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.4
+ghcr.io/bren-wp/ghost-ftp:1.1.5
 ```
 
 The package mirrors `/ghostftp-release/` from the verified release assembly and is **not a runtime container**. Successful stable publication updates `1.1`, `1` and `latest` only after registry publication and read-back succeed.
@@ -157,6 +156,8 @@ For automated environments, the GHCR distribution bundle adds an OCI manifest di
 ## Languages
 
 Ghost FTP ships **24 languages** selectable locally, with English as the default/fallback. Localization is resolved locally; the desktop client does not send filenames, hostnames, credentials or UI strings to a translation service.
+
+Public localization is normalized at the application translation boundary so compatibility strings may retain the internal `GhostFTP` identifier without leaking it into user-facing branding.
 
 See [Localization](docs/LOCALIZATION.md).
 
