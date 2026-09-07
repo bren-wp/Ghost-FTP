@@ -76,8 +76,8 @@ func TestProcessLifecycleHelper(t *testing.T) {
 			processHelperEnv:          "child",
 			"GhostFTP_PROCESS_MARKER": marker,
 			"GhostFTP_PROCESS_READY":  "",
-			processChildReadyEnv:       childReady,
-			processSurvivalTriggerEnv:  survivalTrigger,
+			processChildReadyEnv:      childReady,
+			processSurvivalTriggerEnv: survivalTrigger,
 		})
 		if err := child.Start(); err != nil {
 			os.Exit(11)
@@ -132,8 +132,8 @@ func TestConfigureToolCommandCancelsDescendantProcess(t *testing.T) {
 		processHelperEnv:          "parent",
 		"GhostFTP_PROCESS_MARKER": marker,
 		"GhostFTP_PROCESS_READY":  ready,
-		processChildReadyEnv:       childReady,
-		processSurvivalTriggerEnv:  survivalTrigger,
+		processChildReadyEnv:      childReady,
+		processSurvivalTriggerEnv: survivalTrigger,
 	})
 	configureToolCommand(cmd)
 	done := make(chan error, 1)
