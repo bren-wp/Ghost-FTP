@@ -241,14 +241,14 @@ func (a *app) changeLanguageFromUI() {
 	}
 
 	// Apply the selected locale once, immediately, while persistence happens off
-	// the UI thread. Disable the combo until the write completes so a slower disk
-	// cannot let two language saves race and restore stale state out of order.
-	enableWindow.Call(a.languageCombo, 0)
+	// the UI thread. Lock both settings entry points until the write completes so
+	// full-settings writes cannot race and restore stale state out of order.
+	a.setSettingsControlsEnabled(false)
 	a.applyLanguage(next.Language)
 	a.goSafe(func() {
 		saved, err := a.engine.SetSettings(next)
 		a.dispatch(func() {
-			enableWindow.Call(a.languageCombo, 1)
+			a.setSettingsControlsEnabled(true)
 			if err != nil {
 				a.settings = old
 				a.applyLanguage(old.Language)
