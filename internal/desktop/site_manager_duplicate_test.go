@@ -40,3 +40,18 @@ func TestDuplicateProfileDraftCopiesOnlyNonSecretConfiguration(t *testing.T) {
 		t.Fatalf("duplicate lost non-secret path configuration: %#v", got)
 	}
 }
+
+func TestSiteManagerDuplicateLabelsCoverCanonicalLanguages(t *testing.T) {
+	languages := []string{"en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja", "it", "pl", "nl", "cs", "uk", "sv", "ro", "hu", "da", "fi", "no", "ko"}
+	if len(siteManagerDuplicateLabels) != len(languages) {
+		t.Fatalf("duplicate labels = %d, want %d", len(siteManagerDuplicateLabels), len(languages))
+	}
+	for _, language := range languages {
+		if got := siteManagerDuplicateLabel(language); got == "" {
+			t.Errorf("duplicate label is empty for %q", language)
+		}
+	}
+	if got := siteManagerDuplicateLabel("unknown-language"); got != siteManagerDuplicateLabels["en"] {
+		t.Fatalf("fallback label = %q, want English %q", got, siteManagerDuplicateLabels["en"])
+	}
+}
