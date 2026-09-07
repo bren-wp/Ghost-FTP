@@ -85,8 +85,8 @@ jobs:
             }
 
             $file = Get-Item -LiteralPath $path
-            if ($file.Length -lt 10000) {
-              throw "Authentic UI screenshot is unexpectedly small: $path ($($file.Length) bytes)"
+            if ($file.Length -lt 2048) {
+              throw "Authentic UI screenshot is implausibly small: $path ($($file.Length) bytes)"
             }
 
             $bytes = [IO.File]::ReadAllBytes($file.FullName)
@@ -99,15 +99,34 @@ jobs:
               }
             }
 
-            $image = [System.Drawing.Image]::FromFile($file.FullName)
+            $bitmap = New-Object System.Drawing.Bitmap $file.FullName
             try {
-              if ($image.Width -lt 320 -or $image.Height -lt 200 -or $image.Width -gt 8000 -or $image.Height -gt 8000) {
-                throw "Authentic UI screenshot has implausible dimensions: $path ($($image.Width)x$($image.Height))"
+              if ($bitmap.Width -lt 320 -or $bitmap.Height -lt 200 -or $bitmap.Width -gt 8000 -or $bitmap.Height -gt 8000) {
+                throw "Authentic UI screenshot has implausible dimensions: $path ($($bitmap.Width)x$($bitmap.Height))"
               }
-              Write-Host "SCREENSHOT_VERIFIED=$($file.Name) DIMENSIONS=$($image.Width)x$($image.Height) BYTES=$($file.Length) SHA256=$((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+
+              # File size is not a quality metric for a compact native dialog.
+              # Sample a deterministic grid and require enough distinct colors
+              # to reject blank/solid PrintWindow captures while permitting
+              # efficiently compressed real Settings/About surfaces.
+              $colors = New-Object 'System.Collections.Generic.HashSet[int]'
+              $sampleColumns = 32
+              $sampleRows = 24
+              for ($sx = 0; $sx -lt $sampleColumns; $sx++) {
+                $x = [Math]::Min($bitmap.Width - 1, [int](($sx + 0.5) * $bitmap.Width / $sampleColumns))
+                for ($sy = 0; $sy -lt $sampleRows; $sy++) {
+                  $y = [Math]::Min($bitmap.Height - 1, [int](($sy + 0.5) * $bitmap.Height / $sampleRows))
+                  [void]$colors.Add($bitmap.GetPixel($x, $y).ToArgb())
+                }
+              }
+              if ($colors.Count -lt 8) {
+                throw "Authentic UI screenshot appears blank or visually degenerate: $path (sampled colors=$($colors.Count))"
+              }
+
+              Write-Host "SCREENSHOT_VERIFIED=$($file.Name) DIMENSIONS=$($bitmap.Width)x$($bitmap.Height) BYTES=$($file.Length) SAMPLED_COLORS=$($colors.Count) SHA256=$((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
             }
             finally {
-              $image.Dispose()
+              $bitmap.Dispose()
             }
           }
 
