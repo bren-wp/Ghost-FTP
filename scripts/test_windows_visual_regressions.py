@@ -101,6 +101,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("- 'internal/i18n/**'", workflow)
         self.assertIn("Capture authentic main, Site Manager, Settings and About windows", workflow)
         self.assertIn("Ghost-FTP-$version-Portable-x64.exe", workflow)
+        self.assertIn("!startsWith(github.ref_name, 'release-prep/')", workflow)
 
 
 if __name__ == "__main__":
