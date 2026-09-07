@@ -134,7 +134,7 @@ jobs:
           }
 
       - name: Persist authentic screenshots in repository
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && !startsWith(github.ref_name, 'release-prep/')
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
