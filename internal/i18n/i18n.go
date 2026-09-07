@@ -98,6 +98,13 @@ func LanguageByCode(code string) Language {
 	return supportedLanguages[0]
 }
 
+// publicText keeps the technical GhostFTP identifier available in source and
+// compatibility data while guaranteeing that every localized string returned to
+// a user renders the public product name consistently as "Ghost FTP".
+func publicText(value string) string {
+	return strings.ReplaceAll(value, "GhostFTP", "Ghost FTP")
+}
+
 func T(language, key string, args ...any) string {
 	language = Normalize(language)
 	template := ""
@@ -111,9 +118,9 @@ func T(language, key string, args ...any) string {
 		template = key
 	}
 	if len(args) == 0 {
-		return template
+		return publicText(template)
 	}
-	return fmt.Sprintf(template, args...)
+	return publicText(fmt.Sprintf(template, args...))
 }
 
 func IsAffirmative(language, answer string) bool {
@@ -198,7 +205,6 @@ func ValidateCatalogs() error {
 			if _, ok := codes[code]; !ok {
 				extra = append(extra, code)
 			}
-		}
 		sort.Strings(extra)
 		return fmt.Errorf("catalogs contain unsupported language codes: %s", strings.Join(extra, ", "))
 	}
