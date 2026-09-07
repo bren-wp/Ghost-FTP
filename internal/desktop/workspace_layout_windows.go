@@ -54,11 +54,10 @@ func showControls(show bool, controls ...uintptr) {
 }
 
 // refineWorkspaceLayout applies visibility and native-theme rules to the
-// canonical workspace. Geometry remains owned by app.layout. Importantly this
-// function does not invalidate the entire parent window: MoveWindow and the
-// individual owner-drawn controls already repaint their own changed bounds.
-// Avoiding a full background erase removes the startup/resize flash that was
-// visible on real Windows systems.
+// canonical workspace. Geometry remains owned by app.layout, followed by the
+// idempotent application-sidebar transform. Importantly this function does not
+// invalidate the entire parent window: MoveWindow and the individual owner-drawn
+// controls repaint their changed bounds without a full background erase.
 func (a *app) refineWorkspaceLayout() {
 	if a == nil || a.hwnd == 0 {
 		return
@@ -75,7 +74,8 @@ func (a *app) refineWorkspaceLayout() {
 	}
 
 	a.stabilizeWorkspaceChrome()
+	a.applyApplicationSidebar()
 	applyFileColumnOrder(a.localList, false)
 	applyFileColumnOrder(a.remoteList, true)
-	a.resizeListColumns()
+	a.resizeSidebarColumns()
 }
