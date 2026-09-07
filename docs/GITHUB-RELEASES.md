@@ -1,14 +1,14 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.1.1 Stable** is the current maintained stable candidate line. Ghost FTP **1.1.0 Stable** remains the previously published feature release and **1.0.0 Stable** remains the first normal stable public release; published historical tags/releases must not be rewritten. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
+Ghost FTP **1.1.2 Stable** is the current maintained stable candidate line. Ghost FTP **1.1.1 Stable** remains the previously published maintenance release, **1.1.0 Stable** remains the earlier feature release and **1.0.0 Stable** remains the first normal stable public release; published historical tags/releases must not be rewritten. Official releases are created only by `.github/workflows/release.yml` from the exact verified `main` commit.
 
 ## Release identity
 
-For version `1.1.1`:
+For version `1.1.2`:
 
 ```text
-Tag: ghostftp-v1.1.1
-Title: Ghost FTP 1.1.1
+Tag: ghostftp-v1.1.2
+Title: Ghost FTP 1.1.2
 Prerelease: false
 ```
 
@@ -18,7 +18,7 @@ The release workflow reads `VERSION` directly and rejects a manual workflow vers
 
 A version with major number `1` or greater is treated as Stable. The release workflow does not pass GitHub's prerelease flag for stable versions.
 
-Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing `ghostftp-v1.0.0` and `ghostftp-v1.1.0` tags remain bound to their original published release commits.
+Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing `ghostftp-v1.0.0`, `ghostftp-v1.1.0` and `ghostftp-v1.1.1` tags remain bound to their original published release commits.
 
 ## Required public files
 
@@ -27,20 +27,20 @@ The stable Release exposes **9 platform artifacts**.
 Windows:
 
 ```text
-Ghost-FTP-1.1.1-Setup-x64.exe
-Ghost-FTP-1.1.1-Setup-x86.exe
-Ghost-FTP-1.1.1-Setup-x32.exe
-Ghost-FTP-1.1.1-Portable-x64.exe
-Ghost-FTP-1.1.1-Portable-x86.exe
+Ghost-FTP-1.1.2-Setup-x64.exe
+Ghost-FTP-1.1.2-Setup-x86.exe
+Ghost-FTP-1.1.2-Setup-x32.exe
+Ghost-FTP-1.1.2-Portable-x64.exe
+Ghost-FTP-1.1.2-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.1-Linux-amd64.deb
-Ghost-FTP-1.1.1-Linux-arm64.deb
-Ghost-FTP-1.1.1-Linux-i386.deb
-Ghost-FTP-1.1.1-Linux-multiarch.zip
+Ghost-FTP-1.1.2-Linux-amd64.deb
+Ghost-FTP-1.1.2-Linux-arm64.deb
+Ghost-FTP-1.1.2-Linux-i386.deb
+Ghost-FTP-1.1.2-Linux-multiarch.zip
 ```
 
 and three verification/metadata files:
@@ -57,13 +57,13 @@ That is **12 public files** in total.
 
 Before publication, the workflow queries the current `main` SHA and requires it to equal `GITHUB_SHA`. It verifies the condition again after release publication. If `main` moves during the transaction, publication fails instead of silently attaching files to stale source.
 
-The canonical `release/ghostftp-v1.1.1` trigger branch must therefore be created from the exact `main` commit that passed the complete post-merge quality gate.
+The canonical `release/ghostftp-v1.1.2` trigger branch must therefore be created from the exact `main` commit that passed the complete post-merge quality gate.
 
 ## Immutable tag rule
 
-If `ghostftp-v1.1.1` already exists, it must resolve to the exact intended release commit. The workflow refuses to rewrite an existing version tag to different source.
+If `ghostftp-v1.1.2` already exists unexpectedly before this release is published, publication must stop. The tag must not be moved, deleted, reused or force-pushed.
 
-The already-published `ghostftp-v1.0.0` and `ghostftp-v1.1.0` tags are separate immutable history and are never moved or reused for 1.1.1.
+The already-published `ghostftp-v1.0.0`, `ghostftp-v1.1.0` and `ghostftp-v1.1.1` tags are separate immutable history and are never moved or reused for 1.1.2.
 
 ## Windows signing state
 
@@ -89,10 +89,10 @@ A release is not considered published merely because a local build succeeded; re
 
 ## GitHub Packages
 
-Stable 1.1.1 publication additionally pushes the verified release directory to:
+Stable 1.1.2 publication additionally pushes the verified release directory to:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.1
+ghcr.io/bren-wp/ghost-ftp:1.1.2
 ```
 
 Compatible stable aliases are published only after successful registry publication/read-back:
@@ -125,7 +125,7 @@ See [Packages](PACKAGES.md).
 
 ## UI/documentation evidence
 
-The 1.1.1 release documentation must describe the actual maintained behavior: Classic Light is the fresh/fallback primary appearance, Dark remains an explicit Windows choice, and FTPS is the fresh quick-connect protocol while plain FTP remains an explicit compatibility option. Repository UI screenshots are produced from the real production Windows x64 Portable executable by the dedicated screenshot workflow; mockups or generated approximations are not accepted as release evidence.
+The 1.1.2 release documentation must describe the actual maintained behavior: Classic Light remains the fresh/fallback primary appearance, Dark remains an explicit Windows choice, FTPS remains the fresh quick-connect protocol, and Windows application navigation uses the canonical left sidebar. Runtime About must show public `Ghost FTP` branding, BRENDIGO LTD and only official Brendigo destinations without clipping. Repository UI screenshots are produced from the real production Windows x64 Portable executable by the dedicated screenshot workflow; mockups or generated approximations are not accepted as release evidence. The final 1.1.2 candidate requires authentic Main Workspace, Site Manager, Settings and About screenshots from the exact release source revision.
 
 ## Failure behavior
 
