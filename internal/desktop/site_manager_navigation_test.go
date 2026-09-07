@@ -14,12 +14,12 @@ func TestSiteManagerNavigationRowsAreCompactAndPrivacySafe(t *testing.T) {
 			Protocol:       "ftps",
 			Host:           "ftp.example.com",
 			Username:       "private-user@example.com",
-			PrivateKeyPath:  "/home/user/.ssh/id_ed25519",
-			Fingerprint:     "SHA256:private-fingerprint",
-			RemotePath:      "/private/path",
-			LocalPath:       "/home/user/customer-files",
-			HasPassword:     true,
-			HasPassphrase:   true,
+			PrivateKeyPath: "/home/user/.ssh/id_ed25519",
+			Fingerprint:    "SHA256:private-fingerprint",
+			RemotePath:     "/private/path",
+			LocalPath:      "/home/user/customer-files",
+			HasPassword:    true,
+			HasPassphrase:  true,
 		},
 	}
 
