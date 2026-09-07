@@ -17,7 +17,7 @@ class Release114DesktopQualityTests(unittest.TestCase):
             "func retrySummary", 1
         )[0]
 
-        self.assertIn("cbShowDropDown  = 0x014F", text)
+        self.assertIn("cbShowDropDown = 0x014F", text)
         self.assertIn(
             "sendMessageW.Call(a.languageCombo, cbShowDropDown, 0, 0)", change
         )

@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	idLanguage      = 96
-	cbResetContent  = 0x014B
-	cbShowDropDown  = 0x014F
-	lvmSetColumnW   = lvmFirst + 96
+	idLanguage     = 96
+	cbResetContent = 0x014B
+	cbShowDropDown = 0x014F
+	lvmSetColumnW  = lvmFirst + 96
 )
 
 func (a *app) languageCode() string {
