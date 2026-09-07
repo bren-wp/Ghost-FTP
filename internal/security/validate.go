@@ -16,6 +16,23 @@ var (
 	hostnameLabel = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 )
 
+func reservedWindowsStem(stem string) bool {
+	switch stem {
+	case "CON", "PRN", "AUX", "NUL", "CLOCK$":
+		return true
+	}
+	runes := []rune(stem)
+	if len(runes) != 4 {
+		return false
+	}
+	prefix := string(runes[:3])
+	if prefix != "COM" && prefix != "LPT" {
+		return false
+	}
+	digit := runes[3]
+	return (digit >= '1' && digit <= '9') || digit == '¹' || digit == '²' || digit == '³'
+}
+
 func ValidateName(name string) error {
 	if name == "" || name != strings.TrimSpace(name) || name == "." || name == ".." || len(name) > 255 || !utf8.ValidString(name) || !safeName.MatchString(name) {
 		return errors.New("neispravan naziv datoteke ili mape")
@@ -28,12 +45,7 @@ func ValidateName(name string) error {
 	if i := strings.IndexByte(stem, '.'); i >= 0 {
 		stem = stem[:i]
 	}
-	reserved := stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" || stem == "CLOCK$"
-	if !reserved && len(stem) == 4 {
-		prefix, digit := stem[:3], stem[3]
-		reserved = (prefix == "COM" || prefix == "LPT") && digit >= '1' && digit <= '9'
-	}
-	if reserved {
+	if reservedWindowsStem(stem) {
 		return errors.New("naziv je rezerviran u sustavu Windows")
 	}
 	return nil

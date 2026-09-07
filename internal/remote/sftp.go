@@ -495,7 +495,22 @@ func (s *SFTP) Close() error {
 }
 
 func sftpQuote(v string) string {
-	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(v) + `"`
+	// sftp's interactive parser applies glob semantics to path operands even
+	// when they are quoted. Escape every glob metacharacter documented by
+	// OpenSSH so a literal filename cannot expand to additional entries.
+	if strings.HasPrefix(v, "-") {
+		// get/put/ls parse leading dashes as flags after tokenization. Preserve
+		// the same relative path while making it unambiguously an operand.
+		v = "./" + v
+	}
+	return `"` + strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		`[`, `\[`,
+		`]`, `\]`,
+		`?`, `\?`,
+		`*`, `\*`,
+	).Replace(v) + `"`
 }
 
 func (s *SFTP) askpassEnvironment() ([]string, error) {
