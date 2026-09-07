@@ -216,7 +216,10 @@ func (a *app) openAbout() {
 	// About is an application-owned card so its Light/Dark appearance does not
 	// drift with the Windows TaskDialog theme. Runtime destinations are limited
 	// to official BRENDIGO LTD web properties; repository links remain in docs.
-	body := a.tr("about.body", brand.Website, brand.Support) + "\n\n" +
+	// Localization catalogs may legitimately use the internal GhostFTP identity
+	// in non-public surfaces, but About always renders the public Ghost FTP name.
+	aboutBody := strings.ReplaceAll(a.tr("about.body", brand.Website, brand.Support), "GhostFTP", brand.ProductName)
+	body := aboutBody + "\n\n" +
 		brand.Publisher + "\n" +
 		"FTP • FTPS • SFTP  ·  " + brand.ProductName + " " + a.version
 	platform.InfoCardDialog(
