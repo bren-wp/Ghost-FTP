@@ -269,7 +269,6 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		}
 		if id == idLanguage && notify == cbnSelChange {
 			a.changeLanguageFromUI()
-			a.refineWorkspaceLayout()
 			return 0
 		}
 		if notify == bnClicked || notify == acceleratorCommandNotification {
