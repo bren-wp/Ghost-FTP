@@ -4,6 +4,7 @@ const (
 	ProductName = "Ghost FTP"
 	ProductFull = "Ghost FTP file transfer client"
 	Publisher   = "BRENDIGO LTD"
+	Company     = Publisher
 
 	// Runtime metadata remains schemeless so displaying official destinations
 	// never introduces an automatic network request. Product and publisher
