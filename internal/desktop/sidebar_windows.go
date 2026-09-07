@@ -16,8 +16,8 @@ const (
 )
 
 var (
-	sidebarDiagnostics    sync.Map
-	sidebarGetWindowRect  = user32.NewProc("GetWindowRect")
+	sidebarDiagnostics     sync.Map
+	sidebarGetWindowRect   = user32.NewProc("GetWindowRect")
 	sidebarMapWindowPoints = user32.NewProc("MapWindowPoints")
 )
 
