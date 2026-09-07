@@ -631,8 +631,12 @@ func waitRetryDelay(ctx context.Context, delay time.Duration) error {
 }
 
 func (m *Manager) runAttempt(ctx context.Context, job model.TransferJob, settings model.Settings) error {
-	if job.LocalRoot != "" {
-		if err := security.EnsureLocalWithinRoot(job.LocalRoot, job.LocalPath); err != nil {
+	localRoot := job.LocalRoot
+	if job.Direction == "download" && localRoot == "" {
+		localRoot = filepath.Dir(job.LocalPath)
+	}
+	if localRoot != "" {
+		if err := security.EnsureLocalWithinRoot(localRoot, job.LocalPath); err != nil {
 			return err
 		}
 	}
@@ -644,6 +648,7 @@ func (m *Manager) runAttempt(ctx context.Context, job model.TransferJob, setting
 	options := remote.TransferOptions{
 		KeepBackup:   settings.BackupBeforeOverwrite,
 		SkipExisting: settings.SkipExisting,
+		LocalRoot:    localRoot,
 		Progress: func(transferred, total int64) {
 			m.updateProgress(job.ID, transferred, total)
 		},
