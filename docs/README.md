@@ -1,11 +1,13 @@
 # Ghost FTP documentation
 
-- **Current Ghost FTP release: 1.1.4**
+- **Current Ghost FTP release: 1.1.5**
 - Development status: **Stable**
 - GitHub Release policy: **prerelease=false**
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
 - Languages: **24 selectable local languages**
+- Product website: **https://ghostftp.com**
+- Developer/publisher: **BRENDIGO LTD — https://brendigo.com**
 
 The root [`VERSION`](../VERSION) file is the authoritative production version source. This directory contains maintained engineering, operations, privacy, security, release and user documentation for Ghost FTP.
 
@@ -42,58 +44,56 @@ The stable workflow publishes **9 platform artifacts** and **12 public files** f
 - [`ROADMAP.md`](ROADMAP.md) — maintenance priorities and product constraints.
 - [`SUPPORT.md`](SUPPORT.md) — support and privacy-safe issue reporting.
 
-## Ghost FTP 1.1.4 contract
+## Ghost FTP 1.1.5 contract
 
-Ghost FTP 1.1.4 is a backward-compatible native Windows/Linux maintenance release focused on settings correctness, desktop responsiveness and local-only UI resources.
+Ghost FTP 1.1.5 is a backward-compatible native Windows/Linux maintenance release focused on product/publisher identity correctness, public UI branding consistency, release-documentation integrity and repository cleanup.
 
-Key 1.1.4 changes:
+Key 1.1.5 changes:
 
-- Windows language selection closes its dropdown immediately after selection;
-- language persistence no longer blocks the native message loop;
-- Language and Settings writes share one UI-side serialization gate to prevent stale whole-settings overwrites;
-- Windows Settings consumes canonical backend limits/defaults instead of duplicated numeric ranges;
-- invalid prompt state is normalized to safe defaults before display;
-- non-language Settings saves avoid unnecessary localization/list/layout rebuilds;
-- duplicate language layout refinement was removed;
-- idle Windows transfer polling performs no selection-map, summary, action-state or list redraw work when there are no new transfer events;
-- native icon registration is deduplicated and remains local, using Segoe Fluent Icons with Segoe MDL2 compatibility fallback;
-- deterministic process-tree cancellation regression coverage replaces fixed timing assumptions;
-- repository cleanup retains files only when they have an active build, platform, security, test, package or release role;
-- no telemetry, analytics, advertising, tracking, remote icon runtime or new external Go module dependency is introduced.
+- `ghostftp.com` is the official product website;
+- `brendigo.com` is the official author/publisher website and BRENDIGO LTD remains the publisher identity;
+- Windows About separates the product destination from the publisher destination;
+- public localized UI text returns **Ghost FTP** instead of leaking the internal `GhostFTP` technical identifier;
+- the public branding contract is regression-tested across all 24 supported languages;
+- Linux DEB metadata uses `Homepage: https://ghostftp.com` and BRENDIGO LTD Maintainer identity;
+- stale 1.1.1/1.1.4 current-release documentation in Installation, Packages, Support and release docs is corrected;
+- version-drift regression coverage now requires active distribution/support documentation to follow root `VERSION`;
+- a stale version-specific desktop-quality test file was removed while its maintained regression coverage stays in the evergreen suite;
+- no telemetry, analytics, advertising, tracking, hidden product service or new external Go module dependency is introduced.
 
 The release preserves existing transport and filesystem protections: FTPS certificate/hostname validation, SFTP host-key verification/pinning, protected-secret lifetime rules, transfer generation/cancel/retry safeguards, root-bound local download activation and destructive-operation containment.
 
 ## Stable publication
 
-A stable 1.1.4 publication is a normal GitHub Release with `prerelease=false` and immutable tag:
+A stable 1.1.5 publication is a normal GitHub Release with `prerelease=false` and immutable tag:
 
 ```text
-ghostftp-v1.1.4
+ghostftp-v1.1.5
 ```
 
 Windows artifacts:
 
 ```text
-Ghost-FTP-1.1.4-Setup-x64.exe
-Ghost-FTP-1.1.4-Setup-x86.exe
-Ghost-FTP-1.1.4-Setup-x32.exe
-Ghost-FTP-1.1.4-Portable-x64.exe
-Ghost-FTP-1.1.4-Portable-x86.exe
+Ghost-FTP-1.1.5-Setup-x64.exe
+Ghost-FTP-1.1.5-Setup-x86.exe
+Ghost-FTP-1.1.5-Setup-x32.exe
+Ghost-FTP-1.1.5-Portable-x64.exe
+Ghost-FTP-1.1.5-Portable-x86.exe
 ```
 
 Linux artifacts:
 
 ```text
-Ghost-FTP-1.1.4-Linux-amd64.deb
-Ghost-FTP-1.1.4-Linux-arm64.deb
-Ghost-FTP-1.1.4-Linux-i386.deb
-Ghost-FTP-1.1.4-Linux-multiarch.zip
+Ghost-FTP-1.1.5-Linux-amd64.deb
+Ghost-FTP-1.1.5-Linux-arm64.deb
+Ghost-FTP-1.1.5-Linux-i386.deb
+Ghost-FTP-1.1.5-Linux-multiarch.zip
 ```
 
 GitHub Package:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.4
+ghcr.io/bren-wp/ghost-ftp:1.1.5
 ```
 
 Stable aliases `1.1`, `1` and `latest` are updated only after successful publication and registry read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
@@ -105,26 +105,18 @@ Production Authenticode remains optional. If a trusted certificate is configured
 - [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — cumulative engineering narrative.
 - [`../CHANGELOG.md`](../CHANGELOG.md) — public release change log used by release-note generation.
 
-Historical version references and Beta terminology inside historical documents describe their original release state; they are not the current support status.
+Historical version references describe their original release state and are not rewritten as current product behavior.
 
 ## Release verification rule
 
 A release is complete only after the exact source revision passes Core, Windows and Linux gates and the immutable tag, GitHub Release asset set, `SHA256.txt`, metadata and stable GitHub Package have all been read back successfully.
 
+For 1.1.5 the canonical publication branch is `release/ghostftp-v1.1.5`, created only from the exact post-merge `main` SHA that passed the complete quality gate.
+
 ## UI evidence rule
 
-When a release materially changes Windows layout or visual rendering, authentic screenshots must come from the real production Windows x64 Portable executable. Ghost FTP 1.1.4 changes interaction behavior and local icon plumbing but does not introduce a new application layout.
+Because 1.1.5 changes public Settings/About branding and version presentation, authentic screenshots must come from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About and must be visually reviewed on the exact release-prep source revision.
 
 ## Privacy-safe documentation rule
 
 Documentation and build logs must never contain real passwords, private-key passphrases, protected profile payloads, signing private keys or private user data. Examples use synthetic values only.
-
-## Source-of-truth hierarchy
-
-When active documentation and implementation appear to disagree, verify in this order:
-
-1. current `VERSION` and source code;
-2. security/privacy/release audit scripts;
-3. CI and release workflow behavior;
-4. active documentation;
-5. historical release notes.

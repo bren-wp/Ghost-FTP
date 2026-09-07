@@ -94,6 +94,15 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("windowsOpenSSHCandidates", sftp)
         self.assertIn('"Sysnative", "OpenSSH", name', sftp)
 
+    def test_release_prep_version_and_localization_changes_capture_authentic_ui(self):
+        workflow = self.read(".github/workflows/ui-screenshots.yml")
+        self.assertIn("- 'release-prep/**'", workflow)
+        self.assertIn("- 'VERSION'", workflow)
+        self.assertIn("- 'internal/i18n/**'", workflow)
+        self.assertIn("Capture authentic main, Site Manager, Settings and About windows", workflow)
+        self.assertIn("Ghost-FTP-$version-Portable-x64.exe", workflow)
+        self.assertIn("!startsWith(github.ref_name, 'release-prep/')", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

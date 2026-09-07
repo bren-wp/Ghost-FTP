@@ -1,5 +1,52 @@
 # Changelog
 
+## 1.1.5 - 2026-09-08 Stable
+
+### Product and publisher identity
+
+- Made **https://ghostftp.com** the canonical Ghost FTP product website across runtime/package documentation surfaces.
+- Kept **BRENDIGO LTD** as the developer/publisher and **https://brendigo.com** as the author website, with `https://brendigo.com/kontakt` as the publisher support destination.
+- Updated Windows About so the Ghost FTP product destination is shown separately from the BRENDIGO LTD publisher destination.
+- Updated Linux DEB metadata to use `Homepage: https://ghostftp.com` and the BRENDIGO LTD Maintainer identity instead of treating the source repository as the product homepage.
+
+### Public UI branding and localization
+
+- Added one public localization boundary that converts the technical `GhostFTP` compatibility identifier to the user-facing **Ghost FTP** product name before localized strings reach the UI.
+- Fixed the Settings title-bar branding from `GhostFTP — Settings` to `Ghost FTP — Settings` and applied the same public-brand guarantee to relevant SFTP, disconnect and terminal strings.
+- Added regression coverage across all 24 supported languages so public localized strings cannot silently regress to the technical brand identifier.
+- Extended the authentic Windows screenshot workflow so hardening branches and localization changes trigger real x64 Portable evidence.
+
+### Cleanup, packaging and documentation integrity
+
+- Removed the stale version-specific `scripts/test_release_1_1_4_desktop_quality.py` file while preserving maintained coverage in the evergreen `scripts/test_desktop_quality.py` suite.
+- Corrected stale current-release documentation in Support, Installation and Packages and aligned release documentation with the canonical root `VERSION`.
+- Strengthened documentation regression coverage so README, documentation index, Installation, Packages, Support, GitHub Releases and Release Verification must track the current semantic version and release artifact names.
+- Preserved the canonical 9-platform-artifact / 12-public-file stable release contract and the dispatch-only canonical release workflow.
+
+### Security, privacy and verification
+
+- Preserved FTPS certificate/hostname validation, SFTP host-key verification/pinning, protected-secret ownership/lifetime handling, path containment, staged transfer rollback, retry/cancel generation binding and secure-protocol no-downgrade behavior.
+- Added no external Go module dependency, telemetry, analytics, advertising, tracking SDK, remote UI dependency or hidden product network service.
+- Verified the 1.1.5 hardening line with exact-head Core/Windows/Linux CI, production Windows x64/x86 and Linux amd64/arm64/i386 package builds, Authenticode policy smoke tests and authentic Main Workspace, Site Manager, Settings and About screenshots from the real Windows x64 Portable executable.
+
+### Required verification
+
+The 1.1.5 stable candidate must pass before publication:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- Go formatting checks;
+- dependency/repository/platform/desktop/localization/security/privacy/documentation/release audits;
+- full Python regression suite including official-destination and active-doc version contracts;
+- Windows x64/x86 Setup + Portable production builds, Setup-x32 alias verification and release artifact verification;
+- Linux amd64/arm64/i386 production builds, DEB verification and multiarch packaging contract;
+- Authenticode production-policy verification and private-key pipeline smoke test;
+- authentic Windows x64 Portable Main/Site Manager/Settings/About capture and visual review on the exact release-prep head;
+- exact-head release-prep PR CI;
+- post-merge Core/Windows/Linux verification on the exact `main` SHA;
+- exact-main `release/ghostftp-v1.1.5` branch validation;
+- immutable `ghostftp-v1.1.5` tag, Stable GitHub Release with `prerelease=false`, exact 12-file asset set and GHCR `1.1.5` distribution-bundle publication/read-back.
+
 ## 1.1.4 - 2026-09-08 Stable
 
 ### Settings correctness and language UX
@@ -312,4 +359,4 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 
 ## Historical engineering history
 
-Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.4 Stable Windows/Linux contract.
+Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.5 Stable Windows/Linux contract.
