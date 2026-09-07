@@ -1,15 +1,17 @@
 # Ghost FTP installation
 
-Ghost FTP **1.1.1 Stable** is the current source candidate and ships as native Windows and Linux packages after the complete release gate succeeds. Use only official artifacts whose version and SHA-256 values match the corresponding published GitHub Release. Published 1.1.0 and 1.0.0 releases remain valid historical releases and are not rewritten.
+Ghost FTP **1.1.5 Stable** is the current source candidate and ships as native Windows and Linux packages after the complete release gate succeeds. Use only official artifacts whose version and SHA-256 values match the corresponding published GitHub Release. Published 1.1.4 and earlier releases remain immutable historical releases and are not rewritten.
+
+The official Ghost FTP product website is **https://ghostftp.com**. Ghost FTP is developed and published by **BRENDIGO LTD**; the author's official website is **https://brendigo.com**.
 
 ## Windows
 
 ### Setup packages
 
 ```text
-Ghost-FTP-1.1.1-Setup-x64.exe
-Ghost-FTP-1.1.1-Setup-x86.exe
-Ghost-FTP-1.1.1-Setup-x32.exe
+Ghost-FTP-1.1.5-Setup-x64.exe
+Ghost-FTP-1.1.5-Setup-x86.exe
+Ghost-FTP-1.1.5-Setup-x32.exe
 ```
 
 `x32` is a compatibility alias of the x86 Setup file and is byte-identical to it.
@@ -19,15 +21,15 @@ Setup is a per-user installation/maintenance application. It stages and validate
 ### Portable packages
 
 ```text
-Ghost-FTP-1.1.1-Portable-x64.exe
-Ghost-FTP-1.1.1-Portable-x86.exe
+Ghost-FTP-1.1.5-Portable-x64.exe
+Ghost-FTP-1.1.5-Portable-x86.exe
 ```
 
-Portable mode does not create the normal Setup registration and keeps its portable state boundary beside the application as documented by the product. Do not mix an installed data directory and portable data directory manually.
+Portable mode does not create the normal Setup registration and keeps its portable state boundary beside the application as documented by the product. Do not manually mix installed and portable state directories.
 
 ### Windows signing state
 
-Production Authenticode signing is optional. Read `BUILD-METADATA.txt` from the same official release:
+Production Authenticode signing is optional. Read `BUILD-METADATA.txt` from the same official release.
 
 ```text
 WINDOWS_AUTHENTICODE=signed
@@ -45,29 +47,29 @@ In both cases verify `SHA256.txt`. For a signed release, also verify the Authent
 
 ## Linux
 
-Official Debian packages for 1.1.1 are:
+Official Debian packages for 1.1.5 are:
 
 ```text
-Ghost-FTP-1.1.1-Linux-amd64.deb
-Ghost-FTP-1.1.1-Linux-arm64.deb
-Ghost-FTP-1.1.1-Linux-i386.deb
+Ghost-FTP-1.1.5-Linux-amd64.deb
+Ghost-FTP-1.1.5-Linux-arm64.deb
+Ghost-FTP-1.1.5-Linux-i386.deb
 ```
 
 A convenience archive contains all three verified packages:
 
 ```text
-Ghost-FTP-1.1.1-Linux-multiarch.zip
+Ghost-FTP-1.1.5-Linux-multiarch.zip
 ```
 
-Install the package matching the machine architecture with the system package manager. The package installs the `ghostftp` application and desktop integration expected by the maintained Linux build.
+Install the package matching the machine architecture with the system package manager. The package installs `ghostftp` and the maintained Linux desktop integration. DEB metadata uses `Homepage: https://ghostftp.com` and the BRENDIGO LTD publisher identity.
 
-## Upgrade to 1.1.1
+## Upgrade to 1.1.5
 
-Ghost FTP 1.1.1 is a compatible maintenance release on top of 1.1.0. Existing 1.x local settings/profiles are intended to remain compatible. The appearance migration is deliberately conservative: an explicitly persisted Dark choice remains Dark, while fresh/missing/invalid appearance state resolves to Classic Light.
+Ghost FTP 1.1.5 is a backward-compatible 1.x maintenance release. Existing 1.x local settings and profiles are intended to remain compatible. The release preserves explicit FTPS/SFTP security behavior, local protected-secret handling, transfer rollback safeguards and the existing appearance migration policy.
 
-Before upgrading critical systems, keep a copy of local configuration and verify the stable package checksum and, when present, its signing state.
+Before upgrading critical systems, keep an appropriate backup of local configuration and verify the stable package checksum and, when present, its signing state.
 
-Windows Setup performs a staged replacement and rollback-oriented transaction. Linux upgrades use the standard package manager semantics of the DEB package.
+Windows Setup performs a staged replacement with rollback-oriented transaction behavior. Linux upgrades use standard DEB package-manager semantics.
 
 ## First connection defaults
 
@@ -75,7 +77,7 @@ A fresh/quick connection starts with **explicit FTPS on port 21**. Plain FTP rem
 
 ## Saved credentials
 
-Saved credentials remain local and are opt-in. An upgrade must not require exporting plaintext passwords. Windows uses the current-user protection boundary; Linux uses local authenticated encryption with user-private key material and bounded runtime secret handling.
+Saved credentials remain local and are opt-in. An upgrade must not require exporting plaintext passwords. Windows uses the current-user protection boundary; Linux uses the documented local protected storage model with bounded runtime secret handling.
 
 The main Save Profile flow and Windows Site Manager require explicit consent before newly entered password/private-key passphrase values are persisted. Saving non-secret profile details does not itself authorize credential storage.
 
@@ -83,10 +85,10 @@ If a protected secret cannot be decrypted under the current user/device context,
 
 ## GitHub Packages
 
-After successful stable publication, the 1.1.1 release is mirrored as:
+After successful stable publication, the 1.1.5 release is mirrored as:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.1
+ghcr.io/bren-wp/ghost-ftp:1.1.5
 ```
 
 This OCI object is a verified distribution bundle containing `/ghostftp-release/`; it is not a runtime container and is not the normal desktop installation path. See [Packages](PACKAGES.md).
@@ -95,7 +97,7 @@ This OCI object is a verified distribution bundle containing `/ghostftp-release/
 
 Each GitHub Release contains `SHA256.txt`. Compare the checksum of every downloaded installer/package before use.
 
-The corresponding `BUILD-METADATA.txt` binds the version, source commit, release tag, platform set, signing state and GitHub Package reference.
+The corresponding `BUILD-METADATA.txt` binds the version, source commit, release tag, platform set, Windows signing state and GitHub Package reference.
 
 ## Uninstall
 
@@ -111,7 +113,7 @@ Remove the `ghost-ftp` package with the distribution package manager. User-local
 
 ### Windows shows an unknown-publisher or SmartScreen warning
 
-First inspect `BUILD-METADATA.txt`. If it says `WINDOWS_AUTHENTICODE=unsigned`, the missing trusted signature is expected for that release. Verify the official release tag and `SHA256.txt`, and follow your Windows/organization security policy rather than disabling protections globally.
+First inspect `BUILD-METADATA.txt`. If it says `WINDOWS_AUTHENTICODE=unsigned`, the missing trusted signature is expected for that release. Verify the official release tag and `SHA256.txt`, and follow Windows/organization security policy rather than disabling protections globally.
 
 If metadata says `WINDOWS_AUTHENTICODE=signed` but signature validation fails, re-download from the official Release and treat the mismatch as a verification failure.
 
@@ -125,7 +127,7 @@ Confirm that the same operating-system user and local secret-protection state ar
 
 ### Connection fails after installation
 
-Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host, port, server policy and system transfer-tool availability without pasting real credentials into issue reports. For a fresh connection, verify whether the server actually supports explicit FTPS/21 before selecting plain FTP for legacy compatibility.
+Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host, port, server policy and system transfer-tool availability without placing real credentials in issue reports. For a fresh connection, verify whether the server supports explicit FTPS/21 before selecting plain FTP for legacy compatibility.
 
 ## Production deployment checklist
 
@@ -138,6 +140,6 @@ Use the privacy-safe connection diagnostics in Ghost FTP. Verify protocol, host,
 7. test the target server using its intended FTP/FTPS/SFTP mode and do not bypass failed TLS by silently switching protocols;
 8. keep private credentials out of logs and support reports.
 
-The 1.1.1 filenames above describe the candidate contract; they are not proof of publication. Treat 1.1.1 as downloadable only after the official Release/tag/package read-back has succeeded.
+The 1.1.5 filenames above describe the candidate contract; they are not proof of publication. Treat 1.1.5 as downloadable only after the official tag, GitHub Release asset set and GHCR package read-back have succeeded.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).
