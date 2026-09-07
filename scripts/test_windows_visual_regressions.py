@@ -48,6 +48,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         chrome = self.read("internal/desktop/chrome_windows.go")
         header = self.read("internal/desktop/header_draw_windows.go")
         sidebar = self.read("internal/desktop/sidebar_windows.go")
+        navigation = self.read("internal/desktop/navigation_windows.go")
         wnd = self.read("internal/desktop/windows.go")
         self.assertIn("titleWidth, subtitleX = 54, 168, 230", chrome)
         self.assertIn("installWorkspaceHeaderDraw(a, list)", chrome)
@@ -61,7 +62,10 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("applicationSidebarWidth", sidebar)
         self.assertIn("applicationContentLeft", sidebar)
         self.assertIn("setSidebarButtonVisual", sidebar)
+        self.assertIn("navigationLabelsForLanguage", navigation)
+        self.assertIn('"ko": {"서버 관리자", "진단"}', navigation)
         self.assertFalse((ROOT / "internal/desktop/menu_draw_windows.go").exists())
+        self.assertFalse((ROOT / "internal/desktop/menu_windows.go").exists())
         self.assertNotIn("a.measureMenuItem(lParam)", wnd)
         self.assertNotIn("a.drawMenuItem(&d)", wnd)
 
