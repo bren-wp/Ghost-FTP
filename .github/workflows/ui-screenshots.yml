@@ -11,6 +11,7 @@ on:
     paths:
       - 'VERSION'
       - 'internal/desktop/**'
+      - 'internal/i18n/**'
       - 'internal/platform/**'
       - 'scripts/capture_windows_screenshots.ps1'
       - '.github/workflows/ui-screenshots.yml'
