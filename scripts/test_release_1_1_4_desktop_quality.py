@@ -30,6 +30,14 @@ class Release114DesktopQualityTests(unittest.TestCase):
         self.assertIn("displayedLanguage := a.languageCode()", change)
         self.assertIn("if i18n.Normalize(saved.Language) != displayedLanguage", change)
 
+    def test_language_command_does_not_repeat_layout_refinement(self) -> None:
+        text = self.read("internal/desktop/windows.go")
+        handler = text.split("if id == idLanguage && notify == cbnSelChange {", 1)[1].split(
+            "return 0", 1
+        )[0]
+        self.assertIn("a.changeLanguageFromUI()", handler)
+        self.assertNotIn("a.refineWorkspaceLayout()", handler)
+
     def test_settings_writes_share_one_ui_lock_and_avoid_redundant_locale_refresh(self) -> None:
         text = self.read("internal/desktop/settings_windows.go")
         helper = text.split("func (a *app) setSettingsControlsEnabled", 1)[1].split(
