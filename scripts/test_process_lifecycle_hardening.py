@@ -49,13 +49,22 @@ class ProcessLifecycleHardeningTests(unittest.TestCase):
     def test_functional_regression_uses_real_descendant(self) -> None:
         text = self.read("internal/remote/process_lifecycle_test.go")
         for marker in (
-            'processHelperEnv = "GhostFTP_PROCESS_HELPER"',
+            '"GhostFTP_PROCESS_HELPER"',
+            'processChildReadyEnv      = "GhostFTP_PROCESS_CHILD_READY"',
+            'processSurvivalTriggerEnv = "GhostFTP_PROCESS_SURVIVAL_TRIGGER"',
             'child := exec.Command(os.Args[0], "-test.run=TestProcessLifecycleHelper")',
+            "waitForProcessMarker(childReady, 3*time.Second)",
             "configureToolCommand(cmd)",
             "cancel()",
+            'os.WriteFile(survivalTrigger, []byte("probe"), 0600)',
             "descendant survived cancellation",
         ):
             self.assertIn(marker, text)
+
+        # The descendant must not use a fixed pre-cancel sleep as its survival
+        # signal. It is armed only after cancellation through a test-controlled
+        # file trigger, avoiding scheduler-dependent false failures under -race.
+        self.assertNotIn("time.Sleep(700 * time.Millisecond)", text)
 
 
 if __name__ == "__main__":
