@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - 'hardening/**'
       - 'work/**'
       - 'release/**'
     paths:
