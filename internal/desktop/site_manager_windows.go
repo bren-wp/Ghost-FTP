@@ -32,6 +32,7 @@ const (
 	siteIDClose      = 8114
 	siteIDPassword   = 8115
 	siteIDPassphrase = 8116
+	siteIDDuplicate  = 8117
 
 	siteLBSNotify           = 0x0001
 	siteLBSNoIntegralHeight = 0x0100
@@ -111,6 +112,7 @@ type siteManagerState struct {
 	keyPath      uintptr
 	passphrase   uintptr
 	security     uintptr
+	duplicate    uintptr
 	save         uintptr
 	delete       uintptr
 	connect      uintptr
@@ -150,6 +152,9 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 			}
 			if notify == bnClicked {
 				switch id {
+				case siteIDDuplicate:
+					state.duplicateCurrent()
+					return 0
 				case siteIDSave:
 					state.saveCurrent()
 					return 0
@@ -197,7 +202,7 @@ func siteManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) ui
 			destroyWindow.Call(hwnd)
 			return 0
 		case wmDestroy:
-			for _, button := range []uintptr{state.save, state.delete, state.connect, state.close} {
+			for _, button := range []uintptr{state.duplicate, state.save, state.delete, state.connect, state.close} {
 				delete(state.parent.buttons, button)
 			}
 			if state.listBrush != 0 {
@@ -290,6 +295,7 @@ func (state *siteManagerState) loadSelection(index int) {
 		setText(state.remotePath, "/")
 		setText(state.keyPath, "")
 		setText(state.security, state.parent.tr("profile.quick")+" · "+state.parent.tr("cue.password"))
+		setControlEnabled(state.duplicate, false)
 		setControlEnabled(state.delete, false)
 		return
 	}
@@ -303,6 +309,7 @@ func (state *siteManagerState) loadSelection(index int) {
 	setText(state.remotePath, profile.RemotePath)
 	setText(state.keyPath, profile.PrivateKeyPath)
 	setText(state.security, state.securitySummary(profile))
+	setControlEnabled(state.duplicate, true)
 	setControlEnabled(state.delete, true)
 }
 
@@ -356,6 +363,31 @@ func (state *siteManagerState) profileInput() (model.ProfileInput, error) {
 		LocalPath:      getText(state.localPath),
 		RemotePath:     remotePath,
 	}, nil
+}
+
+func (state *siteManagerState) duplicateCurrent() {
+	if state.selected <= 0 || state.selected > len(state.profiles) {
+		return
+	}
+	draft := duplicateProfileDraft(state.profiles[state.selected-1])
+
+	// Move to the unsaved/quick slot before populating the controls. Programmatic
+	// LB_SETCURSEL does not emit LBN_SELCHANGE, so it cannot clear the draft.
+	state.selected = 0
+	sendMessageW.Call(state.list, siteLBSetCurSel, 0, 0)
+	setText(state.name, draft.Name)
+	state.setProtocol(draft.Protocol)
+	setText(state.host, draft.Host)
+	setText(state.port, strconv.Itoa(draft.Port))
+	setText(state.user, draft.Username)
+	setText(state.password, "")
+	setText(state.localPath, draft.LocalPath)
+	setText(state.remotePath, draft.RemotePath)
+	setText(state.keyPath, draft.PrivateKeyPath)
+	setText(state.passphrase, "")
+	setText(state.security, "—")
+	setControlEnabled(state.duplicate, false)
+	setControlEnabled(state.delete, false)
 }
 
 func (state *siteManagerState) saveCurrent() {
@@ -461,11 +493,13 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	label(strings.ToUpper(words[1]), 20, 18, 260)
 	label(strings.ToUpper(words[5]), 310, 18, 570)
 
-	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight|siteLBSOwnerDrawFixed|siteLBSHasStrings, 20, 48, 270, 486, siteIDList)
+	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight|siteLBSOwnerDrawFixed|siteLBSHasStrings, 20, 48, 270, 440, siteIDList)
 	if state.list != 0 {
 		applySiteManagerNavigationTheme(state.list)
 		state.listBrush, _, _ = createSolidBrush.Call(listColor())
 	}
+	duplicateLabel := siteManagerDuplicateLabel(parent.languageCode())
+	state.duplicate = parent.registerButton(mk("BUTTON", duplicateLabel, wsTabStop|bsOwnerDraw, 20, 500, 270, 34, siteIDDuplicate), iconCopy, duplicateLabel, buttonDefault)
 
 	label(parent.tr("column.name"), 310, 54, 160)
 	state.name = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll, 490, 48, 390, 30, siteIDName)
@@ -505,7 +539,7 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	state.close = parent.registerButton(mk("BUTTON", parent.tr("common.cancel"), wsTabStop|bsOwnerDraw, 752, 500, 128, 34, siteIDClose), iconCancel, parent.tr("common.cancel"), buttonSubtle)
 
 	for _, control := range []uintptr{
-		state.list, state.name, state.protocol, state.host, state.port, state.user, state.password,
+		state.list, state.duplicate, state.name, state.protocol, state.host, state.port, state.user, state.password,
 		state.localPath, state.remotePath, state.keyPath, state.passphrase, state.security,
 		state.save, state.delete, state.connect, state.close,
 	} {
