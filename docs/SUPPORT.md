@@ -1,6 +1,6 @@
 # Ghost FTP support
 
-Support for the current published Ghost FTP **1.1.4 Stable** release starts with the official product website at **https://ghostftp.com**. Reproducible software bugs and platform-specific technical problems may also be reported through the repository issue tracker:
+Support for the current published Ghost FTP **1.1.5 Stable** release starts with the official product website at **https://ghostftp.com**. Reproducible software bugs and platform-specific technical problems may also be reported through the repository issue tracker:
 
 https://github.com/bren-wp/Ghost-FTP/issues
 
