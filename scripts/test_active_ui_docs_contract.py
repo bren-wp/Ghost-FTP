@@ -47,12 +47,33 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
         self.assertIn("one application-owned native Settings dialog", settings)
         self.assertIn("Invalid input keeps the dialog open", settings)
 
-    def test_screenshot_evidence_is_not_rewritten_without_authentic_capture(self) -> None:
+    def test_screenshot_evidence_requires_complete_authentic_capture_provenance(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
-        self.assertIn("authentic UI workflow run **#122**", reference)
-        self.assertIn("3b1e82695bcd3cbd87c15ed62ef20fe7c5870d4120d22dba6b44fe69141cce90", reference)
-        self.assertIn("5817a0fc4012c4a4f1042c8d0cea809e6907e53680659e2d55390dd61ff88eea", reference)
-        self.assertIn("historical evidence only", reference)
+        workflow = read(".github/workflows/ui-screenshots.yml")
+
+        for marker in (
+            "authentic UI workflow run **#201**",
+            "a1e9635f5724ea8b53afca9830f28f7fa9159798",
+            "29f3a9a069df37107772265987ecfd251b645c3e",
+            "659caccf3fab3e9add23424e45709f541c902219ba5212f6287ab5ed25c8cb6e",
+            "63e9292530030afab7a95b21788d9ec1da80b6f7bca1ba0ce8a132fd665602a9",
+            "b46b8c9c0730e96b1a0ed9ba54e84633eb6f2030271407f0944d433046c0c870",
+            "1d1b6487be473e3f59af2620584cf09e2ef3225d30712818a9cb8ca1fa492ca4",
+            "Mockups, image-generation output and manually composed approximations are not accepted",
+        ):
+            self.assertIn(marker, reference)
+
+        for image in (
+            "ghost-ftp-main-workspace.png",
+            "ghost-ftp-site-manager.png",
+            "ghost-ftp-settings.png",
+            "ghost-ftp-about.png",
+        ):
+            self.assertIn(image, reference)
+            self.assertIn(image, workflow)
+
+        self.assertIn("Verify screenshot outputs", workflow)
+        self.assertIn("AUTHENTIC_UI_SCREENSHOTS=PERSISTED", workflow)
 
 
 if __name__ == "__main__":
