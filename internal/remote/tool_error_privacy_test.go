@@ -10,7 +10,7 @@ func TestToolErrorPublicStringRedactsRawDiagnostics(t *testing.T) {
 	raw := "Load key C:/Users/private-user/.ssh/customer-prod: incorrect passphrase for secret-host.example"
 	err := &toolError{tool: "sftp", code: 255, message: raw}
 
-	if got, want := err.Error(), "sftp operation failed (exit code 255)"; got != want {
+	if got, want := err.Error(), "sftp credential settings invalid (exit code 255)"; got != want {
 		t.Fatalf("Error()=%q want %q", got, want)
 	}
 
@@ -22,10 +22,31 @@ func TestToolErrorPublicStringRedactsRawDiagnostics(t *testing.T) {
 	}
 }
 
+func TestToolErrorAuthenticationKeepsSafeSignalWithoutRawReply(t *testing.T) {
+	raw := "530 Login incorrect for private-user@secret-host.example"
+	err := &toolError{tool: "curl", code: 67, message: raw}
+	got := err.Error()
+	if !strings.Contains(strings.ToLower(got), "login") {
+		t.Fatalf("public error lost safe authentication signal: %q", got)
+	}
+	for _, sensitive := range []string{"530", "private-user", "secret-host.example"} {
+		if strings.Contains(strings.ToLower(got), strings.ToLower(sensitive)) {
+			t.Fatalf("public error leaked raw authentication diagnostic %q: %q", sensitive, got)
+		}
+	}
+}
+
 func TestToolErrorUnknownToolNameIsNotReflected(t *testing.T) {
 	err := &toolError{tool: "secret-host.example/private-user", code: -1, message: "opaque"}
 	if got, want := err.Error(), "network tool operation failed"; got != want {
 		t.Fatalf("Error()=%q want %q", got, want)
+	}
+}
+
+func TestNilToolErrorIsStableAndRedacted(t *testing.T) {
+	var err *toolError
+	if got, want := err.Error(), "network tool operation failed"; got != want {
+		t.Fatalf("nil Error()=%q want %q", got, want)
 	}
 }
 
