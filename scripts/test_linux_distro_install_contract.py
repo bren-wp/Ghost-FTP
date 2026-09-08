@@ -48,16 +48,21 @@ for token in (
 ):
     require(token in VERIFY, f"missing dependency/runtime verification: {token}")
 
-# The installed GUI must actually start under an isolated local X server.
+# The installed GUI must actually start under an isolated local X server. Its
+# HOME must stay under a root-owned system path so the production safe-path
+# checks are exercised rather than bypassed by a world-writable /tmp ancestor.
 for token in (
     "Xvfb :99",
     "-nolisten tcp",
+    "mktemp -d /var/lib/ghostftp-ci-home.XXXXXX",
+    'chmod 0700 "$smoke_home"',
     "HOME=\"$smoke_home\" DISPLAY=:99",
     "/usr/bin/ghostftp",
     'kill -0 "$app_pid"',
     "GHOSTFTP_INSTALLED_GUI_SMOKE=PASS",
 ):
     require(token in VERIFY, f"missing installed GUI smoke contract: {token}")
+require('smoke_home="$(mktemp -d)"' not in VERIFY, "GUI smoke HOME must not be created under default /tmp")
 
 # Uninstall verification is scoped to package-owned system locations; user data
 # must never be deleted merely to make an uninstall test pass.
