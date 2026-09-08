@@ -18,23 +18,31 @@ func noLabel(language string) string {
 	})
 }
 
-// installDialogLabelProvider keeps the platform layer independent from the
-// desktop translation catalog while resolving labels at the moment a dialog is
-// opened. That makes startup, runtime locale switches and asynchronous security
-// confirmations use the same current language without a second i18n state.
+func activeDialogLocale() (language, cancelLabel string) {
+	language = "en"
+	cancelLabel = "Cancel"
+	apps.Range(func(_, value any) bool {
+		a, ok := value.(*app)
+		if !ok || a == nil {
+			return true
+		}
+		language = a.languageCode()
+		cancelLabel = a.tr("common.cancel")
+		return false
+	})
+	return language, cancelLabel
+}
+
+// The platform layer stays independent from the desktop translation catalog.
+// Both providers resolve labels when their native surface opens, so startup,
+// runtime locale changes and asynchronous dialogs all use the same live locale.
 func init() {
 	platform.SetDialogLabelProvider(func() (string, string, string, string) {
-		language := "en"
-		cancelLabel := "Cancel"
-		apps.Range(func(_, value any) bool {
-			a, ok := value.(*app)
-			if !ok || a == nil {
-				return true
-			}
-			language = a.languageCode()
-			cancelLabel = a.tr("common.cancel")
-			return false
-		})
+		language, cancelLabel := activeDialogLocale()
 		return okLabel(language), cancelLabel, yesLabel(language), noLabel(language)
+	})
+	platform.SetPickerLabelProvider(func() (string, string, string, string) {
+		language, _ := activeDialogLocale()
+		return privateKeyDialogTitle(language), privateKeyFilterLabel(language), allFilesFilterLabel(language), directoryDialogTitle(language)
 	})
 }
