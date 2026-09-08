@@ -16,23 +16,23 @@ const (
 )
 
 const (
-	decisionIDYes          = 6 // IDYES
-	decisionIDNo           = 7 // IDNO
-	decisionSSNoPrefix     = 0x00000080
-	decisionSSEditControl  = 0x00002000
-	decisionEtchedHorz     = 0x00000010
-	decisionWSChild        = 0x40000000
-	decisionWSVisible      = 0x10000000
-	decisionWSTabStop      = 0x00010000
-	decisionDefButton      = 0x00000001
-	decisionClientWidth    = 680
-	decisionHeadingY       = 28
-	decisionHeadingMinH    = 58
-	decisionHeadingMaxH    = 126
-	decisionBodyMinH       = 126
-	decisionBodyMaxH       = 280
-	decisionButtonH        = 38
-	decisionBottomPadding  = 28
+	decisionIDYes         = 6 // IDYES
+	decisionIDNo          = 7 // IDNO
+	decisionSSNoPrefix    = 0x00000080
+	decisionSSEditControl = 0x00002000
+	decisionEtchedHorz    = 0x00000010
+	decisionWSChild       = 0x40000000
+	decisionWSVisible     = 0x10000000
+	decisionWSTabStop     = 0x00010000
+	decisionDefButton     = 0x00000001
+	decisionClientWidth   = 680
+	decisionHeadingY      = 28
+	decisionHeadingMinH   = 58
+	decisionHeadingMaxH   = 126
+	decisionBodyMinH      = 126
+	decisionBodyMaxH      = 280
+	decisionButtonH       = 38
+	decisionBottomPadding = 28
 )
 
 type decisionCardState struct {
