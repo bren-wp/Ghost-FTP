@@ -39,6 +39,8 @@ In both cases verify `SHA256.txt`. For a signed release, also verify the Authent
 
 ## Linux
 
+### Published 1.1.6 packages
+
 The published Linux files for 1.1.6 are:
 
 ```text
@@ -50,7 +52,57 @@ Ghost-FTP-1.1.6-Linux-multiarch.zip
 
 Install the DEB matching the machine architecture with the system package manager. The package installs `ghostftp` and the maintained Linux desktop integration. DEB metadata uses `Homepage: https://ghostftp.com` and the BRENDIGO LTD publisher identity.
 
-Post-1.1.6 source/CI builds additionally create verified package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386. Those archives are not retroactive 1.1.6 release assets; see the Linux documentation for source-build and portable-installation instructions.
+These four Linux files are the immutable published 1.1.6 asset set. Later source/CI packaging work does not add files retroactively to the 1.1.6 GitHub Release, checksum manifest or GHCR bundle.
+
+### Canonical next-release source packages
+
+The maintained canonical release workflow still uses `linux/BUILD.sh`. It builds generic DEBs and package-manager-neutral `.tar.gz` archives for `amd64`, `arm64` and `i386` from the same compiled executable per architecture.
+
+The generic portable archives are post-1.1.6 outputs and are not retroactive 1.1.6 release assets. The current next-release assembly contract verifies them and includes them in the canonical future **12 platform artifacts / 15 public files** release shape only when that later version passes the complete release workflow.
+
+### Supplemental distro-specific source/CI packages
+
+The maintained source separately provides `linux/BUILD-DISTROS.sh`. It creates distribution-labelled CI packages in addition to the canonical release path:
+
+```text
+Ghost-FTP-X.Y.Z-Linux-Debian-amd64.deb
+Ghost-FTP-X.Y.Z-Linux-Debian-arm64.deb
+Ghost-FTP-X.Y.Z-Linux-Debian-i386.deb
+
+Ghost-FTP-X.Y.Z-Linux-Ubuntu-amd64.deb
+Ghost-FTP-X.Y.Z-Linux-Ubuntu-arm64.deb
+Ghost-FTP-X.Y.Z-Linux-Ubuntu-i386.deb
+
+Ghost-FTP-X.Y.Z-Linux-Fedora-x86_64.rpm
+Ghost-FTP-X.Y.Z-Linux-Fedora-aarch64.rpm
+Ghost-FTP-X.Y.Z-Linux-Fedora-i686.rpm
+
+Ghost-FTP-X.Y.Z-Linux-Portable-amd64.tar.gz
+Ghost-FTP-X.Y.Z-Linux-Portable-arm64.tar.gz
+Ghost-FTP-X.Y.Z-Linux-Portable-i386.tar.gz
+```
+
+The matching architecture mapping is `amd64 -> x86_64`, `arm64 -> aarch64`, and `i386 -> i686`. The distro packaging workflow verifies metadata and byte-for-byte executable parity between the matching Debian, Ubuntu, Fedora and Portable package payloads.
+
+These are **supplemental maintained CI artifacts**. They are not published 1.1.6 files and are **not yet part of the canonical release allow-list** in `.github/workflows/release.yml`. Build support and CI verification must not be described as public release publication until a later release workflow explicitly stages, hashes, publishes and reads those files back.
+
+### Native distro install verification
+
+The separate install matrix performs real package-manager lifecycle and installed-GUI smoke verification on:
+
+```text
+Debian 13 amd64
+Ubuntu 26.04 LTS amd64
+Fedora 44 x86_64
+```
+
+For those exact targets it verifies package metadata, dependency resolution, installed package state, runtime tools, package-owned files, startup of installed `/usr/bin/ghostftp` under local Xvfb, package removal and absence of package-owned system residue.
+
+Debian and Ubuntu packages declare `ca-certificates`, `curl` and `openssh-client`. Fedora RPMs declare `ca-certificates`, `curl` and `openssh-clients`. Fedora may satisfy the `curl` capability through a provider such as `curl-minimal`; the verifier therefore validates the installed executable and its RPM owner instead of assuming one provider package name.
+
+Native package-manager/runtime install coverage is intentionally **x86-64 only**. The arm64/aarch64 and i386/i686 package families are still covered by exact-head build, metadata, extraction and byte-parity verification, but are not claimed as native install-tested.
+
+See [Linux documentation](../linux/README.md) and [Testing](TESTING.md) for the exact build/install gate boundaries.
 
 ## Upgrade to 1.1.6
 
@@ -86,6 +138,8 @@ This OCI object is a verified distribution bundle containing `/ghostftp-release/
 
 Each GitHub Release contains `SHA256.txt`. Compare the checksum of every downloaded installer/package before use. `BUILD-METADATA.txt` binds the version, source commit, release tag, platform set, Windows signing state and GitHub Package reference.
 
+For supplemental source/CI distro packages, CI success proves the repository packaging contract for the tested revision. It does not turn a CI artifact into an official published release file.
+
 ## Uninstall
 
 ### Windows
@@ -102,21 +156,24 @@ For a manually installed package-manager-neutral source/CI tarball, remove only 
 
 If Windows shows an unknown-publisher or SmartScreen warning, first inspect `BUILD-METADATA.txt`. If it says `WINDOWS_AUTHENTICODE=unsigned`, verify the official release location and `SHA256.txt`. If metadata says `signed` but signature validation fails, treat that as a release-integrity failure.
 
-For Linux architecture errors, use `amd64`, `arm64` or `i386` according to the target host. For saved-profile decryption failures, re-enter the credential under the correct operating-system user/protection context.
+For Linux architecture errors, use the package naming/architecture mapping documented above. Do not infer native install verification for an architecture merely because a package successfully builds.
+
+For saved-profile decryption failures, re-enter the credential under the correct operating-system user/protection context.
 
 For connection failures, verify protocol, host, port, server policy and system transfer-tool availability without placing real credentials in issue reports.
 
 ## Production deployment checklist
 
-1. download from the official stable GitHub Release;
+1. download from the official stable GitHub Release when installing a published Stable version;
 2. verify release tag/version;
 3. verify `SHA256.txt`;
 4. inspect `WINDOWS_AUTHENTICODE` and verify Authenticode when the release is signed;
 5. choose the correct architecture;
 6. preserve needed local configuration before upgrade;
 7. test the target server using its intended FTP/FTPS/SFTP mode and do not bypass failed TLS by silently switching protocols;
-8. keep private credentials out of logs and support reports.
+8. keep private credentials out of logs and support reports;
+9. do not represent supplemental CI artifacts as published release assets.
 
 Ghost FTP 1.1.6 is already published as Stable. Its official tag, Release asset set and GHCR distribution bundle were read back by the canonical production workflow; later source/CI improvements do not rewrite that historical release.
 
-See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).
+See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Platform parity](PLATFORM-PARITY.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).
