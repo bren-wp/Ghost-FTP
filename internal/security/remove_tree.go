@@ -14,7 +14,7 @@ const (
 type removeTreeGuard struct{ items int }
 
 type removeTreeHooks struct {
-	beforeDescend func(parent string, entry os.DirEntry)
+	beforeDescend func()
 }
 
 // IsReparsePoint reports whether path is a Windows reparse/junction-like entry.
@@ -49,42 +49,41 @@ func sameRegularObject(before, after os.FileInfo) bool {
 	return before.Mode().Type() == after.Mode().Type() && os.SameFile(before, after)
 }
 
-// readStableDirectory opens the already inspected directory and verifies that
-// the handle still refers to the same filesystem object before reading entries.
-// This prevents a path swap to a symlink/junction from turning ReadDir into an
-// unintended traversal of the replacement target.
-func readStableDirectory(target string, before os.FileInfo) ([]os.DirEntry, error) {
-	f, err := os.Open(target)
+// openStableRootDirectory opens name relative to an already trusted parent root
+// and proves that the resulting directory handle still refers to the object
+// inspected by Lstat. All recursive mutation then proceeds through this held
+// root instead of rebuilding child pathnames from a mutable directory name.
+func openStableRootDirectory(parent *os.Root, name string, before os.FileInfo) (*os.Root, []os.DirEntry, error) {
+	child, err := parent.OpenRoot(name)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer f.Close()
-	opened, err := f.Stat()
+	opened, err := child.Stat(".")
 	if err != nil {
-		return nil, err
+		child.Close()
+		return nil, nil, err
 	}
 	if !opened.IsDir() || !sameRegularObject(before, opened) {
-		return nil, errors.New("lokalna mapa se promijenila tijekom sigurnog otvaranja")
+		child.Close()
+		return nil, nil, errors.New("lokalna mapa se promijenila tijekom sigurnog otvaranja")
 	}
-	entries, err := f.ReadDir(-1)
+
+	dir, err := child.Open(".")
 	if err != nil {
-		return nil, err
+		child.Close()
+		return nil, nil, err
 	}
-	afterRead, err := f.Stat()
-	if err != nil {
-		return nil, err
+	entries, readErr := dir.ReadDir(-1)
+	closeErr := dir.Close()
+	if readErr != nil {
+		child.Close()
+		return nil, nil, readErr
 	}
-	if !sameRegularObject(opened, afterRead) {
-		return nil, errors.New("lokalna mapa se promijenila tijekom čitanja")
+	if closeErr != nil {
+		child.Close()
+		return nil, nil, closeErr
 	}
-	pathNow, err := os.Lstat(target)
-	if err != nil {
-		return nil, err
-	}
-	if pathNow.Mode()&os.ModeSymlink != 0 || isReparsePoint(target) || !sameRegularObject(opened, pathNow) {
-		return nil, errors.New("lokalna mapa je zamijenjena tijekom brisanja")
-	}
-	return entries, nil
+	return child, entries, nil
 }
 
 func RemoveTreeNoFollow(root string) error {
@@ -96,48 +95,59 @@ func removeTreeNoFollowWithHooks(root string, hooks *removeTreeHooks) error {
 	if root == "." || root == "" || isFilesystemRoot(root) {
 		return errors.New("nije dopušteno brisanje korijenske lokalne mape")
 	}
-	return removeTreeNoFollow(root, 0, &removeTreeGuard{}, hooks)
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	parentPath := filepath.Dir(abs)
+	name := filepath.Base(abs)
+	parent, err := os.OpenRoot(parentPath)
+	if err != nil {
+		return err
+	}
+	defer parent.Close()
+	return removeRootEntry(parent, name, abs, 0, &removeTreeGuard{}, hooks)
 }
 
-func removeTreeNoFollow(target string, depth int, guard *removeTreeGuard, hooks *removeTreeHooks) error {
+func removeRootEntry(parent *os.Root, name, displayPath string, depth int, guard *removeTreeGuard, hooks *removeTreeHooks) error {
 	if err := guard.step(depth); err != nil {
 		return err
 	}
-	st, err := os.Lstat(target)
+	before, err := parent.Lstat(name)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	if st.Mode()&os.ModeSymlink != 0 || isReparsePoint(target) || !st.IsDir() {
-		return os.Remove(target)
+	if before.Mode()&os.ModeSymlink != 0 || isReparsePoint(displayPath) || !before.IsDir() {
+		return parent.Remove(name)
 	}
-	entries, err := readStableDirectory(target, st)
+
+	child, entries, err := openStableRootDirectory(parent, name, before)
 	if err != nil {
 		return err
 	}
+
 	for _, entry := range entries {
-		parentNow, err := os.Lstat(target)
-		if err != nil {
-			return err
-		}
-		if parentNow.Mode()&os.ModeSymlink != 0 || isReparsePoint(target) || !sameRegularObject(st, parentNow) {
-			return errors.New("lokalna mapa je zamijenjena tijekom rekurzivnog brisanja")
-		}
 		if hooks != nil && hooks.beforeDescend != nil {
-			hooks.beforeDescend(target, entry)
+			hooks.beforeDescend()
 		}
-		if err := removeTreeNoFollow(filepath.Join(target, entry.Name()), depth+1, guard, hooks); err != nil {
+		if err := removeRootEntry(child, entry.Name(), filepath.Join(displayPath, entry.Name()), depth+1, guard, hooks); err != nil {
+			child.Close()
 			return err
 		}
 	}
-	final, err := os.Lstat(target)
+	if err := child.Close(); err != nil {
+		return err
+	}
+
+	current, err := parent.Lstat(name)
 	if err != nil {
 		return err
 	}
-	if final.Mode()&os.ModeSymlink != 0 || isReparsePoint(target) || !sameRegularObject(st, final) {
-		return errors.New("lokalna mapa je zamijenjena prije završnog brisanja")
+	if current.Mode()&os.ModeSymlink != 0 || isReparsePoint(displayPath) || !sameRegularObject(before, current) {
+		return errors.New("lokalna mapa je zamijenjena tijekom rekurzivnog brisanja")
 	}
-	return os.Remove(target)
+	return parent.Remove(name)
 }
