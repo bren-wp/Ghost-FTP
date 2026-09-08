@@ -37,12 +37,22 @@ case "$target" in
 esac
 
 verify_gui_smoke() {
-  local smoke_home xvfb_pid app_pid app_status=0
-  # Ghost FTP intentionally rejects data roots reached through unsafe/writable
-  # ancestor directories. Keep the test HOME under root-owned /var/lib so the
-  # production filesystem hardening remains enabled during the smoke test.
+  local smoke_home data_root runtime_dir xvfb_pid app_pid app_status=0
+  # Keep the test HOME under a non-world-writable system path, then create the
+  # standard Linux user-data root that normally already exists in a desktop
+  # session. Ghost FTP deliberately treats LocalAppData as a trusted root and
+  # only creates/verifies Ghost FTP-owned descendants beneath it.
   smoke_home="$(mktemp -d /var/lib/ghostftp-ci-home.XXXXXX)"
   chmod 0700 "$smoke_home"
+  mkdir -p "$smoke_home/.local/share"
+  chmod 0700 "$smoke_home/.local" "$smoke_home/.local/share"
+  data_root="$smoke_home/.local/share"
+
+  # Use a private runtime directory so the single-instance lock and any future
+  # per-user runtime state do not share the container's global /tmp namespace.
+  runtime_dir="$smoke_home/runtime"
+  mkdir "$runtime_dir"
+  chmod 0700 "$runtime_dir"
 
   Xvfb :99 -screen 0 1280x800x24 -nolisten tcp -ac >"$smoke_home/xvfb.log" 2>&1 &
   xvfb_pid=$!
@@ -59,7 +69,11 @@ verify_gui_smoke() {
   done
   [[ -S /tmp/.X11-unix/X99 ]] || { echo "Xvfb socket did not become ready" >&2; return 1; }
 
-  HOME="$smoke_home" DISPLAY=:99 XAUTHORITY= /usr/bin/ghostftp >"$smoke_home/ghostftp.log" 2>&1 &
+  test -d "$data_root"
+  test "$(stat -c '%a' "$data_root")" = "700"
+  test "$(stat -c '%a' "$runtime_dir")" = "700"
+
+  HOME="$smoke_home" XDG_RUNTIME_DIR="$runtime_dir" DISPLAY=:99 XAUTHORITY= /usr/bin/ghostftp >"$smoke_home/ghostftp.log" 2>&1 &
   app_pid=$!
   sleep 2
   if ! kill -0 "$app_pid" 2>/dev/null; then
