@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-const infoCardIDClose = 3201
+const infoCardIDClose = 1 // IDOK: the visible default Close/OK button.
 
 type infoCardState struct {
 	closed bool
@@ -26,7 +26,11 @@ func infoCardWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 		state := v.(*infoCardState)
 		switch message {
 		case promptWMCommand:
-			if int(wParam&0xffff) == infoCardIDClose {
+			id := int(wParam & 0xffff)
+			// Enter activates the visible IDOK button; Escape is translated by the
+			// shared dialog manager into IDCANCEL even though no second button is
+			// required on an information-only surface.
+			if id == infoCardIDClose || id == promptIDCancel {
 				promptDestroyWindow.Call(hwnd)
 				return 0
 			}
@@ -171,14 +175,5 @@ func infoCardDialog(title, heading, body, closeLabel string, compact bool) {
 
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)
-
-	var message promptMsg
-	for !state.closed {
-		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&message)), 0, 0, 0)
-		if int32(r) <= 0 {
-			break
-		}
-		promptTranslateMessage.Call(uintptr(unsafe.Pointer(&message)))
-		promptDispatchMessageW.Call(uintptr(unsafe.Pointer(&message)))
-	}
+	premiumRunDialogLoop(hwnd, func() bool { return state.closed })
 }

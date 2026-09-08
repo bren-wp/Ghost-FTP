@@ -20,7 +20,7 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
 
     def test_reference_ui_uses_current_soft_light_palette(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
-        theme = read("internal/desktop/theme.go")
+        theme = read("internal/uipalette/palette.go")
 
         for marker in (
             "`#EEF1F5`",

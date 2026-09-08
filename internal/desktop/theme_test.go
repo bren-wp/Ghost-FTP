@@ -37,7 +37,7 @@ func TestClassicLightThemeKeepsReadableContrastDirection(t *testing.T) {
 }
 
 func TestClassicLightAvoidsPureWhitePrimarySurfaces(t *testing.T) {
-	pureWhite := RGB{0xFF, 0xFF, 0xFF}
+	pureWhite := RGB{R: 0xFF, G: 0xFF, B: 0xFF}
 	for name, surface := range map[string]RGB{
 		"window": lightTheme.Window,
 		"panel":  lightTheme.Panel,

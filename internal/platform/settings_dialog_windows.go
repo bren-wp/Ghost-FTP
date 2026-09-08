@@ -92,12 +92,11 @@ type settingsDialogState struct {
 }
 
 var (
-	settingsStates           sync.Map
-	settingsOnce             sync.Once
-	settingsClass            = "GhostFTP.SettingsDialog"
-	settingsProc             = syscall.NewCallback(settingsWndProc)
-	settingsSetWindowTextW   = user32.NewProc("SetWindowTextW")
-	settingsIsDialogMessageW = user32.NewProc("IsDialogMessageW")
+	settingsStates         sync.Map
+	settingsOnce           sync.Once
+	settingsClass          = "GhostFTP.SettingsDialog"
+	settingsProc           = syscall.NewCallback(settingsWndProc)
+	settingsSetWindowTextW = user32.NewProc("SetWindowTextW")
 )
 
 func settingsSetText(hwnd uintptr, text string) {
@@ -351,21 +350,6 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)
 
-	var msg promptMsg
-	for !state.closed {
-		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
-		if int32(r) <= 0 {
-			break
-		}
-		// This is a registered top-level window rather than DialogBox-created
-		// resource. Route messages through the dialog manager so WS_TABSTOP,
-		// Shift+Tab, standard IDOK/IDCANCEL and control-specific keyboard behavior
-		// work for keyboard-only users before normal dispatch.
-		if handled, _, _ := settingsIsDialogMessageW.Call(hwnd, uintptr(unsafe.Pointer(&msg))); handled != 0 {
-			continue
-		}
-		promptTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
-		promptDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
-	}
+	premiumRunDialogLoop(hwnd, func() bool { return state.closed })
 	return state.result, state.accepted
 }

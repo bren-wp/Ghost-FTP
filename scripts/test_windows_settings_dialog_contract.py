@@ -48,7 +48,7 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         self.assertIn("premiumDialogDPI(owner)", source)
         self.assertIn("premiumModalOwner(owner)", source)
         self.assertIn("applyPremiumDialogWindow(hwnd)", source)
-        self.assertIn("for !state.closed", source)
+        self.assertIn("premiumRunDialogLoop(hwnd", source)
         self.assertNotIn("PostQuitMessage", source)
         self.assertNotIn("promptPostQuitMessage", source)
 
@@ -59,14 +59,17 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         self.assertIn("promptSetFocus.Call(edit)", source)
         self.assertIn("return 0", source)
 
-    def test_keyboard_navigation_uses_win32_dialog_manager_and_standard_commands(self) -> None:
-        source = read("internal/platform/settings_dialog_windows.go")
-        self.assertIn('settingsIsDialogMessageW = user32.NewProc("IsDialogMessageW")', source)
-        self.assertIn("settingsIDApply      = 1 // IDOK", source)
-        self.assertIn("settingsIDCancel     = 2 // IDCANCEL", source)
-        self.assertIn("settingsIsDialogMessageW.Call(hwnd", source)
-        self.assertIn("if handled", source)
-        self.assertIn("continue", source)
+    def test_keyboard_navigation_uses_shared_win32_dialog_manager_and_standard_commands(self) -> None:
+        settings = read("internal/platform/settings_dialog_windows.go")
+        loop = read("internal/platform/dialog_loop_windows.go")
+        self.assertIn("settingsIDApply      = 1 // IDOK", settings)
+        self.assertIn("settingsIDCancel     = 2 // IDCANCEL", settings)
+        self.assertIn("premiumRunDialogLoop(hwnd", settings)
+        self.assertNotIn("settingsIsDialogMessageW", settings)
+        self.assertIn('premiumIsDialogMessageW = user32.NewProc("IsDialogMessageW")', loop)
+        self.assertIn("premiumIsDialogMessageW.Call(hwnd", loop)
+        self.assertIn("if handled != 0", loop)
+        self.assertIn("continue", loop)
 
     def test_numeric_labels_reserve_two_lines_for_long_locales(self) -> None:
         source = read("internal/platform/settings_dialog_windows.go")

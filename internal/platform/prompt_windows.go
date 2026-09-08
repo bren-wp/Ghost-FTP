@@ -231,14 +231,6 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)
 
-	var m promptMsg
-	for !state.closed {
-		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
-		if int32(r) <= 0 {
-			break
-		}
-		promptTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
-		promptDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
-	}
+	premiumRunDialogLoop(hwnd, func() bool { return state.closed })
 	return state.value, state.accepted
 }
