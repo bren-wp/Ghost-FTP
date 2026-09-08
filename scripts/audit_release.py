@@ -108,7 +108,6 @@ def main() -> int:
     if "New-DevCodeSigningCertificate.ps1" in workflow:
         fail("production release workflow must not create a self-signed publisher identity")
 
-    # Stable package aliases must never be emitted by the pre-1.0 branch of the channel switch.
     stable_package_pos = workflow.find("Publish stable bundle to GitHub Packages")
     prerelease_pos = workflow.find("prerelease_args+=(--prerelease)")
     if stable_package_pos < 0 or prerelease_pos < 0:
@@ -127,6 +126,11 @@ def main() -> int:
         "Authenticode private-key pipeline smoke test",
         "New-DevCodeSigningCertificate.ps1",
         "Sign-WindowsArtifacts.ps1",
+        "Verify DEB and portable packages",
+        "GHOSTFTP_REQUIRE_DEB: '1'",
+        "Ghost-FTP-${version}-Linux-${arch}.tar.gz",
+        'cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"',
+        "dist/Ghost-FTP-*-Linux-*.tar.gz",
     )
     require(
         "BUILD-WINDOWS.ps1",
@@ -154,7 +158,18 @@ def main() -> int:
         '"UninstallString"', '"QuietUninstallString"', '"DisplayVersion"', '"NoModify"', '"NoRepair"',
     )
     require("scripts/make_payload.py", "PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "GhostFTP.exe")')
-    require("linux/BUILD.sh", '"$root/usr/bin/ghostftp"', "Ghost-FTP-${VERSION}-Linux-${debarch}.deb")
+    require(
+        "linux/BUILD.sh",
+        'binary="dist/.ghostftp-linux-${debarch}"',
+        'portable_name="Ghost-FTP-${VERSION}-Linux-${debarch}"',
+        'portable_out="dist/${portable_name}.tar.gz"',
+        'cp "$binary" "$portable_root/ghostftp"',
+        'cp "$binary" "$deb_root/usr/bin/ghostftp"',
+        "GHOSTFTP_REQUIRE_DEB",
+        "Ghost-FTP-${VERSION}-Linux-${debarch}.deb",
+        "tar --sort=name --owner=0 --group=0 --numeric-owner",
+        "gzip -n -9",
+    )
     require("linux/debian/control.in", "Package: ghost-ftp")
 
     require(
@@ -192,6 +207,7 @@ def main() -> int:
     print("WINDOWS_PORTABLE=x64,x86")
     print("WINDOWS_X32_ALIAS_OF_X86=REQUIRED")
     print("LINUX_DEB=amd64,arm64,i386")
+    print("LINUX_PORTABLE_SOURCE=amd64,arm64,i386")
     print("STABLE_GHCR_BUNDLE=REQUIRED")
     return 0
 
