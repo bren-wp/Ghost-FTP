@@ -1,0 +1,131 @@
+name: Ghost FTP Linux Distro Install Matrix
+
+on:
+  pull_request:
+    paths:
+      - 'VERSION'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'linux/**'
+      - 'build/icon.png'
+      - 'LICENSE'
+      - '.github/workflows/linux-distro-install.yml'
+      - 'scripts/verify_linux_distro_install.sh'
+      - 'scripts/test_linux_distro_install_contract.py'
+  push:
+    branches:
+      - main
+      - 'packaging/**'
+    paths:
+      - 'VERSION'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'linux/**'
+      - 'build/icon.png'
+      - 'LICENSE'
+      - '.github/workflows/linux-distro-install.yml'
+      - 'scripts/verify_linux_distro_install.sh'
+      - 'scripts/test_linux_distro_install_contract.py'
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+
+jobs:
+  native-amd64-install:
+    name: Install remove and GUI smoke on Debian Ubuntu Fedora
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Install package build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rpm cpio
+          command -v dpkg-deb
+          command -v rpmbuild
+          command -v rpm
+          command -v docker
+
+      - name: Disable Go telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+
+      - name: Verify install-gate source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/verify_linux_distro_install.sh
+          python -m py_compile scripts/test_linux_distro_install_contract.py
+          python scripts/test_linux_distro_install_contract.py
+
+      - name: Build exact-head distro packages
+        shell: bash
+        env:
+          GHOSTFTP_REQUIRE_DEB: '1'
+          GHOSTFTP_REQUIRE_RPM: '1'
+        run: |
+          set -euo pipefail
+          bash linux/BUILD-DISTROS.sh
+
+      - name: Verify Debian 13 native amd64 install lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          docker run --rm --pull=always \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            -w /workspace \
+            debian:13-slim \
+            bash scripts/verify_linux_distro_install.sh debian "$version" 13 \
+              "/workspace/dist/Ghost-FTP-${version}-Linux-Debian-amd64.deb"
+
+      - name: Verify Ubuntu 26.04 LTS native amd64 install lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          docker run --rm --pull=always \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            -w /workspace \
+            ubuntu:26.04 \
+            bash scripts/verify_linux_distro_install.sh ubuntu "$version" 26.04 \
+              "/workspace/dist/Ghost-FTP-${version}-Linux-Ubuntu-amd64.deb"
+
+      - name: Verify Fedora 44 native x86_64 install lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          docker run --rm --pull=always \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            -w /workspace \
+            fedora:44 \
+            bash scripts/verify_linux_distro_install.sh fedora "$version" 44 \
+              "/workspace/dist/Ghost-FTP-${version}-Linux-Fedora-x86_64.rpm"
+
+      - name: Record install matrix scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'LINUX_DISTRO_INSTALL_MATRIX=PASS'
+          echo 'Native install runtime coverage: Debian 13 amd64; Ubuntu 26.04 amd64; Fedora 44 x86_64.'
+          echo 'arm64 and 32-bit artifacts remain covered by exact-head build, metadata and byte-parity gates; this native runner does not emulate those kernels.'
