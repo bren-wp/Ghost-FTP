@@ -16,20 +16,27 @@ class OfficialDestinationsContractTests(unittest.TestCase):
         support = self.read("docs/SUPPORT.md")
         self.assertIn(f"Ghost FTP **{version} Stable**", support)
 
-    def test_product_and_author_sites_are_distinct_and_canonical(self) -> None:
+    def test_generic_product_destinations_are_ghostftp_only(self) -> None:
         brand = self.read("internal/brand/brand.go")
-        self.assertIn('Website       = "ghostftp.com"', brand)
-        self.assertIn('AuthorWebsite = "brendigo.com"', brand)
-        self.assertIn('Support       = "brendigo.com/kontakt"', brand)
+        self.assertIn('Website = "ghostftp.com"', brand)
+        self.assertIn("Support = Website", brand)
+        self.assertNotIn("brendigo", brand.lower())
 
         support = self.read("docs/SUPPORT.md")
         self.assertIn("https://ghostftp.com", support)
-        self.assertIn("https://brendigo.com", support)
+        self.assertNotIn("brendigo", support.lower())
 
-    def test_linux_package_uses_product_homepage_and_publisher_identity(self) -> None:
+    def test_about_keeps_author_identity_separate(self) -> None:
+        identity = self.read("internal/desktop/about_identity_windows.go")
+        self.assertIn('aboutPublisher     = "BRENDIGO LTD"', identity)
+        self.assertIn('aboutAuthorWebsite = "brendigo.com"', identity)
+        self.assertIn('aboutSupport       = "brendigo.com/kontakt"', identity)
+
+    def test_linux_package_uses_product_only_identity(self) -> None:
         control = self.read("linux/debian/control.in")
-        self.assertIn("Maintainer: BRENDIGO LTD <https://brendigo.com>", control)
+        self.assertIn("Maintainer: Ghost FTP <https://ghostftp.com>", control)
         self.assertIn("Homepage: https://ghostftp.com", control)
+        self.assertNotIn("brendigo", control.lower())
         self.assertNotIn("Homepage: https://github.com/", control)
 
 
