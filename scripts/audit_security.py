@@ -51,14 +51,30 @@ def main() -> int:
             "target.activate(options.KeepBackup, options.SkipExisting)",
         ))
 
+    # Recursive local deletion must remain rooted in already-open directory
+    # capabilities. Rebuilding child pathnames from a mutable parent would
+    # reintroduce the rename+symlink/junction traversal race covered below.
     require("internal/security/remove_tree.go", (
         "func RemoveTreeNoFollow(",
         "func isFilesystemRoot(target string) bool",
         "isFilesystemRoot(root)",
         "maxRemoveTreeDepth",
         "maxRemoveTreeItems",
-        "isReparsePoint(target)",
+        "os.OpenRoot(parentPath)",
+        "parent.OpenRoot(name)",
+        "parent.Lstat(name)",
+        "child.Open(\".\")",
+        "sameRegularObject(before, opened)",
+        "isReparsePoint(displayPath)",
         "os.ModeSymlink",
+        "parent.Remove(name)",
+    ))
+    require("internal/security/remove_tree_stability_other_test.go", (
+        "TestOpenStableRootDirectoryRejectsPathSwapToSymlink",
+        "TestRemoveTreeNoFollowDoesNotTraverseSwappedRoot",
+        "os.Rename(root, original)",
+        "os.Symlink(outside, root)",
+        "must-survive.txt",
     ))
     require("internal/localfs/service.go", ("security.IsReparsePoint", "platform.RenameNoReplace"))
     require("internal/platform/filemove_windows.go", ("MoveFileExW", "moveFileWriteThrough", "RenameNoReplace"))
@@ -211,6 +227,8 @@ def main() -> int:
     print("DOWNLOAD_ROOT_CAPABILITY=ENABLED")
     print("DOWNLOAD_STAGING_IDENTITY_VALIDATION=ENABLED")
     print("DOWNLOAD_COMMIT_ROOT_RELATIVE=ENABLED")
+    print("LOCAL_RECURSIVE_DELETE_ROOT_RELATIVE=ENABLED")
+    print("LOCAL_RECURSIVE_DELETE_PATH_SWAP_REGRESSION=ENFORCED")
     print("SFTP_PRIVATE_KEY_REPARSE=BLOCKED")
     print("REMOTE_SESSION_CLOSE_RACE=BLOCKED")
     print("FILESYSTEM_ROOT_DELETE=BLOCKED")
