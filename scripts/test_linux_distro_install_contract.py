@@ -39,17 +39,31 @@ for token in (
 
 # Dependency contracts and installed runtime tools must be proved inside the
 # clean target distribution after package installation. Fedora may satisfy the
-# `curl` capability with curl-minimal, so verify the provider rather than an
-# implementation-specific RPM package name.
+# `curl` dependency with an implementation-specific provider such as
+# curl-minimal, so bind the proof to the actual executable and its RPM owner.
 for token in (
     "ca-certificates, curl, openssh-client",
     "openssh-clients",
-    "rpm -q --whatprovides curl",
-    "command -v curl",
+    'curl_path="$(command -v curl)"',
+    'rpm -qf "$curl_path"',
     "command -v ssh",
     "command -v sftp",
 ):
     require(token in VERIFY, f"missing dependency/runtime verification: {token}")
+require("rpm -q --whatprovides curl" not in VERIFY, "Fedora verifier must not assume a literal curl capability provider name")
+
+# Fedora assertions should identify the exact failing contract instead of being
+# silent under set -e. This keeps future packaging regressions deterministic.
+for token in (
+    "GHOSTFTP_FEDORA_VERIFY_FAIL=",
+    "fedora_fail installed-version",
+    "fedora_fail curl-rpm-owner",
+    "fedora_fail ca-bundle",
+    "fedora_fail ghostftp-executable",
+    "fedora_fail owns-executable",
+    "fedora_fail package-still-installed",
+):
+    require(token in VERIFY, f"missing Fedora diagnostic contract: {token}")
 
 # The installed GUI must actually start under an isolated local X server. The
 # test reproduces a normal Linux data-root precondition instead of weakening the
