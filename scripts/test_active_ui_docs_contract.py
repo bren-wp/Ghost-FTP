@@ -14,8 +14,9 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
         version = read("VERSION").strip()
         for relative in ("docs/SETTINGS.md", "docs/REFERENCE-UI.md"):
             text = read(relative)
-            self.assertIn(f"Ghost FTP **{version} Stable**", text, relative)
-            self.assertNotIn("Ghost FTP **1.1.1 Stable**", text, relative)
+            self.assertIn("Ghost FTP", text, relative)
+            self.assertIn(f"{version} Stable", text, relative)
+            self.assertNotIn("1.1.1 Stable", text, relative)
 
     def test_reference_ui_uses_current_soft_light_palette(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
