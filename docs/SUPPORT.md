@@ -4,21 +4,19 @@ Support for Ghost FTP **1.1.7 Stable** starts with the official product website 
 
 https://github.com/bren-wp/Ghost-FTP/issues
 
-Ghost FTP is developed and published by **BRENDIGO LTD**. The author's official website is **https://brendigo.com** and the publisher contact destination used by the application is **https://brendigo.com/kontakt**.
-
-Historical Stable releases remain immutable release identities.
+Active support, package and runtime metadata use only the **Ghost FTP** product identity. Historical Stable releases remain immutable release identities.
 
 ## Before reporting
 
 1. confirm installed version and architecture;
-2. confirm the file came from the official stable GitHub Release;
+2. confirm the file came from the official Stable GitHub Release;
 3. verify `SHA256.txt`;
 4. on Windows, **inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`**; verify Authenticode when it says `signed`, or record that the **official file is explicitly `unsigned`** when it says `unsigned`;
 5. confirm intended protocol (FTP, FTPS or SFTP), host and port;
 6. remember that a fresh connection defaults to explicit FTPS/21 and plain FTP is an explicit legacy compatibility choice;
 7. reproduce with the smallest safe example possible.
 
-An unsigned Stable artifact is not automatically corrupted. Its integrity must still match official tag/release location and SHA-256 manifest. Conversely, **if metadata says `signed` and Windows signature verification fails**, treat that as a release-integrity problem.
+An unsigned Stable artifact is not automatically corrupted. Its integrity must still match the official tag/release location and SHA-256 manifest. Conversely, **if metadata says `signed` and Windows signature verification fails**, treat that as a release-integrity problem.
 
 ## Bug report information
 
