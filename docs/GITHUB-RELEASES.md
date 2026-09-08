@@ -67,7 +67,7 @@ Before publication, the workflow queries current `main` and requires it to equal
 
 For 1.1.6, the canonical `release/ghostftp-v1.1.6` trigger branch was created from the exact `main` commit that passed the complete post-merge quality gate. Future release branches must satisfy the same equality check before publication dispatch.
 
-## Immutable tag and asset rule
+## Immutable tag rule
 
 A release workflow must fail if the requested release tag or GitHub Release already exists. Existing tags are not moved, deleted, reused or force-pushed, and published assets are not overwritten or clobbered.
 
