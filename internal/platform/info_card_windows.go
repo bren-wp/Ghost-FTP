@@ -85,24 +85,28 @@ func infoCardDialog(title, heading, body, closeLabel string, compact bool) {
 		wsTabStop       = 0x00010000
 		bsDefPushButton = 0x00000001
 		ssEtchedHorz    = 0x00000010
+		// Keep these canonical About client dimensions explicit. Existing release
+		// regression coverage protects the 760x460 multiline-heading geometry.
+		windowWidth  = 760
+		windowHeight = 460
 	)
 
-	clientWidth := 760
-	clientHeight := 460
+	clientWidth := windowWidth
+	clientHeight := windowHeight
 	if compact {
 		clientWidth = 560
 		clientHeight = 300
 	}
 	owner := premiumDialogOwner()
 	dpi := premiumDialogDPI(owner)
-	windowWidth, windowHeight := premiumDialogOuterSize(clientWidth, clientHeight, wsOverlapped, 0, dpi)
-	x, y := premiumDialogPosition(owner, windowWidth, windowHeight)
+	outerWidth, outerHeight := premiumDialogOuterSize(clientWidth, clientHeight, wsOverlapped, 0, dpi)
+	x, y := premiumDialogPosition(owner, outerWidth, outerHeight)
 	hwnd, _, _ := promptCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(promptWstr(infoCardClass))),
 		uintptr(unsafe.Pointer(promptWstr(title))),
 		wsOverlapped,
-		uintptr(x), uintptr(y), uintptr(windowWidth), uintptr(windowHeight),
+		uintptr(x), uintptr(y), uintptr(outerWidth), uintptr(outerHeight),
 		owner, 0, hinst, 0,
 	)
 	if hwnd == 0 {
