@@ -75,13 +75,32 @@ def run_checks() -> None:
     for retired in ("android", "ios", "macos", "internal/platform/filemove_darwin.go"):
         require_absent(retired)
 
+    # Recursive delete must keep traversal anchored to held os.Root
+    # capabilities. Path-based ReadDir/recursive descent would reopen the
+    # rename+symlink/junction escape window.
     require("internal/security/remove_tree.go", (
-        "readStableDirectory",
-        "f.ReadDir(-1)",
+        "os.OpenRoot(parentPath)",
+        "parent.OpenRoot(name)",
+        "parent.Lstat(name)",
+        "child.Open(\".\")",
+        "dir.ReadDir(-1)",
         "os.SameFile",
+        "isReparsePoint(displayPath)",
+        "parent.Remove(name)",
         "lokalna mapa je zamijenjena",
     ))
-    forbid("internal/security/remove_tree.go", ("os.ReadDir(target)",))
+    forbid("internal/security/remove_tree.go", (
+        "os.ReadDir(target)",
+        "removeTreeNoFollow(filepath.Join(target",
+    ))
+    require("internal/security/remove_tree_stability_other_test.go", (
+        "TestOpenStableRootDirectoryRejectsPathSwapToSymlink",
+        "TestRemoveTreeNoFollowDoesNotTraverseSwappedRoot",
+        "os.Rename(root, original)",
+        "os.Symlink(outside, root)",
+        "must-survive.txt",
+    ))
+
     require("internal/remote/sftp.go", (
         "maxPrivateKeySize",
         "snapshotPrivateKey",
