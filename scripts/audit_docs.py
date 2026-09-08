@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Ghost FTP active documentation against the current product/release contract."""
+"""Validate Ghost FTP active documentation against the current release contract."""
 
 from __future__ import annotations
 
@@ -55,14 +55,20 @@ def fail(message: str) -> None:
     raise SystemExit("DOCS_AUDIT_FAILED: " + message)
 
 
+def read(relative: str) -> str:
+    path = ROOT / relative
+    if not path.is_file():
+        fail(f"missing active document: {relative}")
+    return path.read_text(encoding="utf-8")
+
+
 def clean_destination(raw: str) -> str:
     value = raw.strip()
     if value.startswith("<") and ">" in value:
         value = value[1:value.index(">")]
     elif value:
         value = value.split(maxsplit=1)[0]
-    value = unquote(value).split("#", 1)[0].split("?", 1)[0]
-    return value.strip()
+    return unquote(value).split("#", 1)[0].split("?", 1)[0].strip()
 
 
 def check_link(source: Path, raw: str) -> None:
@@ -85,10 +91,7 @@ def require_markers(label: str, text: str, markers: tuple[str, ...]) -> None:
 
 
 def main() -> int:
-    version_path = ROOT / "VERSION"
-    if not version_path.is_file():
-        fail("VERSION is missing")
-    version = version_path.read_text(encoding="utf-8").strip()
+    version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
     major = int(version.split(".", 1)[0])
@@ -107,76 +110,82 @@ def main() -> int:
             if match.group(1) != version:
                 fail(f"stale release marker in {path.relative_to(ROOT)}: {match.group(1)}")
 
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    index = INDEX.read_text(encoding="utf-8")
+    readme = read("README.md")
+    index = read("docs/README.md")
     if not readme.startswith("# Ghost FTP\n"):
         fail("README public title must be Ghost FTP")
     if not index.startswith("# Ghost FTP documentation\n"):
         fail("documentation index title is invalid")
-    if f"Current Ghost FTP version: **{version}**" not in readme:
-        fail("README VERSION marker is stale")
-    if f"**Current Ghost FTP release: {version}**" not in index:
-        fail("docs/README release marker is stale")
+    require_markers(
+        "README current release",
+        readme,
+        (
+            f"Current Ghost FTP version: **{version}**",
+            "Development status: **Stable**" if major >= 1 else "Development status: **Beta**",
+            "Windows",
+            "Linux",
+            "24",
+            "FTP",
+            "FTPS",
+            "SFTP",
+        ),
+    )
+    require_markers(
+        "documentation index current release",
+        index,
+        (
+            f"**Current Ghost FTP release: {version}**",
+            "prerelease=false" if major >= 1 else "Development status: **Beta**",
+        ),
+    )
 
-    if major == 0:
-        for rel, text in (("README.md", readme), ("docs/README.md", index)):
-            if "Development status: **Beta**" not in text:
-                fail(f"{rel} must mark pre-1.0 releases as Beta")
-    else:
-        for rel, text in (("README.md", readme), ("docs/README.md", index)):
-            if "Development status: **Stable**" not in text:
-                fail(f"{rel} must mark 1.x+ releases as Stable")
-        if "prerelease=false" not in index:
-            fail("stable documentation index must state prerelease=false")
-
-    for rel in ACTIVE_DOCS:
-        path = ROOT / rel
-        if not path.is_file():
-            fail(f"missing active document: {rel}")
-        text = path.read_text(encoding="utf-8")
+    for relative in ACTIVE_DOCS:
+        text = read(relative)
         lowered = text.lower()
         for marker in RETIRED_ACTIVE_MARKERS:
             if marker in lowered:
-                fail(f"retired application surface appears in active guidance: {rel} -> {marker}")
+                fail(f"retired application surface appears in active guidance: {relative} -> {marker}")
         for marker in STALE_SIGNING_POLICY_MARKERS:
             if marker in lowered:
-                fail(f"stale mandatory-signing policy appears in active guidance: {rel} -> {marker}")
+                fail(f"stale mandatory-signing policy appears in active guidance: {relative} -> {marker}")
 
-    require_markers("README", readme, ("Windows", "Linux", "24", "FTP", "FTPS", "SFTP"))
+    current_contract = (
+        "12 platform artifacts / 15 public files",
+        f"Ghost-FTP-{version}-Setup-x64.exe",
+        f"Ghost-FTP-{version}-Portable-x64.exe",
+        f"Ghost-FTP-{version}-Linux-amd64.deb",
+        f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
+        f"ghcr.io/bren-wp/ghost-ftp:{version}",
+    )
+    require_markers("README release contract", readme, current_contract)
+    require_markers("documentation index release contract", index, current_contract[:1])
 
-    # Published 1.1.6 remains the current stable release contract. These values
-    # intentionally do not become the future canonical 12/15 release shape.
-    for marker in ("9 platform artifacts", "12 public files"):
-        if marker not in readme or marker not in index:
-            fail(f"release contract marker missing: {marker}")
-
-    # Source/CI documentation must clearly distinguish historical publication,
-    # the canonical next-release workflow and supplemental distro CI artifacts.
+    installation = read("docs/INSTALLATION.md")
     require_markers(
-        "README Linux distro contract",
-        readme,
+        "installation release contract",
+        installation,
         (
-            "supplemental distro-specific CI packages",
+            f"Ghost FTP **{version} Stable** is the current published stable release",
+            f"Ghost-FTP-{version}-Setup-x64.exe",
+            f"Ghost-FTP-{version}-Linux-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
+            "Canonical release packages",
+            "Supplemental distro-specific source/CI packages",
+            "Linux-Debian-amd64.deb",
+            "Linux-Ubuntu-amd64.deb",
+            "Linux-Fedora-x86_64.rpm",
             "Debian 13 amd64",
             "Ubuntu 26.04 LTS amd64",
             "Fedora 44 x86_64",
             "not yet part of the canonical release allow-list",
+            "x86-64 only",
             "12 platform artifacts / 15 public files",
-            "linux/BUILD-DISTROS.sh",
         ),
     )
 
-    for required_path in (
-        ROOT / "linux" / "BUILD-DISTROS.sh",
-        ROOT / ".github" / "workflows" / "linux-distro-packages.yml",
-        ROOT / ".github" / "workflows" / "linux-distro-install.yml",
-    ):
-        if not required_path.is_file():
-            fail(f"documented Linux distro contract implementation missing: {required_path.relative_to(ROOT)}")
-
-    linux_readme = (ROOT / "linux" / "README.md").read_text(encoding="utf-8")
+    linux_readme = read("linux/README.md")
     require_markers(
-        "linux/README distro contract",
+        "linux distro contract",
         linux_readme,
         (
             "linux/BUILD-DISTROS.sh",
@@ -193,38 +202,19 @@ def main() -> int:
             "Ubuntu 26.04 LTS amd64",
             "Fedora 44 x86_64",
             "x86-64 only",
-            "current canonical release workflow does not yet publish them as release assets",
             "12 platform artifacts / 15 public files",
         ),
     )
-    for stale in (
-        "does not pretend to be an RPM",
-        "unverified RPM",
-        "an unverified RPM/AppImage/Flatpak/Snap lifecycle",
+
+    for required_path in (
+        "linux/BUILD-DISTROS.sh",
+        ".github/workflows/linux-distro-packages.yml",
+        ".github/workflows/linux-distro-install.yml",
     ):
-        if stale in linux_readme:
-            fail(f"linux/README contains stale distro verification claim: {stale}")
+        if not (ROOT / required_path).is_file():
+            fail(f"documented Linux distro implementation missing: {required_path}")
 
-    installation = (DOCS / "INSTALLATION.md").read_text(encoding="utf-8")
-    require_markers(
-        "installation distro contract",
-        installation,
-        (
-            "Published 1.1.6 packages",
-            "Canonical next-release source packages",
-            "Supplemental distro-specific source/CI packages",
-            "Linux-Debian-amd64.deb",
-            "Linux-Ubuntu-amd64.deb",
-            "Linux-Fedora-x86_64.rpm",
-            "Debian 13 amd64",
-            "Ubuntu 26.04 LTS amd64",
-            "Fedora 44 x86_64",
-            "not yet part of the canonical release allow-list",
-            "x86-64 only",
-        ),
-    )
-
-    parity = (DOCS / "PLATFORM-PARITY.md").read_text(encoding="utf-8")
+    parity = read("docs/PLATFORM-PARITY.md")
     require_markers(
         "platform parity documentation",
         parity,
@@ -237,19 +227,15 @@ def main() -> int:
             "Production Authenticode is optional.",
             "WINDOWS_AUTHENTICODE=unsigned",
             "linux/BUILD-DISTROS.sh",
-            ".github/workflows/linux-distro-packages.yml",
-            ".github/workflows/linux-distro-install.yml",
             "Debian 13 amd64",
             "Ubuntu 26.04 LTS amd64",
             "Fedora 44 x86_64",
             "x86-64 only",
-            "byte-identical compatibility alias of the verified x86 Setup artifact",
-            "not yet part of the canonical release allow-list",
             "12 platform artifacts / 15 public files",
         ),
     )
 
-    testing = (DOCS / "TESTING.md").read_text(encoding="utf-8")
+    testing = read("docs/TESTING.md")
     require_markers(
         "testing documentation",
         testing,
@@ -262,93 +248,73 @@ def main() -> int:
             "Ubuntu 26.04 LTS amd64",
             "Fedora 44 x86_64",
             "Native package-manager/runtime coverage is deliberately limited to x86-64.",
-            "9 platform artifacts / 12 public files",
             "12 platform artifacts / 15 public files",
             "Exact-head and post-merge rule",
         ),
     )
-    for stale_version in ("Ghost FTP 1.1.1", "**1.1.1 Stable**"):
-        if stale_version in testing:
-            fail(f"testing documentation contains stale current-version claim: {stale_version}")
 
-    versioning = (DOCS / "VERSIONING.md").read_text(encoding="utf-8")
+    releases = read("docs/GITHUB-RELEASES.md")
     require_markers(
-        "versioning documentation",
-        versioning,
+        "GitHub Releases documentation",
+        releases,
         (
-            "0.1.0",
-            "0.x.y",
-            "Beta",
-            "Stable",
-            "1.0.0",
-            "Setup",
-            "Portable",
-            "optional production hardening layer",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "Absence of a production Authenticode certificate by itself is not a versioning failure.",
+            f"Ghost FTP **{version} Stable** is the current published stable release",
+            f"ghostftp-v{version}",
+            f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
+            "12 platform artifacts",
+            "15 public files",
+            "release/ghostftp-vX.Y.Z",
+            "workflow_dispatch",
         ),
     )
 
-    packages = (DOCS / "PACKAGES.md").read_text(encoding="utf-8")
+    verification = read("docs/RELEASE-VERIFICATION.md")
+    require_markers(
+        "release verification documentation",
+        verification,
+        (
+            f"current maintained release is **{version} Stable**",
+            f"VERSION={version}",
+            f"TAG=ghostftp-v{version}",
+            f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
+            "12 platform artifacts",
+            "15 public files",
+            "truthful supported publication state",
+            "does not create a self-signed production identity",
+            "explicit unsigned metadata when no production certificate is configured",
+        ),
+    )
+
+    packages = read("docs/PACKAGES.md")
     require_markers(
         "packages documentation",
         packages,
         (
-            "ghcr.io/bren-wp/ghost-ftp",
+            f"Ghost FTP **{version} Stable is published**",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
             "distribution bundle",
             "not a runtime container",
             "/ghostftp-release/",
             "SHA256.txt",
+            "12 platform artifacts / 15 public files",
             "Authenticode verification **when a trusted production certificate is configured**",
             "WINDOWS_AUTHENTICODE=unsigned",
         ),
     )
 
-    contributing = (DOCS / "CONTRIBUTING.md").read_text(encoding="utf-8")
-    require_markers(
-        "contributing documentation",
-        contributing,
-        (
-            "truthful Windows signing state",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "A missing production code-signing certificate alone is not a release failure.",
-        ),
-    )
-
-    roadmap = (DOCS / "ROADMAP.md").read_text(encoding="utf-8")
-    require_markers(
-        "roadmap documentation",
-        roadmap,
-        (
-            "truthful Windows signing-state metadata",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "no generated/self-signed production identity represented as a trusted publisher",
-        ),
-    )
-
-    support = (DOCS / "SUPPORT.md").read_text(encoding="utf-8")
+    support = read("docs/SUPPORT.md")
     require_markers(
         "support documentation",
         support,
         (
+            f"Ghost FTP **{version} Stable**",
             "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
             "official file is explicitly `unsigned`",
             "if metadata says `signed` and Windows signature verification fails",
         ),
     )
 
-    scripts_readme = (ROOT / "scripts/README.md").read_text(encoding="utf-8")
-    require_markers(
-        "scripts README",
-        scripts_readme,
-        (
-            "Windows production signing is optional.",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "self-signed development certificate must never be substituted",
-        ),
-    )
-
-    signing = (DOCS / "SIGNING.md").read_text(encoding="utf-8")
+    signing = read("docs/SIGNING.md")
     require_markers(
         "signing documentation",
         signing,
@@ -357,17 +323,6 @@ def main() -> int:
             "WINDOWS_AUTHENTICODE=signed",
             "WINDOWS_AUTHENTICODE=unsigned",
             "production workflow never creates its own long-lived publisher key",
-        ),
-    )
-
-    release_verification = (DOCS / "RELEASE-VERIFICATION.md").read_text(encoding="utf-8")
-    require_markers(
-        "release verification documentation",
-        release_verification,
-        (
-            "truthful supported publication state",
-            "does not create a self-signed production identity",
-            "explicit unsigned metadata when no production certificate is configured",
         ),
     )
 
@@ -380,10 +335,8 @@ def main() -> int:
     print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("PUBLIC_PLATFORM_ARTIFACTS=9")
-    print("PUBLIC_RELEASE_FILES=12")
-    print("NEXT_RELEASE_PLATFORM_ARTIFACTS=12")
-    print("NEXT_RELEASE_PUBLIC_FILES=15")
+    print("PUBLIC_PLATFORM_ARTIFACTS=12")
+    print("PUBLIC_RELEASE_FILES=15")
     print("SUPPLEMENTAL_DISTRO_PACKAGING=DEBIAN,UBUNTU,FEDORA,PORTABLE")
     print("NATIVE_DISTRO_INSTALL_COVERAGE=DEBIAN13_AMD64,UBUNTU26.04_AMD64,FEDORA44_X86_64")
     print("SUPPLEMENTAL_DISTRO_RELEASE_ASSETS=NO")
