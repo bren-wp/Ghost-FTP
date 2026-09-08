@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - main
+      - 'packaging/**'
     paths:
       - 'VERSION'
       - 'cmd/**'
@@ -95,6 +96,7 @@ jobs:
             test -s "$portable"
 
             work="$(mktemp -d)"
+            trap 'rm -rf "$work"' EXIT
             mkdir -p "$work/portable"
             tar -xzf "$portable" -C "$work/portable"
             portable_root="$work/portable/Ghost-FTP-${version}-Linux-Portable-${debarch}"
@@ -111,6 +113,7 @@ jobs:
               test "$(dpkg-deb -f "$deb" Version)" = "$version"
               test "$(dpkg-deb -f "$deb" Architecture)" = "$debarch"
               test "$(dpkg-deb -f "$deb" Homepage)" = 'https://ghostftp.com'
+              test "$(dpkg-deb -f "$deb" Depends)" = 'ca-certificates, curl, openssh-client'
               test "$(dpkg-deb -f "$deb" X-GhostFTP-Distribution)" = "$distro"
               mkdir -p "$work/${distro,,}"
               dpkg-deb -x "$deb" "$work/${distro,,}"
@@ -124,6 +127,10 @@ jobs:
             test "$(rpm -qp --qf '%{ARCH}' "$rpm_pkg")" = "$rpmarch"
             test "$(rpm -qp --qf '%{URL}' "$rpm_pkg")" = 'https://ghostftp.com'
             test "$(rpm -qp --qf '%{DISTRIBUTION}' "$rpm_pkg")" = 'Fedora'
+            rpm -qp --requires "$rpm_pkg" > "$work/rpm-requires.txt"
+            grep -Fx 'ca-certificates' "$work/rpm-requires.txt"
+            grep -Fx 'curl' "$work/rpm-requires.txt"
+            grep -Fx 'openssh-clients' "$work/rpm-requires.txt"
             mkdir -p "$work/fedora"
             (
               cd "$work/fedora"
@@ -132,6 +139,7 @@ jobs:
             cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"
 
             rm -rf "$work"
+            trap - EXIT
           done
 
           echo 'LINUX_DISTRO_PACKAGE_PARITY=PASS'
