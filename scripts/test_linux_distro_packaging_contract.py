@@ -80,7 +80,8 @@ for payload in (
     'cp linux/README.md "$portable_root/README.md"',
 ):
     require(payload in BUILD, f"portable payload contract missing: {payload}")
-require('Ghost-FTP-${VERSION}-Linux-Portable-${debarch}.tar.gz' in BUILD, "portable naming contract missing")
+require('portable_name="Ghost-FTP-${VERSION}-Linux-Portable-${debarch}"' in BUILD, "portable base naming contract missing")
+require('portable_out="dist/${portable_name}.tar.gz"' in BUILD, "portable archive naming contract missing")
 
 # CI must exercise this regression test and perform byte-parity comparisons on
 # extracted package executables. One cmp is inside the Debian/Ubuntu loop and
