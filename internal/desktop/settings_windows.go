@@ -125,10 +125,11 @@ func (a *app) openSettings() {
 	settings := normalizeSettingsForPrompt(a.settings)
 	language := a.languageCode()
 	appearance := appearanceText(language)
+	conflict := conflictPolicyText(language)
 	conflictOptions := []string{
-		a.tr("settings.skip_existing"),
-		a.tr("settings.overwrite"),
-		a.tr("settings.overwrite") + " + " + a.tr("settings.backup_title"),
+		conflict.Skip,
+		conflict.Replace,
+		conflict.ReplaceBackup,
 	}
 
 	parallelLabel := a.tr("settings.parallel")
@@ -148,7 +149,7 @@ func (a *app) openSettings() {
 			settingsNumber(retriesLabel, settings.AutoRetryCount, config.MinAutoRetryCount, config.MaxAutoRetryCount, retriesLabel+" "+a.tr("settings.enter_range", config.MinAutoRetryCount, config.MaxAutoRetryCount)),
 			settingsNumber(retryDelayLabel, settings.RetryDelaySeconds, config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds, retryDelayLabel+" "+a.tr("settings.enter_range", config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds)),
 		},
-		ConflictLabel:   a.tr("settings.skip_title"),
+		ConflictLabel:   conflict.Title,
 		ConflictOptions: conflictOptions,
 		ConflictIndex:   conflictPolicyIndex(settings),
 		ConfirmDelete:   a.tr("settings.confirm_delete_title"),
