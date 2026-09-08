@@ -11,12 +11,14 @@ import (
 )
 
 const (
+	// Use the standard Win32 dialog command IDs so IsDialogMessageW can route
+	// Enter/Escape consistently even though this surface is application-owned.
+	settingsIDApply      = 1 // IDOK
+	settingsIDCancel     = 2 // IDCANCEL
 	settingsIDAppearance = 4101
 	settingsIDNumberBase = 4110
 	settingsIDConflict   = 4120
 	settingsIDConfirm    = 4121
-	settingsIDApply      = 4122
-	settingsIDCancel     = 4123
 	settingsIDError      = 4124
 
 	settingsCBAdd       = 0x0143
@@ -90,11 +92,12 @@ type settingsDialogState struct {
 }
 
 var (
-	settingsStates         sync.Map
-	settingsOnce           sync.Once
-	settingsClass          = "GhostFTP.SettingsDialog"
-	settingsProc           = syscall.NewCallback(settingsWndProc)
-	settingsSetWindowTextW = user32.NewProc("SetWindowTextW")
+	settingsStates           sync.Map
+	settingsOnce             sync.Once
+	settingsClass            = "GhostFTP.SettingsDialog"
+	settingsProc             = syscall.NewCallback(settingsWndProc)
+	settingsSetWindowTextW   = user32.NewProc("SetWindowTextW")
+	settingsIsDialogMessageW = user32.NewProc("IsDialogMessageW")
 )
 
 func settingsSetText(hwnd uintptr, text string) {
@@ -284,10 +287,14 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	}
 	promptSendMessageW.Call(state.appearance, settingsCBSet, uintptr(config.AppearanceIndex), 0)
 
-	const leftX = 36
-	const rightX = 390
-	const fieldWidth = 334
-	const editWidth = 160
+	const (
+		leftX           = 36
+		rightX          = 390
+		fieldWidth      = 334
+		editWidth       = 160
+		numberLabelH    = 42
+		numberRowHeight = 82
+	)
 	for index, field := range config.Numbers {
 		row := index / 2
 		column := index % 2
@@ -295,13 +302,16 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 		if column == 1 {
 			xPos = rightX
 		}
-		yLabel := 192 + row*72
-		makeControl("STATIC", field.Label, 0, xPos, yLabel, fieldWidth, 24, 0, captionFont)
+		yLabel := 192 + row*numberRowHeight
+		// Reserve two visible text lines for long localized labels. The maintained
+		// 24-language catalog contains descriptions that do not fit 334 px in one
+		// line, and clipping their wrapped second line would hide setting meaning.
+		makeControl("STATIC", field.Label, 0, xPos, yLabel, fieldWidth, numberLabelH, 0, captionFont)
 		edit := makeControl(
 			"EDIT",
 			strconv.Itoa(field.Value),
 			settingsWSBorder|settingsWSTabStop|settingsESNumber,
-			xPos, yLabel+27, editWidth, 31,
+			xPos, yLabel+45, editWidth, 31,
 			settingsIDNumberBase+index,
 			font,
 		)
@@ -311,7 +321,7 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 		state.numbers = append(state.numbers, edit)
 	}
 
-	separatorY := 192 + ((len(config.Numbers)+1)/2)*72 + 4
+	separatorY := 192 + ((len(config.Numbers)+1)/2)*numberRowHeight + 4
 	makeControl("STATIC", "", settingsEtchedHorz, 36, separatorY, 688, 2, 0, font)
 	conflictLabelY := separatorY + 18
 	makeControl("STATIC", config.ConflictLabel, 0, 36, conflictLabelY, 688, 24, 0, captionFont)
@@ -346,6 +356,13 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
 		if int32(r) <= 0 {
 			break
+		}
+		// This is a registered top-level window rather than DialogBox-created
+		// resource. Route messages through the dialog manager so WS_TABSTOP,
+		// Shift+Tab, standard IDOK/IDCANCEL and control-specific keyboard behavior
+		// work for keyboard-only users before normal dispatch.
+		if handled, _, _ := settingsIsDialogMessageW.Call(hwnd, uintptr(unsafe.Pointer(&msg))); handled != 0 {
+			continue
 		}
 		promptTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 		promptDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
