@@ -129,15 +129,21 @@ Ghost-FTP-1.1.6-Linux-i386.deb
 Ghost-FTP-1.1.6-Linux-multiarch.zip
 ```
 
-The DEB metadata is generated from root `VERSION`, uses the product homepage `https://ghostftp.com`, identifies BRENDIGO LTD as publisher/maintainer and is verified before publication. The maintained source also builds package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386; those are post-1.1.6 outputs and are not retroactive 1.1.6 assets.
+The DEB metadata is generated from root `VERSION`, uses the product homepage `https://ghostftp.com`, identifies BRENDIGO LTD as publisher/maintainer and is verified before publication. The maintained canonical source build also creates generic package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386; those are post-1.1.6 outputs and are not retroactive 1.1.6 assets.
 
-See [Linux documentation](linux/README.md).
+Separately, the maintained source now builds and verifies **supplemental distro-specific CI packages** for Debian, Ubuntu, Fedora and a distro-neutral Portable family. The package build/parity gate covers amd64/arm64/i386 mappings, and a native install/remove plus installed-GUI smoke gate is green on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. Native install coverage is intentionally x86-64 only.
+
+Those distro-specific CI packages are **not published 1.1.6 assets and are not yet part of the canonical release allow-list**. The current canonical release workflow remains the generic DEB + generic `.tar.gz` path described below.
+
+See [Linux documentation](linux/README.md), [Installation](docs/INSTALLATION.md) and [Testing](docs/TESTING.md).
 
 ## Releases and Packages
 
 The canonical user-installable files are attached to the official GitHub Release. The **published Ghost FTP 1.1.6** release contains **9 platform artifacts** plus release metadata, notes and `SHA256.txt`, for **12 public files** in total.
 
-The maintained source release workflow for the next version is stricter and broader: it requires **12 platform artifacts / 15 public files**, adding verified Linux `.tar.gz` archives for amd64, arm64 and i386. Each portable executable must be byte-identical to the executable in its matching DEB before publication. This future-source contract does not modify the immutable 1.1.6 release.
+The maintained source release workflow for the next version is stricter and broader: it requires **12 platform artifacts / 15 public files**, adding verified generic Linux `.tar.gz` archives for amd64, arm64 and i386. Each portable executable must be byte-identical to the executable in its matching DEB before publication. This future-source contract does not modify the immutable 1.1.6 release.
+
+Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI artifacts do not change those release counts. They become release assets only if a later canonical release workflow explicitly stages, allow-lists, hashes, publishes and reads them back.
 
 Stable releases also publish an OCI **distribution bundle** to GitHub Packages. The current published package is:
 
@@ -179,13 +185,19 @@ Windows release-style packages:
 .\BUILD-WINDOWS.ps1
 ```
 
-Linux packages:
+Canonical Linux release-style packages:
 
 ```bash
 bash linux/BUILD.sh
 ```
 
-Official public artifacts are produced only by the repository release workflow after the complete audit/test/build contract succeeds.
+Supplemental distro-specific CI packages:
+
+```bash
+GHOSTFTP_REQUIRE_DEB=1 GHOSTFTP_REQUIRE_RPM=1 bash linux/BUILD-DISTROS.sh
+```
+
+Official public artifacts are produced only by the repository release workflow after the complete audit/test/build contract succeeds. A successful supplemental CI build is not itself public release publication.
 
 ## Dependency policy
 
