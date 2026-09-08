@@ -379,19 +379,21 @@ jobs:
           git fetch --tags --force
           if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
             tag_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
-            test "$tag_sha" = "$GITHUB_SHA" || { echo "Existing $RELEASE_TAG points to $tag_sha, not $GITHUB_SHA; refusing to rewrite it." >&2; exit 1; }
+            echo "$RELEASE_TAG already exists at $tag_sha; refusing to rewrite an existing release tag." >&2
+            exit 1
           fi
 
           if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" release/* --repo "$repo" --clobber
-          else
-            gh release create "$RELEASE_TAG" release/* \
-              --repo "$repo" \
-              --target "$GITHUB_SHA" \
-              --title "$RELEASE_TITLE" \
-              --notes-file release/RELEASE-NOTES.txt \
-              "${prerelease_args[@]}"
+            echo "$RELEASE_TAG release already exists; refusing to rewrite published assets." >&2
+            exit 1
           fi
+
+          gh release create "$RELEASE_TAG" release/* \
+            --repo "$repo" \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TITLE" \
+            --notes-file release/RELEASE-NOTES.txt \
+            "${prerelease_args[@]}"
 
           expected_assets="$(cat <<EOF
           BUILD-METADATA.txt
