@@ -1,6 +1,6 @@
 # Ghost FTP desktop reference UI
 
-This document defines the maintained visual and interaction contract for **Ghost FTP 1.1.1 Stable** and later compatible desktop releases.
+This document defines the maintained visual and interaction contract for **Ghost FTP 1.1.6 Stable** and later compatible desktop releases.
 
 It is a **source/runtime contract**, not a mockup specification. Controls shown by the application must map to real engine capabilities and real state. Decorative controls that imply unsupported backend behavior are not acceptable.
 
@@ -21,20 +21,20 @@ Windows Setup and Portable package the same application executable and therefore
 
 ## Appearance contract
 
-**Classic Light is the fresh-install, missing-state and invalid-state primary appearance in 1.1.1.** An explicitly persisted Dark selection remains respected on Windows. Appearance is one canonical decision rather than a collection of overlapping cosmetic switches.
+**Classic Light is the fresh-install, missing-state and invalid-state primary appearance in 1.1.6.** An explicitly persisted Dark selection remains respected on Windows. Appearance is one canonical decision rather than a collection of overlapping cosmetic switches.
+
+The 1.1.6-maintained palette deliberately avoids pure white as the dominant application surface. Classic Light uses cool neutral layers, while Dark uses a restrained navy/charcoal hierarchy so long file-management sessions remain readable without flattening panels into one undifferentiated background.
 
 ### Classic Light — primary
 
-Classic Light follows the clarity and information density associated with traditional professional FTP clients, but does not copy third-party artwork, branding or proprietary assets.
-
 | Role | RGB |
 | --- | --- |
-| Window | `243, 244, 246` (`#F3F4F6`) |
-| Panel | `255, 255, 255` (`#FFFFFF`) |
-| List | `255, 255, 255` (`#FFFFFF`) |
-| Border | `200, 205, 214` (`#C8CDD6`) |
-| Primary text | `31, 35, 40` (`#1F2328`) |
-| Muted text | `102, 112, 133` (`#667085`) |
+| Window | `238, 241, 245` (`#EEF1F5`) |
+| Panel | `246, 248, 251` (`#F6F8FB`) |
+| List | `250, 251, 253` (`#FAFBFD`) |
+| Border | `199, 206, 216` (`#C7CED8`) |
+| Primary text | `32, 37, 43` (`#20252B`) |
+| Muted text | `101, 112, 131` (`#657083`) |
 | Accent | `63, 99, 221` (`#3F63DD`) |
 | Strong accent | `37, 75, 199` (`#254BC7`) |
 | Success | `27, 127, 75` (`#1B7F4B`) |
@@ -44,28 +44,59 @@ Classic Light follows the clarity and information density associated with tradit
 
 ### Dark — explicit Windows choice
 
-The established dark appearance remains available on Windows and is preserved when the user explicitly selected it.
-
 | Role | RGB |
 | --- | --- |
-| Window | `8, 10, 15` (`#080A0F`) |
-| Panel | `15, 19, 28` (`#0F131C`) |
-| List | `21, 26, 37` (`#151A25`) |
-| Border | `37, 45, 60` (`#252D3C`) |
-| Primary text | `244, 247, 255` (`#F4F7FF`) |
-| Muted text | `142, 153, 173` (`#8E99AD`) |
-| Accent | `82, 119, 245` (`#5277F5`) |
-| Strong accent | `114, 147, 255` (`#7293FF`) |
+| Window | `11, 15, 23` (`#0B0F17`) |
+| Panel | `18, 24, 36` (`#121824`) |
+| List | `22, 29, 42` (`#161D2A`) |
+| Border | `44, 54, 72` (`#2C3648`) |
+| Primary text | `242, 245, 250` (`#F2F5FA`) |
+| Muted text | `151, 163, 184` (`#97A3B8`) |
+| Accent | `91, 124, 250` (`#5B7CFA`) |
+| Strong accent | `122, 152, 255` (`#7A98FF`) |
 | Success | `74, 215, 155` (`#4AD79B`) |
 | Warning | `242, 186, 85` (`#F2BA55`) |
-| Danger | `255, 100, 118` (`#FF6476`) |
-| Selection | `29, 42, 74` (`#1D2A4A`) |
+| Danger | `255, 104, 120` (`#FF6878`) |
+| Selection | `32, 47, 80` (`#202F50`) |
 
 Theme data is local source data only. No remote stylesheet, font service, theme API, analytics endpoint or browser runtime is loaded.
 
 On Windows, an explicit appearance choice is applied on the next start so title bar, menus, native controls, headers and owner-drawn controls are initialized consistently. Fresh/fallback state resolves to Classic Light before the native control tree is created.
 
 The Linux graphical frontend uses Classic Light as the canonical palette. It deliberately does not expose a runtime appearance toggle until complete native switching can be implemented without mixed-state rendering or race-prone global palette mutation.
+
+## Native dialog contract
+
+Ghost FTP-owned Windows dialogs must visually belong to the active application appearance and must not terminate the application message loop when they close.
+
+Maintained rules are:
+
+- only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle;
+- auxiliary Prompt, Option, Settings and information-card windows close only their own bounded modal loop;
+- application-owned dialogs use the active Ghost FTP owner window when available and temporarily disable that owner while a modal decision is pending;
+- dialog client dimensions are converted to true outer Windows dimensions so title bars and frames do not clip footer controls;
+- controls, fonts and geometry scale from the current Windows DPI;
+- dialog title bars follow the active Light/Dark state on supported Windows builds;
+- Diagnostics uses the Ghost FTP information shell rather than an unrelated bright stock surface during a Dark session;
+- action labels remain caller/localization-owned, so a selected locale must not fall back to English `Cancel` on an otherwise localized dialog.
+
+Closing **Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O programu** with the title-bar X must close that surface only. It must not close the whole Ghost FTP application.
+
+## Settings surface
+
+Windows Settings is one application-owned modal surface rather than a wizard-like chain of unrelated prompts. It presents the current canonical settings together:
+
+- appearance;
+- parallel transfer count;
+- connection timeout;
+- automatic retry count;
+- retry delay;
+- destination conflict policy;
+- delete confirmation.
+
+Numeric values are validated against the same `internal/config` bounds used by persisted settings normalization. Invalid input keeps Settings open, shows localized corrective text and restores focus to the invalid field instead of discarding the rest of the user's pending choices.
+
+**OK** returns one complete candidate settings value to the desktop layer and the existing typed engine persists it. **Cancel** or title-bar **X** discards the pending dialog values and returns to the main workspace. The serialized settings schema is unchanged; compatibility mirror fields are not promoted into duplicate controls.
 
 ## Menu and action contract
 
@@ -172,6 +203,8 @@ The current Site Manager navigation evidence was regenerated by authentic UI wor
 The unchanged main-workspace hash demonstrates that the Site Manager navigation maintenance did not alter the primary workspace capture. The changed Site Manager hash binds the repository image to the verified left-navigation runtime update.
 
 These hashes bind the maintained screenshots to the verified capture. A future UI change must regenerate the images and update this evidence instead of retaining stale screenshot hashes.
+
+The unified Settings work in current source changes a public Windows surface. Until a fresh authentic production screenshot is generated and persisted by the maintained capture workflow, the historical screenshot hashes above remain historical evidence only and are not rewritten to imply that they prove the new Settings geometry.
 
 Mockups, image-generation output and manually composed approximations are not accepted as production UI evidence.
 
