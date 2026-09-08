@@ -20,6 +20,7 @@ class WindowsModalContractTests(unittest.TestCase):
             "internal/platform/language_windows.go",
             "internal/platform/info_card_windows.go",
             "internal/platform/settings_dialog_windows.go",
+            "internal/platform/decision_card_windows.go",
         ):
             source = read(relative)
             self.assertNotIn("PostQuitMessage", source, relative)
@@ -40,6 +41,7 @@ class WindowsModalContractTests(unittest.TestCase):
             "internal/platform/language_windows.go",
             "internal/platform/info_card_windows.go",
             "internal/platform/settings_dialog_windows.go",
+            "internal/platform/decision_card_windows.go",
         ):
             source = read(relative)
             self.assertIn("premiumRunDialogLoop(hwnd", source, relative)
