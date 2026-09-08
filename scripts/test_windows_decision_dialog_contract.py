@@ -5,13 +5,12 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def read(relative: str) -> str:
-    return (ROOT / relative).read_text(encoding="utf-8")
-
-
 class WindowsDecisionDialogContractTests(unittest.TestCase):
+    def read(self, relative: str) -> str:
+        return (ROOT / relative).read_text(encoding="utf-8")
+
     def test_confirm_info_and_error_prefer_application_owned_decision_card(self) -> None:
-        source = read("internal/platform/windows.go")
+        source = self.read("internal/platform/windows.go")
         self.assertIn(
             "decisionCardDialog(title, instruction, content, decisionCardKindConfirm)", source
         )
@@ -22,8 +21,6 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
             "decisionCardDialog(title, instruction, content, decisionCardKindError)", source
         )
 
-        # Stock Windows dialogs remain a fail-safe only after the custom path in
-        # each public API, regardless of helper declaration order in the file.
         confirm = source[source.index("func ConfirmDialog"):source.index("func InfoDialog")]
         info = source[source.index("func InfoDialog"):source.index("func ErrorDialog")]
         error = source[source.index("func ErrorDialog"):source.index("func MessageBox")]
@@ -34,7 +31,7 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
             self.assertLess(block.index("decisionCardDialog"), block.index("taskDialogCall"))
 
     def test_decision_card_reuses_shared_theme_dpi_owner_and_keyboard_shell(self) -> None:
-        card = read("internal/platform/decision_card_windows.go")
+        card = self.read("internal/platform/decision_card_windows.go")
         self.assertIn("premiumDialogTheme()", card)
         self.assertIn("theme.Danger", card)
         self.assertIn("theme.AccentStrong", card)
@@ -48,9 +45,9 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
         self.assertNotIn("PostQuitMessage", card)
 
     def test_runtime_labels_are_resolved_from_the_active_desktop_locale(self) -> None:
-        provider = read("internal/platform/dialog_label_provider_windows.go")
-        desktop = read("internal/desktop/dialog_localization_windows.go")
-        card = read("internal/platform/decision_card_windows.go")
+        provider = self.read("internal/platform/dialog_label_provider_windows.go")
+        desktop = self.read("internal/desktop/dialog_localization_windows.go")
+        card = self.read("internal/platform/decision_card_windows.go")
 
         self.assertIn("SetDialogLabelProvider", provider)
         self.assertIn("resolvedDialogLabels", provider)
@@ -62,8 +59,8 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
         self.assertIn("resolvedDialogLabels()", card)
 
     def test_profile_privacy_flow_has_no_old_hardcoded_english_copy(self) -> None:
-        flow = read("internal/desktop/connection_profiles_windows.go")
-        localized = read("internal/desktop/profile_dialog_text_windows.go")
+        flow = self.read("internal/desktop/connection_profiles_windows.go")
+        localized = self.read("internal/desktop/profile_dialog_text_windows.go")
 
         for old_copy in (
             "Profile changes are unavailable during a connection",
@@ -89,14 +86,12 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
         ):
             self.assertIn(helper, flow)
 
-        # Every profile/privacy helper is explicitly tied to the same 24-language
-        # native-dialog contract used elsewhere on Windows.
         self.assertGreaterEqual(localized.count("localizedPrompt(language, [24]string{"), 11)
         self.assertIn("yesLabel(language)", localized)
         self.assertIn("noLabel(language)", localized)
 
     def test_profile_credential_clear_semantics_remain_explicit(self) -> None:
-        flow = read("internal/desktop/connection_profiles_windows.go")
+        flow = self.read("internal/desktop/connection_profiles_windows.go")
         for marker in (
             "profilebinding.AccountMatches(",
             "profilebinding.PrivateKeyMatches(",
@@ -107,8 +102,8 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, flow)
 
-    def test_phase_keeps_release_version_unchanged(self) -> None:
-        self.assertEqual(read("VERSION").strip(), "1.1.6")
+    def test_release_version_is_1_1_7(self) -> None:
+        self.assertEqual(self.read("VERSION").strip(), "1.1.7")
 
 
 if __name__ == "__main__":

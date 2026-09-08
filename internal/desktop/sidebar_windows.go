@@ -116,32 +116,12 @@ func (a *app) transformSidebarContent(hwnd uintptr, oldLeft, oldRight, newLeft, 
 }
 
 func (a *app) resizeSidebarColumns() {
-	resizeFile := func(list uintptr, remote bool) {
-		if list == 0 {
-			return
-		}
-		var client rect
-		if ok, _, _ := getClientRect.Call(list, uintptr(unsafe.Pointer(&client))); ok == 0 {
-			return
-		}
-		width := int(client.Right - client.Left)
-		if width < a.scale(260) {
-			return
-		}
-		if remote {
-			parts := []int{35, 16, 14, 22, 13}
-			for index, percent := range parts {
-				sendMessageW.Call(list, lvmSetColumnWidth, uintptr(index), uintptr(width*percent/100))
-			}
-			return
-		}
-		parts := []int{42, 20, 16, 22}
-		for index, percent := range parts {
-			sendMessageW.Call(list, lvmSetColumnWidth, uintptr(index), uintptr(width*percent/100))
-		}
-	}
-	resizeFile(a.localList, false)
-	resizeFile(a.remoteList, true)
+	// File panes have one canonical width policy. The old sidebar-specific
+	// percentages (35/16/14/22/13 for Remote) overrode resizeListColumns and made
+	// Permissions only ~45 px wide in the standard captured workspace. Fit from
+	// each ListView's actual client width instead so sidebar and non-sidebar passes
+	// cannot disagree about the same columns.
+	a.fitFileColumnsToWorkspace()
 
 	if a.transferList != 0 {
 		var client rect

@@ -1,6 +1,6 @@
 # Ghost FTP settings
 
-Ghost FTP **1.1.6 Stable** treats settings as validated runtime policy, not decorative UI state. A persisted option is accepted only within the bounds enforced by `internal/config/settings.go`.
+Ghost FTP **1.1.7 Stable** treats settings as validated runtime policy, not decorative UI state. A persisted option is accepted only within the bounds enforced by `internal/config/settings.go`.
 
 ## Current persisted settings
 
@@ -41,7 +41,7 @@ Unknown or missing appearance state fails to Classic Light rather than Dark. Thi
 
 ### Linux
 
-The native Linux desktop uses the **Classic Light** palette as the canonical 1.1.6 workspace. No extra Linux appearance toggle is exposed until complete runtime switching can be provided without introducing redraw/race complexity. This keeps the settings surface honest and avoids a control whose backend behavior would differ from its label.
+The native Linux desktop uses the **Classic Light** palette as the canonical 1.1.7 workspace. No extra Linux appearance toggle is exposed until complete runtime switching can be provided without introducing redraw/race complexity. This keeps the settings surface honest and avoids a control whose backend behavior would differ from its label.
 
 Appearance changes do not load remote styles, fonts, images or theme services and do not create network traffic.
 

@@ -79,7 +79,7 @@ func TestPublicTranslationsNeverExposeTechnicalGhostFTPBrand(t *testing.T) {
 	for _, language := range Languages() {
 		values := map[string]string{
 			"settings.title":   T(language.Code, "settings.title"),
-			"about.body":       T(language.Code, "about.body", "ghostftp.com", "brendigo.com/kontakt"),
+			"about.body":       T(language.Code, "about.body", "product.example", "contact.example"),
 			"sftp.security":    T(language.Code, "sftp.security"),
 			"disconnect.title": T(language.Code, "disconnect.title"),
 			"terminal.title":   T(language.Code, "terminal.title", "1.1.5", "test"),

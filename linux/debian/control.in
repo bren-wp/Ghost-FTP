@@ -3,10 +3,8 @@ Version: @VERSION@
 Section: net
 Priority: optional
 Architecture: @ARCH@
-Maintainer: BRENDIGO LTD <https://brendigo.com>
-Depends: ca-certificates, curl, openssh-client
+Maintainer: Ghost FTP <https://ghostftp.com>
 Homepage: https://ghostftp.com
-Description: Privacy-focused FTP, FTPS and SFTP client
- Ghost FTP is a graphical file-transfer client without application telemetry.
- The Linux desktop uses the same transfer engine and premium visual contract as
- Windows, with a terminal fallback available for headless sessions.
+Depends: ca-certificates, curl, openssh-client
+Description: Ghost FTP native desktop client
+ Privacy-first FTP, FTPS and SFTP desktop file-transfer client for Windows and Linux.

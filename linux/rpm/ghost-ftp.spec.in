@@ -4,8 +4,8 @@ Release:        1
 Summary:        Privacy-focused FTP, FTPS and SFTP client
 License:        Proprietary
 URL:            https://ghostftp.com
-Vendor:         BRENDIGO LTD
-Packager:       BRENDIGO LTD <https://brendigo.com>
+Vendor:         Ghost FTP
+Packager:       Ghost FTP <https://ghostftp.com>
 Distribution:   Fedora
 Requires:       ca-certificates, curl, openssh-clients
 
@@ -41,5 +41,5 @@ install -m 0644 %{_sourcedir}/README.md %{buildroot}%{_docdir}/ghost-ftp/README.
 %{_docdir}/ghost-ftp/README.md
 
 %changelog
-* Tue Sep 08 2026 BRENDIGO LTD <https://brendigo.com> - @VERSION@-1
+* Tue Sep 08 2026 Ghost FTP <https://ghostftp.com> - @VERSION@-1
 - Maintained Ghost FTP Fedora package.
