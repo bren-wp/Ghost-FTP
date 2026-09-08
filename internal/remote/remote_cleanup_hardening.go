@@ -3,7 +3,6 @@ package remote
 import (
 	"errors"
 	"fmt"
-	"strings"
 )
 
 // remoteResidualArtifactError marks a remote operation whose cleanup could not
@@ -52,20 +51,19 @@ func HasUncertainRemoteState(err error) bool {
 	return isRemoteResidualArtifactError(err)
 }
 
-// A failed upload can legitimately fail before the remote staging object is
-// created. In that case a cleanup delete returning a precise not-found result
-// confirms there is no residual object and must not hide the original error.
+// remoteCleanupConfirmsMissing accepts only a machine-readable tool result as
+// proof that a failed cleanup target did not exist. Server-controlled stderr or
+// command output such as "not found" is diagnostic text, not a security signal:
+// a hostile or unusual server can emit that text for an operation whose remote
+// state is still unknown. Curl exit 78 is curl's structured REMOTE_FILE_NOT_FOUND
+// result. OpenSSH sftp exposes no equivalent machine-readable delete status to
+// this process, so every non-zero SFTP cleanup remains fail-closed.
 func remoteCleanupConfirmsMissing(err error) bool {
 	if err == nil {
 		return true
 	}
-	msg := strings.ToLower(err.Error())
-	for _, marker := range []string{"no such file", "does not exist", "not found"} {
-		if strings.Contains(msg, marker) {
-			return true
-		}
-	}
-	return false
+	var te *toolError
+	return errors.As(err, &te) && te.tool == "curl" && te.code == 78
 }
 
 func cleanupRemoteArtifact(dir, name string, delete remoteDeleteFunc) error {
