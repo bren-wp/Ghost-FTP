@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.1.6 - 2026-09-08 Stable
+
+### Filesystem race hardening
+
+- Hardened recursive local deletion against directory/pathname swaps by traversing verified child directories through opened `os.Root` handles instead of rebuilding mutable pathnames during recursion.
+- Added a deterministic regression that swaps the selected delete root after validation and proves content outside the originally opened tree survives.
+- Hardened local directory creation so `Mkdir` is performed relative to an opened base-directory `os.Root`, preventing a late base pathname replacement from redirecting creation into a different filesystem object.
+- Added deterministic path-swap regression coverage proving the new child directory is created under the originally opened base directory.
+
+### SFTP trust and remote cleanup integrity
+
+- Bound the SFTP host-key SHA-256 fingerprint directly to the exact public-key blob selected from `ssh-keyscan` output and compute the OpenSSH-compatible fingerprint in memory.
+- Verify that the embedded public-key algorithm matches the algorithm declared by the scanned host-key line before presenting or persisting trust.
+- Removed the fingerprint-only temporary key file and second `ssh-keygen -lf` pathname reopen from the trust decision path.
+- Stopped treating spoofable remote diagnostic text such as `No such file`, `does not exist` or `not found` as proof that a staging/rollback object is absent.
+- Only successful cleanup or curl's structured `REMOTE_FILE_NOT_FOUND` exit result can confirm absence; non-zero OpenSSH SFTP cleanup remains fail-closed and blocks automatic retry while remote state is uncertain.
+- Added regression coverage for a fixed OpenSSH SHA-256 fingerprint fixture, algorithm mismatch, malformed key blobs, spoofed missing-file text and structured curl not-found handling.
+
+### Release discipline and verification
+
+- Kept the release workflow `workflow_dispatch`-only and preserved the exact-main `release/ghostftp-vX.Y.Z` canonical publication trigger.
+- Preserved the **9 platform artifacts / 12 public files** Stable release contract for Windows x64/x86 Setup and Portable plus Linux amd64/arm64/i386 DEB and multiarch bundle.
+- Preserved optional production Authenticode with truthful `WINDOWS_AUTHENTICODE=signed|unsigned` metadata and no generated/self-signed production publisher identity.
+- Added no external Go module dependency, telemetry, analytics, advertising, tracking, remote UI runtime or hidden product network service.
+
+### Required verification
+
+The 1.1.6 stable candidate must pass before publication:
+
+- `go test -race ./...`;
+- `go vet ./...`;
+- Go formatting checks;
+- dependency/repository/platform/desktop/localization/security/privacy/documentation/release audits;
+- full Python regression suite;
+- Windows x64/x86 Setup + Portable production builds, Setup-x32 alias verification and release artifact verification;
+- Linux amd64/arm64/i386 production builds, DEB verification and multiarch packaging contract;
+- Authenticode production-policy verification and private-key pipeline smoke test;
+- authentic Windows x64 Portable Main/Site Manager/Settings/About capture and visual review on the exact final release-prep head;
+- exact-head release-prep PR CI;
+- post-merge Core/Windows/Linux verification on the exact `main` SHA;
+- exact-main `release/ghostftp-v1.1.6` branch validation;
+- immutable `ghostftp-v1.1.6` tag, Stable GitHub Release with `prerelease=false`, exact 12-file asset set and GHCR `1.1.6` distribution-bundle publication/read-back.
+
 ## 1.1.5 - 2026-09-08 Stable
 
 ### Product and publisher identity
@@ -359,4 +402,4 @@ The 1.0.0 release candidate must pass the exact production gate before publicati
 
 ## Historical engineering history
 
-Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.5 Stable Windows/Linux contract.
+Detailed older release engineering history is intentionally retained in [`docs/RELEASE-HISTORY.md`](docs/RELEASE-HISTORY.md) and in repository Git history. Historical version/platform claims describe the source state at that time and do not override the current Ghost FTP 1.1.6 Stable Windows/Linux contract.

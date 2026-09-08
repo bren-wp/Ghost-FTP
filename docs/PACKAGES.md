@@ -8,15 +8,15 @@ Ghost FTP publishes a verified **distribution bundle** to GitHub Packages for ea
 ghcr.io/bren-wp/ghost-ftp:<version>
 ```
 
-For the Ghost FTP 1.1.5 Stable candidate, the canonical immutable version tag is:
+For the Ghost FTP 1.1.6 Stable candidate, the canonical immutable version tag is:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.5
+ghcr.io/bren-wp/ghost-ftp:1.1.6
 ```
 
 Stable publication updates compatible aliases `1.1`, `1` and `latest` only after successful registry publication and read-back. Automation that requires reproducibility should use the full semantic version and, when possible, pin the registry digest.
 
-Published 1.1.4 and earlier package versions remain immutable historical distribution identities and are not rewritten for 1.1.5.
+Published 1.1.5 and earlier package versions remain immutable historical distribution identities and are not rewritten for 1.1.6.
 
 ## What the package contains
 
@@ -58,15 +58,11 @@ The OCI package carries repository source, version and commit labels. The releas
 
 The package is built only from the already assembled `release/` allow-list. It does not contain saved profiles, passwords, private-key passphrases, local application data, CI secrets, signing private-key material, source worktrees or user files. The bundle is created with Docker build networking disabled.
 
-## Release channels
-
-Pre-1.0 historical builds were Beta prereleases. Beginning with Ghost FTP 1.0.0, official stable releases are normal GitHub Releases and the production workflow publishes the stable GHCR bundle. Stable aliases are not published by the Beta release path.
-
 ## Digest-first automation
 
-After 1.1.5 has actually been published:
+After 1.1.6 has actually been published:
 
-1. resolve `ghcr.io/bren-wp/ghost-ftp:1.1.5` to its OCI digest;
+1. resolve `ghcr.io/bren-wp/ghost-ftp:1.1.6` to its OCI digest;
 2. pin that digest in downstream automation where practical;
 3. extract `/ghostftp-release/SHA256.txt`;
 4. verify every release file before use;
@@ -75,4 +71,4 @@ After 1.1.5 has actually been published:
 
 This provides two integrity references: the OCI manifest digest and the per-file SHA-256 manifest, plus an explicit Windows signing-state declaration.
 
-Do not treat this documentation as proof that 1.1.5 has already been published. Publication is complete only after the canonical `release/ghostftp-v1.1.5` path succeeds and remote GitHub Release/GHCR read-back confirms the final state.
+Do not treat this documentation as proof that 1.1.6 has already been published. Publication is complete only after the canonical `release/ghostftp-v1.1.6` path succeeds and remote GitHub Release/GHCR read-back confirms the final state.

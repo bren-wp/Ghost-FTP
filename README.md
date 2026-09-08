@@ -2,7 +2,7 @@
 
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**, developed and published by **BRENDIGO LTD**. It provides a professional dual-pane workstation for **FTP, FTPS and SFTP**, local profiles, protected saved-secret handling, bounded transfer management, secure release verification and no application telemetry.
 
-- Current Ghost FTP version: **1.1.5**
+- Current Ghost FTP version: **1.1.6**
 - Development status: **Stable**
 - Release channel: **Stable**
 - First stable release: **Ghost FTP 1.0.0**
@@ -17,22 +17,20 @@
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
 
-## 1.1.5 stable identity, quality and documentation release
+## 1.1.6 stable filesystem and protocol-trust hardening release
 
-Ghost FTP 1.1.5 is a backward-compatible Windows/Linux maintenance release focused on public product identity correctness, release-documentation integrity, UI branding consistency and evidence-based repository cleanup.
+Ghost FTP 1.1.6 is a backward-compatible Windows/Linux maintenance release focused on eliminating newly confirmed filesystem race conditions and strengthening protocol cleanup/trust decisions.
 
 Highlights:
 
-- **ghostftp.com** is the canonical product website;
-- **brendigo.com** is the author/publisher website and **BRENDIGO LTD** remains the publisher identity;
-- Windows About separates the product website from the publisher website and support destination;
-- public localized strings normalize the technical `GhostFTP` identifier to the user-facing **Ghost FTP** name;
-- all 24 supported languages are regression-tested against public-brand leakage and format drift;
-- Linux DEB metadata uses `Homepage: https://ghostftp.com` and BRENDIGO LTD Maintainer identity;
-- stale release-specific test duplication was removed while evergreen desktop-quality coverage was retained;
-- current Installation, Packages, Support and release-verification documentation is bound to root `VERSION` by regression tests;
-- authentic Windows x64 Portable screenshots are required for Main Workspace, Site Manager, Settings and About because public Settings/About branding changed;
-- no external Go module dependency, telemetry, analytics, advertising, tracking or hidden product network service is added.
+- recursive local deletion now keeps traversal rooted in opened filesystem handles so a pathname swap cannot redirect recursion outside the selected tree;
+- local folder creation uses an opened `os.Root` boundary, preventing a swapped base pathname from redirecting `Mkdir` into a different filesystem object;
+- SFTP host-key SHA-256 fingerprints are computed directly from the exact scanned public-key blob in memory and the embedded key algorithm is checked against the declared algorithm;
+- the SFTP trust path no longer writes a fingerprint-only temporary key file or asks `ssh-keygen` to reopen that pathname;
+- remote staging cleanup no longer treats spoofable diagnostic strings such as `No such file` or `not found` as proof that a temporary object is absent;
+- only successful cleanup or curl's structured `REMOTE_FILE_NOT_FOUND` exit condition confirms absence; non-zero SFTP cleanup remains fail-closed and blocks automatic retry;
+- deterministic regression tests cover the confirmed path-swap, fingerprint-binding and spoofed-cleanup cases;
+- no external Go module dependency, telemetry, analytics, advertising, tracking, remote UI runtime or hidden product network service is introduced.
 
 The established secure defaults remain unchanged: explicit FTPS on port 21 is the fresh quick-connect protocol, secure transports never silently downgrade to plain FTP, saved credentials remain explicit/local, and Classic Light remains the fresh/fallback Windows appearance while an explicitly saved Dark preference is preserved.
 
@@ -53,12 +51,14 @@ The maintained security boundary includes:
 - host, port, path and protocol validation before connection or transfer;
 - **FTPS as the fresh connection default** while retaining explicit plain FTP compatibility;
 - TLS certificate/hostname validation for FTPS with no silent downgrade;
-- SFTP host-key fingerprint policy and private-key validation;
+- SFTP host-key verification/pinning with the displayed fingerprint bound directly to the scanned public-key bytes;
 - ownership-aware lifetime management for protected SFTP password/passphrase handles;
 - bounded process execution and sanitized environment handling for system transfer tools;
 - staged upload/download behavior with rollback-oriented destination handling;
 - root-bound local download activation through Go `os.Root`;
+- handle-relative recursive local deletion and local directory creation where the trusted filesystem object must survive pathname swaps;
 - remote destination and directory-type revalidation where supported;
+- fail-closed remote staging cleanup when absence cannot be proven by a structured signal;
 - local path containment and destructive-operation safeguards;
 - resilient profile/settings writes with bounded recovery behavior;
 - no private signing material committed to the repository;
@@ -78,15 +78,13 @@ Ghost FTP uses the professional two-pane file-transfer model:
 - keyboard-first navigation, sorting, selection and file actions;
 - language, appearance, transfer and connection preferences.
 
-On Windows, application navigation is centralized in the left sidebar. The operational workspace exposes genuine connection, file and transfer actions without maintaining duplicate command surfaces.
-
 The Windows frontend uses native Win32 drawing and controls. The Linux frontend uses the maintained X11/XWayland-compatible native path. Both consume the same typed Core behavior rather than separate protocol engines.
 
 ![Ghost FTP Site Manager](docs/images/ghost-ftp-site-manager.png)
 
 ## Appearance and local icons
 
-**Classic Light is the primary Ghost FTP 1.1.5 appearance.** Fresh installs and invalid/missing appearance state resolve to Classic Light. Windows users who explicitly choose Dark keep that persisted preference.
+**Classic Light is the primary Ghost FTP 1.1.6 appearance.** Fresh installs and invalid/missing appearance state resolve to Classic Light. Windows users who explicitly choose Dark keep that persisted preference.
 
 The native Windows icon path is local to the operating system: Segoe Fluent Icons is preferred when available and Segoe MDL2 Assets is the compatibility fallback. Ghost FTP does not fetch an icon font or UI library from the network.
 
@@ -98,7 +96,7 @@ Ghost FTP uses explicit FTPS on port 21 as the fresh/quick-connect default on Wi
 
 ### SFTP
 
-SFTP uses SSH transport semantics with host-key verification. Password and key-based authentication are supported by the maintained system-tool integration and validation layer. Batch operands are escaped so remote filenames are treated literally rather than as command options or glob patterns.
+SFTP uses SSH transport semantics with host-key verification. Password and key-based authentication are supported by the maintained system-tool integration and validation layer. Batch operands are escaped so remote filenames are treated literally rather than as command options or glob patterns. Trust fingerprints are derived directly from the scanned key bytes instead of a later pathname reopen.
 
 ### FTP — explicit compatibility
 
@@ -107,11 +105,11 @@ Standard FTP remains available when a legacy server explicitly requires it. It i
 ## Windows installation
 
 ```text
-Ghost-FTP-1.1.5-Setup-x64.exe
-Ghost-FTP-1.1.5-Setup-x86.exe
-Ghost-FTP-1.1.5-Setup-x32.exe
-Ghost-FTP-1.1.5-Portable-x64.exe
-Ghost-FTP-1.1.5-Portable-x86.exe
+Ghost-FTP-1.1.6-Setup-x64.exe
+Ghost-FTP-1.1.6-Setup-x86.exe
+Ghost-FTP-1.1.6-Setup-x32.exe
+Ghost-FTP-1.1.6-Portable-x64.exe
+Ghost-FTP-1.1.6-Portable-x86.exe
 ```
 
 `x32` is a compatibility alias of the verified x86 Setup build; it is not a separate architecture build.
@@ -123,10 +121,10 @@ See [Installation](docs/INSTALLATION.md) and [Signing](docs/SIGNING.md).
 ## Linux installation
 
 ```text
-Ghost-FTP-1.1.5-Linux-amd64.deb
-Ghost-FTP-1.1.5-Linux-arm64.deb
-Ghost-FTP-1.1.5-Linux-i386.deb
-Ghost-FTP-1.1.5-Linux-multiarch.zip
+Ghost-FTP-1.1.6-Linux-amd64.deb
+Ghost-FTP-1.1.6-Linux-arm64.deb
+Ghost-FTP-1.1.6-Linux-i386.deb
+Ghost-FTP-1.1.6-Linux-multiarch.zip
 ```
 
 The DEB metadata is generated from root `VERSION`, uses the product homepage `https://ghostftp.com`, identifies BRENDIGO LTD as publisher/maintainer and is verified before publication.
@@ -140,7 +138,7 @@ The canonical user-installable files are attached to the official GitHub Release
 Stable releases also publish an OCI **distribution bundle** to GitHub Packages:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.5
+ghcr.io/bren-wp/ghost-ftp:1.1.6
 ```
 
 The package mirrors `/ghostftp-release/` from the verified release assembly and is **not a runtime container**. Successful stable publication updates `1.1`, `1` and `latest` only after registry publication and read-back succeed.
