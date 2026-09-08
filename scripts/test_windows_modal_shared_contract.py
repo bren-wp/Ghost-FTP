@@ -47,9 +47,10 @@ class WindowsModalSharedContractTests(unittest.TestCase):
             self.assertIn("premiumRunDialogLoop(hwnd", source, relative)
             self.assertNotIn('NewProc("IsDialogMessageW")', source, relative)
 
-    def test_info_cards_use_standard_escape_close_command(self) -> None:
+    def test_info_cards_use_native_enter_and_escape_commands(self) -> None:
         source = read("internal/platform/info_card_windows.go")
-        self.assertIn("infoCardIDClose = 2 // IDCANCEL", source)
+        self.assertIn("infoCardIDClose = 1 // IDOK", source)
+        self.assertIn("id == infoCardIDClose || id == promptIDCancel", source)
         self.assertIn("wsTabStop|bsDefPushButton", source)
         self.assertNotIn("PostQuitMessage", source)
 
