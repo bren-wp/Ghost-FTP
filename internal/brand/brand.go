@@ -3,14 +3,11 @@ package brand
 const (
 	ProductName = "Ghost FTP"
 	ProductFull = "Ghost FTP file transfer client"
-	Publisher   = "BRENDIGO LTD"
-	Company     = Publisher
+	Company     = ProductName
 
-	// Runtime metadata remains schemeless so displaying official destinations
-	// never introduces an automatic network request. Product and publisher
-	// identities are intentionally separate: Ghost FTP owns the product site,
-	// while BRENDIGO LTD owns the author/publisher site and support contact.
-	Website       = "ghostftp.com"
-	AuthorWebsite = "brendigo.com"
-	Support       = "brendigo.com/kontakt"
+	// Generic runtime metadata is product-only. Publisher/author identity is a
+	// deliberate About-card detail and must not leak into unrelated UI, package
+	// metadata or support/documentation surfaces.
+	Website = "ghostftp.com"
+	Support = Website
 )
