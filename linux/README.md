@@ -33,6 +33,10 @@ The portable archive and DEB for each architecture are built from the same compi
 
 The already published Ghost FTP 1.1.6 release is immutable and keeps its original Linux asset set: three DEB files plus `Ghost-FTP-1.1.6-Linux-multiarch.zip`. The portable `.tar.gz` output is a post-1.1.6 source/CI packaging improvement and is **not** retroactively claimed as a 1.1.6 release asset.
 
+### Next release contract
+
+The maintained production release workflow now requires the verified `.tar.gz` archives for `amd64`, `arm64` and `i386` in addition to the matching DEBs. Before a later release can publish, production CI must prove each DEB and tarball carries the same `ghostftp` executable byte-for-byte, stage both formats, include all three tarballs in the release allow-list and pass remote asset read-back. This change applies only to a future version; it does not mutate the published 1.1.6 tag, assets, checksums or GHCR bundle.
+
 ## Distro-neutral portable use
 
 The `.tar.gz` package is intended for Linux distributions where a Debian package is not the native installation format, including RPM-based and rolling-release environments. It does not pretend to be an RPM, Flatpak, AppImage, Snap or distribution repository package; those formats require their own verified packaging lifecycle before they can be called officially supported artifacts.
