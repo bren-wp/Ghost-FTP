@@ -48,21 +48,27 @@ for token in (
 ):
     require(token in VERIFY, f"missing dependency/runtime verification: {token}")
 
-# The installed GUI must actually start under an isolated local X server. Its
-# HOME must stay under a root-owned system path so the production safe-path
-# checks are exercised rather than bypassed by a world-writable /tmp ancestor.
+# The installed GUI must actually start under an isolated local X server. The
+# test reproduces a normal Linux data-root precondition instead of weakening the
+# production safe-path validator, and it provides a private runtime directory.
 for token in (
     "Xvfb :99",
     "-nolisten tcp",
     "mktemp -d /var/lib/ghostftp-ci-home.XXXXXX",
     'chmod 0700 "$smoke_home"',
-    "HOME=\"$smoke_home\" DISPLAY=:99",
+    'mkdir -p "$smoke_home/.local/share"',
+    'chmod 0700 "$smoke_home/.local" "$smoke_home/.local/share"',
+    'data_root="$smoke_home/.local/share"',
+    'runtime_dir="$smoke_home/runtime"',
+    'chmod 0700 "$runtime_dir"',
+    "HOME=\"$smoke_home\" XDG_RUNTIME_DIR=\"$runtime_dir\" DISPLAY=:99",
     "/usr/bin/ghostftp",
     'kill -0 "$app_pid"',
     "GHOSTFTP_INSTALLED_GUI_SMOKE=PASS",
 ):
     require(token in VERIFY, f"missing installed GUI smoke contract: {token}")
 require('smoke_home="$(mktemp -d)"' not in VERIFY, "GUI smoke HOME must not be created under default /tmp")
+require("XDG_DATA_HOME=" not in VERIFY, "smoke should exercise the default $HOME/.local/share LocalAppData path")
 
 # Uninstall verification is scoped to package-owned system locations; user data
 # must never be deleted merely to make an uninstall test pass.
