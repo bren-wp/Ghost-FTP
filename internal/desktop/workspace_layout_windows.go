@@ -77,5 +77,9 @@ func (a *app) refineWorkspaceLayout() {
 	a.applyApplicationSidebar()
 	applyFileColumnOrder(a.localList, false)
 	applyFileColumnOrder(a.remoteList, true)
+	// The sidebar changes the real file-pane widths after the top-level layout
+	// estimate has run. Refit columns from each ListView's actual client width so
+	// the final Permissions column cannot be pushed outside the visible pane.
+	a.fitFileColumnsToWorkspace()
 	a.resizeSidebarColumns()
 }
