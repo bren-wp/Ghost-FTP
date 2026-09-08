@@ -183,7 +183,10 @@ else
   rpm -qp --requires "$package_path" | grep -Fx 'curl' >/dev/null || fedora_fail requires-curl
   rpm -qp --requires "$package_path" | grep -Fx 'openssh-clients' >/dev/null || fedora_fail requires-openssh-clients
 
-  dnf install -y "$package_path" >/dev/null
+  # Fedora's minimal container image may globally enable tsflags=nodocs. Clear
+  # that container-only optimization for the Ghost FTP transaction so the gate
+  # verifies the complete package payload a normal workstation install receives.
+  dnf --setopt=tsflags= install -y "$package_path" >/dev/null
   [[ "$(rpm -q --qf '%{VERSION}' ghost-ftp)" == "$expected_version" ]] || fedora_fail installed-version
   [[ "$(rpm -q --qf '%{ARCH}' ghost-ftp)" == "x86_64" ]] || fedora_fail installed-arch
   rpm -q ca-certificates >/dev/null || fedora_fail ca-certificates-package
