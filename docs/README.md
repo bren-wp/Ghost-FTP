@@ -21,14 +21,14 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 
 ## Installation and distribution
 
-- [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux DEB installation/upgrade guidance.
+- [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux installation/upgrade guidance.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical GitHub Release structure and release-channel rules.
 - [`PACKAGES.md`](PACKAGES.md) — stable GHCR distribution bundle.
 - [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — artifact, metadata, SHA-256 and signing-state verification.
 - [`SIGNING.md`](SIGNING.md) — optional protected Authenticode signing and truthful unsigned-release policy.
 - [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable/prerelease rules.
 
-The stable workflow publishes **9 platform artifacts** and **12 public files** for each canonical release. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
+The **published 1.1.6** release contains **9 platform artifacts** and **12 public files**. The maintained source release workflow for the next version expects **12 platform artifacts / 15 public files**, adding verified Linux `.tar.gz` archives for amd64, arm64 and i386 while preserving the historical 1.1.6 asset set. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
 
 ## Security and privacy
 
@@ -64,7 +64,7 @@ The release preserves existing FTPS certificate/hostname validation, SFTP host-k
 
 ## Stable publication
 
-A stable 1.1.6 publication is a normal GitHub Release with `prerelease=false` and immutable tag:
+The published 1.1.6 release is a normal GitHub Release with `prerelease=false` and immutable tag:
 
 ```text
 ghostftp-v1.1.6
@@ -95,9 +95,13 @@ GitHub Package:
 ghcr.io/bren-wp/ghost-ftp:1.1.6
 ```
 
-Stable aliases `1.1`, `1` and `latest` are updated only after successful publication and registry read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not a runtime container.
+Stable aliases `1.1`, `1` and `latest` were updated only after successful publication and registry read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not a runtime container.
 
 Production Authenticode remains optional. If a trusted certificate is configured, Windows signatures are verified fail-closed. Otherwise the release is explicitly unsigned and `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`; a generated/self-signed identity is never represented as a trusted production publisher.
+
+## Next-release Linux portable contract
+
+The maintained release workflow now stages package-manager-neutral Linux tarballs for `amd64`, `arm64` and `i386` alongside the matching DEBs. Before a future version can publish, production release CI verifies archive structure and byte-for-byte parity between each portable `ghostftp` executable and `/usr/bin/ghostftp` from its DEB. The final future-version contract is 12 platform artifacts / 15 public files with exact remote asset read-back. These files are not retroactively added to 1.1.6.
 
 ## Release history
 
@@ -110,11 +114,13 @@ Historical version references describe their original release state and are not 
 
 A release is complete only after the exact source revision passes Core, Windows and Linux gates and the immutable tag, GitHub Release asset set, `SHA256.txt`, metadata and stable GitHub Package have all been read back successfully.
 
-For 1.1.6 the canonical publication branch is `release/ghostftp-v1.1.6`, created only from the exact post-merge `main` SHA that passed the complete quality gate.
+For 1.1.6 the canonical publication branch was `release/ghostftp-v1.1.6`, created only from the exact post-merge `main` SHA that passed the complete quality gate. A later release must repeat this process independently; current source workflow readiness is not publication evidence.
 
 ## UI evidence rule
 
-The 1.1.6 release-prep changes the public version displayed by the built application. Authentic screenshots must therefore come from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About and must be visually reviewed on the exact final release-prep source revision.
+The 1.1.6 release-prep changed the public version displayed by the built application. Authentic screenshots therefore came from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About and were visually reviewed on the exact final release-prep source revision.
+
+Future public Windows UI/version changes remain subject to the maintained authentic exact-head evidence rule.
 
 ## Privacy-safe documentation rule
 
