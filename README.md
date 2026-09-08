@@ -120,6 +120,8 @@ See [Installation](docs/INSTALLATION.md) and [Signing](docs/SIGNING.md).
 
 ## Linux installation
 
+Published 1.1.6 Linux files are:
+
 ```text
 Ghost-FTP-1.1.6-Linux-amd64.deb
 Ghost-FTP-1.1.6-Linux-arm64.deb
@@ -127,21 +129,23 @@ Ghost-FTP-1.1.6-Linux-i386.deb
 Ghost-FTP-1.1.6-Linux-multiarch.zip
 ```
 
-The DEB metadata is generated from root `VERSION`, uses the product homepage `https://ghostftp.com`, identifies BRENDIGO LTD as publisher/maintainer and is verified before publication.
+The DEB metadata is generated from root `VERSION`, uses the product homepage `https://ghostftp.com`, identifies BRENDIGO LTD as publisher/maintainer and is verified before publication. The maintained source also builds package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386; those are post-1.1.6 outputs and are not retroactive 1.1.6 assets.
 
 See [Linux documentation](linux/README.md).
 
 ## Releases and Packages
 
-The canonical user-installable files are attached to the official GitHub Release. The stable workflow publishes **9 platform artifacts** plus release metadata, notes and `SHA256.txt`, for **12 public files** in total.
+The canonical user-installable files are attached to the official GitHub Release. The **published Ghost FTP 1.1.6** release contains **9 platform artifacts** plus release metadata, notes and `SHA256.txt`, for **12 public files** in total.
 
-Stable releases also publish an OCI **distribution bundle** to GitHub Packages:
+The maintained source release workflow for the next version is stricter and broader: it requires **12 platform artifacts / 15 public files**, adding verified Linux `.tar.gz` archives for amd64, arm64 and i386. Each portable executable must be byte-identical to the executable in its matching DEB before publication. This future-source contract does not modify the immutable 1.1.6 release.
+
+Stable releases also publish an OCI **distribution bundle** to GitHub Packages. The current published package is:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:1.1.6
 ```
 
-The package mirrors `/ghostftp-release/` from the verified release assembly and is **not a runtime container**. Successful stable publication updates `1.1`, `1` and `latest` only after registry publication and read-back succeed.
+The package mirrors `/ghostftp-release/` from the verified release assembly and is **not a runtime container**. Successful stable publication updates compatible aliases only after registry publication and read-back succeed.
 
 See [GitHub Packages](docs/PACKAGES.md), [GitHub Releases](docs/GITHUB-RELEASES.md) and [Release verification](docs/RELEASE-VERIFICATION.md).
 
