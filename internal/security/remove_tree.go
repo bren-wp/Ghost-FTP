@@ -13,6 +13,10 @@ const (
 
 type removeTreeGuard struct{ items int }
 
+type removeTreeHooks struct {
+	beforeDescend func(parent string, entry os.DirEntry)
+}
+
 // IsReparsePoint reports whether path is a Windows reparse/junction-like entry.
 // On non-Windows builds it always returns false.
 func IsReparsePoint(path string) bool { return isReparsePoint(path) }
@@ -84,14 +88,18 @@ func readStableDirectory(target string, before os.FileInfo) ([]os.DirEntry, erro
 }
 
 func RemoveTreeNoFollow(root string) error {
+	return removeTreeNoFollowWithHooks(root, nil)
+}
+
+func removeTreeNoFollowWithHooks(root string, hooks *removeTreeHooks) error {
 	root = filepath.Clean(root)
 	if root == "." || root == "" || isFilesystemRoot(root) {
 		return errors.New("nije dopušteno brisanje korijenske lokalne mape")
 	}
-	return removeTreeNoFollow(root, 0, &removeTreeGuard{})
+	return removeTreeNoFollow(root, 0, &removeTreeGuard{}, hooks)
 }
 
-func removeTreeNoFollow(target string, depth int, guard *removeTreeGuard) error {
+func removeTreeNoFollow(target string, depth int, guard *removeTreeGuard, hooks *removeTreeHooks) error {
 	if err := guard.step(depth); err != nil {
 		return err
 	}
@@ -117,7 +125,10 @@ func removeTreeNoFollow(target string, depth int, guard *removeTreeGuard) error 
 		if parentNow.Mode()&os.ModeSymlink != 0 || isReparsePoint(target) || !sameRegularObject(st, parentNow) {
 			return errors.New("lokalna mapa je zamijenjena tijekom rekurzivnog brisanja")
 		}
-		if err := removeTreeNoFollow(filepath.Join(target, entry.Name()), depth+1, guard); err != nil {
+		if hooks != nil && hooks.beforeDescend != nil {
+			hooks.beforeDescend(target, entry)
+		}
+		if err := removeTreeNoFollow(filepath.Join(target, entry.Name()), depth+1, guard, hooks); err != nil {
 			return err
 		}
 	}
