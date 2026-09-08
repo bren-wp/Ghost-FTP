@@ -21,7 +21,7 @@ var diagnosticsWords = map[string]diagnosticsWordsSet{
 	"fr": {"Aucune télémétrie ni suivi. Les profils enregistrés restent sur cet ordinateur.", "Non connecté"},
 	"es": {"Sin telemetría ni seguimiento. Los perfiles guardados permanecen en este equipo.", "Sin conexión"},
 	"tr": {"Telemetri veya izleme yok. Kaydedilen profiller bu bilgisayarda kalır.", "Bağlı değil"},
-	"el": {"Χωρίς telemetriju ή παρακολούθηση. Τα αποθηκευμένα προφίλ μένουν σε αυτόν τον υπολογιστή.", "Δεν υπάρχει σύνδεση"},
+	"el": {"Χωρίς τηλεμετρία ή παρακολούθηση. Τα αποθηκευμένα προφίλ μένουν σε αυτόν τον υπολογιστή.", "Δεν υπάρχει σύνδεση"},
 	"pt": {"Sem telemetria ou rastreio. Os perfis guardados ficam neste computador.", "Não ligado"},
 	"zh": {"无遥测或跟踪。已保存的配置保留在此计算机上。", "未连接"},
 	"ru": {"Без телеметрии и отслеживания. Сохранённые профили остаются на этом компьютере.", "Не подключено"},
