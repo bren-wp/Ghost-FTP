@@ -214,54 +214,128 @@ func (s *Engine) addDownloadTree(ctx context.Context, sess remote.Session, local
 		}
 		defer reservation.Cancel()
 	}
-	cleanupCreated, err := prepareLocalDirectories(localBoundary, plan.localDirs)
+	releasePrepared, err := prepareLocalDirectories(localBoundary, plan.localDirs)
 	if err != nil {
 		return TreeTransferResult{Directories: len(plan.localDirs), SkippedSymlinks: plan.skippedSymlinks}, err
 	}
+	defer releasePrepared()
 	if reservation != nil {
 		if _, err := reservation.Commit(); err != nil {
-			cleanupCreated()
+			// Deliberately leave prepared empty directories in place. A pathname may
+			// have been replaced after preparation; deleting by terminal name could
+			// remove an unrelated replacement object. Residual empty directories are
+			// safer than risking user-data loss.
 			return TreeTransferResult{Directories: len(plan.localDirs), SkippedSymlinks: plan.skippedSymlinks}, err
 		}
 	}
 	return TreeTransferResult{Queued: len(plan.requests), Directories: len(plan.localDirs), SkippedSymlinks: plan.skippedSymlinks}, nil
 }
 
-func prepareLocalDirectories(localBoundary string, dirs []string) (func(), error) {
-	created := make([]string, 0, len(dirs))
-	cleanup := func() {
-		for i := len(created) - 1; i >= 0; i-- {
-			// Empty-only removal is deliberate: if another local action created
-			// content after preparation, rollback must never delete that content.
-			_ = os.Remove(created[i])
-		}
+type localDirectoryPreparationHooks struct {
+	beforeMkdir func(relative string)
+}
+
+func relativePreparedDirectory(localBoundary, dir string) (string, error) {
+	boundary := filepath.Clean(localBoundary)
+	target := filepath.Clean(dir)
+	rel, err := filepath.Rel(boundary, target)
+	if err != nil || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", errors.New("lokalna putanja izlazi iz odabrane mape")
 	}
-	for _, dir := range dirs {
-		if err := security.EnsureLocalWithinRoot(localBoundary, dir); err != nil {
-			cleanup()
-			return cleanup, err
+	if strings.ContainsAny(rel, "\x00\r\n") {
+		return "", errors.New("neispravna lokalna putanja")
+	}
+	return filepath.Clean(rel), nil
+}
+
+func openStablePreparedDirectory(parent *os.Root, name string, before os.FileInfo) (*os.Root, error) {
+	if before == nil || before.Mode().Type() != os.ModeDir {
+		return nil, errors.New("lokalna putanja nije obična mapa")
+	}
+	child, err := parent.OpenRoot(name)
+	if err != nil {
+		return nil, err
+	}
+	opened, err := child.Stat(".")
+	if err != nil {
+		child.Close()
+		return nil, err
+	}
+	if opened.Mode().Type() != os.ModeDir || !os.SameFile(before, opened) {
+		child.Close()
+		return nil, errors.New("lokalna mapa se promijenila tijekom sigurnog otvaranja")
+	}
+	return child, nil
+}
+
+func prepareLocalDirectories(localBoundary string, dirs []string) (func(), error) {
+	return prepareLocalDirectoriesWithHooks(localBoundary, dirs, nil)
+}
+
+func prepareLocalDirectoriesWithHooks(localBoundary string, dirs []string, hooks *localDirectoryPreparationHooks) (func(), error) {
+	boundary, err := os.OpenRoot(localBoundary)
+	if err != nil {
+		return nil, err
+	}
+	opened := map[string]*os.Root{".": boundary}
+	openedOrder := make([]*os.Root, 0, len(dirs))
+	closed := false
+	closePrepared := func() {
+		if closed {
+			return
 		}
-		st, err := os.Lstat(dir)
-		if err == nil {
-			if !st.IsDir() {
-				cleanup()
-				return cleanup, errors.New("lokalna putanja nije mapa")
-			}
+		for i := len(openedOrder) - 1; i >= 0; i-- {
+			_ = openedOrder[i].Close()
+		}
+		_ = boundary.Close()
+		closed = true
+	}
+	fail := func(err error) (func(), error) {
+		closePrepared()
+		return nil, err
+	}
+
+	for _, dir := range dirs {
+		rel, err := relativePreparedDirectory(localBoundary, dir)
+		if err != nil {
+			return fail(err)
+		}
+		if rel == "." {
 			continue
 		}
-		if !errors.Is(err, os.ErrNotExist) {
-			cleanup()
-			return cleanup, err
+		if _, exists := opened[rel]; exists {
+			continue
 		}
-		// Plans are parent-first, so Mkdir is intentionally used instead of
-		// MkdirAll. This prevents creation outside the validated plan.
-		if err := os.Mkdir(dir, 0755); err != nil {
-			cleanup()
-			return cleanup, err
+		parentRel := filepath.Dir(rel)
+		parent := opened[parentRel]
+		if parent == nil {
+			return fail(errors.New("lokalni plan mapa nije poredan od roditelja prema djeci"))
 		}
-		created = append(created, dir)
+		name := filepath.Base(rel)
+		st, statErr := parent.Lstat(name)
+		if errors.Is(statErr, os.ErrNotExist) {
+			if hooks != nil && hooks.beforeMkdir != nil {
+				hooks.beforeMkdir(rel)
+			}
+			if err := parent.Mkdir(name, 0755); err != nil {
+				return fail(err)
+			}
+			st, statErr = parent.Lstat(name)
+		}
+		if statErr != nil {
+			return fail(statErr)
+		}
+		if st.Mode().Type() != os.ModeDir {
+			return fail(errors.New("lokalna putanja nije obična mapa"))
+		}
+		child, err := openStablePreparedDirectory(parent, name, st)
+		if err != nil {
+			return fail(err)
+		}
+		opened[rel] = child
+		openedOrder = append(openedOrder, child)
 	}
-	return cleanup, nil
+	return closePrepared, nil
 }
 
 func ensureRemoteDirectory(ctx context.Context, sess remote.Session, target string) error {
