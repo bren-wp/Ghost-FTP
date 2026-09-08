@@ -391,7 +391,7 @@ func (a *app) setupTransferColumns(list uintptr) {
 func (a *app) insertColumn(list uintptr, idx int, title string, width int) {
 	text := syscall.StringToUTF16(title)
 	c := lvColumn{Mask: lvcfText | lvcfWidth | lvcfFmt, Cx: int32(a.scale(width)), Text: &text[0], Fmt: 0}
-	sendMessageW.Call(list, lvmInsertColumnW, uintptr(idx), uintptr(unsafe.Pointer(&c)))
+	sendMessageW.Call(list, lvmInsertColumnW, uintptr(idx), uintptr(a.scale(width)))
 }
 
 func clampInt(v, min, max int) int {
@@ -405,14 +405,12 @@ func clampInt(v, min, max int) int {
 }
 
 func (a *app) layout(width, height int) {
+	// WM_SIZE and GetClientRect report client-area dimensions. Keep those
+	// dimensions authoritative even when the surrounding top-level window is
+	// constrained by the screen; expanding them to the top-level minimum would
+	// position child controls outside the real client area.
 	width = a.unscale(width)
 	height = a.unscale(height)
-	if width < premiumMinWidth {
-		width = premiumMinWidth
-	}
-	if height < premiumMinHeight {
-		height = premiumMinHeight
-	}
 	margin, gap, rowH := 14, 8, 29
 	compact := width < 1180
 
