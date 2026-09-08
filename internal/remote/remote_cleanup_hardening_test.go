@@ -25,13 +25,39 @@ func TestCleanupFailureReturnsOriginalWhenCleanupSucceeds(t *testing.T) {
 	}
 }
 
-func TestCleanupFailureAcceptsConfirmedMissingArtifact(t *testing.T) {
+func TestCleanupFailureRejectsSpoofedMissingText(t *testing.T) {
 	original := errors.New("upload failed")
+	cleanup := errors.New("550 No such file; operation not found")
 	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
-		return errors.New("No such file")
+		return cleanup
+	})
+	if !isRemoteResidualArtifactError(err) {
+		t.Fatalf("server-controlled missing text must not prove cleanup: %v", err)
+	}
+	if !errors.Is(err, original) || !errors.Is(err, cleanup) {
+		t.Fatalf("fail-closed cleanup must preserve both causes: %v", err)
+	}
+}
+
+func TestCleanupFailureAcceptsStructuredCurlMissingResult(t *testing.T) {
+	original := errors.New("upload failed")
+	missing := &toolError{tool: "curl", code: 78, message: "server text is irrelevant"}
+	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
+		return missing
 	})
 	if !errors.Is(err, original) || isRemoteResidualArtifactError(err) {
-		t.Fatalf("confirmed missing artifact should preserve original error: %v", err)
+		t.Fatalf("curl REMOTE_FILE_NOT_FOUND should confirm absence: %v", err)
+	}
+}
+
+func TestCleanupFailureRejectsSFTPMissingText(t *testing.T) {
+	original := errors.New("upload failed")
+	missingText := &toolError{tool: "sftp", code: 1, message: "No such file"}
+	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
+		return missingText
+	})
+	if !isRemoteResidualArtifactError(err) {
+		t.Fatalf("SFTP diagnostic text is not structured proof of absence: %v", err)
 	}
 }
 
