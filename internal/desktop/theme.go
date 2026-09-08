@@ -40,31 +40,34 @@ type RGB struct {
 	B byte
 }
 
+// Dark uses a restrained navy/charcoal surface rather than near-black blocks.
+// This preserves contrast while reducing eye strain and keeps list/panel layers
+// visually separable without relying on heavy borders.
 var darkTheme = PremiumTheme{
-	Window:       RGB{0x08, 0x0A, 0x0F},
-	Panel:        RGB{0x0F, 0x13, 0x1C},
-	List:         RGB{0x15, 0x1A, 0x25},
-	Border:       RGB{0x25, 0x2D, 0x3C},
-	Text:         RGB{0xF4, 0xF7, 0xFF},
-	Muted:        RGB{0x8E, 0x99, 0xAD},
-	Accent:       RGB{0x52, 0x77, 0xF5},
-	AccentStrong: RGB{0x72, 0x93, 0xFF},
+	Window:       RGB{0x0B, 0x0F, 0x17},
+	Panel:        RGB{0x12, 0x18, 0x24},
+	List:         RGB{0x16, 0x1D, 0x2A},
+	Border:       RGB{0x2C, 0x36, 0x48},
+	Text:         RGB{0xF2, 0xF5, 0xFA},
+	Muted:        RGB{0x97, 0xA3, 0xB8},
+	Accent:       RGB{0x5B, 0x7C, 0xFA},
+	AccentStrong: RGB{0x7A, 0x98, 0xFF},
 	Success:      RGB{0x4A, 0xD7, 0x9B},
 	Warn:         RGB{0xF2, 0xBA, 0x55},
-	Danger:       RGB{0xFF, 0x64, 0x76},
-	Selection:    RGB{0x1D, 0x2A, 0x4A},
+	Danger:       RGB{0xFF, 0x68, 0x78},
+	Selection:    RGB{0x20, 0x2F, 0x50},
 }
 
-// lightTheme intentionally follows the restrained, information-dense visual
-// language of traditional desktop file-transfer clients while retaining Ghost
-// FTP's own identity. It does not copy third-party branding or assets.
+// Light deliberately avoids pure white as the dominant application surface.
+// The slightly cool neutral hierarchy keeps long file-management sessions less
+// glaring while preserving native-control readability and clear selection.
 var lightTheme = PremiumTheme{
-	Window:       RGB{0xF3, 0xF4, 0xF6},
-	Panel:        RGB{0xFF, 0xFF, 0xFF},
-	List:         RGB{0xFF, 0xFF, 0xFF},
-	Border:       RGB{0xC8, 0xCD, 0xD6},
-	Text:         RGB{0x1F, 0x23, 0x28},
-	Muted:        RGB{0x66, 0x70, 0x85},
+	Window:       RGB{0xEE, 0xF1, 0xF5},
+	Panel:        RGB{0xF6, 0xF8, 0xFB},
+	List:         RGB{0xFA, 0xFB, 0xFD},
+	Border:       RGB{0xC7, 0xCE, 0xD8},
+	Text:         RGB{0x20, 0x25, 0x2B},
+	Muted:        RGB{0x65, 0x70, 0x83},
 	Accent:       RGB{0x3F, 0x63, 0xDD},
 	AccentStrong: RGB{0x25, 0x4B, 0xC7},
 	Success:      RGB{0x1B, 0x7F, 0x4B},

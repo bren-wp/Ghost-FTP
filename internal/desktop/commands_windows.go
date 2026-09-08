@@ -2,9 +2,19 @@
 
 package desktop
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+)
 
 func (a *app) command(id int) {
+	// Some legacy file-operation call sites intentionally keep the compact
+	// platform.PromptDialog wrapper. Synchronize its action labels at the command
+	// boundary so the modal always follows Ghost FTP's active runtime language
+	// instead of falling back to English (for example Croatian "Otkaži").
+	platform.SetDialogActionLabels(okLabel(a.languageCode()), a.tr("common.cancel"))
+
 	switch id {
 	case idConnect:
 		a.connectNow()

@@ -58,5 +58,13 @@ func (a *app) showDiagnostics() {
 		"Ghost FTP %s\n\n%s · %s\n%s\n\n%s",
 		a.version, strings.ToUpper(a.protocolValue()), state, a.remoteCurrent, words.PrivacyBody,
 	)
-	platform.InfoDialog("Ghost FTP — "+title, title, body)
+	// Diagnostics is application-owned UI. Using the stock TaskDialog made a
+	// Dark Ghost FTP session open a bright white system dialog, which visually
+	// looked like a different product. Keep it in the same owned theme shell.
+	platform.CompactInfoDialog(
+		"Ghost FTP — "+title,
+		title,
+		body,
+		okLabel(a.languageCode()),
+	)
 }
