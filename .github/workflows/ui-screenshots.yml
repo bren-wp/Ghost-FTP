@@ -134,7 +134,9 @@ jobs:
           }
 
       - name: Persist authentic screenshots in repository
-        if: github.event_name == 'push' && !startsWith(github.ref_name, 'release-prep/')
+        # Release-prep branches are evidence-only: publishing an artifact is safe,
+        # while self-committing screenshots would move the exact head being gated.
+        if: github.event_name == 'push' && !startsWith(github.ref_name, 'release-prep/') && !contains(github.ref_name, '-prep-')
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
