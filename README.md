@@ -81,6 +81,14 @@ SFTP uses SSH transport semantics with host-key verification. Password and key-b
 
 Plain FTP remains available only as an explicit compatibility choice for legacy servers that intentionally require unencrypted FTP.
 
+## Languages
+
+**English** is the canonical default and fallback language. Ghost FTP provides **24 languages** through one local catalog shared by the Windows and Linux frontends. Language selection and translation resolution happen locally; Ghost FTP does not send filenames, server names, credentials or UI text to an online translation service.
+
+Changing language at runtime updates the maintained Windows UI surfaces and native dialogs. Linux uses the same canonical registry and fallback normalization. Missing or invalid locale state safely resolves to English.
+
+See [Localization](docs/LOCALIZATION.md).
+
 ## Windows installation
 
 ```text
