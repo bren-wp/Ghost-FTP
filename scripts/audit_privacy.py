@@ -117,10 +117,13 @@ def audit_credentials_and_network_tools() -> None:
         '"http_proxy"', '"https_proxy"', '"ftp_proxy"', '"all_proxy"', '"no_proxy"', '"sslkeylogfile"',
         '"ssh_askpass"', '"ssh_auth_sock"', "crypto/rand", "func randomTransferToken()",
         "func (e *toolError) Error() string", "func toolErrorPublicLabel(tool string) string",
+        "func toolErrorPublicDetail(kind string) string", "e.UserErrorKind()",
         'return "network tool"', "msg = te.message",
     ))
     if "return e.message" in util:
         fail("raw child-process diagnostics must not be exposed by toolError.Error")
+    if "base = label + e.message" in util or "fmt.Sprintf(\"%s %s\", label, e.message)" in util:
+        fail("raw child-process diagnostics must not be concatenated into public tool errors")
     require("internal/transfer/manager.go", (
         "recover() != nil",
         "ConnectionIdentity() (string, error)",
@@ -176,6 +179,7 @@ def main() -> None:
     print("TELEMETRY_VENDOR_MARKERS=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("RAW_TOOL_DIAGNOSTICS_USER_SURFACE=BLOCKED")
+    print("SAFE_TOOL_ERROR_CLASSIFICATION=PRESERVED")
     print("DOWNLOAD_LOCAL_ROOT_PROPAGATION=ENFORCED")
     print("DOWNLOAD_ROOT_RELATIVE_COMMIT=ENFORCED")
 
