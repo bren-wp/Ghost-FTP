@@ -188,19 +188,38 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Build DEB packages
+      - name: Build Linux packages
+        env:
+          GHOSTFTP_REQUIRE_DEB: '1'
         run: bash linux/BUILD.sh
-      - name: Verify DEB metadata
+      - name: Verify DEB and portable packages
         shell: bash
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
           for arch in amd64 arm64 i386; do
             pkg="dist/Ghost-FTP-${version}-Linux-${arch}.deb"
+            portable="dist/Ghost-FTP-${version}-Linux-${arch}.tar.gz"
             test -s "$pkg"
+            test -s "$portable"
             test "$(dpkg-deb -f "$pkg" Package)" = 'ghost-ftp'
             test "$(dpkg-deb -f "$pkg" Version)" = "$version"
             test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
+
+            work="$(mktemp -d)"
+            trap 'rm -rf "$work"' EXIT
+            mkdir -p "$work/deb" "$work/portable"
+            dpkg-deb -x "$pkg" "$work/deb"
+            tar -xzf "$portable" -C "$work/portable"
+            root="$work/portable/Ghost-FTP-${version}-Linux-${arch}"
+            test -x "$root/ghostftp"
+            test -f "$root/ghost-ftp.desktop"
+            test -f "$root/ghost-ftp.png"
+            test -f "$root/LICENSE"
+            test -f "$root/README.md"
+            cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"
+            rm -rf "$work"
+            trap - EXIT
           done
       - name: Store Linux packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -208,7 +227,9 @@ jobs:
           name: ghostftp-linux-stage
           if-no-files-found: error
           retention-days: 7
-          path: dist/Ghost-FTP-*-Linux-*.deb
+          path: |
+            dist/Ghost-FTP-*-Linux-*.deb
+            dist/Ghost-FTP-*-Linux-*.tar.gz
 
   publish:
     name: Assemble and publish Windows and Linux release
@@ -279,6 +300,7 @@ jobs:
           cp "staging/windows/Ghost-FTP-${VERSION}-Portable-x86.exe" "release/Ghost-FTP-${VERSION}-Portable-x86.exe"
           for arch in amd64 arm64 i386; do
             cp "staging/linux/Ghost-FTP-${VERSION}-Linux-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-${arch}.deb"
+            cp "staging/linux/Ghost-FTP-${VERSION}-Linux-${arch}.tar.gz" "release/Ghost-FTP-${VERSION}-Linux-${arch}.tar.gz"
           done
           (
             cd staging/linux
@@ -300,12 +322,13 @@ jobs:
           WINDOWS_PORTABLE=x64,x86
           WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}
           LINUX_DEB=amd64,arm64,i386
+          LINUX_PORTABLE=amd64,arm64,i386
           LINUX_BUNDLE=multiarch-amd64-arm64-i386
           LANGUAGES=24
           DEFAULT_LANGUAGE=en
           TELEMETRY=disabled
-          PUBLIC_PLATFORM_ARTIFACTS=9
-          PUBLIC_RELEASE_FILES=12
+          PUBLIC_PLATFORM_ARTIFACTS=12
+          PUBLIC_RELEASE_FILES=15
           GITHUB_PACKAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ghost-ftp:${VERSION}
           EOF
           sed -i 's/^          //' release/BUILD-METADATA.txt
@@ -314,7 +337,7 @@ jobs:
             find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs sha256sum > SHA256.txt
           )
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
-          test "$count" = '12'
+          test "$count" = '15'
           test "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x86.exe" | awk '{print $1}')" = "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x32.exe" | awk '{print $1}')"
       - name: Publish stable bundle to GitHub Packages
         if: env.RELEASE_CHANNEL == 'stable'
@@ -398,8 +421,11 @@ jobs:
           expected_assets="$(cat <<EOF
           BUILD-METADATA.txt
           Ghost-FTP-${VERSION}-Linux-amd64.deb
+          Ghost-FTP-${VERSION}-Linux-amd64.tar.gz
           Ghost-FTP-${VERSION}-Linux-arm64.deb
+          Ghost-FTP-${VERSION}-Linux-arm64.tar.gz
           Ghost-FTP-${VERSION}-Linux-i386.deb
+          Ghost-FTP-${VERSION}-Linux-i386.tar.gz
           Ghost-FTP-${VERSION}-Linux-multiarch.zip
           Ghost-FTP-${VERSION}-Portable-x64.exe
           Ghost-FTP-${VERSION}-Portable-x86.exe
