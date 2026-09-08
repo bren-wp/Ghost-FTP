@@ -29,12 +29,36 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertIn('cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"', workflow)
         self.assertIn("dist/Ghost-FTP-*-Linux-*.tar.gz", workflow)
 
-    def test_docs_do_not_retroactively_claim_tarballs_for_116(self) -> None:
+    def test_release_workflow_publishes_verified_portable_archives(self) -> None:
+        workflow = read(".github/workflows/release.yml")
+        self.assertIn("Verify DEB and portable packages", workflow)
+        self.assertIn("GHOSTFTP_REQUIRE_DEB: '1'", workflow)
+        self.assertIn('cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"', workflow)
+        self.assertIn("dist/Ghost-FTP-*-Linux-*.tar.gz", workflow)
+        self.assertIn(
+            'cp "staging/linux/Ghost-FTP-${VERSION}-Linux-${arch}.tar.gz" "release/Ghost-FTP-${VERSION}-Linux-${arch}.tar.gz"',
+            workflow,
+        )
+        self.assertIn("LINUX_PORTABLE=amd64,arm64,i386", workflow)
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=12", workflow)
+        self.assertIn("PUBLIC_RELEASE_FILES=15", workflow)
+        self.assertIn('test "$count" = \'15\'', workflow)
+        for arch in ("amd64", "arm64", "i386"):
+            self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-{arch}.tar.gz", workflow)
+
+    def test_docs_keep_116_historical_and_describe_next_release_contract(self) -> None:
         linux_readme = read("linux/README.md")
         parity = read("docs/PLATFORM-PARITY.md")
+        releases = read("docs/GITHUB-RELEASES.md")
+        verification = read("docs/RELEASE-VERIFICATION.md")
         self.assertIn("already published Ghost FTP 1.1.6 release is immutable", linux_readme)
         self.assertIn("is **not** retroactively claimed as a 1.1.6 release asset", linux_readme)
-        self.assertIn("source/CI outputs only until a separate release-contract change", parity)
+        self.assertIn("next release", linux_readme.lower())
+        self.assertIn("12 platform artifacts / 15 public files", parity)
+        self.assertIn("12 platform artifacts", releases)
+        self.assertIn("15 public files", releases)
+        self.assertIn("12 platform artifacts", verification)
+        self.assertIn("15 public files", verification)
 
 
 if __name__ == "__main__":
