@@ -17,8 +17,17 @@ func TestStatusBandGeometryKeepsFooterInsideMinimumWorkspace(t *testing.T) {
 	if got := statusY - contentBottom; got != statusBandContentGap {
 		t.Fatalf("content/status gap = %d, want %d", got, statusBandContentGap)
 	}
-	if statusY <= 0 || contentBottom <= 0 {
-		t.Fatalf("unexpected non-positive geometry: statusY=%d contentBottom=%d", statusY, contentBottom)
+}
+
+func TestStatusBandGeometryUsesActualConstrainedClientHeight(t *testing.T) {
+	const clientHeight = 640
+	statusY, contentBottom := statusBandGeometry(clientHeight)
+
+	if statusY != 606 || contentBottom != 599 {
+		t.Fatalf("constrained geometry = (%d, %d), want (606, 599)", statusY, contentBottom)
+	}
+	if statusY+statusBandHeight+statusBandBottomInset != clientHeight {
+		t.Fatalf("footer does not terminate inside actual client height %d", clientHeight)
 	}
 }
 
