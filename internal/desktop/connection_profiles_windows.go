@@ -4,14 +4,15 @@ package desktop
 
 import (
 	"context"
-	"github.com/bren-wp/Ghost-FTP/internal/model"
-	"github.com/bren-wp/Ghost-FTP/internal/platform"
-	"github.com/bren-wp/Ghost-FTP/internal/profilebinding"
-	"github.com/bren-wp/Ghost-FTP/internal/remote"
 	"strconv"
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/platform"
+	"github.com/bren-wp/Ghost-FTP/internal/profilebinding"
+	"github.com/bren-wp/Ghost-FTP/internal/remote"
 )
 
 func (a *app) cancelConnectionAttempt() {
@@ -418,8 +419,10 @@ func (a *app) selectProfile() {
 }
 
 func (a *app) saveCurrentProfile() {
+	language := a.languageCode()
+	profileTitle := "Ghost FTP — " + a.tr("profile.save")
 	if a.connected || a.connectionBusy {
-		platform.InfoDialog("Ghost FTP", "Profile changes are unavailable during a connection", "Wait for the connection attempt to finish or disconnect before saving profile changes.")
+		platform.InfoDialog("Ghost FTP", profileBusyHeading(language), profileBusyBody(language))
 		return
 	}
 	existing, editing := a.currentProfile()
@@ -427,13 +430,19 @@ func (a *app) saveCurrentProfile() {
 	if editing {
 		defaultName = existing.Name
 	}
-	name, ok := platform.PromptDialog("Ghost FTP — profile", "Profile name:", defaultName)
+	name, ok := platform.PromptDialogWithLabels(
+		profileTitle,
+		profileNameLabel(language),
+		defaultName,
+		okLabel(language),
+		a.tr("common.cancel"),
+	)
 	if !ok {
 		return
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		platform.ErrorDialog("Ghost FTP — profile", "Profile name is required", "Enter a name that identifies this connection.")
+		platform.ErrorDialog(profileTitle, profileNameRequiredHeading(language), profileNameRequiredBody(language))
 		return
 	}
 	protocol := a.protocolValue()
@@ -442,9 +451,9 @@ func (a *app) saveCurrentProfile() {
 	port, err := validateRawConnectionInput(protocol, host, getText(a.port), username)
 	if err != nil {
 		if err == errInvalidConnectionPort {
-			platform.ErrorDialog("Ghost FTP — profile", a.tr("connection.invalid_port"), a.tr("connection.invalid_port_body"))
+			platform.ErrorDialog(profileTitle, a.tr("connection.invalid_port"), a.tr("connection.invalid_port_body"))
 		} else {
-			platform.ErrorDialog("Ghost FTP — profile", a.tr("connection.invalid_data"), a.userMessage(err, "connection.invalid_data_body"))
+			platform.ErrorDialog(profileTitle, a.tr("connection.invalid_data"), a.userMessage(err, "connection.invalid_data_body"))
 		}
 		return
 	}
@@ -468,7 +477,7 @@ func (a *app) saveCurrentProfile() {
 	}
 
 	if password != "" || passphrase != "" {
-		words := credentialConsentText(a.languageCode())
+		words := credentialConsentText(language)
 		if !platform.ConfirmDialog(words.Title, words.Question, words.Body) {
 			password = ""
 			passphrase = ""
@@ -487,11 +496,11 @@ func (a *app) saveCurrentProfile() {
 		retainPassphrase := existing.HasPassphrase && !clearPassphrase
 		autoRemoved := clearPassword || clearPassphrase
 		if retainPassword || retainPassphrase {
-			message := "This profile already contains stored credentials that still belong to the same identity.\n\nYes = retain them.\nNo = remove them from the Ghost FTP profile store."
+			message := profileRetainBody(language)
 			if autoRemoved {
-				message = "Credentials that no longer belong to the changed server, account or private key will be removed automatically.\n\n" + message
+				message = profileAutoRemovedPrefix(language) + "\n\n" + message
 			}
-			if !platform.ConfirmDialog("Ghost FTP — privacy", "Retain stored credentials?", message) {
+			if !platform.ConfirmDialog("Ghost FTP — "+profilePrivacyTitle(language), profileRetainHeading(language), message) {
 				if retainPassword {
 					clearPassword = true
 				}
@@ -501,9 +510,9 @@ func (a *app) saveCurrentProfile() {
 			}
 		} else if autoRemoved {
 			platform.InfoDialog(
-				"Ghost FTP — profile security",
-				"Old credentials will not be transferred",
-				"The server, port, username or private key changed. For safety, old stored credentials are removed from this profile. Enter them again if you want to store credentials for the new identity.",
+				"Ghost FTP — "+profilePrivacyTitle(language),
+				profileOldCredentialsHeading(language),
+				profileOldCredentialsBody(language),
 			)
 		}
 	}
@@ -533,7 +542,7 @@ func (a *app) saveCurrentProfile() {
 		payload.Passphrase = ""
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("Ghost FTP — profile", a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
+				platform.ErrorDialog(profileTitle, a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
 				return
 			}
 			a.selectedProfileID = saved.ID
@@ -559,7 +568,7 @@ func (a *app) removeCurrentProfile() {
 		platform.InfoDialog("Ghost FTP", a.tr("profile.delete"), a.tr("disconnect.question"))
 		return
 	}
-	if !platform.ConfirmDialog("Ghost FTP — profiles", a.tr("profile.delete"), p.Name) {
+	if !platform.ConfirmDialog("Ghost FTP — "+a.tr("profile.delete"), a.tr("profile.delete"), p.Name) {
 		return
 	}
 	id := p.ID
@@ -567,7 +576,7 @@ func (a *app) removeCurrentProfile() {
 		err := a.engine.RemoveProfile(id)
 		a.dispatch(func() {
 			if err != nil {
-				platform.ErrorDialog("Ghost FTP — profiles", a.tr("profile.delete"), a.userMessage(err, "error.generic"))
+				platform.ErrorDialog("Ghost FTP — "+a.tr("profile.delete"), a.tr("profile.delete"), a.userMessage(err, "error.generic"))
 				return
 			}
 			a.selectedProfileID = ""
