@@ -1,6 +1,6 @@
 # Ghost FTP documentation
 
-- **Current Ghost FTP release: 1.1.5**
+- **Current Ghost FTP release: 1.1.6**
 - Development status: **Stable**
 - GitHub Release policy: **prerelease=false**
 - Platforms: **Windows and Linux**
@@ -44,59 +44,58 @@ The stable workflow publishes **9 platform artifacts** and **12 public files** f
 - [`ROADMAP.md`](ROADMAP.md) — maintenance priorities and product constraints.
 - [`SUPPORT.md`](SUPPORT.md) — support and privacy-safe issue reporting.
 
-## Ghost FTP 1.1.5 contract
+## Ghost FTP 1.1.6 contract
 
-Ghost FTP 1.1.5 is a backward-compatible native Windows/Linux maintenance release focused on product/publisher identity correctness, public UI branding consistency, release-documentation integrity and repository cleanup.
+Ghost FTP 1.1.6 is a backward-compatible Windows/Linux maintenance release focused on filesystem race hardening and stronger SFTP/remote-cleanup trust guarantees.
 
-Key 1.1.5 changes:
+Key 1.1.6 changes:
 
-- `ghostftp.com` is the official product website;
-- `brendigo.com` is the official author/publisher website and BRENDIGO LTD remains the publisher identity;
-- Windows About separates the product destination from the publisher destination;
-- public localized UI text returns **Ghost FTP** instead of leaking the internal `GhostFTP` technical identifier;
-- the public branding contract is regression-tested across all 24 supported languages;
-- Linux DEB metadata uses `Homepage: https://ghostftp.com` and BRENDIGO LTD Maintainer identity;
-- stale 1.1.1/1.1.4 current-release documentation in Installation, Packages, Support and release docs is corrected;
-- version-drift regression coverage now requires active distribution/support documentation to follow root `VERSION`;
-- a stale version-specific desktop-quality test file was removed while its maintained regression coverage stays in the evergreen suite;
+- recursive local deletion traverses verified child directories through opened root handles rather than mutable pathnames;
+- local `Mkdir` is anchored to an opened `os.Root`, preventing a late base-directory pathname swap from redirecting creation;
+- SFTP SHA-256 host-key fingerprints are computed directly from the selected scanned key blob in memory;
+- the key blob's embedded algorithm must match the algorithm declared by `ssh-keyscan`;
+- fingerprint calculation no longer relies on a temporary key pathname reopened by `ssh-keygen`;
+- remote cleanup treats text diagnostics as untrusted and does not accept `No such file`/`not found` text alone as proof that staging state is absent;
+- successful delete or curl's structured `REMOTE_FILE_NOT_FOUND` result can confirm absence, while non-zero SFTP cleanup remains fail-closed;
+- deterministic regression coverage proves the confirmed path-swap, fingerprint-binding and spoofed-cleanup cases;
 - no telemetry, analytics, advertising, tracking, hidden product service or new external Go module dependency is introduced.
 
-The release preserves existing transport and filesystem protections: FTPS certificate/hostname validation, SFTP host-key verification/pinning, protected-secret lifetime rules, transfer generation/cancel/retry safeguards, root-bound local download activation and destructive-operation containment.
+The release preserves existing FTPS certificate/hostname validation, SFTP host-key pinning, protected-secret lifetime rules, transfer generation/cancel/retry safeguards, root-bound local download activation, Site Manager secret/trust isolation and the Windows/Linux native desktop boundary.
 
 ## Stable publication
 
-A stable 1.1.5 publication is a normal GitHub Release with `prerelease=false` and immutable tag:
+A stable 1.1.6 publication is a normal GitHub Release with `prerelease=false` and immutable tag:
 
 ```text
-ghostftp-v1.1.5
+ghostftp-v1.1.6
 ```
 
 Windows artifacts:
 
 ```text
-Ghost-FTP-1.1.5-Setup-x64.exe
-Ghost-FTP-1.1.5-Setup-x86.exe
-Ghost-FTP-1.1.5-Setup-x32.exe
-Ghost-FTP-1.1.5-Portable-x64.exe
-Ghost-FTP-1.1.5-Portable-x86.exe
+Ghost-FTP-1.1.6-Setup-x64.exe
+Ghost-FTP-1.1.6-Setup-x86.exe
+Ghost-FTP-1.1.6-Setup-x32.exe
+Ghost-FTP-1.1.6-Portable-x64.exe
+Ghost-FTP-1.1.6-Portable-x86.exe
 ```
 
 Linux artifacts:
 
 ```text
-Ghost-FTP-1.1.5-Linux-amd64.deb
-Ghost-FTP-1.1.5-Linux-arm64.deb
-Ghost-FTP-1.1.5-Linux-i386.deb
-Ghost-FTP-1.1.5-Linux-multiarch.zip
+Ghost-FTP-1.1.6-Linux-amd64.deb
+Ghost-FTP-1.1.6-Linux-arm64.deb
+Ghost-FTP-1.1.6-Linux-i386.deb
+Ghost-FTP-1.1.6-Linux-multiarch.zip
 ```
 
 GitHub Package:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.5
+ghcr.io/bren-wp/ghost-ftp:1.1.6
 ```
 
-Stable aliases `1.1`, `1` and `latest` are updated only after successful publication and registry read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not an application runtime container.
+Stable aliases `1.1`, `1` and `latest` are updated only after successful publication and registry read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not a runtime container.
 
 Production Authenticode remains optional. If a trusted certificate is configured, Windows signatures are verified fail-closed. Otherwise the release is explicitly unsigned and `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`; a generated/self-signed identity is never represented as a trusted production publisher.
 
@@ -111,11 +110,11 @@ Historical version references describe their original release state and are not 
 
 A release is complete only after the exact source revision passes Core, Windows and Linux gates and the immutable tag, GitHub Release asset set, `SHA256.txt`, metadata and stable GitHub Package have all been read back successfully.
 
-For 1.1.5 the canonical publication branch is `release/ghostftp-v1.1.5`, created only from the exact post-merge `main` SHA that passed the complete quality gate.
+For 1.1.6 the canonical publication branch is `release/ghostftp-v1.1.6`, created only from the exact post-merge `main` SHA that passed the complete quality gate.
 
 ## UI evidence rule
 
-Because 1.1.5 changes public Settings/About branding and version presentation, authentic screenshots must come from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About and must be visually reviewed on the exact release-prep source revision.
+The 1.1.6 release-prep changes the public version displayed by the built application. Authentic screenshots must therefore come from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About and must be visually reviewed on the exact final release-prep source revision.
 
 ## Privacy-safe documentation rule
 
