@@ -2,6 +2,8 @@
 
 Ghost FTP **1.1.6 Stable** is the current published release. The maintained `main` source contains post-1.1.6 hardening and packaging improvements for a later maintenance release. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings and localization engine as the Windows application.
 
+For the next release, the canonical release workflow remains the generic `linux/BUILD.sh` path unless the release pipeline is explicitly changed and re-verified.
+
 This document distinguishes three different artifact contracts so source/CI work is never confused with the immutable published 1.1.6 release:
 
 1. **Published 1.1.6 release assets** — historical and unchanged.
