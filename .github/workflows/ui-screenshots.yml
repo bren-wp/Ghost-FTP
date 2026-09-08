@@ -148,8 +148,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path 'docs\images' | Out-Null
           Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-main-workspace.png' -Destination 'docs\images\ghost-ftp-main-workspace.png' -Force
           Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-site-manager.png' -Destination 'docs\images\ghost-ftp-site-manager.png' -Force
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-settings.png' -Destination 'docs\images\ghost-ftp-settings.png' -Force
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-about.png' -Destination 'docs\images\ghost-ftp-about.png' -Force
 
-          git add -- 'docs/images/ghost-ftp-main-workspace.png' 'docs/images/ghost-ftp-site-manager.png'
+          git add -- \
+            'docs/images/ghost-ftp-main-workspace.png' \
+            'docs/images/ghost-ftp-site-manager.png' \
+            'docs/images/ghost-ftp-settings.png' \
+            'docs/images/ghost-ftp-about.png'
           git diff --cached --quiet
           if ($LASTEXITCODE -eq 0) {
             Write-Host 'AUTHENTIC_UI_SCREENSHOTS=UNCHANGED'
