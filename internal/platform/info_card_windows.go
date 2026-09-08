@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-const infoCardIDClose = 3201
+const infoCardIDClose = 2 // IDCANCEL: Escape and the default Close button share one path.
 
 type infoCardState struct {
 	closed bool
@@ -171,14 +171,5 @@ func infoCardDialog(title, heading, body, closeLabel string, compact bool) {
 
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)
-
-	var message promptMsg
-	for !state.closed {
-		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&message)), 0, 0, 0)
-		if int32(r) <= 0 {
-			break
-		}
-		promptTranslateMessage.Call(uintptr(unsafe.Pointer(&message)))
-		promptDispatchMessageW.Call(uintptr(unsafe.Pointer(&message)))
-	}
+	premiumRunDialogLoop(hwnd, func() bool { return state.closed })
 }
