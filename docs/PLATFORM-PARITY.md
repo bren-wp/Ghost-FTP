@@ -85,13 +85,28 @@ WINDOWS_AUTHENTICODE=unsigned
 
 A generated/self-signed development certificate is never substituted for trusted production publisher identity.
 
+The canonical Windows build produces x64 and x86 Setup plus x64 and x86 Portable executables. The public `x32` Setup filename is a byte-identical compatibility alias of the verified x86 Setup artifact; it is not a third Windows architecture build.
+
 ## Linux-specific implementation
 
-Linux uses the maintained native X11/XWayland-compatible frontend and platform-local saved-secret/storage protections. The published 1.1.6 release contains amd64, arm64 and i386 DEB builds.
+Linux uses the maintained native X11/XWayland-compatible frontend and platform-local saved-secret/storage protections. The published 1.1.6 release contains amd64, arm64 and i386 DEB builds and remains unchanged.
 
-Post-1.1.6 source/CI packaging additionally builds package-manager-neutral `.tar.gz` archives for the same three architectures. CI proves that each DEB and portable archive contains the same compiled `ghostftp` executable byte-for-byte. This expands practical distribution compatibility without pretending that an unverified RPM/AppImage/Flatpak/Snap lifecycle already exists.
+The canonical next-release path in `.github/workflows/release.yml` uses `linux/BUILD.sh` to build generic DEBs and package-manager-neutral `.tar.gz` archives for `amd64`, `arm64` and `i386`. CI proves that each generic DEB and portable archive contains the same compiled `ghostftp` executable byte-for-byte.
 
-The maintained production release workflow now applies the same parity proof before publication and stages both DEB and `.tar.gz` formats. A future release can therefore expose the portable archives as first-class Linux release assets only after the complete exact-head and post-merge release gates succeed.
+The maintained source also has a separate distro-specific packaging contract in `linux/BUILD-DISTROS.sh`:
+
+- Debian DEB: `amd64`, `arm64`, `i386`;
+- Ubuntu DEB: `amd64`, `arm64`, `i386`;
+- Fedora RPM: `x86_64`, `aarch64`, `i686`;
+- distro-neutral Portable tar.gz: `amd64`, `arm64`, `i386`.
+
+`.github/workflows/linux-distro-packages.yml` rebuilds those artifacts from the exact source head, checks metadata and verifies byte-for-byte executable parity across the matching Debian, Ubuntu, Fedora and Portable packages.
+
+`.github/workflows/linux-distro-install.yml` independently verifies a real package-manager install/remove lifecycle and startup of the installed production GUI under local Xvfb on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. It verifies runtime dependencies, package ownership and uninstall residue without weakening Ghost FTP's production filesystem safety checks.
+
+Native distro-install verification is intentionally x86-64 only. The arm64/aarch64 and i386/i686 artifacts retain exact-head build, metadata, extraction and byte-parity coverage; the project does not claim native package-manager/runtime installation coverage for those architectures until such a gate exists.
+
+The distro-specific CI package family is supplemental. It is verified build/install coverage, but it is **not yet part of the canonical release allow-list** in `.github/workflows/release.yml` and is not retroactively part of the 1.1.6 public asset set.
 
 Idle rendering is state/event driven so the complete workspace is not continuously repainted while nothing relevant changes.
 
@@ -99,20 +114,23 @@ Idle rendering is state/event driven so the complete workspace is not continuous
 
 The production workflow independently builds and verifies both platform families before publication. A successful Windows build cannot substitute for a failed Linux build, and vice versa.
 
-The already published Ghost FTP 1.1.6 GitHub Release remains immutable with its original **9 platform artifacts / 12 public files**. The maintained next-release source contract now requires **12 platform artifacts / 15 public files**: the historical Windows/DEB/multiarch set plus verified Linux `.tar.gz` archives for amd64, arm64 and i386. This does not retroactively list those archives as 1.1.6 assets.
+The already published Ghost FTP 1.1.6 GitHub Release remains immutable with its original **9 platform artifacts / 12 public files**. The maintained next-release canonical source contract requires **12 platform artifacts / 15 public files**: the historical Windows/DEB/multiarch shape plus verified generic Linux `.tar.gz` archives for amd64, arm64 and i386.
 
-GHCR mirrors the verified assembled release directory and is a distribution bundle, not a third application implementation. For a later version, that mirrored directory will include the tarballs only if that version independently passes the release allow-list, SHA-256 and remote read-back gates.
+Supplemental Debian/Ubuntu/Fedora/Portable distro-specific CI artifacts do not change those public release counts until the release workflow itself explicitly stages, allow-lists, hashes, publishes and reads them back for a later version.
+
+GHCR mirrors the verified assembled release directory and is a distribution bundle, not a third application implementation. For a later version, that mirrored directory contains exactly the files accepted by that version's canonical release assembly.
 
 ## Definition of parity complete
 
-A cross-platform feature is complete when:
+A cross-platform feature or packaging claim is complete when:
 
 1. shared Core/API semantics are implemented once where appropriate;
 2. each platform exposes only behavior its native frontend can implement truthfully;
 3. platform-specific differences are documented rather than hidden behind dead controls;
 4. security/privacy boundaries remain equivalent;
 5. localization/fallback works;
-6. platform tests and production builds pass;
-7. documentation and authentic UI evidence match the shipped implementation.
+6. platform and packaging tests pass at the claimed coverage level;
+7. documentation distinguishes build verification, native installation verification and release publication;
+8. authentic UI evidence and release metadata match the shipped implementation.
 
-See [Architecture](ARCHITECTURE.md), [Settings](SETTINGS.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
+See [Architecture](ARCHITECTURE.md), [Installation](INSTALLATION.md), [Settings](SETTINGS.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
