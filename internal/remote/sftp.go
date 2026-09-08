@@ -3,6 +3,9 @@ package remote
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -145,7 +148,28 @@ func scanKeyAlgorithm(line string) string {
 	}
 }
 
-func ScanFingerprint(ctx context.Context, host string, port int, tempDir string) (string, string, string, error) {
+func fingerprintScannedKey(line string) (string, error) {
+	fields := strings.Fields(line)
+	if len(fields) < 3 {
+		return "", errors.New("neispravan SSH host ključ")
+	}
+	algorithm := scanKeyAlgorithm(line)
+	if algorithm == "" {
+		return "", errors.New("nepodržan algoritam SSH host ključa")
+	}
+	blob, err := base64.StdEncoding.DecodeString(fields[2])
+	if err != nil || len(blob) < 4 {
+		return "", errors.New("neispravan SSH host ključ")
+	}
+	algorithmLength := int(binary.BigEndian.Uint32(blob[:4]))
+	if algorithmLength <= 0 || algorithmLength > len(blob)-4 || string(blob[4:4+algorithmLength]) != algorithm {
+		return "", errors.New("SSH host ključ ne odgovara deklariranom algoritmu")
+	}
+	sum := sha256.Sum256(blob)
+	return "SHA256:" + base64.RawStdEncoding.EncodeToString(sum[:]), nil
+}
+
+func ScanFingerprint(ctx context.Context, host string, port int, _ string) (string, string, string, error) {
 	if err := security.ValidateHost(host); err != nil {
 		return "", "", "", err
 	}
@@ -153,14 +177,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if port < 1 || port > 65535 {
 		return "", "", "", errors.New("invalid SFTP port")
 	}
-	if err := os.MkdirAll(tempDir, 0700); err != nil {
-		return "", "", "", err
-	}
 	scan, err := findOpenSSH("ssh-keyscan.exe")
-	if err != nil {
-		return "", "", "", err
-	}
-	keygen, err := findOpenSSH("ssh-keygen.exe")
 	if err != nil {
 		return "", "", "", err
 	}
@@ -223,40 +240,11 @@ func ScanFingerprint(ctx context.Context, host string, port int, tempDir string)
 	if algorithm == "" {
 		return "", "", "", errors.New("poslužitelj je vratio nepodržan SSH host ključ")
 	}
-
-	name, err := writePrivateTempFile(tempDir, "GhostFTP-key-*.known_hosts", []byte(selected+"\n"))
+	fingerprint, err := fingerprintScannedKey(selected)
 	if err != nil {
 		return "", "", "", err
 	}
-	defer os.Remove(name)
-	keygenCtx, keygenCancel := context.WithTimeout(ctx, 8*time.Second)
-	defer keygenCancel()
-	cmd = exec.CommandContext(keygenCtx, keygen, "-lf", name, "-E", "sha256")
-	configureToolCommand(cmd)
-	cmd.WaitDelay = 5 * time.Second
-	cmd.Dir = filepath.Dir(keygen)
-	cmd.Env = sanitizedToolEnv(os.Environ())
-	out.Reset()
-	er.Reset()
-	cmd.Stdout = out
-	cmd.Stderr = er
-	if err := cmd.Run(); err != nil {
-		if ctxErr := keygenCtx.Err(); ctxErr != nil {
-			return "", "", "", ctxErr
-		}
-		if overflowErr := er.Err("odgovor"); overflowErr != nil {
-			return "", "", "", overflowErr
-		}
-		return "", "", "", fmt.Errorf("nije moguće izračunati fingerprint: %s", strings.TrimSpace(er.String()))
-	}
-	if err := out.Err("odgovor"); err != nil {
-		return "", "", "", err
-	}
-	fields := strings.Fields(out.String())
-	if len(fields) < 2 || !strings.HasPrefix(fields[1], "SHA256:") {
-		return "", "", "", errors.New("nepoznat format SHA-256 fingerprinta")
-	}
-	return fields[1], selected + "\n", algorithm, nil
+	return fingerprint, selected + "\n", algorithm, nil
 }
 
 func randomSFTPAlias() (string, error) {
