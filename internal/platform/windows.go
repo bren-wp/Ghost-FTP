@@ -205,8 +205,9 @@ func multiString(s string) []uint16 {
 
 func ChoosePrivateKey() (string, error) {
 	buf := make([]uint16, 32768)
-	filter := multiString("SSH privatni ključevi|id_*;*.pem;*.key|Sve datoteke|*.*")
-	title, _ := syscall.UTF16PtrFromString("Odaberi SSH privatni ključ")
+	privateKeyTitle, privateKeyFilter, allFilesLabel, _ := resolvedPickerLabels()
+	filter := multiString(privateKeyFilter + "|id_*;*.pem;*.key|" + allFilesLabel + "|*.*")
+	title, _ := syscall.UTF16PtrFromString(privateKeyTitle)
 	ofn := openFileName{
 		File:        &buf[0],
 		MaxFile:     uint32(len(buf)),
@@ -225,7 +226,8 @@ func ChoosePrivateKey() (string, error) {
 
 func ChooseDirectory() (string, error) {
 	display := make([]uint16, 260)
-	title, _ := syscall.UTF16PtrFromString("Odaberi lokalnu mapu za GhostFTP")
+	_, _, _, directoryTitle := resolvedPickerLabels()
+	title, _ := syscall.UTF16PtrFromString(directoryTitle)
 	bi := browseInfo{DisplayName: &display[0], Title: title, Flags: bifReturnOnlyFS | bifNewDialogStyle}
 	pidl, _, _ := browseFolder.Call(uintptr(unsafe.Pointer(&bi)))
 	if pidl == 0 {
@@ -238,7 +240,7 @@ func ChooseDirectory() (string, error) {
 		if callErr != nil && callErr != syscall.Errno(0) {
 			return "", callErr
 		}
-		return "", errors.New("odabranu mapu nije moguće pročitati")
+		return "", errors.New("selected folder could not be read")
 	}
 	return syscall.UTF16ToString(path), nil
 }
