@@ -62,7 +62,30 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-Post-1.1.6 source/CI builds also create package-manager-neutral Linux `.tar.gz` archives for amd64, arm64 and i386. Those source outputs are not part of the immutable 1.1.6 asset set unless a future version is published with a separately reviewed release contract.
+Post-1.1.6 source/CI builds also create package-manager-neutral Linux `.tar.gz` archives for amd64, arm64 and i386. Those source outputs are not part of the immutable 1.1.6 asset set.
+
+## Maintained next-release public file contract
+
+The current source release workflow is prepared for a later version with **12 platform artifacts** and **15 public files** total. The additional Linux assets are:
+
+```text
+Ghost-FTP-X.Y.Z-Linux-amd64.tar.gz
+Ghost-FTP-X.Y.Z-Linux-arm64.tar.gz
+Ghost-FTP-X.Y.Z-Linux-i386.tar.gz
+```
+
+The future-version release job must fail closed unless, for every Linux architecture:
+
+- both the `.deb` and `.tar.gz` exist and are non-empty;
+- DEB package/version/architecture metadata is valid;
+- the portable archive contains `ghostftp`, `ghost-ftp.desktop`, `ghost-ftp.png`, `LICENSE` and `README.md`;
+- the DEB-installed `/usr/bin/ghostftp` and portable `ghostftp` are byte-identical;
+- all three tarballs are staged into the final `release/` directory;
+- `BUILD-METADATA.txt` records `LINUX_PORTABLE=amd64,arm64,i386`, `PUBLIC_PLATFORM_ARTIFACTS=12` and `PUBLIC_RELEASE_FILES=15`;
+- `SHA256.txt` covers every public file except itself;
+- the immediate and delayed GitHub Release read-back asset sets exactly match the 15-file allow-list.
+
+These are source workflow requirements for the next release version, not evidence that another version is already published. They do not modify 1.1.6.
 
 ## SHA-256 verification
 
@@ -80,7 +103,7 @@ The production workflow **does not create a self-signed production identity**. S
 
 ## x86/x32 alias verification
 
-`Ghost-FTP-1.1.6-Setup-x86.exe` and `Ghost-FTP-1.1.6-Setup-x32.exe` must be byte-identical. The release workflow compares their SHA-256 values before publication.
+`Ghost-FTP-1.1.6-Setup-x86.exe` and `Ghost-FTP-1.1.6-Setup-x32.exe` must be byte-identical. The release workflow compares their SHA-256 values before publication. Future releases preserve the same alias rule.
 
 ## Linux DEB verification
 
@@ -96,9 +119,11 @@ dpkg-deb -f Ghost-FTP-1.1.6-Linux-amd64.deb Homepage
 dpkg-deb -f Ghost-FTP-1.1.6-Linux-amd64.deb Maintainer
 ```
 
+For a future release that includes `.tar.gz`, also extract both formats and compare their `ghostftp` executables byte-for-byte. The portable archive is not a substitute for DEB metadata verification; both production formats have separate structural checks and a shared-binary parity check.
+
 ## GitHub Release verification
 
-Confirm that:
+For published 1.1.6 confirm that:
 
 - tag is `ghostftp-v1.1.6`;
 - title is `Ghost FTP 1.1.6`;
@@ -109,7 +134,9 @@ Confirm that:
 - `BUILD-METADATA.txt` truthfully reports `WINDOWS_AUTHENTICODE=signed` or `unsigned`;
 - release notes correspond to the `CHANGELOG.md` 1.1.6 section.
 
-The production workflow performed immediate and delayed Release read-back. Manual verification remains useful before broad deployment.
+For a later version using the maintained source contract, remote assets must instead exactly match that version's 15-file allow-list, including all three Linux `.tar.gz` files. Do not infer a future release's existence from source code alone.
+
+The production workflow performs immediate and delayed Release read-back. Manual verification remains useful before broad deployment.
 
 ## GitHub Packages verification
 
@@ -120,6 +147,8 @@ ghcr.io/bren-wp/ghost-ftp:1.1.6
 ```
 
 The package is a verified distribution bundle, not a runtime container. OCI metadata must identify the Ghost FTP source repository, stable version and release source revision. Stable aliases `1.1`, `1` and `latest` were updated after publication and registry read-back succeeded.
+
+For a future release, GHCR mirrors the exact verified release assembly. Therefore Linux tarballs become part of that future bundle only if they passed the same release allow-list, SHA-256 generation and GitHub Release read-back gates.
 
 ## 1.1.6 runtime and security verification
 
@@ -138,7 +167,7 @@ The published release preserves the maintained runtime contract while applying t
 - cancellation/retry/connection-generation safeguards remain enabled;
 - no telemetry, analytics, advertising/tracking SDK, hidden product network service or new external Go module dependency is introduced.
 
-Post-1.1.6 `main` contains additional hardening such as rooted tree-download directory preparation and additional Linux source/CI packaging. Those later changes are verified separately and are not retroactively attributed to 1.1.6.
+Post-1.1.6 `main` contains additional hardening such as rooted tree-download directory preparation and additional Linux packaging/release-contract work. Those later changes are verified separately and are not retroactively attributed to 1.1.6.
 
 ## Authentic Windows UI evidence
 
@@ -150,6 +179,8 @@ The 1.1.6 release-prep changed the public version presentation. The exact final 
 - About.
 
 The images were visually reviewed for clipping, overlap, stale branding and correct 1.1.6 version presentation. Mockups or generated approximations were not accepted as release evidence.
+
+A later release that changes public Windows UI or version presentation must independently produce authentic exact-head Windows x64 Portable evidence when required by the maintained release policy.
 
 ## CI/release gate verification
 
@@ -173,6 +204,8 @@ The published 1.1.6 revision passed:
 - canonical release branch equality/version checks before publication dispatch;
 - GitHub Package push/read-back;
 - GitHub Release asset/tag/prerelease read-back verification.
+
+The maintained next-release contract additionally requires production Linux `.tar.gz` construction, structure verification and executable parity against each matching DEB before publication.
 
 ## Privacy verification
 
