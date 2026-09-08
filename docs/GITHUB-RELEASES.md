@@ -1,57 +1,58 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.1.6 Stable** is the current published stable release. Ghost FTP **1.1.5 Stable** is the previous maintenance release; all published Stable tags/releases through 1.1.6 remain immutable historical identities. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
+Ghost FTP **1.1.7 Stable** is the current published stable release. Ghost FTP **1.1.6 Stable** is the previous maintenance release; all published Stable tags/releases remain immutable historical identities. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
-The published 1.1.6 identity is:
+The 1.1.7 stable identity is:
 
 ```text
-Tag: ghostftp-v1.1.6
-Title: Ghost FTP 1.1.6
+Tag: ghostftp-v1.1.7
+Title: Ghost FTP 1.1.7
 Prerelease: false
 ```
 
-The release workflow reads `VERSION` directly and rejects a manual workflow version that differs from the source version.
+The release workflow reads `VERSION` directly and rejects a manually supplied expected version that differs from source.
 
 ## Stable publication rule
 
-A version with major number `1` or greater is treated as Stable. The release workflow does not pass GitHub's prerelease flag for stable versions.
-
-Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing published Stable tags through `ghostftp-v1.1.6` remain bound to their original release commits.
+A version with major number 1 or greater is Stable. Stable GitHub Releases use `prerelease=false`. Historical Beta/prerelease identities and prior Stable tags are not moved, reused or rewritten.
 
 ## Canonical release trigger
 
-`release.yml` is intentionally `workflow_dispatch`-only. A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.
+`release.yml` is intentionally `workflow_dispatch`-only. **A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.**
 
-The generic canonical release-branch namespace is `release/ghostftp-vX.Y.Z`. For 1.1.6, the release-prep PR passed exact-head CI and authentic Windows UI evidence. After merge, the exact `main` SHA passed post-merge Core, Windows and Linux CI. Only then was `release/ghostftp-v1.1.6` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verified both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
+The canonical release-branch namespace is `release/ghostftp-vX.Y.Z`. For 1.1.7, release preparation must first pass exact-head Core, Windows, Linux, distro and authentic Windows UI evidence. After merge, the exact resulting `main` SHA must pass the post-merge gates. Only then may `release/ghostftp-v1.1.7` be created at that same SHA.
 
-Future releases must follow the same canonical branch-dispatch model. This keeps publication behind one controlled trigger and prevents duplicate or premature releases caused by a `VERSION` push.
+`.github/workflows/release-branch-trigger.yml` validates both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `.github/workflows/release.yml` with the expected version guard. This prevents duplicate or premature publication from an ordinary version bump.
 
-## Published 1.1.6 public files
+## Published 1.1.7 public files
 
-The immutable 1.1.6 Release exposes **9 platform artifacts**.
+Ghost FTP 1.1.7 exposes **12 platform artifacts**.
 
 Windows:
 
 ```text
-Ghost-FTP-1.1.6-Setup-x64.exe
-Ghost-FTP-1.1.6-Setup-x86.exe
-Ghost-FTP-1.1.6-Setup-x32.exe
-Ghost-FTP-1.1.6-Portable-x64.exe
-Ghost-FTP-1.1.6-Portable-x86.exe
+Ghost-FTP-1.1.7-Setup-x64.exe
+Ghost-FTP-1.1.7-Setup-x86.exe
+Ghost-FTP-1.1.7-Setup-x32.exe
+Ghost-FTP-1.1.7-Portable-x64.exe
+Ghost-FTP-1.1.7-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.6-Linux-amd64.deb
-Ghost-FTP-1.1.6-Linux-arm64.deb
-Ghost-FTP-1.1.6-Linux-i386.deb
-Ghost-FTP-1.1.6-Linux-multiarch.zip
+Ghost-FTP-1.1.7-Linux-amd64.deb
+Ghost-FTP-1.1.7-Linux-arm64.deb
+Ghost-FTP-1.1.7-Linux-i386.deb
+Ghost-FTP-1.1.7-Linux-multiarch.zip
+Ghost-FTP-1.1.7-Linux-amd64.tar.gz
+Ghost-FTP-1.1.7-Linux-arm64.tar.gz
+Ghost-FTP-1.1.7-Linux-i386.tar.gz
 ```
 
-and three verification/metadata files:
+Verification/metadata:
 
 ```text
 BUILD-METADATA.txt
@@ -59,37 +60,25 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-That is **12 public files** in total. Post-1.1.6 source/CI builds also create verified Linux `.tar.gz` portable archives, but those are not retroactive 1.1.6 assets.
+That is **15 public files** total. The three generic tar.gz archives are new canonical 1.1.7 public artifacts; the immutable 1.1.6 release remains at its historical 9-platform-artifact/12-public-file shape.
 
-## Maintained next-release allow-list
+## Linux portable parity gate
 
-The current source release workflow is prepared for a later version with **12 platform artifacts** and **15 public files** total. It retains the five Windows artifacts, three Linux DEBs and Linux multiarch DEB bundle, and adds three separately downloadable portable archives:
+For every Linux architecture the production job requires both a `.deb` and `.tar.gz`, validates DEB metadata, validates portable archive structure and compares the DEB-installed `ghostftp` executable with the portable archive executable byte-for-byte. The publish job stages the exact 15-file allow-list, hashes it and requires both immediate and delayed remote asset read-back to match exactly.
 
-```text
-Ghost-FTP-X.Y.Z-Linux-amd64.tar.gz
-Ghost-FTP-X.Y.Z-Linux-arm64.tar.gz
-Ghost-FTP-X.Y.Z-Linux-i386.tar.gz
-```
-
-Before those archives can be published for a future version, the production Linux job requires `GHOSTFTP_REQUIRE_DEB=1`, builds both formats, extracts them and compares the DEB-installed `ghostftp` executable with the portable archive executable byte-for-byte. The publish job then stages the exact 15-file set, includes every file in `SHA256.txt`, and requires both immediate and delayed remote asset read-back to match the allow-list exactly.
-
-This source contract is not publication evidence for any unreleased version and does not alter the 1.1.6 tag, release assets, notes, checksums or GHCR bundle.
+Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages built by `linux/BUILD-DISTROS.sh` remain **not yet part of the canonical release allow-list**. Their build/parity and native install evidence does not change the public 1.1.7 file count.
 
 ## Exact-head rule
 
-Before publication, the workflow queries current `main` and requires it to equal the release source SHA. It verifies the condition again after release publication. If `main` moves during the transaction, publication fails instead of silently attaching files to stale source.
-
-For 1.1.6, the canonical `release/ghostftp-v1.1.6` trigger branch was created from the exact `main` commit that passed the complete post-merge quality gate. Future release branches must satisfy the same equality check before publication dispatch.
+Before publication, the workflow queries current `main` and requires it to equal the release source SHA. It verifies the condition again after publication. If `main` moves during the transaction, publication fails instead of attaching files to stale source.
 
 ## Immutable tag rule
 
-A release workflow must fail if the requested release tag or GitHub Release already exists. Existing tags are not moved, deleted, reused or force-pushed, and published assets are not overwritten or clobbered.
-
-The already-published Stable tags/releases through `ghostftp-v1.1.6` are immutable release history. Later source hardening, packaging improvements or documentation corrections do not rewrite their tag targets, assets, notes or checksums.
+The release workflow fails if the requested tag or GitHub Release already exists. Existing tags are not moved, deleted, reused or force-pushed, and published assets are not overwritten or clobbered.
 
 ## Product and publisher identity
 
-The public application identity for 1.1.6 is:
+The public application identity is:
 
 - product: **Ghost FTP**;
 - official product website: **https://ghostftp.com**;
@@ -97,39 +86,41 @@ The public application identity for 1.1.6 is:
 - author website: **https://brendigo.com**;
 - publisher support destination: **https://brendigo.com/kontakt**.
 
-GitHub remains the source/release infrastructure and issue-tracker location. It is not substituted for the product homepage in runtime or Linux package metadata.
+GitHub is release/source infrastructure, not the product homepage shown in runtime/package metadata.
 
 ## Windows signing state
 
-Authenticode signing is optional for stable publication. If protected production signing secrets are configured, the Windows Setup/Portable artifacts are signed and each produced signature must verify successfully. If no production certificate is configured, Windows artifacts are published unsigned and `BUILD-METADATA.txt` explicitly records `WINDOWS_AUTHENTICODE=unsigned`.
+Authenticode signing is optional for stable publication. If protected production signing secrets are configured, Windows Setup/Portable artifacts are signed and every signature must verify. If no production certificate is configured, Windows artifacts are published unsigned and `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
 
-The workflow never generates a self-signed production publisher identity and never labels an unsigned artifact as signed. Private signing material, when used, is supplied only through protected Actions secrets, written temporarily on the runner and removed after use.
+The workflow never generates a self-signed production publisher identity and never labels an unsigned artifact as signed.
 
 ## Artifact allow-list
 
-The publish job assembles a fresh `release/` directory from only the verified Windows and Linux staging artifacts plus generated notes/metadata/checksums. The final file count and expected filenames are checked before upload.
+The publish job assembles a fresh `release/` directory from only verified Windows and Linux staging artifacts plus generated notes/metadata/checksums. Metadata records:
 
-For the maintained next-release source contract, metadata records `LINUX_PORTABLE=amd64,arm64,i386`, `PUBLIC_PLATFORM_ARTIFACTS=12` and `PUBLIC_RELEASE_FILES=15`. The historical 1.1.6 metadata remains unchanged at its originally published values.
+```text
+LINUX_PORTABLE=amd64,arm64,i386
+PUBLIC_PLATFORM_ARTIFACTS=12
+PUBLIC_RELEASE_FILES=15
+```
 
-`Setup-x32.exe` is intentionally a byte-identical compatibility alias of `Setup-x86.exe`; the workflow verifies their SHA-256 values match. It is not a separate architecture build.
-
-Published release immutability is fail-closed: the workflow rejects an existing tag or release rather than using `gh release upload` or `--clobber` to replace historical assets.
+`Ghost-FTP-1.1.7-Setup-x32.exe` is intentionally a byte-identical compatibility alias of the verified x86 Setup artifact and is not a separate architecture build.
 
 ## Read-back verification
 
-After creating a new Release, the workflow reads the remote asset set from GitHub and compares it with the expected sorted list. It also reads `prerelease` and requires it to be `false` for the stable channel. A delayed second read-back catches asynchronous publication issues.
+After creating the Release, the workflow reads the remote asset set and compares it with the expected sorted allow-list. It requires `prerelease=false` and repeats a delayed read-back to catch asynchronous publication issues.
 
-A release is not considered published merely because a local build succeeded; remote Release/tag state must agree with the verified source revision and file contract. Ghost FTP 1.1.6 completed those remote read-back gates.
+A local build is not release evidence. Remote tag, Release assets and package registry state must agree with the verified source revision.
 
 ## GitHub Packages
 
-Stable 1.1.6 is published at:
+Stable 1.1.7 is published at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.6
+ghcr.io/bren-wp/ghost-ftp:1.1.7
 ```
 
-Compatible stable aliases were published after successful registry publication/read-back:
+Compatible stable aliases are updated only after semantic-version package publication and registry read-back:
 
 ```text
 1.1
@@ -137,17 +128,15 @@ Compatible stable aliases were published after successful registry publication/r
 latest
 ```
 
-The registry package is an OCI distribution bundle, not a runtime container. The package build copies only the verified `release/` assembly, disables build networking, adds source/version/revision labels and verifies registry read-back. For a future release, the verified Linux portable archives will be mirrored only if that version's 15-file release assembly passes publication and read-back.
+The registry object is an OCI distribution bundle, not a runtime container. It copies only the verified `release/` assembly with build networking disabled and carries source/version/revision labels.
 
 See [Packages](PACKAGES.md).
 
-## 1.1.6 security evidence
+## 1.1.7 release evidence
 
-The 1.1.6 release contains four verified hardening changes since 1.1.5: root-handle recursive local delete, root-handle local `Mkdir`, in-memory SFTP fingerprint derivation bound to the exact scanned key, and fail-closed remote cleanup proof that rejects spoofable diagnostic text.
+The 1.1.7 line includes application-owned Windows decision dialogs, shared native modal theme/keyboard behavior, runtime 24-language action/profile/privacy/picker localization, adaptive DecisionCard geometry for longer translations, canonical Linux tar.gz publication with DEB parity verification and continued rooted transfer/filesystem regression hardening.
 
-The release-prep version change altered public version presentation. Authentic Main Workspace, Site Manager, Settings and About screenshots were generated from the real production Windows x64 Portable executable on the exact final release-prep head and visually reviewed before merge. Mockups or generated approximations were not accepted as release evidence.
-
-Post-1.1.6 `main` additionally includes further hardening and Linux packaging work. Those source changes are not retroactively described as contents of the immutable 1.1.6 release.
+Authentic Main Workspace, Site Manager, Settings and About screenshots must be generated from the real production Windows x64 Portable executable on the exact final release-prep revision and visually reviewed. Mockups or generated approximations are not accepted.
 
 ## Failure behavior
 

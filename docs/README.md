@@ -1,6 +1,6 @@
 # Ghost FTP documentation
 
-- **Current Ghost FTP release: 1.1.6**
+- **Current Ghost FTP release: 1.1.7**
 - Development status: **Stable**
 - GitHub Release policy: **prerelease=false**
 - Platforms: **Windows and Linux**
@@ -14,7 +14,7 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 ## Product and architecture
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — component, protocol, persistence, transfer and release boundaries.
-- [`REFERENCE-UI.md`](REFERENCE-UI.md) — maintained native workstation interaction and screenshot reference.
+- [`REFERENCE-UI.md`](REFERENCE-UI.md) — maintained native workstation interaction and authentic screenshot reference.
 - [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux behavior-parity contract.
 - [`SETTINGS.md`](SETTINGS.md) — persisted settings, validation, normalization and recovery.
 - [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language local localization model.
@@ -28,7 +28,9 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 - [`SIGNING.md`](SIGNING.md) — optional protected Authenticode signing and truthful unsigned-release policy.
 - [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable/prerelease rules.
 
-The **published 1.1.6** release contains **9 platform artifacts** and **12 public files**. The maintained source release workflow for the next version expects **12 platform artifacts / 15 public files**, adding verified Linux `.tar.gz` archives for amd64, arm64 and i386 while preserving the historical 1.1.6 asset set. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
+Ghost FTP 1.1.7 uses the maintained canonical **12 platform artifacts / 15 public files** release shape: five Windows Setup/Portable files, three Linux DEBs, a Linux multiarch ZIP, three package-manager-neutral Linux tar.gz archives, release metadata, notes and `SHA256.txt`. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
+
+Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. These supplemental packages are **not yet part of the canonical release allow-list** and therefore do not change the 1.1.7 public file count.
 
 ## Security and privacy
 
@@ -39,69 +41,69 @@ The **published 1.1.6** release contains **9 platform artifacts** and **12 publi
 
 ## Quality and engineering
 
-- [`TESTING.md`](TESTING.md) — Go race tests, loopback FTP regressions, native UI/runtime checks and repository audits.
+- [`TESTING.md`](TESTING.md) — Go race tests, loopback FTP regressions, native UI/runtime checks, distro lifecycle tests and repository audits.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution and release-quality expectations.
 - [`ROADMAP.md`](ROADMAP.md) — maintenance priorities and product constraints.
 - [`SUPPORT.md`](SUPPORT.md) — support and privacy-safe issue reporting.
 
-## Ghost FTP 1.1.6 contract
+## Ghost FTP 1.1.7 contract
 
-Ghost FTP 1.1.6 is a backward-compatible Windows/Linux maintenance release focused on filesystem race hardening and stronger SFTP/remote-cleanup trust guarantees.
+Ghost FTP 1.1.7 is a backward-compatible Windows/Linux Stable maintenance release. The release consolidates the post-1.1.6 UI, localization, distribution and transfer-hardening work while preserving the established protocol and credential-security boundaries.
 
-Key 1.1.6 changes:
+Key 1.1.7 changes:
 
-- recursive local deletion traverses verified child directories through opened root handles rather than mutable pathnames;
-- local `Mkdir` is anchored to an opened `os.Root`, preventing a late base-directory pathname swap from redirecting creation;
-- SFTP SHA-256 host-key fingerprints are computed directly from the selected scanned key blob in memory;
-- the key blob's embedded algorithm must match the algorithm declared by `ssh-keyscan`;
-- fingerprint calculation no longer relies on a temporary key pathname reopened by `ssh-keygen`;
-- remote cleanup treats text diagnostics as untrusted and does not accept `No such file`/`not found` text alone as proof that staging state is absent;
-- successful delete or curl's structured `REMOTE_FILE_NOT_FOUND` result can confirm absence, while non-zero SFTP cleanup remains fail-closed;
-- deterministic regression coverage proves the confirmed path-swap, fingerprint-binding and spoofed-cleanup cases;
+- application-owned Windows Confirm/Info/Error DecisionCard surfaces share the Ghost FTP Light/Dark palette, DPI, modal-owner and keyboard contracts;
+- DecisionCard geometry expands for long localized/security text instead of forcing every body into the former fixed 126-pixel area;
+- OK/Cancel/Yes/No, Save Profile privacy/security decisions and native SSH-key/folder pickers resolve from the active runtime locale across all 24 canonical languages;
+- credential retain/remove/automatic-clear semantics remain unchanged while their UI copy is localized;
+- canonical Linux release output now includes generic `.tar.gz` archives for amd64, arm64 and i386 with byte-parity verification against matching DEB executables;
+- supplemental Debian/Ubuntu/Fedora/Portable package construction and x86-64 install/remove/GUI-smoke gates remain part of CI evidence;
+- rooted transfer/filesystem safeguards and deterministic regression coverage are strengthened without weakening FTPS/SFTP trust or rollback behavior;
 - no telemetry, analytics, advertising, tracking, hidden product service or new external Go module dependency is introduced.
-
-The release preserves existing FTPS certificate/hostname validation, SFTP host-key pinning, protected-secret lifetime rules, transfer generation/cancel/retry safeguards, root-bound local download activation, Site Manager secret/trust isolation and the Windows/Linux native desktop boundary.
 
 ## Stable publication
 
-The published 1.1.6 release is a normal GitHub Release with `prerelease=false` and immutable tag:
+The 1.1.7 stable identity is:
 
 ```text
-ghostftp-v1.1.6
+ghostftp-v1.1.7
 ```
 
 Windows artifacts:
 
 ```text
-Ghost-FTP-1.1.6-Setup-x64.exe
-Ghost-FTP-1.1.6-Setup-x86.exe
-Ghost-FTP-1.1.6-Setup-x32.exe
-Ghost-FTP-1.1.6-Portable-x64.exe
-Ghost-FTP-1.1.6-Portable-x86.exe
+Ghost-FTP-1.1.7-Setup-x64.exe
+Ghost-FTP-1.1.7-Setup-x86.exe
+Ghost-FTP-1.1.7-Setup-x32.exe
+Ghost-FTP-1.1.7-Portable-x64.exe
+Ghost-FTP-1.1.7-Portable-x86.exe
 ```
 
 Linux artifacts:
 
 ```text
-Ghost-FTP-1.1.6-Linux-amd64.deb
-Ghost-FTP-1.1.6-Linux-arm64.deb
-Ghost-FTP-1.1.6-Linux-i386.deb
-Ghost-FTP-1.1.6-Linux-multiarch.zip
+Ghost-FTP-1.1.7-Linux-amd64.deb
+Ghost-FTP-1.1.7-Linux-arm64.deb
+Ghost-FTP-1.1.7-Linux-i386.deb
+Ghost-FTP-1.1.7-Linux-multiarch.zip
+Ghost-FTP-1.1.7-Linux-amd64.tar.gz
+Ghost-FTP-1.1.7-Linux-arm64.tar.gz
+Ghost-FTP-1.1.7-Linux-i386.tar.gz
 ```
 
 GitHub Package:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.6
+ghcr.io/bren-wp/ghost-ftp:1.1.7
 ```
 
-Stable aliases `1.1`, `1` and `latest` were updated only after successful publication and registry read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not a runtime container.
+Stable aliases are updated only after successful package publication and read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not a runtime container.
 
 Production Authenticode remains optional. If a trusted certificate is configured, Windows signatures are verified fail-closed. Otherwise the release is explicitly unsigned and `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`; a generated/self-signed identity is never represented as a trusted production publisher.
 
-## Next-release Linux portable contract
+## Historical 1.1.6 contract
 
-The maintained release workflow now stages package-manager-neutral Linux tarballs for `amd64`, `arm64` and `i386` alongside the matching DEBs. Before a future version can publish, production release CI verifies archive structure and byte-for-byte parity between each portable `ghostftp` executable and `/usr/bin/ghostftp` from its DEB. The final future-version contract is 12 platform artifacts / 15 public files with exact remote asset read-back. These files are not retroactively added to 1.1.6.
+The immutable 1.1.6 release remains historical at `ghostftp-v1.1.6`. It used **9 platform artifacts / 12 public files** and did not include the three generic Linux tar.gz archives. 1.1.7 does not rewrite that tag, its assets, checksums, release notes or GHCR digest history.
 
 ## Release history
 
@@ -114,13 +116,11 @@ Historical version references describe their original release state and are not 
 
 A release is complete only after the exact source revision passes Core, Windows and Linux gates and the immutable tag, GitHub Release asset set, `SHA256.txt`, metadata and stable GitHub Package have all been read back successfully.
 
-For 1.1.6 the canonical publication branch was `release/ghostftp-v1.1.6`, created only from the exact post-merge `main` SHA that passed the complete quality gate. A later release must repeat this process independently; current source workflow readiness is not publication evidence.
+Canonical publication uses `release/ghostftp-vX.Y.Z` created only from the exact post-merge `main` SHA that passed the complete quality gate. A push to `main` does not itself publish a release.
 
 ## UI evidence rule
 
-The 1.1.6 release-prep changed the public version displayed by the built application. Authentic screenshots therefore came from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About and were visually reviewed on the exact final release-prep source revision.
-
-Future public Windows UI/version changes remain subject to the maintained authentic exact-head evidence rule.
+A public Windows UI/version change requires authentic screenshots from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About. Mockups or generated approximations are not accepted as release evidence.
 
 ## Privacy-safe documentation rule
 
