@@ -13,6 +13,37 @@ func TestDeleteMissingItemReturnsError(t *testing.T) {
 	}
 }
 
+func TestMkdirAnchorsOpenedBaseAcrossPathSwap(t *testing.T) {
+	parent := t.TempDir()
+	base := filepath.Join(parent, "base")
+	moved := filepath.Join(parent, "moved")
+	replacement := filepath.Join(parent, "replacement")
+	if err := os.Mkdir(base, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(replacement, 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	err := mkdirRelativeToOpenedRoot(base, "child", func() {
+		if err := os.Rename(base, moved); err != nil {
+			t.Skipf("platform does not allow swapping an opened directory: %v", err)
+		}
+		if err := os.Rename(replacement, base); err != nil {
+			t.Fatalf("install replacement base: %v", err)
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, err := os.Stat(filepath.Join(moved, "child")); err != nil || !st.IsDir() {
+		t.Fatalf("child was not created under the opened directory: stat=%v err=%v", st, err)
+	}
+	if _, err := os.Stat(filepath.Join(base, "child")); !os.IsNotExist(err) {
+		t.Fatalf("child followed the swapped base pathname: %v", err)
+	}
+}
+
 func TestRenameDoesNotOverwriteExistingItem(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0600); err != nil {

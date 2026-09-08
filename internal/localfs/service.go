@@ -79,16 +79,28 @@ func (s *Service) ListContext(ctx context.Context, p string) (string, []model.It
 	itemlist.Sort(items)
 	return p, items, nil
 }
+
+func mkdirRelativeToOpenedRoot(base, name string, beforeMkdir func()) error {
+	root, err := os.OpenRoot(base)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if beforeMkdir != nil {
+		beforeMkdir()
+	}
+	return root.Mkdir(name, 0755)
+}
+
 func (s *Service) Mkdir(base, name string) error {
 	base, err := cleanPath(base)
 	if err != nil {
 		return err
 	}
-	p, err := security.SafeLocalChild(base, name)
-	if err != nil {
+	if _, err := security.SafeLocalChild(base, name); err != nil {
 		return err
 	}
-	return os.Mkdir(p, 0755)
+	return mkdirRelativeToOpenedRoot(base, name, nil)
 }
 func (s *Service) Rename(base, oldName, newName string) error {
 	base, err := cleanPath(base)
