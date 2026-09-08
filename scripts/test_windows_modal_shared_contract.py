@@ -40,12 +40,20 @@ class WindowsModalSharedContractTests(unittest.TestCase):
 
         for relative in (
             "internal/platform/prompt_windows.go",
+            "internal/platform/language_windows.go",
             "internal/platform/settings_dialog_windows.go",
             "internal/platform/info_card_windows.go",
         ):
             source = read(relative)
             self.assertIn("premiumRunDialogLoop(hwnd", source, relative)
             self.assertNotIn('NewProc("IsDialogMessageW")', source, relative)
+
+    def test_option_selector_uses_native_enter_and_escape_commands(self) -> None:
+        source = read("internal/platform/language_windows.go")
+        self.assertIn("languageIDInstall = 1 // IDOK", source)
+        self.assertIn("languageIDCancel  = 2 // IDCANCEL", source)
+        self.assertIn("wsTabStop|bsDefPushButton", source)
+        self.assertNotIn("PostQuitMessage", source)
 
     def test_info_cards_use_native_enter_and_escape_commands(self) -> None:
         source = read("internal/platform/info_card_windows.go")
