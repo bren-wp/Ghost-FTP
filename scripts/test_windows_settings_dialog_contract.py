@@ -59,6 +59,23 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         self.assertIn("promptSetFocus.Call(edit)", source)
         self.assertIn("return 0", source)
 
+    def test_keyboard_navigation_uses_win32_dialog_manager_and_standard_commands(self) -> None:
+        source = read("internal/platform/settings_dialog_windows.go")
+        self.assertIn('settingsIsDialogMessageW = user32.NewProc("IsDialogMessageW")', source)
+        self.assertIn("settingsIDApply      = 1 // IDOK", source)
+        self.assertIn("settingsIDCancel     = 2 // IDCANCEL", source)
+        self.assertIn("settingsIsDialogMessageW.Call(hwnd", source)
+        self.assertIn("if handled", source)
+        self.assertIn("continue", source)
+
+    def test_numeric_labels_reserve_two_lines_for_long_locales(self) -> None:
+        source = read("internal/platform/settings_dialog_windows.go")
+        self.assertIn("numberLabelH    = 42", source)
+        self.assertIn("numberRowHeight = 82", source)
+        self.assertIn("fieldWidth, numberLabelH", source)
+        self.assertIn("row*numberRowHeight", source)
+        self.assertNotIn("fieldWidth, 24, 0, captionFont", source)
+
     def test_platform_settings_dialog_does_not_import_application_model_or_config(self) -> None:
         source = read("internal/platform/settings_dialog_windows.go")
         self.assertNotIn("internal/model", source)
