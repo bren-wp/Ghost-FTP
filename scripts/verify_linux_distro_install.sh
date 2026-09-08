@@ -106,16 +106,33 @@ verify_common_runtime_tools() {
   command -v curl >/dev/null
   command -v ssh >/dev/null
   command -v sftp >/dev/null
-  if [[ "$target" == "fedora" ]]; then
-    test -s /etc/pki/tls/certs/ca-bundle.crt
-  else
-    test -s /etc/ssl/certs/ca-certificates.crt
-  fi
+  test -s /etc/ssl/certs/ca-certificates.crt
 }
 
 fedora_fail() {
   echo "GHOSTFTP_FEDORA_VERIFY_FAIL=$1" >&2
   exit 1
+}
+
+verify_fedora_ca_bundle() {
+  local candidate ca_bundle=""
+  # Fedora's ca-certificates layout is an implementation detail that may move
+  # between releases. Derive the runtime trust bundle from the installed RPM
+  # instead of hardcoding one historical /etc/pki path.
+  while IFS= read -r candidate; do
+    case "$candidate" in
+      */tls-ca-bundle.pem|*/ca-bundle.crt|*/ca-certificates.crt)
+        if [[ -s "$candidate" ]]; then
+          ca_bundle="$candidate"
+          break
+        fi
+        ;;
+    esac
+  done < <(rpm -ql ca-certificates)
+
+  [[ -n "$ca_bundle" ]] || fedora_fail ca-bundle
+  rpm -qf "$ca_bundle" >/dev/null || fedora_fail ca-bundle-rpm-owner
+  echo "GHOSTFTP_FEDORA_CA_BUNDLE=$ca_bundle"
 }
 
 if [[ "$target" == "debian" || "$target" == "ubuntu" ]]; then
@@ -177,7 +194,7 @@ else
   rpm -qf "$curl_path" >/dev/null || fedora_fail curl-rpm-owner
   command -v ssh >/dev/null || fedora_fail ssh-command
   command -v sftp >/dev/null || fedora_fail sftp-command
-  test -s /etc/pki/tls/certs/ca-bundle.crt || fedora_fail ca-bundle
+  verify_fedora_ca_bundle
 
   test -x /usr/bin/ghostftp || fedora_fail ghostftp-executable
   test -f /usr/share/applications/ghost-ftp.desktop || fedora_fail desktop-file
