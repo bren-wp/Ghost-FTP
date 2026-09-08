@@ -21,6 +21,7 @@ type languageDialogState struct {
 	combo    uintptr
 	selected int
 	accepted bool
+	closed   bool
 }
 
 var (
@@ -55,7 +56,7 @@ func languageWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 			promptDestroyWindow.Call(hwnd)
 			return 0
 		case promptWMDestroy:
-			promptPostQuitMessage.Call(0)
+			state.closed = true
 			return 0
 		}
 	}
@@ -103,19 +104,20 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 		cbsDropdown     = 0x0003
 		bsDefPushButton = 0x00000001
 		ssEtchedHorz    = 0x00000010
+		clientWidth     = 680
+		clientHeight    = 316
 	)
-	const (
-		windowWidth  = 680
-		windowHeight = 316
-	)
-	x, y := premiumDialogPosition(windowWidth, windowHeight)
+	owner := premiumDialogOwner()
+	dpi := premiumDialogDPI(owner)
+	windowWidth, windowHeight := premiumDialogOuterSize(clientWidth, clientHeight, wsOverlapped, 0, dpi)
+	x, y := premiumDialogPosition(owner, windowWidth, windowHeight)
 	hwnd, _, _ := promptCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(promptWstr(languageClass))),
 		uintptr(unsafe.Pointer(promptWstr(title))),
 		wsOverlapped,
-		uintptr(x), uintptr(y), windowWidth, windowHeight,
-		0, 0, hinst, 0,
+		uintptr(x), uintptr(y), uintptr(windowWidth), uintptr(windowHeight),
+		owner, 0, hinst, 0,
 	)
 	if hwnd == 0 {
 		return defaultIndex, false
@@ -125,27 +127,30 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	state := &languageDialogState{selected: defaultIndex}
 	languageStates.Store(hwnd, state)
 	defer languageStates.Delete(hwnd)
+	restoreOwner := premiumModalOwner(owner)
+	defer restoreOwner()
 
-	font := premiumDialogFont(-16, 400)
+	font := premiumDialogFontForDPI(-16, dpi, 400)
 	if font != 0 {
 		defer promptDeleteObject.Call(font)
 	}
-	headerFont := premiumDialogFont(-26, 600)
+	headerFont := premiumDialogFontForDPI(-26, dpi, 600)
 	if headerFont != 0 {
 		defer promptDeleteObject.Call(headerFont)
 	}
-	captionFont := premiumDialogFont(-14, 400)
+	captionFont := premiumDialogFontForDPI(-14, dpi, 400)
 	if captionFont != 0 {
 		defer promptDeleteObject.Call(captionFont)
 	}
 
+	scale := func(value int) uintptr { return uintptr(premiumScale(value, dpi)) }
 	makeControl := func(class, text string, style uint32, x, y, w, h, id int, controlFont uintptr) uintptr {
 		child, _, _ := promptCreateWindowExW.Call(
 			0,
 			uintptr(unsafe.Pointer(promptWstr(class))),
 			uintptr(unsafe.Pointer(promptWstr(text))),
 			uintptr(wsChild|wsVisible|style),
-			uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+			scale(x), scale(y), scale(w), scale(h),
 			hwnd, uintptr(id), hinst, 0,
 		)
 		if child != 0 && controlFont != 0 {
@@ -180,7 +185,7 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	promptUpdateWindow.Call(hwnd)
 
 	var msg promptMsg
-	for {
+	for !state.closed {
 		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
 		if int32(r) <= 0 {
 			break
