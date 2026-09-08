@@ -14,6 +14,12 @@ class ReleaseTriggerContractTests(unittest.TestCase):
         self.assertNotIn("\n  create:\n", header)
         self.assertNotIn("\n  pull_request:\n", header)
 
+    def test_existing_release_is_never_clobbered(self):
+        release = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        self.assertNotIn("gh release upload", release)
+        self.assertNotIn("--clobber", release)
+        self.assertIn("release already exists; refusing to rewrite published assets", release)
+
     def test_release_branch_trigger_verifies_exact_main_before_dispatch(self):
         trigger = (ROOT / ".github/workflows/release-branch-trigger.yml").read_text(encoding="utf-8")
         required = [
