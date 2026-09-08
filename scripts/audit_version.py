@@ -130,8 +130,9 @@ def main() -> int:
         "state=unsigned",
         "state=signed",
         "Publishing Stable with explicitly unsigned Windows artifacts",
-        "PUBLIC_PLATFORM_ARTIFACTS=9",
-        "PUBLIC_RELEASE_FILES=12",
+        "LINUX_PORTABLE=amd64,arm64,i386",
+        "PUBLIC_PLATFORM_ARTIFACTS=12",
+        "PUBLIC_RELEASE_FILES=15",
     ), ".github/workflows/release.yml")
     if "Stable Windows releases require a configured trusted Authenticode identity." in release_workflow:
         fail("release workflow contradicts the supported explicit-unsigned stable state")
@@ -140,8 +141,9 @@ def main() -> int:
 
     require(read("scripts/audit_platform_contract.py"), ("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", "RETIRED_APPLICATION_SURFACES=WEB,PWA"), "scripts/audit_platform_contract.py")
     require(read("scripts/audit_release.py"), (
-        "PUBLIC_PLATFORM_ARTIFACTS=9",
-        "PUBLIC_RELEASE_FILES=12",
+        "PUBLIC_PLATFORM_ARTIFACTS=12",
+        "PUBLIC_RELEASE_FILES=15",
+        "LINUX_PORTABLE=amd64,arm64,i386",
         "STABLE_GHCR_BUNDLE=REQUIRED",
         "STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
         "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
