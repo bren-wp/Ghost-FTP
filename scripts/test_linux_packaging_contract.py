@@ -12,7 +12,8 @@ def read(relative: str) -> str:
 class LinuxPackagingContractTests(unittest.TestCase):
     def test_build_emits_portable_archives_without_forcing_deb_tooling(self) -> None:
         build = read("linux/BUILD.sh")
-        self.assertIn("Ghost-FTP-${VERSION}-Linux-${debarch}.tar.gz", build)
+        self.assertIn('portable_name="Ghost-FTP-${VERSION}-Linux-${debarch}"', build)
+        self.assertIn('portable_out="dist/${portable_name}.tar.gz"', build)
         self.assertIn("command -v dpkg-deb", build)
         self.assertIn("GHOSTFTP_REQUIRE_DEB", build)
         self.assertIn("tar --sort=name --owner=0 --group=0 --numeric-owner", build)
@@ -32,7 +33,7 @@ class LinuxPackagingContractTests(unittest.TestCase):
         linux_readme = read("linux/README.md")
         parity = read("docs/PLATFORM-PARITY.md")
         self.assertIn("already published Ghost FTP 1.1.6 release is immutable", linux_readme)
-        self.assertIn("not** retroactively claimed as a 1.1.6 release asset", linux_readme.replace(" **", "**"))
+        self.assertIn("is **not** retroactively claimed as a 1.1.6 release asset", linux_readme)
         self.assertIn("source/CI outputs only until a separate release-contract change", parity)
 
 
