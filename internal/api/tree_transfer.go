@@ -214,14 +214,17 @@ func (s *Engine) addDownloadTree(ctx context.Context, sess remote.Session, local
 		}
 		defer reservation.Cancel()
 	}
-	prepared, err := prepareLocalDirectories(localBoundary, plan.localDirs)
+	releasePrepared, err := prepareLocalDirectories(localBoundary, plan.localDirs)
 	if err != nil {
 		return TreeTransferResult{Directories: len(plan.localDirs), SkippedSymlinks: plan.skippedSymlinks}, err
 	}
-	defer prepared.Close()
+	defer releasePrepared()
 	if reservation != nil {
 		if _, err := reservation.Commit(); err != nil {
-			prepared.Cleanup()
+			// Deliberately leave prepared empty directories in place. A pathname may
+			// have been replaced after preparation; deleting by terminal name could
+			// remove an unrelated replacement object. Residual empty directories are
+			// safer than risking user-data loss.
 			return TreeTransferResult{Directories: len(plan.localDirs), SkippedSymlinks: plan.skippedSymlinks}, err
 		}
 	}
@@ -230,20 +233,6 @@ func (s *Engine) addDownloadTree(ctx context.Context, sess remote.Session, local
 
 type localDirectoryPreparationHooks struct {
 	beforeMkdir func(relative string)
-}
-
-type preparedLocalDirectory struct {
-	rel     string
-	name    string
-	parent  *os.Root
-	root    *os.Root
-	created bool
-}
-
-type localDirectoryPreparation struct {
-	boundary *os.Root
-	nodes    []preparedLocalDirectory
-	closed   bool
 }
 
 func relativePreparedDirectory(localBoundary, dir string) (string, error) {
@@ -279,62 +268,30 @@ func openStablePreparedDirectory(parent *os.Root, name string, before os.FileInf
 	return child, nil
 }
 
-func (p *localDirectoryPreparation) Close() error {
-	if p == nil || p.closed {
-		return nil
-	}
-	var closeErr error
-	for i := len(p.nodes) - 1; i >= 0; i-- {
-		if p.nodes[i].root != nil {
-			closeErr = errors.Join(closeErr, p.nodes[i].root.Close())
-			p.nodes[i].root = nil
-		}
-	}
-	if p.boundary != nil {
-		closeErr = errors.Join(closeErr, p.boundary.Close())
-		p.boundary = nil
-	}
-	p.closed = true
-	return closeErr
-}
-
-func (p *localDirectoryPreparation) Cleanup() {
-	if p == nil || p.closed {
-		return
-	}
-	for i := len(p.nodes) - 1; i >= 0; i-- {
-		node := &p.nodes[i]
-		if node.root != nil {
-			_ = node.root.Close()
-			node.root = nil
-		}
-		if node.created && node.parent != nil {
-			// Empty-only removal is deliberate: if another local action created
-			// content after preparation, rollback must never delete that content.
-			_ = node.parent.Remove(node.name)
-		}
-	}
-	if p.boundary != nil {
-		_ = p.boundary.Close()
-		p.boundary = nil
-	}
-	p.closed = true
-}
-
-func prepareLocalDirectories(localBoundary string, dirs []string) (*localDirectoryPreparation, error) {
+func prepareLocalDirectories(localBoundary string, dirs []string) (func(), error) {
 	return prepareLocalDirectoriesWithHooks(localBoundary, dirs, nil)
 }
 
-func prepareLocalDirectoriesWithHooks(localBoundary string, dirs []string, hooks *localDirectoryPreparationHooks) (*localDirectoryPreparation, error) {
+func prepareLocalDirectoriesWithHooks(localBoundary string, dirs []string, hooks *localDirectoryPreparationHooks) (func(), error) {
 	boundary, err := os.OpenRoot(localBoundary)
 	if err != nil {
 		return nil, err
 	}
-	prepared := &localDirectoryPreparation{boundary: boundary, nodes: make([]preparedLocalDirectory, 0, len(dirs))}
 	opened := map[string]*os.Root{".": boundary}
-
-	fail := func(err error) (*localDirectoryPreparation, error) {
-		prepared.Cleanup()
+	openedOrder := make([]*os.Root, 0, len(dirs))
+	closed := false
+	closePrepared := func() {
+		if closed {
+			return
+		}
+		for i := len(openedOrder) - 1; i >= 0; i-- {
+			_ = openedOrder[i].Close()
+		}
+		_ = boundary.Close()
+		closed = true
+	}
+	fail := func(err error) (func(), error) {
+		closePrepared()
 		return nil, err
 	}
 
@@ -356,7 +313,6 @@ func prepareLocalDirectoriesWithHooks(localBoundary string, dirs []string, hooks
 		}
 		name := filepath.Base(rel)
 		st, statErr := parent.Lstat(name)
-		created := false
 		if errors.Is(statErr, os.ErrNotExist) {
 			if hooks != nil && hooks.beforeMkdir != nil {
 				hooks.beforeMkdir(rel)
@@ -364,8 +320,6 @@ func prepareLocalDirectoriesWithHooks(localBoundary string, dirs []string, hooks
 			if err := parent.Mkdir(name, 0755); err != nil {
 				return fail(err)
 			}
-			created = true
-			prepared.nodes = append(prepared.nodes, preparedLocalDirectory{rel: rel, name: name, parent: parent, created: true})
 			st, statErr = parent.Lstat(name)
 		}
 		if statErr != nil {
@@ -378,14 +332,10 @@ func prepareLocalDirectoriesWithHooks(localBoundary string, dirs []string, hooks
 		if err != nil {
 			return fail(err)
 		}
-		if created {
-			prepared.nodes[len(prepared.nodes)-1].root = child
-		} else {
-			prepared.nodes = append(prepared.nodes, preparedLocalDirectory{rel: rel, name: name, parent: parent, root: child})
-		}
 		opened[rel] = child
+		openedOrder = append(openedOrder, child)
 	}
-	return prepared, nil
+	return closePrepared, nil
 }
 
 func ensureRemoteDirectory(ctx context.Context, sess remote.Session, target string) error {
