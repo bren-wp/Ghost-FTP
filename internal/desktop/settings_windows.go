@@ -195,17 +195,11 @@ func (a *app) openSettings() {
 }
 
 func (a *app) openAbout() {
-	// About is an application-owned card so its Light/Dark appearance does not
-	// drift with the Windows TaskDialog theme. The product and author identities
-	// are intentionally distinct: ghostftp.com is the official product website,
-	// while brendigo.com identifies the BRENDIGO LTD author/publisher.
-	// Repository links remain development/documentation destinations only.
-	// Localization catalogs may legitimately use the internal GhostFTP identity
-	// in non-public surfaces, but About always renders the public Ghost FTP name.
-	// Changes to this source path intentionally require fresh authentic release screenshots.
-	aboutBody := strings.ReplaceAll(a.tr("about.body", brand.Website, brand.Support), "GhostFTP", brand.ProductName)
+	// About is the only user-facing surface that carries author/publisher identity.
+	// All generic runtime, package and support metadata remains Ghost FTP-only.
+	aboutBody := strings.ReplaceAll(a.tr("about.body", brand.Website, aboutSupport), "GhostFTP", brand.ProductName)
 	body := aboutBody + "\n\n" +
-		brand.Publisher + " · " + brand.AuthorWebsite + "\n" +
+		aboutPublisher + " · " + aboutAuthorWebsite + "\n" +
 		"FTP • FTPS • SFTP  ·  " + brand.ProductName + " " + a.version
 	platform.InfoCardDialog(
 		brand.ProductName+" — "+a.tr("about.title"),
