@@ -1,5 +1,9 @@
 # Ghost FTP documentation
 
+<p align="center">
+  <img src="../build/icon.png" alt="Ghost FTP application icon" width="96">
+</p>
+
 - **Current Ghost FTP release: 1.1.7**
 - Development status: **Stable**
 - GitHub Release policy: **prerelease=false**
@@ -9,6 +13,30 @@
 - Product website: **https://ghostftp.com**
 
 The root [`VERSION`](../VERSION) file is the authoritative production version source. This directory contains maintained engineering, operations, privacy, security, release and user documentation for Ghost FTP.
+
+## Authentic visual reference
+
+The documentation icon and screenshots are repository-local. They do not load a remote badge, tracking pixel, icon CDN, webfont or analytics resource when the Markdown is rendered.
+
+All four UI captures below come from the real production Windows x64 Portable executable and are maintained by the authentic screenshot workflow. They are evidence of application-owned native windows, not design mockups.
+
+### Main Workspace
+
+![Ghost FTP Main Workspace](images/ghost-ftp-main-workspace.png)
+
+### Site Manager
+
+![Ghost FTP Site Manager](images/ghost-ftp-site-manager.png)
+
+### Settings
+
+![Ghost FTP Settings](images/ghost-ftp-settings.png)
+
+### About
+
+![Ghost FTP About](images/ghost-ftp-about.png)
+
+See [`REFERENCE-UI.md`](REFERENCE-UI.md) for dimensions, SHA-256 provenance and the rules that prevent generated or stale replacement imagery from being treated as release evidence.
 
 ## Product and architecture
 
@@ -119,4 +147,4 @@ A public Windows UI/version change requires authentic screenshots from the real 
 
 ## Privacy-safe documentation rule
 
-Documentation and build logs must never contain real passwords, private-key passphrases, protected profile payloads, signing private keys or private user data. Examples use synthetic values only.
+Documentation and build logs must never contain real passwords, private-key passphrases, protected profile payloads, signing private keys or private user data. Examples use synthetic values only. Rendered documentation media is repository-local; externally hosted images, badge images, tracking pixels, remote icon resources and remote webfont/image dependencies are not permitted in the active documentation surface.

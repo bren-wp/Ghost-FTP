@@ -1,5 +1,9 @@
 # Ghost FTP
 
+<p align="center">
+  <img src="build/icon.png" alt="Ghost FTP application icon" width="112">
+</p>
+
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**. It provides a professional dual-pane workstation for **FTP, FTPS and SFTP**, local profiles, protected saved-secret handling, bounded transfer management and verified release packaging without application telemetry.
 
 - Current Ghost FTP version: **1.1.7**
@@ -15,6 +19,8 @@
 - Repository: https://github.com/bren-wp/Ghost-FTP
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
+
+The icon and UI images rendered by this README are repository-local assets. The README does not load remote badges, tracking pixels, icon CDNs or webfont resources.
 
 ## 1.1.7 Stable
 
@@ -62,6 +68,20 @@ Ghost FTP provides:
 The Windows frontend uses native Win32 drawing and controls. The Linux frontend uses the maintained X11/XWayland-compatible native path. Both consume the same typed Core behavior.
 
 ![Ghost FTP Site Manager](docs/images/ghost-ftp-site-manager.png)
+
+## Authentic UI evidence
+
+The maintained screenshots below are produced by `.github/workflows/ui-screenshots.yml` from the real production Windows x64 Portable executable. The workflow disables Go telemetry, builds production packages, captures native windows, rejects invalid/degenerate PNG output and records SHA-256 evidence before repository persistence.
+
+### Settings
+
+![Ghost FTP Settings](docs/images/ghost-ftp-settings.png)
+
+### About
+
+![Ghost FTP About](docs/images/ghost-ftp-about.png)
+
+Mockups, generated approximations and manually composed replacement screenshots are not accepted as production UI evidence. See [Reference UI](docs/REFERENCE-UI.md) for the exact provenance contract.
 
 ## Appearance
 
