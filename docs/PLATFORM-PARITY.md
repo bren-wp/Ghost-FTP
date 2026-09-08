@@ -1,6 +1,6 @@
 # Windows and Linux platform parity
 
-Ghost FTP **1.1.1 Stable** is one desktop product with native Windows and Linux frontends. Both platforms use the **same typed `internal/api.Engine`** and the same protocol, transfer, profile, settings, localization and security layers.
+Ghost FTP **1.1.6 Stable** is one desktop product with native Windows and Linux frontends. Both platforms use the **same typed `internal/api.Engine`** and the same protocol, transfer, profile, settings, localization and security layers.
 
 Parity means equivalent protocol/security semantics and honest native-platform UX, not pixel-identical widgets or a requirement to expose a control before its backend lifecycle is complete.
 
@@ -28,7 +28,7 @@ Windows and Linux use the same typed configuration/profile model. Platform-speci
 
 Settings normalization, conflict policy, retry behavior, parallelism, timeout, language and appearance defaults remain shared contracts. Compatibility JSON fields are migration state, not justification for duplicate UI controls.
 
-## Appearance in 1.1.1
+## Appearance in 1.1.6
 
 **Classic Light is the primary fresh/fallback appearance.**
 
@@ -47,7 +47,7 @@ Security/privacy-sensitive credential-persistence prompts are catalog-backed rat
 
 Both platforms route transfers through the same transfer manager and remote abstraction. Shared behavior includes queued/running/terminal states, pause/resume/cancel/retry/clear lifecycle, connection-generation binding, truthful progress/speed/ETA snapshots, retry classification, local containment, upload-source snapshot validation, staged/rollback-oriented remote operations, cleanup and terminal-state correctness.
 
-Renderer timing must not alter transfer semantics.
+Tree-download directory preparation is anchored to opened filesystem roots so boundary or ancestor pathname replacement cannot redirect local directory creation. Renderer timing must not alter transfer semantics.
 
 ## Connection-manager parity
 
@@ -87,7 +87,9 @@ A generated/self-signed development certificate is never substituted for trusted
 
 ## Linux-specific implementation
 
-Linux uses the maintained native X11/XWayland-compatible frontend and platform-local saved-secret/storage protections. Production packages include amd64, arm64 and i386 DEB builds.
+Linux uses the maintained native X11/XWayland-compatible frontend and platform-local saved-secret/storage protections. The published 1.1.6 release contains amd64, arm64 and i386 DEB builds.
+
+Post-1.1.6 source/CI packaging additionally builds package-manager-neutral `.tar.gz` archives for the same three architectures. CI proves that each DEB and portable archive contains the same compiled `ghostftp` executable byte-for-byte. This expands practical distribution compatibility without pretending that an unverified RPM/AppImage/Flatpak/Snap lifecycle already exists.
 
 Idle rendering is state/event driven so the complete workspace is not continuously repainted while nothing relevant changes.
 
@@ -95,7 +97,9 @@ Idle rendering is state/event driven so the complete workspace is not continuous
 
 The production workflow independently builds and verifies both platform families before publication. A successful Windows build cannot substitute for a failed Linux build, and vice versa.
 
-The GitHub Release contract remains **9 platform artifacts / 12 public files**. GHCR mirrors the verified assembled release directory and is a distribution bundle, not a third application implementation.
+The already published Ghost FTP 1.1.6 GitHub Release remains immutable with its original **9 platform artifacts / 12 public files**. The new Linux portable archives are source/CI outputs only until a separate release-contract change is reviewed and gated; documentation must not retroactively list them as 1.1.6 assets.
+
+GHCR mirrors the verified assembled release directory and is a distribution bundle, not a third application implementation.
 
 ## Definition of parity complete
 
