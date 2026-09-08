@@ -391,7 +391,7 @@ func (a *app) setupTransferColumns(list uintptr) {
 func (a *app) insertColumn(list uintptr, idx int, title string, width int) {
 	text := syscall.StringToUTF16(title)
 	c := lvColumn{Mask: lvcfText | lvcfWidth | lvcfFmt, Cx: int32(a.scale(width)), Text: &text[0], Fmt: 0}
-	sendMessageW.Call(list, lvmInsertColumnW, uintptr(idx), uintptr(a.scale(width)))
+	sendMessageW.Call(list, lvmInsertColumnW, uintptr(idx), uintptr(unsafe.Pointer(&c)))
 }
 
 func clampInt(v, min, max int) int {
