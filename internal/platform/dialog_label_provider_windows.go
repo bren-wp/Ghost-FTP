@@ -8,7 +8,7 @@ type dialogLabelProvider func() (okLabel, cancelLabel, yesLabel, noLabel string)
 
 var (
 	dialogLabelProviderMu sync.RWMutex
-	dialogLabelsProvider dialogLabelProvider
+	dialogLabelsProvider  dialogLabelProvider
 )
 
 // SetDialogLabelProvider installs a desktop-owned resolver for application
