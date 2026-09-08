@@ -43,6 +43,7 @@ class WindowsModalSharedContractTests(unittest.TestCase):
             "internal/platform/language_windows.go",
             "internal/platform/settings_dialog_windows.go",
             "internal/platform/info_card_windows.go",
+            "internal/platform/decision_card_windows.go",
         ):
             source = read(relative)
             self.assertIn("premiumRunDialogLoop(hwnd", source, relative)
@@ -60,6 +61,15 @@ class WindowsModalSharedContractTests(unittest.TestCase):
         self.assertIn("infoCardIDClose = 1 // IDOK", source)
         self.assertIn("id == infoCardIDClose || id == promptIDCancel", source)
         self.assertIn("wsTabStop|bsDefPushButton", source)
+        self.assertNotIn("PostQuitMessage", source)
+
+    def test_decision_cards_use_native_yes_no_and_ok_commands(self) -> None:
+        source = read("internal/platform/decision_card_windows.go")
+        self.assertIn("decisionIDYes", source)
+        self.assertIn("decisionIDNo", source)
+        self.assertIn("promptIDOK", source)
+        self.assertIn("promptIDCancel", source)
+        self.assertIn("resolvedDialogLabels()", source)
         self.assertNotIn("PostQuitMessage", source)
 
 
