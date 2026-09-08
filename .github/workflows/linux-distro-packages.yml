@@ -1,0 +1,157 @@
+name: Ghost FTP Linux Distro Packages
+
+on:
+  pull_request:
+    paths:
+      - 'VERSION'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'linux/**'
+      - 'build/icon.png'
+      - 'LICENSE'
+      - '.github/workflows/linux-distro-packages.yml'
+      - 'scripts/test_linux_distro_packaging_contract.py'
+  push:
+    branches:
+      - main
+      - 'packaging/**'
+    paths:
+      - 'VERSION'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'linux/**'
+      - 'build/icon.png'
+      - 'LICENSE'
+      - '.github/workflows/linux-distro-packages.yml'
+      - 'scripts/test_linux_distro_packaging_contract.py'
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+
+jobs:
+  distro-packages:
+    name: Debian Ubuntu Fedora and Portable packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Install RPM verification tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rpm cpio
+          command -v rpmbuild
+          command -v rpm
+          command -v rpm2cpio
+          command -v cpio
+          rpmbuild --version
+
+      - name: Disable Go telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+
+      - name: Verify distro packaging source contract
+        shell: bash
+        run: python scripts/test_linux_distro_packaging_contract.py
+
+      - name: Build distro packages
+        shell: bash
+        env:
+          GHOSTFTP_REQUIRE_DEB: '1'
+          GHOSTFTP_REQUIRE_RPM: '1'
+        run: |
+          set -euo pipefail
+          bash linux/BUILD-DISTROS.sh
+
+      - name: Verify package metadata and binary parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+
+          for mapping in 'amd64:x86_64' 'arm64:aarch64' 'i386:i686'; do
+            debarch="${mapping%%:*}"
+            rpmarch="${mapping##*:}"
+            portable="dist/Ghost-FTP-${version}-Linux-Portable-${debarch}.tar.gz"
+            test -s "$portable"
+
+            work="$(mktemp -d)"
+            trap 'rm -rf "$work"' EXIT
+            mkdir -p "$work/portable"
+            tar -xzf "$portable" -C "$work/portable"
+            portable_root="$work/portable/Ghost-FTP-${version}-Linux-Portable-${debarch}"
+            test -x "$portable_root/ghostftp"
+            test -f "$portable_root/ghost-ftp.desktop"
+            test -f "$portable_root/ghost-ftp.png"
+            test -f "$portable_root/LICENSE"
+            test -f "$portable_root/README.md"
+
+            for distro in Debian Ubuntu; do
+              deb="dist/Ghost-FTP-${version}-Linux-${distro}-${debarch}.deb"
+              test -s "$deb"
+              test "$(dpkg-deb -f "$deb" Package)" = 'ghost-ftp'
+              test "$(dpkg-deb -f "$deb" Version)" = "$version"
+              test "$(dpkg-deb -f "$deb" Architecture)" = "$debarch"
+              test "$(dpkg-deb -f "$deb" Homepage)" = 'https://ghostftp.com'
+              test "$(dpkg-deb -f "$deb" Depends)" = 'ca-certificates, curl, openssh-client'
+              test "$(dpkg-deb -f "$deb" X-GhostFTP-Distribution)" = "$distro"
+              mkdir -p "$work/${distro,,}"
+              dpkg-deb -x "$deb" "$work/${distro,,}"
+              cmp "$work/${distro,,}/usr/bin/ghostftp" "$portable_root/ghostftp"
+            done
+
+            rpm_pkg="dist/Ghost-FTP-${version}-Linux-Fedora-${rpmarch}.rpm"
+            test -s "$rpm_pkg"
+            test "$(rpm -qp --qf '%{NAME}' "$rpm_pkg")" = 'ghost-ftp'
+            test "$(rpm -qp --qf '%{VERSION}' "$rpm_pkg")" = "$version"
+            test "$(rpm -qp --qf '%{ARCH}' "$rpm_pkg")" = "$rpmarch"
+            test "$(rpm -qp --qf '%{URL}' "$rpm_pkg")" = 'https://ghostftp.com'
+            test "$(rpm -qp --qf '%{DISTRIBUTION}' "$rpm_pkg")" = 'Fedora'
+            rpm -qp --requires "$rpm_pkg" > "$work/rpm-requires.txt"
+            grep -Fx 'ca-certificates' "$work/rpm-requires.txt"
+            grep -Fx 'curl' "$work/rpm-requires.txt"
+            grep -Fx 'openssh-clients' "$work/rpm-requires.txt"
+            mkdir -p "$work/fedora"
+            (
+              cd "$work/fedora"
+              rpm2cpio "$OLDPWD/$rpm_pkg" | cpio -idmu --quiet
+            )
+            cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"
+
+            rm -rf "$work"
+            trap - EXIT
+          done
+
+          echo 'LINUX_DISTRO_PACKAGE_PARITY=PASS'
+
+      - name: Store Linux distro packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-linux-distro-stage
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/Ghost-FTP-*-Linux-Debian-*.deb
+            dist/Ghost-FTP-*-Linux-Ubuntu-*.deb
+            dist/Ghost-FTP-*-Linux-Fedora-*.rpm
+            dist/Ghost-FTP-*-Linux-Portable-*.tar.gz

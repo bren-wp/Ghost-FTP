@@ -1,0 +1,45 @@
+Name:           ghost-ftp
+Version:        @VERSION@
+Release:        1
+Summary:        Privacy-focused FTP, FTPS and SFTP client
+License:        Proprietary
+URL:            https://ghostftp.com
+Vendor:         BRENDIGO LTD
+Packager:       BRENDIGO LTD <https://brendigo.com>
+Distribution:   Fedora
+Requires:       ca-certificates, curl, openssh-clients
+
+%global debug_package %{nil}
+%global __os_install_post %{nil}
+
+%description
+Ghost FTP is a native graphical file-transfer client for FTP, FTPS and SFTP.
+It contains no application telemetry and uses the same transfer engine across
+supported Windows and Linux editions.
+
+%prep
+
+%build
+
+%install
+rm -rf %{buildroot}
+install -d %{buildroot}%{_bindir}
+install -d %{buildroot}%{_datadir}/applications
+install -d %{buildroot}%{_datadir}/icons/hicolor/512x512/apps
+install -d %{buildroot}%{_docdir}/ghost-ftp
+install -m 0755 %{_sourcedir}/ghostftp %{buildroot}%{_bindir}/ghostftp
+install -m 0644 %{_sourcedir}/ghost-ftp.desktop %{buildroot}%{_datadir}/applications/ghost-ftp.desktop
+install -m 0644 %{_sourcedir}/ghost-ftp.png %{buildroot}%{_datadir}/icons/hicolor/512x512/apps/ghost-ftp.png
+install -m 0644 %{_sourcedir}/LICENSE %{buildroot}%{_docdir}/ghost-ftp/LICENSE
+install -m 0644 %{_sourcedir}/README.md %{buildroot}%{_docdir}/ghost-ftp/README.md
+
+%files
+%{_bindir}/ghostftp
+%{_datadir}/applications/ghost-ftp.desktop
+%{_datadir}/icons/hicolor/512x512/apps/ghost-ftp.png
+%{_docdir}/ghost-ftp/LICENSE
+%{_docdir}/ghost-ftp/README.md
+
+%changelog
+* Tue Sep 08 2026 BRENDIGO LTD <https://brendigo.com> - @VERSION@-1
+- Maintained Ghost FTP Fedora package.
