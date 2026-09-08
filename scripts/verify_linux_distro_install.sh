@@ -38,7 +38,10 @@ esac
 
 verify_gui_smoke() {
   local smoke_home xvfb_pid app_pid app_status=0
-  smoke_home="$(mktemp -d)"
+  # Ghost FTP intentionally rejects data roots reached through unsafe/writable
+  # ancestor directories. Keep the test HOME under root-owned /var/lib so the
+  # production filesystem hardening remains enabled during the smoke test.
+  smoke_home="$(mktemp -d /var/lib/ghostftp-ci-home.XXXXXX)"
   chmod 0700 "$smoke_home"
 
   Xvfb :99 -screen 0 1280x800x24 -nolisten tcp -ac >"$smoke_home/xvfb.log" 2>&1 &
