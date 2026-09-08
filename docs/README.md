@@ -7,7 +7,6 @@
 - Protocols: **FTP, FTPS and SFTP**
 - Languages: **24 selectable local languages**
 - Product website: **https://ghostftp.com**
-- Developer/publisher: **BRENDIGO LTD — https://brendigo.com**
 
 The root [`VERSION`](../VERSION) file is the authoritative production version source. This directory contains maintained engineering, operations, privacy, security, release and user documentation for Ghost FTP.
 
@@ -23,12 +22,12 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 
 - [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux installation/upgrade guidance.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical GitHub Release structure and release-channel rules.
-- [`PACKAGES.md`](PACKAGES.md) — stable GHCR distribution bundle.
+- [`PACKAGES.md`](PACKAGES.md) — Stable GHCR distribution bundle.
 - [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — artifact, metadata, SHA-256 and signing-state verification.
 - [`SIGNING.md`](SIGNING.md) — optional protected Authenticode signing and truthful unsigned-release policy.
 - [`VERSIONING.md`](VERSIONING.md) — semantic versioning and stable/prerelease rules.
 
-Ghost FTP 1.1.7 uses the maintained canonical **12 platform artifacts / 15 public files** release shape: five Windows Setup/Portable files, three Linux DEBs, a Linux multiarch ZIP, three package-manager-neutral Linux tar.gz archives, release metadata, notes and `SHA256.txt`. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
+Ghost FTP 1.1.7 uses the canonical **12 platform artifacts / 15 public files** release shape: five Windows Setup/Portable files, three Linux DEBs, a Linux multiarch ZIP, three package-manager-neutral Linux tar.gz archives, release metadata, notes and `SHA256.txt`. The same verified release directory is mirrored to GitHub Packages as a non-runtime OCI distribution bundle.
 
 Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. These supplemental packages are **not yet part of the canonical release allow-list** and therefore do not change the 1.1.7 public file count.
 
@@ -48,18 +47,16 @@ Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover
 
 ## Ghost FTP 1.1.7 contract
 
-Ghost FTP 1.1.7 is a backward-compatible Windows/Linux Stable maintenance release. The release consolidates the post-1.1.6 UI, localization, distribution and transfer-hardening work while preserving the established protocol and credential-security boundaries.
+Ghost FTP 1.1.7 is a backward-compatible Windows/Linux Stable maintenance release. Key changes include:
 
-Key 1.1.7 changes:
-
-- application-owned Windows Confirm/Info/Error DecisionCard surfaces share the Ghost FTP Light/Dark palette, DPI, modal-owner and keyboard contracts;
-- DecisionCard geometry expands for long localized/security text instead of forcing every body into the former fixed 126-pixel area;
-- OK/Cancel/Yes/No, Save Profile privacy/security decisions and native SSH-key/folder pickers resolve from the active runtime locale across all 24 canonical languages;
-- credential retain/remove/automatic-clear semantics remain unchanged while their UI copy is localized;
-- canonical Linux release output now includes generic `.tar.gz` archives for amd64, arm64 and i386 with byte-parity verification against matching DEB executables;
-- supplemental Debian/Ubuntu/Fedora/Portable package construction and x86-64 install/remove/GUI-smoke gates remain part of CI evidence;
-- rooted transfer/filesystem safeguards and deterministic regression coverage are strengthened without weakening FTPS/SFTP trust or rollback behavior;
-- no telemetry, analytics, advertising, tracking, hidden product service or new external Go module dependency is introduced.
+- application-owned Windows Confirm/Info/Error DecisionCard surfaces using the same Light/Dark, DPI, owner-modality and keyboard contracts as other Ghost FTP modals;
+- adaptive DecisionCard geometry for long localized/security text;
+- runtime-localized OK/Cancel/Yes/No, profile privacy/security decisions and native SSH-key/folder pickers across the maintained 24-language contract;
+- unchanged credential retain/remove/automatic-clear semantics;
+- canonical Linux generic `.tar.gz` output for amd64, arm64 and i386 with executable byte-parity verification against matching DEBs;
+- maintained supplemental Debian/Ubuntu/Fedora/Portable package construction and x86-64 native lifecycle/GUI-smoke gates;
+- preserved rooted transfer/filesystem safeguards, FTPS/SFTP trust and rollback behavior;
+- no telemetry, analytics, advertising, tracking, hidden product service or new external Go module dependency.
 
 ## Stable publication
 
@@ -97,8 +94,6 @@ GitHub Package:
 ghcr.io/bren-wp/ghost-ftp:1.1.7
 ```
 
-Stable aliases are updated only after successful package publication and read-back. The package contains `/ghostftp-release/` and is a distribution bundle, not a runtime container.
-
 Production Authenticode remains optional. If a trusted certificate is configured, Windows signatures are verified fail-closed. Otherwise the release is explicitly unsigned and `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`; a generated/self-signed identity is never represented as a trusted production publisher.
 
 ## Historical 1.1.6 contract
@@ -114,7 +109,7 @@ Historical version references describe their original release state and are not 
 
 ## Release verification rule
 
-A release is complete only after the exact source revision passes Core, Windows and Linux gates and the immutable tag, GitHub Release asset set, `SHA256.txt`, metadata and stable GitHub Package have all been read back successfully.
+A release is complete only after the exact source revision passes Core, Windows and Linux gates and the immutable tag, GitHub Release asset set, `SHA256.txt`, metadata and Stable GitHub Package have all been read back successfully.
 
 Canonical publication uses `release/ghostftp-vX.Y.Z` created only from the exact post-merge `main` SHA that passed the complete quality gate. A push to `main` does not itself publish a release.
 
