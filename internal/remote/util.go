@@ -51,7 +51,30 @@ type toolError struct {
 	message string
 }
 
-func (e *toolError) Error() string { return e.message }
+// Error deliberately exposes only bounded structural information. Child-process
+// stderr can contain hosts, usernames, remote paths and private-key paths; it is
+// retained privately in message for classification but must never become the
+// generic error string consumed by UI, logs or future fallback paths.
+func (e *toolError) Error() string {
+	label := toolErrorPublicLabel(e.tool)
+	if e.code >= 0 {
+		return fmt.Sprintf("%s operation failed (exit code %d)", label, e.code)
+	}
+	return label + " operation failed"
+}
+
+func toolErrorPublicLabel(tool string) string {
+	switch strings.ToLower(strings.TrimSpace(tool)) {
+	case "curl":
+		return "curl"
+	case "ssh":
+		return "ssh"
+	case "sftp":
+		return "sftp"
+	default:
+		return "network tool"
+	}
+}
 
 func newToolError(tool string, runErr error, message string) error {
 	code := -1
@@ -87,7 +110,13 @@ func IsRetryable(err error) bool {
 		}
 		return false
 	}
-	msg := strings.ToLower(err.Error())
+	msg := err.Error()
+	if te != nil {
+		// Raw child-process diagnostics stay private to the remote package for
+		// classification/retry decisions even though toolError.Error is redacted.
+		msg = te.message
+	}
+	msg = strings.ToLower(msg)
 	for _, marker := range []string{
 		"permission denied", "access denied", "authentication failed", "login denied", "login incorrect",
 		"host key verification failed", "fingerprint", "no such file", "not found", "not a directory",
