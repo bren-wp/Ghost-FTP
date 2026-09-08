@@ -1,6 +1,6 @@
 # Ghost FTP GitHub Packages
 
-Ghost FTP publishes a verified **distribution bundle** to GitHub Packages for each stable release. The package is an OCI artifact stored in GitHub Container Registry (GHCR) and mirrors the exact verified release files assembled by the production release workflow.
+Ghost FTP publishes a verified **distribution bundle** to GitHub Packages for each Stable release. The package is an OCI artifact stored in GitHub Container Registry (GHCR) and mirrors the exact verified release files assembled by the production release workflow.
 
 ## Package reference
 
@@ -58,11 +58,11 @@ Supplemental distro-labelled Debian/Ubuntu/Fedora/Portable CI artifacts are not 
 
 For normal installation, use files attached to the official GitHub Release. GitHub Packages is an additional verified distribution surface and does not replace Setup, Portable or Linux packages.
 
-The official product website is **https://ghostftp.com**. Ghost FTP is developed and published by **BRENDIGO LTD**, whose official website is **https://brendigo.com**.
+The official product website is **https://ghostftp.com**. Public package and support metadata use the **Ghost FTP** product identity.
 
 ## Verification
 
-Every stable package is produced only after the same quality gates used for GitHub Releases:
+Every Stable package is produced only after the same quality gates used for GitHub Releases:
 
 - Go formatting, race tests and vet;
 - security, privacy, dependency, repository, platform, localization and documentation audits;
