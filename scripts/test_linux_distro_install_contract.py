@@ -38,10 +38,13 @@ for token in (
     require(token in VERIFY, f"missing package lifecycle verification: {token}")
 
 # Dependency contracts and installed runtime tools must be proved inside the
-# clean target distribution after package installation.
+# clean target distribution after package installation. Fedora may satisfy the
+# `curl` capability with curl-minimal, so verify the provider rather than an
+# implementation-specific RPM package name.
 for token in (
     "ca-certificates, curl, openssh-client",
     "openssh-clients",
+    "rpm -q --whatprovides curl",
     "command -v curl",
     "command -v ssh",
     "command -v sftp",
