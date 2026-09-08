@@ -164,7 +164,8 @@ else
   dnf install -y "$package_path" >/dev/null
   [[ "$(rpm -q --qf '%{VERSION}' ghost-ftp)" == "$expected_version" ]]
   [[ "$(rpm -q --qf '%{ARCH}' ghost-ftp)" == "x86_64" ]]
-  rpm -q ca-certificates curl openssh-clients >/dev/null
+  rpm -q ca-certificates openssh-clients >/dev/null
+  rpm -q --whatprovides curl >/dev/null
   verify_common_runtime_tools
 
   test -x /usr/bin/ghostftp
