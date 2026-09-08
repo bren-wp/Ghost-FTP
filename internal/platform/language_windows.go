@@ -10,8 +10,8 @@ import (
 
 const (
 	languageIDCombo   = 2101
-	languageIDInstall = 2102
-	languageIDCancel  = 2103
+	languageIDInstall = 1 // IDOK
+	languageIDCancel  = 2 // IDCANCEL
 	languageCBAdd     = 0x0143
 	languageCBGet     = 0x0147
 	languageCBSet     = 0x014E
@@ -66,7 +66,7 @@ func languageWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 
 // SelectOptionDialog shows a bounded native Windows selector with no framework
 // dependency. The caller owns labels and validation while this platform shell
-// owns consistent Light/Dark rendering.
+// owns consistent Light/Dark rendering and native keyboard navigation.
 func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel string, options []string, defaultIndex int) (int, bool) {
 	if len(options) == 0 {
 		return 0, false
@@ -184,15 +184,7 @@ func SelectOptionDialog(title, instruction, footer, acceptLabel, cancelLabel str
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)
 
-	var msg promptMsg
-	for !state.closed {
-		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
-		if int32(r) <= 0 {
-			break
-		}
-		promptTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
-		promptDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
-	}
+	premiumRunDialogLoop(hwnd, func() bool { return state.closed })
 	return state.selected, state.accepted
 }
 
