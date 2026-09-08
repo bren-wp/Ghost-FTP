@@ -88,7 +88,7 @@ def main() -> int:
         "docker buildx imagetools inspect",
         "if: env.RELEASE_CHANNEL == 'stable'",
         "main moved from release commit",
-        "refusing to rewrite it",
+        "release already exists; refusing to rewrite published assets",
         "RELEASE_ASSET_READBACK=PASS",
     )
     lowered = workflow.lower()
@@ -98,6 +98,10 @@ def main() -> int:
     ):
         if forbidden in lowered:
             fail(f"release workflow contains retired publication/platform marker: {forbidden}")
+
+    for forbidden in ("gh release upload", "--clobber"):
+        if forbidden in workflow:
+            fail(f"release workflow may rewrite historical release assets: {forbidden}")
 
     if "Stable Windows releases require a configured trusted Authenticode identity." in workflow:
         fail("stable release workflow still blocks publication solely because Authenticode secrets are absent")

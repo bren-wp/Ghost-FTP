@@ -64,7 +64,10 @@ class MaintenanceRegressionTests(unittest.TestCase):
         workflow = read(".github/workflows/release.yml")
         self.assertIn("RELEASE_TAG=ghostftp-v$version", workflow)
         self.assertIn("main moved from release commit", workflow)
-        self.assertIn("refusing to rewrite it", workflow)
+        self.assertIn("refusing to rewrite an existing release tag", workflow)
+        self.assertIn("release already exists; refusing to rewrite published assets", workflow)
+        self.assertNotIn("gh release upload", workflow)
+        self.assertNotIn("--clobber", workflow)
         self.assertIn("gh release create", workflow)
         self.assertLess(workflow.index("main moved from release commit"), workflow.index("gh release create"))
 
