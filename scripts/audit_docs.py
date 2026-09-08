@@ -12,9 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 INDEX = DOCS / "README.md"
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
+MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)\n]+)\)")
 HTML_LINK_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
+HTML_IMAGE_RE = re.compile(r"<img\b[^>]*\bsrc\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
 CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d+)\*\*")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
+REMOTE_MEDIA_PREFIXES = ("http://", "https://", "data:", "//")
 RETIRED_ACTIVE_MARKERS = ("android/", "ios/", "macos/", "ghostftp web/", "web companion", "pwa")
 STALE_SIGNING_POLICY_MARKERS = (
     "trusted authenticode requirement for stable windows publication",
@@ -48,6 +51,13 @@ ACTIVE_DOCS = (
     "docs/REFERENCE-UI.md",
     "linux/README.md",
     "scripts/README.md",
+)
+VISUAL_ASSETS = (
+    "build/icon.png",
+    "docs/images/ghost-ftp-main-workspace.png",
+    "docs/images/ghost-ftp-site-manager.png",
+    "docs/images/ghost-ftp-settings.png",
+    "docs/images/ghost-ftp-about.png",
 )
 
 
@@ -84,6 +94,15 @@ def check_link(source: Path, raw: str) -> None:
         fail(f"missing local link: {source.relative_to(ROOT)} -> {raw}")
 
 
+def check_media(source: Path, raw: str) -> None:
+    destination = clean_destination(raw)
+    if not destination:
+        fail(f"empty documentation media source: {source.relative_to(ROOT)}")
+    if destination.lower().startswith(REMOTE_MEDIA_PREFIXES):
+        fail(f"remote/data documentation media is blocked: {source.relative_to(ROOT)} -> {raw}")
+    check_link(source, raw)
+
+
 def require_markers(label: str, text: str, markers: tuple[str, ...]) -> None:
     for marker in markers:
         if marker not in text:
@@ -106,9 +125,18 @@ def main() -> int:
             check_link(path, match.group(1))
         for match in HTML_LINK_RE.finditer(text):
             check_link(path, match.group(1))
+        for match in MARKDOWN_IMAGE_RE.finditer(text):
+            check_media(path, match.group(1))
+        for match in HTML_IMAGE_RE.finditer(text):
+            check_media(path, match.group(1))
         for match in CURRENT_RELEASE_RE.finditer(text):
             if match.group(1) != version:
                 fail(f"stale release marker in {path.relative_to(ROOT)}: {match.group(1)}")
+
+    for relative in VISUAL_ASSETS:
+        path = ROOT / relative
+        if not path.is_file() or path.stat().st_size <= 0:
+            fail(f"missing maintained local documentation visual: {relative}")
 
     readme = read("README.md")
     index = read("docs/README.md")
@@ -136,6 +164,61 @@ def main() -> int:
         (
             f"**Current Ghost FTP release: {version}**",
             "prerelease=false" if major >= 1 else "Development status: **Beta**",
+        ),
+    )
+
+    readme_visual_markers = (
+        'src="build/icon.png"',
+        "docs/images/ghost-ftp-main-workspace.png",
+        "docs/images/ghost-ftp-site-manager.png",
+        "docs/images/ghost-ftp-settings.png",
+        "docs/images/ghost-ftp-about.png",
+        "repository-local assets",
+    )
+    index_visual_markers = (
+        'src="../build/icon.png"',
+        "images/ghost-ftp-main-workspace.png",
+        "images/ghost-ftp-site-manager.png",
+        "images/ghost-ftp-settings.png",
+        "images/ghost-ftp-about.png",
+        "repository-local",
+    )
+    reference_ui = read("docs/REFERENCE-UI.md")
+    privacy = read("docs/PRIVACY.md")
+    require_markers("README visual contract", readme, readme_visual_markers)
+    require_markers("documentation index visual contract", index, index_visual_markers)
+    require_markers(
+        "reference UI visual contract",
+        reference_ui,
+        (
+            "images/ghost-ftp-main-workspace.png",
+            "images/ghost-ftp-site-manager.png",
+            "images/ghost-ftp-settings.png",
+            "images/ghost-ftp-about.png",
+            "Mockups, image-generation output and manually composed approximations are not accepted",
+        ),
+    )
+    require_markers(
+        "privacy documentation media contract",
+        privacy,
+        (
+            "Documentation media is repository-local.",
+            "remote badge images",
+            "tracking pixels",
+            "remote icon resources",
+            "remote webfonts",
+        ),
+    )
+    ui_workflow = read(".github/workflows/ui-screenshots.yml")
+    require_markers(
+        "authentic UI persistence workflow",
+        ui_workflow,
+        (
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-site-manager.png",
+            "docs/images/ghost-ftp-settings.png",
+            "docs/images/ghost-ftp-about.png",
+            "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
         ),
     )
 
@@ -340,6 +423,7 @@ def main() -> int:
     print("SUPPLEMENTAL_DISTRO_PACKAGING=DEBIAN,UBUNTU,FEDORA,PORTABLE")
     print("NATIVE_DISTRO_INSTALL_COVERAGE=DEBIAN13_AMD64,UBUNTU26.04_AMD64,FEDORA44_X86_64")
     print("SUPPLEMENTAL_DISTRO_RELEASE_ASSETS=NO")
+    print("DOCS_LOCAL_VISUALS=PASS (icon=build/icon.png; authentic_screenshots=4; remote_media=blocked)")
     print("STABLE_GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp")
     return 0
 

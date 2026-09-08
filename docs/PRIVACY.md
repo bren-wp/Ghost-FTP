@@ -73,6 +73,10 @@ Production Authenticode credentials are expected to exist only as protected GitH
 
 Maintained UI screenshots are captured from the real Windows x64 Portable executable by the dedicated CI workflow. Screenshots and fixtures must contain only synthetic/non-sensitive values and must not expose real customer hosts, usernames, credentials or local private paths.
 
+Documentation media is repository-local. The active README/documentation surface does not intentionally embed remote badge images, tracking pixels, analytics images, remote icon resources, remote webfonts or other externally hosted media that would cause a network request merely because documentation is rendered. Ordinary text hyperlinks may still point to the official product, GitHub release/package pages and other documented destinations; they are not fetched by Ghost FTP at runtime.
+
+The canonical documentation logo is `build/icon.png`. The maintained UI evidence set is `docs/images/ghost-ftp-main-workspace.png`, `docs/images/ghost-ftp-site-manager.png`, `docs/images/ghost-ftp-settings.png` and `docs/images/ghost-ftp-about.png`.
+
 ## Logs and support
 
 Ghost FTP aims to make operational logs useful without exposing credentials. Users should not paste real passwords, private keys, passphrases or confidential server content into public support requests.
