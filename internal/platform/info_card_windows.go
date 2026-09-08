@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-const infoCardIDClose = 2 // IDCANCEL: Escape and the default Close button share one path.
+const infoCardIDClose = 1 // IDOK: the visible default Close/OK button.
 
 type infoCardState struct {
 	closed bool
@@ -26,7 +26,11 @@ func infoCardWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 		state := v.(*infoCardState)
 		switch message {
 		case promptWMCommand:
-			if int(wParam&0xffff) == infoCardIDClose {
+			id := int(wParam & 0xffff)
+			// Enter activates the visible IDOK button; Escape is translated by the
+			// shared dialog manager into IDCANCEL even though no second button is
+			// required on an information-only surface.
+			if id == infoCardIDClose || id == promptIDCancel {
 				promptDestroyWindow.Call(hwnd)
 				return 0
 			}
