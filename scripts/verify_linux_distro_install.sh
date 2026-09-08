@@ -89,7 +89,11 @@ verify_common_runtime_tools() {
   command -v curl >/dev/null
   command -v ssh >/dev/null
   command -v sftp >/dev/null
-  test -s /etc/ssl/certs/ca-certificates.crt
+  if [[ "$target" == "fedora" ]]; then
+    test -s /etc/pki/tls/certs/ca-bundle.crt
+  else
+    test -s /etc/ssl/certs/ca-certificates.crt
+  fi
 }
 
 if [[ "$target" == "debian" || "$target" == "ubuntu" ]]; then
