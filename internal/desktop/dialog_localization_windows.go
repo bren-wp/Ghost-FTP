@@ -18,12 +18,23 @@ func noLabel(language string) string {
 	})
 }
 
-// syncPlatformDialogLocalization updates every application-owned native action
-// label as one atomic UI-language decision. It is called at startup, whenever
-// the runtime language changes, and before command flows that may complete
-// asynchronously and show a later security confirmation.
-func (a *app) syncPlatformDialogLocalization() {
-	language := a.languageCode()
-	platform.SetDialogActionLabels(okLabel(language), a.tr("common.cancel"))
-	platform.SetDialogDecisionLabels(yesLabel(language), noLabel(language))
+// installDialogLabelProvider keeps the platform layer independent from the
+// desktop translation catalog while resolving labels at the moment a dialog is
+// opened. That makes startup, runtime locale switches and asynchronous security
+// confirmations use the same current language without a second i18n state.
+func init() {
+	platform.SetDialogLabelProvider(func() (string, string, string, string) {
+		language := "en"
+		cancelLabel := "Cancel"
+		apps.Range(func(_, value any) bool {
+			a, ok := value.(*app)
+			if !ok || a == nil {
+				return true
+			}
+			language = a.languageCode()
+			cancelLabel = a.tr("common.cancel")
+			return false
+		})
+		return okLabel(language), cancelLabel, yesLabel(language), noLabel(language)
+	})
 }
