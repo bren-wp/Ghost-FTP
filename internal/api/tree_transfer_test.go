@@ -179,7 +179,7 @@ func TestEnsureRemoteDirectoryRejectsMkdirRaceToSymlink(t *testing.T) {
 	}
 }
 
-func TestPrepareLocalDirectoriesRollbackRemovesOnlyCreatedEmptyDirs(t *testing.T) {
+func TestPrepareLocalDirectoriesReleaseLeavesPreparedDirs(t *testing.T) {
 	base := t.TempDir()
 	preexisting := filepath.Join(base, "existing")
 	if err := os.Mkdir(preexisting, 0755); err != nil {
@@ -187,26 +187,26 @@ func TestPrepareLocalDirectoriesRollbackRemovesOnlyCreatedEmptyDirs(t *testing.T
 	}
 	root := filepath.Join(base, "download")
 	nested := filepath.Join(root, "nested")
-	cleanup, err := prepareLocalDirectories(base, []string{root, nested, preexisting})
+	releasePrepared, err := prepareLocalDirectories(base, []string{root, nested, preexisting})
 	if err != nil {
 		t.Fatalf("prepareLocalDirectories: %v", err)
 	}
 	if _, err := os.Stat(nested); err != nil {
 		t.Fatalf("nested directory was not prepared: %v", err)
 	}
-	cleanup()
-	if _, err := os.Stat(root); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("created directory should be removed on rollback, err=%v", err)
+	releasePrepared()
+	if st, err := os.Stat(root); err != nil || !st.IsDir() {
+		t.Fatalf("prepared directory must remain after releasing rooted handles, stat=%v err=%v", st, err)
 	}
 	if st, err := os.Stat(preexisting); err != nil || !st.IsDir() {
-		t.Fatalf("pre-existing directory must survive rollback, stat=%v err=%v", st, err)
+		t.Fatalf("pre-existing directory must survive release, stat=%v err=%v", st, err)
 	}
 }
 
-func TestPrepareLocalDirectoriesRollbackNeverDeletesNewContent(t *testing.T) {
+func TestPrepareLocalDirectoriesReleaseNeverDeletesNewContent(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "download")
-	cleanup, err := prepareLocalDirectories(base, []string{root})
+	releasePrepared, err := prepareLocalDirectories(base, []string{root})
 	if err != nil {
 		t.Fatalf("prepareLocalDirectories: %v", err)
 	}
@@ -214,9 +214,9 @@ func TestPrepareLocalDirectoriesRollbackNeverDeletesNewContent(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	cleanup()
+	releasePrepared()
 	if _, err := os.Stat(marker); err != nil {
-		t.Fatalf("rollback must not recursively delete content created later: %v", err)
+		t.Fatalf("releasing rooted preparation must not delete later content: %v", err)
 	}
 }
 
