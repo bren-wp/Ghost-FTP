@@ -1,12 +1,12 @@
 # Ghost FTP support
 
-Support for the current published Ghost FTP **1.1.5 Stable** release starts with the official product website at **https://ghostftp.com**. Reproducible software bugs and platform-specific technical problems may also be reported through the repository issue tracker:
+Support for the current Ghost FTP **1.1.6 Stable** candidate starts with the official product website at **https://ghostftp.com**. Reproducible software bugs and platform-specific technical problems may also be reported through the repository issue tracker:
 
 https://github.com/bren-wp/Ghost-FTP/issues
 
 Ghost FTP is developed and published by **BRENDIGO LTD**. The author's official website is **https://brendigo.com** and the publisher contact destination used by the application is **https://brendigo.com/kontakt**.
 
-Do not treat a future release candidate as published until its canonical tag, GitHub Release and package read-back have succeeded. Published historical stable releases remain immutable release identities.
+Do not treat 1.1.6 as published until its canonical tag, GitHub Release and package read-back have succeeded. Published historical stable releases, including 1.1.5, remain immutable release identities.
 
 ## Before reporting
 
@@ -35,7 +35,7 @@ Include:
 - privacy-safe diagnostic category/message;
 - sanitized screenshot/log excerpt if relevant.
 
-If the issue involves appearance, state whether Classic Light was fresh/default state or Dark was explicitly selected. If it involves a saved credential, describe whether the user consented to persistence without providing the credential itself.
+For 1.1.6 filesystem or cleanup issues, identify whether the operation was local create/delete, upload/download staging, SFTP trust, retry or cancellation. Do not include real credentials or private filesystem/server content.
 
 ## Do not publish secrets
 
@@ -57,7 +57,7 @@ Ghost FTP uses privacy-safe connection diagnostics. Include the displayed catego
 
 For FTPS failures, do not “fix” certificate/TLS errors by assuming plain FTP. Verify the server protocol/port and certificate configuration. The maintained client intentionally blocks silent secure-to-plain downgrade.
 
-For SFTP host-key problems, provide only the public fingerprint if it is safe to disclose. Verify intentional server-key changes through an independent trusted channel.
+For SFTP host-key problems, provide only the public fingerprint if it is safe to disclose. Ghost FTP 1.1.6 binds the displayed SHA-256 fingerprint directly to the scanned key blob; intentional server-key changes should still be verified through an independent trusted channel.
 
 ## Profile and credential issues
 
@@ -69,13 +69,7 @@ Changing the server/account/private-key identity can intentionally clear credent
 
 For GitHub Release issues include the exact filename and SHA-256 value. For Windows artifacts also include only the public signing status (`signed`/`unsigned`) and signature-verification result when applicable; never share certificate private material or Actions secrets.
 
-For GitHub Packages issues include the semantic tag/digest for:
-
-```text
-ghcr.io/bren-wp/ghost-ftp
-```
-
-Remember that the GHCR object is a distribution bundle, not the normal desktop runtime container.
+For GitHub Packages issues include the semantic tag/digest for `ghcr.io/bren-wp/ghost-ftp`. The GHCR object is a distribution bundle, not the normal desktop runtime container.
 
 ## Security-sensitive reports
 
