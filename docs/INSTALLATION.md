@@ -2,7 +2,7 @@
 
 Ghost FTP **1.1.7 Stable** is the current published stable release. Use only official artifacts whose version and SHA-256 values match the corresponding GitHub Release. Historical Stable releases remain immutable and are not rewritten by later source or packaging work.
 
-The official product website is **https://ghostftp.com**. Ghost FTP is developed and published by **BRENDIGO LTD**; the author's official website is **https://brendigo.com**.
+The official product website is **https://ghostftp.com**.
 
 ## Windows
 
@@ -51,7 +51,7 @@ Ghost-FTP-1.1.7-Linux-arm64.tar.gz
 Ghost-FTP-1.1.7-Linux-i386.tar.gz
 ```
 
-Install the DEB matching the machine architecture with the system package manager, or use the matching generic tar.gz when a package-manager-neutral portable archive is appropriate. DEB metadata uses `Homepage: https://ghostftp.com` and the BRENDIGO LTD publisher identity.
+Install the DEB matching the machine architecture with the system package manager, or use the matching generic tar.gz when a package-manager-neutral portable archive is appropriate. DEB metadata uses the Ghost FTP product identity and `Homepage: https://ghostftp.com`.
 
 ### Canonical release packages
 
