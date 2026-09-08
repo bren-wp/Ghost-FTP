@@ -3,7 +3,6 @@
 package desktop
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
@@ -48,26 +47,6 @@ func (a *app) setSettingsControlsEnabled(enabled bool) {
 	}
 }
 
-func (a *app) promptNumber(instructionKey string, current, min, max int) (int, bool) {
-	title := a.tr("settings.title")
-	value, ok := platform.PromptDialogWithLabels(
-		title,
-		a.tr(instructionKey),
-		strconv.Itoa(current),
-		okLabel(a.languageCode()),
-		a.tr("common.cancel"),
-	)
-	if !ok {
-		return current, false
-	}
-	number, err := strconv.Atoi(strings.TrimSpace(value))
-	if err != nil || number < min || number > max {
-		platform.ErrorDialog(title, a.tr("settings.invalid_value"), a.tr("settings.enter_range", min, max))
-		return current, false
-	}
-	return number, true
-}
-
 func conflictPolicyIndex(settings model.Settings) int {
 	switch settings.ConflictPolicy {
 	case model.ConflictPolicySkip:
@@ -108,48 +87,6 @@ func applyConflictPolicySelection(settings *model.Settings, index int) {
 	}
 }
 
-func (a *app) promptAppearance(settings model.Settings) (model.Settings, bool) {
-	words := appearanceText(a.languageCode())
-	index, ok := platform.SelectOptionDialog(
-		a.tr("settings.title"),
-		words.Hint,
-		brand.ProductName+" · "+words.Title,
-		okLabel(a.languageCode()),
-		a.tr("common.cancel"),
-		[]string{words.Dark, words.Light},
-		appearanceIndex(settings.Appearance),
-	)
-	if !ok {
-		return settings, false
-	}
-	applyAppearanceSelection(&settings, index)
-	return settings, true
-}
-
-func (a *app) promptConflictPolicy(settings model.Settings) (model.Settings, bool) {
-	title := a.tr("settings.title")
-	options := []string{
-		a.tr("settings.skip_existing"),
-		a.tr("settings.overwrite"),
-		a.tr("settings.overwrite") + " + " + a.tr("settings.backup_title"),
-	}
-	instruction := a.tr("settings.skip_body") + "\n" + a.tr("settings.backup_body")
-	index, ok := platform.SelectOptionDialog(
-		title,
-		instruction,
-		brand.ProductName+" · "+a.tr("settings.title"),
-		okLabel(a.languageCode()),
-		a.tr("common.cancel"),
-		options,
-		conflictPolicyIndex(settings),
-	)
-	if !ok {
-		return settings, false
-	}
-	applyConflictPolicySelection(&settings, index)
-	return settings, true
-}
-
 func normalizeSettingsForPrompt(settings model.Settings) model.Settings {
 	defaults := config.DefaultSettings()
 	if settings.Appearance == "" {
@@ -170,71 +107,69 @@ func normalizeSettingsForPrompt(settings model.Settings) model.Settings {
 	return settings
 }
 
+func settingsNumber(label string, value, min, max int, invalid string) platform.SettingsDialogNumber {
+	return platform.SettingsDialogNumber{
+		Label:       label,
+		Value:       value,
+		Min:         min,
+		Max:         max,
+		InvalidText: invalid,
+	}
+}
+
 func (a *app) openSettings() {
 	if a.connectionBusy {
 		return
 	}
+
 	settings := normalizeSettingsForPrompt(a.settings)
+	language := a.languageCode()
+	appearance := appearanceText(language)
+	conflictOptions := []string{
+		a.tr("settings.skip_existing"),
+		a.tr("settings.overwrite"),
+		a.tr("settings.overwrite") + " + " + a.tr("settings.backup_title"),
+	}
 
-	var ok bool
-	settings, ok = a.promptAppearance(settings)
-	if !ok {
+	parallelLabel := a.tr("settings.parallel")
+	timeoutLabel := a.tr("settings.timeout")
+	retriesLabel := a.tr("settings.retries")
+	retryDelayLabel := a.tr("settings.retry_delay")
+	result, ok := platform.SettingsDialog(platform.SettingsDialogConfig{
+		Title:             a.tr("settings.title"),
+		Heading:           brand.ProductName,
+		Intro:             a.tr("settings.title") + " · FTP • FTPS • SFTP",
+		AppearanceLabel:   appearance.Title,
+		AppearanceOptions: []string{appearance.Dark, appearance.Light},
+		AppearanceIndex:   appearanceIndex(settings.Appearance),
+		Numbers: []platform.SettingsDialogNumber{
+			settingsNumber(parallelLabel, settings.Parallelism, config.MinParallelism, config.MaxParallelism, parallelLabel+" "+a.tr("settings.enter_range", config.MinParallelism, config.MaxParallelism)),
+			settingsNumber(timeoutLabel, settings.ConnectionTimeoutSeconds, config.MinConnectionTimeoutSeconds, config.MaxConnectionTimeoutSeconds, timeoutLabel+" "+a.tr("settings.enter_range", config.MinConnectionTimeoutSeconds, config.MaxConnectionTimeoutSeconds)),
+			settingsNumber(retriesLabel, settings.AutoRetryCount, config.MinAutoRetryCount, config.MaxAutoRetryCount, retriesLabel+" "+a.tr("settings.enter_range", config.MinAutoRetryCount, config.MaxAutoRetryCount)),
+			settingsNumber(retryDelayLabel, settings.RetryDelaySeconds, config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds, retryDelayLabel+" "+a.tr("settings.enter_range", config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds)),
+		},
+		ConflictLabel:   a.tr("settings.skip_title"),
+		ConflictOptions: conflictOptions,
+		ConflictIndex:   conflictPolicyIndex(settings),
+		ConfirmDelete:   a.tr("settings.confirm_delete_title"),
+		ConfirmDeleteOn: settings.ConfirmDelete,
+		Footer:          appearance.Hint,
+		ApplyLabel:      okLabel(language),
+		CancelLabel:     a.tr("common.cancel"),
+	})
+	if !ok || len(result.Numbers) != 4 {
 		return
 	}
 
-	parallel, ok := a.promptNumber(
-		"settings.parallel",
-		settings.Parallelism,
-		config.MinParallelism,
-		config.MaxParallelism,
-	)
-	if !ok {
-		return
-	}
-	settings.Parallelism = parallel
-
-	connectTimeout, ok := a.promptNumber(
-		"settings.timeout",
-		settings.ConnectionTimeoutSeconds,
-		config.MinConnectionTimeoutSeconds,
-		config.MaxConnectionTimeoutSeconds,
-	)
-	if !ok {
-		return
-	}
-	settings.ConnectionTimeoutSeconds = connectTimeout
-
-	retries, ok := a.promptNumber(
-		"settings.retries",
-		settings.AutoRetryCount,
-		config.MinAutoRetryCount,
-		config.MaxAutoRetryCount,
-	)
-	if !ok {
-		return
-	}
-	settings.AutoRetryCount = retries
-	if retries > 0 {
-		delay, ok := a.promptNumber(
-			"settings.retry_delay",
-			settings.RetryDelaySeconds,
-			config.MinRetryDelaySeconds,
-			config.MaxRetryDelaySeconds,
-		)
-		if !ok {
-			return
-		}
-		settings.RetryDelaySeconds = delay
-	}
-
-	settings, ok = a.promptConflictPolicy(settings)
-	if !ok {
-		return
-	}
+	applyAppearanceSelection(&settings, result.AppearanceIndex)
+	settings.Parallelism = result.Numbers[0]
+	settings.ConnectionTimeoutSeconds = result.Numbers[1]
+	settings.AutoRetryCount = result.Numbers[2]
+	settings.RetryDelaySeconds = result.Numbers[3]
+	applyConflictPolicySelection(&settings, result.ConflictIndex)
+	settings.ConfirmDelete = result.ConfirmDelete
 
 	title := a.tr("settings.title")
-	settings.ConfirmDelete = platform.ConfirmDialog(title, a.tr("settings.confirm_delete_title"), a.tr("settings.confirm_delete_body"))
-
 	a.setSettingsControlsEnabled(false)
 	a.goSafe(func() {
 		saved, err := a.engine.SetSettings(settings)
