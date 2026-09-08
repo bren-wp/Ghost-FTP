@@ -79,6 +79,23 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         self.assertIn("row*numberRowHeight", source)
         self.assertNotIn("fieldWidth, 24, 0, captionFont", source)
 
+    def test_lower_settings_regions_expand_with_numeric_rows(self) -> None:
+        source = read("internal/platform/settings_dialog_windows.go")
+        self.assertIn("len(config.Numbers) > 6", source)
+        self.assertIn("numberRows := (len(config.Numbers) + 1) / 2", source)
+        self.assertIn("separatorY := numberStartY + numberRows*numberRowHeight + 4", source)
+        self.assertIn("footerSeparatorY := confirmY + 52", source)
+        self.assertIn("clientHeight := footerSeparatorY + 100", source)
+        self.assertIn('36, footerSeparatorY, 688, 2', source)
+        self.assertIn('36, footerY, 470, 38', source)
+        self.assertIn('36, errorY, 470, 24', source)
+        self.assertIn('516, buttonY, 98, 38', source)
+        self.assertIn('624, buttonY, 100, 38', source)
+        self.assertNotIn('36, 500, 688, 2', source)
+        self.assertNotIn('36, 514, 470, 38', source)
+        self.assertNotIn('516, 530, 98, 38', source)
+        self.assertNotIn('36, 552, 470, 24', source)
+
     def test_platform_settings_dialog_does_not_import_application_model_or_config(self) -> None:
         source = read("internal/platform/settings_dialog_windows.go")
         self.assertNotIn("internal/model", source)
