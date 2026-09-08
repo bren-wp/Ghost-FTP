@@ -83,9 +83,10 @@ for payload in (
 require('Ghost-FTP-${VERSION}-Linux-Portable-${debarch}.tar.gz' in BUILD, "portable naming contract missing")
 
 # CI must exercise this regression test and perform byte-parity comparisons on
-# extracted package executables.
+# extracted package executables. One cmp is inside the Debian/Ubuntu loop and
+# therefore verifies both DEB variants; the second verifies Fedora RPM.
 require("python scripts/test_linux_distro_packaging_contract.py" in WORKFLOW, "workflow must run contract regression test")
-require(WORKFLOW.count("cmp ") >= 3, "workflow must compare DEB/Ubuntu/RPM binaries with portable payload")
+require(WORKFLOW.count("cmp ") >= 2, "workflow must compare DEB/Ubuntu/RPM binaries with portable payload")
 require("dpkg-deb -f" in WORKFLOW, "workflow must inspect DEB metadata")
 require("rpm -qp" in WORKFLOW, "workflow must inspect RPM metadata")
 
