@@ -1,6 +1,6 @@
 # Ghost FTP settings
 
-Ghost FTP **1.1.1 Stable** treats settings as validated runtime policy, not decorative UI state. A persisted option is accepted only within the bounds enforced by `internal/config/settings.go`.
+Ghost FTP **1.1.6 Stable** treats settings as validated runtime policy, not decorative UI state. A persisted option is accepted only within the bounds enforced by `internal/config/settings.go`.
 
 ## Current persisted settings
 
@@ -16,14 +16,24 @@ Ghost FTP **1.1.1 Stable** treats settings as validated runtime policy, not deco
 
 Corrupt or unavailable state does not select a less-safe policy. Defaults remain bounded and conservative.
 
+## Windows settings surface
+
+The maintained Windows frontend presents the current settings in **one application-owned native Settings dialog** instead of forcing the user through a chain of independent prompts. Appearance, transfer concurrency, connection timeout, retry policy, destination conflict policy and delete confirmation are visible together before anything is committed.
+
+The dialog uses the same local Light/Dark shell as the main Ghost FTP application, is owner-modal, scales from the active Windows DPI and never owns the process-level `WM_QUIT` lifecycle. Closing it with **X** or **Cancel** closes only Settings and leaves the main application running.
+
+Numeric input is validated inside the same dialog against the canonical `internal/config` bounds. Invalid input keeps the dialog open, shows localized corrective text, returns keyboard focus to the invalid field and selects its value for correction. A successful **OK** returns one complete candidate settings value to the desktop layer, which persists it through the existing typed engine path. Partial step-by-step settings writes are not introduced.
+
+The unified surface does not change the serialized settings schema. `conflictPolicy` remains the one user-facing destination-conflict decision; legacy boolean mirrors remain compatibility state only.
+
 ## Appearance
 
 Ghost FTP deliberately exposes only one appearance decision rather than separate background, accent, icon, list and button color switches.
 
 ### Windows
 
-- `light` — **Classic Light**, the primary/fresh Ghost FTP appearance: a bright neutral two-pane workspace inspired by the clarity of traditional professional FTP clients while using Ghost FTP's own branding, iconography and palette.
-- `dark` — the optional established Ghost FTP dark workspace. If the user explicitly selects and saves it, normalization preserves that preference.
+- `light` — **Classic Light**, the primary/fresh Ghost FTP appearance: a soft neutral two-pane workspace that avoids dominant pure-white application surfaces while preserving native-control readability and Ghost FTP's own branding, iconography and palette.
+- `dark` — the optional established Ghost FTP dark workspace, using a restrained navy/charcoal hierarchy. If the user explicitly selects and saves it, normalization preserves that preference.
 
 The Windows selection is persisted locally and is applied on the next application start. This is intentional: native title bar, menu, combo, edit, list/header and owner-drawn control styling are selected before the complete window tree is created, preventing mixed-theme fragments and avoiding runtime repaint races.
 
@@ -31,7 +41,7 @@ Unknown or missing appearance state fails to Classic Light rather than Dark. Thi
 
 ### Linux
 
-The native Linux desktop uses the **Classic Light** palette as the canonical 1.1 workspace. No extra Linux appearance toggle is exposed until complete runtime switching can be provided without introducing redraw/race complexity. This keeps the settings surface honest and avoids a control whose backend behavior would differ from its label.
+The native Linux desktop uses the **Classic Light** palette as the canonical 1.1.6 workspace. No extra Linux appearance toggle is exposed until complete runtime switching can be provided without introducing redraw/race complexity. This keeps the settings surface honest and avoids a control whose backend behavior would differ from its label.
 
 Appearance changes do not load remote styles, fonts, images or theme services and do not create network traffic.
 
