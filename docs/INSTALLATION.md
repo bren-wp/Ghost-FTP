@@ -1,12 +1,14 @@
 # Ghost FTP installation
 
-Ghost FTP **1.1.6 Stable** is the current source candidate and ships as native Windows and Linux packages after the complete release gate succeeds. Use only official artifacts whose version and SHA-256 values match the corresponding published GitHub Release. Published 1.1.5 and earlier releases remain immutable historical releases and are not rewritten.
+Ghost FTP **1.1.6 Stable** is the current published stable release. Use only official artifacts whose version and SHA-256 values match the corresponding published GitHub Release. Published Stable releases through 1.1.6 are immutable historical release identities and are not rewritten by later source or packaging work.
 
 The official Ghost FTP product website is **https://ghostftp.com**. Ghost FTP is developed and published by **BRENDIGO LTD**; the author's official website is **https://brendigo.com**.
 
 ## Windows
 
 ### Setup packages
+
+The published 1.1.6 Windows files are:
 
 ```text
 Ghost-FTP-1.1.6-Setup-x64.exe
@@ -37,7 +39,7 @@ In both cases verify `SHA256.txt`. For a signed release, also verify the Authent
 
 ## Linux
 
-Official Debian packages for 1.1.6 are:
+The published Linux files for 1.1.6 are:
 
 ```text
 Ghost-FTP-1.1.6-Linux-amd64.deb
@@ -46,7 +48,9 @@ Ghost-FTP-1.1.6-Linux-i386.deb
 Ghost-FTP-1.1.6-Linux-multiarch.zip
 ```
 
-Install the package matching the machine architecture with the system package manager. The package installs `ghostftp` and the maintained Linux desktop integration. DEB metadata uses `Homepage: https://ghostftp.com` and the BRENDIGO LTD publisher identity.
+Install the DEB matching the machine architecture with the system package manager. The package installs `ghostftp` and the maintained Linux desktop integration. DEB metadata uses `Homepage: https://ghostftp.com` and the BRENDIGO LTD publisher identity.
+
+Post-1.1.6 source/CI builds additionally create verified package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386. Those archives are not retroactive 1.1.6 release assets; see the Linux documentation for source-build and portable-installation instructions.
 
 ## Upgrade to 1.1.6
 
@@ -54,7 +58,7 @@ Ghost FTP 1.1.6 is a backward-compatible 1.x maintenance release. Existing 1.x l
 
 Before upgrading critical systems, keep an appropriate backup of local configuration and verify the stable package checksum and, when present, its signing state.
 
-Windows Setup performs a staged replacement with rollback-oriented transaction behavior. Linux upgrades use standard DEB package-manager semantics.
+Windows Setup performs a staged replacement with rollback-oriented transaction behavior. Linux upgrades using the published 1.1.6 DEBs use standard DEB package-manager semantics.
 
 ## First connection defaults
 
@@ -70,7 +74,7 @@ If a protected secret cannot be decrypted under the current user/device context,
 
 ## GitHub Packages
 
-After successful stable publication, the 1.1.6 release is mirrored as:
+The published 1.1.6 release is mirrored as:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:1.1.6
@@ -92,6 +96,8 @@ Use the registered Ghost FTP uninstall entry. The integrated maintenance/uninsta
 
 Remove the `ghost-ftp` package with the distribution package manager. User-local profiles/settings are separate data; removing application binaries does not imply deletion of all user data unless the product explicitly offers that operation.
 
+For a manually installed package-manager-neutral source/CI tarball, remove only the files that were installed from that archive; do not treat this as a package-manager transaction.
+
 ## Troubleshooting
 
 If Windows shows an unknown-publisher or SmartScreen warning, first inspect `BUILD-METADATA.txt`. If it says `WINDOWS_AUTHENTICODE=unsigned`, verify the official release location and `SHA256.txt`. If metadata says `signed` but signature validation fails, treat that as a release-integrity failure.
@@ -111,6 +117,6 @@ For connection failures, verify protocol, host, port, server policy and system t
 7. test the target server using its intended FTP/FTPS/SFTP mode and do not bypass failed TLS by silently switching protocols;
 8. keep private credentials out of logs and support reports.
 
-The 1.1.6 filenames above describe the candidate contract; they are not proof of publication. Treat 1.1.6 as downloadable only after the official tag, GitHub Release asset set and GHCR package read-back have succeeded.
+Ghost FTP 1.1.6 is already published as Stable. Its official tag, Release asset set and GHCR distribution bundle were read back by the canonical production workflow; later source/CI improvements do not rewrite that historical release.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).

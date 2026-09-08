@@ -1,10 +1,10 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.1.6 Stable** is the current maintained stable release candidate. Ghost FTP **1.1.5 Stable** is the previously published maintenance release; earlier published Stable tags/releases remain immutable historical identities. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
+Ghost FTP **1.1.6 Stable** is the current published stable release. Ghost FTP **1.1.5 Stable** is the previous maintenance release; all published Stable tags/releases through 1.1.6 remain immutable historical identities. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
-For version `1.1.6`:
+The published 1.1.6 identity is:
 
 ```text
 Tag: ghostftp-v1.1.6
@@ -18,19 +18,19 @@ The release workflow reads `VERSION` directly and rejects a manual workflow vers
 
 A version with major number `1` or greater is treated as Stable. The release workflow does not pass GitHub's prerelease flag for stable versions.
 
-Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing published Stable tags through `ghostftp-v1.1.5` remain bound to their original release commits.
+Historical 0.x releases were Beta/prerelease builds and remain part of release history; they are not rewritten or relabeled as stable. Existing published Stable tags through `ghostftp-v1.1.6` remain bound to their original release commits.
 
 ## Canonical release trigger
 
 `release.yml` is intentionally `workflow_dispatch`-only. A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.
 
-The generic canonical release-branch namespace is `release/ghostftp-vX.Y.Z`. For version 1.1.6, the release-prep PR first passes exact-head CI and authentic Windows UI evidence. After merge, the exact current `main` SHA must pass post-merge Core, Windows and Linux CI. Only then is `release/ghostftp-v1.1.6` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verifies both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
+The generic canonical release-branch namespace is `release/ghostftp-vX.Y.Z`. For 1.1.6, the release-prep PR passed exact-head CI and authentic Windows UI evidence. After merge, the exact `main` SHA passed post-merge Core, Windows and Linux CI. Only then was `release/ghostftp-v1.1.6` created at that exact `main` SHA. `.github/workflows/release-branch-trigger.yml` verified both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `release.yml` on `main` with the expected version guard.
 
-This keeps publication behind one canonical branch trigger and prevents duplicate or premature releases caused by a `VERSION` push.
+Future releases must follow the same canonical branch-dispatch model. This keeps publication behind one controlled trigger and prevents duplicate or premature releases caused by a `VERSION` push.
 
-## Required public files
+## Published 1.1.6 public files
 
-The stable Release exposes **9 platform artifacts**.
+The immutable 1.1.6 Release exposes **9 platform artifacts**.
 
 Windows:
 
@@ -59,19 +59,19 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-That is **12 public files** in total.
+That is **12 public files** in total. Post-1.1.6 source/CI builds also create verified Linux `.tar.gz` portable archives, but those are not retroactive 1.1.6 assets. A future release may publish them only after its own release allow-list change passes review and CI.
 
 ## Exact-head rule
 
 Before publication, the workflow queries current `main` and requires it to equal the release source SHA. It verifies the condition again after release publication. If `main` moves during the transaction, publication fails instead of silently attaching files to stale source.
 
-The canonical `release/ghostftp-v1.1.6` trigger branch must therefore be created from the exact `main` commit that passed the complete post-merge quality gate. The release-branch trigger independently verifies that equality before it dispatches publication.
+For 1.1.6, the canonical `release/ghostftp-v1.1.6` trigger branch was created from the exact `main` commit that passed the complete post-merge quality gate. Future release branches must satisfy the same equality check before publication dispatch.
 
 ## Immutable tag rule
 
-If `ghostftp-v1.1.6` already exists unexpectedly before publication, the release must stop. The tag must not be moved, deleted, reused or force-pushed.
+A release workflow must fail if the requested release tag or GitHub Release already exists. Existing tags are not moved, deleted, reused or force-pushed, and published assets are not overwritten or clobbered.
 
-The already-published Stable tags through `ghostftp-v1.1.5` are immutable release history. After successful 1.1.6 publication, `ghostftp-v1.1.6` becomes immutable under the same rule.
+The already-published Stable tags/releases through `ghostftp-v1.1.6` are immutable release history. Later source hardening, packaging improvements or documentation corrections do not rewrite their tag targets, assets, notes or checksums.
 
 ## Product and publisher identity
 
@@ -97,21 +97,23 @@ The publish job assembles a fresh `release/` directory from only the verified Wi
 
 `Setup-x32.exe` is intentionally a byte-identical compatibility alias of `Setup-x86.exe`; the workflow verifies their SHA-256 values match. It is not a separate architecture build.
 
+Published release immutability is fail-closed: the workflow rejects an existing tag or release rather than using `gh release upload` or `--clobber` to replace historical assets.
+
 ## Read-back verification
 
-After creating the Release, the workflow reads the remote asset set from GitHub and compares it with the expected sorted list. It also reads `prerelease` and requires it to be `false` for the stable channel. A delayed second read-back catches asynchronous publication issues.
+After creating a new Release, the workflow reads the remote asset set from GitHub and compares it with the expected sorted list. It also reads `prerelease` and requires it to be `false` for the stable channel. A delayed second read-back catches asynchronous publication issues.
 
-A release is not considered published merely because a local build succeeded; remote Release/tag state must agree with the verified source revision and file contract.
+A release is not considered published merely because a local build succeeded; remote Release/tag state must agree with the verified source revision and file contract. Ghost FTP 1.1.6 completed those remote read-back gates.
 
 ## GitHub Packages
 
-Stable 1.1.6 publication additionally pushes the verified release directory to:
+Stable 1.1.6 is published at:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:1.1.6
 ```
 
-Compatible stable aliases are published only after successful registry publication/read-back:
+Compatible stable aliases were published after successful registry publication/read-back:
 
 ```text
 1.1
@@ -127,10 +129,12 @@ See [Packages](PACKAGES.md).
 
 The 1.1.6 release contains four verified hardening changes since 1.1.5: root-handle recursive local delete, root-handle local `Mkdir`, in-memory SFTP fingerprint derivation bound to the exact scanned key, and fail-closed remote cleanup proof that rejects spoofable diagnostic text.
 
-The release-prep version change alters public version presentation. Authentic Main Workspace, Site Manager, Settings and About screenshots must therefore be generated from the real production Windows x64 Portable executable on the exact final release-prep head and visually reviewed before merge. Mockups or generated approximations are not accepted as release evidence.
+The release-prep version change altered public version presentation. Authentic Main Workspace, Site Manager, Settings and About screenshots were generated from the real production Windows x64 Portable executable on the exact final release-prep head and visually reviewed before merge. Mockups or generated approximations were not accepted as release evidence.
+
+Post-1.1.6 `main` additionally includes further hardening and Linux packaging work. Those source changes are not retroactively described as contents of the immutable 1.1.6 release.
 
 ## Failure behavior
 
-A failed quality gate, production build, configured-signing verification, package push, tag validation, Release upload or read-back check causes the workflow to fail. Absence of a production Authenticode certificate alone does not fail publication; that state is preserved as `unsigned` metadata.
+A failed quality gate, production build, configured-signing verification, package push, tag validation, Release creation or read-back check causes the workflow to fail. Absence of a production Authenticode certificate alone does not fail publication; that state is preserved as `unsigned` metadata.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
