@@ -91,15 +91,17 @@ Linux uses the maintained native X11/XWayland-compatible frontend and platform-l
 
 Post-1.1.6 source/CI packaging additionally builds package-manager-neutral `.tar.gz` archives for the same three architectures. CI proves that each DEB and portable archive contains the same compiled `ghostftp` executable byte-for-byte. This expands practical distribution compatibility without pretending that an unverified RPM/AppImage/Flatpak/Snap lifecycle already exists.
 
+The maintained production release workflow now applies the same parity proof before publication and stages both DEB and `.tar.gz` formats. A future release can therefore expose the portable archives as first-class Linux release assets only after the complete exact-head and post-merge release gates succeed.
+
 Idle rendering is state/event driven so the complete workspace is not continuously repainted while nothing relevant changes.
 
 ## Release parity
 
 The production workflow independently builds and verifies both platform families before publication. A successful Windows build cannot substitute for a failed Linux build, and vice versa.
 
-The already published Ghost FTP 1.1.6 GitHub Release remains immutable with its original **9 platform artifacts / 12 public files**. The new Linux portable archives are source/CI outputs only until a separate release-contract change is reviewed and gated; documentation must not retroactively list them as 1.1.6 assets.
+The already published Ghost FTP 1.1.6 GitHub Release remains immutable with its original **9 platform artifacts / 12 public files**. The maintained next-release source contract now requires **12 platform artifacts / 15 public files**: the historical Windows/DEB/multiarch set plus verified Linux `.tar.gz` archives for amd64, arm64 and i386. This does not retroactively list those archives as 1.1.6 assets.
 
-GHCR mirrors the verified assembled release directory and is a distribution bundle, not a third application implementation.
+GHCR mirrors the verified assembled release directory and is a distribution bundle, not a third application implementation. For a later version, that mirrored directory will include the tarballs only if that version independently passes the release allow-list, SHA-256 and remote read-back gates.
 
 ## Definition of parity complete
 

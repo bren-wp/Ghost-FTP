@@ -76,11 +76,19 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Setup-x86.exe",
         "Ghost-FTP-${VERSION}-Setup-x32.exe",
         "Ghost-FTP-${VERSION}-Linux-amd64.deb",
+        "Ghost-FTP-${VERSION}-Linux-amd64.tar.gz",
         "Ghost-FTP-${VERSION}-Linux-arm64.deb",
+        "Ghost-FTP-${VERSION}-Linux-arm64.tar.gz",
         "Ghost-FTP-${VERSION}-Linux-i386.deb",
+        "Ghost-FTP-${VERSION}-Linux-i386.tar.gz",
         "Ghost-FTP-${VERSION}-Linux-multiarch.zip",
-        "PUBLIC_PLATFORM_ARTIFACTS=9",
-        "PUBLIC_RELEASE_FILES=12",
+        "Verify DEB and portable packages",
+        "GHOSTFTP_REQUIRE_DEB: '1'",
+        'cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"',
+        "dist/Ghost-FTP-*-Linux-*.tar.gz",
+        "LINUX_PORTABLE=amd64,arm64,i386",
+        "PUBLIC_PLATFORM_ARTIFACTS=12",
+        "PUBLIC_RELEASE_FILES=15",
         "ghcr.io/${owner}/ghost-ftp",
         "org.opencontainers.image.source",
         "Distribution bundle only; not a supported runtime container.",
@@ -202,12 +210,12 @@ def main() -> int:
     print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("PUBLIC_PLATFORM_ARTIFACTS=9")
-    print("PUBLIC_RELEASE_FILES=12")
+    print("PUBLIC_PLATFORM_ARTIFACTS=12")
+    print("PUBLIC_RELEASE_FILES=15")
     print("WINDOWS_PORTABLE=x64,x86")
     print("WINDOWS_X32_ALIAS_OF_X86=REQUIRED")
     print("LINUX_DEB=amd64,arm64,i386")
-    print("LINUX_PORTABLE_SOURCE=amd64,arm64,i386")
+    print("LINUX_PORTABLE=amd64,arm64,i386")
     print("STABLE_GHCR_BUNDLE=REQUIRED")
     return 0
 

@@ -30,7 +30,20 @@ For 1.1.6, that directory contains the same Windows Setup/Portable packages, Lin
 
 This is a **distribution bundle**, not a runtime container. Ghost FTP is a native desktop application for Windows and Linux; GHCR exists so CI systems, mirrors and administrators can retrieve a versioned, repository-linked release bundle.
 
-Post-1.1.6 source/CI builds additionally produce package-manager-neutral Linux `.tar.gz` archives. They are not retroactive contents of the immutable 1.1.6 GHCR bundle; a later release may include them only after its own release-contract gates pass.
+Post-1.1.6 source builds additionally produce package-manager-neutral Linux `.tar.gz` archives. They are not retroactive contents of the immutable 1.1.6 GHCR bundle.
+
+## Maintained next-release bundle contract
+
+The source release workflow for a later version now stages the three verified Linux portable archives alongside the matching DEBs. Its final assembly contract is **12 platform artifacts / 15 public files**. Because the GHCR image copies only the already verified `release/` directory, those tarballs are mirrored into a future GHCR version only after the production job has:
+
+- built the DEB and `.tar.gz` for amd64, arm64 and i386;
+- validated DEB metadata and portable archive structure;
+- proved DEB/portable `ghostftp` executable byte parity;
+- matched the exact 15-file release allow-list;
+- generated `SHA256.txt` over the assembly;
+- passed GitHub Release publication and remote read-back for that future version.
+
+This contract does not create a new package version by itself and does not alter `ghcr.io/bren-wp/ghost-ftp:1.1.6` or its aliases/digest history.
 
 ## Canonical installation source
 
@@ -52,7 +65,7 @@ Every stable package is produced only after the same quality gates used for GitH
 - explicit `WINDOWS_AUTHENTICODE=unsigned` metadata when no production certificate is configured;
 - exact source/release version binding and post-publication read-back.
 
-For the historical 1.1.6 release, the Linux public artifacts remain three DEBs plus the Linux multiarch ZIP. Current source/CI additionally validates distro-neutral Linux tarballs, but that does not mutate the already published bundle.
+For the historical 1.1.6 release, the Linux public artifacts remain three DEBs plus the Linux multiarch ZIP. The maintained next-release workflow additionally validates and stages distro-neutral Linux tarballs, but that does not mutate the already published bundle.
 
 Production signing is optional, but its state is never ambiguous. A configured trusted signing identity is verified fail-closed; absence of a production certificate does not cause Ghost FTP to fabricate a self-signed publisher identity or label unsigned files as signed.
 
@@ -72,6 +85,8 @@ For the published 1.1.6 package:
 4. verify every release file before use;
 5. compare the expected source commit with `BUILD-METADATA.txt` and the OCI revision label;
 6. inspect `WINDOWS_AUTHENTICODE` before interpreting Windows publisher-signature state.
+
+For later versions, perform the same checks against that exact version and verify the asset contract recorded by its `BUILD-METADATA.txt`; do not assume the historical 1.1.6 file count applies to future bundles.
 
 This provides two integrity references: the OCI manifest digest and the per-file SHA-256 manifest, plus an explicit Windows signing-state declaration.
 
