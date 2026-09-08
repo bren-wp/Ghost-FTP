@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"unsafe"
+
+	"github.com/bren-wp/Ghost-FTP/internal/uipalette"
 )
 
 var premiumGetSystemMetrics = user32.NewProc("GetSystemMetrics")
@@ -83,26 +85,29 @@ func premiumColor(r, g, b byte) uintptr {
 	return uintptr(r) | uintptr(g)<<8 | uintptr(b)<<16
 }
 
-func premiumDialogSurfaceColor() uintptr {
+func premiumPaletteColor(value uipalette.RGB) uintptr {
+	return premiumColor(value.R, value.G, value.B)
+}
+
+func premiumDialogTheme() uipalette.Theme {
 	if premiumDialogDark.Load() {
-		return premiumColor(15, 19, 28)
+		return uipalette.Dark
 	}
-	// A restrained neutral surface avoids the glaring pure-white flash that the
-	// previous application-owned Light dialogs produced next to the main window.
-	return premiumColor(246, 248, 251)
+	return uipalette.Light
+}
+
+func premiumDialogSurfaceColor() uintptr {
+	return premiumPaletteColor(premiumDialogTheme().Panel)
 }
 
 func premiumDialogTextColor() uintptr {
-	if premiumDialogDark.Load() {
-		return premiumColor(244, 247, 255)
-	}
-	return premiumColor(31, 35, 40)
+	return premiumPaletteColor(premiumDialogTheme().Text)
 }
 
 func premiumDialogBackgroundBrush() uintptr {
 	if premiumDialogDark.Load() {
 		premiumDarkBrushOnce.Do(func() {
-			premiumDarkBrush, _, _ = premiumCreateSolidBrush.Call(premiumColor(15, 19, 28))
+			premiumDarkBrush, _, _ = premiumCreateSolidBrush.Call(premiumPaletteColor(uipalette.Dark.Panel))
 		})
 		if premiumDarkBrush != 0 {
 			return premiumDarkBrush
@@ -110,7 +115,7 @@ func premiumDialogBackgroundBrush() uintptr {
 		return 6
 	}
 	premiumLightBrushOnce.Do(func() {
-		premiumLightBrush, _, _ = premiumCreateSolidBrush.Call(premiumColor(246, 248, 251))
+		premiumLightBrush, _, _ = premiumCreateSolidBrush.Call(premiumPaletteColor(uipalette.Light.Panel))
 	})
 	if premiumLightBrush != 0 {
 		return premiumLightBrush
@@ -118,10 +123,9 @@ func premiumDialogBackgroundBrush() uintptr {
 	return 6
 }
 
-// premiumDialogControlColor is shared by the prompt/option/about card window
-// procedures. It prevents static labels and edit/list backgrounds from falling
-// back to an unrelated stock brush while the active application appearance is
-// Dark or the softened application-owned Light palette is active.
+// premiumDialogControlColor is shared by the application-owned prompt,
+// settings and information-card window procedures. It prevents static labels
+// and edit/list backgrounds from falling back to an unrelated stock brush.
 func premiumDialogControlColor(hdc uintptr) uintptr {
 	if hdc != 0 {
 		premiumSetTextColor.Call(hdc, premiumDialogTextColor())
@@ -194,9 +198,7 @@ func premiumScale(value int, dpi uint32) int {
 }
 
 // premiumDialogOuterSize converts a desired client-area size into the actual
-// top-level window size. The old code treated the requested outer size as if it
-// were the client size, so the Windows title bar and frame consumed the footer
-// and clipped action buttons on current Windows builds and DPI settings.
+// top-level window size so title bars and frames cannot consume footer space.
 func premiumDialogOuterSize(clientWidth, clientHeight int, style uint32, exStyle uint32, dpi uint32) (int, int) {
 	r := premiumRect{
 		Right:  int32(premiumScale(clientWidth, dpi)),
@@ -263,8 +265,7 @@ func premiumDialogPosition(owner uintptr, width, height int) (int, int) {
 }
 
 // premiumModalOwner makes the custom top-level window actually modal. Without
-// this, the nested message loop still dispatched clicks and keyboard commands
-// to the main Ghost FTP window behind the dialog.
+// this, the nested message loop still dispatches input to the main window.
 func premiumModalOwner(owner uintptr) func() {
 	if owner == 0 {
 		return func() {}
@@ -301,9 +302,7 @@ func premiumDialogFont(height int32, weight uintptr) uintptr {
 }
 
 // applyPremiumDialogWindow uses best-effort DWM hints only. Failure is ignored
-// so the same binary remains usable on Windows builds that do not expose a
-// particular modern composition attribute. The title bar follows the active
-// appearance instead of being forced dark while the dialog body remains light.
+// so the same binary remains usable on Windows builds without an attribute.
 func applyPremiumDialogWindow(hwnd uintptr) {
 	if hwnd == 0 {
 		return
