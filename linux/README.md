@@ -113,7 +113,7 @@ Ghost-FTP-1.1.6-Linux-i386.deb
 Ghost-FTP-1.1.6-Linux-multiarch.zip
 ```
 
-Later portable and distro-specific CI outputs are not retroactively listed as 1.1.6 release assets and do not alter the 1.1.6 tag, checksums, release notes or GHCR bundle.
+The canonical generic portable `.tar.gz` output is **not** retroactively claimed as a 1.1.6 release asset. Later portable and distro-specific CI outputs are not retroactively listed as 1.1.6 release assets and do not alter the 1.1.6 tag, checksums, release notes or GHCR bundle.
 
 ## Canonical next-release contract
 
