@@ -262,14 +262,22 @@ func taskDialogCall(title, instruction, content string, buttons uintptr) (int, b
 }
 
 func ConfirmDialog(title, instruction, content string) bool {
+	if pressed, ok := decisionCardDialog(title, instruction, content, decisionCardKindConfirm); ok {
+		return pressed == decisionIDYes
+	}
+	// Stock Windows surfaces are a robustness fallback only. The normal desktop
+	// path is the application-owned Ghost FTP decision card above.
 	const yesNo = 0x0002 | 0x0004
 	if pressed, ok := taskDialogCall(title, instruction, content, yesNo); ok {
-		return pressed == 6
+		return pressed == decisionIDYes
 	}
-	return MessageBox(title, instruction+"\n\n"+content, 0x24) == 6
+	return MessageBox(title, instruction+"\n\n"+content, 0x24) == decisionIDYes
 }
 
 func InfoDialog(title, instruction, content string) {
+	if _, ok := decisionCardDialog(title, instruction, content, decisionCardKindInfo); ok {
+		return
+	}
 	const okButton = 0x0001
 	if _, ok := taskDialogCall(title, instruction, content, okButton); ok {
 		return
@@ -278,6 +286,9 @@ func InfoDialog(title, instruction, content string) {
 }
 
 func ErrorDialog(title, instruction, content string) {
+	if _, ok := decisionCardDialog(title, instruction, content, decisionCardKindError); ok {
+		return
+	}
 	const okButton = 0x0001
 	if _, ok := taskDialogCall(title, instruction, content, okButton); ok {
 		return
