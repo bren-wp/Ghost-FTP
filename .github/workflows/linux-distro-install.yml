@@ -71,7 +71,11 @@ jobs:
 
       - name: Verify install-gate source contract
         shell: bash
-        run: python scripts/test_linux_distro_install_contract.py
+        run: |
+          set -euo pipefail
+          bash -n scripts/verify_linux_distro_install.sh
+          python -m py_compile scripts/test_linux_distro_install_contract.py
+          python scripts/test_linux_distro_install_contract.py
 
       - name: Build exact-head distro packages
         shell: bash
