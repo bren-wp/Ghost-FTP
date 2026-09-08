@@ -21,10 +21,17 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
         self.assertIn(
             "decisionCardDialog(title, instruction, content, decisionCardKindError)", source
         )
-        # Stock Windows dialogs remain a fail-safe only after the custom path.
-        self.assertIn("taskDialogCall", source)
-        self.assertIn("MessageBox(title", source)
-        self.assertLess(source.index("decisionCardDialog"), source.index("taskDialogCall(title"))
+
+        # Stock Windows dialogs remain a fail-safe only after the custom path in
+        # each public API, regardless of helper declaration order in the file.
+        confirm = source[source.index("func ConfirmDialog"):source.index("func InfoDialog")]
+        info = source[source.index("func InfoDialog"):source.index("func ErrorDialog")]
+        error = source[source.index("func ErrorDialog"):source.index("func MessageBox")]
+        for block in (confirm, info, error):
+            self.assertIn("decisionCardDialog", block)
+            self.assertIn("taskDialogCall", block)
+            self.assertIn("MessageBox(title", block)
+            self.assertLess(block.index("decisionCardDialog"), block.index("taskDialogCall"))
 
     def test_decision_card_reuses_shared_theme_dpi_owner_and_keyboard_shell(self) -> None:
         card = read("internal/platform/decision_card_windows.go")
