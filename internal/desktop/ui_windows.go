@@ -405,14 +405,12 @@ func clampInt(v, min, max int) int {
 }
 
 func (a *app) layout(width, height int) {
+	// WM_SIZE and GetClientRect report client-area dimensions. Keep those
+	// dimensions authoritative even when the surrounding top-level window is
+	// constrained by the screen; expanding them to the top-level minimum would
+	// position child controls outside the real client area.
 	width = a.unscale(width)
 	height = a.unscale(height)
-	if width < premiumMinWidth {
-		width = premiumMinWidth
-	}
-	if height < premiumMinHeight {
-		height = premiumMinHeight
-	}
 	margin, gap, rowH := 14, 8, 29
 	compact := width < 1180
 
@@ -569,10 +567,9 @@ func (a *app) layout(width, height int) {
 	a.move(a.remoteDelete, rightX+mkdirW+actionGap+renameW+actionGap, actionY, deleteW, rowH)
 	a.move(a.remoteChmod, rightX+mkdirW+actionGap+renameW+actionGap+deleteW+actionGap, actionY, chmodW, rowH)
 
-	statusH := 24
+	statusY, contentBottom := statusBandGeometry(height)
 	queueButtonsH := 33
 	listY := actionY + rowH + 9
-	contentBottom := height - statusH - 12
 	availableH := contentBottom - listY
 	fixedQueueH := 10 + 18 + 4 + queueButtonsH + 7
 	queueH := clampInt(availableH/3, 80, 190)
@@ -611,8 +608,8 @@ func (a *app) layout(width, height int) {
 	}
 	queueY := queueButtonsY + queueButtonsH + 7
 	a.move(a.transferList, margin, queueY, width-2*margin, queueH)
-	a.move(a.status, margin, height-statusH-5, width-2*margin-250, statusH)
-	a.move(a.statusVersion, width-margin-238, height-statusH-5, 238, statusH)
+	a.move(a.status, margin, statusY, width-2*margin-250, statusBandHeight)
+	a.move(a.statusVersion, width-margin-238, statusY, 238, statusBandHeight)
 	a.resizeListColumns()
 	invalidateRect.Call(a.hwnd, 0, 1)
 }
