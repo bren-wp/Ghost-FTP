@@ -25,17 +25,30 @@ for token in (
     require(token in VERIFY, f"missing distro identity guard: {token}")
 
 # Real install/remove state is mandatory; file-existence-only checks are not.
+# Fedora's minimal image may globally set tsflags=nodocs, so its Ghost FTP
+# transaction must explicitly clear that optimization and verify the full RPM.
 for token in (
     'apt-get install -y --no-install-recommends "$package_path"',
     "dpkg-query -W -f='${Status}' ghost-ftp",
     "dpkg-query -L ghost-ftp",
     "apt-get remove -y ghost-ftp",
-    'dnf install -y "$package_path"',
+    'dnf --setopt=tsflags= install -y "$package_path"',
     "rpm -q --qf '%{VERSION}' ghost-ftp",
     "rpm -ql ghost-ftp",
     "dnf remove -y ghost-ftp",
 ):
     require(token in VERIFY, f"missing package lifecycle verification: {token}")
+require(
+    'dnf install -y "$package_path"' not in VERIFY,
+    "Fedora Ghost FTP install must clear minimal-image tsflags=nodocs",
+)
+for token in (
+    "/usr/share/doc/ghost-ftp/LICENSE",
+    "/usr/share/doc/ghost-ftp/README.md",
+    "fedora_fail license-file",
+    "fedora_fail readme-file",
+):
+    require(token in VERIFY, f"missing full Fedora documentation payload verification: {token}")
 
 # Dependency contracts and installed runtime tools must be proved inside the
 # clean target distribution after package installation. Fedora may satisfy the
