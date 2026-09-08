@@ -52,6 +52,18 @@ for token in (
     require(token in VERIFY, f"missing dependency/runtime verification: {token}")
 require("rpm -q --whatprovides curl" not in VERIFY, "Fedora verifier must not assume a literal curl capability provider name")
 
+# Fedora CA trust layout must be derived from the installed ca-certificates RPM,
+# not from one historical /etc/pki path that may change between Fedora releases.
+for token in (
+    "verify_fedora_ca_bundle()",
+    "rpm -ql ca-certificates",
+    "*/tls-ca-bundle.pem|*/ca-bundle.crt|*/ca-certificates.crt",
+    'rpm -qf "$ca_bundle"',
+    "GHOSTFTP_FEDORA_CA_BUNDLE=",
+):
+    require(token in VERIFY, f"missing Fedora CA-bundle contract: {token}")
+require("/etc/pki/tls/certs/ca-bundle.crt" not in VERIFY, "Fedora verifier must not hardcode one CA bundle path")
+
 # Fedora assertions should identify the exact failing contract instead of being
 # silent under set -e. This keeps future packaging regressions deterministic.
 for token in (
