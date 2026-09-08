@@ -59,7 +59,21 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-That is **12 public files** in total. Post-1.1.6 source/CI builds also create verified Linux `.tar.gz` portable archives, but those are not retroactive 1.1.6 assets. A future release may publish them only after its own release allow-list change passes review and CI.
+That is **12 public files** in total. Post-1.1.6 source/CI builds also create verified Linux `.tar.gz` portable archives, but those are not retroactive 1.1.6 assets.
+
+## Maintained next-release allow-list
+
+The current source release workflow is prepared for a later version with **12 platform artifacts** and **15 public files** total. It retains the five Windows artifacts, three Linux DEBs and Linux multiarch DEB bundle, and adds three separately downloadable portable archives:
+
+```text
+Ghost-FTP-X.Y.Z-Linux-amd64.tar.gz
+Ghost-FTP-X.Y.Z-Linux-arm64.tar.gz
+Ghost-FTP-X.Y.Z-Linux-i386.tar.gz
+```
+
+Before those archives can be published for a future version, the production Linux job requires `GHOSTFTP_REQUIRE_DEB=1`, builds both formats, extracts them and compares the DEB-installed `ghostftp` executable with the portable archive executable byte-for-byte. The publish job then stages the exact 15-file set, includes every file in `SHA256.txt`, and requires both immediate and delayed remote asset read-back to match the allow-list exactly.
+
+This source contract is not publication evidence for any unreleased version and does not alter the 1.1.6 tag, release assets, notes, checksums or GHCR bundle.
 
 ## Exact-head rule
 
@@ -95,6 +109,8 @@ The workflow never generates a self-signed production publisher identity and nev
 
 The publish job assembles a fresh `release/` directory from only the verified Windows and Linux staging artifacts plus generated notes/metadata/checksums. The final file count and expected filenames are checked before upload.
 
+For the maintained next-release source contract, metadata records `LINUX_PORTABLE=amd64,arm64,i386`, `PUBLIC_PLATFORM_ARTIFACTS=12` and `PUBLIC_RELEASE_FILES=15`. The historical 1.1.6 metadata remains unchanged at its originally published values.
+
 `Setup-x32.exe` is intentionally a byte-identical compatibility alias of `Setup-x86.exe`; the workflow verifies their SHA-256 values match. It is not a separate architecture build.
 
 Published release immutability is fail-closed: the workflow rejects an existing tag or release rather than using `gh release upload` or `--clobber` to replace historical assets.
@@ -121,7 +137,7 @@ Compatible stable aliases were published after successful registry publication/r
 latest
 ```
 
-The registry package is an OCI distribution bundle, not a runtime container. The package build copies only the verified `release/` assembly, disables build networking, adds source/version/revision labels and verifies registry read-back.
+The registry package is an OCI distribution bundle, not a runtime container. The package build copies only the verified `release/` assembly, disables build networking, adds source/version/revision labels and verifies registry read-back. For a future release, the verified Linux portable archives will be mirrored only if that version's 15-file release assembly passes publication and read-back.
 
 See [Packages](PACKAGES.md).
 
