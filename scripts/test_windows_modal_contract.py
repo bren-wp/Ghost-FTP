@@ -51,11 +51,19 @@ class WindowsModalContractTests(unittest.TestCase):
         self.assertIn("premiumColor(246, 248, 251)", shell)
         self.assertNotIn("return premiumColor(255, 255, 255)", shell)
 
-    def test_compatibility_prompt_uses_configured_action_labels(self) -> None:
+    def test_compatibility_prompt_uses_runtime_localized_action_labels(self) -> None:
         prompt = read("internal/platform/prompt_windows.go")
         shell = read("internal/platform/dialog_premium_windows.go")
+        commands = read("internal/desktop/commands_windows.go")
+        catalogs = read("internal/i18n/catalogs.go")
+
         self.assertIn("dialogActionLabels()", prompt)
         self.assertIn("SetDialogActionLabels", shell)
+        self.assertIn(
+            'platform.SetDialogActionLabels(okLabel(a.languageCode()), a.tr("common.cancel"))',
+            commands,
+        )
+        self.assertIn('"common.cancel": "Otkaži"', catalogs)
 
 
 if __name__ == "__main__":
