@@ -51,16 +51,23 @@ type toolError struct {
 	message string
 }
 
-// Error deliberately exposes only bounded structural information. Child-process
-// stderr can contain hosts, usernames, remote paths and private-key paths; it is
-// retained privately in message for classification but must never become the
-// generic error string consumed by UI, logs or future fallback paths.
+// Error deliberately exposes only bounded structural information and a stable,
+// locally generated semantic category. Child-process stderr can contain hosts,
+// usernames, remote paths and private-key paths; it remains private in message
+// for classification and retry decisions and is never reflected verbatim.
 func (e *toolError) Error() string {
-	label := toolErrorPublicLabel(e.tool)
-	if e.code >= 0 {
-		return fmt.Sprintf("%s operation failed (exit code %d)", label, e.code)
+	if e == nil {
+		return "network tool operation failed"
 	}
-	return label + " operation failed"
+	label := toolErrorPublicLabel(e.tool)
+	base := label + " operation failed"
+	if detail := toolErrorPublicDetail(e.UserErrorKind()); detail != "" {
+		base = label + " " + detail
+	}
+	if e.code >= 0 {
+		return fmt.Sprintf("%s (exit code %d)", base, e.code)
+	}
+	return base
 }
 
 func toolErrorPublicLabel(tool string) string {
@@ -73,6 +80,39 @@ func toolErrorPublicLabel(tool string) string {
 		return "sftp"
 	default:
 		return "network tool"
+	}
+}
+
+func toolErrorPublicDetail(kind string) string {
+	switch kind {
+	case "auth":
+		return "login failed"
+	case "permission":
+		return "permission denied"
+	case "not_found":
+		return "remote object not found"
+	case "resolve":
+		return "host resolution failed"
+	case "refused":
+		return "connection refused"
+	case "timeout":
+		return "operation timed out"
+	case "connection_lost":
+		return "connection lost"
+	case "tls":
+		return "TLS verification failed"
+	case "ftp_limit":
+		return "connection limit reached"
+	case "ftp_data":
+		return "data connection failed"
+	case "disk":
+		return "remote storage unavailable"
+	case "hostkey_changed":
+		return "host key verification failed"
+	case "sftp_settings":
+		return "credential settings invalid"
+	default:
+		return ""
 	}
 }
 
