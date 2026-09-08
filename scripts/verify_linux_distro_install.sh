@@ -113,6 +113,11 @@ verify_common_runtime_tools() {
   fi
 }
 
+fedora_fail() {
+  echo "GHOSTFTP_FEDORA_VERIFY_FAIL=$1" >&2
+  exit 1
+}
+
 if [[ "$target" == "debian" || "$target" == "ubuntu" ]]; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
@@ -153,39 +158,45 @@ if [[ "$target" == "debian" || "$target" == "ubuntu" ]]; then
 else
   dnf install -y xorg-x11-server-Xvfb >/dev/null
 
-  [[ "$(rpm -qp --qf '%{NAME}' "$package_path")" == "ghost-ftp" ]]
-  [[ "$(rpm -qp --qf '%{VERSION}' "$package_path")" == "$expected_version" ]]
-  [[ "$(rpm -qp --qf '%{ARCH}' "$package_path")" == "x86_64" ]]
-  [[ "$(rpm -qp --qf '%{DISTRIBUTION}' "$package_path")" == "Fedora" ]]
-  rpm -qp --requires "$package_path" | grep -Fx 'ca-certificates' >/dev/null
-  rpm -qp --requires "$package_path" | grep -Fx 'curl' >/dev/null
-  rpm -qp --requires "$package_path" | grep -Fx 'openssh-clients' >/dev/null
+  [[ "$(rpm -qp --qf '%{NAME}' "$package_path")" == "ghost-ftp" ]] || fedora_fail package-name
+  [[ "$(rpm -qp --qf '%{VERSION}' "$package_path")" == "$expected_version" ]] || fedora_fail package-version
+  [[ "$(rpm -qp --qf '%{ARCH}' "$package_path")" == "x86_64" ]] || fedora_fail package-arch
+  [[ "$(rpm -qp --qf '%{DISTRIBUTION}' "$package_path")" == "Fedora" ]] || fedora_fail package-distribution
+  rpm -qp --requires "$package_path" | grep -Fx 'ca-certificates' >/dev/null || fedora_fail requires-ca-certificates
+  rpm -qp --requires "$package_path" | grep -Fx 'curl' >/dev/null || fedora_fail requires-curl
+  rpm -qp --requires "$package_path" | grep -Fx 'openssh-clients' >/dev/null || fedora_fail requires-openssh-clients
 
   dnf install -y "$package_path" >/dev/null
-  [[ "$(rpm -q --qf '%{VERSION}' ghost-ftp)" == "$expected_version" ]]
-  [[ "$(rpm -q --qf '%{ARCH}' ghost-ftp)" == "x86_64" ]]
-  rpm -q ca-certificates openssh-clients >/dev/null
-  rpm -q --whatprovides curl >/dev/null
-  verify_common_runtime_tools
+  [[ "$(rpm -q --qf '%{VERSION}' ghost-ftp)" == "$expected_version" ]] || fedora_fail installed-version
+  [[ "$(rpm -q --qf '%{ARCH}' ghost-ftp)" == "x86_64" ]] || fedora_fail installed-arch
+  rpm -q ca-certificates >/dev/null || fedora_fail ca-certificates-package
+  rpm -q openssh-clients >/dev/null || fedora_fail openssh-clients-package
 
-  test -x /usr/bin/ghostftp
-  test -f /usr/share/applications/ghost-ftp.desktop
-  test -f /usr/share/icons/hicolor/512x512/apps/ghost-ftp.png
-  test -f /usr/share/doc/ghost-ftp/LICENSE
-  test -f /usr/share/doc/ghost-ftp/README.md
-  rpm -ql ghost-ftp | grep -Fx '/usr/bin/ghostftp' >/dev/null
-  rpm -ql ghost-ftp | grep -Fx '/usr/share/applications/ghost-ftp.desktop' >/dev/null
-  rpm -ql ghost-ftp | grep -Fx '/usr/share/icons/hicolor/512x512/apps/ghost-ftp.png' >/dev/null
+  curl_path="$(command -v curl)" || fedora_fail curl-command
+  [[ -x "$curl_path" ]] || fedora_fail curl-executable
+  rpm -qf "$curl_path" >/dev/null || fedora_fail curl-rpm-owner
+  command -v ssh >/dev/null || fedora_fail ssh-command
+  command -v sftp >/dev/null || fedora_fail sftp-command
+  test -s /etc/pki/tls/certs/ca-bundle.crt || fedora_fail ca-bundle
+
+  test -x /usr/bin/ghostftp || fedora_fail ghostftp-executable
+  test -f /usr/share/applications/ghost-ftp.desktop || fedora_fail desktop-file
+  test -f /usr/share/icons/hicolor/512x512/apps/ghost-ftp.png || fedora_fail icon-file
+  test -f /usr/share/doc/ghost-ftp/LICENSE || fedora_fail license-file
+  test -f /usr/share/doc/ghost-ftp/README.md || fedora_fail readme-file
+  rpm -ql ghost-ftp | grep -Fx '/usr/bin/ghostftp' >/dev/null || fedora_fail owns-executable
+  rpm -ql ghost-ftp | grep -Fx '/usr/share/applications/ghost-ftp.desktop' >/dev/null || fedora_fail owns-desktop-file
+  rpm -ql ghost-ftp | grep -Fx '/usr/share/icons/hicolor/512x512/apps/ghost-ftp.png' >/dev/null || fedora_fail owns-icon-file
 
   verify_gui_smoke
 
   dnf remove -y ghost-ftp >/dev/null
-  ! rpm -q ghost-ftp >/dev/null 2>&1
-  test ! -e /usr/bin/ghostftp
-  test ! -e /usr/share/applications/ghost-ftp.desktop
-  test ! -e /usr/share/icons/hicolor/512x512/apps/ghost-ftp.png
-  test ! -e /usr/share/doc/ghost-ftp/LICENSE
-  test ! -e /usr/share/doc/ghost-ftp/README.md
+  ! rpm -q ghost-ftp >/dev/null 2>&1 || fedora_fail package-still-installed
+  test ! -e /usr/bin/ghostftp || fedora_fail executable-residue
+  test ! -e /usr/share/applications/ghost-ftp.desktop || fedora_fail desktop-residue
+  test ! -e /usr/share/icons/hicolor/512x512/apps/ghost-ftp.png || fedora_fail icon-residue
+  test ! -e /usr/share/doc/ghost-ftp/LICENSE || fedora_fail license-residue
+  test ! -e /usr/share/doc/ghost-ftp/README.md || fedora_fail readme-residue
 fi
 
 echo "GHOSTFTP_DISTRO_INSTALL=PASS target=$target os=${ID}-${VERSION_ID} package_version=$expected_version"
