@@ -62,6 +62,9 @@ Linux:
 - Ghost-FTP-{version}-Linux-amd64.deb — Debian package for amd64.
 - Ghost-FTP-{version}-Linux-arm64.deb — Debian package for arm64.
 - Ghost-FTP-{version}-Linux-i386.deb — Debian package for i386.
+- Ghost-FTP-{version}-Linux-amd64.tar.gz — package-manager-neutral portable archive for amd64.
+- Ghost-FTP-{version}-Linux-arm64.tar.gz — package-manager-neutral portable archive for arm64.
+- Ghost-FTP-{version}-Linux-i386.tar.gz — package-manager-neutral portable archive for i386.
 - Ghost-FTP-{version}-Linux-multiarch.zip — bundle containing the three verified Debian packages.
 {package_section}
 Verification files
@@ -72,11 +75,12 @@ Verification files
 
 Release contract
 ----------------
-- 9 platform artifacts.
-- 12 public release files total, including the three verification/metadata files.
+- 12 platform artifacts.
+- 15 public release files total, including the three verification/metadata files.
 - Active application platforms: Windows and Linux.
 - Local language catalog: 24 selectable languages with English default/fallback.
 - Application telemetry: disabled.
+- Linux portable archives are structurally verified and their ghostftp executable must be byte-identical to the matching DEB payload before publication.
 
 Signing and trust
 -----------------
