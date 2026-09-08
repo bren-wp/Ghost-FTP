@@ -1,6 +1,6 @@
 # Ghost FTP dependencies
 
-Ghost FTP **1.1.1 Stable** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit.
+Ghost FTP **1.1.6 Stable** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit. The maintained `main` source may contain post-1.1.6 hardening and packaging improvements before the next maintenance release is prepared.
 
 ## Go module contract
 
@@ -47,11 +47,13 @@ The Windows desktop frontend uses native Win32/DWM/common-control facilities. Gh
 
 Windows production packages are native application executables/Setup wrappers generated from the repository build. Classic Light/Dark rendering uses local native drawing state and does not load a remote theme service.
 
-## Linux UI dependency boundary
+## Linux UI and packaging dependency boundary
 
-Linux uses the maintained native X11/XWayland-compatible frontend backed by the same Engine. The Linux package therefore requires the normal display/runtime environment appropriate to that frontend in addition to protocol tools.
+Linux uses the maintained native X11/XWayland-compatible frontend backed by the same Engine. The Linux renderer is not a second protocol implementation.
 
-The Linux renderer is not a second protocol implementation.
+The DEB format declares `ca-certificates`, `curl` and `openssh-client` as package dependencies. Post-1.1.6 source/CI packaging also builds package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386. Those archives intentionally do **not** bundle Debian metadata, `curl`, OpenSSH, CA certificates or a desktop toolkit; users on non-Debian distributions must provide equivalent system protocol prerequisites through their own package manager.
+
+Creating a portable tarball therefore does not change Ghost FTP's runtime dependency model and does not justify claiming a distribution-specific RPM/AppImage/Flatpak/Snap package until that format has its own build and verification contract.
 
 ## Accurate dependency wording
 
