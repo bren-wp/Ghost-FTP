@@ -30,7 +30,6 @@ var (
 	promptGetMessageW          = user32.NewProc("GetMessageW")
 	promptTranslateMessage     = user32.NewProc("TranslateMessage")
 	promptDispatchMessageW     = user32.NewProc("DispatchMessageW")
-	promptPostQuitMessage      = user32.NewProc("PostQuitMessage")
 	promptGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
 	promptGetWindowTextW       = user32.NewProc("GetWindowTextW")
 	promptSendMessageW         = user32.NewProc("SendMessageW")
@@ -72,6 +71,7 @@ type promptState struct {
 	edit     uintptr
 	value    string
 	accepted bool
+	closed   bool
 }
 
 var (
@@ -118,7 +118,10 @@ func promptWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr
 			promptDestroyWindow.Call(hwnd)
 			return 0
 		case promptWMDestroy:
-			promptPostQuitMessage.Call(0)
+			// A child/modal dialog must never post WM_QUIT to the application UI
+			// thread. Doing so caused closing Nova mapa/Preimenuj with X, OK or
+			// Cancel to terminate the entire Ghost FTP process.
+			s.closed = true
 			return 0
 		}
 	}
@@ -126,10 +129,11 @@ func promptWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr
 	return r
 }
 
-// PromptDialog displays a native edit dialog using English action labels.
-// Localized UI call sites should use PromptDialogWithLabels.
+// PromptDialog displays a native edit dialog using the platform defaults. The
+// desktop may replace those defaults with its currently selected locale.
 func PromptDialog(title, instruction, defaultValue string) (string, bool) {
-	return PromptDialogWithLabels(title, instruction, defaultValue, "OK", "Cancel")
+	ok, cancel := dialogActionLabels()
+	return PromptDialogWithLabels(title, instruction, defaultValue, ok, cancel)
 }
 
 // PromptDialogWithLabels keeps the platform layer dependency-free while using
@@ -164,20 +168,21 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 		wsBorder        = 0x00800000
 		bsDefPushButton = 0x00000001
 		ssEtchedHorz    = 0x00000010
+		clientWidth     = 600
+		clientHeight    = 210
 	)
-	const (
-		windowWidth  = 600
-		windowHeight = 210
-	)
-	x, y := premiumDialogPosition(windowWidth, windowHeight)
+	owner := premiumDialogOwner()
+	dpi := premiumDialogDPI(owner)
+	windowWidth, windowHeight := premiumDialogOuterSize(clientWidth, clientHeight, wsOverlapped, 0, dpi)
+	x, y := premiumDialogPosition(owner, windowWidth, windowHeight)
 	state := &promptState{}
 	hwnd, _, _ := promptCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(promptWstr(promptClass))),
 		uintptr(unsafe.Pointer(promptWstr(title))),
 		wsOverlapped,
-		uintptr(x), uintptr(y), windowWidth, windowHeight,
-		0, 0, hinst, 0,
+		uintptr(x), uintptr(y), uintptr(windowWidth), uintptr(windowHeight),
+		owner, 0, hinst, 0,
 	)
 	if hwnd == 0 {
 		return "", false
@@ -186,19 +191,22 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 	state.hwnd = hwnd
 	promptStates.Store(hwnd, state)
 	defer promptStates.Delete(hwnd)
+	restoreOwner := premiumModalOwner(owner)
+	defer restoreOwner()
 
-	font := premiumDialogFont(-15, 400)
+	font := premiumDialogFontForDPI(-15, dpi, 400)
 	if font != 0 {
 		defer promptDeleteObject.Call(font)
 	}
 
+	scale := func(value int) uintptr { return uintptr(premiumScale(value, dpi)) }
 	mk := func(class, text string, style uint32, x, y, w, h, id int, controlFont uintptr) uintptr {
 		ch, _, _ := promptCreateWindowExW.Call(
 			0,
 			uintptr(unsafe.Pointer(promptWstr(class))),
 			uintptr(unsafe.Pointer(promptWstr(text))),
 			uintptr(wsChild|wsVisible|style),
-			uintptr(x), uintptr(y), uintptr(w), uintptr(h),
+			scale(x), scale(y), scale(w), scale(h),
 			hwnd, uintptr(id), hinst, 0,
 		)
 		if ch != 0 && controlFont != 0 {
@@ -216,15 +224,15 @@ func PromptDialogWithLabels(title, instruction, defaultValue, okLabel, cancelLab
 		promptSendMessageW.Call(state.edit, promptEMSetLimitText, 1024, 0)
 	}
 	mk("STATIC", "", ssEtchedHorz, 28, 120, 544, 2, 0, font)
-	mk("BUTTON", okLabel, wsTabStop|bsDefPushButton, 374, 134, 94, 36, promptIDOK, font)
-	mk("BUTTON", cancelLabel, wsTabStop, 478, 134, 94, 36, promptIDCancel, font)
+	mk("BUTTON", okLabel, wsTabStop|bsDefPushButton, 374, 140, 94, 36, promptIDOK, font)
+	mk("BUTTON", cancelLabel, wsTabStop, 478, 140, 94, 36, promptIDCancel, font)
 
 	promptSetFocus.Call(state.edit)
 	promptShowWindow.Call(hwnd, 5)
 	promptUpdateWindow.Call(hwnd)
 
 	var m promptMsg
-	for {
+	for !state.closed {
 		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
 		if int32(r) <= 0 {
 			break
