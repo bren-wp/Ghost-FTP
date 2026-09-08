@@ -9,26 +9,24 @@ import (
 	"unsafe"
 )
 
-var (
-	premiumGetSystemMetrics          = user32.NewProc("GetSystemMetrics")
-	premiumGetActiveWindow           = user32.NewProc("GetActiveWindow")
-	premiumGetWindowRect             = user32.NewProc("GetWindowRect")
-	premiumGetDpiForWindow           = user32.NewProc("GetDpiForWindow")
-	premiumGetDpiForSystem           = user32.NewProc("GetDpiForSystem")
-	premiumAdjustWindowRectEx        = user32.NewProc("AdjustWindowRectEx")
-	premiumAdjustWindowRectExForDpi  = user32.NewProc("AdjustWindowRectExForDpi")
-	premiumEnableWindow              = user32.NewProc("EnableWindow")
-	premiumSetActiveWindow           = user32.NewProc("SetActiveWindow")
-	premiumIsWindow                  = user32.NewProc("IsWindow")
-	premiumDwmapi                    = syscall.NewLazyDLL("dwmapi.dll")
-	premiumDwmSetAttribute           = premiumDwmapi.NewProc("DwmSetWindowAttribute")
-	premiumGdi32                     = syscall.NewLazyDLL("gdi32.dll")
-	premiumCreateSolidBrush          = premiumGdi32.NewProc("CreateSolidBrush")
-	premiumSetTextColor              = premiumGdi32.NewProc("SetTextColor")
-	premiumSetBkColor                = premiumGdi32.NewProc("SetBkColor")
-	premiumUxTheme                   = syscall.NewLazyDLL("uxtheme.dll")
-	premiumSetWindowTheme            = premiumUxTheme.NewProc("SetWindowTheme")
-)
+var premiumGetSystemMetrics = user32.NewProc("GetSystemMetrics")
+var premiumGetActiveWindow = user32.NewProc("GetActiveWindow")
+var premiumGetWindowRect = user32.NewProc("GetWindowRect")
+var premiumGetDpiForWindow = user32.NewProc("GetDpiForWindow")
+var premiumGetDpiForSystem = user32.NewProc("GetDpiForSystem")
+var premiumAdjustWindowRectEx = user32.NewProc("AdjustWindowRectEx")
+var premiumAdjustWindowRectExForDpi = user32.NewProc("AdjustWindowRectExForDpi")
+var premiumEnableWindow = user32.NewProc("EnableWindow")
+var premiumSetActiveWindow = user32.NewProc("SetActiveWindow")
+var premiumIsWindow = user32.NewProc("IsWindow")
+var premiumDwmapi = syscall.NewLazyDLL("dwmapi.dll")
+var premiumDwmSetAttribute = premiumDwmapi.NewProc("DwmSetWindowAttribute")
+var premiumGdi32 = syscall.NewLazyDLL("gdi32.dll")
+var premiumCreateSolidBrush = premiumGdi32.NewProc("CreateSolidBrush")
+var premiumSetTextColor = premiumGdi32.NewProc("SetTextColor")
+var premiumSetBkColor = premiumGdi32.NewProc("SetBkColor")
+var premiumUxTheme = syscall.NewLazyDLL("uxtheme.dll")
+var premiumSetWindowTheme = premiumUxTheme.NewProc("SetWindowTheme")
 
 const (
 	premiumWMCtlColorEdit    = 0x0133
@@ -44,19 +42,41 @@ type premiumRect struct {
 	Bottom int32
 }
 
-var (
-	premiumDialogDark    atomic.Bool
-	premiumDarkBrushOnce sync.Once
-	premiumDarkBrush     uintptr
-	premiumLightBrushOnce sync.Once
-	premiumLightBrush     uintptr
-)
+var premiumDialogDark atomic.Bool
+var premiumDarkBrushOnce sync.Once
+var premiumDarkBrush uintptr
+var premiumLightBrushOnce sync.Once
+var premiumLightBrush uintptr
+var premiumDialogLabelsMu sync.RWMutex
+var premiumDialogOKLabel = "OK"
+var premiumDialogCancelLabel = "Cancel"
 
 // SetDialogAppearance synchronizes the small native platform dialogs with the
 // appearance selected by the desktop frontend. The installer does not call this
 // function and therefore keeps the normal Windows light presentation.
 func SetDialogAppearance(dark bool) {
 	premiumDialogDark.Store(dark)
+}
+
+// SetDialogActionLabels keeps compatibility PromptDialog call sites localized
+// without teaching the platform package about Ghost FTP's translation catalog.
+func SetDialogActionLabels(okLabel, cancelLabel string) {
+	if okLabel == "" {
+		okLabel = "OK"
+	}
+	if cancelLabel == "" {
+		cancelLabel = "Cancel"
+	}
+	premiumDialogLabelsMu.Lock()
+	premiumDialogOKLabel = okLabel
+	premiumDialogCancelLabel = cancelLabel
+	premiumDialogLabelsMu.Unlock()
+}
+
+func dialogActionLabels() (string, string) {
+	premiumDialogLabelsMu.RLock()
+	defer premiumDialogLabelsMu.RUnlock()
+	return premiumDialogOKLabel, premiumDialogCancelLabel
 }
 
 func premiumColor(r, g, b byte) uintptr {
@@ -161,6 +181,9 @@ func premiumDialogDPI(owner uintptr) uint32 {
 }
 
 func premiumScale(value int, dpi uint32) int {
+	if value < 0 {
+		return -premiumScale(-value, dpi)
+	}
 	if dpi == 0 {
 		dpi = 96
 	}
@@ -190,7 +213,10 @@ func premiumDialogOuterSize(clientWidth, clientHeight int, style uint32, exStyle
 		)
 	}
 	if adjusted == 0 {
-		r = premiumRect{Right: int32(premiumScale(clientWidth, dpi)), Bottom: int32(premiumScale(clientHeight, dpi))}
+		r = premiumRect{
+			Right:  int32(premiumScale(clientWidth, dpi)),
+			Bottom: int32(premiumScale(clientHeight, dpi)),
+		}
 		adjusted, _, _ = premiumAdjustWindowRectEx.Call(
 			uintptr(unsafe.Pointer(&r)),
 			uintptr(style),
