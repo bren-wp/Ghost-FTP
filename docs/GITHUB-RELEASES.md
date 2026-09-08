@@ -76,17 +76,14 @@ Before publication, the workflow queries current `main` and requires it to equal
 
 The release workflow fails if the requested tag or GitHub Release already exists. Existing tags are not moved, deleted, reused or force-pushed, and published assets are not overwritten or clobbered.
 
-## Product and publisher identity
+## Public product identity
 
-The public application identity is:
+Active runtime, package, support and release metadata use only:
 
 - product: **Ghost FTP**;
-- official product website: **https://ghostftp.com**;
-- developer/publisher: **BRENDIGO LTD**;
-- author website: **https://brendigo.com**;
-- publisher support destination: **https://brendigo.com/kontakt**.
+- official product website: **https://ghostftp.com**.
 
-GitHub is release/source infrastructure, not the product homepage shown in runtime/package metadata.
+Author/publisher identity is intentionally confined to the application's About surface. GitHub is release/source infrastructure, not the product homepage shown in runtime/package metadata.
 
 ## Windows signing state
 
