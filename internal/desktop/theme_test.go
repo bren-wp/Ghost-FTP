@@ -35,3 +35,25 @@ func TestClassicLightThemeKeepsReadableContrastDirection(t *testing.T) {
 		t.Fatal("light theme selection is indistinguishable from list background")
 	}
 }
+
+func TestClassicLightAvoidsPureWhitePrimarySurfaces(t *testing.T) {
+	pureWhite := RGB{0xFF, 0xFF, 0xFF}
+	for name, surface := range map[string]RGB{
+		"window": lightTheme.Window,
+		"panel":  lightTheme.Panel,
+		"list":   lightTheme.List,
+	} {
+		if surface == pureWhite {
+			t.Fatalf("Classic Light %s surface regressed to pure white", name)
+		}
+	}
+}
+
+func TestDarkThemeKeepsLayerSeparation(t *testing.T) {
+	if darkTheme.Window == darkTheme.Panel || darkTheme.Panel == darkTheme.List {
+		t.Fatal("dark theme window/panel/list layers are not visually separated")
+	}
+	if darkTheme.Text == darkTheme.Muted {
+		t.Fatal("dark theme primary and muted text are indistinguishable")
+	}
+}
