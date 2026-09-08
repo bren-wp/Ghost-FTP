@@ -19,27 +19,41 @@ class WindowsModalContractTests(unittest.TestCase):
             "internal/platform/prompt_windows.go",
             "internal/platform/language_windows.go",
             "internal/platform/info_card_windows.go",
+            "internal/platform/settings_dialog_windows.go",
         ):
             source = read(relative)
             self.assertNotIn("PostQuitMessage", source, relative)
             self.assertNotIn("promptPostQuitMessage", source, relative)
             self.assertIn("closed", source, relative)
 
-    def test_custom_dialogs_use_bounded_modal_loops(self) -> None:
-        prompt = read("internal/platform/prompt_windows.go")
-        option = read("internal/platform/language_windows.go")
-        info = read("internal/platform/info_card_windows.go")
+    def test_custom_dialogs_use_one_bounded_modal_loop(self) -> None:
+        loop = read("internal/platform/dialog_loop_windows.go")
         shell = read("internal/platform/dialog_premium_windows.go")
 
-        self.assertIn("for !state.closed", prompt)
-        self.assertIn("for !state.closed", option)
-        self.assertIn("for !state.closed", info)
-        self.assertIn("premiumModalOwner(owner)", prompt)
-        self.assertIn("premiumModalOwner(owner)", option)
-        self.assertIn("premiumModalOwner(owner)", info)
+        self.assertIn("for !closed()", loop)
+        self.assertIn("premiumIsDialogMessageW.Call(hwnd", loop)
+        self.assertIn("promptTranslateMessage.Call", loop)
+        self.assertIn("promptDispatchMessageW.Call", loop)
+
+        for relative in (
+            "internal/platform/prompt_windows.go",
+            "internal/platform/language_windows.go",
+            "internal/platform/info_card_windows.go",
+            "internal/platform/settings_dialog_windows.go",
+        ):
+            source = read(relative)
+            self.assertIn("premiumRunDialogLoop(hwnd", source, relative)
+            self.assertIn("premiumModalOwner(owner)", source, relative)
+
         self.assertIn("premiumDialogOuterSize", shell)
         self.assertIn("AdjustWindowRectExForDpi", shell)
         self.assertIn("GetDpiForWindow", shell)
+
+    def test_option_dialog_uses_standard_enter_and_escape_commands(self) -> None:
+        option = read("internal/platform/language_windows.go")
+        self.assertIn("languageIDInstall = 1 // IDOK", option)
+        self.assertIn("languageIDCancel  = 2 // IDCANCEL", option)
+        self.assertIn("wsTabStop|bsDefPushButton", option)
 
     def test_diagnostics_uses_application_owned_theme_shell(self) -> None:
         diagnostics = read("internal/desktop/diagnostics_windows.go")
@@ -48,8 +62,10 @@ class WindowsModalContractTests(unittest.TestCase):
 
     def test_light_dialog_surface_is_softened(self) -> None:
         shell = read("internal/platform/dialog_premium_windows.go")
-        self.assertIn("premiumColor(246, 248, 251)", shell)
-        self.assertNotIn("return premiumColor(255, 255, 255)", shell)
+        palette = read("internal/uipalette/palette.go")
+        self.assertIn("premiumPaletteColor(uipalette.Light.Panel)", shell)
+        self.assertIn("Panel:        RGB{0xF6, 0xF8, 0xFB}", palette)
+        self.assertNotIn("RGB{0xFF, 0xFF, 0xFF}", palette)
 
     def test_compatibility_prompt_uses_runtime_localized_action_labels(self) -> None:
         prompt = read("internal/platform/prompt_windows.go")
