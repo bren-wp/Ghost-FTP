@@ -15,14 +15,14 @@ const (
 )
 
 const (
-	decisionIDYes = 6 // IDYES
-	decisionIDNo  = 7 // IDNO
+	decisionIDYes      = 6 // IDYES
+	decisionIDNo       = 7 // IDNO
 	decisionSSNoPrefix = 0x00000080
 	decisionEtchedHorz = 0x00000010
-	decisionWSChild = 0x40000000
-	decisionWSVisible = 0x10000000
-	decisionWSTabStop = 0x00010000
-	decisionDefButton = 0x00000001
+	decisionWSChild    = 0x40000000
+	decisionWSVisible  = 0x10000000
+	decisionWSTabStop  = 0x00010000
+	decisionDefButton  = 0x00000001
 )
 
 type decisionCardState struct {
@@ -208,14 +208,14 @@ func decisionCardDialog(title, instruction, content string, kind int) (result in
 	makeControl("STATIC", "", decisionEtchedHorz, 36, 238, 608, 2, 0, bodyFont)
 
 	if kind == decisionCardKindConfirm {
-		yesLabel, noLabel := dialogDecisionLabels()
+		_, _, yesLabel, noLabel := resolvedDialogLabels()
 		yesButton := makeControl("BUTTON", yesLabel, decisionWSTabStop|decisionDefButton, 430, 254, 102, 38, decisionIDYes, bodyFont)
 		makeControl("BUTTON", noLabel, decisionWSTabStop, 542, 254, 102, 38, decisionIDNo, bodyFont)
 		if yesButton != 0 {
 			promptSetFocus.Call(yesButton)
 		}
 	} else {
-		okLabel, _ := dialogActionLabels()
+		okLabel, _, _, _ := resolvedDialogLabels()
 		okButton := makeControl("BUTTON", okLabel, decisionWSTabStop|decisionDefButton, 542, 254, 102, 38, promptIDOK, bodyFont)
 		if okButton != 0 {
 			promptSetFocus.Call(okButton)
