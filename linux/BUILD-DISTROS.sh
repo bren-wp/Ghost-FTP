@@ -36,6 +36,34 @@ fi
 export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS=linux
 mkdir -p dist
 
+build_fedora_rpm() (
+  set -euo pipefail
+  local binary="$1" rpmarch="$2"
+  local rpm_top rpm_spec rpm_out rpm_built
+
+  rpm_top="$(mktemp -d)"
+  trap 'rm -rf "$rpm_top"' EXIT
+
+  rpm_spec="$rpm_top/SPECS/ghost-ftp.spec"
+  mkdir -p "$rpm_top/BUILD" "$rpm_top/BUILDROOT" "$rpm_top/RPMS" "$rpm_top/SOURCES" "$rpm_top/SPECS" "$rpm_top/SRPMS"
+  cp "$binary" "$rpm_top/SOURCES/ghostftp"
+  cp linux/ghost-ftp.desktop "$rpm_top/SOURCES/ghost-ftp.desktop"
+  cp build/icon.png "$rpm_top/SOURCES/ghost-ftp.png"
+  cp LICENSE "$rpm_top/SOURCES/LICENSE"
+  cp linux/README.md "$rpm_top/SOURCES/README.md"
+  sed -e "s/@VERSION@/${VERSION}/g" linux/rpm/ghost-ftp.spec.in > "$rpm_spec"
+
+  rpmbuild --define "_topdir $rpm_top" --target "$rpmarch" -bb "$rpm_spec" >/dev/null
+  rpm_built="$(find "$rpm_top/RPMS" -type f -name '*.rpm' -print -quit)"
+  [[ -n "$rpm_built" && -s "$rpm_built" ]] || { echo "Fedora RPM was not produced for $rpmarch" >&2; exit 1; }
+
+  rpm_out="dist/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"
+  rm -f "$rpm_out"
+  cp "$rpm_built" "$rpm_out"
+  test -s "$rpm_out"
+  echo "LINUX_FEDORA_RPM_OK=${rpmarch}:$rpm_out"
+)
+
 build_distro_arch() {
   local goarch="$1" debarch="$2" rpmarch="$3"
   local binary="dist/.ghostftp-distro-${debarch}"
@@ -85,25 +113,7 @@ build_distro_arch() {
   fi
 
   if (( have_rpm )); then
-    local rpm_top rpm_spec rpm_out rpm_built
-    rpm_top="$(mktemp -d)"
-    rpm_spec="$rpm_top/SPECS/ghost-ftp.spec"
-    mkdir -p "$rpm_top/BUILD" "$rpm_top/BUILDROOT" "$rpm_top/RPMS" "$rpm_top/SOURCES" "$rpm_top/SPECS" "$rpm_top/SRPMS"
-    cp "$binary" "$rpm_top/SOURCES/ghostftp"
-    cp linux/ghost-ftp.desktop "$rpm_top/SOURCES/ghost-ftp.desktop"
-    cp build/icon.png "$rpm_top/SOURCES/ghost-ftp.png"
-    cp LICENSE "$rpm_top/SOURCES/LICENSE"
-    cp linux/README.md "$rpm_top/SOURCES/README.md"
-    sed -e "s/@VERSION@/${VERSION}/g" linux/rpm/ghost-ftp.spec.in > "$rpm_spec"
-
-    rpmbuild --define "_topdir $rpm_top" --target "$rpmarch" -bb "$rpm_spec" >/dev/null
-    rpm_built="$(find "$rpm_top/RPMS" -type f -name '*.rpm' -print -quit)"
-    [[ -n "$rpm_built" && -s "$rpm_built" ]] || { echo "Fedora RPM was not produced for $rpmarch" >&2; rm -rf "$rpm_top"; exit 1; }
-    rpm_out="dist/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"
-    cp "$rpm_built" "$rpm_out"
-    test -s "$rpm_out"
-    echo "LINUX_FEDORA_RPM_OK=${rpmarch}:$rpm_out"
-    rm -rf "$rpm_top"
+    build_fedora_rpm "$binary" "$rpmarch"
   fi
 
   rm -rf "$binary" "$portable_root"
