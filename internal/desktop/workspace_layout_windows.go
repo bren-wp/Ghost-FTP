@@ -75,6 +75,7 @@ func (a *app) refineWorkspaceLayout() {
 
 	a.stabilizeWorkspaceChrome()
 	a.applyApplicationSidebar()
+	a.layoutQueuePriorityControls()
 	applyFileColumnOrder(a.localList, false)
 	applyFileColumnOrder(a.remoteList, true)
 	// The sidebar changes the real file-pane widths after the top-level layout
