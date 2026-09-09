@@ -16,6 +16,7 @@ class SFTPTransferHardeningTests(unittest.TestCase):
     def test_unix_curl_path_uses_trusted_resolver(self):
         tools = (ROOT / "internal/remote/tools.go").read_text(encoding="utf-8")
         resolver = (ROOT / "internal/remote/transport_tools_linux.go").read_text(encoding="utf-8")
+        shared = (ROOT / "internal/linuxtrust/trusted_executable_linux.go").read_text(encoding="utf-8")
         windows_block, unix_block = tools.split('if runtime.GOOS == "windows"', 1)[1].split(
             'if p, err := findTrustedTransportExecutable("curl")', 1
         )
@@ -26,8 +27,11 @@ class SFTPTransferHardeningTests(unittest.TestCase):
         self.assertNotIn('exec.LookPath("curl")', tools)
         self.assertIn("exec.LookPath(name)", resolver)
         self.assertIn("trustedLinuxTransportExecutable(candidate)", resolver)
-        self.assertIn("trustedLinuxDirectoryChain(filepath.Dir(candidate), depth)", resolver)
-        self.assertIn("mode.Perm()&0022 != 0", resolver)
+        self.assertIn("linuxtrust.TrustedExecutable(candidate)", resolver)
+        self.assertIn("TrustedDirectoryChain(filepath.Dir(candidate), depth)", shared)
+        self.assertIn("mode.Perm()&0022 != 0", shared)
+        self.assertIn("os.ModeSymlink", shared)
+        self.assertIn("uid != 0", shared)
 
     def test_engine_validates_file_target_before_queue(self):
         engine = (ROOT / "internal/api/engine.go").read_text(encoding="utf-8")

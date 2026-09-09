@@ -20,6 +20,8 @@ Both platforms support:
 - connection timeouts;
 - privacy-safe diagnostics.
 
+On Linux, automatic password and private-key-passphrase delivery through OpenSSH AskPass is available only when the running Ghost FTP executable has trusted root-controlled filesystem provenance and is the same executable image that was verified at startup. Package-installed builds satisfy that boundary. A user-writable Portable/per-user executable remains usable for workflows that do not require automatic AskPass secret delivery, but Ghost FTP deliberately fails closed rather than expose password/passphrase capability environment data through a mutable helper pathname. This is an explicit native packaging/security difference, not a silent downgrade.
+
 Fresh/quick-connect state resolves to **explicit FTPS on port 21** on both platforms. Plain FTP remains an explicit compatibility option. A secure transport failure is never silently retried as a weaker protocol.
 
 ## Shared profile/settings model
@@ -71,6 +73,8 @@ Both platforms preserve:
 
 SFTP protected-secret ownership distinguishes transient/session-owned material from credentials borrowed from stored profiles. Cancel/expiry/mismatch and failed setup paths must not retain newly owned secret blobs longer than necessary, and cleanup must not invalidate borrowed profile credentials.
 
+Linux additionally requires trusted executable provenance at both sides of the AskPass boundary: the Ghost FTP helper path used for credential delivery must be root-controlled and bound to the running executable identity, and the immediate OpenSSH parent must resolve to a trusted root-controlled `ssh`/`sftp` executable. `/proc/self/exe` is used only as an inode-identity oracle inside Ghost FTP and is never supplied to OpenSSH as the executable AskPass path.
+
 ## Windows-specific implementation
 
 Windows uses native Win32 UI, DPI-aware layout, native dialogs and the current-user Windows saved-secret protection boundary. Production packages include x64/x86 Setup and Portable binaries.
@@ -107,6 +111,8 @@ The maintained source also has a separate distro-specific packaging contract in 
 Native distro-install verification is intentionally x86-64 only. The arm64/aarch64 and i386/i686 artifacts retain exact-head build, metadata, extraction and byte-parity coverage; the project does not claim native package-manager/runtime installation coverage for those architectures until such a gate exists.
 
 The distro-specific CI package family is supplemental. It is verified build/install coverage, but it is **not yet part of the canonical release allow-list** in `.github/workflows/release.yml` and is not retroactively part of the 1.1.6 public asset set.
+
+Portable archives intentionally preserve binary parity with package builds, but extraction into a user-writable directory does not inherit the root-controlled executable provenance of a package-manager installation. Therefore Linux Portable/per-user execution does not claim automatic SFTP password or private-key-passphrase AskPass support under the hardened same-UID local-attacker model.
 
 Idle rendering is state/event driven so the complete workspace is not continuously repainted while nothing relevant changes.
 

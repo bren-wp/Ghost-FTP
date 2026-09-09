@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/bren-wp/Ghost-FTP/internal/linuxtrust"
 )
 
 const prSetDumpable = 4
@@ -41,15 +43,25 @@ func HardenProcessPrivacy() {
 }
 
 func trustedLinuxAskPassParentPath(parentExe string) bool {
-	name := strings.ToLower(filepath.Base(strings.TrimSpace(parentExe)))
-	return name == "ssh" || name == "sftp"
+	parentExe = strings.TrimSpace(parentExe)
+	if parentExe == "" || !filepath.IsAbs(parentExe) {
+		return false
+	}
+	name := strings.ToLower(filepath.Base(parentExe))
+	if name != "ssh" && name != "sftp" {
+		return false
+	}
+	_, ok := linuxtrust.TrustedExecutable(parentExe)
+	return ok
 }
 
 // TrustedAskPassParent is deliberately narrower than a generic same-user
 // parent check. askpassMode clears inherited credential environment variables
-// before this function runs, so trust is derived from the immediate executable
-// identity only. The independent memory broker still requires a same-UID peer
-// and a cryptographically random secret token before returning any credential.
+// before this function runs. Trust therefore requires the immediate executable
+// to be an ssh/sftp process whose complete filesystem provenance is root-owned
+// and non-writable by unprivileged users. The independent memory broker still
+// requires a same-UID peer and a cryptographically random secret token before
+// returning any credential.
 func TrustedAskPassParent() bool {
 	parentExe, err := os.Readlink("/proc/" + strconv.Itoa(os.Getppid()) + "/exe")
 	if err != nil {
