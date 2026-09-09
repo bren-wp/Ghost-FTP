@@ -21,8 +21,9 @@ var version = "dev"
 const (
 	messageBoxError       = 0x10
 	messageBoxInformation = 0x40
-	askpassTokenLength    = 32
 )
+
+const taskpassTokenLength = 32
 
 var askpassEnvironmentKeys = [...]string{
 	"GhostFTP_ASKPASS_TOKEN",
@@ -54,11 +55,14 @@ func validAskpassInvocation(exePath, askpassExe, require, token string) bool {
 
 	exeAbs = filepath.Clean(exeAbs)
 	askpassAbs = filepath.Clean(askpassAbs)
-	return strings.EqualFold(exeAbs, askpassAbs)
+	if strings.EqualFold(exeAbs, askpassAbs) {
+		return true
+	}
+	return platform.SameExecutableIdentity(exeAbs, askpassAbs)
 }
 
 func validAskpassToken(token string) bool {
-	if len(token) != askpassTokenLength {
+	if len(token) != taskpassTokenLength {
 		return false
 	}
 	_, err := hex.DecodeString(token)
@@ -234,6 +238,11 @@ func runApplication() (exitCode int) {
 		showError("Ghost FTP could not start. Restart the computer and try again.")
 		return 1
 	}
+	askpassExe, err := platform.StableAskPassExecutable(exe)
+	if err != nil {
+		showError("Ghost FTP could not establish a safe authentication helper identity.")
+		return 1
+	}
 
 	dataDir, err := api.DataDir()
 	if err != nil {
@@ -250,7 +259,7 @@ func runApplication() (exitCode int) {
 		return 1
 	}
 
-	engine, err := api.New(dataDir, exe)
+	engine, err := api.New(dataDir, askpassExe)
 	if err != nil {
 		showError(usererror.Message(err, "Ghost FTP could not start. Please try again."))
 		return 1
