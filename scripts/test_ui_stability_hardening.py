@@ -198,17 +198,26 @@ class UIStabilityHardeningTests(unittest.TestCase):
         ui = self.read("internal/desktop/ui_windows.go")
         theme = self.read("internal/desktop/theme.go")
         windows = self.read("internal/desktop/windows.go")
+        geometry = self.read("internal/desktop/window_geometry_windows.go")
         layout = self.read("internal/desktop/workspace_layout_windows.go")
         for marker in (
             "premiumStartWidth", "premiumStartHeight", "premiumMinWidth", "premiumMinHeight",
         ):
             self.assertIn(marker, theme)
         for marker in (
-            "info.MinTrackSize.X = int32(a.scale(premiumMinWidth))",
-            "info.MinTrackSize.Y = int32(a.scale(premiumMinHeight))",
+            "minWidth, minHeight := a.responsiveMinTrackSize()",
+            "info.MinTrackSize.X = int32(a.scale(minWidth))",
+            "info.MinTrackSize.Y = int32(a.scale(minHeight))",
+            "r := a.clampSuggestedWindowRectToWorkArea(rectFromLParam(lParam))",
             "case wmSize:", "case wmDpiChanged:",
         ):
             self.assertIn(marker, windows)
+        for marker in (
+            "responsiveWindowBoundsForWorkArea",
+            "responsiveMinimumTrackSize",
+            "monitorWorkAreaLogical",
+        ):
+            self.assertIn(marker, geometry)
         for marker in (
             "compact := width < 1180", "profileW := clampInt", "localPathW", "remotePathW",
             "queueH := clampInt", "a.move(a.transferList",

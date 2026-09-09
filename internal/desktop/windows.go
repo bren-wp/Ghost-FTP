@@ -139,7 +139,7 @@ func Run(engine *api.Engine, version string) error {
 	a.hwnd = hwnd
 	a.dpi = windowDPI(hwnd)
 	apps.Store(hwnd, a)
-	x, y, w, h := a.preferredWindowBounds()
+	x, y, w, h := a.responsiveWindowBounds()
 	moveWindow.Call(hwnd, uintptr(a.scale(x)), uintptr(a.scale(y)), uintptr(a.scale(w)), uintptr(a.scale(h)), 0)
 	applyDarkTitleBar(hwnd)
 	if err := a.createControls(hinst); err != nil {
@@ -233,8 +233,9 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 	case wmGetMinMaxInfo:
 		if lParam != 0 {
 			info := minMaxInfoFromLParam(lParam)
-			info.MinTrackSize.X = int32(a.scale(premiumMinWidth))
-			info.MinTrackSize.Y = int32(a.scale(premiumMinHeight))
+			minWidth, minHeight := a.responsiveMinTrackSize()
+			info.MinTrackSize.X = int32(a.scale(minWidth))
+			info.MinTrackSize.Y = int32(a.scale(minHeight))
 			minMaxInfoToLParam(lParam, info)
 		}
 		return 0
@@ -250,7 +251,7 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		}
 		a.applyDPI(newDPI)
 		if lParam != 0 {
-			r := rectFromLParam(lParam)
+			r := a.clampSuggestedWindowRectToWorkArea(rectFromLParam(lParam))
 			moveWindow.Call(hwnd, uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), 1)
 		}
 		return 0
