@@ -1,6 +1,10 @@
 package transfer
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+)
 
 var (
 	errTransferOrderClosed    = errors.New("transfer manager is closed")
