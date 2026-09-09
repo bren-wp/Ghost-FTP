@@ -3,7 +3,6 @@ package remote
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -51,7 +50,7 @@ func findCurl() (string, error) {
 		}
 		return "", errors.New("Windows FTP transport component is not available")
 	}
-	if p, err := exec.LookPath("curl"); err == nil {
+	if p, err := findTrustedTransportExecutable("curl"); err == nil {
 		return p, nil
 	}
 	return "", errors.New("FTP transport component was not found")

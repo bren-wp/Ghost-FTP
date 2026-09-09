@@ -4,26 +4,12 @@ package remote
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
-
-func prependTestToolDirectory(t *testing.T, dir string) {
-	t.Helper()
-	oldSystemDirectory := systemDirectory
-	systemDirectory = func() (string, error) { return "", errors.New("nema Windows system direktorija") }
-	t.Cleanup(func() { systemDirectory = oldSystemDirectory })
-	oldPath := os.Getenv("PATH")
-	if oldPath == "" {
-		t.Setenv("PATH", dir)
-		return
-	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+oldPath)
-}
 
 func writeExecutable(t *testing.T, path, body string) {
 	t.Helper()
@@ -34,8 +20,8 @@ func writeExecutable(t *testing.T, path, body string) {
 
 func TestCurlFTPProcessSmokeUsesRuntimeSecretAndParsesListing(t *testing.T) {
 	dir := t.TempDir()
-	prependTestToolDirectory(t, dir)
-	writeExecutable(t, filepath.Join(dir, "curl"), `#!/bin/sh
+	fakeCurl := filepath.Join(dir, "curl")
+	writeExecutable(t, fakeCurl, `#!/bin/sh
 cfg="$(cat)"
 case "$cfg" in
   *'user = "tester:sesija-secret"'*) ;;
@@ -48,6 +34,7 @@ printf '%s\n' 'type=file;size=4;modify=20260101010203; test.txt'
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.curl = fakeCurl
 	if client.passwordBlob == "" || client.passwordBlob == "sesija-secret" {
 		t.Fatalf("aktivna FTP tajna nije izdvojena iza runtime tokena: %q", client.passwordBlob)
 	}
@@ -69,8 +56,8 @@ printf '%s\n' 'type=file;size=4;modify=20260101010203; test.txt'
 
 func TestSFTPProcessSmokeUsesStdinWithoutBatchMode(t *testing.T) {
 	dir := t.TempDir()
-	prependTestToolDirectory(t, dir)
-	writeExecutable(t, filepath.Join(dir, "sftp"), `#!/bin/sh
+	fakeSFTP := filepath.Join(dir, "sftp")
+	writeExecutable(t, fakeSFTP, `#!/bin/sh
 for arg in "$@"; do
   if [ "$arg" = "-b" ]; then
     echo 'OpenSSH batch način ne smije biti uključen' >&2
@@ -100,6 +87,7 @@ printf '%s\n' '-rw-r--r-- 1 user group 4 Jan 1 00:00 test.txt'
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.sftp = fakeSFTP
 	items, err := client.List(context.Background(), ".")
 	if err != nil {
 		_ = client.Close()

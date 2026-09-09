@@ -123,6 +123,9 @@ func TestFindCurlPrefersWindowsSystemBinary(t *testing.T) {
 }
 
 func TestFindOpenSSHPreferWindowsSystemBinary(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows OpenSSH system-directory trust policy is Windows-specific")
+	}
 	system32 := filepath.Join(t.TempDir(), "System32")
 	if err := os.MkdirAll(system32, 0700); err != nil {
 		t.Fatal(err)

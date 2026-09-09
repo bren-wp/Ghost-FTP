@@ -13,13 +13,21 @@ class SFTPTransferHardeningTests(unittest.TestCase):
         self.assertIn('scannedKeyType == "ssh-rsa"', policy)
         self.assertNotIn('return "ssh-rsa"', policy)
 
-    def test_unix_curl_path_does_not_prefer_windows_name(self):
+    def test_unix_curl_path_uses_trusted_resolver(self):
         tools = (ROOT / "internal/remote/tools.go").read_text(encoding="utf-8")
-        windows_block, unix_block = tools.split('if runtime.GOOS == "windows"', 1)[1].split('if p, err := exec.LookPath("curl")', 1)
+        resolver = (ROOT / "internal/remote/transport_tools_linux.go").read_text(encoding="utf-8")
+        windows_block, unix_block = tools.split('if runtime.GOOS == "windows"', 1)[1].split(
+            'if p, err := findTrustedTransportExecutable("curl")', 1
+        )
         self.assertIn("windowsCurlCandidates(systemDir, runtime.GOARCH)", windows_block)
         self.assertIn('filepath.Join(systemDir, "curl.exe")', tools)
         self.assertIn('"Sysnative", "curl.exe"', tools)
         self.assertNotIn('exec.LookPath("curl.exe")', unix_block)
+        self.assertNotIn('exec.LookPath("curl")', tools)
+        self.assertIn("exec.LookPath(name)", resolver)
+        self.assertIn("trustedLinuxTransportExecutable(candidate)", resolver)
+        self.assertIn("trustedLinuxDirectoryChain(filepath.Dir(candidate), depth)", resolver)
+        self.assertIn("mode.Perm()&0022 != 0", resolver)
 
     def test_engine_validates_file_target_before_queue(self):
         engine = (ROOT / "internal/api/engine.go").read_text(encoding="utf-8")
