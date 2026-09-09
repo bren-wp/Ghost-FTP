@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **0.0.1 Beta** is validated through layered source, security, native build, packaging and lifecycle gates.
+Ghost FTP **0.0.1** is validated through layered source, security, native build, packaging and lifecycle gates.
 
 ## Core quality gate
 
@@ -89,11 +89,12 @@ For a release-prep change that affects the canonical production build, the expec
 - canonical release workflow quality/build jobs;
 - exact 15-file GitHub Release allow-list;
 - immediate and delayed remote release read-back;
-- `prerelease=true` for the 0.x Beta channel;
+- `prerelease=false` for the current 0.0.x release channel;
+- verified `ghcr.io/bren-wp/ghost-ftp:0.0.1` distribution-bundle publication/read-back;
 - successful latest-only retention cleanup after publication.
 
 ## Retention validation
 
-The retention workflow must leave only the current `ghostftp-v0.0.1` release/tag, remove completed versioned release branches, and remove obsolete package versions. It does not rewrite `main` commit history.
+The retention workflow must leave only the current `ghostftp-v0.0.1` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning](VERSIONING.md).
