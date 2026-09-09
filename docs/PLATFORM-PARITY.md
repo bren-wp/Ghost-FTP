@@ -1,6 +1,6 @@
 # Windows and Linux platform parity
 
-Ghost FTP **0.0.1 Beta** is one desktop product with native Windows and Linux frontends. Both platforms use the **same typed `internal/api.Engine`** and the same protocol, transfer, profile, settings, localization, Remote Edit and security layers.
+Ghost FTP **0.0.1** is one desktop product with native Windows and Linux frontends. Both platforms use the **same typed `internal/api.Engine`** and the same protocol, transfer, profile, settings, localization, Remote Edit and security layers.
 
 Parity means equivalent protocol/security semantics and honest native-platform UX, not pixel-identical widgets or a requirement to expose a control before its backend lifecycle is complete.
 
@@ -139,7 +139,7 @@ The current public 0.0.1 contract requires **12 platform artifacts / 15 public f
 
 Supplemental Debian/Ubuntu/Fedora/Portable distro-specific CI artifacts do not change those public release counts until the canonical release workflow explicitly stages, allow-lists, hashes, publishes and reads them back for a future version.
 
-Pre-1.0 Beta releases do not claim a Stable GHCR distribution bundle. The latest-only retention workflow removes obsolete package versions after a newly published release is verified.
+The current release publishes its verified distribution bundle at `ghcr.io/bren-wp/ghost-ftp:0.0.1`. Latest-only retention preserves that exact-version package and removes superseded package versions only after the new release is verified.
 
 ## Definition of parity complete
 
