@@ -625,6 +625,9 @@ func (u *linuxDesktop) renderQueue() error {
 	if err := u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), len(u.transferJobs) > 0, false); err != nil {
 		return err
 	}
+	if err := u.renderQueuePriorityControls(); err != nil {
+		return err
+	}
 	if err := u.x.fillRect(u.layout.queue.left, u.layout.queue.top, u.layout.queue.right-u.layout.queue.left, u.layout.queue.bottom-u.layout.queue.top, premiumTheme.List); err != nil {
 		return err
 	}
@@ -1013,6 +1016,9 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		}
 	}
 	l := u.layout
+	if u.handleQueuePriorityMouse(x, y) {
+		return
+	}
 	switch {
 	case l.connect.contains(x, y):
 		u.connectToServer("")
