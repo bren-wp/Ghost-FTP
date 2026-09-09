@@ -164,6 +164,8 @@ install -m 0644 ghost-ftp.png "$HOME/.local/share/icons/hicolor/512x512/apps/gho
 
 Ensure `$HOME/.local/bin` is on `PATH` before launching from the desktop entry. System protocol prerequisites still apply: a usable CA certificate store, `curl` for FTP/FTPS and OpenSSH client tools for SFTP.
 
+A directly extracted or per-user-installed executable is intentionally user-writable and therefore cannot provide the same immutable AskPass helper boundary as a package-manager-installed root-controlled executable. Ghost FTP still starts in this mode, but it does not automatically deliver SFTP passwords or private-key passphrases through OpenSSH AskPass. Credential-bearing SFTP AskPass requires a trusted package/system installation; the portable layout fails closed before generating the AskPass capability token or starting the OpenSSH child.
+
 ## Installed identity and dependencies
 
 - package name: `ghost-ftp`;
@@ -198,9 +200,11 @@ Linux supports the maintained desktop protocol contract:
 
 - FTP with password authentication;
 - explicit FTPS with certificate validation;
-- SFTP with password authentication;
-- SFTP with a private key and optional passphrase;
+- SFTP password authentication on a trusted package/system installation;
+- SFTP with a private key; automatic private-key-passphrase delivery requires the same trusted installation boundary;
 - explicit SFTP host-key fingerprint confirmation.
+
+For Linux SFTP credential prompts, `SSH_ASKPASS` is populated only with a root-controlled Ghost FTP executable path that is verified to name the same inode as the running application. `/proc/self/exe` is used only as an in-process identity oracle and is never supplied to OpenSSH as the helper executable. The immediate AskPass parent must also be a trusted root-controlled `ssh` or `sftp` executable. User-writable Portable/per-user execution deliberately does not emit password/passphrase AskPass capability environment data.
 
 Passwords and key passphrases are cleared from the public connection config after authentication. Runtime protected-secret handles distinguish session-owned and borrowed profile-owned material so session close/failed setup can forget owned secrets without invalidating stored-profile credentials needed for a later reconnect.
 

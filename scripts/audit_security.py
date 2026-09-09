@@ -97,6 +97,7 @@ def main() -> int:
         "GhostFTP_ASKPASS_TOKEN=",
         "GhostFTP_PASSWORD_BLOB=",
         "GhostFTP_PASSPHRASE_BLOB=",
+        "strings.TrimSpace(s.exePath) == \"\"",
         "sanitizedToolEnv(os.Environ())",
     ))
     if '"-b"' in sftp or '"-b", "-"' in sftp:
@@ -112,9 +113,39 @@ def main() -> int:
         "TrustedAskPassParent",
         "selectAskpassSecret",
         "clearAskpassEnvironment()",
+        "askpassExe, _ := platform.StableAskPassExecutable(exe)",
+        "api.New(dataDir, askpassExe)",
     ))
     if "GhostFTP_ASKPASS_FILE" in askpass:
         fail("AskPass must not depend on a disk credential artifact")
+
+    linux_askpass = require("internal/platform/askpass_executable_linux.go", (
+        'const linuxRunningExecutable = "/proc/self/exe"',
+        "linuxtrust.TrustedExecutable(exePath)",
+        "os.SameFile(trustedInfo, runningInfo)",
+        "return trustedPath, nil",
+        "linuxtrust.TrustedExecutable(strings.TrimSpace(expected))",
+        "os.SameFile(currentInfo, expectedInfo)",
+    ))
+    if "return linuxRunningExecutable, nil" in linux_askpass or 'filepath.Join("/proc"' in linux_askpass:
+        fail("Linux SSH_ASKPASS must not execute a procfs process-image path")
+
+    require("internal/platform/other.go", (
+        "func trustedLinuxAskPassParentPath(parentExe string) bool",
+        "filepath.IsAbs(parentExe)",
+        'name != "ssh" && name != "sftp"',
+        "linuxtrust.TrustedExecutable(parentExe)",
+        'os.Readlink("/proc/" + strconv.Itoa(os.Getppid()) + "/exe")',
+    ))
+    require("internal/remote/sftp_askpass_boundary_test.go", (
+        "TestAskpassEnvironmentRejectsCredentialWithoutTrustedHelper",
+        "TestAskpassEnvironmentWithoutCredentialsDoesNotRequireHelper",
+    ))
+    require("internal/platform/askpass_executable_linux_test.go", (
+        "TestTrustedAskPassExecutableIdentityAcceptsTrustedSameImage",
+        "TestTrustedAskPassExecutableIdentityRejectsUserControlledPath",
+        "TestTrustedAskPassExecutableIdentityRejectsDifferentInode",
+    ))
 
     # FTP/FTPS credentials and proxy isolation.
     curl = require("internal/remote/curl_ftp.go", (
@@ -219,8 +250,10 @@ def main() -> int:
 
     print("SECURITY_AUDIT=PASS")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("SFTP_PASSWORD_AUTH_LINUX=ENABLED")
-    print("SFTP_KEY_PASSPHRASE_LINUX=ENABLED")
+    print("SFTP_PASSWORD_AUTH_LINUX_TRUSTED_INSTALL=ENABLED")
+    print("SFTP_KEY_PASSPHRASE_LINUX_TRUSTED_INSTALL=ENABLED")
+    print("SFTP_ASKPASS_USER_WRITABLE_HELPER=BLOCKED")
+    print("SFTP_ASKPASS_PARENT_PROVENANCE=ENFORCED")
     print("SFTP_ASKPASS_BATCHMODE_CONFLICT=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("PROFILE_CREDENTIAL_CROSS_ENDPOINT=BLOCKED")
