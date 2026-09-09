@@ -26,5 +26,8 @@ class AskPassExecutableIdentityContractTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(exit=False)
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(AskPassExecutableIdentityContractTests)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    if not result.wasSuccessful():
+        raise SystemExit(1)
     print("LINUX_ASKPASS_EXECUTABLE_TOCTOU=BLOCKED")
