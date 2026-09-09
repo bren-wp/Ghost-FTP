@@ -66,12 +66,15 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
             self.assertNotIn(marker, lower)
 
     def test_integrated_uninstall_is_owned_by_installed_application(self) -> None:
+        constants = (ROOT / "cmd/installer/uninstall_constants.go").read_text(encoding="utf-8")
         registration = (ROOT / "cmd/installer/uninstall_registration_windows.go").read_text(encoding="utf-8")
         runtime = (ROOT / "internal/platform/integrated_uninstall_windows.go").read_text(encoding="utf-8")
 
+        self.assertIn('const installedExecutableDigestValue = "InstalledExecutableSHA256"', constants)
         self.assertIn('fmt.Sprintf("\\\"%s\\\" --uninstall", appPath)', registration)
+        self.assertIn("{installedExecutableDigestValue, digest}", registration)
         self.assertIn('strings.TrimSpace(args[1]), "--uninstall"', runtime)
-        self.assertIn("InstalledExecutableSHA256", registration)
+        self.assertIn("ghostFTPInstalledDigestValue", runtime)
         self.assertIn("RemoveVerifiedRegularFileMatchingSHA256", runtime)
 
 
