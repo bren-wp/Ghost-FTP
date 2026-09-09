@@ -13,11 +13,13 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         version = self.read("VERSION").strip()
         text = self.read("docs/RELEASE-VERIFICATION.md")
         required = [
-            f"current maintained release is **{version} Stable**",
+            f"current maintained release is **{version}**",
             f"## Published {version} release identity",
             f"VERSION={version}",
             f"TAG=ghostftp-v{version}",
             f"TITLE=Ghost FTP {version}",
+            "CHANNEL=Current",
+            "PRERELEASE=false",
             f"Ghost-FTP-{version}-Setup-x64.exe",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ]
@@ -29,48 +31,55 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         markers = {
             "README.md": [
                 f"Current Ghost FTP version: **{version}**",
+                "Release channel: **Current**",
                 f"Ghost-FTP-{version}-Setup-x64.exe",
                 f"Ghost-FTP-{version}-Linux-amd64.deb",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/README.md": [
                 f"**Current Ghost FTP release: {version}**",
+                "Release channel: **Current**",
                 f"ghostftp-v{version}",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/INSTALLATION.md": [
-                f"Ghost FTP **{version} Stable** is the current published stable release",
+                f"Ghost FTP **{version}** is the current published release",
                 f"Ghost-FTP-{version}-Setup-x64.exe",
                 f"Ghost-FTP-{version}-Linux-amd64.deb",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/PACKAGES.md": [
-                f"Ghost FTP **{version} Stable is published**",
+                f"Ghost FTP **{version}** publishes a verified **distribution bundle**",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
-            "docs/SUPPORT.md": [f"Ghost FTP **{version} Stable**"],
+            "docs/SUPPORT.md": [
+                f"Ghost FTP **{version}** is the current supported public release",
+                "https://ghostftp.com",
+            ],
             "docs/GITHUB-RELEASES.md": [
-                f"Ghost FTP **{version} Stable** is the current published stable release",
+                f"Ghost FTP **{version}** is the current published release contract",
                 f"ghostftp-v{version}",
                 f"Ghost-FTP-{version}-Setup-x64.exe",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
+                "Prerelease: false",
             ],
         }
         for relative, required in markers.items():
             text = self.read(relative)
             for marker in required:
                 self.assertIn(marker, text, f"{relative} is missing {marker!r}")
+            self.assertNotIn("prerelease=true", text, relative)
 
-    def test_current_stable_docs_do_not_revert_to_candidate_status(self):
-        version = self.read("VERSION").strip()
+    def test_current_docs_do_not_revert_to_old_channel_status(self):
         stale = (
-            f"Ghost FTP {version} Stable candidate",
-            "current source candidate",
-            "current maintained stable release candidate",
-            "filenames above describe the candidate contract",
-            "Do not treat this documentation as proof that 1.1.6 has already been published",
+            "0.0.1 Beta",
+            "CHANNEL=Beta",
+            "PRERELEASE=true",
+            "major 0 → beta",
+            "major 0 -> beta",
         )
         for relative in (
+            "README.md",
             "docs/INSTALLATION.md",
             "docs/PACKAGES.md",
             "docs/GITHUB-RELEASES.md",
@@ -78,7 +87,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         ):
             text = self.read(relative)
             for marker in stale:
-                self.assertNotIn(marker, text, f"{relative} still contains stale published-release wording: {marker!r}")
+                self.assertNotIn(marker, text, f"{relative} still contains stale channel wording: {marker!r}")
 
     def test_release_docs_describe_canonical_branch_dispatch(self):
         verification = self.read("docs/RELEASE-VERIFICATION.md")
@@ -88,7 +97,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             self.assertIn("workflow_dispatch", text)
             self.assertIn("VERSION", text)
         self.assertIn("A push to `main`, including a change to `VERSION`, must never publish a release directly.", verification)
-        self.assertIn("A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.", releases)
+        self.assertIn("does not publish a release directly", releases)
 
 
 if __name__ == "__main__":
