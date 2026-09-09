@@ -106,6 +106,8 @@ class UIActionWiringTests(unittest.TestCase):
         for marker in (
             "deriveTransferActionState",
             "usererror.MessageFor",
+            "u.engine.PauseTransfers()",
+            "u.engine.ResumeTransfers()",
             "u.engine.CancelTransfer(id)",
             "u.engine.RetryTransfer(id)",
             "u.refreshLinuxTransfersPreservingSelection(id)",
@@ -121,9 +123,21 @@ class UIActionWiringTests(unittest.TestCase):
         self.assertIn('u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), actions.Cancel && !u.busy, false)', ui)
         self.assertIn('u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), actions.Retry && !u.busy, false)', ui)
         self.assertIn('u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false)', ui)
+        self.assertIn("u.pauseTransfersLinux()", ui)
+        self.assertIn("u.resumeTransfersLinux()", ui)
         self.assertIn("u.cancelSelectedTransferLinux()", ui)
         self.assertIn("u.retrySelectedTransferLinux()", ui)
         self.assertIn("u.clearFinishedTransfersLinux()", ui)
+
+    def test_linux_disabled_queue_controls_are_functionally_inert(self) -> None:
+        actions = self.read("internal/desktop/queue_actions_linux.go")
+        for state in ("Pause", "Resume", "Cancel", "Retry", "Clear"):
+            self.assertIn(f"!state.{state}", actions)
+        self.assertGreaterEqual(
+            actions.count("u.busy || !state."),
+            5,
+            "every Linux queue mutation helper must reject busy or disabled state",
+        )
 
 
 if __name__ == "__main__":
