@@ -215,7 +215,7 @@ class UIStabilityHardeningTests(unittest.TestCase):
         for marker in (
             "responsiveWindowBoundsForWorkArea",
             "responsiveMinimumTrackSize",
-            "monitorWorkAreaForWindow",
+            "monitorWorkAreaLogical",
         ):
             self.assertIn(marker, geometry)
         for marker in (
