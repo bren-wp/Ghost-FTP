@@ -145,9 +145,19 @@ def main() -> int:
         "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
         "gh workflow run release.yml",
         "test \"$GITHUB_SHA\" = \"$main_sha\"",
+        "wait_for_new_run()",
+        "--json databaseId,headSha",
+        "gh run watch \"$release_run_id\"",
+        "test \"$release_conclusion\" = 'success'",
+        "gh workflow run release-retention.yml",
+        "gh run watch \"$retention_run_id\"",
+        "test \"$retention_conclusion\" = 'success'",
+        "RELEASE_RETENTION_CHAIN=PASS",
     )
     if "--force" in trigger:
         fail("release branch trigger must not force-move release identities")
+    if trigger.index("test \"$release_conclusion\" = 'success'") > trigger.index("gh workflow run release-retention.yml"):
+        fail("release retention may be dispatched before the canonical release succeeds")
 
     require(
         ".github/workflows/ci.yml",
@@ -220,6 +230,7 @@ def main() -> int:
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
+    print("RELEASE_RETENTION_CHAIN=REQUIRED")
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
