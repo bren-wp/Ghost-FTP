@@ -191,13 +191,10 @@ func sameShortcutTarget(actual, expected string) bool {
 
 func removeShortcutMatchingDigest(path, expectedDigest string) (bool, error) {
 	removed, err := removeVerifiedRegularFileMatchingSHA256(path, expectedDigest)
-	if err != nil {
-		if strings.Contains(err.Error(), "ownership digest") {
-			return false, errors.New("shortcut je promijenjen nakon instalacije i neće biti obrisan")
-		}
-		return false, err
+	if errors.Is(err, errVerifiedOwnershipDigestMismatch) {
+		return false, errors.New("shortcut je promijenjen nakon instalacije i neće biti obrisan")
 	}
-	return removed, nil
+	return removed, err
 }
 
 func createOwnedShortcut(linkPath, target, workingDir, description, digestValue string) error {
