@@ -2,11 +2,12 @@
 
 The current maintained release is **0.0.1**.
 
-## Canonical identity
+## Published 0.0.1 release identity
 
 ```text
 VERSION=0.0.1
 TAG=ghostftp-v0.0.1
+TITLE=Ghost FTP 0.0.1
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=12
@@ -46,6 +47,18 @@ BUILD-METADATA.txt
 RELEASE-NOTES.txt
 SHA256.txt
 ```
+
+## Canonical release dispatch
+
+The canonical release branch namespace is:
+
+```text
+release/ghostftp-vX.Y.Z
+```
+
+For this release it is `release/ghostftp-v0.0.1`. The branch must point to the exact fully verified current `main` commit. `.github/workflows/release-branch-trigger.yml` validates that identity and uses `workflow_dispatch` to run the canonical `release.yml` workflow on that same source/version guard.
+
+A push to `main`, including a change to `VERSION`, must never publish a release directly.
 
 ## Source verification
 
