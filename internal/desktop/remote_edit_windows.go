@@ -30,7 +30,9 @@ func remoteEditButton(a *app) uintptr {
 		return 0
 	}
 	if value, ok := remoteEditButtons.Load(a); ok {
-		return value.(uintptr)
+		hwnd := value.(uintptr)
+		a.setButtonLabel(hwnd, remoteEditWords(a.languageCode()).Edit)
+		return hwnd
 	}
 	return 0
 }
