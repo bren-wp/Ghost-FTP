@@ -98,9 +98,7 @@ def main() -> int:
     parts = tuple(int(part) for part in version.split("."))
     if parts < (0, 0, 1):
         fail("documentation public version must be 0.0.1 or newer")
-    major = parts[0]
-    channel = "Beta" if major == 0 else "Stable"
-    prerelease = "true" if major == 0 else "false"
+    prerelease = "false"
 
     files = sorted(path for path in ROOT.rglob("*.md") if ".git" not in path.parts)
     if not files or not INDEX.is_file():
@@ -136,9 +134,11 @@ def main() -> int:
         readme,
         (
             f"Current Ghost FTP version: **{version}**",
-            f"Development status: **{channel}**",
+            "Development status: **Active**",
+            "Release channel: **Current**",
             "Windows", "Linux", "24", "FTP", "FTPS", "SFTP",
             f"ghostftp-v{version}", f"prerelease={prerelease}",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ),
     )
     require_markers(
@@ -146,9 +146,11 @@ def main() -> int:
         index,
         (
             f"**Current Ghost FTP release: {version}**",
-            f"Development status: **{channel}**",
+            "Development status: **Active**",
+            "Release channel: **Current**",
             f"PRERELEASE={prerelease}",
             "latest release only",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ),
     )
 
@@ -230,18 +232,13 @@ def main() -> int:
     )
     require_markers("README release contract", readme, release_contract)
     require_markers("documentation index release contract", index, (release_contract[0],))
-    if major == 0:
-        if f"ghcr.io/bren-wp/ghost-ftp:{version}" in readme or f"ghcr.io/bren-wp/ghost-ftp:{version}" in index:
-            fail("Beta documentation must not claim a Stable GHCR bundle for the current version")
-    else:
-        require_markers("README stable package", readme, (f"ghcr.io/bren-wp/ghost-ftp:{version}",))
 
     installation = read("docs/INSTALLATION.md")
     require_markers(
         "installation release contract",
         installation,
         (
-            f"Ghost FTP **{version} {channel}** is the current published {channel} release",
+            f"Ghost FTP **{version}** is the current published release",
             f"Ghost-FTP-{version}-Setup-x64.exe",
             f"Ghost-FTP-{version}-Linux-amd64.deb",
             f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
@@ -286,7 +283,7 @@ def main() -> int:
         "testing documentation",
         testing,
         (
-            f"Ghost FTP **{version} {channel}**",
+            f"Ghost FTP **{version}**",
             ".github/workflows/linux-distro-packages.yml", ".github/workflows/linux-distro-install.yml",
             "linux/BUILD-DISTROS.sh", "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
             "Native package-manager/runtime coverage is deliberately limited to x86-64.",
@@ -299,9 +296,10 @@ def main() -> int:
         "GitHub Releases documentation",
         releases,
         (
-            f"Ghost FTP **{version} {channel}** is the current published {channel} release",
+            f"Ghost FTP **{version}** is the current published release",
             f"ghostftp-v{version}", f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
-            "12 platform artifacts", "15 public files", "release/ghostftp-vX.Y.Z", "workflow_dispatch",
+            "Prerelease: false", "12 platform artifacts", "15 public files",
+            "release/ghostftp-vX.Y.Z", "workflow_dispatch",
             "only the latest public Ghost FTP version remains", "release-retention.yml",
         ),
     )
@@ -311,7 +309,7 @@ def main() -> int:
         "release verification documentation",
         verification,
         (
-            f"current maintained release is **{version} {channel}**",
+            f"current maintained release is **{version}**",
             f"VERSION={version}", f"TAG=ghostftp-v{version}", f"PRERELEASE={prerelease}",
             f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
             "12 platform artifacts", "15 public files", "truthful supported publication state",
@@ -326,22 +324,20 @@ def main() -> int:
         "packages documentation",
         packages,
         (
-            f"Ghost FTP **{version} {channel}**",
-            "ghcr.io/bren-wp/ghost-ftp", "distribution bundle", "not a runtime container",
+            f"Ghost FTP **{version}**",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}", "distribution bundle", "not a runtime container",
             "/ghostftp-release/", "SHA256.txt", "12 platform artifacts / 15 public files",
             "Authenticode verification **when a trusted production certificate is configured**",
             "WINDOWS_AUTHENTICODE=unsigned", "latest",
         ),
     )
-    if major == 0 and f"ghcr.io/bren-wp/ghost-ftp:{version}" in packages:
-        fail("Beta package documentation must not claim a current Stable GHCR bundle")
 
     support = read("docs/SUPPORT.md")
     require_markers(
         "support documentation",
         support,
         (
-            f"Ghost FTP **{version} {channel}**",
+            f"Ghost FTP **{version}**",
             "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
             "official file is explicitly `unsigned`",
             "if metadata says `signed` and Windows signature verification fails",
@@ -363,16 +359,17 @@ def main() -> int:
     require_markers(
         "release history",
         history,
-        (f"## {version} {channel}", "latest public Ghost FTP version", "release-retention.yml"),
+        (f"## {version}", "latest public Ghost FTP version", "release-retention.yml"),
     )
 
-    print(f"DOCS_AUDIT=PASS ({version}; channel={channel.lower()}; {len(files)} Markdown files)")
+    print(f"DOCS_AUDIT=PASS ({version}; channel=current; {len(files)} Markdown files)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("PRE_1_0_CHANNEL=BETA")
+    print("PUBLIC_RELEASE_CHANNEL=CURRENT")
+    print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
-    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=12")
