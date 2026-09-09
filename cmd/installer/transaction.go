@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 	"github.com/bren-wp/Ghost-FTP/internal/security"
@@ -23,6 +24,7 @@ type fileBackup struct {
 	activated       bool
 	installed       os.FileInfo
 	installedDigest [sha256.Size]byte
+	directory       *installDirectoryGuard
 }
 
 func ensureInstallDir(dir string) error {
@@ -45,6 +47,28 @@ func ensureInstallDir(dir string) error {
 		return errors.New("instalacijska putanja nije sigurna mapa")
 	}
 	return nil
+}
+
+func installerDirectoryGuardForTarget(target string) (*installDirectoryGuard, error) {
+	dir := filepath.Dir(target)
+	root := dir
+
+	// For the real product installation, also revalidate every Ghost FTP-owned
+	// parent below LocalAppData on each guard check. Unit-test and helper targets
+	// outside the canonical install path still pin their immediate directory.
+	if installDir, err := platform.InstallDir(); err == nil {
+		dirAbs, dirErr := filepath.Abs(filepath.Clean(dir))
+		installAbs, installErr := filepath.Abs(filepath.Clean(installDir))
+		if dirErr == nil && installErr == nil && strings.EqualFold(dirAbs, installAbs) {
+			localAppData, localErr := platform.LocalAppData()
+			if localErr != nil {
+				return nil, localErr
+			}
+			root = localAppData
+		}
+	}
+
+	return pinInstallDirectory(root, dir)
 }
 
 func safeInstallerRegular(path string, info os.FileInfo) error {
@@ -118,9 +142,29 @@ func digestStableInstallerFile(path string) (os.FileInfo, [sha256.Size]byte, err
 }
 
 func backupExisting(target string) (fileBackup, error) {
+	guard, err := installerDirectoryGuardForTarget(target)
+	if err != nil {
+		return fileBackup{}, err
+	}
+	backup, err := backupExistingBound(target, guard)
+	if err != nil {
+		guard.close()
+		return fileBackup{}, err
+	}
+	return backup, nil
+}
+
+func backupExistingBound(target string, guard *installDirectoryGuard) (fileBackup, error) {
+	if guard == nil {
+		return fileBackup{}, errors.New("identitet instalacijske mape nije dostupan")
+	}
+	if err := guard.verify(); err != nil {
+		return fileBackup{}, err
+	}
+
 	info, err := os.Lstat(target)
 	if errors.Is(err, os.ErrNotExist) {
-		return fileBackup{target: target}, nil
+		return fileBackup{target: target, directory: guard}, nil
 	}
 	if err != nil {
 		return fileBackup{}, err
@@ -142,6 +186,9 @@ func backupExisting(target string) (fileBackup, error) {
 	if err := safeInstallerRegular(target, opened); err != nil || !sameStableInstallerFile(info, opened) {
 		return fileBackup{}, errors.New("postojeća instalacijska datoteka se promijenila tijekom sigurnog otvaranja")
 	}
+	if err := guard.verify(); err != nil {
+		return fileBackup{}, err
+	}
 
 	dst, err := os.CreateTemp(filepath.Dir(target), ".GhostFTP-rollback-*.bak")
 	if err != nil {
@@ -151,6 +198,10 @@ func backupExisting(target string) (fileBackup, error) {
 	cleanup := func() {
 		_ = dst.Close()
 		_ = os.Remove(backup)
+	}
+	if err := guard.verify(); err != nil {
+		cleanup()
+		return fileBackup{}, err
 	}
 
 	if err := dst.Chmod(0600); err != nil {
@@ -203,7 +254,8 @@ func backupExisting(target string) (fileBackup, error) {
 
 	syncErr := dst.Sync()
 	closeErr := dst.Close()
-	if err := errors.Join(copyErr, statErr, currentErr, syncErr, closeErr); err != nil {
+	guardErr := guard.verify()
+	if err := errors.Join(copyErr, statErr, currentErr, syncErr, closeErr, guardErr); err != nil {
 		_ = os.Remove(backup)
 		return fileBackup{}, err
 	}
@@ -214,6 +266,10 @@ func backupExisting(target string) (fileBackup, error) {
 	if err != nil {
 		_ = os.Remove(backup)
 		return fileBackup{}, fmt.Errorf("sigurnosnu kopiju nije moguće potvrditi: %w", err)
+	}
+	if err := guard.verify(); err != nil {
+		_ = os.Remove(backup)
+		return fileBackup{}, err
 	}
 	if backupDigest != digest || backupInfo.Size() != opened.Size() {
 		_ = os.Remove(backup)
@@ -226,18 +282,29 @@ func backupExisting(target string) (fileBackup, error) {
 		original:       after,
 		originalDigest: digest,
 		backupInfo:     backupInfo,
+		directory:      guard,
 	}, nil
+}
+
+func (b *fileBackup) verifyDirectory() error {
+	if b == nil || b.directory == nil {
+		return errors.New("identitet instalacijske mape nije dostupan")
+	}
+	return b.directory.verify()
 }
 
 func (b *fileBackup) verifyBeforeInstall() error {
 	if b == nil || b.target == "" {
 		return errors.New("instalacijska transakcija nije ispravna")
 	}
+	if err := b.verifyDirectory(); err != nil {
+		return err
+	}
 
 	if !b.existed() {
 		_, err := os.Lstat(b.target)
 		if errors.Is(err, os.ErrNotExist) {
-			return nil
+			return b.verifyDirectory()
 		}
 		if err != nil {
 			return err
@@ -247,6 +314,9 @@ func (b *fileBackup) verifyBeforeInstall() error {
 
 	current, digest, err := digestStableInstallerFile(b.target)
 	if err != nil {
+		return err
+	}
+	if err := b.verifyDirectory(); err != nil {
 		return err
 	}
 	if !sameStableInstallerFile(b.original, current) || digest != b.originalDigest {
@@ -260,6 +330,9 @@ func (b *fileBackup) recordActivated(expected [sha256.Size]byte) error {
 	if b == nil || b.target == "" {
 		return errors.New("instalacijska transakcija nije ispravna")
 	}
+	if err := b.verifyDirectory(); err != nil {
+		return err
+	}
 
 	// Mark activation before verification so the transaction knows that the
 	// target path was changed even if post-install verification fails.
@@ -268,6 +341,9 @@ func (b *fileBackup) recordActivated(expected [sha256.Size]byte) error {
 	info, digest, err := digestStableInstallerFile(b.target)
 	if err != nil {
 		return fmt.Errorf("instalirana datoteka nije mogla biti potvrđena: %w", err)
+	}
+	if err := b.verifyDirectory(); err != nil {
+		return err
 	}
 
 	// Store what was actually observed. If the payload digest does not match,
@@ -285,12 +361,18 @@ func (b fileBackup) verifyInstalledForRollback() error {
 	if !b.activated {
 		return nil
 	}
+	if err := b.verifyDirectory(); err != nil {
+		return err
+	}
 	if b.installed == nil {
 		return errors.New("nije moguće dokazati vlasništvo nad aktiviranom instalacijskom datotekom")
 	}
 
 	current, digest, err := digestStableInstallerFile(b.target)
 	if err != nil {
+		return err
+	}
+	if err := b.verifyDirectory(); err != nil {
 		return err
 	}
 	if !os.SameFile(b.installed, current) || digest != b.installedDigest {
@@ -300,6 +382,9 @@ func (b fileBackup) verifyInstalledForRollback() error {
 }
 
 func (b fileBackup) verifyBackupForRollback() error {
+	if err := b.verifyDirectory(); err != nil {
+		return err
+	}
 	if b.backup == "" {
 		return errors.New("sigurnosna kopija nije dostupna")
 	}
@@ -310,6 +395,9 @@ func (b fileBackup) verifyBackupForRollback() error {
 	current, digest, err := digestStableInstallerFile(b.backup)
 	if err != nil {
 		return fmt.Errorf("sigurnosnu kopiju nije moguće potvrditi: %w", err)
+	}
+	if err := b.verifyDirectory(); err != nil {
+		return err
 	}
 	if !sameStableInstallerFile(b.backupInfo, current) || digest != b.originalDigest {
 		return errors.New("sigurnosna kopija promijenjena je prije rollbacka")
@@ -328,6 +416,9 @@ func (b fileBackup) stageRollbackBackup() (string, error) {
 	}
 	defer src.Close()
 
+	if err := b.verifyDirectory(); err != nil {
+		return "", err
+	}
 	dst, err := os.CreateTemp(filepath.Dir(b.target), ".GhostFTP-restore-*.tmp")
 	if err != nil {
 		return "", err
@@ -336,6 +427,10 @@ func (b fileBackup) stageRollbackBackup() (string, error) {
 	cleanup := func() {
 		_ = dst.Close()
 		_ = os.Remove(tmp)
+	}
+	if err := b.verifyDirectory(); err != nil {
+		cleanup()
+		return "", err
 	}
 
 	mode := os.FileMode(0700)
@@ -353,7 +448,8 @@ func (b fileBackup) stageRollbackBackup() (string, error) {
 	}
 	syncErr := dst.Sync()
 	closeErr := dst.Close()
-	if err := errors.Join(copyErr, syncErr, closeErr); err != nil {
+	guardErr := b.verifyDirectory()
+	if err := errors.Join(copyErr, syncErr, closeErr, guardErr); err != nil {
 		_ = os.Remove(tmp)
 		return "", err
 	}
@@ -362,6 +458,10 @@ func (b fileBackup) stageRollbackBackup() (string, error) {
 	if err != nil {
 		_ = os.Remove(tmp)
 		return "", fmt.Errorf("pripremljenu rollback datoteku nije moguće potvrditi: %w", err)
+	}
+	if err := b.verifyDirectory(); err != nil {
+		_ = os.Remove(tmp)
+		return "", err
 	}
 	if digest != b.originalDigest {
 		_ = os.Remove(tmp)
@@ -375,6 +475,9 @@ func (b fileBackup) rollback() error {
 	if b.target == "" || !b.activated {
 		return nil
 	}
+	if err := b.verifyDirectory(); err != nil {
+		return err
+	}
 	if err := b.verifyInstalledForRollback(); err != nil {
 		return err
 	}
@@ -386,7 +489,10 @@ func (b fileBackup) rollback() error {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return b.verifyDirectory()
 	}
 
 	// Never consume the only rollback backup directly. Restore from a freshly
@@ -397,13 +503,22 @@ func (b fileBackup) rollback() error {
 	}
 	defer os.Remove(restoreTmp)
 
+	if err := b.verifyDirectory(); err != nil {
+		return err
+	}
 	if err := platform.ReplaceFile(restoreTmp, b.target); err != nil {
+		return err
+	}
+	if err := b.verifyDirectory(); err != nil {
 		return err
 	}
 
 	_, digest, err := digestStableInstallerFile(b.target)
 	if err != nil {
 		return fmt.Errorf("vraćena instalacijska datoteka nije mogla biti potvrđena: %w", err)
+	}
+	if err := b.verifyDirectory(); err != nil {
+		return err
 	}
 	if digest != b.originalDigest {
 		return errors.New("vraćena instalacijska datoteka ne odgovara sigurnosnoj kopiji")
@@ -415,8 +530,15 @@ func (b fileBackup) existed() bool {
 	return b.backup != ""
 }
 
-func (b fileBackup) cleanup() {
-	if b.backup != "" {
+func (b *fileBackup) cleanup() {
+	if b == nil {
+		return
+	}
+	if b.backup != "" && b.directory != nil && b.directory.verify() == nil {
 		_ = os.Remove(b.backup)
+	}
+	if b.directory != nil {
+		b.directory.close()
+		b.directory = nil
 	}
 }
