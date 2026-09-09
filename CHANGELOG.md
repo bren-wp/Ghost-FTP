@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.1 - 2026-09-09 Beta
+## 0.0.1 - 2026-09-09
 
 ### Desktop client
 
@@ -25,14 +25,15 @@
 - Linux: DEB and portable tar.gz for amd64/arm64/i386 plus the multiarch ZIP.
 - Canonical release shape remains **12 platform artifacts / 15 public files**.
 - Debian 13, Ubuntu 26.04 LTS and Fedora 44 lifecycle/GUI smoke remain part of release verification.
-- Version 0.0.1 starts a new public Beta line. After a newly published Ghost FTP release is verified, the release-retention workflow removes older Ghost FTP GitHub releases and tags so only the latest public version remains.
+- Version 0.0.1 starts the new current public line. After a newly published Ghost FTP release is verified, the release-retention workflow removes older Ghost FTP GitHub releases and tags so only the latest public version remains.
+- The verified distribution bundle is published to `ghcr.io/bren-wp/ghost-ftp:0.0.1` with matching current-version aliases.
 
 ### Documentation
 
-- Reset active documentation to the 0.0.1 Beta line.
+- Reset active documentation to the 0.0.1 public line.
 - Removed the old 1.x public-version narrative from active documentation and release history.
 - Kept the production engineering/audit prompt and the `ghostftp.com` dark-theme redesign prompt aligned with the current project contract.
 
 ### Release contract
 
-The 0.0.1 Beta candidate must pass exact-head Go formatting/race/vet, repository/platform/security/privacy/documentation/release audits, the Python regression suite, Windows x64/x86 production builds, Linux amd64/arm64/i386 production builds, distro package parity, Debian/Ubuntu/Fedora lifecycle smoke and authentic Windows UI evidence. Publication uses `ghostftp-v0.0.1`, `prerelease=true`, the exact 15-file GitHub Release allow-list and the latest-only public release retention policy.
+The 0.0.1 candidate must pass exact-head Go formatting/race/vet, repository/platform/security/privacy/documentation/release audits, the Python regression suite, Windows x64/x86 production builds, Linux amd64/arm64/i386 production builds, distro package parity, Debian/Ubuntu/Fedora lifecycle smoke and authentic Windows UI evidence. Publication uses `ghostftp-v0.0.1`, `prerelease=false`, the exact 15-file GitHub Release allow-list, verified GHCR bundle read-back and the latest-only public release retention policy.
