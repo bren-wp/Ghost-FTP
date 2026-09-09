@@ -1,6 +1,6 @@
 # Ghost FTP release history
 
-## 0.0.1 Beta — 2026-09-09
+## 0.0.1 — 2026-09-09
 
 Ghost FTP 0.0.1 starts the current public release line.
 
@@ -35,11 +35,12 @@ Ghost FTP 0.0.1 starts the current public release line.
 - **12 platform artifacts / 15 public files**.
 - Debian 13, Ubuntu 26.04 LTS and Fedora 44 native lifecycle/GUI smoke.
 - Exact-head and exact post-merge workflow verification.
-- Beta release identity `ghostftp-v0.0.1` with `prerelease=true`.
+- Current release identity `ghostftp-v0.0.1` with `prerelease=false`.
+- Verified GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.1`.
 
 ## Public history retention policy
 
-Only the latest public Ghost FTP version is retained after successful publication and remote verification. Older GitHub Releases, `ghostftp-v*` tags, completed versioned release branches and obsolete package versions are removed by `.github/workflows/release-retention.yml`.
+Only the latest public Ghost FTP version is retained after successful publication and remote verification. Older GitHub Releases, `ghostftp-v*` tags, superseded versioned release branches and obsolete package versions are removed by `.github/workflows/release-retention.yml` while the current release package and current canonical branch are retained.
 
 The Git commit history on `main` is not rewritten by this policy.
 
