@@ -40,6 +40,13 @@ class WindowsShortcutOwnershipContractTests(unittest.TestCase):
         self.assertIn("fileShareRead", self.delete_source)
         self.assertIn("SetFileInformationByHandle", self.delete_source)
 
+    def test_uninstall_preserves_unowned_start_menu_parent_directory(self):
+        remove_shortcuts = self.source.split("func RemoveShortcuts() error {", 1)[1]
+        self.assertNotIn("os.Remove(startDir)", remove_shortcuts)
+        self.assertNotIn("os.ReadDir(startDir)", remove_shortcuts)
+        self.assertNotIn("os.Remove(filepath.Dir(start))", remove_shortcuts)
+        self.assertIn("preserve it even when it becomes empty", remove_shortcuts)
+
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(WindowsShortcutOwnershipContractTests)

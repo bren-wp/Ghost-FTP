@@ -300,13 +300,8 @@ func RemoveShortcuts() error {
 		errs = append(errs, err)
 	}
 
-	startDir := filepath.Dir(start)
-	if err := os.Remove(startDir); err != nil && !errors.Is(err, os.ErrNotExist) {
-		// A non-empty company Start Menu folder is normal; do not remove
-		// unrelated shortcuts that may belong to other GhostFTP products.
-		if entries, readErr := os.ReadDir(startDir); readErr != nil || len(entries) == 0 {
-			errs = append(errs, err)
-		}
-	}
+	// Ownership records authorize removal of the exact shortcut files only.
+	// The parent company Start Menu directory can predate Ghost FTP or be shared
+	// by another product, so preserve it even when it becomes empty.
 	return errors.Join(errs...)
 }
