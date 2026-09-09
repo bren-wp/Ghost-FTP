@@ -57,18 +57,23 @@ func (a *app) updateActionControls() {
 	}
 	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
 
-	transferState := deriveTransferActionState(a.transferJobs, selectedIndices(a.transferList), remoteReady, a.queuePaused)
+	selectedTransfers := selectedIndices(a.transferList)
+	transferState := deriveTransferActionState(a.transferJobs, selectedTransfers, remoteReady, a.queuePaused)
+	priorityState := deriveQueuePriorityState(a.transferJobs, selectedTransfers)
 	if a.connectionBusy {
 		transferState.Pause = false
 		transferState.Resume = false
 		transferState.Cancel = false
 		transferState.Retry = false
+		priorityState.MoveUp = false
+		priorityState.MoveDown = false
 	}
 	setControlEnabled(a.pauseQueue, transferState.Pause)
 	setControlEnabled(a.resumeQueue, transferState.Resume)
 	setControlEnabled(a.cancelJob, transferState.Cancel)
 	setControlEnabled(a.retryJob, transferState.Retry)
 	setControlEnabled(a.clearQueue, transferState.Clear && !a.connectionBusy)
+	a.updateQueuePriorityControls(priorityState)
 
 	a.refineWorkspaceLayout()
 }

@@ -74,6 +74,10 @@ func (a *app) command(id int) {
 		a.retrySelectedTransfer()
 	case idClearQueue:
 		a.clearFinishedTransfers()
+	case idMoveQueueUp:
+		a.moveSelectedTransfer(-1)
+	case idMoveQueueDown:
+		a.moveSelectedTransfer(1)
 	case idRefreshAll:
 		a.refreshLocal(getText(a.localPath))
 		if a.connected {
