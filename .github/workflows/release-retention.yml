@@ -161,7 +161,7 @@ jobs:
             fi
             echo "GHOSTFTP_PACKAGE_RETENTION=PASS (beta=$version; old packages removed)"
           else
-            current_count="$(gh api "$endpoint" --jq --arg version "$version" '[.[] | select((.metadata.container.tags // []) | index($version))] | length')"
+            current_count="$(gh api "$endpoint" | jq --arg version "$version" '[.[] | select((.metadata.container.tags // []) | index($version))] | length')"
             test "$current_count" -ge 1
             echo "GHOSTFTP_PACKAGE_RETENTION=PASS (stable=$version)"
           fi
