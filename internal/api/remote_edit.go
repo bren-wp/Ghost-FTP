@@ -157,6 +157,7 @@ func remoteEditPermissionMode(raw string) string {
 			if ch < '0' || ch > '7' {
 				return ""
 			}
+		}
 		return raw
 	}
 	if len(raw) < 10 || len(raw) > 11 {
