@@ -1,27 +1,36 @@
 package remote
 
-import "testing"
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"testing"
+)
 
-func TestFTPCommandUnsupportedUsesPrivateToolDiagnostic(t *testing.T) {
-	err := &toolError{
-		tool:    "curl",
-		code:    22,
-		message: "500 Unknown command MLSD on secret-host.example for private-user",
-	}
+func TestFTPCommandUnsupportedUsesTransientPrivateDiagnostic(t *testing.T) {
+	raw := "500 Unknown command MLSD on secret-host.example for private-user"
+	err := requireToolError(t, newToolError("curl", errors.New("tool process failed"), raw))
 	if !ftpCommandUnsupported(err) {
 		t.Fatal("redacted curl error must still classify an unsupported MLSD command")
 	}
-	if got := err.Error(); got == err.message {
-		t.Fatal("unsupported-command classification must not expose the raw curl diagnostic")
+	if err.UserErrorKind() != "ftp_unsupported" {
+		t.Fatalf("UserErrorKind()=%q want ftp_unsupported", err.UserErrorKind())
+	}
+	stored := fmt.Sprintf("%+v", *err)
+	for _, sensitive := range []string{"500", "secret-host.example", "private-user"} {
+		if strings.Contains(strings.ToLower(stored), strings.ToLower(sensitive)) {
+			t.Fatalf("toolError retained unsupported-command diagnostic %q: %q", sensitive, stored)
+		}
 	}
 }
 
 func TestFTPCommandUnsupportedDoesNotMisclassifyPrivateAuthOrTransportDiagnostic(t *testing.T) {
-	for _, err := range []*toolError{
-		{tool: "curl", code: 67, message: "530 Login incorrect for private-user@secret-host.example"},
-		{tool: "curl", code: 28, message: "Connection timed out to secret-host.example"},
-		{tool: "curl", code: 7, message: "425 Can't open data connection"},
+	for _, raw := range []string{
+		"530 Login incorrect for private-user@secret-host.example",
+		"Connection timed out to secret-host.example",
+		"425 Can't open data connection",
 	} {
+		err := requireToolError(t, newToolError("curl", errors.New("tool process failed"), raw))
 		if ftpCommandUnsupported(err) {
 			t.Fatalf("private diagnostic was misclassified as unsupported command: kind=%q", err.UserErrorKind())
 		}
