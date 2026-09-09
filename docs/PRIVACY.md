@@ -1,6 +1,6 @@
 # Ghost FTP privacy
 
-Ghost FTP **1.1.7 Stable** is designed to operate without application telemetry, advertising, behavioral analytics, fingerprinting, hidden crash upload or a mandatory Ghost FTP account.
+Ghost FTP **0.0.1** is designed to operate without application telemetry, advertising, behavioral analytics, fingerprinting, hidden crash upload or a mandatory Ghost FTP account.
 
 ## Data Ghost FTP does not intentionally collect
 
@@ -41,7 +41,7 @@ Credential persistence is opt-in:
 - Windows uses the current-user operating-system protection boundary;
 - Linux uses local authenticated encryption with user-private key material.
 
-Ghost FTP 1.1.7 applies the same explicit credential-save consent policy to the main profile-save path and Windows Site Manager. Declining consent can still save non-secret profile fields, while newly entered password/passphrase values are not persisted and retained stored credentials are removed when the selected flow requires clearing them.
+Ghost FTP 0.0.1 applies the same explicit credential-save consent policy to the main profile-save path and Windows Site Manager. Declining consent can still save non-secret profile fields, while newly entered password/passphrase values are not persisted and retained stored credentials are removed when the selected flow requires clearing them.
 
 A protected secret is not meant to become plaintext JSON merely because decryption failed. The safe fallback is to request the secret again.
 
@@ -67,7 +67,7 @@ Staging, rollback and source-snapshot files are local operational state. They ar
 
 Official release artifacts are built in GitHub Actions from repository source. The release allow-list includes only product binaries/packages plus generated verification files.
 
-The Stable GitHub Package (`ghcr.io/bren-wp/ghost-ftp`) is built from the verified `release/` directory only. The OCI bundle does not intentionally contain saved profiles, user files, local application data, signing private keys or CI secrets. Docker networking is disabled during the bundle build.
+The current GitHub Package (`ghcr.io/bren-wp/ghost-ftp`) is built from the verified `release/` directory only. The OCI bundle does not intentionally contain saved profiles, user files, local application data, signing private keys or CI secrets. Docker networking is disabled during the bundle build.
 
 ## Signing secrets
 
