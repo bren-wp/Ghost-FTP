@@ -9,13 +9,19 @@ class StateDirectoryIdentityContractTests(unittest.TestCase):
     def test_store_pins_directory_identity(self):
         source = (ROOT / "internal/config/store.go").read_text(encoding="utf-8")
         self.assertIn("dirIdentity os.FileInfo", source)
-        self.assertIn("os.SameFile(s.dirIdentity, info)", source)
+        self.assertIn("sameStateDirectoryIdentity(s.dirIdentity, info)", source)
         self.assertIn("s.ensureDirectoryIdentity()", source)
 
     def test_store_rejects_redirected_directory(self):
         source = (ROOT / "internal/config/store.go").read_text(encoding="utf-8")
         self.assertIn("security.IsReparsePoint(dir)", source)
         self.assertIn("info.Mode()&os.ModeSymlink", source)
+
+    def test_windows_identity_has_independent_generation_signal(self):
+        source = (ROOT / "internal/config/state_directory_identity_windows.go").read_text(encoding="utf-8")
+        self.assertIn("os.SameFile(before, after)", source)
+        self.assertIn("syscall.Win32FileAttributeData", source)
+        self.assertIn("beforeData.CreationTime == afterData.CreationTime", source)
 
     def test_read_and_write_use_bound_directory_helpers(self):
         source = (ROOT / "internal/config/store.go").read_text(encoding="utf-8")
