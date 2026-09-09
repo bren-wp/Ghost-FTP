@@ -1,6 +1,6 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.1 Beta** is the current published Beta release contract. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.1** is the current published release. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical release packages
 
@@ -114,5 +114,7 @@ Before using an official package:
 3. verify its SHA-256 against `SHA256.txt`;
 4. inspect `BUILD-METADATA.txt` for source commit and Windows signing state;
 5. where metadata says `signed`, require a valid Authenticode signature on Windows.
+
+The verified distribution bundle is also published at `ghcr.io/bren-wp/ghost-ftp:0.0.1`; it is distribution infrastructure, not a runtime container.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [GitHub Releases](GITHUB-RELEASES.md).
