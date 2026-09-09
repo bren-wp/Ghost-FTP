@@ -72,6 +72,36 @@ func TestGetNormalizesLegacyOutOfRangeSettings(t *testing.T) {
 	}
 }
 
+func TestSetMigratesMissingLegacyParallelism(t *testing.T) {
+	settings := NewSettings(New(t.TempDir()))
+	legacy := DefaultSettings()
+	legacy.Parallelism = 0
+	got, err := settings.Set(legacy)
+	if err != nil {
+		t.Fatalf("missing legacy parallelism should migrate, got error: %v", err)
+	}
+	if got.Parallelism != DefaultParallelism {
+		t.Fatalf("parallelism=%d want canonical default %d", got.Parallelism, DefaultParallelism)
+	}
+	persisted, err := settings.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Parallelism != DefaultParallelism {
+		t.Fatalf("persisted parallelism=%d want %d", persisted.Parallelism, DefaultParallelism)
+	}
+}
+
+func TestSetStillRejectsExplicitInvalidParallelism(t *testing.T) {
+	for _, value := range []int{-1, MaxParallelism + 1} {
+		settings := DefaultSettings()
+		settings.Parallelism = value
+		if _, err := NewSettings(New(t.TempDir())).Set(settings); err == nil {
+			t.Fatalf("parallelism=%d should remain an explicit validation failure", value)
+		}
+	}
+}
+
 func TestLegacyConflictPolicyMigrationPreservesBehavior(t *testing.T) {
 	tests := []struct {
 		name   string
