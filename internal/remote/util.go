@@ -46,15 +46,16 @@ func (g *deleteGuard) step(depth int) error {
 }
 
 type toolError struct {
-	tool    string
-	code    int
-	message string
+	tool      string
+	code      int
+	kind      string
+	retryable bool
 }
 
-// Error deliberately exposes only bounded structural information and a stable,
-// locally generated semantic category. Child-process stderr can contain hosts,
-// usernames, remote paths and private-key paths; it remains private in message
-// for classification and retry decisions and is never reflected verbatim.
+// Error exposes only bounded structural information and a stable, locally
+// generated semantic category. Child-process stderr can contain hosts,
+// usernames, remote paths and private-key paths; newToolError classifies that
+// text transiently and never retains it in this error object.
 func (e *toolError) Error() string {
 	if e == nil {
 		return "network tool operation failed"
@@ -71,7 +72,7 @@ func (e *toolError) Error() string {
 }
 
 func toolErrorPublicLabel(tool string) string {
-	switch strings.ToLower(strings.TrimSpace(tool)) {
+	switch normalizeToolName(tool) {
 	case "curl":
 		return "curl"
 	case "ssh":
@@ -121,13 +122,20 @@ func toolErrorPublicDetail(kind string) string {
 func newToolError(tool string, runErr error, message string) error {
 	code := -1
 	var exitErr *exec.ExitError
-	if errors.As(runErr, &exitErr) {
+	if runErr != nil && errors.As(runErr, &exitErr) {
 		code = exitErr.ExitCode()
 	}
-	if strings.TrimSpace(message) == "" {
-		message = runErr.Error()
+	diagnostic := strings.TrimSpace(message)
+	if diagnostic == "" && runErr != nil {
+		diagnostic = runErr.Error()
 	}
-	return &toolError{tool: tool, code: code, message: message}
+	tool = normalizeToolName(tool)
+	return &toolError{
+		tool:      tool,
+		code:      code,
+		kind:      classifyToolDiagnostic(tool, code, diagnostic),
+		retryable: classifyToolRetryable(tool, code, diagnostic),
+	}
 }
 
 // IsRetryable is deliberately conservative. Automatic retry is useful only for
@@ -145,20 +153,10 @@ func IsRetryable(err error) bool {
 		return false
 	}
 	var te *toolError
-	if errors.As(err, &te) && te.tool == "curl" {
-		switch te.code {
-		case 6, 7, 18, 28, 52, 55, 56:
-			return true
-		}
-		return false
+	if errors.As(err, &te) && te != nil {
+		return te.retryable
 	}
-	msg := err.Error()
-	if te != nil {
-		// Raw child-process diagnostics stay private to the remote package for
-		// classification/retry decisions even though toolError.Error is redacted.
-		msg = te.message
-	}
-	msg = strings.ToLower(msg)
+	msg := strings.ToLower(err.Error())
 	for _, marker := range []string{
 		"permission denied", "access denied", "authentication failed", "login denied", "login incorrect",
 		"host key verification failed", "fingerprint", "no such file", "not found", "not a directory",
