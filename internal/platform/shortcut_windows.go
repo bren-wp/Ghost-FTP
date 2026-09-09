@@ -3,12 +3,17 @@
 package platform
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
-	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
+
+	"github.com/bren-wp/Ghost-FTP/internal/brand"
 )
 
 type guid struct {
@@ -18,17 +23,22 @@ type guid struct {
 	Data4 [8]byte
 }
 
-var (
-	ole32Shortcut    = syscall.NewLazyDLL("ole32.dll")
-	coInitializeEx   = ole32Shortcut.NewProc("CoInitializeEx")
-	coUninitialize   = ole32Shortcut.NewProc("CoUninitialize")
-	coCreateInstance = ole32Shortcut.NewProc("CoCreateInstance")
-	shell32Shortcut  = syscall.NewLazyDLL("shell32.dll")
-	shGetFolderPathW = shell32Shortcut.NewProc("SHGetFolderPathW")
-	clsidShellLink   = guid{0x00021401, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
-	iidIShellLinkW   = guid{0x000214F9, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
-	iidIPersistFile  = guid{0x0000010B, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
+const (
+	desktopShortcutDigestValue   = "DesktopShortcutSHA256"
+	startMenuShortcutDigestValue = "StartMenuShortcutSHA256"
 )
+
+var ole32Shortcut = syscall.NewLazyDLL("ole32.dll")
+var coInitializeEx = ole32Shortcut.NewProc("CoInitializeEx")
+var coUninitialize = ole32Shortcut.NewProc("CoUninitialize")
+var coCreateInstance = ole32Shortcut.NewProc("CoCreateInstance")
+var shell32Shortcut = syscall.NewLazyDLL("shell32.dll")
+var shGetFolderPathW = shell32Shortcut.NewProc("SHGetFolderPathW")
+var kernel32Shortcut = syscall.NewLazyDLL("kernel32.dll")
+var getFileAttributesShortcut = kernel32Shortcut.NewProc("GetFileAttributesW")
+var clsidShellLink = guid{0x00021401, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
+var iidIShellLinkW = guid{0x000214F9, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
+var iidIPersistFile = guid{0x0000010B, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
 
 func hresultFailed(v uintptr) bool { return int32(v) < 0 }
 
@@ -111,6 +121,218 @@ func createShellLink(linkPath, target, workingDir, description string) error {
 	return nil
 }
 
+func shortcutReparsePoint(path string) bool {
+	p, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return true
+	}
+	attrs, _, _ := getFileAttributesShortcut.Call(uintptr(unsafe.Pointer(p)))
+	const (
+		invalidFileAttributes = 0xffffffff
+		fileAttributeReparse  = 0x00000400
+	)
+	if uint32(attrs) == invalidFileAttributes {
+		return true
+	}
+	return uint32(attrs)&fileAttributeReparse != 0
+}
+
+func stableShortcutDigest(path string) (string, error) {
+	before, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+	if !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || shortcutReparsePoint(path) {
+		return "", errors.New("shortcut nije sigurna regularna datoteka")
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	opened, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
+		return "", errors.New("shortcut se promijenio tijekom sigurnog otvaranja")
+	}
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	after, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	current, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+	if !os.SameFile(opened, after) || !os.SameFile(after, current) || current.Mode()&os.ModeSymlink != 0 || shortcutReparsePoint(path) {
+		return "", errors.New("shortcut se promijenio tijekom provjere")
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func readShellLinkTarget(linkPath string) (string, error) {
+	const (
+		coinitApartmentThreaded = 0x2
+		clsctxInprocServer      = 0x1
+		slgpRawPath             = 0x4
+	)
+	hr, _, _ := coInitializeEx.Call(0, coinitApartmentThreaded)
+	if hresultFailed(hr) {
+		return "", syscall.Errno(uint32(hr))
+	}
+	defer coUninitialize.Call()
+
+	var link unsafe.Pointer
+	hr, _, _ = coCreateInstance.Call(
+		uintptr(unsafe.Pointer(&clsidShellLink)),
+		0,
+		clsctxInprocServer,
+		uintptr(unsafe.Pointer(&iidIShellLinkW)),
+		uintptr(unsafe.Pointer(&link)),
+	)
+	if hresultFailed(hr) || link == nil {
+		return "", errors.New("Windows Shell Link nije dostupan")
+	}
+	defer releaseCOM(link)
+
+	var persist unsafe.Pointer
+	if hr, _, _ = syscall.SyscallN(vtableMethod(link, 0), uintptr(link), uintptr(unsafe.Pointer(&iidIPersistFile)), uintptr(unsafe.Pointer(&persist))); hresultFailed(hr) || persist == nil {
+		return "", errors.New("IPersistFile nije dostupan")
+	}
+	defer releaseCOM(persist)
+
+	pathPtr, err := syscall.UTF16PtrFromString(linkPath)
+	if err != nil {
+		return "", err
+	}
+	if hr, _, _ = syscall.SyscallN(vtableMethod(persist, 5), uintptr(persist), uintptr(unsafe.Pointer(pathPtr)), 0); hresultFailed(hr) {
+		return "", syscall.Errno(uint32(hr))
+	}
+
+	buf := make([]uint16, 32768)
+	if hr, _, _ = syscall.SyscallN(
+		vtableMethod(link, 3),
+		uintptr(link),
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(len(buf)),
+		0,
+		slgpRawPath,
+	); hresultFailed(hr) {
+		return "", syscall.Errno(uint32(hr))
+	}
+	target := syscall.UTF16ToString(buf)
+	if strings.TrimSpace(target) == "" {
+		return "", errors.New("shortcut nema valjanu ciljnu putanju")
+	}
+	return target, nil
+}
+
+func sameShortcutTarget(actual, expected string) bool {
+	actualAbs, err := filepath.Abs(filepath.Clean(actual))
+	if err != nil {
+		return false
+	}
+	expectedAbs, err := filepath.Abs(filepath.Clean(expected))
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(actualAbs, expectedAbs)
+}
+
+func removeShortcutMatchingDigest(path, expectedDigest string) (bool, error) {
+	if strings.TrimSpace(expectedDigest) == "" {
+		return false, nil
+	}
+	current, err := stableShortcutDigest(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !strings.EqualFold(current, expectedDigest) {
+		return false, errors.New("shortcut je promijenjen nakon instalacije i neće biti obrisan")
+	}
+
+	// Re-read immediately before deletion so a normal replacement between the
+	// ownership check and cleanup is detected and preserved.
+	confirmed, err := stableShortcutDigest(path)
+	if err != nil {
+		return false, err
+	}
+	if !strings.EqualFold(confirmed, expectedDigest) {
+		return false, errors.New("shortcut se promijenio prije uklanjanja i neće biti obrisan")
+	}
+	if err := os.Remove(path); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func createOwnedShortcut(linkPath, target, workingDir, description, digestValue string) error {
+	if _, err := os.Lstat(linkPath); err == nil {
+		digest, digestErr := stableShortcutDigest(linkPath)
+		if digestErr != nil {
+			return digestErr
+		}
+		recorded, recordedOK, recordedErr := GetRegistryString(ghostFTPUninstallKey, digestValue)
+		if recordedErr != nil {
+			return recordedErr
+		}
+		if recordedOK && strings.EqualFold(recorded, digest) {
+			return nil
+		}
+
+		// Migrate a legacy Ghost FTP shortcut only after independently proving
+		// that its stored target is the canonical application path. A foreign
+		// same-name shortcut is preserved and never adopted.
+		existingTarget, targetErr := readShellLinkTarget(linkPath)
+		if targetErr != nil || !sameShortcutTarget(existingTarget, target) {
+			_ = DeleteRegistryValue(ghostFTPUninstallKey, digestValue)
+			return errors.New("postojeći shortcut istog imena nije Ghost FTP shortcut i nije prepisan")
+		}
+		return SetRegistryString(ghostFTPUninstallKey, digestValue, digest)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	if err := createShellLink(linkPath, target, workingDir, description); err != nil {
+		return err
+	}
+	digest, err := stableShortcutDigest(linkPath)
+	if err != nil {
+		return err
+	}
+	if err := SetRegistryString(ghostFTPUninstallKey, digestValue, digest); err != nil {
+		_, cleanupErr := removeShortcutMatchingDigest(linkPath, digest)
+		return errors.Join(err, cleanupErr)
+	}
+	return nil
+}
+
+func removeOwnedShortcut(path, digestValue string) error {
+	expected, ok, err := GetRegistryString(ghostFTPUninstallKey, digestValue)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	_, err = removeShortcutMatchingDigest(path, expected)
+	if err != nil {
+		return err
+	}
+	return DeleteRegistryValue(ghostFTPUninstallKey, digestValue)
+}
+
 func ShortcutPaths() (desktop, startMenu string, err error) {
 	const (
 		csidlPrograms         = 0x0002
@@ -133,14 +355,16 @@ func CreateShortcuts(appPath string) error {
 		return err
 	}
 	work := filepath.Dir(appPath)
-	if err = createShellLink(desktop, appPath, work, brand.ProductFull+" — "+brand.Company); err != nil {
-		return err
+	description := brand.ProductFull + " — " + brand.Company
+
+	var errs []error
+	if err := createOwnedShortcut(desktop, appPath, work, description, desktopShortcutDigestValue); err != nil {
+		errs = append(errs, err)
 	}
-	if err = createShellLink(start, appPath, work, brand.ProductFull+" — "+brand.Company); err != nil {
-		_ = os.Remove(desktop)
-		return err
+	if err := createOwnedShortcut(start, appPath, work, description, startMenuShortcutDigestValue); err != nil {
+		errs = append(errs, err)
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func RemoveShortcuts() error {
@@ -149,11 +373,13 @@ func RemoveShortcuts() error {
 		return err
 	}
 	var errs []error
-	for _, path := range []string{desktop, start} {
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			errs = append(errs, err)
-		}
+	if err := removeOwnedShortcut(desktop, desktopShortcutDigestValue); err != nil {
+		errs = append(errs, err)
 	}
+	if err := removeOwnedShortcut(start, startMenuShortcutDigestValue); err != nil {
+		errs = append(errs, err)
+	}
+
 	startDir := filepath.Dir(start)
 	if err := os.Remove(startDir); err != nil && !errors.Is(err, os.ErrNotExist) {
 		// A non-empty company Start Menu folder is normal; do not remove
