@@ -10,8 +10,6 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
-const installedExecutableDigestValue = "InstalledExecutableSHA256"
-
 func registerIntegratedUninstall(appPath, currentVersion string) error {
 	digest, err := platform.VerifiedRegularFileSHA256(appPath)
 	if err != nil {
