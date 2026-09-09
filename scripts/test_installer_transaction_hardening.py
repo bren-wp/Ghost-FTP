@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Zaključava 1.0.9 installer backup, activation i rollback invarijante."""
+"""Zaključava installer backup, directory identity, activation i rollback invarijante."""
 
 from pathlib import Path
 import sys
@@ -14,21 +14,35 @@ def fail(message: str) -> None:
 def main() -> int:
     transaction = (ROOT / "cmd" / "installer" / "transaction.go").read_text(encoding="utf-8")
     installer = (ROOT / "cmd" / "installer" / "main.go").read_text(encoding="utf-8")
+    directory_guard = (ROOT / "cmd" / "installer" / "install_directory_guard.go").read_text(encoding="utf-8")
 
     for marker in (
-        "os.SameFile(info, opened)",
+        "sameStableInstallerFile(info, opened)",
         "src.Seek(0, io.SeekStart)",
         "digest != verifyDigest",
         "digestStableInstallerFile(b.target)",
         "!b.activated",
         "verifyInstalledForRollback()",
         "b.installedDigest",
+        "directory       *installDirectoryGuard",
+        "installerDirectoryGuardForTarget(target)",
+        "backupExistingBound(target, guard)",
+        "b.verifyDirectory()",
     ):
         if marker not in transaction:
             fail(f"nedostaje installer transaction guard: {marker}")
 
-    if "return fileBackup{target: target}, nil" not in transaction:
-        fail("fresh target snapshot više nije eksplicitno zabilježen")
+    for marker in (
+        "security.EnsureNoRedirectDirectory(g.root, g.dir)",
+        "g.handle.Stat()",
+        "os.Lstat(g.dir)",
+        "os.SameFile(opened, current)",
+    ):
+        if marker not in directory_guard:
+            fail(f"nedostaje installer directory identity guard: {marker}")
+
+    if "return fileBackup{target: target, directory: guard}, nil" not in transaction:
+        fail("fresh target snapshot nije vezan uz identitet instalacijske mape")
     if "if b.target == \"\" || !b.activated" not in transaction:
         fail("rollback ponovno može dirati fresh target prije installer aktivacije")
 
@@ -47,6 +61,7 @@ def main() -> int:
             fail(f"produkcijski installer zaobilazi transaction-bound install: {call}")
 
     print("INSTALLER_TRANSACTION_HARDENING=PROSAO")
+    print("INSTALLER_DIRECTORY_REPLACEMENT=BLOCKED")
     return 0
 
 

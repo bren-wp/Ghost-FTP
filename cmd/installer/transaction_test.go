@@ -17,6 +17,7 @@ func TestBackupExistingRollbackRestoresPreviousFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer b.cleanup()
 	if !b.existed() {
 		t.Fatal("expected existing-file backup")
 	}
@@ -42,6 +43,7 @@ func TestBackupExistingRollbackRemovesFreshInstalledFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer b.cleanup()
 	if b.existed() {
 		t.Fatal("fresh target unexpectedly marked as existing")
 	}
@@ -114,6 +116,7 @@ func TestFreshInstallDoesNotOverwriteTargetThatAppearedAfterSnapshot(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer b.cleanup()
 	if err := os.WriteFile(target, []byte("external"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -165,6 +168,7 @@ func TestRollbackRefusesInstalledFileChangedByAnotherActor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer b.cleanup()
 	if err := installFile(target, []byte("GhostFTP"), &b); err != nil {
 		t.Fatal(err)
 	}
@@ -190,6 +194,7 @@ func TestRollbackBeforeActivationNeverDeletesFreshExternalTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer b.cleanup()
 	if err := os.WriteFile(target, []byte("external"), 0644); err != nil {
 		t.Fatal(err)
 	}
