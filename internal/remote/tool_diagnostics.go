@@ -2,16 +2,37 @@ package remote
 
 import "strings"
 
-// UserErrorKind exposes only a stable, non-secret semantic category to the UI
-// error mapper. Raw child-process output remains inside the remote package and
-// must never be rendered directly to users.
+// UserErrorKind exposes only the stable, non-secret semantic category captured
+// when the child-process failure was created. Raw diagnostic text is classified
+// transiently and is not retained in toolError.
 func (e *toolError) UserErrorKind() string {
 	if e == nil {
 		return ""
 	}
-	s := strings.ToLower(strings.Join(strings.Fields(e.message), " "))
+	return e.kind
+}
 
-	switch strings.ToLower(strings.TrimSpace(e.tool)) {
+func normalizeToolName(tool string) string {
+	switch strings.ToLower(strings.TrimSpace(tool)) {
+	case "curl":
+		return "curl"
+	case "ssh":
+		return "ssh"
+	case "sftp":
+		return "sftp"
+	default:
+		return ""
+	}
+}
+
+func normalizeDiagnostic(diagnostic string) string {
+	return strings.ToLower(strings.Join(strings.Fields(diagnostic), " "))
+}
+
+func classifyToolDiagnostic(tool string, code int, diagnostic string) string {
+	s := normalizeDiagnostic(diagnostic)
+
+	switch normalizeToolName(tool) {
 	case "curl":
 		// Protocol replies are more specific than curl's process exit code and
 		// should win when both are available.
@@ -36,7 +57,7 @@ func (e *toolError) UserErrorKind() string {
 			return "tls"
 		}
 
-		switch e.code {
+		switch code {
 		case 6:
 			return "resolve"
 		case 9:
@@ -80,8 +101,6 @@ func (e *toolError) UserErrorKind() string {
 			"unprotected private key file",
 			"bad permissions: ignore key",
 		) || (strings.Contains(s, "load key") && strings.Contains(s, "invalid format")):
-			// Existing localized SFTP copy is intentionally used here rather than
-			// exposing the OpenSSH key path, parser details or passphrase prompt.
 			return "sftp_settings"
 		case containsDiagnosticMarker(s,
 			"authentication failed",
@@ -99,6 +118,44 @@ func (e *toolError) UserErrorKind() string {
 	}
 
 	return ""
+}
+
+// classifyToolRetryable captures the exact retry decision while the bounded
+// child-process diagnostic is still in scope. The raw text does not need to
+// survive inside the returned error object.
+func classifyToolRetryable(tool string, code int, diagnostic string) bool {
+	if normalizeToolName(tool) == "curl" {
+		// Preserve the established curl contract: exit code is authoritative for
+		// automatic retry, independent of the diagnostic wording.
+		switch code {
+		case 6, 7, 18, 28, 52, 55, 56:
+			return true
+		default:
+			return false
+		}
+	}
+
+	msg := strings.ToLower(diagnostic)
+	for _, marker := range []string{
+		"permission denied", "access denied", "authentication failed", "login denied", "login incorrect",
+		"host key verification failed", "fingerprint", "no such file", "not found", "not a directory",
+		"is a directory", "file exists", "already exists", "invalid argument", "unsupported", "not implemented",
+	} {
+		if strings.Contains(msg, marker) {
+			return false
+		}
+	}
+	for _, marker := range []string{
+		"connection reset", "connection timed out", "operation timed out", "connection timeout",
+		"failed to connect", "couldn't connect", "could not connect", "connection refused", "connection closed",
+		"broken pipe", "network is unreachable", "no route to host", "temporary failure in name resolution",
+		"could not resolve", "recv failure", "send failure", "partial file", "server returned nothing",
+	} {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsDiagnosticMarker(s string, markers ...string) bool {
