@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
