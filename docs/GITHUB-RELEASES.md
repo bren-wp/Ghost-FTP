@@ -1,20 +1,20 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **0.0.1 Beta** is the current published Beta release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
+Ghost FTP **0.0.1** is the current published release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
 ```text
 Tag: ghostftp-v0.0.1
-Title: Ghost FTP 0.0.1 Beta
-Prerelease: true
+Title: Ghost FTP 0.0.1
+Prerelease: false
 ```
 
-Root `VERSION` is authoritative. The workflow rejects a manually supplied version that differs from source.
+Root `VERSION` is authoritative. The workflow rejects a manually supplied version that differs from source. Major version zero is not automatically mapped to GitHub prerelease state for this project.
 
-## Beta publication rule
+## Current publication rule
 
-Versions with major number `0` are Beta and publish with `prerelease=true`. A future major version `1` or greater uses the Stable channel and `prerelease=false`.
+The current 0.0.x public line publishes with `prerelease=false`. Any future change to prerelease policy must be explicit across the workflow, audits and documentation rather than inferred from the semantic-version major component.
 
 A normal push to `main`, including a `VERSION` change, does not publish a release directly.
 
@@ -82,10 +82,10 @@ After the new release is successfully published and remotely verified, `.github/
 
 - older `ghostftp-v*` GitHub Releases;
 - older/orphan `ghostftp-v*` tags;
-- completed `release/ghostftp-v*` branches;
+- superseded `release/ghostftp-v*` branches;
 - obsolete Ghost FTP container package versions.
 
-The cleanup runs only after the canonical `Publish Ghost FTP` workflow succeeds. Repository commit history on `main` is not rewritten.
+The current release branch and current package version are retained. The cleanup runs only after the canonical `Publish Ghost FTP` workflow succeeds, and manual cleanup additionally verifies the current release is non-draft, `prerelease=false`, has exactly 15 assets and points to current `main`. Repository commit history on `main` is not rewritten.
 
 ## Linux portable parity gate
 
@@ -117,14 +117,18 @@ PUBLIC_RELEASE_FILES=15
 
 ## Read-back verification
 
-The release transaction compares the remote sorted asset set with the expected allow-list immediately and again after a delay. For 0.0.1 it also requires `prerelease=true`.
+The release transaction compares the remote sorted asset set with the expected allow-list immediately and again after a delay. For 0.0.1 it requires `prerelease=false`.
 
 Only after this verification succeeds may the retention workflow delete superseded public version identities.
 
 ## GitHub Packages
 
-Pre-1.0 Beta releases are not published as the Stable GHCR distribution bundle. If an older Stable package version exists from the previous numbering line, the 0.0.1 retention cleanup removes it so the package registry does not continue advertising an obsolete public version.
+The same verified release directory is published as an OCI distribution bundle at:
 
-Stable package publication, when a future Stable release exists, uses the verified release directory as a distribution bundle and **not a runtime container**.
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
+
+It is a **distribution bundle**, not a runtime container. The release workflow publishes the exact-version tag together with current aliases and verifies the exact-version package after push. Retention preserves the package version carrying the current exact semantic-version tag and removes obsolete package versions only after release verification succeeds.
 
 See [Packages](PACKAGES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
