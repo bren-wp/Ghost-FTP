@@ -2,7 +2,7 @@
 
 Ghost FTP uses semantic versioning with the root `VERSION` file as the authoritative production version source.
 
-Current source candidate: **0.0.1 Beta**.
+Current source candidate: **0.0.1**.
 
 ## Version format
 
@@ -21,8 +21,8 @@ The current release identity is:
 ```text
 VERSION=0.0.1
 TAG=ghostftp-v0.0.1
-CHANNEL=Beta
-PRERELEASE=true
+CHANNEL=Current
+PRERELEASE=false
 ```
 
 ## New public numbering line
@@ -42,7 +42,7 @@ The intended sequence is incremental:
 
 Each new release must be based on a fully verified current `main` revision. A future version is not created until the current version has been published, verified and retention cleanup has completed.
 
-All versions with `MAJOR=0` are **Beta** prereleases and use `prerelease=true`. A future Stable policy may begin only through an explicit versioning change and corresponding documentation/audit update.
+For this project, major version `0` does not imply prerelease. The 0.0.x line is the current public release line and uses `prerelease=false` unless a future explicit policy change says otherwise. Version maturity and GitHub prerelease state are policy decisions validated independently from the numeric major component.
 
 ## Latest-only public release retention
 
@@ -52,10 +52,10 @@ After a newly published release passes immediate and delayed remote read-back ve
 
 - GitHub Releases;
 - `ghostftp-v*` tags;
-- completed `release/ghostftp-v*` branches;
+- superseded `release/ghostftp-v*` branches;
 - obsolete container package versions.
 
-The retention workflow must never run before a successful canonical release transaction. Git commit history on `main` is not rewritten.
+The retention workflow retains the current release, current version tag, current canonical release branch and the GHCR package version carrying the exact current version tag. It must never run destructive cleanup before a successful canonical release transaction. Git commit history on `main` is not rewritten.
 
 This policy means old release URLs and tags are not a supported archival interface. Users and downstream automation must resolve the current release rather than pinning a superseded public version.
 
@@ -85,20 +85,26 @@ release/ghostftp-v0.0.1
 
 The semantic version is injected into Windows application binaries, Setup/Portable filenames, Linux DEB metadata, portable archive names, release notes, build metadata and GitHub Release identity.
 
-Source entry points retain a development fallback and receive the production version through build linker flags.
+Source entry points retain a development fallback and receive the production version through build linker flags. The user-facing version displays the canonical semantic version without automatically adding a `Beta` suffix for major version zero.
 
-## Beta GitHub Release rule
+## Current GitHub Release rule
 
-For `MAJOR=0`, publication uses:
+Publication uses:
 
 ```text
-CHANNEL=Beta
-PRERELEASE=true
+CHANNEL=Current
+PRERELEASE=false
 ```
 
 The canonical 0.0.1 release contains **12 platform artifacts / 15 public files**.
 
-Pre-1.0 Beta releases do not publish the Stable GHCR distribution bundle. If an obsolete package version exists from an older numbering line, retention removes it after 0.0.1 is verified.
+The exact verified release directory is also published as a distribution bundle at:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
+
+The GHCR bundle is not a supported runtime container. Publication also maintains current aliases derived from the semantic version and `latest`; the exact version tag is the immutable verification identity for the current release transaction.
 
 ## Windows signing state
 
@@ -124,10 +130,12 @@ Release and CI validation must reject:
 - incomplete release assets;
 - failed configured Windows signatures;
 - source/main drift during publication;
+- a GitHub Release marked as prerelease when the current policy requires `false`;
+- a missing or unreadable exact-version GHCR distribution bundle;
 - failed release read-back;
 - failed latest-only retention cleanup.
 
-The active documentation must agree with root `VERSION` and the current Beta/Stable channel derived from it.
+The active documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false` and the current package identity.
 
 ## Changelog and release notes
 
@@ -152,7 +160,8 @@ The exact candidate must pass:
 - 24-language localization and authentic Windows UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
 - exact-main `release/ghostftp-v0.0.1` validation;
-- Beta GitHub Release `ghostftp-v0.0.1` with `prerelease=true` and exact 15-file read-back;
+- GitHub Release `ghostftp-v0.0.1` with `prerelease=false` and exact 15-file read-back;
+- GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.1` publication/read-back;
 - successful latest-only retention cleanup after publication.
 
 ## Next release
