@@ -8,6 +8,7 @@
 - Added explicit canonical retention dispatch/read-back after a successful publish run so latest-only cleanup does not depend on `workflow_run` event chaining alone.
 - Added exact-main workflow-run identification and fail-closed release/retention completion checks.
 - Fixed release-note generation so semantic major version zero no longer implies Beta/prerelease and current 0.0.x releases retain their verified GitHub Packages section.
+- Hardened Windows release verification so the public artifact directory rejects any unexpected executable outside the canonical Setup/Portable x64/x86 naming contract; the no-permanent-uninstaller claim is now backed by an observed artifact check.
 
 ### Settings and compatibility
 
