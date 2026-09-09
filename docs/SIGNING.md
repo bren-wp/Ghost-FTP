@@ -1,10 +1,10 @@
 # Ghost FTP signing
 
-Ghost FTP **1.1.1 Stable** supports Windows Authenticode signing as an optional production hardening layer. Signing improves publisher identity and Windows trust UX, but Ghost FTP does not fabricate a trusted identity when no real code-signing certificate is configured.
+Ghost FTP **0.0.1** supports Windows Authenticode signing as an optional production hardening layer. Signing improves publisher identity and Windows trust UX, but Ghost FTP does not fabricate a trusted identity when no real code-signing certificate is configured.
 
 ## Production policy
 
-A stable Windows release may be published either:
+A current Windows release may be published either:
 
 - **signed** — when the protected GitHub Actions environment provides a real trusted Authenticode certificate and the produced Setup/Portable binaries verify successfully; or
 - **unsigned** — when no production signing certificate is configured.
@@ -59,15 +59,15 @@ When no signing identity is configured, the same deterministic build/package pat
 
 For a release whose metadata says `WINDOWS_AUTHENTICODE=signed`, each Windows Setup/Portable artifact is checked with the operating-system Authenticode verification API during the production build. A configured signing state whose produced file does not report a valid signature fails the job.
 
-End users can inspect a downloaded 1.1.1 artifact with:
+End users can inspect a downloaded 0.0.1 artifact with:
 
 ```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-1.1.1-Setup-x64.exe | Format-List
+Get-AuthenticodeSignature .\Ghost-FTP-0.0.1-Setup-x64.exe | Format-List
 ```
 
 If `BUILD-METADATA.txt` says `WINDOWS_AUTHENTICODE=unsigned`, an absent trusted signature is expected. In both cases, verify the file against `SHA256.txt` from the same official GitHub Release.
 
-The candidate filename above does not prove that 1.1.1 has been published; release/tag/package read-back remains required before treating it as an official download.
+The candidate filename above does not prove that 0.0.1 has been published; release/tag/package read-back remains required before treating it as an official download.
 
 ## Windows warnings for unsigned builds
 
