@@ -1,99 +1,55 @@
 # Ghost FTP GitHub Packages
 
-Ghost FTP publishes a verified **distribution bundle** to GitHub Packages for each Stable release. The package is an OCI artifact stored in GitHub Container Registry (GHCR) and mirrors the exact verified release files assembled by the production release workflow.
+Ghost FTP **0.0.1** publishes a verified **distribution bundle** to GitHub Packages alongside the canonical GitHub Release.
 
-## Package reference
-
-```text
-ghcr.io/bren-wp/ghost-ftp:<version>
-```
-
-Ghost FTP **1.1.8 Stable is published** by the canonical release contract. Its immutable semantic-version tag is:
+## Current package reference
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.8
+ghcr.io/bren-wp/ghost-ftp:0.0.1
 ```
 
-Compatible aliases `1.1`, `1` and `latest` are updated only after the semantic-version package has been published and read back successfully. Automation that requires reproducibility should use the full semantic version and, when possible, pin the OCI digest.
+The release workflow also maintains semantic-version aliases and `latest`, but the exact `0.0.1` tag is the verification identity for this release transaction.
 
-Historical package versions, including 1.1.7, remain immutable distribution identities and are not rewritten by later releases.
-
-## What the package contains
-
-The OCI object contains the verified release directory under:
+The GHCR object is a verified **distribution bundle**, **not a runtime container**. Its payload mirrors the canonical release directory under:
 
 ```text
 /ghostftp-release/
 ```
 
-For 1.1.8 that directory mirrors the canonical **12 platform artifacts / 15 public files** GitHub Release assembly:
+The canonical GitHub Release contains **12 platform artifacts / 15 public files**, including `SHA256.txt`, `BUILD-METADATA.txt` and `RELEASE-NOTES.txt`; the package is built from that same verified release directory.
 
-- five Windows Setup/Portable files;
-- Linux DEBs for amd64, arm64 and i386;
-- the Linux multiarch ZIP;
-- Linux portable tar.gz archives for amd64, arm64 and i386;
-- `BUILD-METADATA.txt`;
-- `RELEASE-NOTES.txt`;
-- `SHA256.txt`.
+## Publication contract
 
-This is a **distribution bundle**, not a runtime container. Ghost FTP remains a native Windows/Linux desktop application.
+Package publication occurs only after the quality, Windows and Linux release jobs complete successfully. The release workflow:
 
-## Canonical release-bundle contract
+- binds the package version and OCI revision labels to root `VERSION` and exact `GITHUB_SHA`;
+- publishes the exact semantic version;
+- publishes current aliases derived from the semantic version plus `latest`;
+- verifies `ghcr.io/bren-wp/ghost-ftp:0.0.1` after push;
+- does not use the package as a hidden application backend or runtime service.
 
-Before 1.1.8 can be accepted as published, the production workflow must:
+## Latest-only package retention
 
-- build DEB and `.tar.gz` outputs for amd64, arm64 and i386;
-- validate DEB metadata and portable archive structure;
-- prove matching DEB/portable `ghostftp` executables are byte-identical;
-- match the exact 15-file release allow-list;
-- generate `SHA256.txt` over the assembly;
-- publish the GitHub Release with `prerelease=false`;
-- perform immediate and delayed GitHub Release asset read-back;
-- build the GHCR object from only the verified `release/` directory with build networking disabled;
-- perform registry read-back before compatible aliases are updated.
+The project retains only the current public Ghost FTP version. After a successful release publication and remote release read-back, `.github/workflows/release-retention.yml` removes obsolete Ghost FTP package versions.
 
-Supplemental distro-labelled Debian/Ubuntu/Fedora/Portable CI artifacts are not copied into this bundle unless a later canonical release explicitly adds them to its allow-list.
+Retention preserves any package version carrying the exact current semantic-version tag (`0.0.1` for this release) and removes superseded package versions. A missing current package is a retention failure rather than a reason to silently remove package verification.
 
-## Canonical installation source
+## Integrity
 
-For normal installation, use files attached to the official GitHub Release. GitHub Packages is an additional verified distribution surface and does not replace Setup, Portable or Linux packages.
+Every public release includes `SHA256.txt`. `BUILD-METADATA.txt` records source commit, version, tag, platform set and Windows signing state.
 
-The official product website is **https://ghostftp.com**. Public package and support metadata use the **Ghost FTP** product identity.
+Authenticode verification **when a trusted production certificate is configured** is fail-closed. When no trusted certificate is configured, Windows files are explicitly unsigned and metadata records:
 
-## Verification
+```text
+WINDOWS_AUTHENTICODE=unsigned
+```
 
-Every Stable package is produced only after the same quality gates used for GitHub Releases:
+The project never generates a self-signed production identity and presents it as a trusted publisher.
 
-- Go formatting, race tests and vet;
-- security, privacy, dependency, repository, platform, localization and documentation audits;
-- Windows x64/x86 Setup and Portable production builds;
-- Linux production builds and package verification;
-- supplemental distro build/parity and native x86-64 lifecycle gates;
-- release asset allow-list verification;
-- SHA-256 manifest generation;
-- Authenticode verification **when a trusted production certificate is configured**;
-- explicit `WINDOWS_AUTHENTICODE=unsigned` metadata when no production certificate is configured;
-- exact source/release version binding and post-publication read-back.
+## Publication boundary
 
-Production signing is optional, but its state is never ambiguous. A configured trusted signing identity is verified fail-closed; absence of a production certificate does not cause Ghost FTP to fabricate a self-signed publisher identity or label unsigned files as signed.
+GitHub Packages is distribution infrastructure only. Ghost FTP has no hidden product backend, account service, telemetry endpoint or package-backed runtime dependency.
 
-The OCI package carries source, version and revision labels. Release CI verifies the package after push.
+The package and GitHub Release use the same current public release policy: `ghostftp-v0.0.1`, `prerelease=false`, exact 15-file release read-back and latest-only retention after successful verification.
 
-## Privacy boundary
-
-The package is built only from the already assembled `release/` allow-list. It does not contain saved profiles, passwords, private-key passphrases, local application data, CI secrets, signing private-key material, source worktrees or user files.
-
-## Digest-first automation
-
-For Ghost FTP 1.1.8:
-
-1. resolve `ghcr.io/bren-wp/ghost-ftp:1.1.8` to its OCI digest;
-2. pin that digest where practical;
-3. extract `/ghostftp-release/SHA256.txt`;
-4. verify every release file;
-5. compare `BUILD-METADATA.txt` source/version/tag with the OCI labels;
-6. inspect `WINDOWS_AUTHENTICODE` before interpreting Windows publisher-signature state.
-
-This gives two integrity references: the OCI manifest digest and the per-file SHA-256 manifest, plus an explicit Windows signing-state declaration.
-
-The immutable 1.1.7 GHCR object retains its historical 12-platform-artifact/15-public-file shape. Ghost FTP 1.1.8 preserves that canonical shape while publishing a new immutable semantic-version bundle.
+See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).

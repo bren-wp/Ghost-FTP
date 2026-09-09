@@ -256,22 +256,17 @@ jobs:
           manual='${{ inputs.version }}'
           if [[ -n "$manual" ]]; then version="$manual"; else version="$source_version"; fi
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
+          test "$version" != '0.0.0' || { echo '0.0.0 is reserved' >&2; exit 1; }
           test "$version" = "$source_version"
-          major="${version%%.*}"
-          if [[ "$major" = '0' ]]; then
-            release_channel='beta'
-            release_title="Ghost FTP $version Beta"
-          else
-            release_channel='stable'
-            release_title="Ghost FTP $version"
-          fi
+          release_channel='current'
+          release_title="Ghost FTP $version"
           case "$WINDOWS_SIGNING_STATE" in
             signed|unsigned) ;;
             *) echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2; exit 1 ;;
           esac
-          if [[ "$release_channel" = 'stable' && "$WINDOWS_SIGNING_STATE" = 'unsigned' ]]; then
-            echo '::warning::Publishing Stable with explicitly unsigned Windows artifacts. BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned.'
-            printf '### Windows signing\nStable release is being published with **unsigned** Windows artifacts. Integrity remains bound to the exact release commit and SHA256.txt.\n' >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$WINDOWS_SIGNING_STATE" = 'unsigned' ]]; then
+            echo '::warning::Publishing current release with explicitly unsigned Windows artifacts. BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned.'
+            printf '### Windows signing\nCurrent release is being published with **unsigned** Windows artifacts. Integrity remains bound to the exact release commit and SHA256.txt.\n' >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
@@ -339,8 +334,7 @@ jobs:
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
           test "$count" = '15'
           test "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x86.exe" | awk '{print $1}')" = "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x32.exe" | awk '{print $1}')"
-      - name: Publish stable bundle to GitHub Packages
-        if: env.RELEASE_CHANNEL == 'stable'
+      - name: Publish verified bundle to GitHub Packages
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -394,11 +388,6 @@ jobs:
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
 
-          prerelease_args=()
-          if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
-            prerelease_args+=(--prerelease)
-          fi
-
           git fetch --tags --force
           if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
             tag_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
@@ -415,8 +404,7 @@ jobs:
             --repo "$repo" \
             --target "$GITHUB_SHA" \
             --title "$RELEASE_TITLE" \
-            --notes-file release/RELEASE-NOTES.txt \
-            "${prerelease_args[@]}"
+            --notes-file release/RELEASE-NOTES.txt
 
           expected_assets="$(cat <<EOF
           BUILD-METADATA.txt
@@ -447,11 +435,7 @@ jobs:
               exit 1
             }
             remote_prerelease="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)"
-            if [[ "$RELEASE_CHANNEL" = 'beta' ]]; then
-              test "$remote_prerelease" = 'true'
-            else
-              test "$remote_prerelease" = 'false'
-            fi
+            test "$remote_prerelease" = 'false'
             echo "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL; windows_signing=$WINDOWS_SIGNING_STATE)"
           }
 

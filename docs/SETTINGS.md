@@ -1,126 +1,86 @@
 # Ghost FTP settings
 
-Ghost FTP **1.1.8 Stable** treats settings as validated runtime policy, not decorative UI state. A persisted option is accepted only within the bounds enforced by `internal/config/settings.go`.
+Ghost FTP **0.0.1** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer.
 
 ## Current persisted settings
 
-- `language` — canonical local UI language; invalid stored values normalize to English.
-- `appearance` — Windows desktop appearance: `dark` or `light`; **fresh, missing or invalid state resolves to `light` / Classic Light**. An explicitly stored `dark` choice remains preserved.
+- `language` — canonical local UI language; invalid state normalizes to English.
+- `appearance` — Windows appearance, `light` or `dark`; fresh/invalid state resolves to Classic Light.
 - `parallelism` — concurrent transfers, range **1–8**, default **2**.
-- `connectionTimeoutSeconds` — connection establishment timeout, range **5–60 seconds**, default **15**.
-- `autoRetryCount` — automatic retries, range **0–3**, default **0**.
-- `retryDelaySeconds` — retry delay, range **1–30 seconds**, default **3**.
-- `conflictPolicy` — destination conflict behavior.
-- `backupBeforeOverwrite` / `skipExisting` — compatibility mirrors derived from `conflictPolicy` for older state/readers; they are not separate user-facing choices.
-- `confirmDelete` — explicit confirmation for user-initiated destructive operations.
+- `connectionTimeoutSeconds` — range **5–60 seconds**, default **15**.
+- `autoRetryCount` — range **0–3**, default **0**.
+- `retryDelaySeconds` — range **1–30 seconds**, default **3**.
+- `conflictPolicy` — canonical destination conflict behavior.
+- `confirmDelete` — confirmation for user-initiated destructive operations.
 
-Corrupt or unavailable state does not select a less-safe policy. Defaults remain bounded and conservative.
+Compatibility state such as older overwrite booleans may be normalized internally but must not become duplicate user-facing controls.
 
 ## Windows settings surface
 
-The maintained Windows frontend presents the current settings in **one application-owned native Settings dialog** instead of forcing the user through a chain of independent prompts. Appearance, transfer concurrency, connection timeout, retry policy, destination conflict policy and delete confirmation are visible together before anything is committed.
+Windows exposes one application-owned native Settings dialog for appearance, transfer concurrency, connection timeout, retry behavior, conflict policy and delete confirmation. Numeric values are validated before one complete settings candidate is persisted.
 
-The dialog uses the same local Light/Dark shell as the main Ghost FTP application, is owner-modal, scales from the active Windows DPI and never owns the process-level `WM_QUIT` lifecycle. Closing it with **X** or **Cancel** closes only Settings and leaves the main application running.
-
-Numeric input is validated inside the same dialog against the canonical `internal/config` bounds. Invalid input keeps the dialog open, shows localized corrective text, returns keyboard focus to the invalid field and selects its value for correction. A successful **OK** returns one complete candidate settings value to the desktop layer, which persists it through the existing typed engine path. Partial step-by-step settings writes are not introduced.
-
-The unified surface does not change the serialized settings schema. `conflictPolicy` remains the one user-facing destination-conflict decision; legacy boolean mirrors remain compatibility state only.
+Invalid input keeps the dialog open, shows localized corrective text and restores keyboard focus to the invalid field instead of partially committing the remaining settings. A successful **OK** returns one complete settings candidate to the typed engine. Closing with **X** or **Cancel** closes only Settings and does not end the application message loop.
 
 ## Appearance
 
-Ghost FTP deliberately exposes only one appearance decision rather than separate background, accent, icon, list and button color switches.
-
 ### Windows
 
-- `light` — **Classic Light**, the primary/fresh Ghost FTP appearance: a soft neutral two-pane workspace that avoids dominant pure-white application surfaces while preserving native-control readability and Ghost FTP's own branding, iconography and palette.
-- `dark` — the optional established Ghost FTP dark workspace, using a restrained navy/charcoal hierarchy. If the user explicitly selects and saves it, normalization preserves that preference.
+- `light` — Classic Light and the fresh-install fallback.
+- `dark` — the maintained Ghost FTP dark workspace.
 
-The Windows selection is persisted locally and is applied on the next application start. This is intentional: native title bar, menu, combo, edit, list/header and owner-drawn control styling are selected before the complete window tree is created, preventing mixed-theme fragments and avoiding runtime repaint races.
-
-Unknown or missing appearance state fails to Classic Light rather than Dark. This keeps fresh-install behavior aligned with the documented product default without overriding an intentional stored Dark preference.
+An explicitly saved Dark preference is preserved. Appearance does not load remote fonts, styles, images or theme services.
 
 ### Linux
 
-The native Linux desktop uses the **Classic Light** palette as the canonical 1.1.8 workspace. No extra Linux appearance toggle is exposed until complete runtime switching can be provided without introducing redraw/race complexity. This keeps the settings surface honest and avoids a control whose backend behavior would differ from its label.
-
-Appearance changes do not load remote styles, fonts, images or theme services and do not create network traffic.
+Linux uses the maintained Classic Light workspace until a complete runtime appearance switch can be provided without introducing a platform-only control whose behavior differs from Windows.
 
 ## Fresh connection protocol
 
-Protocol selection itself is not persisted as a global preference. For a new/quick connection, both maintained desktop frontends start on **explicit FTPS, port 21**. This is a secure default, not a hidden downgrade policy:
+A fresh/quick connection starts on **explicit FTPS, port 21**.
 
-- FTPS stays selected unless the user explicitly chooses another protocol or loads a profile;
-- SFTP remains available with its SSH host-key policy;
-- plain FTP remains available for legacy compatibility but must be selected explicitly;
-- failed FTPS negotiation is never retried automatically as plain FTP;
-- invalid/missing Windows protocol-selection state falls back to the first canonical FTPS entry.
-
-Saved profiles continue to restore their explicitly saved protocol/port; the fresh default does not rewrite an existing profile.
+- FTPS stays selected unless the user explicitly changes it or loads a profile.
+- SFTP remains available with strict host-key verification/pinning.
+- Plain FTP remains explicit legacy compatibility.
+- Failed FTPS negotiation is never silently retried as plain FTP.
+- Saved profiles restore their explicitly stored protocol/port.
 
 ## Conflict policy
 
-The canonical conflict values are:
+Canonical values are:
 
-### `skip`
+- `skip` — leave an existing destination untouched;
+- `replace` — replace through the supported safe transfer/commit path;
+- `replace_backup` — replace through the safe path while retaining supported recovery backup behavior.
 
-Leave an existing destination untouched.
-
-### `replace`
-
-Replace through the supported safe transfer/commit path without intentionally keeping a recovery backup after success.
-
-### `replace_backup`
-
-Replace through the safe path and retain recovery-oriented backup behavior where supported. This is the conservative default.
-
-Legacy boolean combinations are migrated deterministically to one of these canonical states. Unknown stored values fail back to the safe default; unknown new values are rejected.
+Unknown values fail to a safe/default policy rather than silently enabling destructive behavior.
 
 ## Retry policy
 
-Automatic retry is for errors classified as retryable by the shared remote/transfer layer. Validation failures, trust failures, unsafe paths and explicit cancellation must not be turned into blind retry loops.
-
-Retry count/delay remain bounded to avoid accidental server hammering. Retries are also bound to the connection generation/identity so queued work cannot silently migrate to a later server session.
-
-## Connection timeout
-
-The configured timeout applies to connection establishment. It is validated identically for Windows and Linux. Transfer cancellation/progress uses its own lifecycle and is not fabricated from the connection-timeout value.
+Automatic retry applies only to errors classified as retryable by the shared engine. Validation failures, trust failures, unsafe paths and explicit cancellation must not become blind retry loops. Retry count/delay remain bounded and tied to connection identity/generation.
 
 ## Language
 
-English is default/fallback and the canonical registry contains 24 languages. Unsupported locale values never create online translation traffic. Credential-persistence consent is also covered for all 24 maintained languages. See [Localization](LOCALIZATION.md).
+English is the default/fallback and the canonical registry contains **24 languages**. Localization is local and does not create online translation traffic.
 
 ## Credential persistence
 
-Credential persistence is intentionally **not** a global on/off setting. It is a per-save privacy decision so there is no hidden background behavior or duplicate switch:
+Credential persistence is a per-save privacy decision rather than a hidden global toggle.
 
-- entering a password or SFTP private-key passphrase and saving a Windows profile requires explicit consent before those new credentials are persisted;
-- both the main Save Profile flow and Site Manager use the same localized consent model;
-- declining consent still permits saving the non-secret connection profile and clears/removes stored credential fields for that profile;
-- profile binding logic prevents old credentials from being silently carried across a changed server/account/private-key identity;
-- Linux session-only protected-secret handles are not promoted into persistent profile data.
+- Saving newly entered Windows profile credentials requires explicit consent.
+- Declining consent can still save non-secret profile fields while removing stored credentials.
+- Profile binding prevents old credentials from silently moving to a changed server/account/private-key identity.
+- Linux session-only protected-secret handles remain session-only.
 
 ## Delete confirmation
 
-Delete confirmation is a safety feature and defaults to enabled. Frontends must route destructive actions through the shared validated setting rather than bypassing it with platform-specific shortcuts.
+Delete confirmation defaults to enabled. Destructive actions must respect the validated shared setting.
 
-## Persistence/recovery
+## Persistence and recovery
 
-Settings storage uses bounded local files and safe replacement/recovery logic. Loaded data is normalized before becoming effective runtime policy. A failed save must not leave partially trusted in-memory state masquerading as persisted configuration.
+Settings are stored in bounded local state with safe replacement/recovery behavior. Loaded data is normalized before it becomes effective runtime policy, and the state-directory identity is pinned so later pathname replacement cannot silently redirect settings/profile I/O.
 
-## Avoiding duplicate options
+## Option design rule
 
-One behavior must have one canonical setting. Compatibility fields may remain in serialized state for migration, but they must not become duplicate UI controls. In particular, destination conflict handling is represented by `conflictPolicy`; the old overwrite booleans are compatibility mirrors only.
+One behavior has one canonical setting. A new option is release-ready only when it has a clear runtime owner, safe bounded default, migration behavior, honest platform exposure and localized user-facing copy where required.
 
-A new option is release-ready only when it has:
-
-1. one clear runtime owner;
-2. a safe/bounded default;
-3. migration behavior for old state;
-4. honest platform exposure where the backend is complete;
-5. localized label/help copy;
-6. regression tests for accepted/rejected values;
-7. no path that weakens certificate validation, SFTP host-key trust, local containment, secret protection or privacy policy.
-
-Security-bypass and telemetry-enable switches are outside the maintained product policy.
-
-See [Security](SECURITY.md), [Platform parity](PLATFORM-PARITY.md) and [Testing](TESTING.md).
+See [Architecture](ARCHITECTURE.md), [Privacy](PRIVACY.md), [Security](SECURITY.md) and [Localization](LOCALIZATION.md).

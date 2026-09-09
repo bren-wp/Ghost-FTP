@@ -2,7 +2,7 @@
 
 Ghost FTP uses semantic versioning with the root `VERSION` file as the authoritative production version source.
 
-Current source candidate: **1.1.8 Stable**. Published **1.1.7 Stable** and all earlier Stable/Beta tags remain immutable historical releases until and after the 1.1.8 publication flow completes.
+Current source candidate: **0.0.1**.
 
 ## Version format
 
@@ -16,137 +16,154 @@ Production tags use:
 ghostftp-vMAJOR.MINOR.PATCH
 ```
 
-For the current release candidate:
+The current release identity is:
 
 ```text
-VERSION=1.1.8
-TAG=ghostftp-v1.1.8
-CHANNEL=Stable
+VERSION=0.0.1
+TAG=ghostftp-v0.0.1
+CHANNEL=Current
 PRERELEASE=false
 ```
 
-Published tags, including `ghostftp-v1.1.7`, are immutable release history and must remain on their original release commits.
+## New public numbering line
 
-## Historical pre-1.0 policy
+The current public numbering starts at **0.0.1**.
 
-The maintained public line began at **0.1.0**. Every **0.x.y** release was a **Beta** prerelease. Historical tags/releases remain unchanged for traceability.
+`0.0.0` is reserved and must never be published.
 
-Version **1.0.0** is the first **Stable** public release.
+The intended sequence is incremental:
 
-## Post-1.0 increments
+```text
+0.0.1
+0.0.2
+0.0.3
+...
+```
 
-### PATCH
+Each new release must be based on a fully verified current `main` revision. A future version is not created until the current version has been published, verified and retention cleanup has completed.
 
-Use a patch increment for compatible bug fixes, security/privacy hardening, performance improvements, documentation corrections and packaging/release fixes that do not intentionally add an incompatible product contract.
+For this project, major version `0` does not imply prerelease. The 0.0.x line is the current public release line and uses `prerelease=false` unless a future explicit policy change says otherwise. Version maturity and GitHub prerelease state are policy decisions validated independently from the numeric major component.
 
-Ghost FTP **1.1.8** is a patch release candidate. It strengthens privacy-safe child-process diagnostics, Linux transport/AskPass executable provenance, state-directory identity, Windows installer/uninstaller/shortcut ownership, exact-object cleanup and responsive mixed-DPI geometry while preserving the 1.1 protocol, profile and release-artifact contract.
+## Latest-only public release retention
 
-### MINOR
+Ghost FTP intentionally keeps only the latest public version visible in release infrastructure.
 
-Use a minor increment for backward-compatible functionality, substantial workflow improvements or new optional capabilities.
+After a newly published release passes immediate and delayed remote read-back verification, `.github/workflows/release-retention.yml` removes superseded Ghost FTP:
 
-Ghost FTP **1.1.0** was a minor release because it added the Classic Light desktop appearance while preserving the 1.x connection/transfer contract.
+- GitHub Releases;
+- `ghostftp-v*` tags;
+- superseded `release/ghostftp-v*` branches;
+- obsolete container package versions.
 
-### MAJOR
+The retention workflow retains the current release, current version tag, current canonical release branch and the GHCR package version carrying the exact current version tag. It must never run destructive cleanup before a successful canonical release transaction. Git commit history on `main` is not rewritten.
 
-Use a major increment for intentionally incompatible product contracts that require clear migration guidance.
+This policy means old release URLs and tags are not a supported archival interface. Users and downstream automation must resolve the current release rather than pinning a superseded public version.
 
-## Binary/package identity
+## Release trigger
 
-The same semantic version is injected into Windows application binaries, Setup/Portable packages, Linux DEB metadata, release notes/build metadata, GitHub Release tag/title and the stable GitHub Package tag.
+A `VERSION` edit or ordinary push to `main` does not publish a release.
 
-Source entry points retain `version = "dev"` and receive production versions only through build linker flags.
-
-## Stable GitHub Release rule
-
-For `MAJOR >= 1`, publication uses the Stable channel and `prerelease=false`. The official Stable release must point to the exact `main` commit that passed release quality gates.
-
-The canonical release branch trigger is created only from exact current `main` using:
+The canonical release branch namespace is:
 
 ```text
 release/ghostftp-v<version>
 ```
 
-For this candidate the exact branch is:
+For 0.0.1:
 
 ```text
-release/ghostftp-v1.1.8
+release/ghostftp-v0.0.1
 ```
 
-The trigger rejects a branch whose version differs from `VERSION` or whose commit differs from current `main`.
+`.github/workflows/release-branch-trigger.yml` accepts the branch only when:
 
-A `VERSION` bump or ordinary push to `main` does not itself publish a release.
+1. its semantic version equals root `VERSION`;
+2. the branch points to exact current `main`;
+3. the release workflow is dispatched with the same version guard.
+
+## Binary and package identity
+
+The semantic version is injected into Windows application binaries, Setup/Portable filenames, Linux DEB metadata, portable archive names, release notes, build metadata and GitHub Release identity.
+
+Source entry points retain a development fallback and receive the production version through build linker flags. The user-facing version displays the canonical semantic version without automatically adding a `Beta` suffix for major version zero.
+
+## Current GitHub Release rule
+
+Publication uses:
+
+```text
+CHANNEL=Current
+PRERELEASE=false
+```
+
+The canonical 0.0.1 release contains **12 platform artifacts / 15 public files**.
+
+The exact verified release directory is also published as a distribution bundle at:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
+
+The GHCR bundle is not a supported runtime container. Publication also maintains current aliases derived from the semantic version and `latest`; the exact version tag is the immutable verification identity for the current release transaction.
 
 ## Windows signing state
 
-Windows Authenticode is an **optional production hardening layer**, not a prerequisite for Stable version identity. When a trusted production PFX is configured through protected Actions secrets, every produced Windows artifact must verify successfully or publication fails. When no production certificate is configured, Stable publication may continue only with explicit unsigned metadata:
+Windows Authenticode is an **optional production hardening layer**. When a trusted production identity is configured through protected Actions secrets, signatures must verify or publication fails.
+
+Without a production certificate, publication remains truthful through:
 
 ```text
 WINDOWS_AUTHENTICODE=unsigned
 ```
 
-Absence of a production Authenticode certificate by itself is not a versioning failure. The resulting Windows signing state must remain truthfully `unsigned` throughout build metadata and verification.
-
-Ghost FTP never generates a self-signed production certificate and presents it as a trusted publisher identity.
-
-## GitHub Packages versioning
-
-Stable 1.1.8 publication uses:
-
-```text
-ghcr.io/bren-wp/ghost-ftp:1.1.8
-```
-
-with compatible Stable aliases after successful registry publication/read-back:
-
-```text
-1.1
-1
-latest
-```
-
-Downstream automation should prefer the full semantic version or immutable OCI digest.
-
-The GHCR object is a verified distribution bundle of the canonical release directory, not a supported runtime container.
+Absence of a production Authenticode certificate by itself is not a versioning failure. Ghost FTP never creates a self-signed production certificate and represents it as a trusted publisher.
 
 ## Version source integrity
 
-The release workflow rejects a malformed version, a manual version different from `VERSION`, an existing conflicting tag/release, partially configured signing identity, failed configured signatures, self-signed production substitution, incomplete release assets, source/main drift, or release/package read-back failures.
+Release and CI validation must reject:
 
-The active versioning document is part of the version integrity contract. `scripts/audit_version.py` must fail when the current candidate/version/tag/GHCR/checklist markers do not agree with root `VERSION`.
+- malformed semantic versions;
+- `0.0.0`;
+- a release-branch version different from root `VERSION`;
+- a release branch that does not equal exact current `main`;
+- an existing conflicting current tag/release;
+- incomplete release assets;
+- failed configured Windows signatures;
+- source/main drift during publication;
+- a GitHub Release marked as prerelease when the current policy requires `false`;
+- a missing or unreadable exact-version GHCR distribution bundle;
+- failed release read-back;
+- failed latest-only retention cleanup.
+
+The active documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false` and the current package identity.
 
 ## Changelog and release notes
 
-`CHANGELOG.md` must contain a `## <VERSION>` section. `scripts/release_notes.py` extracts only that exact section for public release notes.
+`CHANGELOG.md` contains only the current maintained public release line and must include a `## <VERSION>` section. `scripts/release_notes.py` extracts that section for public release notes.
 
-Historical release notes retain their original version/channel wording. Active documentation describes the current source candidate and published Stable history separately.
-
-## 1.1.8 release checklist
+## 0.0.1 release checklist
 
 The exact candidate must pass:
 
 - Go formatting, `go test -race ./...` and `go vet ./...`;
 - repository/platform/desktop/dependency/version/localization/security/privacy/documentation/release audits;
 - the complete Python regression suite;
-- real loopback FTP and shared connection-manager regressions;
-- strict FTPS no-downgrade and SFTP host-key verification/pinning;
-- privacy-safe child-process diagnostic classification without raw diagnostic retention/exposure;
-- trusted Linux transport and credential-bearing AskPass executable provenance;
-- rooted local transfer/filesystem safeguards and state-directory identity validation;
-- Windows installer directory, registry, shortcut, legacy-uninstaller and integrated-uninstall ownership/identity checks;
-- exact-object verified-handle cleanup where the Windows security contract requires it;
-- responsive startup/minimum geometry and mixed-DPI destination-monitor handling;
-- Windows x64/x86 Setup + Portable production builds and release-artifact verification;
-- Linux amd64/arm64/i386 DEB + tar.gz production builds and executable parity verification;
-- supplemental Debian/Ubuntu/Fedora/Portable package metadata/parity CI;
-- Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native install/remove/GUI smoke;
-- 24-language localization and authentic Windows UI evidence from the exact final release-prep source;
-- release asset allow-list and SHA-256 verification;
-- Authenticode verification when configured, otherwise explicit `WINDOWS_AUTHENTICODE=unsigned` metadata;
+- real FTP/FTPS/SFTP behavior regressions and strict trust/no-downgrade checks;
+- rooted local transfer/filesystem safeguards;
+- Remote Edit size/text/revision/conflict/permission/read-back/metadata-refresh safeguards;
+- Windows installer/uninstaller/shortcut ownership and exact-object cleanup checks;
+- Linux trusted transport/AskPass provenance checks;
+- Windows x64/x86 Setup and Portable production builds;
+- Linux amd64/arm64/i386 DEB and portable production builds;
+- supplemental distro package/parity checks;
+- Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 install/remove/GUI smoke;
+- 24-language localization and authentic Windows UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
-- exact-main `release/ghostftp-v1.1.8` branch validation;
-- Stable GitHub Release `ghostftp-v1.1.8` with `prerelease=false`, exact 15-file read-back and GHCR `1.1.8` publication/read-back.
+- exact-main `release/ghostftp-v0.0.1` validation;
+- GitHub Release `ghostftp-v0.0.1` with `prerelease=false` and exact 15-file read-back;
+- GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.1` publication/read-back;
+- successful latest-only retention cleanup after publication.
 
-## Historical numbering
+## Next release
 
-Old 0.x and prior 1.x references in historical `CHANGELOG.md`, `docs/RELEASE-HISTORY.md`, immutable Git tags/releases and package digests are intentional records and must not be mass-rewritten.
+Only after 0.0.1 publication and retention are completely green should root `VERSION` advance to **0.0.2** through a separate reviewed release-prep change.

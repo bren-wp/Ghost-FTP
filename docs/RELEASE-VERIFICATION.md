@@ -1,59 +1,46 @@
 # Ghost FTP release verification
 
-This document defines verification for Ghost FTP 1.x Stable releases. The current maintained release is **1.1.8 Stable**. Verification covers source identity, Windows signing state, Linux package metadata/parity, SHA-256 values, GitHub Release state and GitHub Packages registry state.
+The current maintained release is **0.0.1**.
 
-## Published 1.1.8 release identity
+## Published 0.0.1 release identity
 
 ```text
-VERSION=1.1.8
-TAG=ghostftp-v1.1.8
-TITLE=Ghost FTP 1.1.8
+VERSION=0.0.1
+TAG=ghostftp-v0.0.1
+TITLE=Ghost FTP 0.0.1
+CHANNEL=Current
 PRERELEASE=false
+PUBLIC_PLATFORM_ARTIFACTS=12
+PUBLIC_RELEASE_FILES=15
 ```
 
-Ghost FTP 1.1.8 is Stable and must not be marked as a prerelease. Historical published tags, including `ghostftp-v1.1.7`, are immutable identities and must not be moved, reused or rewritten.
+The release source must be the exact current `main` commit that passed the complete release gate. The canonical release contains **12 platform artifacts / 15 public files**.
 
-## Source revision and canonical publication flow
-
-`BUILD-METADATA.txt` contains the source commit. The GitHub Release tag must resolve to that exact commit. Canonical sequence:
-
-1. release-prep PR passes exact-head Core, Windows, Linux, distro and authentic Windows UI evidence;
-2. the PR is merged;
-3. post-merge gates pass on the exact current `main` SHA;
-4. `release/ghostftp-vX.Y.Z` is created from that exact `main` SHA;
-5. `.github/workflows/release-branch-trigger.yml` verifies branch SHA equals current `main` and branch version equals `VERSION`;
-6. the trigger dispatches `.github/workflows/release.yml` through `workflow_dispatch` with the expected-version guard;
-7. publication is accepted only after tag, GitHub Release assets and GHCR package read-back succeed.
-
-A push to `main`, including a change to `VERSION`, must never publish a release directly.
-
-## 1.1.8 public file set
-
-The 1.1.8 contract is **12 platform artifacts** and **15 public files** total.
+## Canonical public files
 
 Windows:
 
 ```text
-Ghost-FTP-1.1.8-Setup-x64.exe
-Ghost-FTP-1.1.8-Setup-x86.exe
-Ghost-FTP-1.1.8-Setup-x32.exe
-Ghost-FTP-1.1.8-Portable-x64.exe
-Ghost-FTP-1.1.8-Portable-x86.exe
+Ghost-FTP-0.0.1-Setup-x64.exe
+Ghost-FTP-0.0.1-Setup-x86.exe
+Ghost-FTP-0.0.1-Setup-x32.exe
+Ghost-FTP-0.0.1-Portable-x64.exe
+Ghost-FTP-0.0.1-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.8-Linux-amd64.deb
-Ghost-FTP-1.1.8-Linux-arm64.deb
-Ghost-FTP-1.1.8-Linux-i386.deb
-Ghost-FTP-1.1.8-Linux-multiarch.zip
-Ghost-FTP-1.1.8-Linux-amd64.tar.gz
-Ghost-FTP-1.1.8-Linux-arm64.tar.gz
-Ghost-FTP-1.1.8-Linux-i386.tar.gz
+Ghost-FTP-0.0.1-Linux-amd64.deb
+Ghost-FTP-0.0.1-Linux-arm64.deb
+Ghost-FTP-0.0.1-Linux-i386.deb
+Ghost-FTP-0.0.1-Linux-multiarch.zip
+Ghost-FTP-0.0.1-Linux-amd64.tar.gz
+Ghost-FTP-0.0.1-Linux-arm64.tar.gz
+Ghost-FTP-0.0.1-Linux-i386.tar.gz
 ```
 
-Verification/metadata:
+Metadata/verification:
 
 ```text
 BUILD-METADATA.txt
@@ -61,117 +48,106 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-The immutable 1.1.7 release remains historical with the same canonical 12/15 shape. The older immutable 1.1.6 release remains historical with its original 9 platform artifacts / 12 public files.
+## Canonical release dispatch
 
-## Linux DEB/portable parity verification
+The canonical release branch namespace is:
 
-For each `amd64`, `arm64` and `i386` pair, production must fail closed unless both `.deb` and `.tar.gz` exist, package metadata is valid, portable structure is complete and the matching `ghostftp` executables are byte-identical. Final metadata must record `LINUX_PORTABLE=amd64,arm64,i386`, `PUBLIC_PLATFORM_ARTIFACTS=12` and `PUBLIC_RELEASE_FILES=15`.
+```text
+release/ghostftp-vX.Y.Z
+```
 
-Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI artifacts are separate verification outputs and are not canonical 1.1.8 release assets.
+For this release it is `release/ghostftp-v0.0.1`. The branch must point to the exact fully verified current `main` commit. `.github/workflows/release-branch-trigger.yml` validates that identity and uses `workflow_dispatch` to run the canonical `release.yml` workflow on that same source/version guard.
+
+A push to `main`, including a change to `VERSION`, must never publish a release directly.
+
+## Source verification
+
+Before publication:
+
+1. the release branch must match `release/ghostftp-v0.0.1`;
+2. root `VERSION` must equal `0.0.1`;
+3. the release branch SHA must equal exact current `main`;
+4. exact-head Core/Windows/Linux/distro gates must be successful;
+5. authentic Windows UI evidence must come from the exact final source where the workflow is triggered.
+
+The release workflow checks current `main` again immediately before publication and again before delayed remote read-back.
 
 ## SHA-256 verification
 
-`SHA256.txt` contains hashes for every other public release file. Verify both digest and official release location; matching filenames alone are not proof of integrity.
+`SHA256.txt` contains a checksum for every public file except itself. A downloaded artifact is trusted for integrity only when its local hash matches the corresponding entry.
+
+The x32 Setup compatibility alias must be byte-identical to the x86 Setup file.
+
+## Build metadata
+
+`BUILD-METADATA.txt` binds the release to its source revision and records at least:
+
+```text
+BRAND=Ghost FTP
+VERSION=0.0.1
+RELEASE_TAG=ghostftp-v0.0.1
+RELEASE_CHANNEL=current
+ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
+LINUX_PORTABLE=amd64,arm64,i386
+PUBLIC_PLATFORM_ARTIFACTS=12
+PUBLIC_RELEASE_FILES=15
+GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
 
 ## Windows Authenticode
 
-If `BUILD-METADATA.txt` says `WINDOWS_AUTHENTICODE=signed`, protected production signing material was configured and every Setup/Portable signature was required to verify. If it says `WINDOWS_AUTHENTICODE=unsigned`, the release intentionally contains unsigned Windows artifacts. This is a **truthful supported publication state**.
+The release contract supports a **truthful supported publication state** with or without a configured production signing identity.
 
-The production workflow **does not create a self-signed production identity**. The release gate requires **explicit unsigned metadata when no production certificate is configured**.
+When a trusted production certificate is configured, signatures must verify. The production workflow **does not create a self-signed production identity**.
 
-## x86/x32 alias verification
-
-`Ghost-FTP-1.1.8-Setup-x86.exe` and `Ghost-FTP-1.1.8-Setup-x32.exe` must be byte-identical.
-
-## Linux package verification
-
-For every 1.1.8 DEB verify package name `ghost-ftp`, version `1.1.8`, correct architecture, `Homepage: https://ghostftp.com` and `Maintainer: Ghost FTP <https://ghostftp.com>`.
-
-```bash
-dpkg-deb -f Ghost-FTP-1.1.8-Linux-amd64.deb Package
-dpkg-deb -f Ghost-FTP-1.1.8-Linux-amd64.deb Version
-dpkg-deb -f Ghost-FTP-1.1.8-Linux-amd64.deb Architecture
-dpkg-deb -f Ghost-FTP-1.1.8-Linux-amd64.deb Homepage
-dpkg-deb -f Ghost-FTP-1.1.8-Linux-amd64.deb Maintainer
-```
-
-Fedora supplemental metadata must likewise use the Ghost FTP product identity and `https://ghostftp.com`.
-
-## Public branding verification
-
-Active runtime, package, support and release metadata must use only **Ghost FTP** and `https://ghostftp.com`. Author/publisher identity is intentionally confined to the application's About surface. Legal and historical records retain their original text but are not active product branding.
-
-## Diagnostic privacy verification
-
-The 1.1.8 release must prove that raw `curl`, `ssh`, `sftp` and `ssh-keyscan` diagnostics are not copied into public errors or retained in `toolError` after classification. Safe semantic categories may drive user remediation, retry logic and MLSD unsupported-command fallback without exposing raw server/tool output.
-
-## Linux transport and AskPass verification
-
-Linux transport discovery must reject user-controlled PATH shadowing and require trusted root-controlled, non-group/other-writable provenance for accepted transport executables. Credential-bearing AskPass must require trusted executable and immediate `ssh`/`sftp` parent provenance and fail closed when that boundary cannot be proven.
-
-## State and Windows ownership verification
-
-The release must preserve:
-
-- config state-directory identity binding after startup;
-- Windows installer-directory identity through transaction/rollback/cleanup;
-- digest-bound shortcut ownership and exact-handle deletion;
-- preservation of foreign/modified shortcuts and the unowned Start Menu parent directory;
-- legacy `Uninstall.exe` cleanup only with pre-upgrade registration and matching verified digest;
-- integrated uninstall only with registry/application executable identity proof and exact-object final cleanup.
-
-## Windows geometry verification
-
-The Windows workspace must remain within active monitor work areas on small/effective displays, preserve negative monitor origins and clamp mixed-DPI suggested bounds against the destination monitor selected from the `WM_DPICHANGED` suggested rectangle.
-
-## GitHub Release verification
-
-Confirm that:
-
-- tag is `ghostftp-v1.1.8`;
-- title is `Ghost FTP 1.1.8`;
-- `prerelease` is false;
-- tag resolves to the documented source commit;
-- remote asset names exactly match the 15-file allow-list;
-- all three generic Linux tar.gz files are present;
-- `SHA256.txt` verifies downloaded content;
-- `BUILD-METADATA.txt` reports Windows signing state truthfully;
-- release notes correspond to the `CHANGELOG.md` 1.1.8 section.
-
-## GitHub Packages verification
-
-Stable 1.1.8 is published at:
+When no production certificate is configured, publication uses **explicit unsigned metadata when no production certificate is configured**:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.8
+WINDOWS_AUTHENTICODE=unsigned
 ```
 
-The package is a verified distribution bundle, not a runtime container. Compatible aliases `1.1`, `1` and `latest` are updated only after semantic-version publication and registry read-back.
+If metadata says `signed` and Windows signature verification fails, treat the artifact as invalid. If metadata says `unsigned`, do not present the artifact as Authenticode-signed.
 
-## 1.1.8 runtime and security verification
+## Remote release read-back
 
-The release must preserve:
+The publish workflow requires the remote GitHub Release asset set to match the exact 15-file allow-list immediately and after a delay. For 0.0.1 it requires `prerelease=false`.
 
-- explicit FTPS as the fresh secure default with certificate/hostname validation and no secure-to-plain downgrade;
-- SFTP host-key verification/pinning and protected-secret ownership/lifetime rules;
-- rooted local/transfer staging, destination revalidation, rollback and cancellation/retry generation safeguards;
-- privacy-safe diagnostic categories without raw diagnostic retention;
-- trusted Linux transport/AskPass executable provenance;
-- state/install directory identity and Windows ownership-proven cleanup;
-- monitor-work-area and mixed-DPI responsive geometry;
-- 24-language localization and application-owned native dialog behavior;
-- no telemetry, analytics, advertising/tracking SDK, hidden product network service or new external Go module dependency.
+A local build alone is not release evidence.
 
-## Authentic Windows UI evidence
+## GitHub Packages read-back
 
-The exact final 1.1.8 release-prep revision requires authentic screenshots from the real production Windows x64 Portable executable for Main Workspace, Site Manager, Settings and About. Review them for clipping, overlap, stale branding, theme consistency, small-display/mixed-DPI regressions and correct 1.1.8 presentation. Mockups are not accepted.
+The same verified release directory is published as a distribution-only bundle at:
 
-## CI/release gate verification
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
 
-The 1.1.8 revision must pass exact PR-head CI, post-merge CI on exact `main`, `go test -race ./...`, `go vet ./...`, formatting, repository/platform/dependency/security/privacy/localization/documentation/release audits, the full Python regression suite, Windows x64/x86 Setup + Portable builds, Linux amd64/arm64/i386 DEB + tar.gz construction/parity, distro package CI, Debian 13/Ubuntu 26.04/Fedora 44 lifecycle smoke, authentic Windows UI evidence, signing-state verification, canonical release-branch checks, GitHub Package read-back and GitHub Release asset/tag/prerelease read-back.
+The canonical workflow verifies the exact version tag after push. The package is not a supported runtime container and must not be treated as an application service.
 
-## Failure interpretation
+## Latest-only retention verification
 
-A failed gate is meaningful. Do not bypass integrity checks or relabel a failed build as Stable. Fix source, documentation, packaging, configured signing identity or publication infrastructure and rerun the exact workflow.
+Only after the 0.0.1 release read-back succeeds does `.github/workflows/release-retention.yml` remove superseded public versions.
 
-See [GitHub Releases](GITHUB-RELEASES.md), [Packages](PACKAGES.md), [Signing](SIGNING.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).
+Before destructive cleanup, retention verifies the current release is not a draft, has `prerelease=false`, exposes exactly 15 assets and its tag points to current `main`.
+
+Retention is complete only when:
+
+- exactly one Ghost FTP GitHub Release remains and it is `ghostftp-v0.0.1`;
+- exactly one `ghostftp-v*` tag remains and it is `ghostftp-v0.0.1`;
+- the current canonical release branch is retained and superseded versioned release branches are removed;
+- the current `0.0.1` package version remains and obsolete Ghost FTP package versions are removed;
+- retention emits `LATEST_ONLY_RELEASE_RETENTION=YES`.
+
+The `main` commit history is never rewritten by retention cleanup.
+
+## Verification commands
+
+Example local hash verification:
+
+```bash
+sha256sum -c SHA256.txt
+```
+
+For Windows, inspect `BUILD-METADATA.txt` before deciding whether Authenticode verification is expected.
+
+See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).

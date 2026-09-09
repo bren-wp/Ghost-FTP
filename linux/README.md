@@ -1,14 +1,13 @@
 # Ghost FTP for Linux
 
-Ghost FTP **1.1.6 Stable** is the current published release. The maintained `main` source contains post-1.1.6 hardening and packaging improvements for a later maintenance release. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings and localization engine as the Windows application.
+Ghost FTP **0.0.1** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit and localization engine as the Windows application.
 
-For the next release, the canonical release workflow remains the generic `linux/BUILD.sh` path unless the release pipeline is explicitly changed and re-verified.
+The canonical release workflow uses the generic `linux/BUILD.sh` path. Supplemental distro-specific packaging remains independently verified CI coverage until a future release explicitly adds those files to the canonical public allow-list.
 
-This document distinguishes three different artifact contracts so source/CI work is never confused with the immutable published 1.1.6 release:
+This document distinguishes two artifact contracts:
 
-1. **Published 1.1.6 release assets** — historical and unchanged.
-2. **Canonical next-release workflow artifacts** — produced by `.github/workflows/release.yml` from `linux/BUILD.sh`.
-3. **Supplemental distro-specific CI artifacts** — produced by `linux/BUILD-DISTROS.sh` and verified independently for Debian, Ubuntu and Fedora.
+1. **Canonical 0.0.1 release artifacts** — produced by `.github/workflows/release.yml` from `linux/BUILD.sh` and published only after complete verification.
+2. **Supplemental distro-specific CI artifacts** — produced by `linux/BUILD-DISTROS.sh` and verified independently for Debian, Ubuntu and Fedora.
 
 ## Canonical Linux build
 
@@ -29,7 +28,7 @@ dist/Ghost-FTP-X.Y.Z-Linux-arm64.tar.gz
 dist/Ghost-FTP-X.Y.Z-Linux-i386.tar.gz
 ```
 
-When `dpkg-deb` is available, DEBs are built for `amd64`, `arm64` and `i386`. Production CI sets `GHOSTFTP_REQUIRE_DEB=1`, so the canonical production build fails closed if DEB tooling is unavailable.
+For 0.0.1 those names resolve to the matching `Ghost-FTP-0.0.1-Linux-*` artifacts. When `dpkg-deb` is available, DEBs are built for `amd64`, `arm64` and `i386`. Production CI sets `GHOSTFTP_REQUIRE_DEB=1`, so the canonical production build fails closed if DEB tooling is unavailable.
 
 The DEB and portable archive for each architecture are built from the same compiled `ghostftp` executable. CI extracts both and compares the executable byte-for-byte before accepting the Linux production job.
 
@@ -60,6 +59,8 @@ dist/Ghost-FTP-X.Y.Z-Linux-Debian-arm64.deb
 dist/Ghost-FTP-X.Y.Z-Linux-Debian-i386.deb
 ```
 
+Representative CI name: `Linux-Debian-amd64.deb`.
+
 ### Ubuntu
 
 ```text
@@ -68,6 +69,8 @@ dist/Ghost-FTP-X.Y.Z-Linux-Ubuntu-arm64.deb
 dist/Ghost-FTP-X.Y.Z-Linux-Ubuntu-i386.deb
 ```
 
+Representative CI name: `Linux-Ubuntu-amd64.deb`.
+
 ### Fedora
 
 ```text
@@ -75,6 +78,12 @@ dist/Ghost-FTP-X.Y.Z-Linux-Fedora-x86_64.rpm
 dist/Ghost-FTP-X.Y.Z-Linux-Fedora-aarch64.rpm
 dist/Ghost-FTP-X.Y.Z-Linux-Fedora-i686.rpm
 ```
+
+Representative CI name: `Linux-Fedora-x86_64.rpm`.
+
+### Portable CI artifact
+
+Representative supplemental portable name: `Linux-Portable-amd64.tar.gz`.
 
 Architecture mapping is explicit:
 
@@ -86,7 +95,7 @@ Architecture mapping is explicit:
 
 `.github/workflows/linux-distro-packages.yml` verifies package metadata and byte-for-byte executable parity across the distro-specific package family. Debian/Ubuntu DEBs and Fedora RPMs must carry the same production executable as their matching Portable archive for each architecture.
 
-These distro-specific packages are **supplemental maintained CI outputs**. They are not retroactive 1.1.6 assets, and the current canonical release workflow does not yet publish them as release assets. A later release must explicitly integrate and verify them in the release workflow before documentation may call them part of that release's public asset set.
+These distro-specific packages are **supplemental maintained CI outputs**. They are not part of the canonical 0.0.1 public release allow-list. A later release must explicitly integrate and verify them in the release workflow before documentation may call them public release assets.
 
 ## Native distro installation verification
 
@@ -104,36 +113,37 @@ Fedora-specific verification is provider-aware: the RPM `curl` requirement may b
 
 Native install coverage above is intentionally **x86-64 only**. `arm64`/`aarch64` and `i386`/`i686` distro artifacts are still protected by exact-head build, metadata, extraction and byte-parity checks; the maintained CI does not claim native package-manager/runtime installation coverage for those architectures.
 
-## Published 1.1.6 note
+## Canonical 0.0.1 release contract
 
-The already published Ghost FTP 1.1.6 release is immutable and keeps its original Linux asset set:
+The maintained `.github/workflows/release.yml` stages the generic DEBs and generic `.tar.gz` archives from `linux/BUILD.sh`. Together with Windows artifacts and the multiarch ZIP, the current assembly contract is **12 platform artifacts / 15 public files**.
+
+Canonical Linux 0.0.1 files are:
 
 ```text
-Ghost-FTP-1.1.6-Linux-amd64.deb
-Ghost-FTP-1.1.6-Linux-arm64.deb
-Ghost-FTP-1.1.6-Linux-i386.deb
-Ghost-FTP-1.1.6-Linux-multiarch.zip
+Ghost-FTP-0.0.1-Linux-amd64.deb
+Ghost-FTP-0.0.1-Linux-arm64.deb
+Ghost-FTP-0.0.1-Linux-i386.deb
+Ghost-FTP-0.0.1-Linux-multiarch.zip
+Ghost-FTP-0.0.1-Linux-amd64.tar.gz
+Ghost-FTP-0.0.1-Linux-arm64.tar.gz
+Ghost-FTP-0.0.1-Linux-i386.tar.gz
 ```
 
-The canonical generic portable `.tar.gz` output is **not** retroactively claimed as a 1.1.6 release asset. Later portable and distro-specific CI outputs are not retroactively listed as 1.1.6 release assets and do not alter the 1.1.6 tag, checksums, release notes or GHCR bundle.
-
-## Canonical next-release contract
-
-The maintained `.github/workflows/release.yml` currently stages the generic DEBs and generic `.tar.gz` archives from `linux/BUILD.sh`. Together with Windows artifacts and the multiarch ZIP, the current next-release assembly contract is **12 platform artifacts / 15 public files**.
-
 The distro-specific Debian/Ubuntu/Fedora/Portable outputs from `BUILD-DISTROS.sh` are independently verified CI artifacts but are not yet part of that canonical release allow-list. This distinction is deliberate: build support is not equivalent to release publication support.
+
+The same verified public release directory is published as the distribution-only GHCR bundle `ghcr.io/bren-wp/ghost-ftp:0.0.1`. It is not a runtime container.
 
 ## Portable use
 
 For the canonical generic archive:
 
 ```bash
-tar -xzf Ghost-FTP-X.Y.Z-Linux-amd64.tar.gz
-cd Ghost-FTP-X.Y.Z-Linux-amd64
+tar -xzf Ghost-FTP-0.0.1-Linux-amd64.tar.gz
+cd Ghost-FTP-0.0.1-Linux-amd64
 ./ghostftp
 ```
 
-For the supplemental distro-neutral archive:
+For a supplemental distro-neutral archive built from source/CI:
 
 ```bash
 tar -xzf Ghost-FTP-X.Y.Z-Linux-Portable-amd64.tar.gz
@@ -180,7 +190,7 @@ Debian and Ubuntu packages declare `ca-certificates`, `curl` and `openssh-client
 
 When a local `DISPLAY` is available, `ghostftp` starts the native Ghost FTP graphical frontend by default. The GUI is implemented directly against X11/XWayland-compatible display transport without GTK, Qt, Electron, a webview or an external Go GUI module.
 
-The graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, single-file and tree transfers, queue controls, local/remote file operations, remote permissions and validated transfer settings.
+The graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, single-file and tree transfers, queue controls, local/remote file operations, remote permissions, built-in Remote Edit and validated transfer settings.
 
 **Classic Light is the canonical Linux appearance.** The Linux frontend does not expose a theme switch whose backend cannot provide complete native runtime switching.
 
@@ -210,9 +220,9 @@ Passwords and key passphrases are cleared from the public connection config afte
 
 The accepted public SFTP fingerprint can remain as non-secret session metadata so a saved profile can retain the verified endpoint identity.
 
-## Connection and transfer parity
+## Connection, transfer and Remote Edit parity
 
-Linux uses the same shared remote manager, transfer manager and guarded local filesystem service as Windows. Regression coverage protects successful manager connection, remote listing/operation access and disconnect, invalid FTP credentials, FTPS-to-plaintext failure, generation binding, staged transfers, bounded tree operations, rooted download activation and local destructive-operation safeguards.
+Linux uses the same shared remote manager, transfer manager, Remote Edit engine and guarded local filesystem service as Windows. Regression coverage protects successful manager connection, remote listing/operation access and disconnect, invalid FTP credentials, FTPS-to-plaintext failure, generation binding, staged transfers, bounded tree operations, rooted download activation, local destructive-operation safeguards and Remote Edit conflict/read-back behavior.
 
 The terminal fallback exposes remote/local navigation, file operations, transfers, queue controls, profiles, settings and language selection through typed Engine calls. Its parser does not invoke a shell for Ghost FTP commands and rejects embedded NUL/newline control characters before dispatch.
 

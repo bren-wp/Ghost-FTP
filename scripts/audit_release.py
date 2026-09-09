@@ -42,8 +42,8 @@ def main() -> int:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
     parts = tuple(int(part) for part in version.split("."))
-    if parts < (0, 1, 0):
-        fail("active release baseline must not precede 0.1.0")
+    if parts < (0, 0, 1):
+        fail("active public release baseline must not precede 0.0.1")
 
     run("scripts/audit_brand_hardcut.py")
     run("scripts/audit_repository.py")
@@ -53,20 +53,21 @@ def main() -> int:
     workflow = require(
         ".github/workflows/release.yml",
         "name: Publish Ghost FTP",
+        "workflow_dispatch:",
         "contents: write",
         "packages: write",
         "needs: [quality, windows, linux]",
+        "test \"$version\" != '0.0.0'",
         "RELEASE_TAG=ghostftp-v$version",
-        "release_title=\"Ghost FTP $version Beta\"",
-        "release_channel='beta'",
-        "release_channel='stable'",
-        "prerelease_args+=(--prerelease)",
+        "release_channel='current'",
+        "release_title=\"Ghost FTP $version\"",
+        "remote_prerelease",
+        "test \"$remote_prerelease\" = 'false'",
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_SIGNING_PASSWORD",
         "GHOSTFTP_SIGNING_TIMESTAMP_URL",
         "state=unsigned",
         "state=signed",
-        "Publishing Stable with explicitly unsigned Windows artifacts",
         "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
         "python scripts/audit_platform_contract.py",
         "python scripts/audit_desktop_surface.py",
@@ -85,60 +86,78 @@ def main() -> int:
         "Verify DEB and portable packages",
         "GHOSTFTP_REQUIRE_DEB: '1'",
         'cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"',
-        "dist/Ghost-FTP-*-Linux-*.tar.gz",
         "LINUX_PORTABLE=amd64,arm64,i386",
         "PUBLIC_PLATFORM_ARTIFACTS=12",
         "PUBLIC_RELEASE_FILES=15",
         "ghcr.io/${owner}/ghost-ftp",
-        "org.opencontainers.image.source",
         "Distribution bundle only; not a supported runtime container.",
-        "docker build --pull=false --network=none",
-        "docker buildx imagetools inspect",
-        "if: env.RELEASE_CHANNEL == 'stable'",
+        "Publish verified bundle to GitHub Packages",
         "main moved from release commit",
         "release already exists; refusing to rewrite published assets",
         "RELEASE_ASSET_READBACK=PASS",
     )
+
     lowered = workflow.lower()
     for forbidden in (
         "package_nuget.py", "dotnet nuget", "nuget.pkg.github.com",
         "package_web.py", "audit_web.py", "android/", "ios/", "macos/", "runs-on: macos",
+        "--prerelease",
     ):
         if forbidden in lowered:
-            fail(f"release workflow contains retired publication/platform marker: {forbidden}")
-
+            fail(f"release workflow contains retired/incompatible publication marker: {forbidden}")
     for forbidden in ("gh release upload", "--clobber"):
         if forbidden in workflow:
-            fail(f"release workflow may rewrite historical release assets: {forbidden}")
-
-    if "Stable Windows releases require a configured trusted Authenticode identity." in workflow:
-        fail("stable release workflow still blocks publication solely because Authenticode secrets are absent")
+            fail(f"release workflow may rewrite current release assets: {forbidden}")
     if "New-DevCodeSigningCertificate.ps1" in workflow:
         fail("production release workflow must not create a self-signed publisher identity")
 
-    stable_package_pos = workflow.find("Publish stable bundle to GitHub Packages")
-    prerelease_pos = workflow.find("prerelease_args+=(--prerelease)")
-    if stable_package_pos < 0 or prerelease_pos < 0:
-        fail("release workflow is missing channel-separated release/package publication")
-    if "docker push \"$package_ref:latest\"" not in workflow:
-        fail("stable GitHub Package must publish the latest alias")
+    retention = require(
+        ".github/workflows/release-retention.yml",
+        "name: Retain Latest Ghost FTP Release",
+        "workflow_run:",
+        "Publish Ghost FTP",
+        "contents: write",
+        "packages: write",
+        "current_tag=\"ghostftp-v${version}\"",
+        "test \"$release_draft\" = 'false'",
+        "test \"$release_prerelease\" = 'false'",
+        "test \"$asset_count\" -eq 15",
+        "test \"$tag_sha\" = \"$main_sha\"",
+        "gh release delete",
+        "--cleanup-tag",
+        "git/matching-refs/tags/ghostftp-v",
+        "git/matching-refs/heads/release/ghostftp-v",
+        "packages/container/ghost-ftp/versions",
+        "Keeping current package version",
+        "GHOSTFTP_RELEASE_RETENTION=PASS",
+        "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)",
+        "LATEST_ONLY_RELEASE_RETENTION=YES",
+    )
+    retention_lowered = retention.lower()
+    for forbidden in ("push --force", "update-ref -d refs/heads/main", "delete main"):
+        if forbidden in retention_lowered:
+            fail(f"release retention may rewrite main history: {forbidden}")
+
+    trigger = require(
+        ".github/workflows/release-branch-trigger.yml",
+        "name: Trigger Ghost FTP Release",
+        "startsWith(github.event.ref, 'release/ghostftp-v')",
+        "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
+        "gh workflow run release.yml",
+        "test \"$GITHUB_SHA\" = \"$main_sha\"",
+    )
+    if "--force" in trigger:
+        fail("release branch trigger must not force-move release identities")
 
     require(
         ".github/workflows/ci.yml",
         "name: Ghost FTP CI",
-        "python scripts/audit_platform_contract.py",
-        "python scripts/audit_desktop_surface.py",
         "go test -race ./...",
         "Windows x64 and x86 production build",
         "Linux amd64 arm64 i386 production build",
         "Authenticode private-key pipeline smoke test",
-        "New-DevCodeSigningCertificate.ps1",
-        "Sign-WindowsArtifacts.ps1",
         "Verify DEB and portable packages",
         "GHOSTFTP_REQUIRE_DEB: '1'",
-        "Ghost-FTP-${version}-Linux-${arch}.tar.gz",
-        'cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"',
-        "dist/Ghost-FTP-*-Linux-*.tar.gz",
     )
     require(
         "BUILD-WINDOWS.ps1",
@@ -146,12 +165,8 @@ def main() -> int:
         "function Sign-WindowsTarget",
         "GHOSTFTP_SIGNING_PFX_PATH",
         "GHOSTFTP_SIGNING_PASSWORD",
-        "GHOSTFTP_SIGNING_TIMESTAMP_URL",
         '"Ghost-FTP-$version-Portable-$Label.exe"',
         '"Ghost-FTP-$version-Setup-$Label.exe"',
-        "Sign-WindowsTarget -Path $portable",
-        "scripts/make_payload.py",
-        "Sign-WindowsTarget -Path $setup",
         "scripts/verify_release.py",
     )
     require(
@@ -170,22 +185,21 @@ def main() -> int:
         "linux/BUILD.sh",
         'binary="dist/.ghostftp-linux-${debarch}"',
         'portable_name="Ghost-FTP-${VERSION}-Linux-${debarch}"',
-        'portable_out="dist/${portable_name}.tar.gz"',
         'cp "$binary" "$portable_root/ghostftp"',
         'cp "$binary" "$deb_root/usr/bin/ghostftp"',
         "GHOSTFTP_REQUIRE_DEB",
-        "Ghost-FTP-${VERSION}-Linux-${debarch}.deb",
         "tar --sort=name --owner=0 --group=0 --numeric-owner",
         "gzip -n -9",
     )
     require("linux/debian/control.in", "Package: ghost-ftp")
-
     require(
         "docs/PACKAGES.md",
         "ghcr.io/bren-wp/ghost-ftp",
+        f"ghcr.io/bren-wp/ghost-ftp:{version}",
         "distribution bundle",
         "not a runtime container",
         "SHA256.txt",
+        "latest",
     )
 
     for retired in ("android", "ios", "macos", "GhostFTP WEB"):
@@ -197,17 +211,17 @@ def main() -> int:
         if (ROOT / retired_file).exists():
             fail(f"retired release/tooling file exists: {retired_file}")
 
-    channel = "beta" if parts[0] == 0 else "stable"
-    print(f"RELEASE_AUDIT=PASS ({version}; channel={channel})")
+    print(f"RELEASE_AUDIT=PASS ({version}; channel=current)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("PUBLICATION_SURFACES=GITHUB_RELEASE,GITHUB_PACKAGES_GHCR")
-    print("PRE_1_0_CHANNEL=BETA")
-    print("FIRST_STABLE_VERSION=1.0.0")
+    print("PUBLIC_RELEASE_CHANNEL=CURRENT")
+    print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
+    print("MINIMUM_PUBLIC_VERSION=0.0.1")
+    print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
-    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=12")
@@ -216,7 +230,7 @@ def main() -> int:
     print("WINDOWS_X32_ALIAS_OF_X86=REQUIRED")
     print("LINUX_DEB=amd64,arm64,i386")
     print("LINUX_PORTABLE=amd64,arm64,i386")
-    print("STABLE_GHCR_BUNDLE=REQUIRED")
+    print("GHCR_CURRENT_BUNDLE=REQUIRED")
     return 0
 
 

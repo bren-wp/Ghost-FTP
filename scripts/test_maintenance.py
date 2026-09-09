@@ -71,14 +71,14 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("gh release create", workflow)
         self.assertLess(workflow.index("main moved from release commit"), workflow.index("gh release create"))
 
-    def test_stable_release_allows_truthfully_unsigned_windows(self) -> None:
+    def test_current_release_allows_truthfully_unsigned_windows(self) -> None:
         workflow = read(".github/workflows/release.yml")
         signing = read("docs/SIGNING.md")
         self.assertIn("state=unsigned", workflow)
         self.assertIn("state=signed", workflow)
-        self.assertIn("Publishing Stable with explicitly unsigned Windows artifacts", workflow)
+        self.assertIn("Publishing current release with explicitly unsigned Windows artifacts", workflow)
         self.assertIn("WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}", workflow)
-        self.assertNotIn("Stable Windows releases require a configured trusted Authenticode identity.", workflow)
+        self.assertNotIn("requires a configured trusted Authenticode identity", workflow)
         self.assertNotIn("New-DevCodeSigningCertificate.ps1", workflow)
         self.assertIn("WINDOWS_AUTHENTICODE=unsigned", signing)
         self.assertIn("does **not** create a publicly trusted Windows publisher identity", signing)
@@ -86,8 +86,9 @@ class MaintenanceRegressionTests(unittest.TestCase):
     def test_version_history_and_current_desktop_contract(self) -> None:
         version = read("VERSION").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
-        major = int(version.split(".", 1)[0])
-        self.assertGreaterEqual(major, 1, "current production line must be stable")
+        parts = tuple(int(part) for part in version.split("."))
+        self.assertGreaterEqual(parts, (0, 0, 1))
+        self.assertNotEqual(parts, (0, 0, 0))
 
         readme = read("README.md")
         docs_index = read("docs/README.md")
@@ -96,30 +97,24 @@ class MaintenanceRegressionTests(unittest.TestCase):
         releases = read("docs/GITHUB-RELEASES.md")
 
         self.assertIn(f"Current Ghost FTP version: **{version}**", readme)
-        self.assertIn("Development status: **Stable**", readme)
-        self.assertIn("Release channel: **Stable**", readme)
-        self.assertIn("First stable release: **Ghost FTP 1.0.0**", readme)
+        self.assertIn("Development status: **Active**", readme)
+        self.assertIn("Release channel: **Current**", readme)
         self.assertIn(f"**Current Ghost FTP release: {version}**", docs_index)
-        self.assertIn("prerelease=false", docs_index)
+        self.assertIn("PRERELEASE=false", docs_index)
         self.assertIn(f"Tag: ghostftp-v{version}", releases)
-        self.assertIn("Immutable tag rule", releases)
+        self.assertIn("Immutable-current publication transaction", releases)
         self.assertIn(f"## {version}", changelog)
-
-        # Current public changelog stays concise, while detailed older engineering
-        # provenance remains available in RELEASE-HISTORY.md and Git history.
-        self.assertIn("## 0.2.1", changelog)
-        self.assertIn("## 0.2.0", changelog)
-        self.assertIn("## Historical engineering history", changelog)
-        self.assertIn("docs/RELEASE-HISTORY.md", changelog)
-        self.assertIn("## 2.0.0", history)
-        self.assertIn("## 1.0.0", history)
+        self.assertIn(f"## {version}", history)
+        self.assertIn("latest public Ghost FTP version", history)
+        self.assertIn("release-retention.yml", history)
+        self.assertNotRegex(changelog, r"(?m)^##\s+1\.\d+\.\d+")
+        self.assertNotRegex(history, r"(?m)^##\s+1\.\d+\.\d+")
 
         sections = [
             match.group(1)
             for match in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)
         ]
-        for expected in (version, "0.2.1", "0.2.0"):
-            self.assertIn(expected, sections)
+        self.assertEqual(sections, [version])
 
 
 if __name__ == "__main__":

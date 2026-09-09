@@ -1,88 +1,65 @@
 # Ghost FTP support
 
-Support for Ghost FTP **1.1.8 Stable** starts with the official product website at **https://ghostftp.com**. Reproducible software bugs and platform-specific technical problems may also be reported through the repository issue tracker:
+Ghost FTP **0.0.1** is the current supported public release.
 
-https://github.com/bren-wp/Ghost-FTP/issues
+Official product and support destination: **https://ghostftp.com**.
 
-Active support, package and runtime metadata use only the **Ghost FTP** product identity. Historical Stable releases remain immutable release identities.
+## Before reporting a problem
 
-## Before reporting
+1. Confirm the application reports version `0.0.1`.
+2. Confirm the package came from the current GitHub Release.
+3. Verify the artifact against `SHA256.txt`.
+4. Reproduce with the same protocol (FTP, FTPS or SFTP), architecture and operating system.
+5. Remove real passwords, passphrases, private keys, server secrets and customer data from any diagnostic material.
 
-1. confirm installed version and architecture;
-2. confirm the file came from the official Stable GitHub Release;
-3. verify `SHA256.txt`;
-4. on Windows, **inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`**; verify Authenticode when it says `signed`, or record that the **official file is explicitly `unsigned`** when it says `unsigned`;
-5. confirm intended protocol (FTP, FTPS or SFTP), host and port;
-6. remember that a fresh connection defaults to explicit FTPS/21 and plain FTP is an explicit legacy compatibility choice;
-7. reproduce with the smallest safe example possible.
+Because the project keeps only the latest public release, support is provided against the current version rather than superseded release/tag URLs.
 
-An unsigned Stable artifact is not automatically corrupted. Its integrity must still match the official tag/release location and SHA-256 manifest. Conversely, **if metadata says `signed` and Windows signature verification fails**, treat that as a release-integrity problem.
+## Useful report details
 
-## Bug report information
+Include privacy-safe information such as:
 
-Include:
+- Windows or Linux distribution/version;
+- CPU architecture;
+- Ghost FTP version;
+- protocol selection;
+- whether the issue occurs on connect, list, upload, download, Remote Edit, profile handling or uninstall;
+- exact user-visible error category without copying secret-bearing raw server output;
+- whether the behavior reproduces with a synthetic test server/file.
 
-- Ghost FTP version/tag;
-- Windows or Linux and architecture;
-- Setup/Portable/DEB/tar.gz package used;
-- Windows signing state from `BUILD-METADATA.txt` when relevant;
-- protocol and authentication type;
-- whether the connection was Quick Connect or a saved profile;
-- exact reproduction steps;
-- expected vs actual behavior;
-- privacy-safe diagnostic category/message;
-- sanitized screenshot/log excerpt if relevant.
+Do not post real credentials, private-key contents, saved profile secrets, signing keys or production customer data.
 
-For 1.1.8 Windows display issues, include monitor resolution/work area, scale/DPI, multi-monitor arrangement and whether the issue occurred at startup or while moving between monitors. Do not include unrelated private screen content.
+## Windows signing reports
 
-For Windows installation/uninstall issues, identify Setup vs Portable, whether a foreign/modified shortcut already existed and the high-level operation that failed. Do not bypass ownership checks or manually delete unrelated same-name artifacts as a diagnostic step.
+Always **inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`**.
 
-For Linux SFTP credential-helper issues, include distro/architecture and whether Ghost FTP/OpenSSH tools are system-installed or portable, but do not paste passwords, passphrases, private-key contents or complete child-process environments.
+When metadata says:
 
-## Do not publish secrets
+```text
+WINDOWS_AUTHENTICODE=unsigned
+```
 
-Never put these in public issues:
+the official file is explicitly `unsigned`; do not report the mere absence of a publisher signature as corruption.
 
-- passwords;
-- private keys;
-- private-key passphrases;
-- protected saved-profile payloads;
-- server confidential files;
-- CI/signing secrets;
-- recovery credentials/tokens.
+When metadata says `signed` and Windows signature verification fails, treat that as a release-integrity problem and report it with the artifact name and SHA-256 value.
 
-Use synthetic values for reproductions.
+## Remote Edit reports
 
-## Connection failures
+For Remote Edit issues, include:
 
-Ghost FTP uses privacy-safe connection diagnostics. Include the displayed category/remediation instead of raw `curl`/OpenSSH stderr, credentials or a complete private command environment.
+- file size class and text encoding if known;
+- line-ending style (LF/CRLF/CR) if relevant;
+- whether the file changed on the server between open and save;
+- whether the save succeeded but list metadata did not refresh;
+- whether permissions changed unexpectedly.
 
-For FTPS failures, do not bypass certificate/TLS errors by assuming plain FTP. Verify server protocol/port and certificate configuration. The client intentionally blocks silent secure-to-plain downgrade.
+Never attach the real sensitive remote file if it contains secrets. Reproduce with synthetic text where possible.
 
-For SFTP host-key problems, provide only the public fingerprint if safe. Intentional server-key changes should be verified through an independent trusted channel.
+## Security and privacy issues
 
-On Linux, do not work around trusted transport/AskPass provenance failures by placing private copies of `ssh`, `sftp`, `ssh-keyscan` or `curl` earlier in `PATH`. The provenance boundary is a security property.
+For credential exposure, trust-verification bypass, path containment, installer/uninstaller ownership, or other security-sensitive reports, avoid publishing exploit-sensitive secrets or live credentials in a public issue. Provide the minimum synthetic reproduction needed to identify the problem.
 
-## Profile and credential issues
+## Supported release infrastructure
 
-Main Save Profile and Windows Site Manager require explicit consent before newly entered credentials are persisted. If a profile reconnects without a password, confirm whether credentials were intentionally saved and whether the current OS user/protection context can decrypt them.
+The current release identity is `ghostftp-v0.0.1` with `prerelease=false`. The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.1`. After a newer release is verified, old Ghost FTP releases/tags and obsolete package versions are intentionally removed by the latest-only retention policy. Git commit history remains available for engineering provenance but is not a supported binary archive.
 
-Changing server/account/private-key identity can intentionally clear credentials that no longer belong to that identity. This is a security safeguard rather than credential migration.
-
-## Release/package problems
-
-For GitHub Release issues include exact filename and SHA-256 value. For Windows artifacts include only public signing status (`signed`/`unsigned`) and verification result; never share certificate private material or Actions secrets.
-
-For GitHub Packages issues include semantic tag/digest for `ghcr.io/bren-wp/ghost-ftp`. The GHCR object is a distribution bundle, not a runtime container.
-
-For supplemental Debian/Ubuntu/Fedora/Portable CI packages, make clear that they are CI evidence rather than canonical 1.1.8 public assets.
-
-## Security-sensitive reports
-
-Avoid posting exploit-ready private details or real secrets publicly. Follow [Security](SECURITY.md) and provide only information needed to reproduce safely.
-
-## Documentation/UI screenshot issues
-
-Maintained release evidence under `docs/images/` must come from the authentic Windows screenshot workflow that launches the real x64 Portable executable. Report runtime/documentation mismatch rather than replacing evidence with a mockup.
-
-Documentation corrections are welcome when current behavior, package names, security/privacy boundaries or release metadata are inaccurate. Historical release text should remain historical rather than being rewritten as current behavior.
+See [Security](SECURITY.md), [Privacy](PRIVACY.md), [Testing](TESTING.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning](VERSIONING.md).

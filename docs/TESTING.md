@@ -1,181 +1,100 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **1.1.8 Stable** is the current release. A release is accepted only when source tests, audits, native production builds, signing-state checks, packaging verification, authentic UI evidence and distribution read-back pass for the exact release revision.
+Ghost FTP **0.0.1** is validated through layered source, security, native build, packaging and lifecycle gates.
 
-Historical Stable releases remain immutable. New gates strengthen future/current source without rewriting older tags, assets or checksums.
+## Core quality gate
 
-## Continuous integration
-
-The maintained quality contract has five proof layers:
-
-1. core quality, security and documentation;
-2. Windows x64/x86 production build;
-3. canonical Linux amd64/arm64/i386 production build;
-4. supplemental Debian/Ubuntu/Fedora/Portable distro-package build and parity verification;
-5. native x86-64 package install/remove and installed-GUI smoke verification on Debian 13, Ubuntu 26.04 LTS and Fedora 44.
-
-The first three run in Ghost FTP CI. Distro layers run in `.github/workflows/linux-distro-packages.yml` and `.github/workflows/linux-distro-install.yml`. A green result in one layer never substitutes for a required failing layer.
-
-## Core Go gates
-
-The maintained toolchain is Go **1.27.1**:
+The canonical Core gate requires:
 
 ```text
-go telemetry off
 gofmt
 go test -race ./...
 go vet ./...
 ```
 
-CI uses `GOTOOLCHAIN=local`, `GOPROXY=off` and `GOSUMDB=off` so release quality cannot silently acquire an undeclared Go dependency.
-
-## Repository audits
-
-The quality job runs brand/repository/platform/desktop/dependency/version/localization/security/privacy/documentation/release audits and then:
-
-```text
-python -m unittest discover -s scripts -p 'test_*.py'
-```
-
-The version audit binds active `docs/VERSIONING.md` candidate/tag/GHCR/checklist markers to root `VERSION` so stale release guidance cannot pass silently.
+It also runs repository, platform, desktop-surface, dependency, version, localization, security, privacy, documentation and release audits plus the Python regression suite.
 
 ## Protocol and transfer regressions
 
-Deterministic tests cover real loopback FTP lifecycle, invalid credentials, FTPS no-downgrade behavior, SFTP host-key and secret ownership, transfer staging/rollback, cancellation/retry generation binding, local-root containment, recursive filesystem operations, path/symlink/reparse safeguards, settings/profile recovery and privacy-safe diagnostics.
+Tests cover the maintained FTP/FTPS/SFTP engine contract, including:
 
-The 1.1.8 line additionally verifies that raw child-process diagnostics are classified but not exposed/retained and that the private MLSD unsupported semantic still drives protocol fallback correctly.
-
-## Linux transport and AskPass regression gate
-
-Tests and structural audits require:
-
-- trusted root-controlled provenance for discovered `curl`, `ssh`, `sftp` and `ssh-keyscan` executables;
-- rejection of user-controlled PATH shadowing, writable parent chains and invalid executable types;
-- support for legitimate root-owned usr-merge symlink layouts;
-- trusted absolute immediate `ssh`/`sftp` parent provenance for credential-bearing AskPass;
-- `/proc/self/exe` only as the running-image identity oracle, not as the OpenSSH helper path;
-- fail-closed behavior before AskPass token/environment/spawn when helper provenance is not trusted.
-
-## State and filesystem identity gate
-
-Regressions verify that a bound config state directory cannot be removed/recreated, replaced by a different real directory or redirected through a symlink/junction/reparse path without the Store rejecting subsequent state access.
-
-Existing rooted local transfer/delete/mkdir safeguards, staged activation, path containment and remote cleanup proof remain part of the security suite.
+- explicit FTPS verification and no silent downgrade;
+- strict SFTP host-key verification/pinning;
+- rooted local path and transfer confinement;
+- transfer staging/activation/rollback behavior;
+- connection-generation guards;
+- privacy-safe diagnostics;
+- Remote Edit text/binary, size, revision/conflict, permission, read-back and metadata-refresh behavior.
 
 ## Windows production gate
 
-`BUILD-WINDOWS.ps1` produces and verifies:
+The Windows production job builds and verifies:
 
 ```text
-Setup x64
-Setup x86
-Portable x64
-Portable x86
+Ghost-FTP-0.0.1-Setup-x64.exe
+Ghost-FTP-0.0.1-Setup-x86.exe
+Ghost-FTP-0.0.1-Setup-x32.exe
+Ghost-FTP-0.0.1-Portable-x64.exe
+Ghost-FTP-0.0.1-Portable-x86.exe
 ```
 
-The release assembly creates `Ghost-FTP-X.Y.Z-Setup-x32.exe` as a byte-identical compatibility alias of verified x86 Setup; it is not a separate architecture build.
+It verifies release artifacts and exercises the Authenticode private-key pipeline policy. Production signing is optional; configured signatures must verify.
 
-CI validates package metadata and runs an Authenticode private-key pipeline smoke test with a short-lived development certificate. Production publication signs only when a protected trusted production certificate is configured; otherwise metadata records `WINDOWS_AUTHENTICODE=unsigned`.
+## Linux production gate
 
-## Windows installer/uninstall ownership gate
+The Linux production job builds DEB and portable tar.gz packages for `amd64`, `arm64` and `i386` and compares the DEB/portable executable bytes for parity.
 
-Tests require:
+## Supplemental distro package gate
 
-- retained install-directory identity and parent-chain safety through transaction/rollback/cleanup;
-- digest ownership for Desktop and Start Menu shortcuts;
-- verified-handle hashing/deletion of the exact owned shortcut object;
-- preservation of foreign/modified shortcuts and the Start Menu parent directory;
-- legacy `Uninstall.exe` deletion only after matching pre-upgrade registry ownership plus verified digest;
-- integrated uninstall registry/application executable identity proof and exact-object cleanup through the short-lived helper;
-- no pathname-only final delete authority for these ownership-sensitive artifacts.
-
-## Windows geometry gate
-
-Regression coverage includes small/effective work areas, canonical desktop sizing, negative-origin monitor coordinates and mixed-DPI transitions. `WM_DPICHANGED` suggested bounds must use the destination monitor implied by the suggested rectangle rather than the old window monitor.
-
-## Windows modal/localization regression gate
-
-Tests continue to require application-owned Confirm/Info/Error DecisionCard routing, shared native Light/Dark palette, DPI/owner/keyboard semantics, live-locale action labels, 24-language profile privacy/security text, runtime-localized native pickers and unchanged credential clear/retain binding semantics.
-
-## Canonical Linux production gate
-
-`linux/BUILD.sh` builds for:
+`.github/workflows/linux-distro-packages.yml` builds and verifies supplemental distro artifacts through:
 
 ```text
-amd64
-arm64
-i386
+linux/BUILD-DISTROS.sh
 ```
 
-For every architecture it produces a generic DEB and generic portable `.tar.gz` archive from the same compiled executable. CI validates DEB metadata, archive structure and byte-for-byte `ghostftp` executable parity. The release workflow creates the multiarch ZIP from verified generic DEBs.
+Representative supplemental names include Debian, Ubuntu, Fedora and Portable families. These are CI verification artifacts, not additions to the canonical **12 platform artifacts / 15 public files** release allow-list.
 
-## Supplemental distro-package gate
+## Native distro lifecycle gate
 
-`linux/BUILD-DISTROS.sh` builds:
+`.github/workflows/linux-distro-install.yml` verifies native install/remove/runtime/GUI behavior on:
 
-- Debian DEB for `amd64`, `arm64`, `i386`;
-- Ubuntu DEB for `amd64`, `arm64`, `i386`;
-- Fedora RPM for `x86_64`, `aarch64`, `i686`;
-- distro-neutral Portable tar.gz for `amd64`, `arm64`, `i386`.
+- **Debian 13 amd64**;
+- **Ubuntu 26.04 LTS amd64**;
+- **Fedora 44 x86_64**.
 
-`.github/workflows/linux-distro-packages.yml` validates metadata and executable parity across Debian, Ubuntu, Fedora and Portable package families.
+**Native package-manager/runtime coverage is deliberately limited to x86-64.** Canonical production builds still include the documented additional Linux architectures.
 
-These supplemental packages are not canonical public release assets unless the release allow-list explicitly includes them.
+## Authentic UI evidence
 
-## Native distro installation gate
+`.github/workflows/ui-screenshots.yml` builds the real Windows x64 Portable application and captures maintained Main Workspace, Site Manager, Settings and About windows. Mockups and generated approximations are not release evidence.
 
-`.github/workflows/linux-distro-install.yml` rebuilds packages from exact source and performs package-manager lifecycle plus installed-GUI smoke on:
-
-```text
-Debian 13 amd64
-Ubuntu 26.04 LTS amd64
-Fedora 44 x86_64
-```
-
-It verifies OS identity, package metadata/architecture, dependency resolution, installed ownership/state, runtime tools, required desktop files, `/usr/bin/ghostftp` startup under local Xvfb, package removal and absence of package-owned system residue.
-
-Native package-manager/runtime coverage is deliberately limited to x86-64. arm64/aarch64 and i386/i686 are still covered by exact-head build, metadata, extraction and payload-parity gates.
-
-## Authentic screenshot gate
-
-The dedicated Windows screenshot workflow builds and launches the real x64 Portable executable and captures Main Workspace, Site Manager, Settings and About. Release-prep evidence must come from that exact final head and must display the intended 1.1.8 public version/branding without clipping or overlap. A mockup is not accepted as evidence.
-
-## Localization gate
-
-Localization checks require exactly 24 canonical languages, English default/fallback, valid catalog keys/format verbs, Windows live localization, Setup primary-copy coverage and Linux runtime switching.
-
-## Privacy gate
-
-Privacy audit rejects fixed product telemetry URLs, tracking-vendor markers, forbidden general-purpose runtime network imports, credential-file regressions and ineffective build telemetry controls. It also enforces the shortened raw diagnostic lifetime. The GHCR bundle copies only the verified release directory and builds with networking disabled.
-
-## Release gate
-
-`.github/workflows/release.yml` runs quality, Windows and canonical Linux jobs before publication.
-
-Ghost FTP 1.1.8 assembles **12 platform artifacts / 15 public files**: five Windows artifacts, three generic Linux DEBs, three generic Linux tar.gz archives, the Linux multiarch ZIP and three metadata/checksum files.
-
-The historical 1.1.7 release remains immutable at the same canonical 12/15 shape. Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages are not included in the 1.1.8 public release count.
-
-Before and after publication, the workflow verifies that `main` is still the exact release commit and that an existing version tag is not rewritten. Signing state must be either `signed` or `unsigned`; absence of a production certificate is carried as explicit unsigned metadata.
-
-## GitHub Packages gate
-
-Stable releases publish:
-
-```text
-ghcr.io/bren-wp/ghost-ftp:<version>
-```
-
-The OCI distribution bundle is built from `FROM scratch`, copies only canonical `release/`, publishes compatible aliases only after semantic-version push/read-back and is a distribution bundle, not a runtime container.
+A release-prep change affecting `VERSION` or maintained desktop UI must obtain authentic evidence from the exact final source revision where the screenshot workflow is triggered.
 
 ## Exact-head and post-merge rule
 
-A branch result is authoritative only for the exact code head that produced it. Any code-head change invalidates earlier green results for merge purposes.
+**Exact-head and post-merge rule:** a PR is not merge-ready until every required workflow triggered for its exact final head is `completed/success`. After merge, required `push` workflows are identified by the exact merge SHA and must also finish `completed/success` before release preparation continues.
 
-Release-prep changes merge only after all relevant exact-head gates are green. After merge, corresponding push workflows on the resulting `main` SHA must also finish successfully before canonical release-branch creation.
+For a release-prep change that affects the canonical production build, the expected gates are:
 
-## Release-readiness rule
+1. Ghost FTP CI;
+2. Ghost FTP Linux Distro Packages;
+3. Ghost FTP Linux Distro Install Matrix;
+4. Authentic UI Screenshots when its path/trigger contract applies.
 
-A source branch that merely compiles is not a release. Stable readiness requires all automated gates plus exact artifact/signing-state/package/release verification on the final source revision.
+## Release publication gate
 
-See [Release verification](RELEASE-VERIFICATION.md), [Installation](INSTALLATION.md), [Platform parity](PLATFORM-PARITY.md), [Security](SECURITY.md), [Privacy](PRIVACY.md) and [Packages](PACKAGES.md).
+0.0.1 publication additionally requires:
+
+- exact current `main` release-branch validation;
+- canonical release workflow quality/build jobs;
+- exact 15-file GitHub Release allow-list;
+- immediate and delayed remote release read-back;
+- `prerelease=false` for the current 0.0.x release channel;
+- verified `ghcr.io/bren-wp/ghost-ftp:0.0.1` distribution-bundle publication/read-back;
+- successful latest-only retention cleanup after publication.
+
+## Retention validation
+
+The retention workflow must leave only the current `ghostftp-v0.0.1` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
+
+See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning](VERSIONING.md).

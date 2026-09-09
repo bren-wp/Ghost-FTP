@@ -11,6 +11,29 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.1"
 RETIRED_ROOTS = ("android", "ios", "macos", "GhostFTP WEB")
+CURRENT_LINE_DOCS = (
+    "README.md",
+    "CHANGELOG.md",
+    "docs/README.md",
+    "docs/GITHUB-RELEASES.md",
+    "docs/INSTALLATION.md",
+    "docs/PACKAGES.md",
+    "docs/REFERENCE-UI.md",
+    "docs/RELEASE-HISTORY.md",
+    "docs/RELEASE-VERIFICATION.md",
+    "docs/SETTINGS.md",
+    "docs/SUPPORT.md",
+    "docs/TESTING.md",
+    "docs/VERSIONING.md",
+)
+RETIRED_PUBLIC_VERSION_PATTERNS = (
+    re.compile(r"Ghost FTP(?:\s+\*\*)?\s*1\.\d+\.\d+"),
+    re.compile(r"Ghost-FTP-1\.\d+\.\d+"),
+    re.compile(r"ghostftp-v1\.\d+\.\d+"),
+    re.compile(r"ghcr\.io/bren-wp/ghost-ftp:1\.\d+\.\d+"),
+    re.compile(r"\bVERSION=1\.\d+\.\d+\b"),
+    re.compile(r"\bTAG=ghostftp-v1\.\d+\.\d+\b"),
+)
 
 
 def fail(message: str) -> None:
@@ -34,9 +57,9 @@ def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
-    major, minor, patch = (int(part) for part in version.split("."))
-    if (major, minor, patch) == (0, 0, 0):
-        fail("0.0.0 is reserved")
+    parts = tuple(int(part) for part in version.split("."))
+    if parts < (0, 0, 1):
+        fail("public VERSION must be 0.0.1 or newer; 0.0.0 is reserved")
 
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
@@ -49,58 +72,61 @@ def main() -> int:
             fail(f"{rel} hard-codes a production version")
 
     brand_version = read("internal/brand/version.go")
-    require(brand_version, ('strings.HasPrefix(version, "0.")', 'return version + " Beta"'), "internal/brand/version.go")
+    require(
+        brand_version,
+        ('strings.TrimSpace(version)', 'return "dev"', 'return version'),
+        "internal/brand/version.go",
+    )
+    if 'return version + " Beta"' in brand_version or 'strings.HasPrefix(version, "0.")' in brand_version:
+        fail("product display version must not infer prerelease status from major version 0")
 
     readme = read("README.md")
-    if f"Current Ghost FTP version: **{version}**" not in readme:
-        fail("README does not expose canonical VERSION")
+    require(
+        readme,
+        (
+            f"Current Ghost FTP version: **{version}**",
+            "Development status: **Active**",
+            "Release channel: **Current**",
+            f"## {version}",
+            f"ghostftp-v{version}",
+            "prerelease=false",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
+        ),
+        "README.md",
+    )
     if f"## {version}" not in read("CHANGELOG.md"):
         fail("CHANGELOG does not contain a section for VERSION")
-    if major == 0:
-        if "Development status: **Beta**" not in readme:
-            fail("pre-1.0 VERSION must be documented as Beta")
-    else:
-        if "Development status: **Stable**" not in readme:
-            fail("1.x+ VERSION must be documented as Stable")
-        if version == "1.0.0" and "First stable release" not in readme:
-            fail("1.0.0 README must explicitly identify the first stable release")
 
     versioning = read("docs/VERSIONING.md")
     require(
         versioning,
         (
-            "0.1.0",
-            "0.x.y",
-            "1.0.0",
-            "Beta",
-            "Stable",
-            "Portable",
-            "Setup",
+            f"Current source candidate: **{version}**",
+            f"VERSION={version}",
+            f"TAG=ghostftp-v{version}",
+            "CHANNEL=Current",
+            "PRERELEASE=false",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            f"## {version} release checklist",
+            "0.0.0",
+            "0.0.1",
+            "0.0.2",
+            "major version `0` does not imply prerelease",
+            "latest public version",
+            "release-retention.yml",
             "optional production hardening layer",
             "WINDOWS_AUTHENTICODE=unsigned",
             "Absence of a production Authenticode certificate by itself is not a versioning failure.",
         ),
         "docs/VERSIONING.md",
     )
-    channel_label = "Beta" if major == 0 else "Stable"
-    require(
-        versioning,
-        (
-            f"Current source candidate: **{version} {channel_label}**",
-            f"VERSION={version}",
-            f"TAG=ghostftp-v{version}",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
-            f"## {version} release checklist",
-        ),
-        "docs/VERSIONING.md current candidate",
-    )
-    for stale in (
-        "A stable Windows release is blocked unless",
-        "stable release whose Windows signing state is not trusted/configured",
-        "stable Authenticode gate",
-    ):
-        if stale in versioning:
-            fail(f"docs/VERSIONING.md contains stale mandatory-signing policy: {stale}")
+
+    for rel in CURRENT_LINE_DOCS:
+        text = read(rel)
+        for pattern in RETIRED_PUBLIC_VERSION_PATTERNS:
+            match = pattern.search(text)
+            if match:
+                fail(f"active current-line documentation contains retired public identity {match.group(0)!r}: {rel}")
 
     windows_build = read("BUILD-WINDOWS.ps1")
     require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS.ps1")
@@ -130,36 +156,63 @@ def main() -> int:
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded production version")
-    require(release_workflow, (
-        "manual='${{ inputs.version }}'",
-        "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
-        "RELEASE_TAG=ghostftp-v$version",
-        "RELEASE_CHANNEL",
-        "--prerelease",
-        "packages: write",
-        "ghcr.io/${owner}/ghost-ftp",
-        "if: env.RELEASE_CHANNEL == 'stable'",
-        "state=unsigned",
-        "state=signed",
-        "Publishing Stable with explicitly unsigned Windows artifacts",
-        "LINUX_PORTABLE=amd64,arm64,i386",
-        "PUBLIC_PLATFORM_ARTIFACTS=12",
-        "PUBLIC_RELEASE_FILES=15",
-    ), ".github/workflows/release.yml")
-    if "Stable Windows releases require a configured trusted Authenticode identity." in release_workflow:
-        fail("release workflow contradicts the supported explicit-unsigned stable state")
-    if "New-DevCodeSigningCertificate.ps1" in release_workflow:
-        fail("production release workflow must not generate a self-signed publisher identity")
+    require(
+        release_workflow,
+        (
+            "manual='${{ inputs.version }}'",
+            "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
+            "test \"$version\" != '0.0.0'",
+            "RELEASE_TAG=ghostftp-v$version",
+            "release_channel='current'",
+            "release_title=\"Ghost FTP $version\"",
+            "packages: write",
+            "Publish verified bundle to GitHub Packages",
+            "test \"$remote_prerelease\" = 'false'",
+            "state=unsigned",
+            "state=signed",
+            "LINUX_PORTABLE=amd64,arm64,i386",
+            "PUBLIC_PLATFORM_ARTIFACTS=12",
+            "PUBLIC_RELEASE_FILES=15",
+        ),
+        ".github/workflows/release.yml",
+    )
+    if "--prerelease" in release_workflow:
+        fail("current 0.0.x release workflow must not mark the GitHub Release as prerelease")
 
-    require(read("scripts/audit_platform_contract.py"), ("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", "RETIRED_APPLICATION_SURFACES=WEB,PWA"), "scripts/audit_platform_contract.py")
-    require(read("scripts/audit_release.py"), (
-        "PUBLIC_PLATFORM_ARTIFACTS=12",
-        "PUBLIC_RELEASE_FILES=15",
-        "LINUX_PORTABLE=amd64,arm64,i386",
-        "STABLE_GHCR_BUNDLE=REQUIRED",
-        "STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
-        "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
-    ), "scripts/audit_release.py")
+    retention = read(".github/workflows/release-retention.yml")
+    require(
+        retention,
+        (
+            "Publish Ghost FTP",
+            "test \"$release_prerelease\" = 'false'",
+            "test \"$asset_count\" -eq 15",
+            "gh release delete",
+            "--cleanup-tag",
+            "packages/container/ghost-ftp/versions",
+            "Keeping current package version",
+            "GHOSTFTP_RELEASE_RETENTION=PASS",
+            "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)",
+            "LATEST_ONLY_RELEASE_RETENTION=YES",
+        ),
+        ".github/workflows/release-retention.yml",
+    )
+
+    require(
+        read("scripts/audit_release.py"),
+        (
+            "MINIMUM_PUBLIC_VERSION=0.0.1",
+            "PUBLIC_RELEASE_CHANNEL=CURRENT",
+            "CURRENT_RELEASE_PRERELEASE_FLAG=FALSE",
+            "LATEST_ONLY_RELEASE_RETENTION=YES",
+            "PUBLIC_PLATFORM_ARTIFACTS=12",
+            "PUBLIC_RELEASE_FILES=15",
+            "LINUX_PORTABLE=amd64,arm64,i386",
+            "GHCR_CURRENT_BUNDLE=REQUIRED",
+            "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
+            "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
+        ),
+        "scripts/audit_release.py",
+    )
 
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
@@ -169,21 +222,20 @@ def main() -> int:
     if 'version = read("VERSION").strip()' not in localization_audit:
         fail("localization audit does not read VERSION dynamically")
 
-    channel = "beta" if major == 0 else "stable"
-    print(f"VERSION_AUDIT=PASS ({version}; channel={channel})")
+    print(f"VERSION_AUDIT=PASS ({version}; channel=current)")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("RETIRED_APPLICATION_SURFACES=ANDROID,IOS,MACOS,WEB,PWA")
-    print("PRE_1_0_CHANNEL=BETA")
-    print("FIRST_STABLE_VERSION=1.0.0")
+    print("PUBLIC_RELEASE_CHANNEL=CURRENT")
+    print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
+    print("MINIMUM_PUBLIC_VERSION=0.0.1")
+    print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
-    print("STABLE_RELEASE_PRERELEASE_FLAG=FALSE")
-    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("STABLE_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
+    print("CURRENT_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
     return 0
 
 

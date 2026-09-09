@@ -46,14 +46,22 @@ class LinuxPackagingContractTests(unittest.TestCase):
         for arch in ("amd64", "arm64", "i386"):
             self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-{arch}.tar.gz", workflow)
 
-    def test_docs_keep_116_historical_and_describe_next_release_contract(self) -> None:
+    def test_docs_describe_current_001_and_supplemental_linux_contract(self) -> None:
+        version = read("VERSION").strip()
         linux_readme = read("linux/README.md")
         parity = read("docs/PLATFORM-PARITY.md")
         releases = read("docs/GITHUB-RELEASES.md")
         verification = read("docs/RELEASE-VERIFICATION.md")
-        self.assertIn("already published Ghost FTP 1.1.6 release is immutable", linux_readme)
-        self.assertIn("is **not** retroactively claimed as a 1.1.6 release asset", linux_readme)
-        self.assertIn("next release", linux_readme.lower())
+
+        self.assertEqual(version, "0.0.1")
+        self.assertIn(f"Ghost FTP **{version}** is the current public release line", linux_readme)
+        self.assertIn("Canonical 0.0.1 release artifacts", linux_readme)
+        self.assertIn("Supplemental distro-specific CI artifacts", linux_readme)
+        self.assertIn("They are not part of the canonical 0.0.1 public release allow-list", linux_readme)
+        self.assertIn(f"ghcr.io/bren-wp/ghost-ftp:{version}", linux_readme)
+        self.assertNotIn("already published Ghost FTP 1.1.6 release is immutable", linux_readme)
+        self.assertNotIn("retroactively claimed as a 1.1.6 release asset", linux_readme)
+
         self.assertIn("12 platform artifacts / 15 public files", parity)
         self.assertIn("12 platform artifacts", releases)
         self.assertIn("15 public files", releases)

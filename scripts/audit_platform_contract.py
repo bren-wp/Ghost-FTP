@@ -89,8 +89,8 @@ def main() -> int:
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
     major, minor, patch = (int(part) for part in version.split("."))
-    if (major, minor, patch) < (0, 1, 0):
-        fail("active Windows/Linux product baseline must not precede 0.1.0")
+    if (major, minor, patch) < (0, 0, 1):
+        fail("active Windows/Linux product baseline must not precede 0.0.1")
 
     print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
@@ -98,6 +98,7 @@ def main() -> int:
     print("RETIRED_APPLICATION_SURFACES=WEB,PWA")
     print("LINUX_PLATFORM_STUBS=EXPLICIT")
     print("DARWIN_SOURCE=BLOCKED")
+    print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("VERSIONING_PLATFORM_INDEPENDENT=YES")
     return 0
 

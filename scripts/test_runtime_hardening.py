@@ -76,12 +76,11 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertLess(delay_pos, main_guard_pos)
         self.assertLess(main_guard_pos, delayed_pos)
 
-    def test_stable_package_publication_is_offline_and_read_back(self) -> None:
+    def test_current_package_publication_is_offline_and_read_back(self) -> None:
         source = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         for marker in (
             "packages: write",
-            "Publish stable bundle to GitHub Packages",
-            "if: env.RELEASE_CHANNEL == 'stable'",
+            "Publish verified bundle to GitHub Packages",
             "FROM scratch",
             "COPY release/ /ghostftp-release/",
             "--network=none",
@@ -92,6 +91,7 @@ class RuntimeHardeningTests(unittest.TestCase):
             self.assertIn(marker, source)
 
         self.assertNotIn("COPY . /ghostftp-release/", source)
+        self.assertNotIn("if: env.RELEASE_CHANNEL == 'stable'", source)
         self.assertLess(
             source.index("COPY release/ /ghostftp-release/"),
             source.index("docker buildx imagetools inspect"),
