@@ -65,6 +65,15 @@ func captureRegistrySnapshot() (registrySnapshot, error) {
 	return out, nil
 }
 
+func (s registrySnapshot) stringValue(key, name string) (string, bool) {
+	for _, item := range s.strings {
+		if item.key == key && item.name == name && item.existed {
+			return item.value, true
+		}
+	}
+	return "", false
+}
+
 func (s registrySnapshot) restore() error {
 	var errs []error
 	for _, item := range s.strings {
