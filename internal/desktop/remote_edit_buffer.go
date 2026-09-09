@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const remoteEditUIParityContract = "REMOTE_EDIT_UI_PARITY=WINDOWS_LINUX_BUILTIN"
+
 type remoteEditNewline uint8
 
 const (
