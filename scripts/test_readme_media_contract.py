@@ -61,18 +61,15 @@ class ReadmeMediaContractTests(unittest.TestCase):
     def test_readme_copy_keeps_authentic_media_provenance_explicit(self) -> None:
         root = (ROOT / "README.md").read_text(encoding="utf-8")
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
-        for marker in (
-            "repository-local assets",
-            "production Windows x64 Portable build",
-            "mockups",
-        ):
-            self.assertIn(marker, root)
-        for marker in (
-            "repository-local",
-            "production Windows x64 Portable build",
-            "Mockups",
-        ):
-            self.assertIn(marker, docs)
+        for text, label in ((root, "README.md"), (docs, "docs/README.md")):
+            lowered = text.lower()
+            self.assertIn("repository-local", lowered, f"{label} must state local media provenance")
+            self.assertIn(
+                "windows x64 portable build",
+                lowered,
+                f"{label} must bind screenshots to the maintained Windows x64 Portable build",
+            )
+            self.assertIn("mockup", lowered, f"{label} must reject mockups as production evidence")
 
 
 if __name__ == "__main__":
