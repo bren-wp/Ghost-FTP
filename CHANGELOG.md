@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### Reliability and release engineering
+
+- Made the canonical release-branch lifecycle wait for the exact newly dispatched `Publish Ghost FTP` workflow run and require terminal success before retention can begin.
+- Added explicit canonical retention dispatch/read-back after a successful publish run so latest-only cleanup does not depend on `workflow_run` event chaining alone.
+- Added exact-main workflow-run identification and fail-closed release/retention completion checks.
+- Fixed release-note generation so semantic major version zero no longer implies Beta/prerelease and current 0.0.x releases retain their verified GitHub Packages section.
+
+### Settings and compatibility
+
+- Safely migrate omitted legacy `parallelism=0` saves to the canonical default of 2 while continuing to reject explicit negative or above-range values.
+- Expanded settings regression coverage so compatibility migration cannot silently weaken current validation rules.
+
+### Desktop quality
+
+- Added a regression contract that rejects main Windows buttons without command handlers and Linux controls/overlays without click handlers.
+- Added a guard against silently discarded Windows queue Cancel/Retry errors.
+- Defined complete acceptance criteria for future directory comparison, synchronized browsing, search/filter, bandwidth control, queue priority, bookmarks, verified resume, multi-session and proxy/jump-host capabilities before they may appear as shipped UI.
+
+### Documentation and product media
+
+- Redesigned the root README around the repository-local Ghost FTP icon and authentic Main Workspace, Site Manager, Settings and About screenshots.
+- Reorganized the documentation index around installation, settings, security/privacy, architecture, UI evidence, testing and release verification.
+- Added a README/media regression contract that rejects remote image sources, missing local media and loss of authentic screenshot provenance.
+- Expanded Settings, Testing, GitHub Releases and Roadmap documentation to match the hardened runtime/release contracts.
+
 ## 0.0.1 - 2026-09-09
 
 ### Desktop client

@@ -24,22 +24,15 @@ def extract_section(changelog: str, version: str) -> str:
 
 
 def build_notes(version: str, section: str) -> str:
-    major = int(version.split(".", 1)[0])
-    channel = "Beta prerelease" if major == 0 else "Stable"
-    package_section = "" if major == 0 else f"""
-GitHub Packages
----------------
-- Package: ghcr.io/bren-wp/ghost-ftp:{version}
-- Type: verified OCI distribution bundle, not a runtime container.
-- Contents: the same verified release directory under /ghostftp-release/.
-- Stable aliases: {major}, {'.'.join(version.split('.')[:2])}, latest.
-- The workflow verifies registry readback before completing publication.
-"""
+    parts = version.split(".")
+    major = int(parts[0])
+    minor_alias = ".".join(parts[:2])
 
     return f"""Ghost FTP {version}
 
 Privacy-first FTP, FTPS and SFTP desktop client for Windows and Linux.
-Release channel: {channel}.
+Release channel: Current.
+GitHub prerelease flag: false.
 
 Highlights
 ----------
@@ -66,7 +59,15 @@ Linux:
 - Ghost-FTP-{version}-Linux-arm64.tar.gz — package-manager-neutral portable archive for arm64.
 - Ghost-FTP-{version}-Linux-i386.tar.gz — package-manager-neutral portable archive for i386.
 - Ghost-FTP-{version}-Linux-multiarch.zip — bundle containing the three verified Debian packages.
-{package_section}
+
+GitHub Packages
+---------------
+- Package: ghcr.io/bren-wp/ghost-ftp:{version}
+- Type: verified OCI distribution bundle, not a runtime container.
+- Contents: the same verified release directory under /ghostftp-release/.
+- Current aliases: {major}, {minor_alias}, latest.
+- The workflow verifies the exact-version registry readback before completing publication.
+
 Verification files
 ------------------
 - SHA256.txt — SHA-256 checksums for every public release file except SHA256.txt itself.
@@ -75,12 +76,14 @@ Verification files
 
 Release contract
 ----------------
+- Current Ghost FTP releases are not inferred to be prereleases from semantic-version major zero.
 - 12 platform artifacts.
 - 15 public release files total, including the three verification/metadata files.
 - Active application platforms: Windows and Linux.
 - Local language catalog: 24 selectable languages with English default/fallback.
 - Application telemetry: disabled.
 - Linux portable archives are structurally verified and their ghostftp executable must be byte-identical to the matching DEB payload before publication.
+- Publication is bound to the exact verified main commit and followed by canonical latest-only retention verification.
 
 Signing and trust
 -----------------

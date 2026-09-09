@@ -41,6 +41,35 @@ class ReleaseTriggerContractTests(unittest.TestCase):
         for marker in required:
             self.assertIn(marker, trigger)
 
+    def test_release_branch_trigger_waits_for_exact_release_before_retention(self):
+        trigger = (ROOT / ".github/workflows/release-branch-trigger.yml").read_text(encoding="utf-8")
+        required = [
+            "wait_for_new_run()",
+            "--json databaseId,headSha",
+            '[[ -n "$id" && "$sha" = "$main_sha" ]]',
+            'release_run_id="$(wait_for_new_run release.yml "$release_before")"',
+            'gh run watch "$release_run_id"',
+            '--exit-status',
+            'release_conclusion="$(gh run view "$release_run_id"',
+            'test "$release_conclusion" = \'success\'',
+            "gh workflow run release-retention.yml",
+            'retention_run_id="$(wait_for_new_run release-retention.yml "$retention_before")"',
+            'gh run watch "$retention_run_id"',
+            'test "$retention_conclusion" = \'success\'',
+            "RELEASE_RETENTION_CHAIN=PASS",
+        ]
+        for marker in required:
+            self.assertIn(marker, trigger)
+
+        release_watch = trigger.index('gh run watch "$release_run_id"')
+        release_success = trigger.index('test "$release_conclusion" = \'success\'')
+        retention_dispatch = trigger.index("gh workflow run release-retention.yml")
+        retention_watch = trigger.index('gh run watch "$retention_run_id"')
+        self.assertLess(release_watch, release_success)
+        self.assertLess(release_success, retention_dispatch)
+        self.assertLess(retention_dispatch, retention_watch)
+        self.assertNotIn("--force", trigger)
+
 
 if __name__ == "__main__":
     unittest.main()

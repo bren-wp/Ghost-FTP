@@ -15,7 +15,7 @@ jobs:
   dispatch:
     if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/ghostftp-v') }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 60
     steps:
       - name: Checkout current main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -55,9 +55,92 @@ jobs:
             exit 1
           }
 
+          list_run_ids() {
+            local workflow="$1"
+            gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow "$workflow" \
+              --branch main \
+              --event workflow_dispatch \
+              --limit 50 \
+              --json databaseId \
+              --jq '.[].databaseId'
+          }
+
+          wait_for_new_run() {
+            local workflow="$1"
+            local before_file="$2"
+            local deadline=$((SECONDS + 180))
+            local candidate=''
+            while (( SECONDS < deadline )); do
+              while IFS=$'\t' read -r id sha; do
+                [[ -n "$id" && "$sha" = "$main_sha" ]] || continue
+                if ! grep -Fxq "$id" "$before_file"; then
+                  candidate="$id"
+                  break
+                fi
+              done < <(
+                gh run list \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --workflow "$workflow" \
+                  --branch main \
+                  --event workflow_dispatch \
+                  --limit 50 \
+                  --json databaseId,headSha \
+                  --jq '.[] | [.databaseId, .headSha] | @tsv'
+              )
+              if [[ -n "$candidate" ]]; then
+                printf '%s\n' "$candidate"
+                return 0
+              fi
+              sleep 3
+            done
+            echo "Timed out waiting for dispatched $workflow run on $main_sha" >&2
+            return 1
+          }
+
+          release_before="$(mktemp)"
+          retention_before="$(mktemp)"
+          trap 'rm -f "$release_before" "$retention_before"' EXIT
+          list_run_ids release.yml > "$release_before"
+
           gh workflow run release.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
             -f version="$version"
 
-          echo "RELEASE_DISPATCH=PASS (Ghost FTP $version; commit=$main_sha)"
+          release_run_id="$(wait_for_new_run release.yml "$release_before")"
+          echo "RELEASE_RUN_ID=$release_run_id"
+          gh run watch "$release_run_id" \
+            --repo "$GITHUB_REPOSITORY" \
+            --exit-status \
+            --interval 10
+          release_conclusion="$(gh run view "$release_run_id" --repo "$GITHUB_REPOSITORY" --json conclusion --jq .conclusion)"
+          test "$release_conclusion" = 'success' || {
+            echo "Canonical release run $release_run_id concluded $release_conclusion; retention will not start" >&2
+            exit 1
+          }
+
+          # workflow_run chaining is intentionally not trusted as the only path.
+          # A GITHUB_TOKEN-dispatched release can complete successfully without
+          # creating the expected downstream retention run. Dispatch the canonical
+          # retention workflow explicitly only after the exact release run succeeds.
+          list_run_ids release-retention.yml > "$retention_before"
+          gh workflow run release-retention.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
+
+          retention_run_id="$(wait_for_new_run release-retention.yml "$retention_before")"
+          echo "RETENTION_RUN_ID=$retention_run_id"
+          gh run watch "$retention_run_id" \
+            --repo "$GITHUB_REPOSITORY" \
+            --exit-status \
+            --interval 5
+          retention_conclusion="$(gh run view "$retention_run_id" --repo "$GITHUB_REPOSITORY" --json conclusion --jq .conclusion)"
+          test "$retention_conclusion" = 'success' || {
+            echo "Canonical retention run $retention_run_id concluded $retention_conclusion" >&2
+            exit 1
+          }
+
+          echo "RELEASE_DISPATCH=PASS (Ghost FTP $version; commit=$main_sha; run=$release_run_id)"
+          echo "RELEASE_RETENTION_CHAIN=PASS (run=$retention_run_id)"
