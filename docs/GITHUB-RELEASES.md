@@ -32,7 +32,22 @@ For the current candidate:
 release/ghostftp-v0.0.1
 ```
 
-`.github/workflows/release-branch-trigger.yml` accepts the branch only when its semantic version matches root `VERSION` and its SHA equals exact current `main`. It then dispatches the canonical release workflow on `main` with the version guard.
+`.github/workflows/release-branch-trigger.yml` accepts the branch only when its semantic version matches root `VERSION` and its SHA equals exact current `main`.
+
+The trigger then performs a deterministic lifecycle rather than treating dispatch as success:
+
+1. snapshot the existing `release.yml` workflow-dispatch run IDs;
+2. dispatch canonical `release.yml` on `main` with the exact version guard;
+3. discover the newly created `Publish Ghost FTP` run whose `headSha` equals the validated `main` SHA;
+4. wait for that exact run with `gh run watch --exit-status`;
+5. verify its terminal conclusion is `success`;
+6. only then snapshot existing retention runs and explicitly dispatch canonical `release-retention.yml` on `main`;
+7. discover the new exact-main retention run;
+8. wait for it and require terminal `success` before the release-branch trigger itself can succeed.
+
+This explicit completion chain exists because a workflow dispatched with the repository `GITHUB_TOKEN` must not rely on a downstream `workflow_run` notification as its only retention path. `release-retention.yml` keeps its `workflow_run` trigger as defense in depth, but the release branch lifecycle is successful only after canonical retention is observed successfully.
+
+The trigger never force-moves release identities and never dispatches retention before the canonical release run succeeds.
 
 ## 0.0.1 public files
 
@@ -74,6 +89,8 @@ That is **15 public files** total.
 
 Before publication the release workflow compares current `main` with the release workflow source SHA. It performs the comparison again after publication before the delayed remote asset read-back. If `main` moves, publication fails rather than claiming stale source.
 
+The release-branch trigger also filters the newly dispatched publish and retention workflow runs by the validated exact `main` SHA. An older successful workflow run cannot satisfy a new release lifecycle.
+
 ## Immutable-current publication transaction
 
 The requested `ghostftp-v0.0.1` tag/release must not already exist. The publish workflow never clobbers a release asset or rewrites an existing current release tag.
@@ -85,7 +102,22 @@ After the new release is successfully published and remotely verified, `.github/
 - superseded `release/ghostftp-v*` branches;
 - obsolete Ghost FTP container package versions.
 
-The current release branch and current package version are retained. The cleanup runs only after the canonical `Publish Ghost FTP` workflow succeeds, and manual cleanup additionally verifies the current release is non-draft, `prerelease=false`, has exactly 15 assets and points to current `main`. Repository commit history on `main` is not rewritten.
+The current release branch and current package version are retained. The cleanup independently verifies that the current release is non-draft, `prerelease=false`, has exactly 15 assets and points to current `main` before destructive cleanup. Repository commit history on `main` is not rewritten.
+
+## Failure behavior
+
+The release lifecycle fails closed:
+
+- if the release branch does not match root `VERSION`;
+- if the release branch SHA is not exact current `main`;
+- if a newly dispatched exact release run cannot be identified;
+- if the canonical release run fails or is cancelled;
+- if retention is requested before publish success;
+- if the current release/tag/asset set does not pass retention preflight;
+- if a newly dispatched retention run cannot be identified;
+- if canonical retention fails or is cancelled.
+
+A successful workflow dispatch request by itself is **not** treated as successful publication.
 
 ## Linux portable parity gate
 
@@ -131,4 +163,4 @@ ghcr.io/bren-wp/ghost-ftp:0.0.1
 
 It is a **distribution bundle**, not a runtime container. The release workflow publishes the exact-version tag together with current aliases and verifies the exact-version package after push. Retention preserves the package version carrying the current exact semantic-version tag and removes obsolete package versions only after release verification succeeds.
 
-See [Packages](PACKAGES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
+See [Packages](PACKAGES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [Versioning](VERSIONING.md).
