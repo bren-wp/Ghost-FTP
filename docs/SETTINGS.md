@@ -19,7 +19,7 @@ Compatibility state such as older overwrite booleans may be normalized internall
 
 Windows exposes one application-owned native Settings dialog for appearance, transfer concurrency, connection timeout, retry behavior, conflict policy and delete confirmation. Numeric values are validated before one complete settings candidate is persisted.
 
-Closing Settings closes only that dialog; it does not end the application message loop.
+Invalid input keeps the dialog open, shows localized corrective text and restores keyboard focus to the invalid field instead of partially committing the remaining settings. A successful **OK** returns one complete settings candidate to the typed engine. Closing with **X** or **Cancel** closes only Settings and does not end the application message loop.
 
 ## Appearance
 
