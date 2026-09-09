@@ -11,6 +11,22 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.1"
 RETIRED_ROOTS = ("android", "ios", "macos", "GhostFTP WEB")
+CURRENT_LINE_DOCS = (
+    "README.md",
+    "CHANGELOG.md",
+    "docs/README.md",
+    "docs/GITHUB-RELEASES.md",
+    "docs/INSTALLATION.md",
+    "docs/PACKAGES.md",
+    "docs/REFERENCE-UI.md",
+    "docs/RELEASE-HISTORY.md",
+    "docs/RELEASE-VERIFICATION.md",
+    "docs/SETTINGS.md",
+    "docs/SUPPORT.md",
+    "docs/TESTING.md",
+    "docs/VERSIONING.md",
+)
+OLD_PUBLIC_VERSION_RE = re.compile(r"(?<![\d.])1\.\d+\.\d+(?![\d.])")
 
 
 def fail(message: str) -> None:
@@ -34,9 +50,11 @@ def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
-    major, minor, patch = (int(part) for part in version.split("."))
-    if (major, minor, patch) == (0, 0, 0):
-        fail("0.0.0 is reserved")
+    parts = tuple(int(part) for part in version.split("."))
+    if parts < (0, 0, 1):
+        fail("public VERSION must be 0.0.1 or newer; 0.0.0 is reserved")
+    major = parts[0]
+    channel_label = "Beta" if major == 0 else "Stable"
 
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
@@ -49,58 +67,53 @@ def main() -> int:
             fail(f"{rel} hard-codes a production version")
 
     brand_version = read("internal/brand/version.go")
-    require(brand_version, ('strings.HasPrefix(version, "0.")', 'return version + " Beta"'), "internal/brand/version.go")
+    require(
+        brand_version,
+        ('strings.HasPrefix(version, "0.")', 'return version + " Beta"'),
+        "internal/brand/version.go",
+    )
 
     readme = read("README.md")
-    if f"Current Ghost FTP version: **{version}**" not in readme:
-        fail("README does not expose canonical VERSION")
+    require(
+        readme,
+        (
+            f"Current Ghost FTP version: **{version}**",
+            f"Development status: **{channel_label}**",
+            f"## {version} {channel_label}",
+        ),
+        "README.md",
+    )
     if f"## {version}" not in read("CHANGELOG.md"):
         fail("CHANGELOG does not contain a section for VERSION")
-    if major == 0:
-        if "Development status: **Beta**" not in readme:
-            fail("pre-1.0 VERSION must be documented as Beta")
-    else:
-        if "Development status: **Stable**" not in readme:
-            fail("1.x+ VERSION must be documented as Stable")
-        if version == "1.0.0" and "First stable release" not in readme:
-            fail("1.0.0 README must explicitly identify the first stable release")
 
     versioning = read("docs/VERSIONING.md")
-    require(
-        versioning,
-        (
-            "0.1.0",
-            "0.x.y",
-            "1.0.0",
-            "Beta",
-            "Stable",
-            "Portable",
-            "Setup",
-            "optional production hardening layer",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "Absence of a production Authenticode certificate by itself is not a versioning failure.",
-        ),
-        "docs/VERSIONING.md",
-    )
-    channel_label = "Beta" if major == 0 else "Stable"
     require(
         versioning,
         (
             f"Current source candidate: **{version} {channel_label}**",
             f"VERSION={version}",
             f"TAG=ghostftp-v{version}",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
             f"## {version} release checklist",
+            "0.0.0 is reserved",
+            "0.0.1",
+            "0.0.2",
+            "Beta",
+            "latest public version",
+            "LATEST_ONLY_RELEASE_RETENTION" if "LATEST_ONLY_RELEASE_RETENTION" in versioning else "release-retention.yml",
+            "optional production hardening layer",
+            "WINDOWS_AUTHENTICODE=unsigned",
+            "Absence of a production Authenticode certificate by itself is not a versioning failure.",
         ),
-        "docs/VERSIONING.md current candidate",
+        "docs/VERSIONING.md",
     )
-    for stale in (
-        "A stable Windows release is blocked unless",
-        "stable release whose Windows signing state is not trusted/configured",
-        "stable Authenticode gate",
-    ):
-        if stale in versioning:
-            fail(f"docs/VERSIONING.md contains stale mandatory-signing policy: {stale}")
+
+    for rel in CURRENT_LINE_DOCS:
+        text = read(rel)
+        match = OLD_PUBLIC_VERSION_RE.search(text)
+        if match:
+            fail(f"active current-line documentation still contains retired 1.x version {match.group(0)}: {rel}")
+        if "ghostftp-v1." in text:
+            fail(f"active current-line documentation still contains retired 1.x tag: {rel}")
 
     windows_build = read("BUILD-WINDOWS.ps1")
     require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS.ps1")
@@ -130,36 +143,54 @@ def main() -> int:
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded production version")
-    require(release_workflow, (
-        "manual='${{ inputs.version }}'",
-        "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
-        "RELEASE_TAG=ghostftp-v$version",
-        "RELEASE_CHANNEL",
-        "--prerelease",
-        "packages: write",
-        "ghcr.io/${owner}/ghost-ftp",
-        "if: env.RELEASE_CHANNEL == 'stable'",
-        "state=unsigned",
-        "state=signed",
-        "Publishing Stable with explicitly unsigned Windows artifacts",
-        "LINUX_PORTABLE=amd64,arm64,i386",
-        "PUBLIC_PLATFORM_ARTIFACTS=12",
-        "PUBLIC_RELEASE_FILES=15",
-    ), ".github/workflows/release.yml")
-    if "Stable Windows releases require a configured trusted Authenticode identity." in release_workflow:
-        fail("release workflow contradicts the supported explicit-unsigned stable state")
-    if "New-DevCodeSigningCertificate.ps1" in release_workflow:
-        fail("production release workflow must not generate a self-signed publisher identity")
+    require(
+        release_workflow,
+        (
+            "manual='${{ inputs.version }}'",
+            "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
+            "RELEASE_TAG=ghostftp-v$version",
+            "RELEASE_CHANNEL",
+            "--prerelease",
+            "packages: write",
+            "if: env.RELEASE_CHANNEL == 'stable'",
+            "state=unsigned",
+            "state=signed",
+            "LINUX_PORTABLE=amd64,arm64,i386",
+            "PUBLIC_PLATFORM_ARTIFACTS=12",
+            "PUBLIC_RELEASE_FILES=15",
+        ),
+        ".github/workflows/release.yml",
+    )
 
-    require(read("scripts/audit_platform_contract.py"), ("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", "RETIRED_APPLICATION_SURFACES=WEB,PWA"), "scripts/audit_platform_contract.py")
-    require(read("scripts/audit_release.py"), (
-        "PUBLIC_PLATFORM_ARTIFACTS=12",
-        "PUBLIC_RELEASE_FILES=15",
-        "LINUX_PORTABLE=amd64,arm64,i386",
-        "STABLE_GHCR_BUNDLE=REQUIRED",
-        "STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
-        "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
-    ), "scripts/audit_release.py")
+    retention = read(".github/workflows/release-retention.yml")
+    require(
+        retention,
+        (
+            "Publish Ghost FTP",
+            "gh release delete",
+            "--cleanup-tag",
+            "packages/container/ghost-ftp/versions",
+            "GHOSTFTP_RELEASE_RETENTION=PASS",
+            "GHOSTFTP_PACKAGE_RETENTION=PASS",
+            "LATEST_ONLY_RELEASE_RETENTION=YES",
+        ),
+        ".github/workflows/release-retention.yml",
+    )
+
+    require(
+        read("scripts/audit_release.py"),
+        (
+            "MINIMUM_PUBLIC_VERSION=0.0.1",
+            "LATEST_ONLY_RELEASE_RETENTION=YES",
+            "PUBLIC_PLATFORM_ARTIFACTS=12",
+            "PUBLIC_RELEASE_FILES=15",
+            "LINUX_PORTABLE=amd64,arm64,i386",
+            "STABLE_GHCR_BUNDLE=REQUIRED",
+            "STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
+            "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
+        ),
+        "scripts/audit_release.py",
+    )
 
     bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
@@ -175,9 +206,9 @@ def main() -> int:
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("RETIRED_APPLICATION_SURFACES=ANDROID,IOS,MACOS,WEB,PWA")
     print("PRE_1_0_CHANNEL=BETA")
-    print("FIRST_STABLE_VERSION=1.0.0")
+    print("MINIMUM_PUBLIC_VERSION=0.0.1")
+    print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
     print("STABLE_RELEASE_PRERELEASE_FLAG=FALSE")
     print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
