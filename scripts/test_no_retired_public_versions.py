@@ -33,14 +33,21 @@ class NoRetiredPublicVersionsTests(unittest.TestCase):
                     )
         self.assertEqual(failures, [], "\n".join(failures))
 
-    def test_current_public_line_is_0_0_1_beta(self) -> None:
+    def test_current_public_line_is_0_0_1(self) -> None:
         version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         versioning = (ROOT / "docs" / "VERSIONING.md").read_text(encoding="utf-8")
+        release_workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         self.assertEqual(version, "0.0.1")
         self.assertIn("Current Ghost FTP version: **0.0.1**", readme)
-        self.assertIn("Development status: **Beta**", readme)
-        self.assertIn("Current source candidate: **0.0.1 Beta**", versioning)
+        self.assertIn("Development status: **Active**", readme)
+        self.assertIn("Release channel: **Current**", readme)
+        self.assertIn("prerelease=false", readme)
+        self.assertIn("Current source candidate: **0.0.1**", versioning)
+        self.assertIn("CHANNEL=Current", versioning)
+        self.assertIn("PRERELEASE=false", versioning)
+        self.assertIn("major version `0` does not imply prerelease", versioning)
+        self.assertNotIn("--prerelease", release_workflow)
         self.assertIn("LATEST_ONLY_RELEASE_RETENTION", (ROOT / "scripts" / "audit_release.py").read_text(encoding="utf-8"))
 
 
