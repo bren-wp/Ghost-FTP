@@ -1066,13 +1066,9 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 	case l.download.contains(x, y):
 		u.queueTransfer("download")
 	case l.pause.contains(x, y):
-		u.engine.PauseTransfers()
-		u.queuePaused = true
-		u.setStatus("Transfer queue paused.")
+		u.pauseTransfersLinux()
 	case l.resume.contains(x, y):
-		u.engine.ResumeTransfers()
-		u.queuePaused = false
-		u.setStatus("Transfer queue resumed.")
+		u.resumeTransfersLinux()
 	case l.cancelJob.contains(x, y):
 		u.cancelSelectedTransferLinux()
 	case l.retryJob.contains(x, y):
