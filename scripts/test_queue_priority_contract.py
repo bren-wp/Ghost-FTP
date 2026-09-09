@@ -70,9 +70,28 @@ class QueuePriorityContractTests(unittest.TestCase):
         self.assertIn("selected := a.selectedTransferIDSet()", transfers)
         self.assertIn("a.restoreTransferSelection(selected)", transfers)
 
+    def test_linux_priority_controls_are_rendered_click_wired_and_identity_safe(self) -> None:
+        linux = self.read("internal/desktop/queue_priority_linux.go")
+        gui = self.read("internal/desktop/gui_linux.go")
+
+        for marker in (
+            "deriveQueuePriorityState",
+            "queuePriorityWords(u.language)",
+            "u.engine.MoveTransferUp(id)",
+            "u.engine.MoveTransferDown(id)",
+            "u.transferJobs = u.engine.Transfers()",
+            "u.restoreQueuePrioritySelection(id)",
+            "func (u *linuxDesktop) renderQueuePriorityControls() error",
+            "func (u *linuxDesktop) handleQueuePriorityMouse(x, y int) bool",
+        ):
+            self.assertIn(marker, linux)
+        self.assertIn("u.renderQueuePriorityControls()", gui)
+        self.assertIn("u.handleQueuePriorityMouse(x, y)", gui)
+
     def test_tests_cover_scheduler_and_ui_invariants(self) -> None:
         manager_tests = self.read("internal/transfer/queue_order_test.go")
         ui_tests = self.read("internal/desktop/queue_priority_test.go")
+        linux_tests = self.read("internal/desktop/queue_priority_linux_test.go")
         for marker in (
             "TestMoveQueuedUpAndDownChangesOnlySchedulerOrder",
             "TestMoveQueuedSkipsRunningAndTerminalSlots",
@@ -84,6 +103,9 @@ class QueuePriorityContractTests(unittest.TestCase):
             self.assertIn(marker, manager_tests)
         self.assertIn("TestQueuePriorityStateRequiresOneQueuedSelection", ui_tests)
         self.assertIn("TestQueuePriorityWordsCoverEverySupportedLanguage", ui_tests)
+        self.assertIn("TestLinuxQueuePriorityRectsFollowClearQueueWithoutOverlap", linux_tests)
+        self.assertIn("TestLinuxQueuePriorityStateUsesSharedQueuedOnlyPolicy", linux_tests)
+        self.assertIn("TestLinuxQueuePrioritySelectionRestoresByTransferID", linux_tests)
 
 
 if __name__ == "__main__":
