@@ -607,22 +607,23 @@ func (u *linuxDesktop) renderWorkspace() error {
 }
 
 func (u *linuxDesktop) renderQueue() error {
+	actions := u.linuxTransferActionState()
 	if err := u.x.text(premiumOuterGap, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.pause, u.tr("transfer.pause"), !u.queuePaused, false); err != nil {
+	if err := u.drawButton(u.layout.pause, u.tr("transfer.pause"), actions.Pause && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.resume, u.tr("transfer.resume"), u.queuePaused, false); err != nil {
+	if err := u.drawButton(u.layout.resume, u.tr("transfer.resume"), actions.Resume && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), u.selectedTransfer >= 0, false); err != nil {
+	if err := u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), actions.Cancel && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), u.selectedTransfer >= 0, false); err != nil {
+	if err := u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), actions.Retry && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), len(u.transferJobs) > 0, false); err != nil {
+	if err := u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false); err != nil {
 		return err
 	}
 	if err := u.renderQueuePriorityControls(); err != nil {
@@ -1073,16 +1074,11 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		u.queuePaused = false
 		u.setStatus("Transfer queue resumed.")
 	case l.cancelJob.contains(x, y):
-		if u.selectedTransfer >= 0 && u.selectedTransfer < len(u.transferJobs) {
-			_ = u.engine.CancelTransfer(u.transferJobs[u.selectedTransfer].ID)
-		}
+		u.cancelSelectedTransferLinux()
 	case l.retryJob.contains(x, y):
-		if u.selectedTransfer >= 0 && u.selectedTransfer < len(u.transferJobs) {
-			_ = u.engine.RetryTransfer(u.transferJobs[u.selectedTransfer].ID)
-		}
+		u.retrySelectedTransferLinux()
 	case l.clearQueue.contains(x, y):
-		u.engine.ClearFinishedTransfers()
-		u.selectedTransfer = -1
+		u.clearFinishedTransfersLinux()
 	case l.queue.contains(x, y):
 		index := (y - l.queue.top - 11) / 22
 		if index >= 0 && index < len(u.transferJobs) {
