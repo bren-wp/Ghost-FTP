@@ -21,18 +21,12 @@ func sameCanonicalLegacyCommand(raw, expectedPath string) bool {
 	if len(command) >= 2 && command[0] == '"' && command[len(command)-1] == '"' {
 		command = command[1 : len(command)-1]
 	}
-	if command == "" {
+	if command == "" || !filepath.IsAbs(command) || !filepath.IsAbs(expectedPath) {
 		return false
 	}
 
-	actual, err := filepath.Abs(filepath.Clean(command))
-	if err != nil {
-		return false
-	}
-	expected, err := filepath.Abs(filepath.Clean(expectedPath))
-	if err != nil {
-		return false
-	}
+	actual := filepath.Clean(command)
+	expected := filepath.Clean(expectedPath)
 	return strings.EqualFold(actual, expected)
 }
 
