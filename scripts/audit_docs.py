@@ -340,7 +340,8 @@ def main() -> int:
             f"Ghost FTP **{version}**",
             "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
             "official file is explicitly `unsigned`",
-            "if metadata says `signed` and Windows signature verification fails",
+            "metadata says `signed`",
+            "Windows signature verification fails",
         ),
     )
 
