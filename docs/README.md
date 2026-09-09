@@ -5,15 +5,16 @@
 </p>
 
 - **Current Ghost FTP release: 0.0.1**
-- Development status: **Beta**
-- GitHub Release policy: **prerelease=true**
+- Development status: **Active**
+- Release channel: **Current**
+- GitHub Release policy: **PRERELEASE=false**
 - Public version retention: **latest release only**
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
 - Languages: **24 selectable local languages**
 - Product website: **https://ghostftp.com**
 
-The root [`VERSION`](../VERSION) file is the authoritative production version source. Active documentation describes the current 0.0.1 Beta line; superseded public release/tag identities are removed after a newer release is successfully published and verified.
+The root [`VERSION`](../VERSION) file is the authoritative production version source. Active documentation describes the current 0.0.1 public line; superseded public release/tag identities are removed only after a newer release is successfully published and verified.
 
 ## Authentic visual reference
 
@@ -49,12 +50,16 @@ See [`REFERENCE-UI.md`](REFERENCE-UI.md) for authentic screenshot provenance and
 
 - [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux installation.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical release shape and latest-only retention.
-- [`PACKAGES.md`](PACKAGES.md) — package policy for Beta and future Stable releases.
+- [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution bundle policy.
 - [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity and signing verification.
 - [`SIGNING.md`](SIGNING.md) — optional production Authenticode signing.
-- [`VERSIONING.md`](VERSIONING.md) — 0.0.x Beta version policy.
+- [`VERSIONING.md`](VERSIONING.md) — controlled 0.0.x public version policy.
 
-Ghost FTP 0.0.1 uses the canonical **12 platform artifacts / 15 public files** release shape. Pre-1.0 releases are Beta GitHub Releases; the Stable GHCR distribution bundle is reserved for Stable publication.
+Ghost FTP 0.0.1 uses the canonical **12 platform artifacts / 15 public files** release shape and is published as the current GitHub Release with `prerelease=false`. The same verified release directory is mirrored as a distribution-only bundle at:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
 
 Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. These packages are **not yet part of the canonical release allow-list**.
 
@@ -76,8 +81,8 @@ Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover
 ```text
 VERSION=0.0.1
 TAG=ghostftp-v0.0.1
-CHANNEL=Beta
-PRERELEASE=true
+CHANNEL=Current
+PRERELEASE=false
 ```
 
 Windows:
@@ -102,7 +107,7 @@ Ghost-FTP-0.0.1-Linux-arm64.tar.gz
 Ghost-FTP-0.0.1-Linux-i386.tar.gz
 ```
 
-After the new release passes remote read-back verification, `.github/workflows/release-retention.yml` removes older Ghost FTP releases, tags, completed release branches and obsolete package versions. `main` commit history is not rewritten.
+After the current release passes remote read-back verification, `.github/workflows/release-retention.yml` removes older Ghost FTP releases, tags, superseded release branches and obsolete package versions while retaining the current release package. `main` commit history is not rewritten.
 
 ## Security and privacy
 
