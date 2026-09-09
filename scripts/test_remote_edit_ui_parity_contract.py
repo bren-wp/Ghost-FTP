@@ -23,8 +23,8 @@ class RemoteEditUIParityContract(unittest.TestCase):
         self.assertIn("storeRemoteEditButton", ui)
         self.assertIn("remoteEditButton(a)", ui)
         self.assertIn("esMultiline", dialog)
-        self.assertIn('case \'S\':', dialog)
-        self.assertIn('case \'R\':', dialog)
+        self.assertIn("case 'S':", dialog)
+        self.assertIn("case 'R':", dialog)
         self.assertNotIn("exec.Command", workflow + dialog)
         self.assertNotIn("os.StartProcess", workflow + dialog)
 
@@ -55,7 +55,7 @@ class RemoteEditUIParityContract(unittest.TestCase):
         self.assertIn("api.MaxRemoteEditBytes", linux)
         self.assertIn("newRemoteEditBuffer", windows)
         self.assertIn("newRemoteEditBuffer", linux)
-        self.assertIn("REMOTE_EDIT_UI_PARITY=WINDOWS_LINUX_BUILTIN", "REMOTE_EDIT_UI_PARITY=WINDOWS_LINUX_BUILTIN")
+        self.assertIn("REMOTE_EDIT_UI_PARITY=WINDOWS_LINUX_BUILTIN", common)
 
 
 if __name__ == "__main__":
