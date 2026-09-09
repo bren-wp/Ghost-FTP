@@ -45,6 +45,7 @@ func (a *app) updateActionControls() {
 	setControlEnabled(a.remoteRename, remoteReady && remoteSelected == 1)
 	setControlEnabled(a.remoteDelete, remoteReady && remoteSelected > 0)
 	setControlEnabled(a.download, remoteReady && remoteSelected > 0)
+	setControlEnabled(remoteEditButton(a), a.remoteEditSelectionReady())
 
 	chmodSelected := 0
 	if remoteReady {
