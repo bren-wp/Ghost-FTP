@@ -69,6 +69,8 @@ def audit_runtime_sources() -> None:
         for marker in FORBIDDEN_VENDOR_MARKERS:
             if marker in lower:
                 fail(f"telemetry/vendor marker {marker!r} found in {rel}")
+        if rel.as_posix() != "internal/remote/util.go" and "toolError{" in text:
+            fail(f"runtime toolError must be constructed through newToolError: {rel}")
 
 
 def audit_credentials_and_network_tools() -> None:
@@ -127,12 +129,24 @@ def audit_credentials_and_network_tools() -> None:
         '"ssh_askpass"', '"ssh_auth_sock"', "crypto/rand", "func randomTransferToken()",
         "func (e *toolError) Error() string", "func toolErrorPublicLabel(tool string) string",
         "func toolErrorPublicDetail(kind string) string", "e.UserErrorKind()",
-        'return "network tool"', "msg = te.message",
+        'return "network tool"', "kind      string", "retryable bool",
+        "classifyToolDiagnostic(tool, code, diagnostic)", "classifyToolRetryable(tool, code, diagnostic)",
+        "return te.retryable",
     ))
-    if "return e.message" in util:
-        fail("raw child-process diagnostics must not be exposed by toolError.Error")
-    if "base = label + e.message" in util or "fmt.Sprintf(\"%s %s\", label, e.message)" in util:
-        fail("raw child-process diagnostics must not be concatenated into public tool errors")
+    tool_diagnostics = require("internal/remote/tool_diagnostics.go", (
+        "func classifyToolDiagnostic(tool string, code int, diagnostic string) string",
+        "func classifyToolRetryable(tool string, code int, diagnostic string) bool",
+        "return e.kind",
+    ))
+    tool_error_match = re.search(r"type toolError struct \{(?P<body>.*?)\n\}", util, re.DOTALL)
+    if tool_error_match is None:
+        fail("toolError structure was not found")
+    if "message" in tool_error_match.group("body") or "diagnostic" in tool_error_match.group("body"):
+        fail("toolError must not retain raw child-process diagnostic text")
+    for forbidden in ("return e.message", "base = label + e.message", 'fmt.Sprintf("%s %s", label, e.message)', "te.message", "e.message"):
+        if forbidden in util or forbidden in tool_diagnostics:
+            fail(f"raw child-process diagnostic retention/exposure must remain blocked: {forbidden}")
+
     require("internal/transfer/manager.go", (
         "recover() != nil",
         "ConnectionIdentity() (string, error)",
@@ -188,6 +202,7 @@ def main() -> None:
     print("TELEMETRY_VENDOR_MARKERS=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("RAW_TOOL_DIAGNOSTICS_USER_SURFACE=BLOCKED")
+    print("RAW_TOOL_DIAGNOSTICS_ERROR_RETENTION=BLOCKED")
     print("SAFE_TOOL_ERROR_CLASSIFICATION=PRESERVED")
     print("SSH_KEYSCAN_DIAGNOSTICS_USER_SURFACE=REDACTED")
     print("DOWNLOAD_LOCAL_ROOT_PROPAGATION=ENFORCED")
