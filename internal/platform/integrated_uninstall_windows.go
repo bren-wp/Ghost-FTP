@@ -196,7 +196,12 @@ func launchIntegratedUninstallHelper(exe, expectedDigest string) error {
 		_ = os.Remove(helperPath)
 		return startErr
 	}
-	return cmd.Process.Release()
+
+	// Once Start succeeds the helper owns final cleanup. Process.Release is only
+	// local bookkeeping; a bookkeeping failure must not make the parent pretend
+	// the helper did not start and then leave two conflicting uninstall paths.
+	_ = cmd.Process.Release()
+	return nil
 }
 
 func waitForUninstallParent(pid uint32) error {
