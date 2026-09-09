@@ -57,11 +57,12 @@ def main() -> int:
         "contents: write",
         "packages: write",
         "needs: [quality, windows, linux]",
+        "test \"$version\" != '0.0.0'",
         "RELEASE_TAG=ghostftp-v$version",
-        "release_title=\"Ghost FTP $version Beta\"",
-        "release_channel='beta'",
-        "release_channel='stable'",
-        "prerelease_args+=(--prerelease)",
+        "release_channel='current'",
+        "release_title=\"Ghost FTP $version\"",
+        "remote_prerelease",
+        "test \"$remote_prerelease\" = 'false'",
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_SIGNING_PASSWORD",
         "GHOSTFTP_SIGNING_TIMESTAMP_URL",
@@ -90,7 +91,7 @@ def main() -> int:
         "PUBLIC_RELEASE_FILES=15",
         "ghcr.io/${owner}/ghost-ftp",
         "Distribution bundle only; not a supported runtime container.",
-        "if: env.RELEASE_CHANNEL == 'stable'",
+        "Publish verified bundle to GitHub Packages",
         "main moved from release commit",
         "release already exists; refusing to rewrite published assets",
         "RELEASE_ASSET_READBACK=PASS",
@@ -100,9 +101,10 @@ def main() -> int:
     for forbidden in (
         "package_nuget.py", "dotnet nuget", "nuget.pkg.github.com",
         "package_web.py", "audit_web.py", "android/", "ios/", "macos/", "runs-on: macos",
+        "--prerelease",
     ):
         if forbidden in lowered:
-            fail(f"release workflow contains retired publication/platform marker: {forbidden}")
+            fail(f"release workflow contains retired/incompatible publication marker: {forbidden}")
     for forbidden in ("gh release upload", "--clobber"):
         if forbidden in workflow:
             fail(f"release workflow may rewrite current release assets: {forbidden}")
@@ -117,13 +119,18 @@ def main() -> int:
         "contents: write",
         "packages: write",
         "current_tag=\"ghostftp-v${version}\"",
+        "test \"$release_draft\" = 'false'",
+        "test \"$release_prerelease\" = 'false'",
+        "test \"$asset_count\" -eq 15",
+        "test \"$tag_sha\" = \"$main_sha\"",
         "gh release delete",
         "--cleanup-tag",
         "git/matching-refs/tags/ghostftp-v",
         "git/matching-refs/heads/release/ghostftp-v",
         "packages/container/ghost-ftp/versions",
+        "Keeping current package version",
         "GHOSTFTP_RELEASE_RETENTION=PASS",
-        "GHOSTFTP_PACKAGE_RETENTION=PASS",
+        "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)",
         "LATEST_ONLY_RELEASE_RETENTION=YES",
     )
     retention_lowered = retention.lower()
@@ -188,6 +195,7 @@ def main() -> int:
     require(
         "docs/PACKAGES.md",
         "ghcr.io/bren-wp/ghost-ftp",
+        f"ghcr.io/bren-wp/ghost-ftp:{version}",
         "distribution bundle",
         "not a runtime container",
         "SHA256.txt",
@@ -203,18 +211,17 @@ def main() -> int:
         if (ROOT / retired_file).exists():
             fail(f"retired release/tooling file exists: {retired_file}")
 
-    channel = "beta" if parts[0] == 0 else "stable"
-    print(f"RELEASE_AUDIT=PASS ({version}; channel={channel})")
+    print(f"RELEASE_AUDIT=PASS ({version}; channel=current)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("PUBLICATION_SURFACES=GITHUB_RELEASE,GITHUB_PACKAGES_GHCR")
-    print("PRE_1_0_CHANNEL=BETA")
+    print("PUBLIC_RELEASE_CHANNEL=CURRENT")
+    print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
-    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=12")
@@ -223,7 +230,7 @@ def main() -> int:
     print("WINDOWS_X32_ALIAS_OF_X86=REQUIRED")
     print("LINUX_DEB=amd64,arm64,i386")
     print("LINUX_PORTABLE=amd64,arm64,i386")
-    print("STABLE_GHCR_BUNDLE=REQUIRED")
+    print("GHCR_CURRENT_BUNDLE=REQUIRED")
     return 0
 
 
