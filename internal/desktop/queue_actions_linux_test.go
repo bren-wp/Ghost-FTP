@@ -53,10 +53,10 @@ func TestLinuxTransferActionStateRejectsStaleSelection(t *testing.T) {
 
 func TestLinuxBusyQueueMutationsAreInert(t *testing.T) {
 	pause := &linuxDesktop{
-		busy:              true,
-		connected:         true,
-		selectedTransfer:  0,
-		transferJobs:      []model.TransferJob{{ID: "queued", Status: "queued"}},
+		busy:             true,
+		connected:        true,
+		selectedTransfer: 0,
+		transferJobs:     []model.TransferJob{{ID: "queued", Status: "queued"}},
 	}
 	pause.pauseTransfersLinux()
 	if pause.queuePaused {
@@ -64,11 +64,11 @@ func TestLinuxBusyQueueMutationsAreInert(t *testing.T) {
 	}
 
 	resume := &linuxDesktop{
-		busy:              true,
-		connected:         true,
-		queuePaused:       true,
-		selectedTransfer:  0,
-		transferJobs:      []model.TransferJob{{ID: "queued", Status: "queued"}},
+		busy:             true,
+		connected:        true,
+		queuePaused:      true,
+		selectedTransfer: 0,
+		transferJobs:     []model.TransferJob{{ID: "queued", Status: "queued"}},
 	}
 	resume.resumeTransfersLinux()
 	if !resume.queuePaused {
@@ -76,10 +76,10 @@ func TestLinuxBusyQueueMutationsAreInert(t *testing.T) {
 	}
 
 	cancel := &linuxDesktop{
-		busy:              true,
-		connected:         true,
-		selectedTransfer:  0,
-		transferJobs:      []model.TransferJob{{ID: "queued", Status: "queued"}},
+		busy:             true,
+		connected:        true,
+		selectedTransfer: 0,
+		transferJobs:     []model.TransferJob{{ID: "queued", Status: "queued"}},
 	}
 	cancel.cancelSelectedTransferLinux()
 	if cancel.transferJobs[0].Status != "queued" {
@@ -87,10 +87,10 @@ func TestLinuxBusyQueueMutationsAreInert(t *testing.T) {
 	}
 
 	retry := &linuxDesktop{
-		busy:              true,
-		connected:         true,
-		selectedTransfer:  0,
-		transferJobs:      []model.TransferJob{{ID: "failed", Status: "failed"}},
+		busy:             true,
+		connected:        true,
+		selectedTransfer: 0,
+		transferJobs:     []model.TransferJob{{ID: "failed", Status: "failed"}},
 	}
 	retry.retrySelectedTransferLinux()
 	if retry.transferJobs[0].Status != "failed" {
@@ -98,9 +98,9 @@ func TestLinuxBusyQueueMutationsAreInert(t *testing.T) {
 	}
 
 	clear := &linuxDesktop{
-		busy:              true,
-		selectedTransfer:  0,
-		transferJobs:      []model.TransferJob{{ID: "done", Status: "done"}},
+		busy:             true,
+		selectedTransfer: 0,
+		transferJobs:     []model.TransferJob{{ID: "done", Status: "done"}},
 	}
 	clear.clearFinishedTransfersLinux()
 	if len(clear.transferJobs) != 1 || clear.transferJobs[0].Status != "done" {
