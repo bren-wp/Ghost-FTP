@@ -9,17 +9,75 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 const maxStateSize = 4 << 20
 
 type Store struct {
-	dir string
-	mu  sync.Mutex
+	dir         string
+	dirIdentity os.FileInfo
+	mu          sync.Mutex
 }
 
-func New(dir string) *Store  { return &Store{dir: dir} }
+// New captures the state-directory identity when the directory already exists.
+// Production startup validates the Ghost FTP data path immediately before
+// constructing the store; retaining that filesystem identity lets later state
+// operations reject a directory that was renamed/replaced after startup.
+//
+// If the directory does not exist (or is temporarily invalid), construction
+// remains side-effect free and the first successful operation establishes the
+// identity. This preserves recovery behavior for callers that repair an invalid
+// path and retry.
+func New(dir string) *Store {
+	s := &Store{dir: dir}
+	if info, err := stateDirectoryInfo(dir); err == nil {
+		s.dirIdentity = info
+	}
+	return s
+}
+
 func (s *Store) Dir() string { return s.dir }
+
+func stateDirectoryInfo(dir string) (os.FileInfo, error) {
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(dir) {
+		return nil, errors.New("state mapa mora biti obična lokalna mapa bez preusmjeravanja")
+	}
+	return info, nil
+}
+
+// ensureDirectoryIdentity establishes or revalidates the Store's directory
+// identity. Once bound, removal/recreation, symlink/junction substitution and a
+// replacement real directory all fail closed instead of silently redirecting
+// state reads or writes to a different filesystem object.
+func (s *Store) ensureDirectoryIdentity() error {
+	info, err := stateDirectoryInfo(s.dir)
+	if errors.Is(err, os.ErrNotExist) {
+		if s.dirIdentity != nil {
+			return errors.New("state mapa je uklonjena ili zamijenjena tijekom rada")
+		}
+		if err := os.MkdirAll(s.dir, 0700); err != nil {
+			return err
+		}
+		info, err = stateDirectoryInfo(s.dir)
+	}
+	if err != nil {
+		return err
+	}
+	if s.dirIdentity == nil {
+		s.dirIdentity = info
+		return nil
+	}
+	if !os.SameFile(s.dirIdentity, info) {
+		return errors.New("state mapa je zamijenjena drugim objektom datotečnog sustava")
+	}
+	return nil
+}
 
 func validateStateName(name string) error {
 	if name == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\\`) || name == "." || name == ".." {
@@ -57,23 +115,37 @@ func copyFallback(fallback, out any) error {
 	return decodeState(b, out)
 }
 
+func (s *Store) readBoundState(path string) ([]byte, error) {
+	if err := s.ensureDirectoryIdentity(); err != nil {
+		return nil, err
+	}
+	data, err := readLimited(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensureDirectoryIdentity(); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func (s *Store) Read(name string, fallback any, out any) (string, error) {
 	if err := validateStateName(name); err != nil {
 		return "fallback", err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.MkdirAll(s.dir, 0700); err != nil {
+	if err := s.ensureDirectoryIdentity(); err != nil {
 		return "fallback", err
 	}
 
 	path := filepath.Join(s.dir, name)
-	if data, err := readLimited(path); err == nil {
+	if data, err := s.readBoundState(path); err == nil {
 		if err = decodeState(data, out); err == nil {
 			return "current", nil
 		}
 	}
-	if data, err := readLimited(path + ".previous"); err == nil {
+	if data, err := s.readBoundState(path + ".previous"); err == nil {
 		if err = decodeState(data, out); err == nil {
 			return "previous", nil
 		}
@@ -81,6 +153,9 @@ func (s *Store) Read(name string, fallback any, out any) (string, error) {
 
 	// A damaged/missing state file must not prevent the desktop app from booting.
 	// Defaults are safe and the next successful write repairs the current state.
+	if err := s.ensureDirectoryIdentity(); err != nil {
+		return "fallback", err
+	}
 	if err := copyFallback(fallback, out); err != nil {
 		return "fallback", err
 	}
@@ -197,13 +272,39 @@ func replaceSyncedGeneration(dir, tmp, dst string) error {
 	return syncStateDirectory(dir)
 }
 
+func (s *Store) writeBoundTemp(pattern string, data []byte) (string, error) {
+	if err := s.ensureDirectoryIdentity(); err != nil {
+		return "", err
+	}
+	tmp, err := writeSyncedTemp(s.dir, pattern, data)
+	if err != nil {
+		return "", err
+	}
+	if err := s.ensureDirectoryIdentity(); err != nil {
+		_ = os.Remove(tmp)
+		return "", err
+	}
+	return tmp, nil
+}
+
+func (s *Store) replaceBoundGeneration(tmp, dst string) error {
+	if err := s.ensureDirectoryIdentity(); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := replaceSyncedGeneration(s.dir, tmp, dst); err != nil {
+		return err
+	}
+	return s.ensureDirectoryIdentity()
+}
+
 func (s *Store) Write(name string, value any) error {
 	if err := validateStateName(name); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.MkdirAll(s.dir, 0700); err != nil {
+	if err := s.ensureDirectoryIdentity(); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(value, "", "  ")
@@ -219,19 +320,19 @@ func (s *Store) Write(name string, value any) error {
 	// Keep only a known-valid previous generation. The previous generation is
 	// synced before the new current generation is activated, preserving a
 	// recovery point if a crash happens between the two replacements.
-	if existing, e := readLimited(path); e == nil && json.Valid(existing) {
-		prevTmp, e := writeSyncedTemp(s.dir, "."+name+".previous-*.tmp", existing)
+	if existing, e := s.readBoundState(path); e == nil && json.Valid(existing) {
+		prevTmp, e := s.writeBoundTemp("."+name+".previous-*.tmp", existing)
 		if e != nil {
 			return e
 		}
-		if e = replaceSyncedGeneration(s.dir, prevTmp, path+".previous"); e != nil {
+		if e = s.replaceBoundGeneration(prevTmp, path+".previous"); e != nil {
 			return e
 		}
 	}
 
-	tmp, err := writeSyncedTemp(s.dir, "."+name+"-*.tmp", data)
+	tmp, err := s.writeBoundTemp("."+name+"-*.tmp", data)
 	if err != nil {
 		return err
 	}
-	return replaceSyncedGeneration(s.dir, tmp, path)
+	return s.replaceBoundGeneration(tmp, path)
 }
