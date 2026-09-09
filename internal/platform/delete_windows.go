@@ -103,6 +103,12 @@ func verifiedRegularFileSHA256(path string) (string, error) {
 	return verifiedOpenFileSHA256(f)
 }
 
+// VerifiedRegularFileSHA256 hashes a regular non-reparse file through a pinned
+// Windows handle. It never follows a symlink/junction/reparse point.
+func VerifiedRegularFileSHA256(path string) (string, error) {
+	return verifiedRegularFileSHA256(path)
+}
+
 func deleteVerifiedOpenFile(f *os.File) error {
 	if f == nil {
 		return errors.New("verified file handle is unavailable")
@@ -151,6 +157,12 @@ func removeVerifiedRegularFileMatchingSHA256(path, expectedDigest string) (bool,
 		return false, err
 	}
 	return true, nil
+}
+
+// RemoveVerifiedRegularFileMatchingSHA256 deletes only the exact regular,
+// non-reparse Windows file whose pinned-handle digest matches expectedDigest.
+func RemoveVerifiedRegularFileMatchingSHA256(path, expectedDigest string) (bool, error) {
+	return removeVerifiedRegularFileMatchingSHA256(path, expectedDigest)
 }
 
 // ScheduleDeleteOnReboot asks Windows to remove a path at the next reboot.

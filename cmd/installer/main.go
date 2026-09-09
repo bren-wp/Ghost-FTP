@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
@@ -295,26 +294,6 @@ func register(appPath string) error {
 	return nil
 }
 
-func cleanupLegacyUninstaller(dir string) string {
-	var warnings []string
-	legacyPath := filepath.Join(dir, "Uninstall.exe")
-	info, err := os.Lstat(legacyPath)
-	if err == nil {
-		if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(legacyPath) {
-			warnings = append(warnings, "A legacy Uninstall.exe entry was not removed because it is not a safe regular file.")
-		} else if err := os.Remove(legacyPath); err != nil {
-			warnings = append(warnings, "The legacy Uninstall.exe file could not be removed. Close applications using it and delete it manually.")
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		warnings = append(warnings, "The legacy Uninstall.exe path could not be checked safely.")
-	}
-
-	if len(warnings) == 0 {
-		return ""
-	}
-	return "\n\n" + strings.Join(warnings, " ")
-}
-
 func installerTitle() string {
 	return brand.ProductName + " Setup"
 }
@@ -416,6 +395,7 @@ func runInstaller() (exitCode int) {
 		)
 		return 1
 	}
+	legacyUninstaller := captureLegacyUninstallerProof(dir, registryBackup)
 
 	freshInstall := !appBackup.existed()
 	transactionCommitted := false
@@ -488,7 +468,7 @@ func runInstaller() (exitCode int) {
 	}
 
 	transactionCommitted = true
-	legacyCleanupWarning := cleanupLegacyUninstaller(dir)
+	legacyCleanupWarning := cleanupLegacyUninstaller(legacyUninstaller)
 
 	languageWarning := ""
 	if err := persistInstallerLanguage(installLanguage); err != nil {
