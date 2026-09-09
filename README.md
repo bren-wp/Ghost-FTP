@@ -6,7 +6,7 @@
 
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**. It provides a professional dual-pane workstation for **FTP, FTPS and SFTP**, local profiles, protected saved-secret handling, bounded transfer management and verified release packaging without application telemetry.
 
-- Current Ghost FTP version: **1.1.7**
+- Current Ghost FTP version: **1.1.8**
 - Development status: **Stable**
 - Release channel: **Stable**
 - First stable release: **Ghost FTP 1.0.0**
@@ -22,32 +22,40 @@
 
 The icon and UI images rendered by this README are repository-local assets. The README does not load remote badges, tracking pixels, icon CDNs or webfont resources.
 
-## 1.1.7 Stable
+## 1.1.8 Stable
 
-Ghost FTP 1.1.7 is a backward-compatible Windows/Linux maintenance release focused on native UI consistency, localization, packaging quality and security-preserving stability improvements.
+Ghost FTP 1.1.8 is a backward-compatible Windows/Linux maintenance release focused on security/privacy hardening, exact ownership/provenance checks and responsive multi-monitor stability while preserving the established protocol, profile and packaging contract.
 
-### Windows UI and UX
+### Privacy-safe diagnostics
 
-- Application-owned Confirm, Info and Error DecisionCard windows follow the same Light/Dark palette as the main workspace.
-- Native modal surfaces share DPI-aware sizing, owner modality and one keyboard/message-loop contract.
-- DecisionCard heading/body geometry expands for longer localized and security-sensitive text instead of clipping it.
-- OK, Cancel, Yes and No resolve from the live desktop locale when a dialog opens.
-- Save Profile privacy/security decisions are localized across all 24 canonical languages without changing credential-retain/remove semantics.
-- Native SSH private-key and local-folder pickers resolve titles and filters from the active runtime language.
-- Closing a helper dialog closes only that dialog; only the main window may end the application message loop.
-- Authentic Windows x64 Portable screenshots remain the release-evidence source for Main Workspace, Site Manager, Settings and About.
+- Raw `curl`, `ssh`, `sftp` and `ssh-keyscan` diagnostics are not exposed through generic user-facing errors.
+- Child-process output is classified while bounded data is in scope; only privacy-safe semantic state required for user errors, retry decisions and protocol fallback is retained.
+- FTP MLSD unsupported-command fallback remains functional without retaining raw server replies.
+- SFTP host-key verification and pinning remain strict.
 
-### Linux packaging and verification
+### Linux transport and AskPass provenance
 
-The canonical 1.1.7 release adds package-manager-neutral Linux portable archives for `amd64`, `arm64` and `i386` alongside matching DEBs. Production verifies archive structure and byte-for-byte executable parity between each portable archive and `/usr/bin/ghostftp` from its corresponding DEB.
+- Linux transport discovery rejects user-controlled `PATH` shadowing and accepts `curl`, `ssh`, `sftp` and `ssh-keyscan` only after trusted root-controlled filesystem provenance checks.
+- Credential-bearing AskPass requires trusted executable/parent provenance and fails closed when the helper boundary cannot be proven safe.
+- `/proc/self/exe` is used only as an in-process identity oracle; it is not handed to OpenSSH as a credential helper path.
 
-The canonical public release shape is **12 platform artifacts / 15 public files**.
+### Windows installation and cleanup ownership
 
-Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native package lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. These distro-labelled CI artifacts are not canonical 1.1.7 release assets.
+- Settings/profile state remains bound to the originally validated state-directory identity.
+- Windows installer transactions retain install-directory identity through backup, activation, rollback and cleanup.
+- Desktop/Start Menu shortcuts are ownership-bound by digest and exact-handle verification; foreign or modified same-name shortcuts are preserved.
+- The Start Menu parent directory is preserved because shortcut ownership does not imply ownership of its containing directory.
+- Legacy and integrated uninstall cleanup require registry/executable ownership proof and exact-object validation rather than pathname/name alone.
 
-### Security and privacy
+### Windows responsive geometry
 
-Ghost FTP preserves FTPS certificate/hostname validation, explicit secure-protocol selection with no silent downgrade, SFTP host-key verification/pinning, protected-secret ownership/lifetime rules, path containment, staged transfer activation/rollback, connection-generation guards and privacy-safe diagnostics.
+- Startup and minimum window geometry adapt to the active monitor work area.
+- Negative multi-monitor origins and small/effective work areas are preserved safely.
+- Mixed-DPI `WM_DPICHANGED` bounds are clamped against the destination monitor selected from the suggested rectangle.
+
+### Security and privacy baseline
+
+Ghost FTP preserves FTPS certificate/hostname validation, explicit secure-protocol selection with no silent downgrade, strict SFTP host-key verification/pinning, protected-secret lifetime rules, local root/path protections, staged transfer activation/rollback and connection-generation guards.
 
 Ghost FTP includes no application analytics, advertising, tracking pixels, fingerprinting, automatic crash upload, mandatory product account or hidden profile synchronization. Go telemetry is disabled in production CI and release workflows.
 
@@ -95,7 +103,7 @@ A fresh connection uses explicit FTPS on port 21. TLS certificate and hostname v
 
 ### SFTP
 
-SFTP uses SSH transport semantics with host-key verification. Password and key-based authentication are supported through the maintained system-tool integration.
+SFTP uses SSH transport semantics with host-key verification. Password and key-based authentication are supported through the maintained system-tool integration and trusted executable/AskPass provenance boundary.
 
 ### FTP — explicit compatibility
 
@@ -105,51 +113,53 @@ Plain FTP remains available only as an explicit compatibility choice for legacy 
 
 **English** is the canonical default and fallback language. Ghost FTP provides **24 languages** through one local catalog shared by the Windows and Linux frontends. Language selection and translation resolution happen locally; Ghost FTP does not send filenames, server names, credentials or UI text to an online translation service.
 
-Changing language at runtime updates the maintained Windows UI surfaces and native dialogs. Linux uses the same canonical registry and fallback normalization. Missing or invalid locale state safely resolves to English.
-
 See [Localization](docs/LOCALIZATION.md).
 
 ## Windows installation
 
 ```text
-Ghost-FTP-1.1.7-Setup-x64.exe
-Ghost-FTP-1.1.7-Setup-x86.exe
-Ghost-FTP-1.1.7-Setup-x32.exe
-Ghost-FTP-1.1.7-Portable-x64.exe
-Ghost-FTP-1.1.7-Portable-x86.exe
+Ghost-FTP-1.1.8-Setup-x64.exe
+Ghost-FTP-1.1.8-Setup-x86.exe
+Ghost-FTP-1.1.8-Setup-x32.exe
+Ghost-FTP-1.1.8-Portable-x64.exe
+Ghost-FTP-1.1.8-Portable-x86.exe
 ```
 
 `x32` is a byte-identical compatibility alias of the verified x86 Setup build; it is not a separate architecture build. Production Authenticode is optional. When a trusted certificate is configured, signatures must verify. Otherwise `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
 
 ## Linux installation
 
-Canonical 1.1.7 Linux files are:
+Canonical 1.1.8 Linux files are:
 
 ```text
-Ghost-FTP-1.1.7-Linux-amd64.deb
-Ghost-FTP-1.1.7-Linux-arm64.deb
-Ghost-FTP-1.1.7-Linux-i386.deb
-Ghost-FTP-1.1.7-Linux-multiarch.zip
-Ghost-FTP-1.1.7-Linux-amd64.tar.gz
-Ghost-FTP-1.1.7-Linux-arm64.tar.gz
-Ghost-FTP-1.1.7-Linux-i386.tar.gz
+Ghost-FTP-1.1.8-Linux-amd64.deb
+Ghost-FTP-1.1.8-Linux-arm64.deb
+Ghost-FTP-1.1.8-Linux-i386.deb
+Ghost-FTP-1.1.8-Linux-multiarch.zip
+Ghost-FTP-1.1.8-Linux-amd64.tar.gz
+Ghost-FTP-1.1.8-Linux-arm64.tar.gz
+Ghost-FTP-1.1.8-Linux-i386.tar.gz
 ```
 
 DEB and RPM package metadata use the Ghost FTP product identity and `https://ghostftp.com`. Generic tar.gz archives are package-manager-neutral alternatives built from the same per-architecture executable as the matching DEB.
+
+Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages remain verification artifacts and are not canonical release files unless the release allow-list is explicitly changed.
 
 See [Installation](docs/INSTALLATION.md), [Linux documentation](linux/README.md) and [Testing](docs/TESTING.md).
 
 ## Releases and GitHub Packages
 
-Ghost FTP 1.1.7 publishes **12 platform artifacts / 15 public files**: five Windows files, seven Linux files, `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
+Ghost FTP 1.1.8 preserves the canonical **12 platform artifacts / 15 public files** release shape: five Windows files, seven Linux files, `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
 
 The Stable distribution bundle is:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.7
+ghcr.io/bren-wp/ghost-ftp:1.1.8
 ```
 
 The OCI object mirrors `/ghostftp-release/` from the verified release assembly and is **not a runtime container**.
+
+Published `ghostftp-v1.1.7` and earlier releases remain immutable.
 
 See [GitHub Releases](docs/GITHUB-RELEASES.md), [GitHub Packages](docs/PACKAGES.md) and [Release verification](docs/RELEASE-VERIFICATION.md).
 

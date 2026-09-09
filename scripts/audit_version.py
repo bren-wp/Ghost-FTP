@@ -82,6 +82,18 @@ def main() -> int:
         ),
         "docs/VERSIONING.md",
     )
+    channel_label = "Beta" if major == 0 else "Stable"
+    require(
+        versioning,
+        (
+            f"Current source candidate: **{version} {channel_label}**",
+            f"VERSION={version}",
+            f"TAG=ghostftp-v{version}",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            f"## {version} release checklist",
+        ),
+        "docs/VERSIONING.md current candidate",
+    )
     for stale in (
         "A stable Windows release is blocked unless",
         "stable release whose Windows signing state is not trusted/configured",
@@ -166,6 +178,7 @@ def main() -> int:
     print("RETIRED_APPLICATION_SURFACES=ANDROID,IOS,MACOS,WEB,PWA")
     print("PRE_1_0_CHANNEL=BETA")
     print("FIRST_STABLE_VERSION=1.0.0")
+    print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
     print("STABLE_RELEASE_PRERELEASE_FLAG=FALSE")
     print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")

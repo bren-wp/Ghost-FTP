@@ -1,6 +1,6 @@
 # Ghost FTP desktop reference UI
 
-This document defines the maintained visual and interaction contract for **Ghost FTP 1.1.7 Stable** and later compatible desktop releases.
+This document defines the maintained visual and interaction contract for **Ghost FTP 1.1.8 Stable** and later compatible desktop releases.
 
 It is a **source/runtime contract**, not a mockup specification. Controls shown by the application must map to real engine capabilities and real state. Decorative controls that imply unsupported backend behavior are not acceptable.
 
@@ -21,9 +21,9 @@ Windows Setup and Portable package the same application executable and therefore
 
 ## Appearance contract
 
-**Classic Light is the fresh-install, missing-state and invalid-state primary appearance in 1.1.7.** An explicitly persisted Dark selection remains respected on Windows. Appearance is one canonical decision rather than a collection of overlapping cosmetic switches.
+**Classic Light is the fresh-install, missing-state and invalid-state primary appearance in 1.1.8.** An explicitly persisted Dark selection remains respected on Windows. Appearance is one canonical decision rather than a collection of overlapping cosmetic switches.
 
-The 1.1.7-maintained palette deliberately avoids pure white as the dominant application surface. Classic Light uses cool neutral layers, while Dark uses a restrained navy/charcoal hierarchy so long file-management sessions remain readable without flattening panels into one undifferentiated background.
+The 1.1.8-maintained palette deliberately avoids pure white as the dominant application surface. Classic Light uses cool neutral layers, while Dark uses a restrained navy/charcoal hierarchy so long file-management sessions remain readable without flattening panels into one undifferentiated background.
 
 ### Classic Light — primary
 

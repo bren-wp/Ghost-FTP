@@ -1,6 +1,6 @@
 # Ghost FTP installation
 
-Ghost FTP **1.1.7 Stable** is the current published stable release. Use only official artifacts whose version and SHA-256 values match the corresponding GitHub Release. Historical Stable releases remain immutable and are not rewritten by later source or packaging work.
+Ghost FTP **1.1.8 Stable** is the current published stable release. Use only official artifacts whose version and SHA-256 values match the corresponding GitHub Release. Historical Stable releases remain immutable and are not rewritten by later source or packaging work.
 
 The official product website is **https://ghostftp.com**.
 
@@ -8,21 +8,23 @@ The official product website is **https://ghostftp.com**.
 
 ### Setup packages
 
-Published 1.1.7 files:
+Canonical 1.1.8 files:
 
 ```text
-Ghost-FTP-1.1.7-Setup-x64.exe
-Ghost-FTP-1.1.7-Setup-x86.exe
-Ghost-FTP-1.1.7-Setup-x32.exe
+Ghost-FTP-1.1.8-Setup-x64.exe
+Ghost-FTP-1.1.8-Setup-x86.exe
+Ghost-FTP-1.1.8-Setup-x32.exe
 ```
 
 `x32` is a compatibility alias of the x86 Setup file and is byte-identical to it. Setup is a per-user installation/maintenance application. It stages and validates payloads before replacement, keeps rollback state through the transaction, writes the maintained uninstall registration and supports update/uninstall from the installed product path.
 
+Ghost FTP 1.1.8 additionally requires installer-directory identity to remain bound through backup, activation, rollback and cleanup. Legacy uninstaller cleanup, shortcuts and integrated uninstall use explicit ownership/executable identity rather than same-name pathname assumptions.
+
 ### Portable packages
 
 ```text
-Ghost-FTP-1.1.7-Portable-x64.exe
-Ghost-FTP-1.1.7-Portable-x86.exe
+Ghost-FTP-1.1.8-Portable-x64.exe
+Ghost-FTP-1.1.8-Portable-x86.exe
 ```
 
 Portable mode does not create normal Setup registration. Do not manually mix installed and portable state directories.
@@ -37,27 +39,29 @@ In both cases verify `SHA256.txt`. For a signed release, also verify the Authent
 
 ## Linux
 
-### Published 1.1.7 packages
+### Canonical release packages
 
-The canonical 1.1.7 Linux release files are:
+The canonical 1.1.8 Linux release files are:
 
 ```text
-Ghost-FTP-1.1.7-Linux-amd64.deb
-Ghost-FTP-1.1.7-Linux-arm64.deb
-Ghost-FTP-1.1.7-Linux-i386.deb
-Ghost-FTP-1.1.7-Linux-multiarch.zip
-Ghost-FTP-1.1.7-Linux-amd64.tar.gz
-Ghost-FTP-1.1.7-Linux-arm64.tar.gz
-Ghost-FTP-1.1.7-Linux-i386.tar.gz
+Ghost-FTP-1.1.8-Linux-amd64.deb
+Ghost-FTP-1.1.8-Linux-arm64.deb
+Ghost-FTP-1.1.8-Linux-i386.deb
+Ghost-FTP-1.1.8-Linux-multiarch.zip
+Ghost-FTP-1.1.8-Linux-amd64.tar.gz
+Ghost-FTP-1.1.8-Linux-arm64.tar.gz
+Ghost-FTP-1.1.8-Linux-i386.tar.gz
 ```
 
 Install the DEB matching the machine architecture with the system package manager, or use the matching generic tar.gz when a package-manager-neutral portable archive is appropriate. DEB metadata uses the Ghost FTP product identity and `Homepage: https://ghostftp.com`.
 
-### Canonical release packages
-
 The maintained canonical release workflow uses `linux/BUILD.sh`. For `amd64`, `arm64` and `i386`, it builds a generic DEB and package-manager-neutral `.tar.gz` from the same compiled executable. Production verification extracts both formats and requires the portable `ghostftp` executable to be byte-identical to `/usr/bin/ghostftp` from its matching DEB.
 
-Together with the Windows artifacts, Linux multiarch ZIP and three metadata/checksum files, Ghost FTP 1.1.7 has a canonical **12 platform artifacts / 15 public files** release shape.
+Together with the Windows artifacts, Linux multiarch ZIP and three metadata/checksum files, Ghost FTP 1.1.8 preserves the canonical **12 platform artifacts / 15 public files** release shape.
+
+### Linux executable provenance
+
+Ghost FTP 1.1.8 hardens Linux transport discovery so `curl`, `ssh`, `sftp` and `ssh-keyscan` are not trusted merely because they appear in `PATH`. Accepted executables must prove trusted root-controlled filesystem provenance. Credential-bearing OpenSSH AskPass also fails closed if the required executable/parent provenance cannot be established.
 
 ### Supplemental distro-specific source/CI packages
 
@@ -101,11 +105,13 @@ Native package-manager/runtime install coverage is intentionally **x86-64 only**
 
 See [Linux documentation](../linux/README.md) and [Testing](TESTING.md).
 
-## Upgrade to 1.1.7
+## Upgrade to 1.1.8
 
-Ghost FTP 1.1.7 is a backward-compatible 1.x maintenance release. Existing 1.x local settings and profiles are intended to remain compatible. It improves native Windows modal consistency/localization, adds runtime-localized native pickers, prevents clipping of longer DecisionCard text, broadens canonical Linux distribution and retains the established transfer/security safeguards.
+Ghost FTP 1.1.8 is a backward-compatible 1.x maintenance release. Existing 1.x local settings and profiles are intended to remain compatible.
 
-Before upgrading critical systems, keep an appropriate backup of local configuration and verify the stable package checksum and, when present, its signing state.
+The release strengthens privacy-safe diagnostics, Linux transport/AskPass provenance, state-directory identity, Windows installer/uninstaller/shortcut ownership and small-display/mixed-DPI geometry. It does not intentionally change FTP/FTPS/SFTP protocol selection, profile format, canonical artifact count or credential-retain/remove semantics.
+
+Before upgrading critical systems, keep an appropriate backup of local configuration and verify the Stable package checksum and, when present, its signing state.
 
 Windows Setup performs staged replacement with rollback-oriented transaction behavior. Linux DEB upgrades use normal package-manager semantics. Generic tar.gz users should replace only the files supplied by that archive.
 
@@ -121,10 +127,10 @@ Changing server/account/private-key identity can clear credentials that no longe
 
 ## GitHub Packages
 
-Ghost FTP 1.1.7 is mirrored as:
+Ghost FTP 1.1.8 is mirrored as:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.7
+ghcr.io/bren-wp/ghost-ftp:1.1.8
 ```
 
 This OCI object is a verified distribution bundle containing `/ghostftp-release/`; it is not a runtime container and is not the normal desktop installation path. See [Packages](PACKAGES.md).
@@ -139,7 +145,9 @@ For supplemental source/CI distro packages, CI success proves the repository pac
 
 ### Windows
 
-Use the registered Ghost FTP uninstall entry. The integrated maintenance/uninstall path belongs to the installed Ghost FTP binary/Setup transaction and does not depend on an unrelated external uninstaller.
+Use the registered Ghost FTP uninstall entry. The integrated maintenance/uninstall path belongs to the installed Ghost FTP binary/Setup transaction and does not depend on an unrelated permanent external uninstaller.
+
+Ghost FTP removes only artifacts for which the maintained ownership/identity contract succeeds. A foreign same-name shortcut/file or unowned Start Menu parent directory is preserved.
 
 ### Linux
 
@@ -150,6 +158,8 @@ Remove the `ghost-ftp` DEB with the distribution package manager. User-local pro
 If Windows shows an unknown-publisher or SmartScreen warning, inspect `BUILD-METADATA.txt`. If it says `WINDOWS_AUTHENTICODE=unsigned`, verify the official release location and `SHA256.txt`. If metadata says `signed` but signature validation fails, treat that as a release-integrity failure.
 
 For Linux architecture errors, use the documented package/architecture mapping. Do not infer native install verification merely because a package successfully builds.
+
+For SFTP password/passphrase failures on Linux, do not bypass the trusted executable/AskPass checks. Verify that required system OpenSSH tools and the installed Ghost FTP executable satisfy the documented provenance boundary.
 
 For connection failures, verify protocol, host, port, server policy and system transfer-tool availability without placing real credentials in issue reports.
 
@@ -165,6 +175,6 @@ For connection failures, verify protocol, host, port, server policy and system t
 8. keep private credentials out of logs and support reports;
 9. do not represent supplemental CI artifacts as published release assets.
 
-Historical 1.1.6 artifacts remain immutable and are not expanded retroactively by the 1.1.7 package contract.
+The immutable 1.1.7 tag, assets, checksums and GHCR digest remain historical and are not rewritten by the 1.1.8 release.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Platform parity](PLATFORM-PARITY.md), [Security](SECURITY.md) and [Privacy](PRIVACY.md).
