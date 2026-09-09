@@ -105,12 +105,21 @@ def audit_credentials_and_network_tools() -> None:
         '"  GlobalKnownHostsFile none"', '"  VerifyHostKeyDNS no"', '"  UpdateHostKeys no"',
         '"  IdentityAgent none"', '"  ClearAllForwardings yes"', '"  ForwardAgent no"',
         "GhostFTP_ASKPASS_TOKEN=", "GhostFTP_PASSWORD_BLOB=", "GhostFTP_PASSPHRASE_BLOB=",
-        "sanitizedToolEnv(os.Environ())",
+        "sanitizedToolEnv(os.Environ())", "sshKeyscanFailure(err, er.String())",
         "prepareLocalDownloadTarget(local, options.LocalRoot, options.SkipExisting)",
     ))
     for forbidden in ("GhostFTP_ASKPASS_FILE", "askpassFile", "os.WriteFile(askpass"):
         if forbidden in sftp:
             fail(f"SFTP must not write AskPass secrets to disk: {forbidden}")
+    if 'fmt.Errorf("nije moguće dohvatiti SFTP host ključ: %s"' in sftp:
+        fail("ssh-keyscan stderr must not be copied into a user-facing error")
+
+    keyscan_error = require("internal/remote/ssh_keyscan_error.go", (
+        "func sshKeyscanFailure(runErr error, diagnostic string) error",
+        'newToolError("sftp", runErr, diagnostic)',
+    ))
+    if 'fmt.Errorf("nije moguće dohvatiti SFTP host ključ: %s"' in keyscan_error:
+        fail("ssh-keyscan helper must preserve the redacted tool-error boundary")
 
     require("cmd/ghostftp/main.go", ("GhostFTP_ASKPASS_TOKEN", "GhostFTP_PASSWORD_BLOB", "GhostFTP_PASSPHRASE_BLOB", "TrustedAskPassParent", "selectAskpassSecret"))
     util = require("internal/remote/util.go", (
@@ -180,6 +189,7 @@ def main() -> None:
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("RAW_TOOL_DIAGNOSTICS_USER_SURFACE=BLOCKED")
     print("SAFE_TOOL_ERROR_CLASSIFICATION=PRESERVED")
+    print("SSH_KEYSCAN_DIAGNOSTICS_USER_SURFACE=REDACTED")
     print("DOWNLOAD_LOCAL_ROOT_PROPAGATION=ENFORCED")
     print("DOWNLOAD_ROOT_RELATIVE_COMMIT=ENFORCED")
 

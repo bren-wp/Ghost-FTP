@@ -26,6 +26,8 @@ Fresh quick-connect defaults use FTPS; plain FTP remains an explicit unencrypted
 
 Connection failures are converted into privacy-safe categories and remediation text. The diagnostic layer is tested so user-facing errors do not intentionally reproduce passwords, passphrases or protected profile payloads.
 
+SFTP host-key discovery follows the same boundary: raw `ssh-keyscan` stderr is used only for local error classification and is not reproduced verbatim in the user-facing failure string. Hostnames, local paths and other tool-emitted details therefore do not need to be echoed merely to explain a failed fingerprint scan.
+
 When reporting a problem, users should still remove real hostnames or paths if those details are confidential.
 
 ## Saved profiles
