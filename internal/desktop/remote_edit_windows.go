@@ -6,12 +6,40 @@ import (
 	"context"
 	"errors"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/bren-wp/Ghost-FTP/internal/api"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
+
+const idRemoteEdit = 309
+
+var remoteEditButtons sync.Map
+
+func storeRemoteEditButton(a *app, hwnd uintptr) {
+	if a == nil || hwnd == 0 {
+		return
+	}
+	remoteEditButtons.Store(a, hwnd)
+}
+
+func remoteEditButton(a *app) uintptr {
+	if a == nil {
+		return 0
+	}
+	if value, ok := remoteEditButtons.Load(a); ok {
+		return value.(uintptr)
+	}
+	return 0
+}
+
+func clearRemoteEditButton(a *app) {
+	if a != nil {
+		remoteEditButtons.Delete(a)
+	}
+}
 
 func (a *app) remoteEditSelectionReady() bool {
 	if a == nil || !a.connected || a.connectionBusy {
@@ -22,7 +50,7 @@ func (a *app) remoteEditSelectionReady() bool {
 		return false
 	}
 	item := a.remoteItems[indices[0]]
-	return !item.IsDirectory && !item.IsSymlink && item.Size <= api.MaxRemoteEditBytes
+	return !item.IsDirectory && !item.IsSymlink && item.Size >= 0 && item.Size <= api.MaxRemoteEditBytes
 }
 
 func (a *app) remoteEditAction() {
@@ -136,7 +164,6 @@ func (a *app) saveRemoteTextEditor(doc api.RemoteEditDocument, buffer remoteEdit
 				return
 			}
 			a.setStatus(words.Saved)
-			a.refreshRemote(a.remoteCurrent)
 			a.showRemoteTextEditor(saved, next, next.Text, generation)
 		})
 	})
