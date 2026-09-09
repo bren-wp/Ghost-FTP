@@ -72,6 +72,8 @@ Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution and release-quality expectations.
 - [`ROADMAP.md`](ROADMAP.md) — maintenance priorities and product constraints.
 - [`SUPPORT.md`](SUPPORT.md) — support and privacy-safe issue reporting.
+- [`prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md`](prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md) — production engineering, security, functional, UI/UX and release-audit handoff prompt.
+- [`prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md`](prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md) — production build/redesign prompt for the official product website using the canonical Ghost FTP dark palette.
 
 ## Ghost FTP 1.1.7 contract
 
