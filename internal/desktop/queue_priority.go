@@ -41,9 +41,9 @@ func deriveQueuePriorityState(jobs []model.TransferJob, selected []int) queuePri
 }
 
 type queuePriorityText struct {
-	MoveUp   string
-	MoveDown string
-	MovedUp  string
+	MoveUp    string
+	MoveDown  string
+	MovedUp   string
 	MovedDown string
 }
 
