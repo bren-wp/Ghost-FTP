@@ -60,8 +60,6 @@ def main() -> int:
     parts = tuple(int(part) for part in version.split("."))
     if parts < (0, 0, 1):
         fail("public VERSION must be 0.0.1 or newer; 0.0.0 is reserved")
-    major = parts[0]
-    channel_label = "Beta" if major == 0 else "Stable"
 
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
@@ -76,17 +74,23 @@ def main() -> int:
     brand_version = read("internal/brand/version.go")
     require(
         brand_version,
-        ('strings.HasPrefix(version, "0.")', 'return version + " Beta"'),
+        ('strings.TrimSpace(version)', 'return "dev"', 'return version'),
         "internal/brand/version.go",
     )
+    if 'return version + " Beta"' in brand_version or 'strings.HasPrefix(version, "0.")' in brand_version:
+        fail("product display version must not infer prerelease status from major version 0")
 
     readme = read("README.md")
     require(
         readme,
         (
             f"Current Ghost FTP version: **{version}**",
-            f"Development status: **{channel_label}**",
-            f"## {version} {channel_label}",
+            "Development status: **Active**",
+            "Release channel: **Current**",
+            f"## {version}",
+            f"ghostftp-v{version}",
+            "prerelease=false",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ),
         "README.md",
     )
@@ -97,14 +101,17 @@ def main() -> int:
     require(
         versioning,
         (
-            f"Current source candidate: **{version} {channel_label}**",
+            f"Current source candidate: **{version}**",
             f"VERSION={version}",
             f"TAG=ghostftp-v{version}",
+            "CHANNEL=Current",
+            "PRERELEASE=false",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
             f"## {version} release checklist",
             "0.0.0",
             "0.0.1",
             "0.0.2",
-            "Beta",
+            "major version `0` does not imply prerelease",
             "latest public version",
             "release-retention.yml",
             "optional production hardening layer",
@@ -154,11 +161,13 @@ def main() -> int:
         (
             "manual='${{ inputs.version }}'",
             "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
+            "test \"$version\" != '0.0.0'",
             "RELEASE_TAG=ghostftp-v$version",
-            "RELEASE_CHANNEL",
-            "--prerelease",
+            "release_channel='current'",
+            "release_title=\"Ghost FTP $version\"",
             "packages: write",
-            "if: env.RELEASE_CHANNEL == 'stable'",
+            "Publish verified bundle to GitHub Packages",
+            "test \"$remote_prerelease\" = 'false'",
             "state=unsigned",
             "state=signed",
             "LINUX_PORTABLE=amd64,arm64,i386",
@@ -167,17 +176,22 @@ def main() -> int:
         ),
         ".github/workflows/release.yml",
     )
+    if "--prerelease" in release_workflow:
+        fail("current 0.0.x release workflow must not mark the GitHub Release as prerelease")
 
     retention = read(".github/workflows/release-retention.yml")
     require(
         retention,
         (
             "Publish Ghost FTP",
+            "test \"$release_prerelease\" = 'false'",
+            "test \"$asset_count\" -eq 15",
             "gh release delete",
             "--cleanup-tag",
             "packages/container/ghost-ftp/versions",
+            "Keeping current package version",
             "GHOSTFTP_RELEASE_RETENTION=PASS",
-            "GHOSTFTP_PACKAGE_RETENTION=PASS",
+            "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
         ),
         ".github/workflows/release-retention.yml",
@@ -187,12 +201,14 @@ def main() -> int:
         read("scripts/audit_release.py"),
         (
             "MINIMUM_PUBLIC_VERSION=0.0.1",
+            "PUBLIC_RELEASE_CHANNEL=CURRENT",
+            "CURRENT_RELEASE_PRERELEASE_FLAG=FALSE",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
             "PUBLIC_PLATFORM_ARTIFACTS=12",
             "PUBLIC_RELEASE_FILES=15",
             "LINUX_PORTABLE=amd64,arm64,i386",
-            "STABLE_GHCR_BUNDLE=REQUIRED",
-            "STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
+            "GHCR_CURRENT_BUNDLE=REQUIRED",
+            "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
             "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
         ),
         "scripts/audit_release.py",
@@ -206,21 +222,20 @@ def main() -> int:
     if 'version = read("VERSION").strip()' not in localization_audit:
         fail("localization audit does not read VERSION dynamically")
 
-    channel = "beta" if major == 0 else "stable"
-    print(f"VERSION_AUDIT=PASS ({version}; channel={channel})")
+    print(f"VERSION_AUDIT=PASS ({version}; channel=current)")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("PRE_1_0_CHANNEL=BETA")
+    print("PUBLIC_RELEASE_CHANNEL=CURRENT")
+    print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
-    print("STABLE_RELEASE_PRERELEASE_FLAG=FALSE")
-    print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("STABLE_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
+    print("CURRENT_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
     return 0
 
 
