@@ -41,7 +41,7 @@ func TestCleanupFailureRejectsSpoofedMissingText(t *testing.T) {
 
 func TestCleanupFailureAcceptsStructuredCurlMissingResult(t *testing.T) {
 	original := errors.New("upload failed")
-	missing := &toolError{tool: "curl", code: 78, message: "server text is irrelevant"}
+	missing := &toolError{tool: "curl", code: 78, kind: "not_found"}
 	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
 		return missing
 	})
@@ -52,12 +52,12 @@ func TestCleanupFailureAcceptsStructuredCurlMissingResult(t *testing.T) {
 
 func TestCleanupFailureRejectsSFTPMissingText(t *testing.T) {
 	original := errors.New("upload failed")
-	missingText := &toolError{tool: "sftp", code: 1, message: "No such file"}
+	missingText := &toolError{tool: "sftp", code: 1, kind: "not_found"}
 	err := cleanupFailure(original, "/www", ".GhostFTP-part-test", func(context.Context, string, string, bool) error {
 		return missingText
 	})
 	if !isRemoteResidualArtifactError(err) {
-		t.Fatalf("SFTP diagnostic text is not structured proof of absence: %v", err)
+		t.Fatalf("SFTP missing classification is not structured proof of absence: %v", err)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestCommittedCleanupFailureMarksCommittedState(t *testing.T) {
 }
 
 func TestResidualCleanupErrorBlocksAutomaticRetry(t *testing.T) {
-	transport := &toolError{tool: "curl", code: 56, message: "recv failure"}
+	transport := &toolError{tool: "curl", code: 56, kind: "connection_lost", retryable: true}
 	if !IsRetryable(transport) {
 		t.Fatal("transport interruption should be retryable before cleanup uncertainty")
 	}
