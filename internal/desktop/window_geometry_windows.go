@@ -14,6 +14,7 @@ type responsiveMonitorInfo struct {
 }
 
 var monitorFromWindowResponsive = user32.NewProc("MonitorFromWindow")
+var monitorFromRectResponsive = user32.NewProc("MonitorFromRect")
 var getMonitorInfoWResponsive = user32.NewProc("GetMonitorInfoW")
 
 func (a *app) logicalFromPhysical(value int32) int {
@@ -77,10 +78,14 @@ func (a *app) responsiveMinTrackSize() (width, height int) {
 }
 
 func (a *app) clampSuggestedWindowRectToWorkArea(value rect) rect {
-	if a == nil || a.hwnd == 0 {
+	if a == nil {
 		return value
 	}
-	monitor, _, _ := monitorFromWindowResponsive.Call(a.hwnd, monitorDefaultToNearest)
+	// WM_DPICHANGED supplies a rectangle for the destination monitor. Resolve
+	// that rectangle directly rather than the window's pre-move HWND position,
+	// otherwise a cross-monitor DPI transition can be clamped back to the old
+	// monitor before MoveWindow applies the suggested bounds.
+	monitor, _, _ := monitorFromRectResponsive.Call(uintptr(unsafe.Pointer(&value)), monitorDefaultToNearest)
 	if monitor == 0 {
 		return value
 	}
