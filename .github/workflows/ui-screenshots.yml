@@ -3,6 +3,16 @@ name: Ghost FTP Authentic UI Screenshots
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'VERSION'
+      - 'internal/desktop/**'
+      - 'internal/i18n/**'
+      - 'internal/platform/**'
+      - 'scripts/capture_windows_screenshots.ps1'
+      - '.github/workflows/ui-screenshots.yml'
   push:
     branches:
       - 'hardening/**'

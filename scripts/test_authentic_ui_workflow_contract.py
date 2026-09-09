@@ -17,6 +17,21 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("!contains(github.ref_name, '-prep-')", persist)
         self.assertIn("refusing a stale screenshot commit", persist)
 
+    def test_pull_request_ui_changes_always_request_authentic_capture(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        trigger = workflow.split("permissions:", 1)[0]
+        self.assertIn("pull_request:", trigger)
+        self.assertIn("- main", trigger)
+        for path in (
+            "'VERSION'",
+            "'internal/desktop/**'",
+            "'internal/i18n/**'",
+            "'internal/platform/**'",
+            "'scripts/capture_windows_screenshots.ps1'",
+            "'.github/workflows/ui-screenshots.yml'",
+        ):
+            self.assertIn(path, trigger)
+
     def test_verified_captures_are_always_published_as_artifact(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         publish = workflow.split("- name: Publish authentic UI screenshots", 1)[1]
