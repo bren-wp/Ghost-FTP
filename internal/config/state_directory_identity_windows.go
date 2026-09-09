@@ -2,8 +2,19 @@
 
 package config
 
-import "os"
+import (
+	"os"
+	"syscall"
+)
 
 func sameStateDirectoryIdentity(before, after os.FileInfo) bool {
-	return before != nil && after != nil && os.SameFile(before, after)
+	if before == nil || after == nil || !os.SameFile(before, after) {
+		return false
+	}
+	beforeData, beforeOK := before.Sys().(*syscall.Win32FileAttributeData)
+	afterData, afterOK := after.Sys().(*syscall.Win32FileAttributeData)
+	if !beforeOK || !afterOK || beforeData == nil || afterData == nil {
+		return false
+	}
+	return beforeData.CreationTime == afterData.CreationTime
 }
