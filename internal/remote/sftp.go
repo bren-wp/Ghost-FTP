@@ -56,16 +56,10 @@ func findOpenSSH(name string) (string, error) {
 		}
 		return "", errors.New("SFTP support is not available on this Windows installation")
 	}
-	if systemDir, err := systemDirectory(); err == nil && systemDir != "" {
-		p := filepath.Join(systemDir, "OpenSSH", name)
-		if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() {
-			return p, nil
-		}
-	}
 	if strings.HasSuffix(strings.ToLower(name), ".exe") {
 		name = strings.TrimSuffix(name, filepath.Ext(name))
 	}
-	if p, err := exec.LookPath(name); err == nil {
+	if p, err := findTrustedTransportExecutable(name); err == nil {
 		return p, nil
 	}
 	return "", errors.New("SFTP component was not found")
