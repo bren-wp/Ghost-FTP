@@ -102,8 +102,11 @@ class WindowsDecisionDialogContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, flow)
 
-    def test_release_version_is_1_1_7(self) -> None:
-        self.assertEqual(self.read("VERSION").strip(), "1.1.7")
+    def test_decision_card_contract_applies_to_current_stable_line(self) -> None:
+        version = self.read("VERSION").strip()
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+        parts = tuple(int(part) for part in version.split("."))
+        self.assertGreaterEqual(parts, (1, 1, 7))
 
 
 if __name__ == "__main__":

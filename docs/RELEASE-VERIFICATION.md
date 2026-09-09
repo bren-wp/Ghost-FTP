@@ -2,7 +2,7 @@
 
 This document defines verification for Ghost FTP 1.x Stable releases. The current maintained release is **1.1.8 Stable**. Verification covers source identity, Windows signing state, Linux package metadata/parity, SHA-256 values, GitHub Release state and GitHub Packages registry state.
 
-## 1.1.8 release identity
+## Published 1.1.8 release identity
 
 ```text
 VERSION=1.1.8
