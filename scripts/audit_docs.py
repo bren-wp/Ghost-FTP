@@ -25,32 +25,14 @@ STALE_SIGNING_POLICY_MARKERS = (
     "stable release whose windows signing state is not trusted/configured",
     "stable windows authenticode gate",
     "stable windows signing gate",
-    "stable windows publication requires",
-    "stable windows publication additionally requires",
 )
 ACTIVE_DOCS = (
-    "README.md",
-    "docs/README.md",
-    "docs/INSTALLATION.md",
-    "docs/ARCHITECTURE.md",
-    "docs/ROADMAP.md",
-    "docs/GITHUB-RELEASES.md",
-    "docs/PACKAGES.md",
-    "docs/RELEASE-VERIFICATION.md",
-    "docs/CONTRIBUTING.md",
-    "docs/PLATFORM-PARITY.md",
-    "docs/VERSIONING.md",
-    "docs/SECURITY.md",
-    "docs/PRIVACY.md",
-    "docs/SIGNING.md",
-    "docs/LOCALIZATION.md",
-    "docs/DEPENDENCIES.md",
-    "docs/SETTINGS.md",
-    "docs/TESTING.md",
-    "docs/SUPPORT.md",
-    "docs/REFERENCE-UI.md",
-    "linux/README.md",
-    "scripts/README.md",
+    "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
+    "docs/ROADMAP.md", "docs/GITHUB-RELEASES.md", "docs/PACKAGES.md",
+    "docs/RELEASE-VERIFICATION.md", "docs/CONTRIBUTING.md", "docs/PLATFORM-PARITY.md",
+    "docs/VERSIONING.md", "docs/SECURITY.md", "docs/PRIVACY.md", "docs/SIGNING.md",
+    "docs/LOCALIZATION.md", "docs/DEPENDENCIES.md", "docs/SETTINGS.md", "docs/TESTING.md",
+    "docs/SUPPORT.md", "docs/REFERENCE-UI.md", "linux/README.md", "scripts/README.md",
 )
 VISUAL_ASSETS = (
     "build/icon.png",
@@ -113,7 +95,12 @@ def main() -> int:
     version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
-    major = int(version.split(".", 1)[0])
+    parts = tuple(int(part) for part in version.split("."))
+    if parts < (0, 0, 1):
+        fail("documentation public version must be 0.0.1 or newer")
+    major = parts[0]
+    channel = "Beta" if major == 0 else "Stable"
+    prerelease = "true" if major == 0 else "false"
 
     files = sorted(path for path in ROOT.rglob("*.md") if ".git" not in path.parts)
     if not files or not INDEX.is_file():
@@ -149,13 +136,9 @@ def main() -> int:
         readme,
         (
             f"Current Ghost FTP version: **{version}**",
-            "Development status: **Stable**" if major >= 1 else "Development status: **Beta**",
-            "Windows",
-            "Linux",
-            "24",
-            "FTP",
-            "FTPS",
-            "SFTP",
+            f"Development status: **{channel}**",
+            "Windows", "Linux", "24", "FTP", "FTPS", "SFTP",
+            f"ghostftp-v{version}", f"prerelease={prerelease}",
         ),
     )
     require_markers(
@@ -163,30 +146,37 @@ def main() -> int:
         index,
         (
             f"**Current Ghost FTP release: {version}**",
-            "prerelease=false" if major >= 1 else "Development status: **Beta**",
+            f"Development status: **{channel}**",
+            f"PRERELEASE={prerelease}",
+            "latest release only",
         ),
     )
 
-    readme_visual_markers = (
-        'src="build/icon.png"',
-        "docs/images/ghost-ftp-main-workspace.png",
-        "docs/images/ghost-ftp-site-manager.png",
-        "docs/images/ghost-ftp-settings.png",
-        "docs/images/ghost-ftp-about.png",
-        "repository-local assets",
+    require_markers(
+        "README visual contract",
+        readme,
+        (
+            'src="build/icon.png"',
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-site-manager.png",
+            "docs/images/ghost-ftp-settings.png",
+            "docs/images/ghost-ftp-about.png",
+            "repository-local assets",
+        ),
     )
-    index_visual_markers = (
-        'src="../build/icon.png"',
-        "images/ghost-ftp-main-workspace.png",
-        "images/ghost-ftp-site-manager.png",
-        "images/ghost-ftp-settings.png",
-        "images/ghost-ftp-about.png",
-        "repository-local",
+    require_markers(
+        "documentation index visual contract",
+        index,
+        (
+            'src="../build/icon.png"',
+            "images/ghost-ftp-main-workspace.png",
+            "images/ghost-ftp-site-manager.png",
+            "images/ghost-ftp-settings.png",
+            "images/ghost-ftp-about.png",
+            "repository-local",
+        ),
     )
     reference_ui = read("docs/REFERENCE-UI.md")
-    privacy = read("docs/PRIVACY.md")
-    require_markers("README visual contract", readme, readme_visual_markers)
-    require_markers("documentation index visual contract", index, index_visual_markers)
     require_markers(
         "reference UI visual contract",
         reference_ui,
@@ -196,17 +186,16 @@ def main() -> int:
             "images/ghost-ftp-settings.png",
             "images/ghost-ftp-about.png",
             "Mockups, image-generation output and manually composed approximations are not accepted",
+            "Remote Edit",
         ),
     )
+    privacy = read("docs/PRIVACY.md")
     require_markers(
         "privacy documentation media contract",
         privacy,
         (
             "Documentation media is repository-local.",
-            "remote badge images",
-            "tracking pixels",
-            "remote icon resources",
-            "remote webfonts",
+            "remote badge images", "tracking pixels", "remote icon resources", "remote webfonts",
         ),
     )
     ui_workflow = read(".github/workflows/ui-screenshots.yml")
@@ -232,36 +221,35 @@ def main() -> int:
             if marker in lowered:
                 fail(f"stale mandatory-signing policy appears in active guidance: {relative} -> {marker}")
 
-    current_contract = (
+    release_contract = (
         "12 platform artifacts / 15 public files",
         f"Ghost-FTP-{version}-Setup-x64.exe",
         f"Ghost-FTP-{version}-Portable-x64.exe",
         f"Ghost-FTP-{version}-Linux-amd64.deb",
         f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
-        f"ghcr.io/bren-wp/ghost-ftp:{version}",
     )
-    require_markers("README release contract", readme, current_contract)
-    require_markers("documentation index release contract", index, current_contract[:1])
+    require_markers("README release contract", readme, release_contract)
+    require_markers("documentation index release contract", index, (release_contract[0],))
+    if major == 0:
+        if f"ghcr.io/bren-wp/ghost-ftp:{version}" in readme or f"ghcr.io/bren-wp/ghost-ftp:{version}" in index:
+            fail("Beta documentation must not claim a Stable GHCR bundle for the current version")
+    else:
+        require_markers("README stable package", readme, (f"ghcr.io/bren-wp/ghost-ftp:{version}",))
 
     installation = read("docs/INSTALLATION.md")
     require_markers(
         "installation release contract",
         installation,
         (
-            f"Ghost FTP **{version} Stable** is the current published stable release",
+            f"Ghost FTP **{version} {channel}** is the current published {channel} release",
             f"Ghost-FTP-{version}-Setup-x64.exe",
             f"Ghost-FTP-{version}-Linux-amd64.deb",
             f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
             "Canonical release packages",
             "Supplemental distro-specific source/CI packages",
-            "Linux-Debian-amd64.deb",
-            "Linux-Ubuntu-amd64.deb",
-            "Linux-Fedora-x86_64.rpm",
-            "Debian 13 amd64",
-            "Ubuntu 26.04 LTS amd64",
-            "Fedora 44 x86_64",
-            "not yet part of the canonical release allow-list",
-            "x86-64 only",
+            "Linux-Debian-amd64.deb", "Linux-Ubuntu-amd64.deb", "Linux-Fedora-x86_64.rpm",
+            "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
+            "not yet part of the canonical release allow-list", "x86-64 only",
             "12 platform artifacts / 15 public files",
         ),
     )
@@ -271,50 +259,25 @@ def main() -> int:
         "linux distro contract",
         linux_readme,
         (
-            "linux/BUILD-DISTROS.sh",
-            "Linux-Debian-amd64.deb",
-            "Linux-Ubuntu-amd64.deb",
-            "Linux-Fedora-x86_64.rpm",
-            "Linux-Portable-amd64.tar.gz",
-            "`amd64` | `x86_64`",
-            "`arm64` | `aarch64`",
-            "`i386` | `i686`",
-            ".github/workflows/linux-distro-packages.yml",
-            ".github/workflows/linux-distro-install.yml",
-            "Debian 13 amd64",
-            "Ubuntu 26.04 LTS amd64",
-            "Fedora 44 x86_64",
-            "x86-64 only",
-            "12 platform artifacts / 15 public files",
+            "linux/BUILD-DISTROS.sh", "Linux-Debian-amd64.deb", "Linux-Ubuntu-amd64.deb",
+            "Linux-Fedora-x86_64.rpm", "Linux-Portable-amd64.tar.gz",
+            "`amd64` | `x86_64`", "`arm64` | `aarch64`", "`i386` | `i686`",
+            ".github/workflows/linux-distro-packages.yml", ".github/workflows/linux-distro-install.yml",
+            "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
+            "x86-64 only", "12 platform artifacts / 15 public files",
         ),
     )
-
-    for required_path in (
-        "linux/BUILD-DISTROS.sh",
-        ".github/workflows/linux-distro-packages.yml",
-        ".github/workflows/linux-distro-install.yml",
-    ):
-        if not (ROOT / required_path).is_file():
-            fail(f"documented Linux distro implementation missing: {required_path}")
 
     parity = read("docs/PLATFORM-PARITY.md")
     require_markers(
         "platform parity documentation",
         parity,
         (
-            "Windows and Linux platform parity",
-            "SFTP password",
-            "SFTP key passphrase",
-            "24-language",
-            "same typed `internal/api.Engine`",
-            "Production Authenticode is optional.",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "linux/BUILD-DISTROS.sh",
-            "Debian 13 amd64",
-            "Ubuntu 26.04 LTS amd64",
-            "Fedora 44 x86_64",
-            "x86-64 only",
-            "12 platform artifacts / 15 public files",
+            "Windows and Linux platform parity", "SFTP password", "SFTP key passphrase", "24-language",
+            "same typed `internal/api.Engine`", "Production Authenticode is optional.",
+            "WINDOWS_AUTHENTICODE=unsigned", "linux/BUILD-DISTROS.sh",
+            "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
+            "x86-64 only", "12 platform artifacts / 15 public files",
         ),
     )
 
@@ -323,16 +286,11 @@ def main() -> int:
         "testing documentation",
         testing,
         (
-            f"Ghost FTP **{version} Stable**",
-            ".github/workflows/linux-distro-packages.yml",
-            ".github/workflows/linux-distro-install.yml",
-            "linux/BUILD-DISTROS.sh",
-            "Debian 13 amd64",
-            "Ubuntu 26.04 LTS amd64",
-            "Fedora 44 x86_64",
+            f"Ghost FTP **{version} {channel}**",
+            ".github/workflows/linux-distro-packages.yml", ".github/workflows/linux-distro-install.yml",
+            "linux/BUILD-DISTROS.sh", "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
             "Native package-manager/runtime coverage is deliberately limited to x86-64.",
-            "12 platform artifacts / 15 public files",
-            "Exact-head and post-merge rule",
+            "12 platform artifacts / 15 public files", "Exact-head and post-merge rule",
         ),
     )
 
@@ -341,13 +299,10 @@ def main() -> int:
         "GitHub Releases documentation",
         releases,
         (
-            f"Ghost FTP **{version} Stable** is the current published stable release",
-            f"ghostftp-v{version}",
-            f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
-            "12 platform artifacts",
-            "15 public files",
-            "release/ghostftp-vX.Y.Z",
-            "workflow_dispatch",
+            f"Ghost FTP **{version} {channel}** is the current published {channel} release",
+            f"ghostftp-v{version}", f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
+            "12 platform artifacts", "15 public files", "release/ghostftp-vX.Y.Z", "workflow_dispatch",
+            "only the latest public Ghost FTP version remains", "release-retention.yml",
         ),
     )
 
@@ -356,15 +311,13 @@ def main() -> int:
         "release verification documentation",
         verification,
         (
-            f"current maintained release is **{version} Stable**",
-            f"VERSION={version}",
-            f"TAG=ghostftp-v{version}",
+            f"current maintained release is **{version} {channel}**",
+            f"VERSION={version}", f"TAG=ghostftp-v{version}", f"PRERELEASE={prerelease}",
             f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
-            "12 platform artifacts",
-            "15 public files",
-            "truthful supported publication state",
+            "12 platform artifacts", "15 public files", "truthful supported publication state",
             "does not create a self-signed production identity",
             "explicit unsigned metadata when no production certificate is configured",
+            "LATEST_ONLY_RELEASE_RETENTION=YES",
         ),
     )
 
@@ -373,24 +326,22 @@ def main() -> int:
         "packages documentation",
         packages,
         (
-            f"Ghost FTP **{version} Stable is published**",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
-            "distribution bundle",
-            "not a runtime container",
-            "/ghostftp-release/",
-            "SHA256.txt",
-            "12 platform artifacts / 15 public files",
+            f"Ghost FTP **{version} {channel}**",
+            "ghcr.io/bren-wp/ghost-ftp", "distribution bundle", "not a runtime container",
+            "/ghostftp-release/", "SHA256.txt", "12 platform artifacts / 15 public files",
             "Authenticode verification **when a trusted production certificate is configured**",
-            "WINDOWS_AUTHENTICODE=unsigned",
+            "WINDOWS_AUTHENTICODE=unsigned", "latest",
         ),
     )
+    if major == 0 and f"ghcr.io/bren-wp/ghost-ftp:{version}" in packages:
+        fail("Beta package documentation must not claim a current Stable GHCR bundle")
 
     support = read("docs/SUPPORT.md")
     require_markers(
         "support documentation",
         support,
         (
-            f"Ghost FTP **{version} Stable**",
+            f"Ghost FTP **{version} {channel}**",
             "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
             "official file is explicitly `unsigned`",
             "if metadata says `signed` and Windows signature verification fails",
@@ -403,18 +354,24 @@ def main() -> int:
         signing,
         (
             "supports Windows Authenticode signing as an optional production hardening layer",
-            "WINDOWS_AUTHENTICODE=signed",
-            "WINDOWS_AUTHENTICODE=unsigned",
+            "WINDOWS_AUTHENTICODE=signed", "WINDOWS_AUTHENTICODE=unsigned",
             "production workflow never creates its own long-lived publisher key",
         ),
     )
 
-    print(f"DOCS_AUDIT=PASS ({version}; {len(files)} Markdown files)")
+    history = read("docs/RELEASE-HISTORY.md")
+    require_markers(
+        "release history",
+        history,
+        (f"## {version} {channel}", "latest public Ghost FTP version", "release-retention.yml"),
+    )
+
+    print(f"DOCS_AUDIT=PASS ({version}; channel={channel.lower()}; {len(files)} Markdown files)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
     print("PRE_1_0_CHANNEL=BETA")
-    print("FIRST_STABLE_VERSION=1.0.0")
-    print("STABLE_GITHUB_RELEASE_PRERELEASE=FALSE")
+    print("MINIMUM_PUBLIC_VERSION=0.0.1")
+    print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("STABLE_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
@@ -422,9 +379,7 @@ def main() -> int:
     print("PUBLIC_RELEASE_FILES=15")
     print("SUPPLEMENTAL_DISTRO_PACKAGING=DEBIAN,UBUNTU,FEDORA,PORTABLE")
     print("NATIVE_DISTRO_INSTALL_COVERAGE=DEBIAN13_AMD64,UBUNTU26.04_AMD64,FEDORA44_X86_64")
-    print("SUPPLEMENTAL_DISTRO_RELEASE_ASSETS=NO")
-    print("DOCS_LOCAL_VISUALS=PASS (icon=build/icon.png; authentic_screenshots=4; remote_media=blocked)")
-    print("STABLE_GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp")
+    print("DOCS_LOCAL_VISUALS=PASS")
     return 0
 
 
