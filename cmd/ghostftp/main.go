@@ -238,11 +238,12 @@ func runApplication() (exitCode int) {
 		showError("Ghost FTP could not start. Restart the computer and try again.")
 		return 1
 	}
-	askpassExe, err := platform.StableAskPassExecutable(exe)
-	if err != nil {
-		showError("Ghost FTP could not establish a safe authentication helper identity.")
-		return 1
-	}
+	// Linux portable/per-user binaries intentionally continue without a
+	// credential AskPass helper when their executable pathname is mutable.
+	// SFTP refuses to emit credential capability environment data unless this
+	// value is a trusted executable path. Installed/root-controlled Linux and
+	// normal Windows builds retain password/passphrase AskPass support.
+	askpassExe, _ := platform.StableAskPassExecutable(exe)
 
 	dataDir, err := api.DataDir()
 	if err != nil {

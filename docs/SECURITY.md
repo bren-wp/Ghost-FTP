@@ -57,6 +57,12 @@ Some FTP/SFTP functionality uses explicitly detected system transfer tools. Proc
 
 Tool availability is diagnosed; the application does not silently download replacement networking tools.
 
+On Linux, `curl`, `ssh`, `sftp` and `ssh-keyscan` are accepted only through a root-owned executable and directory/symlink provenance chain that is not writable by group or other users. `PATH` is a discovery hint, not a trust boundary.
+
+Linux OpenSSH AskPass adds a second executable-identity boundary. The Ghost FTP helper path used for password/private-key-passphrase delivery must have the same trusted root-controlled provenance and must identify the same inode as the already-running Ghost FTP image. `/proc/self/exe` is used only inside Ghost FTP as an identity oracle; it is never handed to OpenSSH as `SSH_ASKPASS`, because process-memory hardening may make another same-UID process unable to dereference that procfs path.
+
+The immediate AskPass parent must also resolve to a trusted root-controlled `ssh` or `sftp` executable. If the running Ghost FTP path is user-writable, such as a directly extracted Portable/per-user copy, Ghost FTP continues to run but does not construct a credential-bearing AskPass environment. The failure occurs before the AskPass token is generated and before the OpenSSH child is started, so password/passphrase capability material is not exposed merely to preserve convenience on a mutable helper path.
+
 ## Saved credential protection
 
 Saved credentials are opt-in. The main Save Profile flow and Windows Site Manager use the same explicit consent policy before a newly entered password or private-key passphrase is persisted.
