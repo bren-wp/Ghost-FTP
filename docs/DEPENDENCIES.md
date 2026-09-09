@@ -1,6 +1,6 @@
 # Ghost FTP dependencies
 
-Ghost FTP **1.1.6 Stable** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit. The maintained `main` source may contain post-1.1.6 hardening and packaging improvements before the next maintenance release is prepared.
+Ghost FTP **0.0.1** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit.
 
 ## Go module contract
 
@@ -51,7 +51,7 @@ Windows production packages are native application executables/Setup wrappers ge
 
 Linux uses the maintained native X11/XWayland-compatible frontend backed by the same Engine. The Linux renderer is not a second protocol implementation.
 
-The DEB format declares `ca-certificates`, `curl` and `openssh-client` as package dependencies. Post-1.1.6 source/CI packaging also builds package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386. Those archives intentionally do **not** bundle Debian metadata, `curl`, OpenSSH, CA certificates or a desktop toolkit; users on non-Debian distributions must provide equivalent system protocol prerequisites through their own package manager.
+The DEB format declares `ca-certificates`, `curl` and `openssh-client` as package dependencies. The maintained source/CI packaging also builds package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386. Those archives intentionally do **not** bundle Debian metadata, `curl`, OpenSSH, CA certificates or a desktop toolkit; users on non-Debian distributions must provide equivalent system protocol prerequisites through their own package manager.
 
 Creating a portable tarball therefore does not change Ghost FTP's runtime dependency model and does not justify claiming a distribution-specific RPM/AppImage/Flatpak/Snap package until that format has its own build and verification contract.
 
@@ -63,7 +63,7 @@ Ghost FTP has **zero external Go modules** in the maintained root module, but it
 
 CI/release workflows use pinned GitHub Actions revisions for checkout, language setup and artifact transfer. These are build-system dependencies, not installed-application dependencies.
 
-The stable release additionally uses Docker available on the GitHub-hosted Ubuntu runner to construct the GHCR distribution bundle from `FROM scratch`. Docker is not bundled into Ghost FTP and is not required to run the desktop application.
+The current release additionally uses Docker available on the GitHub-hosted Ubuntu runner to construct the GHCR distribution bundle from `FROM scratch`. Docker is not bundled into Ghost FTP and is not required to run the desktop application.
 
 ## GitHub Packages
 
