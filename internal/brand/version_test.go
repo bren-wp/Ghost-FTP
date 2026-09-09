@@ -8,11 +8,13 @@ func TestDisplayVersion(t *testing.T) {
 		in   string
 		want string
 	}{
-		{name: "beta baseline", in: "0.1.0", want: "0.1.0 Beta"},
-		{name: "later beta", in: "0.9.7", want: "0.9.7 Beta"},
-		{name: "first stable", in: "1.0.0", want: "1.0.0"},
-		{name: "later stable", in: "1.4.2", want: "1.4.2"},
+		{name: "first public release", in: "0.0.1", want: "0.0.1"},
+		{name: "later zero-major release", in: "0.9.7", want: "0.9.7"},
+		{name: "one-major release", in: "1.0.0", want: "1.0.0"},
+		{name: "later release", in: "1.4.2", want: "1.4.2"},
+		{name: "trim whitespace", in: " 0.0.2\n", want: "0.0.2"},
 		{name: "development fallback", in: "", want: "dev"},
+		{name: "whitespace development fallback", in: " \t\n", want: "dev"},
 	}
 
 	for _, test := range tests {
