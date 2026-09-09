@@ -10,8 +10,8 @@ const (
 )
 
 var (
-	queueGetDlgItem    = user32.NewProc("GetDlgItem")
-	queueGetWindowRect = user32.NewProc("GetWindowRect")
+	queueGetDlgItem     = user32.NewProc("GetDlgItem")
+	queueGetWindowRect  = user32.NewProc("GetWindowRect")
 	queueScreenToClient = user32.NewProc("ScreenToClient")
 )
 
