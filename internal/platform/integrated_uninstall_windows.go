@@ -18,17 +18,15 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
 )
 
-const (
-	ghostFTPUninstallKey              = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
-	ghostFTPAppPathsKey               = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
-	ghostFTPInstalledDigestValue      = "InstalledExecutableSHA256"
-	integratedUninstallFinalizeArg    = "--uninstall-finalize"
-	integratedUninstallDigestEnv      = "GHOSTFTP_UNINSTALL_SHA256"
-	integratedUninstallHelperPrefix   = ".ghostftp-uninstall-"
-	processSynchronizeAccess  uintptr = 0x00100000
-	waitObject0               uintptr = 0x00000000
-	waitInfinite              uintptr = 0xffffffff
-)
+const ghostFTPUninstallKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
+const ghostFTPAppPathsKey = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
+const ghostFTPInstalledDigestValue = "InstalledExecutableSHA256"
+const integratedUninstallFinalizeArg = "--uninstall-finalize"
+const integratedUninstallDigestEnv = "GHOSTFTP_UNINSTALL_SHA256"
+const integratedUninstallHelperPrefix = ".ghostftp-uninstall-"
+const processSynchronizeAccess uintptr = 0x00100000
+const waitObject0 uintptr = 0x00000000
+const waitInfinite uintptr = 0xffffffff
 
 var kernel32IntegratedUninstall = syscall.NewLazyDLL("kernel32.dll")
 var openProcessIntegratedUninstall = kernel32IntegratedUninstall.NewProc("OpenProcess")
