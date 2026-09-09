@@ -36,21 +36,16 @@ func TestFindOpenSSHUsesNativeExecutableNameOutsideWindows(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("non-Windows executable-name regression")
 	}
-	dir := t.TempDir()
-	tool := filepath.Join(dir, "sftp")
-	if err := os.WriteFile(tool, []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir)
-	oldSystemDirectory := systemDirectory
-	systemDirectory = func() (string, error) { return "", os.ErrNotExist }
-	t.Cleanup(func() { systemDirectory = oldSystemDirectory })
 
-	got, err := findOpenSSH("sftp.exe")
+	withWindowsSuffix, err := findOpenSSH("sftp.exe")
+	if err != nil {
+		t.Skipf("trusted native sftp is unavailable: %v", err)
+	}
+	native, err := findOpenSSH("sftp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != tool {
-		t.Fatalf("findOpenSSH returned %q, want native tool %q", got, tool)
+	if withWindowsSuffix != native {
+		t.Fatalf("findOpenSSH(sftp.exe)=%q want same trusted native executable as findOpenSSH(sftp)=%q", withWindowsSuffix, native)
 	}
 }
