@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class WindowsUninstallContractTests(unittest.TestCase):
     def setUp(self):
+        self.constants = (ROOT / "cmd/installer/uninstall_constants.go").read_text(encoding="utf-8")
         self.registration = (ROOT / "cmd/installer/uninstall_registration_windows.go").read_text(encoding="utf-8")
         self.snapshot = (ROOT / "cmd/installer/registry_snapshot.go").read_text(encoding="utf-8")
         self.runtime = (ROOT / "internal/platform/integrated_uninstall_windows.go").read_text(encoding="utf-8")
@@ -23,7 +24,7 @@ class WindowsUninstallContractTests(unittest.TestCase):
         self.assertIn("InfoDialog(", self.runtime)
 
     def test_installer_records_and_rolls_back_executable_ownership_digest(self):
-        self.assertIn('const installedExecutableDigestValue = "InstalledExecutableSHA256"', self.registration)
+        self.assertIn('const installedExecutableDigestValue = "InstalledExecutableSHA256"', self.constants)
         self.assertIn("platform.VerifiedRegularFileSHA256(appPath)", self.registration)
         self.assertIn("{installedExecutableDigestValue, digest}", self.registration)
         self.assertIn("{uninstallKey, installedExecutableDigestValue}", self.snapshot)
@@ -38,7 +39,7 @@ class WindowsUninstallContractTests(unittest.TestCase):
         self.assertIn("installed executable no longer matches its ownership digest", self.runtime)
 
     def test_final_cleanup_is_verified_helper_and_object_bound(self):
-        self.assertIn('integratedUninstallFinalizeArg    = "--uninstall-finalize"', self.runtime)
+        self.assertIn('const integratedUninstallFinalizeArg = "--uninstall-finalize"', self.runtime)
         self.assertIn("prepareIntegratedUninstallHelper", self.runtime)
         self.assertIn("openVerifiedRegularFile(exe, false)", self.runtime)
         self.assertIn("verifiedOpenFileSHA256(source)", self.runtime)
