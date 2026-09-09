@@ -33,6 +33,7 @@ var installerStringRegistryValues = []struct{ key, name string }{
 	{uninstallKey, "InstallLocation"},
 	{uninstallKey, "DisplayIcon"},
 	{uninstallKey, "UninstallString"},
+	{uninstallKey, installedExecutableDigestValue},
 	{uninstallKey, "QuietUninstallString"},
 	{uninstallKey, "URLInfoAbout"},
 }
