@@ -21,8 +21,9 @@ var version = "dev"
 const (
 	messageBoxError       = 0x10
 	messageBoxInformation = 0x40
-	taskpassTokenLength    = 32
 )
+
+const taskpassTokenLength = 32
 
 var askpassEnvironmentKeys = [...]string{
 	"GhostFTP_ASKPASS_TOKEN",
