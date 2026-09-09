@@ -1,6 +1,6 @@
 # Ghost FTP settings
 
-Ghost FTP **0.0.1** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer.
+Ghost FTP **0.0.1** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
 
 ## Current persisted settings
 
@@ -14,6 +14,35 @@ Ghost FTP **0.0.1** treats settings as validated runtime policy rather than deco
 - `confirmDelete` — confirmation for user-initiated destructive operations.
 
 Compatibility state such as older overwrite booleans may be normalized internally but must not become duplicate user-facing controls.
+
+## Runtime ownership
+
+Every exposed option has one explicit runtime owner:
+
+| Option | Runtime effect |
+| --- | --- |
+| Parallel transfers | Bounds how many transfer workers may run concurrently. |
+| Connection timeout | Bounds connection establishment and related connection work. |
+| Automatic retries | Limits retries for failures classified as retryable. |
+| Retry delay | Defines the bounded delay between eligible automatic retries. |
+| Conflict policy | Selects skip, safe replace, or safe replace with retained recovery backup. |
+| Delete confirmation | Controls user confirmation before destructive local/server deletion. |
+| Appearance | Selects the maintained Windows Classic Light/Dark workspace. |
+| Language | Selects one of the local 24-language catalogs with English fallback. |
+
+The Windows and Linux settings surfaces consume the same shared model for options they expose. A frontend must not silently accept a value that the shared configuration layer rejects.
+
+## Compatibility and migration
+
+Older or partial settings payloads are migrated only when a missing value can be distinguished safely from an explicit user value.
+
+- Missing legacy `parallelism=0` migrates to the canonical default **2**, because valid user values begin at 1.
+- Missing connection timeout and retry delay continue to migrate to their canonical safe defaults.
+- Explicit invalid parallelism such as a negative value or a value above 8 is still rejected rather than silently rewritten.
+- Unknown persisted conflict-policy state fails closed to the conservative replace-with-recovery-backup behavior.
+- Legacy overwrite booleans are synchronized from the one canonical `conflictPolicy` field when settings are saved.
+
+Regression tests cover both migration and continued rejection of explicit invalid values.
 
 ## Windows settings surface
 
@@ -75,6 +104,12 @@ Credential persistence is a per-save privacy decision rather than a hidden globa
 
 Delete confirmation defaults to enabled. Destructive actions must respect the validated shared setting.
 
+## Button and option quality rule
+
+A control is not considered implemented merely because it is visible. Main desktop controls are covered by a regression contract that compares the Windows button IDs with their command handlers and the Linux rendered control rectangles with their click handlers. Settings changes additionally require a backend validation path and tests proving the setting changes runtime behavior or policy.
+
+New power-user options such as bandwidth limits, directory comparison/synchronized browsing, search/filter and queue priority are roadmap items until the complete engine + Windows + Linux + localization + test path exists. They must not appear as decorative or non-functional switches.
+
 ## Persistence and recovery
 
 Settings are stored in bounded local state with safe replacement/recovery behavior. Loaded data is normalized before it becomes effective runtime policy, and the state-directory identity is pinned so later pathname replacement cannot silently redirect settings/profile I/O.
@@ -83,4 +118,4 @@ Settings are stored in bounded local state with safe replacement/recovery behavi
 
 One behavior has one canonical setting. A new option is release-ready only when it has a clear runtime owner, safe bounded default, migration behavior, honest platform exposure and localized user-facing copy where required.
 
-See [Architecture](ARCHITECTURE.md), [Privacy](PRIVACY.md), [Security](SECURITY.md) and [Localization](LOCALIZATION.md).
+See [Architecture](ARCHITECTURE.md), [Privacy](PRIVACY.md), [Security](SECURITY.md), [Testing](TESTING.md) and [Localization](LOCALIZATION.md).
