@@ -99,6 +99,52 @@ class UIActionWiringTests(unittest.TestCase):
         self.assertNotIn("_ = a.engine.CancelTransfer", transfers)
         self.assertNotIn("_ = a.engine.RetryTransfer", transfers)
 
+    def test_linux_queue_actions_share_policy_and_surface_engine_errors(self) -> None:
+        ui = self.read("internal/desktop/gui_linux.go")
+        actions = self.read("internal/desktop/queue_actions_linux.go")
+
+        for marker in (
+            "deriveTransferActionState",
+            "usererror.MessageFor",
+            "u.engine.PauseTransfers()",
+            "u.engine.ResumeTransfers()",
+            "u.engine.CancelTransfer(id)",
+            "u.engine.RetryTransfer(id)",
+            "u.refreshLinuxTransfersPreservingSelection(id)",
+            "u.engine.ClearFinishedTransfers()",
+        ):
+            self.assertIn(marker, actions)
+
+        self.assertNotIn("_ = u.engine.CancelTransfer", ui)
+        self.assertNotIn("_ = u.engine.RetryTransfer", ui)
+        self.assertIn("actions := u.linuxTransferActionState()", ui)
+        self.assertIn('u.drawButton(u.layout.pause, u.tr("transfer.pause"), actions.Pause && !u.busy, false)', ui)
+        self.assertIn('u.drawButton(u.layout.resume, u.tr("transfer.resume"), actions.Resume && !u.busy, false)', ui)
+        self.assertIn('u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), actions.Cancel && !u.busy, false)', ui)
+        self.assertIn('u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), actions.Retry && !u.busy, false)', ui)
+        self.assertIn('u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false)', ui)
+        self.assertIn("u.pauseTransfersLinux()", ui)
+        self.assertIn("u.resumeTransfersLinux()", ui)
+        self.assertIn("u.cancelSelectedTransferLinux()", ui)
+        self.assertIn("u.retrySelectedTransferLinux()", ui)
+        self.assertIn("u.clearFinishedTransfersLinux()", ui)
+
+    def test_linux_disabled_queue_controls_are_functionally_inert(self) -> None:
+        actions = self.read("internal/desktop/queue_actions_linux.go")
+        tests = self.read("internal/desktop/queue_actions_linux_test.go")
+        for state in ("Pause", "Resume", "Cancel", "Retry", "Clear"):
+            self.assertIn(f"!state.{state}", actions)
+        self.assertGreaterEqual(
+            actions.count("u.busy || !state."),
+            5,
+            "every Linux queue mutation helper must reject busy or disabled state",
+        )
+        self.assertIn(
+            "TestLinuxBusyQueueMutationsAreInert",
+            tests,
+            "behavioral busy-state regression coverage must remain present",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
