@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **1.1.7 Stable** is the current release. A release is accepted only when source tests, audits, native production builds, signing-state checks, packaging verification, authentic UI evidence and distribution read-back pass for the exact release revision.
+Ghost FTP **1.1.8 Stable** is the current release. A release is accepted only when source tests, audits, native production builds, signing-state checks, packaging verification, authentic UI evidence and distribution read-back pass for the exact release revision.
 
 Historical Stable releases remain immutable. New gates strengthen future/current source without rewriting older tags, assets or checksums.
 
@@ -37,11 +37,30 @@ The quality job runs brand/repository/platform/desktop/dependency/version/locali
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
+The version audit binds active `docs/VERSIONING.md` candidate/tag/GHCR/checklist markers to root `VERSION` so stale release guidance cannot pass silently.
+
 ## Protocol and transfer regressions
 
 Deterministic tests cover real loopback FTP lifecycle, invalid credentials, FTPS no-downgrade behavior, SFTP host-key and secret ownership, transfer staging/rollback, cancellation/retry generation binding, local-root containment, recursive filesystem operations, path/symlink/reparse safeguards, settings/profile recovery and privacy-safe diagnostics.
 
-The 1.1.7 line additionally protects rooted tree preparation and the Windows modal/picker localization changes with explicit Go/Python regression contracts.
+The 1.1.8 line additionally verifies that raw child-process diagnostics are classified but not exposed/retained and that the private MLSD unsupported semantic still drives protocol fallback correctly.
+
+## Linux transport and AskPass regression gate
+
+Tests and structural audits require:
+
+- trusted root-controlled provenance for discovered `curl`, `ssh`, `sftp` and `ssh-keyscan` executables;
+- rejection of user-controlled PATH shadowing, writable parent chains and invalid executable types;
+- support for legitimate root-owned usr-merge symlink layouts;
+- trusted absolute immediate `ssh`/`sftp` parent provenance for credential-bearing AskPass;
+- `/proc/self/exe` only as the running-image identity oracle, not as the OpenSSH helper path;
+- fail-closed behavior before AskPass token/environment/spawn when helper provenance is not trusted.
+
+## State and filesystem identity gate
+
+Regressions verify that a bound config state directory cannot be removed/recreated, replaced by a different real directory or redirected through a symlink/junction/reparse path without the Store rejecting subsequent state access.
+
+Existing rooted local transfer/delete/mkdir safeguards, staged activation, path containment and remote cleanup proof remain part of the security suite.
 
 ## Windows production gate
 
@@ -58,18 +77,25 @@ The release assembly creates `Ghost-FTP-X.Y.Z-Setup-x32.exe` as a byte-identical
 
 CI validates package metadata and runs an Authenticode private-key pipeline smoke test with a short-lived development certificate. Production publication signs only when a protected trusted production certificate is configured; otherwise metadata records `WINDOWS_AUTHENTICODE=unsigned`.
 
-## Windows modal/localization regression gate
+## Windows installer/uninstall ownership gate
 
 Tests require:
 
-- application-owned Confirm/Info/Error DecisionCard primary routing;
-- stock TaskDialog/MessageBox only as creation-failure fallback;
-- shared native Light/Dark palette, DPI, owner modality and keyboard loop;
-- live-locale OK/Cancel/Yes/No labels;
-- 24-language Save Profile privacy/security text;
-- runtime-localized native SSH-key and folder pickers;
-- adaptive DecisionCard geometry for long localized text;
-- unchanged credential clear/retain binding semantics.
+- retained install-directory identity and parent-chain safety through transaction/rollback/cleanup;
+- digest ownership for Desktop and Start Menu shortcuts;
+- verified-handle hashing/deletion of the exact owned shortcut object;
+- preservation of foreign/modified shortcuts and the Start Menu parent directory;
+- legacy `Uninstall.exe` deletion only after matching pre-upgrade registry ownership plus verified digest;
+- integrated uninstall registry/application executable identity proof and exact-object cleanup through the short-lived helper;
+- no pathname-only final delete authority for these ownership-sensitive artifacts.
+
+## Windows geometry gate
+
+Regression coverage includes small/effective work areas, canonical desktop sizing, negative-origin monitor coordinates and mixed-DPI transitions. `WM_DPICHANGED` suggested bounds must use the destination monitor implied by the suggested rectangle rather than the old window monitor.
+
+## Windows modal/localization regression gate
+
+Tests continue to require application-owned Confirm/Info/Error DecisionCard routing, shared native Light/Dark palette, DPI/owner/keyboard semantics, live-locale action labels, 24-language profile privacy/security text, runtime-localized native pickers and unchanged credential clear/retain binding semantics.
 
 ## Canonical Linux production gate
 
@@ -112,23 +138,23 @@ Native package-manager/runtime coverage is deliberately limited to x86-64. arm64
 
 ## Authentic screenshot gate
 
-The dedicated Windows screenshot workflow builds and launches the real x64 Portable executable and captures Main Workspace, Site Manager, Settings and About. Release-prep evidence must come from that exact final head and must display the intended 1.1.7 public version/branding without clipping or overlap. A mockup is not accepted as evidence.
+The dedicated Windows screenshot workflow builds and launches the real x64 Portable executable and captures Main Workspace, Site Manager, Settings and About. Release-prep evidence must come from that exact final head and must display the intended 1.1.8 public version/branding without clipping or overlap. A mockup is not accepted as evidence.
 
 ## Localization gate
 
-Localization checks require exactly 24 canonical languages, English default/fallback, valid catalog keys/format verbs, Windows live localization, Setup primary-copy coverage and Linux runtime switching. Native picker titles/filters and privacy-sensitive profile credential decisions are part of the maintained localization surface.
+Localization checks require exactly 24 canonical languages, English default/fallback, valid catalog keys/format verbs, Windows live localization, Setup primary-copy coverage and Linux runtime switching.
 
 ## Privacy gate
 
-Privacy audit rejects fixed product telemetry URLs, tracking-vendor markers, forbidden general-purpose runtime network imports, credential-file regressions and ineffective build telemetry controls. The GHCR bundle copies only the verified release directory and builds with networking disabled.
+Privacy audit rejects fixed product telemetry URLs, tracking-vendor markers, forbidden general-purpose runtime network imports, credential-file regressions and ineffective build telemetry controls. It also enforces the shortened raw diagnostic lifetime. The GHCR bundle copies only the verified release directory and builds with networking disabled.
 
 ## Release gate
 
 `.github/workflows/release.yml` runs quality, Windows and canonical Linux jobs before publication.
 
-Ghost FTP 1.1.7 assembles **12 platform artifacts / 15 public files**: five Windows artifacts, three generic Linux DEBs, three generic Linux tar.gz archives, the Linux multiarch ZIP and three metadata/checksum files.
+Ghost FTP 1.1.8 assembles **12 platform artifacts / 15 public files**: five Windows artifacts, three generic Linux DEBs, three generic Linux tar.gz archives, the Linux multiarch ZIP and three metadata/checksum files.
 
-The historical 1.1.6 release remains immutable at **9 platform artifacts / 12 public files**. Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages are not included in the 1.1.7 public release count.
+The historical 1.1.7 release remains immutable at the same canonical 12/15 shape. Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages are not included in the 1.1.8 public release count.
 
 Before and after publication, the workflow verifies that `main` is still the exact release commit and that an existing version tag is not rewritten. Signing state must be either `signed` or `unsigned`; absence of a production certificate is carried as explicit unsigned metadata.
 

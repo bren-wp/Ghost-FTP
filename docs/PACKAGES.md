@@ -8,15 +8,15 @@ Ghost FTP publishes a verified **distribution bundle** to GitHub Packages for ea
 ghcr.io/bren-wp/ghost-ftp:<version>
 ```
 
-Ghost FTP **1.1.7 Stable is published**. Its canonical immutable version tag is:
+Ghost FTP **1.1.8 Stable is published** by the canonical release contract. Its immutable semantic-version tag is:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.7
+ghcr.io/bren-wp/ghost-ftp:1.1.8
 ```
 
 Compatible aliases `1.1`, `1` and `latest` are updated only after the semantic-version package has been published and read back successfully. Automation that requires reproducibility should use the full semantic version and, when possible, pin the OCI digest.
 
-Historical package versions, including 1.1.6, remain immutable distribution identities and are not rewritten by later releases.
+Historical package versions, including 1.1.7, remain immutable distribution identities and are not rewritten by later releases.
 
 ## What the package contains
 
@@ -26,7 +26,7 @@ The OCI object contains the verified release directory under:
 /ghostftp-release/
 ```
 
-For 1.1.7 that directory mirrors the canonical **12 platform artifacts / 15 public files** GitHub Release assembly:
+For 1.1.8 that directory mirrors the canonical **12 platform artifacts / 15 public files** GitHub Release assembly:
 
 - five Windows Setup/Portable files;
 - Linux DEBs for amd64, arm64 and i386;
@@ -40,7 +40,7 @@ This is a **distribution bundle**, not a runtime container. Ghost FTP remains a 
 
 ## Canonical release-bundle contract
 
-Before 1.1.7 can be accepted as published, the production workflow must:
+Before 1.1.8 can be accepted as published, the production workflow must:
 
 - build DEB and `.tar.gz` outputs for amd64, arm64 and i386;
 - validate DEB metadata and portable archive structure;
@@ -68,6 +68,7 @@ Every Stable package is produced only after the same quality gates used for GitH
 - security, privacy, dependency, repository, platform, localization and documentation audits;
 - Windows x64/x86 Setup and Portable production builds;
 - Linux production builds and package verification;
+- supplemental distro build/parity and native x86-64 lifecycle gates;
 - release asset allow-list verification;
 - SHA-256 manifest generation;
 - Authenticode verification **when a trusted production certificate is configured**;
@@ -84,9 +85,9 @@ The package is built only from the already assembled `release/` allow-list. It d
 
 ## Digest-first automation
 
-For Ghost FTP 1.1.7:
+For Ghost FTP 1.1.8:
 
-1. resolve `ghcr.io/bren-wp/ghost-ftp:1.1.7` to its OCI digest;
+1. resolve `ghcr.io/bren-wp/ghost-ftp:1.1.8` to its OCI digest;
 2. pin that digest where practical;
 3. extract `/ghostftp-release/SHA256.txt`;
 4. verify every release file;
@@ -95,4 +96,4 @@ For Ghost FTP 1.1.7:
 
 This gives two integrity references: the OCI manifest digest and the per-file SHA-256 manifest, plus an explicit Windows signing-state declaration.
 
-The immutable 1.1.6 GHCR object retains its historical 9-platform-artifact/12-public-file shape. 1.1.7 expands only the new versioned bundle.
+The immutable 1.1.7 GHCR object retains its historical 12-platform-artifact/15-public-file shape. Ghost FTP 1.1.8 preserves that canonical shape while publishing a new immutable semantic-version bundle.

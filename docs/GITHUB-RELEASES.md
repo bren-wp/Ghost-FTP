@@ -1,14 +1,14 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **1.1.7 Stable** is the current published stable release. Ghost FTP **1.1.6 Stable** is the previous maintenance release; all published Stable tags/releases remain immutable historical identities. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
+Ghost FTP **1.1.8 Stable** is the current published stable release contract. Ghost FTP **1.1.7 Stable** is the previous immutable maintenance release; all published Stable tags/releases remain immutable historical identities. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
-The 1.1.7 stable identity is:
+The 1.1.8 Stable identity is:
 
 ```text
-Tag: ghostftp-v1.1.7
-Title: Ghost FTP 1.1.7
+Tag: ghostftp-v1.1.8
+Title: Ghost FTP 1.1.8
 Prerelease: false
 ```
 
@@ -22,34 +22,34 @@ A version with major number 1 or greater is Stable. Stable GitHub Releases use `
 
 `release.yml` is intentionally `workflow_dispatch`-only. **A push to `main`, including a commit that changes `VERSION`, must not publish a release directly.**
 
-The canonical release-branch namespace is `release/ghostftp-vX.Y.Z`. For 1.1.7, release preparation must first pass exact-head Core, Windows, Linux, distro and authentic Windows UI evidence. After merge, the exact resulting `main` SHA must pass the post-merge gates. Only then may `release/ghostftp-v1.1.7` be created at that same SHA.
+The canonical release-branch namespace is `release/ghostftp-vX.Y.Z`. For 1.1.8, release preparation must first pass exact-head Core, Windows, Linux, distro and authentic Windows UI evidence. After merge, the exact resulting `main` SHA must pass the post-merge gates. Only then may `release/ghostftp-v1.1.8` be created at that same SHA.
 
 `.github/workflows/release-branch-trigger.yml` validates both branch-to-main SHA equality and branch-version-to-`VERSION` equality before dispatching `.github/workflows/release.yml` with the expected version guard. This prevents duplicate or premature publication from an ordinary version bump.
 
-## Published 1.1.7 public files
+## Published 1.1.8 public files
 
-Ghost FTP 1.1.7 exposes **12 platform artifacts**.
+Ghost FTP 1.1.8 exposes **12 platform artifacts**.
 
 Windows:
 
 ```text
-Ghost-FTP-1.1.7-Setup-x64.exe
-Ghost-FTP-1.1.7-Setup-x86.exe
-Ghost-FTP-1.1.7-Setup-x32.exe
-Ghost-FTP-1.1.7-Portable-x64.exe
-Ghost-FTP-1.1.7-Portable-x86.exe
+Ghost-FTP-1.1.8-Setup-x64.exe
+Ghost-FTP-1.1.8-Setup-x86.exe
+Ghost-FTP-1.1.8-Setup-x32.exe
+Ghost-FTP-1.1.8-Portable-x64.exe
+Ghost-FTP-1.1.8-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-1.1.7-Linux-amd64.deb
-Ghost-FTP-1.1.7-Linux-arm64.deb
-Ghost-FTP-1.1.7-Linux-i386.deb
-Ghost-FTP-1.1.7-Linux-multiarch.zip
-Ghost-FTP-1.1.7-Linux-amd64.tar.gz
-Ghost-FTP-1.1.7-Linux-arm64.tar.gz
-Ghost-FTP-1.1.7-Linux-i386.tar.gz
+Ghost-FTP-1.1.8-Linux-amd64.deb
+Ghost-FTP-1.1.8-Linux-arm64.deb
+Ghost-FTP-1.1.8-Linux-i386.deb
+Ghost-FTP-1.1.8-Linux-multiarch.zip
+Ghost-FTP-1.1.8-Linux-amd64.tar.gz
+Ghost-FTP-1.1.8-Linux-arm64.tar.gz
+Ghost-FTP-1.1.8-Linux-i386.tar.gz
 ```
 
 Verification/metadata:
@@ -60,13 +60,13 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-That is **15 public files** total. The three generic tar.gz archives are new canonical 1.1.7 public artifacts; the immutable 1.1.6 release remains at its historical 9-platform-artifact/12-public-file shape.
+That is **15 public files** total. Ghost FTP 1.1.8 preserves the canonical 12/15 release shape introduced in 1.1.7; the immutable 1.1.7 release remains unchanged. The older immutable 1.1.6 release remains at its historical 9-platform-artifact/12-public-file shape.
 
 ## Linux portable parity gate
 
 For every Linux architecture the production job requires both a `.deb` and `.tar.gz`, validates DEB metadata, validates portable archive structure and compares the DEB-installed `ghostftp` executable with the portable archive executable byte-for-byte. The publish job stages the exact 15-file allow-list, hashes it and requires both immediate and delayed remote asset read-back to match exactly.
 
-Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages built by `linux/BUILD-DISTROS.sh` remain **not yet part of the canonical release allow-list**. Their build/parity and native install evidence does not change the public 1.1.7 file count.
+Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages built by `linux/BUILD-DISTROS.sh` remain **not yet part of the canonical release allow-list**. Their build/parity and native install evidence does not change the public 1.1.8 file count.
 
 ## Exact-head rule
 
@@ -87,7 +87,7 @@ Author/publisher identity is intentionally confined to the application's About s
 
 ## Windows signing state
 
-Authenticode signing is optional for stable publication. If protected production signing secrets are configured, Windows Setup/Portable artifacts are signed and every signature must verify. If no production certificate is configured, Windows artifacts are published unsigned and `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
+Authenticode signing is optional for Stable publication. If protected production signing secrets are configured, Windows Setup/Portable artifacts are signed and every signature must verify. If no production certificate is configured, Windows artifacts are published unsigned and `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
 
 The workflow never generates a self-signed production publisher identity and never labels an unsigned artifact as signed.
 
@@ -101,7 +101,7 @@ PUBLIC_PLATFORM_ARTIFACTS=12
 PUBLIC_RELEASE_FILES=15
 ```
 
-`Ghost-FTP-1.1.7-Setup-x32.exe` is intentionally a byte-identical compatibility alias of the verified x86 Setup artifact and is not a separate architecture build.
+`Ghost-FTP-1.1.8-Setup-x32.exe` is intentionally a byte-identical compatibility alias of the verified x86 Setup artifact and is not a separate architecture build.
 
 ## Read-back verification
 
@@ -111,13 +111,13 @@ A local build is not release evidence. Remote tag, Release assets and package re
 
 ## GitHub Packages
 
-Stable 1.1.7 is published at:
+Stable 1.1.8 is published at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:1.1.7
+ghcr.io/bren-wp/ghost-ftp:1.1.8
 ```
 
-Compatible stable aliases are updated only after semantic-version package publication and registry read-back:
+Compatible Stable aliases are updated only after semantic-version package publication and registry read-back:
 
 ```text
 1.1
@@ -129,9 +129,9 @@ The registry object is an OCI distribution bundle, not a runtime container. It c
 
 See [Packages](PACKAGES.md).
 
-## 1.1.7 release evidence
+## 1.1.8 release evidence
 
-The 1.1.7 line includes application-owned Windows decision dialogs, shared native modal theme/keyboard behavior, runtime 24-language action/profile/privacy/picker localization, adaptive DecisionCard geometry for longer translations, canonical Linux tar.gz publication with DEB parity verification and continued rooted transfer/filesystem regression hardening.
+The 1.1.8 line includes privacy-safe child-process diagnostic classification, strict Linux transport and AskPass executable provenance, state-directory identity pinning, Windows installer/uninstaller/shortcut ownership and exact-object cleanup, and monitor-work-area/mixed-DPI responsive geometry. It preserves FTPS/SFTP trust, rooted transfer/filesystem protections, the 24-language contract and the 12/15 release shape.
 
 Authentic Main Workspace, Site Manager, Settings and About screenshots must be generated from the real production Windows x64 Portable executable on the exact final release-prep revision and visually reviewed. Mockups or generated approximations are not accepted.
 

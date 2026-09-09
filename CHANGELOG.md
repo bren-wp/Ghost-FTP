@@ -1,5 +1,56 @@
 # Changelog
 
+## 1.1.8 - 2026-09-09 Stable
+
+### Diagnostic privacy and protocol behavior
+
+- Prevented raw `curl`, `ssh`, `sftp` and `ssh-keyscan` diagnostics from escaping through generic user-facing errors.
+- Classify child-process diagnostics while bounded output is in scope and retain only privacy-safe semantic state needed for user errors, retry decisions and protocol fallback.
+- Preserved FTP MLSD unsupported-command fallback through a private structured semantic instead of retaining or reproducing raw server replies.
+- Redacted `ssh-keyscan` failures while preserving safe resolution/transport categories and strict SFTP host-key verification/pinning.
+
+### Linux transport and AskPass provenance
+
+- Blocked Linux `PATH` shadowing for `curl`, `ssh`, `sftp` and `ssh-keyscan`; accepted transport executables must resolve through trusted root-controlled, non-group/other-writable filesystem provenance.
+- Shared the trusted executable-provenance primitive across transport discovery and the Linux OpenSSH AskPass boundary.
+- Require the immediate AskPass parent to be a trusted absolute `ssh`/`sftp` executable and use `/proc/self/exe` only as an in-process identity oracle rather than handing a procfs path to OpenSSH.
+- Fail closed for credential-bearing AskPass when the Ghost FTP helper executable is user-writable or otherwise cannot prove the required trusted provenance.
+
+### State, installer and uninstall ownership hardening
+
+- Pinned the Ghost FTP state-directory filesystem identity for the lifetime of the config Store so later pathname replacement cannot redirect settings/profile reads or writes.
+- Pinned the Windows installation-directory identity and parent-chain safety through backup, activation, rollback and cleanup.
+- Added SHA-256 ownership records for Desktop and Start Menu shortcuts, preserving foreign or user-modified same-name shortcuts.
+- Delete owned Windows shortcuts only through a verified non-reparse handle whose digest still matches the recorded Ghost FTP ownership marker.
+- Preserve the Start Menu parent/company directory even when Ghost FTP removes its owned shortcut and the directory becomes empty.
+- Bind legacy `Uninstall.exe` cleanup to pre-upgrade registry ownership plus a verified-handle digest; pathname/name alone is never deletion authority.
+- Bind integrated uninstall to installed executable identity, registry ownership and verified exact-object cleanup through a short-lived helper rather than a permanent external uninstaller or pathname-only reboot delete.
+
+### Windows display stability
+
+- Make startup geometry and minimum tracking size adapt to the active monitor work area instead of forcing a fixed minimum that can extend beyond small/effective displays.
+- Preserve multi-monitor offsets, including negative monitor origins.
+- Clamp `WM_DPICHANGED` suggested bounds against the destination monitor selected from the suggested rectangle, preventing mixed-DPI monitor transitions from being forced back to the old monitor.
+
+### Documentation and engineering quality
+
+- Published authentic repository-local Windows UI evidence and strengthened the documentation audit against remote badge/image/font/tracking dependencies.
+- Added production engineering/audit and `ghostftp.com` dark-theme implementation prompts that preserve the application security/privacy contract and canonical UI palette.
+- Corrected stale active versioning documentation and strengthened the version audit so the current candidate, tag, GHCR reference and release checklist must track root `VERSION`.
+
+### Release contract
+
+Ghost FTP 1.1.8 preserves the canonical **12 platform artifacts / 15 public files** release shape introduced by 1.1.7:
+
+- Windows Setup x64/x86 plus byte-identical x32 compatibility alias;
+- Windows Portable x64/x86;
+- Linux DEB and generic tar.gz for amd64/arm64/i386 plus the Linux multiarch ZIP;
+- `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`;
+- Stable GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:1.1.8`;
+- no telemetry, analytics, advertising, tracking SDK, hidden product service or new external Go module dependency.
+
+The 1.1.8 Stable candidate must pass exact-head Go race/vet/audits/regressions, Windows and Linux production builds, Authenticode policy smoke, supplemental distro package/parity gates, Debian 13 / Ubuntu 26.04 LTS / Fedora 44 lifecycle smoke, authentic Windows UI evidence, exact post-merge `main` verification, canonical `release/ghostftp-v1.1.8` branch guards, immutable GitHub Release publication, exact 15-file asset read-back and GHCR read-back. Published `ghostftp-v1.1.7` remains immutable.
+
 ## 1.1.7 - 2026-09-09 Stable
 
 ### Native Windows UI and UX
@@ -39,7 +90,7 @@
 
 ### Release contract
 
-The 1.1.7 Stable candidate requires:
+The 1.1.7 Stable candidate required:
 
 - `go test -race ./...`, `go vet ./...` and Go formatting checks;
 - brand/repository/platform/desktop/dependency/version/localization/security/privacy/documentation/release audits;
@@ -49,9 +100,8 @@ The 1.1.7 Stable candidate requires:
 - supplemental distro-package build/parity CI;
 - Debian 13, Ubuntu 26.04 LTS and Fedora 44 native lifecycle/GUI smoke;
 - Authenticode policy verification and private-key pipeline smoke test;
-- authentic Windows x64 Portable Main/Site Manager/Settings/About screenshots from the exact final release-prep head;
+- authentic Windows x64 Portable Main/Site Manager/Settings/About screenshots;
 - exact-head PR CI and exact post-merge `main` CI;
-- exact-main `release/ghostftp-v1.1.7` branch validation;
 - immutable `ghostftp-v1.1.7` Stable GitHub Release with `prerelease=false`, exact 15-file asset set and GHCR `1.1.7` distribution-bundle publication/read-back.
 
 ## 1.1.6 - 2026-09-08 Stable
