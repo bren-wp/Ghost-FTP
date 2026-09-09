@@ -1,19 +1,19 @@
 # Ghost FTP release verification
 
-The current maintained release is **0.0.1 Beta**.
+The current maintained release is **0.0.1**.
 
 ## Canonical identity
 
 ```text
 VERSION=0.0.1
 TAG=ghostftp-v0.0.1
-CHANNEL=Beta
-PRERELEASE=true
+CHANNEL=Current
+PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=12
 PUBLIC_RELEASE_FILES=15
 ```
 
-The release source must be the exact current `main` commit that passed the complete release gate.
+The release source must be the exact current `main` commit that passed the complete release gate. The canonical release contains **12 platform artifacts / 15 public files**.
 
 ## Canonical public files
 
@@ -73,11 +73,12 @@ The x32 Setup compatibility alias must be byte-identical to the x86 Setup file.
 BRAND=Ghost FTP
 VERSION=0.0.1
 RELEASE_TAG=ghostftp-v0.0.1
-RELEASE_CHANNEL=beta
+RELEASE_CHANNEL=current
 ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
 LINUX_PORTABLE=amd64,arm64,i386
 PUBLIC_PLATFORM_ARTIFACTS=12
 PUBLIC_RELEASE_FILES=15
+GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.1
 ```
 
 ## Windows Authenticode
@@ -96,27 +97,35 @@ If metadata says `signed` and Windows signature verification fails, treat the ar
 
 ## Remote release read-back
 
-The publish workflow requires the remote GitHub Release asset set to match the exact 15-file allow-list immediately and after a delay. For 0.0.1 it requires `prerelease=true`.
+The publish workflow requires the remote GitHub Release asset set to match the exact 15-file allow-list immediately and after a delay. For 0.0.1 it requires `prerelease=false`.
 
 A local build alone is not release evidence.
+
+## GitHub Packages read-back
+
+The same verified release directory is published as a distribution-only bundle at:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
+
+The canonical workflow verifies the exact version tag after push. The package is not a supported runtime container and must not be treated as an application service.
 
 ## Latest-only retention verification
 
 Only after the 0.0.1 release read-back succeeds does `.github/workflows/release-retention.yml` remove superseded public versions.
 
+Before destructive cleanup, retention verifies the current release is not a draft, has `prerelease=false`, exposes exactly 15 assets and its tag points to current `main`.
+
 Retention is complete only when:
 
 - exactly one Ghost FTP GitHub Release remains and it is `ghostftp-v0.0.1`;
 - exactly one `ghostftp-v*` tag remains and it is `ghostftp-v0.0.1`;
-- completed versioned release branches are removed;
-- obsolete Ghost FTP package versions are removed;
+- the current canonical release branch is retained and superseded versioned release branches are removed;
+- the current `0.0.1` package version remains and obsolete Ghost FTP package versions are removed;
 - retention emits `LATEST_ONLY_RELEASE_RETENTION=YES`.
 
 The `main` commit history is never rewritten by retention cleanup.
-
-## Beta package behavior
-
-0.0.1 is Beta and therefore does not require a Stable GHCR distribution bundle. Any package versions from superseded numbering lines are removed by retention cleanup.
 
 ## Verification commands
 
