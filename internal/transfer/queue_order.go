@@ -65,6 +65,7 @@ func (m *Manager) moveQueued(id string, direction int) error {
 				neighbor = i
 				break
 			}
+		}
 	}
 	if neighbor < 0 {
 		// The requested job is already at the corresponding queued edge. This is
