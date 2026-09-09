@@ -1,10 +1,10 @@
 # Ghost FTP roadmap
 
-Ghost FTP **1.1.1 Stable** is the current maintenance candidate on top of the published 1.1.0 feature line. The roadmap prioritizes reliability, security, privacy, performance and Windows/Linux parity before broad new surface area.
+Ghost FTP **0.0.1** starts the current public release line. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area.
 
-## Completed stable foundation
+## Current 0.0.1 foundation
 
-The stable gate includes:
+The current release gate includes:
 
 - native Windows and Linux desktop clients backed by one typed Engine;
 - FTP, FTPS and SFTP workflows;
@@ -14,42 +14,33 @@ The stable gate includes:
 - transfer generation binding, source snapshots and staged/rollback-oriented operations;
 - privacy-safe connection diagnostics;
 - truthful transfer progress, speed and ETA;
-- native Windows Setup/Portable packaging and Linux DEB packaging;
+- built-in Remote Edit with bounded text handling, revision/conflict protection and verified save/read-back;
+- native Windows Setup/Portable packaging and Linux DEB/portable packaging;
 - 24-language local catalog with English default/fallback;
 - production race/vet/security/privacy/dependency/documentation audits;
-- normal stable GitHub Release publication with `prerelease=false`;
+- current GitHub Release publication with `prerelease=false`;
 - truthful Windows signing-state metadata with fail-closed verification when trusted production signing is configured;
-- stable GitHub Packages/GHCR distribution-bundle publication and read-back.
+- current GitHub Packages/GHCR distribution-bundle publication and read-back;
+- latest-only release/tag/package retention only after a successor is successfully published and verified.
 
-## 1.1.1 maintenance priorities
+## Next 0.0.x priorities
 
-The 1.1.1 patch line closes compatibility and quality gaps without inventing unrelated features:
+After 0.0.1 is fully published and verified, the next public release is **0.0.2**. Work should be driven by demonstrated defects or high-value functionality, including:
 
-1. make Classic Light the actual fresh/missing/invalid-state primary appearance while retaining an explicit persisted Dark choice;
-2. use explicit FTPS/21 as the fresh quick-connect default on Windows and Linux while keeping plain FTP as an intentional legacy option;
-3. deepen deterministic `remote.Manager.Connect()` and real loopback FTP lifecycle coverage;
-4. preserve secure-to-plain downgrade blocking and SFTP host-key trust;
-5. align credential-persistence consent between the main profile workflow and Windows Site Manager;
-6. complete 24-language coverage for privacy-sensitive and native auxiliary Windows prompts;
-7. keep large-directory/list and transfer UI redraw work event/state driven;
-8. keep documentation and authentic real-application screenshots synchronized with the executable;
-9. preserve Setup/Portable/DEB and release-package integrity.
+1. connection lifecycle, stale-session state and reconnect correctness;
+2. cancel/retry/partial-transfer/interrupted-transfer behavior;
+3. large-directory/list memory and UI responsiveness;
+4. further Remote Edit shutdown/disconnect/conflict edge cases;
+5. transfer atomicity, overwrite decisions, temp-file cleanup and application-shutdown behavior;
+6. Windows/Linux functional parity for file operations, queue state, shortcuts, settings and error handling;
+7. measured performance improvements such as avoiding duplicate stat/list work, stale callbacks and unnecessary redraws;
+8. accessibility and keyboard refinements;
+9. documentation and authentic real-application screenshots synchronized with exact release source;
+10. carefully selected FileZilla/WinSCP/Cyberduck-class capabilities only where they add real user value without clutter.
 
-## Next compatible priorities
+## macOS direction
 
-Future patch/minor work should focus on measurable needs:
-
-- crash/deadlock/race fixes found by reproducible production usage;
-- protocol interoperability edge cases that can be reproduced deterministically;
-- transfer-state and rollback correctness;
-- large-directory/list performance and redraw efficiency;
-- privacy-safe diagnostic quality;
-- Setup/update/uninstall rollback reliability;
-- accessibility and keyboard refinements;
-- improved Linux visual parity without adding a heavy runtime framework;
-- optional export/import of non-secret profile metadata with explicit security boundaries.
-
-Features are not considered accepted merely because they are visually attractive. They must have a clear security/privacy model, tests, documentation and Windows/Linux behavior.
+macOS remains a separate future scope. Documentation must not claim macOS support until the common engine has been audited for Darwin, platform contracts and CI/build gates exist, and a real native macOS frontend is built and tested. Any future macOS implementation must reuse the same FTP/FTPS/SFTP engine, security/privacy rules and Remote Edit logic rather than introducing a third protocol stack.
 
 ## Non-negotiable constraints
 
@@ -58,12 +49,15 @@ Future work must preserve:
 - no application telemetry/advertising/fingerprinting;
 - no mandatory Ghost FTP account;
 - no silent secure-transport downgrade;
-- SFTP host-key verification;
+- SFTP host-key verification/pinning;
+- FTPS certificate/hostname verification;
 - protected saved-secret handling;
 - local path containment and symlink/reparse safety;
 - fail-closed transfer cleanup/commit behavior;
+- trusted Linux transport and AskPass provenance;
+- exact-object/ownership-aware Windows installer/uninstaller cleanup;
 - exact source/version binding for public releases;
-- truthful Windows signing states: configured trusted signatures verify fail-closed, otherwise Stable publication remains explicitly `WINDOWS_AUTHENTICODE=unsigned`;
+- truthful Windows signing states: configured trusted signatures verify fail-closed, otherwise current publication remains explicitly `WINDOWS_AUTHENTICODE=unsigned`;
 - no generated/self-signed production identity represented as a trusted publisher;
 - verified GitHub Release and GitHub Package publication;
 - no unreviewed external Go dependencies.
@@ -77,6 +71,7 @@ Optimization work should target measured hotspots:
 - avoid repeated filesystem scans when a validated snapshot is sufficient;
 - keep transfer progress publication bounded and truthful;
 - reduce unnecessary allocations/copies in listing and transfer planning;
+- prevent goroutine leaks, stale callbacks and incomplete timeout cleanup;
 - keep CI deterministic and offline for the Go dependency graph.
 
 ## Security/privacy direction
@@ -85,6 +80,10 @@ Security hardening should favor deterministic rejection and actionable errors ov
 
 Release security should improve publisher trust when a real certificate is available without weakening integrity verification or inventing trust when it is not.
 
+## Release direction
+
+The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place. A newer version must pass exact-head and post-merge verification, publication and remote read-back before superseded public release/tag/package identities can be removed by retention.
+
 ## Definition of roadmap completion
 
-A roadmap item is complete only after code, regression tests, security/privacy implications, active documentation and production CI/release gates agree on the behavior. Published release tags and historical documentation remain immutable evidence rather than being rewritten to match a later roadmap state.
+A roadmap item is complete only after code, regression tests, security/privacy implications, active documentation and production CI/release gates agree on the behavior. Git commit history remains engineering provenance; the active public release catalog follows the verified latest-only lifecycle.
