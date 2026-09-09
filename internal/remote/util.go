@@ -101,6 +101,8 @@ func toolErrorPublicDetail(kind string) string {
 		return "connection lost"
 	case "tls":
 		return "TLS verification failed"
+	case "ftp_unsupported":
+		return "unsupported command"
 	case "ftp_limit":
 		return "connection limit reached"
 	case "ftp_data":
