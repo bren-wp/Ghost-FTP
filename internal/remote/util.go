@@ -51,7 +51,70 @@ type toolError struct {
 	message string
 }
 
-func (e *toolError) Error() string { return e.message }
+// Error deliberately exposes only bounded structural information and a stable,
+// locally generated semantic category. Child-process stderr can contain hosts,
+// usernames, remote paths and private-key paths; it remains private in message
+// for classification and retry decisions and is never reflected verbatim.
+func (e *toolError) Error() string {
+	if e == nil {
+		return "network tool operation failed"
+	}
+	label := toolErrorPublicLabel(e.tool)
+	base := label + " operation failed"
+	if detail := toolErrorPublicDetail(e.UserErrorKind()); detail != "" {
+		base = label + " " + detail
+	}
+	if e.code >= 0 {
+		return fmt.Sprintf("%s (exit code %d)", base, e.code)
+	}
+	return base
+}
+
+func toolErrorPublicLabel(tool string) string {
+	switch strings.ToLower(strings.TrimSpace(tool)) {
+	case "curl":
+		return "curl"
+	case "ssh":
+		return "ssh"
+	case "sftp":
+		return "sftp"
+	default:
+		return "network tool"
+	}
+}
+
+func toolErrorPublicDetail(kind string) string {
+	switch kind {
+	case "auth":
+		return "login failed"
+	case "permission":
+		return "permission denied"
+	case "not_found":
+		return "remote object not found"
+	case "resolve":
+		return "host resolution failed"
+	case "refused":
+		return "connection refused"
+	case "timeout":
+		return "operation timed out"
+	case "connection_lost":
+		return "connection lost"
+	case "tls":
+		return "TLS verification failed"
+	case "ftp_limit":
+		return "connection limit reached"
+	case "ftp_data":
+		return "data connection failed"
+	case "disk":
+		return "remote storage unavailable"
+	case "hostkey_changed":
+		return "host key verification failed"
+	case "sftp_settings":
+		return "credential settings invalid"
+	default:
+		return ""
+	}
+}
 
 func newToolError(tool string, runErr error, message string) error {
 	code := -1
@@ -87,7 +150,13 @@ func IsRetryable(err error) bool {
 		}
 		return false
 	}
-	msg := strings.ToLower(err.Error())
+	msg := err.Error()
+	if te != nil {
+		// Raw child-process diagnostics stay private to the remote package for
+		// classification/retry decisions even though toolError.Error is redacted.
+		msg = te.message
+	}
+	msg = strings.ToLower(msg)
 	for _, marker := range []string{
 		"permission denied", "access denied", "authentication failed", "login denied", "login incorrect",
 		"host key verification failed", "fingerprint", "no such file", "not found", "not a directory",
