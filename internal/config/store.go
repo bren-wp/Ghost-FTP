@@ -73,7 +73,7 @@ func (s *Store) ensureDirectoryIdentity() error {
 		s.dirIdentity = info
 		return nil
 	}
-	if !os.SameFile(s.dirIdentity, info) {
+	if !sameStateDirectoryIdentity(s.dirIdentity, info) {
 		return errors.New("state mapa je zamijenjena drugim objektom datotečnog sustava")
 	}
 	return nil
