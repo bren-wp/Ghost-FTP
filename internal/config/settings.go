@@ -185,12 +185,17 @@ func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// Missing values from older clients migrate to current safe defaults and
-	// legacy overwrite booleans are converted into the canonical policy.
+	// legacy overwrite booleans are converted into the canonical policy. Zero is
+	// not a valid parallelism value, so it is unambiguous as an omitted legacy
+	// field. Explicit negative/out-of-range values remain validation failures.
 	if v.Language == "" {
 		v.Language = i18n.DefaultLanguage
 	}
 	if v.Appearance == "" {
 		v.Appearance = model.AppearanceLight
+	}
+	if v.Parallelism == 0 {
+		v.Parallelism = DefaultParallelism
 	}
 	if v.ConnectionTimeoutSeconds == 0 {
 		v.ConnectionTimeoutSeconds = DefaultConnectionTimeoutSeconds
