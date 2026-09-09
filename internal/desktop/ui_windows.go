@@ -127,6 +127,7 @@ func (a *app) createControls(hinst uintptr) error {
 	a.remoteRename = mkButton(a.tr("common.rename"), iconRename, buttonDefault, idRemoteRename)
 	a.remoteDelete = mkButton(a.tr("common.delete"), iconDelete, buttonDanger, idRemoteDelete)
 	a.remoteChmod = mkButton(a.tr("common.permissions"), iconPermissions, buttonDefault, idRemoteChmod)
+	storeRemoteEditButton(a, mkButton(remoteEditWords(a.languageCode()).Edit, iconRename, buttonDefault, idRemoteEdit))
 	a.remoteList = mk("SysListView32", "", wsBorder|wsTabStop|lvsReport|lvsShowSelAlways, idRemoteList)
 
 	a.upload = mkButton(a.tr("transfer.upload"), iconUpload, buttonAccent, idUpload)
@@ -266,7 +267,7 @@ func (a *app) defaultFontControls() []uintptr {
 		a.profilesCombo, a.languageCombo, a.saveProfile, a.removeProfile, a.siteManagerBtn, a.settingsBtn, a.aboutBtn,
 		a.protocol, a.host, a.port, a.user, a.pass, a.keyPath, a.chooseKey, a.passphrase, a.connect, a.disconnect,
 		a.localPath, a.localUp, a.localRefresh, a.localChoose, a.localList, a.localMkdir, a.localRename, a.localDelete,
-		a.remotePath, a.remoteUp, a.remoteRefresh, a.remoteList, a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod,
+		a.remotePath, a.remoteUp, a.remoteRefresh, a.remoteList, a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod,
 		a.upload, a.download, a.transferList, a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob, a.clearQueue,
 	}
 }
@@ -555,17 +556,19 @@ func (a *app) layout(width, height int) {
 	a.move(a.remoteRefresh, x, pathY, refreshW, rowH)
 
 	actionY := pathY + rowH + 7
-	mkdirW, renameW, deleteW, chmodW, actionGap := 104, 124, 104, 112, 8
+	mkdirW, renameW, deleteW, actionGap := 104, 124, 104, 8
 	if compact {
-		mkdirW, renameW, deleteW, chmodW, actionGap = 88, 102, 86, 96, 6
+		mkdirW, renameW, deleteW, actionGap = 88, 102, 86, 6
 	}
 	a.move(a.localMkdir, leftX, actionY, mkdirW, rowH)
 	a.move(a.localRename, leftX+mkdirW+actionGap, actionY, renameW, rowH)
 	a.move(a.localDelete, leftX+mkdirW+actionGap+renameW+actionGap, actionY, deleteW, rowH)
-	a.move(a.remoteMkdir, rightX, actionY, mkdirW, rowH)
-	a.move(a.remoteRename, rightX+mkdirW+actionGap, actionY, renameW, rowH)
-	a.move(a.remoteDelete, rightX+mkdirW+actionGap+renameW+actionGap, actionY, deleteW, rowH)
-	a.move(a.remoteChmod, rightX+mkdirW+actionGap+renameW+actionGap+deleteW+actionGap, actionY, chmodW, rowH)
+	remoteActionW := (panelW - 4*actionGap) / 5
+	remoteX := rightX
+	for _, control := range []uintptr{a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod} {
+		a.move(control, remoteX, actionY, remoteActionW, rowH)
+		remoteX += remoteActionW + actionGap
+	}
 
 	statusY, contentBottom := statusBandGeometry(height)
 	queueButtonsH := 33
@@ -647,7 +650,7 @@ func (a *app) validateControls() error {
 		{"local path", a.localPath}, {"local up", a.localUp}, {"local choose", a.localChoose}, {"local refresh", a.localRefresh},
 		{"local list", a.localList}, {"local new folder", a.localMkdir}, {"local rename", a.localRename}, {"local delete", a.localDelete},
 		{"remote path", a.remotePath}, {"remote up", a.remoteUp}, {"remote refresh", a.remoteRefresh}, {"remote list", a.remoteList},
-		{"remote new folder", a.remoteMkdir}, {"remote rename", a.remoteRename}, {"remote delete", a.remoteDelete}, {"remote permissions", a.remoteChmod},
+		{"remote new folder", a.remoteMkdir}, {"remote rename", a.remoteRename}, {"remote delete", a.remoteDelete}, {"remote edit", remoteEditButton(a)}, {"remote permissions", a.remoteChmod},
 		{"upload", a.upload}, {"download", a.download}, {"transfer list", a.transferList}, {"pause", a.pauseQueue}, {"resume", a.resumeQueue},
 		{"cancel transfer", a.cancelJob}, {"retry transfer", a.retryJob}, {"clear transfers", a.clearQueue},
 		{"status", a.status}, {"version", a.statusVersion}, {"transfer summary", a.transferSummary},

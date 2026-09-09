@@ -58,6 +58,8 @@ func (a *app) command(id int) {
 		a.remoteDeleteAction()
 	case idRemoteChmod:
 		a.remoteChmodAction()
+	case idRemoteEdit:
+		a.remoteEditAction()
 	case idUpload:
 		a.uploadSelected()
 	case idDownload:

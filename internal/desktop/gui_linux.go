@@ -600,7 +600,10 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.drawButton(u.layout.upload, u.tr("transfer.upload")+" →", u.connected && u.selectedLocal >= 0 && !u.busy, true); err != nil {
 		return err
 	}
-	return u.drawButton(u.layout.download, "← "+u.tr("transfer.download"), u.connected && u.selectedRemote >= 0 && !u.busy, true)
+	if err := u.drawButton(u.layout.download, "← "+u.tr("transfer.download"), u.connected && u.selectedRemote >= 0 && !u.busy, true); err != nil {
+		return err
+	}
+	return u.renderRemoteEditButton()
 }
 
 func (u *linuxDesktop) renderQueue() error {
@@ -945,6 +948,9 @@ func (u *linuxDesktop) removeProfile() {
 func (u *linuxDesktop) handleResult(result linuxUIResult) {
 	u.busy = false
 	u.action = linuxActionNone
+	if u.handleRemoteEditResult(result) {
+		return
+	}
 	if result.err != nil {
 		u.setStatus(usererror.MessageFor(u.language, result.err, i18n.T(u.language, "error.generic")))
 		return
@@ -1042,6 +1048,8 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		u.deleteSelectedRemote()
 	case l.remoteChmod.contains(x, y):
 		u.openSelectedRemoteChmod()
+	case u.remoteEditButtonRect().contains(x, y):
+		u.openSelectedRemoteEditor()
 	case l.localList.contains(x, y):
 		u.selectedLocal = u.selectRow(l.localList, y, len(u.localItems))
 	case l.remoteList.contains(x, y):
@@ -1086,6 +1094,9 @@ func linuxKeysymText(sym uint32) (string, bool) {
 
 func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 	sym := u.x.keysym(keycode, state)
+	if u.handleRemoteEditKey(sym, state) {
+		return true
+	}
 	if u.handleSettingsKey(sym) {
 		return true
 	}
@@ -1188,6 +1199,9 @@ func (u *linuxDesktop) renderAll() error {
 	if err := u.render(); err != nil {
 		return err
 	}
+	if u.remoteEditorOpen() {
+		return u.renderRemoteEditorOverlay()
+	}
 	if u.settingsOpen {
 		return u.renderSettingsOverlay()
 	}
@@ -1198,6 +1212,9 @@ func (u *linuxDesktop) renderAll() error {
 }
 
 func (u *linuxDesktop) handleOverlayMouse(x, y int) bool {
+	if u.handleRemoteEditorMouse(x, y) {
+		return true
+	}
 	if u.handleSettingsMouse(x, y) {
 		return true
 	}
@@ -1230,6 +1247,7 @@ func runLinuxGUI(engine *api.Engine, version string) error {
 		return fmt.Errorf("Linux desktop window could not be created: %w", err)
 	}
 	u := newLinuxDesktop(x, engine, version)
+	defer linuxRemoteEditStates.Delete(u)
 	if err := u.renderAll(); err != nil {
 		return err
 	}
