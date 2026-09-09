@@ -16,6 +16,8 @@ func (e *toolError) UserErrorKind() string {
 		// Protocol replies are more specific than curl's process exit code and
 		// should win when both are available.
 		switch {
+		case containsDiagnosticMarker(s, "500 ", "500-", "502 ", "502-", "504 ", "504-", "unknown command", "command not understood", "not implemented", "unsupported command"):
+			return "ftp_unsupported"
 		case containsDiagnosticMarker(s, "421 too many connections", "421 service not available", "421 connection", "too many connections"):
 			return "ftp_limit"
 		case containsDiagnosticMarker(s, "425 can't open data connection", "425 cannot open data connection", "425 failed to establish connection", "426 connection closed", "426 transfer aborted"):
