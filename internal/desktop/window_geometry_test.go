@@ -14,8 +14,8 @@ func TestResponsiveWindowBoundsUsesCanonicalStartSizeOnLargeWorkArea(t *testing.
 
 func TestResponsiveWindowBoundsNeverExceedsConstrainedWorkArea(t *testing.T) {
 	for _, tc := range []struct {
-		name          string
-		x, y, w, h    int
+		name       string
+		x, y, w, h int
 	}{
 		{name: "small laptop", w: 800, h: 600},
 		{name: "short desktop", w: 1024, h: 600},
