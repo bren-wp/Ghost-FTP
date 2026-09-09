@@ -28,19 +28,17 @@ const (
 	startMenuShortcutDigestValue = "StartMenuShortcutSHA256"
 )
 
-var (
-	ole32Shortcut            = syscall.NewLazyDLL("ole32.dll")
-	coInitializeEx           = ole32Shortcut.NewProc("CoInitializeEx")
-	coUninitialize           = ole32Shortcut.NewProc("CoUninitialize")
-	coCreateInstance         = ole32Shortcut.NewProc("CoCreateInstance")
-	shell32Shortcut          = syscall.NewLazyDLL("shell32.dll")
-	shGetFolderPathW         = shell32Shortcut.NewProc("SHGetFolderPathW")
-	kernel32Shortcut         = syscall.NewLazyDLL("kernel32.dll")
-	getFileAttributesShortcut = kernel32Shortcut.NewProc("GetFileAttributesW")
-	clsidShellLink           = guid{0x00021401, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
-	iidIShellLinkW           = guid{0x000214F9, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
-	iidIPersistFile          = guid{0x0000010B, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
-)
+var ole32Shortcut = syscall.NewLazyDLL("ole32.dll")
+var coInitializeEx = ole32Shortcut.NewProc("CoInitializeEx")
+var coUninitialize = ole32Shortcut.NewProc("CoUninitialize")
+var coCreateInstance = ole32Shortcut.NewProc("CoCreateInstance")
+var shell32Shortcut = syscall.NewLazyDLL("shell32.dll")
+var shGetFolderPathW = shell32Shortcut.NewProc("SHGetFolderPathW")
+var kernel32Shortcut = syscall.NewLazyDLL("kernel32.dll")
+var getFileAttributesShortcut = kernel32Shortcut.NewProc("GetFileAttributesW")
+var clsidShellLink = guid{0x00021401, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
+var iidIShellLinkW = guid{0x000214F9, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
+var iidIPersistFile = guid{0x0000010B, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
 
 func hresultFailed(v uintptr) bool { return int32(v) < 0 }
 
