@@ -11,8 +11,8 @@ import (
 
 func TestSharedHostingFTPQuoteUsesHomeRelativePathAndNoBody(t *testing.T) {
 	dir := t.TempDir()
-	prependTestToolDirectory(t, dir)
-	writeExecutable(t, filepath.Join(dir, "curl"), `#!/bin/sh
+	fakeCurl := filepath.Join(dir, "curl")
+	writeExecutable(t, fakeCurl, `#!/bin/sh
 cfg="$(cat)"
 case "$cfg" in
   *'user = "account@example.com:shared-secret"'*) ;;
@@ -36,6 +36,7 @@ exit 0
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.curl = fakeCurl
 	defer client.Close()
 	if err := client.Mkdir(context.Background(), "/public_html", "test-map"); err != nil {
 		t.Fatalf("shared-hosting MKD nije prošao: %v", err)
@@ -44,10 +45,10 @@ exit 0
 
 func TestSharedHostingFTPDisablesRepeatedMLSDWhenListFallbackWorks(t *testing.T) {
 	dir := t.TempDir()
-	prependTestToolDirectory(t, dir)
+	fakeCurl := filepath.Join(dir, "curl")
 	calls := filepath.Join(dir, "calls.txt")
 	t.Setenv("GhostFTP_TEST_CALLS", calls)
-	writeExecutable(t, filepath.Join(dir, "curl"), `#!/bin/sh
+	writeExecutable(t, fakeCurl, `#!/bin/sh
 cfg="$(cat)"
 case "$cfg" in
   *'request = "MLSD"'*)
@@ -64,6 +65,7 @@ printf '%s\n' '-rw-r--r-- 1 user group 4 Aug 19 12:00 index.php'
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.curl = fakeCurl
 	defer client.Close()
 	for i := 0; i < 2; i++ {
 		items, err := client.List(context.Background(), "/public_html")
