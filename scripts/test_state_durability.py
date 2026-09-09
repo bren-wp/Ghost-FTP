@@ -18,10 +18,20 @@ class StateDurabilitySourceTests(unittest.TestCase):
             "func replaceSyncedGeneration(",
             "replaceFile(tmp, dst)",
             "syncStateDirectory(dir)",
-            'replaceSyncedGeneration(s.dir, prevTmp, path+".previous")',
-            "replaceSyncedGeneration(s.dir, tmp, path)",
+            "func (s *Store) replaceBoundGeneration(",
+            "replaceSyncedGeneration(s.dir, tmp, dst)",
+            's.replaceBoundGeneration(prevTmp, path+".previous")',
+            "s.replaceBoundGeneration(tmp, path)",
         ):
             self.assertIn(marker, store)
+
+    def test_bound_replace_revalidates_directory_identity(self) -> None:
+        store = self.read("internal/config/store.go")
+        start = store.index("func (s *Store) replaceBoundGeneration(")
+        end = store.index("func (s *Store) Write(", start)
+        bound_replace = store[start:end]
+        self.assertGreaterEqual(bound_replace.count("s.ensureDirectoryIdentity()"), 2)
+        self.assertIn("replaceSyncedGeneration(s.dir, tmp, dst)", bound_replace)
 
     def test_unix_replace_has_directory_sync(self) -> None:
         other = self.read("internal/config/replace_other.go")
