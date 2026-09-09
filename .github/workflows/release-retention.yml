@@ -40,13 +40,24 @@ jobs:
             echo "Invalid VERSION: $version" >&2
             exit 1
           }
+          test "$version" != '0.0.0'
           current_tag="ghostftp-v${version}"
-          release_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$current_tag" --jq .tag_name)"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$current_tag")"
+          release_tag="$(jq -r .tag_name <<< "$release_json")"
+          release_draft="$(jq -r .draft <<< "$release_json")"
+          release_prerelease="$(jq -r .prerelease <<< "$release_json")"
+          asset_count="$(jq '.assets | length' <<< "$release_json")"
           test "$release_tag" = "$current_tag"
+          test "$release_draft" = 'false'
+          test "$release_prerelease" = 'false'
+          test "$asset_count" -eq 15
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$current_tag" --jq .object.sha)"
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
           test -n "$tag_sha"
+          test "$tag_sha" = "$main_sha"
           echo "CURRENT_GHOSTFTP_RELEASE=$current_tag"
           echo "CURRENT_GHOSTFTP_RELEASE_SHA=$tag_sha"
+          echo "CURRENT_GHOSTFTP_RELEASE_ASSETS=$asset_count"
 
       - name: Remove older Ghost FTP releases and tags
         shell: bash
@@ -95,6 +106,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          current="refs/heads/release/ghostftp-v${version}"
           if ! gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/release/ghostftp-v" > release-branches.json 2>release-branches.err; then
             if grep -q 'HTTP 404' release-branches.err; then
               echo 'No release branches to remove.'
@@ -105,8 +118,12 @@ jobs:
           fi
           mapfile -t refs < <(jq -r '.[].ref' release-branches.json)
           for ref in "${refs[@]}"; do
+            if [[ "$ref" = "$current" ]]; then
+              echo "Keeping current release branch: ${ref#refs/heads/}"
+              continue
+            fi
             short="${ref#refs/}"
-            echo "Deleting completed release branch: $short"
+            echo "Deleting superseded release branch: $short"
             gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/$short"
           done
           echo 'GHOSTFTP_RELEASE_BRANCH_RETENTION=PASS'
@@ -119,14 +136,12 @@ jobs:
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          major="${version%%.*}"
           endpoint="users/$owner/packages/container/ghost-ftp/versions?per_page=100"
 
           if ! gh api "$endpoint" > package-versions.json 2>package-versions.err; then
             if grep -q 'HTTP 404' package-versions.err; then
-              echo 'No Ghost FTP container package versions exist.'
-              echo 'GHOSTFTP_PACKAGE_RETENTION=PASS (none)'
-              exit 0
+              echo 'Current release requires its verified Ghost FTP package, but none exists.' >&2
+              exit 1
             fi
             cat package-versions.err >&2
             exit 1
@@ -135,15 +150,13 @@ jobs:
           while IFS=$'\t' read -r id tags; do
             [[ -n "$id" ]] || continue
             keep='false'
-            if [[ "$major" != '0' ]]; then
-              IFS=',' read -ra tag_list <<< "$tags"
-              for tag in "${tag_list[@]}"; do
-                if [[ "$tag" = "$version" ]]; then
-                  keep='true'
-                  break
-                fi
-              done
-            fi
+            IFS=',' read -ra tag_list <<< "$tags"
+            for tag in "${tag_list[@]}"; do
+              if [[ "$tag" = "$version" ]]; then
+                keep='true'
+                break
+              fi
+            done
             if [[ "$keep" = 'true' ]]; then
               echo "Keeping current package version id=$id tags=$tags"
               continue
@@ -152,19 +165,9 @@ jobs:
             gh api --method DELETE "users/$owner/packages/container/ghost-ftp/versions/$id"
           done < <(jq -r '.[] | [.id, ((.metadata.container.tags // []) | join(","))] | @tsv' package-versions.json)
 
-          if [[ "$major" = '0' ]]; then
-            if gh api "$endpoint" > package-versions-after.json 2>package-after.err; then
-              test "$(jq 'length' package-versions-after.json)" -eq 0
-            elif ! grep -q 'HTTP 404' package-after.err; then
-              cat package-after.err >&2
-              exit 1
-            fi
-            echo "GHOSTFTP_PACKAGE_RETENTION=PASS (beta=$version; old packages removed)"
-          else
-            current_count="$(gh api "$endpoint" | jq --arg version "$version" '[.[] | select((.metadata.container.tags // []) | index($version))] | length')"
-            test "$current_count" -ge 1
-            echo "GHOSTFTP_PACKAGE_RETENTION=PASS (stable=$version)"
-          fi
+          current_count="$(gh api "$endpoint" | jq --arg version "$version" '[.[] | select((.metadata.container.tags // []) | index($version))] | length')"
+          test "$current_count" -ge 1
+          echo "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)"
 
       - name: Record latest-only policy
         shell: bash
