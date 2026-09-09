@@ -21,6 +21,9 @@ func TestSameCanonicalLegacyCommand(t *testing.T) {
 	if sameCanonicalLegacyCommand(filepath.Join(dir, "Other.exe"), legacy) {
 		t.Fatal("foreign executable path was accepted")
 	}
+	if sameCanonicalLegacyCommand("Uninstall.exe", legacy) {
+		t.Fatal("relative legacy executable path was accepted as ownership evidence")
+	}
 }
 
 func TestCaptureLegacyUninstallerProofRequiresRegistryOwnership(t *testing.T) {
