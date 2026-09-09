@@ -1,6 +1,6 @@
 # Ghost FTP architecture
 
-Ghost FTP **1.1.1 Stable** is a native Windows/Linux desktop client for FTP, FTPS and SFTP. The product is designed around a small typed Go core, explicit platform adapters, local-only persistent state and fail-closed transfer/security boundaries.
+Ghost FTP **0.0.1** is a native Windows/Linux desktop client for FTP, FTPS and SFTP. The product is designed around a small typed Go core, explicit platform adapters, local-only persistent state and fail-closed transfer/security boundaries.
 
 ## Release identity
 
@@ -12,7 +12,7 @@ The official tag namespace is:
 ghostftp-vX.Y.Z
 ```
 
-Previously published release tags are immutable history; a new stable candidate uses a new semantic version rather than moving an older tag.
+A release candidate always uses a new semantic version rather than moving an existing current release tag. After a newer release is successfully published and verified, the latest-only retention workflow may remove superseded public Ghost FTP release/tag identities without rewriting `main` commit history.
 
 ## Main layers
 
@@ -133,12 +133,13 @@ The release workflow runs a complete quality gate before artifact publication:
 6. explicit release allow-list assembly;
 7. SHA-256 manifest generation;
 8. GitHub Release publication and read-back;
-9. stable GitHub Packages/GHCR distribution-bundle publication and registry read-back.
+9. current GitHub Packages/GHCR distribution-bundle publication and registry read-back;
+10. latest-only public release/tag/package retention only after successful verification.
 
 The GitHub Package is built only from the verified `release/` directory with Docker build networking disabled. It is a distribution artifact, not an application runtime container.
 
 ## Supported production boundary
 
-Ghost FTP 1.1.1 maintains Windows and Linux as the active application platforms. Product behavior, tests, release assets and documentation must stay aligned with that boundary.
+Ghost FTP 0.0.1 maintains Windows and Linux as the active application platforms. Product behavior, tests, release assets and documentation must stay aligned with that boundary.
 
 See also [Security](SECURITY.md), [Privacy](PRIVACY.md), [Platform parity](PLATFORM-PARITY.md), [Packages](PACKAGES.md) and [Release verification](RELEASE-VERIFICATION.md).
