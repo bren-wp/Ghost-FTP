@@ -499,6 +499,9 @@ func (s *SFTP) askpassEnvironment() ([]string, error) {
 	if s.passwordBlob == "" && s.passphraseBlob == "" {
 		return sanitizedToolEnv(os.Environ()), nil
 	}
+	if strings.TrimSpace(s.exePath) == "" {
+		return nil, errors.New("sigurna SFTP autentifikacijska pomoć nije dostupna")
+	}
 	tokenBytes := make([]byte, 16)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, err
