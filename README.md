@@ -7,8 +7,8 @@
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**. It provides a focused dual-pane workstation for **FTP, FTPS and SFTP**, saved profiles, protected credential handling, bounded transfer management and a built-in remote text editor without application telemetry.
 
 - Current Ghost FTP version: **0.0.1**
-- Development status: **Beta**
-- Release channel: **Beta**
+- Development status: **Active**
+- Release channel: **Current**
 - Default language: **English**
 - Selectable local languages: **24 languages**
 - Official product website: **https://ghostftp.com**
@@ -20,9 +20,9 @@
 
 The icon and UI images rendered by this README are repository-local assets. The README does not load remote badges, tracking pixels, icon CDNs or webfont resources.
 
-## 0.0.1 Beta
+## 0.0.1
 
-Ghost FTP 0.0.1 starts the current public Beta line. It combines the maintained Windows/Linux desktop client, FTP/FTPS/SFTP engine, secure installer/uninstaller behavior, responsive desktop geometry and built-in Remote Edit workflow into one release identity.
+Ghost FTP 0.0.1 starts the current public release line. It combines the maintained Windows/Linux desktop client, FTP/FTPS/SFTP engine, secure installer/uninstaller behavior, responsive desktop geometry and built-in Remote Edit workflow into one release identity. Semantic major version `0` does not by itself mark this project release as a GitHub prerelease.
 
 ### Remote Edit
 
@@ -135,10 +135,16 @@ The public release identity is:
 
 ```text
 ghostftp-v0.0.1
-prerelease=true
+prerelease=false
 ```
 
-Pre-1.0 releases are Beta and are not published as the Stable GHCR distribution bundle. After a new Ghost FTP release is successfully published and remotely verified, the release-retention workflow removes older Ghost FTP GitHub releases, tags, completed release branches and obsolete package versions. **Only the latest public Ghost FTP version is retained.**
+The same verified release directory is published as a distribution-only GHCR bundle at:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.1
+```
+
+The GHCR object is not a supported runtime container. After a new Ghost FTP release is successfully published and remotely verified, the release-retention workflow removes older Ghost FTP GitHub releases, tags, superseded release branches and obsolete package versions while retaining the current release package. **Only the latest public Ghost FTP version is retained.**
 
 See [GitHub Releases](docs/GITHUB-RELEASES.md), [GitHub Packages](docs/PACKAGES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Versioning](docs/VERSIONING.md).
 
