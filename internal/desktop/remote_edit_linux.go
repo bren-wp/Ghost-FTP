@@ -23,6 +23,8 @@ const (
 	linuxRemoteEditPendingReload
 )
 
+const linuxActionRemoteEditMetadataRefresh = linuxActionTransfer + 1
+
 type linuxRemoteEditState struct {
 	mu sync.Mutex
 
@@ -135,6 +137,25 @@ func (u *linuxDesktop) openSelectedRemoteEditor() {
 }
 
 func (u *linuxDesktop) handleRemoteEditResult(result linuxUIResult) bool {
+	if result.action == linuxActionRemoteEditMetadataRefresh {
+		if result.err == nil {
+			selectedName := ""
+			if item, ok := u.selectedRemoteItem(); ok {
+				selectedName = item.Name
+			}
+			u.remoteCurrent = result.localBase
+			u.remoteItems = result.remoteItems
+			u.selectedRemote = -1
+			for index := range u.remoteItems {
+				if u.remoteItems[index].Name == selectedName {
+					u.selectedRemote = index
+					break
+				}
+			}
+		}
+		return true
+	}
+
 	state := linuxRemoteEditStateFor(u)
 	state.mu.Lock()
 	pending := state.pending
@@ -174,7 +195,23 @@ func (u *linuxDesktop) handleRemoteEditResult(result linuxUIResult) bool {
 	state.message = message
 	state.mu.Unlock()
 	u.setStatus(message)
+	if pending == linuxRemoteEditPendingSave {
+		u.refreshRemoteMetadataAfterEdit()
+	}
 	return true
+}
+
+func (u *linuxDesktop) refreshRemoteMetadataAfterEdit() {
+	if u.busy || !u.connected {
+		return
+	}
+	target := u.remoteCurrent
+	u.startAction(linuxActionRemoteEditMetadataRefresh, func() linuxUIResult {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		items, err := u.engine.RemoteList(ctx, target)
+		return linuxUIResult{remoteItems: items, localBase: target, err: err}
+	})
 }
 
 func (u *linuxDesktop) remoteEditSave() {

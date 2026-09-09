@@ -166,6 +166,7 @@ func (a *app) saveRemoteTextEditor(doc api.RemoteEditDocument, buffer remoteEdit
 				return
 			}
 			a.setStatus(words.Saved)
+			a.refreshRemote(a.remoteCurrent)
 			a.showRemoteTextEditor(saved, next, next.Text, generation)
 		})
 	})
