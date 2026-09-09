@@ -29,6 +29,26 @@ func (u *linuxDesktop) refreshLinuxTransfersPreservingSelection(id string) {
 	}
 }
 
+func (u *linuxDesktop) pauseTransfersLinux() {
+	state := u.linuxTransferActionState()
+	if u.busy || !state.Pause {
+		return
+	}
+	u.engine.PauseTransfers()
+	u.queuePaused = true
+	u.setStatus("Transfer queue paused.")
+}
+
+func (u *linuxDesktop) resumeTransfersLinux() {
+	state := u.linuxTransferActionState()
+	if u.busy || !state.Resume {
+		return
+	}
+	u.engine.ResumeTransfers()
+	u.queuePaused = false
+	u.setStatus("Transfer queue resumed.")
+}
+
 func (u *linuxDesktop) cancelSelectedTransferLinux() {
 	state := u.linuxTransferActionState()
 	if u.busy || !state.Cancel || u.selectedTransfer < 0 || u.selectedTransfer >= len(u.transferJobs) {
