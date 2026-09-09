@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class WindowsShortcutOwnershipContractTests(unittest.TestCase):
     def setUp(self):
         self.source = (ROOT / "internal" / "platform" / "shortcut_windows.go").read_text(encoding="utf-8")
+        self.delete_source = (ROOT / "internal" / "platform" / "delete_windows.go").read_text(encoding="utf-8")
 
     def test_created_shortcuts_are_bound_to_digest_markers(self):
         for marker in (
@@ -21,7 +22,9 @@ class WindowsShortcutOwnershipContractTests(unittest.TestCase):
     def test_uninstall_requires_matching_ownership_digest(self):
         self.assertIn("GetRegistryString(ghostFTPUninstallKey, digestValue)", self.source)
         self.assertIn("removeShortcutMatchingDigest(path, expected)", self.source)
-        self.assertIn("!strings.EqualFold(current, expectedDigest)", self.source)
+        self.assertIn("removeVerifiedRegularFileMatchingSHA256(path, expectedDigest)", self.source)
+        self.assertIn("!strings.EqualFold(actualDigest, expectedDigest)", self.delete_source)
+        self.assertIn("errVerifiedOwnershipDigestMismatch", self.delete_source)
         self.assertIn("shortcut je promijenjen nakon instalacije i neće biti obrisan", self.source)
 
     def test_foreign_same_name_shortcut_is_not_overwritten(self):
@@ -29,10 +32,13 @@ class WindowsShortcutOwnershipContractTests(unittest.TestCase):
         self.assertIn("!sameShortcutTarget(existingTarget, target)", self.source)
         self.assertIn("nije Ghost FTP shortcut i nije prepisan", self.source)
 
-    def test_shortcut_digest_rejects_redirects(self):
-        self.assertIn("before.Mode()&os.ModeSymlink", self.source)
-        self.assertIn("shortcutReparsePoint(path)", self.source)
-        self.assertIn("os.SameFile(before, opened)", self.source)
+    def test_shortcut_digest_rejects_redirects_and_pins_identity(self):
+        self.assertIn("return verifiedRegularFileSHA256(path)", self.source)
+        self.assertIn("fileFlagOpenReparsePoint", self.delete_source)
+        self.assertIn("fileAttributeReparsePoint", self.delete_source)
+        self.assertIn("GetFileInformationByHandle", self.delete_source)
+        self.assertIn("fileShareRead", self.delete_source)
+        self.assertIn("SetFileInformationByHandle", self.delete_source)
 
 
 if __name__ == "__main__":

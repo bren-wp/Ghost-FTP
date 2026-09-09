@@ -3,10 +3,7 @@
 package platform
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,8 +31,6 @@ var coUninitialize = ole32Shortcut.NewProc("CoUninitialize")
 var coCreateInstance = ole32Shortcut.NewProc("CoCreateInstance")
 var shell32Shortcut = syscall.NewLazyDLL("shell32.dll")
 var shGetFolderPathW = shell32Shortcut.NewProc("SHGetFolderPathW")
-var kernel32Shortcut = syscall.NewLazyDLL("kernel32.dll")
-var getFileAttributesShortcut = kernel32Shortcut.NewProc("GetFileAttributesW")
 var clsidShellLink = guid{0x00021401, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
 var iidIShellLinkW = guid{0x000214F9, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
 var iidIPersistFile = guid{0x0000010B, 0, 0, [8]byte{0xC0, 0, 0, 0, 0, 0, 0, 0x46}}
@@ -121,61 +116,8 @@ func createShellLink(linkPath, target, workingDir, description string) error {
 	return nil
 }
 
-func shortcutReparsePoint(path string) bool {
-	p, err := syscall.UTF16PtrFromString(path)
-	if err != nil {
-		return true
-	}
-	attrs, _, _ := getFileAttributesShortcut.Call(uintptr(unsafe.Pointer(p)))
-	const (
-		invalidFileAttributes = 0xffffffff
-		fileAttributeReparse  = 0x00000400
-	)
-	if uint32(attrs) == invalidFileAttributes {
-		return true
-	}
-	return uint32(attrs)&fileAttributeReparse != 0
-}
-
 func stableShortcutDigest(path string) (string, error) {
-	before, err := os.Lstat(path)
-	if err != nil {
-		return "", err
-	}
-	if !before.Mode().IsRegular() || before.Mode()&os.ModeSymlink != 0 || shortcutReparsePoint(path) {
-		return "", errors.New("shortcut nije sigurna regularna datoteka")
-	}
-
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	opened, err := f.Stat()
-	if err != nil {
-		return "", err
-	}
-	if !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
-		return "", errors.New("shortcut se promijenio tijekom sigurnog otvaranja")
-	}
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	after, err := f.Stat()
-	if err != nil {
-		return "", err
-	}
-	current, err := os.Lstat(path)
-	if err != nil {
-		return "", err
-	}
-	if !os.SameFile(opened, after) || !os.SameFile(after, current) || current.Mode()&os.ModeSymlink != 0 || shortcutReparsePoint(path) {
-		return "", errors.New("shortcut se promijenio tijekom provjere")
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return verifiedRegularFileSHA256(path)
 }
 
 func readShellLinkTarget(linkPath string) (string, error) {
@@ -248,33 +190,11 @@ func sameShortcutTarget(actual, expected string) bool {
 }
 
 func removeShortcutMatchingDigest(path, expectedDigest string) (bool, error) {
-	if strings.TrimSpace(expectedDigest) == "" {
-		return false, nil
-	}
-	current, err := stableShortcutDigest(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	if !strings.EqualFold(current, expectedDigest) {
+	removed, err := removeVerifiedRegularFileMatchingSHA256(path, expectedDigest)
+	if errors.Is(err, errVerifiedOwnershipDigestMismatch) {
 		return false, errors.New("shortcut je promijenjen nakon instalacije i neće biti obrisan")
 	}
-
-	// Re-read immediately before deletion so a normal replacement between the
-	// ownership check and cleanup is detected and preserved.
-	confirmed, err := stableShortcutDigest(path)
-	if err != nil {
-		return false, err
-	}
-	if !strings.EqualFold(confirmed, expectedDigest) {
-		return false, errors.New("shortcut se promijenio prije uklanjanja i neće biti obrisan")
-	}
-	if err := os.Remove(path); err != nil {
-		return false, err
-	}
-	return true, nil
+	return removed, err
 }
 
 func createOwnedShortcut(linkPath, target, workingDir, description, digestValue string) error {
