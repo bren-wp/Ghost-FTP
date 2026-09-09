@@ -392,8 +392,8 @@ func TestFTPCommandUnsupportedClassification(t *testing.T) {
 
 func TestIsRetryableConservativeClassification(t *testing.T) {
 	for _, err := range []error{
-		&toolError{tool: "curl", code: 7, message: "Failed to connect"},
-		&toolError{tool: "curl", code: 28, message: "Operation timed out"},
+		&toolError{tool: "curl", code: 7, retryable: true},
+		&toolError{tool: "curl", code: 28, retryable: true},
 		errors.New("connection reset by peer"),
 	} {
 		if !IsRetryable(err) {
@@ -401,7 +401,7 @@ func TestIsRetryableConservativeClassification(t *testing.T) {
 		}
 	}
 	for _, err := range []error{
-		&toolError{tool: "curl", code: 67, message: "Login denied"},
+		&toolError{tool: "curl", code: 67, kind: "auth", retryable: false},
 		errors.New("permission denied"),
 		errors.New("host key verification failed"),
 		errors.New("no such file"),
