@@ -91,14 +91,60 @@ func TestLockFileNameIsPathSafe(t *testing.T) {
 	}
 }
 
-func TestTrustedLinuxAskPassParentPath(t *testing.T) {
-	accepted := []string{"/usr/bin/ssh", "/usr/bin/sftp", "ssh", "SFTP"}
-	for _, path := range accepted {
-		if !trustedLinuxAskPassParentPath(path) {
-			t.Fatalf("trusted OpenSSH parent rejected: %q", path)
+func firstTrustedAskPassParent() (string, bool) {
+	for _, candidate := range []string{
+		"/usr/bin/ssh",
+		"/bin/ssh",
+		"/usr/local/bin/ssh",
+		"/usr/bin/sftp",
+		"/bin/sftp",
+		"/usr/local/bin/sftp",
+	} {
+		if trustedLinuxAskPassParentPath(candidate) {
+			return candidate, true
 		}
 	}
-	for _, path := range []string{"/bin/bash", "/tmp/ssh-wrapper", "ghostftp", ""} {
+	return "", false
+}
+
+func TestTrustedLinuxAskPassParentPathAcceptsTrustedSystemOpenSSH(t *testing.T) {
+	candidate, ok := firstTrustedAskPassParent()
+	if !ok {
+		t.Skip("no trusted system ssh/sftp executable is installed")
+	}
+	if !trustedLinuxAskPassParentPath(candidate) {
+		t.Fatalf("trusted OpenSSH parent rejected: %q", candidate)
+	}
+}
+
+func TestTrustedLinuxAskPassParentPathRejectsUserControlledExecutable(t *testing.T) {
+	dir := t.TempDir()
+	fake := filepath.Join(dir, "ssh")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if trustedLinuxAskPassParentPath(fake) {
+		t.Fatalf("user-controlled ssh parent unexpectedly trusted: %q", fake)
+	}
+}
+
+func TestTrustedLinuxAskPassParentPathRejectsUserControlledSymlink(t *testing.T) {
+	target, ok := firstTrustedAskPassParent()
+	if !ok {
+		t.Skip("no trusted system ssh/sftp executable is installed")
+	}
+	dir := t.TempDir()
+	link := filepath.Join(dir, filepath.Base(target))
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if trustedLinuxAskPassParentPath(link) {
+		t.Fatalf("user-controlled AskPass parent symlink unexpectedly trusted: %q", link)
+	}
+}
+
+func TestTrustedLinuxAskPassParentPathRejectsUnqualifiedOrWrongExecutable(t *testing.T) {
+	for _, path := range []string{"ssh", "SFTP", "/bin/bash", "/bin/sh", "ghostftp", ""} {
 		if trustedLinuxAskPassParentPath(path) {
 			t.Fatalf("untrusted AskPass parent accepted: %q", path)
 		}
