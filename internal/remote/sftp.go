@@ -203,7 +203,7 @@ func ScanFingerprint(ctx context.Context, host string, port int, _ string) (stri
 		if overflowErr := er.Err("odgovor"); overflowErr != nil {
 			return "", "", "", overflowErr
 		}
-		return "", "", "", fmt.Errorf("nije moguće dohvatiti SFTP host ključ: %s", strings.TrimSpace(er.String()))
+		return "", "", "", sshKeyscanFailure(err, er.String())
 	}
 	if err := out.Err("odgovor"); err != nil {
 		return "", "", "", err
