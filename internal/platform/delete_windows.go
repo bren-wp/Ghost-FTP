@@ -107,7 +107,10 @@ func deleteVerifiedOpenFile(f *os.File) error {
 	if f == nil {
 		return errors.New("verified file handle is unavailable")
 	}
-	deleteFile := uint32(1)
+	// FILE_DISPOSITION_INFO contains one BOOLEAN field. Windows BOOLEAN is one
+	// byte, so keep the buffer layout exact instead of relying on the API to
+	// tolerate a wider integer representation.
+	deleteFile := byte(1)
 	r, _, callErr := setFileInformationByHandleDelete.Call(
 		f.Fd(),
 		fileDispositionInfo,
