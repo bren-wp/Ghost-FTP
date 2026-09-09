@@ -2,6 +2,8 @@
 
 Ghost FTP **0.0.1** is the current supported public release.
 
+Official product and support destination: **https://ghostftp.com**.
+
 ## Before reporting a problem
 
 1. Confirm the application reports version `0.0.1`.
