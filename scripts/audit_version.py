@@ -26,7 +26,14 @@ CURRENT_LINE_DOCS = (
     "docs/TESTING.md",
     "docs/VERSIONING.md",
 )
-OLD_PUBLIC_VERSION_RE = re.compile(r"(?<![\d.])1\.\d+\.\d+(?![\d.])")
+RETIRED_PUBLIC_VERSION_PATTERNS = (
+    re.compile(r"Ghost FTP(?:\s+\*\*)?\s*1\.\d+\.\d+"),
+    re.compile(r"Ghost-FTP-1\.\d+\.\d+"),
+    re.compile(r"ghostftp-v1\.\d+\.\d+"),
+    re.compile(r"ghcr\.io/bren-wp/ghost-ftp:1\.\d+\.\d+"),
+    re.compile(r"\bVERSION=1\.\d+\.\d+\b"),
+    re.compile(r"\bTAG=ghostftp-v1\.\d+\.\d+\b"),
+)
 
 
 def fail(message: str) -> None:
@@ -109,11 +116,10 @@ def main() -> int:
 
     for rel in CURRENT_LINE_DOCS:
         text = read(rel)
-        match = OLD_PUBLIC_VERSION_RE.search(text)
-        if match:
-            fail(f"active current-line documentation still contains retired 1.x version {match.group(0)}: {rel}")
-        if "ghostftp-v1." in text:
-            fail(f"active current-line documentation still contains retired 1.x tag: {rel}")
+        for pattern in RETIRED_PUBLIC_VERSION_PATTERNS:
+            match = pattern.search(text)
+            if match:
+                fail(f"active current-line documentation contains retired public identity {match.group(0)!r}: {rel}")
 
     windows_build = read("BUILD-WINDOWS.ps1")
     require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS.ps1")
