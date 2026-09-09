@@ -24,6 +24,8 @@ const (
 	fileDispositionInfo       = 4
 )
 
+var errVerifiedOwnershipDigestMismatch = errors.New("verified file content does not match its ownership digest")
+
 var kernel32Delete = syscall.NewLazyDLL("kernel32.dll")
 var moveFileExDelete = kernel32Delete.NewProc("MoveFileExW")
 var setFileInformationByHandleDelete = kernel32Delete.NewProc("SetFileInformationByHandle")
@@ -140,7 +142,7 @@ func removeVerifiedRegularFileMatchingSHA256(path, expectedDigest string) (bool,
 		return false, err
 	}
 	if !strings.EqualFold(actualDigest, expectedDigest) {
-		return false, errors.New("verified file content does not match its ownership digest")
+		return false, errVerifiedOwnershipDigestMismatch
 	}
 	if err := deleteVerifiedOpenFile(f); err != nil {
 		return false, err
