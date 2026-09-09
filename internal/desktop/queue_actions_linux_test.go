@@ -50,3 +50,60 @@ func TestLinuxTransferActionStateRejectsStaleSelection(t *testing.T) {
 		t.Fatalf("queue-wide pause must remain available for active work: %+v", state)
 	}
 }
+
+func TestLinuxBusyQueueMutationsAreInert(t *testing.T) {
+	pause := &linuxDesktop{
+		busy:              true,
+		connected:         true,
+		selectedTransfer:  0,
+		transferJobs:      []model.TransferJob{{ID: "queued", Status: "queued"}},
+	}
+	pause.pauseTransfersLinux()
+	if pause.queuePaused {
+		t.Fatal("busy pause click must be inert")
+	}
+
+	resume := &linuxDesktop{
+		busy:              true,
+		connected:         true,
+		queuePaused:       true,
+		selectedTransfer:  0,
+		transferJobs:      []model.TransferJob{{ID: "queued", Status: "queued"}},
+	}
+	resume.resumeTransfersLinux()
+	if !resume.queuePaused {
+		t.Fatal("busy resume click must be inert")
+	}
+
+	cancel := &linuxDesktop{
+		busy:              true,
+		connected:         true,
+		selectedTransfer:  0,
+		transferJobs:      []model.TransferJob{{ID: "queued", Status: "queued"}},
+	}
+	cancel.cancelSelectedTransferLinux()
+	if cancel.transferJobs[0].Status != "queued" {
+		t.Fatalf("busy cancel click mutated transfer: %+v", cancel.transferJobs[0])
+	}
+
+	retry := &linuxDesktop{
+		busy:              true,
+		connected:         true,
+		selectedTransfer:  0,
+		transferJobs:      []model.TransferJob{{ID: "failed", Status: "failed"}},
+	}
+	retry.retrySelectedTransferLinux()
+	if retry.transferJobs[0].Status != "failed" {
+		t.Fatalf("busy retry click mutated transfer: %+v", retry.transferJobs[0])
+	}
+
+	clear := &linuxDesktop{
+		busy:              true,
+		selectedTransfer:  0,
+		transferJobs:      []model.TransferJob{{ID: "done", Status: "done"}},
+	}
+	clear.clearFinishedTransfersLinux()
+	if len(clear.transferJobs) != 1 || clear.transferJobs[0].Status != "done" {
+		t.Fatalf("busy clear click mutated queue: %+v", clear.transferJobs)
+	}
+}
