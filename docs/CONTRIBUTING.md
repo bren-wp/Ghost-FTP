@@ -1,8 +1,8 @@
 # Contributing to Ghost FTP
 
-Ghost FTP **1.1.7 Stable** is the current maintained release line. Ghost FTP is source-available proprietary software; a public repository does not automatically grant permission to redistribute modified builds. Contributions must respect the repository [`LICENSE`](../LICENSE).
+Ghost FTP **0.0.1** starts the current maintained public release line. Ghost FTP is source-available proprietary software; a public repository does not automatically grant permission to redistribute modified builds. Contributions must respect the repository [`LICENSE`](../LICENSE).
 
-Published Stable releases remain immutable historical identities and must not be rewritten by maintenance work.
+A published current release identity is never rewritten in place. A successor uses a new semantic version; only after that successor is successfully published and verified may the latest-only retention workflow remove superseded public Ghost FTP release/tag identities. Source commit history remains intact.
 
 ## Contribution priorities
 
@@ -75,7 +75,7 @@ When a Windows UI change affects documented appearance, version text, dialogs, S
 
 ## Documentation changes
 
-Update active documentation when user-visible behavior, package names, security/privacy boundaries or release behavior changes. Historical release records remain historical rather than being rewritten as current behavior. All local links must pass `scripts/audit_docs.py`.
+Update active documentation when user-visible behavior, package names, security/privacy boundaries or release behavior changes. Commit history remains engineering provenance, while active public release documentation follows the current latest-only release policy. All local links must pass `scripts/audit_docs.py`.
 
 ## Release changes
 
@@ -84,11 +84,12 @@ Changes to release workflow, packaging or signing must preserve fail-closed beha
 - truthful Windows signing state with `WINDOWS_AUTHENTICODE=signed|unsigned`;
 - no generated/self-signed identity represented as a trusted production publisher;
 - exact `main` commit binding;
-- immutable version tags;
-- canonical **12 platform artifacts / 15 public files** allow-list for 1.1.7;
+- no in-place rewrite of the current version tag or release assets;
+- canonical **12 platform artifacts / 15 public files** allow-list for 0.0.1;
 - SHA-256 generation;
-- GitHub Release read-back;
-- Stable GitHub Package/GHCR distribution-bundle read-back;
+- GitHub Release read-back with `prerelease=false` for the current 0.0.x policy;
+- current GitHub Package/GHCR distribution-bundle read-back;
+- latest-only cleanup only after the successor release has been fully verified;
 - no release secret material inside artifacts.
 
 A missing production code-signing certificate alone is not a release failure. A partially configured certificate or invalid signature when signing is configured is a release failure.
