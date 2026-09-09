@@ -1,6 +1,6 @@
 # Ghost FTP security
 
-Ghost FTP **1.1.1 Stable** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed Go code and covered by platform-specific regression tests plus repository audits.
+Ghost FTP **0.0.1** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed Go code and covered by platform-specific regression tests plus repository audits.
 
 ## Supported transport security
 
@@ -105,19 +105,20 @@ The production release workflow:
 - records the Windows signing state in `BUILD-METADATA.txt`;
 - generates SHA-256 checksums;
 - prevents an existing version tag from being rewritten to another commit;
-- verifies the published GitHub Release asset set and stable `prerelease=false` state;
-- publishes the stable GHCR release bundle only from the verified `release/` directory;
-- verifies the registry artifact can be read back.
+- verifies the published GitHub Release asset set and current `prerelease=false` state;
+- publishes the current GHCR release bundle only from the verified `release/` directory;
+- verifies the registry artifact can be read back;
+- permits latest-only cleanup only after the newly published release has been fully verified.
 
 Private signing material must never be committed to source. Absence of a production code-signing certificate is represented truthfully as an unsigned Windows release rather than “fixed” with an untrusted generated key.
 
 ## GitHub Packages boundary
 
-The stable package at `ghcr.io/bren-wp/ghost-ftp` is a release distribution bundle, not a runtime container. Its build uses `FROM scratch`, copies only the verified release directory and disables Docker networking during build. It must not contain source worktrees, user data or protected release secrets.
+The current package at `ghcr.io/bren-wp/ghost-ftp` is a release distribution bundle, not a runtime container. Its build uses `FROM scratch`, copies only the verified release directory and disables Docker networking during build. It must not contain source worktrees, user data or protected release secrets.
 
 ## Security testing
 
-The exact 1.1.1 candidate is expected to pass:
+The exact 0.0.1 candidate is expected to pass:
 
 ```text
 go test -race ./...
