@@ -13,6 +13,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/bren-wp/Ghost-FTP/internal/config"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
@@ -34,6 +35,7 @@ type bookmarkManagerState struct {
 	parent    *app
 	hwnd      uintptr
 	list      uintptr
+	listBrush uintptr
 	open      uintptr
 	addLocal  uintptr
 	addRemote uintptr
@@ -98,6 +100,9 @@ func bookmarkManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr
 		case siteWMCtlColorListBox:
 			setTextColor.Call(wParam, textColor())
 			setBkColor.Call(wParam, listColor())
+			if state.listBrush != 0 {
+				return state.listBrush
+			}
 			return state.parent.panelBrush
 		case wmCtlColorEdit, wmCtlColorBtn, wmCtlColorStatic:
 			setTextColor.Call(wParam, textColor())
@@ -109,6 +114,10 @@ func bookmarkManagerWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr
 		case wmDestroy:
 			for _, button := range []uintptr{state.open, state.addLocal, state.addRemote, state.delete, state.close} {
 				delete(state.parent.buttons, button)
+			}
+			if state.listBrush != 0 {
+				deleteObject.Call(state.listBrush)
+				state.listBrush = 0
 			}
 			state.closed = true
 			return 0
@@ -137,11 +146,11 @@ func bookmarkDefaultName(bookmarkPath string, remote bool) string {
 	return cleaned
 }
 
-func bookmarkDisplayLabel(item model.Bookmark) string {
-	kind := "Local"
+func (state *bookmarkManagerState) displayLabel(item model.Bookmark) string {
+	kind := state.parent.tr("section.local")
 	identity := ""
 	if item.Kind == model.BookmarkKindRemote {
-		kind = "Remote"
+		kind = state.parent.tr("section.remote")
 		identity = item.Username + "@" + item.Host + "  ·  "
 	}
 	return "[" + kind + "]  " + item.Name + "  ·  " + identity + item.Path
@@ -156,7 +165,7 @@ func (state *bookmarkManagerState) loadItems(selectID string) error {
 	sendMessageW.Call(state.list, siteLBResetContent, 0, 0)
 	selected := -1
 	for index, item := range items {
-		label := bookmarkDisplayLabel(item)
+		label := state.displayLabel(item)
 		sendMessageW.Call(state.list, siteLBAddString, 0, uintptr(unsafe.Pointer(wstr(label))))
 		if item.ID == selectID {
 			selected = index
@@ -182,7 +191,12 @@ func (state *bookmarkManagerState) readSelection() {
 
 func (state *bookmarkManagerState) updateButtons() {
 	hasSelection := state.selected >= 0 && state.selected < len(state.items)
-	setControlEnabled(state.open, hasSelection && !state.parent.connectionBusy)
+	openEnabled := hasSelection && !state.parent.connectionBusy
+	if openEnabled && state.items[state.selected].Kind == model.BookmarkKindRemote {
+		cfg, connected := state.parent.engine.ActiveConnection()
+		openEnabled = connected && state.parent.connected && config.RemoteBookmarkMatchesAccount(state.items[state.selected], cfg)
+	}
+	setControlEnabled(state.open, openEnabled)
 	setControlEnabled(state.delete, hasSelection)
 	setControlEnabled(state.addLocal, strings.TrimSpace(state.parent.localCurrent) != "")
 	setControlEnabled(state.addRemote, state.parent.connected && !state.parent.connectionBusy && strings.TrimSpace(state.parent.remoteCurrent) != "")
@@ -203,9 +217,13 @@ func (state *bookmarkManagerState) addCurrent(remote bool) {
 	if bookmarkPath == "" {
 		return
 	}
-	platform.SetDialogActionLabels(words.Saved, words.Close)
-	name, ok := platform.PromptDialog("Ghost FTP — "+words.Title, words.Name+":", bookmarkDefaultName(bookmarkPath, remote))
-	platform.SetDialogActionLabels(okLabel(state.parent.languageCode()), state.parent.tr("common.cancel"))
+	name, ok := platform.PromptDialogWithLabels(
+		"Ghost FTP — "+words.Title,
+		words.Name+":",
+		bookmarkDefaultName(bookmarkPath, remote),
+		okLabel(state.parent.languageCode()),
+		state.parent.tr("common.cancel"),
+	)
 	if !ok || strings.TrimSpace(name) == "" {
 		return
 	}
@@ -254,8 +272,11 @@ func (state *bookmarkManagerState) openCurrent() {
 		return
 	}
 	item := state.items[state.selected]
-	if item.Kind == model.BookmarkKindRemote && !state.parent.connected {
-		return
+	if item.Kind == model.BookmarkKindRemote {
+		cfg, connected := state.parent.engine.ActiveConnection()
+		if !connected || !state.parent.connected || !config.RemoteBookmarkMatchesAccount(item, cfg) {
+			return
+		}
 	}
 	state.openAfter = &item
 	destroyWindow.Call(state.hwnd)
@@ -280,6 +301,10 @@ func (state *bookmarkManagerState) createControls(hinst uintptr) error {
 			applyDarkControl(hwnd, class)
 		}
 		return hwnd
+	}
+	state.listBrush, _, _ = createSolidBrush.Call(listColor())
+	if state.listBrush == 0 {
+		return fmt.Errorf("bookmark manager list brush initialization failed")
 	}
 	state.list = mk("LISTBOX", "", wsBorder|wsTabStop|wsVScroll|siteLBSNotify|siteLBSNoIntegralHeight, 20, 20, 700, 330, bookmarkIDList)
 	state.open = parent.registerButton(mk("BUTTON", words.Open, wsTabStop|bsOwnerDraw, 20, 370, 118, 34, bookmarkIDOpen), iconOpenLocal, words.Open, buttonAccent)
