@@ -81,9 +81,9 @@ jobs:
           python -m unittest discover -s scripts -p 'test_*.py'
 
   windows:
-    name: Windows x64 and x86 production build
+    name: Windows universal setup and portable production build
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -104,20 +104,21 @@ jobs:
         run: |
           go telemetry off
           if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') { throw 'Go telemetry is not disabled.' }
-      - name: Build setup and portable packages
+      - name: Build universal setup and portable packages
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
       - name: Verify Windows release artifacts
         shell: pwsh
         run: |
           $v = (Get-Content VERSION -Raw).Trim()
-          foreach ($arch in @('x64','x86')) {
-            foreach ($kind in @('Setup','Portable')) {
-              $path = "dist\Ghost-FTP-$v-$kind-$arch.exe"
-              if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) {
-                throw "Missing Windows artifact: $path"
-              }
+          foreach ($kind in @('Setup','Portable')) {
+            $path = "dist\Ghost-FTP-$v-$kind.exe"
+            if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) {
+              throw "Missing Windows artifact: $path"
             }
+          }
+          if (Get-ChildItem -LiteralPath dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32)\.exe$' }) {
+            throw 'Architecture-specific Windows executables leaked into public CI artifacts.'
           }
       - name: Authenticode private-key pipeline smoke test
         shell: pwsh
@@ -138,8 +139,8 @@ jobs:
               (Join-Path $work 'Ghost-FTP-Portable-signing-smoke.exe'),
               (Join-Path $work 'Ghost-FTP-Setup-signing-smoke.exe')
             )
-            Copy-Item -LiteralPath "dist\Ghost-FTP-$v-Portable-x64.exe" -Destination $targets[0]
-            Copy-Item -LiteralPath "dist\Ghost-FTP-$v-Setup-x64.exe" -Destination $targets[1]
+            Copy-Item -LiteralPath "dist\Ghost-FTP-$v-Portable.exe" -Destination $targets[0]
+            Copy-Item -LiteralPath "dist\Ghost-FTP-$v-Setup.exe" -Destination $targets[1]
 
             .\scripts\Sign-WindowsArtifacts.ps1 -PfxPath $pfx -Password $password -Paths $targets -AllowUntrustedSigner
             foreach ($target in $targets) {
@@ -167,8 +168,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: |
-            dist/Ghost-FTP-*-Setup-*.exe
-            dist/Ghost-FTP-*-Portable-*.exe
+            dist/Ghost-FTP-*-Setup.exe
+            dist/Ghost-FTP-*-Portable.exe
 
   linux:
     name: Linux amd64 arm64 i386 production build
