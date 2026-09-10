@@ -98,9 +98,11 @@ class NavigationBookmarksContractTests(unittest.TestCase):
             "a.engine.NavigateBookmark(ctx, bookmark.ID)",
             "a.connectionGeneration",
             "generation != a.connectionGeneration",
-            "a.engine.SaveLocalBookmark",
-            "a.engine.SaveRemoteBookmark",
-            "a.engine.RemoveBookmark",
+            "state.parent.engine.SaveLocalBookmark",
+            "state.parent.engine.SaveRemoteBookmark",
+            "state.parent.engine.RemoveBookmark",
+            "state.parent.engine.ActiveConnection()",
+            "config.RemoteBookmarkMatchesAccount",
         ):
             self.assertIn(marker, manager)
         self.assertIn("case idBookmarks:", commands)
