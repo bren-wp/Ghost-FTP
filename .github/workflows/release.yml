@@ -65,9 +65,9 @@ jobs:
           python -m unittest discover -s scripts -p 'test_*.py'
 
   windows:
-    name: Windows setup and portable x64/x86
+    name: Windows universal setup and portable
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     outputs:
       signing_state: ${{ steps.signing.outputs.state }}
     steps:
@@ -136,19 +136,20 @@ jobs:
         shell: pwsh
         run: |
           $v = (Get-Content VERSION -Raw).Trim()
-          foreach ($arch in @('x64','x86')) {
-            foreach ($kind in @('Setup','Portable')) {
-              $path = "dist\Ghost-FTP-$v-$kind-$arch.exe"
-              if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) {
-                throw "Missing Windows artifact: $path"
-              }
-              if ('${{ steps.signing.outputs.state }}' -eq 'signed') {
-                $signature = Get-AuthenticodeSignature -FilePath $path
-                if (-not $signature.SignerCertificate -or $signature.Status -ne 'Valid') {
-                  throw "Production Authenticode verification failed for ${path}: $($signature.Status) $($signature.StatusMessage)"
-                }
+          foreach ($kind in @('Setup','Portable')) {
+            $path = "dist\Ghost-FTP-$v-$kind.exe"
+            if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) {
+              throw "Missing Windows artifact: $path"
+            }
+            if ('${{ steps.signing.outputs.state }}' -eq 'signed') {
+              $signature = Get-AuthenticodeSignature -FilePath $path
+              if (-not $signature.SignerCertificate -or $signature.Status -ne 'Valid') {
+                throw "Production Authenticode verification failed for ${path}: $($signature.Status) $($signature.StatusMessage)"
               }
             }
+          }
+          if (Get-ChildItem -LiteralPath dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32)\.exe$' }) {
+            throw 'Architecture-specific Windows executables leaked into the public release stage.'
           }
       - name: Remove protected Authenticode identity
         if: always()
@@ -164,13 +165,13 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: |
-            dist/Ghost-FTP-*-Setup-*.exe
-            dist/Ghost-FTP-*-Portable-*.exe
+            dist/Ghost-FTP-*-Setup.exe
+            dist/Ghost-FTP-*-Portable.exe
 
   linux:
-    name: Linux amd64 arm64 i386
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: Debian Ubuntu Fedora and Portable release packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -182,54 +183,100 @@ jobs:
           go-version: '1.27.1'
           check-latest: false
           cache: false
+      - name: Install RPM verification tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rpm cpio
+          command -v rpmbuild
+          command -v rpm
+          command -v rpm2cpio
+          command -v cpio
       - name: Disable Go telemetry
         shell: bash
         run: |
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Build Linux packages
+      - name: Build distro packages
+        shell: bash
         env:
           GHOSTFTP_REQUIRE_DEB: '1'
-        run: bash linux/BUILD.sh
-      - name: Verify DEB and portable packages
+          GHOSTFTP_REQUIRE_RPM: '1'
+        run: |
+          set -euo pipefail
+          python scripts/test_linux_distro_packaging_contract.py
+          bash linux/BUILD-DISTROS.sh
+      - name: Verify distro package metadata and binary parity
         shell: bash
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
-          for arch in amd64 arm64 i386; do
-            pkg="dist/Ghost-FTP-${version}-Linux-${arch}.deb"
-            portable="dist/Ghost-FTP-${version}-Linux-${arch}.tar.gz"
-            test -s "$pkg"
+
+          for mapping in 'amd64:x86_64' 'arm64:aarch64' 'i386:i686'; do
+            debarch="${mapping%%:*}"
+            rpmarch="${mapping##*:}"
+            portable="dist/Ghost-FTP-${version}-Linux-Portable-${debarch}.tar.gz"
             test -s "$portable"
-            test "$(dpkg-deb -f "$pkg" Package)" = 'ghost-ftp'
-            test "$(dpkg-deb -f "$pkg" Version)" = "$version"
-            test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
 
             work="$(mktemp -d)"
             trap 'rm -rf "$work"' EXIT
-            mkdir -p "$work/deb" "$work/portable"
-            dpkg-deb -x "$pkg" "$work/deb"
+            mkdir -p "$work/portable"
             tar -xzf "$portable" -C "$work/portable"
-            root="$work/portable/Ghost-FTP-${version}-Linux-${arch}"
-            test -x "$root/ghostftp"
-            test -f "$root/ghost-ftp.desktop"
-            test -f "$root/ghost-ftp.png"
-            test -f "$root/LICENSE"
-            test -f "$root/README.md"
-            cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"
+            portable_root="$work/portable/Ghost-FTP-${version}-Linux-Portable-${debarch}"
+            test -x "$portable_root/ghostftp"
+            test -f "$portable_root/ghost-ftp.desktop"
+            test -f "$portable_root/ghost-ftp.png"
+            test -f "$portable_root/LICENSE"
+            test -f "$portable_root/README.md"
+
+            for distro in Debian Ubuntu; do
+              deb="dist/Ghost-FTP-${version}-Linux-${distro}-${debarch}.deb"
+              test -s "$deb"
+              test "$(dpkg-deb -f "$deb" Package)" = 'ghost-ftp'
+              test "$(dpkg-deb -f "$deb" Version)" = "$version"
+              test "$(dpkg-deb -f "$deb" Architecture)" = "$debarch"
+              test "$(dpkg-deb -f "$deb" Homepage)" = 'https://ghostftp.com'
+              test "$(dpkg-deb -f "$deb" Depends)" = 'ca-certificates, curl, openssh-client'
+              test "$(dpkg-deb -f "$deb" X-GhostFTP-Distribution)" = "$distro"
+              mkdir -p "$work/${distro,,}"
+              dpkg-deb -x "$deb" "$work/${distro,,}"
+              cmp "$work/${distro,,}/usr/bin/ghostftp" "$portable_root/ghostftp"
+            done
+
+            rpm_pkg="dist/Ghost-FTP-${version}-Linux-Fedora-${rpmarch}.rpm"
+            test -s "$rpm_pkg"
+            test "$(rpm -qp --qf '%{NAME}' "$rpm_pkg")" = 'ghost-ftp'
+            test "$(rpm -qp --qf '%{VERSION}' "$rpm_pkg")" = "$version"
+            test "$(rpm -qp --qf '%{ARCH}' "$rpm_pkg")" = "$rpmarch"
+            test "$(rpm -qp --qf '%{URL}' "$rpm_pkg")" = 'https://ghostftp.com'
+            test "$(rpm -qp --qf '%{DISTRIBUTION}' "$rpm_pkg")" = 'Fedora'
+            rpm -qp --requires "$rpm_pkg" > "$work/rpm-requires.txt"
+            grep -Fx 'ca-certificates' "$work/rpm-requires.txt"
+            grep -Fx 'curl' "$work/rpm-requires.txt"
+            grep -Fx 'openssh-clients' "$work/rpm-requires.txt"
+            mkdir -p "$work/fedora"
+            (
+              cd "$work/fedora"
+              rpm2cpio "$OLDPWD/$rpm_pkg" | cpio -idmu --quiet
+            )
+            cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"
+
             rm -rf "$work"
             trap - EXIT
           done
-      - name: Store Linux packages
+      - name: Store Linux distro packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ghostftp-linux-stage
+          name: ghostftp-linux-distro-stage
           if-no-files-found: error
           retention-days: 7
           path: |
-            dist/Ghost-FTP-*-Linux-*.deb
-            dist/Ghost-FTP-*-Linux-*.tar.gz
+            dist/Ghost-FTP-*-Linux-Debian-*.deb
+            dist/Ghost-FTP-*-Linux-Ubuntu-*.deb
+            dist/Ghost-FTP-*-Linux-Fedora-*.rpm
+            dist/Ghost-FTP-*-Linux-Portable-*.tar.gz
 
   publish:
     name: Assemble and publish Windows and Linux release
@@ -281,29 +328,25 @@ jobs:
       - name: Download Linux
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
-          name: ghostftp-linux-stage
+          name: ghostftp-linux-distro-stage
           path: staging/linux
       - name: Assemble public Windows and Linux release
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
-          cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x64.exe" "release/Ghost-FTP-${VERSION}-Setup-x64.exe"
-          cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x86.exe"
-          cp "staging/windows/Ghost-FTP-${VERSION}-Setup-x86.exe" "release/Ghost-FTP-${VERSION}-Setup-x32.exe"
-          cp "staging/windows/Ghost-FTP-${VERSION}-Portable-x64.exe" "release/Ghost-FTP-${VERSION}-Portable-x64.exe"
-          cp "staging/windows/Ghost-FTP-${VERSION}-Portable-x86.exe" "release/Ghost-FTP-${VERSION}-Portable-x86.exe"
+          cp "staging/windows/Ghost-FTP-${VERSION}-Setup.exe" "release/Ghost-FTP-${VERSION}-Setup.exe"
+          cp "staging/windows/Ghost-FTP-${VERSION}-Portable.exe" "release/Ghost-FTP-${VERSION}-Portable.exe"
+
           for arch in amd64 arm64 i386; do
-            cp "staging/linux/Ghost-FTP-${VERSION}-Linux-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-${arch}.deb"
-            cp "staging/linux/Ghost-FTP-${VERSION}-Linux-${arch}.tar.gz" "release/Ghost-FTP-${VERSION}-Linux-${arch}.tar.gz"
+            cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Debian-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-Debian-${arch}.deb"
+            cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Ubuntu-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-Ubuntu-${arch}.deb"
+            cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Portable-${arch}.tar.gz" "release/Ghost-FTP-${VERSION}-Linux-Portable-${arch}.tar.gz"
           done
-          (
-            cd staging/linux
-            zip -9 "$GITHUB_WORKSPACE/release/Ghost-FTP-${VERSION}-Linux-multiarch.zip" \
-              "Ghost-FTP-${VERSION}-Linux-amd64.deb" \
-              "Ghost-FTP-${VERSION}-Linux-arm64.deb" \
-              "Ghost-FTP-${VERSION}-Linux-i386.deb"
-          )
+          for rpmarch in x86_64 aarch64 i686; do
+            cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm" "release/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"
+          done
+
           python scripts/release_notes.py --version "$VERSION" --output release/RELEASE-NOTES.txt
           cat > release/BUILD-METADATA.txt <<EOF
           BRAND=Ghost FTP
@@ -313,17 +356,20 @@ jobs:
           RELEASE_CHANNEL=${RELEASE_CHANNEL}
           COMMIT=${GITHUB_SHA}
           ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
-          WINDOWS_SETUP=x64,x86,x32-alias-of-x86
-          WINDOWS_PORTABLE=x64,x86
+          WINDOWS_SETUP=universal-x86-x64
+          WINDOWS_PORTABLE=universal-x86-x64
+          WINDOWS_BOOTSTRAP_PE=x86
+          WINDOWS_NATIVE_PAYLOADS=x64,x86
           WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}
-          LINUX_DEB=amd64,arm64,i386
+          LINUX_DEBIAN_DEB=amd64,arm64,i386
+          LINUX_UBUNTU_DEB=amd64,arm64,i386
+          LINUX_FEDORA_RPM=x86_64,aarch64,i686
           LINUX_PORTABLE=amd64,arm64,i386
-          LINUX_BUNDLE=multiarch-amd64-arm64-i386
           LANGUAGES=24
           DEFAULT_LANGUAGE=en
           TELEMETRY=disabled
-          PUBLIC_PLATFORM_ARTIFACTS=12
-          PUBLIC_RELEASE_FILES=15
+          PUBLIC_PLATFORM_ARTIFACTS=14
+          PUBLIC_RELEASE_FILES=17
           GITHUB_PACKAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ghost-ftp:${VERSION}
           EOF
           sed -i 's/^          //' release/BUILD-METADATA.txt
@@ -332,8 +378,9 @@ jobs:
             find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs sha256sum > SHA256.txt
           )
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
-          test "$count" = '15'
-          test "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x86.exe" | awk '{print $1}')" = "$(sha256sum "release/Ghost-FTP-${VERSION}-Setup-x32.exe" | awk '{print $1}')"
+          test "$count" = '17'
+          test "$(find release -maxdepth 1 -type f -name '*.exe' | wc -l | tr -d ' ')" = '2'
+          ! find release -maxdepth 1 -type f -name '*.exe' -print | grep -Eq -- '-(x64|x86|x32)\.exe$'
       - name: Publish verified bundle to GitHub Packages
         shell: bash
         env:
@@ -408,18 +455,20 @@ jobs:
 
           expected_assets="$(cat <<EOF
           BUILD-METADATA.txt
-          Ghost-FTP-${VERSION}-Linux-amd64.deb
-          Ghost-FTP-${VERSION}-Linux-amd64.tar.gz
-          Ghost-FTP-${VERSION}-Linux-arm64.deb
-          Ghost-FTP-${VERSION}-Linux-arm64.tar.gz
-          Ghost-FTP-${VERSION}-Linux-i386.deb
-          Ghost-FTP-${VERSION}-Linux-i386.tar.gz
-          Ghost-FTP-${VERSION}-Linux-multiarch.zip
-          Ghost-FTP-${VERSION}-Portable-x64.exe
-          Ghost-FTP-${VERSION}-Portable-x86.exe
-          Ghost-FTP-${VERSION}-Setup-x32.exe
-          Ghost-FTP-${VERSION}-Setup-x64.exe
-          Ghost-FTP-${VERSION}-Setup-x86.exe
+          Ghost-FTP-${VERSION}-Linux-Debian-amd64.deb
+          Ghost-FTP-${VERSION}-Linux-Debian-arm64.deb
+          Ghost-FTP-${VERSION}-Linux-Debian-i386.deb
+          Ghost-FTP-${VERSION}-Linux-Fedora-aarch64.rpm
+          Ghost-FTP-${VERSION}-Linux-Fedora-i686.rpm
+          Ghost-FTP-${VERSION}-Linux-Fedora-x86_64.rpm
+          Ghost-FTP-${VERSION}-Linux-Portable-amd64.tar.gz
+          Ghost-FTP-${VERSION}-Linux-Portable-arm64.tar.gz
+          Ghost-FTP-${VERSION}-Linux-Portable-i386.tar.gz
+          Ghost-FTP-${VERSION}-Linux-Ubuntu-amd64.deb
+          Ghost-FTP-${VERSION}-Linux-Ubuntu-arm64.deb
+          Ghost-FTP-${VERSION}-Linux-Ubuntu-i386.deb
+          Ghost-FTP-${VERSION}-Portable.exe
+          Ghost-FTP-${VERSION}-Setup.exe
           RELEASE-NOTES.txt
           SHA256.txt
           EOF
