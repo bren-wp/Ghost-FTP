@@ -50,6 +50,8 @@ func (a *app) command(id int) {
 		a.localRenameAction()
 	case idLocalDelete:
 		a.localDeleteAction()
+	case idLocalFilter:
+		a.localFilterAction()
 	case idRemoteMkdir:
 		a.remoteMkdirAction()
 	case idRemoteRename:
@@ -60,6 +62,8 @@ func (a *app) command(id int) {
 		a.remoteChmodAction()
 	case idRemoteEdit:
 		a.remoteEditAction()
+	case idRemoteFilter:
+		a.remoteFilterAction()
 	case idUpload:
 		a.uploadSelected()
 	case idDownload:
