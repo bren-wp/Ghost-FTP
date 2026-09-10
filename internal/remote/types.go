@@ -3,16 +3,18 @@ package remote
 import (
 	"context"
 	"errors"
+
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
 var ErrSkipped = errors.New("prijenos je preskočen jer odredišna datoteka već postoji")
 
 type TransferOptions struct {
-	KeepBackup   bool
-	SkipExisting bool
-	LocalRoot    string
-	Progress     TransferProgressFunc
+	KeepBackup                   bool
+	SkipExisting                 bool
+	LocalRoot                    string
+	BandwidthLimitBytesPerSecond int64
+	Progress                     TransferProgressFunc
 }
 
 type Session interface {
