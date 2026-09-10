@@ -19,6 +19,8 @@ const (
 	linuxPromptRemoteMkdir
 	linuxPromptRemoteRename
 	linuxPromptRemoteChmod
+	linuxPromptLocalFilter
+	linuxPromptRemoteFilter
 )
 
 func (u *linuxDesktop) openPrompt(kind int, title, initial string) {
@@ -34,6 +36,14 @@ func (u *linuxDesktop) closePrompt() {
 	u.promptKind = linuxPromptNone
 	u.promptTitle = ""
 	u.promptValue = ""
+}
+
+func (u *linuxDesktop) filterPrompt() bool {
+	return u.promptKind == linuxPromptLocalFilter || u.promptKind == linuxPromptRemoteFilter
+}
+
+func (u *linuxDesktop) promptCanSubmit() bool {
+	return !u.busy && (u.filterPrompt() || strings.TrimSpace(u.promptValue) != "")
 }
 
 func (u *linuxDesktop) handlePromptKey(sym uint32) bool {
@@ -82,14 +92,18 @@ func (u *linuxDesktop) renderPromptOverlay() error {
 	}
 	shown := u.promptValue
 	if shown == "" {
-		shown = "Type a value"
+		if u.filterPrompt() {
+			shown = fileFilterWordsForLanguage(u.language).Cue
+		} else {
+			shown = "Type a value"
+		}
 	}
 	if err := u.x.text(left+29, top+73, linuxTrimForUI(shown, max(16, (width-58)/7)), premiumTheme.Text, premiumTheme.List); err != nil {
 		return err
 	}
 	u.layout.promptOK = linuxRectWH(left+width-224, top+108, 94, 30)
 	u.layout.promptCancel = linuxRectWH(left+width-120, top+108, 94, 30)
-	if err := u.drawButton(u.layout.promptOK, "Apply", strings.TrimSpace(u.promptValue) != "" && !u.busy, true); err != nil {
+	if err := u.drawButton(u.layout.promptOK, "Apply", u.promptCanSubmit(), true); err != nil {
 		return err
 	}
 	return u.drawButton(u.layout.promptCancel, u.tr("common.cancel"), !u.busy, false)
@@ -113,12 +127,17 @@ func (u *linuxDesktop) handlePromptMouse(x, y int) bool {
 
 func (u *linuxDesktop) submitPrompt() {
 	value := strings.TrimSpace(u.promptValue)
-	if value == "" || u.busy {
+	kind := u.promptKind
+	isFilter := kind == linuxPromptLocalFilter || kind == linuxPromptRemoteFilter
+	if u.busy || (!isFilter && value == "") {
 		return
 	}
-	kind := u.promptKind
 	u.closePrompt()
 	switch kind {
+	case linuxPromptLocalFilter:
+		u.applyLinuxFileFilter(false, value)
+	case linuxPromptRemoteFilter:
+		u.applyLinuxFileFilter(true, value)
 	case linuxPromptLocalMkdir:
 		if err := u.engine.LocalMkdir(u.localCurrent, value); err != nil {
 			u.setStatus(usererror.MessageFor(u.language, err, i18n.T(u.language, "error.generic")))
