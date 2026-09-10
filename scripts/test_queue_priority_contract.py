@@ -119,6 +119,19 @@ class QueuePriorityContractTests(unittest.TestCase):
         self.assertLess(upload.index("ensureRemoteDirectoryCached"), upload.index("reservation.Commit()"))
         self.assertLess(download.index("prepareLocalDirectories"), download.index("reservation.Commit()"))
 
+    def test_docs_keep_source_feature_separate_from_published_003(self) -> None:
+        roadmap = self.read("docs/ROADMAP.md")
+        detail = self.read("docs/QUEUE-PRIORITY.md")
+        self.assertIn("implemented in the post-0.0.3 source line", roadmap)
+        self.assertIn("targeted for the next public release", roadmap)
+        self.assertIn("post-0.0.3 source line", detail)
+        self.assertIn("not retroactively part of the already published Ghost FTP 0.0.3 release", detail)
+        self.assertIn("MoveTransferTop(id)", detail)
+        self.assertIn("MoveTransferBottom(id)", detail)
+        self.assertIn("jobConnections", detail)
+        self.assertIn("reservation.Commit()", detail)
+        self.assertIn("Root `VERSION` remains **0.0.3**", detail)
+
     def test_tests_cover_scheduler_and_ui_invariants(self) -> None:
         manager_tests = self.read("internal/transfer/queue_order_test.go")
         ui_tests = self.read("internal/desktop/queue_priority_test.go")

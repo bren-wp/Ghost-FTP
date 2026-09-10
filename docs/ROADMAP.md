@@ -109,15 +109,22 @@ Implemented contract:
 
 ### P0 — queue priority and reorder
 
-Add user-controlled queue priority/reordering while retaining connection-generation safety.
+**Status: implemented in the post-0.0.3 source line and targeted for the next public release.** This does not retroactively add the capability to the already published 0.0.3 binaries.
 
-Acceptance requirements:
+Implemented source contract:
 
-- reordering queued jobs never changes the identity of already-running work;
-- parent/child tree-transfer ordering remains valid;
-- selected jobs can move up/down/top/bottom without duplicate execution;
-- pause/resume/cancel/retry semantics remain deterministic;
-- queue ordering survives only where doing so cannot resurrect stale server work.
+- a single selected `queued` job can move **Top**, **Up**, **Down** or **Bottom** on Windows and Linux;
+- scheduler mutation rotates only slots occupied by queued jobs, so running and terminal jobs keep their exact history positions;
+- Top/Bottom preserves the relative order of all other queued jobs instead of swapping unrelated endpoints;
+- transfer IDs and `jobConnections` bindings are unchanged by reordering;
+- edge actions are idempotent no-ops and emit no redundant queue state event;
+- a real reorder emits one complete queue `state` snapshot and never starts/retries/cancels a transfer as a side effect;
+- directory-tree structural dependencies remain safe because remote/local directories are prepared before the batch of file jobs is committed to the runnable queue;
+- both desktop frontends restore selection by transfer ID after reordering rather than reusing a stale row index;
+- all four actions and success states have local copy for all 24 supported desktop languages;
+- `scripts/test_queue_priority_contract.py` and Go unit tests protect scheduler, connection-binding, tree-transfer, UI-wiring and localization invariants.
+
+See [Queue priority and reordering](QUEUE-PRIORITY.md) for the detailed source and release-boundary contract.
 
 ### P1 — navigation bookmarks and profile start directories
 
@@ -197,7 +204,7 @@ Security hardening should favor deterministic rejection and actionable errors ov
 
 Release security should improve publisher trust when a real certificate is available without weakening integrity verification or inventing trust when it is not.
 
-New productivity features must preserve the same trust model: search, compare, bandwidth, bookmarks, resume, multi-session and proxy functionality may not introduce hidden cloud state, telemetry or credential replication.
+New productivity features must preserve the same trust model: search, compare, bandwidth, queue priority, bookmarks, resume, multi-session and proxy functionality may not introduce hidden cloud state, telemetry or credential replication.
 
 ## macOS direction
 
