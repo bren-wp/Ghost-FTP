@@ -128,14 +128,23 @@ See [Queue priority and reordering](QUEUE-PRIORITY.md) for the detailed source a
 
 ### P1 — navigation bookmarks and profile start directories
 
-Allow reusable local/server bookmarks plus explicit default local/server directories per site profile.
+**Status: implemented in the post-0.0.3 source line and targeted for the next public release.** This does not retroactively add the capability to the already published 0.0.3 binaries.
 
-Acceptance requirements:
+Implemented source contract:
 
-- bookmarks store paths, never credentials;
-- stale local paths and unavailable server paths produce actionable errors;
-- profile identity changes cannot inherit unrelated server paths silently;
-- quick-connect bookmarks do not create hidden persistent profiles.
+- reusable bookmarks are explicit local or remote navigation metadata and never contain passwords, passphrases, private-key data/paths, fingerprints or hidden profile references;
+- local bookmarks require absolute validated paths and are freshly listed before a desktop pane commits navigation;
+- remote bookmark creation reads protocol/host/port/username from the real active Engine connection rather than trusting editable UI text;
+- remote bookmark activation uses `AccountMatches` and revalidates connection identity both before and after a fresh server listing, so reconnect/account changes fail closed;
+- quick-connect bookmark creation has no `SaveProfile` side effect and therefore creates no hidden persistent Site Manager profile;
+- existing corrupt bookmark state fails closed instead of silently becoming an empty collection during a later save;
+- profile remote starts are account-bound: an inherited path is reset when profile identity changes, while a newly explicit path for the new identity is preserved;
+- Windows uses a native bookmark manager and adds desktop `connectionGeneration` protection around remote async navigation commits;
+- Linux uses a native X11 bookmark overlay with full key/mouse/prompt dispatch and turns legacy profile-path copies into drafts that require a real local listing before commit;
+- Windows and Linux expose Add local, Add remote, Open and Delete behavior through the same Engine/config contract;
+- `scripts/test_navigation_bookmarks_contract.py` plus Go unit tests protect non-secret persistence, account/session binding, profile-start isolation, UI wiring and release-boundary documentation.
+
+See [Navigation bookmarks and profile start directories](NAVIGATION-BOOKMARKS.md) for the detailed source, security, privacy, parity and release-boundary contract.
 
 ### P1 — stronger interrupted-transfer resume
 
