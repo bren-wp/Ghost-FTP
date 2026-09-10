@@ -18,19 +18,19 @@ func TestDirectoryCompareWordsCoverEverySupportedLanguage(t *testing.T) {
 			t.Fatalf("missing directory comparison translation for %s", language.Code)
 		}
 		for label, value := range map[string]string{
-			"compare": words.Compare,
-			"close": words.Close,
-			"openBoth": words.OpenBoth,
-			"same": words.Same,
-			"localOnly": words.LocalOnly,
-			"remoteOnly": words.RemoteOnly,
-			"newerLocal": words.NewerLocal,
+			"compare":     words.Compare,
+			"close":       words.Close,
+			"openBoth":    words.OpenBoth,
+			"same":        words.Same,
+			"localOnly":   words.LocalOnly,
+			"remoteOnly":  words.RemoteOnly,
+			"newerLocal":  words.NewerLocal,
 			"newerRemote": words.NewerRemote,
-			"conflict": words.Conflict,
-			"unknown": words.Unknown,
-			"ready": words.Ready,
+			"conflict":    words.Conflict,
+			"unknown":     words.Unknown,
+			"ready":       words.Ready,
 			"unavailable": words.Unavailable,
-			"disclosure": words.Disclosure,
+			"disclosure":  words.Disclosure,
 		} {
 			if strings.TrimSpace(value) == "" {
 				t.Fatalf("empty comparison %s for %s", label, language.Code)
