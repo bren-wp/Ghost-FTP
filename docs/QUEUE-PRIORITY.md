@@ -40,7 +40,7 @@ Reordering is therefore a scheduler-order operation only. It does not mutate tra
 
 ## Tree-transfer safety
 
-Directory-tree transfers prepare structural dependencies before their file jobs become runnable. Upload tree planning ensures required remote directories before `BatchReservation.Commit()`. Download tree planning prepares the safe local directory structure before the same queue commit boundary.
+Directory-tree transfers prepare structural dependencies before their file jobs become runnable. Upload tree planning ensures required remote directories before the concrete `reservation.Commit()` call crosses the `BatchReservation.Commit()` boundary. Download tree planning prepares the safe local directory structure before the same queue commit boundary.
 
 Queue priority operates only on the resulting queued file-transfer jobs. It cannot move a file ahead of an unexecuted directory-creation queue job because those directory preparations are not represented as reorderable transfer jobs in this scheduler.
 
