@@ -62,7 +62,9 @@ class FileFilterUIContractTests(unittest.TestCase):
             "internal/desktop/queue_priority_windows.go",
             "internal/desktop/file_filter_windows.go",
         )
-        pattern = re.compile(r"(?m)^\s*(id[A-Z][A-Za-z0-9_]*)\s*=\s*(\d+)\s*$")
+        pattern = re.compile(
+            r"(?m)^\s*(?:const\s+)?(id[A-Z][A-Za-z0-9_]*)\s*=\s*(\d+)\s*$"
+        )
         by_value: dict[int, str] = {}
         by_name: dict[str, int] = {}
 
