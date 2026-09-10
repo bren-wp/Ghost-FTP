@@ -11,12 +11,18 @@ def source(path: str) -> str:
 
 
 class FileFilterUIContractTests(unittest.TestCase):
-    def test_shared_filter_is_non_destructive_and_io_free(self) -> None:
+    def test_shared_filter_is_non_destructive_io_free_and_unicode_aware(self) -> None:
         text = source("internal/itemlist/filter.go")
+        tests = source("internal/itemlist/filter_test.go")
         self.assertIn("func Filter(items []model.Item, query string) []model.Item", text)
         self.assertIn("out := make([]model.Item, 0, len(items))", text)
         self.assertIn("return append(out, items...)", text)
-        self.assertIn("strings.Contains(name, token)", text)
+        self.assertIn("containsFold(item.Name, token)", text)
+        self.assertIn("unicode.SimpleFold", text)
+        self.assertNotIn("strings.ToLower", text)
+        self.assertIn("TestFilterHandlesGreekFinalSigmaCaseFold", tests)
+        self.assertIn('Name: "ΟΣ.txt"', tests)
+        self.assertIn('Filter(source, "ος")', tests)
         for forbidden in ("os.", "net.", "http.", "LocalList", "RemoteList"):
             self.assertNotIn(forbidden, text)
 
