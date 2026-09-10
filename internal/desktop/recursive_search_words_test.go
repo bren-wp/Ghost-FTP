@@ -18,15 +18,15 @@ func TestRecursiveSearchWordsCoverEverySupportedLanguage(t *testing.T) {
 			t.Fatalf("missing recursive search translation for %s", language.Code)
 		}
 		for label, value := range map[string]string{
-			"search": words.Search,
-			"navigate": words.Navigate,
-			"cancel": words.Cancel,
-			"close": words.Close,
-			"searching": words.Searching,
-			"done": words.Done,
-			"cancelled": words.Cancelled,
-			"noResults": words.NoResults,
-			"localDisclosure": words.LocalDisclosure,
+			"search":           words.Search,
+			"navigate":         words.Navigate,
+			"cancel":           words.Cancel,
+			"close":            words.Close,
+			"searching":        words.Searching,
+			"done":             words.Done,
+			"cancelled":        words.Cancelled,
+			"noResults":        words.NoResults,
+			"localDisclosure":  words.LocalDisclosure,
 			"remoteDisclosure": words.RemoteDisclosure,
 		} {
 			if strings.TrimSpace(value) == "" {
