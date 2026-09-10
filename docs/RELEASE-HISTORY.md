@@ -1,8 +1,54 @@
 # Ghost FTP release history
 
+## 0.0.2 — 2026-09-10
+
+Ghost FTP 0.0.2 advances the current public release line with reliability hardening and production-ready local/server navigation workflows while preserving the 0.0.1 security and privacy baseline.
+
+### Application and navigation
+
+- Added non-destructive current-folder filtering on Windows and Linux without hidden listing/network I/O while filtering the loaded snapshot.
+- Added bounded recursive local/server search with explicit nested-folder I/O disclosure, cancellation, hard limits, incremental results and fresh-list navigation.
+- Added conservative local/server directory comparison with `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown` states.
+- Added synchronized navigation only for exact paired ordinary directories proven safe on both sides; both targets are freshly listed before either pane path is committed.
+- Kept comparison read-only: it grants no transfer, delete, rename, overwrite or CHMOD authority.
+- Localized the new filter/search/comparison workflows across all 24 supported desktop languages.
+
+### Reliability and review hardening
+
+- Made timestamp comparison directional so saturated `time.Duration` arithmetic cannot turn extreme timestamp differences into false equality.
+- Treat zero-size comparison ambiguity conservatively as `unknown` where remote metadata cannot prove the size fact was present.
+- Windows comparison synchronizes row selection between both dedicated ListViews and invalidates stale comparison state across disconnect/reconnect generation changes.
+- Linux comparison preserves authoritative pre-filter snapshots and restores both panes after cancellation or asynchronous listing failure.
+- Added cross-platform regression contracts for file-filter, recursive-search, comparison, action wiring and fresh-list synchronized navigation behavior.
+- Hardened legacy settings migration so omitted `parallelism=0` becomes the safe default 2 while explicit invalid values remain rejected.
+
+### Release engineering
+
+- The canonical release-branch lifecycle identifies and waits for the exact newly dispatched publish run before retention can begin.
+- Canonical retention is explicitly dispatched and verified after successful publication, with the existing `workflow_run` trigger retained as defense in depth.
+- Release-note generation no longer infers Beta/prerelease status from semantic major version zero.
+- Windows release verification rejects unexpected executable files outside the canonical Setup/Portable x64/x86 contract.
+
+### Security and privacy
+
+- Preserves strict FTPS certificate/hostname verification and no silent downgrade.
+- Preserves strict SFTP host-key verification/pinning and trusted Linux transport/AskPass provenance.
+- Preserves rooted local path/transfer protections, staged activation/rollback, protected saved-secret handling and connection-generation binding.
+- Preserves the no-telemetry, no-analytics, no-advertising, no-fingerprinting and no-hidden-backend contract.
+
+### Release quality
+
+- Windows Setup x64/x86, x32 compatibility alias and Portable x64/x86.
+- Linux DEB/tar.gz for amd64/arm64/i386 plus multiarch ZIP.
+- **12 platform artifacts / 15 public files**.
+- Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native lifecycle/GUI smoke.
+- Exact-head and exact post-merge workflow verification before publication.
+- Current release identity `ghostftp-v0.0.2` with `prerelease=false`.
+- Verified GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.2`.
+
 ## 0.0.1 — 2026-09-09
 
-Ghost FTP 0.0.1 starts the current public release line.
+Ghost FTP 0.0.1 started the current public release line.
 
 ### Application
 
@@ -35,8 +81,8 @@ Ghost FTP 0.0.1 starts the current public release line.
 - **12 platform artifacts / 15 public files**.
 - Debian 13, Ubuntu 26.04 LTS and Fedora 44 native lifecycle/GUI smoke.
 - Exact-head and exact post-merge workflow verification.
-- Current release identity `ghostftp-v0.0.1` with `prerelease=false`.
-- Verified GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.1`.
+- Historical release identity `ghostftp-v0.0.1` with `prerelease=false`.
+- Historical GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.1`.
 
 ## Public history retention policy
 
@@ -44,4 +90,4 @@ Only the latest public Ghost FTP version is retained after successful publicatio
 
 The Git commit history on `main` is not rewritten by this policy.
 
-The next release must start from the verified current source and advance through a separate release-prep change, beginning with 0.0.2 after 0.0.1 is fully published and retention cleanup succeeds.
+The next release must start from the verified current source and advance through a separate release-prep change, beginning with 0.0.3 after 0.0.2 is fully published and retention cleanup succeeds.
