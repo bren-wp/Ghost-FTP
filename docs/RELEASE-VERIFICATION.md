@@ -50,6 +50,18 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
+## Canonical release dispatch
+
+The canonical release branch namespace is:
+
+```text
+release/ghostftp-vX.Y.Z
+```
+
+For this release it is `release/ghostftp-v0.0.3`. The branch must point to the exact fully verified current `main` commit. `.github/workflows/release-branch-trigger.yml` validates that identity and uses `workflow_dispatch` to run canonical `release.yml` with the same source/version guard.
+
+A push to `main`, including a change to `VERSION`, must never publish a release directly.
+
 ## Source verification
 
 Before publication:
@@ -58,13 +70,15 @@ Before publication:
 2. root `VERSION` must equal `0.0.3`;
 3. the release branch SHA must equal exact current `main`;
 4. exact-head Core/Windows/Linux/distro gates must be successful;
-5. authentic Windows UI evidence must come from the exact final source revision.
+5. authentic Windows UI evidence must come from the exact final source revision where the workflow is triggered.
 
-A push to `main`, including a change to `VERSION`, does not publish a release directly.
+The release workflow checks current `main` again immediately before publication and again before delayed remote read-back.
 
 ## SHA-256 verification
 
-`SHA256.txt` contains a checksum for every public file except itself. A downloaded artifact is trusted for integrity only when its local hash matches the corresponding entry. There is no public x32/x86/x64 Windows alias set in 0.0.3; only the universal Setup and Portable executables are public.
+`SHA256.txt` contains a checksum for every public file except itself. A downloaded artifact is trusted for integrity only when its local hash matches the corresponding entry.
+
+There is no public x32/x86/x64 Windows alias set in 0.0.3. Only the universal Setup and Portable executables are public; architecture-specific native payloads are internal verified staging inputs.
 
 ## Build metadata
 
@@ -78,6 +92,7 @@ RELEASE_CHANNEL=current
 ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
 WINDOWS_SETUP=universal-x86-x64
 WINDOWS_PORTABLE=universal-x86-x64
+WINDOWS_BOOTSTRAP_PE=x86
 WINDOWS_NATIVE_PAYLOADS=x64,x86
 LINUX_DEBIAN_DEB=amd64,arm64,i386
 LINUX_UBUNTU_DEB=amd64,arm64,i386
@@ -90,7 +105,9 @@ GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.3
 
 ## Windows Authenticode
 
-The release contract supports a **truthful supported publication state** with or without a configured production signing identity. When a trusted production certificate is configured, signatures must verify. The production workflow **does not create a self-signed production identity**.
+The release contract supports a **truthful supported publication state** with or without a configured production signing identity.
+
+When a trusted production certificate is configured, signatures must verify. The production workflow **does not create a self-signed production identity**.
 
 When no production certificate is configured, publication uses **explicit unsigned metadata when no production certificate is configured**:
 
@@ -98,21 +115,45 @@ When no production certificate is configured, publication uses **explicit unsign
 WINDOWS_AUTHENTICODE=unsigned
 ```
 
-If metadata says `signed` and Windows signature verification fails, treat the artifact as invalid.
+If metadata says `signed` and Windows signature verification fails, treat the artifact as invalid. If metadata says `unsigned`, do not present the artifact as Authenticode-signed.
+
+## Linux package verification
+
+Debian/Ubuntu DEB metadata must identify package `ghost-ftp`, exact version/architecture, product Homepage, runtime dependencies and the expected distro marker. Fedora RPM metadata must identify package/version/architecture, product URL, `Distribution=Fedora` and the maintained runtime requirements.
+
+For each architecture the release job extracts Debian, Ubuntu and Fedora package payloads and compares `/usr/bin/ghostftp` byte-for-byte with the matching distro-neutral Portable archive. Native package-manager/runtime lifecycle is separately proven only for Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64.
 
 ## Remote release read-back
 
-The publish workflow requires the remote GitHub Release asset set to match the exact 17-file allow-list immediately and after a delay. For 0.0.3 it requires `prerelease=false`. A local build alone is not release evidence.
+The publish workflow requires the remote GitHub Release asset set to match the exact 17-file allow-list immediately and after a delay. For 0.0.3 it requires `prerelease=false`.
+
+A local build alone is not release evidence.
 
 ## GitHub Packages read-back
 
-The same verified release directory is published as a distribution-only bundle at `ghcr.io/bren-wp/ghost-ftp:0.0.3`. The canonical workflow verifies the exact version tag after push. The package is not a supported runtime container.
+The same verified release directory is published as a distribution-only bundle at:
+
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.3
+```
+
+The canonical workflow verifies the exact version tag after push. The package is not a supported runtime container and must not be treated as an application service.
 
 ## Latest-only retention verification
 
-Only after the 0.0.3 release read-back succeeds does `.github/workflows/release-retention.yml` remove superseded public versions. Before destructive cleanup, retention verifies the current release is not a draft, has `prerelease=false`, exposes exactly 17 assets and its tag points to current `main`.
+Only after the 0.0.3 release read-back succeeds does `.github/workflows/release-retention.yml` remove superseded public versions.
 
-Retention is complete only when the current release/tag/canonical branch and exact-version package remain, superseded identities are removed, and the workflow emits `LATEST_ONLY_RELEASE_RETENTION=YES`. The `main` commit history is never rewritten by retention cleanup.
+Before destructive cleanup, retention verifies the current release is not a draft, has `prerelease=false`, exposes exactly 17 assets and its tag points to current `main`.
+
+Retention is complete only when:
+
+- exactly one Ghost FTP GitHub Release remains and it is `ghostftp-v0.0.3`;
+- exactly one `ghostftp-v*` tag remains and it is `ghostftp-v0.0.3`;
+- the current canonical release branch is retained and superseded versioned release branches are removed;
+- the current `0.0.3` package version remains and obsolete Ghost FTP package versions are removed;
+- retention emits `LATEST_ONLY_RELEASE_RETENTION=YES`.
+
+The `main` commit history is never rewritten by retention cleanup.
 
 ## Verification commands
 
