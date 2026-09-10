@@ -645,10 +645,12 @@ func (m *Manager) runAttempt(ctx context.Context, job model.TransferJob, setting
 		return err
 	}
 	defer release()
+	bandwidthSettings := m.settings.Effective()
 	options := remote.TransferOptions{
-		KeepBackup:   settings.BackupBeforeOverwrite,
-		SkipExisting: settings.SkipExisting,
-		LocalRoot:    localRoot,
+		KeepBackup:                   settings.BackupBeforeOverwrite,
+		SkipExisting:                 settings.SkipExisting,
+		LocalRoot:                    localRoot,
+		BandwidthLimitBytesPerSecond: bandwidthLimitBytesPerSecond(bandwidthSettings, job.Direction),
 		Progress: func(transferred, total int64) {
 			m.updateProgress(job.ID, transferred, total)
 		},

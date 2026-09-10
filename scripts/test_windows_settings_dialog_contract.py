@@ -19,13 +19,16 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         self.assertNotIn("platform.PromptDialogWithLabels(", source)
         self.assertNotIn("platform.SelectOptionDialog(", source)
 
-    def test_unified_dialog_preserves_all_existing_settings_fields(self) -> None:
+    def test_unified_dialog_preserves_all_settings_fields(self) -> None:
         source = read("internal/desktop/settings_windows.go")
         for marker in (
             "settings.Parallelism = result.Numbers[0]",
-            "settings.ConnectionTimeoutSeconds = result.Numbers[1]",
-            "settings.AutoRetryCount = result.Numbers[2]",
-            "settings.RetryDelaySeconds = result.Numbers[3]",
+            "settings.UploadLimitKiBPerSecond = result.Numbers[1]",
+            "settings.DownloadLimitKiBPerSecond = result.Numbers[2]",
+            "settings.ConnectionTimeoutSeconds = result.Numbers[3]",
+            "settings.AutoRetryCount = result.Numbers[4]",
+            "settings.RetryDelaySeconds = result.Numbers[5]",
+            "if !ok || len(result.Numbers) != 6",
             "applyConflictPolicySelection(&settings, result.ConflictIndex)",
             "settings.ConfirmDelete = result.ConfirmDelete",
             "applyAppearanceSelection(&settings, result.AppearanceIndex)",
@@ -36,11 +39,21 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         source = read("internal/desktop/settings_windows.go")
         for marker in (
             "config.MinParallelism, config.MaxParallelism",
+            "config.MinBandwidthLimitKiBPerSecond, config.MaxBandwidthLimitKiBPerSecond",
             "config.MinConnectionTimeoutSeconds, config.MaxConnectionTimeoutSeconds",
             "config.MinAutoRetryCount, config.MaxAutoRetryCount",
             "config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds",
         ):
             self.assertIn(marker, source)
+
+    def test_bandwidth_fields_keep_explicit_units_and_directional_labels(self) -> None:
+        source = read("internal/desktop/settings_windows.go")
+        words = read("internal/desktop/bandwidth_words.go")
+        self.assertIn("bandwidthWordsForLanguage(language)", source)
+        self.assertIn("bandwidth.UploadLabel", source)
+        self.assertIn("bandwidth.DownloadLabel", source)
+        self.assertIn("KiB/s", words)
+        self.assertIn("0 = unlimited", words)
 
     def test_settings_modal_is_dpi_aware_owner_modal_and_never_posts_quit(self) -> None:
         source = read("internal/platform/settings_dialog_windows.go")
@@ -58,6 +71,13 @@ class WindowsSettingsDialogContractTests(unittest.TestCase):
         self.assertIn("settingsSetText(state.errorLabel, message)", source)
         self.assertIn("promptSetFocus.Call(edit)", source)
         self.assertIn("return 0", source)
+
+    def test_numeric_input_length_follows_validated_bounds(self) -> None:
+        source = read("internal/platform/settings_dialog_windows.go")
+        self.assertIn("func settingsNumberInputLength(field SettingsDialogNumber) uintptr", source)
+        self.assertIn("strconv.Itoa(field.Max)", source)
+        self.assertIn("settingsNumberInputLength(field)", source)
+        self.assertNotIn("promptEMSetLimitText, 5, 0", source)
 
     def test_keyboard_navigation_uses_shared_win32_dialog_manager_and_standard_commands(self) -> None:
         settings = read("internal/platform/settings_dialog_windows.go")

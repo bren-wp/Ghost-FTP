@@ -68,16 +68,18 @@ type ProfileInput struct {
 }
 
 type Settings struct {
-	Language                 string `json:"language,omitempty"`
-	Appearance               string `json:"appearance,omitempty"`
-	Parallelism              int    `json:"parallelism"`
-	ConflictPolicy           string `json:"conflictPolicy,omitempty"`
-	BackupBeforeOverwrite    bool   `json:"backupBeforeOverwrite"`
-	ConfirmDelete            bool   `json:"confirmDelete"`
-	AutoRetryCount           int    `json:"autoRetryCount,omitempty"`
-	RetryDelaySeconds        int    `json:"retryDelaySeconds,omitempty"`
-	SkipExisting             bool   `json:"skipExisting,omitempty"`
-	ConnectionTimeoutSeconds int    `json:"connectionTimeoutSeconds,omitempty"`
+	Language                  string `json:"language,omitempty"`
+	Appearance                string `json:"appearance,omitempty"`
+	Parallelism               int    `json:"parallelism"`
+	UploadLimitKiBPerSecond   int    `json:"uploadLimitKiBPerSecond,omitempty"`
+	DownloadLimitKiBPerSecond int    `json:"downloadLimitKiBPerSecond,omitempty"`
+	ConflictPolicy            string `json:"conflictPolicy,omitempty"`
+	BackupBeforeOverwrite     bool   `json:"backupBeforeOverwrite"`
+	ConfirmDelete             bool   `json:"confirmDelete"`
+	AutoRetryCount            int    `json:"autoRetryCount,omitempty"`
+	RetryDelaySeconds         int    `json:"retryDelaySeconds,omitempty"`
+	SkipExisting              bool   `json:"skipExisting,omitempty"`
+	ConnectionTimeoutSeconds  int    `json:"connectionTimeoutSeconds,omitempty"`
 }
 
 type ConnectionConfig struct {

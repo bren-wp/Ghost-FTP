@@ -49,6 +49,13 @@ def require(rel: str, markers: tuple[str, ...]) -> str:
     return text
 
 
+def require_pattern(rel: str, pattern: str, invariant: str) -> str:
+    text = read(rel)
+    if re.search(pattern, text) is None:
+        fail(f"{rel} is missing privacy guard: {invariant}")
+    return text
+
+
 def audit_runtime_sources() -> None:
     runtime_files: list[Path] = []
     for base in RUNTIME_ROOTS:
@@ -153,9 +160,13 @@ def audit_credentials_and_network_tools() -> None:
         "localRoot := job.LocalRoot",
         'job.Direction == "download" && localRoot == ""',
         "security.EnsureLocalWithinRoot(localRoot, job.LocalPath)",
-        "LocalRoot:    localRoot",
         "remote.IsRetryable(err)",
     ))
+    require_pattern(
+        "internal/transfer/manager.go",
+        r"\bLocalRoot:\s+localRoot,",
+        "TransferOptions.LocalRoot propagates the validated localRoot",
+    )
     require("internal/remote/local_download_root.go", (
         "os.OpenRoot(rootPath)",
         "security.EnsureLocalWithinRoot(d.rootPath, d.targetPath)",

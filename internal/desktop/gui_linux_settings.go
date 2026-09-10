@@ -14,6 +14,8 @@ import (
 type linuxSettingsRects struct {
 	language                    linuxRect
 	parallelMinus, parallelPlus linuxRect
+	uploadMinus, uploadPlus     linuxRect
+	downloadMinus, downloadPlus linuxRect
 	retriesMinus, retriesPlus   linuxRect
 	delayMinus, delayPlus       linuxRect
 	timeoutMinus, timeoutPlus   linuxRect
@@ -137,6 +139,40 @@ func (u *linuxDesktop) settingsStep(rectMinus, rectPlus linuxRect, x, y int, val
 	return false
 }
 
+var bandwidthLimitPresets = []int{
+	0, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+	32768, 65536, 131072, 262144, 524288, 1048576,
+}
+
+func stepBandwidthLimit(value int, increase bool) int {
+	if increase {
+		for _, preset := range bandwidthLimitPresets {
+			if preset > value {
+				return preset
+			}
+		}
+		return config.MaxBandwidthLimitKiBPerSecond
+	}
+	for index := len(bandwidthLimitPresets) - 1; index >= 0; index-- {
+		if bandwidthLimitPresets[index] < value {
+			return bandwidthLimitPresets[index]
+		}
+	}
+	return config.MinBandwidthLimitKiBPerSecond
+}
+
+func (u *linuxDesktop) bandwidthStep(rectMinus, rectPlus linuxRect, x, y int, value *int) bool {
+	if rectMinus.contains(x, y) {
+		*value = stepBandwidthLimit(*value, false)
+		return true
+	}
+	if rectPlus.contains(x, y) {
+		*value = stepBandwidthLimit(*value, true)
+		return true
+	}
+	return false
+}
+
 func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 	if !u.settingsOpen {
 		return false
@@ -147,6 +183,12 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 		return true
 	}
 	if u.settingsStep(r.parallelMinus, r.parallelPlus, x, y, &u.settingsDraft.Parallelism, config.MinParallelism, config.MaxParallelism, 1) {
+		return true
+	}
+	if u.bandwidthStep(r.uploadMinus, r.uploadPlus, x, y, &u.settingsDraft.UploadLimitKiBPerSecond) {
+		return true
+	}
+	if u.bandwidthStep(r.downloadMinus, r.downloadPlus, x, y, &u.settingsDraft.DownloadLimitKiBPerSecond) {
 		return true
 	}
 	if u.settingsStep(r.retriesMinus, r.retriesPlus, x, y, &u.settingsDraft.AutoRetryCount, config.MinAutoRetryCount, config.MaxAutoRetryCount, 1) {
@@ -221,7 +263,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return nil
 	}
 	width := min(700, u.width-100)
-	height := 486
+	height := 576
 	left := (u.width - width) / 2
 	top := (u.height - height) / 2
 	panel := linuxRectWH(left, top, width, height)
@@ -247,6 +289,15 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	}
 	row += 45
 	if err := u.drawSettingStepper(u.draftTr("settings.parallel"), u.settingsDraft.Parallelism, row, &u.settingsRects.parallelMinus, &u.settingsRects.parallelPlus); err != nil {
+		return err
+	}
+	row += 45
+	bandwidth := bandwidthWordsForLanguage(u.settingsDraft.Language)
+	if err := u.drawSettingStepper(bandwidth.UploadLabel, u.settingsDraft.UploadLimitKiBPerSecond, row, &u.settingsRects.uploadMinus, &u.settingsRects.uploadPlus); err != nil {
+		return err
+	}
+	row += 45
+	if err := u.drawSettingStepper(bandwidth.DownloadLabel, u.settingsDraft.DownloadLimitKiBPerSecond, row, &u.settingsRects.downloadMinus, &u.settingsRects.downloadPlus); err != nil {
 		return err
 	}
 	row += 45

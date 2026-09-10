@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,13 @@ def require(path: str, markers: tuple[str, ...]) -> str:
     for marker in markers:
         if marker not in text:
             fail(f"{path} is missing required security invariant: {marker}")
+    return text
+
+
+def require_pattern(path: str, pattern: str, invariant: str) -> str:
+    text = read(path)
+    if re.search(pattern, text) is None:
+        fail(f"{path} is missing required security invariant: {invariant}")
     return text
 
 
@@ -195,11 +203,18 @@ def main() -> int:
         "localRoot := job.LocalRoot",
         'job.Direction == "download" && localRoot == ""',
         "security.EnsureLocalWithinRoot(localRoot, job.LocalPath)",
-        "LocalRoot:    localRoot",
         "remote.IsRetryable(err)",
         "errors.Is(err, remote.ErrSkipped)",
         "ConnectionIdentity() (string, error)",
     ))
+    # Match the actual struct field rather than one gofmt alignment width. New
+    # TransferOptions fields can legitimately change spacing without changing
+    # the security property that the validated root is propagated to remote I/O.
+    require_pattern(
+        "internal/transfer/manager.go",
+        r"\bLocalRoot:\s+localRoot,",
+        "TransferOptions.LocalRoot propagates the validated localRoot",
+    )
     require("internal/config/store.go", ("os.Lstat(path)", "os.SameFile(before, after)", "io.LimitReader", "os.CreateTemp"))
 
     # Windows process hardening and Linux authentication/queue parity.

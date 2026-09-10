@@ -95,6 +95,12 @@ func normalizeSettingsForPrompt(settings model.Settings) model.Settings {
 	if settings.Parallelism < config.MinParallelism || settings.Parallelism > config.MaxParallelism {
 		settings.Parallelism = defaults.Parallelism
 	}
+	if settings.UploadLimitKiBPerSecond < config.MinBandwidthLimitKiBPerSecond || settings.UploadLimitKiBPerSecond > config.MaxBandwidthLimitKiBPerSecond {
+		settings.UploadLimitKiBPerSecond = defaults.UploadLimitKiBPerSecond
+	}
+	if settings.DownloadLimitKiBPerSecond < config.MinBandwidthLimitKiBPerSecond || settings.DownloadLimitKiBPerSecond > config.MaxBandwidthLimitKiBPerSecond {
+		settings.DownloadLimitKiBPerSecond = defaults.DownloadLimitKiBPerSecond
+	}
 	if settings.AutoRetryCount < config.MinAutoRetryCount || settings.AutoRetryCount > config.MaxAutoRetryCount {
 		settings.AutoRetryCount = defaults.AutoRetryCount
 	}
@@ -126,6 +132,7 @@ func (a *app) openSettings() {
 	language := a.languageCode()
 	appearance := appearanceText(language)
 	conflict := conflictPolicyText(language)
+	bandwidth := bandwidthWordsForLanguage(language)
 	conflictOptions := []string{
 		conflict.Skip,
 		conflict.Replace,
@@ -145,6 +152,8 @@ func (a *app) openSettings() {
 		AppearanceIndex:   appearanceIndex(settings.Appearance),
 		Numbers: []platform.SettingsDialogNumber{
 			settingsNumber(parallelLabel, settings.Parallelism, config.MinParallelism, config.MaxParallelism, parallelLabel+" "+a.tr("settings.enter_range", config.MinParallelism, config.MaxParallelism)),
+			settingsNumber(bandwidth.UploadLabel, settings.UploadLimitKiBPerSecond, config.MinBandwidthLimitKiBPerSecond, config.MaxBandwidthLimitKiBPerSecond, bandwidth.UploadLabel+" "+a.tr("settings.enter_range", config.MinBandwidthLimitKiBPerSecond, config.MaxBandwidthLimitKiBPerSecond)),
+			settingsNumber(bandwidth.DownloadLabel, settings.DownloadLimitKiBPerSecond, config.MinBandwidthLimitKiBPerSecond, config.MaxBandwidthLimitKiBPerSecond, bandwidth.DownloadLabel+" "+a.tr("settings.enter_range", config.MinBandwidthLimitKiBPerSecond, config.MaxBandwidthLimitKiBPerSecond)),
 			settingsNumber(timeoutLabel, settings.ConnectionTimeoutSeconds, config.MinConnectionTimeoutSeconds, config.MaxConnectionTimeoutSeconds, timeoutLabel+" "+a.tr("settings.enter_range", config.MinConnectionTimeoutSeconds, config.MaxConnectionTimeoutSeconds)),
 			settingsNumber(retriesLabel, settings.AutoRetryCount, config.MinAutoRetryCount, config.MaxAutoRetryCount, retriesLabel+" "+a.tr("settings.enter_range", config.MinAutoRetryCount, config.MaxAutoRetryCount)),
 			settingsNumber(retryDelayLabel, settings.RetryDelaySeconds, config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds, retryDelayLabel+" "+a.tr("settings.enter_range", config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds)),
@@ -158,15 +167,17 @@ func (a *app) openSettings() {
 		ApplyLabel:      okLabel(language),
 		CancelLabel:     a.tr("common.cancel"),
 	})
-	if !ok || len(result.Numbers) != 4 {
+	if !ok || len(result.Numbers) != 6 {
 		return
 	}
 
 	applyAppearanceSelection(&settings, result.AppearanceIndex)
 	settings.Parallelism = result.Numbers[0]
-	settings.ConnectionTimeoutSeconds = result.Numbers[1]
-	settings.AutoRetryCount = result.Numbers[2]
-	settings.RetryDelaySeconds = result.Numbers[3]
+	settings.UploadLimitKiBPerSecond = result.Numbers[1]
+	settings.DownloadLimitKiBPerSecond = result.Numbers[2]
+	settings.ConnectionTimeoutSeconds = result.Numbers[3]
+	settings.AutoRetryCount = result.Numbers[4]
+	settings.RetryDelaySeconds = result.Numbers[5]
 	applyConflictPolicySelection(&settings, result.ConflictIndex)
 	settings.ConfirmDelete = result.ConfirmDelete
 

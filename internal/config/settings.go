@@ -9,18 +9,23 @@ import (
 )
 
 const (
-	DefaultParallelism              = 2
-	MinParallelism                  = 1
-	MaxParallelism                  = 8
-	DefaultAutoRetryCount           = 0
-	MinAutoRetryCount               = 0
-	MaxAutoRetryCount               = 3
-	DefaultRetryDelaySeconds        = 3
-	MinRetryDelaySeconds            = 1
-	MaxRetryDelaySeconds            = 30
-	DefaultConnectionTimeoutSeconds = 15
-	MinConnectionTimeoutSeconds     = 5
-	MaxConnectionTimeoutSeconds     = 60
+	DefaultParallelism               = 2
+	MinParallelism                   = 1
+	MaxParallelism                   = 8
+	DefaultUploadLimitKiBPerSecond   = 0
+	DefaultDownloadLimitKiBPerSecond = 0
+	MinBandwidthLimitKiBPerSecond    = 0
+	MaxBandwidthLimitKiBPerSecond    = 1024 * 1024
+	BandwidthLimitStepKiBPerSecond   = 64
+	DefaultAutoRetryCount            = 0
+	MinAutoRetryCount                = 0
+	MaxAutoRetryCount                = 3
+	DefaultRetryDelaySeconds         = 3
+	MinRetryDelaySeconds             = 1
+	MaxRetryDelaySeconds             = 30
+	DefaultConnectionTimeoutSeconds  = 15
+	MinConnectionTimeoutSeconds      = 5
+	MaxConnectionTimeoutSeconds      = 60
 )
 
 type SettingsStore struct {
@@ -36,18 +41,21 @@ func NewSettings(s *Store) *SettingsStore { return &SettingsStore{store: s} }
 // callers use the same values as settings migration instead of carrying their
 // own copies of timeout, retry and parallelism defaults. Classic Light is the
 // primary appearance for fresh installs; an explicitly persisted Dark choice
-// remains canonical and is never overwritten by normalization.
+// remains canonical and is never overwritten by normalization. Bandwidth limits
+// default to zero, which deliberately means unlimited in both directions.
 func DefaultSettings() model.Settings {
 	return model.Settings{
-		Language:                 i18n.DefaultLanguage,
-		Appearance:               model.AppearanceLight,
-		Parallelism:              DefaultParallelism,
-		ConflictPolicy:           model.ConflictPolicyReplaceBackup,
-		BackupBeforeOverwrite:    true,
-		ConfirmDelete:            true,
-		AutoRetryCount:           DefaultAutoRetryCount,
-		RetryDelaySeconds:        DefaultRetryDelaySeconds,
-		ConnectionTimeoutSeconds: DefaultConnectionTimeoutSeconds,
+		Language:                  i18n.DefaultLanguage,
+		Appearance:                model.AppearanceLight,
+		Parallelism:               DefaultParallelism,
+		UploadLimitKiBPerSecond:   DefaultUploadLimitKiBPerSecond,
+		DownloadLimitKiBPerSecond: DefaultDownloadLimitKiBPerSecond,
+		ConflictPolicy:            model.ConflictPolicyReplaceBackup,
+		BackupBeforeOverwrite:     true,
+		ConfirmDelete:             true,
+		AutoRetryCount:            DefaultAutoRetryCount,
+		RetryDelaySeconds:         DefaultRetryDelaySeconds,
+		ConnectionTimeoutSeconds:  DefaultConnectionTimeoutSeconds,
 	}
 }
 
@@ -67,6 +75,10 @@ func validConflictPolicy(policy string) bool {
 	default:
 		return false
 	}
+}
+
+func validBandwidthLimit(value int) bool {
+	return value >= MinBandwidthLimitKiBPerSecond && value <= MaxBandwidthLimitKiBPerSecond
 }
 
 // migrateConflictPolicy converts the former pair of overwrite booleans into
@@ -114,6 +126,12 @@ func normalizeSettings(v model.Settings) model.Settings {
 	if v.Parallelism < MinParallelism || v.Parallelism > MaxParallelism {
 		v.Parallelism = DefaultParallelism
 	}
+	if !validBandwidthLimit(v.UploadLimitKiBPerSecond) {
+		v.UploadLimitKiBPerSecond = DefaultUploadLimitKiBPerSecond
+	}
+	if !validBandwidthLimit(v.DownloadLimitKiBPerSecond) {
+		v.DownloadLimitKiBPerSecond = DefaultDownloadLimitKiBPerSecond
+	}
 	if v.AutoRetryCount < MinAutoRetryCount || v.AutoRetryCount > MaxAutoRetryCount {
 		v.AutoRetryCount = DefaultAutoRetryCount
 	}
@@ -135,6 +153,12 @@ func validateSettings(v model.Settings) error {
 	}
 	if v.Parallelism < MinParallelism || v.Parallelism > MaxParallelism {
 		return errors.New("parallel transfers must be between 1 and 8")
+	}
+	if !validBandwidthLimit(v.UploadLimitKiBPerSecond) {
+		return errors.New("upload bandwidth limit must be between 0 and 1048576 KiB/s; 0 means unlimited")
+	}
+	if !validBandwidthLimit(v.DownloadLimitKiBPerSecond) {
+		return errors.New("download bandwidth limit must be between 0 and 1048576 KiB/s; 0 means unlimited")
 	}
 	if !validConflictPolicy(v.ConflictPolicy) {
 		return errors.New("conflict policy must be skip, replace, or replace_backup")
@@ -187,7 +211,9 @@ func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 	// Missing values from older clients migrate to current safe defaults and
 	// legacy overwrite booleans are converted into the canonical policy. Zero is
 	// not a valid parallelism value, so it is unambiguous as an omitted legacy
-	// field. Explicit negative/out-of-range values remain validation failures.
+	// field. For bandwidth controls zero is intentionally valid and means
+	// unlimited, preserving the behavior of settings files written by 0.0.2 and
+	// older versions. Explicit negative/out-of-range values remain failures.
 	if v.Language == "" {
 		v.Language = i18n.DefaultLanguage
 	}
