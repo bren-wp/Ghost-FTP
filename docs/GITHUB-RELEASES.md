@@ -51,32 +51,28 @@ The trigger never force-moves release identities and never dispatches retention 
 
 ## 0.0.2 public files
 
-Ghost FTP 0.0.2 exposes **14 platform artifacts**.
+Ghost FTP 0.0.2 exposes **12 platform artifacts**.
 
 Windows:
 
 ```text
-Ghost-FTP-0.0.2-Setup.exe
-Ghost-FTP-0.0.2-Portable.exe
+Ghost-FTP-0.0.2-Setup-x64.exe
+Ghost-FTP-0.0.2-Setup-x86.exe
+Ghost-FTP-0.0.2-Setup-x32.exe
+Ghost-FTP-0.0.2-Portable-x64.exe
+Ghost-FTP-0.0.2-Portable-x86.exe
 ```
-
-Both Windows downloads are self-contained, offline x86-compatible bootstraps. Each contains both already verified native x86 and x64 Ghost FTP payloads, asks Windows for the native system architecture through `GetNativeSystemInfo`, verifies the selected staged payload and runs only the compatible native executable. Architecture-specific x64/x86 executables remain internal build payloads and are not public release assets.
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.2-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.2-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.2-Linux-Debian-i386.deb
-Ghost-FTP-0.0.2-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.2-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.2-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.2-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.2-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.2-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.2-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.2-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.2-Linux-Portable-i386.tar.gz
+Ghost-FTP-0.0.2-Linux-amd64.deb
+Ghost-FTP-0.0.2-Linux-arm64.deb
+Ghost-FTP-0.0.2-Linux-i386.deb
+Ghost-FTP-0.0.2-Linux-multiarch.zip
+Ghost-FTP-0.0.2-Linux-amd64.tar.gz
+Ghost-FTP-0.0.2-Linux-arm64.tar.gz
+Ghost-FTP-0.0.2-Linux-i386.tar.gz
 ```
 
 Verification/metadata:
@@ -87,7 +83,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-That is **17 public files** total.
+That is **15 public files** total.
 
 ## Exact-head rule
 
@@ -101,7 +97,7 @@ The requested `ghostftp-v0.0.2` tag/release must not already exist. The publish 
 
 After the new release is successfully published and remotely verified, `.github/workflows/release-retention.yml` enforces the project policy that **only the latest public Ghost FTP version remains**. It removes older `ghostftp-v*` GitHub Releases, older/orphan `ghostftp-v*` tags, superseded `release/ghostftp-v*` branches and obsolete Ghost FTP container package versions.
 
-The current release branch and current package version are retained. Cleanup independently verifies that the current release is non-draft, `prerelease=false`, has exactly 17 assets and points to current `main` before destructive cleanup. Repository commit history on `main` is not rewritten.
+The current release branch and current package version are retained. Cleanup independently verifies that the current release is non-draft, `prerelease=false`, has exactly 15 assets and points to current `main` before destructive cleanup. Repository commit history on `main` is not rewritten.
 
 ## Failure behavior
 
@@ -109,15 +105,15 @@ The release lifecycle fails closed if the release branch does not match root `VE
 
 A successful workflow dispatch request by itself is **not** treated as successful publication.
 
-## Linux distro parity gate
+## Linux portable parity gate
 
-For each supported Linux architecture, `linux/BUILD-DISTROS.sh` builds one shared Ghost FTP executable and packages that same binary into Debian, Ubuntu, Fedora and portable distribution formats. Release CI verifies package metadata and compares each extracted distro executable byte-for-byte with the corresponding portable executable.
+For each Linux architecture the production job requires both a `.deb` and `.tar.gz`, verifies DEB metadata and portable archive structure, and compares the installed/portable `ghostftp` executable byte-for-byte.
 
-Native package-manager/runtime lifecycle coverage is additionally exercised on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64.
+Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages built by `linux/BUILD-DISTROS.sh` remain **not yet part of the canonical release allow-list**.
 
 ## Windows signing state
 
-Authenticode signing is optional. If protected production signing secrets are configured, the native x64/x86 payloads and both public universal Windows wrappers must verify successfully. If no production certificate is configured, Windows artifacts remain explicitly unsigned and `BUILD-METADATA.txt` records:
+Authenticode signing is optional. If protected production signing secrets are configured, all Windows artifacts must verify successfully. If no production certificate is configured, Windows artifacts remain explicitly unsigned and `BUILD-METADATA.txt` records:
 
 ```text
 WINDOWS_AUTHENTICODE=unsigned
@@ -130,23 +126,16 @@ The workflow never creates a self-signed production identity and never labels an
 The publish job assembles a fresh release directory and records:
 
 ```text
-WINDOWS_SETUP=universal-x86-x64
-WINDOWS_PORTABLE=universal-x86-x64
-WINDOWS_BOOTSTRAP_PE=x86
-WINDOWS_NATIVE_PAYLOADS=x64,x86
-LINUX_DEBIAN_DEB=amd64,arm64,i386
-LINUX_UBUNTU_DEB=amd64,arm64,i386
-LINUX_FEDORA_RPM=x86_64,aarch64,i686
 LINUX_PORTABLE=amd64,arm64,i386
-PUBLIC_PLATFORM_ARTIFACTS=14
-PUBLIC_RELEASE_FILES=17
+PUBLIC_PLATFORM_ARTIFACTS=12
+PUBLIC_RELEASE_FILES=15
 ```
 
-No x64/x86/x32-suffixed Windows executable is allowed in the public release directory.
+`Ghost-FTP-0.0.2-Setup-x32.exe` is intentionally a byte-identical alias of the verified x86 Setup file.
 
 ## Read-back verification
 
-The release transaction compares the remote sorted asset set with the expected 17-file allow-list immediately and again after a delay. For 0.0.2 it requires `prerelease=false`.
+The release transaction compares the remote sorted asset set with the expected allow-list immediately and again after a delay. For 0.0.2 it requires `prerelease=false`.
 
 Only after this verification succeeds may the retention workflow delete superseded public version identities.
 
