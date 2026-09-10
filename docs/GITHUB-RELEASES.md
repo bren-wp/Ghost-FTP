@@ -1,12 +1,12 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **0.0.1** is the current published release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
+Ghost FTP **0.0.2** is the current published release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
 ```text
-Tag: ghostftp-v0.0.1
-Title: Ghost FTP 0.0.1
+Tag: ghostftp-v0.0.2
+Title: Ghost FTP 0.0.2
 Prerelease: false
 ```
 
@@ -29,7 +29,7 @@ release/ghostftp-vX.Y.Z
 For the current candidate:
 
 ```text
-release/ghostftp-v0.0.1
+release/ghostftp-v0.0.2
 ```
 
 `.github/workflows/release-branch-trigger.yml` accepts the branch only when its semantic version matches root `VERSION` and its SHA equals exact current `main`.
@@ -49,30 +49,30 @@ This explicit completion chain exists because a workflow dispatched with the rep
 
 The trigger never force-moves release identities and never dispatches retention before the canonical release run succeeds.
 
-## 0.0.1 public files
+## 0.0.2 public files
 
-Ghost FTP 0.0.1 exposes **12 platform artifacts**.
+Ghost FTP 0.0.2 exposes **12 platform artifacts**.
 
 Windows:
 
 ```text
-Ghost-FTP-0.0.1-Setup-x64.exe
-Ghost-FTP-0.0.1-Setup-x86.exe
-Ghost-FTP-0.0.1-Setup-x32.exe
-Ghost-FTP-0.0.1-Portable-x64.exe
-Ghost-FTP-0.0.1-Portable-x86.exe
+Ghost-FTP-0.0.2-Setup-x64.exe
+Ghost-FTP-0.0.2-Setup-x86.exe
+Ghost-FTP-0.0.2-Setup-x32.exe
+Ghost-FTP-0.0.2-Portable-x64.exe
+Ghost-FTP-0.0.2-Portable-x86.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.1-Linux-amd64.deb
-Ghost-FTP-0.0.1-Linux-arm64.deb
-Ghost-FTP-0.0.1-Linux-i386.deb
-Ghost-FTP-0.0.1-Linux-multiarch.zip
-Ghost-FTP-0.0.1-Linux-amd64.tar.gz
-Ghost-FTP-0.0.1-Linux-arm64.tar.gz
-Ghost-FTP-0.0.1-Linux-i386.tar.gz
+Ghost-FTP-0.0.2-Linux-amd64.deb
+Ghost-FTP-0.0.2-Linux-arm64.deb
+Ghost-FTP-0.0.2-Linux-i386.deb
+Ghost-FTP-0.0.2-Linux-multiarch.zip
+Ghost-FTP-0.0.2-Linux-amd64.tar.gz
+Ghost-FTP-0.0.2-Linux-arm64.tar.gz
+Ghost-FTP-0.0.2-Linux-i386.tar.gz
 ```
 
 Verification/metadata:
@@ -93,29 +93,15 @@ The release-branch trigger also filters the newly dispatched publish and retenti
 
 ## Immutable-current publication transaction
 
-The requested `ghostftp-v0.0.1` tag/release must not already exist. The publish workflow never clobbers a release asset or rewrites an existing current release tag.
+The requested `ghostftp-v0.0.2` tag/release must not already exist. The publish workflow never clobbers a release asset or rewrites an existing current release tag.
 
-After the new release is successfully published and remotely verified, `.github/workflows/release-retention.yml` enforces the project policy that **only the latest public Ghost FTP version remains**. It removes:
+After the new release is successfully published and remotely verified, `.github/workflows/release-retention.yml` enforces the project policy that **only the latest public Ghost FTP version remains**. It removes older `ghostftp-v*` GitHub Releases, older/orphan `ghostftp-v*` tags, superseded `release/ghostftp-v*` branches and obsolete Ghost FTP container package versions.
 
-- older `ghostftp-v*` GitHub Releases;
-- older/orphan `ghostftp-v*` tags;
-- superseded `release/ghostftp-v*` branches;
-- obsolete Ghost FTP container package versions.
-
-The current release branch and current package version are retained. The cleanup independently verifies that the current release is non-draft, `prerelease=false`, has exactly 15 assets and points to current `main` before destructive cleanup. Repository commit history on `main` is not rewritten.
+The current release branch and current package version are retained. Cleanup independently verifies that the current release is non-draft, `prerelease=false`, has exactly 15 assets and points to current `main` before destructive cleanup. Repository commit history on `main` is not rewritten.
 
 ## Failure behavior
 
-The release lifecycle fails closed:
-
-- if the release branch does not match root `VERSION`;
-- if the release branch SHA is not exact current `main`;
-- if a newly dispatched exact release run cannot be identified;
-- if the canonical release run fails or is cancelled;
-- if retention is requested before publish success;
-- if the current release/tag/asset set does not pass retention preflight;
-- if a newly dispatched retention run cannot be identified;
-- if canonical retention fails or is cancelled.
+The release lifecycle fails closed if the release branch does not match root `VERSION`, if its SHA is not exact current `main`, if the newly dispatched exact release or retention run cannot be identified, if either canonical run fails/cancels, or if the current release/tag/asset set does not pass retention preflight.
 
 A successful workflow dispatch request by itself is **not** treated as successful publication.
 
@@ -145,11 +131,11 @@ PUBLIC_PLATFORM_ARTIFACTS=12
 PUBLIC_RELEASE_FILES=15
 ```
 
-`Ghost-FTP-0.0.1-Setup-x32.exe` is intentionally a byte-identical alias of the verified x86 Setup file.
+`Ghost-FTP-0.0.2-Setup-x32.exe` is intentionally a byte-identical alias of the verified x86 Setup file.
 
 ## Read-back verification
 
-The release transaction compares the remote sorted asset set with the expected allow-list immediately and again after a delay. For 0.0.1 it requires `prerelease=false`.
+The release transaction compares the remote sorted asset set with the expected allow-list immediately and again after a delay. For 0.0.2 it requires `prerelease=false`.
 
 Only after this verification succeeds may the retention workflow delete superseded public version identities.
 
@@ -158,7 +144,7 @@ Only after this verification succeeds may the retention workflow delete supersed
 The same verified release directory is published as an OCI distribution bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.1
+ghcr.io/bren-wp/ghost-ftp:0.0.2
 ```
 
 It is a **distribution bundle**, not a runtime container. The release workflow publishes the exact-version tag together with current aliases and verifies the exact-version package after push. Retention preserves the package version carrying the current exact semantic-version tag and removes obsolete package versions only after release verification succeeds.
