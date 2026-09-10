@@ -71,9 +71,9 @@ func (e *Engine) ChooseDirectory() (string, error)         { return platform.Cho
 func (e *Engine) ChoosePrivateKey() (string, error)        { return platform.ChoosePrivateKey() }
 func (e *Engine) Profiles() ([]model.PublicProfile, error) { return e.profiles.List() }
 func (e *Engine) RemoveProfile(id string) error            { return e.profiles.Remove(id) }
-func (e *Engine) Bookmarks() ([]model.Bookmark, error)      { return e.bookmarks.List() }
-func (e *Engine) RemoveBookmark(id string) error            { return e.bookmarks.Remove(id) }
-func (e *Engine) Settings() (model.Settings, error)         { return e.settings.Get() }
+func (e *Engine) Bookmarks() ([]model.Bookmark, error)     { return e.bookmarks.List() }
+func (e *Engine) RemoveBookmark(id string) error           { return e.bookmarks.Remove(id) }
+func (e *Engine) Settings() (model.Settings, error)        { return e.settings.Get() }
 func (e *Engine) SetSettings(v model.Settings) (model.Settings, error) {
 	saved, err := e.settings.Set(v)
 	if err == nil {
