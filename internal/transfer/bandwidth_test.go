@@ -8,9 +8,9 @@ import (
 
 func TestBandwidthLimitIsDirectionalAndAggregate(t *testing.T) {
 	settings := model.Settings{
-		Parallelism:                 4,
-		UploadLimitKiBPerSecond:     4096,
-		DownloadLimitKiBPerSecond:   8192,
+		Parallelism:               4,
+		UploadLimitKiBPerSecond:   4096,
+		DownloadLimitKiBPerSecond: 8192,
 	}
 	if got, want := bandwidthLimitBytesPerSecond(settings, "upload"), int64(1024*1024); got != want {
 		t.Fatalf("upload per-slot cap = %d, want %d", got, want)
