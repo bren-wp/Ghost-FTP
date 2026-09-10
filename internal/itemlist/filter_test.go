@@ -47,6 +47,14 @@ func TestFilterHandlesUnicodeCaseConversion(t *testing.T) {
 	}
 }
 
+func TestFilterHandlesGreekFinalSigmaCaseFold(t *testing.T) {
+	source := []model.Item{{Name: "ΟΣ.txt"}, {Name: "notes.txt"}}
+	got := Filter(source, "ος")
+	if len(got) != 1 || got[0].Name != "ΟΣ.txt" {
+		t.Fatalf("got=%v", got)
+	}
+}
+
 func TestFilterDoesNotMutateSource(t *testing.T) {
 	source := []model.Item{{Name: "zeta.txt"}, {Name: "alpha.txt"}, {Name: "beta.txt"}}
 	before := append([]model.Item(nil), source...)
