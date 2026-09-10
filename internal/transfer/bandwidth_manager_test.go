@@ -81,10 +81,10 @@ func TestManagerPropagatesIndependentAggregateBandwidthCaps(t *testing.T) {
 	if len(session.uploadOptions) != 1 || len(session.downloadOptions) != 1 {
 		t.Fatalf("unexpected transfer calls: upload=%d download=%d", len(session.uploadOptions), len(session.downloadOptions))
 	}
-	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1024*1024); got != want {
+	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1024 * 1024); got != want {
 		t.Fatalf("upload transport cap=%d want=%d", got, want)
 	}
-	if got, want := session.downloadOptions[0].BandwidthLimitBytesPerSecond, int64(2*1024*1024); got != want {
+	if got, want := session.downloadOptions[0].BandwidthLimitBytesPerSecond, int64(2 * 1024 * 1024); got != want {
 		t.Fatalf("download transport cap=%d want=%d", got, want)
 	}
 }
@@ -125,10 +125,10 @@ func TestRetryAttemptSamplesNewBandwidthLimitWithoutMutatingFirstAttempt(t *test
 	if len(session.uploadOptions) != 2 {
 		t.Fatalf("upload attempts=%d want=2", len(session.uploadOptions))
 	}
-	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1024*1024); got != want {
+	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1024 * 1024); got != want {
 		t.Fatalf("first attempt cap changed unexpectedly: got=%d want=%d", got, want)
 	}
-	if got, want := session.uploadOptions[1].BandwidthLimitBytesPerSecond, int64(4*1024*1024); got != want {
+	if got, want := session.uploadOptions[1].BandwidthLimitBytesPerSecond, int64(4 * 1024 * 1024); got != want {
 		t.Fatalf("retry did not sample new cap: got=%d want=%d", got, want)
 	}
 }
