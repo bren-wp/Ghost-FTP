@@ -45,7 +45,9 @@ The maintained source includes a **non-destructive current-folder filter** for b
 
 The maintained source also includes a **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it will read nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Local traversal is anchored to one `os.OpenRoot` capability; server traversal is bound to one captured remote operation/session. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
 
-Both capabilities remain part of the Unreleased source line until a successor release is published and verified; neither rewrites or redefines the existing 0.0.1 release.
+The maintained source now also includes **conservative directory comparison and synchronized navigation** on Windows and Linux. Comparison is read-only, uses exact-name matching, reports deterministic same/only/newer/conflict/unknown states, treats duplicate names and uncertain metadata fail-closed, and never treats a symlink comparison row as transfer authority. Synchronized navigation is available only for an exact ordinary directory proved present on both sides; both target directories are freshly listed and compared before either visible pane path is committed.
+
+These capabilities remain part of the Unreleased source line until a successor release is published and verified; none rewrites or redefines the existing 0.0.1 release.
 
 ## High-value power-user lane
 
@@ -53,15 +55,23 @@ These capabilities are prioritized because they improve real hosting/server work
 
 ### P0 — directory comparison and synchronized navigation
 
-A comparison mode should pair the current local and server directories and classify entries as same, local-only, server-only, newer-local, newer-server or conflicting/unknown. Optional synchronized browsing should move the opposite pane only when both sides can resolve the corresponding directory safely.
+**Status: implemented in the maintained Unreleased source line.** Windows and Linux expose the same shared comparison states while keeping comparison read-only and separate from ordinary file-operation authority.
 
-Acceptance requirements:
+Implemented contract:
 
-- comparison logic lives in shared testable code rather than duplicated frontend logic;
-- timestamps with unreliable server precision are treated conservatively;
-- symlinks and unsupported metadata never trigger destructive automatic action;
-- Windows and Linux expose the same states and disable synchronization when the mapping is ambiguous;
-- comparison itself never transfers or deletes data.
+- shared `internal/directorycompare` logic compares already-listed snapshots without filesystem/network I/O or input mutation;
+- exact-name matching avoids unsafe case folding across filesystems with different case semantics;
+- deterministic states are `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown`;
+- duplicate exact names fail closed to `conflict`, type mismatches fail closed to `conflict`, and symlinks fail closed to `unknown`;
+- regular-file `newer_*` and `same` classification is used only when both sides provide usable modification times; equal-size files with unknown time remain `unknown`, while differing sizes with unknown time remain `conflict`;
+- timestamp comparison defaults to a two-second tolerance and rejects an override above five minutes;
+- synchronized navigation resolves only a `same` entry that is an ordinary non-symlink directory present on both sides;
+- Windows renders comparison in dedicated read-only ListViews and disables normal rename/delete/upload/download/edit/chmod authority while the comparison surface is active;
+- Linux uses a modal comparison surface and consumes ordinary workspace clicks while comparison rows are displayed, so row indices cannot leak into normal file actions;
+- “Open both” validates the local child and remote name/path, performs fresh local and remote listings, recomputes comparison, and only then commits both pane paths;
+- localized comparison controls/status/disclosure copy exists for all 24 supported desktop languages;
+- `scripts/test_directory_comparison_contract.py` protects cross-platform wiring, mutation gating and the fresh-list-before-path-commit rule;
+- comparison itself never uploads, downloads, deletes, renames, overwrites or changes permissions.
 
 ### P0 — bounded recursive local/server search
 
