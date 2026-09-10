@@ -137,6 +137,22 @@ func (b *Bookmarks) List() ([]model.Bookmark, error) {
 	return append([]model.Bookmark(nil), items...), nil
 }
 
+func (b *Bookmarks) Get(id string) (model.Bookmark, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	items, err := b.loadLocked()
+	if err != nil {
+		return model.Bookmark{}, err
+	}
+	id = strings.TrimSpace(id)
+	for _, item := range items {
+		if item.ID == id {
+			return item, nil
+		}
+	}
+	return model.Bookmark{}, errors.New("bookmark nije pronađen")
+}
+
 func (b *Bookmarks) Save(in model.BookmarkInput) (model.Bookmark, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
