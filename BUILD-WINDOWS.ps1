@@ -34,6 +34,22 @@ function Invoke-Native {
     }
 }
 
+function Invoke-NativeCapture {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [Parameter(Mandatory = $false)][string[]]$ArgumentList = @(),
+        [Parameter(Mandatory = $true)][string]$FailureMessage
+    )
+    $output = & $FilePath @ArgumentList 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        $details = ($output | Out-String).Trim()
+        if ($details) { throw "$FailureMessage (exit code $exitCode): $details" }
+        throw "$FailureMessage (exit code $exitCode)."
+    }
+    return ($output | Out-String).Trim()
+}
+
 function Invoke-NativeTee {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
@@ -160,19 +176,28 @@ if ($version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Invalid Ghost FTP version in VERSION: $version"
 }
 
-Write-Host "Ghost FTP $version unified Windows packaging"
-Write-Host '[1/6] Build and verify signed native x64/x86 setup and portable staging artifacts'
-& $stageBuilder
-if (-not $?) {
-    throw 'Native Windows staging build failed.'
-}
-
 $goCommand = @(Get-Command go -CommandType Application -ErrorAction SilentlyContinue)[0]
 if (-not $goCommand) { throw 'Go is not installed or is not available in PATH.' }
 [string]$go = $goCommand.Source
 $pythonCommand = @(Get-Command python -CommandType Application -ErrorAction SilentlyContinue)[0]
 if (-not $pythonCommand) { throw 'Python 3 is not installed or is not available in PATH.' }
 [string]$python = $pythonCommand.Source
+
+# Enforce telemetry-off at the public packaging boundary as well as inside the
+# native staging builder. This prevents a future staging refactor from silently
+# weakening the privacy contract of the universal Windows build.
+$telemetryMode = Invoke-NativeCapture -FilePath $go -ArgumentList @('telemetry') -FailureMessage 'Unable to verify Go telemetry mode'
+if ($telemetryMode -ne 'off') {
+    throw "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetryMode)"
+}
+
+Write-Host "Ghost FTP $version unified Windows packaging"
+Write-Host "Go telemetry=$telemetryMode"
+Write-Host '[1/6] Build and verify signed native x64/x86 setup and portable staging artifacts'
+& $stageBuilder
+if (-not $?) {
+    throw 'Native Windows staging build failed.'
+}
 
 New-Item -ItemType Directory -Force -Path $internalDist | Out-Null
 $nativeSetupX64 = Join-Path $internalDist "Ghost-FTP-$version-Setup-x64.exe"
