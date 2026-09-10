@@ -14,6 +14,8 @@ import (
 type linuxProfileStartState struct {
 	initialized       bool
 	selectedProfileID string
+	accountKey        string
+	inheritedRemote   string
 	verifiedLocal     string
 	verifiedRemote    string
 }
@@ -59,31 +61,58 @@ func (u *linuxDesktop) linuxProfileMatchesConnectionFields(profile model.PublicP
 	)
 }
 
+func (u *linuxDesktop) linuxEditableAccountKey() string {
+	if u == nil {
+		return ""
+	}
+	portText := strings.TrimSpace(u.port)
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		return "invalid\x00" + strings.ToLower(strings.TrimSpace(u.protocol)) + "\x00" + strings.ToLower(strings.TrimSpace(u.host)) + "\x00" + portText + "\x00" + u.username
+	}
+	return profilebinding.EndpointKey(u.protocol, u.host, port) + "\x00" + u.username
+}
+
 // enforceLinuxProfileStartDirectories runs on the UI goroutine before the
 // bookmark header is painted. cycleProfile historically copied start paths
-// directly into the editable path fields. This guard turns those copies into
+// directly into the editable path fields. This guard turns local copies into
 // drafts: the previous verified local base is restored immediately and the
 // configured local start is committed only by refreshLocal after LocalList
-// succeeds. Remote starts remain usable as the post-connect listing target only
-// while protocol/host/port/username still match the selected profile.
+// succeeds.
+//
+// Remote starts are event-bound rather than repaint-bound. Selecting a profile
+// installs that profile's saved/default remote start once. If the editable
+// protocol/host/port/username later crosses an account boundary, the inherited
+// remote start is reset only while it is still unchanged. A user-edited remote
+// path is therefore treated as an explicit start for the new account and is
+// never overwritten merely because the window repaints.
 func (u *linuxDesktop) enforceLinuxProfileStartDirectories() {
 	if u == nil {
 		return
 	}
 	state := linuxProfileStartStateFor(u)
+	currentAccountKey := u.linuxEditableAccountKey()
 	if !state.initialized {
 		state.initialized = true
 		state.selectedProfileID = u.selectedProfileID
+		state.accountKey = currentAccountKey
 		state.verifiedLocal = u.localCurrent
 		state.verifiedRemote = u.remoteCurrent
+		if profile, ok := u.selectedLinuxProfile(); ok {
+			state.inheritedRemote = strings.TrimSpace(profile.RemotePath)
+			if state.inheritedRemote == "" {
+				state.inheritedRemote = linuxProtocolRemoteDefault(u.protocol)
+			}
+		}
 		return
 	}
 
 	profile, hasProfile := u.selectedLinuxProfile()
 	if u.selectedProfileID != state.selectedProfileID {
 		previousLocal := state.verifiedLocal
-		previousRemote := state.verifiedRemote
 		state.selectedProfileID = u.selectedProfileID
+		state.accountKey = currentAccountKey
+		state.inheritedRemote = ""
 
 		if !hasProfile {
 			return
@@ -98,25 +127,23 @@ func (u *linuxDesktop) enforceLinuxProfileStartDirectories() {
 			}
 		}
 
-		remoteTarget := strings.TrimSpace(profile.RemotePath)
-		if remoteTarget != "" && u.remoteCurrent == profile.RemotePath {
-			u.remoteCurrent = previousRemote
+		state.inheritedRemote = strings.TrimSpace(profile.RemotePath)
+		if state.inheritedRemote == "" {
+			state.inheritedRemote = linuxProtocolRemoteDefault(u.protocol)
 		}
+		u.remoteCurrent = state.inheritedRemote
 	}
 
-	if hasProfile && !u.connected {
-		if u.linuxProfileMatchesConnectionFields(profile) {
-			if strings.TrimSpace(profile.RemotePath) != "" {
-				u.remoteCurrent = profile.RemotePath
-			} else {
-				u.remoteCurrent = linuxProtocolRemoteDefault(u.protocol)
-			}
-		} else {
-			// A selected profile can be edited before Connect. Once its account
-			// identity no longer matches, never carry the selected account's server
-			// directory into that different login.
+	if hasProfile && !u.connected && currentAccountKey != state.accountKey {
+		if u.remoteCurrent == state.inheritedRemote {
 			u.remoteCurrent = linuxProtocolRemoteDefault(u.protocol)
+			state.inheritedRemote = u.remoteCurrent
+		} else {
+			// The remote path no longer equals the profile-derived value, so it is
+			// an explicit user edit for the new account and must survive repaint.
+			state.inheritedRemote = ""
 		}
+		state.accountKey = currentAccountKey
 	}
 
 	// Only non-busy states can represent a completed listing. A failed local
