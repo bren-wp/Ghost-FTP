@@ -27,21 +27,21 @@ const (
 )
 
 type windowsRecursiveSearchPane struct {
-	searchButton	uintptr
-	navigateButton	uintptr
-	list		uintptr
-	active		bool
-	running		bool
-	seq		uint64
-	generation	uint64
-	results		[]api.SearchResult
-	cancel		context.CancelFunc
-	restoreSelected	map[string]struct{}
+	searchButton    uintptr
+	navigateButton  uintptr
+	list            uintptr
+	active          bool
+	running         bool
+	seq             uint64
+	generation      uint64
+	results         []api.SearchResult
+	cancel          context.CancelFunc
+	restoreSelected map[string]struct{}
 }
 
 type windowsRecursiveSearchState struct {
-	local	windowsRecursiveSearchPane
-	remote	windowsRecursiveSearchPane
+	local  windowsRecursiveSearchPane
+	remote windowsRecursiveSearchPane
 }
 
 var windowsRecursiveSearchStates sync.Map
