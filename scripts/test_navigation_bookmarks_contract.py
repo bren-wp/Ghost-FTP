@@ -66,6 +66,7 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         binding = self.read("internal/profilebinding/binding.go")
         config_tests = self.read("internal/config/profile_start_directory_binding_test.go")
         linux = self.read("internal/desktop/profile_start_linux.go")
+        linux_tests = self.read("internal/desktop/profile_start_linux_test.go")
         for marker in (
             "func AccountMatches(",
             "EndpointMatches(protocolA, hostA, portA, protocolB, hostB, portB) && usernameA == usernameB",
@@ -81,10 +82,19 @@ class NavigationBookmarksContractTests(unittest.TestCase):
             "profilebinding.AccountMatches(",
             "u.localCurrent = previousLocal",
             "u.refreshLocal(profile.LocalPath)",
+            "currentAccountKey != state.accountKey",
+            "u.remoteCurrent == state.inheritedRemote",
             "u.remoteCurrent = linuxProtocolRemoteDefault(u.protocol)",
+            'state.inheritedRemote = ""',
             "protocol/host/port/username",
         ):
             self.assertIn(marker, linux)
+        for marker in (
+            "TestLinuxProfileRemoteStartDoesNotOverwriteManualEditOnRepaint",
+            "TestLinuxProfileRemoteStartResetsInheritedPathOnAccountChange",
+            "TestLinuxProfileExplicitRemoteStartSurvivesAccountChange",
+        ):
+            self.assertIn(marker, linux_tests)
 
     def test_windows_bookmark_manager_is_real_and_generation_bound(self) -> None:
         manager = self.read("internal/desktop/bookmark_manager_windows.go")
@@ -113,12 +123,20 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         actions = self.read("internal/desktop/gui_linux_actions.go")
         filters = self.read("internal/desktop/file_filter_linux.go")
         prompt_test = self.read("internal/desktop/bookmark_prompt_linux_test.go")
+        viewport_test = self.read("internal/desktop/bookmark_viewport_linux_test.go")
         for marker in (
             "func (u *linuxDesktop) renderBookmarksHeaderButton() error",
             "u.enforceLinuxProfileStartDirectories()",
             "func (u *linuxDesktop) renderBookmarkManagerOverlay() error",
             "func (u *linuxDesktop) handleBookmarkManagerMouse(x, y int) bool",
             "func (u *linuxDesktop) handleBookmarkManagerKey(sym uint32) bool",
+            "firstVisible int",
+            "visibleRows  int",
+            "func (state *linuxBookmarkUIState) ensureSelectionVisible()",
+            "func (state *linuxBookmarkUIState) scrollViewport(delta int)",
+            "state.scrollUp.contains(x, y)",
+            "state.scrollDown.contains(x, y)",
+            "func (u *linuxDesktop) bookmarkRowAt(x, y int) int",
             "u.engine.SaveRemoteBookmark",
             "u.engine.SaveLocalBookmark",
             "u.engine.NavigateBookmark(ctx, bookmark.ID)",
@@ -142,6 +160,8 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, actions)
         self.assertIn("TestLinuxBookmarkNamePromptClassification", prompt_test)
+        self.assertIn("TestLinuxBookmarkViewportKeepsKeyboardSelectionVisible", viewport_test)
+        self.assertIn("TestLinuxBookmarkViewportMouseScrollReachesLaterRows", viewport_test)
         self.assertIn("u.renderBookmarksHeaderButton()", filters)
         self.assertIn("u.handleBookmarksHeaderMouse(x, y)", filters)
 
