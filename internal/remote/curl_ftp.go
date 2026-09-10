@@ -442,7 +442,7 @@ func (c *CurlFTP) Upload(ctx context.Context, local, remotePath string, options 
 	reportTransferProgress(options.Progress, 0, total)
 	tempPath := remoteJoin(dir, tempName)
 	lines := []string{"url = " + cfgQuote(c.baseURL(tempPath)), "upload-file = " + cfgQuote(source.Path()), "speed-time = 30", "speed-limit = 1"}
-	if _, err = c.run(ctx, lines); err != nil {
+	if _, err = c.runTransfer(ctx, options.BandwidthLimitBytesPerSecond, lines); err != nil {
 		return cleanupFailure(err, dir, tempName, c.Delete)
 	}
 	reportTransferProgress(options.Progress, total, total)
@@ -468,7 +468,7 @@ func (c *CurlFTP) Download(ctx context.Context, remotePath, local string, option
 	total := bestEffortRemoteFileSize(ctx, remotePath, c.List)
 	stopProgress := startLocalFileProgressMonitor(ctx, target.partPath, total, options.Progress)
 	lines := []string{"url = " + cfgQuote(c.baseURL(remotePath)), "output = " + cfgQuote(target.partPath), "speed-time = 30", "speed-limit = 1"}
-	_, runErr := c.run(ctx, lines)
+	_, runErr := c.runTransfer(ctx, options.BandwidthLimitBytesPerSecond, lines)
 	stopProgress()
 	if runErr != nil {
 		target.cleanupPart()
