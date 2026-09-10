@@ -32,12 +32,12 @@ type linuxDirectoryComparisonState struct {
 	localSnapshot  []model.Item
 	remoteSnapshot []model.Item
 
-	navReady        bool
-	navLocalBase    string
-	navRemoteBase   string
-	navLocalItems   []model.Item
-	navRemoteItems  []model.Item
-	navEntries      []api.DirectoryComparisonEntry
+	navReady       bool
+	navLocalBase   string
+	navRemoteBase  string
+	navLocalItems  []model.Item
+	navRemoteItems []model.Item
+	navEntries     []api.DirectoryComparisonEntry
 }
 
 var linuxDirectoryComparisonStates sync.Map
@@ -188,7 +188,7 @@ func (u *linuxDesktop) renderDirectoryComparisonControlsLinux() error {
 	words := directoryCompareWordsForLanguage(u.language)
 	openBoth := false
 	if !running && selected >= 0 && selected < len(entries) {
-		_, openBoth = u.engine.SynchronizedDirectoryName(entries[selected])
+		_, openBoth = u.engine.SynchronizedDirectoryName(entries, entries[selected].Name)
 	}
 	if err := u.drawButton(u.fileFilterControlRect(false), words.Close, true, false); err != nil {
 		return err
@@ -250,7 +250,7 @@ func (u *linuxDesktop) startDirectoryComparisonLinux() {
 		}
 		var entries []api.DirectoryComparisonEntry
 		if err == nil {
-			entries = u.engine.CompareDirectoryItems(localItems, remoteItems, api.DirectoryCompareOptions{})
+			entries, err = u.engine.CompareDirectoryItems(localItems, remoteItems, api.DirectoryComparisonOptions{})
 		}
 
 		state.mu.Lock()
@@ -269,7 +269,7 @@ func (u *linuxDesktop) startDirectoryComparisonLinux() {
 				state.entries = append([]api.DirectoryComparisonEntry(nil), entries...)
 				state.selected = -1
 				for i, entry := range entries {
-					if _, ok := u.engine.SynchronizedDirectoryName(entry); ok {
+					if _, ok := u.engine.SynchronizedDirectoryName(entries, entry.Name); ok {
 						state.selected = i
 						break
 					}
@@ -322,12 +322,13 @@ func (u *linuxDesktop) openComparedDirectoryBothLinux() {
 		state.mu.Unlock()
 		return
 	}
-	entry := state.entries[state.selected]
+	entries := append([]api.DirectoryComparisonEntry(nil), state.entries...)
+	entry := entries[state.selected]
 	localBase := state.localBase
 	remoteBase := state.remoteBase
 	state.mu.Unlock()
 
-	name, ok := u.engine.SynchronizedDirectoryName(entry)
+	name, ok := u.engine.SynchronizedDirectoryName(entries, entry.Name)
 	words := directoryCompareWordsForLanguage(u.language)
 	if !ok {
 		u.setStatus(words.Unavailable)
@@ -371,7 +372,7 @@ func (u *linuxDesktop) openComparedDirectoryBothLinux() {
 		}
 		var entries []api.DirectoryComparisonEntry
 		if err == nil {
-			entries = u.engine.CompareDirectoryItems(localItems, remoteItems, api.DirectoryCompareOptions{})
+			entries, err = u.engine.CompareDirectoryItems(localItems, remoteItems, api.DirectoryComparisonOptions{})
 		}
 
 		state.mu.Lock()
