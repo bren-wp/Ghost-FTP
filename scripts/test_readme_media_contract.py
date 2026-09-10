@@ -77,7 +77,7 @@ class ReadmeMediaContractTests(unittest.TestCase):
             self.assertIn("mockup", lowered, f"{label} must reject mockups as production evidence")
             self.assertRegex(
                 lowered,
-                r"not (?:an architecture-specific )?public download",
+                r"not (?:(?:an architecture-specific|a) )?public download",
                 f"{label} must not present internal x64 evidence as a public artifact",
             )
 
