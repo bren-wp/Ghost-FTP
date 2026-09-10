@@ -9,23 +9,23 @@ import (
 )
 
 const (
-	DefaultParallelism                 = 2
-	MinParallelism                     = 1
-	MaxParallelism                     = 8
-	DefaultUploadLimitKiBPerSecond     = 0
-	DefaultDownloadLimitKiBPerSecond   = 0
-	MinBandwidthLimitKiBPerSecond      = 0
-	MaxBandwidthLimitKiBPerSecond      = 1024 * 1024
-	BandwidthLimitStepKiBPerSecond     = 64
-	DefaultAutoRetryCount              = 0
-	MinAutoRetryCount                  = 0
-	MaxAutoRetryCount                  = 3
-	DefaultRetryDelaySeconds           = 3
-	MinRetryDelaySeconds               = 1
-	MaxRetryDelaySeconds               = 30
-	DefaultConnectionTimeoutSeconds    = 15
-	MinConnectionTimeoutSeconds        = 5
-	MaxConnectionTimeoutSeconds        = 60
+	DefaultParallelism               = 2
+	MinParallelism                   = 1
+	MaxParallelism                   = 8
+	DefaultUploadLimitKiBPerSecond   = 0
+	DefaultDownloadLimitKiBPerSecond = 0
+	MinBandwidthLimitKiBPerSecond    = 0
+	MaxBandwidthLimitKiBPerSecond    = 1024 * 1024
+	BandwidthLimitStepKiBPerSecond   = 64
+	DefaultAutoRetryCount            = 0
+	MinAutoRetryCount                = 0
+	MaxAutoRetryCount                = 3
+	DefaultRetryDelaySeconds         = 3
+	MinRetryDelaySeconds             = 1
+	MaxRetryDelaySeconds             = 30
+	DefaultConnectionTimeoutSeconds  = 15
+	MinConnectionTimeoutSeconds      = 5
+	MaxConnectionTimeoutSeconds      = 60
 )
 
 type SettingsStore struct {
