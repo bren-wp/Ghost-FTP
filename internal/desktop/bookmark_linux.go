@@ -17,14 +17,19 @@ import (
 )
 
 type linuxBookmarkUIState struct {
-	items     []model.Bookmark
-	selected  int
-	list      linuxRect
-	open      linuxRect
-	addLocal  linuxRect
-	addRemote linuxRect
-	delete    linuxRect
-	close     linuxRect
+	items        []model.Bookmark
+	selected     int
+	firstVisible int
+	visibleRows  int
+	list         linuxRect
+	rows         linuxRect
+	scrollUp     linuxRect
+	scrollDown   linuxRect
+	open         linuxRect
+	addLocal     linuxRect
+	addRemote    linuxRect
+	delete       linuxRect
+	close        linuxRect
 }
 
 var linuxBookmarkUIStates sync.Map
@@ -36,6 +41,77 @@ func linuxBookmarkStateFor(u *linuxDesktop) *linuxBookmarkUIState {
 	state := &linuxBookmarkUIState{selected: -1}
 	actual, _ := linuxBookmarkUIStates.LoadOrStore(u, state)
 	return actual.(*linuxBookmarkUIState)
+}
+
+func (state *linuxBookmarkUIState) ensureSelectionVisible() {
+	if state == nil {
+		return
+	}
+	rows := state.visibleRows
+	if rows < 1 {
+		rows = 1
+	}
+	if len(state.items) == 0 {
+		state.selected = -1
+		state.firstVisible = 0
+		return
+	}
+	if state.selected < 0 {
+		state.selected = 0
+	}
+	if state.selected >= len(state.items) {
+		state.selected = len(state.items) - 1
+	}
+	maxFirst := len(state.items) - rows
+	if maxFirst < 0 {
+		maxFirst = 0
+	}
+	if state.firstVisible < 0 {
+		state.firstVisible = 0
+	}
+	if state.firstVisible > maxFirst {
+		state.firstVisible = maxFirst
+	}
+	if state.selected < state.firstVisible {
+		state.firstVisible = state.selected
+	}
+	if state.selected >= state.firstVisible+rows {
+		state.firstVisible = state.selected - rows + 1
+	}
+	if state.firstVisible > maxFirst {
+		state.firstVisible = maxFirst
+	}
+}
+
+func (state *linuxBookmarkUIState) scrollViewport(delta int) {
+	if state == nil || len(state.items) == 0 || delta == 0 {
+		return
+	}
+	rows := state.visibleRows
+	if rows < 1 {
+		rows = 1
+	}
+	maxFirst := len(state.items) - rows
+	if maxFirst < 0 {
+		maxFirst = 0
+	}
+	state.firstVisible += delta
+	if state.firstVisible < 0 {
+		state.firstVisible = 0
+	}
+	if state.firstVisible > maxFirst {
+		state.firstVisible = maxFirst
+	}
+	if state.selected < state.firstVisible {
+		state.selected = state.firstVisible
+	}
+	lastVisible := state.firstVisible + rows - 1
+	if lastVisible >= len(state.items) {
+		lastVisible = len(state.items) - 1
+	}
+	if state.selected > lastVisible {
+		state.selected = lastVisible
+	}
 }
 
 func (u *linuxDesktop) bookmarksHeaderRect() linuxRect {
@@ -72,6 +148,8 @@ func (u *linuxDesktop) openLinuxBookmarks(selectID string) {
 	state := linuxBookmarkStateFor(u)
 	state.items = items
 	state.selected = -1
+	state.firstVisible = 0
+	state.visibleRows = 0
 	if len(items) != 0 {
 		state.selected = 0
 	}
@@ -139,20 +217,43 @@ func (u *linuxDesktop) renderBookmarkManagerOverlay() error {
 	if err := u.x.strokeRect(state.list.left, state.list.top, state.list.right-state.list.left, state.list.bottom-state.list.top, premiumTheme.Border); err != nil {
 		return err
 	}
+	rowH := 32
+	state.visibleRows = (state.list.bottom - state.list.top - 8) / rowH
+	if state.visibleRows < 1 {
+		state.visibleRows = 1
+	}
+	state.ensureSelectionVisible()
+	state.rows = state.list
+	state.scrollUp = linuxRect{}
+	state.scrollDown = linuxRect{}
+	if len(state.items) > state.visibleRows {
+		scrollWidth := 28
+		state.rows.right = state.list.right - scrollWidth - 8
+		state.scrollUp = linuxRectWH(state.list.right-scrollWidth-5, state.list.top+5, scrollWidth, 28)
+		state.scrollDown = linuxRectWH(state.list.right-scrollWidth-5, state.list.bottom-33, scrollWidth, 28)
+		if err := u.drawButton(state.scrollUp, "^", state.firstVisible > 0 && !u.busy, false); err != nil {
+			return err
+		}
+		if err := u.drawButton(state.scrollDown, "v", state.firstVisible+state.visibleRows < len(state.items) && !u.busy, false); err != nil {
+			return err
+		}
+	}
 	if len(state.items) == 0 {
-		if err := u.x.text(state.list.left+12, state.list.top+26, words.Empty, premiumTheme.Muted, premiumTheme.List); err != nil {
+		if err := u.x.text(state.rows.left+12, state.rows.top+26, words.Empty, premiumTheme.Muted, premiumTheme.List); err != nil {
 			return err
 		}
 	} else {
-		rowH := 32
-		maxRows := (state.list.bottom - state.list.top - 8) / rowH
-		for index := 0; index < len(state.items) && index < maxRows; index++ {
+		for visualRow := 0; visualRow < state.visibleRows; visualRow++ {
+			index := state.firstVisible + visualRow
+			if index >= len(state.items) {
+				break
+			}
 			item := state.items[index]
-			rowTop := state.list.top + 4 + index*rowH
+			rowTop := state.rows.top + 4 + visualRow*rowH
 			background := premiumTheme.List
 			if index == state.selected {
 				background = premiumTheme.Selection
-				if err := u.x.fillRect(state.list.left+1, rowTop, state.list.right-state.list.left-2, rowH, background); err != nil {
+				if err := u.x.fillRect(state.rows.left+1, rowTop, state.rows.right-state.rows.left-2, rowH, background); err != nil {
 					return err
 				}
 			}
@@ -163,7 +264,7 @@ func (u *linuxDesktop) renderBookmarkManagerOverlay() error {
 				identity = item.Username + "@" + item.Host + " · "
 			}
 			line := fmt.Sprintf("%s  ·  %s  ·  %s%s", kind, item.Name, identity, item.Path)
-			if err := u.x.text(state.list.left+10, rowTop+21, linuxTrimForUI(line, max(24, (state.list.right-state.list.left-20)/7)), premiumTheme.Text, background); err != nil {
+			if err := u.x.text(state.rows.left+10, rowTop+21, linuxTrimForUI(line, max(24, (state.rows.right-state.rows.left-20)/7)), premiumTheme.Text, background); err != nil {
 				return err
 			}
 		}
@@ -192,12 +293,16 @@ func (u *linuxDesktop) renderBookmarkManagerOverlay() error {
 	return u.drawButton(state.close, words.Close, !u.busy, false)
 }
 
-func (u *linuxDesktop) bookmarkRowAt(y int) int {
+func (u *linuxDesktop) bookmarkRowAt(x, y int) int {
 	state := linuxBookmarkStateFor(u)
-	if !state.list.contains(state.list.left+1, y) {
+	if !state.rows.contains(x, y) {
 		return -1
 	}
-	index := (y - state.list.top - 4) / 32
+	visualRow := (y - state.rows.top - 4) / 32
+	if visualRow < 0 || visualRow >= state.visibleRows {
+		return -1
+	}
+	index := state.firstVisible + visualRow
 	if index < 0 || index >= len(state.items) {
 		return -1
 	}
@@ -206,8 +311,21 @@ func (u *linuxDesktop) bookmarkRowAt(y int) int {
 
 func (u *linuxDesktop) handleBookmarkManagerMouse(x, y int) bool {
 	state := linuxBookmarkStateFor(u)
-	if index := u.bookmarkRowAt(y); state.list.contains(x, y) && index >= 0 {
+	if state.scrollUp.contains(x, y) {
+		if !u.busy {
+			state.scrollViewport(-1)
+		}
+		return true
+	}
+	if state.scrollDown.contains(x, y) {
+		if !u.busy {
+			state.scrollViewport(1)
+		}
+		return true
+	}
+	if index := u.bookmarkRowAt(x, y); index >= 0 {
 		state.selected = index
+		state.ensureSelectionVisible()
 		return true
 	}
 	switch {
@@ -241,10 +359,12 @@ func (u *linuxDesktop) handleBookmarkManagerKey(sym uint32) bool {
 	case x11KeyUp:
 		if state.selected > 0 {
 			state.selected--
+			state.ensureSelectionVisible()
 		}
 	case x11KeyDown:
 		if state.selected+1 < len(state.items) {
 			state.selected++
+			state.ensureSelectionVisible()
 		}
 	case x11KeyReturn:
 		u.openSelectedLinuxBookmark()
