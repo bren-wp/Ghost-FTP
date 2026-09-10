@@ -55,9 +55,10 @@ func showControls(show bool, controls ...uintptr) {
 
 // refineWorkspaceLayout applies visibility and native-theme rules to the
 // canonical workspace. Geometry remains owned by app.layout, followed by the
-// idempotent application-sidebar, file-filter and recursive-search transforms.
-// Importantly this function does not invalidate the entire parent window:
-// MoveWindow and the individual owner-drawn controls repaint only changed bounds.
+// idempotent application-sidebar, file-filter, recursive-search and comparison
+// transforms. Importantly this function does not invalidate the entire parent
+// window: MoveWindow and the individual owner-drawn controls repaint only
+// changed bounds.
 func (a *app) refineWorkspaceLayout() {
 	if a == nil || a.hwnd == 0 {
 		return
@@ -81,6 +82,8 @@ func (a *app) refineWorkspaceLayout() {
 	a.ensureRecursiveSearchControls()
 	a.layoutRecursiveSearchControls()
 	a.updateRecursiveSearchControls()
+	a.ensureDirectoryComparisonControls()
+	a.layoutDirectoryComparisonControls()
 	a.layoutQueuePriorityControls()
 	applyFileColumnOrder(a.localList, false)
 	applyFileColumnOrder(a.remoteList, true)
