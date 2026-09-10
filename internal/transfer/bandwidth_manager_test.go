@@ -21,14 +21,38 @@ type bandwidthCaptureSession struct {
 	failFirstUpload bool
 }
 
-func (s *bandwidthCaptureSession) Protocol() string                                     { return "ftp" }
-func (s *bandwidthCaptureSession) Host() string                                         { return "example.test" }
-func (s *bandwidthCaptureSession) Port() int                                            { return 21 }
-func (s *bandwidthCaptureSession) List(context.Context, string) ([]model.Item, error)   { return nil, nil }
-func (s *bandwidthCaptureSession) Mkdir(context.Context, string, string) error          { return nil }
-func (s *bandwidthCaptureSession) Rename(context.Context, string, string, string) error { return nil }
-func (s *bandwidthCaptureSession) Delete(context.Context, string, string, bool) error   { return nil }
-func (s *bandwidthCaptureSession) Chmod(context.Context, string, string, string) error  { return nil }
+func (s *bandwidthCaptureSession) Protocol() string {
+	return "ftp"
+}
+
+func (s *bandwidthCaptureSession) Host() string {
+	return "example.test"
+}
+
+func (s *bandwidthCaptureSession) Port() int {
+	return 21
+}
+
+func (s *bandwidthCaptureSession) List(context.Context, string) ([]model.Item, error) {
+	return nil, nil
+}
+
+func (s *bandwidthCaptureSession) Mkdir(context.Context, string, string) error {
+	return nil
+}
+
+func (s *bandwidthCaptureSession) Rename(context.Context, string, string, string) error {
+	return nil
+}
+
+func (s *bandwidthCaptureSession) Delete(context.Context, string, string, bool) error {
+	return nil
+}
+
+func (s *bandwidthCaptureSession) Chmod(context.Context, string, string, string) error {
+	return nil
+}
+
 func (s *bandwidthCaptureSession) Upload(_ context.Context, _, _ string, options remote.TransferOptions) error {
 	s.mu.Lock()
 	s.uploadOptions = append(s.uploadOptions, options)
@@ -44,13 +68,17 @@ func (s *bandwidthCaptureSession) Upload(_ context.Context, _, _ string, options
 	}
 	return nil
 }
+
 func (s *bandwidthCaptureSession) Download(_ context.Context, _, _ string, options remote.TransferOptions) error {
 	s.mu.Lock()
 	s.downloadOptions = append(s.downloadOptions, options)
 	s.mu.Unlock()
 	return nil
 }
-func (s *bandwidthCaptureSession) Close() error { return nil }
+
+func (s *bandwidthCaptureSession) Close() error {
+	return nil
+}
 
 func TestManagerPropagatesIndependentAggregateBandwidthCaps(t *testing.T) {
 	dir := t.TempDir()
@@ -81,10 +109,10 @@ func TestManagerPropagatesIndependentAggregateBandwidthCaps(t *testing.T) {
 	if len(session.uploadOptions) != 1 || len(session.downloadOptions) != 1 {
 		t.Fatalf("unexpected transfer calls: upload=%d download=%d", len(session.uploadOptions), len(session.downloadOptions))
 	}
-	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1024 * 1024); got != want {
+	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1048576); got != want {
 		t.Fatalf("upload transport cap=%d want=%d", got, want)
 	}
-	if got, want := session.downloadOptions[0].BandwidthLimitBytesPerSecond, int64(2 * 1024 * 1024); got != want {
+	if got, want := session.downloadOptions[0].BandwidthLimitBytesPerSecond, int64(2097152); got != want {
 		t.Fatalf("download transport cap=%d want=%d", got, want)
 	}
 }
@@ -125,10 +153,10 @@ func TestRetryAttemptSamplesNewBandwidthLimitWithoutMutatingFirstAttempt(t *test
 	if len(session.uploadOptions) != 2 {
 		t.Fatalf("upload attempts=%d want=2", len(session.uploadOptions))
 	}
-	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1024 * 1024); got != want {
+	if got, want := session.uploadOptions[0].BandwidthLimitBytesPerSecond, int64(1048576); got != want {
 		t.Fatalf("first attempt cap changed unexpectedly: got=%d want=%d", got, want)
 	}
-	if got, want := session.uploadOptions[1].BandwidthLimitBytesPerSecond, int64(4 * 1024 * 1024); got != want {
+	if got, want := session.uploadOptions[1].BandwidthLimitBytesPerSecond, int64(4194304); got != want {
 		t.Fatalf("retry did not sample new cap: got=%d want=%d", got, want)
 	}
 }
