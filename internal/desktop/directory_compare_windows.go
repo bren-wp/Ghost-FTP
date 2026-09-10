@@ -22,18 +22,20 @@ const (
 )
 
 type windowsDirectoryComparisonState struct {
-	compareButton  uintptr
-	openBothButton uintptr
-	localList      uintptr
-	remoteList     uintptr
-	active         bool
-	loading        bool
-	seq            uint64
-	generation     uint64
-	entries        []api.DirectoryComparisonEntry
-	cancel         context.CancelFunc
-	localBase      string
-	remoteBase     string
+	compareButton    uintptr
+	openBothButton   uintptr
+	localList        uintptr
+	remoteList       uintptr
+	active           bool
+	loading          bool
+	syncingSelection bool
+	selected         int
+	seq              uint64
+	generation       uint64
+	entries          []api.DirectoryComparisonEntry
+	cancel           context.CancelFunc
+	localBase        string
+	remoteBase       string
 }
 
 var windowsDirectoryComparisons sync.Map
@@ -45,12 +47,33 @@ func (a *app) directoryComparisonState() *windowsDirectoryComparisonState {
 	if value, ok := windowsDirectoryComparisons.Load(a.hwnd); ok {
 		return value.(*windowsDirectoryComparisonState)
 	}
-	state := &windowsDirectoryComparisonState{}
+	state := &windowsDirectoryComparisonState{selected: -1}
 	actual, _ := windowsDirectoryComparisons.LoadOrStore(a.hwnd, state)
 	return actual.(*windowsDirectoryComparisonState)
 }
 
+func (a *app) invalidateStaleDirectoryComparison() {
+	state := a.directoryComparisonState()
+	if state == nil || !state.active {
+		return
+	}
+	if a.connected && state.generation == a.connectionGeneration {
+		return
+	}
+	if state.cancel != nil {
+		state.cancel()
+	}
+	state.seq++
+	state.active = false
+	state.loading = false
+	state.syncingSelection = false
+	state.selected = -1
+	state.cancel = nil
+	state.entries = nil
+}
+
 func (a *app) directoryComparisonActive() bool {
+	a.invalidateStaleDirectoryComparison()
 	state := a.directoryComparisonState()
 	return state != nil && state.active
 }
@@ -162,6 +185,7 @@ func (a *app) comparisonAuxiliaryControls(remote bool) []uintptr {
 }
 
 func (a *app) updateDirectoryComparisonControls() {
+	a.invalidateStaleDirectoryComparison()
 	state := a.directoryComparisonState()
 	if state == nil || state.compareButton == 0 {
 		return
@@ -182,7 +206,11 @@ func (a *app) updateDirectoryComparisonControls() {
 	showControls(false, a.comparisonAuxiliaryControls(false)...)
 	showControls(false, a.comparisonAuxiliaryControls(true)...)
 	setControlEnabled(state.compareButton, true)
-	setControlEnabled(state.openBothButton, !state.loading && len(state.entries) > 0)
+	openBoth := false
+	if !state.loading && a.connected && state.generation == a.connectionGeneration && state.selected >= 0 && state.selected < len(state.entries) {
+		_, openBoth = a.engine.SynchronizedDirectoryName(state.entries, state.entries[state.selected].Name)
+	}
+	setControlEnabled(state.openBothButton, openBoth)
 }
 
 func (a *app) comparisonStatusLabel(status api.DirectoryComparisonStatus) string {
@@ -218,11 +246,42 @@ func comparisonSideValues(entry api.DirectoryComparisonEntry, remote bool) (stri
 	return formatSize(item.Size, item.IsDirectory), formatTime(item.Modified)
 }
 
+func setDirectoryComparisonSelection(list uintptr, row int) {
+	if list == 0 || row < 0 {
+		return
+	}
+	for _, current := range selectedIndices(list) {
+		if current != row {
+			setListRowSelected(list, current, false)
+		}
+	}
+	setListRowSelected(list, row, true)
+}
+
+func (a *app) handleDirectoryComparisonSelection(list uintptr, row int) bool {
+	state := a.directoryComparisonState()
+	if state == nil || !state.active || state.loading || state.syncingSelection || row < 0 || row >= len(state.entries) {
+		return false
+	}
+	if list != state.localList && list != state.remoteList {
+		return false
+	}
+	state.syncingSelection = true
+	state.selected = row
+	setDirectoryComparisonSelection(state.localList, row)
+	setDirectoryComparisonSelection(state.remoteList, row)
+	state.syncingSelection = false
+	a.updateDirectoryComparisonControls()
+	return true
+}
+
 func (a *app) renderDirectoryComparisonRows() {
 	state := a.directoryComparisonState()
 	if state == nil {
 		return
 	}
+	state.syncingSelection = true
+	defer func() { state.syncingSelection = false }()
 	clearList(state.localList)
 	clearList(state.remoteList)
 	firstSync := -1
@@ -246,12 +305,15 @@ func (a *app) renderDirectoryComparisonRows() {
 			}
 		}
 	}
+	state.selected = -1
 	if firstSync >= 0 {
-		setListRowSelected(state.localList, firstSync, true)
-		setListRowSelected(state.remoteList, firstSync, true)
+		state.selected = firstSync
+		setDirectoryComparisonSelection(state.localList, firstSync)
+		setDirectoryComparisonSelection(state.remoteList, firstSync)
 	} else if len(state.entries) > 0 {
-		setListRowSelected(state.localList, 0, true)
-		setListRowSelected(state.remoteList, 0, true)
+		state.selected = 0
+		setDirectoryComparisonSelection(state.localList, 0)
+		setDirectoryComparisonSelection(state.remoteList, 0)
 	}
 }
 
@@ -278,6 +340,8 @@ func (a *app) startDirectoryComparison() {
 	seq := state.seq
 	state.active = true
 	state.loading = true
+	state.syncingSelection = false
+	state.selected = -1
 	state.entries = nil
 	state.generation = a.connectionGeneration
 	state.localBase = a.localCurrent
@@ -338,6 +402,8 @@ func (a *app) closeDirectoryComparison() {
 	state.seq++
 	state.active = false
 	state.loading = false
+	state.syncingSelection = false
+	state.selected = -1
 	state.cancel = nil
 	state.entries = nil
 	showControls(false, state.localList, state.remoteList, state.openBothButton)
@@ -347,24 +413,25 @@ func (a *app) closeDirectoryComparison() {
 
 func (a *app) selectedDirectoryComparisonEntry() (api.DirectoryComparisonEntry, bool) {
 	state := a.directoryComparisonState()
-	if state == nil || !state.active || state.loading {
+	if state == nil || !state.active || state.loading || !a.connected || state.generation != a.connectionGeneration {
 		return api.DirectoryComparisonEntry{}, false
 	}
-	index := selectedIndex(state.localList)
-	if index < 0 || index >= len(state.entries) {
-		index = selectedIndex(state.remoteList)
-	}
-	if index < 0 || index >= len(state.entries) {
+	if state.selected < 0 || state.selected >= len(state.entries) {
 		return api.DirectoryComparisonEntry{}, false
 	}
-	return state.entries[index], true
+	return state.entries[state.selected], true
 }
 
 func (a *app) openComparedDirectoryBoth() {
 	state := a.directoryComparisonState()
+	if state == nil || !a.connected || state.generation != a.connectionGeneration {
+		a.invalidateStaleDirectoryComparison()
+		a.updateDirectoryComparisonControls()
+		return
+	}
 	entry, ok := a.selectedDirectoryComparisonEntry()
 	words := directoryCompareWordsForLanguage(a.languageCode())
-	if state == nil || !ok {
+	if !ok {
 		return
 	}
 	name, ok := a.engine.SynchronizedDirectoryName(state.entries, entry.Name)
@@ -393,7 +460,7 @@ func (a *app) openComparedDirectoryBoth() {
 	state.seq++
 	seq := state.seq
 	state.loading = true
-	generation := a.connectionGeneration
+	generation := state.generation
 	localBase := state.localBase
 	remoteBase := state.remoteBase
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
