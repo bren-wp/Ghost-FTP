@@ -12,10 +12,10 @@ func TestBandwidthLimitIsDirectionalAndAggregate(t *testing.T) {
 		UploadLimitKiBPerSecond:   4096,
 		DownloadLimitKiBPerSecond: 8192,
 	}
-	if got, want := bandwidthLimitBytesPerSecond(settings, "upload"), int64(1024*1024); got != want {
+	if got, want := bandwidthLimitBytesPerSecond(settings, "upload"), int64(1024 * 1024); got != want {
 		t.Fatalf("upload per-slot cap = %d, want %d", got, want)
 	}
-	if got, want := bandwidthLimitBytesPerSecond(settings, "download"), int64(2*1024*1024); got != want {
+	if got, want := bandwidthLimitBytesPerSecond(settings, "download"), int64(2 * 1024 * 1024); got != want {
 		t.Fatalf("download per-slot cap = %d, want %d", got, want)
 	}
 }
