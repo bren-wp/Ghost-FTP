@@ -84,10 +84,13 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 
 func (u *linuxDesktop) renderFileFilterControls() error {
 	// Empty linuxUIResult notifications are used only to wake the established UI
-	// loop after recursive-search batches. Reconcile here, on the UI goroutine,
-	// before normal controls are drawn so search mode remains modal and normal
-	// row-indexed mutation controls never become enabled between batches.
+	// loop after recursive-search or comparison work. Reconcile on the UI
+	// goroutine before ordinary row-indexed controls are painted.
 	u.reconcileRecursiveSearchState()
+	u.reconcileDirectoryComparisonLinux()
+	if u.directoryComparisonActiveLinux() {
+		return u.renderDirectoryComparisonControlsLinux()
+	}
 	for _, remote := range []bool{false, true} {
 		if u.recursiveSearchActive(remote) {
 			if err := u.renderRecursiveSearchControls(remote); err != nil {
@@ -103,10 +106,13 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 			return err
 		}
 	}
-	return nil
+	return u.renderDirectoryComparisonButtonLinux()
 }
 
 func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
+	if u.handleDirectoryComparisonMouseLinux(x, y) {
+		return true
+	}
 	if u.handleRecursiveSearchMouse(x, y) {
 		return true
 	}
@@ -126,6 +132,9 @@ func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
 }
 
 func (u *linuxDesktop) openFileFilterPrompt(remote bool) {
+	if u.directoryComparisonActiveLinux() {
+		return
+	}
 	state := u.fileFilterState()
 	if state == nil {
 		return
@@ -182,6 +191,9 @@ func restoreLinuxSelection(items []model.Item, name string) int {
 }
 
 func (u *linuxDesktop) applyLinuxFileFilter(remote bool, query string) {
+	if u.directoryComparisonActiveLinux() {
+		return
+	}
 	state := u.fileFilterState()
 	if state == nil {
 		return
