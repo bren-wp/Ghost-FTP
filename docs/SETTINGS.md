@@ -1,12 +1,14 @@
 # Ghost FTP settings
 
-Ghost FTP **0.0.2** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
+Ghost FTP **0.0.3 development** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
 
 ## Current persisted settings
 
 - `language` — canonical local UI language; invalid state normalizes to English.
 - `appearance` — Windows appearance, `light` or `dark`; fresh/invalid state resolves to Classic Light.
 - `parallelism` — concurrent transfers, range **1–8**, default **2**.
+- `uploadLimitKiBPerSecond` — aggregate upload ceiling in **KiB/s**, range **0–1,048,576**, default **0 = unlimited**.
+- `downloadLimitKiBPerSecond` — aggregate download ceiling in **KiB/s**, range **0–1,048,576**, default **0 = unlimited**.
 - `connectionTimeoutSeconds` — range **5–60 seconds**, default **15**.
 - `autoRetryCount` — range **0–3**, default **0**.
 - `retryDelaySeconds` — range **1–30 seconds**, default **3**.
@@ -22,6 +24,8 @@ Every exposed option has one explicit runtime owner:
 | Option | Runtime effect |
 | --- | --- |
 | Parallel transfers | Bounds how many transfer workers may run concurrently. |
+| Upload bandwidth | Applies the validated aggregate upload budget to actual FTP/FTPS/SFTP transport work. |
+| Download bandwidth | Applies the validated aggregate download budget to actual FTP/FTPS/SFTP transport work. |
 | Connection timeout | Bounds connection establishment and related connection work. |
 | Automatic retries | Limits retries for failures classified as retryable. |
 | Retry delay | Defines the bounded delay between eligible automatic retries. |
@@ -32,21 +36,40 @@ Every exposed option has one explicit runtime owner:
 
 The Windows and Linux settings surfaces consume the same shared model for options they expose. A frontend must not silently accept a value that the shared configuration layer rejects.
 
+## Bandwidth policy
+
+Bandwidth values are expressed in binary **KiB/s** (`1 KiB = 1024 bytes`) and are directional. Upload and download limits are independent. `0` is deliberately reserved for **unlimited**, which preserves the transfer behavior of settings files created by Ghost FTP 0.0.2 and older builds.
+
+A non-zero value is an **aggregate ceiling for that direction**, not a per-transfer entitlement. The shared transfer scheduler divides the configured directional budget conservatively across all configured parallel worker slots. Idle slots do not temporarily lend their allowance to another transfer. This intentionally favors a stable aggregate ceiling over opportunistic bursting as jobs start and finish.
+
+The resulting per-attempt cap is enforced by the transport itself:
+
+- FTP and FTPS use curl's native `limit-rate` setting;
+- SFTP uses OpenSSH `sftp -l`, converted to Kbit/s by flooring so conversion cannot round above the scheduler budget.
+
+There is no application busy-wait loop and no UI-only timer pretending to throttle traffic.
+
+A transfer attempt snapshots its effective bandwidth budget when that attempt starts. Saving a new limit never mutates or corrupts an already-running transport process. A new transfer, or a later retry attempt, samples the currently saved bandwidth settings and therefore observes the new limit.
+
 ## Compatibility and migration
 
 Older or partial settings payloads are migrated only when a missing value can be distinguished safely from an explicit user value.
 
 - Missing legacy `parallelism=0` migrates to the canonical default **2**, because valid user values begin at 1.
+- Missing bandwidth fields deserialize as `0`, which is the canonical **unlimited** default and therefore needs no destructive migration.
 - Missing connection timeout and retry delay continue to migrate to their canonical safe defaults.
 - Explicit invalid parallelism such as a negative value or a value above 8 is still rejected rather than silently rewritten.
+- Explicit negative bandwidth limits or values above **1,048,576 KiB/s** are rejected on save; corrupt persisted values normalize to unlimited rather than becoming an unintended throttle.
 - Unknown persisted conflict-policy state fails closed to the conservative replace-with-recovery-backup behavior.
 - Legacy overwrite booleans are synchronized from the one canonical `conflictPolicy` field when settings are saved.
 
-Regression tests cover both migration and continued rejection of explicit invalid values.
+Regression tests cover migration, independent upload/download values, aggregate allocation and continued rejection of explicit invalid values.
 
 ## Windows settings surface
 
-Windows exposes one application-owned native Settings dialog for appearance, transfer concurrency, connection timeout, retry behavior, conflict policy and delete confirmation. Numeric values are validated before one complete settings candidate is persisted.
+Windows exposes one application-owned native Settings dialog for appearance, transfer concurrency, independent upload/download bandwidth ceilings, connection timeout, retry behavior, conflict policy and delete confirmation. Numeric values are validated before one complete settings candidate is persisted.
+
+Bandwidth labels always state `KiB/s` and `0 = unlimited`. The native dialog accepts all six maintained numeric settings in one transaction rather than opening secondary prompts.
 
 Invalid input keeps the dialog open, shows localized corrective text and restores keyboard focus to the invalid field instead of partially committing the remaining settings. A successful **OK** returns one complete settings candidate to the typed engine. Closing with **X** or **Cancel** closes only Settings and does not end the application message loop.
 
@@ -62,6 +85,8 @@ An explicitly saved Dark preference is preserved. Appearance does not load remot
 ### Linux
 
 Linux uses the maintained Classic Light workspace until a complete runtime appearance switch can be provided without introducing a platform-only control whose behavior differs from Windows.
+
+The Linux Settings overlay exposes the same upload/download bandwidth values as Windows. Because the X11 surface uses bounded steppers rather than free-form numeric text entry, bandwidth controls advance through maintained presets from unlimited up to the same validated maximum; persisted values that came from another supported surface remain valid and the next step moves to the adjacent bounded preset.
 
 ## Fresh connection protocol
 
@@ -89,7 +114,7 @@ Automatic retry applies only to errors classified as retryable by the shared eng
 
 ## Language
 
-English is the default/fallback and the canonical registry contains **24 languages**. Localization is local and does not create online translation traffic.
+English is the default/fallback and the canonical registry contains **24 languages**. Localization is local and does not create online translation traffic. Bandwidth labels are maintained for all 24 languages and retain explicit `KiB/s` units in every locale.
 
 ## Credential persistence
 
@@ -108,7 +133,7 @@ Delete confirmation defaults to enabled. Destructive actions must respect the va
 
 A control is not considered implemented merely because it is visible. Main desktop controls are covered by a regression contract that compares the Windows button IDs with their command handlers and the Linux rendered control rectangles with their click handlers. Settings changes additionally require a backend validation path and tests proving the setting changes runtime behavior or policy.
 
-New power-user options such as bandwidth limits, directory comparison/synchronized browsing, search/filter and queue priority are roadmap items until the complete engine + Windows + Linux + localization + test path exists. They must not appear as decorative or non-functional switches.
+Directory comparison/synchronized browsing, recursive search/filter and queue priority are implemented maintained capabilities. Future power-user options remain roadmap items until their complete engine + Windows + Linux + localization + test path exists; they must not appear as decorative or non-functional switches.
 
 ## Persistence and recovery
 
