@@ -63,3 +63,90 @@ func TestLinuxProfileConnectionMatchRejectsInvalidEditablePort(t *testing.T) {
 		t.Fatal("invalid editable port was accepted as profile identity")
 	}
 }
+
+func linuxProfileStartTestDesktop() (*linuxDesktop, model.PublicProfile) {
+	profile := model.PublicProfile{
+		ID:         "profile-1",
+		Protocol:   "ftps",
+		Host:       "ftp.example.com",
+		Port:       21,
+		Username:   "alice",
+		RemotePath: "/saved-home",
+	}
+	u := &linuxDesktop{
+		protocol:          profile.Protocol,
+		host:              profile.Host,
+		port:              "21",
+		username:          profile.Username,
+		profiles:          []model.PublicProfile{profile},
+		selectedProfileID: profile.ID,
+		remoteCurrent:     profile.RemotePath,
+	}
+	return u, profile
+}
+
+func installLinuxProfileStartTestState(t *testing.T, u *linuxDesktop, state *linuxProfileStartState) {
+	t.Helper()
+	linuxProfileStartStates.Store(u, state)
+	t.Cleanup(func() { linuxProfileStartStates.Delete(u) })
+}
+
+func TestLinuxProfileRemoteStartDoesNotOverwriteManualEditOnRepaint(t *testing.T) {
+	u, _ := linuxProfileStartTestDesktop()
+	state := &linuxProfileStartState{
+		initialized:       true,
+		selectedProfileID: u.selectedProfileID,
+		accountKey:        u.linuxEditableAccountKey(),
+		inheritedRemote:   "/saved-home",
+		verifiedRemote:    "/",
+	}
+	installLinuxProfileStartTestState(t, u, state)
+
+	u.remoteCurrent = "/manually-edited"
+	u.enforceLinuxProfileStartDirectories()
+
+	if u.remoteCurrent != "/manually-edited" {
+		t.Fatalf("repaint overwrote explicit remote path: got %q", u.remoteCurrent)
+	}
+}
+
+func TestLinuxProfileRemoteStartResetsInheritedPathOnAccountChange(t *testing.T) {
+	u, _ := linuxProfileStartTestDesktop()
+	oldAccountKey := u.linuxEditableAccountKey()
+	state := &linuxProfileStartState{
+		initialized:       true,
+		selectedProfileID: u.selectedProfileID,
+		accountKey:        oldAccountKey,
+		inheritedRemote:   "/saved-home",
+		verifiedRemote:    "/",
+	}
+	installLinuxProfileStartTestState(t, u, state)
+
+	u.username = "bob"
+	u.enforceLinuxProfileStartDirectories()
+
+	if u.remoteCurrent != "/" {
+		t.Fatalf("inherited remote start crossed account boundary: got %q, want /", u.remoteCurrent)
+	}
+}
+
+func TestLinuxProfileExplicitRemoteStartSurvivesAccountChange(t *testing.T) {
+	u, _ := linuxProfileStartTestDesktop()
+	oldAccountKey := u.linuxEditableAccountKey()
+	state := &linuxProfileStartState{
+		initialized:       true,
+		selectedProfileID: u.selectedProfileID,
+		accountKey:        oldAccountKey,
+		inheritedRemote:   "/saved-home",
+		verifiedRemote:    "/",
+	}
+	installLinuxProfileStartTestState(t, u, state)
+
+	u.remoteCurrent = "/new-account-home"
+	u.username = "bob"
+	u.enforceLinuxProfileStartDirectories()
+
+	if u.remoteCurrent != "/new-account-home" {
+		t.Fatalf("explicit new remote start was overwritten: got %q", u.remoteCurrent)
+	}
+}
