@@ -26,10 +26,12 @@ func TestBandwidthValidationAcceptsIndependentDirectionalLimits(t *testing.T) {
 }
 
 func TestBandwidthValidationRejectsOutOfRangeValues(t *testing.T) {
-	for _, tc := range []model.Settings{
-		func() model.Settings { v := DefaultSettings(); v.UploadLimitKiBPerSecond = -1; return v }(),
-		func() model.Settings { v := DefaultSettings(); v.DownloadLimitKiBPerSecond = MaxBandwidthLimitKiBPerSecond + 1; return v }(),
-	} {
+	negativeUpload := DefaultSettings()
+	negativeUpload.UploadLimitKiBPerSecond = -1
+	tooLargeDownload := DefaultSettings()
+	tooLargeDownload.DownloadLimitKiBPerSecond = MaxBandwidthLimitKiBPerSecond + 1
+
+	for _, tc := range []model.Settings{negativeUpload, tooLargeDownload} {
 		if err := validateSettings(tc); err == nil {
 			t.Fatalf("out-of-range bandwidth limit unexpectedly accepted: %+v", tc)
 		}
