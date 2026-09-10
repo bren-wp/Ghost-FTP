@@ -18,14 +18,15 @@ import (
 type linuxDirectoryComparisonState struct {
 	mu sync.Mutex
 
-	seq      uint64
-	active   bool
-	running  bool
-	selected int
-	cancel   context.CancelFunc
-	entries  []api.DirectoryComparisonEntry
-	status   string
-	dirty    bool
+	seq          uint64
+	active       bool
+	running      bool
+	restoreReady bool
+	selected     int
+	cancel       context.CancelFunc
+	entries      []api.DirectoryComparisonEntry
+	status       string
+	dirty        bool
 
 	localBase      string
 	remoteBase     string
@@ -109,12 +110,15 @@ func (u *linuxDesktop) reconcileDirectoryComparisonLinux() {
 	state.mu.Lock()
 	active := state.active
 	running := state.running
+	restoreReady := state.restoreReady
 	selected := state.selected
 	entries := append([]api.DirectoryComparisonEntry(nil), state.entries...)
 	status := state.status
 	dirty := state.dirty
 	localBase := state.localBase
 	remoteBase := state.remoteBase
+	localSnapshot := append([]model.Item(nil), state.localSnapshot...)
+	remoteSnapshot := append([]model.Item(nil), state.remoteSnapshot...)
 	navReady := state.navReady
 	navLocalBase := state.navLocalBase
 	navRemoteBase := state.navRemoteBase
@@ -123,6 +127,9 @@ func (u *linuxDesktop) reconcileDirectoryComparisonLinux() {
 	navEntries := append([]api.DirectoryComparisonEntry(nil), state.navEntries...)
 	if dirty {
 		state.dirty = false
+	}
+	if restoreReady {
+		state.restoreReady = false
 	}
 	if navReady {
 		state.navReady = false
@@ -142,6 +149,15 @@ func (u *linuxDesktop) reconcileDirectoryComparisonLinux() {
 	}
 	state.mu.Unlock()
 
+	if restoreReady {
+		u.busy = false
+		u.localCurrent = localBase
+		u.remoteCurrent = remoteBase
+		u.acceptLinuxFileFilterSnapshot(false, localSnapshot)
+		u.acceptLinuxFileFilterSnapshot(true, remoteSnapshot)
+		u.selectedLocal = -1
+		u.selectedRemote = -1
+	}
 	if dirty && status != "" {
 		u.setStatus(status)
 	}
@@ -217,6 +233,12 @@ func (u *linuxDesktop) startDirectoryComparisonLinux() {
 	words := directoryCompareWordsForLanguage(u.language)
 	localBase := u.localCurrent
 	remoteBase := u.remoteCurrent
+	localSnapshot := append([]model.Item(nil), u.localItems...)
+	remoteSnapshot := append([]model.Item(nil), u.remoteItems...)
+	if filter := u.fileFilterState(); filter != nil {
+		localSnapshot = append([]model.Item(nil), filter.localAll...)
+		remoteSnapshot = append([]model.Item(nil), filter.remoteAll...)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 
 	state.mu.Lock()
@@ -227,6 +249,7 @@ func (u *linuxDesktop) startDirectoryComparisonLinux() {
 	seq := state.seq
 	state.active = true
 	state.running = true
+	state.restoreReady = false
 	state.selected = -1
 	state.cancel = cancel
 	state.entries = nil
@@ -234,6 +257,8 @@ func (u *linuxDesktop) startDirectoryComparisonLinux() {
 	state.dirty = true
 	state.localBase = localBase
 	state.remoteBase = remoteBase
+	state.localSnapshot = localSnapshot
+	state.remoteSnapshot = remoteSnapshot
 	state.mu.Unlock()
 	u.busy = true
 	u.setStatus(words.Disclosure)
@@ -259,6 +284,7 @@ func (u *linuxDesktop) startDirectoryComparisonLinux() {
 			state.cancel = nil
 			if err != nil {
 				state.active = false
+				state.restoreReady = true
 				state.status = usererror.MessageFor(u.language, err, words.Unavailable)
 				state.dirty = true
 			} else {
@@ -298,6 +324,7 @@ func (u *linuxDesktop) closeDirectoryComparisonLinux() {
 	state.seq++
 	state.active = false
 	state.running = false
+	state.restoreReady = false
 	state.selected = -1
 	state.cancel = nil
 	state.entries = nil
@@ -457,6 +484,7 @@ func (u *linuxDesktop) disposeDirectoryComparisonLinux() {
 	state.cancel = nil
 	state.active = false
 	state.running = false
+	state.restoreReady = false
 	state.mu.Unlock()
 	if cancel != nil {
 		cancel()
