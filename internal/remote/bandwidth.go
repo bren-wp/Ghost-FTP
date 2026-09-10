@@ -9,13 +9,21 @@ import (
 	"time"
 )
 
-func (c *CurlFTP) runTransfer(ctx context.Context, limitBytesPerSecond int64, lines []string) ([]byte, error) {
+func curlBandwidthConfigLine(limitBytesPerSecond int64) string {
 	if limitBytesPerSecond <= 0 {
+		return ""
+	}
+	return "limit-rate = " + cfgQuote(strconv.FormatInt(limitBytesPerSecond, 10))
+}
+
+func (c *CurlFTP) runTransfer(ctx context.Context, limitBytesPerSecond int64, lines []string) ([]byte, error) {
+	line := curlBandwidthConfigLine(limitBytesPerSecond)
+	if line == "" {
 		return c.run(ctx, lines)
 	}
 	limited := make([]string, 0, len(lines)+1)
 	limited = append(limited, lines...)
-	limited = append(limited, "limit-rate = "+cfgQuote(strconv.FormatInt(limitBytesPerSecond, 10)))
+	limited = append(limited, line)
 	return c.run(ctx, limited)
 }
 
