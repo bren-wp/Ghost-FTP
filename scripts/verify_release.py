@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import struct
 from pathlib import Path
 
@@ -21,12 +22,40 @@ TELEMETRY_MARKERS = [
     b"bugsnag", b"crashlytics", b"appcenter", b"telemetrydeck",
 ]
 
+PUBLIC_WINDOWS_EXECUTABLE_RE = re.compile(
+    r"^Ghost-FTP-\d+\.\d+\.\d+-(?:Setup|Portable)-(?:x64|x86)\.exe$",
+    re.IGNORECASE,
+)
+
 
 def assert_no_telemetry_markers(path: Path, data: bytes) -> None:
     lower = data.lower()
     for marker in TELEMETRY_MARKERS:
         if marker in lower or marker.decode("ascii").encode("utf-16le") in lower:
             raise ValueError(f"{path.name}: telemetry/vendor marker found: {marker.decode('ascii')}")
+
+
+def assert_windows_artifact_directory_clean(artifact_dir: Path) -> None:
+    """Reject unexpected permanent Windows executables in the public artifact directory.
+
+    Setup and Portable are the only supported Windows executable artifact roles. This
+    turns the no-permanent-uninstaller policy into an observed artifact invariant
+    instead of relying on a status string printed by the verifier.
+    """
+    if not artifact_dir.is_dir():
+        raise ValueError(f"Windows artifact directory is unavailable: {artifact_dir}")
+
+    unexpected = sorted(
+        path.name
+        for path in artifact_dir.iterdir()
+        if path.is_file()
+        and path.suffix.lower() == ".exe"
+        and not PUBLIC_WINDOWS_EXECUTABLE_RE.fullmatch(path.name)
+    )
+    if unexpected:
+        raise ValueError(
+            "unexpected Windows executable artifact(s): " + ", ".join(unexpected)
+        )
 
 
 def detect_arch(machine: int, magic: int) -> str:
@@ -121,6 +150,12 @@ def main() -> None:
     ap.add_argument("--arch", choices=("x64", "x86"), default=None)
     args = ap.parse_args()
 
+    setup_parent = args.setup.resolve().parent
+    portable_parent = args.portable.resolve().parent
+    if setup_parent != portable_parent:
+        raise SystemExit("Setup and Portable must come from the same Windows artifact directory")
+    assert_windows_artifact_directory_clean(setup_parent)
+
     results = [read_pe(p, args.arch) for p in (args.setup, args.portable)]
     arches = {result[2] for result in results}
     if len(arches) != 1:
@@ -136,6 +171,7 @@ def main() -> None:
 
     print("SETUP_PE_OK=YES")
     print("PORTABLE_PE_OK=YES")
+    print("WINDOWS_EXECUTABLE_ARTIFACT_SET=CANONICAL")
     print("UNINSTALLER_BINARY=ABSENT")
     print(f"WINDOWS_ARCH={arch}")
     print("PUBLIC_BRAND=Ghost FTP")
