@@ -17,7 +17,7 @@
 - Release shape: **14 platform artifacts / 17 public files**
 - Product website: **https://ghostftp.com**
 
-The root [`VERSION`](../VERSION) file is the authoritative production version source. Active documentation describes the current 0.0.3 public line. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and the canonical retention workflow.
+The root [`VERSION`](../VERSION) file is the authoritative production version source. Release-bound documentation describes the current 0.0.3 public line. Documents that explicitly say **post-0.0.3 source line** may describe implemented work targeted for a future release and do not retroactively change the published 0.0.3 binaries. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and the canonical retention workflow.
 
 ## Start here
 
@@ -29,6 +29,7 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 | Understand security boundaries | [`SECURITY.md`](SECURITY.md) |
 | Understand privacy/no-telemetry behavior | [`PRIVACY.md`](PRIVACY.md) |
 | Understand architecture/Core ownership | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| Understand post-0.0.3 navigation bookmarks/profile starts | [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) |
 | Verify Windows/Linux parity | [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) |
 | Validate a downloaded release | [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) |
 | Understand release/version lifecycle | [`VERSIONING.md`](VERSIONING.md) and [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) |
@@ -70,12 +71,15 @@ See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockup
 - Validated local settings for concurrency, upload/download KiB/s ceilings, timeout, retry, overwrite policy, delete confirmation, appearance and language.
 - No telemetry, analytics, advertising, tracking or hidden product backend.
 
+Post-0.0.3 source capabilities are deliberately kept outside this public 0.0.3 list. Their implementation and acceptance boundaries are documented separately in [`ROADMAP.md`](ROADMAP.md), [`QUEUE-PRIORITY.md`](QUEUE-PRIORITY.md) and [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md).
+
 ## Product and architecture
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — components, ownership and trust boundaries.
 - [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux parity contract.
 - [`REFERENCE-UI.md`](REFERENCE-UI.md) — native desktop UI and authentic evidence.
 - [`SETTINGS.md`](SETTINGS.md) — validated settings and persistence behavior.
+- [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) — post-0.0.3 bookmark and profile-start source/security contract.
 - [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language local localization model.
 - [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency and external-tool policy.
 
