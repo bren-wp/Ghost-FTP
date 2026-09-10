@@ -85,6 +85,19 @@ class FileFilterUIContractTests(unittest.TestCase):
         self.assertNotIn("recursive search", combined.replace("no hidden recursive scans", ""))
         self.assertNotIn("search server recursively", combined)
 
+    def test_active_docs_distinguish_current_folder_filter_from_recursive_search(self) -> None:
+        roadmap = source("docs/ROADMAP.md").lower()
+        testing = source("docs/TESTING.md").lower()
+        changelog = source("CHANGELOG.md").lower()
+
+        self.assertIn("non-destructive current-folder filter", roadmap)
+        self.assertIn("p0 — bounded recursive local/server search", roadmap)
+        self.assertIn("remaining search work is an explicitly bounded recursive mode", roadmap)
+        self.assertIn("current-folder filter regression contract", testing)
+        self.assertIn("deliberately separate from future recursive search", testing)
+        self.assertIn("non-destructive local/server current-folder filter", changelog)
+        self.assertIn("future bounded recursive search", changelog)
+
 
 if __name__ == "__main__":
     result = unittest.main(exit=False)
