@@ -21,6 +21,8 @@ const (
 	linuxPromptRemoteChmod
 	linuxPromptLocalFilter
 	linuxPromptRemoteFilter
+	linuxPromptLocalRecursiveSearch
+	linuxPromptRemoteRecursiveSearch
 )
 
 func (u *linuxDesktop) openPrompt(kind int, title, initial string) {
@@ -40,6 +42,10 @@ func (u *linuxDesktop) closePrompt() {
 
 func (u *linuxDesktop) filterPrompt() bool {
 	return u.promptKind == linuxPromptLocalFilter || u.promptKind == linuxPromptRemoteFilter
+}
+
+func (u *linuxDesktop) recursiveSearchPrompt() bool {
+	return u.promptKind == linuxPromptLocalRecursiveSearch || u.promptKind == linuxPromptRemoteRecursiveSearch
 }
 
 func (u *linuxDesktop) promptCanSubmit() bool {
@@ -92,9 +98,12 @@ func (u *linuxDesktop) renderPromptOverlay() error {
 	}
 	shown := u.promptValue
 	if shown == "" {
-		if u.filterPrompt() {
+		switch {
+		case u.filterPrompt():
 			shown = fileFilterWordsForLanguage(u.language).Cue
-		} else {
+		case u.recursiveSearchPrompt():
+			shown = recursiveSearchWordsForLanguage(u.language).Search
+		default:
 			shown = "Type a value"
 		}
 	}
@@ -138,6 +147,10 @@ func (u *linuxDesktop) submitPrompt() {
 		u.applyLinuxFileFilter(false, value)
 	case linuxPromptRemoteFilter:
 		u.applyLinuxFileFilter(true, value)
+	case linuxPromptLocalRecursiveSearch:
+		u.startRecursiveSearch(false, value)
+	case linuxPromptRemoteRecursiveSearch:
+		u.startRecursiveSearch(true, value)
 	case linuxPromptLocalMkdir:
 		if err := u.engine.LocalMkdir(u.localCurrent, value); err != nil {
 			u.setStatus(usererror.MessageFor(u.language, err, i18n.T(u.language, "error.generic")))
