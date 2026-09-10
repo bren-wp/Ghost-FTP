@@ -145,7 +145,13 @@ def main() -> int:
     linux_distro_build = read("linux/BUILD-DISTROS.sh")
     require(
         linux_distro_build,
-        ("< VERSION", "-X main.version=${VERSION}", "Linux-Debian", "Linux-Ubuntu", "Linux-Fedora"),
+        (
+            "< VERSION",
+            "-X main.version=${VERSION}",
+            "for distro in Debian Ubuntu; do",
+            'portable_name="Ghost-FTP-${VERSION}-Linux-Portable-${debarch}"',
+            'rpm_out="dist/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"',
+        ),
         "linux/BUILD-DISTROS.sh",
     )
     local_build = read("scripts/BUILD-LOCAL.sh")
