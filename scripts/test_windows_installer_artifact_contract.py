@@ -17,14 +17,12 @@ spec.loader.exec_module(verify_release)
 
 
 class WindowsInstallerArtifactContractTests(unittest.TestCase):
-    def test_canonical_setup_and_portable_names_are_accepted(self) -> None:
+    def test_canonical_public_setup_and_portable_names_are_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             for name in (
-                "Ghost-FTP-0.0.2-Setup-x64.exe",
-                "Ghost-FTP-0.0.2-Portable-x64.exe",
-                "Ghost-FTP-0.0.2-Setup-x86.exe",
-                "Ghost-FTP-0.0.2-Portable-x86.exe",
+                "Ghost-FTP-0.0.2-Setup.exe",
+                "Ghost-FTP-0.0.2-Portable.exe",
             ):
                 (root / name).write_bytes(b"fixture")
             (root / "SHA256.txt").write_text("fixture\n", encoding="ascii")
@@ -32,11 +30,11 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
 
             verify_release.assert_windows_artifact_directory_clean(root)
 
-    def assert_extra_executable_rejected(self, name: str) -> None:
+    def assert_extra_public_executable_rejected(self, name: str) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            (root / "Ghost-FTP-0.0.2-Setup-x64.exe").write_bytes(b"setup")
-            (root / "Ghost-FTP-0.0.2-Portable-x64.exe").write_bytes(b"portable")
+            (root / "Ghost-FTP-0.0.2-Setup.exe").write_bytes(b"setup")
+            (root / "Ghost-FTP-0.0.2-Portable.exe").write_bytes(b"portable")
             (root / name).write_bytes(b"unexpected")
             with self.assertRaisesRegex(ValueError, "unexpected Windows executable artifact"):
                 verify_release.assert_windows_artifact_directory_clean(root)
@@ -46,38 +44,71 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
             "Uninstall.exe",
             "Uninstaller.exe",
             "unins000.exe",
-            "Ghost-FTP-0.0.2-Uninstaller-x64.exe",
+            "Ghost-FTP-0.0.2-Uninstaller.exe",
             "helper.exe",
+            "Ghost-FTP-0.0.2-Setup-x64.exe",
+            "Ghost-FTP-0.0.2-Setup-x86.exe",
+            "Ghost-FTP-0.0.2-Setup-x32.exe",
+            "Ghost-FTP-0.0.2-Portable-x64.exe",
+            "Ghost-FTP-0.0.2-Portable-x86.exe",
         ):
             with self.subTest(name=name):
-                self.assert_extra_executable_rejected(name)
+                self.assert_extra_public_executable_rejected(name)
 
-    def test_noncanonical_ghostftp_executable_names_are_rejected(self) -> None:
+    def test_internal_arch_staging_names_require_explicit_staging_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in (
+                "Ghost-FTP-0.0.2-Setup-x64.exe",
+                "Ghost-FTP-0.0.2-Portable-x64.exe",
+                "Ghost-FTP-0.0.2-Setup-x86.exe",
+                "Ghost-FTP-0.0.2-Portable-x86.exe",
+            ):
+                (root / name).write_bytes(b"fixture")
+
+            with self.assertRaisesRegex(ValueError, "unexpected Windows executable artifact"):
+                verify_release.assert_windows_artifact_directory_clean(root)
+            verify_release.assert_windows_artifact_directory_clean(root, allow_arch_staging=True)
+
+    def test_noncanonical_public_ghostftp_executable_names_are_rejected(self) -> None:
         for name in (
             "Ghost-FTP-0.0.2-Setup-arm64.exe",
-            "Ghost-FTP-0.0.2-Setup-x32.exe",
-            "Ghost-FTP-0.0.2-Setup-x64-debug.exe",
-            "Ghost-FTP-0.0.2-beta-Setup-x64.exe",
-            "GhostFTP-0.0.2-Setup-x64.exe",
+            "Ghost-FTP-0.0.2-Setup-debug.exe",
+            "Ghost-FTP-0.0.2-beta-Setup.exe",
+            "GhostFTP-0.0.2-Setup.exe",
         ):
             with self.subTest(name=name):
-                self.assert_extra_executable_rejected(name)
+                self.assert_extra_public_executable_rejected(name)
 
-    def test_build_pipeline_remains_self_hosted_go_installer(self) -> None:
-        build = (ROOT / "BUILD-WINDOWS.ps1").read_text(encoding="utf-8")
-        lower = build.lower()
+    def test_build_pipeline_keeps_native_builder_and_publishes_two_bootstraps(self) -> None:
+        public_build = (ROOT / "BUILD-WINDOWS.ps1").read_text(encoding="utf-8")
+        native_build = (ROOT / "BUILD-WINDOWS-ARCH-STAGE.ps1").read_text(encoding="utf-8")
+        lower = (public_build + native_build).lower()
 
-        self.assertIn("'./cmd/installer'", build)
-        self.assertIn("'scripts/make_payload.py'", build)
-        self.assertIn("'scripts/verify_release.py'", build)
-        self.assertIn("$publicFiles.Count -ne 4", build)
+        self.assertIn("BUILD-WINDOWS-ARCH-STAGE.ps1", public_build)
+        self.assertIn("'./cmd/windowsbootstrap'", public_build)
+        self.assertIn("'--arch','universal'", public_build)
+        self.assertIn("WINDOWS_PUBLIC_EXECUTABLES=2", public_build)
+        self.assertIn("$publicFiles.Count -ne 2", public_build)
+        self.assertIn("'./cmd/installer'", native_build)
+        self.assertIn("'scripts/make_payload.py'", native_build)
+        self.assertIn("'scripts/verify_release.py'", native_build)
+        self.assertIn("$publicFiles.Count -ne 4", native_build)
 
-        # The production Windows build is intentionally self-contained. A future
-        # installer replacement is allowed only after explicitly revisiting the
-        # integrated-uninstall and artifact contracts rather than slipping in as
-        # an undeclared build dependency.
         for marker in ("iscc.exe", "makensis", "candle.exe", "light.exe", "wix build"):
             self.assertNotIn(marker, lower)
+
+    def test_bootstrap_selects_native_payload_without_environment_architecture(self) -> None:
+        bootstrap = (ROOT / "cmd/windowsbootstrap/main.go").read_text(encoding="utf-8")
+        arch = (ROOT / "internal/platform/windows_arch_windows.go").read_text(encoding="utf-8")
+        self.assertIn("platform.NativeWindowsArchitecture()", bootstrap)
+        self.assertIn('"payload/" + arch + "/GhostFTP.exe"', bootstrap)
+        self.assertIn("os.CreateTemp(localAppData", bootstrap)
+        self.assertIn("verifyStaged(path, data)", bootstrap)
+        self.assertIn("cmd.Run()", bootstrap)
+        self.assertIn('NewProc("GetNativeSystemInfo")', arch)
+        self.assertNotIn("PROCESSOR_ARCHITECTURE", bootstrap)
+        self.assertNotIn("PROCESSOR_ARCHITEW6432", bootstrap)
 
     def test_integrated_uninstall_is_owned_by_installed_application(self) -> None:
         constants = (ROOT / "cmd/installer/uninstall_constants.go").read_text(encoding="utf-8")
