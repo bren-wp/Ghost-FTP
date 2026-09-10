@@ -69,6 +69,29 @@ Core tests and `scripts/test_recursive_search_ui_contract.py` require:
 
 The desktop disclosure explicitly states that recursive mode reads nested local/server folders and states the default **20-second / 1,000-result** bound before the scan starts.
 
+## Directory comparison and synchronized-navigation regression contract
+
+The maintained Unreleased source exposes directory comparison as a read-only view over freshly listed current local/server directories. The shared classifier performs no filesystem or network I/O and does not grant file-operation authority to comparison rows.
+
+Go tests and `scripts/test_directory_comparison_contract.py` require:
+
+- exact-name pairing rather than automatic case folding across filesystems with potentially different case semantics;
+- deterministic `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown` states;
+- duplicate exact names to fail closed to `conflict`;
+- type mismatches to fail closed to `conflict` and symlinks to fail closed to `unknown`;
+- a default **2-second** timestamp tolerance with a hard **5-minute** maximum override;
+- regular-file `same` or `newer_*` classification only when both sides provide usable modification times; equal-size files with an unknown timestamp remain `unknown`, while unequal sizes with unknown time remain `conflict`;
+- the synchronized-directory resolver to accept only an exact `same` entry that is an ordinary non-symlink directory present on both sides;
+- Windows to render dedicated comparison ListViews and disable ordinary rename/delete/upload/download/Remote Edit/CHMOD authority while the comparison view is active;
+- Linux to make the comparison view modal and consume ordinary workspace clicks while comparison display rows are active;
+- local synchronized children to pass `security.SafeLocalChild`, and remote child names/paths to pass the existing remote validation boundary;
+- **fresh local and remote listings to complete before either pane path is committed** during “Open both”;
+- comparison to recompute from those fresh target snapshots after synchronized navigation;
+- all 24 desktop languages to provide comparison action/status/disclosure copy;
+- comparison code to contain no upload, download, delete, rename or CHMOD side effect.
+
+This contract deliberately does not infer that equal size means equal content when server timestamps are unavailable. FTP/FTPS MLSD can supply usable UTC modification time, while current FTP LIST fallback and SFTP listing paths may expose zero/unknown `Modified`; those cases stay conservative rather than fabricating equality or freshness.
+
 ## Settings regression contract
 
 The settings suite verifies that visible runtime options remain bounded and migration-safe.
@@ -101,7 +124,7 @@ Linux checks:
 - verify the Remote Edit button path;
 - verify SFTP Trust/Cancel and prompt Apply/Cancel overlay controls are both rendered and handled.
 
-The dedicated current-folder-filter and recursive-search contracts supplement this generic action-wiring gate because those controls are dynamically inserted into the pane geometry instead of being canonical top-level buttons.
+The dedicated current-folder-filter, recursive-search and directory-comparison contracts supplement this generic action-wiring gate because those controls are dynamically inserted into pane/workspace geometry instead of being canonical top-level buttons.
 
 The gate intentionally tests wiring, not just pixels. Runtime behavior remains covered by Go unit/integration tests and authentic UI smoke evidence.
 
