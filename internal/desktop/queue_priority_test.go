@@ -17,8 +17,8 @@ func TestQueuePriorityStateRequiresOneQueuedSelection(t *testing.T) {
 	}
 
 	cases := []struct {
-		name                 string
-		selected             []int
+		name                  string
+		selected              []int
 		top, up, down, bottom bool
 	}{
 		{name: "none", selected: nil},
