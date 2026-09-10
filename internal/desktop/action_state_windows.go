@@ -34,18 +34,21 @@ func (a *app) updateActionControls() {
 	setControlEnabled(a.removeProfile, profileEditable && a.selectedProfileID != "")
 	setControlEnabled(a.settingsBtn, !a.connectionBusy)
 
+	localRecursiveActive := a.recursiveSearchPaneActive(false)
 	localSelected := validSelectionCount(a.localList, len(a.localItems))
-	setControlEnabled(a.localRename, localSelected == 1)
-	setControlEnabled(a.localDelete, localSelected > 0)
-	setControlEnabled(a.upload, a.connected && !a.connectionBusy && localSelected > 0)
+	setControlEnabled(a.localMkdir, !localRecursiveActive)
+	setControlEnabled(a.localRename, !localRecursiveActive && localSelected == 1)
+	setControlEnabled(a.localDelete, !localRecursiveActive && localSelected > 0)
+	setControlEnabled(a.upload, !localRecursiveActive && a.connected && !a.connectionBusy && localSelected > 0)
 
+	remoteRecursiveActive := a.recursiveSearchPaneActive(true)
 	remoteSelected := validSelectionCount(a.remoteList, len(a.remoteItems))
-	remoteReady := a.connected && !a.connectionBusy
+	remoteReady := a.connected && !a.connectionBusy && !remoteRecursiveActive
 	setControlEnabled(a.remoteMkdir, remoteReady)
 	setControlEnabled(a.remoteRename, remoteReady && remoteSelected == 1)
 	setControlEnabled(a.remoteDelete, remoteReady && remoteSelected > 0)
 	setControlEnabled(a.download, remoteReady && remoteSelected > 0)
-	setControlEnabled(remoteEditButton(a), a.remoteEditSelectionReady())
+	setControlEnabled(remoteEditButton(a), remoteReady && a.remoteEditSelectionReady())
 
 	chmodSelected := 0
 	if remoteReady {
@@ -58,7 +61,7 @@ func (a *app) updateActionControls() {
 	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
 
 	selectedTransfers := selectedIndices(a.transferList)
-	transferState := deriveTransferActionState(a.transferJobs, selectedTransfers, remoteReady, a.queuePaused)
+	transferState := deriveTransferActionState(a.transferJobs, selectedTransfers, a.connected && !a.connectionBusy, a.queuePaused)
 	priorityState := deriveQueuePriorityState(a.transferJobs, selectedTransfers)
 	if a.connectionBusy {
 		transferState.Pause = false

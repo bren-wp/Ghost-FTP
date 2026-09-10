@@ -41,11 +41,15 @@ The immediate 0.0.x hardening lane includes:
 
 ## 0.0.x work implemented after 0.0.1
 
-The maintained source now includes a **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request. The filter is localized for all 24 supported desktop languages. This work remains part of the Unreleased source line until a successor release is published and verified; it does not rewrite or redefine the existing 0.0.1 release.
+The maintained source includes a **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request. The filter is localized for all 24 supported desktop languages.
+
+The maintained source also includes a **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it will read nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Local traversal is anchored to one `os.OpenRoot` capability; server traversal is bound to one captured remote operation/session. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
+
+Both capabilities remain part of the Unreleased source line until a successor release is published and verified; neither rewrites or redefines the existing 0.0.1 release.
 
 ## High-value power-user lane
 
-These capabilities are prioritized because they improve real hosting/server workflows. Remaining items are **planned, not advertised as shipped**, until all acceptance gates below are satisfied.
+These capabilities are prioritized because they improve real hosting/server workflows. Items not explicitly marked implemented are **planned, not advertised as shipped**, until all acceptance gates below are satisfied.
 
 ### P0 — directory comparison and synchronized navigation
 
@@ -61,16 +65,18 @@ Acceptance requirements:
 
 ### P0 — bounded recursive local/server search
 
-The fast current-folder filtering portion of the original search/filter roadmap is implemented in the Unreleased source line. The remaining search work is an explicitly bounded recursive mode; it must be visually and behaviorally distinct from the current-folder filter so users can tell when Ghost FTP will perform additional filesystem/server I/O.
+**Status: implemented in the maintained Unreleased source line.** The instant current-folder filter remains I/O-free; recursive search is a separate explicit action because it performs additional local/server listing work.
 
-Acceptance requirements:
+Implemented contract:
 
-- case behavior is explicit and platform-independent where practical;
-- recursive server search has strict item, depth and time bounds;
-- cancellation is immediate and leaves the connection usable;
-- search results cannot make a hidden or stale destructive target actionable;
-- large result sets are incrementally presented rather than blocking the UI thread;
-- starting a recursive search clearly communicates that additional local/server listing work will occur.
+- shared Unicode-aware matching keeps case behavior aligned with current-folder filtering, including Unicode simple-fold cases that lowercasing alone cannot represent;
+- defaults are bounded to depth 12, 20,000 visited items, 1,000 results, batches of 50 and 20 seconds; hard ceilings are depth 32, 50,000 visited items, 5,000 results, batches of 200 and 60 seconds;
+- cancellation propagates through listing contexts; a remote scan owns one operation/session for its lifetime and cannot jump to a reconnected session;
+- local scanning is rooted through `os.OpenRoot`, and symlink/reparse entries are not intentionally traversed;
+- Windows uses dedicated read-only search-result ListViews and Linux keeps normal row-indexed actions modal/disabled while recursive snapshots are displayed;
+- large result sets are incrementally presented rather than accumulated on the UI thread before first display;
+- activating a result closes search mode, performs a fresh parent listing and reselects the discovered name only if it is present in that authoritative listing;
+- the UI discloses nested-folder I/O and the default 20-second / 1,000-result bound before search starts.
 
 ### P0 — bandwidth-aware transfer controls
 

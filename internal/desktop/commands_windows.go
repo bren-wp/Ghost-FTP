@@ -52,6 +52,10 @@ func (a *app) command(id int) {
 		a.localDeleteAction()
 	case idLocalFilter:
 		a.localFilterAction()
+	case idLocalRecursiveSearch:
+		a.recursiveSearchCommand(false)
+	case idLocalRecursiveSearchNavigate:
+		a.navigateRecursiveSearch(false)
 	case idRemoteMkdir:
 		a.remoteMkdirAction()
 	case idRemoteRename:
@@ -64,6 +68,10 @@ func (a *app) command(id int) {
 		a.remoteEditAction()
 	case idRemoteFilter:
 		a.remoteFilterAction()
+	case idRemoteRecursiveSearch:
+		a.recursiveSearchCommand(true)
+	case idRemoteRecursiveSearchNavigate:
+		a.navigateRecursiveSearch(true)
 	case idUpload:
 		a.uploadSelected()
 	case idDownload:
