@@ -50,7 +50,7 @@ jobs:
           test "$release_tag" = "$current_tag"
           test "$release_draft" = 'false'
           test "$release_prerelease" = 'false'
-          test "$asset_count" -eq 15
+          test "$asset_count" -eq 17
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$current_tag" --jq .object.sha)"
           main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
           test -n "$tag_sha"

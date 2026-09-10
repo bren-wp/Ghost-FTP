@@ -8,10 +8,14 @@ on:
       - main
     paths:
       - 'VERSION'
+      - 'BUILD-WINDOWS.ps1'
+      - 'BUILD-WINDOWS-ARCH-STAGE.ps1'
+      - 'cmd/windowsbootstrap/**'
       - 'internal/desktop/**'
       - 'internal/i18n/**'
       - 'internal/platform/**'
       - 'scripts/capture_windows_screenshots.ps1'
+      - 'scripts/verify_release.py'
       - '.github/workflows/ui-screenshots.yml'
   push:
     branches:
@@ -19,12 +23,17 @@ on:
       - 'release-prep/**'
       - 'work/**'
       - 'release/**'
+      - 'packaging/**'
     paths:
       - 'VERSION'
+      - 'BUILD-WINDOWS.ps1'
+      - 'BUILD-WINDOWS-ARCH-STAGE.ps1'
+      - 'cmd/windowsbootstrap/**'
       - 'internal/desktop/**'
       - 'internal/i18n/**'
       - 'internal/platform/**'
       - 'scripts/capture_windows_screenshots.ps1'
+      - 'scripts/verify_release.py'
       - '.github/workflows/ui-screenshots.yml'
 
 permissions:
@@ -73,9 +82,12 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
-          $exe = "dist\Ghost-FTP-$version-Portable-x64.exe"
+          # Public Windows output is architecture-neutral. Authentic UI evidence
+          # intentionally captures the verified native x64 client retained only
+          # in the internal staging directory by BUILD-WINDOWS.ps1.
+          $exe = "dist\internal\Ghost-FTP-$version-Portable-x64.exe"
           if (-not (Test-Path $exe -PathType Leaf)) {
-            throw "Missing production executable: $exe"
+            throw "Missing verified native production executable: $exe"
           }
           .\scripts\capture_windows_screenshots.ps1 -Executable $exe -OutputDirectory "ui-screenshots"
 

@@ -3,14 +3,12 @@ Set-StrictMode -Version 3.0
 
 Set-Location -LiteralPath $PSScriptRoot
 
-$minimumGo = [Version]'1.26.5'
 $versionFile = Join-Path $PSScriptRoot 'VERSION'
 $dist = Join-Path $PSScriptRoot 'dist'
 $internalDist = Join-Path $dist 'internal'
-$payloadDir = Join-Path $PSScriptRoot 'cmd\installer\payload'
-$payloadZip = Join-Path $payloadDir 'payload.zip'
+$stageBuilder = Join-Path $PSScriptRoot 'BUILD-WINDOWS-ARCH-STAGE.ps1'
+$bootstrapPayload = Join-Path $PSScriptRoot 'cmd\windowsbootstrap\payload'
 $icon = Join-Path $PSScriptRoot 'build\icon.ico'
-$goMod = Join-Path $PSScriptRoot 'go.mod'
 $signingScript = Join-Path $PSScriptRoot 'scripts\Sign-WindowsArtifacts.ps1'
 
 function Assert-File {
@@ -67,29 +65,9 @@ function Invoke-NativeTee {
     }
 }
 
-function Get-NormalizedVersion {
-    param([Parameter(Mandatory = $true)][string]$GoVersion)
-    if ($GoVersion -notmatch '^go(\d+)\.(\d+)(?:\.(\d+))?$') {
-        throw "Unable to verify a stable Go version: $GoVersion"
-    }
-    $patch = if ($Matches[3]) { [int]$Matches[3] } else { 0 }
-    return [Version]::new([int]$Matches[1], [int]$Matches[2], $patch)
-}
+function Sign-UniversalTarget {
+    param([Parameter(Mandatory = $true)][string]$Path)
 
-function Test-SamePath {
-    param(
-        [Parameter(Mandatory = $true)][string]$A,
-        [Parameter(Mandatory = $true)][string]$B
-    )
-    try {
-        $left = [IO.Path]::GetFullPath($A).TrimEnd('\')
-        $right = [IO.Path]::GetFullPath($B).TrimEnd('\')
-        return [string]::Equals($left, $right, [StringComparison]::OrdinalIgnoreCase)
-    }
-    catch { return $false }
-}
-
-function Get-SigningConfiguration {
     $pfx = [Environment]::GetEnvironmentVariable('GHOSTFTP_SIGNING_PFX_PATH')
     $passwordText = [Environment]::GetEnvironmentVariable('GHOSTFTP_SIGNING_PASSWORD')
     $timestamp = [Environment]::GetEnvironmentVariable('GHOSTFTP_SIGNING_TIMESTAMP_URL')
@@ -99,7 +77,7 @@ function Get-SigningConfiguration {
         if (-not [string]::IsNullOrWhiteSpace($passwordText)) {
             throw 'GHOSTFTP_SIGNING_PASSWORD is set without GHOSTFTP_SIGNING_PFX_PATH.'
         }
-        return $null
+        return
     }
     if ([string]::IsNullOrWhiteSpace($passwordText)) {
         throw 'GHOSTFTP_SIGNING_PFX_PATH is set but GHOSTFTP_SIGNING_PASSWORD is missing.'
@@ -108,29 +86,15 @@ function Get-SigningConfiguration {
     Assert-File -Path $pfx -Description 'Authenticode signing PFX'
     Assert-File -Path $signingScript -Description 'Authenticode signing helper'
 
-    return [pscustomobject]@{
-        Pfx = (Resolve-Path -LiteralPath $pfx).Path
-        Password = (ConvertTo-SecureString $passwordText -AsPlainText -Force)
-        Timestamp = if ([string]::IsNullOrWhiteSpace($timestamp)) { '' } else { $timestamp.Trim() }
-        AllowUntrusted = ($allowUntrusted -eq '1' -or $allowUntrusted -ieq 'true')
-    }
-}
-
-function Sign-WindowsTarget {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    if (-not $script:signing) {
-        return
-    }
-
     $arguments = @{
-        PfxPath = $script:signing.Pfx
-        Password = $script:signing.Password
+        PfxPath = (Resolve-Path -LiteralPath $pfx).Path
+        Password = (ConvertTo-SecureString $passwordText -AsPlainText -Force)
         Paths = @($Path)
     }
-    if ($script:signing.Timestamp) {
-        $arguments.TimestampUrl = $script:signing.Timestamp
+    if (-not [string]::IsNullOrWhiteSpace($timestamp)) {
+        $arguments.TimestampUrl = $timestamp.Trim()
     }
-    if ($script:signing.AllowUntrusted) {
+    if ($allowUntrusted -eq '1' -or $allowUntrusted -ieq 'true') {
         $arguments.AllowUntrustedSigner = $true
     }
 
@@ -140,8 +104,70 @@ function Sign-WindowsTarget {
     }
 }
 
+function Stage-BootstrapPayload {
+    param(
+        [Parameter(Mandatory = $true)][string]$X64,
+        [Parameter(Mandatory = $true)][string]$X86
+    )
+
+    foreach ($arch in @('x64','x86')) {
+        Remove-Item -LiteralPath (Join-Path $bootstrapPayload $arch) -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path (Join-Path $bootstrapPayload $arch) | Out-Null
+    }
+    Copy-Item -LiteralPath $X64 -Destination (Join-Path $bootstrapPayload 'x64\GhostFTP.exe') -Force
+    Copy-Item -LiteralPath $X86 -Destination (Join-Path $bootstrapPayload 'x86\GhostFTP.exe') -Force
+}
+
+function Clear-BootstrapPayload {
+    foreach ($arch in @('x64','x86')) {
+        Remove-Item -LiteralPath (Join-Path $bootstrapPayload $arch) -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Build-UniversalBootstrap {
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('setup','portable')][string]$Role,
+        [Parameter(Mandatory = $true)][string]$X64,
+        [Parameter(Mandatory = $true)][string]$X86,
+        [Parameter(Mandatory = $true)][string]$Output,
+        [Parameter(Mandatory = $true)][string]$OriginalFilename
+    )
+
+    Assert-File -Path $X64 -Description "$Role x64 native payload"
+    Assert-File -Path $X86 -Description "$Role x86 native payload"
+    Stage-BootstrapPayload -X64 $X64 -X86 $X86
+
+    try {
+        $env:GOTOOLCHAIN = 'local'
+        $env:GOPROXY = 'off'
+        $env:GOSUMDB = 'off'
+        $env:CGO_ENABLED = '0'
+        $env:GOWORK = 'off'
+        $env:GOOS = 'windows'
+        $env:GOARCH = '386'
+        $env:GO386 = 'sse2'
+        Remove-Item -LiteralPath 'Env:GOAMD64' -ErrorAction SilentlyContinue
+
+        $ldflags = "-s -w -H=windowsgui -X main.version=$version -X main.role=$Role"
+        Invoke-Native -FilePath $go -ArgumentList @(
+            'build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$ldflags,
+            '-o',$Output,'./cmd/windowsbootstrap'
+        ) -FailureMessage "Universal Windows $Role bootstrap build failed"
+    }
+    finally {
+        Clear-BootstrapPayload
+    }
+
+    Invoke-Native -FilePath $python -ArgumentList @(
+        'scripts/pe_resources.py',$Output,'--ico',$icon,'--version',$version,
+        '--role',$Role,'--original-filename',$OriginalFilename
+    ) -FailureMessage "Universal Windows $Role PE resource processing failed"
+
+    Sign-UniversalTarget -Path $Output
+}
+
 Assert-File -Path $versionFile -Description 'VERSION file'
-Assert-File -Path $goMod -Description 'go.mod'
+Assert-File -Path $stageBuilder -Description 'Native Windows staging builder'
 Assert-File -Path $icon -Description 'Application icon'
 Assert-File -Path $signingScript -Description 'Authenticode signing helper'
 
@@ -150,221 +176,115 @@ if ($version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Invalid Ghost FTP version in VERSION: $version"
 }
 
-# Production builds are offline and must not silently change toolchains/modules.
-$env:GOTOOLCHAIN = 'local'
-$env:GOPROXY = 'off'
-$env:GOSUMDB = 'off'
-$env:CGO_ENABLED = '0'
-$env:GOWORK = 'off'
-foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386','GOARM64','GOEXPERIMENT','GOFLAGS')) {
-    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
-}
-
 $goCommand = @(Get-Command go -CommandType Application -ErrorAction SilentlyContinue)[0]
 if (-not $goCommand) { throw 'Go is not installed or is not available in PATH.' }
 [string]$go = $goCommand.Source
-
 $pythonCommand = @(Get-Command python -CommandType Application -ErrorAction SilentlyContinue)[0]
 if (-not $pythonCommand) { throw 'Python 3 is not installed or is not available in PATH.' }
 [string]$python = $pythonCommand.Source
 
-$pythonVersionText = Invoke-NativeCapture -FilePath $python -ArgumentList @('--version') -FailureMessage 'Unable to verify Python version'
-if ($pythonVersionText -notmatch '^Python\s+3(?:\.|$)') {
-    throw "Python 3 is required. Current: $pythonVersionText"
-}
-
-$rawGoVersion = Invoke-NativeCapture -FilePath $go -ArgumentList @('env','GOVERSION') -FailureMessage 'Unable to verify Go version'
-$goVersion = Get-NormalizedVersion -GoVersion $rawGoVersion
-if ($goVersion -lt $minimumGo) {
-    throw "Ghost FTP production builds require Go $minimumGo or newer. Current: $rawGoVersion"
-}
-
-$activeGoMod = Invoke-NativeCapture -FilePath $go -ArgumentList @('env','GOMOD') -FailureMessage 'Unable to determine the active go.mod'
-if (-not (Test-SamePath -A $activeGoMod -B $goMod)) {
-    throw "Unexpected Go module root. Expected: $goMod; active: $activeGoMod"
-}
-
-$moduleGraph = Invoke-NativeCapture -FilePath $go -ArgumentList @('list','-m','-mod=readonly','all') -FailureMessage 'Unable to verify the Go module graph'
-$moduleLines = @($moduleGraph -split '\r?\n' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-if ($moduleLines.Count -ne 1) {
-    throw "Production build contract permits no external Go modules. Found $($moduleLines.Count) modules."
-}
-
-$telemetryMode = Invoke-NativeCapture `
-    -FilePath $go `
-    -ArgumentList @('telemetry') `
-    -FailureMessage 'Unable to verify Go telemetry mode'
+# Enforce telemetry-off at the public packaging boundary as well as inside the
+# native staging builder. This prevents a future staging refactor from silently
+# weakening the privacy contract of the universal Windows build.
+$telemetryMode = Invoke-NativeCapture -FilePath $go -ArgumentList @('telemetry') -FailureMessage 'Unable to verify Go telemetry mode'
 if ($telemetryMode -ne 'off') {
     throw "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetryMode)"
 }
 
-$script:signing = Get-SigningConfiguration
-$signingLabel = if ($script:signing) {
-    if ($script:signing.AllowUntrusted) { 'configured-development' } else { 'configured-production' }
-} else {
-    'not-configured'
+Write-Host "Ghost FTP $version unified Windows packaging"
+Write-Host "Go telemetry=$telemetryMode"
+Write-Host '[1/6] Build and verify signed native x64/x86 setup and portable staging artifacts'
+& $stageBuilder
+if (-not $?) {
+    throw 'Native Windows staging build failed.'
 }
 
-Write-Host "Ghost FTP $version"
-Write-Host "Go: $rawGoVersion | Python: $pythonVersionText | telemetry=$telemetryMode | signing=$signingLabel"
-
-Write-Host '[1/8] Brand, localization and canonical version'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/generate_brand_assets.py','--check') -FailureMessage 'Brand asset verification failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_localization.py') -FailureMessage 'Localization audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_version.py') -FailureMessage 'Version consistency audit failed'
-
-Write-Host '[2/8] Documentation, security, privacy and release contract'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_docs.py') -FailureMessage 'Documentation audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_security.py') -FailureMessage 'Security audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_privacy.py') -FailureMessage 'Privacy audit failed'
-Invoke-Native -FilePath $python -ArgumentList @('scripts/audit_release.py') -FailureMessage 'Release audit failed'
-
-Write-Host '[3/8] Regression tests and Go static analysis'
-Invoke-Native -FilePath $python -ArgumentList @('-m','unittest','discover','-s','scripts','-p','test_*.py') -FailureMessage 'Python regression tests failed'
-Invoke-Native -FilePath $go -ArgumentList @('test','-count=1','-mod=readonly','./...') -FailureMessage 'Go tests failed'
-Invoke-Native -FilePath $go -ArgumentList @('vet','-mod=readonly','./...') -FailureMessage 'Go vet failed'
-
-Write-Host '[4/8] Clean Windows output directories'
-Remove-Item -LiteralPath $dist -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $dist | Out-Null
 New-Item -ItemType Directory -Force -Path $internalDist | Out-Null
-New-Item -ItemType Directory -Force -Path $payloadDir | Out-Null
-Remove-Item -LiteralPath $payloadZip -Force -ErrorAction SilentlyContinue
-
-$ldflags = "-s -w -H=windowsgui -X main.version=$version"
-$publicFiles = [System.Collections.Generic.List[string]]::new()
-$verificationFiles = [System.Collections.Generic.List[string]]::new()
-
-function Build-GhostFTPArchitecture {
-    param(
-        [Parameter(Mandatory = $true)][ValidateSet('amd64','386')][string]$GoArch,
-        [Parameter(Mandatory = $true)][ValidateSet('x64','x86')][string]$Label
-    )
-
-    $env:GOOS = 'windows'
-    $env:GOARCH = $GoArch
-    if ($GoArch -eq 'amd64') {
-        $env:GOAMD64 = 'v1'
-        Remove-Item -LiteralPath 'Env:GO386' -ErrorAction SilentlyContinue
-    }
-    else {
-        $env:GO386 = 'sse2'
-        Remove-Item -LiteralPath 'Env:GOAMD64' -ErrorAction SilentlyContinue
-    }
-
-    $portable = Join-Path $dist "Ghost-FTP-$version-Portable-$Label.exe"
-    $setup = Join-Path $dist "Ghost-FTP-$version-Setup-$Label.exe"
-    $verification = Join-Path $internalDist "verification-$Label.txt"
-
-    Write-Host "      [$Label] Ghost FTP client"
-    Invoke-Native -FilePath $go -ArgumentList @(
-        'build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$ldflags,
-        '-o',$portable,'./cmd/ghostftp'
-    ) -FailureMessage "Client $Label build failed"
-
-    Invoke-Native -FilePath $python -ArgumentList @(
-        'scripts/pe_resources.py',$portable,'--ico',$icon,'--version',$version,
-        '--role','portable','--original-filename',"Ghost-FTP-$version-Portable-$Label.exe"
-    ) -FailureMessage "Client $Label PE resource processing failed"
-
-    # Sign the Portable executable before creating payload.zip so Setup embeds
-    # the same signed client bytes that are published as the Portable artifact.
-    Sign-WindowsTarget -Path $portable
-
-    Write-Host "      [$Label] Verified installer payload"
-    try {
-        # make_payload.py intentionally stores the inner executable as GhostFTP.exe:
-        # that filename is an installed-app compatibility boundary only.
-        Invoke-Native -FilePath $python -ArgumentList @(
-            'scripts/make_payload.py','--app',$portable,'--output',$payloadZip
-        ) -FailureMessage "$Label installer payload compression failed"
-        Assert-File -Path $payloadZip -Description "$Label installer payload"
-
-        Invoke-Native -FilePath $go -ArgumentList @(
-            'build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$ldflags,
-            '-o',$setup,'./cmd/installer'
-        ) -FailureMessage "Setup $Label build failed"
-    }
-    finally {
-        Remove-Item -LiteralPath $payloadZip -Force -ErrorAction SilentlyContinue
-    }
-
-    Invoke-Native -FilePath $python -ArgumentList @(
-        'scripts/pe_resources.py',$setup,'--ico',$icon,'--version',$version,
-        '--role','setup','--original-filename',"Ghost-FTP-$version-Setup-$Label.exe"
-    ) -FailureMessage "Setup $Label PE resource processing failed"
-
-    Sign-WindowsTarget -Path $setup
-
-    Invoke-NativeTee -FilePath $python -ArgumentList @(
-        'scripts/verify_release.py',$setup,$portable,'--arch',$Label
-    ) -OutputFile $verification -FailureMessage "$Label release verification failed"
-
-    $script:publicFiles.Add($portable)
-    $script:publicFiles.Add($setup)
-    $script:verificationFiles.Add($verification)
+$nativeSetupX64 = Join-Path $internalDist "Ghost-FTP-$version-Setup-x64.exe"
+$nativeSetupX86 = Join-Path $internalDist "Ghost-FTP-$version-Setup-x86.exe"
+$nativePortableX64 = Join-Path $internalDist "Ghost-FTP-$version-Portable-x64.exe"
+$nativePortableX86 = Join-Path $internalDist "Ghost-FTP-$version-Portable-x86.exe"
+foreach ($name in @(
+    "Ghost-FTP-$version-Setup-x64.exe",
+    "Ghost-FTP-$version-Setup-x86.exe",
+    "Ghost-FTP-$version-Portable-x64.exe",
+    "Ghost-FTP-$version-Portable-x86.exe"
+)) {
+    $source = Join-Path $dist $name
+    Assert-File -Path $source -Description 'Native Windows staging artifact'
+    Move-Item -LiteralPath $source -Destination (Join-Path $internalDist $name) -Force
 }
+Remove-Item -LiteralPath (Join-Path $dist 'SHA256.txt') -Force -ErrorAction SilentlyContinue
 
-Write-Host '[5/8] Windows x64 and x86 builds'
-Build-GhostFTPArchitecture -GoArch 'amd64' -Label 'x64'
-Build-GhostFTPArchitecture -GoArch '386' -Label 'x86'
+Write-Host '[2/6] Build universal Setup.exe with native architecture selection'
+$setupName = "Ghost-FTP-$version-Setup.exe"
+$setup = Join-Path $dist $setupName
+Build-UniversalBootstrap -Role 'setup' -X64 $nativeSetupX64 -X86 $nativeSetupX86 -Output $setup -OriginalFilename $setupName
+
+Write-Host '[3/6] Build universal Portable.exe with native architecture selection'
+$portableName = "Ghost-FTP-$version-Portable.exe"
+$portable = Join-Path $dist $portableName
+Build-UniversalBootstrap -Role 'portable' -X64 $nativePortableX64 -X86 $nativePortableX86 -Output $portable -OriginalFilename $portableName
+
 foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386')) {
     Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
 }
 
-Write-Host '[6/8] SHA-256 manifest'
-if ($publicFiles.Count -ne 4) {
-    throw "Unexpected Windows binary count: $($publicFiles.Count); expected 4."
+Write-Host '[4/6] Verify public universal Windows artifact contract'
+$verification = Join-Path $internalDist 'verification-universal.txt'
+Invoke-NativeTee -FilePath $python -ArgumentList @(
+    'scripts/verify_release.py',$setup,$portable,'--arch','universal'
+) -OutputFile $verification -FailureMessage 'Universal Windows release verification failed'
+
+$verificationText = Get-Content -LiteralPath $verification -Raw
+$signingConfigured = -not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable('GHOSTFTP_SIGNING_PFX_PATH'))
+$reportsUnsigned = $verificationText -match '(?m)^(SETUP|PORTABLE)_AUTHENTICODE_SIGNED=NO\s*$'
+if ($signingConfigured -and $reportsUnsigned) {
+    throw 'Signing was configured, but a public universal Windows executable is unsigned.'
+}
+if (-not $signingConfigured -and -not $reportsUnsigned) {
+    throw 'Universal Windows verification unexpectedly reports signed executables without a configured signing identity.'
+}
+
+Write-Host '[5/6] Write public SHA-256 manifest'
+$publicFiles = @($setup, $portable)
+if ($publicFiles.Count -ne 2) {
+    throw "Unexpected Windows public binary count: $($publicFiles.Count); expected 2."
 }
 $hashLines = foreach ($file in ($publicFiles | Sort-Object)) {
-    Assert-File -Path $file -Description 'Windows production binary'
+    Assert-File -Path $file -Description 'Windows public production binary'
     $item = Get-Item -LiteralPath $file
     $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $($item.Name)"
 }
-$shaFile = Join-Path $dist 'SHA256.txt'
-$hashLines | Set-Content -LiteralPath $shaFile -Encoding ascii
+$hashLines | Set-Content -LiteralPath (Join-Path $dist 'SHA256.txt') -Encoding ascii
 
-Write-Host '[7/8] Signing status'
-$unsigned = $false
-foreach ($verification in $verificationFiles) {
-    Assert-File -Path $verification -Description 'Release verification report'
-    $text = Get-Content -LiteralPath $verification -Raw
-    if ($text -match '(?m)^(SETUP|PORTABLE)_AUTHENTICODE_SIGNED=NO\s*$') { $unsigned = $true }
-}
-if ($script:signing -and $unsigned) {
-    throw 'Signing was configured, but release verification still reports an unsigned Windows executable.'
-}
-if (-not $script:signing -and -not $unsigned) {
-    throw 'Windows verification unexpectedly reports signed executables without a configured signing identity.'
-}
-if ($unsigned) {
-    Write-Warning 'Binaries are not Authenticode-signed. Verified Publisher requires a valid code-signing certificate.'
-    Write-Host 'WINDOWS_SIGNING=UNSIGNED'
-}
-else {
-    Write-Host 'WINDOWS_SIGNING=AUTHENTICODE'
-}
-
-Write-Host '[8/8] Final output verification'
-$expectedNames = @(
-    "Ghost-FTP-$version-Portable-x64.exe",
-    "Ghost-FTP-$version-Setup-x64.exe",
-    "Ghost-FTP-$version-Portable-x86.exe",
-    "Ghost-FTP-$version-Setup-x86.exe",
-    'SHA256.txt'
-)
+Write-Host '[6/6] Final public-output and temporary-payload verification'
+$expectedNames = @($setupName, $portableName, 'SHA256.txt')
 $actualNames = @(Get-ChildItem -LiteralPath $dist -File | Select-Object -ExpandProperty Name | Sort-Object)
 $missingNames = @($expectedNames | Where-Object { $_ -notin $actualNames })
 if ($missingNames.Count -ne 0) {
     throw "Missing final output(s): $($missingNames -join ', ')"
 }
+if ($actualNames.Count -ne 3) {
+    throw "Unexpected public Windows output count: $($actualNames.Count); expected 3 including SHA256.txt."
+}
+if (Get-ChildItem -LiteralPath $dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32)\.exe$' }) {
+    throw 'Architecture-specific Windows executables leaked into the public artifact directory.'
+}
 if (Get-ChildItem -LiteralPath $dist -Recurse -File | Where-Object { $_.Name -match '(?i)uninstall' }) {
     throw 'Windows build unexpectedly produced an uninstaller binary.'
 }
-if (Test-Path -LiteralPath $payloadZip) {
-    throw 'Temporary installer payload was not removed.'
+if (Test-Path -LiteralPath (Join-Path $bootstrapPayload 'x64')) {
+    throw 'Temporary x64 universal bootstrap payload was not removed.'
+}
+if (Test-Path -LiteralPath (Join-Path $bootstrapPayload 'x86')) {
+    throw 'Temporary x86 universal bootstrap payload was not removed.'
 }
 
+Write-Host 'WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64'
+Write-Host 'WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64'
+Write-Host 'WINDOWS_NATIVE_PAYLOADS=x64,x86'
+Write-Host 'WINDOWS_PUBLIC_EXECUTABLES=2'
 Write-Host 'UNINSTALLER_BINARY=ABSENT'
-Write-Host "Ghost FTP $version Windows x64+x86 build completed: $dist"
+Write-Host "Ghost FTP $version unified Windows build completed: $dist"

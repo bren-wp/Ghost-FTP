@@ -64,7 +64,7 @@ def main() -> int:
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
 
-    for rel in ("cmd/ghostftp/main.go", "cmd/installer/main.go"):
+    for rel in ("cmd/ghostftp/main.go", "cmd/installer/main.go", "cmd/windowsbootstrap/main.go"):
         text = read(rel)
         if 'var version = "dev"' not in text:
             fail(f"{rel} must retain the development version fallback")
@@ -129,9 +129,31 @@ def main() -> int:
                 fail(f"active current-line documentation contains retired public identity {match.group(0)!r}: {rel}")
 
     windows_build = read("BUILD-WINDOWS.ps1")
-    require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS.ps1")
+    require(
+        windows_build,
+        ("Get-Content -LiteralPath $versionFile", "-X main.version=$version", "WINDOWS_PUBLIC_EXECUTABLES=2"),
+        "BUILD-WINDOWS.ps1",
+    )
+    windows_stage = read("BUILD-WINDOWS-ARCH-STAGE.ps1")
+    require(
+        windows_stage,
+        ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"),
+        "BUILD-WINDOWS-ARCH-STAGE.ps1",
+    )
     linux_build = read("linux/BUILD.sh")
     require(linux_build, ("< VERSION", "-X main.version=${VERSION}"), "linux/BUILD.sh")
+    linux_distro_build = read("linux/BUILD-DISTROS.sh")
+    require(
+        linux_distro_build,
+        (
+            "< VERSION",
+            "-X main.version=${VERSION}",
+            "for distro in Debian Ubuntu; do",
+            'portable_name="Ghost-FTP-${VERSION}-Linux-Portable-${debarch}"',
+            'rpm_out="dist/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"',
+        ),
+        "linux/BUILD-DISTROS.sh",
+    )
     local_build = read("scripts/BUILD-LOCAL.sh")
     require(local_build, ("< VERSION", "-X main.version=$VERSION"), "scripts/BUILD-LOCAL.sh")
 
@@ -143,11 +165,15 @@ def main() -> int:
         if (ROOT / retired).exists():
             fail(f"retired application surface must be removed: {retired}/")
 
-    for workflow_rel in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
+    workflow_build_markers = (
+        (".github/workflows/ci.yml", "bash linux/BUILD.sh"),
+        (".github/workflows/release.yml", "bash linux/BUILD-DISTROS.sh"),
+    )
+    for workflow_rel, linux_marker in workflow_build_markers:
         workflow = read(workflow_rel)
         if f"go-version: '{GO_TOOLCHAIN}'" not in workflow:
             fail(f"{workflow_rel} does not pin Go {GO_TOOLCHAIN}")
-        require(workflow, ("windows:", "linux:", "bash linux/BUILD.sh"), workflow_rel)
+        require(workflow, ("windows:", "linux:", linux_marker), workflow_rel)
         lowered = workflow.lower()
         for marker in ("android/", "ios/", "macos/", "ghostftp web/", "runs-on: macos"):
             if marker in lowered:
@@ -170,9 +196,12 @@ def main() -> int:
             "test \"$remote_prerelease\" = 'false'",
             "state=unsigned",
             "state=signed",
+            "LINUX_DEBIAN_DEB=amd64,arm64,i386",
+            "LINUX_UBUNTU_DEB=amd64,arm64,i386",
+            "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
             "LINUX_PORTABLE=amd64,arm64,i386",
-            "PUBLIC_PLATFORM_ARTIFACTS=12",
-            "PUBLIC_RELEASE_FILES=15",
+            "PUBLIC_PLATFORM_ARTIFACTS=14",
+            "PUBLIC_RELEASE_FILES=17",
         ),
         ".github/workflows/release.yml",
     )
@@ -185,7 +214,7 @@ def main() -> int:
         (
             "Publish Ghost FTP",
             "test \"$release_prerelease\" = 'false'",
-            "test \"$asset_count\" -eq 15",
+            "test \"$asset_count\" -eq 17",
             "gh release delete",
             "--cleanup-tag",
             "packages/container/ghost-ftp/versions",
@@ -204,8 +233,11 @@ def main() -> int:
             "PUBLIC_RELEASE_CHANNEL=CURRENT",
             "CURRENT_RELEASE_PRERELEASE_FLAG=FALSE",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
-            "PUBLIC_PLATFORM_ARTIFACTS=12",
-            "PUBLIC_RELEASE_FILES=15",
+            "PUBLIC_PLATFORM_ARTIFACTS=14",
+            "PUBLIC_RELEASE_FILES=17",
+            "LINUX_DEBIAN_DEB=amd64,arm64,i386",
+            "LINUX_UBUNTU_DEB=amd64,arm64,i386",
+            "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
             "LINUX_PORTABLE=amd64,arm64,i386",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
             "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
