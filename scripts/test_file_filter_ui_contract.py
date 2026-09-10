@@ -88,15 +88,22 @@ class FileFilterUIContractTests(unittest.TestCase):
     def test_active_docs_distinguish_current_folder_filter_from_recursive_search(self) -> None:
         roadmap = source("docs/ROADMAP.md").lower()
         testing = source("docs/TESTING.md").lower()
-        changelog = source("CHANGELOG.md").lower()
+        changelog_lines = [line.strip().lower() for line in source("CHANGELOG.md").splitlines()]
 
         self.assertIn("non-destructive current-folder filter", roadmap)
         self.assertIn("p0 — bounded recursive local/server search", roadmap)
         self.assertIn("remaining search work is an explicitly bounded recursive mode", roadmap)
         self.assertIn("current-folder filter regression contract", testing)
         self.assertIn("deliberately separate from future recursive search", testing)
-        self.assertIn("non-destructive local/server current-folder filter", changelog)
-        self.assertIn("future bounded recursive search", changelog)
+
+        current_filter_lines = [line for line in changelog_lines if "current-folder filter" in line]
+        future_search_lines = [line for line in changelog_lines if "future" in line and "recursive search" in line]
+        self.assertTrue(current_filter_lines, "changelog must describe the implemented current-folder filter")
+        self.assertTrue(future_search_lines, "changelog must keep recursive search explicitly future-facing")
+        self.assertTrue(
+            any("no hidden filesystem/network scan" in line for line in current_filter_lines),
+            "implemented filter must remain documented as local to already-loaded entries",
+        )
 
 
 if __name__ == "__main__":
