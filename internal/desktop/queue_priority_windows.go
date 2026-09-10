@@ -5,8 +5,10 @@ package desktop
 import "unsafe"
 
 const (
-	idMoveQueueUp   = 508
-	idMoveQueueDown = 509
+	idMoveQueueUp     = 508
+	idMoveQueueDown   = 509
+	idMoveQueueTop    = 510
+	idMoveQueueBottom = 511
 )
 
 var (
@@ -27,7 +29,15 @@ func (a *app) ensureQueuePriorityControls() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
-	if a.queuePriorityButton(idMoveQueueUp) != 0 && a.queuePriorityButton(idMoveQueueDown) != 0 {
+	ids := []int{idMoveQueueTop, idMoveQueueUp, idMoveQueueDown, idMoveQueueBottom}
+	allPresent := true
+	for _, id := range ids {
+		if a.queuePriorityButton(id) == 0 {
+			allPresent = false
+			break
+		}
+	}
+	if allPresent {
 		return
 	}
 
@@ -50,23 +60,35 @@ func (a *app) ensureQueuePriorityControls() {
 		return hwnd
 	}
 
+	if a.queuePriorityButton(idMoveQueueTop) == 0 {
+		create(idMoveQueueTop, words.MoveTop, iconUp)
+	}
 	if a.queuePriorityButton(idMoveQueueUp) == 0 {
 		create(idMoveQueueUp, words.MoveUp, iconUp)
 	}
 	if a.queuePriorityButton(idMoveQueueDown) == 0 {
 		create(idMoveQueueDown, words.MoveDown, iconDownload)
 	}
+	if a.queuePriorityButton(idMoveQueueBottom) == 0 {
+		create(idMoveQueueBottom, words.MoveBottom, iconDownload)
+	}
 }
 
 func (a *app) updateQueuePriorityControls(state queuePriorityState) {
 	a.ensureQueuePriorityControls()
+	top := a.queuePriorityButton(idMoveQueueTop)
 	up := a.queuePriorityButton(idMoveQueueUp)
 	down := a.queuePriorityButton(idMoveQueueDown)
+	bottom := a.queuePriorityButton(idMoveQueueBottom)
 	words := queuePriorityWords(a.languageCode())
+	a.setButtonLabel(top, words.MoveTop)
 	a.setButtonLabel(up, words.MoveUp)
 	a.setButtonLabel(down, words.MoveDown)
+	a.setButtonLabel(bottom, words.MoveBottom)
+	setControlEnabled(top, state.MoveTop && !a.connectionBusy)
 	setControlEnabled(up, state.MoveUp && !a.connectionBusy)
 	setControlEnabled(down, state.MoveDown && !a.connectionBusy)
+	setControlEnabled(bottom, state.MoveBottom && !a.connectionBusy)
 }
 
 func (a *app) layoutQueuePriorityControls() {
@@ -74,10 +96,16 @@ func (a *app) layoutQueuePriorityControls() {
 		return
 	}
 	a.ensureQueuePriorityControls()
-	up := a.queuePriorityButton(idMoveQueueUp)
-	down := a.queuePriorityButton(idMoveQueueDown)
-	if up == 0 || down == 0 {
-		return
+	controls := []uintptr{
+		a.queuePriorityButton(idMoveQueueTop),
+		a.queuePriorityButton(idMoveQueueUp),
+		a.queuePriorityButton(idMoveQueueDown),
+		a.queuePriorityButton(idMoveQueueBottom),
+	}
+	for _, control := range controls {
+		if control == 0 {
+			return
+		}
 	}
 
 	var clearRect rect
@@ -93,7 +121,7 @@ func (a *app) layoutQueuePriorityControls() {
 		return
 	}
 
-	gap := a.scale(8)
+	gap := a.scale(6)
 	x := int(bottomRight.X) + gap
 	y := int(topLeft.Y)
 	height := int(bottomRight.Y - topLeft.Y)
@@ -101,28 +129,39 @@ func (a *app) layoutQueuePriorityControls() {
 	if ok, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
 		return
 	}
-	available := int(client.Right) - a.scale(14) - x - gap
-	buttonWidth := available / 2
-	if buttonWidth > a.scale(132) {
-		buttonWidth = a.scale(132)
+	available := int(client.Right) - a.scale(14) - x
+	buttonWidth := (available - 3*gap) / 4
+	if buttonWidth > a.scale(112) {
+		buttonWidth = a.scale(112)
 	}
-	if buttonWidth < a.scale(88) {
-		buttonWidth = a.scale(88)
+	if buttonWidth < a.scale(60) {
+		buttonWidth = a.scale(60)
 	}
-	moveWindow.Call(up, uintptr(x), uintptr(y), uintptr(buttonWidth), uintptr(height), 1)
-	moveWindow.Call(down, uintptr(x+buttonWidth+gap), uintptr(y), uintptr(buttonWidth), uintptr(height), 1)
+	for i, control := range controls {
+		moveWindow.Call(control, uintptr(x+i*(buttonWidth+gap)), uintptr(y), uintptr(buttonWidth), uintptr(height), 1)
+	}
 }
 
-func (a *app) moveSelectedTransfer(direction int) {
+func (a *app) moveSelectedTransfer(action queuePriorityAction) {
 	selected := selectedIndices(a.transferList)
 	state := deriveQueuePriorityState(a.transferJobs, selected)
 	if len(selected) != 1 {
 		return
 	}
-	if direction < 0 && !state.MoveUp {
+	allowed := false
+	switch action {
+	case queuePriorityTop:
+		allowed = state.MoveTop
+	case queuePriorityUp:
+		allowed = state.MoveUp
+	case queuePriorityDown:
+		allowed = state.MoveDown
+	case queuePriorityBottom:
+		allowed = state.MoveBottom
+	default:
 		return
 	}
-	if direction > 0 && !state.MoveDown {
+	if !allowed {
 		return
 	}
 	index := selected[0]
@@ -133,23 +172,32 @@ func (a *app) moveSelectedTransfer(direction int) {
 	id := a.transferJobs[index].ID
 	var err error
 	words := queuePriorityWords(a.languageCode())
-	if direction < 0 {
+	switch action {
+	case queuePriorityTop:
+		err = a.engine.MoveTransferTop(id)
+	case queuePriorityUp:
 		err = a.engine.MoveTransferUp(id)
-	} else {
+	case queuePriorityDown:
 		err = a.engine.MoveTransferDown(id)
+	case queuePriorityBottom:
+		err = a.engine.MoveTransferBottom(id)
 	}
 	if err != nil {
 		a.setStatus(a.userMessage(err, "error.generic"))
 		a.refreshTransfers()
 		return
 	}
-	if direction < 0 {
+	switch action {
+	case queuePriorityTop:
+		a.setStatus(words.MovedTop)
+	case queuePriorityUp:
 		a.setStatus(words.MovedUp)
-	} else {
+	case queuePriorityDown:
 		a.setStatus(words.MovedDown)
+	case queuePriorityBottom:
+		a.setStatus(words.MovedBottom)
 	}
-	// The transfer manager emits a full state snapshot. refreshTransfers keeps
-	// selection bound to the transfer ID so the same job remains selected after
-	// its row position changes.
+	// refreshTransfers restores selection by transfer ID, not by the previous
+	// row index, so the same job remains selected after any reorder operation.
 	a.refreshTransfers()
 }

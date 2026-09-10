@@ -2,7 +2,14 @@
 
 ## Unreleased
 
-No unreleased changes are currently staged after 0.0.3 release preparation.
+### Queue priority and reordering
+
+- Completed four-way queued-transfer priority control with **Top**, **Up**, **Down** and **Bottom** actions through the shared transfer manager and Engine API.
+- Reordering rotates only queued scheduler slots, preserving running/terminal history positions, transfer IDs, connection bindings and the relative order of unaffected queued jobs.
+- Kept edge moves idempotent and event-free, while a real move emits one complete state snapshot without starting, retrying or cancelling transfer work as a side effect.
+- Added Windows and Linux controls with the same queued-only policy, ID-based selection restoration and local copy for all 24 supported desktop languages.
+- Added regression coverage for four-way ordering, non-queued slot stability, connection binding, tree-transfer directory-preparation ordering and cross-platform UI wiring.
+- This is post-0.0.3 source work for the next release; root `VERSION` and the already published `ghostftp-v0.0.3` release remain unchanged.
 
 ## 0.0.3 - 2026-09-10
 

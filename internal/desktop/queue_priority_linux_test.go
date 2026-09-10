@@ -10,16 +10,15 @@ import (
 
 func TestLinuxQueuePriorityRectsFollowClearQueueWithoutOverlap(t *testing.T) {
 	u := &linuxDesktop{layout: linuxDesktopLayout{clearQueue: linuxRectWH(440, 700, 110, 28)}}
-	up, down := u.queuePriorityRects()
+	top, up, down, bottom := u.queuePriorityRects()
 
-	if up.top != u.layout.clearQueue.top || down.top != u.layout.clearQueue.top {
-		t.Fatalf("priority controls must stay aligned with the queue toolbar: clear=%+v up=%+v down=%+v", u.layout.clearQueue, up, down)
+	for name, rect := range map[string]linuxRect{"top": top, "up": up, "down": down, "bottom": bottom} {
+		if rect.top != u.layout.clearQueue.top || rect.bottom != u.layout.clearQueue.bottom {
+			t.Fatalf("%s priority control must stay aligned with queue toolbar: clear=%+v rect=%+v", name, u.layout.clearQueue, rect)
+		}
 	}
-	if up.left <= u.layout.clearQueue.right || down.left <= up.right {
-		t.Fatalf("priority controls overlap existing queue controls: clear=%+v up=%+v down=%+v", u.layout.clearQueue, up, down)
-	}
-	if up.bottom != u.layout.clearQueue.bottom || down.bottom != u.layout.clearQueue.bottom {
-		t.Fatalf("priority controls must preserve the queue toolbar height: clear=%+v up=%+v down=%+v", u.layout.clearQueue, up, down)
+	if top.left <= u.layout.clearQueue.right || up.left <= top.right || down.left <= up.right || bottom.left <= down.right {
+		t.Fatalf("priority controls overlap existing controls: clear=%+v top=%+v up=%+v down=%+v bottom=%+v", u.layout.clearQueue, top, up, down, bottom)
 	}
 }
 
@@ -36,13 +35,13 @@ func TestLinuxQueuePriorityStateUsesSharedQueuedOnlyPolicy(t *testing.T) {
 	}
 
 	state := u.selectedQueuePriorityState()
-	if !state.MoveUp || !state.MoveDown {
-		t.Fatalf("selected queued job should move across nearest queued neighbors: %+v", state)
+	if !state.MoveTop || !state.MoveUp || !state.MoveDown || !state.MoveBottom {
+		t.Fatalf("selected queued job should expose all priority directions: %+v", state)
 	}
 
 	u.transferJobs[u.selectedTransfer].Status = "running"
 	state = u.selectedQueuePriorityState()
-	if state.MoveUp || state.MoveDown {
+	if state.MoveTop || state.MoveUp || state.MoveDown || state.MoveBottom {
 		t.Fatalf("running transfer must not expose priority controls: %+v", state)
 	}
 }

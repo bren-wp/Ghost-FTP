@@ -79,28 +79,58 @@ func TestMoveQueuedUpAndDownChangesOnlySchedulerOrder(t *testing.T) {
 	assertQueueIDs(t, m, ids[0], ids[2], ids[1])
 }
 
-func TestMoveQueuedSkipsRunningAndTerminalSlots(t *testing.T) {
+func TestMoveQueuedTopAndBottomPreserveQueuedRelativeOrder(t *testing.T) {
 	m, dir := newPausedQueueManager(t)
 	ids := addQueuedDownloads(t, m, dir, "a.txt", "b.txt", "c.txt", "d.txt")
 
+	if err := m.MoveQueuedTop(ids[2]); err != nil {
+		t.Fatalf("MoveQueuedTop: %v", err)
+	}
+	assertQueueIDs(t, m, ids[2], ids[0], ids[1], ids[3])
+
+	if err := m.MoveQueuedBottom(ids[0]); err != nil {
+		t.Fatalf("MoveQueuedBottom: %v", err)
+	}
+	assertQueueIDs(t, m, ids[2], ids[1], ids[3], ids[0])
+}
+
+func TestMoveQueuedSkipsRunningAndTerminalSlots(t *testing.T) {
+	m, dir := newPausedQueueManager(t)
+	ids := addQueuedDownloads(t, m, dir, "a.txt", "b.txt", "c.txt", "d.txt", "e.txt")
+
 	m.mu.Lock()
 	m.jobs[1].Status = "running"
-	m.jobs[2].Status = "done"
+	m.jobs[3].Status = "done"
 	runningID := m.jobs[1].ID
-	terminalID := m.jobs[2].ID
+	terminalID := m.jobs[3].ID
+	m.jobConnections[ids[0]] = "connection-a"
+	m.jobConnections[ids[2]] = "connection-a"
+	m.jobConnections[ids[4]] = "connection-a"
 	m.mu.Unlock()
 
-	if err := m.MoveQueuedUp(ids[3]); err != nil {
-		t.Fatalf("MoveQueuedUp: %v", err)
+	if err := m.MoveQueuedTop(ids[4]); err != nil {
+		t.Fatalf("MoveQueuedTop: %v", err)
 	}
-	assertQueueIDs(t, m, ids[3], runningID, terminalID, ids[0])
+	assertQueueIDs(t, m, ids[4], runningID, ids[0], terminalID, ids[2])
+
+	if err := m.MoveQueuedBottom(ids[4]); err != nil {
+		t.Fatalf("MoveQueuedBottom: %v", err)
+	}
+	assertQueueIDs(t, m, ids[0], runningID, ids[2], terminalID, ids[4])
 
 	jobs := m.List()
 	if jobs[1].ID != runningID || jobs[1].Status != "running" {
 		t.Fatalf("running job was mutated: %#v", jobs[1])
 	}
-	if jobs[2].ID != terminalID || jobs[2].Status != "done" {
-		t.Fatalf("terminal job was mutated: %#v", jobs[2])
+	if jobs[3].ID != terminalID || jobs[3].Status != "done" {
+		t.Fatalf("terminal job was mutated: %#v", jobs[3])
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, id := range []string{ids[0], ids[2], ids[4]} {
+		if got := m.jobConnections[id]; got != "connection-a" {
+			t.Fatalf("reorder changed connection binding for %s: %q", id, got)
+		}
 	}
 }
 
@@ -108,15 +138,19 @@ func TestMoveQueuedRejectsMissingAndNonQueuedJobs(t *testing.T) {
 	m, dir := newPausedQueueManager(t)
 	ids := addQueuedDownloads(t, m, dir, "a.txt")
 
-	if err := m.MoveQueuedUp("missing"); !errors.Is(err, errTransferOrderMissing) {
-		t.Fatalf("missing transfer error = %v, want %v", err, errTransferOrderMissing)
+	for _, move := range []func(string) error{m.MoveQueuedTop, m.MoveQueuedUp, m.MoveQueuedDown, m.MoveQueuedBottom} {
+		if err := move("missing"); !errors.Is(err, errTransferOrderMissing) {
+			t.Fatalf("missing transfer error = %v, want %v", err, errTransferOrderMissing)
+		}
 	}
 
 	m.mu.Lock()
 	m.jobs[0].Status = "running"
 	m.mu.Unlock()
-	if err := m.MoveQueuedDown(ids[0]); !errors.Is(err, errTransferOrderNotQueued) {
-		t.Fatalf("non-queued transfer error = %v, want %v", err, errTransferOrderNotQueued)
+	for _, move := range []func(string) error{m.MoveQueuedTop, m.MoveQueuedUp, m.MoveQueuedDown, m.MoveQueuedBottom} {
+		if err := move(ids[0]); !errors.Is(err, errTransferOrderNotQueued) {
+			t.Fatalf("non-queued transfer error = %v, want %v", err, errTransferOrderNotQueued)
+		}
 	}
 }
 
@@ -125,11 +159,17 @@ func TestMoveQueuedAtEdgeIsIdempotentAndDoesNotEmitNoise(t *testing.T) {
 	ids := addQueuedDownloads(t, m, dir, "a.txt", "b.txt")
 	_, before := m.Events(0)
 
+	if err := m.MoveQueuedTop(ids[0]); err != nil {
+		t.Fatalf("MoveQueuedTop at edge: %v", err)
+	}
 	if err := m.MoveQueuedUp(ids[0]); err != nil {
 		t.Fatalf("MoveQueuedUp at edge: %v", err)
 	}
 	if err := m.MoveQueuedDown(ids[1]); err != nil {
 		t.Fatalf("MoveQueuedDown at edge: %v", err)
+	}
+	if err := m.MoveQueuedBottom(ids[1]); err != nil {
+		t.Fatalf("MoveQueuedBottom at edge: %v", err)
 	}
 	assertQueueIDs(t, m, ids[0], ids[1])
 
@@ -144,8 +184,8 @@ func TestMoveQueuedEmitsFullStateSnapshot(t *testing.T) {
 	ids := addQueuedDownloads(t, m, dir, "a.txt", "b.txt", "c.txt")
 	_, before := m.Events(0)
 
-	if err := m.MoveQueuedUp(ids[2]); err != nil {
-		t.Fatalf("MoveQueuedUp: %v", err)
+	if err := m.MoveQueuedTop(ids[2]); err != nil {
+		t.Fatalf("MoveQueuedTop: %v", err)
 	}
 	events, after := m.Events(before)
 	if after <= before {
@@ -157,7 +197,7 @@ func TestMoveQueuedEmitsFullStateSnapshot(t *testing.T) {
 	if !events[0].Paused {
 		t.Fatal("state snapshot lost paused queue state")
 	}
-	if len(events[0].Jobs) != 3 || events[0].Jobs[0].ID != ids[0] || events[0].Jobs[1].ID != ids[2] || events[0].Jobs[2].ID != ids[1] {
+	if len(events[0].Jobs) != 3 || events[0].Jobs[0].ID != ids[2] || events[0].Jobs[1].ID != ids[0] || events[0].Jobs[2].ID != ids[1] {
 		t.Fatalf("state snapshot order = %#v", events[0].Jobs)
 	}
 }
@@ -169,7 +209,9 @@ func TestMoveQueuedRejectsClosedManager(t *testing.T) {
 	m.closed = true
 	m.mu.Unlock()
 
-	if err := m.MoveQueuedDown(ids[0]); !errors.Is(err, errTransferOrderClosed) {
-		t.Fatalf("closed manager error = %v, want %v", err, errTransferOrderClosed)
+	for _, move := range []func(string) error{m.MoveQueuedTop, m.MoveQueuedUp, m.MoveQueuedDown, m.MoveQueuedBottom} {
+		if err := move(ids[0]); !errors.Is(err, errTransferOrderClosed) {
+			t.Fatalf("closed manager error = %v, want %v", err, errTransferOrderClosed)
+		}
 	}
 }
