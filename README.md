@@ -12,7 +12,7 @@
 
 **Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**. It combines a focused dual-pane workspace with **FTP, FTPS and SFTP**, saved profiles, protected credential handling, bounded transfer management and a built-in remote text editor. The design target is a modern professional transfer workstation: fewer ambiguous controls, safer defaults, clear state and strong failure handling without a mandatory product account or hidden cloud backend.
 
-- Current Ghost FTP version: **0.0.1**
+- Current Ghost FTP version: **0.0.2**
 - Development status: **Active**
 - Release channel: **Current**
 - Default language: **English**
@@ -48,6 +48,8 @@ See [Reference UI](docs/REFERENCE-UI.md) for screenshot provenance and the produ
 - Pause, resume, cancel, retry and clear-finished lifecycle.
 - Progress, transferred bytes, speed and ETA based on real transfer events.
 - Recursive directory transfer through the shared engine.
+- Non-destructive current-folder filtering and bounded recursive local/server search.
+- Conservative local/server directory comparison with synchronized navigation for safely proven paired directories.
 - Explicit conflict policy: **Skip**, **Replace**, or **Replace + recovery backup**.
 - Safe staged activation/rollback rather than direct destructive overwrite.
 - Automatic retry only for errors classified as retryable; trust, permission, validation and unsafe-path failures do not become blind retry loops.
@@ -59,7 +61,7 @@ See [Reference UI](docs/REFERENCE-UI.md) for screenshot provenance and the produ
 - Password, SFTP private-key and passphrase workflows.
 - Per-save credential persistence decision instead of hidden automatic secret storage.
 - Connection diagnostics with bounded user-safe error reporting.
-- Strict connection-generation/identity binding so queued work cannot silently migrate to a different server session.
+- Strict connection-generation/identity binding so queued work and synchronized comparison state cannot silently migrate to a different server session.
 
 ### Remote Edit
 
@@ -83,13 +85,13 @@ See [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Architecture](
 
 ## Design goals beyond legacy FTP clients
 
-Ghost FTP is not developed by cloning another client screen-for-screen. New capabilities are accepted only when the engine, Windows UI, Linux UI, tests, privacy/security model and documentation agree on the behavior. Current improvement priorities include stronger queue control, large-directory responsiveness, directory comparison/search/filter workflows, navigation productivity and bandwidth-aware transfer controls. Features are not advertised as shipped until their complete runtime path is implemented and tested.
+Ghost FTP is not developed by cloning another client screen-for-screen. New capabilities are accepted only when the engine, Windows UI, Linux UI, tests, privacy/security model and documentation agree on the behavior. Current improvement priorities include stronger queue control, large-directory responsiveness, navigation productivity and bandwidth-aware transfer controls. Features are not advertised as shipped until their complete runtime path is implemented and tested.
 
 See the [Roadmap](docs/ROADMAP.md) for the maintained power-user plan.
 
-## 0.0.1
+## 0.0.2
 
-Ghost FTP 0.0.1 starts the current public release line. It combines the maintained Windows/Linux desktop client, FTP/FTPS/SFTP engine, secure installer/uninstaller behavior, responsive desktop geometry and built-in Remote Edit workflow into one release identity. Semantic major version `0` does not by itself mark this project release as a GitHub prerelease.
+Ghost FTP 0.0.2 advances the current public line with post-0.0.1 reliability hardening, non-destructive current-folder filtering, bounded recursive local/server search and conservative directory comparison with synchronized navigation on Windows and Linux. The release keeps the existing FTP/FTPS/SFTP trust model, Remote Edit safeguards, local path confinement and no-telemetry/privacy contract. Semantic major version `0` does not by itself mark this project release as a GitHub prerelease.
 
 ## Protocols
 
@@ -129,27 +131,27 @@ See [Localization](docs/LOCALIZATION.md).
 ## Windows installation
 
 ```text
-Ghost-FTP-0.0.1-Setup-x64.exe
-Ghost-FTP-0.0.1-Setup-x86.exe
-Ghost-FTP-0.0.1-Setup-x32.exe
-Ghost-FTP-0.0.1-Portable-x64.exe
-Ghost-FTP-0.0.1-Portable-x86.exe
+Ghost-FTP-0.0.2-Setup-x64.exe
+Ghost-FTP-0.0.2-Setup-x86.exe
+Ghost-FTP-0.0.2-Setup-x32.exe
+Ghost-FTP-0.0.2-Portable-x64.exe
+Ghost-FTP-0.0.2-Portable-x86.exe
 ```
 
 `x32` is a byte-identical compatibility alias of the verified x86 Setup build; it is not a separate architecture build. Production Authenticode is optional. When a trusted certificate is configured, signatures must verify. Otherwise `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
 
 ## Linux installation
 
-Canonical 0.0.1 Linux files are:
+Canonical 0.0.2 Linux files are:
 
 ```text
-Ghost-FTP-0.0.1-Linux-amd64.deb
-Ghost-FTP-0.0.1-Linux-arm64.deb
-Ghost-FTP-0.0.1-Linux-i386.deb
-Ghost-FTP-0.0.1-Linux-multiarch.zip
-Ghost-FTP-0.0.1-Linux-amd64.tar.gz
-Ghost-FTP-0.0.1-Linux-arm64.tar.gz
-Ghost-FTP-0.0.1-Linux-i386.tar.gz
+Ghost-FTP-0.0.2-Linux-amd64.deb
+Ghost-FTP-0.0.2-Linux-arm64.deb
+Ghost-FTP-0.0.2-Linux-i386.deb
+Ghost-FTP-0.0.2-Linux-multiarch.zip
+Ghost-FTP-0.0.2-Linux-amd64.tar.gz
+Ghost-FTP-0.0.2-Linux-arm64.tar.gz
+Ghost-FTP-0.0.2-Linux-i386.tar.gz
 ```
 
 Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages remain verification artifacts and are not canonical release files.
@@ -158,19 +160,19 @@ See [Installation](docs/INSTALLATION.md), [Linux documentation](linux/README.md)
 
 ## Releases
 
-Ghost FTP 0.0.1 uses the canonical **12 platform artifacts / 15 public files** release shape: five Windows files, seven Linux files, `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
+Ghost FTP 0.0.2 uses the canonical **12 platform artifacts / 15 public files** release shape: five Windows files, seven Linux files, `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
 
 The public release identity is:
 
 ```text
-ghostftp-v0.0.1
+ghostftp-v0.0.2
 prerelease=false
 ```
 
 The same verified release directory is published as a distribution-only GHCR bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.1
+ghcr.io/bren-wp/ghost-ftp:0.0.2
 ```
 
 The GHCR object is not a supported runtime container. After a new Ghost FTP release is successfully published and remotely verified, the release-retention workflow removes older Ghost FTP GitHub releases, tags, superseded release branches and obsolete package versions while retaining the current release package. The release-branch trigger also waits for the canonical release result and explicitly verifies the canonical retention result, so the latest-only lifecycle is not dependent on a single downstream event notification. **Only the latest public Ghost FTP version is retained.**
