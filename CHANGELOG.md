@@ -23,9 +23,13 @@
 - Added bounded recursive local/server search as a separate explicit action on Windows and Linux. Recursive search performs disclosed nested-folder I/O with validated depth/item/result/batch/time limits, cancellation, incremental result presentation, Unicode-aware matching, root/session confinement and no intentional symlink/reparse traversal.
 - Recursive search results are informational navigation snapshots only: Windows renders them in dedicated ListViews, Linux keeps normal row-indexed actions modal/disabled, and “Go to result” performs a fresh parent listing before reselecting the discovered name.
 - Added localized recursive-search Search/Navigate/Cancel/Close/progress/disclosure copy for all 24 supported desktop languages and a source regression contract covering hard bounds, platform wiring and fresh-list navigation.
+- Added conservative local/server directory comparison on Windows and Linux with deterministic `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown` states. Exact-name matching prevents unsafe case folding, duplicate names fail closed to conflict, symlinks remain unknown, and file freshness is never inferred when either side lacks reliable modification time metadata.
+- Added explicit synchronized navigation for comparison rows that are proven ordinary directories on both sides. “Open both” validates local and remote child paths, performs fresh listings of both targets, recomputes comparison, and only then commits both pane paths; comparison itself never transfers, deletes, renames, overwrites or changes permissions.
+- Windows comparison uses dedicated read-only ListViews and disables normal file mutations while active; Linux comparison is modal and prevents ordinary row-indexed workspace actions from operating on comparison display rows.
+- Added localized comparison controls/statuses for all 24 supported desktop languages and a cross-platform source regression contract protecting comparison semantics, UI wiring, mutation gating and fresh-list synchronized navigation.
 - Added a regression contract that rejects main Windows buttons without command handlers and Linux controls/overlays without click handlers.
 - Added a guard against silently discarded Windows queue Cancel/Retry errors.
-- Defined complete acceptance criteria for future directory comparison, synchronized browsing, bandwidth control, queue priority, bookmarks, verified resume, multi-session and proxy/jump-host capabilities before they may appear as shipped UI.
+- Defined complete acceptance criteria for future bandwidth control, queue priority, bookmarks, verified resume, multi-session and proxy/jump-host capabilities before they may appear as shipped UI.
 
 ### Documentation and product media
 

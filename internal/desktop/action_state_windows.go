@@ -34,16 +34,18 @@ func (a *app) updateActionControls() {
 	setControlEnabled(a.removeProfile, profileEditable && a.selectedProfileID != "")
 	setControlEnabled(a.settingsBtn, !a.connectionBusy)
 
+	comparisonActive := a.directoryComparisonActive()
 	localRecursiveActive := a.recursiveSearchPaneActive(false)
 	localSelected := validSelectionCount(a.localList, len(a.localItems))
-	setControlEnabled(a.localMkdir, !localRecursiveActive)
-	setControlEnabled(a.localRename, !localRecursiveActive && localSelected == 1)
-	setControlEnabled(a.localDelete, !localRecursiveActive && localSelected > 0)
-	setControlEnabled(a.upload, !localRecursiveActive && a.connected && !a.connectionBusy && localSelected > 0)
+	localReady := !localRecursiveActive && !comparisonActive
+	setControlEnabled(a.localMkdir, localReady)
+	setControlEnabled(a.localRename, localReady && localSelected == 1)
+	setControlEnabled(a.localDelete, localReady && localSelected > 0)
+	setControlEnabled(a.upload, localReady && a.connected && !a.connectionBusy && localSelected > 0)
 
 	remoteRecursiveActive := a.recursiveSearchPaneActive(true)
 	remoteSelected := validSelectionCount(a.remoteList, len(a.remoteItems))
-	remoteReady := a.connected && !a.connectionBusy && !remoteRecursiveActive
+	remoteReady := a.connected && !a.connectionBusy && !remoteRecursiveActive && !comparisonActive
 	setControlEnabled(a.remoteMkdir, remoteReady)
 	setControlEnabled(a.remoteRename, remoteReady && remoteSelected == 1)
 	setControlEnabled(a.remoteDelete, remoteReady && remoteSelected > 0)

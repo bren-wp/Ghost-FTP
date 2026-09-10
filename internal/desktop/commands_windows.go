@@ -72,6 +72,10 @@ func (a *app) command(id int) {
 		a.recursiveSearchCommand(true)
 	case idRemoteRecursiveSearchNavigate:
 		a.navigateRecursiveSearch(true)
+	case idDirectoryCompare:
+		a.directoryComparisonCommand()
+	case idDirectoryCompareOpenBoth:
+		a.openComparedDirectoryBoth()
 	case idUpload:
 		a.uploadSelected()
 	case idDownload:
