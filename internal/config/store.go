@@ -48,6 +48,9 @@ func stateDirectoryInfo(dir string) (os.FileInfo, error) {
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || security.IsReparsePoint(dir) {
 		return nil, errors.New("state mapa mora biti obična lokalna mapa bez preusmjeravanja")
 	}
+	if !primeStateDirectoryIdentity(info) {
+		return nil, errors.New("identitet state mape nije moguće pouzdano vezati")
+	}
 	return info, nil
 }
 
