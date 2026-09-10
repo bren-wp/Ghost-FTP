@@ -71,24 +71,38 @@ def main() -> int:
         "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
         "python scripts/audit_platform_contract.py",
         "python scripts/audit_desktop_surface.py",
-        "Ghost-FTP-${VERSION}-Portable-x64.exe",
-        "Ghost-FTP-${VERSION}-Portable-x86.exe",
-        "Ghost-FTP-${VERSION}-Setup-x64.exe",
-        "Ghost-FTP-${VERSION}-Setup-x86.exe",
-        "Ghost-FTP-${VERSION}-Setup-x32.exe",
-        "Ghost-FTP-${VERSION}-Linux-amd64.deb",
-        "Ghost-FTP-${VERSION}-Linux-amd64.tar.gz",
-        "Ghost-FTP-${VERSION}-Linux-arm64.deb",
-        "Ghost-FTP-${VERSION}-Linux-arm64.tar.gz",
-        "Ghost-FTP-${VERSION}-Linux-i386.deb",
-        "Ghost-FTP-${VERSION}-Linux-i386.tar.gz",
-        "Ghost-FTP-${VERSION}-Linux-multiarch.zip",
-        "Verify DEB and portable packages",
+        "Ghost-FTP-${VERSION}-Portable.exe",
+        "Ghost-FTP-${VERSION}-Setup.exe",
+        "Ghost-FTP-${VERSION}-Linux-Debian-amd64.deb",
+        "Ghost-FTP-${VERSION}-Linux-Debian-arm64.deb",
+        "Ghost-FTP-${VERSION}-Linux-Debian-i386.deb",
+        "Ghost-FTP-${VERSION}-Linux-Ubuntu-amd64.deb",
+        "Ghost-FTP-${VERSION}-Linux-Ubuntu-arm64.deb",
+        "Ghost-FTP-${VERSION}-Linux-Ubuntu-i386.deb",
+        "Ghost-FTP-${VERSION}-Linux-Fedora-x86_64.rpm",
+        "Ghost-FTP-${VERSION}-Linux-Fedora-aarch64.rpm",
+        "Ghost-FTP-${VERSION}-Linux-Fedora-i686.rpm",
+        "Ghost-FTP-${VERSION}-Linux-Portable-amd64.tar.gz",
+        "Ghost-FTP-${VERSION}-Linux-Portable-arm64.tar.gz",
+        "Ghost-FTP-${VERSION}-Linux-Portable-i386.tar.gz",
+        "Build distro packages",
+        "Verify distro package metadata and binary parity",
         "GHOSTFTP_REQUIRE_DEB: '1'",
-        'cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"',
+        "GHOSTFTP_REQUIRE_RPM: '1'",
+        "bash linux/BUILD-DISTROS.sh",
+        'cmp "$work/${distro,,}/usr/bin/ghostftp" "$portable_root/ghostftp"',
+        'cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"',
+        "WINDOWS_SETUP=universal-x86-x64",
+        "WINDOWS_PORTABLE=universal-x86-x64",
+        "WINDOWS_BOOTSTRAP_PE=x86",
+        "WINDOWS_NATIVE_PAYLOADS=x64,x86",
+        "LINUX_DEBIAN_DEB=amd64,arm64,i386",
+        "LINUX_UBUNTU_DEB=amd64,arm64,i386",
+        "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
         "LINUX_PORTABLE=amd64,arm64,i386",
-        "PUBLIC_PLATFORM_ARTIFACTS=12",
-        "PUBLIC_RELEASE_FILES=15",
+        "PUBLIC_PLATFORM_ARTIFACTS=14",
+        "PUBLIC_RELEASE_FILES=17",
+        "test \"$count\" = '17'",
         "ghcr.io/${owner}/ghost-ftp",
         "Distribution bundle only; not a supported runtime container.",
         "Publish verified bundle to GitHub Packages",
@@ -102,6 +116,15 @@ def main() -> int:
         "package_nuget.py", "dotnet nuget", "nuget.pkg.github.com",
         "package_web.py", "audit_web.py", "android/", "ios/", "macos/", "runs-on: macos",
         "--prerelease",
+        "linux-multiarch.zip",
+        "linux-amd64.deb",
+        "linux-arm64.deb",
+        "linux-i386.deb",
+        "portable-x64.exe",
+        "portable-x86.exe",
+        "setup-x64.exe",
+        "setup-x86.exe",
+        "setup-x32.exe",
     ):
         if forbidden in lowered:
             fail(f"release workflow contains retired/incompatible publication marker: {forbidden}")
@@ -121,7 +144,7 @@ def main() -> int:
         "current_tag=\"ghostftp-v${version}\"",
         "test \"$release_draft\" = 'false'",
         "test \"$release_prerelease\" = 'false'",
-        "test \"$asset_count\" -eq 15",
+        "test \"$asset_count\" -eq 17",
         "test \"$tag_sha\" = \"$main_sha\"",
         "gh release delete",
         "--cleanup-tag",
@@ -163,21 +186,53 @@ def main() -> int:
         ".github/workflows/ci.yml",
         "name: Ghost FTP CI",
         "go test -race ./...",
-        "Windows x64 and x86 production build",
+        "Windows universal setup and portable production build",
         "Linux amd64 arm64 i386 production build",
         "Authenticode private-key pipeline smoke test",
+        "Ghost-FTP-$v-$kind.exe",
+        "Architecture-specific Windows executables leaked into public CI artifacts",
         "Verify DEB and portable packages",
         "GHOSTFTP_REQUIRE_DEB: '1'",
     )
     require(
         "BUILD-WINDOWS.ps1",
+        "BUILD-WINDOWS-ARCH-STAGE.ps1",
+        "function Build-UniversalBootstrap",
+        "function Sign-UniversalTarget",
+        "GHOSTFTP_SIGNING_PFX_PATH",
+        "GHOSTFTP_SIGNING_PASSWORD",
+        "./cmd/windowsbootstrap",
+        '"Ghost-FTP-$version-Portable.exe"',
+        '"Ghost-FTP-$version-Setup.exe"',
+        "scripts/verify_release.py",
+        "'--arch','universal'",
+        "WINDOWS_PUBLIC_EXECUTABLES=2",
+    )
+    require(
+        "BUILD-WINDOWS-ARCH-STAGE.ps1",
         "function Build-GhostFTPArchitecture",
         "function Sign-WindowsTarget",
         "GHOSTFTP_SIGNING_PFX_PATH",
         "GHOSTFTP_SIGNING_PASSWORD",
         '"Ghost-FTP-$version-Portable-$Label.exe"',
         '"Ghost-FTP-$version-Setup-$Label.exe"',
+        "./cmd/installer",
+        "scripts/make_payload.py",
         "scripts/verify_release.py",
+    )
+    require(
+        "cmd/windowsbootstrap/main.go",
+        "platform.NativeWindowsArchitecture()",
+        'return "payload/" + arch + "/GhostFTP.exe", nil',
+        "os.CreateTemp(localAppData",
+        "verifyStaged(path, data)",
+        "cmd.Run()",
+        "platform.HardenProcessPrivacy()",
+    )
+    require(
+        "internal/platform/windows_arch_windows.go",
+        'NewProc("GetNativeSystemInfo")',
+        "windowsArchitectureFromProcessor(info.ProcessorArchitecture)",
     )
     require(
         "cmd/installer/main.go",
@@ -192,12 +247,15 @@ def main() -> int:
     )
     require("scripts/make_payload.py", "PAYLOAD_SCHEMA = 2", 'add(zf, args.app, "GhostFTP.exe")')
     require(
-        "linux/BUILD.sh",
-        'binary="dist/.ghostftp-linux-${debarch}"',
-        'portable_name="Ghost-FTP-${VERSION}-Linux-${debarch}"',
+        "linux/BUILD-DISTROS.sh",
+        'portable_name="Ghost-FTP-${VERSION}-Linux-Portable-${debarch}"',
+        'rpm_out="dist/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"',
+        'for distro in Debian Ubuntu; do',
+        'deb_out="dist/Ghost-FTP-${VERSION}-Linux-${slug}-${debarch}.deb"',
         'cp "$binary" "$portable_root/ghostftp"',
         'cp "$binary" "$deb_root/usr/bin/ghostftp"',
         "GHOSTFTP_REQUIRE_DEB",
+        "GHOSTFTP_REQUIRE_RPM",
         "tar --sort=name --owner=0 --group=0 --numeric-owner",
         "gzip -n -9",
     )
@@ -235,11 +293,14 @@ def main() -> int:
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("PUBLIC_PLATFORM_ARTIFACTS=12")
-    print("PUBLIC_RELEASE_FILES=15")
-    print("WINDOWS_PORTABLE=x64,x86")
-    print("WINDOWS_X32_ALIAS_OF_X86=REQUIRED")
-    print("LINUX_DEB=amd64,arm64,i386")
+    print("PUBLIC_PLATFORM_ARTIFACTS=14")
+    print("PUBLIC_RELEASE_FILES=17")
+    print("WINDOWS_SETUP=UNIVERSAL_X86_X64")
+    print("WINDOWS_PORTABLE=UNIVERSAL_X86_X64")
+    print("WINDOWS_NATIVE_PAYLOADS=x64,x86")
+    print("LINUX_DEBIAN_DEB=amd64,arm64,i386")
+    print("LINUX_UBUNTU_DEB=amd64,arm64,i386")
+    print("LINUX_FEDORA_RPM=x86_64,aarch64,i686")
     print("LINUX_PORTABLE=amd64,arm64,i386")
     print("GHCR_CURRENT_BUNDLE=REQUIRED")
     return 0
