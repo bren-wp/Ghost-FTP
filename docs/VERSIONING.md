@@ -2,7 +2,7 @@
 
 Ghost FTP uses semantic versioning with the root `VERSION` file as the authoritative production version source.
 
-Current source candidate: **0.0.1**.
+Current source candidate: **0.0.2**.
 
 ## Version format
 
@@ -19,17 +19,15 @@ ghostftp-vMAJOR.MINOR.PATCH
 The current release identity is:
 
 ```text
-VERSION=0.0.1
-TAG=ghostftp-v0.0.1
+VERSION=0.0.2
+TAG=ghostftp-v0.0.2
 CHANNEL=Current
 PRERELEASE=false
 ```
 
-## New public numbering line
+## Public numbering line
 
-The current public numbering starts at **0.0.1**.
-
-`0.0.0` is reserved and must never be published.
+The current public numbering started at **0.0.1**. `0.0.0` is reserved and must never be published.
 
 The intended sequence is incremental:
 
@@ -40,24 +38,15 @@ The intended sequence is incremental:
 ...
 ```
 
-Each new release must be based on a fully verified current `main` revision. A future version is not created until the current version has been published, verified and retention cleanup has completed.
-
-For this project, major version `0` does not imply prerelease. The 0.0.x line is the current public release line and uses `prerelease=false` unless a future explicit policy change says otherwise. Version maturity and GitHub prerelease state are policy decisions validated independently from the numeric major component.
+Each new release must be based on a fully verified current `main` revision. A release identity is never rewritten in place. For this project, major version `0` does not imply prerelease: the 0.0.x line is the current public release line and uses `prerelease=false` unless a future explicit policy change says otherwise.
 
 ## Latest-only public release retention
 
 Ghost FTP intentionally keeps only the latest public version visible in release infrastructure.
 
-After a newly published release passes immediate and delayed remote read-back verification, `.github/workflows/release-retention.yml` removes superseded Ghost FTP:
+After a newly published release passes immediate and delayed remote read-back verification, `.github/workflows/release-retention.yml` removes superseded Ghost FTP GitHub Releases, `ghostftp-v*` tags, superseded `release/ghostftp-v*` branches and obsolete container package versions. The retention workflow keeps the latest public version, current version tag, current canonical release branch and GHCR package carrying the exact current version tag. It never rewrites Git commit history on `main`.
 
-- GitHub Releases;
-- `ghostftp-v*` tags;
-- superseded `release/ghostftp-v*` branches;
-- obsolete container package versions.
-
-The retention workflow retains the current release, current version tag, current canonical release branch and the GHCR package version carrying the exact current version tag. It must never run destructive cleanup before a successful canonical release transaction. Git commit history on `main` is not rewritten.
-
-This policy means old release URLs and tags are not a supported archival interface. Users and downstream automation must resolve the current release rather than pinning a superseded public version.
+This policy means old release URLs and tags are not a supported archival interface. Git history remains engineering provenance.
 
 ## Release trigger
 
@@ -69,17 +58,13 @@ The canonical release branch namespace is:
 release/ghostftp-v<version>
 ```
 
-For 0.0.1:
+For 0.0.2:
 
 ```text
-release/ghostftp-v0.0.1
+release/ghostftp-v0.0.2
 ```
 
-`.github/workflows/release-branch-trigger.yml` accepts the branch only when:
-
-1. its semantic version equals root `VERSION`;
-2. the branch points to exact current `main`;
-3. the release workflow is dispatched with the same version guard.
+`.github/workflows/release-branch-trigger.yml` accepts the branch only when its semantic version equals root `VERSION`, the branch points to exact current `main`, and the canonical release workflow is dispatched with the same version guard. The trigger waits for the exact publish run to succeed before it can explicitly dispatch and verify retention.
 
 ## Binary and package identity
 
@@ -96,12 +81,12 @@ CHANNEL=Current
 PRERELEASE=false
 ```
 
-The canonical 0.0.1 release contains **12 platform artifacts / 15 public files**.
+The canonical 0.0.2 release contains **12 platform artifacts / 15 public files**.
 
 The exact verified release directory is also published as a distribution bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.1
+ghcr.io/bren-wp/ghost-ftp:0.0.2
 ```
 
 The GHCR bundle is not a supported runtime container. Publication also maintains current aliases derived from the semantic version and `latest`; the exact version tag is the immutable verification identity for the current release transaction.
@@ -120,28 +105,15 @@ Absence of a production Authenticode certificate by itself is not a versioning f
 
 ## Version source integrity
 
-Release and CI validation must reject:
-
-- malformed semantic versions;
-- `0.0.0`;
-- a release-branch version different from root `VERSION`;
-- a release branch that does not equal exact current `main`;
-- an existing conflicting current tag/release;
-- incomplete release assets;
-- failed configured Windows signatures;
-- source/main drift during publication;
-- a GitHub Release marked as prerelease when the current policy requires `false`;
-- a missing or unreadable exact-version GHCR distribution bundle;
-- failed release read-back;
-- failed latest-only retention cleanup.
+Release and CI validation must reject malformed semantic versions, `0.0.0`, release-branch/source-version mismatch, a release branch that does not equal exact current `main`, an existing conflicting current tag/release, incomplete release assets, failed configured Windows signatures, source/main drift during publication, an incorrect GitHub prerelease flag, a missing exact-version GHCR distribution bundle, failed release read-back or failed latest-only retention cleanup.
 
 The active documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false` and the current package identity.
 
 ## Changelog and release notes
 
-`CHANGELOG.md` contains only the current maintained public release line and must include a `## <VERSION>` section. `scripts/release_notes.py` extracts that section for public release notes.
+`CHANGELOG.md` contains the maintained public release line and includes a `## <VERSION>` section. `scripts/release_notes.py` extracts that section for public release notes.
 
-## 0.0.1 release checklist
+## 0.0.2 release checklist
 
 The exact candidate must pass:
 
@@ -151,6 +123,8 @@ The exact candidate must pass:
 - real FTP/FTPS/SFTP behavior regressions and strict trust/no-downgrade checks;
 - rooted local transfer/filesystem safeguards;
 - Remote Edit size/text/revision/conflict/permission/read-back/metadata-refresh safeguards;
+- current-folder filter and bounded recursive local/server search regression contracts;
+- conservative directory-comparison and synchronized-navigation regression contracts;
 - Windows installer/uninstaller/shortcut ownership and exact-object cleanup checks;
 - Linux trusted transport/AskPass provenance checks;
 - Windows x64/x86 Setup and Portable production builds;
@@ -159,11 +133,11 @@ The exact candidate must pass:
 - Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 install/remove/GUI smoke;
 - 24-language localization and authentic Windows UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
-- exact-main `release/ghostftp-v0.0.1` validation;
-- GitHub Release `ghostftp-v0.0.1` with `prerelease=false` and exact 15-file read-back;
-- GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.1` publication/read-back;
+- exact-main `release/ghostftp-v0.0.2` validation;
+- GitHub Release `ghostftp-v0.0.2` with `prerelease=false` and exact 15-file read-back;
+- GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.2` publication/read-back;
 - successful latest-only retention cleanup after publication.
 
 ## Next release
 
-Only after 0.0.1 publication and retention are completely green should root `VERSION` advance to **0.0.2** through a separate reviewed release-prep change.
+Only after 0.0.2 publication and retention are completely green should root `VERSION` advance to **0.0.3** through a separate reviewed release-prep change.
