@@ -37,12 +37,19 @@ func (u *linuxDesktop) fileFilterState() *linuxFileFilterState {
 	return state
 }
 
-func (u *linuxDesktop) fileFilterControlRect(remote bool) linuxRect {
+func (u *linuxDesktop) fileFilterRowRect(remote bool) linuxRect {
 	base := u.layout.localList
 	if remote {
 		base = u.layout.remoteList
 	}
 	return linuxRectWH(base.left, base.top, base.right-base.left, 28)
+}
+
+func (u *linuxDesktop) fileFilterControlRect(remote bool) linuxRect {
+	row := u.fileFilterRowRect(remote)
+	gap := 8
+	width := (row.right - row.left - gap) / 2
+	return linuxRectWH(row.left, row.top, width, row.bottom-row.top)
 }
 
 func (u *linuxDesktop) fileFilterListRect(remote bool) linuxRect {
@@ -76,13 +83,33 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 }
 
 func (u *linuxDesktop) renderFileFilterControls() error {
-	if err := u.drawButton(u.fileFilterControlRect(false), u.fileFilterLabel(false), !u.busy, false); err != nil {
-		return err
+	// Empty linuxUIResult notifications are used only to wake the established UI
+	// loop after recursive-search batches. Reconcile here, on the UI goroutine,
+	// before normal controls are drawn so search mode remains modal and normal
+	// row-indexed mutation controls never become enabled between batches.
+	u.reconcileRecursiveSearchState()
+	for _, remote := range []bool{false, true} {
+		if u.recursiveSearchActive(remote) {
+			if err := u.renderRecursiveSearchControls(remote); err != nil {
+				return err
+			}
+			continue
+		}
+		filterEnabled := !u.busy && (!remote || u.connected)
+		if err := u.drawButton(u.fileFilterControlRect(remote), u.fileFilterLabel(remote), filterEnabled, false); err != nil {
+			return err
+		}
+		if err := u.renderRecursiveSearchButton(remote); err != nil {
+			return err
+		}
 	}
-	return u.drawButton(u.fileFilterControlRect(true), u.fileFilterLabel(true), u.connected && !u.busy, false)
+	return nil
 }
 
 func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
+	if u.handleRecursiveSearchMouse(x, y) {
+		return true
+	}
 	if u.fileFilterControlRect(false).contains(x, y) {
 		if !u.busy {
 			u.openFileFilterPrompt(false)
