@@ -28,39 +28,31 @@ type Options struct {
 }
 
 type Entry struct {
-	Name      string
-	Status    Status
-	Local     model.Item
-	Remote    model.Item
-	HasLocal  bool
-	HasRemote bool
+	Name      string     `json:"name"`
+	Status    Status     `json:"status"`
+	Local     model.Item `json:"local"`
+	Remote    model.Item `json:"remote"`
+	HasLocal  bool       `json:"hasLocal"`
+	HasRemote bool       `json:"hasRemote"`
 }
 
-func NormalizeOptions(in Options) (Options, error) {
-	if in.TimestampTolerance < 0 {
-		return Options{}, errors.New("directory comparison timestamp tolerance must not be negative")
+func NormalizeOptions(opts Options) (Options, error) {
+	if opts.TimestampTolerance == 0 {
+		opts.TimestampTolerance = DefaultTimestampTolerance
 	}
-	if in.TimestampTolerance == 0 {
-		in.TimestampTolerance = DefaultTimestampTolerance
+	if opts.TimestampTolerance < 0 || opts.TimestampTolerance > MaxTimestampTolerance {
+		return Options{}, errors.New("directory comparison timestamp tolerance is outside the safe range")
 	}
-	if in.TimestampTolerance > MaxTimestampTolerance {
-		return Options{}, errors.New("directory comparison timestamp tolerance is too large")
-	}
-	return in, nil
+	return opts, nil
 }
 
-// Compare classifies one local and one remote directory snapshot without
-// performing I/O or mutating either input. Names are matched exactly: silently
-// folding case would be unsafe when one side is case-sensitive and can contain
-// both "File" and "file".
-func Compare(local, remote []model.Item, in Options) ([]Entry, error) {
-	opts, err := NormalizeOptions(in)
+func Compare(local, remote []model.Item, opts Options) ([]Entry, error) {
+	opts, err := NormalizeOptions(opts)
 	if err != nil {
 		return nil, err
 	}
-
-	localByName := groupByName(local)
-	remoteByName := groupByName(remote)
+	localByName := groupByExactName(local)
+	remoteByName := groupByExactName(remote)
 	names := make([]string, 0, len(localByName)+len(remoteByName))
 	seen := make(map[string]struct{}, len(localByName)+len(remoteByName))
 	for name := range localByName {
@@ -75,47 +67,40 @@ func Compare(local, remote []model.Item, in Options) ([]Entry, error) {
 	}
 	sort.Strings(names)
 
-	out := make([]Entry, 0, len(names))
+	entries := make([]Entry, 0, len(names))
 	for _, name := range names {
 		locals := localByName[name]
 		remotes := remoteByName[name]
-		entry := Entry{Name: name, HasLocal: len(locals) > 0, HasRemote: len(remotes) > 0}
+		entry := Entry{Name: name}
 		if len(locals) > 0 {
 			entry.Local = locals[0]
+			entry.HasLocal = true
 		}
 		if len(remotes) > 0 {
 			entry.Remote = remotes[0]
+			entry.HasRemote = true
 		}
-
 		switch {
 		case len(locals) > 1 || len(remotes) > 1:
 			entry.Status = StatusConflict
 		case len(locals) == 0:
-			if entry.Remote.IsSymlink {
-				entry.Status = StatusUnknown
-			} else {
-				entry.Status = StatusRemoteOnly
-			}
+			entry.Status = StatusRemoteOnly
 		case len(remotes) == 0:
-			if entry.Local.IsSymlink {
-				entry.Status = StatusUnknown
-			} else {
-				entry.Status = StatusLocalOnly
-			}
+			entry.Status = StatusLocalOnly
 		default:
-			entry.Status = classifyPair(entry.Local, entry.Remote, opts.TimestampTolerance)
+			entry.Status = classifyPair(locals[0], remotes[0], opts.TimestampTolerance)
 		}
-		out = append(out, entry)
+		entries = append(entries, entry)
 	}
-	return out, nil
+	return entries, nil
 }
 
-func groupByName(items []model.Item) map[string][]model.Item {
-	groups := make(map[string][]model.Item, len(items))
+func groupByExactName(items []model.Item) map[string][]model.Item {
+	grouped := make(map[string][]model.Item, len(items))
 	for _, item := range items {
-		groups[item.Name] = append(groups[item.Name], item)
+		grouped[item.Name] = append(grouped[item.Name], item)
 	}
-	return groups
+	return grouped
 }
 
 func classifyPair(local, remote model.Item, tolerance time.Duration) Status {
@@ -138,18 +123,28 @@ func classifyPair(local, remote model.Item, tolerance time.Duration) Status {
 		return StatusUnknown
 	}
 
-	delta := local.Modified.Sub(remote.Modified)
-	if delta < 0 {
-		delta = -delta
-	}
-	if delta <= tolerance {
-		if local.Size == remote.Size {
-			return StatusSame
+	// time.Time.Sub saturates at the duration limits for very distant dates.
+	// Always subtract newer from older directionally so no absolute-value
+	// negation can overflow the minimum duration and falsely look "within"
+	// tolerance.
+	if local.Modified.After(remote.Modified) {
+		if local.Modified.Sub(remote.Modified) > tolerance {
+			return StatusNewerLocal
 		}
+	} else if remote.Modified.After(local.Modified) {
+		if remote.Modified.Sub(local.Modified) > tolerance {
+			return StatusNewerRemote
+		}
+	}
+
+	if local.Size != remote.Size {
 		return StatusConflict
 	}
-	if local.Modified.After(remote.Modified) {
-		return StatusNewerLocal
+	// model.Item currently cannot distinguish a verified zero-byte remote file
+	// from a listing whose size fact was absent/malformed and therefore decoded
+	// to the zero value. Do not let that ambiguity manufacture StatusSame.
+	if local.Size == 0 {
+		return StatusUnknown
 	}
-	return StatusNewerRemote
+	return StatusSame
 }
