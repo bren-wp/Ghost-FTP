@@ -27,21 +27,21 @@ const (
 )
 
 type windowsRecursiveSearchPane struct {
-	searchButton   uintptr
-	navigateButton uintptr
-	list           uintptr
-	active         bool
-	running        bool
-	seq            uint64
-	generation     uint64
-	results        []api.SearchResult
-	cancel         context.CancelFunc
-	restoreSelected map[string]struct{}
+	searchButton	uintptr
+	navigateButton	uintptr
+	list		uintptr
+	active		bool
+	running		bool
+	seq		uint64
+	generation	uint64
+	results		[]api.SearchResult
+	cancel		context.CancelFunc
+	restoreSelected	map[string]struct{}
 }
 
 type windowsRecursiveSearchState struct {
-	local  windowsRecursiveSearchPane
-	remote windowsRecursiveSearchPane
+	local	windowsRecursiveSearchPane
+	remote	windowsRecursiveSearchPane
 }
 
 var windowsRecursiveSearchStates sync.Map
@@ -121,6 +121,22 @@ func (a *app) createRecursiveSearchList(hinst uintptr, id int) uintptr {
 	return hwnd
 }
 
+func (a *app) initializeRecursiveSearchListColumns(list uintptr) {
+	if list == 0 {
+		return
+	}
+	labels := []string{a.tr("column.name"), a.tr("common.folder"), a.tr("column.size"), a.tr("column.modified")}
+	widths := []int{190, 360, 96, 132}
+	for index, label := range labels {
+		column := lvColumn{
+			Mask: lvcfText | lvcfWidth,
+			Cx:   int32(a.scale(widths[index])),
+			Text: wstr(label),
+		}
+		sendMessageW.Call(list, lvmInsertColumnW, uintptr(index), uintptr(unsafe.Pointer(&column)))
+	}
+}
+
 func (a *app) ensureRecursiveSearchControls() {
 	state := a.recursiveSearchState()
 	if state == nil || a.hwnd == 0 {
@@ -132,11 +148,13 @@ func (a *app) ensureRecursiveSearchControls() {
 		state.local.searchButton = a.createRecursiveSearchButton(hinst, idLocalRecursiveSearch, words.Search, false)
 		state.local.navigateButton = a.createRecursiveSearchButton(hinst, idLocalRecursiveSearchNavigate, words.Navigate, true)
 		state.local.list = a.createRecursiveSearchList(hinst, idLocalRecursiveSearchList)
+		a.initializeRecursiveSearchListColumns(state.local.list)
 	}
 	if state.remote.searchButton == 0 {
 		state.remote.searchButton = a.createRecursiveSearchButton(hinst, idRemoteRecursiveSearch, words.Search, false)
 		state.remote.navigateButton = a.createRecursiveSearchButton(hinst, idRemoteRecursiveSearchNavigate, words.Navigate, true)
 		state.remote.list = a.createRecursiveSearchList(hinst, idRemoteRecursiveSearchList)
+		a.initializeRecursiveSearchListColumns(state.remote.list)
 	}
 	for _, pane := range []*windowsRecursiveSearchPane{&state.local, &state.remote} {
 		if pane.navigateButton != 0 && !pane.active {
@@ -158,15 +176,12 @@ func (a *app) updateRecursiveSearchListHeaders() {
 			continue
 		}
 		for index, label := range labels {
-			text := wstr(label)
-			column := lvColumn{Mask: lvcfText | lvcfWidth, Cx: int32(a.scale(widths[index])), Text: text}
-			if sendMessageW.Call(list, searchLVMSetColumnW, uintptr(index), uintptr(unsafe.Pointer(&column))); index == 0 {
-				// LVM_SETCOLUMN fails for a column that does not exist yet.
-				sendMessageW.Call(list, lvmInsertColumnW, uintptr(index), uintptr(unsafe.Pointer(&column)))
-			} else {
-				// Insert is harmlessly rejected when the column is already present.
-				sendMessageW.Call(list, lvmInsertColumnW, uintptr(index), uintptr(unsafe.Pointer(&column)))
+			column := lvColumn{
+				Mask: lvcfText | lvcfWidth,
+				Cx:   int32(a.scale(widths[index])),
+				Text: wstr(label),
 			}
+			sendMessageW.Call(list, searchLVMSetColumnW, uintptr(index), uintptr(unsafe.Pointer(&column)))
 		}
 	}
 }
@@ -230,7 +245,7 @@ func (a *app) layoutRecursiveSearchControls() {
 			continue
 		}
 		gap := a.scale(8)
-		width := int(listRect.Right-listRect.Left)
+		width := int(listRect.Right - listRect.Left)
 		half := (width - gap) / 2
 		y := int(filterRect.Top)
 		height := int(filterRect.Bottom - filterRect.Top)
@@ -341,9 +356,6 @@ func (a *app) startRecursiveSearch(remote bool, query string) {
 	pane.active = true
 	pane.running = true
 	pane.results = nil
-	pane.restoreSelected = selectedItemNames(a.normalListForPane(remote), func() []api.SearchResult { return nil }())
-	// restoreSelected must come from the authoritative visible directory slice,
-	// not from recursive results.
 	if remote {
 		pane.restoreSelected = selectedItemNames(a.remoteList, a.remoteItems)
 		pane.generation = a.connectionGeneration
@@ -452,7 +464,6 @@ func (a *app) closeRecursiveSearch(remote bool) {
 	pane.restoreSelected = nil
 	showControls(true, a.normalListForPane(remote), a.filterButtonForPane(remote))
 	showControls(false, pane.list, pane.navigateButton)
-	restoreItemSelection(a.normalListForPane(remote), func() []api.SearchResult { return nil }(), selected)
 	if remote {
 		restoreItemSelection(a.remoteList, a.remoteItems, selected)
 	} else {
