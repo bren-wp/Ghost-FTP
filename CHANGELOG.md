@@ -17,9 +17,12 @@
 
 ### Desktop quality
 
+- Added a non-destructive local/server current-folder filter on Windows and Linux. Filtering is case-insensitive, supports multiple whitespace-delimited name tokens, never mutates the authoritative directory snapshot, and performs no hidden filesystem/network scan while the user filters already loaded entries.
+- Keep row-indexed rename/delete/upload/download actions bound to the filtered visible slice so an action cannot target a hidden item after filtering; Windows server snapshots are additionally bound to the active connection generation and Linux clears stale server source data on disconnect.
+- Added localized filter controls for all 24 supported desktop languages plus shared filter semantics and cross-platform UI wiring regression coverage.
 - Added a regression contract that rejects main Windows buttons without command handlers and Linux controls/overlays without click handlers.
 - Added a guard against silently discarded Windows queue Cancel/Retry errors.
-- Defined complete acceptance criteria for future directory comparison, synchronized browsing, search/filter, bandwidth control, queue priority, bookmarks, verified resume, multi-session and proxy/jump-host capabilities before they may appear as shipped UI.
+- Defined complete acceptance criteria for future directory comparison, synchronized browsing, recursive search, bandwidth control, queue priority, bookmarks, verified resume, multi-session and proxy/jump-host capabilities before they may appear as shipped UI.
 
 ### Documentation and product media
 

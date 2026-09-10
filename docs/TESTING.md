@@ -28,6 +28,24 @@ Tests cover the maintained FTP/FTPS/SFTP engine contract, including:
 - queue pause/resume/cancel/retry lifecycle;
 - Remote Edit text/binary, size, revision/conflict, permission, read-back and metadata-refresh behavior.
 
+## Current-folder filter regression contract
+
+The Unreleased source line includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from future recursive search.
+
+The filter gates require:
+
+- shared `internal/itemlist.Filter` behavior with case-insensitive substring matching and whitespace-delimited AND tokens;
+- an empty query to return an independent copy of the full source snapshot;
+- filtering and subsequent sorting to leave the authoritative source slice untouched;
+- no filesystem, network, engine-listing or recursive-scan call from the shared filter path;
+- Windows to keep separate authoritative and visible snapshots, with server snapshots bound to the active connection generation;
+- Linux to keep separate authoritative and visible snapshots and discard stale server source data on disconnect;
+- rename/delete/upload/download row indices to resolve only against the currently visible filtered slice;
+- Windows and Linux filter controls to be rendered and wired, with empty input clearing the filter;
+- localized filter copy for all 24 supported desktop languages.
+
+`scripts/test_file_filter_ui_contract.py` protects the cross-platform source wiring while Go unit tests protect shared matching/copy semantics. Native production builds remain the compile/runtime gate for each frontend.
+
 ## Settings regression contract
 
 The settings suite verifies that visible runtime options remain bounded and migration-safe.
@@ -59,6 +77,8 @@ Linux checks:
 - require the same control to have a mouse click handler;
 - verify the Remote Edit button path;
 - verify SFTP Trust/Cancel and prompt Apply/Cancel overlay controls are both rendered and handled.
+
+The dedicated file-filter contract supplements this generic action-wiring gate because the Windows filter controls are dynamically inserted after the canonical layout and the Linux filter controls deliberately reuse the list-area geometry instead of adding decorative layout-only rectangles.
 
 The gate intentionally tests wiring, not just pixels. Runtime behavior remains covered by Go unit/integration tests and authentic UI smoke evidence.
 
@@ -158,7 +178,7 @@ Before destructive cleanup it independently verifies current release identity, `
 
 ## Quality rule for new power-user features
 
-A new feature such as search/filter, directory comparison, synchronized browsing, bandwidth limits, queue priority or bookmarks is not release-ready until all applicable layers exist:
+A new feature such as recursive search, directory comparison, synchronized browsing, bandwidth limits, queue priority or bookmarks is not release-ready until all applicable layers exist:
 
 - shared engine/runtime behavior;
 - validation and safe defaults;

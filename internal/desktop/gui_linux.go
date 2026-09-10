@@ -591,10 +591,13 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.drawButton(u.layout.remoteChmod, u.tr("common.permissions"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.renderItemRows(u.layout.localList, u.localItems, u.selectedLocal); err != nil {
+	if err := u.renderFileFilterControls(); err != nil {
 		return err
 	}
-	if err := u.renderItemRows(u.layout.remoteList, u.remoteItems, u.selectedRemote); err != nil {
+	if err := u.renderItemRows(u.fileFilterListRect(false), u.localItems, u.selectedLocal); err != nil {
+		return err
+	}
+	if err := u.renderItemRows(u.fileFilterListRect(true), u.remoteItems, u.selectedRemote); err != nil {
 		return err
 	}
 	if err := u.drawButton(u.layout.upload, u.tr("transfer.upload")+" →", u.connected && u.selectedLocal >= 0 && !u.busy, true); err != nil {
@@ -977,17 +980,16 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 	case linuxActionDisconnect:
 		u.connected = false
 		u.pendingFingerprint = ""
-		u.remoteItems = nil
-		u.selectedRemote = -1
+		u.clearLinuxRemoteFilterSource()
 		u.setStatus(u.tr("disconnect.done"))
 	case linuxActionLocalRefresh:
 		u.localCurrent = result.localBase
-		u.localItems = result.localItems
+		u.acceptLinuxFileFilterSnapshot(false, result.localItems)
 		u.selectedLocal = -1
 		u.setStatus(fmt.Sprintf("Local files refreshed: %d items.", len(result.localItems)))
 	case linuxActionRemoteRefresh:
 		u.remoteCurrent = result.localBase
-		u.remoteItems = result.remoteItems
+		u.acceptLinuxFileFilterSnapshot(true, result.remoteItems)
 		u.selectedRemote = -1
 		u.setStatus(fmt.Sprintf("Server files refreshed: %d items.", len(result.remoteItems)))
 	case linuxActionTransfer:
@@ -1018,6 +1020,9 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 	}
 	l := u.layout
 	if u.handleQueuePriorityMouse(x, y) {
+		return
+	}
+	if u.handleFileFilterMouse(x, y) {
 		return
 	}
 	switch {
@@ -1057,10 +1062,10 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		u.openSelectedRemoteChmod()
 	case u.remoteEditButtonRect().contains(x, y):
 		u.openSelectedRemoteEditor()
-	case l.localList.contains(x, y):
-		u.selectedLocal = u.selectRow(l.localList, y, len(u.localItems))
-	case l.remoteList.contains(x, y):
-		u.selectedRemote = u.selectRow(l.remoteList, y, len(u.remoteItems))
+	case u.fileFilterListRect(false).contains(x, y):
+		u.selectedLocal = u.selectRow(u.fileFilterListRect(false), y, len(u.localItems))
+	case u.fileFilterListRect(true).contains(x, y):
+		u.selectedRemote = u.selectRow(u.fileFilterListRect(true), y, len(u.remoteItems))
 	case l.upload.contains(x, y):
 		u.queueTransfer("upload")
 	case l.download.contains(x, y):
@@ -1102,6 +1107,10 @@ func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 		return true
 	}
 	if state&x11ControlMask != 0 {
+		if sym == 'f' || sym == 'F' {
+			u.openFileFilterPrompt(false)
+			return true
+		}
 		if sym == 'q' || sym == 'Q' {
 			return false
 		}
