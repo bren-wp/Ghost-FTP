@@ -32,22 +32,36 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
 
             verify_release.assert_windows_artifact_directory_clean(root)
 
+    def assert_extra_executable_rejected(self, name: str) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "Ghost-FTP-0.0.2-Setup-x64.exe").write_bytes(b"setup")
+            (root / "Ghost-FTP-0.0.2-Portable-x64.exe").write_bytes(b"portable")
+            (root / name).write_bytes(b"unexpected")
+            with self.assertRaisesRegex(ValueError, "unexpected Windows executable artifact"):
+                verify_release.assert_windows_artifact_directory_clean(root)
+
     def test_any_extra_public_executable_is_rejected(self) -> None:
-        forbidden = (
+        for name in (
             "Uninstall.exe",
             "Uninstaller.exe",
             "unins000.exe",
             "Ghost-FTP-0.0.2-Uninstaller-x64.exe",
             "helper.exe",
-        )
-        for name in forbidden:
-            with self.subTest(name=name), tempfile.TemporaryDirectory() as temp:
-                root = Path(temp)
-                (root / "Ghost-FTP-0.0.2-Setup-x64.exe").write_bytes(b"setup")
-                (root / "Ghost-FTP-0.0.2-Portable-x64.exe").write_bytes(b"portable")
-                (root / name).write_bytes(b"unexpected")
-                with self.assertRaisesRegex(ValueError, "unexpected Windows executable artifact"):
-                    verify_release.assert_windows_artifact_directory_clean(root)
+        ):
+            with self.subTest(name=name):
+                self.assert_extra_executable_rejected(name)
+
+    def test_noncanonical_ghostftp_executable_names_are_rejected(self) -> None:
+        for name in (
+            "Ghost-FTP-0.0.2-Setup-arm64.exe",
+            "Ghost-FTP-0.0.2-Setup-x32.exe",
+            "Ghost-FTP-0.0.2-Setup-x64-debug.exe",
+            "Ghost-FTP-0.0.2-beta-Setup-x64.exe",
+            "GhostFTP-0.0.2-Setup-x64.exe",
+        ):
+            with self.subTest(name=name):
+                self.assert_extra_executable_rejected(name)
 
     def test_build_pipeline_remains_self_hosted_go_installer(self) -> None:
         build = (ROOT / "BUILD-WINDOWS.ps1").read_text(encoding="utf-8")
