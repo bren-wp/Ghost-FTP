@@ -39,9 +39,13 @@ The immediate 0.0.x hardening lane includes:
 9. Windows/Linux functional parity for file operations, queue state, shortcuts, settings and error handling;
 10. documentation and authentic real-application screenshots synchronized with exact maintained source.
 
+## 0.0.x work implemented after 0.0.1
+
+The maintained source now includes a **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request. The filter is localized for all 24 supported desktop languages. This work remains part of the Unreleased source line until a successor release is published and verified; it does not rewrite or redefine the existing 0.0.1 release.
+
 ## High-value power-user lane
 
-These capabilities are prioritized because they improve real hosting/server workflows. They are **planned, not advertised as shipped**, until all acceptance gates below are satisfied.
+These capabilities are prioritized because they improve real hosting/server workflows. Remaining items are **planned, not advertised as shipped**, until all acceptance gates below are satisfied.
 
 ### P0 — directory comparison and synchronized navigation
 
@@ -55,17 +59,18 @@ Acceptance requirements:
 - Windows and Linux expose the same states and disable synchronization when the mapping is ambiguous;
 - comparison itself never transfers or deletes data.
 
-### P0 — local/server search and non-destructive filters
+### P0 — bounded recursive local/server search
 
-Add fast filtering of the currently loaded directory plus an explicitly bounded recursive search mode. Filtering must not alter the underlying item model or silently hide selected destructive targets.
+The fast current-folder filtering portion of the original search/filter roadmap is implemented in the Unreleased source line. The remaining search work is an explicitly bounded recursive mode; it must be visually and behaviorally distinct from the current-folder filter so users can tell when Ghost FTP will perform additional filesystem/server I/O.
 
 Acceptance requirements:
 
 - case behavior is explicit and platform-independent where practical;
-- recursive server search has a strict item/depth/time bound;
+- recursive server search has strict item, depth and time bounds;
 - cancellation is immediate and leaves the connection usable;
-- hidden/filtered selections cannot be deleted or transferred accidentally;
-- large result sets are incrementally presented rather than blocking the UI thread.
+- search results cannot make a hidden or stale destructive target actionable;
+- large result sets are incrementally presented rather than blocking the UI thread;
+- starting a recursive search clearly communicates that additional local/server listing work will occur.
 
 ### P0 — bandwidth-aware transfer controls
 
