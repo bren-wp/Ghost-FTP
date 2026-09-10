@@ -17,14 +17,14 @@ import (
 )
 
 type linuxBookmarkUIState struct {
-	items      []model.Bookmark
-	selected   int
-	list       linuxRect
-	open       linuxRect
-	addLocal   linuxRect
-	addRemote  linuxRect
-	delete     linuxRect
-	close      linuxRect
+	items     []model.Bookmark
+	selected  int
+	list      linuxRect
+	open      linuxRect
+	addLocal  linuxRect
+	addRemote linuxRect
+	delete    linuxRect
+	close     linuxRect
 }
 
 var linuxBookmarkUIStates sync.Map
@@ -45,6 +45,7 @@ func (u *linuxDesktop) bookmarksHeaderRect() linuxRect {
 }
 
 func (u *linuxDesktop) renderBookmarksHeaderButton() error {
+	u.enforceLinuxProfileStartDirectories()
 	words := bookmarkWordsForLanguage(u.language)
 	return u.drawButton(u.bookmarksHeaderRect(), words.Title, !u.busy, false)
 }
@@ -113,8 +114,8 @@ func (u *linuxDesktop) renderBookmarkManagerOverlay() error {
 	words := bookmarkWordsForLanguage(u.language)
 	width := min(780, u.width-80)
 	height := min(470, u.height-80)
-	if width < 560 {
-		width = 560
+	if width < 660 {
+		width = 660
 	}
 	if height < 340 {
 		height = 340
