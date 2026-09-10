@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,6 +48,34 @@ class FileFilterUIContractTests(unittest.TestCase):
         self.assertIn("state.remoteGeneration = a.connectionGeneration", text)
         self.assertIn("if state.remoteGeneration == a.connectionGeneration", text)
         self.assertIn("a.connected && !a.connectionBusy", text)
+
+    def test_windows_workspace_command_ids_are_unique(self) -> None:
+        paths = (
+            "internal/desktop/win32_defs_windows.go",
+            "internal/desktop/remote_edit_windows.go",
+            "internal/desktop/queue_priority_windows.go",
+            "internal/desktop/file_filter_windows.go",
+        )
+        pattern = re.compile(r"(?m)^\s*(id[A-Z][A-Za-z0-9_]*)\s*=\s*(\d+)\s*$")
+        by_value: dict[int, str] = {}
+        by_name: dict[str, int] = {}
+
+        for path in paths:
+            for name, raw_value in pattern.findall(source(path)):
+                value = int(raw_value)
+                previous = by_value.get(value)
+                if previous is not None:
+                    self.fail(
+                        f"duplicate Windows workspace command id {value}: "
+                        f"{previous} and {name}"
+                    )
+                by_value[value] = name
+                by_name[name] = value
+
+        self.assertGreaterEqual(len(by_value), 35)
+        self.assertEqual(by_name.get("idRemoteEdit"), 309)
+        self.assertEqual(by_name.get("idLocalFilter"), 209)
+        self.assertEqual(by_name.get("idRemoteFilter"), 310)
 
     def test_linux_render_selection_and_refresh_use_visible_slice(self) -> None:
         ui = source("internal/desktop/gui_linux.go")
