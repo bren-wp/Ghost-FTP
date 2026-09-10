@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def source(path: str) -> str:
+    return (ROOT / path).read_text(encoding="utf-8")
+
+
+class FileFilterUIContractTests(unittest.TestCase):
+    def test_shared_filter_is_non_destructive_and_io_free(self) -> None:
+        text = source("internal/itemlist/filter.go")
+        self.assertIn("func Filter(items []model.Item, query string) []model.Item", text)
+        self.assertIn("out := make([]model.Item, 0, len(items))", text)
+        self.assertIn("return append(out, items...)", text)
+        self.assertIn("strings.Contains(name, token)", text)
+        for forbidden in ("os.", "net.", "http.", "LocalList", "RemoteList"):
+            self.assertNotIn(forbidden, text)
+
+    def test_windows_rows_use_visible_snapshot_not_source_snapshot(self) -> None:
+        filter_source = source("internal/desktop/file_filter_windows.go")
+        helpers = source("internal/desktop/helpers_windows.go")
+        commands = source("internal/desktop/commands_windows.go")
+        layout = source("internal/desktop/workspace_layout_windows.go")
+
+        for marker in (
+            "localAll",
+            "remoteAll",
+            "remoteGeneration",
+            "itemlist.Filter(state.localAll, state.localQuery)",
+            "itemlist.Filter(state.remoteAll, state.remoteQuery)",
+            "a.localItems = visible",
+            "a.remoteItems = visible",
+        ):
+            self.assertIn(marker, filter_source)
+        self.assertIn("visible := owner.acceptFileFilterSnapshot(list, items)", helpers)
+        self.assertIn("owner.sortFileItems(list, visible)", helpers)
+        self.assertIn("case idLocalFilter:", commands)
+        self.assertIn("case idRemoteFilter:", commands)
+        self.assertIn("a.ensureFileFilterControls()", layout)
+        self.assertIn("a.layoutFileFilterControls()", layout)
+
+    def test_windows_remote_filter_is_connection_generation_bound(self) -> None:
+        text = source("internal/desktop/file_filter_windows.go")
+        self.assertIn("state.remoteGeneration = a.connectionGeneration", text)
+        self.assertIn("if state.remoteGeneration == a.connectionGeneration", text)
+        self.assertIn("a.connected && !a.connectionBusy", text)
+
+    def test_linux_render_selection_and_refresh_use_visible_slice(self) -> None:
+        ui = source("internal/desktop/gui_linux.go")
+        filter_source = source("internal/desktop/file_filter_linux.go")
+        actions = source("internal/desktop/gui_linux_actions.go")
+
+        self.assertIn("u.renderFileFilterControls()", ui)
+        self.assertIn("u.renderItemRows(u.fileFilterListRect(false), u.localItems", ui)
+        self.assertIn("u.renderItemRows(u.fileFilterListRect(true), u.remoteItems", ui)
+        self.assertIn("u.handleFileFilterMouse(x, y)", ui)
+        self.assertIn("u.selectRow(u.fileFilterListRect(false), y, len(u.localItems))", ui)
+        self.assertIn("u.selectRow(u.fileFilterListRect(true), y, len(u.remoteItems))", ui)
+        self.assertIn("u.acceptLinuxFileFilterSnapshot(false, result.localItems)", ui)
+        self.assertIn("u.acceptLinuxFileFilterSnapshot(true, result.remoteItems)", ui)
+        self.assertIn("u.clearLinuxRemoteFilterSource()", ui)
+        self.assertIn("u.openFileFilterPrompt(false)", ui)
+
+        self.assertIn("state.localAll = source", filter_source)
+        self.assertIn("state.remoteAll = source", filter_source)
+        self.assertIn("u.localItems = itemlist.Filter(state.localAll, query)", filter_source)
+        self.assertIn("u.remoteItems = itemlist.Filter(state.remoteAll, query)", filter_source)
+        self.assertIn("linuxPromptLocalFilter", actions)
+        self.assertIn("linuxPromptRemoteFilter", actions)
+        self.assertIn("isFilter := kind == linuxPromptLocalFilter || kind == linuxPromptRemoteFilter", actions)
+
+    def test_feature_does_not_claim_recursive_search(self) -> None:
+        combined = "\n".join(
+            source(path).lower()
+            for path in (
+                "internal/itemlist/filter.go",
+                "internal/desktop/file_filter_windows.go",
+                "internal/desktop/file_filter_linux.go",
+                "internal/desktop/filter_words.go",
+            )
+        )
+        self.assertNotIn("recursive search", combined.replace("no hidden recursive scans", ""))
+        self.assertNotIn("search server recursively", combined)
+
+
+if __name__ == "__main__":
+    result = unittest.main(exit=False)
+    if not result.result.wasSuccessful():
+        raise SystemExit(1)
+    print("FILE_FILTER_UI_CONTRACT=PASS")
