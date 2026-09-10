@@ -34,18 +34,21 @@ func (a *app) updateActionControls() {
 	setControlEnabled(a.removeProfile, profileEditable && a.selectedProfileID != "")
 	setControlEnabled(a.settingsBtn, !a.connectionBusy)
 
+	localSearch := a.recursiveSearchPaneActive(false)
 	localSelected := validSelectionCount(a.localList, len(a.localItems))
-	setControlEnabled(a.localRename, localSelected == 1)
-	setControlEnabled(a.localDelete, localSelected > 0)
-	setControlEnabled(a.upload, a.connected && !a.connectionBusy && localSelected > 0)
+	setControlEnabled(a.localMkdir, !localSearch)
+	setControlEnabled(a.localRename, !localSearch && localSelected == 1)
+	setControlEnabled(a.localDelete, !localSearch && localSelected > 0)
+	setControlEnabled(a.upload, !localSearch && a.connected && !a.connectionBusy && localSelected > 0)
 
+	remoteSearch := a.recursiveSearchPaneActive(true)
 	remoteSelected := validSelectionCount(a.remoteList, len(a.remoteItems))
-	remoteReady := a.connected && !a.connectionBusy
+	remoteReady := a.connected && !a.connectionBusy && !remoteSearch
 	setControlEnabled(a.remoteMkdir, remoteReady)
 	setControlEnabled(a.remoteRename, remoteReady && remoteSelected == 1)
 	setControlEnabled(a.remoteDelete, remoteReady && remoteSelected > 0)
 	setControlEnabled(a.download, remoteReady && remoteSelected > 0)
-	setControlEnabled(remoteEditButton(a), a.remoteEditSelectionReady())
+	setControlEnabled(remoteEditButton(a), remoteReady && a.remoteEditSelectionReady())
 
 	chmodSelected := 0
 	if remoteReady {
@@ -53,12 +56,11 @@ func (a *app) updateActionControls() {
 			if index >= 0 && index < len(a.remoteItems) && !a.remoteItems[index].IsSymlink {
 				chmodSelected++
 			}
-		}
 	}
 	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
 
 	selectedTransfers := selectedIndices(a.transferList)
-	transferState := deriveTransferActionState(a.transferJobs, selectedTransfers, remoteReady, a.queuePaused)
+	transferState := deriveTransferActionState(a.transferJobs, selectedTransfers, a.connected && !a.connectionBusy, a.queuePaused)
 	priorityState := deriveQueuePriorityState(a.transferJobs, selectedTransfers)
 	if a.connectionBusy {
 		transferState.Pause = false
