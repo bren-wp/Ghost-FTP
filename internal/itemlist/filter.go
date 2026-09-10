@@ -21,12 +21,13 @@ func Filter(items []model.Item, query string) []model.Item {
 	}
 
 	out := make([]model.Item, 0, len(items))
-	if len(filterTokens(query)) == 0 {
+	tokens := filterTokens(query)
+	if len(tokens) == 0 {
 		return append(out, items...)
 	}
 
 	for _, item := range items {
-		if MatchesName(item.Name, query) {
+		if matchesTokens(item.Name, tokens) {
 			out = append(out, item)
 		}
 	}
@@ -37,7 +38,10 @@ func Filter(items []model.Item, query string) []model.Item {
 // used by the current-folder filter. Recursive search reuses this helper so the
 // two user-facing search surfaces cannot drift to different case behavior.
 func MatchesName(name, query string) bool {
-	tokens := filterTokens(query)
+	return matchesTokens(name, filterTokens(query))
+}
+
+func matchesTokens(name string, tokens []string) bool {
 	if len(tokens) == 0 {
 		return true
 	}
