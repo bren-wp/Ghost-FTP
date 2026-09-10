@@ -1,5 +1,43 @@
 # Ghost FTP release history
 
+## 0.0.3 — 2026-09-10
+
+Ghost FTP 0.0.3 adds real bandwidth-aware transfer controls and completes the public packaging transition while preserving the 0.0.2 security/privacy and navigation baseline.
+
+### Application and settings
+
+- Added independent upload/download bandwidth ceilings on Windows and Linux with explicit binary KiB/s units and `0 = unlimited`.
+- Added conservative aggregate directional allocation across configured worker slots so concurrent transfers cannot multiply the configured limit.
+- Enforced the resulting attempt budget in the actual FTP/FTPS/SFTP transport path through curl `limit-rate` or OpenSSH `sftp -l`.
+- New/retried attempts observe newly saved limits while already-running child processes retain their start-time snapshot.
+- Added shared configuration, scheduler, transport conversion and Windows/Linux settings-surface regression coverage.
+
+### Release engineering
+
+- Replaced five architecture-specific public Windows downloads with two universal Setup/Portable executables while retaining verified native x64/x86 payloads internally.
+- Bound native Windows selection to system architecture information, verified staged embedded payload bytes and introduced no runtime download.
+- Promoted Debian/Ubuntu/Fedora/Portable Linux packages to canonical public release artifacts.
+- Expanded the canonical allow-list to **14 platform artifacts / 17 public files**.
+- Preserved Debian/Ubuntu/Fedora package metadata/binary parity gates and Debian 13, Ubuntu 26.04 LTS and Fedora 44 native lifecycle/GUI smoke.
+- Preserved exact-head/exact-main gating, immediate/delayed release read-back, GHCR verification and latest-only retention.
+
+### Security and privacy
+
+- Preserves strict FTPS certificate/hostname verification and no silent downgrade.
+- Preserves strict SFTP host-key verification/pinning and trusted Linux transport/AskPass provenance.
+- Preserves rooted local path/transfer protections, staged activation/rollback, protected saved-secret handling and connection-generation binding.
+- Preserves the no-telemetry, no-analytics, no-advertising, no-fingerprinting and no-hidden-backend contract.
+
+### Release quality
+
+- Universal Windows Setup and Portable public executables with verified internal x64/x86 payloads.
+- Debian DEB amd64/arm64/i386; Ubuntu DEB amd64/arm64/i386; Fedora RPM x86_64/aarch64/i686; Portable tar.gz amd64/arm64/i386.
+- **14 platform artifacts / 17 public files**.
+- Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native lifecycle/GUI smoke.
+- Exact-head and exact post-merge workflow verification before publication.
+- Current source identity `ghostftp-v0.0.3` with `prerelease=false` once canonical publication is authorized and completed.
+- Verified distribution bundle target `ghcr.io/bren-wp/ghost-ftp:0.0.3`.
+
 ## 0.0.2 — 2026-09-10
 
 Ghost FTP 0.0.2 advances the current public release line with reliability hardening and production-ready local/server navigation workflows while preserving the 0.0.1 security and privacy baseline.
@@ -43,8 +81,8 @@ Ghost FTP 0.0.2 advances the current public release line with reliability harden
 - **12 platform artifacts / 15 public files**.
 - Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native lifecycle/GUI smoke.
 - Exact-head and exact post-merge workflow verification before publication.
-- Current release identity `ghostftp-v0.0.2` with `prerelease=false`.
-- Verified GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.2`.
+- Historical release identity `ghostftp-v0.0.2` with `prerelease=false`.
+- Historical GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.2`.
 
 ## 0.0.1 — 2026-09-09
 
@@ -90,4 +128,4 @@ Only the latest public Ghost FTP version is retained after successful publicatio
 
 The Git commit history on `main` is not rewritten by this policy.
 
-The next release must start from the verified current source and advance through a separate release-prep change, beginning with 0.0.3 after 0.0.2 is fully published and retention cleanup succeeds.
+The next release must start from the verified current source and advance through a separate release-prep change after the current publication and retention cycle succeeds.

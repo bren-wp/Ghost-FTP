@@ -129,6 +129,7 @@ def main() -> int:
         fail("README public title must be Ghost FTP")
     if not index.startswith("# Ghost FTP documentation\n"):
         fail("documentation index title is invalid")
+
     require_markers(
         "README current release",
         readme,
@@ -178,6 +179,7 @@ def main() -> int:
             "repository-local",
         ),
     )
+
     reference_ui = read("docs/REFERENCE-UI.md")
     require_markers(
         "reference UI visual contract",
@@ -224,11 +226,13 @@ def main() -> int:
                 fail(f"stale mandatory-signing policy appears in active guidance: {relative} -> {marker}")
 
     release_contract = (
-        "12 platform artifacts / 15 public files",
-        f"Ghost-FTP-{version}-Setup-x64.exe",
-        f"Ghost-FTP-{version}-Portable-x64.exe",
-        f"Ghost-FTP-{version}-Linux-amd64.deb",
-        f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
+        "14 platform artifacts / 17 public files",
+        f"Ghost-FTP-{version}-Setup.exe",
+        f"Ghost-FTP-{version}-Portable.exe",
+        f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+        f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+        f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+        f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
     )
     require_markers("README release contract", readme, release_contract)
     require_markers("documentation index release contract", index, (release_contract[0],))
@@ -239,15 +243,14 @@ def main() -> int:
         installation,
         (
             f"Ghost FTP **{version}** is the current published release",
-            f"Ghost-FTP-{version}-Setup-x64.exe",
-            f"Ghost-FTP-{version}-Linux-amd64.deb",
-            f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
+            f"Ghost-FTP-{version}-Setup.exe", f"Ghost-FTP-{version}-Portable.exe",
+            f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+            f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
             "Canonical release packages",
-            "Supplemental distro-specific source/CI packages",
-            "Linux-Debian-amd64.deb", "Linux-Ubuntu-amd64.deb", "Linux-Fedora-x86_64.rpm",
             "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
-            "not yet part of the canonical release allow-list", "x86-64 only",
-            "12 platform artifacts / 15 public files",
+            "x86-64 only", "14 platform artifacts / 17 public files",
         ),
     )
 
@@ -256,12 +259,15 @@ def main() -> int:
         "linux distro contract",
         linux_readme,
         (
+            f"Ghost FTP **{version}** is the current public release line",
+            f"Canonical {version} release artifacts",
             "linux/BUILD-DISTROS.sh", "Linux-Debian-amd64.deb", "Linux-Ubuntu-amd64.deb",
             "Linux-Fedora-x86_64.rpm", "Linux-Portable-amd64.tar.gz",
             "`amd64` | `x86_64`", "`arm64` | `aarch64`", "`i386` | `i686`",
             ".github/workflows/linux-distro-packages.yml", ".github/workflows/linux-distro-install.yml",
             "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
-            "x86-64 only", "12 platform artifacts / 15 public files",
+            "x86-64 only", "14 platform artifacts / 17 public files",
+            "distro-specific artifacts are no longer supplemental",
         ),
     )
 
@@ -270,11 +276,12 @@ def main() -> int:
         "platform parity documentation",
         parity,
         (
-            "Windows and Linux platform parity", "SFTP password", "SFTP key passphrase", "24-language",
+            "Windows and Linux platform parity", f"Ghost FTP **{version}**",
+            "SFTP password", "SFTP key passphrase", "24-language",
             "same typed `internal/api.Engine`", "Production Authenticode is optional.",
             "WINDOWS_AUTHENTICODE=unsigned", "linux/BUILD-DISTROS.sh",
             "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
-            "x86-64 only", "12 platform artifacts / 15 public files",
+            "x86-64 only", "14 platform artifacts / 17 public files",
         ),
     )
 
@@ -283,11 +290,12 @@ def main() -> int:
         "testing documentation",
         testing,
         (
-            f"Ghost FTP **{version}**",
+            f"Ghost FTP **{version}**", "Bandwidth regression contract",
             ".github/workflows/linux-distro-packages.yml", ".github/workflows/linux-distro-install.yml",
             "linux/BUILD-DISTROS.sh", "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
             "Native package-manager/runtime coverage is deliberately limited to x86-64.",
-            "12 platform artifacts / 15 public files", "Exact-head and post-merge rule",
+            "14 platform artifacts / 17 public files", "Exact-head and post-merge rule",
+            f"Ghost-FTP-{version}-Setup.exe", f"Ghost-FTP-{version}-Portable.exe",
         ),
     )
 
@@ -297,8 +305,8 @@ def main() -> int:
         releases,
         (
             f"Ghost FTP **{version}** is the current published release",
-            f"ghostftp-v{version}", f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
-            "Prerelease: false", "12 platform artifacts", "15 public files",
+            f"ghostftp-v{version}", f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+            "Prerelease: false", "14 platform artifacts", "17 public files",
             "release/ghostftp-vX.Y.Z", "workflow_dispatch",
             "only the latest public Ghost FTP version remains", "release-retention.yml",
         ),
@@ -311,8 +319,8 @@ def main() -> int:
         (
             f"current maintained release is **{version}**",
             f"VERSION={version}", f"TAG=ghostftp-v{version}", f"PRERELEASE={prerelease}",
-            f"Ghost-FTP-{version}-Linux-amd64.tar.gz",
-            "12 platform artifacts", "15 public files", "truthful supported publication state",
+            f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+            "14 platform artifacts", "17 public files", "truthful supported publication state",
             "does not create a self-signed production identity",
             "explicit unsigned metadata when no production certificate is configured",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
@@ -324,9 +332,9 @@ def main() -> int:
         "packages documentation",
         packages,
         (
-            f"Ghost FTP **{version}**",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}", "distribution bundle", "not a runtime container",
-            "/ghostftp-release/", "SHA256.txt", "12 platform artifacts / 15 public files",
+            f"Ghost FTP **{version}**", f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            "distribution bundle", "not a runtime container", "/ghostftp-release/", "SHA256.txt",
+            "14 platform artifacts / 17 public files",
             "Authenticode verification **when a trusted production certificate is configured**",
             "WINDOWS_AUTHENTICODE=unsigned", "latest",
         ),
@@ -339,8 +347,7 @@ def main() -> int:
         (
             f"Ghost FTP **{version}**",
             "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
-            "official file is explicitly `unsigned`",
-            "metadata says `signed`",
+            "official file is explicitly `unsigned`", "metadata says `signed`",
             "Windows signature verification fails",
         ),
     )
@@ -360,7 +367,14 @@ def main() -> int:
     require_markers(
         "release history",
         history,
-        (f"## {version}", "latest public Ghost FTP version", "release-retention.yml"),
+        (f"## {version}", "latest public Ghost FTP version", "release-retention.yml", "14 platform artifacts / 17 public files"),
+    )
+
+    transition = read("docs/PACKAGING-TRANSITION.md")
+    require_markers(
+        "packaging transition record",
+        transition,
+        ("0.0.3 source candidate", "historical 0.0.2 tag/release is not rewritten", "PUBLIC_PLATFORM_ARTIFACTS=14", "PUBLIC_RELEASE_FILES=17"),
     )
 
     print(f"DOCS_AUDIT=PASS ({version}; channel=current; {len(files)} Markdown files)")
@@ -373,9 +387,9 @@ def main() -> int:
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("PUBLIC_PLATFORM_ARTIFACTS=12")
-    print("PUBLIC_RELEASE_FILES=15")
-    print("SUPPLEMENTAL_DISTRO_PACKAGING=DEBIAN,UBUNTU,FEDORA,PORTABLE")
+    print("PUBLIC_PLATFORM_ARTIFACTS=14")
+    print("PUBLIC_RELEASE_FILES=17")
+    print("CANONICAL_DISTRO_PACKAGING=DEBIAN,UBUNTU,FEDORA,PORTABLE")
     print("NATIVE_DISTRO_INSTALL_COVERAGE=DEBIAN13_AMD64,UBUNTU26.04_AMD64,FEDORA44_X86_64")
     print("DOCS_LOCAL_VISUALS=PASS")
     return 0

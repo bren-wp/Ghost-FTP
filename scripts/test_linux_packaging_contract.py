@@ -71,7 +71,7 @@ class LinuxPackagingContractTests(unittest.TestCase):
         for arch in ("x86_64", "aarch64", "i686"):
             self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-Fedora-{arch}.rpm", workflow)
 
-    def test_docs_preserve_published_release_and_describe_next_packaging_contract(self) -> None:
+    def test_docs_describe_current_version_and_canonical_linux_contract(self) -> None:
         version = read("VERSION").strip()
         linux_readme = read("linux/README.md")
         parity = read("docs/PLATFORM-PARITY.md")
@@ -79,28 +79,20 @@ class LinuxPackagingContractTests(unittest.TestCase):
         verification = read("docs/RELEASE-VERIFICATION.md")
         transition = read("docs/PACKAGING-TRANSITION.md")
 
-        self.assertRegex(version, r"^0\.0\.[1-9]\d*$")
+        self.assertEqual(version, "0.0.3")
         self.assertIn(f"Ghost FTP **{version}** is the current public release line", linux_readme)
         self.assertIn(f"Canonical {version} release artifacts", linux_readme)
-        self.assertIn("Supplemental distro-specific CI artifacts", linux_readme)
-        self.assertIn(f"They are not part of the canonical {version} public release allow-list", linux_readme)
+        self.assertIn("distro-specific artifacts are no longer supplemental", linux_readme)
         self.assertIn(f"ghcr.io/bren-wp/ghost-ftp:{version}", linux_readme)
-        self.assertNotIn("already published Ghost FTP 1.1.6 release is immutable", linux_readme)
-        self.assertNotIn("retroactively claimed as a 1.1.6 release asset", linux_readme)
+        self.assertNotIn("not part of the canonical 0.0.3 public release allow-list", linux_readme)
 
-        # The already-published current release remains historically accurate.
-        self.assertIn("12 platform artifacts / 15 public files", parity)
-        self.assertIn("12 platform artifacts", releases)
-        self.assertIn("15 public files", releases)
-        self.assertIn("12 platform artifacts", verification)
-        self.assertIn("15 public files", verification)
+        self.assertIn("14 platform artifacts / 17 public files", parity)
+        self.assertIn("14 platform artifacts", releases)
+        self.assertIn("17 public files", releases)
+        self.assertIn("14 platform artifacts", verification)
+        self.assertIn("17 public files", verification)
 
-        # The next release packaging shape is documented separately until VERSION advances.
-        self.assertIn("does not redefine or rewrite `ghostftp-v0.0.2`", transition)
-        self.assertIn("Ghost-FTP-X.Y.Z-Linux-Debian-amd64.deb", transition)
-        self.assertIn("Ghost-FTP-X.Y.Z-Linux-Ubuntu-amd64.deb", transition)
-        self.assertIn("Ghost-FTP-X.Y.Z-Linux-Fedora-x86_64.rpm", transition)
-        self.assertIn("Ghost-FTP-X.Y.Z-Linux-Portable-amd64.tar.gz", transition)
+        self.assertIn("historical 0.0.2 tag/release is not rewritten", transition)
         self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=14", transition)
         self.assertIn("PUBLIC_RELEASE_FILES=17", transition)
 

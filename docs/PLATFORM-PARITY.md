@@ -1,6 +1,6 @@
 # Windows and Linux platform parity
 
-Ghost FTP **0.0.1** is one desktop product with native Windows and Linux frontends. Both platforms use the **same typed `internal/api.Engine`** and the same protocol, transfer, profile, settings, localization, Remote Edit and security layers.
+Ghost FTP **0.0.3** is one desktop product with native Windows and Linux frontends. Both platforms use the **same typed `internal/api.Engine`** and the same protocol, transfer, profile, settings, localization, Remote Edit and security layers.
 
 Parity means equivalent protocol/security semantics and honest native-platform UX, not pixel-identical widgets or a requirement to expose a control before its backend lifecycle is complete.
 
@@ -28,7 +28,7 @@ On Linux, automatic password and private-key-passphrase delivery through OpenSSH
 
 Windows and Linux use the same typed configuration/profile model. Platform-specific secret protection is intentionally different, but saved credentials remain opt-in and local.
 
-Settings normalization, conflict policy, retry behavior, parallelism, timeout and language remain shared contracts. Compatibility JSON fields are migration state, not justification for duplicate UI controls.
+Settings normalization, conflict policy, retry behavior, parallelism, timeout, language and directional bandwidth ceilings remain shared contracts. Upload/download bandwidth values use binary KiB/s, reserve `0` for unlimited, and are validated by the shared configuration layer rather than frontend shadow state. Compatibility JSON fields are migration state, not justification for duplicate UI controls.
 
 ## Appearance
 
@@ -43,11 +43,13 @@ Both implementations use local source-defined colors and add no theme service, b
 
 Ghost FTP ships one **24-language** local registry. English is the default/fallback. Both frontends consume normalized locale codes from the same catalog, and missing optional text falls back safely without online translation.
 
-Security/privacy-sensitive credential-persistence prompts are catalog-backed rather than hardcoded into one Windows path.
+Security/privacy-sensitive credential-persistence prompts and bandwidth labels are catalog-backed rather than hardcoded into one Windows path.
 
 ## Transfer parity
 
 Both platforms route transfers through the same transfer manager and remote abstraction. Shared behavior includes queued/running/terminal states, pause/resume/cancel/retry/clear lifecycle, connection-generation binding, truthful progress/speed/ETA snapshots, retry classification, local containment, upload-source snapshot validation, staged/rollback-oriented remote operations, cleanup and terminal-state correctness.
+
+Bandwidth policy is also shared: upload and download ceilings are independent aggregate directional budgets. The transfer scheduler divides the configured budget conservatively across configured worker slots, and each attempt snapshots its effective allowance. FTP/FTPS enforce the result through curl `limit-rate`; SFTP uses OpenSSH `sftp -l` with conservative unit conversion. The UI does not emulate throttling with a timer or busy-wait loop.
 
 Tree-download directory preparation is anchored to opened filesystem roots so boundary or ancestor pathname replacement cannot redirect local directory creation.
 
@@ -76,6 +78,8 @@ The frontends use the shared remote manager rather than independent session impl
 
 Both frontends expose local/remote panes, navigation, selection, refresh, create, rename, delete, upload, download and supported remote editing. Native keyboard/sorting details may differ, but action availability must remain truthful and backed by the same Core behavior.
 
+Both also expose non-destructive current-folder filtering, bounded recursive local/server search and conservative directory comparison. Synchronized comparison navigation is available only for exact paired ordinary directories proven safe on both sides and performs fresh listings before committing pane paths.
+
 ## Security parity
 
 Both platforms preserve:
@@ -94,7 +98,7 @@ Linux additionally requires trusted executable provenance at both sides of the A
 
 ## Windows-specific implementation
 
-Windows uses native Win32 UI, DPI-aware layout, native dialogs and the current-user Windows saved-secret protection boundary. Production packages include x64/x86 Setup and Portable binaries.
+Windows uses native Win32 UI, DPI-aware layout, native dialogs and the current-user Windows saved-secret protection boundary.
 
 The main profile-save flow and Site Manager use the same explicit credential-save consent semantics. Profile identity/path data can be saved without persisting entered credentials when the user declines consent.
 
@@ -106,28 +110,33 @@ WINDOWS_AUTHENTICODE=unsigned
 
 A generated/self-signed development certificate is never substituted for trusted production publisher identity.
 
-The canonical Windows build produces x64 and x86 Setup plus x64 and x86 Portable executables. The public `x32` Setup filename is a byte-identical compatibility alias of the verified x86 Setup artifact; it is not a third Windows architecture build.
+The canonical Windows build still produces verified x64 and x86 native Setup plus Portable payloads as internal staging artifacts. Public 0.0.3 distribution exposes only:
+
+```text
+Ghost-FTP-0.0.3-Setup.exe
+Ghost-FTP-0.0.3-Portable.exe
+```
+
+The x86-compatible bootstrap uses `GetNativeSystemInfo`-derived architecture rather than environment variables, selects the embedded native x64/x86 payload, verifies staged bytes and performs no runtime download. Architecture-specific staging executables must not leak into the public release directory.
 
 ## Linux-specific implementation
 
 Linux uses the maintained native X11/XWayland-compatible frontend and platform-local saved-secret/storage protections.
 
-The canonical release path uses `linux/BUILD.sh` to build generic DEBs and package-manager-neutral `.tar.gz` archives for `amd64`, `arm64` and `i386`. CI proves that each generic DEB and portable archive contains the same compiled `ghostftp` executable byte-for-byte.
-
-The maintained source also has a separate distro-specific packaging contract in `linux/BUILD-DISTROS.sh`:
+The canonical 0.0.3 release path is `linux/BUILD-DISTROS.sh`:
 
 - Debian DEB: `amd64`, `arm64`, `i386`;
 - Ubuntu DEB: `amd64`, `arm64`, `i386`;
 - Fedora RPM: `x86_64`, `aarch64`, `i686`;
 - distro-neutral Portable tar.gz: `amd64`, `arm64`, `i386`.
 
-`.github/workflows/linux-distro-packages.yml` rebuilds those artifacts from the exact source head, checks metadata and verifies byte-for-byte executable parity across matching Debian, Ubuntu, Fedora and Portable packages.
+Exactly one Linux production executable is compiled per Go architecture and reused across its matching Debian, Ubuntu, Fedora and Portable variants. `.github/workflows/linux-distro-packages.yml` rebuilds those artifacts from the exact source head, checks metadata and verifies byte-for-byte executable parity.
 
-`.github/workflows/linux-distro-install.yml` independently verifies a real package-manager install/remove lifecycle and startup of the installed production GUI under local Xvfb on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. It verifies runtime dependencies, package ownership and uninstall residue without weakening production filesystem safety checks.
+`.github/workflows/linux-distro-install.yml` independently verifies real package-manager install/remove lifecycle and startup of the installed production GUI under local Xvfb on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. It verifies runtime dependencies, package ownership and uninstall residue without weakening production filesystem safety checks.
 
 Native distro-install verification is intentionally **x86-64 only**. The arm64/aarch64 and i386/i686 artifacts retain exact-head build, metadata, extraction and byte-parity coverage; the project does not claim native package-manager/runtime installation coverage for those architectures until such a gate exists.
 
-The distro-specific CI package family is supplemental. It is verified build/install coverage, but it is **not yet part of the canonical release allow-list**.
+The legacy generic `linux/BUILD.sh` path remains CI compatibility coverage for DEB/portable parity but is not the canonical 0.0.3 public release allow-list.
 
 Portable archives intentionally preserve binary parity with package builds, but extraction into a user-writable directory does not inherit package-manager root-controlled executable provenance. Therefore Linux Portable/per-user execution does not claim automatic SFTP password or private-key-passphrase AskPass support under the hardened same-UID local-attacker model.
 
@@ -135,11 +144,9 @@ Portable archives intentionally preserve binary parity with package builds, but 
 
 The production workflow independently builds and verifies both platform families before publication. A successful Windows build cannot substitute for a failed Linux build, and vice versa.
 
-The current public 0.0.1 contract requires **12 platform artifacts / 15 public files**: five Windows files, seven Linux files and three release metadata/verification files.
+The current public 0.0.3 contract requires **14 platform artifacts / 17 public files**: two universal Windows files, twelve Linux distro/Portable files and three release metadata/verification files.
 
-Supplemental Debian/Ubuntu/Fedora/Portable distro-specific CI artifacts do not change those public release counts until the canonical release workflow explicitly stages, allow-lists, hashes, publishes and reads them back for a future version.
-
-The current release publishes its verified distribution bundle at `ghcr.io/bren-wp/ghost-ftp:0.0.1`. Latest-only retention preserves that exact-version package and removes superseded package versions only after the new release is verified.
+The current release publishes its verified distribution bundle at `ghcr.io/bren-wp/ghost-ftp:0.0.3`. Latest-only retention preserves that exact-version package and removes superseded package versions only after the new release is verified.
 
 ## Definition of parity complete
 

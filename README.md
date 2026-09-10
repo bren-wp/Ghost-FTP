@@ -7,12 +7,12 @@
 <p align="center"><strong>Fast, private and security-focused FTP/FTPS/SFTP for Windows and Linux.</strong></p>
 
 <p align="center">
-  Native desktop UI · Site Manager · Remote Edit · Safe transfer queue · 24 local languages · No application telemetry
+  Native desktop UI · Site Manager · Remote Edit · Safe transfer queue · Bandwidth controls · 24 local languages · No application telemetry
 </p>
 
-**Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**. It combines a focused dual-pane workspace with **FTP, FTPS and SFTP**, saved profiles, protected credential handling, bounded transfer management and a built-in remote text editor. The design target is a modern professional transfer workstation: fewer ambiguous controls, safer defaults, clear state and strong failure handling without a mandatory product account or hidden cloud backend.
+**Ghost FTP** is a privacy-first native desktop file-transfer client for **Windows and Linux**. It combines a focused dual-pane workspace with **FTP, FTPS and SFTP**, saved profiles, protected credential handling, bounded transfer management, bandwidth-aware transport controls and a built-in remote text editor. The design target is a modern professional transfer workstation: fewer ambiguous controls, safer defaults, clear state and strong failure handling without a mandatory product account or hidden cloud backend.
 
-- Current Ghost FTP version: **0.0.2**
+- Current Ghost FTP version: **0.0.3**
 - Development status: **Active**
 - Release channel: **Current**
 - Default language: **English**
@@ -20,10 +20,12 @@
 - Official product website: **https://ghostftp.com**
 - Releases: https://github.com/bren-wp/Ghost-FTP/releases
 - Repository: https://github.com/bren-wp/Ghost-FTP
+- Public release identity: `ghostftp-v0.0.3`, `prerelease=false`
+- Verified distribution bundle: `ghcr.io/bren-wp/ghost-ftp:0.0.3`
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
 
-The icon and UI images rendered by this README are **repository-local assets**. The screenshots are captured from the production Windows x64 Portable build by the maintained authentic-UI workflow; mockups and generated approximations are not accepted as production UI evidence. No remote badge, tracking pixel, icon CDN or webfont is required to render this README.
+The icon and UI images rendered by this README are **repository-local assets**. The maintained screenshots are captured from the **verified internal native x64 payload produced by the universal Windows build**; that payload is release evidence, not an architecture-specific public download. Mockups and generated approximations are not accepted as production UI evidence. No remote badge, tracking pixel, icon CDN or webfont is required to render this README.
 
 ## Product surfaces
 
@@ -47,6 +49,9 @@ See [Reference UI](docs/REFERENCE-UI.md) for screenshot provenance and the produ
 - Upload/download queue with bounded concurrency.
 - Pause, resume, cancel, retry and clear-finished lifecycle.
 - Progress, transferred bytes, speed and ETA based on real transfer events.
+- Independent upload and download bandwidth ceilings expressed in binary KiB/s, with `0 = unlimited`.
+- Conservative aggregate directional bandwidth allocation across configured worker slots rather than multiplying a configured limit by the number of simultaneous transfers.
+- Real transport enforcement: curl `limit-rate` for FTP/FTPS and OpenSSH `sftp -l` for SFTP.
 - Recursive directory transfer through the shared engine.
 - Non-destructive current-folder filtering and bounded recursive local/server search.
 - Conservative local/server directory comparison with synchronized navigation for safely proven paired directories.
@@ -85,13 +90,13 @@ See [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Architecture](
 
 ## Design goals beyond legacy FTP clients
 
-Ghost FTP is not developed by cloning another client screen-for-screen. New capabilities are accepted only when the engine, Windows UI, Linux UI, tests, privacy/security model and documentation agree on the behavior. Current improvement priorities include stronger queue control, large-directory responsiveness, navigation productivity and bandwidth-aware transfer controls. Features are not advertised as shipped until their complete runtime path is implemented and tested.
+Ghost FTP is not developed by cloning another client screen-for-screen. New capabilities are accepted only when the engine, Windows UI, Linux UI, tests, privacy/security model and documentation agree on the behavior. Current improvement priorities include stronger queue control, large-directory responsiveness, bookmarks, verified resume, multi-session workflows and carefully bounded proxy/jump-host support. Features are not advertised as shipped until their complete runtime path is implemented and tested.
 
 See the [Roadmap](docs/ROADMAP.md) for the maintained power-user plan.
 
-## 0.0.2
+## 0.0.3
 
-Ghost FTP 0.0.2 advances the current public line with post-0.0.1 reliability hardening, non-destructive current-folder filtering, bounded recursive local/server search and conservative directory comparison with synchronized navigation on Windows and Linux. The release keeps the existing FTP/FTPS/SFTP trust model, Remote Edit safeguards, local path confinement and no-telemetry/privacy contract. Semantic major version `0` does not by itself mark this project release as a GitHub prerelease.
+Ghost FTP 0.0.3 advances the current public line with real bandwidth-aware upload/download controls and the completed packaging transition. Windows now exposes exactly two self-contained universal public executables while verified native x64/x86 payloads remain internal staging inputs. Linux publication uses canonical Debian, Ubuntu, Fedora and distro-neutral Portable families. The release keeps the established FTP/FTPS/SFTP trust model, Remote Edit safeguards, local path confinement and no-telemetry/privacy contract. Semantic major version `0` does not by itself mark this project release as a GitHub prerelease.
 
 ## Protocols
 
@@ -101,7 +106,7 @@ A fresh connection uses explicit FTPS on port 21. TLS certificate and hostname v
 
 ### SFTP
 
-SFTP uses SSH transport semantics with host-key verification. Password and key-based authentication are supported through the maintained trusted executable/AskPass boundary.
+SFTP uses SSH transport semantics with host-key verification. Password and key-based authentication are supported through the maintained trusted executable/AskPass boundary. The configured bandwidth ceiling is converted conservatively for OpenSSH `sftp -l` so rounding cannot exceed the scheduler budget.
 
 ### FTP — explicit compatibility
 
@@ -112,6 +117,8 @@ Plain FTP remains available only as an explicit compatibility choice for legacy 
 The Settings surfaces are backed by one validated configuration model rather than decorative UI state:
 
 - **Parallel transfers:** 1–8, default 2.
+- **Upload bandwidth:** 0–1,048,576 KiB/s, default 0 = unlimited.
+- **Download bandwidth:** 0–1,048,576 KiB/s, default 0 = unlimited.
 - **Connection timeout:** 5–60 seconds, default 15.
 - **Automatic retries:** 0–3, default 0.
 - **Retry delay:** 1–30 seconds, default 3.
@@ -120,7 +127,7 @@ The Settings surfaces are backed by one validated configuration model rather tha
 - **Appearance:** maintained Windows Classic Light/Dark behavior.
 - **Language:** 24 local languages, English fallback.
 
-Missing legacy settings are migrated to safe canonical defaults; explicit invalid values remain validation failures. See [Settings](docs/SETTINGS.md).
+Bandwidth limits are aggregate directional ceilings. A transfer attempt snapshots its effective budget when it starts, so saving a new value does not mutate a running transport process; new attempts observe the saved policy. Missing legacy settings are migrated to safe canonical defaults and explicit invalid values remain validation failures. See [Settings](docs/SETTINGS.md).
 
 ## Languages
 
@@ -131,57 +138,61 @@ See [Localization](docs/LOCALIZATION.md).
 ## Windows installation
 
 ```text
-Ghost-FTP-0.0.2-Setup-x64.exe
-Ghost-FTP-0.0.2-Setup-x86.exe
-Ghost-FTP-0.0.2-Setup-x32.exe
-Ghost-FTP-0.0.2-Portable-x64.exe
-Ghost-FTP-0.0.2-Portable-x86.exe
+Ghost-FTP-0.0.3-Setup.exe
+Ghost-FTP-0.0.3-Portable.exe
 ```
 
-`x32` is a byte-identical compatibility alias of the verified x86 Setup build; it is not a separate architecture build. Production Authenticode is optional. When a trusted certificate is configured, signatures must verify. Otherwise `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
+Both public Windows files are self-contained x86-compatible universal bootstraps. The production build still creates and verifies native x64 and x86 Setup/Portable payloads internally. The public bootstrap selects the native payload from Windows system architecture information using `GetNativeSystemInfo`, verifies the staged payload before execution and performs no runtime download. Architecture-specific staging EXEs must not leak into the public artifact directory.
+
+Setup retains the integrated uninstall path and does not require a permanent separate uninstaller binary. Portable requires no installer registration. Production Authenticode is optional: when a trusted certificate is configured, signatures must verify; otherwise `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
 
 ## Linux installation
 
-Canonical 0.0.2 Linux files are:
+Canonical 0.0.3 Linux files are built by `linux/BUILD-DISTROS.sh`:
 
 ```text
-Ghost-FTP-0.0.2-Linux-amd64.deb
-Ghost-FTP-0.0.2-Linux-arm64.deb
-Ghost-FTP-0.0.2-Linux-i386.deb
-Ghost-FTP-0.0.2-Linux-multiarch.zip
-Ghost-FTP-0.0.2-Linux-amd64.tar.gz
-Ghost-FTP-0.0.2-Linux-arm64.tar.gz
-Ghost-FTP-0.0.2-Linux-i386.tar.gz
+Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.3-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.3-Linux-Debian-i386.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-i386.tar.gz
 ```
 
-Supplemental distro-specific Debian/Ubuntu/Fedora/Portable CI packages remain verification artifacts and are not canonical release files.
+Matching Debian, Ubuntu, Fedora and Portable variants reuse one compiled production executable per architecture, and release CI compares the extracted executable byte-for-byte. Native package-manager/runtime/GUI verification is maintained for Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64; additional architectures retain exact-head build, package-metadata, extraction and binary-parity coverage without an unsupported native-install claim.
 
 See [Installation](docs/INSTALLATION.md), [Linux documentation](linux/README.md) and [Testing](docs/TESTING.md).
 
 ## Releases
 
-Ghost FTP 0.0.2 uses the canonical **12 platform artifacts / 15 public files** release shape: five Windows files, seven Linux files, `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
+Ghost FTP 0.0.3 uses the canonical **14 platform artifacts / 17 public files** release shape: two universal Windows executables, twelve Linux packages/archives, `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
 
 The public release identity is:
 
 ```text
-ghostftp-v0.0.2
+ghostftp-v0.0.3
 prerelease=false
 ```
 
 The same verified release directory is published as a distribution-only GHCR bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.2
+ghcr.io/bren-wp/ghost-ftp:0.0.3
 ```
 
-The GHCR object is not a supported runtime container. After a new Ghost FTP release is successfully published and remotely verified, the release-retention workflow removes older Ghost FTP GitHub releases, tags, superseded release branches and obsolete package versions while retaining the current release package. The release-branch trigger also waits for the canonical release result and explicitly verifies the canonical retention result, so the latest-only lifecycle is not dependent on a single downstream event notification. **Only the latest public Ghost FTP version is retained.**
+The GHCR object is not a supported runtime container. The release workflow validates the exact 17-file allow-list immediately and again after a delay. After successful publication and remote verification, the release-retention workflow removes older Ghost FTP releases, tags, superseded canonical release branches and obsolete package versions while retaining the current package. The release-branch trigger waits for the exact canonical release result and explicitly verifies the retention result. **Only the latest public Ghost FTP version is retained.** Git history on `main` is not rewritten.
 
 See [GitHub Releases](docs/GITHUB-RELEASES.md), [GitHub Packages](docs/PACKAGES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Versioning](docs/VERSIONING.md).
 
 ## Artifact verification
 
-Every public release contains `SHA256.txt`. `BUILD-METADATA.txt` binds version, release tag, source commit, platform set, Windows signing state and language count to the verified release assembly.
+Every public release contains `SHA256.txt`. `BUILD-METADATA.txt` binds version, release tag, source commit, platform set, Windows signing state, language count and packaging shape to the verified release assembly.
 
 ## Build from source
 
@@ -199,15 +210,17 @@ Windows release-style packages:
 .\BUILD-WINDOWS.ps1
 ```
 
-Canonical Linux packages:
+Canonical Linux release packages:
 
 ```bash
-bash linux/BUILD.sh
+GHOSTFTP_REQUIRE_DEB=1 GHOSTFTP_REQUIRE_RPM=1 bash linux/BUILD-DISTROS.sh
 ```
+
+The older `linux/BUILD.sh` generic DEB/portable path remains a CI compatibility build, not the canonical 0.0.3 public Linux allow-list.
 
 ## Quality gates
 
-The production CI/release path checks Go formatting, race tests, unit/integration tests, vet, dependency policy, privacy/security audits, platform parity, localization, release/version documentation contracts, Windows x64/x86 packaging, Linux amd64/arm64/i386 packaging, distro lifecycle smoke tests and authentic Windows UI screenshots. A green source test is not enough by itself for publication: release identity, remote asset read-back and retention are separately fail-closed.
+The production CI/release path checks Go formatting, race tests, unit/integration tests, vet, dependency policy, privacy/security audits, platform parity, localization, release/version documentation contracts, universal Windows packaging, Linux amd64/arm64/i386 compatibility packaging, canonical Debian/Ubuntu/Fedora/Portable metadata and binary parity, distro lifecycle smoke tests and authentic Windows UI screenshots. A green source test is not enough by itself for publication: exact source identity, remote asset read-back, GHCR read-back and retention are separately fail-closed.
 
 ## Documentation
 

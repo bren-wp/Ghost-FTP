@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **0.0.2** is validated through layered source, security, native build, packaging, UI-action and release-lifecycle gates.
+Ghost FTP **0.0.3** is validated through layered source, security, native build, packaging, UI-action and release-lifecycle gates.
 
 ## Core quality gate
 
@@ -12,7 +12,7 @@ go test -race ./...
 go vet ./...
 ```
 
-It also runs repository, platform, desktop-surface, dependency, version, localization, security, privacy, documentation and release audits plus the Python regression suite.
+It also runs repository, platform, desktop-surface, dependency, version, localization, security, privacy, documentation and release audits plus the complete Python regression suite.
 
 ## Protocol and transfer regressions
 
@@ -28,9 +28,30 @@ Tests cover the maintained FTP/FTPS/SFTP engine contract, including:
 - queue pause/resume/cancel/retry lifecycle;
 - Remote Edit text/binary, size, revision/conflict, permission, read-back and metadata-refresh behavior.
 
+## Bandwidth regression contract
+
+The maintained 0.0.3 source adds independent upload/download ceilings as shared runtime policy rather than UI-only state.
+
+Go tests and settings/UI regression contracts require:
+
+- `uploadLimitKiBPerSecond` and `downloadLimitKiBPerSecond` to remain independently persisted and validated;
+- explicit values to remain in the bounded range **0–1,048,576 KiB/s**, with **0 = unlimited**;
+- missing bandwidth fields from 0.0.2 and older settings to remain migration-safe as unlimited;
+- corrupt negative or above-maximum persisted values to normalize safely rather than becoming unintended throttles;
+- the transfer scheduler to derive a conservative aggregate directional budget across configured worker slots instead of granting the complete configured ceiling to every concurrent transfer;
+- idle slots not to lend temporary burst allowance to a running transfer under the maintained stable-ceiling policy;
+- each transfer attempt to snapshot its effective budget when the attempt starts, so a settings save cannot mutate/corrupt an already-running transport process;
+- retries/new attempts to sample the currently saved bandwidth policy;
+- FTP/FTPS transport enforcement through curl `limit-rate`;
+- SFTP enforcement through OpenSSH `sftp -l`, with KiB/s converted conservatively to Kbit/s so flooring cannot exceed the scheduler budget;
+- no application busy-wait loop or UI timer to be accepted as transport throttling;
+- Windows and Linux settings surfaces to expose the same shared upload/download values with explicit KiB/s units and `0 = unlimited` semantics.
+
+The relevant Go suites cover settings migration/validation, aggregate allocation and transport conversion. Windows/Linux source regression coverage protects the settings-dialog/overlay wiring.
+
 ## Current-folder filter regression contract
 
-The 0.0.2 source includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from bounded recursive search: filtering only evaluates the already-loaded snapshot and performs no additional directory or network I/O.
+The 0.0.3 source includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from bounded recursive search: filtering only evaluates the already-loaded snapshot and performs no additional directory or network I/O.
 
 The filter gates require:
 
@@ -48,7 +69,7 @@ The filter gates require:
 
 ## Bounded recursive search regression contract
 
-The maintained 0.0.2 source exposes recursive local/server search as an explicit action rather than an extension of typing into the current-folder filter. The search path is read-only and bounded before it reaches either desktop UI.
+The maintained 0.0.3 source exposes recursive local/server search as an explicit action rather than an extension of typing into the current-folder filter. The search path is read-only and bounded before it reaches either desktop UI.
 
 Core tests and `scripts/test_recursive_search_ui_contract.py` require:
 
@@ -71,7 +92,7 @@ The desktop disclosure explicitly states that recursive mode reads nested local/
 
 ## Directory comparison and synchronized-navigation regression contract
 
-The maintained 0.0.2 source exposes directory comparison as a read-only view over freshly listed current local/server directories. The shared classifier performs no filesystem or network I/O and does not grant file-operation authority to comparison rows.
+The maintained 0.0.3 source exposes directory comparison as a read-only view over freshly listed current local/server directories. The shared classifier performs no filesystem or network I/O and does not grant file-operation authority to comparison rows.
 
 Go tests and `scripts/test_directory_comparison_contract.py` require:
 
@@ -101,7 +122,7 @@ Examples include:
 
 - parallelism accepts only **1–8** for explicit current values;
 - an omitted legacy `parallelism=0` migrates to the canonical default **2**;
-- negative or above-range explicit parallelism remains a validation error;
+- independent upload/download bandwidth values accept only the maintained bounded range and preserve `0 = unlimited`;
 - connection timeout, retry count and retry delay stay inside documented bounds;
 - unknown persisted conflict-policy state fails closed to conservative recovery behavior;
 - one canonical conflict-policy field synchronizes legacy compatibility fields.
@@ -131,35 +152,32 @@ The gate intentionally tests wiring, not just pixels. Runtime behavior remains c
 
 ## README/media integrity
 
-README and active documentation use repository-local Ghost FTP icon/screenshot assets. Authentic screenshots are generated from the production Windows x64 Portable application. Remote tracking pixels, icon CDNs and mockup images are not accepted as release UI evidence.
+README and active documentation use repository-local Ghost FTP icon/screenshot assets. Authentic screenshots are generated from the verified production Windows native application payload. Remote tracking pixels, icon CDNs and mockup images are not accepted as release UI evidence.
 
 ## Windows production gate
 
-The Windows production job builds and verifies:
+The Windows production job builds and verifies the public artifacts:
 
 ```text
-Ghost-FTP-0.0.2-Setup-x64.exe
-Ghost-FTP-0.0.2-Setup-x86.exe
-Ghost-FTP-0.0.2-Setup-x32.exe
-Ghost-FTP-0.0.2-Portable-x64.exe
-Ghost-FTP-0.0.2-Portable-x86.exe
+Ghost-FTP-0.0.3-Setup.exe
+Ghost-FTP-0.0.3-Portable.exe
 ```
 
-It verifies release artifacts and exercises the Authenticode private-key pipeline policy. Production signing is optional; configured signatures must verify.
+The builder first produces and verifies native x64/x86 Setup and Portable payloads internally. It then constructs the two public universal bootstraps, selects native architecture from Windows system information, verifies staged embedded bytes and rejects architecture-specific public EXEs. The CI also exercises the Authenticode private-key pipeline policy. Production signing is optional; configured signatures must verify.
 
 ## Linux production gate
 
-The Linux production job builds DEB and portable tar.gz packages for `amd64`, `arm64` and `i386` and compares the DEB/portable executable bytes for parity.
+The regular Core CI continues to build generic DEB/portable compatibility artifacts for `amd64`, `arm64` and `i386` through `linux/BUILD.sh` and compares their executable bytes. This remains useful independent build coverage but is not the canonical 0.0.3 release allow-list.
 
-## Supplemental distro package gate
+## Canonical distro package gate
 
-`.github/workflows/linux-distro-packages.yml` builds and verifies supplemental distro artifacts through:
+`.github/workflows/linux-distro-packages.yml` builds and verifies the canonical distro artifacts through:
 
 ```text
 linux/BUILD-DISTROS.sh
 ```
 
-Representative supplemental names include Debian, Ubuntu, Fedora and Portable families. These are CI verification artifacts, not additions to the canonical **12 platform artifacts / 15 public files** release allow-list.
+The 0.0.3 release set contains Debian and Ubuntu DEBs for `amd64`, `arm64`, `i386`; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and distro-neutral Portable tarballs for `amd64`, `arm64`, `i386`. Package metadata and byte-for-byte executable parity across matching variants are fail-closed release requirements. These files are canonical members of the **14 platform artifacts / 17 public files** release allow-list.
 
 ## Native distro lifecycle gate
 
@@ -169,11 +187,11 @@ Representative supplemental names include Debian, Ubuntu, Fedora and Portable fa
 - **Ubuntu 26.04 LTS amd64**;
 - **Fedora 44 x86_64**.
 
-**Native package-manager/runtime coverage is deliberately limited to x86-64.** Canonical production builds still include the documented additional Linux architectures.
+**Native package-manager/runtime coverage is deliberately limited to x86-64.** Additional arm64/aarch64 and i386/i686 artifacts still receive exact-head build, metadata, extraction and binary-parity verification.
 
 ## Authentic UI evidence
 
-`.github/workflows/ui-screenshots.yml` builds the real Windows x64 Portable application and captures maintained Main Workspace, Site Manager, Settings and About windows. Mockups and generated approximations are not release evidence.
+`.github/workflows/ui-screenshots.yml` runs the real universal production Windows build and captures maintained Main Workspace, Site Manager, Settings and About windows from the verified internal native x64 application payload. Architecture-specific native staging binaries are evidence inputs, not public release downloads. Mockups and generated approximations are not release evidence.
 
 A release-prep change affecting `VERSION` or maintained desktop UI must obtain authentic evidence from the exact final source revision where the screenshot workflow is triggered.
 
@@ -192,14 +210,14 @@ A green run for an older commit does not satisfy a newer PR head.
 
 ## Release publication gate
 
-0.0.2 publication additionally requires:
+0.0.3 publication additionally requires:
 
 - exact current `main` release-branch validation;
 - canonical release workflow quality/build jobs;
-- exact 15-file GitHub Release allow-list;
+- exact **17-file** GitHub Release allow-list;
 - immediate and delayed remote release read-back;
 - `prerelease=false` for the current 0.0.x release channel;
-- verified `ghcr.io/bren-wp/ghost-ftp:0.0.2` distribution-bundle publication/read-back;
+- verified `ghcr.io/bren-wp/ghost-ftp:0.0.3` distribution-bundle publication/read-back;
 - successful latest-only retention cleanup after publication.
 
 ## Deterministic release-to-retention gate
@@ -219,13 +237,13 @@ This closes the class of failure where publication succeeds but downstream `work
 
 ## Retention validation
 
-The retention workflow must leave only the current `ghostftp-v0.0.2` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
+The retention workflow must leave only the current `ghostftp-v0.0.3` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
 
-Before destructive cleanup it independently verifies current release identity, `draft=false`, `prerelease=false`, exactly **15 assets**, and current tag SHA equality with current `main`.
+Before destructive cleanup it independently verifies current release identity, `draft=false`, `prerelease=false`, exactly **17 assets**, current tag SHA equality with current `main` and the current exact-version package.
 
 ## Quality rule for new power-user features
 
-A new feature such as directory comparison, synchronized browsing, bandwidth limits, queue priority or bookmarks is not release-ready until all applicable layers exist:
+A new feature such as directory comparison, synchronized browsing, queue priority, bookmarks, verified resume, multi-session or proxy/jump-host support is not release-ready until all applicable layers exist:
 
 - shared engine/runtime behavior;
 - validation and safe defaults;

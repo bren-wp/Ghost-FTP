@@ -1,12 +1,12 @@
 # Ghost FTP desktop reference UI
 
-Ghost FTP **0.0.2** uses a focused native two-pane desktop layout on Windows and Linux. The same typed Core owns protocol, profile, transfer and Remote Edit behavior; platform frontends differ only where the operating system requires native presentation details.
+Ghost FTP **0.0.3** uses a focused native two-pane desktop layout on Windows and Linux. The same typed Core owns protocol, profile, transfer, bandwidth policy and Remote Edit behavior; platform frontends differ only where the operating system requires native presentation details.
 
 This is a source/runtime contract, not a mockup specification. Visible controls must map to real engine capabilities and real state.
 
 ## Canonical workspace
 
-The maintained working surface consists of profile/application actions, Quick Connect, Local and Remote file panes, transfer actions, the transfer queue and a restrained status/version surface. Windows Setup and Portable package the same application executable and therefore use the same workspace, localization, appearance and action-state logic after startup.
+The maintained working surface consists of profile/application actions, Quick Connect, Local and Remote file panes, transfer actions, the transfer queue and a restrained status/version surface. Windows universal Setup and Portable launch the matching verified native application payload and therefore use the same workspace, localization, appearance and action-state logic after startup.
 
 The Remote side exposes normal file management plus **Edit** for one supported regular remote text file. Remote Edit must not create a permanent third file pane.
 
@@ -65,9 +65,11 @@ Closing **Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O prog
 
 ## Settings surface
 
-Windows Settings is one application-owned modal surface rather than a chain of unrelated prompts. It presents appearance, transfer concurrency, connection timeout, retry policy, destination conflict policy and delete confirmation together.
+Windows Settings is one application-owned modal surface rather than a chain of unrelated prompts. It presents appearance, transfer concurrency, independent upload and download bandwidth ceilings, connection timeout, retry policy, destination conflict policy and delete confirmation together.
 
-Numeric values are checked against the same `internal/config` bounds used by persisted settings normalization. Invalid input keeps the dialog open, shows localized corrective text and restores focus to the invalid field. **OK** returns one complete candidate settings value; **Cancel** or title-bar **X** discards the pending values.
+Bandwidth fields use explicit `KiB/s` units and `0 = unlimited`, and all numeric values are checked against the same `internal/config` bounds used by persisted settings normalization. Invalid input keeps the dialog open, shows localized corrective text and restores focus to the invalid field. **OK** returns one complete candidate settings value; **Cancel** or title-bar **X** discards the pending values.
+
+The Linux Settings overlay exposes the same shared upload/download bandwidth settings through bounded native controls rather than a frontend-only throttle.
 
 ## Site Manager
 
@@ -99,7 +101,7 @@ Windows uses an application-owned native text editor dialog. Linux uses the main
 
 Both panes use the shared engine and filesystem/remote validation layers. Permissions are shown only when the server provides real permission metadata. Sorting, navigation and selection restoration preserve the model identity used by rename, delete, upload, download and edit operations.
 
-Pause, resume, cancel, retry and clear-finished operate through the canonical transfer manager. Progress, speed, ETA and byte counts may be shown only when backed by real transfer state.
+Pause, resume, cancel, retry and clear-finished operate through the canonical transfer manager. Progress, speed, ETA and byte counts may be shown only when backed by real transfer state. Bandwidth ceilings are enforced in the transport path rather than by repaint timing or a UI-only speed cap.
 
 ## Responsive behavior
 
@@ -113,11 +115,11 @@ Linux preserves the same major workflow priorities at supported sizes without ex
 
 ![Ghost FTP About](images/ghost-ftp-about.png)
 
-About displays the runtime product/version identity generated from canonical build `VERSION`; the current release identity is **Ghost FTP 0.0.2**.
+About displays the runtime product/version identity generated from canonical build `VERSION`; the current source/release candidate identity is **Ghost FTP 0.0.3**.
 
 ## Authentic screenshot evidence
 
-Repository screenshots under `docs/images/` are generated from the **real production Windows x64 Portable executable** by `.github/workflows/ui-screenshots.yml`. Mockups, image-generation output and manually composed approximations are not accepted as production UI evidence.
+Repository screenshots under `docs/images/` are generated from the **verified internal native x64 Portable payload** produced by the real universal production Windows build in `.github/workflows/ui-screenshots.yml`. The architecture-specific payload is retained only in `dist/internal` for verification/evidence and is not a public 0.0.3 release download. Mockups, image-generation output and manually composed approximations are not accepted as production UI evidence.
 
 The currently persisted repository image set was generated by authentic UI workflow run **#201** from source commit `a1e9635f5724ea8b53afca9830f28f7fa9159798` and persisted by screenshot commit `29f3a9a069df37107772265987ecfd251b645c3e`:
 
@@ -126,7 +128,7 @@ The currently persisted repository image set was generated by authentic UI workf
 - `docs/images/ghost-ftp-settings.png` — SHA-256 `b46b8c9c0730e96b1a0ed9ba54e84633eb6f2030271407f0944d433046c0c870`;
 - `docs/images/ghost-ftp-about.png` — SHA-256 `1d1b6487be473e3f59af2620584cf09e2ef3225d30712818a9cb8ca1fa492ca4`.
 
-Those hashes identify the checked-in image objects; they are not proof for a later changed UI/source head. A release-prep or public UI/runtime change must obtain authentic capture evidence from its own exact gated source. The screenshot workflow verifies PNG format, plausible dimensions, visual non-degeneracy, file size and SHA-256, and persists maintained images only under its guarded eligible-branch policy.
+Those hashes identify the checked-in image objects; they are not proof for a later changed UI/source head. A release-prep or public UI/runtime change must obtain authentic capture evidence from its own exact gated source. Release-prep runs publish fresh screenshot evidence as a workflow artifact without self-committing and moving the gated PR head. The screenshot workflow verifies PNG format, plausible dimensions, visual non-degeneracy, file size and SHA-256.
 
 ## Accessibility and usability
 

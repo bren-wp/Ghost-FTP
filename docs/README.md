@@ -6,7 +6,7 @@
 
 <p align="center"><strong>Production behavior, security boundaries, UI evidence and release engineering for Ghost FTP.</strong></p>
 
-- **Current Ghost FTP release: 0.0.2**
+- **Current Ghost FTP release: 0.0.3**
 - Development status: **Active**
 - Release channel: **Current**
 - GitHub Release policy: **PRERELEASE=false**
@@ -14,9 +14,10 @@
 - Platforms: **Windows and Linux**
 - Protocols: **FTP, FTPS and SFTP**
 - Languages: **24 selectable local languages**
+- Release shape: **14 platform artifacts / 17 public files**
 - Product website: **https://ghostftp.com**
 
-The root [`VERSION`](../VERSION) file is the authoritative production version source. Active documentation describes the current 0.0.2 public line. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and the canonical retention workflow.
+The root [`VERSION`](../VERSION) file is the authoritative production version source. Active documentation describes the current 0.0.3 public line. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and the canonical retention workflow.
 
 ## Start here
 
@@ -36,7 +37,7 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 
 ## Authentic visual reference
 
-Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render. Production screenshots come from the real Windows x64 Portable build and are checked by the authentic-UI workflow.
+Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render. Production screenshots come from the **verified internal native x64 payload produced by the universal Windows build**; the architecture-specific payload is evidence-only and is not a public download. Mockups/generated approximations are not production evidence.
 
 <table>
 <tr>
@@ -51,12 +52,13 @@ Documentation media is **repository-local**. No remote badge image, tracking pix
 
 See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockups/generated approximations are not production UI evidence.
 
-## Current 0.0.2 capability contract
+## Current 0.0.3 capability contract
 
 - FTP, explicit FTPS and SFTP through one typed Core engine.
 - Native Windows and Linux frontends consuming the same typed engine behavior.
 - Built-in Remote Edit with bounded text validation, revision/conflict protection and verified read-back.
 - Transfer queue pause/resume/cancel/retry and truthful progress/speed/ETA.
+- Independent upload/download bandwidth ceilings with aggregate directional scheduling and real transport enforcement.
 - Non-destructive current-folder filtering and bounded recursive local/server search.
 - Conservative directory comparison and synchronized navigation for safely proven paired ordinary directories.
 - Explicit conflict policy with safe staged activation and rollback behavior.
@@ -65,7 +67,7 @@ See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockup
 - Rooted local path/transfer protections and remote cleanup uncertainty reporting.
 - Trusted Linux transport/AskPass provenance.
 - Ownership-bound Windows installer/uninstaller/shortcut cleanup.
-- Validated local settings for concurrency, timeout, retry, overwrite policy, delete confirmation, appearance and language.
+- Validated local settings for concurrency, upload/download KiB/s ceilings, timeout, retry, overwrite policy, delete confirmation, appearance and language.
 - No telemetry, analytics, advertising, tracking or hidden product backend.
 
 ## Product and architecture
@@ -86,52 +88,56 @@ See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockup
 
 ## Installation and releases
 
-- [`INSTALLATION.md`](INSTALLATION.md) — Windows Setup/Portable and Linux installation.
+- [`INSTALLATION.md`](INSTALLATION.md) — universal Windows Setup/Portable and Linux distro/Portable installation.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical release shape and deterministic latest-only retention lifecycle.
 - [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution bundle policy.
 - [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity and signing verification.
 - [`VERSIONING.md`](VERSIONING.md) — controlled 0.0.x public version policy.
 
-Ghost FTP 0.0.2 uses the canonical **12 platform artifacts / 15 public files** release shape and is published as the current GitHub Release with `prerelease=false`. The same verified release directory is mirrored as a distribution-only bundle at:
+Ghost FTP 0.0.3 uses the canonical **14 platform artifacts / 17 public files** release shape and publishes with `prerelease=false` when publication is explicitly authorized. The same verified release directory is mirrored as a distribution-only bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.2
+ghcr.io/bren-wp/ghost-ftp:0.0.3
 ```
 
-Supplemental distro-specific CI packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. These packages are **not yet part of the canonical release allow-list**.
+Canonical Linux packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. Additional architectures retain exact-head build, metadata, extraction and byte-parity verification.
 
 ## Current publication identity
 
 ```text
-VERSION=0.0.2
-TAG=ghostftp-v0.0.2
+VERSION=0.0.3
+TAG=ghostftp-v0.0.3
 CHANNEL=Current
 PRERELEASE=false
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
 ```
 
 Windows:
 
 ```text
-Ghost-FTP-0.0.2-Setup-x64.exe
-Ghost-FTP-0.0.2-Setup-x86.exe
-Ghost-FTP-0.0.2-Setup-x32.exe
-Ghost-FTP-0.0.2-Portable-x64.exe
-Ghost-FTP-0.0.2-Portable-x86.exe
+Ghost-FTP-0.0.3-Setup.exe
+Ghost-FTP-0.0.3-Portable.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.2-Linux-amd64.deb
-Ghost-FTP-0.0.2-Linux-arm64.deb
-Ghost-FTP-0.0.2-Linux-i386.deb
-Ghost-FTP-0.0.2-Linux-multiarch.zip
-Ghost-FTP-0.0.2-Linux-amd64.tar.gz
-Ghost-FTP-0.0.2-Linux-arm64.tar.gz
-Ghost-FTP-0.0.2-Linux-i386.tar.gz
+Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.3-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.3-Linux-Debian-i386.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-i386.tar.gz
 ```
 
-After publication and remote read-back succeed, `.github/workflows/release-retention.yml` verifies the current tag/release/15-file set and removes superseded Ghost FTP releases, tags, canonical release branches and package versions. The release-branch trigger additionally waits for both the canonical publish run and canonical retention run to succeed. `main` commit history is not rewritten.
+After publication and remote read-back succeed, `.github/workflows/release-retention.yml` verifies the current tag/release/17-file set and removes superseded Ghost FTP releases, tags, canonical release branches and package versions. The release-branch trigger additionally waits for both the canonical publish run and canonical retention run to succeed. `main` commit history is not rewritten.
 
 ## Quality and engineering
 
@@ -147,4 +153,4 @@ After publication and remote read-back succeed, `.github/workflows/release-reten
 - [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — current public-line history.
 - [`../CHANGELOG.md`](../CHANGELOG.md) — source for generated release notes.
 
-Only the current public version is retained in active release history after retention cleanup succeeds. Git history remains the engineering provenance of earlier work.
+Only the current public version is retained in active release infrastructure after retention cleanup succeeds. Git history remains the engineering provenance of earlier work.

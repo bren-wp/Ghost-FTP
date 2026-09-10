@@ -114,7 +114,12 @@ class MaintenanceRegressionTests(unittest.TestCase):
             match.group(1)
             for match in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)
         ]
-        self.assertEqual(sections, [version])
+        self.assertTrue(sections, "changelog must contain at least the current release section")
+        self.assertEqual(sections[0], version, "current VERSION must be the first versioned changelog section")
+        self.assertEqual(len(sections), len(set(sections)), "changelog version sections must be unique")
+        section_parts = [tuple(int(part) for part in value.split(".")) for value in sections]
+        self.assertEqual(section_parts, sorted(section_parts, reverse=True), "changelog versions must be newest-first")
+        self.assertTrue(all(value <= parts for value in section_parts), "changelog must not contain a future version")
 
 
 if __name__ == "__main__":

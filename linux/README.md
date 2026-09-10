@@ -1,40 +1,15 @@
 # Ghost FTP for Linux
 
-Ghost FTP **0.0.2** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit and localization engine as the Windows application.
+Ghost FTP **0.0.3** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit and localization engine as the Windows application.
 
-The canonical release workflow uses the generic `linux/BUILD.sh` path. Supplemental distro-specific packaging remains independently verified CI coverage until a future release explicitly adds those files to the canonical public allow-list.
+The canonical 0.0.3 release workflow uses `linux/BUILD-DISTROS.sh`. The older generic `linux/BUILD.sh` path remains independent CI compatibility coverage, but the Debian/Ubuntu/Fedora/Portable family is now the canonical public Linux allow-list.
 
-This document distinguishes two artifact contracts:
+This document distinguishes two build contracts:
 
-1. **Canonical 0.0.2 release artifacts** — produced by `.github/workflows/release.yml` from `linux/BUILD.sh` and published only after complete verification.
-2. **Supplemental distro-specific CI artifacts** — produced by `linux/BUILD-DISTROS.sh` and verified independently for Debian, Ubuntu and Fedora.
+1. **Canonical 0.0.3 release artifacts** — produced by `linux/BUILD-DISTROS.sh`, verified by the distro packaging workflow and staged by `.github/workflows/release.yml`.
+2. **Generic CI compatibility artifacts** — produced by `linux/BUILD.sh` to retain independent DEB/portable build and binary-parity coverage.
 
-## Canonical Linux build
-
-```bash
-go telemetry off
-bash linux/BUILD.sh
-```
-
-`linux/BUILD.sh` produces the package set consumed by the canonical release workflow:
-
-```text
-dist/Ghost-FTP-X.Y.Z-Linux-amd64.deb
-dist/Ghost-FTP-X.Y.Z-Linux-arm64.deb
-dist/Ghost-FTP-X.Y.Z-Linux-i386.deb
-
-dist/Ghost-FTP-X.Y.Z-Linux-amd64.tar.gz
-dist/Ghost-FTP-X.Y.Z-Linux-arm64.tar.gz
-dist/Ghost-FTP-X.Y.Z-Linux-i386.tar.gz
-```
-
-For 0.0.2 those names resolve to the matching `Ghost-FTP-0.0.2-Linux-*` artifacts. When `dpkg-deb` is available, DEBs are built for `amd64`, `arm64` and `i386`. Production CI sets `GHOSTFTP_REQUIRE_DEB=1`, so the canonical production build fails closed if DEB tooling is unavailable.
-
-The DEB and portable archive for each architecture are built from the same compiled `ghostftp` executable. CI extracts both and compares the executable byte-for-byte before accepting the Linux production job.
-
-## Supplemental distro-specific build
-
-The maintained source also provides a separate distribution packaging path:
+## Canonical distro-specific build
 
 ```bash
 go telemetry off
@@ -51,6 +26,8 @@ dist/Ghost-FTP-X.Y.Z-Linux-Portable-arm64.tar.gz
 dist/Ghost-FTP-X.Y.Z-Linux-Portable-i386.tar.gz
 ```
 
+Representative canonical name: `Linux-Portable-amd64.tar.gz`.
+
 ### Debian
 
 ```text
@@ -59,7 +36,7 @@ dist/Ghost-FTP-X.Y.Z-Linux-Debian-arm64.deb
 dist/Ghost-FTP-X.Y.Z-Linux-Debian-i386.deb
 ```
 
-Representative CI name: `Linux-Debian-amd64.deb`.
+Representative canonical name: `Linux-Debian-amd64.deb`.
 
 ### Ubuntu
 
@@ -69,7 +46,7 @@ dist/Ghost-FTP-X.Y.Z-Linux-Ubuntu-arm64.deb
 dist/Ghost-FTP-X.Y.Z-Linux-Ubuntu-i386.deb
 ```
 
-Representative CI name: `Linux-Ubuntu-amd64.deb`.
+Representative canonical name: `Linux-Ubuntu-amd64.deb`.
 
 ### Fedora
 
@@ -79,11 +56,7 @@ dist/Ghost-FTP-X.Y.Z-Linux-Fedora-aarch64.rpm
 dist/Ghost-FTP-X.Y.Z-Linux-Fedora-i686.rpm
 ```
 
-Representative CI name: `Linux-Fedora-x86_64.rpm`.
-
-### Portable CI artifact
-
-Representative supplemental portable name: `Linux-Portable-amd64.tar.gz`.
+Representative canonical name: `Linux-Fedora-x86_64.rpm`.
 
 Architecture mapping is explicit:
 
@@ -93,9 +66,18 @@ Architecture mapping is explicit:
 | `arm64` | `aarch64` |
 | `i386` | `i686` |
 
-`.github/workflows/linux-distro-packages.yml` verifies package metadata and byte-for-byte executable parity across the distro-specific package family. Debian/Ubuntu DEBs and Fedora RPMs must carry the same production executable as their matching Portable archive for each architecture.
+`.github/workflows/linux-distro-packages.yml` verifies package metadata and byte-for-byte executable parity across the canonical distro package family. Debian/Ubuntu DEBs and Fedora RPMs must carry the same production executable as their matching Portable archive for each architecture.
 
-These distro-specific packages are **supplemental maintained CI outputs**. They are not part of the canonical 0.0.2 public release allow-list. A later release must explicitly integrate and verify them in the release workflow before documentation may call them public release assets.
+These distro-specific artifacts are no longer supplemental: they are the canonical 0.0.3 public Linux release allow-list.
+
+## Generic CI compatibility build
+
+```bash
+go telemetry off
+GHOSTFTP_REQUIRE_DEB=1 bash linux/BUILD.sh
+```
+
+`linux/BUILD.sh` continues to build generic DEBs and portable tarballs for `amd64`, `arm64` and `i386`. The Core CI extracts each pair and compares the `ghostftp` binary byte-for-byte. Those generic filenames are intentionally not staged by the 0.0.3 canonical release workflow.
 
 ## Native distro installation verification
 
@@ -113,45 +95,40 @@ Fedora-specific verification is provider-aware: the RPM `curl` requirement may b
 
 Native install coverage above is intentionally **x86-64 only**. `arm64`/`aarch64` and `i386`/`i686` distro artifacts are still protected by exact-head build, metadata, extraction and byte-parity checks; the maintained CI does not claim native package-manager/runtime installation coverage for those architectures.
 
-## Canonical 0.0.2 release contract
+## Canonical 0.0.3 release contract
 
-The maintained `.github/workflows/release.yml` stages the generic DEBs and generic `.tar.gz` archives from `linux/BUILD.sh`. Together with Windows artifacts and the multiarch ZIP, the current assembly contract is **12 platform artifacts / 15 public files**.
+The maintained `.github/workflows/release.yml` stages twelve Linux files from `BUILD-DISTROS.sh`. Together with two universal Windows executables, the current assembly contract is **14 platform artifacts / 17 public files**.
 
-Canonical Linux 0.0.2 files are:
+Canonical Linux 0.0.3 files are:
 
 ```text
-Ghost-FTP-0.0.2-Linux-amd64.deb
-Ghost-FTP-0.0.2-Linux-arm64.deb
-Ghost-FTP-0.0.2-Linux-i386.deb
-Ghost-FTP-0.0.2-Linux-multiarch.zip
-Ghost-FTP-0.0.2-Linux-amd64.tar.gz
-Ghost-FTP-0.0.2-Linux-arm64.tar.gz
-Ghost-FTP-0.0.2-Linux-i386.tar.gz
+Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.3-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.3-Linux-Debian-i386.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-i386.tar.gz
 ```
 
-The distro-specific Debian/Ubuntu/Fedora/Portable outputs from `BUILD-DISTROS.sh` are independently verified CI artifacts but are not yet part of that canonical release allow-list. This distinction is deliberate: build support is not equivalent to release publication support.
-
-The same verified public release directory is published as the distribution-only GHCR bundle `ghcr.io/bren-wp/ghost-ftp:0.0.2`. It is not a runtime container.
+The same verified public release directory is published as the distribution-only GHCR bundle `ghcr.io/bren-wp/ghost-ftp:0.0.3`. It is not a runtime container.
 
 ## Portable use
 
-For the canonical generic archive:
+For the canonical distro-neutral archive:
 
 ```bash
-tar -xzf Ghost-FTP-0.0.2-Linux-amd64.tar.gz
-cd Ghost-FTP-0.0.2-Linux-amd64
+tar -xzf Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
+cd Ghost-FTP-0.0.3-Linux-Portable-amd64
 ./ghostftp
 ```
 
-For a supplemental distro-neutral archive built from source/CI:
-
-```bash
-tar -xzf Ghost-FTP-X.Y.Z-Linux-Portable-amd64.tar.gz
-cd Ghost-FTP-X.Y.Z-Linux-Portable-amd64
-./ghostftp
-```
-
-Both portable layouts contain:
+Portable layouts contain:
 
 ```text
 ghostftp
@@ -190,7 +167,7 @@ Debian and Ubuntu packages declare `ca-certificates`, `curl` and `openssh-client
 
 When a local `DISPLAY` is available, `ghostftp` starts the native Ghost FTP graphical frontend by default. The GUI is implemented directly against X11/XWayland-compatible display transport without GTK, Qt, Electron, a webview or an external Go GUI module.
 
-The graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, single-file and tree transfers, queue controls, local/remote file operations, remote permissions, built-in Remote Edit and validated transfer settings.
+The graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, single-file and tree transfers, queue controls, local/remote file operations, remote permissions, built-in Remote Edit, recursive search/comparison and validated transfer/bandwidth settings.
 
 **Classic Light is the canonical Linux appearance.** The Linux frontend does not expose a theme switch whose backend cannot provide complete native runtime switching.
 
@@ -224,10 +201,14 @@ The accepted public SFTP fingerprint can remain as non-secret session metadata s
 
 Linux uses the same shared remote manager, transfer manager, Remote Edit engine and guarded local filesystem service as Windows. Regression coverage protects successful manager connection, remote listing/operation access and disconnect, invalid FTP credentials, FTPS-to-plaintext failure, generation binding, staged transfers, bounded tree operations, rooted download activation, local destructive-operation safeguards and Remote Edit conflict/read-back behavior.
 
+Directional bandwidth limits are enforced in the same shared transfer/remote path as Windows. FTP/FTPS use curl `limit-rate`; SFTP uses OpenSSH `sftp -l` after conservative KiB/s-to-Kbit/s conversion. A transfer attempt snapshots its effective budget at start, so changing the persisted setting affects new/retried attempts without mutating an existing child process.
+
 The terminal fallback exposes remote/local navigation, file operations, transfers, queue controls, profiles, settings and language selection through typed Engine calls. Its parser does not invoke a shell for Ghost FTP commands and rejects embedded NUL/newline control characters before dispatch.
 
 ## Settings and languages
 
 English is the canonical/default language. The maintained registry contains **24 languages**, and Linux uses the same catalogs and fallback normalization as Windows and Setup.
+
+Linux settings expose the same validated upload/download bandwidth values as Windows. The X11 surface uses bounded steppers/presets while preserving the shared allowed range and explicit `0 = unlimited` semantics.
 
 Production build scripts require Go telemetry to be disabled and CI uses controlled Go dependency settings. See `docs/SECURITY.md`, `docs/PLATFORM-PARITY.md`, `docs/DEPENDENCIES.md`, `docs/INSTALLATION.md` and `docs/TESTING.md` for the maintained release/security contract.

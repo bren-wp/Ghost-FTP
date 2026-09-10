@@ -2,7 +2,35 @@
 
 ## Unreleased
 
-No unreleased changes are currently staged after 0.0.2.
+No unreleased changes are currently staged after 0.0.3 release preparation.
+
+## 0.0.3 - 2026-09-10
+
+### Bandwidth-aware transfers
+
+- Added independent upload and download bandwidth ceilings with validated local settings on Windows and Linux.
+- Added conservative aggregate directional scheduling so configured KiB/s budgets remain bounded across concurrent transfer worker slots instead of becoming a per-transfer multiplier.
+- Enforced the effective transfer budget in the real transport path: curl `limit-rate` for FTP/FTPS and OpenSSH `sftp -l` for SFTP.
+- Kept `0` as the migration-safe unlimited default for settings written by Ghost FTP 0.0.2 and older builds.
+- Added validation, migration, aggregate-allocation, transport-conversion and Windows/Linux settings-surface regression coverage.
+- Defined attempt-scoped bandwidth policy: a running transport keeps the budget sampled when it starts, while new and retried attempts observe the newly saved setting.
+
+### Packaging and release engineering
+
+- Reduced the public Windows download surface to two self-contained files: `Ghost-FTP-0.0.3-Setup.exe` and `Ghost-FTP-0.0.3-Portable.exe`.
+- Preserved verified native x64/x86 application payloads internally and added a bootstrap that selects the native payload from `GetNativeSystemInfo`, performs no runtime download and verifies staged bytes before execution.
+- Kept integrated uninstall ownership and optional fail-closed Authenticode behavior while preventing architecture-specific staging executables from leaking into the public artifact directory.
+- Promoted `linux/BUILD-DISTROS.sh` to the canonical Linux release builder.
+- Added canonical Debian and Ubuntu DEBs for `amd64`, `arm64`, `i386`; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and distro-neutral Portable tarballs for `amd64`, `arm64`, `i386`.
+- Preserved one compiled executable per architecture across matching Debian/Ubuntu/Fedora/Portable packages and byte-parity verification before publication.
+- Updated the public release allow-list to **14 platform artifacts / 17 public files**, including immediate and delayed GitHub Release asset read-back and matching latest-only retention preflight.
+- Kept Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native install/remove/GUI lifecycle gates; additional architectures retain build, metadata, extraction and binary-parity verification.
+- Strengthened the universal Windows wrapper with a direct fail-closed Go telemetry check and updated authentic UI evidence to capture the verified internal native x64 payload without making it a public download.
+
+### Security and privacy
+
+- Preserved strict FTPS certificate/hostname validation, SFTP host-key verification/pinning, trusted Linux AskPass provenance, rooted local path protections, protected-secret lifetime rules and no silent secure-to-plain downgrade.
+- Preserved the no-telemetry, no-analytics, no-advertising, no-fingerprinting and no-hidden-backend contract across the new bandwidth and packaging paths.
 
 ## 0.0.2 - 2026-09-10
 

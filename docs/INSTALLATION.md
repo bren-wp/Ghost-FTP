@@ -1,120 +1,135 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.2** is the current published release. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.3** is the current published release. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical release packages
 
-The canonical public release contains **12 platform artifacts / 15 public files**.
+The canonical public release contains **14 platform artifacts / 17 public files**.
 
 ### Windows
 
 ```text
-Ghost-FTP-0.0.2-Setup-x64.exe
-Ghost-FTP-0.0.2-Setup-x86.exe
-Ghost-FTP-0.0.2-Setup-x32.exe
-Ghost-FTP-0.0.2-Portable-x64.exe
-Ghost-FTP-0.0.2-Portable-x86.exe
+Ghost-FTP-0.0.3-Setup.exe
+Ghost-FTP-0.0.3-Portable.exe
 ```
 
-- `x64` is the native 64-bit Windows build.
-- `x86` is the native 32-bit Windows build.
-- `x32` is a byte-identical compatibility alias of the verified x86 Setup artifact.
-- Portable builds require no installer registration.
-- Setup installs the same Ghost FTP application payload and uses the integrated uninstall path.
+- Both public files are self-contained x86-compatible universal launchers that carry verified native x64 and x86 Ghost FTP payloads.
+- Native architecture is selected from Windows system information through the maintained `GetNativeSystemInfo` path rather than mutable architecture environment variables.
+- The selected embedded payload is verified before execution and the bootstrap performs no runtime download.
+- Architecture-specific x64/x86 staging executables remain internal build evidence and must not appear in the public release directory.
+- Portable requires no installer registration.
+- Setup installs the matching native Ghost FTP application payload and uses the integrated uninstall path; no permanent separate uninstaller binary is required.
 
-Production Authenticode is optional. When a trusted production certificate is configured, every produced Windows artifact must verify. If no production certificate is configured, `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
+Production Authenticode is optional. When a trusted production certificate is configured, every public Windows executable must verify. If no production certificate is configured, `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
 
 ### Linux
 
+Canonical Linux 0.0.3 release files are built by `linux/BUILD-DISTROS.sh`:
+
 ```text
-Ghost-FTP-0.0.2-Linux-amd64.deb
-Ghost-FTP-0.0.2-Linux-arm64.deb
-Ghost-FTP-0.0.2-Linux-i386.deb
-Ghost-FTP-0.0.2-Linux-multiarch.zip
-Ghost-FTP-0.0.2-Linux-amd64.tar.gz
-Ghost-FTP-0.0.2-Linux-arm64.tar.gz
-Ghost-FTP-0.0.2-Linux-i386.tar.gz
+Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.3-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.3-Linux-Debian-i386.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.3-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.3-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.3-Linux-Portable-i386.tar.gz
 ```
 
-DEB packages and portable tar.gz archives are built from the same per-architecture executable and are compared for byte parity during release CI.
+Representative contract names are `Linux-Debian-amd64.deb`, `Linux-Ubuntu-amd64.deb`, `Linux-Fedora-x86_64.rpm` and `Linux-Portable-amd64.tar.gz`.
+
+The builder compiles one production `ghostftp` executable per Go architecture and reuses that executable across matching Debian, Ubuntu, Fedora and Portable variants. Release CI extracts package payloads and compares those binaries byte-for-byte.
 
 ## Windows Setup
 
-1. Download the architecture matching the target system.
-2. Verify `SHA256.txt` before installation.
-3. Run Setup as the intended user.
-4. Ghost FTP records its application/uninstall identity and owned shortcut digests.
-5. Uninstall is integrated into the installed `GhostFTP.exe`; no permanent separate uninstaller binary is required.
+1. Download `Ghost-FTP-0.0.3-Setup.exe`.
+2. Verify its SHA-256 against `SHA256.txt` before installation.
+3. Inspect `BUILD-METADATA.txt` and require a valid Authenticode signature only when metadata reports `WINDOWS_AUTHENTICODE=signed`.
+4. Run Setup as the intended user.
+5. Ghost FTP records its application/uninstall identity and owned shortcut digests.
+6. Uninstall remains integrated into the installed `GhostFTP.exe`; no permanent separate uninstaller executable is installed.
 
-The installer preserves foreign or user-modified same-name shortcuts and does not delete an unowned Start Menu parent directory.
+The installer preserves foreign or user-modified same-name shortcuts and does not delete an unowned Start Menu parent directory. State-directory, install-directory, registry, shortcut and integrated-uninstall cleanup remains ownership-bound where identity must be proven.
 
 ## Windows Portable
 
-Portable executables can be started directly. They do not require an installation transaction or registry registration. Portable use does not weaken FTPS/SFTP verification, local path protections, Remote Edit limits or privacy behavior.
+`Ghost-FTP-0.0.3-Portable.exe` can be started directly and does not require an installation transaction or registry registration. Universal bootstrap selection does not weaken FTPS/SFTP verification, local path protections, bandwidth policy, Remote Edit limits or privacy behavior.
 
-## Linux DEB
+## Linux Debian and Ubuntu DEB
+
+Examples:
+
+```bash
+sudo apt install ./Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
+sudo apt install ./Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
+```
+
+The packages install the application binary, desktop entry and icon using the maintained `ghost-ftp` package identity. Debian/Ubuntu metadata declares `ca-certificates`, `curl` and `openssh-client`.
+
+## Linux Fedora RPM
 
 Example:
 
 ```bash
-sudo apt install ./Ghost-FTP-0.0.2-Linux-amd64.deb
+sudo dnf install ./Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
 ```
 
-The package installs the application binary, desktop entry and icon using the maintained Ghost FTP package identity.
+Fedora metadata declares `ca-certificates`, `curl` and `openssh-clients`. Runtime verification is provider-aware where Fedora may satisfy the `curl` requirement through a compatible package provider.
 
 ## Linux portable archive
 
 Example:
 
 ```bash
-tar -xzf Ghost-FTP-0.0.2-Linux-amd64.tar.gz
-cd Ghost-FTP-0.0.2-Linux-amd64
+tar -xzf Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
+cd Ghost-FTP-0.0.3-Linux-Portable-amd64
 ./ghostftp
 ```
 
-Portable archives include the executable, desktop metadata, icon, README and LICENSE required by the package contract.
+Portable archives include the executable, desktop metadata, icon, README and LICENSE required by the package contract. A user-writable Portable extraction cannot claim the same root-controlled OpenSSH AskPass provenance as a package-manager installation; automatic SFTP password/private-key-passphrase delivery therefore fails closed when that trusted boundary is unavailable.
 
-## Supplemental distro-specific source/CI packages
+## Native distro package lifecycle
 
-`linux/BUILD-DISTROS.sh` also builds verification-oriented distro artifacts such as:
-
-```text
-Linux-Debian-amd64.deb
-Linux-Ubuntu-amd64.deb
-Linux-Fedora-x86_64.rpm
-Linux-Portable-amd64.tar.gz
-```
-
-These supplemental files are **not yet part of the canonical release allow-list**. Their purpose is package metadata/parity and native install/remove/GUI verification.
-
-Native package-manager/runtime coverage is intentionally **x86-64 only** for the following CI lifecycle environments:
+Native package-manager/runtime coverage is intentionally **x86-64 only** for the maintained lifecycle environments:
 
 - **Debian 13 amd64**;
 - **Ubuntu 26.04 LTS amd64**;
 - **Fedora 44 x86_64**.
 
-Canonical Linux production artifacts still cover `amd64`, `arm64` and `i386` as documented above.
+`.github/workflows/linux-distro-install.yml` performs real install/remove/runtime/GUI smoke in those environments. It verifies package identity, runtime dependencies, package-owned files, startup of installed `/usr/bin/ghostftp` under isolated local Xvfb, removal and absence of package-owned residue.
+
+`arm64`/`aarch64` and `i386`/`i686` artifacts remain canonical release files and receive exact-head build, package metadata, extraction and binary-parity verification; the project does not claim native installation lifecycle coverage for those architectures until a corresponding gate exists.
 
 ## Upgrade behavior
 
 A future release is installed over the existing application through the maintained installer transaction. State-directory, install-directory, registry, shortcut and integrated-uninstall identity checks remain fail-closed where ownership must be proven.
 
-The public release catalog follows a latest-only policy: after a new Ghost FTP release is successfully published and verified, older Ghost FTP releases/tags and obsolete package versions are removed. Users should therefore obtain the current release from the GitHub Releases page rather than depending on an old version URL.
+The public release catalog follows a latest-only policy: after a new Ghost FTP release is successfully published and verified, older Ghost FTP releases/tags and obsolete package versions are removed. Users should obtain the current release rather than depending on a superseded version URL.
 
 ## Remote Edit after installation
 
 Windows and Linux expose the same Remote Edit engine contract for supported remote text files. Opening/saving a remote file remains subject to size, text/binary, revision/conflict, path confinement, permission-preservation and read-back verification safeguards.
 
+## Bandwidth behavior after installation
+
+Upload/download ceilings are persisted local settings in binary KiB/s. `0` is unlimited. The configured directional budget is applied to actual FTP/FTPS/SFTP transport work, not merely displayed in UI. A running transfer attempt retains the budget sampled at start; later attempts observe newly saved values.
+
 ## Verification
 
 Before using an official package:
 
-1. confirm the requested version is 0.0.2;
-2. verify the file is one of the canonical artifact names;
+1. confirm the requested version is `0.0.3`;
+2. verify the file is one of the canonical artifact names above;
 3. verify its SHA-256 against `SHA256.txt`;
 4. inspect `BUILD-METADATA.txt` for source commit and Windows signing state;
-5. where metadata says `signed`, require a valid Authenticode signature on Windows.
+5. where metadata says `signed`, require a valid Authenticode signature on Windows;
+6. distinguish native lifecycle coverage from build/parity coverage for non-x86-64 Linux artifacts.
 
-The verified distribution bundle is also published at `ghcr.io/bren-wp/ghost-ftp:0.0.2`; it is distribution infrastructure, not a runtime container.
+The verified distribution bundle is also published at `ghcr.io/bren-wp/ghost-ftp:0.0.3`; it is distribution infrastructure, not a runtime container.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [GitHub Releases](GITHUB-RELEASES.md).
