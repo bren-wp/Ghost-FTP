@@ -1,6 +1,6 @@
 # Ghost FTP desktop reference UI
 
-Ghost FTP **0.0.1** uses a focused native two-pane desktop layout on Windows and Linux. The same typed Core owns protocol, profile, transfer and Remote Edit behavior; platform frontends differ only where the operating system requires native presentation details.
+Ghost FTP **0.0.2** uses a focused native two-pane desktop layout on Windows and Linux. The same typed Core owns protocol, profile, transfer and Remote Edit behavior; platform frontends differ only where the operating system requires native presentation details.
 
 This is a source/runtime contract, not a mockup specification. Visible controls must map to real engine capabilities and real state.
 
@@ -113,7 +113,7 @@ Linux preserves the same major workflow priorities at supported sizes without ex
 
 ![Ghost FTP About](images/ghost-ftp-about.png)
 
-About displays the runtime product/version identity generated from canonical build `VERSION`; the current release identity is **Ghost FTP 0.0.1**.
+About displays the runtime product/version identity generated from canonical build `VERSION`; the current release identity is **Ghost FTP 0.0.2**.
 
 ## Authentic screenshot evidence
 

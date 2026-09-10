@@ -1,6 +1,6 @@
 # Ghost FTP settings
 
-Ghost FTP **0.0.1** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
+Ghost FTP **0.0.2** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
 
 ## Current persisted settings
 

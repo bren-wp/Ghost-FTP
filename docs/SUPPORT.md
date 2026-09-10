@@ -1,12 +1,12 @@
 # Ghost FTP support
 
-Ghost FTP **0.0.1** is the current supported public release.
+Ghost FTP **0.0.2** is the current supported public release.
 
 Official product and support destination: **https://ghostftp.com**.
 
 ## Before reporting a problem
 
-1. Confirm the application reports version `0.0.1`.
+1. Confirm the application reports version `0.0.2`.
 2. Confirm the package came from the current GitHub Release.
 3. Verify the artifact against `SHA256.txt`.
 4. Reproduce with the same protocol (FTP, FTPS or SFTP), architecture and operating system.
@@ -22,7 +22,7 @@ Include privacy-safe information such as:
 - CPU architecture;
 - Ghost FTP version;
 - protocol selection;
-- whether the issue occurs on connect, list, upload, download, Remote Edit, profile handling or uninstall;
+- whether the issue occurs on connect, list, upload, download, current-folder filter, recursive search, directory comparison, synchronized navigation, Remote Edit, profile handling or uninstall;
 - exact user-visible error category without copying secret-bearing raw server output;
 - whether the behavior reproduces with a synthetic test server/file.
 
@@ -60,6 +60,6 @@ For credential exposure, trust-verification bypass, path containment, installer/
 
 ## Supported release infrastructure
 
-The current release identity is `ghostftp-v0.0.1` with `prerelease=false`. The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.1`. After a newer release is verified, old Ghost FTP releases/tags and obsolete package versions are intentionally removed by the latest-only retention policy. Git commit history remains available for engineering provenance but is not a supported binary archive.
+The current release identity is `ghostftp-v0.0.2` with `prerelease=false`. The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.2`. After a newer release is verified, old Ghost FTP releases/tags and obsolete package versions are intentionally removed by the latest-only retention policy. Git commit history remains available for engineering provenance but is not a supported binary archive.
 
 See [Security](SECURITY.md), [Privacy](PRIVACY.md), [Testing](TESTING.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning](VERSIONING.md).

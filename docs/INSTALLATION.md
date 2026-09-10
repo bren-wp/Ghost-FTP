@@ -1,6 +1,6 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.1** is the current published release. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.2** is the current published release. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical release packages
 
@@ -9,11 +9,11 @@ The canonical public release contains **12 platform artifacts / 15 public files*
 ### Windows
 
 ```text
-Ghost-FTP-0.0.1-Setup-x64.exe
-Ghost-FTP-0.0.1-Setup-x86.exe
-Ghost-FTP-0.0.1-Setup-x32.exe
-Ghost-FTP-0.0.1-Portable-x64.exe
-Ghost-FTP-0.0.1-Portable-x86.exe
+Ghost-FTP-0.0.2-Setup-x64.exe
+Ghost-FTP-0.0.2-Setup-x86.exe
+Ghost-FTP-0.0.2-Setup-x32.exe
+Ghost-FTP-0.0.2-Portable-x64.exe
+Ghost-FTP-0.0.2-Portable-x86.exe
 ```
 
 - `x64` is the native 64-bit Windows build.
@@ -27,13 +27,13 @@ Production Authenticode is optional. When a trusted production certificate is co
 ### Linux
 
 ```text
-Ghost-FTP-0.0.1-Linux-amd64.deb
-Ghost-FTP-0.0.1-Linux-arm64.deb
-Ghost-FTP-0.0.1-Linux-i386.deb
-Ghost-FTP-0.0.1-Linux-multiarch.zip
-Ghost-FTP-0.0.1-Linux-amd64.tar.gz
-Ghost-FTP-0.0.1-Linux-arm64.tar.gz
-Ghost-FTP-0.0.1-Linux-i386.tar.gz
+Ghost-FTP-0.0.2-Linux-amd64.deb
+Ghost-FTP-0.0.2-Linux-arm64.deb
+Ghost-FTP-0.0.2-Linux-i386.deb
+Ghost-FTP-0.0.2-Linux-multiarch.zip
+Ghost-FTP-0.0.2-Linux-amd64.tar.gz
+Ghost-FTP-0.0.2-Linux-arm64.tar.gz
+Ghost-FTP-0.0.2-Linux-i386.tar.gz
 ```
 
 DEB packages and portable tar.gz archives are built from the same per-architecture executable and are compared for byte parity during release CI.
@@ -57,7 +57,7 @@ Portable executables can be started directly. They do not require an installatio
 Example:
 
 ```bash
-sudo apt install ./Ghost-FTP-0.0.1-Linux-amd64.deb
+sudo apt install ./Ghost-FTP-0.0.2-Linux-amd64.deb
 ```
 
 The package installs the application binary, desktop entry and icon using the maintained Ghost FTP package identity.
@@ -67,8 +67,8 @@ The package installs the application binary, desktop entry and icon using the ma
 Example:
 
 ```bash
-tar -xzf Ghost-FTP-0.0.1-Linux-amd64.tar.gz
-cd Ghost-FTP-0.0.1-Linux-amd64
+tar -xzf Ghost-FTP-0.0.2-Linux-amd64.tar.gz
+cd Ghost-FTP-0.0.2-Linux-amd64
 ./ghostftp
 ```
 
@@ -109,12 +109,12 @@ Windows and Linux expose the same Remote Edit engine contract for supported remo
 
 Before using an official package:
 
-1. confirm the requested version is 0.0.1;
+1. confirm the requested version is 0.0.2;
 2. verify the file is one of the canonical artifact names;
 3. verify its SHA-256 against `SHA256.txt`;
 4. inspect `BUILD-METADATA.txt` for source commit and Windows signing state;
 5. where metadata says `signed`, require a valid Authenticode signature on Windows.
 
-The verified distribution bundle is also published at `ghcr.io/bren-wp/ghost-ftp:0.0.1`; it is distribution infrastructure, not a runtime container.
+The verified distribution bundle is also published at `ghcr.io/bren-wp/ghost-ftp:0.0.2`; it is distribution infrastructure, not a runtime container.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [GitHub Releases](GITHUB-RELEASES.md).

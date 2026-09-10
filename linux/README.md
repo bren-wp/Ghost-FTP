@@ -1,12 +1,12 @@
 # Ghost FTP for Linux
 
-Ghost FTP **0.0.1** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit and localization engine as the Windows application.
+Ghost FTP **0.0.2** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit and localization engine as the Windows application.
 
 The canonical release workflow uses the generic `linux/BUILD.sh` path. Supplemental distro-specific packaging remains independently verified CI coverage until a future release explicitly adds those files to the canonical public allow-list.
 
 This document distinguishes two artifact contracts:
 
-1. **Canonical 0.0.1 release artifacts** — produced by `.github/workflows/release.yml` from `linux/BUILD.sh` and published only after complete verification.
+1. **Canonical 0.0.2 release artifacts** — produced by `.github/workflows/release.yml` from `linux/BUILD.sh` and published only after complete verification.
 2. **Supplemental distro-specific CI artifacts** — produced by `linux/BUILD-DISTROS.sh` and verified independently for Debian, Ubuntu and Fedora.
 
 ## Canonical Linux build
@@ -28,7 +28,7 @@ dist/Ghost-FTP-X.Y.Z-Linux-arm64.tar.gz
 dist/Ghost-FTP-X.Y.Z-Linux-i386.tar.gz
 ```
 
-For 0.0.1 those names resolve to the matching `Ghost-FTP-0.0.1-Linux-*` artifacts. When `dpkg-deb` is available, DEBs are built for `amd64`, `arm64` and `i386`. Production CI sets `GHOSTFTP_REQUIRE_DEB=1`, so the canonical production build fails closed if DEB tooling is unavailable.
+For 0.0.2 those names resolve to the matching `Ghost-FTP-0.0.2-Linux-*` artifacts. When `dpkg-deb` is available, DEBs are built for `amd64`, `arm64` and `i386`. Production CI sets `GHOSTFTP_REQUIRE_DEB=1`, so the canonical production build fails closed if DEB tooling is unavailable.
 
 The DEB and portable archive for each architecture are built from the same compiled `ghostftp` executable. CI extracts both and compares the executable byte-for-byte before accepting the Linux production job.
 
@@ -95,7 +95,7 @@ Architecture mapping is explicit:
 
 `.github/workflows/linux-distro-packages.yml` verifies package metadata and byte-for-byte executable parity across the distro-specific package family. Debian/Ubuntu DEBs and Fedora RPMs must carry the same production executable as their matching Portable archive for each architecture.
 
-These distro-specific packages are **supplemental maintained CI outputs**. They are not part of the canonical 0.0.1 public release allow-list. A later release must explicitly integrate and verify them in the release workflow before documentation may call them public release assets.
+These distro-specific packages are **supplemental maintained CI outputs**. They are not part of the canonical 0.0.2 public release allow-list. A later release must explicitly integrate and verify them in the release workflow before documentation may call them public release assets.
 
 ## Native distro installation verification
 
@@ -113,33 +113,33 @@ Fedora-specific verification is provider-aware: the RPM `curl` requirement may b
 
 Native install coverage above is intentionally **x86-64 only**. `arm64`/`aarch64` and `i386`/`i686` distro artifacts are still protected by exact-head build, metadata, extraction and byte-parity checks; the maintained CI does not claim native package-manager/runtime installation coverage for those architectures.
 
-## Canonical 0.0.1 release contract
+## Canonical 0.0.2 release contract
 
 The maintained `.github/workflows/release.yml` stages the generic DEBs and generic `.tar.gz` archives from `linux/BUILD.sh`. Together with Windows artifacts and the multiarch ZIP, the current assembly contract is **12 platform artifacts / 15 public files**.
 
-Canonical Linux 0.0.1 files are:
+Canonical Linux 0.0.2 files are:
 
 ```text
-Ghost-FTP-0.0.1-Linux-amd64.deb
-Ghost-FTP-0.0.1-Linux-arm64.deb
-Ghost-FTP-0.0.1-Linux-i386.deb
-Ghost-FTP-0.0.1-Linux-multiarch.zip
-Ghost-FTP-0.0.1-Linux-amd64.tar.gz
-Ghost-FTP-0.0.1-Linux-arm64.tar.gz
-Ghost-FTP-0.0.1-Linux-i386.tar.gz
+Ghost-FTP-0.0.2-Linux-amd64.deb
+Ghost-FTP-0.0.2-Linux-arm64.deb
+Ghost-FTP-0.0.2-Linux-i386.deb
+Ghost-FTP-0.0.2-Linux-multiarch.zip
+Ghost-FTP-0.0.2-Linux-amd64.tar.gz
+Ghost-FTP-0.0.2-Linux-arm64.tar.gz
+Ghost-FTP-0.0.2-Linux-i386.tar.gz
 ```
 
 The distro-specific Debian/Ubuntu/Fedora/Portable outputs from `BUILD-DISTROS.sh` are independently verified CI artifacts but are not yet part of that canonical release allow-list. This distinction is deliberate: build support is not equivalent to release publication support.
 
-The same verified public release directory is published as the distribution-only GHCR bundle `ghcr.io/bren-wp/ghost-ftp:0.0.1`. It is not a runtime container.
+The same verified public release directory is published as the distribution-only GHCR bundle `ghcr.io/bren-wp/ghost-ftp:0.0.2`. It is not a runtime container.
 
 ## Portable use
 
 For the canonical generic archive:
 
 ```bash
-tar -xzf Ghost-FTP-0.0.1-Linux-amd64.tar.gz
-cd Ghost-FTP-0.0.1-Linux-amd64
+tar -xzf Ghost-FTP-0.0.2-Linux-amd64.tar.gz
+cd Ghost-FTP-0.0.2-Linux-amd64
 ./ghostftp
 ```
 

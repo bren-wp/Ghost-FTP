@@ -33,17 +33,19 @@ class NoRetiredPublicVersionsTests(unittest.TestCase):
                     )
         self.assertEqual(failures, [], "\n".join(failures))
 
-    def test_current_public_line_is_0_0_1(self) -> None:
+    def test_current_public_line_is_version_bound(self) -> None:
         version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         versioning = (ROOT / "docs" / "VERSIONING.md").read_text(encoding="utf-8")
         release_workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-        self.assertEqual(version, "0.0.1")
-        self.assertIn("Current Ghost FTP version: **0.0.1**", readme)
+        self.assertRegex(version, r"^0\.0\.[1-9]\d*$")
+        self.assertIn(f"Current Ghost FTP version: **{version}**", readme)
         self.assertIn("Development status: **Active**", readme)
         self.assertIn("Release channel: **Current**", readme)
         self.assertIn("prerelease=false", readme)
-        self.assertIn("Current source candidate: **0.0.1**", versioning)
+        self.assertIn(f"Current source candidate: **{version}**", versioning)
+        self.assertIn(f"VERSION={version}", versioning)
+        self.assertIn(f"TAG=ghostftp-v{version}", versioning)
         self.assertIn("CHANNEL=Current", versioning)
         self.assertIn("PRERELEASE=false", versioning)
         self.assertIn("major version `0` does not imply prerelease", versioning)

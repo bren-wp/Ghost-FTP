@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **0.0.1** is validated through layered source, security, native build, packaging, UI-action and release-lifecycle gates.
+Ghost FTP **0.0.2** is validated through layered source, security, native build, packaging, UI-action and release-lifecycle gates.
 
 ## Core quality gate
 
@@ -30,7 +30,7 @@ Tests cover the maintained FTP/FTPS/SFTP engine contract, including:
 
 ## Current-folder filter regression contract
 
-The Unreleased source line includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from bounded recursive search: filtering only evaluates the already-loaded snapshot and performs no additional directory or network I/O.
+The 0.0.2 source includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from bounded recursive search: filtering only evaluates the already-loaded snapshot and performs no additional directory or network I/O.
 
 The filter gates require:
 
@@ -48,7 +48,7 @@ The filter gates require:
 
 ## Bounded recursive search regression contract
 
-The maintained Unreleased source exposes recursive local/server search as an explicit action rather than an extension of typing into the current-folder filter. The search path is read-only and bounded before it reaches either desktop UI.
+The maintained 0.0.2 source exposes recursive local/server search as an explicit action rather than an extension of typing into the current-folder filter. The search path is read-only and bounded before it reaches either desktop UI.
 
 Core tests and `scripts/test_recursive_search_ui_contract.py` require:
 
@@ -71,7 +71,7 @@ The desktop disclosure explicitly states that recursive mode reads nested local/
 
 ## Directory comparison and synchronized-navigation regression contract
 
-The maintained Unreleased source exposes directory comparison as a read-only view over freshly listed current local/server directories. The shared classifier performs no filesystem or network I/O and does not grant file-operation authority to comparison rows.
+The maintained 0.0.2 source exposes directory comparison as a read-only view over freshly listed current local/server directories. The shared classifier performs no filesystem or network I/O and does not grant file-operation authority to comparison rows.
 
 Go tests and `scripts/test_directory_comparison_contract.py` require:
 
@@ -80,17 +80,18 @@ Go tests and `scripts/test_directory_comparison_contract.py` require:
 - duplicate exact names to fail closed to `conflict`;
 - type mismatches to fail closed to `conflict` and symlinks to fail closed to `unknown`;
 - a default **2-second** timestamp tolerance with a hard **5-minute** maximum override;
-- regular-file `same` or `newer_*` classification only when both sides provide usable modification times; equal-size files with an unknown timestamp remain `unknown`, while unequal sizes with unknown time remain `conflict`;
+- directional timestamp comparison that cannot overflow through negation of a saturated minimum duration;
+- regular-file `same` or `newer_*` classification only when both sides provide usable modification times; zero-size ambiguity and equal-size files with unknown timestamp remain `unknown`, while unequal sizes with unknown time remain `conflict`;
 - the synchronized-directory resolver to accept only an exact `same` entry that is an ordinary non-symlink directory present on both sides;
-- Windows to render dedicated comparison ListViews and disable ordinary rename/delete/upload/download/Remote Edit/CHMOD authority while the comparison view is active;
-- Linux to make the comparison view modal and consume ordinary workspace clicks while comparison display rows are active;
+- Windows to render dedicated comparison ListViews, synchronize comparison-row selection, invalidate stale comparison state on connection-generation changes and disable ordinary rename/delete/upload/download/Remote Edit/CHMOD authority while comparison is active;
+- Linux to preserve authoritative pre-filter pane snapshots, restore them after cancellation/listing failure, make comparison modal and consume ordinary workspace clicks while comparison display rows are active;
 - local synchronized children to pass `security.SafeLocalChild`, and remote child names/paths to pass the existing remote validation boundary;
 - **fresh local and remote listings to complete before either pane path is committed** during “Open both”;
 - comparison to recompute from those fresh target snapshots after synchronized navigation;
 - all 24 desktop languages to provide comparison action/status/disclosure copy;
 - comparison code to contain no upload, download, delete, rename or CHMOD side effect.
 
-This contract deliberately does not infer that equal size means equal content when server timestamps are unavailable. FTP/FTPS MLSD can supply usable UTC modification time, while current FTP LIST fallback and SFTP listing paths may expose zero/unknown `Modified`; those cases stay conservative rather than fabricating equality or freshness.
+This contract deliberately does not infer that equal size means equal content when server timestamps or size presence are unavailable. Those cases stay conservative rather than fabricating equality or freshness.
 
 ## Settings regression contract
 
@@ -137,11 +138,11 @@ README and active documentation use repository-local Ghost FTP icon/screenshot a
 The Windows production job builds and verifies:
 
 ```text
-Ghost-FTP-0.0.1-Setup-x64.exe
-Ghost-FTP-0.0.1-Setup-x86.exe
-Ghost-FTP-0.0.1-Setup-x32.exe
-Ghost-FTP-0.0.1-Portable-x64.exe
-Ghost-FTP-0.0.1-Portable-x86.exe
+Ghost-FTP-0.0.2-Setup-x64.exe
+Ghost-FTP-0.0.2-Setup-x86.exe
+Ghost-FTP-0.0.2-Setup-x32.exe
+Ghost-FTP-0.0.2-Portable-x64.exe
+Ghost-FTP-0.0.2-Portable-x86.exe
 ```
 
 It verifies release artifacts and exercises the Authenticode private-key pipeline policy. Production signing is optional; configured signatures must verify.
@@ -191,14 +192,14 @@ A green run for an older commit does not satisfy a newer PR head.
 
 ## Release publication gate
 
-0.0.1 publication additionally requires:
+0.0.2 publication additionally requires:
 
 - exact current `main` release-branch validation;
 - canonical release workflow quality/build jobs;
 - exact 15-file GitHub Release allow-list;
 - immediate and delayed remote release read-back;
 - `prerelease=false` for the current 0.0.x release channel;
-- verified `ghcr.io/bren-wp/ghost-ftp:0.0.1` distribution-bundle publication/read-back;
+- verified `ghcr.io/bren-wp/ghost-ftp:0.0.2` distribution-bundle publication/read-back;
 - successful latest-only retention cleanup after publication.
 
 ## Deterministic release-to-retention gate
@@ -218,7 +219,7 @@ This closes the class of failure where publication succeeds but downstream `work
 
 ## Retention validation
 
-The retention workflow must leave only the current `ghostftp-v0.0.1` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
+The retention workflow must leave only the current `ghostftp-v0.0.2` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
 
 Before destructive cleanup it independently verifies current release identity, `draft=false`, `prerelease=false`, exactly **15 assets**, and current tag SHA equality with current `main`.
 
