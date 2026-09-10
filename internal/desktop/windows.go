@@ -300,6 +300,16 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 					return 0
 				}
 			}
+			if h.Code == lvnItemChanged {
+				state := a.directoryComparisonState()
+				if state != nil && (h.HwndFrom == state.localList || h.HwndFrom == state.remoteList) {
+					n := nmListViewFromLParam(lParam)
+					if n.NewState&lvisSelected != 0 {
+						a.handleDirectoryComparisonSelection(h.HwndFrom, int(n.Item))
+					}
+					return 0
+				}
+			}
 			if h.Code == lvnItemChanged && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList || h.HwndFrom == a.transferList) {
 				a.updateActionControls()
 				return 0
