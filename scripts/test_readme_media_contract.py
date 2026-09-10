@@ -75,7 +75,11 @@ class ReadmeMediaContractTests(unittest.TestCase):
                 f"{label} must bind native screenshot evidence to the universal Windows build chain",
             )
             self.assertIn("mockup", lowered, f"{label} must reject mockups as production evidence")
-            self.assertIn("not a public download", lowered, f"{label} must not present internal x64 evidence as a public artifact")
+            self.assertRegex(
+                lowered,
+                r"not (?:an architecture-specific )?public download",
+                f"{label} must not present internal x64 evidence as a public artifact",
+            )
 
 
 if __name__ == "__main__":
