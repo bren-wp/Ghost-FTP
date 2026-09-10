@@ -690,7 +690,7 @@ func (s *SFTP) Upload(ctx context.Context, local, remotePath string, options Tra
 	total := source.Size()
 	reportTransferProgress(options.Progress, 0, total)
 	tempPath := remoteJoin(dir, tempName)
-	if _, err = s.run(ctx, "put "+sftpQuote(source.Path())+" "+sftpQuote(tempPath)); err != nil {
+	if _, err = s.runTransfer(ctx, options.BandwidthLimitBytesPerSecond, "put "+sftpQuote(source.Path())+" "+sftpQuote(tempPath)); err != nil {
 		return cleanupFailure(err, dir, tempName, s.Delete)
 	}
 	reportTransferProgress(options.Progress, total, total)
@@ -718,7 +718,7 @@ func (s *SFTP) Download(ctx context.Context, remotePath, local string, options T
 	defer target.Close()
 	total := bestEffortRemoteFileSize(ctx, remotePath, s.List)
 	stopProgress := startLocalFileProgressMonitor(ctx, target.partPath, total, options.Progress)
-	_, runErr := s.run(ctx, "get "+sftpQuote(remotePath)+" "+sftpQuote(target.partPath))
+	_, runErr := s.runTransfer(ctx, options.BandwidthLimitBytesPerSecond, "get "+sftpQuote(remotePath)+" "+sftpQuote(target.partPath))
 	stopProgress()
 	if runErr != nil {
 		target.cleanupPart()
