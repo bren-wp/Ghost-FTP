@@ -204,17 +204,19 @@ func setListRedraw(list uintptr, enabled bool) {
 }
 
 // fillItems is the narrow compatibility bridge used by asynchronous navigation
-// callbacks. Rendering is centralized in app.fillItemList so locale handling
-// and row construction have one authoritative implementation. The active pane
-// sort is applied here so refresh/navigation cannot silently reset a user-selected
-// column ordering.
+// callbacks. A fresh engine listing becomes the filter source snapshot first;
+// only the independent visible slice is sorted and rendered. Row-indexed actions
+// therefore continue to address exactly what the user can see while clearing a
+// filter can restore every item without another filesystem or server request.
 func fillItems(list uintptr, items []model.Item) {
 	owner := ownerForItemList(list)
 	if owner == nil {
 		return
 	}
-	owner.sortFileItems(list, items)
-	owner.fillItemList(list, items)
+	visible := owner.acceptFileFilterSnapshot(list, items)
+	owner.sortFileItems(list, visible)
+	owner.fillItemList(list, visible)
+	owner.updateFileFilterControls()
 }
 
 func insertListRow(list uintptr, row int, cols []string) {
