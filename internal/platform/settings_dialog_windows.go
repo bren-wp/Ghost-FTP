@@ -178,6 +178,19 @@ func normalizedSettingsIndex(index, count int) int {
 	return index
 }
 
+func settingsNumberInputLength(field SettingsDialogNumber) uintptr {
+	maxText := strconv.Itoa(field.Max)
+	minText := strconv.Itoa(field.Min)
+	length := len(maxText)
+	if len(minText) > length {
+		length = len(minText)
+	}
+	if length < 1 {
+		length = 1
+	}
+	return uintptr(length)
+}
+
 // SettingsDialog presents all frequently changed desktop preferences in one
 // bounded modal instead of forcing the user through a chain of independent
 // prompts. It is DPI-aware, owner-modal and follows the active Ghost FTP theme.
@@ -327,7 +340,7 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 			font,
 		)
 		if edit != 0 {
-			promptSendMessageW.Call(edit, promptEMSetLimitText, 5, 0)
+			promptSendMessageW.Call(edit, promptEMSetLimitText, settingsNumberInputLength(field), 0)
 		}
 		state.numbers = append(state.numbers, edit)
 	}
