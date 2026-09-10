@@ -1,6 +1,7 @@
 package filesearch
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -56,7 +57,7 @@ type Stats struct {
 
 type EmitFunc func([]Result) error
 
-type ListFunc func(path string) ([]model.Item, error)
+type ListFunc func(context.Context, string) ([]model.Item, error)
 type JoinFunc func(base, name string) (string, error)
 
 func NormalizeOptions(in Options) (Options, error) {
