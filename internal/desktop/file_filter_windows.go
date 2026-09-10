@@ -15,7 +15,7 @@ import (
 
 const (
 	idLocalFilter  = 209
-	idRemoteFilter = 309
+	idRemoteFilter = 310
 )
 
 type windowsFileFilterState struct {
