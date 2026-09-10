@@ -51,6 +51,22 @@ func (u *linuxDesktop) recursiveSearchPrompt() bool {
 	return u.promptKind == linuxPromptLocalRecursiveSearch || u.promptKind == linuxPromptRemoteRecursiveSearch
 }
 
+func (u *linuxDesktop) bookmarkNamePrompt() bool {
+	return u.promptKind == linuxPromptBookmarkLocalName || u.promptKind == linuxPromptBookmarkRemoteName
+}
+
+func (u *linuxDesktop) cancelPrompt() {
+	returnToBookmarks := u.bookmarkNamePrompt()
+	u.closePrompt()
+	u.setStatus(u.tr("common.cancel"))
+	if returnToBookmarks {
+		// Add-local/add-remote naming is a child step of the bookmark manager.
+		// Cancelling the child returns to that manager, matching the Windows
+		// modal flow instead of unexpectedly closing the whole bookmark task.
+		u.openLinuxBookmarks("")
+	}
+}
+
 func (u *linuxDesktop) promptCanSubmit() bool {
 	return !u.busy && (u.filterPrompt() || strings.TrimSpace(u.promptValue) != "")
 }
@@ -64,8 +80,7 @@ func (u *linuxDesktop) handlePromptKey(sym uint32) bool {
 	}
 	switch sym {
 	case x11KeyEscape:
-		u.closePrompt()
-		u.setStatus(u.tr("common.cancel"))
+		u.cancelPrompt()
 	case x11KeyReturn:
 		u.submitPrompt()
 	case x11KeyBackSpace, x11KeyDelete:
@@ -139,8 +154,7 @@ func (u *linuxDesktop) handlePromptMouse(x, y int) bool {
 		return true
 	}
 	if u.layout.promptCancel.contains(x, y) {
-		u.closePrompt()
-		u.setStatus(u.tr("common.cancel"))
+		u.cancelPrompt()
 		return true
 	}
 	return true
