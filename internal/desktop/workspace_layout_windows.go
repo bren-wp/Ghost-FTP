@@ -55,9 +55,10 @@ func showControls(show bool, controls ...uintptr) {
 
 // refineWorkspaceLayout applies visibility and native-theme rules to the
 // canonical workspace. Geometry remains owned by app.layout, followed by the
-// idempotent application-sidebar transform. Importantly this function does not
-// invalidate the entire parent window: MoveWindow and the individual owner-drawn
-// controls repaint their changed bounds without a full background erase.
+// idempotent application-sidebar and file-filter transforms. Importantly this
+// function does not invalidate the entire parent window: MoveWindow and the
+// individual owner-drawn controls repaint their changed bounds without a full
+// background erase.
 func (a *app) refineWorkspaceLayout() {
 	if a == nil || a.hwnd == 0 {
 		return
@@ -75,12 +76,15 @@ func (a *app) refineWorkspaceLayout() {
 
 	a.stabilizeWorkspaceChrome()
 	a.applyApplicationSidebar()
+	a.ensureFileFilterControls()
+	a.layoutFileFilterControls()
+	a.updateFileFilterControls()
 	a.layoutQueuePriorityControls()
 	applyFileColumnOrder(a.localList, false)
 	applyFileColumnOrder(a.remoteList, true)
-	// The sidebar changes the real file-pane widths after the top-level layout
-	// estimate has run. Refit columns from each ListView's actual client width so
-	// the final Permissions column cannot be pushed outside the visible pane.
+	// The sidebar and filter row change the real file-pane geometry after the
+	// top-level layout estimate has run. Refit columns from each ListView's actual
+	// client width so the final Permissions column remains visible.
 	a.fitFileColumnsToWorkspace()
 	a.resizeSidebarColumns()
 }
