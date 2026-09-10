@@ -128,6 +128,49 @@ func TestCompareTimestampToleranceAndNewerDirection(t *testing.T) {
 	}
 }
 
+func TestCompareVeryDistantTimestampsDoNotOverflowTolerance(t *testing.T) {
+	ancient := time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC)
+	future := time.Date(3000, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name       string
+		localTime  time.Time
+		remoteTime time.Time
+		want       Status
+	}{
+		{"remote far newer", ancient, future, StatusNewerRemote},
+		{"local far newer", future, ancient, StatusNewerLocal},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Compare(
+				[]model.Item{item("a.txt", 10, tc.localTime)},
+				[]model.Item{item("a.txt", 10, tc.remoteTime)},
+				Options{},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) != 1 || got[0].Status != tc.want {
+				t.Fatalf("got=%+v want=%q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCompareZeroBytePairWithCloseKnownTimesStaysUnknown(t *testing.T) {
+	base := time.Date(2026, 9, 10, 1, 0, 0, 0, time.UTC)
+	got, err := Compare(
+		[]model.Item{item("empty.txt", 0, base)},
+		[]model.Item{item("empty.txt", 0, base.Add(time.Second))},
+		Options{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Status != StatusUnknown {
+		t.Fatalf("got=%+v want=%q", got, StatusUnknown)
+	}
+}
+
 func TestCompareSymlinkAndTypeMismatchAreNeverSame(t *testing.T) {
 	got, err := Compare(
 		[]model.Item{
