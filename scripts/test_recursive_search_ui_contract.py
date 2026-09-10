@@ -75,8 +75,8 @@ class RecursiveSearchUIContractTests(unittest.TestCase):
         self.assertIn("case idRemoteRecursiveSearch:", commands)
         self.assertIn("case idLocalRecursiveSearchNavigate:", commands)
         self.assertIn("case idRemoteRecursiveSearchNavigate:", commands)
-        self.assertIn("!localSearch", state)
-        self.assertIn("!remoteSearch", state)
+        self.assertIn("!localRecursiveActive", state)
+        self.assertIn("!remoteRecursiveActive", state)
         self.assertIn("a.layoutRecursiveSearchControls()", layout)
 
     def test_all_desktop_locales_have_search_disclosure_and_actions(self) -> None:
