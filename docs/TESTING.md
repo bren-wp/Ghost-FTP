@@ -30,11 +30,11 @@ Tests cover the maintained FTP/FTPS/SFTP engine contract, including:
 
 ## Current-folder filter regression contract
 
-The Unreleased source line includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from future recursive search.
+The Unreleased source line includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from bounded recursive search: filtering only evaluates the already-loaded snapshot and performs no additional directory or network I/O.
 
 The filter gates require:
 
-- shared `internal/itemlist.Filter` behavior with case-insensitive substring matching and whitespace-delimited AND tokens;
+- shared `internal/itemlist.Filter` behavior with Unicode-aware case-insensitive substring matching and whitespace-delimited AND tokens;
 - an empty query to return an independent copy of the full source snapshot;
 - filtering and subsequent sorting to leave the authoritative source slice untouched;
 - no filesystem, network, engine-listing or recursive-scan call from the shared filter path;
@@ -45,6 +45,29 @@ The filter gates require:
 - localized filter copy for all 24 supported desktop languages.
 
 `scripts/test_file_filter_ui_contract.py` protects the cross-platform source wiring while Go unit tests protect shared matching/copy semantics. Native production builds remain the compile/runtime gate for each frontend.
+
+## Bounded recursive search regression contract
+
+The maintained Unreleased source exposes recursive local/server search as an explicit action rather than an extension of typing into the current-folder filter. The search path is read-only and bounded before it reaches either desktop UI.
+
+Core tests and `scripts/test_recursive_search_ui_contract.py` require:
+
+- `internal/filesearch.Walk` to enforce validated depth, visited-item, result-count, batch-size and timeout limits;
+- defaults of depth **12**, **20,000** visited items, **1,000** results, batches of **50** and **20 seconds**, with independent hard ceilings of depth **32**, **50,000** items, **5,000** results, batches of **200** and **60 seconds**;
+- Unicode-aware matching to reuse `itemlist.MatchesName` so current-folder and recursive modes do not drift to different case semantics;
+- cancellation checks before additional listing/item work and cancellation propagation through the underlying list context;
+- local scanning to remain anchored to one `os.OpenRoot` capability and never intentionally traverse symlink/reparse entries;
+- remote scanning to own one `remote.Operation(ctx)` for the complete scan, so reconnect cannot move an in-flight search onto a different session;
+- remote child names and joined paths to pass the existing validation boundary before traversal;
+- incremental result batches rather than a single UI-blocking result accumulation;
+- all 24 desktop languages to provide Search, Navigate, Cancel, Close, progress/completion and local/server I/O disclosure copy;
+- Windows results to live in dedicated search-result ListViews rather than the authoritative file ListViews;
+- Linux to keep normal row-indexed actions modal/disabled while recursive result snapshots are displayed;
+- Cancel to retain partial informational results until the user closes the search view;
+- activating a search result to clear the target pane's current-folder filter, perform a **fresh parent listing**, and reselect the discovered name only from that authoritative listing;
+- no search result object to carry delete, rename, upload or download authority.
+
+The desktop disclosure explicitly states that recursive mode reads nested local/server folders and states the default **20-second / 1,000-result** bound before the scan starts.
 
 ## Settings regression contract
 
@@ -78,7 +101,7 @@ Linux checks:
 - verify the Remote Edit button path;
 - verify SFTP Trust/Cancel and prompt Apply/Cancel overlay controls are both rendered and handled.
 
-The dedicated file-filter contract supplements this generic action-wiring gate because the Windows filter controls are dynamically inserted after the canonical layout and the Linux filter controls deliberately reuse the list-area geometry instead of adding decorative layout-only rectangles.
+The dedicated current-folder-filter and recursive-search contracts supplement this generic action-wiring gate because those controls are dynamically inserted into the pane geometry instead of being canonical top-level buttons.
 
 The gate intentionally tests wiring, not just pixels. Runtime behavior remains covered by Go unit/integration tests and authentic UI smoke evidence.
 
@@ -178,7 +201,7 @@ Before destructive cleanup it independently verifies current release identity, `
 
 ## Quality rule for new power-user features
 
-A new feature such as recursive search, directory comparison, synchronized browsing, bandwidth limits, queue priority or bookmarks is not release-ready until all applicable layers exist:
+A new feature such as directory comparison, synchronized browsing, bandwidth limits, queue priority or bookmarks is not release-ready until all applicable layers exist:
 
 - shared engine/runtime behavior;
 - validation and safe defaults;
