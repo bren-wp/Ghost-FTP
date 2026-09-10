@@ -112,6 +112,7 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         bookmark = self.read("internal/desktop/bookmark_linux.go")
         actions = self.read("internal/desktop/gui_linux_actions.go")
         filters = self.read("internal/desktop/file_filter_linux.go")
+        prompt_test = self.read("internal/desktop/bookmark_prompt_linux_test.go")
         for marker in (
             "func (u *linuxDesktop) renderBookmarksHeaderButton() error",
             "u.enforceLinuxProfileStartDirectories()",
@@ -133,8 +134,14 @@ class NavigationBookmarksContractTests(unittest.TestCase):
             "return u.handleBookmarkManagerMouse(x, y)",
             "u.saveLinuxBookmark(false, value)",
             "u.saveLinuxBookmark(true, value)",
+            "func (u *linuxDesktop) bookmarkNamePrompt() bool",
+            "func (u *linuxDesktop) cancelPrompt()",
+            "returnToBookmarks := u.bookmarkNamePrompt()",
+            'u.openLinuxBookmarks("")',
+            "u.cancelPrompt()",
         ):
             self.assertIn(marker, actions)
+        self.assertIn("TestLinuxBookmarkNamePromptClassification", prompt_test)
         self.assertIn("u.renderBookmarksHeaderButton()", filters)
         self.assertIn("u.handleBookmarksHeaderMouse(x, y)", filters)
 
