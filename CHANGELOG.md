@@ -2,13 +2,17 @@
 
 ## Unreleased
 
+No unreleased changes are currently staged after 0.0.2.
+
+## 0.0.2 - 2026-09-10
+
 ### Reliability and release engineering
 
 - Made the canonical release-branch lifecycle wait for the exact newly dispatched `Publish Ghost FTP` workflow run and require terminal success before retention can begin.
 - Added explicit canonical retention dispatch/read-back after a successful publish run so latest-only cleanup does not depend on `workflow_run` event chaining alone.
 - Added exact-main workflow-run identification and fail-closed release/retention completion checks.
 - Fixed release-note generation so semantic major version zero no longer implies Beta/prerelease and current 0.0.x releases retain their verified GitHub Packages section.
-- Hardened Windows release verification so the public artifact directory rejects any unexpected executable outside the canonical Setup/Portable x64/x86 naming contract; the no-permanent-uninstaller claim is now backed by an observed artifact check.
+- Hardened Windows release verification so the public artifact directory rejects any unexpected executable outside the canonical Setup/Portable x64/x86 naming contract; the no-permanent-uninstaller claim is backed by an observed artifact check.
 
 ### Settings and compatibility
 
@@ -23,10 +27,10 @@
 - Added bounded recursive local/server search as a separate explicit action on Windows and Linux. Recursive search performs disclosed nested-folder I/O with validated depth/item/result/batch/time limits, cancellation, incremental result presentation, Unicode-aware matching, root/session confinement and no intentional symlink/reparse traversal.
 - Recursive search results are informational navigation snapshots only: Windows renders them in dedicated ListViews, Linux keeps normal row-indexed actions modal/disabled, and “Go to result” performs a fresh parent listing before reselecting the discovered name.
 - Added localized recursive-search Search/Navigate/Cancel/Close/progress/disclosure copy for all 24 supported desktop languages and a source regression contract covering hard bounds, platform wiring and fresh-list navigation.
-- Added conservative local/server directory comparison on Windows and Linux with deterministic `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown` states. Exact-name matching prevents unsafe case folding, duplicate names fail closed to conflict, symlinks remain unknown, and file freshness is never inferred when either side lacks reliable modification time metadata.
-- Added explicit synchronized navigation for comparison rows that are proven ordinary directories on both sides. “Open both” validates local and remote child paths, performs fresh listings of both targets, recomputes comparison, and only then commits both pane paths; comparison itself never transfers, deletes, renames, overwrites or changes permissions.
-- Windows comparison uses dedicated read-only ListViews and disables normal file mutations while active; Linux comparison is modal and prevents ordinary row-indexed workspace actions from operating on comparison display rows.
-- Added localized comparison controls/statuses for all 24 supported desktop languages and a cross-platform source regression contract protecting comparison semantics, UI wiring, mutation gating and fresh-list synchronized navigation.
+- Added conservative local/server directory comparison on Windows and Linux with deterministic `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown` states. Exact-name matching prevents unsafe case folding, duplicate names fail closed to conflict, symlinks remain unknown, zero-size ambiguity remains unknown, and file freshness is never inferred when either side lacks reliable modification time metadata.
+- Added explicit synchronized navigation for comparison rows proven to be ordinary directories on both sides. “Open both” validates local and remote child paths, performs fresh listings of both targets, recomputes comparison, and only then commits both pane paths; comparison itself never transfers, deletes, renames, overwrites or changes permissions.
+- Windows comparison uses dedicated read-only ListViews, synchronized row selection and connection-generation invalidation; Linux comparison is modal, preserves authoritative pre-filter snapshots and restores them after cancellation or listing failure.
+- Added localized comparison controls/statuses for all 24 supported desktop languages and a cross-platform source regression contract protecting comparison semantics, UI wiring, mutation gating, snapshot recovery and fresh-list synchronized navigation.
 - Added a regression contract that rejects main Windows buttons without command handlers and Linux controls/overlays without click handlers.
 - Added a guard against silently discarded Windows queue Cancel/Retry errors.
 - Defined complete acceptance criteria for future bandwidth control, queue priority, bookmarks, verified resume, multi-session and proxy/jump-host capabilities before they may appear as shipped UI.
@@ -64,7 +68,7 @@
 - Canonical release shape remains **12 platform artifacts / 15 public files**.
 - Debian 13, Ubuntu 26.04 LTS and Fedora 44 lifecycle/GUI smoke remain part of release verification.
 - Version 0.0.1 starts the new current public line. After a newly published Ghost FTP release is verified, the release-retention workflow removes older Ghost FTP GitHub releases and tags so only the latest public version remains.
-- The verified distribution bundle is published to `ghcr.io/bren-wp/ghost-ftp:0.0.1` with matching current-version aliases.
+- The verified distribution bundle was published to `ghcr.io/bren-wp/ghost-ftp:0.0.1` with matching current-version aliases.
 
 ### Documentation
 
@@ -74,4 +78,4 @@
 
 ### Release contract
 
-The 0.0.1 candidate must pass exact-head Go formatting/race/vet, repository/platform/security/privacy/documentation/release audits, the Python regression suite, Windows x64/x86 production builds, Linux amd64/arm64/i386 production builds, distro package parity, Debian/Ubuntu/Fedora lifecycle smoke and authentic Windows UI evidence. Publication uses `ghostftp-v0.0.1`, `prerelease=false`, the exact 15-file GitHub Release allow-list, verified GHCR bundle read-back and the latest-only public release retention policy.
+The 0.0.1 candidate passed exact-head Go formatting/race/vet, repository/platform/security/privacy/documentation/release audits, the Python regression suite, Windows x64/x86 production builds, Linux amd64/arm64/i386 production builds, distro package parity, Debian/Ubuntu/Fedora lifecycle smoke and authentic Windows UI evidence. Publication used `ghostftp-v0.0.1`, `prerelease=false`, the exact 15-file GitHub Release allow-list, verified GHCR bundle read-back and the latest-only public release retention policy.
