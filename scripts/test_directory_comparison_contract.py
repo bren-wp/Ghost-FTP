@@ -26,8 +26,13 @@ class DirectoryComparisonContractTests(unittest.TestCase):
             "if local.IsDirectory != remote.IsDirectory",
             "localTimeKnown := !local.Modified.IsZero()",
             "remoteTimeKnown := !remote.Modified.IsZero()",
+            "if local.Modified.After(remote.Modified)",
+            "remote.Modified.Sub(local.Modified) > tolerance",
+            "if local.Size == 0",
+            "return StatusUnknown",
         ):
             self.assertIn(marker, source)
+        self.assertNotIn("delta = -delta", source)
         for forbidden in (".Upload(", ".Download(", ".Delete(", ".Rename(", ".Chmod("):
             self.assertNotIn(forbidden, source)
 
@@ -53,6 +58,7 @@ class DirectoryComparisonContractTests(unittest.TestCase):
         commands = read("internal/desktop/commands_windows.go")
         action_state = read("internal/desktop/action_state_windows.go")
         layout = read("internal/desktop/workspace_layout_windows.go")
+        window = read("internal/desktop/windows.go")
 
         for marker in (
             'wstr("BUTTON")',
@@ -64,6 +70,11 @@ class DirectoryComparisonContractTests(unittest.TestCase):
             "security.ValidateRemoteName(name)",
             "security.ValidateRemotePath(remoteTarget)",
             "a.engine.SynchronizedDirectoryName(state.entries, entry.Name)",
+            "state.generation == a.connectionGeneration",
+            "a.invalidateStaleDirectoryComparison()",
+            "state.selected = row",
+            "setDirectoryComparisonSelection(state.localList, row)",
+            "setDirectoryComparisonSelection(state.remoteList, row)",
         ):
             self.assertIn(marker, controller)
         self.assertIn("case idDirectoryCompare:", commands)
@@ -72,6 +83,8 @@ class DirectoryComparisonContractTests(unittest.TestCase):
         self.assertIn("!comparisonActive", action_state)
         self.assertIn("a.ensureDirectoryComparisonControls()", layout)
         self.assertIn("a.layoutDirectoryComparisonControls()", layout)
+        self.assertIn("h.Code == lvnItemChanged", window)
+        self.assertIn("a.handleDirectoryComparisonSelection(h.HwndFrom, int(n.Item))", window)
 
         nav = controller.index("func (a *app) openComparedDirectoryBoth()")
         local_list = controller.index("a.engine.LocalList(ctx, localTarget)", nav)
@@ -82,7 +95,7 @@ class DirectoryComparisonContractTests(unittest.TestCase):
         self.assertLess(remote_list, local_commit)
         self.assertLess(remote_list, remote_commit)
 
-    def test_linux_comparison_is_modal_and_commits_navigation_after_fresh_lists(self):
+    def test_linux_comparison_is_modal_restorable_and_commits_after_fresh_lists(self):
         controller = read("internal/desktop/directory_compare_linux.go")
         integration = read("internal/desktop/file_filter_linux.go")
         for marker in (
@@ -94,6 +107,11 @@ class DirectoryComparisonContractTests(unittest.TestCase):
             "security.ValidateRemoteName(name)",
             "security.ValidateRemotePath(remoteTarget)",
             "u.engine.SynchronizedDirectoryName(entries, entry.Name)",
+            "localSnapshot = append([]model.Item(nil), filter.localAll...)",
+            "remoteSnapshot = append([]model.Item(nil), filter.remoteAll...)",
+            "state.restoreReady = true",
+            "u.acceptLinuxFileFilterSnapshot(false, localSnapshot)",
+            "u.acceptLinuxFileFilterSnapshot(true, remoteSnapshot)",
         ):
             self.assertIn(marker, controller)
         for marker in (
