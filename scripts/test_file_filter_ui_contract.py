@@ -136,13 +136,14 @@ class FileFilterUIContractTests(unittest.TestCase):
         self.assertNotIn("net.", shared)
 
     def test_active_docs_distinguish_filter_from_bounded_recursive_search(self) -> None:
+        version = source("VERSION").strip().lower()
         roadmap = source("docs/ROADMAP.md").lower()
         testing = source("docs/TESTING.md").lower()
         changelog_lines = [line.strip().lower() for line in source("CHANGELOG.md").splitlines()]
 
         self.assertIn("non-destructive current-folder filter", roadmap)
         self.assertIn("p0 — bounded recursive local/server search", roadmap)
-        self.assertIn("status: implemented in the maintained unreleased source line", roadmap)
+        self.assertIn(f"status: implemented in ghost ftp {version}", roadmap)
         self.assertIn("current-folder filter regression contract", testing)
         self.assertIn("deliberately separate from bounded recursive search", testing)
         self.assertIn("bounded recursive search regression contract", testing)
