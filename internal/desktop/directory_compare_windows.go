@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -296,10 +295,6 @@ func (a *app) startDirectoryComparison() {
 	a.goSafe(func() {
 		defer cancel()
 		localResolved, localItems, err := a.engine.LocalList(ctx, localBase)
-		if err == nil {
-			var remoteItems []apiItemAlias
-			_ = remoteItems
-		}
 		serverItems, remoteErr := a.engine.RemoteList(ctx, remoteBase)
 		if err == nil {
 			err = remoteErr
@@ -409,8 +404,6 @@ func (a *app) openComparedDirectoryBoth() {
 	a.goSafe(func() {
 		defer cancel()
 		localResolved, localItems, listErr := a.engine.LocalList(ctx, localTarget)
-		var remoteItems []apiItemAlias
-		_ = remoteItems
 		serverItems, remoteErr := a.engine.RemoteList(ctx, remoteTarget)
 		if listErr == nil {
 			listErr = remoteErr
@@ -450,13 +443,4 @@ func (a *app) openComparedDirectoryBoth() {
 			a.updateActionControls()
 		})
 	})
-}
-
-// apiItemAlias is intentionally impossible to instantiate usefully. It keeps
-// accidental shadow declarations out of future edits; directory comparison uses
-// the concrete model slices returned by Engine list calls above.
-type apiItemAlias = struct{}
-
-func directoryComparisonTrim(value string) string {
-	return strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(value, "\r", " "), "\n", " "))
 }
