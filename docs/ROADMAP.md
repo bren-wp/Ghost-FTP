@@ -1,8 +1,8 @@
 # Ghost FTP roadmap
 
-Ghost FTP **0.0.2** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
+Ghost FTP **0.0.3** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
 
-## Current 0.0.2 foundation
+## Current 0.0.3 foundation
 
 The current release gate includes:
 
@@ -10,19 +10,21 @@ The current release gate includes:
 - FTP, explicit FTPS and SFTP workflows;
 - SFTP password/key/passphrase authentication and host-key trust;
 - local-only profiles with platform-local protected secret handling;
-- validated connection timeout, retry, conflict and parallel-transfer settings;
+- validated connection timeout, retry, conflict, parallel-transfer and upload/download bandwidth settings;
 - transfer generation binding, source snapshots and staged/rollback-oriented operations;
 - privacy-safe connection diagnostics;
 - truthful transfer progress, speed and ETA;
+- aggregate directional bandwidth scheduling with real curl/OpenSSH transport enforcement;
 - built-in Remote Edit with bounded text handling, revision/conflict protection and verified save/read-back;
 - queue pause/resume/cancel/retry/clear-finished controls;
 - non-destructive current-folder filtering on both local and server panes;
 - bounded recursive local/server search with cancellation and fresh-list navigation;
 - conservative directory comparison and synchronized navigation for proven paired directories;
-- native Windows Setup/Portable packaging and Linux DEB/portable packaging;
+- two public universal Windows Setup/Portable executables backed by verified internal x64/x86 payloads;
+- canonical Debian/Ubuntu/Fedora/Portable Linux release packaging;
 - 24-language local catalog with English default/fallback;
 - production race/vet/security/privacy/dependency/documentation audits;
-- current GitHub Release publication with `prerelease=false`;
+- current GitHub Release policy with `prerelease=false`;
 - truthful Windows signing-state metadata with fail-closed verification when trusted production signing is configured;
 - current GitHub Packages/GHCR distribution-bundle publication and read-back;
 - latest-only release/tag/package retention after a successor is successfully published and verified.
@@ -42,15 +44,15 @@ The immediate 0.0.x hardening lane includes:
 9. Windows/Linux functional parity for file operations, queue state, shortcuts, settings and error handling;
 10. documentation and authentic real-application screenshots synchronized with exact maintained source.
 
-## 0.0.2 navigation work
+## 0.0.3 navigation work
 
-Ghost FTP 0.0.2 includes a **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request. The filter is localized for all 24 supported desktop languages.
+Ghost FTP 0.0.3 retains the **non-destructive current-folder filter** introduced in 0.0.2 for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request. The filter is localized for all 24 supported desktop languages.
 
-Ghost FTP 0.0.2 also includes a **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it will read nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Local traversal is anchored to one `os.OpenRoot` capability; server traversal is bound to one captured remote operation/session. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
+Ghost FTP 0.0.3 also retains the **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it reads nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Local traversal is anchored to one `os.OpenRoot` capability; server traversal is bound to one captured remote operation/session. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
 
-Ghost FTP 0.0.2 also includes **conservative directory comparison and synchronized navigation** on Windows and Linux. Comparison is read-only, uses exact-name matching, reports deterministic same/only/newer/conflict/unknown states, treats duplicate names and uncertain metadata fail-closed, and never treats a symlink comparison row as transfer authority. Synchronized navigation is available only for an exact ordinary directory proved present on both sides; both target directories are freshly listed and compared before either visible pane path is committed.
+Ghost FTP 0.0.3 retains **conservative directory comparison and synchronized navigation** on Windows and Linux. Comparison is read-only, uses exact-name matching, reports deterministic same/only/newer/conflict/unknown states, treats duplicate names and uncertain metadata fail-closed, and never treats a symlink comparison row as transfer authority. Synchronized navigation is available only for an exact ordinary directory proved present on both sides; both target directories are freshly listed and compared before either visible pane path is committed.
 
-These capabilities are part of the 0.0.2 source/release candidate and must remain bound to the exact 0.0.2 source revision that passes publication and retention verification.
+These navigation capabilities remain part of the current 0.0.3 source/release candidate while their original 0.0.2 introduction stays recorded in release history.
 
 ## High-value power-user lane
 
@@ -58,7 +60,7 @@ These capabilities are prioritized because they improve real hosting/server work
 
 ### P0 — directory comparison and synchronized navigation
 
-**Status: implemented in Ghost FTP 0.0.2.** Windows and Linux expose the same shared comparison states while keeping comparison read-only and separate from ordinary file-operation authority.
+**Status: implemented in Ghost FTP 0.0.3.** Windows and Linux expose the same shared comparison states while keeping comparison read-only and separate from ordinary file-operation authority. The capability originated in 0.0.2 and remains part of the current release contract.
 
 Implemented contract:
 
@@ -78,7 +80,7 @@ Implemented contract:
 
 ### P0 — bounded recursive local/server search
 
-**Status: implemented in Ghost FTP 0.0.2.** The instant current-folder filter remains I/O-free; recursive search is a separate explicit action because it performs additional local/server listing work.
+**Status: implemented in Ghost FTP 0.0.3.** The instant current-folder filter remains I/O-free; recursive search is a separate explicit action because it performs additional local/server listing work. The capability originated in 0.0.2 and remains part of the current release contract.
 
 Implemented contract:
 
@@ -93,16 +95,17 @@ Implemented contract:
 
 ### P0 — bandwidth-aware transfer controls
 
-Add optional upload/download rate limits with **unlimited** as the default. Limits belong in the shared transfer/transport layer, not as decorative frontend timers.
+**Status: implemented in Ghost FTP 0.0.3.** Upload/download limits are shared validated runtime policy, not decorative frontend timers.
 
-Acceptance requirements:
+Implemented contract:
 
-- separate upload and download limits;
-- units are explicit and validated;
-- aggregate behavior is defined when parallel transfers are enabled;
-- changing a limit cannot corrupt an active transfer;
-- no busy-wait throttling and no misleading UI-only speed cap;
-- Windows/Linux settings use the same persisted model.
+- independent upload and download limits use explicit binary KiB/s units with `0 = unlimited`;
+- the shared configuration layer validates the maintained `0..1,048,576 KiB/s` range and preserves migration-safe unlimited defaults for older settings;
+- the transfer scheduler defines a conservative aggregate directional ceiling across configured worker slots rather than granting every concurrent transfer the complete configured budget;
+- each transfer attempt snapshots its effective budget when it starts, so a settings change cannot corrupt a running child process and later/retried attempts can observe the new policy;
+- FTP/FTPS use curl `limit-rate` and SFTP uses OpenSSH `sftp -l` after conservative KiB/s→Kbit/s conversion;
+- no busy-wait throttling or UI-only speed cap is used;
+- Windows and Linux settings expose the same persisted upload/download model with localized `KiB/s` labels.
 
 ### P0 — queue priority and reorder
 
@@ -194,7 +197,7 @@ Security hardening should favor deterministic rejection and actionable errors ov
 
 Release security should improve publisher trust when a real certificate is available without weakening integrity verification or inventing trust when it is not.
 
-New productivity features must preserve the same trust model: search, compare, bookmarks, resume, multi-session and proxy functionality may not introduce hidden cloud state, telemetry or credential replication.
+New productivity features must preserve the same trust model: search, compare, bandwidth, bookmarks, resume, multi-session and proxy functionality may not introduce hidden cloud state, telemetry or credential replication.
 
 ## macOS direction
 

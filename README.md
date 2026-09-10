@@ -25,7 +25,7 @@
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
 
-The icon and UI images rendered by this README are **repository-local assets**. The maintained screenshots are captured from the real production Windows application payload by the authentic-UI workflow; mockups and generated approximations are not accepted as production UI evidence. No remote badge, tracking pixel, icon CDN or webfont is required to render this README.
+The icon and UI images rendered by this README are **repository-local assets**. The maintained screenshots are captured from the **verified internal native x64 payload produced by the universal Windows build**; that payload is release evidence, not an architecture-specific public download. Mockups and generated approximations are not accepted as production UI evidence. No remote badge, tracking pixel, icon CDN or webfont is required to render this README.
 
 ## Product surfaces
 

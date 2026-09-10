@@ -65,11 +65,17 @@ class ReadmeMediaContractTests(unittest.TestCase):
             lowered = text.lower()
             self.assertIn("repository-local", lowered, f"{label} must state local media provenance")
             self.assertIn(
-                "windows x64 portable build",
+                "verified internal native x64 payload",
                 lowered,
-                f"{label} must bind screenshots to the maintained Windows x64 Portable build",
+                f"{label} must bind screenshots to the verified internal native x64 evidence payload",
+            )
+            self.assertIn(
+                "universal windows build",
+                lowered,
+                f"{label} must bind native screenshot evidence to the universal Windows build chain",
             )
             self.assertIn("mockup", lowered, f"{label} must reject mockups as production evidence")
+            self.assertIn("not a public download", lowered, f"{label} must not present internal x64 evidence as a public artifact")
 
 
 if __name__ == "__main__":

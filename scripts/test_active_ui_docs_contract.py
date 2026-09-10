@@ -45,8 +45,11 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
         self.assertIn("only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle", reference)
         self.assertIn("Closing **Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O programu**", reference)
         self.assertIn("Windows Settings is one application-owned modal surface", reference)
+        self.assertIn("independent upload and download bandwidth ceilings", reference)
+        self.assertIn("`KiB/s`", reference)
         self.assertIn("one application-owned native Settings dialog", settings)
         self.assertIn("Invalid input keeps the dialog open", settings)
+        self.assertIn("aggregate ceiling for that direction", settings)
 
     def test_screenshot_evidence_requires_complete_authentic_capture_provenance(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
@@ -60,6 +63,7 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             "63e9292530030afab7a95b21788d9ec1da80b6f7bca1ba0ce8a132fd665602a9",
             "b46b8c9c0730e96b1a0ed9ba54e84633eb6f2030271407f0944d433046c0c870",
             "1d1b6487be473e3f59af2620584cf09e2ef3225d30712818a9cb8ca1fa492ca4",
+            "verified internal native x64 Portable payload",
             "Mockups, image-generation output and manually composed approximations are not accepted",
         ):
             self.assertIn(marker, reference)
@@ -73,6 +77,7 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             self.assertIn(image, reference)
             self.assertIn(image, workflow)
 
+        self.assertIn('dist\\internal\\Ghost-FTP-$version-Portable-x64.exe', workflow)
         self.assertIn("Verify screenshot outputs", workflow)
         self.assertIn("AUTHENTIC_UI_SCREENSHOTS=PERSISTED", workflow)
 

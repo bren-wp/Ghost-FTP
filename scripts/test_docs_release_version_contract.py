@@ -20,11 +20,20 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             f"TITLE=Ghost FTP {version}",
             "CHANNEL=Current",
             "PRERELEASE=false",
-            f"Ghost-FTP-{version}-Setup-x64.exe",
+            f"Ghost-FTP-{version}-Setup.exe",
+            f"Ghost-FTP-{version}-Portable.exe",
+            f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+            f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+            "PUBLIC_PLATFORM_ARTIFACTS=14",
+            "PUBLIC_RELEASE_FILES=17",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ]
         for marker in required:
             self.assertIn(marker, text)
+        self.assertNotIn(f"Ghost-FTP-{version}-Setup-x64.exe", text)
+        self.assertNotIn(f"Ghost-FTP-{version}-Setup-x86.exe", text)
 
     def test_active_user_docs_track_version_file(self):
         version = self.read("VERSION").strip()
@@ -32,24 +41,35 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             "README.md": [
                 f"Current Ghost FTP version: **{version}**",
                 "Release channel: **Current**",
-                f"Ghost-FTP-{version}-Setup-x64.exe",
-                f"Ghost-FTP-{version}-Linux-amd64.deb",
+                f"Ghost-FTP-{version}-Setup.exe",
+                f"Ghost-FTP-{version}-Portable.exe",
+                f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+                f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+                "14 platform artifacts / 17 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/README.md": [
                 f"**Current Ghost FTP release: {version}**",
                 "Release channel: **Current**",
                 f"ghostftp-v{version}",
+                f"Ghost-FTP-{version}-Setup.exe",
+                f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+                "14 platform artifacts / 17 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/INSTALLATION.md": [
                 f"Ghost FTP **{version}** is the current published release",
-                f"Ghost-FTP-{version}-Setup-x64.exe",
-                f"Ghost-FTP-{version}-Linux-amd64.deb",
+                f"Ghost-FTP-{version}-Setup.exe",
+                f"Ghost-FTP-{version}-Portable.exe",
+                f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+                f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+                f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+                "14 platform artifacts / 17 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/PACKAGES.md": [
                 f"Ghost FTP **{version}** publishes a verified **distribution bundle**",
+                "14 platform artifacts / 17 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/SUPPORT.md": [
@@ -59,7 +79,10 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             "docs/GITHUB-RELEASES.md": [
                 f"Ghost FTP **{version}** is the current published release contract",
                 f"ghostftp-v{version}",
-                f"Ghost-FTP-{version}-Setup-x64.exe",
+                f"Ghost-FTP-{version}-Setup.exe",
+                f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+                "14 platform artifacts",
+                "17 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
                 "Prerelease: false",
             ],
@@ -69,6 +92,11 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             for marker in required:
                 self.assertIn(marker, text, f"{relative} is missing {marker!r}")
             self.assertNotIn("prerelease=true", text, relative)
+
+        for relative in ("README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md"):
+            text = self.read(relative)
+            self.assertNotIn(f"Ghost-FTP-{version}-Setup-x64.exe", text, relative)
+            self.assertNotIn(f"Ghost-FTP-{version}-Setup-x86.exe", text, relative)
 
     def test_current_docs_do_not_revert_to_old_channel_status(self):
         stale = (

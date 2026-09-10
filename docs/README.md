@@ -37,7 +37,7 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 
 ## Authentic visual reference
 
-Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render. Production screenshots come from the real verified Windows application payload and are checked by the authentic-UI workflow.
+Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render. Production screenshots come from the **verified internal native x64 payload produced by the universal Windows build**; the architecture-specific payload is evidence-only and is not a public download. Mockups/generated approximations are not production evidence.
 
 <table>
 <tr>
