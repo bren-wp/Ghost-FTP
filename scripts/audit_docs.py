@@ -95,7 +95,8 @@ def main() -> int:
     version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         fail(f"invalid VERSION: {version!r}")
-    if tuple(int(part) for part in version.split(".")) < (0, 0, 1):
+    parts = tuple(int(part) for part in version.split("."))
+    if parts < (0, 0, 1):
         fail("documentation public version must be 0.0.1 or newer")
     prerelease = "false"
 
@@ -122,6 +123,98 @@ def main() -> int:
         if not path.is_file() or path.stat().st_size <= 0:
             fail(f"missing maintained local documentation visual: {relative}")
 
+    readme = read("README.md")
+    index = read("docs/README.md")
+    if not readme.startswith("# Ghost FTP\n"):
+        fail("README public title must be Ghost FTP")
+    if not index.startswith("# Ghost FTP documentation\n"):
+        fail("documentation index title is invalid")
+
+    require_markers(
+        "README current release",
+        readme,
+        (
+            f"Current Ghost FTP version: **{version}**",
+            "Development status: **Active**",
+            "Release channel: **Current**",
+            "Windows", "Linux", "24", "FTP", "FTPS", "SFTP",
+            f"ghostftp-v{version}", f"prerelease={prerelease}",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
+        ),
+    )
+    require_markers(
+        "documentation index current release",
+        index,
+        (
+            f"**Current Ghost FTP release: {version}**",
+            "Development status: **Active**",
+            "Release channel: **Current**",
+            f"PRERELEASE={prerelease}",
+            "latest release only",
+            f"ghcr.io/bren-wp/ghost-ftp:{version}",
+        ),
+    )
+
+    require_markers(
+        "README visual contract",
+        readme,
+        (
+            'src="build/icon.png"',
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-site-manager.png",
+            "docs/images/ghost-ftp-settings.png",
+            "docs/images/ghost-ftp-about.png",
+            "repository-local assets",
+        ),
+    )
+    require_markers(
+        "documentation index visual contract",
+        index,
+        (
+            'src="../build/icon.png"',
+            "images/ghost-ftp-main-workspace.png",
+            "images/ghost-ftp-site-manager.png",
+            "images/ghost-ftp-settings.png",
+            "images/ghost-ftp-about.png",
+            "repository-local",
+        ),
+    )
+
+    reference_ui = read("docs/REFERENCE-UI.md")
+    require_markers(
+        "reference UI visual contract",
+        reference_ui,
+        (
+            "images/ghost-ftp-main-workspace.png",
+            "images/ghost-ftp-site-manager.png",
+            "images/ghost-ftp-settings.png",
+            "images/ghost-ftp-about.png",
+            "Mockups, image-generation output and manually composed approximations are not accepted",
+            "Remote Edit",
+        ),
+    )
+    privacy = read("docs/PRIVACY.md")
+    require_markers(
+        "privacy documentation media contract",
+        privacy,
+        (
+            "Documentation media is repository-local.",
+            "remote badge images", "tracking pixels", "remote icon resources", "remote webfonts",
+        ),
+    )
+    ui_workflow = read(".github/workflows/ui-screenshots.yml")
+    require_markers(
+        "authentic UI persistence workflow",
+        ui_workflow,
+        (
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-site-manager.png",
+            "docs/images/ghost-ftp-settings.png",
+            "docs/images/ghost-ftp-about.png",
+            "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
+        ),
+    )
+
     for relative in ACTIVE_DOCS:
         text = read(relative)
         lowered = text.lower()
@@ -132,138 +225,157 @@ def main() -> int:
             if marker in lowered:
                 fail(f"stale mandatory-signing policy appears in active guidance: {relative} -> {marker}")
 
-    readme = read("README.md")
-    index = read("docs/README.md")
-    require_markers("README current release", readme, (
-        f"Current Ghost FTP version: **{version}**", "Development status: **Active**",
-        "Release channel: **Current**", "Windows", "Linux", "24", "FTP", "FTPS", "SFTP",
-        f"## {version}", f"ghostftp-v{version}", f"prerelease={prerelease}",
-        f"ghcr.io/bren-wp/ghost-ftp:{version}", "14 platform artifacts / 17 public files",
-        f"Ghost-FTP-{version}-Setup.exe", f"Ghost-FTP-{version}-Portable.exe",
-        f"Ghost-FTP-{version}-Linux-Debian-amd64.deb", f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-        'src="build/icon.png"', "docs/images/ghost-ftp-main-workspace.png",
-        "docs/images/ghost-ftp-site-manager.png", "docs/images/ghost-ftp-settings.png",
-        "docs/images/ghost-ftp-about.png", "repository-local assets",
-    ))
-    require_markers("documentation index current release", index, (
-        f"**Current Ghost FTP release: {version}**", "Development status: **Active**",
-        "Release channel: **Current**", f"PRERELEASE={prerelease}", "latest release only",
-        f"ghcr.io/bren-wp/ghost-ftp:{version}", "14 platform artifacts / 17 public files",
-        'src="../build/icon.png"', "images/ghost-ftp-main-workspace.png",
-        "images/ghost-ftp-site-manager.png", "images/ghost-ftp-settings.png", "images/ghost-ftp-about.png",
-        "repository-local",
-    ))
-
-    reference_ui = read("docs/REFERENCE-UI.md")
-    require_markers("reference UI visual contract", reference_ui, (
-        "images/ghost-ftp-main-workspace.png", "images/ghost-ftp-site-manager.png",
-        "images/ghost-ftp-settings.png", "images/ghost-ftp-about.png",
-        "Mockups, image-generation output and manually composed approximations are not accepted", "Remote Edit",
-    ))
-    privacy = read("docs/PRIVACY.md")
-    require_markers("privacy documentation media contract", privacy, (
-        "Documentation media is repository-local.", "remote badge images", "tracking pixels",
-        "remote icon resources", "remote webfonts",
-    ))
-    ui_workflow = read(".github/workflows/ui-screenshots.yml")
-    require_markers("authentic UI persistence workflow", ui_workflow, (
-        "docs/images/ghost-ftp-main-workspace.png", "docs/images/ghost-ftp-site-manager.png",
-        "docs/images/ghost-ftp-settings.png", "docs/images/ghost-ftp-about.png",
-        "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
-    ))
+    release_contract = (
+        "14 platform artifacts / 17 public files",
+        f"Ghost-FTP-{version}-Setup.exe",
+        f"Ghost-FTP-{version}-Portable.exe",
+        f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+        f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+        f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+        f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+    )
+    require_markers("README release contract", readme, release_contract)
+    require_markers("documentation index release contract", index, (release_contract[0],))
 
     installation = read("docs/INSTALLATION.md")
-    require_markers("installation release contract", installation, (
-        f"Ghost FTP **{version}** is the current published release", "Canonical release packages",
-        "14 platform artifacts / 17 public files", f"Ghost-FTP-{version}-Setup.exe",
-        f"Ghost-FTP-{version}-Portable.exe", f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
-        f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb", f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
-        f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz", "Debian 13 amd64",
-        "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64", "x86-64 only",
-    ))
+    require_markers(
+        "installation release contract",
+        installation,
+        (
+            f"Ghost FTP **{version}** is the current published release",
+            f"Ghost-FTP-{version}-Setup.exe", f"Ghost-FTP-{version}-Portable.exe",
+            f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+            f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+            "Canonical release packages",
+            "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
+            "x86-64 only", "14 platform artifacts / 17 public files",
+        ),
+    )
 
     linux_readme = read("linux/README.md")
-    require_markers("linux distro contract", linux_readme, (
-        f"Ghost FTP **{version}** is the current public release line", f"Canonical {version} release artifacts",
-        "linux/BUILD-DISTROS.sh", "Linux-Debian-amd64.deb", "Linux-Ubuntu-amd64.deb",
-        "Linux-Fedora-x86_64.rpm", "Linux-Portable-amd64.tar.gz", "`amd64` | `x86_64`",
-        "`arm64` | `aarch64`", "`i386` | `i686`", ".github/workflows/linux-distro-packages.yml",
-        ".github/workflows/linux-distro-install.yml", "Debian 13 amd64", "Ubuntu 26.04 LTS amd64",
-        "Fedora 44 x86_64", "x86-64 only", "14 platform artifacts / 17 public files",
-        f"ghcr.io/bren-wp/ghost-ftp:{version}", "distro-specific artifacts are no longer supplemental",
-    ))
+    require_markers(
+        "linux distro contract",
+        linux_readme,
+        (
+            f"Ghost FTP **{version}** is the current public release line",
+            f"Canonical {version} release artifacts",
+            "linux/BUILD-DISTROS.sh", "Linux-Debian-amd64.deb", "Linux-Ubuntu-amd64.deb",
+            "Linux-Fedora-x86_64.rpm", "Linux-Portable-amd64.tar.gz",
+            "`amd64` | `x86_64`", "`arm64` | `aarch64`", "`i386` | `i686`",
+            ".github/workflows/linux-distro-packages.yml", ".github/workflows/linux-distro-install.yml",
+            "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
+            "x86-64 only", "14 platform artifacts / 17 public files",
+            "distro-specific artifacts are no longer supplemental",
+        ),
+    )
 
     parity = read("docs/PLATFORM-PARITY.md")
-    require_markers("platform parity documentation", parity, (
-        "Windows and Linux platform parity", f"Ghost FTP **{version}**", "SFTP password",
-        "SFTP key passphrase", "24-language", "same typed `internal/api.Engine`",
-        "Production Authenticode is optional.", "WINDOWS_AUTHENTICODE=unsigned",
-        "linux/BUILD-DISTROS.sh", "Debian 13 amd64", "Ubuntu 26.04 LTS amd64",
-        "Fedora 44 x86_64", "x86-64 only", "14 platform artifacts / 17 public files",
-    ))
+    require_markers(
+        "platform parity documentation",
+        parity,
+        (
+            "Windows and Linux platform parity", f"Ghost FTP **{version}**",
+            "SFTP password", "SFTP key passphrase", "24-language",
+            "same typed `internal/api.Engine`", "Production Authenticode is optional.",
+            "WINDOWS_AUTHENTICODE=unsigned", "linux/BUILD-DISTROS.sh",
+            "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
+            "x86-64 only", "14 platform artifacts / 17 public files",
+        ),
+    )
 
     testing = read("docs/TESTING.md")
-    require_markers("testing documentation", testing, (
-        f"Ghost FTP **{version}**", ".github/workflows/linux-distro-packages.yml",
-        ".github/workflows/linux-distro-install.yml", "linux/BUILD-DISTROS.sh", "Debian 13 amd64",
-        "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
-        "Native package-manager/runtime coverage is deliberately limited to x86-64.",
-        "14 platform artifacts / 17 public files", "Exact-head and post-merge rule",
-        f"Ghost-FTP-{version}-Setup.exe", f"Ghost-FTP-{version}-Portable.exe", "Bandwidth regression contract",
-    ))
+    require_markers(
+        "testing documentation",
+        testing,
+        (
+            f"Ghost FTP **{version}**", "Bandwidth regression contract",
+            ".github/workflows/linux-distro-packages.yml", ".github/workflows/linux-distro-install.yml",
+            "linux/BUILD-DISTROS.sh", "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
+            "Native package-manager/runtime coverage is deliberately limited to x86-64.",
+            "14 platform artifacts / 17 public files", "Exact-head and post-merge rule",
+            f"Ghost-FTP-{version}-Setup.exe", f"Ghost-FTP-{version}-Portable.exe",
+        ),
+    )
 
     releases = read("docs/GITHUB-RELEASES.md")
-    require_markers("GitHub Releases documentation", releases, (
-        f"Ghost FTP **{version}** is the current published release", f"ghostftp-v{version}",
-        f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz", "Prerelease: false",
-        "14 platform artifacts", "17 public files", "release/ghostftp-vX.Y.Z", "workflow_dispatch",
-        "only the latest public Ghost FTP version remains", "release-retention.yml",
-    ))
+    require_markers(
+        "GitHub Releases documentation",
+        releases,
+        (
+            f"Ghost FTP **{version}** is the current published release",
+            f"ghostftp-v{version}", f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+            "Prerelease: false", "14 platform artifacts", "17 public files",
+            "release/ghostftp-vX.Y.Z", "workflow_dispatch",
+            "only the latest public Ghost FTP version remains", "release-retention.yml",
+        ),
+    )
 
     verification = read("docs/RELEASE-VERIFICATION.md")
-    require_markers("release verification documentation", verification, (
-        f"current maintained release is **{version}**", f"VERSION={version}", f"TAG=ghostftp-v{version}",
-        f"PRERELEASE={prerelease}", f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-        "14 platform artifacts", "17 public files", "truthful supported publication state",
-        "does not create a self-signed production identity",
-        "explicit unsigned metadata when no production certificate is configured",
-        "LATEST_ONLY_RELEASE_RETENTION=YES",
-    ))
+    require_markers(
+        "release verification documentation",
+        verification,
+        (
+            f"current maintained release is **{version}**",
+            f"VERSION={version}", f"TAG=ghostftp-v{version}", f"PRERELEASE={prerelease}",
+            f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+            "14 platform artifacts", "17 public files", "truthful supported publication state",
+            "does not create a self-signed production identity",
+            "explicit unsigned metadata when no production certificate is configured",
+            "LATEST_ONLY_RELEASE_RETENTION=YES",
+        ),
+    )
 
     packages = read("docs/PACKAGES.md")
-    require_markers("packages documentation", packages, (
-        f"Ghost FTP **{version}**", f"ghcr.io/bren-wp/ghost-ftp:{version}", "distribution bundle",
-        "not a runtime container", "/ghostftp-release/", "SHA256.txt",
-        "14 platform artifacts / 17 public files",
-        "Authenticode verification **when a trusted production certificate is configured**",
-        "WINDOWS_AUTHENTICODE=unsigned", "latest",
-    ))
+    require_markers(
+        "packages documentation",
+        packages,
+        (
+            f"Ghost FTP **{version}**", f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            "distribution bundle", "not a runtime container", "/ghostftp-release/", "SHA256.txt",
+            "14 platform artifacts / 17 public files",
+            "Authenticode verification **when a trusted production certificate is configured**",
+            "WINDOWS_AUTHENTICODE=unsigned", "latest",
+        ),
+    )
 
     support = read("docs/SUPPORT.md")
-    require_markers("support documentation", support, (
-        f"Ghost FTP **{version}**", "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
-        "official file is explicitly `unsigned`", "metadata says `signed`",
-        "Windows signature verification fails",
-    ))
+    require_markers(
+        "support documentation",
+        support,
+        (
+            f"Ghost FTP **{version}**",
+            "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
+            "official file is explicitly `unsigned`", "metadata says `signed`",
+            "Windows signature verification fails",
+        ),
+    )
 
     signing = read("docs/SIGNING.md")
-    require_markers("signing documentation", signing, (
-        "supports Windows Authenticode signing as an optional production hardening layer",
-        "WINDOWS_AUTHENTICODE=signed", "WINDOWS_AUTHENTICODE=unsigned",
-        "production workflow never creates its own long-lived publisher key",
-    ))
+    require_markers(
+        "signing documentation",
+        signing,
+        (
+            "supports Windows Authenticode signing as an optional production hardening layer",
+            "WINDOWS_AUTHENTICODE=signed", "WINDOWS_AUTHENTICODE=unsigned",
+            "production workflow never creates its own long-lived publisher key",
+        ),
+    )
 
     history = read("docs/RELEASE-HISTORY.md")
-    require_markers("release history", history, (
-        f"## {version}", "latest public Ghost FTP version", "release-retention.yml",
-        "14 platform artifacts / 17 public files",
-    ))
+    require_markers(
+        "release history",
+        history,
+        (f"## {version}", "latest public Ghost FTP version", "release-retention.yml", "14 platform artifacts / 17 public files"),
+    )
 
     transition = read("docs/PACKAGING-TRANSITION.md")
-    require_markers("packaging transition record", transition, (
-        "0.0.3 source candidate", "PUBLIC_PLATFORM_ARTIFACTS=14", "PUBLIC_RELEASE_FILES=17",
-        "historical 0.0.2 tag/release is not rewritten",
-    ))
+    require_markers(
+        "packaging transition record",
+        transition,
+        ("0.0.3 source candidate", "historical 0.0.2 tag/release is not rewritten", "PUBLIC_PLATFORM_ARTIFACTS=14", "PUBLIC_RELEASE_FILES=17"),
+    )
 
     print(f"DOCS_AUDIT=PASS ({version}; channel=current; {len(files)} Markdown files)")
     print("PUBLIC_BRAND=Ghost FTP")
