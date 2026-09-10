@@ -23,6 +23,10 @@ TELEMETRY_MARKERS = [
 ]
 
 PUBLIC_WINDOWS_EXECUTABLE_RE = re.compile(
+    r"^Ghost-FTP-\d+\.\d+\.\d+-(?:Setup|Portable)\.exe$",
+    re.IGNORECASE,
+)
+STAGING_WINDOWS_EXECUTABLE_RE = re.compile(
     r"^Ghost-FTP-\d+\.\d+\.\d+-(?:Setup|Portable)-(?:x64|x86)\.exe$",
     re.IGNORECASE,
 )
@@ -35,22 +39,23 @@ def assert_no_telemetry_markers(path: Path, data: bytes) -> None:
             raise ValueError(f"{path.name}: telemetry/vendor marker found: {marker.decode('ascii')}")
 
 
-def assert_windows_artifact_directory_clean(artifact_dir: Path) -> None:
-    """Reject unexpected permanent Windows executables in the public artifact directory.
+def assert_windows_artifact_directory_clean(artifact_dir: Path, *, allow_arch_staging: bool = False) -> None:
+    """Reject unexpected Windows executables in public or internal artifact directories.
 
-    Setup and Portable are the only supported Windows executable artifact roles. This
-    turns the no-permanent-uninstaller policy into an observed artifact invariant
-    instead of relying on a status string printed by the verifier.
+    Public output is intentionally only one Setup.exe and one Portable.exe. The
+    architecture-specific x64/x86 files are accepted only inside an explicitly
+    requested internal staging verification pass and must never leak publicly.
     """
     if not artifact_dir.is_dir():
         raise ValueError(f"Windows artifact directory is unavailable: {artifact_dir}")
 
+    allowed = STAGING_WINDOWS_EXECUTABLE_RE if allow_arch_staging else PUBLIC_WINDOWS_EXECUTABLE_RE
     unexpected = sorted(
         path.name
         for path in artifact_dir.iterdir()
         if path.is_file()
         and path.suffix.lower() == ".exe"
-        and not PUBLIC_WINDOWS_EXECUTABLE_RE.fullmatch(path.name)
+        and not allowed.fullmatch(path.name)
     )
     if unexpected:
         raise ValueError(
@@ -147,16 +152,20 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("setup", type=Path)
     ap.add_argument("portable", type=Path)
-    ap.add_argument("--arch", choices=("x64", "x86"), default=None)
+    ap.add_argument("--arch", choices=("x64", "x86", "universal"), default=None)
     args = ap.parse_args()
 
     setup_parent = args.setup.resolve().parent
     portable_parent = args.portable.resolve().parent
     if setup_parent != portable_parent:
         raise SystemExit("Setup and Portable must come from the same Windows artifact directory")
-    assert_windows_artifact_directory_clean(setup_parent)
 
-    results = [read_pe(p, args.arch) for p in (args.setup, args.portable)]
+    universal = args.arch == "universal"
+    staging = args.arch in {"x64", "x86"}
+    assert_windows_artifact_directory_clean(setup_parent, allow_arch_staging=staging)
+
+    expected_pe_arch = "x86" if universal else args.arch
+    results = [read_pe(p, expected_pe_arch) for p in (args.setup, args.portable)]
     arches = {result[2] for result in results}
     if len(arches) != 1:
         raise SystemExit("Setup and Portable binaries are not the same architecture")
@@ -173,7 +182,13 @@ def main() -> None:
     print("PORTABLE_PE_OK=YES")
     print("WINDOWS_EXECUTABLE_ARTIFACT_SET=CANONICAL")
     print("UNINSTALLER_BINARY=ABSENT")
-    print(f"WINDOWS_ARCH={arch}")
+    if universal:
+        print("WINDOWS_ARCH=universal-x86-x64")
+        print("WINDOWS_BOOTSTRAP_PE=x86")
+        print("WINDOWS_NATIVE_PAYLOADS=x64,x86")
+        print("WINDOWS_NATIVE_ARCH_SELECTION=GET_NATIVE_SYSTEM_INFO")
+    else:
+        print(f"WINDOWS_ARCH={arch}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("COMPANY_NAME=Ghost FTP")
     print("EXECUTION_LEVEL=asInvoker")
