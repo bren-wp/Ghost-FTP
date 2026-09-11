@@ -159,13 +159,25 @@ class AndroidContractTests(unittest.TestCase):
 
     def test_local_profile_paths_revalidate_persisted_saf_capability(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
-        permission = activity.index("hasPersistedReadPermission(selected)")
+        self.assertIn("tryActivateLocalTree(Uri selected, String failureMessage, boolean requirePersisted)", activity)
+        self.assertIn("(requirePersisted && !hasPersistedReadPermission(selected))", activity)
+        self.assertIn('"Saved local folder is no longer available.", true', activity)
+        self.assertIn('"Local bookmark is stale or its persisted permission is unavailable. Re-select the folder to restore access.",\n                true', activity)
+        self.assertIn('tryActivateLocalTree(selected, "Selected folder could not be opened.", false)', activity)
+        permission = activity.index("(requirePersisted && !hasPersistedReadPermission(selected))")
         listing = activity.index("List<LocalEntry> next = queryChildren(selected, documentId);", permission)
         commit = activity.index("treeUri = selected;", listing)
         self.assertLess(permission, listing)
         self.assertLess(listing, commit)
-        self.assertIn("Local bookmark is stale or its persisted permission is unavailable", activity)
         self.assertIn("Local site start folder saved as a SAF capability URI", activity)
+        self.assertIn("Local folder opened for this session only", activity)
+
+    def test_stale_local_start_error_is_not_overwritten(self) -> None:
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        self.assertIn("boolean localStartUnavailable = false;", activity)
+        self.assertIn("if (localStartUnavailable) {", activity)
+        self.assertIn("Site loaded, but its local start folder is unavailable", activity)
+        self.assertIn("} else {\n            setStatus(\"Site loaded. Password remains blank", activity)
 
     def test_sftp_is_fail_closed_until_host_key_verification_exists(self) -> None:
         readme = self.read("android/README.md")
