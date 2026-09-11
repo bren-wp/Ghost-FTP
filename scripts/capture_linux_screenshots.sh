@@ -28,16 +28,44 @@ export XDG_DATA_HOME="$HOME/.ghostftp-ui-evidence-data"
 rm -rf "$XDG_DATA_HOME"
 install -d -m 700 "$XDG_DATA_HOME"
 
-Xvfb "$DISPLAY" -screen 0 1440x1000x24 -nolisten tcp >"${RUNNER_TEMP:-/tmp}/xvfb.log" 2>&1 &
+xvfb_log="${RUNNER_TEMP:-/tmp}/xvfb.log"
+app_log="${RUNNER_TEMP:-/tmp}/ghostftp-linux.log"
+app_pid=''
+Xvfb "$DISPLAY" -screen 0 1440x1000x24 -nolisten tcp >"$xvfb_log" 2>&1 &
 xvfb_pid=$!
-"$exe" >"${RUNNER_TEMP:-/tmp}/ghostftp-linux.log" 2>&1 &
-app_pid=$!
 cleanup() {
-  kill "$app_pid" 2>/dev/null || true
+  if [[ -n "$app_pid" ]]; then
+    kill "$app_pid" 2>/dev/null || true
+  fi
   kill "$xvfb_pid" 2>/dev/null || true
   rm -rf "$XDG_DATA_HOME"
 }
 trap cleanup EXIT
+
+# Ghost FTP intentionally connects directly to the local Unix X11 socket. Wait
+# for Xvfb to publish that socket instead of racing application startup.
+display_number="${DISPLAY#:}"
+display_number="${display_number%%.*}"
+x11_socket="/tmp/.X11-unix/X${display_number}"
+for _ in $(seq 1 100); do
+  if [[ -S "$x11_socket" ]]; then
+    break
+  fi
+  if ! kill -0 "$xvfb_pid" 2>/dev/null; then
+    cat "$xvfb_log" >&2 || true
+    echo 'Xvfb terminated before its local X11 socket became ready.' >&2
+    exit 1
+  fi
+  sleep 0.1
+done
+[[ -S "$x11_socket" ]] || {
+  cat "$xvfb_log" >&2 || true
+  echo "Xvfb local X11 socket did not become ready: $x11_socket" >&2
+  exit 1
+}
+
+"$exe" >"$app_log" 2>&1 &
+app_pid=$!
 
 win=''
 for _ in $(seq 1 100); do
@@ -46,12 +74,13 @@ for _ in $(seq 1 100); do
     break
   fi
   if ! kill -0 "$app_pid" 2>/dev/null; then
-    cat "${RUNNER_TEMP:-/tmp}/ghostftp-linux.log" >&2 || true
+    cat "$app_log" >&2 || true
     exit 1
   fi
   sleep 0.2
 done
 [[ -n "$win" ]] || {
+  cat "$app_log" >&2 || true
   echo 'Unable to locate Ghost FTP Linux window.' >&2
   exit 1
 }
