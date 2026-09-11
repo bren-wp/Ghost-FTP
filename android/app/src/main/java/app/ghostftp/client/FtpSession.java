@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
@@ -104,19 +105,58 @@ final class FtpSession implements Closeable {
             throw new IOException("Missing upload source.");
         }
         String path = normalizeRemotePath(remotePath);
+        String tempPath = uploadTempPath(path);
         Socket data = openPassiveDataSocket();
-        Reply start = command("STOR " + sanitizeArgument(path));
+        Reply start = command("STOR " + sanitizeArgument(tempPath));
         if (start.code != 125 && start.code != 150) {
             closeQuietly(data);
             throw new IOException("Upload rejected: " + start.message);
         }
-        try (OutputStream out = new BufferedOutputStream(data.getOutputStream())) {
-            copy(input, out);
-            out.flush();
-        } finally {
-            closeQuietly(data);
+
+        try {
+            try (OutputStream out = new BufferedOutputStream(data.getOutputStream())) {
+                copy(input, out);
+                out.flush();
+            } finally {
+                closeQuietly(data);
+            }
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Upload data transfer failed before final commit; the connection was closed.", e);
         }
-        expect(readReply(), 226, 250);
+
+        final Reply terminal;
+        try {
+            terminal = readReply();
+            expect(terminal, 226, 250);
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Upload was not confirmed complete; final remote name was not committed and the connection was closed.", e);
+        }
+
+        final Reply renameFrom;
+        try {
+            renameFrom = command("RNFR " + sanitizeArgument(tempPath));
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Upload completed to staging, but final rename could not be started; the connection was closed.", e);
+        }
+        if (renameFrom.code != 350) {
+            deleteRemoteBestEffort(tempPath);
+            throw new IOException("Server does not support safe staged upload commit: " + renameFrom.message);
+        }
+
+        final Reply renameTo;
+        try {
+            renameTo = command("RNTO " + sanitizeArgument(path));
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Upload staging rename lost connection before final commit confirmation.", e);
+        }
+        if (renameTo.code != 250) {
+            deleteRemoteBestEffort(tempPath);
+            throw new IOException("Server rejected final staged upload commit: " + renameTo.message);
+        }
     }
 
     synchronized void download(String remotePath, OutputStream output) throws IOException {
@@ -162,14 +202,10 @@ final class FtpSession implements Closeable {
             try {
                 command("QUIT");
             } catch (IOException ignored) {
-                // Socket close below is authoritative.
+                // Hard close below is authoritative.
             }
         }
-        connected = false;
-        closeQuietly(controlSocket);
-        controlSocket = null;
-        reader = null;
-        writer = null;
+        hardClose();
     }
 
     private Socket openPassiveDataSocket() throws IOException {
@@ -326,6 +362,30 @@ final class FtpSession implements Closeable {
             value = value.replace("//", "/");
         }
         return value;
+    }
+
+    private static String uploadTempPath(String finalPath) throws IOException {
+        String parent = parentRemote(finalPath);
+        return joinRemote(parent, ".ghostftp-upload-" + UUID.randomUUID() + ".part");
+    }
+
+    private void deleteRemoteBestEffort(String path) {
+        if (!connected || writer == null) {
+            return;
+        }
+        try {
+            command("DELE " + sanitizeArgument(path));
+        } catch (IOException ignored) {
+            hardClose();
+        }
+    }
+
+    private void hardClose() {
+        connected = false;
+        closeQuietly(controlSocket);
+        controlSocket = null;
+        reader = null;
+        writer = null;
     }
 
     private static String sanitizeArgument(String value) throws IOException {
