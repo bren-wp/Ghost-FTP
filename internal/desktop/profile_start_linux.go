@@ -17,7 +17,6 @@ type linuxProfileStartState struct {
 	accountKey        string
 	inheritedRemote   string
 	verifiedLocal     string
-	verifiedRemote    string
 }
 
 var linuxProfileStartStates sync.Map
@@ -81,11 +80,12 @@ func (u *linuxDesktop) linuxEditableAccountKey() string {
 // succeeds.
 //
 // Remote starts are event-bound rather than repaint-bound. Selecting a profile
-// installs that profile's saved/default remote start once. If the editable
-// protocol/host/port/username later crosses an account boundary, the inherited
-// remote start is reset only while it is still unchanged. A user-edited remote
-// path is therefore treated as an explicit start for the new account and is
-// never overwritten merely because the window repaints.
+// installs that profile's saved/default remote start once. Any later change to
+// protocol/host/port/username resets that inherited server path exactly once to
+// the new protocol default. After the identity change has been observed, a user
+// can enter an explicit Remote Path and ordinary repaints will not overwrite it.
+// This prevents any navigated or inherited path from the previous account from
+// silently becoming navigation authority for the new account.
 func (u *linuxDesktop) enforceLinuxProfileStartDirectories() {
 	if u == nil {
 		return
@@ -97,7 +97,6 @@ func (u *linuxDesktop) enforceLinuxProfileStartDirectories() {
 		state.selectedProfileID = u.selectedProfileID
 		state.accountKey = currentAccountKey
 		state.verifiedLocal = u.localCurrent
-		state.verifiedRemote = u.remoteCurrent
 		if profile, ok := u.selectedLinuxProfile(); ok {
 			state.inheritedRemote = strings.TrimSpace(profile.RemotePath)
 			if state.inheritedRemote == "" {
@@ -135,24 +134,20 @@ func (u *linuxDesktop) enforceLinuxProfileStartDirectories() {
 	}
 
 	if hasProfile && !u.connected && currentAccountKey != state.accountKey {
-		if u.remoteCurrent == state.inheritedRemote {
-			u.remoteCurrent = linuxProtocolRemoteDefault(u.protocol)
-			state.inheritedRemote = u.remoteCurrent
-		} else {
-			// The remote path no longer equals the profile-derived value, so it is
-			// an explicit user edit for the new account and must survive repaint.
-			state.inheritedRemote = ""
-		}
+		// Account identity changed. Always discard the previous account's saved,
+		// navigated, or typed server path once at this boundary. A new explicit
+		// path entered after this transition survives subsequent repaints because
+		// accountKey is updated here and this block will not run again until the
+		// identity changes again.
+		u.remoteCurrent = linuxProtocolRemoteDefault(u.protocol)
+		state.inheritedRemote = u.remoteCurrent
 		state.accountKey = currentAccountKey
 	}
 
-	// Only non-busy states can represent a completed listing. A failed local
-	// refresh leaves localCurrent at the previously verified base, while a
+	// Only non-busy states can represent a completed local listing. A failed
+	// local refresh leaves localCurrent at the previously verified base, while a
 	// successful one commits the canonical LocalList result before this point.
 	if !u.busy {
 		state.verifiedLocal = u.localCurrent
-		if u.connected {
-			state.verifiedRemote = u.remoteCurrent
-		}
 	}
 }
