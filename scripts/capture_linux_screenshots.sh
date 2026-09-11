@@ -85,18 +85,38 @@ done
   exit 1
 }
 
-xdotool windowsize "$win" 1280 900
-for _ in $(seq 1 40); do
+read_window_geometry() {
+  local geometry
   geometry="$(xdotool getwindowgeometry --shell "$win")"
-  width="$(printf '%s\n' "$geometry" | awk -F= '$1=="WIDTH" {print $2}')"
-  height="$(printf '%s\n' "$geometry" | awk -F= '$1=="HEIGHT" {print $2}')"
-  if [[ "$width" == '1280' && "$height" == '900' ]]; then
-    break
+  window_width="$(printf '%s\n' "$geometry" | awk -F= '$1=="WIDTH" {print $2}')"
+  window_height="$(printf '%s\n' "$geometry" | awk -F= '$1=="HEIGHT" {print $2}')"
+}
+
+# A bare Xvfb server has no window manager, so a top-level X11 application may
+# legitimately retain the root-screen geometry instead of honoring an external
+# resize request. Evidence therefore follows the real production window size.
+# The product layout itself is responsive above its documented minimum.
+window_width=''
+window_height=''
+previous_geometry=''
+for _ in $(seq 1 50); do
+  read_window_geometry
+  current_geometry="${window_width}x${window_height}"
+  if [[ "$window_width" =~ ^[0-9]+$ && "$window_height" =~ ^[0-9]+$ ]] &&
+     (( window_width >= 940 && window_height >= 680 )); then
+    if [[ "$current_geometry" == "$previous_geometry" ]]; then
+      break
+    fi
+    previous_geometry="$current_geometry"
   fi
   sleep 0.1
 done
-[[ "${width:-}" == '1280' && "${height:-}" == '900' ]] || {
-  echo "Linux UI did not reach deterministic 1280x900 geometry: ${width:-?}x${height:-?}" >&2
+[[ "$window_width" =~ ^[0-9]+$ && "$window_height" =~ ^[0-9]+$ ]] || {
+  echo "Unable to read Linux UI geometry: ${window_width:-?}x${window_height:-?}" >&2
+  exit 1
+}
+(( window_width >= 940 && window_height >= 680 )) || {
+  echo "Linux UI is below the supported minimum geometry: ${window_width}x${window_height}" >&2
   exit 1
 }
 
@@ -132,6 +152,13 @@ cmp -s "$stable_a" "$stable_b" || {
 }
 cp "$stable_b" "$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 
+# Re-read geometry after startup settles so clicks use the exact dimensions the
+# application used for its current responsive layout.
+read_window_geometry
+bookmarks_x=$((window_width - 173))
+settings_x=$((window_width - 68))
+header_y=35
+
 main_png="$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 bookmarks_png="$OUTPUT_DIR/ghost-ftp-linux-bookmarks.png"
 settings_png="$OUTPUT_DIR/ghost-ftp-linux-settings.png"
@@ -158,16 +185,15 @@ open_distinct_overlay() {
   return 1
 }
 
-# Ghost FTP Linux uses one X11 window and application-owned overlays. These
-# coordinates target the maintained top-row Bookmarks and Settings controls at
-# the deterministic 1280x900 evidence geometry. Retry only while the capture is
-# still identical to the settled workspace, which safely covers startup busy
-# transitions without accepting a mislabeled screenshot.
-open_distinct_overlay 'Bookmarks' 1080 35 "$bookmarks_png"
+# These centers mirror the production Linux layout: Settings occupies
+# [width-106,width-30) and Bookmarks occupies [width-232,width-114), both at
+# y=[20,50). Deriving the clicks from the actual X11 width keeps evidence valid
+# under both a desktop window manager and a bare Xvfb root-sized window.
+open_distinct_overlay 'Bookmarks' "$bookmarks_x" "$header_y" "$bookmarks_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
-open_distinct_overlay 'Settings' 1210 35 "$settings_png"
+open_distinct_overlay 'Settings' "$settings_x" "$header_y" "$settings_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
