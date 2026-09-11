@@ -204,16 +204,27 @@ def main() -> int:
     )
     ui_workflow = read(".github/workflows/ui-screenshots.yml")
     require_markers(
-        "authentic UI persistence workflow",
+        "authentic UI immutable evidence workflow",
         ui_workflow,
         (
-            "docs/images/ghost-ftp-main-workspace.png",
-            "docs/images/ghost-ftp-site-manager.png",
-            "docs/images/ghost-ftp-settings.png",
-            "docs/images/ghost-ftp-about.png",
-            "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
+            "permissions:\n  contents: read",
+            "Verify exact-head cross-platform evidence bundle",
+            "AUTHENTIC_UI_SOURCE_SHA=",
+            "AUTHENTIC_UI_EVIDENCE=VERIFIED",
+            "ghostftp-authentic-ui-verified-bundle",
+            "scripts/assemble_ui_evidence.py",
         ),
     )
+    for forbidden in (
+        "contents: write",
+        "git push",
+        "git commit",
+        "github-actions[bot]",
+        "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
+        "Persist authentic screenshots in repository",
+    ):
+        if forbidden in ui_workflow:
+            fail(f"authentic UI workflow must not mutate the tested PR head: {forbidden}")
 
     for relative in ACTIVE_DOCS:
         text = read(relative)

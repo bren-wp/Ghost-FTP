@@ -16,6 +16,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityEvent;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -178,11 +179,20 @@ public final class MainActivity extends Activity {
         super.onBackPressed();
     }
 
+    @SuppressWarnings("deprecation")
     private void buildUi() {
         tabletLayout = getResources().getConfiguration().screenWidthDp >= TABLET_SIDEBAR_MIN_DP;
 
         FrameLayout shell = new FrameLayout(this);
         shell.setBackgroundColor(GhostTheme.WINDOW);
+        shell.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(
+                    insets.getSystemWindowInsetLeft(),
+                    insets.getSystemWindowInsetTop(),
+                    insets.getSystemWindowInsetRight(),
+                    insets.getSystemWindowInsetBottom());
+            return insets;
+        });
 
         if (tabletLayout) {
             LinearLayout body = new LinearLayout(this);
@@ -209,6 +219,7 @@ public final class MainActivity extends Activity {
         }
 
         setContentView(shell);
+        shell.requestApplyInsets();
     }
 
     private LinearLayout buildMainColumn() {
@@ -276,6 +287,10 @@ public final class MainActivity extends Activity {
         navigation.setOrientation(LinearLayout.VERTICAL);
         navigation.setPadding(dp(12), dp(18), dp(12), dp(18));
         navigation.setBackgroundColor(GhostTheme.PANEL);
+        navigation.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            navigation.setAccessibilityPaneTitle("Navigation");
+        }
 
         TextView product = label("Ghost FTP", 20, GhostTheme.TEXT);
         product.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -300,6 +315,8 @@ public final class MainActivity extends Activity {
     private Button navButton(String text, int iconRes, Section section) {
         Button button = new Button(this);
         button.setText(text);
+        button.setContentDescription("Navigate to " + text);
+        button.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         button.setAllCaps(false);
         button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         button.setCompoundDrawablesWithIntrinsicBounds(iconRes, 0, 0, 0);
@@ -609,6 +626,7 @@ public final class MainActivity extends Activity {
         if (tabletLayout || navigationPanel == null) return;
         drawerScrim.setVisibility(View.VISIBLE);
         navigationPanel.setVisibility(View.VISIBLE);
+        navigationPanel.post(() -> navigationPanel.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED));
     }
 
     private void closeNavigationDrawer() {

@@ -47,8 +47,10 @@ on:
       - 'docs/UI-SCREENSHOT-REQUEST'
       - '.github/workflows/ui-screenshots.yml'
 
+# Runtime evidence must never mutate a PR branch. Keeping this workflow read-only
+# makes the tested SHA stable and lets required checks apply to the exact head.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ghostftp-authentic-ui-${{ github.workflow }}-${{ github.ref }}
@@ -69,7 +71,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout source
+      - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -138,7 +140,7 @@ jobs:
             finally { $bitmap.Dispose() }
           }
 
-      - name: Publish authentic UI screenshots
+      - name: Publish authentic Windows UI screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ghostftp-authentic-ui-windows
@@ -151,7 +153,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - name: Checkout source
+      - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -196,7 +198,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout source
+      - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -244,20 +246,30 @@ jobs:
           retention-days: 30
           path: ui-screenshots/android/*.png
 
-  persist:
-    name: Persist verified cross-platform evidence on same-repository PR
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+  evidence:
+    name: Verify exact-head cross-platform evidence bundle
     needs: [windows, linux, android]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SOURCE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Checkout exact PR head branch
+      - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
+
+      - name: Confirm exact tested SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$SOURCE_SHA" || {
+            echo "Evidence checkout mismatch: expected $SOURCE_SHA, got $actual_sha" >&2
+            exit 1
+          }
+          echo "AUTHENTIC_UI_SOURCE_SHA=$actual_sha"
 
       - name: Download Windows evidence
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
@@ -277,37 +289,24 @@ jobs:
           name: ghostftp-authentic-ui-android
           path: staging/android
 
-      - name: Persist authentic screenshots in repository
+      # assemble_ui_evidence.py emits AUTHENTIC_UI_EVIDENCE=VERIFIED only after
+      # source-SHA, image-count, file-size and SHA-256 verification succeeds.
+      - name: Assemble and verify immutable evidence bundle
         shell: bash
         env:
-          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          git fetch origin "$HEAD_BRANCH"
-          remote_sha="$(git rev-parse "origin/$HEAD_BRANCH")"
-          test "$remote_sha" = "$SOURCE_SHA" || {
-            echo "PR branch moved from the capture commit ($SOURCE_SHA) to $remote_sha; refusing a stale screenshot commit." >&2
-            exit 1
-          }
-
           python scripts/assemble_ui_evidence.py \
             --staging staging \
-            --output docs/images \
+            --output verified-evidence/images \
             --source-sha "$SOURCE_SHA" \
             --workflow-run-id "$WORKFLOW_RUN_ID"
 
-          git add docs/images docs/UI-SCREENSHOT-PROVENANCE.json
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            echo 'AUTHENTIC_UI_EVIDENCE=UNCHANGED'
-            exit 0
-          fi
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'docs: refresh authentic cross-platform UI evidence'
-          git push origin "HEAD:$HEAD_BRANCH"
-          echo "AUTHENTIC_UI_EVIDENCE=PERSISTED SOURCE_SHA=$SOURCE_SHA COMMIT_SHA=$(git rev-parse HEAD)"
-          echo 'AUTHENTIC_UI_SCREENSHOTS=PERSISTED'
+      - name: Publish immutable verified evidence bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-authentic-ui-verified-bundle
+          if-no-files-found: error
+          retention-days: 30
+          path: verified-evidence/
