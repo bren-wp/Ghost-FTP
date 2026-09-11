@@ -179,11 +179,20 @@ public final class MainActivity extends Activity {
         super.onBackPressed();
     }
 
+    @SuppressWarnings("deprecation")
     private void buildUi() {
         tabletLayout = getResources().getConfiguration().screenWidthDp >= TABLET_SIDEBAR_MIN_DP;
 
         FrameLayout shell = new FrameLayout(this);
         shell.setBackgroundColor(GhostTheme.WINDOW);
+        shell.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(
+                    insets.getSystemWindowInsetLeft(),
+                    insets.getSystemWindowInsetTop(),
+                    insets.getSystemWindowInsetRight(),
+                    insets.getSystemWindowInsetBottom());
+            return insets;
+        });
 
         if (tabletLayout) {
             LinearLayout body = new LinearLayout(this);
@@ -210,6 +219,7 @@ public final class MainActivity extends Activity {
         }
 
         setContentView(shell);
+        shell.requestApplyInsets();
     }
 
     private LinearLayout buildMainColumn() {
