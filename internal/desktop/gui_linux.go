@@ -441,6 +441,9 @@ func (u *linuxDesktop) renderHeader() error {
 	if err := u.x.text(u.width-300, 34, badge+"  "+u.version, color, premiumTheme.Panel); err != nil {
 		return err
 	}
+	if err := u.renderBookmarksHeaderButton(); err != nil {
+		return err
+	}
 	return u.drawButton(u.layout.settings, u.tr("common.settings"), !u.busy, false)
 }
 
@@ -1017,6 +1020,9 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 			}
 			return
 		}
+	}
+	if u.handleBookmarksHeaderMouse(x, y) {
+		return
 	}
 	l := u.layout
 	if u.handleQueuePriorityMouse(x, y) {
