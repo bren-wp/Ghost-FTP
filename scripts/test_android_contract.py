@@ -35,6 +35,8 @@ class AndroidContractTests(unittest.TestCase):
             f"{ANDROID_JAVA}/MainActivity.java",
             f"{ANDROID_JAVA}/FtpSession.java",
             f"{ANDROID_JAVA}/RemoteEntry.java",
+            f"{ANDROID_JAVA}/SiteProfile.java",
+            f"{ANDROID_JAVA}/SiteProfileStore.java",
         ):
             text = self.read(rel)
             self.assertIn("package app.ghostftp.client;", text)
@@ -86,22 +88,96 @@ class AndroidContractTests(unittest.TestCase):
         for marker in (
             "Intent.ACTION_OPEN_DOCUMENT_TREE",
             "takePersistableUriPermission",
+            "getPersistedUriPermissions()",
             "password.setText(\"\")",
             'getSharedPreferences(PREFS, MODE_PRIVATE)',
             "localParents.push(currentDocumentId)",
-            "currentDocumentId = localParents.pop()",
+            "localParents.pop();",
         ):
             self.assertIn(marker, activity)
         self.assertNotIn('putString("password"', activity)
         self.assertNotIn('putString("passphrase"', activity)
         self.assertNotIn("lastIndexOf('/')", activity)
 
-    def test_remote_path_commits_only_after_successful_listing(self) -> None:
+    def test_site_profiles_persist_only_non_secret_metadata(self) -> None:
+        model = self.read(f"{ANDROID_JAVA}/SiteProfile.java")
+        store = self.read(f"{ANDROID_JAVA}/SiteProfileStore.java")
+        combined = (model + store).lower()
+        for marker in (
+            'object.put("id"',
+            'object.put("protocol"',
+            'object.put("host"',
+            'object.put("username"',
+            'object.put("localstarttreeuri"',
+            'object.put("remotestartpath"',
+            'object.put("localbookmarks"',
+            'object.put("remotebookmarks"',
+        ):
+            self.assertIn(marker, combined)
+        for forbidden in (
+            'object.put("password"',
+            'object.put("passphrase"',
+            'object.put("privatekey"',
+            'object.put("secret"',
+            "encryptedpassword",
+        ):
+            self.assertNotIn(forbidden, combined)
+        self.assertIn("MAX_PROFILES = 50", store)
+        self.assertIn("MAX_BOOKMARKS_PER_KIND = 50", store)
+
+    def test_server_identity_change_clears_server_paths(self) -> None:
+        model = self.read(f"{ANDROID_JAVA}/SiteProfile.java")
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
-        list_call = activity.index("List<RemoteEntry> entries = current.list(requested);")
-        commit = activity.index("currentRemotePath = requested;", list_call)
-        self.assertGreater(commit, list_call)
+        self.assertIn("withRemoteStateResetForIdentityChange", model)
+        self.assertIn('"/",\n                localBookmarks,\n                Collections.emptyList()', model)
+        self.assertIn(".withRemoteStateResetForIdentityChange(previous)", activity)
+        self.assertIn("Server start path and server bookmarks were cleared", activity)
+        self.assertIn("saved server paths will not be reused across identities", activity)
+
+    def test_quick_connect_never_auto_creates_profile(self) -> None:
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        connect_start = activity.index("private void connect()")
+        connect_end = activity.index("private void disconnect()", connect_start)
+        connect = activity[connect_start:connect_end]
+        self.assertNotIn("UUID.randomUUID", connect)
+        self.assertNotIn("profileStore.save", connect)
+        self.assertIn("profile == null ? null : profile.remoteStartPath", connect)
+        self.assertIn("Quick Connect mode", activity)
+        self.assertIn("Quick Connect does not create hidden", activity)
+
+    def test_remote_start_and_bookmarks_commit_only_after_fresh_listing(self) -> None:
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        refresh_list = activity.index("List<RemoteEntry> entries = current.list(requested);")
+        refresh_commit = activity.index("currentRemotePath = requested;", refresh_list)
+        self.assertGreater(refresh_commit, refresh_list)
+        connect_list = activity.index("List<RemoteEntry> entries = next.list(start);")
+        connect_commit = activity.index("currentRemotePath = start;", connect_list)
+        self.assertGreater(connect_commit, connect_list)
+        self.assertIn("openRemoteBookmark()", activity)
+        self.assertIn("refreshRemote(profile.remoteBookmarks.get(index));", activity)
         self.assertIn("if (session != current) return;", activity)
+
+    def test_local_profile_paths_revalidate_persisted_saf_capability(self) -> None:
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        self.assertIn("tryActivateLocalTree(Uri selected, String failureMessage, boolean requirePersisted)", activity)
+        self.assertIn("(requirePersisted && !hasPersistedReadPermission(selected))", activity)
+        self.assertIn('"Saved local folder is no longer available.", true', activity)
+        self.assertIn('"Local bookmark is stale or its persisted permission is unavailable. Re-select the folder to restore access.",\n                true', activity)
+        self.assertIn('tryActivateLocalTree(selected, "Selected folder could not be opened.", false)', activity)
+        permission = activity.index("(requirePersisted && !hasPersistedReadPermission(selected))")
+        listing = activity.index("List<LocalEntry> next = queryChildren(selected, documentId);", permission)
+        commit = activity.index("treeUri = selected;", listing)
+        self.assertLess(permission, listing)
+        self.assertLess(listing, commit)
+        self.assertIn("Local site start folder saved as a SAF capability URI", activity)
+        self.assertIn("Local folder opened for this session only", activity)
+
+    def test_stale_local_start_error_is_not_overwritten(self) -> None:
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        self.assertIn("boolean localStartUnavailable = false;", activity)
+        self.assertIn("if (localStartUnavailable) {", activity)
+        self.assertIn("Site loaded, but its local start folder is unavailable", activity)
+        self.assertIn("} else {\n            setStatus(\"Site loaded. Password remains blank", activity)
 
     def test_sftp_is_fail_closed_until_host_key_verification_exists(self) -> None:
         readme = self.read("android/README.md")

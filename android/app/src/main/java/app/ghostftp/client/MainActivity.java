@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.UriPermission;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
@@ -27,6 +28,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,8 +41,13 @@ public final class MainActivity extends Activity {
     private final List<LocalEntry> localEntries = new ArrayList<>();
     private final List<RemoteEntry> remoteEntries = new ArrayList<>();
     private final Deque<String> localParents = new ArrayDeque<>();
+    private final List<SiteProfile> profiles = new ArrayList<>();
 
+    private Spinner siteSpinner;
     private Spinner protocol;
+    private Spinner localBookmarkSpinner;
+    private Spinner remoteBookmarkSpinner;
+    private EditText profileName;
     private EditText host;
     private EditText port;
     private EditText username;
@@ -54,7 +61,18 @@ public final class MainActivity extends Activity {
     private Button disconnect;
     private Button upload;
     private Button download;
+    private Button saveSite;
+    private Button deleteSite;
+    private Button localSetStart;
+    private Button localAddBookmark;
+    private Button localOpenBookmark;
+    private Button remoteSetStart;
+    private Button remoteAddBookmark;
+    private Button remoteOpenBookmark;
 
+    private SiteProfileStore profileStore;
+    private String activeProfileId;
+    private String connectedIdentityKey;
     private Uri treeUri;
     private String rootDocumentId;
     private String currentDocumentId;
@@ -67,8 +85,13 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+        profileStore = new SiteProfileStore(preferences);
+        profiles.addAll(profileStore.load());
         buildUi();
         restorePreferences();
+        renderSites();
+        renderBookmarks();
         refreshButtons();
     }
 
@@ -76,9 +99,8 @@ public final class MainActivity extends Activity {
     protected void onDestroy() {
         FtpSession current = session;
         session = null;
-        if (current != null) {
-            current.close();
-        }
+        connectedIdentityKey = null;
+        if (current != null) current.close();
         io.shutdownNow();
         super.onDestroy();
     }
@@ -90,8 +112,26 @@ public final class MainActivity extends Activity {
         root.setPadding(pad, pad, pad, pad);
         root.setBackgroundColor(Color.rgb(16, 19, 23));
         root.addView(label("GHOST FTP · ANDROID", 22, Color.WHITE));
-        root.addView(label("Private FTP/FTPS client · no telemetry · password stays in memory", 13, Color.LTGRAY));
+        root.addView(label("Private FTP/FTPS client · no telemetry · passwords are never saved", 13, Color.LTGRAY));
 
+        root.addView(section("SAVED SITES"));
+        siteSpinner = new Spinner(this);
+        root.addView(siteSpinner, matchWrap());
+        profileName = field("Site name", false);
+        root.addView(profileName, matchWrap());
+        LinearLayout siteActions = row();
+        Button loadSite = button("Load");
+        saveSite = button("Save / update");
+        deleteSite = button("Delete");
+        siteActions.addView(loadSite, weighted());
+        siteActions.addView(saveSite, weighted());
+        siteActions.addView(deleteSite, weighted());
+        root.addView(siteActions, matchWrap());
+        loadSite.setOnClickListener(v -> loadSelectedSite());
+        saveSite.setOnClickListener(v -> saveOrUpdateSite());
+        deleteSite.setOnClickListener(v -> deleteActiveSite());
+
+        root.addView(section("QUICK CONNECT / SITE CONNECTION"));
         protocol = new Spinner(this);
         protocol.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"FTPS", "FTP"}));
         root.addView(protocol, matchWrap());
@@ -125,6 +165,21 @@ public final class MainActivity extends Activity {
         root.addView(localActions, matchWrap());
         choose.setOnClickListener(v -> chooseFolder());
         localUp.setOnClickListener(v -> localUp());
+
+        LinearLayout localProfileActions = row();
+        localSetStart = button("Set site start");
+        localAddBookmark = button("Add bookmark");
+        localProfileActions.addView(localSetStart, weighted());
+        localProfileActions.addView(localAddBookmark, weighted());
+        root.addView(localProfileActions, matchWrap());
+        localSetStart.setOnClickListener(v -> setLocalStart());
+        localAddBookmark.setOnClickListener(v -> addLocalBookmark());
+        localBookmarkSpinner = new Spinner(this);
+        root.addView(localBookmarkSpinner, matchWrap());
+        localOpenBookmark = button("Open local bookmark");
+        root.addView(localOpenBookmark, matchWrap());
+        localOpenBookmark.setOnClickListener(v -> openLocalBookmark());
+
         localList = new ListView(this);
         root.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
         localList.setOnItemClickListener((parent, view, position, id) -> selectLocal(position));
@@ -140,6 +195,21 @@ public final class MainActivity extends Activity {
         root.addView(remoteActions, matchWrap());
         remoteRefresh.setOnClickListener(v -> refreshRemote(currentRemotePath));
         remoteUp.setOnClickListener(v -> remoteUp());
+
+        LinearLayout remoteProfileActions = row();
+        remoteSetStart = button("Set site start");
+        remoteAddBookmark = button("Add bookmark");
+        remoteProfileActions.addView(remoteSetStart, weighted());
+        remoteProfileActions.addView(remoteAddBookmark, weighted());
+        root.addView(remoteProfileActions, matchWrap());
+        remoteSetStart.setOnClickListener(v -> setRemoteStart());
+        remoteAddBookmark.setOnClickListener(v -> addRemoteBookmark());
+        remoteBookmarkSpinner = new Spinner(this);
+        root.addView(remoteBookmarkSpinner, matchWrap());
+        remoteOpenBookmark = button("Open server bookmark");
+        root.addView(remoteOpenBookmark, matchWrap());
+        remoteOpenBookmark.setOnClickListener(v -> openRemoteBookmark());
+
         remoteList = new ListView(this);
         root.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
         remoteList.setOnItemClickListener((parent, view, position, id) -> selectRemote(position));
@@ -169,14 +239,7 @@ public final class MainActivity extends Activity {
         port.setText(prefs.getString("port", "21"));
         String savedTree = prefs.getString("treeUri", "");
         if (!savedTree.isEmpty()) {
-            try {
-                treeUri = Uri.parse(savedTree);
-                rootDocumentId = DocumentsContract.getTreeDocumentId(treeUri);
-                currentDocumentId = rootDocumentId;
-                refreshLocal();
-            } catch (RuntimeException e) {
-                clearLocalRoot();
-            }
+            tryActivateLocalTree(Uri.parse(savedTree), "Saved local folder is no longer available.", true);
         }
     }
 
@@ -190,34 +253,206 @@ public final class MainActivity extends Activity {
                 .apply();
     }
 
+    private void renderSites() {
+        List<String> labels = new ArrayList<>();
+        labels.add("Quick Connect (not saved)");
+        int selected = 0;
+        for (int i = 0; i < profiles.size(); i++) {
+            SiteProfile profile = profiles.get(i);
+            labels.add(profile.toString());
+            if (profile.id.equals(activeProfileId)) selected = i + 1;
+        }
+        siteSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels));
+        siteSpinner.setSelection(selected);
+    }
+
+    private void renderBookmarks() {
+        SiteProfile profile = activeProfile();
+        List<String> local = new ArrayList<>();
+        List<String> remote = new ArrayList<>();
+        if (profile != null) {
+            local.addAll(profile.localBookmarks);
+            remote.addAll(profile.remoteBookmarks);
+        }
+        localBookmarkSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, local));
+        remoteBookmarkSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, remote));
+        refreshButtons();
+    }
+
+    private void loadSelectedSite() {
+        if (busy || session != null) {
+            setStatus("Disconnect before switching sites.");
+            return;
+        }
+        int index = siteSpinner.getSelectedItemPosition() - 1;
+        if (index < 0) {
+            activeProfileId = null;
+            profileName.setText("");
+            currentRemotePath = "/";
+            remoteEntries.clear();
+            selectedRemote = -1;
+            renderRemote();
+            renderBookmarks();
+            setStatus("Quick Connect mode. Connection details are not a saved site until you press Save / update.");
+            return;
+        }
+        if (index >= profiles.size()) return;
+        SiteProfile profile = profiles.get(index);
+        activeProfileId = profile.id;
+        profileName.setText(profile.name);
+        protocol.setSelection("FTP".equals(profile.protocol) ? 1 : 0);
+        host.setText(profile.host);
+        port.setText(Integer.toString(profile.port));
+        username.setText(profile.username);
+        password.setText("");
+        currentRemotePath = "/";
+        remoteEntries.clear();
+        selectedRemote = -1;
+        renderRemote();
+        clearLocalRoot();
+        renderLocal();
+        boolean localStartUnavailable = false;
+        if (!profile.localStartTreeUri.isEmpty()) {
+            localStartUnavailable = !tryActivateLocalTree(
+                    Uri.parse(profile.localStartTreeUri),
+                    "This site's local start folder is unavailable. Choose it again and update the site.",
+                    true);
+        }
+        renderSites();
+        renderBookmarks();
+        if (localStartUnavailable) {
+            setStatus("Site loaded, but its local start folder is unavailable. Choose it again and update the site.");
+        } else {
+            setStatus("Site loaded. Password remains blank; connect to validate the saved server start directory.");
+        }
+    }
+
+    private void saveOrUpdateSite() {
+        if (busy || session != null) {
+            setStatus("Disconnect before saving site identity changes.");
+            return;
+        }
+        String name = profileName.getText().toString().trim();
+        if (name.isEmpty()) {
+            setStatus("Site name is required.");
+            return;
+        }
+        final int portValue;
+        try {
+            portValue = parsePort();
+        } catch (IllegalArgumentException e) {
+            setStatus(e.getMessage());
+            return;
+        }
+        String hostValue = host.getText().toString().trim();
+        if (hostValue.isEmpty()) {
+            setStatus("Server host is required.");
+            return;
+        }
+        SiteProfile previous = activeProfile();
+        String id = previous == null ? UUID.randomUUID().toString() : previous.id;
+        String localStart = previous == null ? persistedCurrentTreeUri() : previous.localStartTreeUri;
+        String remoteStart = previous == null ? "/" : previous.remoteStartPath;
+        List<String> localBookmarks = previous == null ? new ArrayList<>() : previous.localBookmarks;
+        List<String> remoteBookmarks = previous == null ? new ArrayList<>() : previous.remoteBookmarks;
+        try {
+            SiteProfile next = new SiteProfile(
+                    id,
+                    name,
+                    protocol.getSelectedItem().toString(),
+                    hostValue,
+                    portValue,
+                    username.getText().toString().trim(),
+                    localStart,
+                    remoteStart,
+                    localBookmarks,
+                    remoteBookmarks).withRemoteStateResetForIdentityChange(previous);
+            replaceProfile(next);
+            activeProfileId = next.id;
+            profileStore.save(profiles);
+            renderSites();
+            renderBookmarks();
+            if (previous != null && !next.sameServerIdentity(previous)) {
+                setStatus("Site identity updated. Server start path and server bookmarks were cleared to prevent cross-server inheritance.");
+            } else {
+                setStatus(previous == null ? "Site saved. No password was stored." : "Site updated. No password was stored.");
+            }
+        } catch (IllegalArgumentException e) {
+            setStatus(e.getMessage());
+        }
+    }
+
+    private void deleteActiveSite() {
+        if (busy || session != null) {
+            setStatus("Disconnect before deleting a saved site.");
+            return;
+        }
+        SiteProfile profile = activeProfile();
+        if (profile == null) {
+            setStatus("Load a saved site before deleting it.");
+            return;
+        }
+        profiles.remove(profile);
+        profileStore.save(profiles);
+        activeProfileId = null;
+        profileName.setText("");
+        renderSites();
+        renderBookmarks();
+        setStatus("Saved site deleted. Quick Connect settings were not converted into another profile.");
+    }
+
+    private void replaceProfile(SiteProfile next) {
+        for (int i = 0; i < profiles.size(); i++) {
+            if (profiles.get(i).id.equals(next.id)) {
+                profiles.set(i, next);
+                return;
+            }
+        }
+        profiles.add(next);
+    }
+
+    private SiteProfile activeProfile() {
+        if (activeProfileId == null) return null;
+        for (SiteProfile profile : profiles) if (profile.id.equals(activeProfileId)) return profile;
+        return null;
+    }
+
     private void connect() {
         if (busy || session != null) return;
         String hostValue = host.getText().toString().trim();
         String userValue = username.getText().toString().trim();
         String passwordValue = password.getText().toString();
         boolean secure = "FTPS".equals(protocol.getSelectedItem().toString());
-        int portValue;
+        final int portValue;
         try {
-            portValue = Integer.parseInt(port.getText().toString().trim());
-        } catch (NumberFormatException e) {
-            setStatus("Invalid port.");
+            portValue = parsePort();
+        } catch (IllegalArgumentException e) {
+            setStatus(e.getMessage());
             return;
         }
         if (hostValue.isEmpty()) {
             setStatus("Server host is required.");
             return;
         }
+        SiteProfile profile = activeProfile();
+        String identity = identityKey(protocol.getSelectedItem().toString(), hostValue, portValue, userValue);
+        if (profile != null && !profile.identityKey().equals(identity)) {
+            setStatus("Loaded site identity was edited. Save/update it first or switch to Quick Connect; saved server paths will not be reused across identities.");
+            return;
+        }
+        String requestedStart = profile == null ? null : profile.remoteStartPath;
         setBusy(true, secure ? "Connecting with strict FTPS TLS verification…" : "Connecting with unencrypted FTP…");
         io.execute(() -> {
             FtpSession next = null;
             try {
                 next = new FtpSession(hostValue, portValue, secure);
                 next.connect(userValue, passwordValue);
-                String start = next.pwd();
+                String start = requestedStart == null ? next.pwd() : requestedStart;
                 List<RemoteEntry> entries = next.list(start);
                 FtpSession ready = next;
                 runOnUiThread(() -> {
                     session = ready;
+                    connectedIdentityKey = identity;
                     currentRemotePath = start;
                     remoteEntries.clear();
                     remoteEntries.addAll(entries);
@@ -225,11 +460,13 @@ public final class MainActivity extends Activity {
                     password.setText("");
                     savePreferences();
                     renderRemote();
-                    setBusy(false, secure ? "FTPS connected. Certificate and hostname verified." : "FTP connected. Warning: transport is unencrypted.");
+                    setBusy(false, secure
+                            ? "FTPS connected. Certificate/hostname verified and server start directory freshly listed."
+                            : "FTP connected. Warning: transport is unencrypted; server start directory freshly listed.");
                 });
             } catch (Exception e) {
                 if (next != null) next.close();
-                postError("Connection failed", e);
+                postError(profile == null ? "Connection failed" : "Connection or saved server start directory failed", e);
             }
         });
     }
@@ -238,8 +475,10 @@ public final class MainActivity extends Activity {
         if (busy) return;
         FtpSession current = session;
         session = null;
+        connectedIdentityKey = null;
         remoteEntries.clear();
         selectedRemote = -1;
+        currentRemotePath = "/";
         renderRemote();
         if (current != null) io.execute(current::close);
         setStatus("Disconnected.");
@@ -267,10 +506,10 @@ public final class MainActivity extends Activity {
                     remoteEntries.addAll(entries);
                     selectedRemote = -1;
                     renderRemote();
-                    setBusy(false, "Server directory refreshed.");
+                    setBusy(false, "Server directory freshly listed.");
                 });
             } catch (Exception e) {
-                postError("Remote refresh failed", e);
+                postError("Remote directory is unavailable; current path was not changed", e);
             }
         });
     }
@@ -298,6 +537,49 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void setRemoteStart() {
+        SiteProfile profile = requireConnectedActiveProfile();
+        if (profile == null) return;
+        SiteProfile next = profile.withRemoteStartPath(currentRemotePath);
+        replaceProfile(next);
+        profileStore.save(profiles);
+        setStatus("Saved server start directory updated after a successful listing: " + currentRemotePath);
+    }
+
+    private void addRemoteBookmark() {
+        SiteProfile profile = requireConnectedActiveProfile();
+        if (profile == null) return;
+        SiteProfile next = profile.withRemoteBookmark(currentRemotePath);
+        replaceProfile(next);
+        profileStore.save(profiles);
+        renderBookmarks();
+        setStatus("Server bookmark added for this site identity only.");
+    }
+
+    private void openRemoteBookmark() {
+        SiteProfile profile = requireConnectedActiveProfile();
+        if (profile == null) return;
+        int index = remoteBookmarkSpinner.getSelectedItemPosition();
+        if (index < 0 || index >= profile.remoteBookmarks.size()) {
+            setStatus("No server bookmark selected.");
+            return;
+        }
+        refreshRemote(profile.remoteBookmarks.get(index));
+    }
+
+    private SiteProfile requireConnectedActiveProfile() {
+        SiteProfile profile = activeProfile();
+        if (profile == null) {
+            setStatus("Load or save a site first. Quick Connect does not create hidden profiles or bookmarks.");
+            return null;
+        }
+        if (session == null || connectedIdentityKey == null || !profile.identityKey().equals(connectedIdentityKey)) {
+            setStatus("Connect using this saved site before changing or opening its server paths.");
+            return null;
+        }
+        return profile;
+    }
+
     private void chooseFolder() {
         if (busy) return;
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
@@ -321,36 +603,84 @@ public final class MainActivity extends Activity {
                 getContentResolver().takePersistableUriPermission(selected, Intent.FLAG_GRANT_READ_URI_PERMISSION);
             }
         } catch (SecurityException ignored) {
-            setStatus("Folder selected for this session; persistent permission was not granted.");
+            // A transient grant may still be usable for this Activity session.
         }
-        treeUri = selected;
-        rootDocumentId = DocumentsContract.getTreeDocumentId(selected);
-        currentDocumentId = rootDocumentId;
-        localParents.clear();
-        savePreferences();
-        refreshLocal();
+        boolean persisted = hasPersistedReadPermission(selected);
+        if (tryActivateLocalTree(selected, "Selected folder could not be opened.", false)) {
+            savePreferences();
+            setStatus(persisted
+                    ? "Local folder selected with persistent SAF permission."
+                    : "Local folder opened for this session only; persistent permission was not granted, so it cannot become a saved site start/bookmark.");
+        }
+    }
+
+    private boolean tryActivateLocalTree(Uri selected, String failureMessage, boolean requirePersisted) {
+        if (selected == null || (requirePersisted && !hasPersistedReadPermission(selected))) {
+            clearLocalRoot();
+            renderLocal();
+            setStatus(failureMessage);
+            return false;
+        }
+        try {
+            String documentId = DocumentsContract.getTreeDocumentId(selected);
+            List<LocalEntry> next = queryChildren(selected, documentId);
+            treeUri = selected;
+            rootDocumentId = documentId;
+            currentDocumentId = documentId;
+            localParents.clear();
+            localEntries.clear();
+            localEntries.addAll(next);
+            selectedLocal = -1;
+            renderLocal();
+            localPath.setText("Selected folder");
+            return true;
+        } catch (RuntimeException | IOException e) {
+            clearLocalRoot();
+            renderLocal();
+            setStatus(failureMessage);
+            return false;
+        }
+    }
+
+    private boolean hasPersistedReadPermission(Uri uri) {
+        for (UriPermission permission : getContentResolver().getPersistedUriPermissions()) {
+            if (permission.isReadPermission() && permission.getUri().equals(uri)) return true;
+        }
+        return false;
+    }
+
+    private String persistedCurrentTreeUri() {
+        return treeUri != null && hasPersistedReadPermission(treeUri) ? treeUri.toString() : "";
     }
 
     private void refreshLocal() {
         if (treeUri == null || currentDocumentId == null) {
             localPath.setText("No folder selected");
+            renderLocal();
             return;
         }
-        List<LocalEntry> next = queryChildren(currentDocumentId);
-        localEntries.clear();
-        localEntries.addAll(next);
-        selectedLocal = -1;
-        localPath.setText(currentDocumentId.equals(rootDocumentId) ? "Selected folder" : currentDocumentId);
-        renderLocal();
+        try {
+            List<LocalEntry> next = queryChildren(treeUri, currentDocumentId);
+            localEntries.clear();
+            localEntries.addAll(next);
+            selectedLocal = -1;
+            localPath.setText(currentDocumentId.equals(rootDocumentId) ? "Selected folder" : currentDocumentId);
+            renderLocal();
+        } catch (IOException e) {
+            clearLocalRoot();
+            renderLocal();
+            localPath.setText("No folder selected");
+            setStatus("Local folder permission or provider is no longer available. Choose the folder again.");
+        }
     }
 
-    private List<LocalEntry> queryChildren(String documentId) {
+    private List<LocalEntry> queryChildren(Uri rootTreeUri, String documentId) throws IOException {
         List<LocalEntry> result = new ArrayList<>();
-        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId);
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(rootTreeUri, documentId);
         String[] projection = {DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
                 DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE};
         try (Cursor cursor = getContentResolver().query(children, projection, null, null, null)) {
-            if (cursor == null) return result;
+            if (cursor == null) throw new IOException("Folder provider returned no directory listing.");
             while (cursor.moveToNext()) {
                 String id = cursor.getString(0);
                 String name = cursor.getString(1);
@@ -359,7 +689,7 @@ public final class MainActivity extends Activity {
                 result.add(new LocalEntry(id, name, DocumentsContract.Document.MIME_TYPE_DIR.equals(mime), size));
             }
         } catch (SecurityException e) {
-            setStatus("Local folder permission is no longer available.");
+            throw new IOException("Local folder permission is no longer available.", e);
         }
         return result;
     }
@@ -368,9 +698,18 @@ public final class MainActivity extends Activity {
         if (busy || position < 0 || position >= localEntries.size()) return;
         LocalEntry entry = localEntries.get(position);
         if (entry.directory) {
-            localParents.push(currentDocumentId);
-            currentDocumentId = entry.documentId;
-            refreshLocal();
+            try {
+                List<LocalEntry> next = queryChildren(treeUri, entry.documentId);
+                localParents.push(currentDocumentId);
+                currentDocumentId = entry.documentId;
+                localEntries.clear();
+                localEntries.addAll(next);
+                selectedLocal = -1;
+                localPath.setText(currentDocumentId);
+                renderLocal();
+            } catch (IOException e) {
+                setStatus("Local directory is unavailable; current path was not changed: " + safeMessage(e));
+            }
         } else {
             selectedLocal = position;
             renderLocal();
@@ -379,8 +718,76 @@ public final class MainActivity extends Activity {
 
     private void localUp() {
         if (busy || localParents.isEmpty()) return;
-        currentDocumentId = localParents.pop();
-        refreshLocal();
+        String target = localParents.peek();
+        try {
+            List<LocalEntry> next = queryChildren(treeUri, target);
+            localParents.pop();
+            currentDocumentId = target;
+            localEntries.clear();
+            localEntries.addAll(next);
+            selectedLocal = -1;
+            localPath.setText(currentDocumentId.equals(rootDocumentId) ? "Selected folder" : currentDocumentId);
+            renderLocal();
+        } catch (IOException e) {
+            setStatus("Parent folder is unavailable; current path was not changed: " + safeMessage(e));
+        }
+    }
+
+    private void setLocalStart() {
+        SiteProfile profile = activeProfile();
+        if (profile == null) {
+            setStatus("Load or save a site first. Quick Connect does not create hidden site state.");
+            return;
+        }
+        String uri = persistedCurrentTreeUri();
+        if (uri.isEmpty()) {
+            setStatus("Choose a folder with persistent Android permission before setting the site start folder.");
+            return;
+        }
+        SiteProfile next = profile.withLocalStartTreeUri(uri);
+        replaceProfile(next);
+        profileStore.save(profiles);
+        setStatus("Local site start folder saved as a SAF capability URI; no filesystem-wide permission was added.");
+    }
+
+    private void addLocalBookmark() {
+        SiteProfile profile = activeProfile();
+        if (profile == null) {
+            setStatus("Load or save a site first. Quick Connect does not create hidden bookmarks.");
+            return;
+        }
+        String uri = persistedCurrentTreeUri();
+        if (uri.isEmpty()) {
+            setStatus("Choose a folder with persistent Android permission before bookmarking it.");
+            return;
+        }
+        SiteProfile next = profile.withLocalBookmark(uri);
+        replaceProfile(next);
+        profileStore.save(profiles);
+        renderBookmarks();
+        setStatus("Local SAF bookmark added. It contains no credentials.");
+    }
+
+    private void openLocalBookmark() {
+        SiteProfile profile = activeProfile();
+        if (profile == null) {
+            setStatus("Load a saved site first.");
+            return;
+        }
+        int index = localBookmarkSpinner.getSelectedItemPosition();
+        if (index < 0 || index >= profile.localBookmarks.size()) {
+            setStatus("No local bookmark selected.");
+            return;
+        }
+        Uri uri = Uri.parse(profile.localBookmarks.get(index));
+        if (!tryActivateLocalTree(
+                uri,
+                "Local bookmark is stale or its persisted permission is unavailable. Re-select the folder to restore access.",
+                true)) {
+            return;
+        }
+        savePreferences();
+        setStatus("Local bookmark opened after persisted SAF permission and directory listing were revalidated.");
     }
 
     private void uploadSelected() {
@@ -470,10 +877,37 @@ public final class MainActivity extends Activity {
 
     private void refreshButtons() {
         boolean connected = session != null && session.isConnected();
+        SiteProfile profile = activeProfile();
+        boolean activeSite = profile != null;
+        boolean connectedSite = activeSite && connected && connectedIdentityKey != null && profile.identityKey().equals(connectedIdentityKey);
         connect.setEnabled(!busy && !connected);
         disconnect.setEnabled(!busy && connected);
         upload.setEnabled(!busy && connected && selectedLocal >= 0);
         download.setEnabled(!busy && connected && selectedRemote >= 0 && treeUri != null);
+        saveSite.setEnabled(!busy && !connected);
+        deleteSite.setEnabled(!busy && !connected && activeSite);
+        localSetStart.setEnabled(!busy && activeSite && persistedCurrentTreeUri().length() > 0);
+        localAddBookmark.setEnabled(!busy && activeSite && persistedCurrentTreeUri().length() > 0);
+        localOpenBookmark.setEnabled(!busy && activeSite && !profile.localBookmarks.isEmpty());
+        remoteSetStart.setEnabled(!busy && connectedSite);
+        remoteAddBookmark.setEnabled(!busy && connectedSite);
+        remoteOpenBookmark.setEnabled(!busy && connectedSite && !profile.remoteBookmarks.isEmpty());
+    }
+
+    private int parsePort() {
+        try {
+            int value = Integer.parseInt(port.getText().toString().trim());
+            if (value < 1 || value > 65535) throw new NumberFormatException();
+            return value;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Port must be between 1 and 65535.");
+        }
+    }
+
+    private static String identityKey(String protocol, String host, int port, String username) {
+        return protocol.trim().toUpperCase(java.util.Locale.ROOT) + "\n"
+                + host.trim().toLowerCase(java.util.Locale.ROOT) + "\n"
+                + port + "\n" + (username == null ? "" : username.trim());
     }
 
     private void postError(String prefix, Exception e) {
@@ -535,6 +969,7 @@ public final class MainActivity extends Activity {
         final String name;
         final boolean directory;
         final long size;
+
         LocalEntry(String documentId, String name, boolean directory, long size) {
             this.documentId = documentId;
             this.name = name;
