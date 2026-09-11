@@ -51,20 +51,18 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
         self.assertIn("Invalid input keeps the dialog open", settings)
         self.assertIn("aggregate ceiling for that direction", settings)
 
-    def test_screenshot_evidence_requires_complete_authentic_capture_provenance(self) -> None:
+    def test_screenshot_evidence_requires_exact_head_cross_platform_provenance(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
         workflow = read(".github/workflows/ui-screenshots.yml")
         assembly = read("scripts/assemble_ui_evidence.py")
 
         for marker in (
-            "authentic UI workflow run **#201**",
-            "a1e9635f5724ea8b53afca9830f28f7fa9159798",
-            "29f3a9a069df37107772265987ecfd251b645c3e",
-            "659caccf3fab3e9add23424e45709f541c902219ba5212f6287ab5ed25c8cb6e",
-            "63e9292530030afab7a95b21788d9ec1da80b6f7bca1ba0ce8a132fd665602a9",
-            "b46b8c9c0730e96b1a0ed9ba54e84633eb6f2030271407f0944d433046c0c870",
-            "1d1b6487be473e3f59af2620584cf09e2ef3225d30712818a9cb8ca1fa492ca4",
-            "verified internal native x64 Portable payload",
+            "Windows — 5 images",
+            "Linux — 3 images",
+            "Android — 7 images",
+            "exactly **15 runtime images**",
+            "ghostftp-authentic-ui-verified-bundle",
+            "does **not** commit or push screenshots",
             "Mockups, image-generation output and manually composed approximations are not accepted",
         ):
             self.assertIn(marker, reference)
@@ -76,17 +74,46 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             "ghost-ftp-about.png",
         ):
             self.assertIn(image, reference)
-            self.assertIn(image, workflow)
 
-        self.assertIn('dist\\internal\\Ghost-FTP-$version-Portable-x64.exe', workflow)
-        self.assertIn("Verify screenshot outputs", workflow)
-        self.assertIn("Verify exact-head cross-platform evidence bundle", workflow)
-        self.assertIn("permissions:\n  contents: read", workflow)
-        self.assertIn("ghostftp-authentic-ui-verified-bundle", workflow)
-        self.assertIn("AUTHENTIC_UI_EVIDENCE=VERIFIED", assembly)
-        self.assertNotIn("AUTHENTIC_UI_SCREENSHOTS=PERSISTED", workflow)
-        self.assertNotIn("git push", workflow)
-        self.assertNotIn("github-actions[bot]", workflow)
+        for marker in (
+            "permissions:\n  contents: read",
+            "Checkout exact source",
+            "Verify exact-head cross-platform evidence bundle",
+            "ghostftp-authentic-ui-windows",
+            "ghostftp-authentic-ui-linux",
+            "ghostftp-authentic-ui-android",
+            "ghostftp-authentic-ui-verified-bundle",
+            "scripts/assemble_ui_evidence.py",
+            'dist\\internal\\Ghost-FTP-$version-Portable-x64.exe',
+        ):
+            self.assertIn(marker, workflow)
+
+        for marker in (
+            '"windows/Ghost-FTP-main-workspace.png"',
+            '"windows/Ghost-FTP-bookmarks.png"',
+            '"linux/ghost-ftp-linux-main-workspace.png"',
+            '"linux/ghost-ftp-linux-settings.png"',
+            '"android/ghost-ftp-android-files.png"',
+            '"android/ghost-ftp-android-navigation.png"',
+            '"android/ghost-ftp-android-about.png"',
+            '"capture_source_sha"',
+            '"workflow_run_id"',
+            '"sha256"',
+            "AUTHENTIC_UI_EVIDENCE=VERIFIED",
+        ):
+            self.assertIn(marker, assembly)
+        self.assertEqual(assembly.count('(\"windows/'), 5)
+        self.assertEqual(assembly.count('(\"linux/'), 3)
+        self.assertEqual(assembly.count('(\"android/'), 7)
+
+        for forbidden in (
+            "contents: write",
+            "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
+            "git push",
+            "git commit",
+            "github-actions[bot]",
+        ):
+            self.assertNotIn(forbidden, workflow)
 
 
 if __name__ == "__main__":
