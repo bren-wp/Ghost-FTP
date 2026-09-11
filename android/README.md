@@ -21,6 +21,7 @@ Native Android client source lives entirely under this `android/` directory.
 - Opening a remote bookmark performs a fresh server listing before the visible remote path is committed.
 - Local starts/bookmarks are usable only while their persisted SAF read permission still exists and the provider can return a fresh directory listing.
 - Site/bookmark persistence is bounded to 50 sites and 50 bookmarks of each type per site.
+- Advanced Remote Desktop handoff validates `host[:port]` and opens only an installed app registered for the `rdp://` scheme. Ghost FTP does not store or forward the RDP password.
 - No telemetry, analytics, ads, crash-reporting service or Ghost FTP backend is used.
 
 ## Upload commit safety
@@ -52,6 +53,12 @@ Saved sites are deliberately non-secret. The persisted profile schema contains s
 Quick Connect remains transient application state. A Quick Connect endpoint becomes a saved site only after the user explicitly presses **Save / update**. Bookmarks likewise require an explicitly loaded/saved site; they are never created implicitly from Quick Connect.
 
 Remote navigation state is bound to `(protocol, host, port, username)`. If that identity changes, old remote navigation state is discarded fail-closed. Local navigation state is capability-based: the application revalidates Android's persisted SAF permission and performs a fresh directory query before committing a saved local start/bookmark.
+
+## Remote Desktop security boundary
+
+Remote Desktop is an advanced launcher, not another Ghost FTP file-transfer protocol. The Android UI accepts only a validated `host[:port]` target and uses `Intent.ACTION_VIEW` with an `rdp://host:port` URI after confirming that a compatible RDP client is installed.
+
+Ghost FTP does not embed a username or password in the RDP URI, does not attach credential extras and does not persist the RDP target. RDP authentication, certificates and session policy remain inside the installed Remote Desktop application. See [Remote Desktop](../docs/REMOTE-DESKTOP.md).
 
 ## SFTP security boundary
 
