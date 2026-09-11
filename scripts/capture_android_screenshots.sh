@@ -220,14 +220,22 @@ wait_ui() {
   return 1
 }
 
-# Android 35 can transiently return the previous content-only hierarchy just
-# after the drawer has been opened. Retry the requested semantic drawer label
-# itself rather than guessing coordinates from colors or geometry. A section is
-# accepted only after its exact post-click title is visible, so stale hierarchy
-# data cannot turn into successful evidence.
+# Opening the drawer is itself part of the evidence contract. Do not proceed
+# from the hamburger tap until the Files navigation control is semantically
+# visible in the live accessibility hierarchy.
+open_navigation() {
+  tap_ui 'Open navigation'
+  wait_ui 'Navigate to Files'
+  printf 'ANDROID_NAV_DRAWER=VISIBLE\n'
+}
+
+# Navigation uses the explicit accessibility descriptions published by the app.
+# A section is accepted only after its exact post-click title is visible, so a
+# stale hierarchy or a wrong control can never produce PASS.
 tap_nav_section() {
   local section="$1"
   local expected_title="$2"
+  local query="Navigate to $section"
   local coords=''
   local x=''
   local y=''
@@ -235,7 +243,7 @@ tap_nav_section() {
 
   for attempt in $(seq 1 20); do
     dump_ui
-    coords="$(find_ui_coords "$section" 2>/dev/null || true)"
+    coords="$(find_ui_coords "$query" 2>/dev/null || true)"
     if [[ "$coords" =~ ^[0-9]+\ [0-9]+$ ]]; then
       read -r x y <<<"$coords"
       timeout 10s adb shell input tap "$x" "$y"
@@ -248,7 +256,7 @@ tap_nav_section() {
     sleep 0.4
   done
 
-  echo "Navigation node did not become semantically visible after bounded retries: $section" >&2
+  echo "Navigation node did not become semantically visible after bounded retries: $query" >&2
   [[ -s "$UI_XML_LOCAL" ]] && cat "$UI_XML_LOCAL" >&2 || true
   return 1
 }
@@ -266,13 +274,13 @@ capture() {
 }
 
 capture 'ghost-ftp-android-files.png'
-tap_ui 'Open navigation'
+open_navigation
 capture 'ghost-ftp-android-navigation.png'
 
 first_section=1
 for section in Sites Bookmarks Transfers Settings About; do
   if (( first_section == 0 )); then
-    tap_ui 'Open navigation'
+    open_navigation
   fi
   expected_title="$section"
   [[ "$section" == 'Sites' ]] && expected_title='Sites / Connections'
