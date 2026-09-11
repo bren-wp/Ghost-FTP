@@ -613,10 +613,7 @@ public final class MainActivity extends Activity {
         if (tabletLayout || navigationPanel == null) return;
         drawerScrim.setVisibility(View.VISIBLE);
         navigationPanel.setVisibility(View.VISIBLE);
-        navigationPanel.post(() -> {
-            navigationPanel.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
-            navigationPanel.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
-        });
+        navigationPanel.post(() -> navigationPanel.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED));
     }
 
     private void closeNavigationDrawer() {
