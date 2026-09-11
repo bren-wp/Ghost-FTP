@@ -107,15 +107,16 @@ timeout 10s adb shell am force-stop "$package_name"
 timeout 10s adb shell am start -W -n "$launcher_component"
 sleep 2
 
-# Fail closed if the exact APK package was installed but its launcher did not
-# actually become the foreground activity.
-resolved_component="$(timeout 10s adb shell dumpsys activity activities 2>/dev/null | sed -n 's/.*mResumedActivity:.* \([^ ]*\/[^ ]*\).*/\1/p' | head -n1 | tr -d '\r' || true)"
-[[ "$resolved_component" == "$package_name/"* ]] || {
-  timeout 10s adb shell dumpsys activity activities >&2 || true
-  echo "Android launcher did not become foreground: expected package $package_name, got ${resolved_component:-<none>}." >&2
+# Android 35 reports the foreground activity as `ResumedActivity:` (and also
+# `topResumedActivity=`). Validate the exact launcher component instead of
+# parsing the older `mResumedActivity:` key, which is absent on this runtime.
+activity_dump="$(timeout 10s adb shell dumpsys activity activities 2>/dev/null || true)"
+if ! printf '%s\n' "$activity_dump" | grep -F 'ResumedActivity:' | grep -Fq "$launcher_component"; then
+  printf '%s\n' "$activity_dump" >&2
+  echo "Android launcher did not become foreground: expected component $launcher_component." >&2
   exit 1
-}
-printf 'ANDROID_FOREGROUND=%s\n' "$resolved_component"
+fi
+printf 'ANDROID_FOREGROUND=%s\n' "$launcher_component"
 
 dump_ui() {
   rm -f "$UI_XML_LOCAL"
