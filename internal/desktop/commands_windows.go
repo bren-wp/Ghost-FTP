@@ -22,6 +22,8 @@ func (a *app) command(id int) {
 		a.disconnectNow()
 	case idSiteManager:
 		a.openSiteManager()
+	case idBookmarks:
+		a.openBookmarkManager()
 	case idChooseKey:
 		a.choosePrivateKey()
 	case idSaveProfile:

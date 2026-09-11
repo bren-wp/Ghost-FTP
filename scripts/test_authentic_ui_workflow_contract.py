@@ -40,10 +40,19 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         for name in (
             "Ghost-FTP-main-workspace.png",
             "Ghost-FTP-site-manager.png",
+            "Ghost-FTP-bookmarks.png",
             "Ghost-FTP-settings.png",
             "Ghost-FTP-about.png",
         ):
             self.assertIn(name, workflow)
+
+    def test_bookmarks_manager_is_captured_through_real_runtime_command(self) -> None:
+        capture = (ROOT / "scripts" / "capture_windows_screenshots.ps1").read_text(encoding="utf-8")
+        self.assertIn("$bookmarksCommand = 97", capture)
+        self.assertIn('TitleContains "Bookmarks"', capture)
+        self.assertIn('Ghost-FTP-bookmarks.png', capture)
+        self.assertIn("PostMessage($main, $wmCommand", capture)
+        self.assertIn("PostMessage($bookmarksWindow, 0x0010", capture)
 
 
 if __name__ == "__main__":

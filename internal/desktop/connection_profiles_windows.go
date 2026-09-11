@@ -211,9 +211,9 @@ func (a *app) currentEndpointMatchesProfile(p model.PublicProfile) bool {
 	if err != nil {
 		return false
 	}
-	return profilebinding.EndpointMatches(
-		p.Protocol, p.Host, p.Port,
-		a.protocolValue(), getText(a.host), port,
+	return profilebinding.AccountMatches(
+		p.Protocol, p.Host, p.Port, p.Username,
+		a.protocolValue(), getText(a.host), port, getText(a.user),
 	)
 }
 

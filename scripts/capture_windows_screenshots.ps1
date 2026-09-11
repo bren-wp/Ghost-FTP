@@ -240,6 +240,20 @@ try {
     [GhostFtpCaptureNative]::PostMessage($siteManager, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
     Start-Sleep -Milliseconds 350
 
+    # Bookmarks is a separate native modal manager. Capture it through the same
+    # real WM_COMMAND route used by the main window so the evidence proves the
+    # visible feature surface and its window lifecycle, not a generated mockup.
+    $bookmarksCommand = 97
+    if (-not [GhostFtpCaptureNative]::PostMessage($main, $wmCommand, [IntPtr]$bookmarksCommand, [IntPtr]::Zero)) {
+        throw "Could not request the Ghost FTP Bookmarks manager."
+    }
+    $bookmarksWindow = Find-ProcessWindow -ProcessId $process.Id -TitleContains "Bookmarks"
+    [GhostFtpCaptureNative]::SetForegroundWindow($bookmarksWindow) | Out-Null
+    Start-Sleep -Milliseconds 700
+    Save-WindowScreenshot -Window $bookmarksWindow -Path (Join-Path $OutputDirectory "Ghost-FTP-bookmarks.png")
+    [GhostFtpCaptureNative]::PostMessage($bookmarksWindow, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+    Start-Sleep -Milliseconds 350
+
     # Open the actual Settings card through its owner-drawn button. The first
     # appearance selector exercises the shared theme-aware option-dialog shell.
     $bmClick = 0x00F5

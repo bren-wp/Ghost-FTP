@@ -23,6 +23,9 @@ const (
 	linuxPromptRemoteFilter
 	linuxPromptLocalRecursiveSearch
 	linuxPromptRemoteRecursiveSearch
+	linuxPromptBookmarkManager
+	linuxPromptBookmarkLocalName
+	linuxPromptBookmarkRemoteName
 )
 
 func (u *linuxDesktop) openPrompt(kind int, title, initial string) {
@@ -48,6 +51,22 @@ func (u *linuxDesktop) recursiveSearchPrompt() bool {
 	return u.promptKind == linuxPromptLocalRecursiveSearch || u.promptKind == linuxPromptRemoteRecursiveSearch
 }
 
+func (u *linuxDesktop) bookmarkNamePrompt() bool {
+	return u.promptKind == linuxPromptBookmarkLocalName || u.promptKind == linuxPromptBookmarkRemoteName
+}
+
+func (u *linuxDesktop) cancelPrompt() {
+	returnToBookmarks := u.bookmarkNamePrompt()
+	u.closePrompt()
+	u.setStatus(u.tr("common.cancel"))
+	if returnToBookmarks {
+		// Add-local/add-remote naming is a child step of the bookmark manager.
+		// Cancelling the child returns to that manager, matching the Windows
+		// modal flow instead of unexpectedly closing the whole bookmark task.
+		u.openLinuxBookmarks("")
+	}
+}
+
 func (u *linuxDesktop) promptCanSubmit() bool {
 	return !u.busy && (u.filterPrompt() || strings.TrimSpace(u.promptValue) != "")
 }
@@ -56,10 +75,12 @@ func (u *linuxDesktop) handlePromptKey(sym uint32) bool {
 	if u.promptKind == linuxPromptNone {
 		return false
 	}
+	if u.promptKind == linuxPromptBookmarkManager {
+		return u.handleBookmarkManagerKey(sym)
+	}
 	switch sym {
 	case x11KeyEscape:
-		u.closePrompt()
-		u.setStatus(u.tr("common.cancel"))
+		u.cancelPrompt()
 	case x11KeyReturn:
 		u.submitPrompt()
 	case x11KeyBackSpace, x11KeyDelete:
@@ -77,6 +98,9 @@ func (u *linuxDesktop) handlePromptKey(sym uint32) bool {
 func (u *linuxDesktop) renderPromptOverlay() error {
 	if u.promptKind == linuxPromptNone {
 		return nil
+	}
+	if u.promptKind == linuxPromptBookmarkManager {
+		return u.renderBookmarkManagerOverlay()
 	}
 	width := min(620, u.width-80)
 	height := 158
@@ -122,13 +146,15 @@ func (u *linuxDesktop) handlePromptMouse(x, y int) bool {
 	if u.promptKind == linuxPromptNone {
 		return false
 	}
+	if u.promptKind == linuxPromptBookmarkManager {
+		return u.handleBookmarkManagerMouse(x, y)
+	}
 	if u.layout.promptOK.contains(x, y) {
 		u.submitPrompt()
 		return true
 	}
 	if u.layout.promptCancel.contains(x, y) {
-		u.closePrompt()
-		u.setStatus(u.tr("common.cancel"))
+		u.cancelPrompt()
 		return true
 	}
 	return true
@@ -143,6 +169,10 @@ func (u *linuxDesktop) submitPrompt() {
 	}
 	u.closePrompt()
 	switch kind {
+	case linuxPromptBookmarkLocalName:
+		u.saveLinuxBookmark(false, value)
+	case linuxPromptBookmarkRemoteName:
+		u.saveLinuxBookmark(true, value)
 	case linuxPromptLocalFilter:
 		u.applyLinuxFileFilter(false, value)
 	case linuxPromptRemoteFilter:

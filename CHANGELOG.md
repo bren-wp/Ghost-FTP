@@ -11,6 +11,16 @@
 - Added regression coverage for four-way ordering, non-queued slot stability, connection binding, tree-transfer directory-preparation ordering and cross-platform UI wiring.
 - This is post-0.0.3 source work for the next release; root `VERSION` and the already published `ghostftp-v0.0.3` release remain unchanged.
 
+### Navigation bookmarks and profile start directories
+
+- Added reusable local and remote bookmarks through a shared non-secret persistence model; remote bookmark identity contains only protocol, host, port and username and is captured from the real active Engine connection.
+- Made bookmark activation authoritative only after fresh navigation: local targets must list successfully, while remote targets must match the active account and retain the same connection identity across the server listing.
+- Added a native Windows bookmark manager and Linux X11 bookmark overlay with Open, Add local, Add remote, Delete and Close behavior wired through the shared Engine contract.
+- Added an additional Windows `connectionGeneration` guard around remote bookmark UI commits and Linux modal/action routing that keeps stored paths from bypassing the existing navigation lifecycle.
+- Hardened profile start-directory behavior so an inherited server path cannot silently cross a protocol/host/port/username account boundary; Linux also restores the previous verified local base and requires a successful local listing before a selected profile start becomes pane state.
+- Added Go coverage plus `scripts/test_navigation_bookmarks_contract.py` for non-secret persistence, corrupt-state fail-closed behavior, account/session revalidation, profile-start isolation, cross-platform UI wiring and documentation/release boundaries.
+- Added `docs/NAVIGATION-BOOKMARKS.md`; this remains post-0.0.3 source work targeted for the next public release, while root `VERSION` and the already published `ghostftp-v0.0.3` release remain unchanged.
+
 ## 0.0.3 - 2026-09-10
 
 ### Bandwidth-aware transfers

@@ -21,6 +21,7 @@ import (
 type Engine struct {
 	dataDir   string
 	profiles  *config.Profiles
+	bookmarks *config.Bookmarks
 	settings  *config.SettingsStore
 	local     *localfs.Service
 	remote    *remote.Manager
@@ -45,9 +46,10 @@ func New(dataDir, exePath string) (*Engine, error) {
 	cleanupLegacyDiagnostics(dataDir)
 	store := config.New(dataDir)
 	p := config.NewProfiles(store)
+	b := config.NewBookmarks(store)
 	ss := config.NewSettings(store)
 	r := remote.NewManager(p, ss, dataDir, exePath)
-	e := &Engine{dataDir: dataDir, profiles: p, settings: ss, local: localfs.New(), remote: r}
+	e := &Engine{dataDir: dataDir, profiles: p, bookmarks: b, settings: ss, local: localfs.New(), remote: r}
 	e.transfers = transfer.New(r, ss)
 	return e, nil
 }
@@ -69,6 +71,8 @@ func (e *Engine) ChooseDirectory() (string, error)         { return platform.Cho
 func (e *Engine) ChoosePrivateKey() (string, error)        { return platform.ChoosePrivateKey() }
 func (e *Engine) Profiles() ([]model.PublicProfile, error) { return e.profiles.List() }
 func (e *Engine) RemoveProfile(id string) error            { return e.profiles.Remove(id) }
+func (e *Engine) Bookmarks() ([]model.Bookmark, error)     { return e.bookmarks.List() }
+func (e *Engine) RemoveBookmark(id string) error           { return e.bookmarks.Remove(id) }
 func (e *Engine) Settings() (model.Settings, error)        { return e.settings.Get() }
 func (e *Engine) SetSettings(v model.Settings) (model.Settings, error) {
 	saved, err := e.settings.Set(v)
@@ -105,6 +109,14 @@ func (e *Engine) Disconnect(ctx context.Context) error {
 }
 
 func (e *Engine) Probe(ctx context.Context) error { return e.remote.Probe(ctx) }
+
+// ActiveConnection returns only the remote manager's sanitized public
+// connection descriptor. Password and passphrase are cleared before the manager
+// publishes m.cfg, so navigation features can bind to the real active account
+// without consulting mutable UI text or exposing credentials.
+func (e *Engine) ActiveConnection() (model.ConnectionConfig, bool) {
+	return e.remote.Config()
+}
 
 func (e *Engine) LocalList(ctx context.Context, path string) (string, []model.Item, error) {
 	return e.local.ListContext(ctx, path)

@@ -78,7 +78,7 @@ jobs:
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
 
-      - name: Capture authentic main, Site Manager, Settings and About windows
+      - name: Capture authentic main, Site Manager, Bookmarks, Settings and About windows
         shell: pwsh
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
@@ -99,6 +99,7 @@ jobs:
           $expected = @(
             'ui-screenshots\Ghost-FTP-main-workspace.png',
             'ui-screenshots\Ghost-FTP-site-manager.png',
+            'ui-screenshots\Ghost-FTP-bookmarks.png',
             'ui-screenshots\Ghost-FTP-settings.png',
             'ui-screenshots\Ghost-FTP-about.png'
           )
@@ -171,13 +172,15 @@ jobs:
           $visuals = @(
             'docs/images/ghost-ftp-main-workspace.png',
             'docs/images/ghost-ftp-site-manager.png',
+            'docs/images/ghost-ftp-bookmarks.png',
             'docs/images/ghost-ftp-settings.png',
             'docs/images/ghost-ftp-about.png'
           )
           Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-main-workspace.png' -Destination $visuals[0] -Force
           Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-site-manager.png' -Destination $visuals[1] -Force
-          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-settings.png' -Destination $visuals[2] -Force
-          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-about.png' -Destination $visuals[3] -Force
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-bookmarks.png' -Destination $visuals[2] -Force
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-settings.png' -Destination $visuals[3] -Force
+          Copy-Item -LiteralPath 'ui-screenshots\Ghost-FTP-about.png' -Destination $visuals[4] -Force
 
           git add -- $visuals
           if ($LASTEXITCODE -ne 0) {

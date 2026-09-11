@@ -148,6 +148,13 @@ func sameProfilePrivateKey(a, b model.Profile) bool {
 	)
 }
 
+func defaultRemoteStart(protocol string) string {
+	if strings.EqualFold(strings.TrimSpace(protocol), "sftp") {
+		return "."
+	}
+	return "/"
+}
+
 func (p *Profiles) List() ([]model.PublicProfile, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -217,12 +224,19 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 	x.RemotePath = in.RemotePath
 	x.LocalPath = in.LocalPath
 	if x.RemotePath == "" {
-		if x.Protocol == "sftp" {
-			x.RemotePath = "."
-		} else {
-			x.RemotePath = "/"
-		}
+		x.RemotePath = defaultRemoteStart(x.Protocol)
 	}
+
+	// Remote start paths belong to one server account namespace. A desktop edit
+	// commonly submits the currently displayed old path together with a changed
+	// host/port/username. If that value is byte-for-byte the previous saved path,
+	// treat it as inherited stale state and reset to the new protocol's safe
+	// default. A genuinely different path remains an explicit new value and is
+	// validated below.
+	if idx >= 0 && !sameProfileAccount(previous, x) && x.RemotePath == previous.RemotePath {
+		x.RemotePath = defaultRemoteStart(x.Protocol)
+	}
+
 	if x.Name == "" || len(x.Name) > 120 || !utf8.ValidString(x.Name) || strings.ContainsAny(x.Name, "\x00\r\n") {
 		return model.PublicProfile{}, errors.New("naziv profila je neispravan")
 	}

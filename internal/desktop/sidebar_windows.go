@@ -17,6 +17,7 @@ const (
 
 var (
 	sidebarDiagnostics     sync.Map
+	sidebarBookmarks       sync.Map
 	sidebarGetWindowRect   = user32.NewProc("GetWindowRect")
 	sidebarMapWindowPoints = user32.NewProc("MapWindowPoints")
 )
@@ -52,11 +53,54 @@ func (a *app) ensureSidebarDiagnostics() uintptr {
 	return hwnd
 }
 
+func (a *app) ensureSidebarBookmarks() uintptr {
+	if a == nil || a.hwnd == 0 {
+		return 0
+	}
+	if value, ok := sidebarBookmarks.Load(a.hwnd); ok {
+		if hwnd, ok := value.(uintptr); ok && hwnd != 0 {
+			return hwnd
+		}
+	}
+	hinst, _, _ := getModuleHandleW.Call(0)
+	label := bookmarkWordsForLanguage(a.languageCode()).Title
+	hwnd, _, _ := createWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(wstr("BUTTON"))),
+		uintptr(unsafe.Pointer(wstr(label))),
+		uintptr(wsChild|wsVisible|wsTabStop|bsOwnerDraw),
+		0, 0, 1, 1,
+		a.hwnd, idBookmarks, hinst, 0,
+	)
+	if hwnd == 0 {
+		return 0
+	}
+	if a.font != 0 {
+		sendMessageW.Call(hwnd, wmSetFont, a.font, 1)
+	}
+	applyDarkControl(hwnd, "BUTTON")
+	a.registerToolbarButton(hwnd, iconOpenLocal, label, buttonSubtle)
+	sidebarBookmarks.Store(a.hwnd, hwnd)
+	return hwnd
+}
+
 func (a *app) sidebarDiagnosticsButton() uintptr {
 	if a == nil {
 		return 0
 	}
 	value, ok := sidebarDiagnostics.Load(a.hwnd)
+	if !ok {
+		return 0
+	}
+	hwnd, _ := value.(uintptr)
+	return hwnd
+}
+
+func (a *app) sidebarBookmarksButton() uintptr {
+	if a == nil {
+		return 0
+	}
+	value, ok := sidebarBookmarks.Load(a.hwnd)
 	if !ok {
 		return 0
 	}
@@ -149,8 +193,10 @@ func (a *app) applyApplicationSidebar() {
 		return
 	}
 	diagnostics := a.ensureSidebarDiagnostics()
+	bookmarks := a.ensureSidebarBookmarks()
 	labels := navigationLabelsForLanguage(a.languageCode())
 	a.setSidebarButtonVisual(a.siteManagerBtn, iconOpenLocal, labels.SiteManager, buttonDefault)
+	a.setSidebarButtonVisual(bookmarks, iconOpenLocal, bookmarkWordsForLanguage(a.languageCode()).Title, buttonSubtle)
 	a.setSidebarButtonVisual(a.settingsBtn, iconSettings, a.tr("common.settings"), buttonSubtle)
 	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, labels.Diagnostics, buttonSubtle)
 	a.setSidebarButtonVisual(a.aboutBtn, iconInfo, a.tr("common.about"), buttonSubtle)
@@ -158,7 +204,7 @@ func (a *app) applyApplicationSidebar() {
 	// Rail controls are always anchored explicitly, including state-only passes.
 	a.move(a.languageCombo, applicationSidebarX, 54, applicationSidebarWidth, 29)
 	y := 96
-	for _, control := range []uintptr{a.siteManagerBtn, a.settingsBtn, diagnostics, a.aboutBtn} {
+	for _, control := range []uintptr{a.siteManagerBtn, bookmarks, a.settingsBtn, diagnostics, a.aboutBtn} {
 		a.move(control, applicationSidebarX, y, applicationSidebarWidth, applicationSidebarCardH)
 		y += applicationSidebarCardH + applicationSidebarCardGap
 	}

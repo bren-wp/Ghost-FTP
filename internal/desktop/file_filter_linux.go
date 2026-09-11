@@ -83,6 +83,12 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 }
 
 func (u *linuxDesktop) renderFileFilterControls() error {
+	// Bookmarks are application-level navigation, so keep their header entry
+	// visible even when recursive search or directory comparison temporarily owns
+	// the file-filter row below.
+	if err := u.renderBookmarksHeaderButton(); err != nil {
+		return err
+	}
 	// Empty linuxUIResult notifications are used only to wake the established UI
 	// loop after recursive-search or comparison work. Reconcile on the UI
 	// goroutine before ordinary row-indexed controls are painted.
@@ -110,6 +116,9 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 }
 
 func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
+	if u.handleBookmarksHeaderMouse(x, y) {
+		return true
+	}
 	if u.handleDirectoryComparisonMouseLinux(x, y) {
 		return true
 	}

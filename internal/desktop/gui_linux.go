@@ -471,7 +471,7 @@ func (u *linuxDesktop) renderQuickConnect() error {
 	if u.profileIndex >= 0 && u.profileIndex < len(u.profiles) {
 		profileLabel = u.profiles[u.profileIndex].Name
 	}
-	if err := u.drawButton(u.layout.profile, profileLabel, len(u.profiles) > 0, false); err != nil {
+	if err := u.drawButton(u.layout.profile, profileLabel, len(u.profiles) > 0 && !u.busy && !u.connected, false); err != nil {
 		return err
 	}
 	if err := u.drawButton(u.layout.saveProfile, u.tr("profile.save"), u.host != "" && !u.busy, false); err != nil {
@@ -871,7 +871,7 @@ func (u *linuxDesktop) cycleProtocol() {
 }
 
 func (u *linuxDesktop) cycleProfile() {
-	if len(u.profiles) == 0 {
+	if u.busy || u.connected || len(u.profiles) == 0 {
 		return
 	}
 	u.profileIndex = (u.profileIndex + 1) % len(u.profiles)
