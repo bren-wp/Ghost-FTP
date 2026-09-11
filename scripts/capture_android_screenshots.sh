@@ -11,6 +11,7 @@ UI_XML_DEVICE="/sdcard/ghostftp-window.xml"
 UI_XML_LOCAL="${RUNNER_TEMP:-/tmp}/ghostftp-window.xml"
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 EMULATOR_BIN="${SDK_ROOT:+$SDK_ROOT/emulator/emulator}"
+AAPT_BIN="${SDK_ROOT:+$SDK_ROOT/build-tools/35.0.0/aapt}"
 AVD_HOME="${GHOSTFTP_UI_AVD_HOME:-${RUNNER_TEMP:-/tmp}/ghostftp-avd}"
 
 [[ -s "$APK_PATH" ]] || {
@@ -21,7 +22,28 @@ AVD_HOME="${GHOSTFTP_UI_AVD_HOME:-${RUNNER_TEMP:-/tmp}/ghostftp-avd}"
   echo "Installed Android emulator binary is unavailable: ${EMULATOR_BIN:-<unset SDK root>}" >&2
   exit 1
 }
+[[ -x "$AAPT_BIN" ]] || {
+  echo "Installed Android aapt binary is unavailable: ${AAPT_BIN:-<unset SDK root>}" >&2
+  exit 1
+}
 printf 'ANDROID_EMULATOR_BIN=%s\n' "$EMULATOR_BIN"
+
+# Read the exact installed identity from the APK rather than duplicating Gradle's
+# debug applicationId suffix or source namespace in the capture harness.
+badging="$("$AAPT_BIN" dump badging "$APK_PATH")"
+package_name="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n1)"
+launcher_activity="$(printf '%s\n' "$badging" | sed -n "s/^launchable-activity: name='\([^']*\)'.*/\1/p" | head -n1)"
+[[ -n "$package_name" && -n "$launcher_activity" ]] || {
+  printf '%s\n' "$badging" >&2
+  echo 'Unable to resolve the Android package and launcher activity from the exact APK.' >&2
+  exit 1
+}
+case "$launcher_activity" in
+  .*) launcher_component="${package_name}/${package_name}${launcher_activity}" ;;
+  *) launcher_component="${package_name}/${launcher_activity}" ;;
+esac
+printf 'ANDROID_APK_IDENTITY=PACKAGE=%s ACTIVITY=%s COMPONENT=%s\n' \
+  "$package_name" "$launcher_activity" "$launcher_component"
 
 mkdir -p "$OUTPUT_DIR"
 if [[ -e /dev/kvm ]]; then
@@ -81,9 +103,19 @@ timeout 10s adb shell settings put global window_animation_scale 0
 timeout 10s adb shell settings put global transition_animation_scale 0
 timeout 10s adb shell settings put global animator_duration_scale 0
 timeout 120s adb install -r "$APK_PATH"
-timeout 10s adb shell am force-stop app.ghostftp.client
-timeout 10s adb shell am start -n app.ghostftp.client/.MainActivity
+timeout 10s adb shell am force-stop "$package_name"
+timeout 10s adb shell am start -W -n "$launcher_component"
 sleep 2
+
+# Fail closed if the exact APK package was installed but its launcher did not
+# actually become the foreground activity.
+resolved_component="$(timeout 10s adb shell dumpsys activity activities 2>/dev/null | sed -n 's/.*mResumedActivity:.* \([^ ]*\/[^ ]*\).*/\1/p' | head -n1 | tr -d '\r' || true)"
+[[ "$resolved_component" == "$package_name/"* ]] || {
+  timeout 10s adb shell dumpsys activity activities >&2 || true
+  echo "Android launcher did not become foreground: expected package $package_name, got ${resolved_component:-<none>}." >&2
+  exit 1
+}
+printf 'ANDROID_FOREGROUND=%s\n' "$resolved_component"
 
 dump_ui() {
   rm -f "$UI_XML_LOCAL"
