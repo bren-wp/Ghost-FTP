@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **0.0.3** is validated through layered source, security, native build, packaging, UI-action and release-lifecycle gates.
+Ghost FTP **0.0.4** is validated through layered source, security, native build, packaging, Android APK, UI-action, authentic runtime evidence and release-lifecycle gates.
 
 ## Core quality gate
 
@@ -16,7 +16,7 @@ It also runs repository, platform, desktop-surface, dependency, version, localiz
 
 ## Protocol and transfer regressions
 
-Tests cover the maintained FTP/FTPS/SFTP engine contract, including:
+Tests cover the maintained FTP/FTPS/SFTP desktop engine contract, including:
 
 - explicit FTPS verification and no silent downgrade;
 - strict SFTP host-key verification/pinning;
@@ -25,12 +25,13 @@ Tests cover the maintained FTP/FTPS/SFTP engine contract, including:
 - connection-generation guards;
 - privacy-safe diagnostics;
 - bounded automatic retry policy;
-- queue pause/resume/cancel/retry lifecycle;
-- Remote Edit text/binary, size, revision/conflict, permission, read-back and metadata-refresh behavior.
+- queue pause/resume/cancel/retry/clear and queued Top/Up/Down/Bottom reordering lifecycle;
+- Remote Edit text/binary, size, revision/conflict, permission, read-back and metadata-refresh behavior;
+- navigation bookmark/profile-start account and session revalidation.
 
 ## Bandwidth regression contract
 
-The maintained 0.0.3 source adds independent upload/download ceilings as shared runtime policy rather than UI-only state.
+The maintained 0.0.4 source provides independent upload/download ceilings as shared runtime policy rather than UI-only state.
 
 Go tests and settings/UI regression contracts require:
 
@@ -49,9 +50,9 @@ Go tests and settings/UI regression contracts require:
 
 The relevant Go suites cover settings migration/validation, aggregate allocation and transport conversion. Windows/Linux source regression coverage protects the settings-dialog/overlay wiring.
 
-## Current-folder filter regression contract
+## Current-folder filter and sorting regression contract
 
-The 0.0.3 source includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from bounded recursive search: filtering only evaluates the already-loaded snapshot and performs no additional directory or network I/O.
+The 0.0.4 source includes a non-destructive current-folder filter for the local and server panes. It is deliberately separate from bounded recursive search: filtering only evaluates the already-loaded snapshot and performs no additional directory or network I/O.
 
 The filter gates require:
 
@@ -65,11 +66,13 @@ The filter gates require:
 - Windows and Linux filter controls to be rendered and wired, with empty input clearing the filter;
 - localized filter copy for all 24 supported desktop languages.
 
-`scripts/test_file_filter_ui_contract.py` protects the cross-platform source wiring while Go unit tests protect shared matching/copy semantics. Native production builds remain the compile/runtime gate for each frontend.
+Linux 0.0.4 additionally has source/Go contracts for the shared `internal/itemlist.SortBy` path. Tests require Name, Type, Size and Modified ordering on both panes, remote Permissions ordering, ascending/descending cycles, directories-first behavior, unknown-metadata placement, selection restoration by visible item name, filter+sort composition and non-overlap with the established recursive-search control geometry. Windows uses the same shared sorter through its native list lifecycle.
+
+`scripts/test_file_filter_ui_contract.py` protects the cross-platform source wiring while Go unit tests protect shared matching/copy/sort semantics. Native production builds remain the compile/runtime gate for each frontend.
 
 ## Bounded recursive search regression contract
 
-The maintained 0.0.3 source exposes recursive local/server search as an explicit action rather than an extension of typing into the current-folder filter. The search path is read-only and bounded before it reaches either desktop UI.
+The maintained 0.0.4 source exposes recursive local/server search as an explicit action rather than an extension of typing into the current-folder filter. The search path is read-only and bounded before it reaches either desktop UI.
 
 Core tests and `scripts/test_recursive_search_ui_contract.py` require:
 
@@ -92,7 +95,7 @@ The desktop disclosure explicitly states that recursive mode reads nested local/
 
 ## Directory comparison and synchronized-navigation regression contract
 
-The maintained 0.0.3 source exposes directory comparison as a read-only view over freshly listed current local/server directories. The shared classifier performs no filesystem or network I/O and does not grant file-operation authority to comparison rows.
+The maintained 0.0.4 source exposes directory comparison as a read-only view over freshly listed current local/server directories. The shared classifier performs no filesystem or network I/O and does not grant file-operation authority to comparison rows.
 
 Go tests and `scripts/test_directory_comparison_contract.py` require:
 
@@ -125,7 +128,10 @@ Examples include:
 - independent upload/download bandwidth values accept only the maintained bounded range and preserve `0 = unlimited`;
 - connection timeout, retry count and retry delay stay inside documented bounds;
 - unknown persisted conflict-policy state fails closed to conservative recovery behavior;
-- one canonical conflict-policy field synchronizes legacy compatibility fields.
+- one canonical conflict-policy field synchronizes legacy compatibility fields;
+- Windows and Linux accept only canonical `light`/`dark` appearance state and preserve Classic Light as the fallback;
+- Linux persisted appearance is applied before initial rendering and saving Settings applies the selected shared palette;
+- Linux profile password/private-key-passphrase persistence requires the bounded confirmation path and does not weaken AskPass provenance.
 
 This prevents compatibility migration from becoming an excuse to silently accept arbitrary invalid settings.
 
@@ -146,28 +152,43 @@ Linux checks:
 - verify the Remote Edit button path;
 - verify SFTP Trust/Cancel and prompt Apply/Cancel overlay controls are both rendered and handled.
 
-The dedicated current-folder-filter, recursive-search and directory-comparison contracts supplement this generic action-wiring gate because those controls are dynamically inserted into pane/workspace geometry instead of being canonical top-level buttons.
+The dedicated current-folder-filter/sort, recursive-search and directory-comparison contracts supplement this generic action-wiring gate because those controls are dynamically inserted into pane/workspace geometry instead of being canonical top-level buttons.
 
 The gate intentionally tests wiring, not just pixels. Runtime behavior remains covered by Go unit/integration tests and authentic UI smoke evidence.
 
+## Android native source and APK gate
+
+The Android source line is independently fail-closed and remains a development APK surface rather than an implicit addition to the public Windows/Linux release asset set.
+
+`.github/workflows/android-apk.yml` requires:
+
+- Android source/security contract tests;
+- Java 17 / Android SDK 35 / maintained Gradle toolchain setup;
+- Android lint;
+- installable APK build;
+- APK identity/packaging verification;
+- artifact upload as `ghostftp-android-apk`.
+
+Android source contracts protect strict explicit FTPS certificate/hostname verification, no trust-all fallback, SAF-only local storage, non-secret saved-site metadata, staged upload/download final-name commit gates, non-blocking transfer cancellation, semantic navigation accessibility and bounded FTP control/MLSD parsing. SFTP remains hidden until strict Android host-key identity verification exists.
+
 ## README/media integrity
 
-README and active documentation use repository-local Ghost FTP icon/screenshot assets. Authentic screenshots are generated from the verified production Windows native application payload. Remote tracking pixels, icon CDNs and mockup images are not accepted as release UI evidence.
+README and active documentation use repository-local Ghost FTP icon/screenshot assets. Remote tracking pixels, icon CDNs and mockup images are not accepted as release UI evidence.
 
 ## Windows production gate
 
 The Windows production job builds and verifies the public artifacts:
 
 ```text
-Ghost-FTP-0.0.3-Setup.exe
-Ghost-FTP-0.0.3-Portable.exe
+Ghost-FTP-0.0.4-Setup.exe
+Ghost-FTP-0.0.4-Portable.exe
 ```
 
 The builder first produces and verifies native x64/x86 Setup and Portable payloads internally. It then constructs the two public universal bootstraps, selects native architecture from Windows system information, verifies staged embedded bytes and rejects architecture-specific public EXEs. The CI also exercises the Authenticode private-key pipeline policy. Production signing is optional; configured signatures must verify.
 
 ## Linux production gate
 
-The regular Core CI continues to build generic DEB/portable compatibility artifacts for `amd64`, `arm64` and `i386` through `linux/BUILD.sh` and compares their executable bytes. This remains useful independent build coverage but is not the canonical 0.0.3 release allow-list.
+The regular Core CI continues to build generic DEB/portable compatibility artifacts for `amd64`, `arm64` and `i386` through `linux/BUILD.sh` and compares their executable bytes. This remains useful independent build coverage but is not the canonical 0.0.4 release allow-list.
 
 ## Canonical distro package gate
 
@@ -177,7 +198,7 @@ The regular Core CI continues to build generic DEB/portable compatibility artifa
 linux/BUILD-DISTROS.sh
 ```
 
-The 0.0.3 release set contains Debian and Ubuntu DEBs for `amd64`, `arm64`, `i386`; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and distro-neutral Portable tarballs for `amd64`, `arm64`, `i386`. Package metadata and byte-for-byte executable parity across matching variants are fail-closed release requirements. These files are canonical members of the **14 platform artifacts / 17 public files** release allow-list.
+The 0.0.4 release set contains Debian and Ubuntu DEBs for `amd64`, `arm64`, `i386`; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and distro-neutral Portable tarballs for `amd64`, `arm64`, `i386`. Package metadata and byte-for-byte executable parity across matching variants are fail-closed release requirements. These files are canonical members of the **14 platform artifacts / 17 public files** release allow-list.
 
 ## Native distro lifecycle gate
 
@@ -191,34 +212,43 @@ The 0.0.3 release set contains Debian and Ubuntu DEBs for `amd64`, `arm64`, `i38
 
 ## Authentic UI evidence
 
-`.github/workflows/ui-screenshots.yml` runs the real universal production Windows build and captures maintained Main Workspace, Site Manager, Settings and About windows from the verified internal native x64 application payload. Architecture-specific native staging binaries are evidence inputs, not public release downloads. Mockups and generated approximations are not release evidence.
+`.github/workflows/ui-screenshots.yml` captures real exact-head runtime UI on all maintained source platforms used by the evidence contract:
 
-A release-prep change affecting `VERSION` or maintained desktop UI must obtain authentic evidence from the exact final source revision where the screenshot workflow is triggered.
+- Windows: Main Workspace, Site Manager, Bookmarks, Settings and About;
+- Linux: Main Workspace, Bookmarks and Settings;
+- Android: Files, Navigation, Sites, Bookmarks, Transfers, Settings and About.
+
+The final read-only evidence job checks out the exact source SHA, downloads the three platform runtime artifacts, verifies provenance/manifest/file hashes and assembles the `ghostftp-authentic-ui-verified-bundle`. The maintained bundle contains **15 runtime images**. It never commits or pushes evidence back to the tested branch. Mockups, screenshot-color navigation and generated approximations are not accepted as authentic runtime evidence.
+
+A release-prep change affecting `VERSION` or maintained UI must obtain authentic evidence from the exact final source revision where the screenshot workflow is triggered.
 
 ## Exact-head and post-merge rule
 
 **Exact-head and post-merge rule:** a PR is not merge-ready until every required workflow triggered for its exact final head is `completed/success`. After merge, required `push` workflows are identified by the exact merge SHA and must also finish `completed/success` before release preparation continues.
 
-For a release-prep change that affects the canonical production build, the expected gates are:
+For a 0.0.4 release-prep change that affects the canonical production build, the expected gates are:
 
 1. Ghost FTP CI;
-2. Ghost FTP Linux Distro Packages;
-3. Ghost FTP Linux Distro Install Matrix;
-4. Authentic UI Screenshots when its path/trigger contract applies.
+2. Ghost FTP Android APK;
+3. Ghost FTP Linux Distro Packages;
+4. Ghost FTP Linux Distro Install Matrix;
+5. Ghost FTP Authentic Cross-Platform UI Screenshots.
 
 A green run for an older commit does not satisfy a newer PR head.
 
 ## Release publication gate
 
-0.0.3 publication additionally requires:
+0.0.4 publication additionally requires:
 
 - exact current `main` release-branch validation;
 - canonical release workflow quality/build jobs;
 - exact **17-file** GitHub Release allow-list;
 - immediate and delayed remote release read-back;
 - `prerelease=false` for the current 0.0.x release channel;
-- verified `ghcr.io/bren-wp/ghost-ftp:0.0.3` distribution-bundle publication/read-back;
+- verified `ghcr.io/bren-wp/ghost-ftp:0.0.4` distribution-bundle publication/read-back;
 - successful latest-only retention cleanup after publication.
+
+The Android development APK gate is required source validation but does not enlarge the 17-file public Windows/Linux release allow-list.
 
 ## Deterministic release-to-retention gate
 
@@ -237,13 +267,13 @@ This closes the class of failure where publication succeeds but downstream `work
 
 ## Retention validation
 
-The retention workflow must leave only the current `ghostftp-v0.0.3` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
+The retention workflow must leave only the current `ghostftp-v0.0.4` release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` commit history untouched.
 
 Before destructive cleanup it independently verifies current release identity, `draft=false`, `prerelease=false`, exactly **17 assets**, current tag SHA equality with current `main` and the current exact-version package.
 
 ## Quality rule for new power-user features
 
-A new feature such as directory comparison, synchronized browsing, queue priority, bookmarks, verified resume, multi-session or proxy/jump-host support is not release-ready until all applicable layers exist:
+A new feature such as verified resume, multi-session or proxy/jump-host support is not release-ready until all applicable layers exist:
 
 - shared engine/runtime behavior;
 - validation and safe defaults;
