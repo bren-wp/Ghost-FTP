@@ -34,6 +34,7 @@ class AndroidContractTests(unittest.TestCase):
         for rel in (
             f"{ANDROID_JAVA}/MainActivity.java",
             f"{ANDROID_JAVA}/FtpSession.java",
+            f"{ANDROID_JAVA}/TransferCommitGate.java",
             f"{ANDROID_JAVA}/RemoteEntry.java",
             f"{ANDROID_JAVA}/SiteProfile.java",
             f"{ANDROID_JAVA}/SiteProfileStore.java",
@@ -92,17 +93,24 @@ class AndroidContractTests(unittest.TestCase):
             "String tempPath = uploadTempPath(path);",
             'command("STOR " + sanitizeArgument(tempPath))',
             "expect(terminal, 226, 250);",
+            "gate.markReadyToCommit()",
+            "gate.beginCommit()",
             'command("RNFR " + sanitizeArgument(tempPath))',
             'command("RNTO " + sanitizeArgument(path))',
             "deleteRemoteBestEffort(tempPath);",
             "hardClose();",
+            "gate.finish();",
         ):
             self.assertIn(marker, upload)
         self.assertNotIn('command("STOR " + sanitizeArgument(path))', upload)
         completion = upload.index("expect(terminal, 226, 250);")
+        ready = upload.index("gate.markReadyToCommit()")
+        begin_commit = upload.index("gate.beginCommit()")
         rename_from = upload.index('command("RNFR " + sanitizeArgument(tempPath))')
         rename_to = upload.index('command("RNTO " + sanitizeArgument(path))')
-        self.assertLess(completion, rename_from)
+        self.assertLess(completion, ready)
+        self.assertLess(ready, begin_commit)
+        self.assertLess(begin_commit, rename_from)
         self.assertLess(rename_from, rename_to)
         self.assertIn('".ghostftp-upload-" + UUID.randomUUID() + ".part"', ftp)
 
@@ -116,9 +124,11 @@ class AndroidContractTests(unittest.TestCase):
         for marker in (
             '".ghostftp-download-" + UUID.randomUUID() + ".part"',
             "ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,",
-            "current.download(FtpSession.joinRemote(remoteBase, entry.name), out);",
+            "current.download(FtpSession.joinRemote(remoteBase, entry.name), out, attempt.gate);",
+            'beginFinalCommit(attempt, "Finalizing download name…");',
             "DocumentsContract.renameDocument(getContentResolver(), staged, entry.name)",
             "queryDocumentDisplayName(committed)",
+            "attempt.gate.finish();",
             "DocumentsContract.deleteDocument(getContentResolver(), staged)",
         ):
             self.assertIn(marker, download)
@@ -130,14 +140,18 @@ class AndroidContractTests(unittest.TestCase):
         create = download.index("DocumentsContract.createDocument")
         transfer = download.index("current.download(")
         second_conflict = download.rindex("ensureNoLocalNameConflict(")
+        begin_commit = download.index("beginFinalCommit(attempt")
         rename = download.index("DocumentsContract.renameDocument")
         verify = download.index("queryDocumentDisplayName(committed)")
+        finish_gate = download.index("attempt.gate.finish();")
         success = download.index('setBusy(false, "Download completed and committed: "')
         self.assertLess(create, transfer)
         self.assertLess(transfer, second_conflict)
-        self.assertLess(second_conflict, rename)
+        self.assertLess(second_conflict, begin_commit)
+        self.assertLess(begin_commit, rename)
         self.assertLess(rename, verify)
-        self.assertLess(verify, success)
+        self.assertLess(verify, finish_gate)
+        self.assertLess(finish_gate, success)
         self.assertIn("List<LocalEntry> fresh = queryChildren(rootTreeUri, documentId);", helpers)
         self.assertIn("if (name.equals(local.name)) throw new IOException(message);", helpers)
         self.assertIn("DocumentsContract.Document.COLUMN_DISPLAY_NAME", helpers)
@@ -145,11 +159,13 @@ class AndroidContractTests(unittest.TestCase):
     def test_active_transfer_cancel_is_nonblocking_and_fail_closed(self) -> None:
         ftp = self.read(f"{ANDROID_JAVA}/FtpSession.java")
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        gate = self.read(f"{ANDROID_JAVA}/TransferCommitGate.java")
 
         for marker in (
             "private volatile Socket controlSocket;",
             "private volatile Socket activeDataSocket;",
             "private volatile boolean connected;",
+            "TransferCommitGate.CancelDisposition cancelActiveTransfer(TransferCommitGate gate)",
             "void cancelActiveTransfer()",
             "closeQuietly(activeDataSocket);",
             "closeQuietly(controlSocket);",
@@ -159,36 +175,58 @@ class AndroidContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, ftp)
         self.assertNotIn("synchronized void cancelActiveTransfer()", ftp)
+        self.assertNotIn("synchronized TransferCommitGate.CancelDisposition cancelActiveTransfer", ftp)
         self.assertIn("boolean isConnected()", ftp)
         self.assertNotIn("synchronized boolean isConnected()", ftp)
 
-        cancel_start = ftp.index("void cancelActiveTransfer()")
-        cancel_end = ftp.index("@Override", cancel_start)
+        for marker in (
+            "TRANSFERRING",
+            "READY_TO_COMMIT",
+            "COMMITTING",
+            "CANCELLED",
+            "FINISHED",
+            "CancelDisposition.INTERRUPT_IO",
+            "CancelDisposition.CLEANUP_STAGING",
+            "CancelDisposition.TOO_LATE",
+            "synchronized CancelDisposition requestCancel()",
+            "synchronized boolean beginCommit()",
+        ):
+            self.assertIn(marker, gate)
+
+        cancel_start = ftp.index("TransferCommitGate.CancelDisposition cancelActiveTransfer(")
+        cancel_end = ftp.index("void cancelActiveTransfer()", cancel_start)
         cancel = ftp[cancel_start:cancel_end]
+        self.assertIn("gate.requestCancel()", cancel)
+        self.assertIn("CancelDisposition.CLEANUP_STAGING", cancel)
+        self.assertIn("CancelDisposition.TOO_LATE", cancel)
         self.assertIn("connected = false;", cancel)
-        self.assertLess(cancel.index("connected = false;"), cancel.index("closeQuietly(activeDataSocket);"))
-        self.assertLess(cancel.index("closeQuietly(activeDataSocket);"), cancel.index("closeQuietly(controlSocket);"))
+        self.assertIn("closeQuietly(activeDataSocket);", cancel)
+        self.assertIn("closeQuietly(controlSocket);", cancel)
 
         download_start = ftp.index("synchronized void download(")
         download_end = ftp.index("synchronized String pwd()", download_start)
         download = ftp[download_start:download_end]
         self.assertIn("Download data transfer failed before local commit; the connection was closed.", download)
         self.assertIn("Download was not confirmed complete; local final name was not committed and the connection was closed.", download)
+        self.assertIn("gate.markReadyToCommit()", download)
         self.assertGreaterEqual(download.count("hardClose();"), 3)
 
         for marker in (
             "private volatile boolean transferActive;",
+            "private volatile boolean transferFinalizing;",
             "private volatile long transferGeneration;",
-            'disconnect.setText(transferActive ? "Cancel transfer" : "Disconnect");',
-            "disconnect.setEnabled(transferActive || (!busy && connected));",
-            "long transferToken = beginTransfer(",
-            "requireTransferCurrent(transferToken);",
-            "finishTransferFailure(transferToken, current,",
-            "current.cancelActiveTransfer();",
+            "private volatile TransferCommitGate activeTransferGate;",
+            'disconnect.setText(transferFinalizing ? "Finalizing…" : transferActive ? "Cancel transfer" : "Disconnect");',
+            "disconnect.setEnabled((transferActive && !transferFinalizing) || (!busy && connected));",
+            "TransferAttempt attempt = beginTransfer(",
+            "requireTransferCurrent(attempt);",
+            "finishTransferFailure(attempt, current,",
+            "current.cancelActiveTransfer(gate);",
+            "if (!finishTransferState(attempt)) return;",
         ):
             self.assertIn(marker, activity)
-        self.assertGreaterEqual(activity.count("long transferToken = beginTransfer("), 2)
-        self.assertGreaterEqual(activity.count("if (transferCancelled(transferToken) || session != current || !current.isConnected())"), 2)
+        self.assertGreaterEqual(activity.count("TransferAttempt attempt = beginTransfer("), 2)
+        self.assertGreaterEqual(activity.count("requireTransferCurrent(attempt);"), 4)
 
         disconnect_start = activity.index("private void disconnect()")
         disconnect_end = activity.index("private void refreshRemote(", disconnect_start)
@@ -196,26 +234,46 @@ class AndroidContractTests(unittest.TestCase):
         self.assertIn("if (transferActive) {", disconnect)
         self.assertIn("cancelTransfer();", disconnect)
         self.assertLess(disconnect.index("if (transferActive) {"), disconnect.index("if (busy) return;"))
+        self.assertIn("current.cancelActiveTransfer(gate);", disconnect)
+        self.assertIn("CancelDisposition.TOO_LATE", disconnect)
         self.assertIn("transferGeneration++;", disconnect)
+        self.assertIn("activeTransferGate = null;", disconnect)
         self.assertIn("session = null;", disconnect)
-        self.assertIn("current.cancelActiveTransfer();", disconnect)
 
         destroy_start = activity.index("protected void onDestroy()")
         destroy_end = activity.index("private void buildUi()", destroy_start)
         destroy = activity[destroy_start:destroy_end]
         self.assertIn("transferGeneration++;", destroy)
-        self.assertIn("current.cancelActiveTransfer();", destroy)
+        self.assertIn("TransferCommitGate gate = activeTransferGate;", destroy)
+        self.assertIn("current.cancelActiveTransfer(gate);", destroy)
         self.assertNotIn("current.close();", destroy)
 
-        post_start = activity.index("private void postError(")
-        post_end = activity.index("private void setStatus(", post_start)
-        post_error = activity[post_start:post_end]
-        self.assertIn("FtpSession current = session;", post_error)
-        self.assertIn("if (current != null && !current.isConnected()) {", post_error)
-        self.assertIn("session = null;", post_error)
-        self.assertIn("connectedIdentityKey = null;", post_error)
-        self.assertIn("remoteEntries.clear();", post_error)
-        self.assertIn('currentRemotePath = "/";', post_error)
+        failure_start = activity.index("private void finishTransferFailure(")
+        failure_end = activity.index("private void ensureNoLocalNameConflict(", failure_start)
+        failure = activity[failure_start:failure_end]
+        self.assertIn("if (!finishTransferState(attempt)) return;", failure)
+        self.assertIn("attempt.gate.isCancelled()", failure)
+
+    def test_irreversible_commit_gate_serializes_cancel_vs_final_name(self) -> None:
+        ftp = self.read(f"{ANDROID_JAVA}/FtpSession.java")
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        gate = self.read(f"{ANDROID_JAVA}/TransferCommitGate.java")
+
+        request_cancel = gate[gate.index("synchronized CancelDisposition requestCancel()") : gate.index("synchronized boolean markReadyToCommit()")]
+        self.assertIn("case READY_TO_COMMIT:", request_cancel)
+        self.assertIn("return CancelDisposition.CLEANUP_STAGING;", request_cancel)
+        self.assertIn("case COMMITTING:", request_cancel)
+        self.assertIn("return CancelDisposition.TOO_LATE;", request_cancel)
+
+        upload = ftp[ftp.index("synchronized void upload(") : ftp.index("synchronized void download(")]
+        self.assertLess(upload.index("gate.beginCommit()"), upload.index('command("RNFR "'))
+        self.assertLess(upload.index("gate.beginCommit()"), upload.index('command("RNTO "'))
+        self.assertIn("deleteRemoteBestEffort(tempPath);", upload[upload.index("gate.markReadyToCommit()"):upload.index("gate.beginCommit()") + len("gate.beginCommit()") + 250])
+
+        download = activity[activity.index("private void downloadSelected()") : activity.index("private TransferProgress transferProgress(")]
+        self.assertLess(download.index("beginFinalCommit(attempt"), download.index("DocumentsContract.renameDocument"))
+        self.assertIn("if (attempt.gate.isCancelled()) {", download)
+        self.assertIn("current.closeCancelledTransferSession();", download)
 
     def test_password_is_memory_only_and_storage_uses_saf(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
