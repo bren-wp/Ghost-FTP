@@ -48,7 +48,7 @@ func (u *linuxDesktop) fileFilterRowRect(remote bool) linuxRect {
 func (u *linuxDesktop) fileFilterControlRect(remote bool) linuxRect {
 	row := u.fileFilterRowRect(remote)
 	gap := 8
-	width := (row.right - row.left - 2*gap) / 3
+	width := (row.right - row.left - gap) / 2
 	return linuxRectWH(row.left, row.top, width, row.bottom-row.top)
 }
 
@@ -105,7 +105,7 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 			continue
 		}
 		filterEnabled := !u.busy && (!remote || u.connected)
-		if err := u.drawButton(u.fileFilterControlRect(remote), u.fileFilterLabel(remote), filterEnabled, false); err != nil {
+		if err := u.drawButton(u.fileFilterPromptControlRect(remote), u.fileFilterLabel(remote), filterEnabled, false); err != nil {
 			return err
 		}
 		if err := u.drawButton(u.fileSortControlRect(remote), u.linuxFileSortLabel(remote), filterEnabled, false); err != nil {
@@ -128,24 +128,24 @@ func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
 	if u.handleRecursiveSearchMouse(x, y) {
 		return true
 	}
-	if u.fileFilterControlRect(false).contains(x, y) {
+	if u.fileSortControlRect(false).contains(x, y) {
+		u.cycleLinuxFileSort(false)
+		return true
+	}
+	if u.fileFilterPromptControlRect(false).contains(x, y) {
 		if !u.busy {
 			u.openFileFilterPrompt(false)
 		}
 		return true
 	}
-	if u.fileSortControlRect(false).contains(x, y) {
-		u.cycleLinuxFileSort(false)
+	if u.fileSortControlRect(true).contains(x, y) {
+		u.cycleLinuxFileSort(true)
 		return true
 	}
-	if u.fileFilterControlRect(true).contains(x, y) {
+	if u.fileFilterPromptControlRect(true).contains(x, y) {
 		if u.connected && !u.busy {
 			u.openFileFilterPrompt(true)
 		}
-		return true
-	}
-	if u.fileSortControlRect(true).contains(x, y) {
-		u.cycleLinuxFileSort(true)
 		return true
 	}
 	return false
