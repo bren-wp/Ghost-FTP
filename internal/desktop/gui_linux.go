@@ -1337,8 +1337,8 @@ func runLinuxGUI(engine *api.Engine, version string) error {
 				u.selectedTransfer = -1
 			}
 			if err := u.renderAll(); err != nil {
-					return err
-				}
+				return err
+			}
 		}
 	}
 }
