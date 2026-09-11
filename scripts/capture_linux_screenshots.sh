@@ -21,8 +21,13 @@ exe="$extract_dir/Ghost-FTP-${version}-Linux-amd64/ghostftp"
 }
 
 export DISPLAY="${GHOSTFTP_UI_DISPLAY:-:99}"
-export HOME="${RUNNER_TEMP:-/tmp}/ghostftp-linux-home"
-mkdir -p "$HOME"
+# Keep the runner's real HOME so Ghost FTP's filesystem-identity hardening sees
+# an ordinary per-user path rather than GitHub's redirected RUNNER_TEMP tree.
+# XDG_DATA_HOME still isolates evidence state on this ephemeral runner.
+export XDG_DATA_HOME="$HOME/.ghostftp-ui-evidence-data"
+rm -rf "$XDG_DATA_HOME"
+install -d -m 700 "$XDG_DATA_HOME"
+
 Xvfb "$DISPLAY" -screen 0 1440x1000x24 -nolisten tcp >"${RUNNER_TEMP:-/tmp}/xvfb.log" 2>&1 &
 xvfb_pid=$!
 "$exe" >"${RUNNER_TEMP:-/tmp}/ghostftp-linux.log" 2>&1 &
@@ -30,6 +35,7 @@ app_pid=$!
 cleanup() {
   kill "$app_pid" 2>/dev/null || true
   kill "$xvfb_pid" 2>/dev/null || true
+  rm -rf "$XDG_DATA_HOME"
 }
 trap cleanup EXIT
 
