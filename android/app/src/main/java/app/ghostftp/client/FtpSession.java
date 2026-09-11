@@ -29,10 +29,11 @@ final class FtpSession implements Closeable {
     private final String host;
     private final int port;
     private final boolean secure;
-    private Socket controlSocket;
+    private volatile Socket controlSocket;
+    private volatile Socket activeDataSocket;
     private BufferedReader reader;
     private BufferedWriter writer;
-    private boolean connected;
+    private volatile boolean connected;
 
     FtpSession(String host, int port, boolean secure) {
         this.host = requireHost(host);
@@ -79,6 +80,7 @@ final class FtpSession implements Closeable {
         Socket data = openPassiveDataSocket();
         Reply start = command("MLSD " + sanitizeArgument(path));
         if (start.code != 125 && start.code != 150) {
+            clearActiveDataSocket(data);
             closeQuietly(data);
             throw new IOException("MLSD failed: " + start.message);
         }
@@ -93,6 +95,7 @@ final class FtpSession implements Closeable {
                 }
             }
         } finally {
+            clearActiveDataSocket(data);
             closeQuietly(data);
         }
         expect(readReply(), 226, 250);
@@ -109,6 +112,7 @@ final class FtpSession implements Closeable {
         Socket data = openPassiveDataSocket();
         Reply start = command("STOR " + sanitizeArgument(tempPath));
         if (start.code != 125 && start.code != 150) {
+            clearActiveDataSocket(data);
             closeQuietly(data);
             throw new IOException("Upload rejected: " + start.message);
         }
@@ -118,6 +122,7 @@ final class FtpSession implements Closeable {
                 copy(input, out);
                 out.flush();
             } finally {
+                clearActiveDataSocket(data);
                 closeQuietly(data);
             }
         } catch (IOException e) {
@@ -168,6 +173,7 @@ final class FtpSession implements Closeable {
         Socket data = openPassiveDataSocket();
         Reply start = command("RETR " + sanitizeArgument(path));
         if (start.code != 125 && start.code != 150) {
+            clearActiveDataSocket(data);
             closeQuietly(data);
             throw new IOException("Download rejected: " + start.message);
         }
@@ -175,6 +181,7 @@ final class FtpSession implements Closeable {
             copy(in, output);
             output.flush();
         } finally {
+            clearActiveDataSocket(data);
             closeQuietly(data);
         }
         expect(readReply(), 226, 250);
@@ -192,19 +199,16 @@ final class FtpSession implements Closeable {
         return "/";
     }
 
-    synchronized boolean isConnected() {
+    boolean isConnected() {
         return connected;
     }
 
+    void cancelActiveTransfer() {
+        hardClose();
+    }
+
     @Override
-    public synchronized void close() {
-        if (writer != null && connected) {
-            try {
-                command("QUIT");
-            } catch (IOException ignored) {
-                // Hard close below is authoritative.
-            }
-        }
+    public void close() {
         hardClose();
     }
 
@@ -220,9 +224,23 @@ final class FtpSession implements Closeable {
         }
 
         Socket plain = new Socket();
-        plain.connect(new InetSocketAddress(host, dataPort), CONNECT_TIMEOUT_MS);
-        plain.setSoTimeout(READ_TIMEOUT_MS);
-        return secure ? wrapTls(plain) : plain;
+        activeDataSocket = plain;
+        try {
+            plain.connect(new InetSocketAddress(host, dataPort), CONNECT_TIMEOUT_MS);
+            plain.setSoTimeout(READ_TIMEOUT_MS);
+            if (!secure) {
+                return plain;
+            }
+            SSLSocket tls = wrapTls(plain);
+            if (activeDataSocket == plain) {
+                activeDataSocket = tls;
+            }
+            return tls;
+        } catch (IOException e) {
+            clearActiveDataSocket(plain);
+            closeQuietly(plain);
+            throw e;
+        }
     }
 
     private SSLSocket wrapTls(Socket plain) throws IOException {
@@ -380,10 +398,20 @@ final class FtpSession implements Closeable {
         }
     }
 
+    private void clearActiveDataSocket(Socket socket) {
+        if (activeDataSocket == socket) {
+            activeDataSocket = null;
+        }
+    }
+
     private void hardClose() {
         connected = false;
-        closeQuietly(controlSocket);
+        Socket data = activeDataSocket;
+        activeDataSocket = null;
+        Socket control = controlSocket;
         controlSocket = null;
+        closeQuietly(data);
+        closeQuietly(control);
         reader = null;
         writer = null;
     }
