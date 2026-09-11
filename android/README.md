@@ -13,6 +13,8 @@ Native Android client source lives entirely under this `android/` directory.
 - Binary upload and download are implemented.
 - Uploads are staged under a random same-directory `.ghostftp-upload-<uuid>.part` name and are committed to the requested remote name only after the FTP server confirms transfer completion and accepts `RNFR`/`RNTO`.
 - Downloads are written to a temporary SAF `.ghostftp-download-<uuid>.part` document and receive the requested final local name only after the FTP transfer is confirmed complete and the storage provider accepts an exact-name commit.
+- An active upload/download can be cancelled from the existing connection action. While a transfer is active, **Disconnect** becomes **Cancel transfer**.
+- Cancelling a transfer hard-closes both the active data socket and FTP control socket and requires a fresh reconnect before any further server operation.
 - Host, username, protocol, port and the user-granted folder URI may be remembered. Passwords are memory-only and are cleared from the UI after connection.
 - Explicit saved sites store only non-secret connection identity and navigation metadata; Quick Connect never creates a hidden site.
 - A saved site can own a local SAF start folder, a remote start directory, local SAF bookmarks and remote path bookmarks.
@@ -41,9 +43,21 @@ The incoming data is written only to a temporary `.ghostftp-download-<uuid>.part
 
 Immediately before commit, Ghost FTP performs a second fresh SAF listing and again rejects an exact-name conflict. It then asks the provider to rename the staging document to the requested filename and reads back `COLUMN_DISPLAY_NAME`. A provider result such as `file (1)` is not treated as a successful download when `file` was requested. If final-name verification fails, Ghost FTP best-effort deletes the unverified result and reports failure.
 
-Any failure before final commit best-effort deletes the staging document. The download is reported as completed only after exact-name read-back succeeds. This is a local SAF commit-safety guarantee; active-transfer cancellation, resume, and FTP control-channel interruption recovery remain separate lifecycle work and are not implied by this staging contract.
+Any failure before final commit best-effort deletes the staging document. The download is reported as completed only after exact-name read-back succeeds. Active cancellation invalidates the UI transfer generation before cleanup, so a cancelled worker cannot later publish a stale normal-completion state.
 
 All local download work remains inside the user-granted Storage Access Framework tree. No broad or all-files storage permission is introduced.
+
+## Active transfer cancellation
+
+Cancellation is deliberately fail-closed. The FTP data-transfer methods hold the session's protocol lock while a transfer is active, so the UI does not attempt to acquire that same lock and send a graceful `ABOR` or `QUIT`. Instead, `cancelActiveTransfer()` is intentionally non-synchronized: it marks the session disconnected and closes the active passive-data socket and control socket directly. Closing those sockets interrupts blocked reads, writes, TLS data-channel setup, or a pending completion reply without freezing the Android UI behind the transfer lock.
+
+The same control connection is never reused after cancellation. FTP servers can emit delayed transfer replies and an interrupted control stream can be ambiguous; Ghost FTP therefore requires the user to reconnect before another remote operation. A normal idle Disconnect still uses the regular graceful close path.
+
+The UI uses a monotonically increasing transfer-generation token. Upload/download workers must still own the generation that started them before they can move through local staging checkpoints or publish a normal completion state. A Cancel request invalidates that generation immediately. If a network failure hard-closes the session for the same protocol-safety reason, the dead session is removed from UI state so a fresh Connect is possible.
+
+Cancellation does not claim a transactional rollback that FTP cannot guarantee. For an upload, a `.ghostftp-upload-*.part` object may remain if the connection is cut during the staged transfer. If cancellation races with the server's final rename acknowledgement, the remote commit can be ambiguous; the UI instructs the user to reconnect and refresh before retrying rather than risk a duplicate upload. For a download, cancellation before the local final-name commit best-effort deletes the SAF staging document. If the local provider has already completed and verified the final rename before cancellation takes effect, the completed local file is retained and the connection is still closed.
+
+Resume/restart-from-offset is not implemented by this cancellation contract. It remains separate transfer functionality and must not reuse a cancelled FTP session.
 
 ## Saved-site and bookmark security boundary
 
