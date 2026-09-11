@@ -163,8 +163,9 @@ class FileFilterUIContractTests(unittest.TestCase):
         self.assertIn("non-destructive current-folder filter", roadmap)
         self.assertIn("p0 — bounded recursive local/server search", roadmap)
         self.assertIn(f"status: implemented in ghost ftp {version}", roadmap)
-        self.assertIn("current-folder filter regression contract", testing)
+        self.assertIn("current-folder filter and sorting regression contract", testing)
         self.assertIn("deliberately separate from bounded recursive search", testing)
+        self.assertIn("filtering and subsequent sorting", testing)
         self.assertIn("bounded recursive search regression contract", testing)
 
         current_filter_lines = [line for line in changelog_lines if "current-folder filter" in line]
