@@ -328,9 +328,19 @@ public final class MainActivity extends Activity {
             return;
         }
         Uri selected = data.getData();
-        int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        boolean canRead = (data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0;
+        boolean canWrite = (data.getFlags() & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0;
         try {
-            getContentResolver().takePersistableUriPermission(selected, flags);
+            if (canRead && canWrite) {
+                getContentResolver().takePersistableUriPermission(
+                        selected,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                );
+            } else if (canWrite) {
+                getContentResolver().takePersistableUriPermission(selected, Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            } else if (canRead) {
+                getContentResolver().takePersistableUriPermission(selected, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
         } catch (SecurityException ignored) {
             setStatus("Folder selected for this session; persistent permission was not granted.");
         }
