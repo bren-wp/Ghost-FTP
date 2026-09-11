@@ -80,13 +80,13 @@ Security rows are informational and cannot weaken TLS verification, storage conf
 
 About presents the Ghost FTP product identity, Android package/build identity, currently implemented Android protocol status and privacy information.
 
-The repository root version remains `0.0.3` until a dedicated future release-prep change. The current Android APK is a post-0.0.3 development/debug-signed artifact and must not be represented as part of the already published Windows/Linux 0.0.3 release.
+The Android version shown in About comes from `BuildConfig.VERSION_NAME`, which is derived from the repository root `VERSION` plus the Android development suffix. The CI APK remains a development/debug-signed artifact and must not be represented as a public Android release merely because the repository release identity advances.
 
 ## Remote Desktop / RDP
 
 **Remote Desktop is not shown in Android navigation.** There is currently no reviewed Android RDP runtime owner with the required credential and launcher/engine security contract. Ghost FTP does not expose a decorative RDP button, a fake Coming Soon destination or a control that has no working implementation behind it.
 
-If Android RDP is introduced later, it requires a separate architecture/security review and must prove the actual runtime client/engine, availability detection and password handling before the navigation item can exist.
+If Android RDP is introduced later, it requires a separate architecture/security review and must prove the actual runtime client/engine, availability detection and password handling before a navigation item can exist.
 
 ## SFTP status
 
