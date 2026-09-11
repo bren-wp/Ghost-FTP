@@ -86,7 +86,19 @@ done
 }
 
 xdotool windowsize "$win" 1280 900
-sleep 0.8
+for _ in $(seq 1 40); do
+  geometry="$(xdotool getwindowgeometry --shell "$win")"
+  width="$(printf '%s\n' "$geometry" | awk -F= '$1=="WIDTH" {print $2}')"
+  height="$(printf '%s\n' "$geometry" | awk -F= '$1=="HEIGHT" {print $2}')"
+  if [[ "$width" == '1280' && "$height" == '900' ]]; then
+    break
+  fi
+  sleep 0.1
+done
+[[ "${width:-}" == '1280' && "${height:-}" == '900' ]] || {
+  echo "Linux UI did not reach deterministic 1280x900 geometry: ${width:-?}x${height:-?}" >&2
+  exit 1
+}
 
 capture() {
   local output="$1"
@@ -97,34 +109,68 @@ capture() {
   }
 }
 
-capture 'ghost-ftp-linux-main-workspace.png'
-
-# Ghost FTP Linux uses one X11 window and application-owned overlays. These
-# coordinates target the maintained top-row Bookmarks and Settings controls at
-# the deterministic 1280x900 evidence geometry.
-xdotool mousemove --window "$win" 1080 35 click 1
-sleep 0.5
-capture 'ghost-ftp-linux-bookmarks.png'
-xdotool key --window "$win" Escape
-sleep 0.3
-
-xdotool mousemove --window "$win" 1210 35 click 1
-sleep 0.5
-capture 'ghost-ftp-linux-settings.png'
-xdotool key --window "$win" Escape
-sleep 0.3
+# Initial local-file discovery is asynchronous and deliberately disables header
+# actions while the engine is busy. Wait until two consecutive native-window
+# captures are byte-identical before using the workspace as evidence.
+stable_a="${RUNNER_TEMP:-/tmp}/ghostftp-linux-stable-a.png"
+stable_b="${RUNNER_TEMP:-/tmp}/ghostftp-linux-stable-b.png"
+rm -f "$stable_a" "$stable_b"
+for _ in $(seq 1 30); do
+  import -window "$win" "$stable_a"
+  sleep 0.25
+  import -window "$win" "$stable_b"
+  if cmp -s "$stable_a" "$stable_b"; then
+    break
+  fi
+  mv -f "$stable_b" "$stable_a"
+  sleep 0.25
+done
+cmp -s "$stable_a" "$stable_b" || {
+  cat "$app_log" >&2 || true
+  echo 'Linux UI did not reach a stable startup state before evidence capture.' >&2
+  exit 1
+}
+cp "$stable_b" "$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 
 main_png="$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 bookmarks_png="$OUTPUT_DIR/ghost-ftp-linux-bookmarks.png"
 settings_png="$OUTPUT_DIR/ghost-ftp-linux-settings.png"
-if cmp -s "$main_png" "$bookmarks_png"; then
-  echo 'Bookmarks evidence is identical to the main workspace; the real overlay did not open.' >&2
-  exit 1
-fi
-if cmp -s "$main_png" "$settings_png"; then
-  echo 'Settings evidence is identical to the main workspace; the real overlay did not open.' >&2
-  exit 1
-fi
+
+open_distinct_overlay() {
+  local label="$1"
+  local x="$2"
+  local y="$3"
+  local output="$4"
+
+  for _ in $(seq 1 20); do
+    xdotool windowfocus "$win" >/dev/null 2>&1 || true
+    xdotool mousemove --window "$win" "$x" "$y" mousedown 1 mouseup 1
+    sleep 0.3
+    import -window "$win" "$output"
+    if [[ -s "$output" ]] && ! cmp -s "$main_png" "$output"; then
+      return 0
+    fi
+    sleep 0.25
+  done
+
+  cat "$app_log" >&2 || true
+  echo "$label evidence is identical to the main workspace; the real overlay did not open." >&2
+  return 1
+}
+
+# Ghost FTP Linux uses one X11 window and application-owned overlays. These
+# coordinates target the maintained top-row Bookmarks and Settings controls at
+# the deterministic 1280x900 evidence geometry. Retry only while the capture is
+# still identical to the settled workspace, which safely covers startup busy
+# transitions without accepting a mislabeled screenshot.
+open_distinct_overlay 'Bookmarks' 1080 35 "$bookmarks_png"
+xdotool key --window "$win" Escape
+sleep 0.3
+
+open_distinct_overlay 'Settings' 1210 35 "$settings_png"
+xdotool key --window "$win" Escape
+sleep 0.3
+
 if cmp -s "$bookmarks_png" "$settings_png"; then
   echo 'Bookmarks and Settings evidence are identical; distinct real overlays were not captured.' >&2
   exit 1
