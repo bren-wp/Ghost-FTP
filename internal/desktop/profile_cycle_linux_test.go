@@ -10,12 +10,12 @@ import (
 
 func linuxProfileCycleTestDesktop() *linuxDesktop {
 	return &linuxDesktop{
-		profileIndex: -1,
-		protocol:     "ftps",
-		host:         "before.example",
-		port:         "21",
-		username:     "before",
-		localCurrent: "/before-local",
+		profileIndex:  -1,
+		protocol:      "ftps",
+		host:          "before.example",
+		port:          "21",
+		username:      "before",
+		localCurrent:  "/before-local",
 		remoteCurrent: "/before-remote",
 		profiles: []model.PublicProfile{{
 			ID:         "profile-1",
