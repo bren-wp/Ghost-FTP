@@ -67,6 +67,8 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         config_tests = self.read("internal/config/profile_start_directory_binding_test.go")
         linux = self.read("internal/desktop/profile_start_linux.go")
         linux_tests = self.read("internal/desktop/profile_start_linux_test.go")
+        gui = self.read("internal/desktop/gui_linux.go")
+        cycle_tests = self.read("internal/desktop/profile_cycle_linux_test.go")
         for marker in (
             "func AccountMatches(",
             "EndpointMatches(protocolA, hostA, portA, protocolB, hostB, portB) && usernameA == usernameB",
@@ -95,6 +97,17 @@ class NavigationBookmarksContractTests(unittest.TestCase):
             "TestLinuxProfileExplicitRemoteStartSurvivesAccountChange",
         ):
             self.assertIn(marker, linux_tests)
+        for marker in (
+            "len(u.profiles) > 0 && !u.busy && !u.connected",
+            "if u.busy || u.connected || len(u.profiles) == 0",
+        ):
+            self.assertIn(marker, gui)
+        for marker in (
+            "TestLinuxProfileCycleBlockedWhileConnected",
+            "TestLinuxProfileCycleBlockedWhileBusy",
+            "TestLinuxProfileCycleLoadsProfileWhenIdleAndDisconnected",
+        ):
+            self.assertIn(marker, cycle_tests)
 
     def test_windows_bookmark_manager_is_real_and_generation_bound(self) -> None:
         manager = self.read("internal/desktop/bookmark_manager_windows.go")
@@ -137,6 +150,7 @@ class NavigationBookmarksContractTests(unittest.TestCase):
             "state.scrollUp.contains(x, y)",
             "state.scrollDown.contains(x, y)",
             "func (u *linuxDesktop) bookmarkRowAt(x, y int) int",
+            "y < state.rows.top+4",
             "u.engine.SaveRemoteBookmark",
             "u.engine.SaveLocalBookmark",
             "u.engine.NavigateBookmark(ctx, bookmark.ID)",
@@ -162,6 +176,7 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         self.assertIn("TestLinuxBookmarkNamePromptClassification", prompt_test)
         self.assertIn("TestLinuxBookmarkViewportKeepsKeyboardSelectionVisible", viewport_test)
         self.assertIn("TestLinuxBookmarkViewportMouseScrollReachesLaterRows", viewport_test)
+        self.assertIn("TestLinuxBookmarkRowHitTestRejectsPaddingAndUsesViewportOffset", viewport_test)
         self.assertIn("u.renderBookmarksHeaderButton()", filters)
         self.assertIn("u.handleBookmarksHeaderMouse(x, y)", filters)
 
