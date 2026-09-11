@@ -29,10 +29,11 @@ final class FtpSession implements Closeable {
     private final String host;
     private final int port;
     private final boolean secure;
-    private Socket controlSocket;
+    private volatile Socket controlSocket;
+    private volatile Socket activeDataSocket;
     private BufferedReader reader;
     private BufferedWriter writer;
-    private boolean connected;
+    private volatile boolean connected;
 
     FtpSession(String host, int port, boolean secure) {
         this.host = requireHost(host);
@@ -77,25 +78,43 @@ final class FtpSession implements Closeable {
         ensureConnected();
         String path = normalizeRemotePath(remotePath);
         Socket data = openPassiveDataSocket();
-        Reply start = command("MLSD " + sanitizeArgument(path));
+        Reply start;
+        try {
+            start = command("MLSD " + sanitizeArgument(path));
+        } catch (IOException e) {
+            releaseDataSocket(data);
+            hardClose();
+            throw new IOException("Directory listing could not start; the connection was closed.", e);
+        }
         if (start.code != 125 && start.code != 150) {
-            closeQuietly(data);
+            releaseDataSocket(data);
             throw new IOException("MLSD failed: " + start.message);
         }
 
         List<RemoteEntry> entries = new ArrayList<>();
-        try (BufferedReader dataReader = new BufferedReader(new InputStreamReader(data.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = dataReader.readLine()) != null) {
-                RemoteEntry entry = parseMlsd(line);
-                if (entry != null) {
-                    entries.add(entry);
+        try {
+            try (BufferedReader dataReader = new BufferedReader(new InputStreamReader(data.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = dataReader.readLine()) != null) {
+                    RemoteEntry entry = parseMlsd(line);
+                    if (entry != null) {
+                        entries.add(entry);
+                    }
                 }
             }
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Directory listing data transfer failed; the connection was closed.", e);
         } finally {
-            closeQuietly(data);
+            releaseDataSocket(data);
         }
-        expect(readReply(), 226, 250);
+
+        try {
+            expect(readReply(), 226, 250);
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Directory listing was not confirmed complete; the connection was closed.", e);
+        }
         return entries;
     }
 
@@ -107,9 +126,16 @@ final class FtpSession implements Closeable {
         String path = normalizeRemotePath(remotePath);
         String tempPath = uploadTempPath(path);
         Socket data = openPassiveDataSocket();
-        Reply start = command("STOR " + sanitizeArgument(tempPath));
+        Reply start;
+        try {
+            start = command("STOR " + sanitizeArgument(tempPath));
+        } catch (IOException e) {
+            releaseDataSocket(data);
+            hardClose();
+            throw new IOException("Upload could not start; the connection was closed.", e);
+        }
         if (start.code != 125 && start.code != 150) {
-            closeQuietly(data);
+            releaseDataSocket(data);
             throw new IOException("Upload rejected: " + start.message);
         }
 
@@ -117,12 +143,12 @@ final class FtpSession implements Closeable {
             try (OutputStream out = new BufferedOutputStream(data.getOutputStream())) {
                 copy(input, out);
                 out.flush();
-            } finally {
-                closeQuietly(data);
             }
         } catch (IOException e) {
             hardClose();
             throw new IOException("Upload data transfer failed before final commit; the connection was closed.", e);
+        } finally {
+            releaseDataSocket(data);
         }
 
         final Reply terminal;
@@ -166,18 +192,37 @@ final class FtpSession implements Closeable {
         }
         String path = normalizeRemotePath(remotePath);
         Socket data = openPassiveDataSocket();
-        Reply start = command("RETR " + sanitizeArgument(path));
+        Reply start;
+        try {
+            start = command("RETR " + sanitizeArgument(path));
+        } catch (IOException e) {
+            releaseDataSocket(data);
+            hardClose();
+            throw new IOException("Download could not start; the connection was closed.", e);
+        }
         if (start.code != 125 && start.code != 150) {
-            closeQuietly(data);
+            releaseDataSocket(data);
             throw new IOException("Download rejected: " + start.message);
         }
-        try (InputStream in = new BufferedInputStream(data.getInputStream())) {
-            copy(in, output);
-            output.flush();
+
+        try {
+            try (InputStream in = new BufferedInputStream(data.getInputStream())) {
+                copy(in, output);
+                output.flush();
+            }
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Download data transfer failed before local commit; the connection was closed.", e);
         } finally {
-            closeQuietly(data);
+            releaseDataSocket(data);
         }
-        expect(readReply(), 226, 250);
+
+        try {
+            expect(readReply(), 226, 250);
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Download was not confirmed complete; local final name was not committed and the connection was closed.", e);
+        }
     }
 
     synchronized String pwd() throws IOException {
@@ -192,8 +237,14 @@ final class FtpSession implements Closeable {
         return "/";
     }
 
-    synchronized boolean isConnected() {
+    boolean isConnected() {
         return connected;
+    }
+
+    void cancelActiveTransfer() {
+        connected = false;
+        closeQuietly(activeDataSocket);
+        closeQuietly(controlSocket);
     }
 
     @Override
@@ -220,9 +271,33 @@ final class FtpSession implements Closeable {
         }
 
         Socket plain = new Socket();
-        plain.connect(new InetSocketAddress(host, dataPort), CONNECT_TIMEOUT_MS);
-        plain.setSoTimeout(READ_TIMEOUT_MS);
-        return secure ? wrapTls(plain) : plain;
+        activeDataSocket = plain;
+        if (!connected) {
+            releaseDataSocket(plain);
+            throw new IOException("Transfer was cancelled before the data connection opened.");
+        }
+        try {
+            plain.connect(new InetSocketAddress(host, dataPort), CONNECT_TIMEOUT_MS);
+            plain.setSoTimeout(READ_TIMEOUT_MS);
+            if (!secure) {
+                if (!connected) {
+                    releaseDataSocket(plain);
+                    throw new IOException("Transfer was cancelled while the data connection opened.");
+                }
+                return plain;
+            }
+
+            SSLSocket tls = wrapTls(plain);
+            activeDataSocket = tls;
+            if (!connected) {
+                releaseDataSocket(tls);
+                throw new IOException("Transfer was cancelled while the protected data channel opened.");
+            }
+            return tls;
+        } catch (IOException e) {
+            releaseDataSocket(plain);
+            throw e;
+        }
     }
 
     private SSLSocket wrapTls(Socket plain) throws IOException {
@@ -380,8 +455,17 @@ final class FtpSession implements Closeable {
         }
     }
 
+    private void releaseDataSocket(Socket socket) {
+        closeQuietly(socket);
+        if (activeDataSocket == socket) {
+            activeDataSocket = null;
+        }
+    }
+
     private void hardClose() {
         connected = false;
+        closeQuietly(activeDataSocket);
+        activeDataSocket = null;
         closeQuietly(controlSocket);
         controlSocket = null;
         reader = null;
