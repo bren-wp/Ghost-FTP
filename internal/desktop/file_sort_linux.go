@@ -65,11 +65,18 @@ func (u *linuxDesktop) sortLinuxFileItems(remote bool, items []model.Item) []mod
 	return out
 }
 
-func (u *linuxDesktop) fileSortControlRect(remote bool) linuxRect {
-	row := u.fileFilterRowRect(remote)
+func (u *linuxDesktop) fileFilterPromptControlRect(remote bool) linuxRect {
+	full := u.fileFilterControlRect(remote)
 	gap := 8
-	width := (row.right - row.left - 2*gap) / 3
-	return linuxRectWH(row.left+width+gap, row.top, width, row.bottom-row.top)
+	sortWidth := min(118, (full.right-full.left-gap)/2)
+	return linuxRectWH(full.left, full.top, full.right-full.left-sortWidth-gap, full.bottom-full.top)
+}
+
+func (u *linuxDesktop) fileSortControlRect(remote bool) linuxRect {
+	full := u.fileFilterControlRect(remote)
+	gap := 8
+	sortWidth := min(118, (full.right-full.left-gap)/2)
+	return linuxRectWH(full.right-sortWidth, full.top, sortWidth, full.bottom-full.top)
 }
 
 func (u *linuxDesktop) linuxFileSortLabel(remote bool) string {
