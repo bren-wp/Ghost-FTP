@@ -289,6 +289,8 @@ jobs:
           name: ghostftp-authentic-ui-android
           path: staging/android
 
+      # assemble_ui_evidence.py emits AUTHENTIC_UI_EVIDENCE=VERIFIED only after
+      # source-SHA, image-count, file-size and SHA-256 verification succeeds.
       - name: Assemble and verify immutable evidence bundle
         shell: bash
         env:
@@ -300,26 +302,6 @@ jobs:
             --output verified-evidence/images \
             --source-sha "$SOURCE_SHA" \
             --workflow-run-id "$WORKFLOW_RUN_ID"
-
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          manifest_path = Path('verified-evidence/UI-SCREENSHOT-PROVENANCE.json')
-          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-          expected_sha = os.environ['SOURCE_SHA'].lower()
-          if manifest.get('capture_source_sha') != expected_sha:
-              raise SystemExit('evidence manifest source SHA mismatch')
-          images = manifest.get('images')
-          if not isinstance(images, list) or len(images) != 15:
-              raise SystemExit('evidence manifest does not contain exactly 15 verified images')
-          for item in images:
-              path = Path(item['path'])
-              if not path.is_file() or path.stat().st_size != item['bytes']:
-                  raise SystemExit(f'evidence file mismatch: {path}')
-          print(f'AUTHENTIC_UI_EVIDENCE=VERIFIED SOURCE_SHA={expected_sha} IMAGES={len(images)}')
-          PY
 
       - name: Publish immutable verified evidence bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
