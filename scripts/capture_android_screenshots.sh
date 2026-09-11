@@ -188,6 +188,47 @@ raise SystemExit(1)
 PY
 }
 
+# The Android 35 accessibility hierarchy can omit Button text for this
+# programmatic drawer. In that case identify the six app-owned navigation rows
+# from their real runtime bounds instead of guessing a vertical dp position.
+# The drawer is 286dp wide; each navigation row spans most of that width.
+find_nav_coords() {
+  local ordinal="$1"
+  local density="$2"
+  python3 - "$UI_XML_LOCAL" "$ordinal" "$density" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+path, ordinal, density = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+root = ET.parse(path).getroot()
+drawer_right = round(286 * density / 160)
+slack = round(6 * density / 160)
+min_width = round(220 * density / 160)
+candidates = []
+for node in root.iter("node"):
+    if node.attrib.get("class") != "android.widget.Button" or node.attrib.get("clickable") != "true":
+        continue
+    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+    if not match:
+        continue
+    x1, y1, x2, y2 = map(int, match.groups())
+    if x1 >= drawer_right or x2 > drawer_right + slack or (x2 - x1) < min_width:
+        continue
+    candidates.append((y1, y2, x1, x2))
+
+candidates.sort()
+if len(candidates) != 6:
+    print(f"Expected exactly 6 drawer navigation buttons, found {len(candidates)}: {candidates}", file=sys.stderr)
+    raise SystemExit(1)
+if ordinal < 0 or ordinal >= len(candidates):
+    print(f"Navigation ordinal out of range: {ordinal}", file=sys.stderr)
+    raise SystemExit(1)
+y1, y2, x1, x2 = candidates[ordinal]
+print(f"{(x1 + x2) // 2} {(y1 + y2) // 2}")
+PY
+}
+
 tap_ui() {
   local query="$1"
   local coords=''
@@ -225,10 +266,9 @@ wait_ui() {
   return 1
 }
 
-# Android 35's uiautomator can omit text for the programmatic native drawer
-# buttons even while the drawer is visibly rendered. Prefer semantic lookup; if
-# unavailable, use the fixed app-owned drawer geometry in dp, then prove the
-# section transition through a separately rendered title before accepting it.
+# Prefer semantic text when Android exposes it. Otherwise select the exact
+# runtime Button bounds from the open drawer. A tap is accepted only after the
+# independently rendered section title proves that the requested transition ran.
 tap_nav_section() {
   local section="$1"
   local ordinal="$2"
@@ -243,16 +283,17 @@ tap_nav_section() {
   else
     density="$(timeout 10s adb shell wm density | tr -d '\r' | awk -F': ' '/Physical density/{v=$2} /Override density/{v=$2} END{print v}')"
     [[ "$density" =~ ^[0-9]+$ ]] || {
-      echo "Unable to resolve emulator density for drawer fallback: ${density:-<none>}" >&2
+      echo "Unable to resolve emulator density for drawer hierarchy fallback: ${density:-<none>}" >&2
       return 1
     }
-    # Drawer width is 286dp. Native navigation rows are 48dp high with 5dp
-    # spacing; their measured centers on this app-owned layout start at ~99dp.
-    x=$((143 * density / 160))
-    y_dp=$((99 + 53 * ordinal))
-    y=$((y_dp * density / 160))
+    coords="$(find_nav_coords "$ordinal" "$density")" || return 1
+    [[ "$coords" =~ ^[0-9]+\ [0-9]+$ ]] || {
+      echo "Unable to resolve runtime drawer button bounds for $section." >&2
+      return 1
+    }
+    read -r x y <<<"$coords"
     timeout 10s adb shell input tap "$x" "$y"
-    printf 'ANDROID_NAV_TAP=%s MODE=verified-dp-fallback DENSITY=%s X=%s Y=%s\n' "$section" "$density" "$x" "$y"
+    printf 'ANDROID_NAV_TAP=%s MODE=verified-hierarchy-fallback DENSITY=%s X=%s Y=%s\n' "$section" "$density" "$x" "$y"
   fi
   sleep 0.7
   wait_ui "$expected_title"
@@ -276,7 +317,7 @@ capture 'ghost-ftp-android-navigation.png'
 
 # The drawer is already open for Sites. Each verified section transition closes
 # it, then the next iteration reopens the real drawer before selecting the next
-# destination. Every coordinate fallback is accepted only after title evidence.
+# destination. Ordinal zero is Files, so Sites begins at one.
 first_section=1
 ordinal=1
 for section in Sites Bookmarks Transfers Settings About; do
