@@ -214,7 +214,8 @@ wait_ui() {
     dump_ui
     coords="$(find_ui_coords "$query" 2>/dev/null || true)"
     if [[ "$coords" =~ ^[0-9]+\ [0-9]+$ ]]; then
-      printf 'ANDROID_UI_VISIBLE=%s X=%s Y=%s\n' "$query" ${coords/ / Y=}
+      read -r x y <<<"$coords"
+      printf 'ANDROID_UI_VISIBLE=%s X=%s Y=%s\n' "$query" "$x" "$y"
       return 0
     fi
     sleep 0.4
