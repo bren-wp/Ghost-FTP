@@ -49,6 +49,24 @@ class WindowsModalSharedContractTests(unittest.TestCase):
             self.assertIn("premiumRunDialogLoop(hwnd", source, relative)
             self.assertNotIn('NewProc("IsDialogMessageW")', source, relative)
 
+    def test_modal_owner_restores_only_unexpected_iconic_state(self) -> None:
+        source = read("internal/platform/dialog_premium_windows.go")
+        for marker in (
+            'premiumIsIconic = user32.NewProc("IsIconic")',
+            'premiumShowWindow = user32.NewProc("ShowWindow")',
+            "premiumSWRestore         = 9",
+            "wasIconic, _, _ := premiumIsIconic.Call(owner)",
+            "if wasIconic == 0",
+            "isIconic, _, _ := premiumIsIconic.Call(owner)",
+            "premiumShowWindow.Call(owner, premiumSWRestore)",
+            "premiumSetActiveWindow.Call(owner)",
+        ):
+            self.assertIn(marker, source)
+        self.assertLess(
+            source.index("premiumEnableWindow.Call(owner, 1)"),
+            source.index("premiumShowWindow.Call(owner, premiumSWRestore)"),
+        )
+
     def test_option_selector_uses_native_enter_and_escape_commands(self) -> None:
         source = read("internal/platform/language_windows.go")
         self.assertIn("languageIDInstall = 1 // IDOK", source)
