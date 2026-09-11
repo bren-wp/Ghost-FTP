@@ -35,6 +35,22 @@ func newModalAwareGetMessageProc(user32 *syscall.LazyDLL) *modalAwareGetMessageP
 	}
 }
 
+func readModalMessage(messagePtr uintptr) msg {
+	var message msg
+	if messagePtr != 0 {
+		rtlMoveMemory.Call(uintptr(unsafe.Pointer(&message)), messagePtr, unsafe.Sizeof(message))
+	}
+	return message
+}
+
+func clearModalMessage(messagePtr uintptr) {
+	if messagePtr == 0 {
+		return
+	}
+	var message msg
+	rtlMoveMemory.Call(messagePtr, uintptr(unsafe.Pointer(&message)), unsafe.Sizeof(message))
+}
+
 func (p *modalAwareGetMessageProc) Call(messagePtr, hwndFilter, messageMin, messageMax uintptr) (uintptr, uintptr, error) {
 	if p == nil || p.getMessage == nil {
 		return 0, 0, syscall.EINVAL
@@ -45,14 +61,14 @@ func (p *modalAwareGetMessageProc) Call(messagePtr, hwndFilter, messageMin, mess
 		return result, aux, err
 	}
 
-	message := (*msg)(unsafe.Pointer(messagePtr))
+	message := readModalMessage(messagePtr)
 	root := p.modalRoot(message.Hwnd)
 	if root == 0 {
 		return result, aux, err
 	}
 
 	if p.handleModalShortcut(root, message) {
-		*message = msg{}
+		clearModalMessage(messagePtr)
 		return result, aux, err
 	}
 
@@ -62,7 +78,7 @@ func (p *modalAwareGetMessageProc) Call(messagePtr, hwndFilter, messageMin, mess
 		// message so its closed flag is observed immediately. Returning a
 		// harmless WM_NULL-style thread message avoids dispatching the same
 		// keyboard input twice without hiding WM_QUIT/GetMessage errors.
-		*message = msg{}
+		clearModalMessage(messagePtr)
 	}
 	return result, aux, err
 }
@@ -84,8 +100,8 @@ func (p *modalAwareGetMessageProc) modalRoot(hwnd uintptr) uintptr {
 	return 0
 }
 
-func (p *modalAwareGetMessageProc) handleModalShortcut(root uintptr, message *msg) bool {
-	if message == nil || message.Message != desktopWMKeyDown {
+func (p *modalAwareGetMessageProc) handleModalShortcut(root uintptr, message msg) bool {
+	if message.Message != desktopWMKeyDown {
 		return false
 	}
 
