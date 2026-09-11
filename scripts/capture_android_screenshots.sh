@@ -207,6 +207,56 @@ tap_ui() {
   return 1
 }
 
+wait_ui() {
+  local query="$1"
+  local coords=''
+  for _ in $(seq 1 20); do
+    dump_ui
+    coords="$(find_ui_coords "$query" 2>/dev/null || true)"
+    if [[ "$coords" =~ ^[0-9]+\ [0-9]+$ ]]; then
+      printf 'ANDROID_UI_VISIBLE=%s X=%s Y=%s\n' "$query" ${coords/ / Y=}
+      return 0
+    fi
+    sleep 0.4
+  done
+  echo "Expected UI node did not become visible: $query" >&2
+  [[ -s "$UI_XML_LOCAL" ]] && cat "$UI_XML_LOCAL" >&2 || true
+  return 1
+}
+
+# Android 35's uiautomator can omit text for the programmatic native drawer
+# buttons even while the drawer is visibly rendered. Prefer semantic lookup; if
+# unavailable, use the fixed app-owned drawer geometry in dp, then prove the
+# section transition through a separately rendered title before accepting it.
+tap_nav_section() {
+  local section="$1"
+  local ordinal="$2"
+  local expected_title="$3"
+  local coords=''
+  dump_ui
+  coords="$(find_ui_coords "$section" 2>/dev/null || true)"
+  if [[ "$coords" =~ ^[0-9]+\ [0-9]+$ ]]; then
+    read -r x y <<<"$coords"
+    timeout 10s adb shell input tap "$x" "$y"
+    printf 'ANDROID_NAV_TAP=%s MODE=semantic X=%s Y=%s\n' "$section" "$x" "$y"
+  else
+    density="$(timeout 10s adb shell wm density | tr -d '\r' | awk -F': ' '/Physical density/{v=$2} /Override density/{v=$2} END{print v}')"
+    [[ "$density" =~ ^[0-9]+$ ]] || {
+      echo "Unable to resolve emulator density for drawer fallback: ${density:-<none>}" >&2
+      return 1
+    }
+    # Drawer width is 286dp. Native navigation rows are 48dp high with 5dp
+    # spacing; their measured centers on this app-owned layout start at ~99dp.
+    x=$((143 * density / 160))
+    y_dp=$((99 + 53 * ordinal))
+    y=$((y_dp * density / 160))
+    timeout 10s adb shell input tap "$x" "$y"
+    printf 'ANDROID_NAV_TAP=%s MODE=verified-dp-fallback DENSITY=%s X=%s Y=%s\n' "$section" "$density" "$x" "$y"
+  fi
+  sleep 0.7
+  wait_ui "$expected_title"
+}
+
 capture() {
   local name="$1"
   if ! timeout 15s adb exec-out screencap -p >"$OUTPUT_DIR/$name"; then
@@ -223,17 +273,20 @@ capture 'ghost-ftp-android-files.png'
 tap_ui 'Open navigation'
 capture 'ghost-ftp-android-navigation.png'
 
-# The drawer is already open after the navigation evidence capture. Select the
-# first destination directly instead of closing it with BACK and racing the
-# accessibility hierarchy while trying to reopen it. Each navigation button
-# transitions sections and closes the drawer, so subsequent sections reopen it.
+# The drawer is already open for Sites. Each verified section transition closes
+# it, then the next iteration reopens the real drawer before selecting the next
+# destination. Every coordinate fallback is accepted only after title evidence.
 first_section=1
+ordinal=1
 for section in Sites Bookmarks Transfers Settings About; do
   if (( first_section == 0 )); then
     tap_ui 'Open navigation'
   fi
-  tap_ui "$section"
+  expected_title="$section"
+  [[ "$section" == 'Sites' ]] && expected_title='Sites / Connections'
+  tap_nav_section "$section" "$ordinal" "$expected_title"
   first_section=0
+  ordinal=$((ordinal + 1))
   lower="$(printf '%s' "$section" | tr '[:upper:]' '[:lower:]')"
   capture "ghost-ftp-android-${lower}.png"
 done
