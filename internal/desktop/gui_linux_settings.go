@@ -12,7 +12,8 @@ import (
 )
 
 type linuxSettingsRects struct {
-	language, appearance         linuxRect
+	language                    linuxRect
+	appearance                  linuxRect
 	parallelMinus, parallelPlus linuxRect
 	uploadMinus, uploadPlus     linuxRect
 	downloadMinus, downloadPlus linuxRect
