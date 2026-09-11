@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble exact cross-platform UI screenshots and write cryptographic provenance."""
+"""Assemble and verify exact cross-platform UI screenshots with cryptographic provenance."""
 
 from __future__ import annotations
 
@@ -36,6 +36,51 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def verify_manifest(manifest_path: Path, source_sha: str, workflow_run_id: int) -> int:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected_sha = source_sha.lower()
+    if manifest.get("schema") != 1:
+        raise SystemExit("evidence manifest schema mismatch")
+    if manifest.get("evidence") != "authentic-runtime-capture":
+        raise SystemExit("evidence manifest type mismatch")
+    if manifest.get("capture_source_sha") != expected_sha:
+        raise SystemExit("evidence manifest source SHA mismatch")
+    if manifest.get("workflow_run_id") != workflow_run_id:
+        raise SystemExit("evidence manifest workflow run mismatch")
+
+    images = manifest.get("images")
+    if not isinstance(images, list) or len(images) != len(MAPPING):
+        raise SystemExit(
+            f"evidence manifest must contain exactly {len(MAPPING)} verified images"
+        )
+
+    expected_names = {target_name for _, target_name in MAPPING}
+    observed_names: set[str] = set()
+    for item in images:
+        if not isinstance(item, dict):
+            raise SystemExit("evidence manifest image entry is invalid")
+        raw_path = item.get("path")
+        if not isinstance(raw_path, str) or not raw_path:
+            raise SystemExit("evidence manifest image path is invalid")
+        path = Path(raw_path)
+        if path.name not in expected_names or path.name in observed_names:
+            raise SystemExit(f"unexpected or duplicate evidence image: {path}")
+        if not path.is_file():
+            raise SystemExit(f"evidence image is missing: {path}")
+        size = path.stat().st_size
+        if size < 2048 or item.get("bytes") != size:
+            raise SystemExit(f"evidence image size mismatch: {path}")
+        digest = sha256(path)
+        if item.get("sha256") != digest:
+            raise SystemExit(f"evidence image SHA-256 mismatch: {path}")
+        observed_names.add(path.name)
+
+    if observed_names != expected_names:
+        missing = ", ".join(sorted(expected_names - observed_names))
+        raise SystemExit(f"evidence bundle is incomplete: {missing}")
+    return len(images)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--staging", type=Path, required=True)
@@ -44,8 +89,11 @@ def main() -> int:
     parser.add_argument("--workflow-run-id", type=int, required=True)
     args = parser.parse_args()
 
-    if len(args.source_sha) != 40 or any(ch not in "0123456789abcdef" for ch in args.source_sha.lower()):
+    source_sha = args.source_sha.lower()
+    if len(source_sha) != 40 or any(ch not in "0123456789abcdef" for ch in source_sha):
         raise SystemExit("capture source SHA is not a full hexadecimal Git SHA")
+    if args.workflow_run_id <= 0:
+        raise SystemExit("workflow run ID must be positive")
 
     args.output.mkdir(parents=True, exist_ok=True)
     images: list[dict[str, object]] = []
@@ -66,7 +114,7 @@ def main() -> int:
     manifest = {
         "schema": 1,
         "evidence": "authentic-runtime-capture",
-        "capture_source_sha": args.source_sha.lower(),
+        "capture_source_sha": source_sha,
         "workflow_run_id": args.workflow_run_id,
         "workflow": "Ghost FTP Authentic Cross-Platform UI Screenshots",
         "images": images,
@@ -74,9 +122,14 @@ def main() -> int:
     manifest_path = args.output.parent / "UI-SCREENSHOT-PROVENANCE.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    print(f"UI_EVIDENCE_IMAGES={len(images)}")
-    print(f"UI_EVIDENCE_SOURCE_SHA={args.source_sha.lower()}")
+    verified_count = verify_manifest(manifest_path, source_sha, args.workflow_run_id)
+    print(f"UI_EVIDENCE_IMAGES={verified_count}")
+    print(f"UI_EVIDENCE_SOURCE_SHA={source_sha}")
     print(f"UI_EVIDENCE_MANIFEST={manifest_path.as_posix()}")
+    print(
+        f"AUTHENTIC_UI_EVIDENCE=VERIFIED SOURCE_SHA={source_sha} "
+        f"IMAGES={verified_count}"
+    )
     return 0
 
 
