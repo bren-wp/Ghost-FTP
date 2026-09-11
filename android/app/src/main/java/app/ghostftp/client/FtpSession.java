@@ -118,11 +118,15 @@ final class FtpSession implements Closeable {
         return entries;
     }
 
-    synchronized void upload(String remotePath, InputStream input) throws IOException {
+    synchronized void upload(String remotePath, InputStream input, TransferCommitGate gate) throws IOException {
         ensureConnected();
         if (input == null) {
             throw new IOException("Missing upload source.");
         }
+        if (gate == null) {
+            throw new IOException("Missing upload cancellation lifecycle.");
+        }
+
         String path = normalizeRemotePath(remotePath);
         String tempPath = uploadTempPath(path);
         Socket data = openPassiveDataSocket();
@@ -160,6 +164,17 @@ final class FtpSession implements Closeable {
             throw new IOException("Upload was not confirmed complete; final remote name was not committed and the connection was closed.", e);
         }
 
+        if (!gate.markReadyToCommit()) {
+            deleteRemoteBestEffort(tempPath);
+            hardClose();
+            throw new IOException("Upload cancelled after staging completed; final remote name was not committed.");
+        }
+        if (!gate.beginCommit()) {
+            deleteRemoteBestEffort(tempPath);
+            hardClose();
+            throw new IOException("Upload cancelled before final remote-name commit.");
+        }
+
         final Reply renameFrom;
         try {
             renameFrom = command("RNFR " + sanitizeArgument(tempPath));
@@ -183,12 +198,16 @@ final class FtpSession implements Closeable {
             deleteRemoteBestEffort(tempPath);
             throw new IOException("Server rejected final staged upload commit: " + renameTo.message);
         }
+        gate.finish();
     }
 
-    synchronized void download(String remotePath, OutputStream output) throws IOException {
+    synchronized void download(String remotePath, OutputStream output, TransferCommitGate gate) throws IOException {
         ensureConnected();
         if (output == null) {
             throw new IOException("Missing download destination.");
+        }
+        if (gate == null) {
+            throw new IOException("Missing download cancellation lifecycle.");
         }
         String path = normalizeRemotePath(remotePath);
         Socket data = openPassiveDataSocket();
@@ -223,6 +242,10 @@ final class FtpSession implements Closeable {
             hardClose();
             throw new IOException("Download was not confirmed complete; local final name was not committed and the connection was closed.", e);
         }
+        if (!gate.markReadyToCommit()) {
+            hardClose();
+            throw new IOException("Download cancelled after transfer completion; local final name was not committed.");
+        }
     }
 
     synchronized String pwd() throws IOException {
@@ -241,10 +264,32 @@ final class FtpSession implements Closeable {
         return connected;
     }
 
+    TransferCommitGate.CancelDisposition cancelActiveTransfer(TransferCommitGate gate) {
+        TransferCommitGate.CancelDisposition disposition = gate == null
+                ? TransferCommitGate.CancelDisposition.INTERRUPT_IO
+                : gate.requestCancel();
+        if (disposition == TransferCommitGate.CancelDisposition.TOO_LATE
+                || disposition == TransferCommitGate.CancelDisposition.ALREADY_CANCELLED) {
+            return disposition;
+        }
+        if (disposition == TransferCommitGate.CancelDisposition.CLEANUP_STAGING) {
+            closeQuietly(activeDataSocket);
+            return disposition;
+        }
+        connected = false;
+        closeQuietly(activeDataSocket);
+        closeQuietly(controlSocket);
+        return disposition;
+    }
+
     void cancelActiveTransfer() {
         connected = false;
         closeQuietly(activeDataSocket);
         closeQuietly(controlSocket);
+    }
+
+    void closeCancelledTransferSession() {
+        hardClose();
     }
 
     @Override

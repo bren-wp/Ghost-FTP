@@ -82,7 +82,9 @@ public final class MainActivity extends Activity {
     private FtpSession session;
     private boolean busy;
     private volatile boolean transferActive;
+    private volatile boolean transferFinalizing;
     private volatile long transferGeneration;
+    private volatile TransferCommitGate activeTransferGate;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -101,10 +103,22 @@ public final class MainActivity extends Activity {
     protected void onDestroy() {
         transferGeneration++;
         transferActive = false;
+        transferFinalizing = false;
+        TransferCommitGate gate = activeTransferGate;
+        activeTransferGate = null;
         FtpSession current = session;
         session = null;
         connectedIdentityKey = null;
-        if (current != null) current.cancelActiveTransfer();
+        if (current != null) {
+            if (gate == null) {
+                current.cancelActiveTransfer();
+            } else {
+                TransferCommitGate.CancelDisposition disposition = current.cancelActiveTransfer(gate);
+                if (disposition == TransferCommitGate.CancelDisposition.ALREADY_CANCELLED) {
+                    current.cancelActiveTransfer();
+                }
+            }
+        }
         io.shutdownNow();
         super.onDestroy();
     }
@@ -495,17 +509,45 @@ public final class MainActivity extends Activity {
 
     private void cancelTransfer() {
         if (!transferActive) return;
+        FtpSession current = session;
+        TransferCommitGate gate = activeTransferGate;
+        if (current == null || gate == null) {
+            transferGeneration++;
+            transferActive = false;
+            transferFinalizing = false;
+            activeTransferGate = null;
+            if (current != null) current.cancelActiveTransfer();
+            busy = false;
+            setStatus("Transfer cancelled. Connection closed; reconnect before another transfer.");
+            refreshButtons();
+            return;
+        }
+
+        TransferCommitGate.CancelDisposition disposition = current.cancelActiveTransfer(gate);
+        if (disposition == TransferCommitGate.CancelDisposition.TOO_LATE) {
+            transferFinalizing = true;
+            setStatus("Finalizing transfer. The final-name commit has started and cannot be cancelled safely.");
+            refreshButtons();
+            return;
+        }
+        if (disposition == TransferCommitGate.CancelDisposition.ALREADY_CANCELLED) {
+            return;
+        }
+
         transferGeneration++;
         transferActive = false;
-        FtpSession current = session;
+        transferFinalizing = false;
+        activeTransferGate = null;
         session = null;
         connectedIdentityKey = null;
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
-        if (current != null) current.cancelActiveTransfer();
+        busy = false;
         renderRemote();
-        setStatus("Cancelling active transfer. Connection closed; reconnect before another transfer.");
+        setStatus(disposition == TransferCommitGate.CancelDisposition.CLEANUP_STAGING
+                ? "Cancellation accepted. Cleaning staged data before closing the session."
+                : "Transfer cancelled. Connection closed; reconnect before another transfer.");
         refreshButtons();
     }
 
@@ -820,28 +862,32 @@ public final class MainActivity extends Activity {
         LocalEntry entry = localEntries.get(selectedLocal);
         Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
         String remoteBase = currentRemotePath;
-        long transferToken = beginTransfer("Uploading " + entry.name + "…");
-        TransferProgress progress = transferProgress(entry.size, "Uploading", current, transferToken);
+        TransferAttempt attempt = beginTransfer("Uploading " + entry.name + "…");
+        TransferProgress progress = transferProgress(entry.size, "Uploading", current, attempt);
         io.execute(() -> {
             try {
-                requireTransferCurrent(transferToken);
+                requireTransferCurrent(attempt);
                 InputStream source = getContentResolver().openInputStream(document);
                 if (source == null) throw new IOException("Could not open local file.");
                 try (InputStream in = ProgressStreams.input(source, progress::onTransferred)) {
-                    requireTransferCurrent(transferToken);
-                    current.upload(FtpSession.joinRemote(remoteBase, entry.name), in);
+                    requireTransferCurrent(attempt);
+                    current.upload(FtpSession.joinRemote(remoteBase, entry.name), in, attempt.gate);
                 }
-                transferActive = false;
+                if (transferCancelled(attempt.token)) {
+                    current.close();
+                    return;
+                }
                 runOnUiThread(() -> {
-                    if (transferCancelled(transferToken) || session != current || !current.isConnected()) {
-                        setBusy(false, "Upload commit raced with cancellation or connection loss. Reconnect and refresh the server before retrying.");
+                    if (!finishTransferState(attempt)) return;
+                    if (session != current || !current.isConnected()) {
+                        setBusy(false, "Upload finalization lost its connection. Reconnect and refresh before retrying.");
                         return;
                     }
                     setBusy(false, "Upload completed: " + entry.name);
                     refreshRemote(currentRemotePath);
                 });
             } catch (Exception e) {
-                finishTransferFailure(transferToken, current, "Upload failed", e, false);
+                finishTransferFailure(attempt, current, "Upload failed", e, false);
             }
         });
     }
@@ -854,31 +900,32 @@ public final class MainActivity extends Activity {
         String selectedDocumentId = currentDocumentId;
         Uri parent = DocumentsContract.buildDocumentUriUsingTree(selectedTree, selectedDocumentId);
         String remoteBase = currentRemotePath;
-        long transferToken = beginTransfer("Downloading " + entry.name + " to a staged local document…");
-        TransferProgress progress = transferProgress(entry.size, "Downloading", current, transferToken);
+        TransferAttempt attempt = beginTransfer("Downloading " + entry.name + " to a staged local document…");
+        TransferProgress progress = transferProgress(entry.size, "Downloading", current, attempt);
         io.execute(() -> {
             Uri staged = null;
             try {
-                requireTransferCurrent(transferToken);
+                requireTransferCurrent(attempt);
                 ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,
                         "A local item with this exact name already exists. Remove or rename it before downloading.");
-                requireTransferCurrent(transferToken);
+                requireTransferCurrent(attempt);
 
                 String stagedName = ".ghostftp-download-" + UUID.randomUUID() + ".part";
                 staged = DocumentsContract.createDocument(getContentResolver(), parent, "application/octet-stream", stagedName);
                 if (staged == null) throw new IOException("Could not create staged local download document.");
 
-                requireTransferCurrent(transferToken);
+                requireTransferCurrent(attempt);
                 OutputStream destination = getContentResolver().openOutputStream(staged, "w");
                 if (destination == null) throw new IOException("Could not open staged local download document.");
                 try (OutputStream out = ProgressStreams.output(destination, progress::onTransferred)) {
-                    current.download(FtpSession.joinRemote(remoteBase, entry.name), out);
+                    current.download(FtpSession.joinRemote(remoteBase, entry.name), out, attempt.gate);
                 }
-                requireTransferCurrent(transferToken);
+                requireTransferCurrent(attempt);
 
                 ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,
                         "A local item with the destination name appeared during download; staged data was not committed.");
-                requireTransferCurrent(transferToken);
+                requireTransferCurrent(attempt);
+                beginFinalCommit(attempt, "Finalizing download name…");
 
                 Uri committed = DocumentsContract.renameDocument(getContentResolver(), staged, entry.name);
                 if (committed == null) throw new IOException("Storage provider rejected the final download name commit.");
@@ -887,13 +934,18 @@ public final class MainActivity extends Activity {
                 if (!entry.name.equals(committedName)) {
                     throw new IOException("Storage provider changed the requested final download name; commit was rejected.");
                 }
+                attempt.gate.finish();
                 staged = null;
-                transferActive = false;
 
+                if (transferCancelled(attempt.token)) {
+                    current.close();
+                    return;
+                }
                 runOnUiThread(() -> {
-                    if (transferCancelled(transferToken) || session != current || !current.isConnected()) {
+                    if (!finishTransferState(attempt)) return;
+                    if (session != current || !current.isConnected()) {
                         refreshLocal();
-                        setBusy(false, "Download committed before cancellation or connection loss took effect. Connection closed; reconnect before another transfer.");
+                        setBusy(false, "Download committed, but the connection was lost during finalization. Reconnect before another transfer.");
                         return;
                     }
                     setBusy(false, "Download completed and committed: " + entry.name);
@@ -903,39 +955,72 @@ public final class MainActivity extends Activity {
                 if (staged != null) {
                     try { DocumentsContract.deleteDocument(getContentResolver(), staged); } catch (Exception ignored) { }
                 }
-                finishTransferFailure(transferToken, current, "Download failed", e, true);
+                if (attempt.gate.isCancelled()) {
+                    current.closeCancelledTransferSession();
+                }
+                finishTransferFailure(attempt, current, "Download failed", e, true);
             }
         });
     }
 
-    private TransferProgress transferProgress(long totalBytes, String action, FtpSession current, long token) {
+    private TransferProgress transferProgress(long totalBytes, String action, FtpSession current, TransferAttempt attempt) {
         return new TransferProgress(totalBytes, action, text -> runOnUiThread(() -> {
-            if (!transferActive || transferCancelled(token) || session != current || !current.isConnected()) return;
+            if (!isTransferCurrent(attempt) || !current.isConnected()) return;
             setStatus(text);
         }));
     }
 
-    private long beginTransfer(String message) {
-        transferActive = true;
+    private TransferAttempt beginTransfer(String message) {
+        TransferCommitGate gate = new TransferCommitGate();
         long token = ++transferGeneration;
+        activeTransferGate = gate;
+        transferActive = true;
+        transferFinalizing = false;
         setBusy(true, message);
-        return token;
+        return new TransferAttempt(token, gate);
     }
 
     private boolean transferCancelled(long token) {
         return token != transferGeneration;
     }
 
-    private void requireTransferCurrent(long token) throws IOException {
-        if (transferCancelled(token)) {
+    private boolean isTransferCurrent(TransferAttempt attempt) {
+        return attempt != null
+                && attempt.token == transferGeneration
+                && activeTransferGate == attempt.gate;
+    }
+
+    private void requireTransferCurrent(TransferAttempt attempt) throws IOException {
+        if (!isTransferCurrent(attempt) || attempt.gate.isCancelled()) {
             throw new IOException("Transfer cancelled.");
         }
     }
 
-    private void finishTransferFailure(long token, FtpSession current, String prefix, Exception e, boolean refreshLocalAfter) {
-        boolean cancelled = transferCancelled(token);
-        transferActive = false;
+    private void beginFinalCommit(TransferAttempt attempt, String message) throws IOException {
+        requireTransferCurrent(attempt);
+        if (!attempt.gate.beginCommit()) {
+            throw new IOException("Transfer cancelled before final-name commit.");
+        }
+        transferFinalizing = true;
         runOnUiThread(() -> {
+            if (!isTransferCurrent(attempt)) return;
+            setStatus(message);
+            refreshButtons();
+        });
+    }
+
+    private boolean finishTransferState(TransferAttempt attempt) {
+        if (!isTransferCurrent(attempt)) return false;
+        transferActive = false;
+        transferFinalizing = false;
+        activeTransferGate = null;
+        return true;
+    }
+
+    private void finishTransferFailure(TransferAttempt attempt, FtpSession current, String prefix, Exception e, boolean refreshLocalAfter) {
+        boolean cancelled = attempt.gate.isCancelled() || transferCancelled(attempt.token);
+        runOnUiThread(() -> {
+            if (!finishTransferState(attempt)) return;
             if (session == current && !current.isConnected()) {
                 session = null;
                 connectedIdentityKey = null;
@@ -1013,8 +1098,8 @@ public final class MainActivity extends Activity {
         boolean activeSite = profile != null;
         boolean connectedSite = activeSite && connected && connectedIdentityKey != null && profile.identityKey().equals(connectedIdentityKey);
         connect.setEnabled(!busy && !connected);
-        disconnect.setText(transferActive ? "Cancel transfer" : "Disconnect");
-        disconnect.setEnabled(transferActive || (!busy && connected));
+        disconnect.setText(transferFinalizing ? "Finalizing…" : transferActive ? "Cancel transfer" : "Disconnect");
+        disconnect.setEnabled((transferActive && !transferFinalizing) || (!busy && connected));
         upload.setEnabled(!busy && connected && selectedLocal >= 0);
         download.setEnabled(!busy && connected && selectedRemote >= 0 && treeUri != null);
         saveSite.setEnabled(!busy && !connected);
@@ -1107,6 +1192,16 @@ public final class MainActivity extends Activity {
     private LinearLayout.LayoutParams weighted() { return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f); }
     private LinearLayout.LayoutParams matchWrap() { return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT); }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+
+    private static final class TransferAttempt {
+        final long token;
+        final TransferCommitGate gate;
+
+        TransferAttempt(long token, TransferCommitGate gate) {
+            this.token = token;
+            this.gate = gate;
+        }
+    }
 
     private static final class LocalEntry {
         final String documentId;
