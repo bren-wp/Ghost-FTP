@@ -225,11 +225,12 @@ wait_ui() {
 # Android 35 can omit the programmatically created drawer buttons from the
 # uiautomator hierarchy even though they are visibly rendered and clickable.
 # In that case, anchor the fallback to the *rendered* active Files selection
-# (#202F50) in the already captured navigation screenshot. This measures the
-# real row center after Android has applied font metrics, density and layout;
-# only the fixed 48dp row height + 5dp margin from MainActivity is then used as
-# the pitch. The post-tap section title remains authoritative, so a coordinate
-# fallback can never produce PASS unless the requested section actually opened.
+# (#202F50) in the already captured navigation screenshot. The search is
+# deliberately restricted to MainActivity's 286dp drawer width so similarly
+# colored status badges in the app bar can never become the anchor. This
+# measures the real row center after Android has applied font metrics, density
+# and layout; only the fixed 48dp row height + 5dp margin from MainActivity is
+# then used as the pitch. The post-tap section title remains authoritative.
 calibrate_navigation_geometry() {
   local screenshot="$OUTPUT_DIR/ghost-ftp-android-navigation.png"
   local dims=''
@@ -257,7 +258,16 @@ calibrate_navigation_geometry() {
     echo "Unable to read navigation screenshot dimensions: ${dims:-<none>}" >&2
     return 1
   }
-  crop_width=$((screen_width * 4 / 5))
+
+  density="$(timeout 10s adb shell wm density | tr -d '\r' | awk -F': ' '/Physical density/{v=$2} /Override density/{v=$2} END{print v}')"
+  [[ "$density" =~ ^[0-9]+$ ]] || {
+    echo "Unable to resolve emulator density for navigation calibration: ${density:-<none>}" >&2
+    return 1
+  }
+  button_height=$(((48 * density + 80) / 160))
+  row_margin=$(((5 * density + 80) / 160))
+  crop_width=$(((286 * density + 80) / 160))
+  (( crop_width > screen_width )) && crop_width="$screen_width"
   crop_height=$((screen_height * 3 / 5))
 
   geometry="$(convert "$screenshot" \
@@ -272,31 +282,24 @@ calibrate_navigation_geometry() {
     echo "Unable to resolve the active Files selection bounds: ${geometry:-<none>}" >&2
     return 1
   }
-  if (( box_x < 0 || box_y < 0 || box_width < screen_width / 4 || box_height < 20 || box_height > screen_height / 8 )); then
-    echo "Implausible active Files selection bounds: $geometry on ${screen_width}x${screen_height}" >&2
+  if (( box_x < 0 || box_y < 0 || box_width < crop_width / 2 \
+        || box_height < button_height / 2 || box_height > button_height * 2 )); then
+    echo "Implausible active Files selection bounds: $geometry in ${crop_width}x${crop_height} drawer crop" >&2
     return 1
   fi
-
-  density="$(timeout 10s adb shell wm density | tr -d '\r' | awk -F': ' '/Physical density/{v=$2} /Override density/{v=$2} END{print v}')"
-  [[ "$density" =~ ^[0-9]+$ ]] || {
-    echo "Unable to resolve emulator density for navigation row pitch: ${density:-<none>}" >&2
-    return 1
-  }
-  button_height=$(((48 * density + 80) / 160))
-  row_margin=$(((5 * density + 80) / 160))
 
   NAV_ANCHOR_X=$((box_x + box_width / 2))
   NAV_FILES_Y=$((box_y + box_height / 2))
   NAV_ROW_PITCH=$((button_height + row_margin))
-  if (( NAV_ANCHOR_X <= 0 || NAV_FILES_Y <= 0 || NAV_ROW_PITCH <= 0 \
+  if (( NAV_ANCHOR_X <= 0 || NAV_ANCHOR_X >= crop_width || NAV_FILES_Y <= 0 || NAV_ROW_PITCH <= 0 \
         || NAV_FILES_Y + 5 * NAV_ROW_PITCH >= screen_height )); then
     echo "Implausible navigation calibration: X=$NAV_ANCHOR_X FILES_Y=$NAV_FILES_Y PITCH=$NAV_ROW_PITCH" >&2
     return 1
   fi
 
-  printf 'ANDROID_NAV_CALIBRATION=PASS X=%s FILES_Y=%s ROW_PITCH=%s SELECTION_BOUNDS=%sx%s+%s+%s DENSITY=%s\n' \
+  printf 'ANDROID_NAV_CALIBRATION=PASS X=%s FILES_Y=%s ROW_PITCH=%s SELECTION_BOUNDS=%sx%s+%s+%s DRAWER_WIDTH=%s DENSITY=%s\n' \
     "$NAV_ANCHOR_X" "$NAV_FILES_Y" "$NAV_ROW_PITCH" \
-    "$box_width" "$box_height" "$box_x" "$box_y" "$density"
+    "$box_width" "$box_height" "$box_x" "$box_y" "$crop_width" "$density"
 }
 
 tap_nav_section() {
