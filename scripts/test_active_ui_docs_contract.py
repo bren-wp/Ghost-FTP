@@ -102,9 +102,9 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             "AUTHENTIC_UI_EVIDENCE=VERIFIED",
         ):
             self.assertIn(marker, assembly)
-        self.assertEqual(assembly.count('(\"windows/'), 5)
-        self.assertEqual(assembly.count('(\"linux/'), 3)
-        self.assertEqual(assembly.count('(\"android/'), 7)
+        self.assertEqual(assembly.count('("windows/'), 5)
+        self.assertEqual(assembly.count('("linux/'), 3)
+        self.assertEqual(assembly.count('("android/'), 7)
 
         for forbidden in (
             "contents: write",
