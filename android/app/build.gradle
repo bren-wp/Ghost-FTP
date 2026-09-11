@@ -2,25 +2,10 @@ plugins {
     id 'com.android.application'
 }
 
-android {
-    namespace 'com.brendigo.ghostftp'
-    compileSdk 35
-
-    defaultConfig {
-        applicationId 'com.brendigo.ghostftp'
-        minSdk 26
-        targetSdk 35
-        versionCode 4
-        versionName '0.0.4-dev'
     }
 
     buildTypes {
         debug {
-            minifyEnabled false
-        }
-        release {
-            minifyEnabled true
-            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -32,16 +17,3 @@ android {
 
     lint {
         abortOnError true
-        checkReleaseBuilds true
-    }
-
-    packaging {
-        resources {
-            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt']
-        }
-    }
-}
-
-dependencies {
-    implementation 'com.github.mwiede:jsch:2.28.7'
-}

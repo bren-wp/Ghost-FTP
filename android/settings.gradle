@@ -1,4 +1,3 @@
-import org.gradle.api.initialization.resolve.RepositoriesMode
 
 pluginManagement {
     repositories {
@@ -15,6 +14,3 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-
-rootProject.name = 'GhostFTPAndroid'
-include ':app'

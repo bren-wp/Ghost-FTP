@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify canonical Ghost FTP versioning across Windows/Linux release surfaces."""
+"""Verify canonical Ghost FTP versioning across public release and active source surfaces."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.1"
-RETIRED_ROOTS = ("android", "ios", "macos", "GhostFTP WEB")
+RETIRED_ROOTS = ("ios", "macos", "GhostFTP WEB")
 CURRENT_LINE_DOCS = (
     "README.md",
     "CHANGELOG.md",
@@ -72,11 +72,7 @@ def main() -> int:
             fail(f"{rel} hard-codes a production version")
 
     brand_version = read("internal/brand/version.go")
-    require(
-        brand_version,
-        ('strings.TrimSpace(version)', 'return "dev"', 'return version'),
-        "internal/brand/version.go",
-    )
+    require(brand_version, ('strings.TrimSpace(version)', 'return "dev"', 'return version'), "internal/brand/version.go")
     if 'return version + " Beta"' in brand_version or 'strings.HasPrefix(version, "0.")' in brand_version:
         fail("product display version must not infer prerelease status from major version 0")
 
@@ -129,17 +125,9 @@ def main() -> int:
                 fail(f"active current-line documentation contains retired public identity {match.group(0)!r}: {rel}")
 
     windows_build = read("BUILD-WINDOWS.ps1")
-    require(
-        windows_build,
-        ("Get-Content -LiteralPath $versionFile", "-X main.version=$version", "WINDOWS_PUBLIC_EXECUTABLES=2"),
-        "BUILD-WINDOWS.ps1",
-    )
+    require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version", "WINDOWS_PUBLIC_EXECUTABLES=2"), "BUILD-WINDOWS.ps1")
     windows_stage = read("BUILD-WINDOWS-ARCH-STAGE.ps1")
-    require(
-        windows_stage,
-        ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"),
-        "BUILD-WINDOWS-ARCH-STAGE.ps1",
-    )
+    require(windows_stage, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS-ARCH-STAGE.ps1")
     linux_build = read("linux/BUILD.sh")
     require(linux_build, ("< VERSION", "-X main.version=${VERSION}"), "linux/BUILD.sh")
     linux_distro_build = read("linux/BUILD-DISTROS.sh")
@@ -161,6 +149,31 @@ def main() -> int:
     if "@VERSION@" not in linux_control or re.search(r"(?m)^Version:\s*\d+\.\d+\.\d+", linux_control):
         fail("Linux DEB metadata is not bound to VERSION")
 
+    android_build = read("android/app/build.gradle")
+    require(
+        android_build,
+        (
+            "rootProject.file('../VERSION').text.trim()",
+            'versionName "${ghostFtpVersion}-dev"',
+            "namespace 'app.ghostftp.client'",
+            "applicationId 'app.ghostftp.client'",
+            "tasks.register('packageGhostFtpApk', Copy)",
+            "'Ghost-FTP-Android.apk'",
+        ),
+        "android/app/build.gradle",
+    )
+    android_workflow = read(".github/workflows/android-apk.yml")
+    require(
+        android_workflow,
+        (
+            "Ghost FTP Android APK",
+            "packageGhostFtpApk",
+            "android/dist/Ghost-FTP-Android.apk",
+            "name: ghostftp-android-apk",
+        ),
+        ".github/workflows/android-apk.yml",
+    )
+
     for retired in RETIRED_ROOTS:
         if (ROOT / retired).exists():
             fail(f"retired application surface must be removed: {retired}/")
@@ -175,11 +188,13 @@ def main() -> int:
             fail(f"{workflow_rel} does not pin Go {GO_TOOLCHAIN}")
         require(workflow, ("windows:", "linux:", linux_marker), workflow_rel)
         lowered = workflow.lower()
-        for marker in ("android/", "ios/", "macos/", "ghostftp web/", "runs-on: macos"):
+        for marker in ("ios/", "macos/", "ghostftp web/", "runs-on: macos"):
             if marker in lowered:
                 fail(f"{workflow_rel} references retired application marker: {marker}")
 
     release_workflow = read(".github/workflows/release.yml")
+    if "android/" in release_workflow.lower():
+        fail("published Windows/Linux release workflow must not retroactively include Android development artifacts")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded production version")
     require(
@@ -258,7 +273,9 @@ def main() -> int:
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
-    print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
+    print("ANDROID_VERSION_BOUND_TO_ROOT_VERSION=YES")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
