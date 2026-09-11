@@ -5,16 +5,22 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.UriPermission;
+import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.text.InputType;
+import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
@@ -36,12 +42,23 @@ import java.util.concurrent.Executors;
 public final class MainActivity extends Activity {
     private static final int REQUEST_TREE = 1001;
     private static final String PREFS = "ghostftp_android";
+    private static final int TABLET_SIDEBAR_MIN_DP = 700;
+
+    private enum Section {
+        FILES,
+        SITES,
+        BOOKMARKS,
+        TRANSFERS,
+        SETTINGS,
+        ABOUT
+    }
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final List<LocalEntry> localEntries = new ArrayList<>();
     private final List<RemoteEntry> remoteEntries = new ArrayList<>();
     private final Deque<String> localParents = new ArrayDeque<>();
     private final List<SiteProfile> profiles = new ArrayList<>();
+    private final List<Button> navigationButtons = new ArrayList<>();
 
     private Spinner siteSpinner;
     private Spinner protocol;
@@ -54,7 +71,12 @@ public final class MainActivity extends Activity {
     private EditText password;
     private TextView localPath;
     private TextView remotePath;
+    private TextView bookmarkLocalCurrent;
+    private TextView bookmarkRemoteCurrent;
     private TextView status;
+    private TextView transferStatus;
+    private TextView sectionTitle;
+    private TextView connectionBadge;
     private ListView localList;
     private ListView remoteList;
     private Button connect;
@@ -65,10 +87,28 @@ public final class MainActivity extends Activity {
     private Button deleteSite;
     private Button localSetStart;
     private Button localAddBookmark;
+    private Button localRemoveBookmark;
     private Button localOpenBookmark;
     private Button remoteSetStart;
     private Button remoteAddBookmark;
+    private Button remoteRemoveBookmark;
     private Button remoteOpenBookmark;
+    private Button transferCancel;
+    private CheckBox rememberEndpointToggle;
+    private CheckBox showFileSizesToggle;
+
+    private FrameLayout contentHost;
+    private LinearLayout navigationPanel;
+    private View drawerScrim;
+    private ImageButton menuToggle;
+    private View filesSurface;
+    private View sitesSurface;
+    private View bookmarksSurface;
+    private View transfersSurface;
+    private View settingsSurface;
+    private View aboutSurface;
+    private boolean tabletLayout;
+    private Section activeSection = Section.FILES;
 
     private SiteProfileStore profileStore;
     private String activeProfileId;
@@ -81,6 +121,8 @@ public final class MainActivity extends Activity {
     private int selectedRemote = -1;
     private FtpSession session;
     private boolean busy;
+    private boolean rememberEndpoint = true;
+    private boolean showFileSizes = true;
     private volatile boolean transferActive;
     private volatile boolean transferFinalizing;
     private volatile long transferGeneration;
@@ -96,7 +138,10 @@ public final class MainActivity extends Activity {
         restorePreferences();
         renderSites();
         renderBookmarks();
+        renderLocal();
+        renderRemote();
         refreshButtons();
+        showSection(Section.FILES);
     }
 
     @Override
@@ -123,138 +168,471 @@ public final class MainActivity extends Activity {
         super.onDestroy();
     }
 
+    @SuppressWarnings("deprecation")
+    @Override
+    public void onBackPressed() {
+        if (!tabletLayout && navigationPanel != null && navigationPanel.getVisibility() == View.VISIBLE) {
+            closeNavigationDrawer();
+            return;
+        }
+        super.onBackPressed();
+    }
+
     private void buildUi() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(14);
-        root.setPadding(pad, pad, pad, pad);
-        root.setBackgroundColor(Color.rgb(16, 19, 23));
-        root.addView(label("GHOST FTP · ANDROID", 22, Color.WHITE));
-        root.addView(label("Private FTP/FTPS client · no telemetry · passwords are never saved", 13, Color.LTGRAY));
+        tabletLayout = getResources().getConfiguration().screenWidthDp >= TABLET_SIDEBAR_MIN_DP;
 
-        root.addView(section("SAVED SITES"));
-        siteSpinner = new Spinner(this);
-        root.addView(siteSpinner, matchWrap());
-        profileName = field("Site name", false);
-        root.addView(profileName, matchWrap());
-        LinearLayout siteActions = row();
-        Button loadSite = button("Load");
-        saveSite = button("Save / update");
-        deleteSite = button("Delete");
-        siteActions.addView(loadSite, weighted());
-        siteActions.addView(saveSite, weighted());
-        siteActions.addView(deleteSite, weighted());
-        root.addView(siteActions, matchWrap());
-        loadSite.setOnClickListener(v -> loadSelectedSite());
-        saveSite.setOnClickListener(v -> saveOrUpdateSite());
-        deleteSite.setOnClickListener(v -> deleteActiveSite());
+        FrameLayout shell = new FrameLayout(this);
+        shell.setBackgroundColor(GhostTheme.WINDOW);
 
-        root.addView(section("QUICK CONNECT / SITE CONNECTION"));
+        if (tabletLayout) {
+            LinearLayout body = new LinearLayout(this);
+            body.setOrientation(LinearLayout.HORIZONTAL);
+            body.setBackgroundColor(GhostTheme.WINDOW);
+            navigationPanel = buildNavigationPanel();
+            body.addView(navigationPanel, new LinearLayout.LayoutParams(dp(236), ViewGroup.LayoutParams.MATCH_PARENT));
+            body.addView(buildMainColumn(), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+            shell.addView(body, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        } else {
+            shell.addView(buildMainColumn(), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+            drawerScrim = new View(this);
+            drawerScrim.setBackgroundColor(0x99000000);
+            drawerScrim.setVisibility(View.GONE);
+            drawerScrim.setOnClickListener(v -> closeNavigationDrawer());
+            shell.addView(drawerScrim, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+            navigationPanel = buildNavigationPanel();
+            navigationPanel.setVisibility(View.GONE);
+            FrameLayout.LayoutParams drawerParams = new FrameLayout.LayoutParams(dp(286), ViewGroup.LayoutParams.MATCH_PARENT);
+            drawerParams.gravity = Gravity.START;
+            shell.addView(navigationPanel, drawerParams);
+        }
+
+        setContentView(shell);
+    }
+
+    private LinearLayout buildMainColumn() {
+        LinearLayout main = new LinearLayout(this);
+        main.setOrientation(LinearLayout.VERTICAL);
+        main.setBackgroundColor(GhostTheme.WINDOW);
+
+        LinearLayout appBar = new LinearLayout(this);
+        appBar.setOrientation(LinearLayout.HORIZONTAL);
+        appBar.setGravity(Gravity.CENTER_VERTICAL);
+        appBar.setPadding(dp(12), dp(10), dp(12), dp(10));
+        appBar.setBackgroundColor(GhostTheme.PANEL);
+
+        menuToggle = new ImageButton(this);
+        menuToggle.setImageResource(R.drawable.ic_menu);
+        menuToggle.setImageTintList(ColorStateList.valueOf(GhostTheme.TEXT));
+        menuToggle.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
+        menuToggle.setContentDescription("Open navigation");
+        menuToggle.setPadding(dp(10), dp(10), dp(10), dp(10));
+        menuToggle.setOnClickListener(v -> openNavigationDrawer());
+        menuToggle.setVisibility(tabletLayout ? View.GONE : View.VISIBLE);
+        appBar.addView(menuToggle, new LinearLayout.LayoutParams(dp(44), dp(44)));
+
+        LinearLayout titleStack = new LinearLayout(this);
+        titleStack.setOrientation(LinearLayout.VERTICAL);
+        titleStack.setPadding(dp(12), 0, dp(8), 0);
+        TextView brand = label("GHOST FTP", 16, GhostTheme.TEXT);
+        brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        sectionTitle = label("Files", 12, GhostTheme.MUTED);
+        titleStack.addView(brand, matchWrap());
+        titleStack.addView(sectionTitle, matchWrap());
+        appBar.addView(titleStack, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        connectionBadge = label("DISCONNECTED", 10, GhostTheme.MUTED);
+        GhostTheme.styleBadge(connectionBadge, GhostTheme.MUTED);
+        appBar.addView(connectionBadge, wrapWrap());
+        main.addView(appBar, matchWrap());
+
+        status = label("Ready.", 12, GhostTheme.MUTED);
+        status.setPadding(dp(14), dp(9), dp(14), dp(9));
+        status.setBackgroundColor(GhostTheme.WINDOW);
+        main.addView(status, matchWrap());
+
+        contentHost = new FrameLayout(this);
+        contentHost.setBackgroundColor(GhostTheme.WINDOW);
+        main.addView(contentHost, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        filesSurface = buildFilesSurface();
+        sitesSurface = buildSitesSurface();
+        bookmarksSurface = buildBookmarksSurface();
+        transfersSurface = buildTransfersSurface();
+        settingsSurface = buildSettingsSurface();
+        aboutSurface = buildAboutSurface();
+        addSurface(filesSurface);
+        addSurface(sitesSurface);
+        addSurface(bookmarksSurface);
+        addSurface(transfersSurface);
+        addSurface(settingsSurface);
+        addSurface(aboutSurface);
+        return main;
+    }
+
+    private LinearLayout buildNavigationPanel() {
+        LinearLayout navigation = new LinearLayout(this);
+        navigation.setOrientation(LinearLayout.VERTICAL);
+        navigation.setPadding(dp(12), dp(18), dp(12), dp(18));
+        navigation.setBackgroundColor(GhostTheme.PANEL);
+
+        TextView product = label("Ghost FTP", 20, GhostTheme.TEXT);
+        product.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        navigation.addView(product, matchWrap());
+        TextView platform = label("Android development client", 11, GhostTheme.MUTED);
+        platform.setPadding(0, dp(2), 0, dp(18));
+        navigation.addView(platform, matchWrap());
+
+        navigation.addView(navButton("Files", R.drawable.ic_files, Section.FILES), navParams());
+        navigation.addView(navButton("Sites", R.drawable.ic_sites, Section.SITES), navParams());
+        navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
+        navigation.addView(navButton("Transfers", R.drawable.ic_transfers, Section.TRANSFERS), navParams());
+        navigation.addView(navButton("Settings", R.drawable.ic_settings, Section.SETTINGS), navParams());
+        navigation.addView(navButton("About", R.drawable.ic_about, Section.ABOUT), navParams());
+
+        TextView privacy = label("No telemetry · no ads · no Ghost FTP cloud", 10, GhostTheme.MUTED);
+        privacy.setPadding(dp(4), dp(18), dp(4), 0);
+        navigation.addView(privacy, matchWrap());
+        return navigation;
+    }
+
+    private Button navButton(String text, int iconRes, Section section) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        button.setCompoundDrawablesWithIntrinsicBounds(iconRes, 0, 0, 0);
+        button.setCompoundDrawablePadding(dp(12));
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.MUTED));
+        button.setTag(section);
+        button.setOnClickListener(v -> showSection((Section) v.getTag()));
+        navigationButtons.add(button);
+        styleNavigationButton(button, false);
+        return button;
+    }
+
+    private View buildFilesSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading("Files", "Local SAF storage and the active FTP/FTPS server. Only this workspace owns file selection and transfer actions."));
+
+        LinearLayout panes = new LinearLayout(this);
+        boolean wideFiles = getResources().getConfiguration().screenWidthDp >= 900;
+        panes.setOrientation(wideFiles ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        LinearLayout localPane = buildLocalFilesCard();
+        LinearLayout remotePane = buildRemoteFilesCard();
+        if (wideFiles) {
+            panes.addView(localPane, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            LinearLayout.LayoutParams remoteParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            remoteParams.setMargins(dp(10), 0, 0, 0);
+            panes.addView(remotePane, remoteParams);
+        } else {
+            panes.addView(localPane, cardParams());
+            panes.addView(remotePane, cardParams());
+        }
+        content.addView(panes, matchWrap());
+
+        LinearLayout transferCard = card("TRANSFER", "Transfer only the selected file. Staged upload/download and cancellation safety remain authoritative.");
+        LinearLayout actions = row();
+        upload = primaryButton("Upload →");
+        download = primaryButton("← Download");
+        actions.addView(upload, weightedSpaced());
+        actions.addView(download, weightedSpaced());
+        transferCard.addView(actions, matchWrap());
+        upload.setOnClickListener(v -> uploadSelected());
+        download.setOnClickListener(v -> downloadSelected());
+        content.addView(transferCard, cardParams());
+        return scrollSurface(content);
+    }
+
+    private LinearLayout buildLocalFilesCard() {
+        LinearLayout card = card("LOCAL", "Android Storage Access Framework only; Ghost FTP never requests broad all-files access.");
+        localPath = pathLabel("No folder selected");
+        card.addView(localPath, matchWrapSpaced());
+        LinearLayout actions = row();
+        Button choose = button("Choose folder");
+        Button up = button("Up");
+        Button refresh = button("Refresh");
+        actions.addView(choose, weightedSpaced());
+        actions.addView(up, weightedSpaced());
+        actions.addView(refresh, weightedSpaced());
+        card.addView(actions, matchWrap());
+        choose.setOnClickListener(v -> chooseFolder());
+        up.setOnClickListener(v -> localUp());
+        refresh.setOnClickListener(v -> refreshLocal());
+        localList = new ListView(this);
+        GhostTheme.styleList(localList);
+        card.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
+        localList.setOnItemClickListener((parent, view, position, id) -> selectLocal(position));
+        return card;
+    }
+
+    private LinearLayout buildRemoteFilesCard() {
+        LinearLayout card = card("SERVER", "Fresh MLSD listings over the active FTP/FTPS session; FTPS keeps strict TLS and hostname verification.");
+        remotePath = pathLabel(currentRemotePath);
+        card.addView(remotePath, matchWrapSpaced());
+        LinearLayout actions = row();
+        Button up = button("Up");
+        Button refresh = button("Refresh");
+        actions.addView(up, weightedSpaced());
+        actions.addView(refresh, weightedSpaced());
+        card.addView(actions, matchWrap());
+        up.setOnClickListener(v -> remoteUp());
+        refresh.setOnClickListener(v -> refreshRemote(currentRemotePath));
+        remoteList = new ListView(this);
+        GhostTheme.styleList(remoteList);
+        card.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
+        remoteList.setOnItemClickListener((parent, view, position, id) -> selectRemote(position));
+        return card;
+    }
+
+    private View buildSitesSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading("Sites", "Quick Connect stays transient. Saved sites contain non-secret connection and navigation metadata only."));
+
+        LinearLayout connectionCard = card("QUICK CONNECT / CONNECTION", "Password is memory-only. Android currently exposes FTP and strict explicit FTPS; SFTP stays hidden until strict host-key verification exists.");
         protocol = new Spinner(this);
-        protocol.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"FTPS", "FTP"}));
-        root.addView(protocol, matchWrap());
+        GhostTheme.styleSpinner(protocol);
+        protocol.setAdapter(GhostTheme.spinnerAdapter(this, java.util.Arrays.asList(new String[]{"FTPS", "FTP"})));
+        connectionCard.addView(protocol, matchWrapSpaced());
         host = field("Server host", false);
         port = field("Port", false);
         port.setInputType(InputType.TYPE_CLASS_NUMBER);
         username = field("Username", false);
         password = field("Password (memory only)", true);
-        root.addView(host, matchWrap());
-        root.addView(port, matchWrap());
-        root.addView(username, matchWrap());
-        root.addView(password, matchWrap());
-
-        LinearLayout connection = row();
-        connect = button("Connect");
-        disconnect = button("Disconnect");
-        connection.addView(connect, weighted());
-        connection.addView(disconnect, weighted());
-        root.addView(connection, matchWrap());
+        connectionCard.addView(host, matchWrapSpaced());
+        LinearLayout credentials = row();
+        credentials.addView(port, fixedWidthSpaced(96));
+        credentials.addView(username, weightedSpaced());
+        connectionCard.addView(credentials, matchWrap());
+        connectionCard.addView(password, matchWrapSpaced());
+        LinearLayout connectionActions = row();
+        connect = primaryButton("Connect");
+        disconnect = dangerButton("Disconnect");
+        connectionActions.addView(connect, weightedSpaced());
+        connectionActions.addView(disconnect, weightedSpaced());
+        connectionCard.addView(connectionActions, matchWrap());
         connect.setOnClickListener(v -> connect());
         disconnect.setOnClickListener(v -> disconnect());
+        content.addView(connectionCard, cardParams());
 
-        root.addView(section("LOCAL STORAGE"));
-        localPath = label("No folder selected", 14, Color.LTGRAY);
-        root.addView(localPath);
+        LinearLayout savedCard = card("SAVED SITES", "Load, create, update or delete an explicit saved site. Quick Connect never creates hidden profiles.");
+        siteSpinner = new Spinner(this);
+        GhostTheme.styleSpinner(siteSpinner);
+        savedCard.addView(siteSpinner, matchWrapSpaced());
+        profileName = field("Site name", false);
+        savedCard.addView(profileName, matchWrapSpaced());
+        LinearLayout actions = row();
+        Button load = button("Load");
+        saveSite = primaryButton("Save / update");
+        deleteSite = dangerButton("Delete");
+        actions.addView(load, weightedSpaced());
+        actions.addView(saveSite, weightedSpaced());
+        actions.addView(deleteSite, weightedSpaced());
+        savedCard.addView(actions, matchWrap());
+        load.setOnClickListener(v -> loadSelectedSite());
+        saveSite.setOnClickListener(v -> saveOrUpdateSite());
+        deleteSite.setOnClickListener(v -> deleteActiveSite());
+        content.addView(savedCard, cardParams());
+        return scrollSurface(content);
+    }
+
+    private View buildBookmarksSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading("Bookmarks", "Navigation state is explicit and account-bound. Quick Connect does not create hidden bookmarks."));
+
+        LinearLayout localCard = card("LOCAL SAF BOOKMARKS", "Local starts/bookmarks are SAF capability URIs and are freshly revalidated before navigation.");
+        bookmarkLocalCurrent = pathLabel("No folder selected");
+        localCard.addView(bookmarkLocalCurrent, matchWrapSpaced());
         LinearLayout localActions = row();
-        Button choose = button("Choose folder");
-        Button localUp = button("Up");
-        localActions.addView(choose, weighted());
-        localActions.addView(localUp, weighted());
-        root.addView(localActions, matchWrap());
-        choose.setOnClickListener(v -> chooseFolder());
-        localUp.setOnClickListener(v -> localUp());
-
-        LinearLayout localProfileActions = row();
-        localSetStart = button("Set site start");
-        localAddBookmark = button("Add bookmark");
-        localProfileActions.addView(localSetStart, weighted());
-        localProfileActions.addView(localAddBookmark, weighted());
-        root.addView(localProfileActions, matchWrap());
+        localSetStart = button("Set start");
+        localAddBookmark = primaryButton("Add");
+        localRemoveBookmark = dangerButton("Remove");
+        localActions.addView(localSetStart, weightedSpaced());
+        localActions.addView(localAddBookmark, weightedSpaced());
+        localActions.addView(localRemoveBookmark, weightedSpaced());
+        localCard.addView(localActions, matchWrap());
         localSetStart.setOnClickListener(v -> setLocalStart());
         localAddBookmark.setOnClickListener(v -> addLocalBookmark());
+        localRemoveBookmark.setOnClickListener(v -> removeLocalBookmark());
         localBookmarkSpinner = new Spinner(this);
-        root.addView(localBookmarkSpinner, matchWrap());
+        GhostTheme.styleSpinner(localBookmarkSpinner);
+        localCard.addView(localBookmarkSpinner, matchWrapSpaced());
         localOpenBookmark = button("Open local bookmark");
-        root.addView(localOpenBookmark, matchWrap());
+        localCard.addView(localOpenBookmark, matchWrapSpaced());
         localOpenBookmark.setOnClickListener(v -> openLocalBookmark());
+        content.addView(localCard, cardParams());
 
-        localList = new ListView(this);
-        root.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
-        localList.setOnItemClickListener((parent, view, position, id) -> selectLocal(position));
-
-        root.addView(section("SERVER"));
-        remotePath = label(currentRemotePath, 14, Color.LTGRAY);
-        root.addView(remotePath);
+        LinearLayout remoteCard = card("SERVER BOOKMARKS", "Remote paths are bound to protocol, canonical host, port and exact username, and are freshly listed before visible commit.");
+        bookmarkRemoteCurrent = pathLabel(currentRemotePath);
+        remoteCard.addView(bookmarkRemoteCurrent, matchWrapSpaced());
         LinearLayout remoteActions = row();
-        Button remoteRefresh = button("Refresh");
-        Button remoteUp = button("Up");
-        remoteActions.addView(remoteRefresh, weighted());
-        remoteActions.addView(remoteUp, weighted());
-        root.addView(remoteActions, matchWrap());
-        remoteRefresh.setOnClickListener(v -> refreshRemote(currentRemotePath));
-        remoteUp.setOnClickListener(v -> remoteUp());
-
-        LinearLayout remoteProfileActions = row();
-        remoteSetStart = button("Set site start");
-        remoteAddBookmark = button("Add bookmark");
-        remoteProfileActions.addView(remoteSetStart, weighted());
-        remoteProfileActions.addView(remoteAddBookmark, weighted());
-        root.addView(remoteProfileActions, matchWrap());
+        remoteSetStart = button("Set start");
+        remoteAddBookmark = primaryButton("Add");
+        remoteRemoveBookmark = dangerButton("Remove");
+        remoteActions.addView(remoteSetStart, weightedSpaced());
+        remoteActions.addView(remoteAddBookmark, weightedSpaced());
+        remoteActions.addView(remoteRemoveBookmark, weightedSpaced());
+        remoteCard.addView(remoteActions, matchWrap());
         remoteSetStart.setOnClickListener(v -> setRemoteStart());
         remoteAddBookmark.setOnClickListener(v -> addRemoteBookmark());
+        remoteRemoveBookmark.setOnClickListener(v -> removeRemoteBookmark());
         remoteBookmarkSpinner = new Spinner(this);
-        root.addView(remoteBookmarkSpinner, matchWrap());
+        GhostTheme.styleSpinner(remoteBookmarkSpinner);
+        remoteCard.addView(remoteBookmarkSpinner, matchWrapSpaced());
         remoteOpenBookmark = button("Open server bookmark");
-        root.addView(remoteOpenBookmark, matchWrap());
+        remoteCard.addView(remoteOpenBookmark, matchWrapSpaced());
         remoteOpenBookmark.setOnClickListener(v -> openRemoteBookmark());
+        content.addView(remoteCard, cardParams());
+        return scrollSurface(content);
+    }
 
-        remoteList = new ListView(this);
-        root.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
-        remoteList.setOnItemClickListener((parent, view, position, id) -> selectRemote(position));
+    private View buildTransfersSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading("Transfers", "This surface shows the real active transfer lifecycle. No decorative queue or fake history is displayed."));
+        LinearLayout card = card("ACTIVE TRANSFER", "Progress comes from actual bytes read/written. Cancellation is available only before the irreversible final-name commit gate.");
+        transferStatus = label("No active transfer.", 14, GhostTheme.MUTED);
+        transferStatus.setPadding(dp(10), dp(12), dp(10), dp(12));
+        transferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
+        card.addView(transferStatus, matchWrapSpaced());
+        transferCancel = dangerButton("Cancel active transfer");
+        transferCancel.setOnClickListener(v -> cancelTransfer());
+        card.addView(transferCancel, matchWrapSpaced());
+        Button openFiles = button("Open Files");
+        openFiles.setOnClickListener(v -> showSection(Section.FILES));
+        card.addView(openFiles, matchWrapSpaced());
+        content.addView(card, cardParams());
+        return scrollSurface(content);
+    }
 
-        LinearLayout transfers = row();
-        upload = button("Upload →");
-        download = button("← Download");
-        transfers.addView(upload, weighted());
-        transfers.addView(download, weighted());
-        root.addView(transfers, matchWrap());
-        upload.setOnClickListener(v -> uploadSelected());
-        download.setOnClickListener(v -> downloadSelected());
+    private View buildSettingsSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading("Settings", "Only settings with a real Android runtime owner are interactive."));
+        LinearLayout uiCard = card("UI / LOCAL PREFERENCES", "Ghost FTP Android uses the canonical dark brand palette. These options change actual local runtime behavior.");
+        rememberEndpointToggle = checkBox("Remember Quick Connect host, username, protocol and port");
+        rememberEndpointToggle.setOnClickListener(v -> {
+            rememberEndpoint = rememberEndpointToggle.isChecked();
+            savePreferences();
+            setStatus(rememberEndpoint
+                    ? "Quick Connect metadata will be remembered. Passwords remain memory-only."
+                    : "Quick Connect metadata persistence disabled and stored endpoint metadata cleared.");
+        });
+        uiCard.addView(rememberEndpointToggle, matchWrapSpaced());
+        showFileSizesToggle = checkBox("Show file sizes in Files lists");
+        showFileSizesToggle.setOnClickListener(v -> {
+            showFileSizes = showFileSizesToggle.isChecked();
+            savePreferences();
+            renderLocal();
+            renderRemote();
+            setStatus(showFileSizes ? "File sizes are visible." : "File sizes are hidden from list rows.");
+        });
+        uiCard.addView(showFileSizesToggle, matchWrapSpaced());
+        content.addView(uiCard, cardParams());
 
-        status = label("Ready.", 13, Color.LTGRAY);
-        root.addView(status);
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(root);
-        setContentView(scroll);
+        LinearLayout securityCard = card("SECURITY", "Runtime security policy is informational here and cannot be weakened from the UI.");
+        securityCard.addView(infoLine("FTPS", "Platform trust store + strict hostname verification"), matchWrapSpaced());
+        securityCard.addView(infoLine("Passwords", "Memory-only; never stored in site JSON/preferences"), matchWrapSpaced());
+        securityCard.addView(infoLine("Local storage", "Android SAF grants only; no all-files permission"), matchWrapSpaced());
+        securityCard.addView(infoLine("SFTP", "Hidden until strict Android host-key identity verification exists"), matchWrapSpaced());
+        securityCard.addView(infoLine("Privacy", "No telemetry, analytics, ads, fingerprinting or Ghost FTP cloud"), matchWrapSpaced());
+        content.addView(securityCard, cardParams());
+        return scrollSurface(content);
+    }
+
+    private View buildAboutSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading("About", "Build identity and privacy/security status for this Android development client."));
+        LinearLayout card = card("GHOST FTP", "Private file transfer client for direct connections to servers you control.");
+        card.addView(infoLine("Version", BuildConfig.VERSION_NAME), matchWrapSpaced());
+        card.addView(infoLine("Package", BuildConfig.APPLICATION_ID), matchWrapSpaced());
+        card.addView(infoLine("Protocols", "FTP + strict explicit FTPS on Android source line"), matchWrapSpaced());
+        card.addView(infoLine("Public release", "0.0.3 remains the published Windows/Linux release; this APK is development source output"), matchWrapSpaced());
+        card.addView(infoLine("Data collection", "None: no telemetry, analytics, ads or hidden backend"), matchWrapSpaced());
+        content.addView(card, cardParams());
+        return scrollSurface(content);
+    }
+
+    private void addSurface(View surface) {
+        surface.setVisibility(View.GONE);
+        contentHost.addView(surface, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void showSection(Section section) {
+        activeSection = section;
+        filesSurface.setVisibility(section == Section.FILES ? View.VISIBLE : View.GONE);
+        sitesSurface.setVisibility(section == Section.SITES ? View.VISIBLE : View.GONE);
+        bookmarksSurface.setVisibility(section == Section.BOOKMARKS ? View.VISIBLE : View.GONE);
+        transfersSurface.setVisibility(section == Section.TRANSFERS ? View.VISIBLE : View.GONE);
+        settingsSurface.setVisibility(section == Section.SETTINGS ? View.VISIBLE : View.GONE);
+        aboutSurface.setVisibility(section == Section.ABOUT ? View.VISIBLE : View.GONE);
+        sectionTitle.setText(sectionTitle(section));
+        refreshNavigationSelection();
+        if (!tabletLayout) closeNavigationDrawer();
+        refreshButtons();
+    }
+
+    private String sectionTitle(Section section) {
+        switch (section) {
+            case SITES:
+                return "Sites / Connections";
+            case BOOKMARKS:
+                return "Bookmarks";
+            case TRANSFERS:
+                return "Transfers";
+            case SETTINGS:
+                return "Settings";
+            case ABOUT:
+                return "About";
+            case FILES:
+            default:
+                return "Files";
+        }
+    }
+
+    private void refreshNavigationSelection() {
+        for (Button button : navigationButtons) {
+            Object tag = button.getTag();
+            styleNavigationButton(button, tag == activeSection);
+        }
+    }
+
+    private void styleNavigationButton(Button button, boolean active) {
+        button.setTextColor(active ? GhostTheme.TEXT : GhostTheme.MUTED);
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(active ? GhostTheme.ACCENT_STRONG : GhostTheme.MUTED));
+        button.setBackground(GhostTheme.rounded(this, active ? GhostTheme.SELECTION : GhostTheme.PANEL,
+                active ? GhostTheme.ACCENT : GhostTheme.PANEL, 10));
+        button.setMinHeight(dp(48));
+        button.setPadding(dp(12), 0, dp(12), 0);
+    }
+
+    private void openNavigationDrawer() {
+        if (tabletLayout || navigationPanel == null) return;
+        drawerScrim.setVisibility(View.VISIBLE);
+        navigationPanel.setVisibility(View.VISIBLE);
+    }
+
+    private void closeNavigationDrawer() {
+        if (tabletLayout || navigationPanel == null) return;
+        navigationPanel.setVisibility(View.GONE);
+        drawerScrim.setVisibility(View.GONE);
     }
 
     private void restorePreferences() {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        host.setText(prefs.getString("host", ""));
-        username.setText(prefs.getString("username", ""));
-        String savedProtocol = prefs.getString("protocol", "FTPS");
-        protocol.setSelection("FTP".equals(savedProtocol) ? 1 : 0);
-        port.setText(prefs.getString("port", "21"));
+        rememberEndpoint = prefs.getBoolean("rememberEndpoint", true);
+        showFileSizes = prefs.getBoolean("showFileSizes", true);
+        rememberEndpointToggle.setChecked(rememberEndpoint);
+        showFileSizesToggle.setChecked(showFileSizes);
+        if (rememberEndpoint) {
+            host.setText(prefs.getString("host", ""));
+            username.setText(prefs.getString("username", ""));
+            String savedProtocol = prefs.getString("protocol", "FTPS");
+            protocol.setSelection("FTP".equals(savedProtocol) ? 1 : 0);
+            port.setText(prefs.getString("port", "21"));
+        } else {
+            protocol.setSelection(0);
+            port.setText("21");
+        }
         String savedTree = prefs.getString("treeUri", "");
         if (!savedTree.isEmpty()) {
             tryActivateLocalTree(Uri.parse(savedTree), "Saved local folder is no longer available.", true);
@@ -262,13 +640,19 @@ public final class MainActivity extends Activity {
     }
 
     private void savePreferences() {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                .putString("host", host.getText().toString().trim())
-                .putString("username", username.getText().toString().trim())
-                .putString("protocol", protocol.getSelectedItem().toString())
-                .putString("port", port.getText().toString().trim())
-                .putString("treeUri", treeUri == null ? "" : treeUri.toString())
-                .apply();
+        SharedPreferences.Editor editor = getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putBoolean("rememberEndpoint", rememberEndpoint)
+                .putBoolean("showFileSizes", showFileSizes)
+                .putString("treeUri", treeUri == null ? "" : treeUri.toString());
+        if (rememberEndpoint) {
+            editor.putString("host", host.getText().toString().trim())
+                    .putString("username", username.getText().toString().trim())
+                    .putString("protocol", protocol.getSelectedItem().toString())
+                    .putString("port", port.getText().toString().trim());
+        } else {
+            editor.remove("host").remove("username").remove("protocol").remove("port");
+        }
+        editor.apply();
     }
 
     private void renderSites() {
@@ -280,7 +664,7 @@ public final class MainActivity extends Activity {
             labels.add(profile.toString());
             if (profile.id.equals(activeProfileId)) selected = i + 1;
         }
-        siteSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels));
+        siteSpinner.setAdapter(GhostTheme.spinnerAdapter(this, labels));
         siteSpinner.setSelection(selected);
     }
 
@@ -292,8 +676,12 @@ public final class MainActivity extends Activity {
             local.addAll(profile.localBookmarks);
             remote.addAll(profile.remoteBookmarks);
         }
-        localBookmarkSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, local));
-        remoteBookmarkSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, remote));
+        localBookmarkSpinner.setAdapter(GhostTheme.spinnerAdapter(this, local));
+        remoteBookmarkSpinner.setAdapter(GhostTheme.spinnerAdapter(this, remote));
+        if (bookmarkLocalCurrent != null) {
+            bookmarkLocalCurrent.setText(treeUri == null ? "No folder selected" : displayLocalPath());
+        }
+        if (bookmarkRemoteCurrent != null) bookmarkRemoteCurrent.setText(currentRemotePath);
         refreshButtons();
     }
 
@@ -622,6 +1010,27 @@ public final class MainActivity extends Activity {
         setStatus("Server bookmark added for this site identity only.");
     }
 
+    private void removeRemoteBookmark() {
+        SiteProfile profile = activeProfile();
+        if (profile == null) {
+            setStatus("Load a saved site before removing a server bookmark.");
+            return;
+        }
+        int index = remoteBookmarkSpinner.getSelectedItemPosition();
+        if (index < 0 || index >= profile.remoteBookmarks.size()) {
+            setStatus("No server bookmark selected.");
+            return;
+        }
+        List<String> nextBookmarks = new ArrayList<>(profile.remoteBookmarks);
+        nextBookmarks.remove(index);
+        SiteProfile next = new SiteProfile(profile.id, profile.name, profile.protocol, profile.host, profile.port,
+                profile.username, profile.localStartTreeUri, profile.remoteStartPath, profile.localBookmarks, nextBookmarks);
+        replaceProfile(next);
+        profileStore.save(profiles);
+        renderBookmarks();
+        setStatus("Server bookmark removed.");
+    }
+
     private void openRemoteBookmark() {
         SiteProfile profile = requireConnectedActiveProfile();
         if (profile == null) return;
@@ -698,7 +1107,6 @@ public final class MainActivity extends Activity {
             localEntries.addAll(next);
             selectedLocal = -1;
             renderLocal();
-            localPath.setText("Selected folder");
             return true;
         } catch (RuntimeException | IOException e) {
             clearLocalRoot();
@@ -719,9 +1127,13 @@ public final class MainActivity extends Activity {
         return treeUri != null && hasPersistedReadPermission(treeUri) ? treeUri.toString() : "";
     }
 
+    private String displayLocalPath() {
+        if (treeUri == null || currentDocumentId == null) return "No folder selected";
+        return currentDocumentId.equals(rootDocumentId) ? "Selected SAF folder" : currentDocumentId;
+    }
+
     private void refreshLocal() {
         if (treeUri == null || currentDocumentId == null) {
-            localPath.setText("No folder selected");
             renderLocal();
             return;
         }
@@ -730,12 +1142,10 @@ public final class MainActivity extends Activity {
             localEntries.clear();
             localEntries.addAll(next);
             selectedLocal = -1;
-            localPath.setText(currentDocumentId.equals(rootDocumentId) ? "Selected folder" : currentDocumentId);
             renderLocal();
         } catch (IOException e) {
             clearLocalRoot();
             renderLocal();
-            localPath.setText("No folder selected");
             setStatus("Local folder permission or provider is no longer available. Choose the folder again.");
         }
     }
@@ -771,7 +1181,6 @@ public final class MainActivity extends Activity {
                 localEntries.clear();
                 localEntries.addAll(next);
                 selectedLocal = -1;
-                localPath.setText(currentDocumentId);
                 renderLocal();
             } catch (IOException e) {
                 setStatus("Local directory is unavailable; current path was not changed: " + safeMessage(e));
@@ -792,7 +1201,6 @@ public final class MainActivity extends Activity {
             localEntries.clear();
             localEntries.addAll(next);
             selectedLocal = -1;
-            localPath.setText(currentDocumentId.equals(rootDocumentId) ? "Selected folder" : currentDocumentId);
             renderLocal();
         } catch (IOException e) {
             setStatus("Parent folder is unavailable; current path was not changed: " + safeMessage(e));
@@ -813,6 +1221,7 @@ public final class MainActivity extends Activity {
         SiteProfile next = profile.withLocalStartTreeUri(uri);
         replaceProfile(next);
         profileStore.save(profiles);
+        renderBookmarks();
         setStatus("Local site start folder saved as a SAF capability URI; no filesystem-wide permission was added.");
     }
 
@@ -832,6 +1241,27 @@ public final class MainActivity extends Activity {
         profileStore.save(profiles);
         renderBookmarks();
         setStatus("Local SAF bookmark added. It contains no credentials.");
+    }
+
+    private void removeLocalBookmark() {
+        SiteProfile profile = activeProfile();
+        if (profile == null) {
+            setStatus("Load a saved site before removing a local bookmark.");
+            return;
+        }
+        int index = localBookmarkSpinner.getSelectedItemPosition();
+        if (index < 0 || index >= profile.localBookmarks.size()) {
+            setStatus("No local bookmark selected.");
+            return;
+        }
+        List<String> nextBookmarks = new ArrayList<>(profile.localBookmarks);
+        nextBookmarks.remove(index);
+        SiteProfile next = new SiteProfile(profile.id, profile.name, profile.protocol, profile.host, profile.port,
+                profile.username, profile.localStartTreeUri, profile.remoteStartPath, nextBookmarks, profile.remoteBookmarks);
+        replaceProfile(next);
+        profileStore.save(profiles);
+        renderBookmarks();
+        setStatus("Local bookmark removed.");
     }
 
     private void openLocalBookmark() {
@@ -860,6 +1290,10 @@ public final class MainActivity extends Activity {
         FtpSession current = session;
         if (busy || current == null || selectedLocal < 0 || selectedLocal >= localEntries.size()) return;
         LocalEntry entry = localEntries.get(selectedLocal);
+        if (entry.directory) {
+            setStatus("Select a local file, not a directory, to upload.");
+            return;
+        }
         Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
         String remoteBase = currentRemotePath;
         TransferAttempt attempt = beginTransfer("Uploading " + entry.name + "…");
@@ -896,6 +1330,10 @@ public final class MainActivity extends Activity {
         FtpSession current = session;
         if (busy || current == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size() || treeUri == null) return;
         RemoteEntry entry = remoteEntries.get(selectedRemote);
+        if (entry.directory) {
+            setStatus("Select a server file, not a directory, to download.");
+            return;
+        }
         Uri selectedTree = treeUri;
         String selectedDocumentId = currentDocumentId;
         Uri parent = DocumentsContract.buildDocumentUriUsingTree(selectedTree, selectedDocumentId);
@@ -1069,20 +1507,32 @@ public final class MainActivity extends Activity {
     }
 
     private void renderLocal() {
+        if (localPath != null) localPath.setText(displayLocalPath());
+        if (bookmarkLocalCurrent != null) bookmarkLocalCurrent.setText(displayLocalPath());
         List<String> labels = new ArrayList<>();
         for (int i = 0; i < localEntries.size(); i++) {
             LocalEntry e = localEntries.get(i);
-            labels.add((i == selectedLocal ? "› " : "  ") + (e.directory ? "DIR   " : "FILE  ") + e.name + (e.directory ? "" : "  (" + e.size + " B)"));
+            String marker = i == selectedLocal ? "●  " : "   ";
+            String type = e.directory ? "DIR   " : "FILE  ";
+            String size = !e.directory && showFileSizes ? "   " + TransferProgress.formatBytes(e.size) : "";
+            labels.add(marker + type + e.name + size);
         }
-        localList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, labels));
+        if (localList != null) localList.setAdapter(GhostTheme.listAdapter(this, labels));
         refreshButtons();
     }
 
     private void renderRemote() {
-        remotePath.setText(currentRemotePath);
+        if (remotePath != null) remotePath.setText(currentRemotePath);
+        if (bookmarkRemoteCurrent != null) bookmarkRemoteCurrent.setText(currentRemotePath);
         List<String> labels = new ArrayList<>();
-        for (int i = 0; i < remoteEntries.size(); i++) labels.add((i == selectedRemote ? "› " : "  ") + remoteEntries.get(i));
-        remoteList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, labels));
+        for (int i = 0; i < remoteEntries.size(); i++) {
+            RemoteEntry e = remoteEntries.get(i);
+            String marker = i == selectedRemote ? "●  " : "   ";
+            String type = e.directory ? "DIR   " : "FILE  ";
+            String size = !e.directory && showFileSizes ? "   " + TransferProgress.formatBytes(e.size) : "";
+            labels.add(marker + type + e.name + size);
+        }
+        if (remoteList != null) remoteList.setAdapter(GhostTheme.listAdapter(this, labels));
         refreshButtons();
     }
 
@@ -1094,22 +1544,74 @@ public final class MainActivity extends Activity {
 
     private void refreshButtons() {
         boolean connected = session != null && session.isConnected();
+        boolean selectedLocalFile = selectedLocal >= 0 && selectedLocal < localEntries.size() && !localEntries.get(selectedLocal).directory;
+        boolean selectedRemoteFile = selectedRemote >= 0 && selectedRemote < remoteEntries.size() && !remoteEntries.get(selectedRemote).directory;
         SiteProfile profile = activeProfile();
         boolean activeSite = profile != null;
         boolean connectedSite = activeSite && connected && connectedIdentityKey != null && profile.identityKey().equals(connectedIdentityKey);
+
         connect.setEnabled(!busy && !connected);
         disconnect.setText(transferFinalizing ? "Finalizing…" : transferActive ? "Cancel transfer" : "Disconnect");
         disconnect.setEnabled((transferActive && !transferFinalizing) || (!busy && connected));
-        upload.setEnabled(!busy && connected && selectedLocal >= 0);
-        download.setEnabled(!busy && connected && selectedRemote >= 0 && treeUri != null);
+        upload.setEnabled(!busy && connected && selectedLocalFile);
+        download.setEnabled(!busy && connected && selectedRemoteFile && treeUri != null);
         saveSite.setEnabled(!busy && !connected);
         deleteSite.setEnabled(!busy && !connected && activeSite);
-        localSetStart.setEnabled(!busy && activeSite && persistedCurrentTreeUri().length() > 0);
-        localAddBookmark.setEnabled(!busy && activeSite && persistedCurrentTreeUri().length() > 0);
+        localSetStart.setEnabled(!busy && activeSite && !persistedCurrentTreeUri().isEmpty());
+        localAddBookmark.setEnabled(!busy && activeSite && !persistedCurrentTreeUri().isEmpty());
+        localRemoveBookmark.setEnabled(!busy && activeSite && !profile.localBookmarks.isEmpty());
         localOpenBookmark.setEnabled(!busy && activeSite && !profile.localBookmarks.isEmpty());
         remoteSetStart.setEnabled(!busy && connectedSite);
         remoteAddBookmark.setEnabled(!busy && connectedSite);
+        remoteRemoveBookmark.setEnabled(!busy && activeSite && !profile.remoteBookmarks.isEmpty());
         remoteOpenBookmark.setEnabled(!busy && connectedSite && !profile.remoteBookmarks.isEmpty());
+        transferCancel.setText(transferFinalizing ? "Finalizing…" : "Cancel active transfer");
+        transferCancel.setEnabled(transferActive && !transferFinalizing);
+        transferCancel.setAlpha(transferCancel.isEnabled() ? 1f : 0.45f);
+
+        updateConnectionBadge(connected);
+        updateTransferSurface();
+        updateEnabledAlpha(connect, disconnect, upload, download, saveSite, deleteSite,
+                localSetStart, localAddBookmark, localRemoveBookmark, localOpenBookmark,
+                remoteSetStart, remoteAddBookmark, remoteRemoveBookmark, remoteOpenBookmark);
+    }
+
+    private void updateConnectionBadge(boolean connected) {
+        if (connectionBadge == null) return;
+        String text;
+        int color;
+        if (transferFinalizing) {
+            text = "FINALIZING";
+            color = GhostTheme.WARN;
+        } else if (transferActive) {
+            text = "TRANSFER ACTIVE";
+            color = GhostTheme.WARN;
+        } else if (connected) {
+            boolean secure = protocol.getSelectedItem() != null && "FTPS".equals(protocol.getSelectedItem().toString());
+            text = secure ? "FTPS CONNECTED" : "FTP CONNECTED";
+            color = secure ? GhostTheme.SUCCESS : GhostTheme.WARN;
+        } else {
+            text = "DISCONNECTED";
+            color = GhostTheme.MUTED;
+        }
+        connectionBadge.setText(text);
+        GhostTheme.styleBadge(connectionBadge, color);
+    }
+
+    private void updateTransferSurface() {
+        if (transferStatus == null) return;
+        String value = status == null ? "Ready." : status.getText().toString();
+        if (!transferActive && !transferFinalizing && (value.isEmpty() || "Ready.".equals(value))) {
+            value = "No active transfer.";
+        }
+        transferStatus.setText(value);
+        transferStatus.setTextColor(GhostTheme.statusColor(value));
+    }
+
+    private void updateEnabledAlpha(Button... buttons) {
+        for (Button button : buttons) {
+            if (button != null) button.setAlpha(button.isEnabled() ? 1f : 0.45f);
+        }
     }
 
     private int parsePort() {
@@ -1144,7 +1646,10 @@ public final class MainActivity extends Activity {
     }
 
     private void setStatus(String value) {
-        status.setText(value == null ? "" : value.replace('\n', ' ').replace('\r', ' '));
+        String safe = value == null ? "" : value.replace('\n', ' ').replace('\r', ' ');
+        status.setText(safe);
+        status.setTextColor(GhostTheme.statusColor(safe));
+        updateTransferSurface();
     }
 
     private static String safeMessage(Exception e) {
@@ -1152,9 +1657,62 @@ public final class MainActivity extends Activity {
         return value == null || value.trim().isEmpty() ? e.getClass().getSimpleName() : value.replace('\n', ' ').replace('\r', ' ');
     }
 
-    private TextView section(String text) {
-        TextView view = label(text, 15, Color.rgb(94, 214, 200));
-        view.setPadding(0, dp(18), 0, dp(6));
+    private LinearLayout surfaceContent() {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(12), dp(12), dp(12), dp(24));
+        content.setBackgroundColor(GhostTheme.WINDOW);
+        return content;
+    }
+
+    private View scrollSurface(LinearLayout content) {
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(GhostTheme.WINDOW);
+        scroll.addView(content, matchWrap());
+        return scroll;
+    }
+
+    private LinearLayout surfaceHeading(String title, String description) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        block.setPadding(dp(2), dp(2), dp(2), dp(12));
+        TextView heading = label(title, 24, GhostTheme.TEXT);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        TextView copy = label(description, 12, GhostTheme.MUTED);
+        copy.setPadding(0, dp(4), 0, 0);
+        block.addView(heading, matchWrap());
+        block.addView(copy, matchWrap());
+        return block;
+    }
+
+    private LinearLayout card(String title, String hint) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14), dp(14), dp(14), dp(14));
+        card.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14));
+        TextView heading = label(title, 15, GhostTheme.TEXT);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        card.addView(heading, matchWrap());
+        if (hint != null && !hint.isEmpty()) {
+            TextView help = label(hint, 11, GhostTheme.MUTED);
+            help.setPadding(0, dp(4), 0, dp(10));
+            card.addView(help, matchWrap());
+        }
+        return card;
+    }
+
+    private TextView pathLabel(String value) {
+        TextView view = label(value, 13, GhostTheme.MUTED);
+        view.setPadding(dp(10), dp(9), dp(10), dp(9));
+        view.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 9));
+        return view;
+    }
+
+    private TextView infoLine(String name, String value) {
+        TextView view = label(name + "\n" + value, 12, GhostTheme.TEXT);
+        view.setPadding(dp(10), dp(9), dp(10), dp(9));
+        view.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 9));
         return view;
     }
 
@@ -1169,29 +1727,91 @@ public final class MainActivity extends Activity {
     private EditText field(String hint, boolean secret) {
         EditText edit = new EditText(this);
         edit.setHint(hint);
-        edit.setTextColor(Color.WHITE);
-        edit.setHintTextColor(Color.GRAY);
-        edit.setSingleLine(true);
+        GhostTheme.styleField(edit);
         if (secret) edit.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         return edit;
     }
 
+    private CheckBox checkBox(String text) {
+        CheckBox check = new CheckBox(this);
+        check.setText(text);
+        check.setTextColor(GhostTheme.TEXT);
+        check.setTextSize(13f);
+        check.setButtonTintList(new ColorStateList(
+                new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
+                new int[]{GhostTheme.ACCENT, GhostTheme.MUTED}));
+        check.setPadding(dp(4), dp(6), dp(4), dp(6));
+        return check;
+    }
+
     private Button button(String text) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setAllCaps(false);
-        return b;
+        Button button = new Button(this);
+        button.setText(text);
+        GhostTheme.styleSecondaryButton(button);
+        return button;
+    }
+
+    private Button primaryButton(String text) {
+        Button button = new Button(this);
+        button.setText(text);
+        GhostTheme.stylePrimaryButton(button);
+        return button;
+    }
+
+    private Button dangerButton(String text) {
+        Button button = new Button(this);
+        button.setText(text);
+        GhostTheme.styleDangerButton(button);
+        return button;
     }
 
     private LinearLayout row() {
-        LinearLayout r = new LinearLayout(this);
-        r.setOrientation(LinearLayout.HORIZONTAL);
-        return r;
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        return row;
     }
 
-    private LinearLayout.LayoutParams weighted() { return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f); }
-    private LinearLayout.LayoutParams matchWrap() { return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT); }
-    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+    private LinearLayout.LayoutParams navParams() {
+        LinearLayout.LayoutParams params = matchWrap();
+        params.setMargins(0, 0, 0, dp(5));
+        return params;
+    }
+
+    private LinearLayout.LayoutParams weightedSpaced() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        params.setMargins(dp(3), dp(3), dp(3), dp(3));
+        return params;
+    }
+
+    private LinearLayout.LayoutParams fixedWidthSpaced(int widthDp) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(widthDp), ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(dp(3), dp(3), dp(3), dp(3));
+        return params;
+    }
+
+    private LinearLayout.LayoutParams matchWrapSpaced() {
+        LinearLayout.LayoutParams params = matchWrap();
+        params.setMargins(0, dp(4), 0, dp(4));
+        return params;
+    }
+
+    private LinearLayout.LayoutParams cardParams() {
+        LinearLayout.LayoutParams params = matchWrap();
+        params.setMargins(0, 0, 0, dp(10));
+        return params;
+    }
+
+    private LinearLayout.LayoutParams matchWrap() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    private LinearLayout.LayoutParams wrapWrap() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    private int dp(int value) {
+        return GhostTheme.dp(this, value);
+    }
 
     private static final class TransferAttempt {
         final long token;
