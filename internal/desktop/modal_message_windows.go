@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	desktopGARoot     = 2
-	desktopWMKeyDown  = 0x0100
-	desktopVKEscape   = 0x1B
-	desktopVKReturn   = 0x0D
-	desktopBMClick    = 0x00F5
+	desktopGARoot    = 2
+	desktopWMKeyDown = 0x0100
+	desktopVKEscape  = 0x1B
+	desktopVKReturn  = 0x0D
+	desktopBMClick   = 0x00F5
 )
 
 type modalAwareGetMessageProc struct {
