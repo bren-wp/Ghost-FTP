@@ -1,9 +1,14 @@
 package desktop
 
 import (
+	"strings"
+	"unicode/utf8"
+
 	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
+
+const siteManagerProfileNameLimit = 120
 
 var siteManagerDuplicateLabels = map[string]string{
 	"en": "Duplicate",
@@ -39,13 +44,29 @@ func siteManagerDuplicateLabel(language string) string {
 	return siteManagerDuplicateLabels[i18n.DefaultLanguage]
 }
 
+func duplicateProfileName(name string) string {
+	const suffix = " 2"
+
+	base := strings.TrimSpace(name)
+	budget := siteManagerProfileNameLimit - len(suffix)
+	for len(base) > budget {
+		_, size := utf8.DecodeLastRuneInString(base)
+		if size <= 0 {
+			break
+		}
+		base = base[:len(base)-size]
+	}
+	base = strings.TrimSpace(base)
+	return base + suffix
+}
+
 // duplicateProfileDraft copies only non-secret profile configuration into a
 // new profile draft. Stored credentials and the SFTP host-key pin deliberately
 // do not cross the new profile boundary: credentials must be entered again and
 // SFTP trust must be established for the duplicate before it can be persisted.
 func duplicateProfileDraft(profile model.PublicProfile) model.ProfileInput {
 	return model.ProfileInput{
-		Name:           profile.Name + " 2",
+		Name:           duplicateProfileName(profile.Name),
 		Protocol:       profile.Protocol,
 		Host:           profile.Host,
 		Port:           profile.Port,
