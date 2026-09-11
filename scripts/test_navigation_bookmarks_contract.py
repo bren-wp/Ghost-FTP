@@ -182,18 +182,24 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         self.assertIn("u.renderBookmarksHeaderButton()", filters)
         self.assertIn("u.handleBookmarksHeaderMouse(x, y)", filters)
 
-    def test_docs_keep_source_feature_separate_from_published_003(self) -> None:
+    def test_docs_bind_bookmarks_to_current_release_without_weakening_security(self) -> None:
+        version = self.read("VERSION").strip()
         roadmap = self.read("docs/ROADMAP.md")
         detail = self.read("docs/NAVIGATION-BOOKMARKS.md")
         changelog = self.read("CHANGELOG.md")
+
+        self.assertIn(f"Ghost FTP **{version}**", roadmap)
+        self.assertIn(f"Status: implemented in Ghost FTP {version}", roadmap)
         self.assertIn("navigation bookmarks and profile start directories", roadmap.lower())
-        self.assertIn("implemented in the post-0.0.3 source line", roadmap)
-        self.assertIn("targeted for the next public release", roadmap)
-        self.assertIn("post-0.0.3 source line", detail)
-        self.assertIn("not retroactively part of the already published Ghost FTP 0.0.3 release", detail)
+        self.assertIn(f"Ghost FTP **{version}** includes navigation bookmarks", detail)
+        self.assertIn("Bookmarks are non-secret metadata", detail)
         self.assertIn("AccountMatches", detail)
         self.assertIn("NavigateBookmark", detail)
-        self.assertIn("Root `VERSION` remains **0.0.3**", detail)
+        self.assertIn("does **not** create a hidden persistent Site Manager profile", detail)
+        self.assertIn(f"Root `VERSION` is **{version}**", detail)
+        self.assertIn("exact-head CI/native-build/authentic-runtime evidence", detail)
+        self.assertNotIn("post-0.0.3 source line", detail)
+        self.assertNotIn("Root `VERSION` remains **0.0.3**", detail)
         self.assertIn("Navigation bookmarks and profile start directories", changelog)
 
 
