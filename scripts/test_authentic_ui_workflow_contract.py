@@ -14,12 +14,17 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
     def test_release_prep_capture_is_evidence_only(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
         trigger = workflow.split("permissions:", 1)[0]
-        persist = workflow.split("  persist:", 1)[1]
+        evidence = workflow.split("  evidence:", 1)[1]
 
         self.assertIn("- 'release-prep/**'", trigger)
-        self.assertIn("github.event_name == 'pull_request'", persist)
-        self.assertNotIn("github.event_name == 'push'", persist)
-        self.assertIn("refusing a stale screenshot commit", persist)
+        self.assertIn("SOURCE_SHA:", evidence)
+        self.assertIn("github.event_name == 'pull_request'", evidence)
+        self.assertIn("ref: ${{ env.SOURCE_SHA }}", evidence)
+        self.assertIn("Confirm exact tested SHA", evidence)
+        self.assertIn("ghostftp-authentic-ui-verified-bundle", evidence)
+        self.assertNotIn("git push", workflow)
+        self.assertNotIn("git commit", workflow)
+        self.assertNotIn("github-actions[bot]", workflow)
         self.assertNotIn("[skip ci]", workflow)
 
     def test_pull_request_ui_changes_always_request_authentic_capture(self) -> None:
@@ -46,18 +51,23 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
     def test_capture_jobs_checkout_exact_pr_head(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
         exact_ref = "github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha"
-        capture_jobs = workflow.split("  persist:", 1)[0]
+        capture_jobs, evidence = workflow.split("  evidence:", 1)
         self.assertEqual(capture_jobs.count(exact_ref), 3)
+        self.assertIn(f"SOURCE_SHA: ${{{{ {exact_ref} }}}}", evidence)
+        self.assertIn("ref: ${{ env.SOURCE_SHA }}", evidence)
 
     def test_verified_captures_are_always_published_as_artifacts(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
+        capture_jobs, evidence = workflow.split("  evidence:", 1)
         for artifact in (
             "ghostftp-authentic-ui-windows",
             "ghostftp-authentic-ui-linux",
             "ghostftp-authentic-ui-android",
         ):
-            self.assertIn(artifact, workflow)
-        self.assertEqual(workflow.count("actions/upload-artifact@"), 3)
+            self.assertIn(artifact, capture_jobs)
+        self.assertEqual(capture_jobs.count("actions/upload-artifact@"), 3)
+        self.assertEqual(evidence.count("actions/upload-artifact@"), 1)
+        self.assertIn("ghostftp-authentic-ui-verified-bundle", evidence)
 
         windows = workflow
         linux = read("scripts/capture_linux_screenshots.sh")
@@ -92,17 +102,28 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         ):
             self.assertIn(name, assembly)
 
-    def test_persistence_is_sha_bound_and_records_provenance(self) -> None:
+    def test_evidence_is_sha_bound_verified_and_never_mutates_pr_head(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
         assembly = read("scripts/assemble_ui_evidence.py")
-        persist = workflow.split("  persist:", 1)[1]
-        self.assertIn("SOURCE_SHA", persist)
-        self.assertIn("remote_sha", persist)
-        self.assertIn("UI-SCREENSHOT-PROVENANCE.json", persist)
-        self.assertIn("AUTHENTIC_UI_SCREENSHOTS=PERSISTED", persist)
-        self.assertIn("AUTHENTIC_UI_EVIDENCE=PERSISTED", persist)
+        evidence = workflow.split("  evidence:", 1)[1]
+        self.assertIn("SOURCE_SHA", evidence)
+        self.assertIn("ref: ${{ env.SOURCE_SHA }}", evidence)
+        self.assertIn("AUTHENTIC_UI_SOURCE_SHA=", evidence)
+        self.assertIn("scripts/assemble_ui_evidence.py", evidence)
+        self.assertIn("ghostftp-authentic-ui-verified-bundle", evidence)
+        self.assertIn("permissions:\n  contents: read", workflow)
+        for forbidden in (
+            "contents: write",
+            "git push",
+            "git commit",
+            "github-actions[bot]",
+            "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
+        ):
+            self.assertNotIn(forbidden, workflow)
         self.assertIn('"capture_source_sha"', assembly)
         self.assertIn('"sha256"', assembly)
+        self.assertIn("verify_manifest", assembly)
+        self.assertIn("AUTHENTIC_UI_EVIDENCE=VERIFIED", assembly)
         self.assertIn("MAPPING", assembly)
 
     def test_android_capture_drives_real_runtime_navigation(self) -> None:
