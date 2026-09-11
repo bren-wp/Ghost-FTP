@@ -7,12 +7,14 @@ on:
       - 'android/**'
       - '.github/workflows/android-apk.yml'
       - 'scripts/test_android_contract.py'
+      - 'scripts/test_android_passive_data_contract.py'
   push:
     branches: [main]
     paths:
       - 'android/**'
       - '.github/workflows/android-apk.yml'
       - 'scripts/test_android_contract.py'
+      - 'scripts/test_android_passive_data_contract.py'
   workflow_dispatch:
 
 permissions:
@@ -51,6 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/test_android_contract.py
+          python scripts/test_android_passive_data_contract.py
       - name: Lint and build APK
         working-directory: android
         shell: bash
