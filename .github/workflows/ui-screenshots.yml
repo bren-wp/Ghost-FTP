@@ -58,6 +58,10 @@ env:
   GOTOOLCHAIN: local
   GOPROXY: off
   GOSUMDB: off
+  UI_WINDOWS_MAIN: docs/images/ghost-ftp-main-workspace.png
+  UI_WINDOWS_SITE_MANAGER: docs/images/ghost-ftp-site-manager.png
+  UI_WINDOWS_SETTINGS: docs/images/ghost-ftp-settings.png
+  UI_WINDOWS_ABOUT: docs/images/ghost-ftp-about.png
 
 jobs:
   windows:
