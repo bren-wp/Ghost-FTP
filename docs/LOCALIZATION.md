@@ -1,6 +1,6 @@
 # Ghost FTP localization
 
-Ghost FTP **0.0.1** uses an English-first, entirely local localization model. English (`en`) is the canonical source language, default locale and safe fallback when a translated value is unavailable or invalid.
+Ghost FTP **0.0.4** uses an English-first, entirely local localization model. English (`en`) is the canonical source language, default locale and safe fallback when a translated value is unavailable or invalid.
 
 ## Supported languages
 
@@ -51,7 +51,7 @@ Language selection is local settings state, not analytics/profile-segmentation d
 
 The native Windows frontend supports live language switching for catalog-backed UI. A language change refreshes visible product text without changing protocol/security state.
 
-Ghost FTP 0.0.1 keeps privacy-sensitive profile credential persistence prompts in the maintained catalog so the main Save Profile flow and Site Manager do not fall back to hardcoded English for the decision to store or retain credentials.
+Privacy-sensitive profile credential-persistence prompts remain catalog-backed so the main Save Profile flow and Site Manager do not fall back to hardcoded English for the decision to store or retain credentials.
 
 Startup/catastrophic fallback copy can remain English because those paths may execute before persisted settings are safely available.
 
@@ -65,17 +65,17 @@ A missing translation must fall back to English rather than weakening a security
 
 The native Linux frontend consumes the same stored locale and translation catalog. Runtime language switching and normalization use the same canonical codes/fallback rules.
 
-Linux UI localization must not create a second set of protocol strings with different security semantics.
+Linux 0.0.4 also uses catalog-backed credential-save consent and maintained queue/bookmark/filter/search/comparison controls. Linux UI localization must not create a second set of protocol strings with different security semantics.
 
 ## Security-sensitive text
 
 Credential prompts, destructive-operation confirmations, recovery/overwrite warnings and host-trust decisions require careful review. Translation code must never infer transport or trust state from human-readable labels; typed protocol/security state remains authoritative.
 
-The 0.0.1 credential-save consent flow is a security/privacy surface: translations may explain the choice, but the underlying persisted-secret decision remains one typed boolean/action path and must not differ by language.
+The 0.0.4 credential-save consent flow is a security/privacy surface on both desktop platforms: translations may explain the choice, but the underlying persisted-secret decision remains one typed action path and must not differ by language.
 
 ## Appearance and protocol labels
 
-Classic Light is the fresh/fallback appearance and explicit FTPS is the fresh quick-connect protocol. Localized labels may describe these choices, but locale changes must not modify the typed stored appearance/protocol values or weaken the secure default.
+Classic Light is the fresh/fallback appearance and explicit FTPS is the fresh quick-connect protocol. Localized labels may describe these choices, but locale changes must not modify the typed stored appearance/protocol values or weaken the secure default. Both maintained desktop frontends respect explicit Light/Dark state locally without contacting a theme service.
 
 ## Adding or improving a language
 
