@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ghost_background">#0C0F14</color>
+    <color name="ghost_panel">#151A22</color>
+    <color name="ghost_surface">#1C2330</color>
+    <color name="ghost_accent">#7C6CF2</color>
+    <color name="ghost_accent_dark">#6657DA</color>
+    <color name="ghost_text">#F5F7FA</color>
+    <color name="ghost_muted">#AAB4C3</color>
+    <color name="ghost_danger">#FF6B6B</color>
+</resources>

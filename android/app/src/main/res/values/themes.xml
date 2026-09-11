@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.GhostFTP" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">@color/ghost_background</item>
+        <item name="android:colorAccent">@color/ghost_accent</item>
+        <item name="android:navigationBarColor">@color/ghost_background</item>
+        <item name="android:statusBarColor">@color/ghost_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
