@@ -21,6 +21,14 @@ class WindowsDesktopModalKeyboardContractTests(unittest.TestCase):
         self.assertIn('user32.NewProc("GetAncestor")', helper)
         self.assertRegex(helper, r"desktopGARoot\s*=\s*2")
 
+    def test_message_memory_uses_vet_safe_win32_copy(self) -> None:
+        helper = read("internal/desktop/modal_message_windows.go")
+
+        self.assertIn("func readModalMessage(messagePtr uintptr) msg", helper)
+        self.assertIn("func clearModalMessage(messagePtr uintptr)", helper)
+        self.assertIn("rtlMoveMemory.Call", helper)
+        self.assertNotIn("unsafe.Pointer(messagePtr)", helper)
+
     def test_only_desktop_owned_modal_windows_are_intercepted(self) -> None:
         helper = read("internal/desktop/modal_message_windows.go")
 
@@ -35,7 +43,7 @@ class WindowsDesktopModalKeyboardContractTests(unittest.TestCase):
         bookmarks = read("internal/desktop/bookmark_manager_windows.go")
 
         self.assertIn("isDialogMessage.Call(root, messagePtr)", helper)
-        self.assertIn("*message = msg{}", helper)
+        self.assertIn("clearModalMessage(messagePtr)", helper)
         self.assertIn("wsTabStop", site)
         self.assertIn("wsTabStop", bookmarks)
         self.assertIn("getMessageW.Call", site)
@@ -57,7 +65,7 @@ class WindowsDesktopModalKeyboardContractTests(unittest.TestCase):
         helper = read("internal/desktop/modal_message_windows.go")
 
         self.assertIn("if p.handleModalShortcut(root, message)", helper)
-        self.assertGreaterEqual(helper.count("*message = msg{}"), 2)
+        self.assertGreaterEqual(helper.count("clearModalMessage(messagePtr)"), 2)
         self.assertIn("int32(result) <= 0", helper)
         self.assertIn("WM_QUIT/GetMessage errors", helper)
 
