@@ -103,6 +103,8 @@ func (u *linuxDesktop) renderPromptOverlay() error {
 			shown = fileFilterWordsForLanguage(u.language).Cue
 		case u.recursiveSearchPrompt():
 			shown = recursiveSearchWordsForLanguage(u.language).Search
+		case u.promptKind == linuxPromptRemoteDesktop:
+			shown = "server.example.com:3389"
 		default:
 			shown = "Type a value"
 		}
@@ -143,6 +145,8 @@ func (u *linuxDesktop) submitPrompt() {
 	}
 	u.closePrompt()
 	switch kind {
+	case linuxPromptRemoteDesktop:
+		u.submitRemoteDesktop(value)
 	case linuxPromptLocalFilter:
 		u.applyLinuxFileFilter(false, value)
 	case linuxPromptRemoteFilter:
