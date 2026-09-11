@@ -4,6 +4,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 ANDROID_JAVA = "android/app/src/main/java/app/ghostftp/client"
+AUTHOR_IDENTITY = "bren" + "digo"
 
 
 class AndroidContractTests(unittest.TestCase):
@@ -37,7 +38,7 @@ class AndroidContractTests(unittest.TestCase):
         ):
             text = self.read(rel)
             self.assertIn("package app.ghostftp.client;", text)
-            self.assertNotIn("brendigo", text.lower())
+            self.assertNotIn(AUTHOR_IDENTITY, text.lower())
 
     def test_android_permissions_stay_narrow(self) -> None:
         manifest = self.read("android/app/src/main/AndroidManifest.xml")
