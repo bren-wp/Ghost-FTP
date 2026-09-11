@@ -108,10 +108,39 @@ timeout 10s adb shell am start -W -n "$launcher_component"
 sleep 2
 
 # Fail closed if the exact APK package was installed but its launcher did not
-# actually become the foreground activity.
-resolved_component="$(timeout 10s adb shell dumpsys activity activities 2>/dev/null | sed -n 's/.*mResumedActivity:.* \([^ ]*\/[^ ]*\).*/\1/p' | head -n1 | tr -d '\r' || true)"
+# actually become the foreground activity. Android dumpsys field names differ
+# between platform releases, so parse both ActivityTaskManager and WindowManager
+# evidence instead of depending on one historical mResumedActivity label.
+activity_dump="$(timeout 10s adb shell dumpsys activity activities 2>/dev/null | tr -d '\r' || true)"
+resolved_component="$(printf '%s\n' "$activity_dump" | awk '
+/topResumedActivity=ActivityRecord|ResumedActivity: ActivityRecord/ {
+  for (i = 1; i <= NF; i++) {
+    candidate = $i
+    gsub(/[{}]/, "", candidate)
+    if (candidate ~ /^[[:alnum:]_.]+\/[[:alnum:]_.$]+$/) {
+      print candidate
+      exit
+    }
+  }
+}')"
+window_dump=''
+if [[ -z "$resolved_component" ]]; then
+  window_dump="$(timeout 10s adb shell dumpsys window windows 2>/dev/null | tr -d '\r' || true)"
+  resolved_component="$(printf '%s\n' "$window_dump" | awk '
+/mCurrentFocus=Window|mFocusedApp=ActivityRecord/ {
+  for (i = 1; i <= NF; i++) {
+    candidate = $i
+    gsub(/[{}]/, "", candidate)
+    if (candidate ~ /^[[:alnum:]_.]+\/[[:alnum:]_.$]+$/) {
+      print candidate
+      exit
+    }
+  }
+}')"
+fi
 [[ "$resolved_component" == "$package_name/"* ]] || {
-  timeout 10s adb shell dumpsys activity activities >&2 || true
+  printf '%s\n' "$activity_dump" >&2
+  [[ -z "$window_dump" ]] || printf '%s\n' "$window_dump" >&2
   echo "Android launcher did not become foreground: expected package $package_name, got ${resolved_component:-<none>}." >&2
   exit 1
 }
