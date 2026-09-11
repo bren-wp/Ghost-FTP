@@ -261,6 +261,7 @@ func newLinuxDesktop(x *x11Client, engine *api.Engine, version string) *linuxDes
 	}
 	if settings, err := engine.Settings(); err == nil {
 		u.language = i18n.Normalize(settings.Language)
+		setActiveTheme(settings.Appearance)
 	}
 	u.status = i18n.T(u.language, "status.ready")
 	if profiles, err := engine.Profiles(); err == nil {
@@ -894,7 +895,7 @@ func (u *linuxDesktop) cycleProfile() {
 		u.remoteCurrent = p.RemotePath
 	}
 	u.pendingFingerprint = ""
-	u.setStatus("Loaded profile: " + p.Name + ". Linux login secrets are not persisted.")
+	u.setStatus("Loaded profile: " + p.Name + ". Stored credentials remain protected and are never displayed.")
 }
 
 func (u *linuxDesktop) saveProfile() {
@@ -906,10 +907,38 @@ func (u *linuxDesktop) saveProfile() {
 		u.setStatus("Profile was not saved: invalid connection details.")
 		return
 	}
+
+	password := u.password
+	passphrase := u.passphrase
+	if password != "" || passphrase != "" {
+		now := time.Now()
+		if u.confirmKind != "save-profile-credentials" || now.After(u.confirmUntil) {
+			u.confirmKind = "save-profile-credentials"
+			u.confirmUntil = now.Add(8 * time.Second)
+			words := credentialConsentText(u.language)
+			u.setStatus(words.Question + " " + words.Body + " Click Save again within 8 seconds to confirm.")
+			return
+		}
+		u.confirmKind = ""
+		u.confirmUntil = time.Time{}
+	}
+
 	name := strings.TrimSpace(u.host)
+	if u.profileIndex >= 0 && u.profileIndex < len(u.profiles) && u.profiles[u.profileIndex].ID == u.selectedProfileID {
+		if existingName := strings.TrimSpace(u.profiles[u.profileIndex].Name); existingName != "" {
+			name = existingName
+		}
+	}
 	if name == "" {
 		name = "Ghost FTP profile"
 	}
+
+	u.password = ""
+	u.passphrase = ""
+	defer func() {
+		password = ""
+		passphrase = ""
+	}()
 	saved, err := u.engine.SaveProfile(model.ProfileInput{
 		ID:             u.selectedProfileID,
 		Name:           name,
@@ -917,7 +946,9 @@ func (u *linuxDesktop) saveProfile() {
 		Host:           u.host,
 		Port:           port,
 		Username:       u.username,
+		Password:       password,
 		PrivateKeyPath: u.keyPath,
+		Passphrase:     passphrase,
 		Fingerprint:    u.pendingFingerprint,
 		RemotePath:     u.remoteCurrent,
 		LocalPath:      u.localCurrent,
@@ -936,7 +967,11 @@ func (u *linuxDesktop) saveProfile() {
 			}
 		}
 	}
-	u.setStatus("Profile saved without a persistent Linux password/passphrase.")
+	if password != "" || passphrase != "" {
+		u.setStatus("Profile and entered credentials saved in the protected local profile store.")
+		return
+	}
+	u.setStatus("Profile saved. Existing protected credentials are preserved only when account identity is unchanged.")
 }
 
 func (u *linuxDesktop) removeProfile() {
