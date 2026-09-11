@@ -175,7 +175,9 @@ open_distinct_overlay() {
 
   for _ in $(seq 1 20); do
     xdotool windowfocus "$win" >/dev/null 2>&1 || true
-    xdotool mousemove --sync "$root_x" "$root_y"
+    # Do not use xdotool --sync here: a retry intentionally targets the same
+    # point, and --sync can wait forever when the pointer is already there.
+    xdotool mousemove "$root_x" "$root_y"
     xdotool click 1
     sleep 0.3
     import -window "$win" "$output"
