@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,7 +19,7 @@ class WindowsDesktopModalKeyboardContractTests(unittest.TestCase):
         self.assertIn('user32.NewProc("GetMessageW")', helper)
         self.assertIn('user32.NewProc("IsDialogMessageW")', helper)
         self.assertIn('user32.NewProc("GetAncestor")', helper)
-        self.assertIn("desktopGARoot     = 2", helper)
+        self.assertRegex(helper, r"desktopGARoot\s*=\s*2")
 
     def test_only_desktop_owned_modal_windows_are_intercepted(self) -> None:
         helper = read("internal/desktop/modal_message_windows.go")
@@ -43,9 +44,9 @@ class WindowsDesktopModalKeyboardContractTests(unittest.TestCase):
     def test_enter_and_escape_have_bounded_modal_semantics(self) -> None:
         helper = read("internal/desktop/modal_message_windows.go")
 
-        self.assertIn("desktopVKEscape   = 0x1B", helper)
-        self.assertIn("desktopVKReturn   = 0x0D", helper)
-        self.assertIn("desktopBMClick    = 0x00F5", helper)
+        self.assertRegex(helper, r"desktopVKEscape\s*=\s*0x1B")
+        self.assertRegex(helper, r"desktopVKReturn\s*=\s*0x0D")
+        self.assertRegex(helper, r"desktopBMClick\s*=\s*0x00F5")
         self.assertIn("p.sendMessage.Call(root, wmClose, 0, 0)", helper)
         self.assertIn("p.sendMessage.Call(button, desktopBMClick, 0, 0)", helper)
         self.assertIn("return state.connect", helper)
