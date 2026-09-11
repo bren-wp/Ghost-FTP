@@ -5,6 +5,10 @@ Native Android client source lives entirely under this `android/` directory.
 ## Current source capability
 
 - Native Android Java UI with no AndroidX/runtime SDK dependency.
+- Phone layout uses a real left navigation drawer; tablet layouts at sufficient width use the same destinations as a persistent sidebar.
+- The active Android destinations are **Files**, **Sites**, **Bookmarks**, **Transfers**, **Settings** and **About**. Only one workspace is active at a time instead of compressing the desktop UI into one long page.
+- Navigation icons are local Android vector drawables. The runtime UI does not use emoji icons, externally hosted fonts or tracking assets.
+- **Remote Desktop is intentionally not shown on Android** because there is not yet a reviewed Android RDP runtime owner. There is no decorative Coming Soon RDP destination.
 - FTP and explicit FTPS Quick Connect.
 - FTPS uses the platform trust store and strict hostname verification on both control and protected passive data channels. There is no trust-all fallback.
 - FTP remains available for compatibility but is explicitly unencrypted.
@@ -14,18 +18,31 @@ Native Android client source lives entirely under this `android/` directory.
 - Binary upload and download are implemented.
 - Uploads are staged under a random same-directory `.ghostftp-upload-<uuid>.part` name and are committed to the requested remote name only after the FTP server confirms transfer completion and accepts `RNFR`/`RNTO`.
 - Downloads are written to a temporary SAF `.ghostftp-download-<uuid>.part` document and receive the requested final local name only after the FTP transfer is confirmed complete and the storage provider accepts an exact-name commit.
-- An active upload/download can be cancelled from the existing connection action. While a transfer is cancellable, **Disconnect** becomes **Cancel transfer**.
+- An active upload/download can be cancelled from the connection action and from the **Transfers** surface while the transfer is still cancellable.
 - Cancellation and final-name commit are serialized by an explicit transfer commit gate. A cancel that wins before finalization prevents the final remote/local name from being committed; once irreversible finalization has atomically started, the UI changes to **Finalizing…** and no longer claims that cancellation is possible.
 - Cancelling during active data I/O hard-closes both the active data socket and FTP control socket and requires a fresh reconnect before any further server operation.
 - Host, username, protocol, port and the user-granted folder URI may be remembered. Passwords are memory-only and are cleared from the UI after connection.
+- The **Settings** surface only exposes options with a real runtime owner: non-secret Quick Connect metadata persistence and Files-list size display. Security rows are informational and cannot weaken runtime verification.
 - Explicit saved sites store only non-secret connection identity and navigation metadata; Quick Connect never creates a hidden site.
 - A saved site can own a local SAF start folder, a remote start directory, local SAF bookmarks and remote path bookmarks.
+- The **Bookmarks** surface exposes explicit add/remove/open actions for that state; it does not create hidden bookmarks.
 - Changing a saved site's protocol/host/port/username identity clears its remote start directory and remote bookmarks instead of silently carrying server paths to a different endpoint.
 - A saved remote start directory is freshly listed before the connection becomes visible as connected; a stale/unavailable start path fails with an actionable error instead of falling back silently.
 - Opening a remote bookmark performs a fresh server listing before the visible remote path is committed.
 - Local starts/bookmarks are usable only while their persisted SAF read permission still exists and the provider can return a fresh directory listing.
 - Site/bookmark persistence is bounded to 50 sites and 50 bookmarks of each type per site.
+- The **Transfers** surface shows only real transfer lifecycle state. It does not advertise retry/resume/history/queue controls that have no Android runtime owner.
 - No telemetry, analytics, ads, crash-reporting service or Ghost FTP backend is used.
+
+See [`UI-UX.md`](UI-UX.md) for the phone navigation drawer, tablet persistent sidebar and per-surface runtime ownership contract.
+
+## Android release status
+
+Android is an active post-release source-development platform, but it is **not part of the already published Ghost FTP 0.0.3 public release**. Ghost FTP 0.0.3 remains the historical Windows/Linux release and is not rewritten to include Android.
+
+The Android build currently produced by CI is a development/debug-signed APK. It is suitable for installation, runtime validation and authentic emulator screenshots, but it must not be described as a production-signed Android public release. A future public Android release requires a protected production signing key and a separate release contract.
+
+The root repository `VERSION` therefore remains unchanged until a dedicated future release-prep PR updates the next release identity.
 
 ## Upload commit safety
 
@@ -89,6 +106,20 @@ Remote navigation state is bound to `(protocol, host, port, username)`. If that 
 
 SFTP is intentionally not exposed in the Android source line yet. Ghost FTP desktop requires strict host-key verification/pinning; Android will not present an SFTP option until equivalent host-key identity verification is implemented and tested. There is no silent fallback from SFTP to FTP/FTPS.
 
+Informational UI may report that Android SFTP is hidden. The actual protocol picker remains restricted to `FTPS` and `FTP`; documentation text is not a runtime SFTP implementation.
+
+## Remote Desktop security boundary
+
+Remote Desktop is not shown in the Android navigation because there is no reviewed Android RDP runtime owner yet. Ghost FTP does not expose a fake RDP destination or Coming Soon control in the main Android navigation.
+
+If Android RDP is introduced later, its launcher/engine availability, credential handling and security contract must be implemented and reviewed before a navigation item is added.
+
+## Authentic Android screenshots
+
+Project documentation must use screenshots captured from the real built APK running in an Android emulator or physical runtime. Mockups, Figma compositions and generated marketing renders must not be presented as application screenshots.
+
+The screenshot evidence must be tied to a source/build SHA and should cover the real surfaces that exist: Files, Sites, Bookmarks, Transfers and Settings/About. RDP must not be named or captured unless Android has a real runtime RDP surface.
+
 ## Build
 
 The canonical CI build uses Gradle 8.9 and Android SDK 35:
@@ -106,6 +137,8 @@ android/dist/Ghost-FTP-Android.apk
 The GitHub Actions workflow uploads that exact file as the `ghostftp-android-apk` artifact. The APK is generated by the Android toolchain; a placeholder or renamed non-APK file is not accepted.
 
 The current Android version name is derived from the repository `VERSION` plus the development suffix because Android development is not retroactively added to an already published desktop release.
+
+The Android source, passive-data and mobile-navigation regression contracts run before lint/build in the APK workflow.
 
 ## Release signing
 
