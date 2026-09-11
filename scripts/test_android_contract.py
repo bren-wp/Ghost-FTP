@@ -375,8 +375,18 @@ class AndroidContractTests(unittest.TestCase):
         readme = self.read("android/README.md")
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
         self.assertIn("SFTP is intentionally not exposed", readme)
-        self.assertIn('new String[]{"FTPS", "FTP"}', activity)
-        self.assertNotIn('"SFTP"', activity)
+        protocol_start = activity.index("protocol = new Spinner(this);")
+        protocol_end = activity.index('host = field("Server host"', protocol_start)
+        protocol_picker = activity[protocol_start:protocol_end]
+        self.assertIn('new String[]{"FTPS", "FTP"}', protocol_picker)
+        self.assertNotIn("SFTP", protocol_picker)
+        connect_start = activity.index("private void connect()")
+        connect_end = activity.index("private void disconnect()", connect_start)
+        connect = activity[connect_start:connect_end]
+        self.assertNotIn('"SFTP".equals', connect)
+        self.assertNotIn("JSch", connect)
+        self.assertIn("SFTP", activity)
+        self.assertIn("Hidden until strict Android host-key identity verification exists", activity)
 
     def test_android_has_no_telemetry_or_ad_sdk_dependency(self) -> None:
         build = self.read("android/app/build.gradle")
