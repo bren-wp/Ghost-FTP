@@ -114,6 +114,22 @@ capture 'ghost-ftp-linux-settings.png'
 xdotool key --window "$win" Escape
 sleep 0.3
 
+main_png="$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
+bookmarks_png="$OUTPUT_DIR/ghost-ftp-linux-bookmarks.png"
+settings_png="$OUTPUT_DIR/ghost-ftp-linux-settings.png"
+if cmp -s "$main_png" "$bookmarks_png"; then
+  echo 'Bookmarks evidence is identical to the main workspace; the real overlay did not open.' >&2
+  exit 1
+fi
+if cmp -s "$main_png" "$settings_png"; then
+  echo 'Settings evidence is identical to the main workspace; the real overlay did not open.' >&2
+  exit 1
+fi
+if cmp -s "$bookmarks_png" "$settings_png"; then
+  echo 'Bookmarks and Settings evidence are identical; distinct real overlays were not captured.' >&2
+  exit 1
+fi
+
 for png in "$OUTPUT_DIR"/*.png; do
   dims="$(identify -format '%w %h %k' "$png")"
   read -r width height colors <<<"$dims"
