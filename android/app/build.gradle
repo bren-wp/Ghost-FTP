@@ -12,7 +12,7 @@ android {
         applicationId 'app.ghostftp.client'
         minSdk 26
         targetSdk 35
-        versionCode 3
+        versionCode 4
         versionName "${ghostFtpVersion}-dev"
     }
 
