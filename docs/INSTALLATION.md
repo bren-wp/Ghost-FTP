@@ -1,6 +1,6 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.3** is the current published release. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.4** is the current published release and this document defines its canonical installation/publication contract. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical release packages
 
@@ -9,8 +9,8 @@ The canonical public release contains **14 platform artifacts / 17 public files*
 ### Windows
 
 ```text
-Ghost-FTP-0.0.3-Setup.exe
-Ghost-FTP-0.0.3-Portable.exe
+Ghost-FTP-0.0.4-Setup.exe
+Ghost-FTP-0.0.4-Portable.exe
 ```
 
 - Both public files are self-contained x86-compatible universal launchers that carry verified native x64 and x86 Ghost FTP payloads.
@@ -24,30 +24,40 @@ Production Authenticode is optional. When a trusted production certificate is co
 
 ### Linux
 
-Canonical Linux 0.0.3 release files are built by `linux/BUILD-DISTROS.sh`:
+Canonical Linux 0.0.4 release files are built by `linux/BUILD-DISTROS.sh`:
 
 ```text
-Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.3-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.3-Linux-Debian-i386.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.3-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.3-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.3-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.3-Linux-Portable-i386.tar.gz
+Ghost-FTP-0.0.4-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.4-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.4-Linux-Debian-i386.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.4-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.4-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.4-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.4-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.4-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.4-Linux-Portable-i386.tar.gz
 ```
 
 Representative contract names are `Linux-Debian-amd64.deb`, `Linux-Ubuntu-amd64.deb`, `Linux-Fedora-x86_64.rpm` and `Linux-Portable-amd64.tar.gz`.
 
 The builder compiles one production `ghostftp` executable per Go architecture and reuses that executable across matching Debian, Ubuntu, Fedora and Portable variants. Release CI extracts package payloads and compares those binaries byte-for-byte.
 
+### Android development APK
+
+Android is an active native source surface, but it is **not** part of the 14-artifact / 17-file public Windows/Linux release allow-list. Exact-head Android CI builds and verifies an installable development artifact:
+
+```text
+Ghost-FTP-Android.apk
+```
+
+Its Android `versionName` remains bound to root `VERSION` with the maintained `-dev` suffix. It is not represented as a production-signed Android public release until a dedicated production signing/publication contract exists.
+
 ## Windows Setup
 
-1. Download `Ghost-FTP-0.0.3-Setup.exe`.
+1. Download `Ghost-FTP-0.0.4-Setup.exe`.
 2. Verify its SHA-256 against `SHA256.txt` before installation.
 3. Inspect `BUILD-METADATA.txt` and require a valid Authenticode signature only when metadata reports `WINDOWS_AUTHENTICODE=signed`.
 4. Run Setup as the intended user.
@@ -58,25 +68,27 @@ The installer preserves foreign or user-modified same-name shortcuts and does no
 
 ## Windows Portable
 
-`Ghost-FTP-0.0.3-Portable.exe` can be started directly and does not require an installation transaction or registry registration. Universal bootstrap selection does not weaken FTPS/SFTP verification, local path protections, bandwidth policy, Remote Edit limits or privacy behavior.
+`Ghost-FTP-0.0.4-Portable.exe` can be started directly and does not require an installation transaction or registry registration. Universal bootstrap selection does not weaken FTPS/SFTP verification, local path protections, bandwidth policy, Remote Edit limits, Light/Dark appearance behavior or privacy behavior.
 
 ## Linux Debian and Ubuntu DEB
 
 Examples:
 
 ```bash
-sudo apt install ./Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
-sudo apt install ./Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
+sudo apt install ./Ghost-FTP-0.0.4-Linux-Debian-amd64.deb
+sudo apt install ./Ghost-FTP-0.0.4-Linux-Ubuntu-amd64.deb
 ```
 
 The packages install the application binary, desktop entry and icon using the maintained `ghost-ftp` package identity. Debian/Ubuntu metadata declares `ca-certificates`, `curl` and `openssh-client`.
+
+Package-installed Linux builds satisfy the maintained root-controlled executable provenance expected by automatic SFTP AskPass credential delivery, subject to the runtime parent/tool provenance checks. Saved profile credentials remain opt-in and local.
 
 ## Linux Fedora RPM
 
 Example:
 
 ```bash
-sudo dnf install ./Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
+sudo dnf install ./Ghost-FTP-0.0.4-Linux-Fedora-x86_64.rpm
 ```
 
 Fedora metadata declares `ca-certificates`, `curl` and `openssh-clients`. Runtime verification is provider-aware where Fedora may satisfy the `curl` requirement through a compatible package provider.
@@ -86,8 +98,8 @@ Fedora metadata declares `ca-certificates`, `curl` and `openssh-clients`. Runtim
 Example:
 
 ```bash
-tar -xzf Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
-cd Ghost-FTP-0.0.3-Linux-Portable-amd64
+tar -xzf Ghost-FTP-0.0.4-Linux-Portable-amd64.tar.gz
+cd Ghost-FTP-0.0.4-Linux-Portable-amd64
 ./ghostftp
 ```
 
@@ -111,6 +123,12 @@ A future release is installed over the existing application through the maintain
 
 The public release catalog follows a latest-only policy: after a new Ghost FTP release is successfully published and verified, older Ghost FTP releases/tags and obsolete package versions are removed. Users should obtain the current release rather than depending on a superseded version URL.
 
+## Runtime behavior after installation
+
+Windows and Linux expose the same supported desktop feature set through native frontends backed by the shared Engine. That includes FTP/FTPS/SFTP connection behavior, Site Manager/profile state, Remote Edit, transfer queue actions, bandwidth controls, bookmarks/start directories, filter/search/directory comparison and shared file ordering semantics.
+
+Linux 0.0.4 additionally applies its persisted Classic Light/Dark appearance before first paint and exposes the same validated appearance policy as Windows. Native widget/layout implementation remains platform-specific.
+
 ## Remote Edit after installation
 
 Windows and Linux expose the same Remote Edit engine contract for supported remote text files. Opening/saving a remote file remains subject to size, text/binary, revision/conflict, path confinement, permission-preservation and read-back verification safeguards.
@@ -121,15 +139,15 @@ Upload/download ceilings are persisted local settings in binary KiB/s. `0` is un
 
 ## Verification
 
-Before using an official package:
+Before using an official 0.0.4 package:
 
-1. confirm the requested version is `0.0.3`;
+1. confirm the requested version is `0.0.4`;
 2. verify the file is one of the canonical artifact names above;
 3. verify its SHA-256 against `SHA256.txt`;
 4. inspect `BUILD-METADATA.txt` for source commit and Windows signing state;
 5. where metadata says `signed`, require a valid Authenticode signature on Windows;
 6. distinguish native lifecycle coverage from build/parity coverage for non-x86-64 Linux artifacts.
 
-The verified distribution bundle is also published at `ghcr.io/bren-wp/ghost-ftp:0.0.3`; it is distribution infrastructure, not a runtime container.
+After successful publication, the verified distribution bundle is available at `ghcr.io/bren-wp/ghost-ftp:0.0.4`; it is distribution infrastructure, not a runtime container.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [GitHub Releases](GITHUB-RELEASES.md).

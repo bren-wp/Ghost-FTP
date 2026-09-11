@@ -1,29 +1,34 @@
 # Ghost FTP roadmap
 
-Ghost FTP **0.0.3** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
+Ghost FTP **0.0.4** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
 
-## Current 0.0.3 foundation
+## Current 0.0.4 foundation
 
 The current release gate includes:
 
 - native Windows and Linux desktop clients backed by one typed Engine;
-- FTP, explicit FTPS and SFTP workflows;
+- active Android development source with lint/installable-APK and authentic-emulator gates, without adding Android to the public release allow-list;
+- FTP, explicit FTPS and SFTP desktop workflows;
 - SFTP password/key/passphrase authentication and host-key trust;
-- local-only profiles with platform-local protected secret handling;
+- local-only profiles with platform-local protected secret handling and explicit Windows/Linux credential-save consent;
 - validated connection timeout, retry, conflict, parallel-transfer and upload/download bandwidth settings;
+- shared Classic Light/Dark desktop appearance lifecycle;
 - transfer generation binding, source snapshots and staged/rollback-oriented operations;
 - privacy-safe connection diagnostics;
 - truthful transfer progress, speed and ETA;
 - aggregate directional bandwidth scheduling with real curl/OpenSSH transport enforcement;
 - built-in Remote Edit with bounded text handling, revision/conflict protection and verified save/read-back;
-- queue pause/resume/cancel/retry/clear-finished controls;
+- queue pause/resume/cancel/retry/clear-finished plus queued-job Top/Up/Down/Bottom priority controls;
 - non-destructive current-folder filtering on both local and server panes;
 - bounded recursive local/server search with cancellation and fresh-list navigation;
 - conservative directory comparison and synchronized navigation for proven paired directories;
+- shared file sorting semantics on Windows and Linux, including server Permissions sorting where metadata exists;
+- local/remote navigation bookmarks and account-bound profile start directories;
 - two public universal Windows Setup/Portable executables backed by verified internal x64/x86 payloads;
 - canonical Debian/Ubuntu/Fedora/Portable Linux release packaging;
 - 24-language local catalog with English default/fallback;
 - production race/vet/security/privacy/dependency/documentation audits;
+- exact-head Android APK verification and read-only Windows/Linux/Android authentic UI evidence;
 - current GitHub Release policy with `prerelease=false`;
 - truthful Windows signing-state metadata with fail-closed verification when trusted production signing is configured;
 - current GitHub Packages/GHCR distribution-bundle publication and read-back;
@@ -41,26 +46,27 @@ The immediate 0.0.x hardening lane includes:
 6. transfer atomicity, overwrite decisions, temp-file cleanup and application-shutdown behavior;
 7. large-directory/list memory and UI responsiveness;
 8. further Remote Edit shutdown/disconnect/conflict edge cases;
-9. Windows/Linux functional parity for file operations, queue state, shortcuts, settings and error handling;
-10. documentation and authentic real-application screenshots synchronized with exact maintained source.
+9. continued Windows/Linux parity for keyboard/file workflows, file operations, queue state, settings and error handling;
+10. Android lifecycle/rotation/resume hardening without weakening SAF, strict FTPS or staged-transfer boundaries;
+11. documentation and authentic real-application evidence synchronized with exact maintained source.
 
-## 0.0.3 navigation work
+## 0.0.4 navigation work
 
-Ghost FTP 0.0.3 retains the **non-destructive current-folder filter** introduced in 0.0.2 for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request. The filter is localized for all 24 supported desktop languages.
+Ghost FTP 0.0.4 retains the **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, composes with shared sorting and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request.
 
-Ghost FTP 0.0.3 also retains the **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it reads nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Local traversal is anchored to one `os.OpenRoot` capability; server traversal is bound to one captured remote operation/session. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
+Ghost FTP 0.0.4 retains the **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it reads nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
 
-Ghost FTP 0.0.3 retains **conservative directory comparison and synchronized navigation** on Windows and Linux. Comparison is read-only, uses exact-name matching, reports deterministic same/only/newer/conflict/unknown states, treats duplicate names and uncertain metadata fail-closed, and never treats a symlink comparison row as transfer authority. Synchronized navigation is available only for an exact ordinary directory proved present on both sides; both target directories are freshly listed and compared before either visible pane path is committed.
+Ghost FTP 0.0.4 retains **conservative directory comparison and synchronized navigation** on Windows and Linux. Comparison is read-only, uses exact-name matching, reports deterministic same/only/newer/conflict/unknown states, treats duplicate names and uncertain metadata fail-closed, and never treats a symlink comparison row as transfer authority. Synchronized navigation is available only for an exact ordinary directory proved present on both sides; both target directories are freshly listed and compared before either visible pane path is committed.
 
-These navigation capabilities remain part of the current 0.0.3 source/release candidate while their original 0.0.2 introduction stays recorded in release history.
+Ghost FTP 0.0.4 adds reusable **navigation bookmarks and profile start directories**. Bookmarks persist non-secret local/remote navigation metadata; remote activation is revalidated against active account/session identity before navigation commits. Profile remote starts remain account-bound, preventing an inherited server path from silently crossing protocol/host/port/username identity.
 
 ## High-value power-user lane
 
-These capabilities are prioritized because they improve real hosting/server workflows. Items not explicitly marked implemented are **planned, not advertised as shipped**, until all acceptance gates below are satisfied.
+Items explicitly marked implemented are shipped in the 0.0.4 source/release candidate. Other items are planned and must not be advertised as shipped until all acceptance gates below are satisfied.
 
 ### P0 — directory comparison and synchronized navigation
 
-**Status: implemented in Ghost FTP 0.0.3.** Windows and Linux expose the same shared comparison states while keeping comparison read-only and separate from ordinary file-operation authority. The capability originated in 0.0.2 and remains part of the current release contract.
+**Status: implemented in Ghost FTP 0.0.4.** Windows and Linux expose the same shared comparison states while keeping comparison read-only and separate from ordinary file-operation authority.
 
 Implemented contract:
 
@@ -68,83 +74,70 @@ Implemented contract:
 - exact-name matching avoids unsafe case folding across filesystems with different case semantics;
 - deterministic states are `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown`;
 - duplicate exact names fail closed to `conflict`, type mismatches fail closed to `conflict`, and symlinks fail closed to `unknown`;
-- regular-file `newer_*` and `same` classification is used only when both sides provide usable modification times; equal-size files with unknown time remain `unknown`, while differing sizes with unknown time remain `conflict`;
-- timestamp comparison defaults to a two-second tolerance and rejects an override above five minutes;
-- synchronized navigation resolves only a `same` entry that is an ordinary non-symlink directory present on both sides;
-- Windows renders comparison in dedicated read-only ListViews and disables normal rename/delete/upload/download/edit/chmod authority while the comparison surface is active;
-- Linux uses a modal comparison surface and consumes ordinary workspace clicks while comparison rows are displayed, so row indices cannot leak into normal file actions;
-- “Open both” validates the local child and remote name/path, performs fresh local and remote listings, recomputes comparison, and only then commits both pane paths;
-- localized comparison controls/status/disclosure copy exists for all 24 supported desktop languages;
-- `scripts/test_directory_comparison_contract.py` protects cross-platform wiring, mutation gating and the fresh-list-before-path-commit rule;
+- regular-file freshness is inferred only when both sides provide usable modification times;
+- synchronized navigation resolves only an ordinary non-symlink directory present on both sides;
+- fresh local and remote listings complete before either pane path is committed;
 - comparison itself never uploads, downloads, deletes, renames, overwrites or changes permissions.
 
 ### P0 — bounded recursive local/server search
 
-**Status: implemented in Ghost FTP 0.0.3.** The instant current-folder filter remains I/O-free; recursive search is a separate explicit action because it performs additional local/server listing work. The capability originated in 0.0.2 and remains part of the current release contract.
+**Status: implemented in Ghost FTP 0.0.4.** The instant current-folder filter remains I/O-free; recursive search is a separate explicit action because it performs additional local/server listing work.
 
 Implemented contract:
 
-- shared Unicode-aware matching keeps case behavior aligned with current-folder filtering, including Unicode simple-fold cases that lowercasing alone cannot represent;
-- defaults are bounded to depth 12, 20,000 visited items, 1,000 results, batches of 50 and 20 seconds; hard ceilings are depth 32, 50,000 visited items, 5,000 results, batches of 200 and 60 seconds;
-- cancellation propagates through listing contexts; a remote scan owns one operation/session for its lifetime and cannot jump to a reconnected session;
+- shared Unicode-aware matching keeps case behavior aligned with current-folder filtering;
+- defaults are bounded to depth 12, 20,000 visited items, 1,000 results, batches of 50 and 20 seconds, with maintained hard ceilings;
+- cancellation propagates through listing contexts; a remote scan owns one operation/session for its lifetime;
 - local scanning is rooted through `os.OpenRoot`, and symlink/reparse entries are not intentionally traversed;
 - Windows uses dedicated read-only search-result ListViews and Linux keeps normal row-indexed actions modal/disabled while recursive snapshots are displayed;
-- large result sets are incrementally presented rather than accumulated on the UI thread before first display;
-- activating a result closes search mode, performs a fresh parent listing and reselects the discovered name only if it is present in that authoritative listing;
-- the UI discloses nested-folder I/O and the default 20-second / 1,000-result bound before search starts.
+- activating a result performs a fresh parent listing before selection becomes authoritative.
 
 ### P0 — bandwidth-aware transfer controls
 
-**Status: implemented in Ghost FTP 0.0.3.** Upload/download limits are shared validated runtime policy, not decorative frontend timers.
+**Status: implemented in Ghost FTP 0.0.4.** Upload/download limits are shared validated runtime policy, not decorative frontend timers.
 
 Implemented contract:
 
 - independent upload and download limits use explicit binary KiB/s units with `0 = unlimited`;
-- the shared configuration layer validates the maintained `0..1,048,576 KiB/s` range and preserves migration-safe unlimited defaults for older settings;
-- the transfer scheduler defines a conservative aggregate directional ceiling across configured worker slots rather than granting every concurrent transfer the complete configured budget;
-- each transfer attempt snapshots its effective budget when it starts, so a settings change cannot corrupt a running child process and later/retried attempts can observe the new policy;
-- FTP/FTPS use curl `limit-rate` and SFTP uses OpenSSH `sftp -l` after conservative KiB/s→Kbit/s conversion;
-- no busy-wait throttling or UI-only speed cap is used;
-- Windows and Linux settings expose the same persisted upload/download model with localized `KiB/s` labels.
+- the shared configuration layer validates the maintained bounded range and preserves migration-safe unlimited defaults;
+- the transfer scheduler defines a conservative aggregate directional ceiling across configured worker slots;
+- each transfer attempt snapshots its effective budget when it starts;
+- FTP/FTPS use curl `limit-rate` and SFTP uses OpenSSH `sftp -l` after conservative unit conversion;
+- Windows and Linux settings expose the same persisted upload/download model.
 
 ### P0 — queue priority and reorder
 
-**Status: implemented in the post-0.0.3 source line and targeted for the next public release.** This does not retroactively add the capability to the already published 0.0.3 binaries.
+**Status: implemented in Ghost FTP 0.0.4.**
 
-Implemented source contract:
+Implemented contract:
 
 - a single selected `queued` job can move **Top**, **Up**, **Down** or **Bottom** on Windows and Linux;
 - scheduler mutation rotates only slots occupied by queued jobs, so running and terminal jobs keep their exact history positions;
-- Top/Bottom preserves the relative order of all other queued jobs instead of swapping unrelated endpoints;
-- transfer IDs and `jobConnections` bindings are unchanged by reordering;
+- Top/Bottom preserves the relative order of all other queued jobs;
+- transfer IDs and connection bindings are unchanged by reordering;
 - edge actions are idempotent no-ops and emit no redundant queue state event;
-- a real reorder emits one complete queue `state` snapshot and never starts/retries/cancels a transfer as a side effect;
-- directory-tree structural dependencies remain safe because remote/local directories are prepared before the batch of file jobs is committed to the runnable queue;
+- a real reorder emits one complete queue state snapshot and never starts/retries/cancels a transfer as a side effect;
 - both desktop frontends restore selection by transfer ID after reordering rather than reusing a stale row index;
-- all four actions and success states have local copy for all 24 supported desktop languages;
-- `scripts/test_queue_priority_contract.py` and Go unit tests protect scheduler, connection-binding, tree-transfer, UI-wiring and localization invariants.
+- all four actions and success states have local copy for all 24 supported desktop languages.
 
-See [Queue priority and reordering](QUEUE-PRIORITY.md) for the detailed source and release-boundary contract.
+See [Queue priority and reordering](QUEUE-PRIORITY.md).
 
 ### P1 — navigation bookmarks and profile start directories
 
-**Status: implemented in the post-0.0.3 source line and targeted for the next public release.** This does not retroactively add the capability to the already published 0.0.3 binaries.
+**Status: implemented in Ghost FTP 0.0.4.**
 
-Implemented source contract:
+Implemented contract:
 
-- reusable bookmarks are explicit local or remote navigation metadata and never contain passwords, passphrases, private-key data/paths, fingerprints or hidden profile references;
-- local bookmarks require absolute validated paths and are freshly listed before a desktop pane commits navigation;
-- remote bookmark creation reads protocol/host/port/username from the real active Engine connection rather than trusting editable UI text;
-- remote bookmark activation uses `AccountMatches` and revalidates connection identity both before and after a fresh server listing, so reconnect/account changes fail closed;
-- quick-connect bookmark creation has no `SaveProfile` side effect and therefore creates no hidden persistent Site Manager profile;
-- existing corrupt bookmark state fails closed instead of silently becoming an empty collection during a later save;
-- profile remote starts are account-bound: an inherited path is reset when profile identity changes, while a newly explicit path for the new identity is preserved;
-- Windows uses a native bookmark manager and adds desktop `connectionGeneration` protection around remote async navigation commits;
-- Linux uses a native X11 bookmark overlay with full key/mouse/prompt dispatch and turns legacy profile-path copies into drafts that require a real local listing before commit;
-- Windows and Linux expose Add local, Add remote, Open and Delete behavior through the same Engine/config contract;
-- `scripts/test_navigation_bookmarks_contract.py` plus Go unit tests protect non-secret persistence, account/session binding, profile-start isolation, UI wiring and release-boundary documentation.
+- reusable bookmarks are explicit local or remote navigation metadata and never contain passwords, passphrases, private-key data, fingerprints or hidden profile references;
+- local bookmarks require validated paths and are freshly listed before a pane commits navigation;
+- remote bookmark creation reads protocol/host/port/username from the real active Engine connection;
+- remote activation revalidates account and connection identity around a fresh server listing;
+- quick-connect bookmark creation has no `SaveProfile` side effect;
+- corrupt bookmark state fails closed instead of silently becoming an empty collection during a later save;
+- profile remote starts are account-bound;
+- Windows and Linux expose Add local, Add remote, Open and Delete behavior through the same Engine/config contract.
 
-See [Navigation bookmarks and profile start directories](NAVIGATION-BOOKMARKS.md) for the detailed source, security, privacy, parity and release-boundary contract.
+See [Navigation bookmarks and profile start directories](NAVIGATION-BOOKMARKS.md).
 
 ### P1 — stronger interrupted-transfer resume
 
@@ -189,7 +182,7 @@ A visible control is not a feature definition. Every new button, menu item, shor
 6. localization coverage for user-visible text;
 7. unit/integration/regression coverage;
 8. updated active documentation;
-9. authentic UI evidence when the maintained desktop surface changes.
+9. authentic UI evidence when the maintained surface changes.
 
 The maintained UI wiring regression must continue to reject a main desktop button that has no handler.
 
@@ -241,7 +234,7 @@ Future work must preserve:
 
 ## Release direction
 
-The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place. A newer version must pass exact-head and post-merge verification, publication, remote read-back and canonical retention verification before the release lifecycle is considered complete.
+The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place. A newer version must pass exact-head and post-merge verification, publication, remote read-back and canonical retention verification before the release lifecycle is considered complete.
 
 ## Definition of roadmap completion
 

@@ -1,6 +1,6 @@
 # Ghost FTP queue priority and reordering
 
-Queue priority is implemented in the **post-0.0.3 source line** and is targeted for the next public release after the normal exact-head, post-merge and release-prep gates pass. It is not retroactively part of the already published Ghost FTP 0.0.3 release.
+Ghost FTP **0.0.4** includes queue priority/reordering as a maintained Windows/Linux capability. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or the lifecycle state of running/terminal work.
 
 ## User contract
 
@@ -25,22 +25,22 @@ action: Q3 -> Top
 after:  Q3, RUNNING, Q1, DONE, Q2
 ```
 
-This gives the following fail-closed guarantees:
+The maintained fail-closed guarantees are:
 
-- a running or terminal job keeps its exact list/history slot;
+- running/terminal jobs keep their exact history slots;
 - the selected queued job keeps the same transfer ID;
-- Top/Bottom preserves the relative order of every other queued job rather than swapping arbitrary endpoints;
-- `jobConnections` is not rewritten by reordering, so connection-generation/session ownership stays bound to transfer identity;
-- no new transfer is created, duplicated, retried, cancelled or started by a reorder action;
-- one successful reorder emits one complete `state` snapshot with the existing paused state;
+- Top/Bottom preserves the relative order of all other queued jobs;
+- `jobConnections` is not rewritten, so connection-generation/session ownership remains attached to transfer identity;
+- reordering never creates, duplicates, retries, cancels or starts transfer work;
+- one real reorder emits one complete `state` snapshot with the existing paused state;
 - an edge no-op emits no redundant queue event;
 - a closed manager, unknown transfer or non-queued transfer is rejected.
 
-Reordering is therefore a scheduler-order operation only. It does not mutate transfer payload paths, credentials, remote-session identity, conflict policy or transfer state.
+Reordering changes scheduler order only. It does not mutate transfer paths, credentials, remote-session identity, conflict policy or transfer state.
 
 ## Tree-transfer safety
 
-Directory-tree transfers prepare structural dependencies before their file jobs become runnable. Upload tree planning ensures required remote directories before the concrete `reservation.Commit()` call crosses the `BatchReservation.Commit()` boundary. Download tree planning prepares the safe local directory structure before the same queue commit boundary.
+Directory-tree transfers prepare structural dependencies before their file jobs become runnable. Upload planning ensures required remote directories before the concrete `reservation.Commit()` boundary. Download planning prepares the safe local directory structure before the same queue-commit boundary.
 
 Queue priority operates only on the resulting queued file-transfer jobs. It cannot move a file ahead of an unexecuted directory-creation queue job because those directory preparations are not represented as reorderable transfer jobs in this scheduler.
 
@@ -59,35 +59,39 @@ Each delegates to the transfer manager's queued-only operation. No frontend edit
 
 ## Windows behavior
 
-Windows renders four real owner-drawn controls beside the existing queue toolbar. Their enabled state is derived from the shared queued-only policy and connection-busy state. Commands route through the engine API, and refresh restores selection by transfer ID after the row changes position.
+Windows renders four real owner-drawn controls beside the existing queue toolbar. Enabled state comes from the shared single-selection/queued-only policy. Commands route through the Engine API, and refresh restores selection by transfer ID after the row moves.
 
-The controls are localized through the same 24-language local catalog used by the existing Up/Down queue controls. They do not add a network service, telemetry path or hidden persistence layer.
+The controls use the maintained 24-language local catalog and introduce no network service, telemetry path or hidden persistence layer.
 
 ## Linux behavior
 
-Linux renders Top, Up, Down and Bottom controls using the same shared policy. Mouse actions call the same four engine operations, refresh from `Engine.Transfers()`, and restore the selected transfer by ID rather than stale row index.
+Linux renders Top, Up, Down and Bottom through the same shared policy. Mouse actions call the same four Engine operations, refresh from `Engine.Transfers()` and restore selection by transfer ID rather than a stale row index.
 
-Running or otherwise non-queued selections expose no active priority action.
+Running or otherwise non-queued selections expose no active priority action. Layout regression coverage keeps the priority controls clear of the existing queue toolbar/actions.
 
 ## Interaction with pause, retry and connection lifecycle
 
 Queue priority does not call the transfer pump as a side effect. Existing pause/resume/cancel/retry behavior remains owned by the transfer manager and action-state layers.
 
-A reorder also does not rewrite `jobConnections`. If the active server connection changes, the existing generation/connection-identity protections remain authoritative; changing visual scheduler order cannot make stale queued work belong to a new session.
+A reorder also does not rewrite `jobConnections`. Existing generation/connection-identity protections remain authoritative, so changing visual scheduler order cannot make stale queued work belong to a later session.
 
 ## Regression coverage
 
-The maintained contract is protected by:
+The 0.0.4 contract is protected by:
 
-- `internal/transfer/queue_order_test.go` — stable four-way queued ordering, running/terminal slot preservation, connection-binding preservation, edge idempotence, rejection behavior and state snapshots;
+- `internal/transfer/queue_order_test.go` — four-way ordering, non-queued slot preservation, connection binding, edge idempotence, rejection and complete state snapshots;
 - `internal/desktop/queue_priority_test.go` — shared single-selection/queued-only policy and all 24 translations;
 - `internal/desktop/queue_priority_linux_test.go` — Linux layout, queued-only state and ID-based selection restoration;
-- `scripts/test_queue_priority_contract.py` — engine/API/Windows/Linux wiring plus tree-transfer dependency ordering.
+- `scripts/test_queue_priority_contract.py` — Engine/API/Windows/Linux wiring plus tree-transfer dependency ordering and current-release documentation binding.
 
-Native Windows and Linux CI builds remain the compile/runtime gate for the platform-specific frontends. Because the maintained Windows UI changes, authentic Windows screenshot evidence is also required on the exact final PR head before merge.
+Native Windows/Linux CI builds remain the compile/runtime gate for the platform frontends. Authentic Windows/Linux runtime evidence is required on the exact final release-prep head where the maintained queue UI changes are part of the candidate.
 
-## Release boundary
+## 0.0.4 release boundary
 
-Root `VERSION` remains **0.0.3** during this feature work. The already published `ghostftp-v0.0.3` release must not be rewritten. Queue priority becomes a public release capability only after a later reviewed release-prep change advances the version and the complete publication/read-back/retention lifecycle succeeds.
+Root `VERSION` is **0.0.4**. Queue priority is part of the 0.0.4 source/release contract, but this document does not authorize publication by itself.
+
+Publication still requires exact-head tests/builds, Linux packaging/install gates, Android development APK validation, read-only authentic Windows/Linux/Android runtime evidence, review/merge, exact post-merge verification and the canonical `ghostftp-v0.0.4` publication/read-back/retention lifecycle.
+
+Queue priority does not change the public platform allow-list or artifact count: Windows/Linux remain the 14-platform-artifact / 17-public-file release surface, and Android remains a separately validated development APK.
 
 See [Roadmap](ROADMAP.md), [Testing](TESTING.md), [Architecture](ARCHITECTURE.md) and [Platform parity](PLATFORM-PARITY.md).

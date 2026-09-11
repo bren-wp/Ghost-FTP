@@ -105,7 +105,10 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 			continue
 		}
 		filterEnabled := !u.busy && (!remote || u.connected)
-		if err := u.drawButton(u.fileFilterControlRect(remote), u.fileFilterLabel(remote), filterEnabled, false); err != nil {
+		if err := u.drawButton(u.fileFilterPromptControlRect(remote), u.fileFilterLabel(remote), filterEnabled, false); err != nil {
+			return err
+		}
+		if err := u.drawButton(u.fileSortControlRect(remote), u.linuxFileSortLabel(remote), filterEnabled, false); err != nil {
 			return err
 		}
 		if err := u.renderRecursiveSearchButton(remote); err != nil {
@@ -125,13 +128,21 @@ func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
 	if u.handleRecursiveSearchMouse(x, y) {
 		return true
 	}
-	if u.fileFilterControlRect(false).contains(x, y) {
+	if u.fileSortControlRect(false).contains(x, y) {
+		u.cycleLinuxFileSort(false)
+		return true
+	}
+	if u.fileFilterPromptControlRect(false).contains(x, y) {
 		if !u.busy {
 			u.openFileFilterPrompt(false)
 		}
 		return true
 	}
-	if u.fileFilterControlRect(true).contains(x, y) {
+	if u.fileSortControlRect(true).contains(x, y) {
+		u.cycleLinuxFileSort(true)
+		return true
+	}
+	if u.fileFilterPromptControlRect(true).contains(x, y) {
 		if u.connected && !u.busy {
 			u.openFileFilterPrompt(true)
 		}
@@ -164,20 +175,20 @@ func (u *linuxDesktop) acceptLinuxFileFilterSnapshot(remote bool, items []model.
 	state := u.fileFilterState()
 	if state == nil {
 		if remote {
-			u.remoteItems = append([]model.Item(nil), items...)
+			u.remoteItems = u.sortLinuxFileItems(true, items)
 		} else {
-			u.localItems = append([]model.Item(nil), items...)
+			u.localItems = u.sortLinuxFileItems(false, items)
 		}
 		return
 	}
 	source := append([]model.Item(nil), items...)
 	if remote {
 		state.remoteAll = source
-		u.remoteItems = itemlist.Filter(state.remoteAll, state.remoteQuery)
+		u.remoteItems = u.sortLinuxFileItems(true, itemlist.Filter(state.remoteAll, state.remoteQuery))
 		return
 	}
 	state.localAll = source
-	u.localItems = itemlist.Filter(state.localAll, state.localQuery)
+	u.localItems = u.sortLinuxFileItems(false, itemlist.Filter(state.localAll, state.localQuery))
 }
 
 func selectedLinuxItemName(items []model.Item, selected int) string {
@@ -214,14 +225,14 @@ func (u *linuxDesktop) applyLinuxFileFilter(remote bool, query string) {
 		}
 		selectedName := selectedLinuxItemName(u.remoteItems, u.selectedRemote)
 		state.remoteQuery = query
-		u.remoteItems = itemlist.Filter(state.remoteAll, query)
+		u.remoteItems = u.sortLinuxFileItems(true, itemlist.Filter(state.remoteAll, query))
 		u.selectedRemote = restoreLinuxSelection(u.remoteItems, selectedName)
 		u.setStatus(fmt.Sprintf("%s · %d/%d", fileFilterWordsForLanguage(u.language).Cue, len(u.remoteItems), len(state.remoteAll)))
 		return
 	}
 	selectedName := selectedLinuxItemName(u.localItems, u.selectedLocal)
 	state.localQuery = query
-	u.localItems = itemlist.Filter(state.localAll, query)
+	u.localItems = u.sortLinuxFileItems(false, itemlist.Filter(state.localAll, query))
 	u.selectedLocal = restoreLinuxSelection(u.localItems, selectedName)
 	u.setStatus(fmt.Sprintf("%s · %d/%d", fileFilterWordsForLanguage(u.language).Cue, len(u.localItems), len(state.localAll)))
 }

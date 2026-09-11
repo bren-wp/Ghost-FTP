@@ -99,6 +99,7 @@ class FileFilterUIContractTests(unittest.TestCase):
     def test_linux_render_selection_and_refresh_use_visible_slice(self) -> None:
         ui = source("internal/desktop/gui_linux.go")
         filter_source = source("internal/desktop/file_filter_linux.go")
+        sort_source = source("internal/desktop/file_sort_linux.go")
         actions = source("internal/desktop/gui_linux_actions.go")
 
         self.assertIn("u.renderFileFilterControls()", ui)
@@ -114,8 +115,26 @@ class FileFilterUIContractTests(unittest.TestCase):
 
         self.assertIn("state.localAll = source", filter_source)
         self.assertIn("state.remoteAll = source", filter_source)
-        self.assertIn("u.localItems = itemlist.Filter(state.localAll, query)", filter_source)
-        self.assertIn("u.remoteItems = itemlist.Filter(state.remoteAll, query)", filter_source)
+        self.assertIn(
+            "u.localItems = u.sortLinuxFileItems(false, itemlist.Filter(state.localAll, query))",
+            filter_source,
+        )
+        self.assertIn(
+            "u.remoteItems = u.sortLinuxFileItems(true, itemlist.Filter(state.remoteAll, query))",
+            filter_source,
+        )
+        self.assertIn(
+            "u.localItems = u.sortLinuxFileItems(false, itemlist.Filter(state.localAll, state.localQuery))",
+            filter_source,
+        )
+        self.assertIn(
+            "u.remoteItems = u.sortLinuxFileItems(true, itemlist.Filter(state.remoteAll, state.remoteQuery))",
+            filter_source,
+        )
+        self.assertIn("itemlist.SortBy(out, u.linuxFileSortSpec(remote))", sort_source)
+        self.assertIn("itemlist.FieldPermissions", sort_source)
+        self.assertIn("u.fileSortControlRect(false).contains(x, y)", filter_source)
+        self.assertIn("u.fileSortControlRect(true).contains(x, y)", filter_source)
         self.assertIn("linuxPromptLocalFilter", actions)
         self.assertIn("linuxPromptRemoteFilter", actions)
         self.assertIn("isFilter := kind == linuxPromptLocalFilter || kind == linuxPromptRemoteFilter", actions)
@@ -144,8 +163,9 @@ class FileFilterUIContractTests(unittest.TestCase):
         self.assertIn("non-destructive current-folder filter", roadmap)
         self.assertIn("p0 — bounded recursive local/server search", roadmap)
         self.assertIn(f"status: implemented in ghost ftp {version}", roadmap)
-        self.assertIn("current-folder filter regression contract", testing)
+        self.assertIn("current-folder filter and sorting regression contract", testing)
         self.assertIn("deliberately separate from bounded recursive search", testing)
+        self.assertIn("filtering and subsequent sorting", testing)
         self.assertIn("bounded recursive search regression contract", testing)
 
         current_filter_lines = [line for line in changelog_lines if "current-folder filter" in line]

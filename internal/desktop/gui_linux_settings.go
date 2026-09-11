@@ -13,6 +13,7 @@ import (
 
 type linuxSettingsRects struct {
 	language                    linuxRect
+	appearance                  linuxRect
 	parallelMinus, parallelPlus linuxRect
 	uploadMinus, uploadPlus     linuxRect
 	downloadMinus, downloadPlus linuxRect
@@ -45,6 +46,9 @@ func (u *linuxDesktop) openSettings() {
 		return
 	}
 	settings.Language = i18n.Normalize(settings.Language)
+	if settings.Appearance != model.AppearanceDark && settings.Appearance != model.AppearanceLight {
+		settings.Appearance = config.DefaultSettings().Appearance
+	}
 	u.settingsDraft = settings
 	u.settingsOpen = true
 }
@@ -73,6 +77,13 @@ func nextConflictPolicy(current string) string {
 	default:
 		return model.ConflictPolicySkip
 	}
+}
+
+func nextLinuxAppearance(current string) string {
+	if current == model.AppearanceDark {
+		return model.AppearanceLight
+	}
+	return model.AppearanceDark
 }
 
 func (u *linuxDesktop) conflictPolicyLabel(policy string) string {
@@ -109,6 +120,7 @@ func (u *linuxDesktop) saveSettings() {
 	}
 	u.settingsDraft = saved
 	u.language = i18n.Normalize(saved.Language)
+	setActiveTheme(saved.Appearance)
 	u.closeSettings()
 	u.setStatus(u.tr("settings.saved", saved.Parallelism, saved.ConnectionTimeoutSeconds, linuxRetrySummary(u, saved), linuxConflictSummary(u, saved)))
 }
@@ -180,6 +192,10 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 	r := u.settingsRects
 	if r.language.contains(x, y) {
 		u.settingsDraft.Language = nextLanguage(u.settingsDraft.Language)
+		return true
+	}
+	if r.appearance.contains(x, y) {
+		u.settingsDraft.Appearance = nextLinuxAppearance(u.settingsDraft.Appearance)
 		return true
 	}
 	if u.settingsStep(r.parallelMinus, r.parallelPlus, x, y, &u.settingsDraft.Parallelism, config.MinParallelism, config.MaxParallelism, 1) {
@@ -263,7 +279,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return nil
 	}
 	width := min(700, u.width-100)
-	height := 576
+	height := 621
 	left := (u.width - width) / 2
 	top := (u.height - height) / 2
 	panel := linuxRectWH(left, top, width, height)
@@ -285,6 +301,19 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	u.settingsRects.language = linuxRectWH(left+width-246, row, 230, 30)
 	languageLabel := language.NativeName + " (" + language.Code + ")"
 	if err := u.drawButton(u.settingsRects.language, linuxTrimForUI(languageLabel, 30), true, false); err != nil {
+		return err
+	}
+	row += 45
+	appearance := appearanceText(u.settingsDraft.Language)
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(appearance.Title, 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
+		return err
+	}
+	u.settingsRects.appearance = linuxRectWH(left+width-246, row, 230, 30)
+	appearanceLabel := appearance.Light
+	if u.settingsDraft.Appearance == model.AppearanceDark {
+		appearanceLabel = appearance.Dark
+	}
+	if err := u.drawButton(u.settingsRects.appearance, linuxTrimForUI(appearanceLabel, 30), true, false); err != nil {
 		return err
 	}
 	row += 45

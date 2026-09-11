@@ -1,11 +1,11 @@
 # Ghost FTP settings
 
-Ghost FTP **0.0.3 development** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
+Ghost FTP **0.0.4** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
 
 ## Current persisted settings
 
 - `language` — canonical local UI language; invalid state normalizes to English.
-- `appearance` — Windows appearance, `light` or `dark`; fresh/invalid state resolves to Classic Light.
+- `appearance` — Windows/Linux appearance, `light` or `dark`; fresh/invalid state resolves to Classic Light.
 - `parallelism` — concurrent transfers, range **1–8**, default **2**.
 - `uploadLimitKiBPerSecond` — aggregate upload ceiling in **KiB/s**, range **0–1,048,576**, default **0 = unlimited**.
 - `downloadLimitKiBPerSecond` — aggregate download ceiling in **KiB/s**, range **0–1,048,576**, default **0 = unlimited**.
@@ -31,10 +31,10 @@ Every exposed option has one explicit runtime owner:
 | Retry delay | Defines the bounded delay between eligible automatic retries. |
 | Conflict policy | Selects skip, safe replace, or safe replace with retained recovery backup. |
 | Delete confirmation | Controls user confirmation before destructive local/server deletion. |
-| Appearance | Selects the maintained Windows Classic Light/Dark workspace. |
+| Appearance | Selects the maintained Windows/Linux Classic Light or Dark workspace palette. |
 | Language | Selects one of the local 24-language catalogs with English fallback. |
 
-The Windows and Linux settings surfaces consume the same shared model for options they expose. A frontend must not silently accept a value that the shared configuration layer rejects.
+The Windows and Linux settings surfaces consume the same shared model. A frontend must not silently accept a value that the shared configuration layer rejects.
 
 ## Bandwidth policy
 
@@ -61,9 +61,10 @@ Older or partial settings payloads are migrated only when a missing value can be
 - Explicit invalid parallelism such as a negative value or a value above 8 is still rejected rather than silently rewritten.
 - Explicit negative bandwidth limits or values above **1,048,576 KiB/s** are rejected on save; corrupt persisted values normalize to unlimited rather than becoming an unintended throttle.
 - Unknown persisted conflict-policy state fails closed to the conservative replace-with-recovery-backup behavior.
+- Invalid/missing appearance state normalizes to the canonical Classic Light fallback.
 - Legacy overwrite booleans are synchronized from the one canonical `conflictPolicy` field when settings are saved.
 
-Regression tests cover migration, independent upload/download values, aggregate allocation and continued rejection of explicit invalid values.
+Regression tests cover migration, independent upload/download values, aggregate allocation, appearance selection and continued rejection of explicit invalid values.
 
 ## Windows settings surface
 
@@ -73,6 +74,12 @@ Bandwidth labels always state `KiB/s` and `0 = unlimited`. The native dialog acc
 
 Invalid input keeps the dialog open, shows localized corrective text and restores keyboard focus to the invalid field instead of partially committing the remaining settings. A successful **OK** returns one complete settings candidate to the typed engine. Closing with **X** or **Cancel** closes only Settings and does not end the application message loop.
 
+## Linux settings surface
+
+Linux exposes the same validated runtime policy through the maintained native X11/XWayland-compatible Settings overlay. Appearance, language, transfer concurrency, upload/download bandwidth ceilings, connection timeout, retry behavior, conflict policy and delete confirmation all persist through the shared settings model.
+
+Because the Linux surface uses bounded steppers rather than free-form numeric text entry, bandwidth controls advance through maintained presets from unlimited up to the same validated maximum. Persisted values that came from another supported surface remain valid and the next step moves to the adjacent bounded preset.
+
 ## Appearance
 
 ### Windows
@@ -80,13 +87,14 @@ Invalid input keeps the dialog open, shows localized corrective text and restore
 - `light` — Classic Light and the fresh-install fallback.
 - `dark` — the maintained Ghost FTP dark workspace.
 
-An explicitly saved Dark preference is preserved. Appearance does not load remote fonts, styles, images or theme services.
+An explicitly saved Dark preference is preserved. Windows additionally applies the maintained native title-bar/control theming for the selected appearance.
 
 ### Linux
 
-Linux uses the maintained Classic Light workspace until a complete runtime appearance switch can be provided without introducing a platform-only control whose behavior differs from Windows.
+- `light` — the same canonical Classic Light palette and fresh/invalid fallback.
+- `dark` — the maintained Ghost FTP dark palette.
 
-The Linux Settings overlay exposes the same upload/download bandwidth values as Windows. Because the X11 surface uses bounded steppers rather than free-form numeric text entry, bandwidth controls advance through maintained presets from unlimited up to the same validated maximum; persisted values that came from another supported surface remain valid and the next step moves to the adjacent bounded preset.
+The persisted Linux appearance is applied before the first native frame is rendered. Saving Settings applies the newly validated palette immediately. Appearance does not load remote fonts, styles, images or theme services on either desktop platform.
 
 ## Fresh connection protocol
 
@@ -120,10 +128,12 @@ English is the default/fallback and the canonical registry contains **24 languag
 
 Credential persistence is a per-save privacy decision rather than a hidden global toggle.
 
-- Saving newly entered Windows profile credentials requires explicit consent.
-- Declining consent can still save non-secret profile fields while removing stored credentials.
-- Profile binding prevents old credentials from silently moving to a changed server/account/private-key identity.
-- Linux session-only protected-secret handles remain session-only.
+- Saving newly entered Windows profile credentials requires explicit consent and uses the maintained current-user protected secret boundary.
+- Saving newly entered Linux password/private-key-passphrase material requires a bounded second confirmation before the shared profile save is allowed to persist it in the protected local profile store.
+- Linux clears the entered plaintext password/passphrase fields after the save attempt; session-only protected-secret handles remain session-only.
+- Declining or not completing credential consent still permits non-secret profile state to remain separate from secret persistence.
+- Profile binding prevents old credentials from silently moving to a changed protocol/server/account/private-key identity.
+- The Linux SFTP AskPass path still requires trusted executable/helper/parent provenance; credential-save parity does not weaken that runtime delivery boundary.
 
 ## Delete confirmation
 
@@ -133,7 +143,7 @@ Delete confirmation defaults to enabled. Destructive actions must respect the va
 
 A control is not considered implemented merely because it is visible. Main desktop controls are covered by a regression contract that compares the Windows button IDs with their command handlers and the Linux rendered control rectangles with their click handlers. Settings changes additionally require a backend validation path and tests proving the setting changes runtime behavior or policy.
 
-Directory comparison/synchronized browsing, recursive search/filter and queue priority are implemented maintained capabilities. Future power-user options remain roadmap items until their complete engine + Windows + Linux + localization + test path exists; they must not appear as decorative or non-functional switches.
+Directory comparison/synchronized browsing, recursive search/filter, shared file sorting, bookmarks and queue priority are implemented maintained capabilities. Future power-user options remain roadmap items until their complete engine + Windows + Linux + localization + test path exists; they must not appear as decorative or non-functional switches.
 
 ## Persistence and recovery
 

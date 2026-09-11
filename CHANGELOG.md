@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.0.4 - 2026-09-11
+
+### Windows and Linux desktop parity
+
+- Completed Linux Light/Dark appearance parity using the same validated `Appearance` setting and shared palette contract as Windows; persisted appearance is applied before the first Linux frame and changes take effect immediately after saving Settings.
+- Added Linux file-pane sorting through the same shared `itemlist.SortBy` engine used by Windows: Name, Type, Size and Modified are available on both panes, with Permissions additionally available for the remote pane; ascending/descending cycles retain directories-first ordering and restore selection by item name.
+- Kept filtering and sorting composable and non-destructive. A fresh directory snapshot remains authoritative, visible rows are produced by `sort(filter(snapshot))`, and row-indexed actions continue to target only the visible slice.
+- Preserved existing bounded recursive search and conservative directory-comparison modal geometry while adding the Linux sort control to the normal file-pane toolbar.
+- Added Linux profile credential-save parity. Password/private-key passphrase persistence remains explicit, requires a bounded second confirmation, clears plaintext UI state after the operation and continues to use the protected local profile store and hardened AskPass/provenance boundary.
+- Added Linux settings and sorting regression coverage so appearance persistence, sort order, remote permission ordering, unknown-metadata placement, filter composition and selection restoration cannot silently regress.
+
+### Android quality and stability
+
+- Hardened the native Android FTP/FTPS parser with bounded control-line length, multiline reply count/size, MLSD line length and directory-entry count so a malformed or hostile server cannot grow response memory without a maintained limit.
+- Preserved strict explicit FTPS certificate and hostname verification, staged upload/download final-name commit gates, non-blocking transfer cancellation, SAF-only local storage access, non-secret saved-site metadata and account-bound remote navigation state.
+- Preserved the Android 35 system-bar inset correction and semantic accessibility-only navigation used by authentic emulator evidence; screenshot/color/coordinate navigation fallbacks remain prohibited.
+- Android remains an active, installable development APK surface tied to root `VERSION`; it is not silently promoted into the signed Windows/Linux public release allow-list.
 
 ### Queue priority and reordering
 
@@ -9,7 +25,6 @@
 - Kept edge moves idempotent and event-free, while a real move emits one complete state snapshot without starting, retrying or cancelling transfer work as a side effect.
 - Added Windows and Linux controls with the same queued-only policy, ID-based selection restoration and local copy for all 24 supported desktop languages.
 - Added regression coverage for four-way ordering, non-queued slot stability, connection binding, tree-transfer directory-preparation ordering and cross-platform UI wiring.
-- This is post-0.0.3 source work for the next release; root `VERSION` and the already published `ghostftp-v0.0.3` release remain unchanged.
 
 ### Navigation bookmarks and profile start directories
 
@@ -19,7 +34,20 @@
 - Added an additional Windows `connectionGeneration` guard around remote bookmark UI commits and Linux modal/action routing that keeps stored paths from bypassing the existing navigation lifecycle.
 - Hardened profile start-directory behavior so an inherited server path cannot silently cross a protocol/host/port/username account boundary; Linux also restores the previous verified local base and requires a successful local listing before a selected profile start becomes pane state.
 - Added Go coverage plus `scripts/test_navigation_bookmarks_contract.py` for non-secret persistence, corrupt-state fail-closed behavior, account/session revalidation, profile-start isolation, cross-platform UI wiring and documentation/release boundaries.
-- Added `docs/NAVIGATION-BOOKMARKS.md`; this remains post-0.0.3 source work targeted for the next public release, while root `VERSION` and the already published `ghostftp-v0.0.3` release remain unchanged.
+- Added `docs/NAVIGATION-BOOKMARKS.md` and incorporated the completed feature into the 0.0.4 public desktop release line.
+
+### Release engineering and verification
+
+- Advanced root `VERSION` to **0.0.4** while preserving the current GitHub Release channel (`prerelease=false`) and canonical `ghostftp-vX.Y.Z` tag namespace.
+- Kept the public release shape at **14 platform artifacts / 17 public files**: two universal Windows executables, twelve canonical Linux distro/Portable artifacts and three metadata/verification files.
+- Preserved optional fail-closed production Authenticode: configured trusted signing identities must verify, while an absent production certificate is recorded explicitly as unsigned rather than replaced by a self-signed identity.
+- Kept Android outside the Windows/Linux public release asset allow-list until a maintained production signing/publication contract exists.
+- Preserved exact-head CI, Android APK, Linux distro install, package parity and authentic cross-platform UI evidence as independent release-readiness gates.
+
+### Security and privacy
+
+- Preserved strict FTPS certificate/hostname validation, SFTP host-key verification/pinning, trusted Linux AskPass executable/parent provenance, account-bound stored credentials, local root/path protections, protected-secret lifetime rules and no silent secure-to-plain downgrade.
+- Preserved the no-telemetry, no-analytics, no-advertising, no-fingerprinting, no-hidden-backend and no-automatic-crash-upload contract across Windows, Linux and Android source surfaces.
 
 ## 0.0.3 - 2026-09-10
 

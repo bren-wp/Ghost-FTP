@@ -25,6 +25,11 @@ import javax.net.ssl.SSLSocketFactory;
 final class FtpSession implements Closeable {
     private static final int CONNECT_TIMEOUT_MS = 15000;
     private static final int READ_TIMEOUT_MS = 30000;
+    private static final int MAX_CONTROL_LINE_CHARS = 16 * 1024;
+    private static final int MAX_MULTILINE_REPLY_LINES = 256;
+    private static final int MAX_REPLY_CHARS = 256 * 1024;
+    private static final int MAX_MLSD_LINE_CHARS = 16 * 1024;
+    private static final int MAX_DIRECTORY_ENTRIES = 10000;
 
     private final String host;
     private final int port;
@@ -96,8 +101,14 @@ final class FtpSession implements Closeable {
             try (BufferedReader dataReader = new BufferedReader(new InputStreamReader(data.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = dataReader.readLine()) != null) {
+                    if (line.length() > MAX_MLSD_LINE_CHARS) {
+                        throw new IOException("Directory listing contained an overlong entry.");
+                    }
                     RemoteEntry entry = parseMlsd(line);
                     if (entry != null) {
+                        if (entries.size() >= MAX_DIRECTORY_ENTRIES) {
+                            throw new IOException("Directory listing exceeded the Android safety limit.");
+                        }
                         entries.add(entry);
                     }
                 }
@@ -377,15 +388,27 @@ final class FtpSession implements Closeable {
         if (first == null || first.length() < 3) {
             throw new IOException("FTP server closed the control connection.");
         }
+        if (first.length() > MAX_CONTROL_LINE_CHARS) {
+            hardClose();
+            throw new IOException("FTP server returned an overlong control response; the connection was closed.");
+        }
         int code = parseCode(first);
         StringBuilder message = new StringBuilder(first);
         if (first.length() > 3 && first.charAt(3) == '-') {
             String terminal = String.format(Locale.ROOT, "%03d ", code);
+            int lines = 1;
             String line;
             do {
                 line = reader.readLine();
                 if (line == null) {
-                    throw new IOException("FTP multiline response ended unexpectedly.");
+                    hardClose();
+                    throw new IOException("FTP multiline response ended unexpectedly; the connection was closed.");
+                }
+                if (line.length() > MAX_CONTROL_LINE_CHARS
+                        || ++lines > MAX_MULTILINE_REPLY_LINES
+                        || message.length() + line.length() + 1 > MAX_REPLY_CHARS) {
+                    hardClose();
+                    throw new IOException("FTP multiline response exceeded safety limits; the connection was closed.");
                 }
                 message.append('\n').append(line);
             } while (!line.startsWith(terminal));

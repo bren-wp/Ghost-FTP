@@ -58,28 +58,29 @@ class ReadmeMediaContractTests(unittest.TestCase):
         }
         self.assertEqual(sorted(expected - sources), [], "docs index is missing maintained product media")
 
-    def test_readme_copy_keeps_authentic_media_provenance_explicit(self) -> None:
+    def test_readme_copy_keeps_cross_platform_authentic_media_provenance_explicit(self) -> None:
         root = (ROOT / "README.md").read_text(encoding="utf-8")
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
+        reference = (ROOT / "docs/REFERENCE-UI.md").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/ui-screenshots.yml").read_text(encoding="utf-8")
+
         for text, label in ((root, "README.md"), (docs, "docs/README.md")):
             lowered = text.lower()
             self.assertIn("repository-local", lowered, f"{label} must state local media provenance")
-            self.assertIn(
-                "verified internal native x64 payload",
-                lowered,
-                f"{label} must bind screenshots to the verified internal native x64 evidence payload",
-            )
-            self.assertIn(
-                "universal windows build",
-                lowered,
-                f"{label} must bind native screenshot evidence to the universal Windows build chain",
-            )
+            self.assertIn("exact-head", lowered, f"{label} must bind evidence to exact source identity")
+            self.assertIn("windows, linux and android", lowered, f"{label} must describe cross-platform runtime evidence")
             self.assertIn("mockup", lowered, f"{label} must reject mockups as production evidence")
-            self.assertRegex(
-                lowered,
-                r"not (?:(?:an architecture-specific|a) )?public download",
-                f"{label} must not present internal x64 evidence as a public artifact",
-            )
+
+        workflow_lower = workflow.lower()
+        self.assertIn('dist\\internal\\ghost-ftp-$version-portable-x64.exe', workflow_lower)
+        self.assertIn("missing verified native production executable", workflow_lower)
+        self.assertIn("windows — 5 images", reference.lower())
+        self.assertIn("linux — 3 images", reference.lower())
+        self.assertIn("android — 7 images", reference.lower())
+        self.assertIn("exactly **15 runtime images**", reference.lower())
+        self.assertIn("read-only verified cross-platform evidence bundle", docs.lower())
+        self.assertNotIn("git push", workflow_lower)
+        self.assertNotIn("github-actions[bot]", workflow_lower)
 
 
 if __name__ == "__main__":

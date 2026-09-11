@@ -2,7 +2,7 @@
 
 Ghost FTP uses semantic versioning with the root `VERSION` file as the authoritative production version source.
 
-Current source candidate: **0.0.3**.
+Current source candidate: **0.0.4**.
 
 ## Version format
 
@@ -19,8 +19,8 @@ ghostftp-vMAJOR.MINOR.PATCH
 The current release identity is:
 
 ```text
-VERSION=0.0.3
-TAG=ghostftp-v0.0.3
+VERSION=0.0.4
+TAG=ghostftp-v0.0.4
 CHANNEL=Current
 PRERELEASE=false
 ```
@@ -35,6 +35,7 @@ The intended sequence is incremental:
 0.0.1
 0.0.2
 0.0.3
+0.0.4
 ...
 ```
 
@@ -58,10 +59,10 @@ The canonical release branch namespace is:
 release/ghostftp-v<version>
 ```
 
-For 0.0.3:
+For 0.0.4:
 
 ```text
-release/ghostftp-v0.0.3
+release/ghostftp-v0.0.4
 ```
 
 `.github/workflows/release-branch-trigger.yml` accepts the branch only when its semantic version equals root `VERSION`, the branch points to exact current `main`, and canonical `release.yml` is dispatched with the same version guard. The trigger waits for the exact publish run to succeed before it can explicitly dispatch and verify retention.
@@ -70,7 +71,9 @@ release/ghostftp-v0.0.3
 
 The semantic version is injected into Windows application binaries, universal Setup/Portable filenames, Linux DEB/RPM metadata, Portable archive names, release notes, build metadata and GitHub Release identity.
 
-Source entry points retain a development fallback and receive the production version through build linker flags. The user-facing version displays the canonical semantic version without automatically adding a `Beta` suffix for major version zero.
+Android source also reads root `VERSION`, but its maintained artifact remains an installable development APK with `-dev` version identity. Android is not silently included in the signed Windows/Linux public release allow-list until a maintained Android production signing/publication contract exists.
+
+Source entry points retain a development fallback and receive the production version through build linker flags. The user-facing desktop version displays the canonical semantic version without automatically adding a `Beta` suffix for major version zero.
 
 ## Current GitHub Release rule
 
@@ -81,12 +84,12 @@ CHANNEL=Current
 PRERELEASE=false
 ```
 
-The canonical 0.0.3 release contains **14 platform artifacts / 17 public files**: two universal Windows executables, twelve Linux Debian/Ubuntu/Fedora/Portable artifacts and three metadata/verification files.
+The canonical 0.0.4 release contains **14 platform artifacts / 17 public files**: two universal Windows executables, twelve Linux Debian/Ubuntu/Fedora/Portable artifacts and three metadata/verification files.
 
 The exact verified release directory is also published as a distribution bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.3
+ghcr.io/bren-wp/ghost-ftp:0.0.4
 ```
 
 The GHCR bundle is not a supported runtime container. Publication also maintains current aliases derived from the semantic version and `latest`; the exact version tag is the immutable verification identity for the current release transaction.
@@ -96,8 +99,8 @@ The GHCR bundle is not a supported runtime container. Publication also maintains
 Public Windows downloads are:
 
 ```text
-Ghost-FTP-0.0.3-Setup.exe
-Ghost-FTP-0.0.3-Portable.exe
+Ghost-FTP-0.0.4-Setup.exe
+Ghost-FTP-0.0.4-Portable.exe
 ```
 
 Verified native x64/x86 Setup/Portable payloads remain internal staging artifacts and are embedded in the universal build. Architecture-specific Windows release names must not leak into the public directory.
@@ -128,7 +131,7 @@ The active documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRE
 
 `CHANGELOG.md` contains the maintained public release line and includes a `## <VERSION>` section. `scripts/release_notes.py` extracts that section for public release notes.
 
-## 0.0.3 release checklist
+## 0.0.4 release checklist
 
 The exact candidate must pass:
 
@@ -138,21 +141,25 @@ The exact candidate must pass:
 - real FTP/FTPS/SFTP behavior regressions and strict trust/no-downgrade checks;
 - rooted local transfer/filesystem safeguards;
 - Remote Edit size/text/revision/conflict/permission/read-back/metadata-refresh safeguards;
-- current-folder filter and bounded recursive local/server search regression contracts;
+- current-folder filter, shared Windows/Linux sorting and bounded recursive local/server search regression contracts;
 - conservative directory-comparison and synchronized-navigation regression contracts;
+- queue Top/Up/Down/Bottom priority/reordering contracts and connection binding;
+- navigation bookmark and profile start-directory account/session revalidation contracts;
 - validated upload/download bandwidth configuration, aggregate scheduling and transport enforcement tests;
+- Linux persisted Light/Dark appearance and protected credential-save consent regression coverage;
 - Windows installer/uninstaller/shortcut ownership and exact-object cleanup checks;
 - Linux trusted transport/AskPass provenance checks;
+- Android source contract, strict FTPS/parser bounds, lint, installable development APK build and APK contract verification;
 - universal Windows Setup and Portable production builds backed by verified native x64/x86 payloads;
 - Linux Debian/Ubuntu/Fedora/Portable build, metadata, extraction and binary-parity checks;
 - Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 install/remove/GUI smoke;
-- 24-language localization and authentic Windows UI evidence;
+- 24-language localization and authentic Windows/Linux/Android UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
-- exact-main `release/ghostftp-v0.0.3` validation;
-- GitHub Release `ghostftp-v0.0.3` with `prerelease=false` and exact 17-file read-back;
-- GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.3` publication/read-back;
+- exact-main `release/ghostftp-v0.0.4` validation;
+- GitHub Release `ghostftp-v0.0.4` with `prerelease=false` and exact 17-file read-back;
+- GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.4` publication/read-back;
 - successful latest-only retention cleanup after publication.
 
 ## Next release
 
-Only after 0.0.3 publication and retention are completely green should root `VERSION` advance again through a separate reviewed release-prep change.
+Only after 0.0.4 publication and retention are completely green should root `VERSION` advance again through a separate reviewed release-prep change.
