@@ -83,6 +83,12 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 }
 
 func (u *linuxDesktop) renderFileFilterControls() error {
+	// This extension pass also owns the compact Advanced/Remote Desktop action so
+	// the proven X11 main layout does not need a second header implementation.
+	if err := u.drawButton(u.remoteDesktopButtonRect(), "RDP", !u.busy, false); err != nil {
+		return err
+	}
+
 	// Empty linuxUIResult notifications are used only to wake the established UI
 	// loop after recursive-search or comparison work. Reconcile on the UI
 	// goroutine before ordinary row-indexed controls are painted.
@@ -110,6 +116,12 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 }
 
 func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
+	if u.remoteDesktopButtonRect().contains(x, y) {
+		if !u.busy {
+			u.openRemoteDesktopPrompt()
+		}
+		return true
+	}
 	if u.handleDirectoryComparisonMouseLinux(x, y) {
 		return true
 	}
