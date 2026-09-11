@@ -16,6 +16,7 @@ class WindowsModalKeyboardRuntimeContractTests(unittest.TestCase):
         for marker in (
             'GetGUIThreadInfo',
             'GetWindowThreadProcessId',
+            'GetDlgItem',
             'IsWindowEnabled',
             'IsIconic',
             'PostMessage',
@@ -31,12 +32,17 @@ class WindowsModalKeyboardRuntimeContractTests(unittest.TestCase):
 
         self.assertIn("$siteManagerCommand = 701", source)
         self.assertIn("$bookmarksCommand = 97", source)
+        self.assertIn("$siteManagerCloseControlId = 8114", source)
+        self.assertIn("$bookmarksCloseControlId = 8206", source)
+        self.assertIn("Wait-ForControlById", source)
         self.assertIn("Focus-CloseWithTab", source)
-        self.assertIn("Close button did not retain keyboard focus", source)
+        self.assertIn("Dismiss button did not retain keyboard focus", source)
         self.assertIn("Could not post Enter", source)
         self.assertIn("Could not post Escape", source)
-        self.assertIn("Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -Title 'Site Manager'", source)
-        self.assertIn("Verify-ModalKeyboardContract -Main $main -Process $process -Command $bookmarksCommand -Title 'Bookmarks'", source)
+        self.assertIn("Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -CloseControlId $siteManagerCloseControlId -Title 'Site Manager'", source)
+        self.assertIn("Verify-ModalKeyboardContract -Main $main -Process $process -Command $bookmarksCommand -CloseControlId $bookmarksCloseControlId -Title 'Bookmarks'", source)
+        self.assertNotIn("Find-ChildWindowByText", source)
+        self.assertNotIn("-Text 'Close'", source)
 
     def test_owner_restore_regression_is_runtime_verified(self) -> None:
         source = read("scripts/test_windows_modal_keyboard_runtime.ps1")
