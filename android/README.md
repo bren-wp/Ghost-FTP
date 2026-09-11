@@ -10,6 +10,7 @@ Native Android client source lives entirely under this `android/` directory.
 - FTP remains available for compatibility but is explicitly unencrypted.
 - Local navigation uses Android Storage Access Framework (`ACTION_OPEN_DOCUMENT_TREE`); the app does not request all-files storage access.
 - Remote directory listing uses MLSD over EPSV/PASV.
+- Passive data-channel setup is fail-closed: malformed EPSV/PASV replies, invalid passive ports, TCP data-connect failures and FTPS data-channel TLS failures close the FTP session and require reconnect.
 - Binary upload and download are implemented.
 - Uploads are staged under a random same-directory `.ghostftp-upload-<uuid>.part` name and are committed to the requested remote name only after the FTP server confirms transfer completion and accepts `RNFR`/`RNTO`.
 - Downloads are written to a temporary SAF `.ghostftp-download-<uuid>.part` document and receive the requested final local name only after the FTP transfer is confirmed complete and the storage provider accepts an exact-name commit.
@@ -58,6 +59,16 @@ The UI uses a monotonically increasing transfer-generation token. Upload/downloa
 Cancellation does not claim a transactional rollback that FTP cannot guarantee. For an upload, a `.ghostftp-upload-*.part` object may remain if the connection is cut during the staged transfer. If cancellation races with the server's final rename acknowledgement, the remote commit can be ambiguous; the UI instructs the user to reconnect and refresh before retrying rather than risk a duplicate upload. For a download, cancellation before the local final-name commit best-effort deletes the SAF staging document. If the local provider has already completed and verified the final rename before cancellation takes effect, the completed local file is retained and the connection is still closed.
 
 Resume/restart-from-offset is not implemented by this cancellation contract. It remains separate transfer functionality and must not reuse a cancelled FTP session.
+
+## Passive data-channel failure boundary
+
+Every listing, upload and download depends on a new passive data channel negotiated through EPSV with PASV fallback. Ghost FTP treats failure during that channel setup as a session-boundary failure rather than assuming the existing control stream remains safe for another operation.
+
+If EPSV/PASV negotiation cannot be completed, the passive reply is malformed, the passive port cannot be parsed or validated, the TCP data connection fails, or an FTPS data-channel TLS handshake fails, `openPassiveDataSocket()` closes the active data socket and hard-closes the FTP control session before returning the error. The Android UI then discards the dead session through the existing reconnect lifecycle.
+
+This policy is deliberately conservative. It can require reconnect even when a particular server might have kept its control channel usable, but it avoids reusing a session after an ambiguous transport setup failure. There is no fallback to an unprotected FTPS data channel, no disabled hostname verification, and no acceptance of an invalid passive port.
+
+The EPSV parser converts malformed/non-numeric ports into checked I/O failures rather than allowing a runtime parsing exception to escape outside the session cleanup path. The dedicated passive-data regression contract is executed by the Android APK workflow alongside the broader Android source contract.
 
 ## Saved-site and bookmark security boundary
 
