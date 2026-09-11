@@ -83,7 +83,7 @@ func (u *linuxDesktop) linuxFileSortLabel(remote bool) string {
 	case itemlist.FieldModified:
 		label = u.tr("column.modified")
 	case itemlist.FieldPermissions:
-		label = u.tr("column.permissions")
+		label = u.tr("common.permissions")
 	}
 	arrow := "↑"
 	if spec.Descending {
