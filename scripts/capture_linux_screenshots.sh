@@ -88,21 +88,25 @@ done
 read_window_geometry() {
   local geometry
   geometry="$(xdotool getwindowgeometry --shell "$win")"
+  window_x="$(printf '%s\n' "$geometry" | awk -F= '$1=="X" {print $2}')"
+  window_y="$(printf '%s\n' "$geometry" | awk -F= '$1=="Y" {print $2}')"
   window_width="$(printf '%s\n' "$geometry" | awk -F= '$1=="WIDTH" {print $2}')"
   window_height="$(printf '%s\n' "$geometry" | awk -F= '$1=="HEIGHT" {print $2}')"
 }
 
-# A bare Xvfb server has no window manager, so a top-level X11 application may
-# legitimately retain the root-screen geometry instead of honoring an external
-# resize request. Evidence therefore follows the real production window size.
-# The product layout itself is responsive above its documented minimum.
+# A bare Xvfb server has no window manager. Evidence therefore follows the real
+# production window position and size instead of assuming a desktop compositor
+# has normalized either value.
+window_x=''
+window_y=''
 window_width=''
 window_height=''
 previous_geometry=''
 for _ in $(seq 1 50); do
   read_window_geometry
-  current_geometry="${window_width}x${window_height}"
-  if [[ "$window_width" =~ ^[0-9]+$ && "$window_height" =~ ^[0-9]+$ ]] &&
+  current_geometry="${window_x},${window_y}:${window_width}x${window_height}"
+  if [[ "$window_x" =~ ^-?[0-9]+$ && "$window_y" =~ ^-?[0-9]+$ &&
+        "$window_width" =~ ^[0-9]+$ && "$window_height" =~ ^[0-9]+$ ]] &&
      (( window_width >= 940 && window_height >= 680 )); then
     if [[ "$current_geometry" == "$previous_geometry" ]]; then
       break
@@ -111,23 +115,17 @@ for _ in $(seq 1 50); do
   fi
   sleep 0.1
 done
-[[ "$window_width" =~ ^[0-9]+$ && "$window_height" =~ ^[0-9]+$ ]] || {
-  echo "Unable to read Linux UI geometry: ${window_width:-?}x${window_height:-?}" >&2
+[[ "$window_x" =~ ^-?[0-9]+$ && "$window_y" =~ ^-?[0-9]+$ &&
+   "$window_width" =~ ^[0-9]+$ && "$window_height" =~ ^[0-9]+$ ]] || {
+  echo "Unable to read Linux UI geometry: ${window_x:-?},${window_y:-?}:${window_width:-?}x${window_height:-?}" >&2
   exit 1
 }
 (( window_width >= 940 && window_height >= 680 )) || {
   echo "Linux UI is below the supported minimum geometry: ${window_width}x${window_height}" >&2
   exit 1
 }
-
-capture() {
-  local output="$1"
-  import -window "$win" "$OUTPUT_DIR/$output"
-  [[ -s "$OUTPUT_DIR/$output" ]] || {
-    echo "Empty Linux screenshot: $output" >&2
-    exit 1
-  }
-}
+printf 'LINUX_UI_GEOMETRY=X=%s Y=%s WIDTH=%s HEIGHT=%s WINDOW=%s\n' \
+  "$window_x" "$window_y" "$window_width" "$window_height" "$win"
 
 # Initial local-file discovery is asynchronous and deliberately disables header
 # actions while the engine is busy. Wait until two consecutive native-window
@@ -152,12 +150,13 @@ cmp -s "$stable_a" "$stable_b" || {
 }
 cp "$stable_b" "$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 
-# Re-read geometry after startup settles so clicks use the exact dimensions the
-# application used for its current responsive layout.
+# Re-read geometry after startup settles. Xdotool's window-relative pointer
+# movement can be ambiguous on a bare X server with no window manager, so map
+# the application's real client coordinates to absolute root-screen positions.
 read_window_geometry
-bookmarks_x=$((window_width - 173))
-settings_x=$((window_width - 68))
-header_y=35
+bookmarks_client_x=$((window_width - 173))
+settings_client_x=$((window_width - 68))
+header_client_y=35
 
 main_png="$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 bookmarks_png="$OUTPUT_DIR/ghost-ftp-linux-bookmarks.png"
@@ -165,13 +164,19 @@ settings_png="$OUTPUT_DIR/ghost-ftp-linux-settings.png"
 
 open_distinct_overlay() {
   local label="$1"
-  local x="$2"
-  local y="$3"
+  local client_x="$2"
+  local client_y="$3"
   local output="$4"
+  local root_x=$((window_x + client_x))
+  local root_y=$((window_y + client_y))
+
+  printf 'LINUX_UI_CLICK=%s CLIENT=%s,%s ROOT=%s,%s\n' \
+    "$label" "$client_x" "$client_y" "$root_x" "$root_y"
 
   for _ in $(seq 1 20); do
     xdotool windowfocus "$win" >/dev/null 2>&1 || true
-    xdotool mousemove --window "$win" "$x" "$y" mousedown 1 mouseup 1
+    xdotool mousemove --sync "$root_x" "$root_y"
+    xdotool click 1
     sleep 0.3
     import -window "$win" "$output"
     if [[ -s "$output" ]] && ! cmp -s "$main_png" "$output"; then
@@ -187,13 +192,13 @@ open_distinct_overlay() {
 
 # These centers mirror the production Linux layout: Settings occupies
 # [width-106,width-30) and Bookmarks occupies [width-232,width-114), both at
-# y=[20,50). Deriving the clicks from the actual X11 width keeps evidence valid
-# under both a desktop window manager and a bare Xvfb root-sized window.
-open_distinct_overlay 'Bookmarks' "$bookmarks_x" "$header_y" "$bookmarks_png"
+# y=[20,50). The client coordinates are converted to actual root coordinates
+# immediately before pointer injection.
+open_distinct_overlay 'Bookmarks' "$bookmarks_client_x" "$header_client_y" "$bookmarks_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
-open_distinct_overlay 'Settings' "$settings_x" "$header_y" "$settings_png"
+open_distinct_overlay 'Settings' "$settings_client_x" "$header_client_y" "$settings_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
