@@ -270,7 +270,7 @@ def main() -> int:
         "latest",
     )
 
-    for retired in ("android", "ios", "macos", "GhostFTP WEB"):
+    for retired in ("ios", "macos", "GhostFTP WEB"):
         if (ROOT / retired).exists():
             fail(f"retired application directory exists: {retired}/")
     for retired_file in (
@@ -283,7 +283,9 @@ def main() -> int:
     print("PUBLIC_BRAND=Ghost FTP")
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
-    print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
+    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=NO")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")

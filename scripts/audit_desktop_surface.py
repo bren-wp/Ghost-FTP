@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed if a retired non-desktop application surface re-enters source."""
+"""Fail closed if retired application surfaces re-enter active source."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RETIRED_ROOTS = (
-    "android/",
     "ios/",
     "macos/",
     "GhostFTP WEB/",
@@ -56,11 +55,24 @@ def main() -> int:
     if retired:
         fail("retired application source is tracked: " + ", ".join(sorted(retired)[:20]))
     if suspicious:
-        fail("non-desktop application surface is tracked: " + ", ".join(sorted(suspicious)))
+        fail("retired web application surface is tracked: " + ", ".join(sorted(suspicious)))
+
+    android_required = {
+        "android/app/build.gradle",
+        "android/app/src/main/AndroidManifest.xml",
+        "android/app/src/main/java/app/ghostftp/client/MainActivity.java",
+        ".github/workflows/android-apk.yml",
+    }
+    missing_android = sorted(android_required - set(paths))
+    if missing_android:
+        fail("active Android source contract is incomplete: " + ", ".join(missing_android))
 
     print("DESKTOP_SURFACE_AUDIT=PASS")
-    print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
-    print("NON_DESKTOP_APPLICATION_SOURCE=BLOCKED")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
+    print("ANDROID_APK_DEVELOPMENT_SURFACE=ACTIVE")
+    print("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS")
+    print("RETIRED_APPLICATION_SURFACES=WEB,PWA")
     return 0
 
 
