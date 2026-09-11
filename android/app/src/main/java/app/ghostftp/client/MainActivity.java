@@ -821,11 +821,13 @@ public final class MainActivity extends Activity {
         Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
         String remoteBase = currentRemotePath;
         long transferToken = beginTransfer("Uploading " + entry.name + "…");
+        TransferProgress progress = transferProgress(entry.size, "Uploading", current, transferToken);
         io.execute(() -> {
             try {
                 requireTransferCurrent(transferToken);
-                try (InputStream in = getContentResolver().openInputStream(document)) {
-                    if (in == null) throw new IOException("Could not open local file.");
+                InputStream source = getContentResolver().openInputStream(document);
+                if (source == null) throw new IOException("Could not open local file.");
+                try (InputStream in = ProgressStreams.input(source, progress::onTransferred)) {
                     requireTransferCurrent(transferToken);
                     current.upload(FtpSession.joinRemote(remoteBase, entry.name), in);
                 }
@@ -853,6 +855,7 @@ public final class MainActivity extends Activity {
         Uri parent = DocumentsContract.buildDocumentUriUsingTree(selectedTree, selectedDocumentId);
         String remoteBase = currentRemotePath;
         long transferToken = beginTransfer("Downloading " + entry.name + " to a staged local document…");
+        TransferProgress progress = transferProgress(entry.size, "Downloading", current, transferToken);
         io.execute(() -> {
             Uri staged = null;
             try {
@@ -866,8 +869,9 @@ public final class MainActivity extends Activity {
                 if (staged == null) throw new IOException("Could not create staged local download document.");
 
                 requireTransferCurrent(transferToken);
-                try (OutputStream out = getContentResolver().openOutputStream(staged, "w")) {
-                    if (out == null) throw new IOException("Could not open staged local download document.");
+                OutputStream destination = getContentResolver().openOutputStream(staged, "w");
+                if (destination == null) throw new IOException("Could not open staged local download document.");
+                try (OutputStream out = ProgressStreams.output(destination, progress::onTransferred)) {
                     current.download(FtpSession.joinRemote(remoteBase, entry.name), out);
                 }
                 requireTransferCurrent(transferToken);
@@ -902,6 +906,13 @@ public final class MainActivity extends Activity {
                 finishTransferFailure(transferToken, current, "Download failed", e, true);
             }
         });
+    }
+
+    private TransferProgress transferProgress(long totalBytes, String action, FtpSession current, long token) {
+        return new TransferProgress(totalBytes, action, text -> runOnUiThread(() -> {
+            if (!transferActive || transferCancelled(token) || session != current || !current.isConnected()) return;
+            setStatus(text);
+        }));
     }
 
     private long beginTransfer(String message) {
