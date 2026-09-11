@@ -185,6 +185,25 @@ raise SystemExit(1)
 PY
 }
 
+find_ui_bounds() {
+  local query="$1"
+  python3 - "$UI_XML_LOCAL" "$query" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+path, query = sys.argv[1], sys.argv[2]
+root = ET.parse(path).getroot()
+for node in root.iter("node"):
+    if node.attrib.get("text") == query or node.attrib.get("content-desc") == query:
+        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
+        if match:
+            print(" ".join(match.groups()))
+            raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
 tap_ui() {
   local query="$1"
   local coords=''
@@ -222,40 +241,47 @@ wait_ui() {
   return 1
 }
 
-# Android 35 can omit the programmatically created drawer buttons from the
-# uiautomator hierarchy even though they are visibly rendered and clickable.
-# In that case, anchor the fallback to the *rendered* active Files selection
-# (#202F50) in the already captured navigation screenshot. The search is
-# deliberately restricted to MainActivity's 286dp drawer width so similarly
-# colored status badges in the app bar can never become the anchor. This
-# measures the real row center after Android has applied font metrics, density
-# and layout; only the fixed 48dp row height + 5dp margin from MainActivity is
-# then used as the pitch. The post-tap section title remains authoritative.
+# Android 35 can omit the programmatically created drawer Button nodes from the
+# uiautomator hierarchy even though the drawer's stable text labels remain
+# exposed. Anchor the coordinate fallback to the bottom edge of the actual
+# "Android development client" TextView. MainActivity adds Files immediately
+# after that TextView, then six navigation rows with a 48dp minimum height and
+# 5dp bottom margin. This keeps font metrics and top padding runtime-derived
+# instead of guessed. Every coordinate tap is still followed by the requested
+# section-title assertion, so a wrong fallback cannot produce PASS.
 calibrate_navigation_geometry() {
   local screenshot="$OUTPUT_DIR/ghost-ftp-android-navigation.png"
   local dims=''
-  local geometry=''
   local screen_width=''
   local screen_height=''
-  local crop_width=''
-  local crop_height=''
-  local box_width=''
-  local box_height=''
-  local box_x=''
-  local box_y=''
+  local platform_bounds=''
+  local platform_x1=''
+  local platform_y1=''
+  local platform_x2=''
+  local platform_y2=''
   local density=''
   local button_height=''
   local row_margin=''
+  local drawer_width=''
 
   [[ -s "$screenshot" ]] || {
-    echo "Navigation screenshot is unavailable for rendered-row calibration: $screenshot" >&2
+    echo "Navigation screenshot is unavailable for geometry validation: $screenshot" >&2
     return 1
   }
-
   dims="$(identify -format '%w %h' "$screenshot" 2>/dev/null || true)"
   read -r screen_width screen_height <<<"$dims"
   [[ "$screen_width" =~ ^[0-9]+$ && "$screen_height" =~ ^[0-9]+$ ]] || {
     echo "Unable to read navigation screenshot dimensions: ${dims:-<none>}" >&2
+    return 1
+  }
+
+  dump_ui
+  platform_bounds="$(find_ui_bounds 'Android development client' 2>/dev/null || true)"
+  read -r platform_x1 platform_y1 platform_x2 platform_y2 <<<"$platform_bounds"
+  [[ "$platform_x1" =~ ^[0-9]+$ && "$platform_y1" =~ ^[0-9]+$ \
+      && "$platform_x2" =~ ^[0-9]+$ && "$platform_y2" =~ ^[0-9]+$ ]] || {
+    echo "Unable to resolve runtime drawer header bounds: ${platform_bounds:-<none>}" >&2
+    [[ -s "$UI_XML_LOCAL" ]] && cat "$UI_XML_LOCAL" >&2 || true
     return 1
   }
 
@@ -266,40 +292,26 @@ calibrate_navigation_geometry() {
   }
   button_height=$(((48 * density + 80) / 160))
   row_margin=$(((5 * density + 80) / 160))
-  crop_width=$(((286 * density + 80) / 160))
-  (( crop_width > screen_width )) && crop_width="$screen_width"
-  crop_height=$((screen_height * 3 / 5))
+  drawer_width=$(((286 * density + 80) / 160))
+  (( drawer_width > screen_width )) && drawer_width="$screen_width"
 
-  geometry="$(convert "$screenshot" \
-    -crop "${crop_width}x${crop_height}+0+0" +repage -alpha off \
-    -fx '(abs(r-0.125490196)<0.008&&abs(g-0.184313725)<0.008&&abs(b-0.313725490)<0.008)?1:0' \
-    -trim -format '%w %h %X %Y' info: 2>/dev/null || true)"
-  read -r box_width box_height box_x box_y <<<"$geometry"
-  box_x="${box_x#+}"
-  box_y="${box_y#+}"
-  [[ "$box_width" =~ ^[0-9]+$ && "$box_height" =~ ^[0-9]+$ \
-      && "$box_x" =~ ^-?[0-9]+$ && "$box_y" =~ ^-?[0-9]+$ ]] || {
-    echo "Unable to resolve the active Files selection bounds: ${geometry:-<none>}" >&2
-    return 1
-  }
-  if (( box_x < 0 || box_y < 0 || box_width < crop_width / 2 \
-        || box_height < button_height / 2 || box_height > button_height * 2 )); then
-    echo "Implausible active Files selection bounds: $geometry in ${crop_width}x${crop_height} drawer crop" >&2
+  if (( platform_x1 < 0 || platform_x2 <= platform_x1 || platform_x2 > drawer_width \
+        || platform_y1 < 0 || platform_y2 <= platform_y1 || platform_y2 >= screen_height / 2 )); then
+    echo "Implausible runtime drawer header bounds: $platform_bounds drawer_width=$drawer_width screen=${screen_width}x${screen_height}" >&2
     return 1
   fi
 
-  NAV_ANCHOR_X=$((box_x + box_width / 2))
-  NAV_FILES_Y=$((box_y + box_height / 2))
+  NAV_ANCHOR_X=$((drawer_width / 2))
+  NAV_FILES_Y=$((platform_y2 + button_height / 2))
   NAV_ROW_PITCH=$((button_height + row_margin))
-  if (( NAV_ANCHOR_X <= 0 || NAV_ANCHOR_X >= crop_width || NAV_FILES_Y <= 0 || NAV_ROW_PITCH <= 0 \
+  if (( NAV_ANCHOR_X <= 0 || NAV_FILES_Y <= platform_y2 || NAV_ROW_PITCH <= 0 \
         || NAV_FILES_Y + 5 * NAV_ROW_PITCH >= screen_height )); then
     echo "Implausible navigation calibration: X=$NAV_ANCHOR_X FILES_Y=$NAV_FILES_Y PITCH=$NAV_ROW_PITCH" >&2
     return 1
   fi
 
-  printf 'ANDROID_NAV_CALIBRATION=PASS X=%s FILES_Y=%s ROW_PITCH=%s SELECTION_BOUNDS=%sx%s+%s+%s DRAWER_WIDTH=%s DENSITY=%s\n' \
-    "$NAV_ANCHOR_X" "$NAV_FILES_Y" "$NAV_ROW_PITCH" \
-    "$box_width" "$box_height" "$box_x" "$box_y" "$crop_width" "$density"
+  printf 'ANDROID_NAV_CALIBRATION=PASS X=%s FILES_Y=%s ROW_PITCH=%s PLATFORM_BOUNDS=%s DRAWER_WIDTH=%s DENSITY=%s\n' \
+    "$NAV_ANCHOR_X" "$NAV_FILES_Y" "$NAV_ROW_PITCH" "$platform_bounds" "$drawer_width" "$density"
 }
 
 tap_nav_section() {
@@ -323,7 +335,7 @@ tap_nav_section() {
     x="$NAV_ANCHOR_X"
     y=$((NAV_FILES_Y + NAV_ROW_PITCH * ordinal))
     timeout 10s adb shell input tap "$x" "$y"
-    printf 'ANDROID_NAV_TAP=%s MODE=rendered-selection-anchor X=%s Y=%s FILES_Y=%s ROW_PITCH=%s\n' \
+    printf 'ANDROID_NAV_TAP=%s MODE=runtime-header-anchor X=%s Y=%s FILES_Y=%s ROW_PITCH=%s\n' \
       "$section" "$x" "$y" "$NAV_FILES_Y" "$NAV_ROW_PITCH"
   fi
   sleep 0.7
