@@ -71,15 +71,16 @@ class ReadmeMediaContractTests(unittest.TestCase):
             self.assertIn("windows, linux and android", lowered, f"{label} must describe cross-platform runtime evidence")
             self.assertIn("mockup", lowered, f"{label} must reject mockups as production evidence")
 
-        self.assertIn("verified internal native x64", workflow.lower())
-        self.assertIn('dist\\internal\\ghost-ftp-$version-portable-x64.exe', workflow.lower())
+        workflow_lower = workflow.lower()
+        self.assertIn('dist\\internal\\ghost-ftp-$version-portable-x64.exe', workflow_lower)
+        self.assertIn("missing verified native production executable", workflow_lower)
         self.assertIn("windows — 5 images", reference.lower())
         self.assertIn("linux — 3 images", reference.lower())
         self.assertIn("android — 7 images", reference.lower())
         self.assertIn("exactly **15 runtime images**", reference.lower())
         self.assertIn("read-only verified cross-platform evidence bundle", docs.lower())
-        self.assertNotIn("git push", workflow.lower())
-        self.assertNotIn("github-actions[bot]", workflow.lower())
+        self.assertNotIn("git push", workflow_lower)
+        self.assertNotIn("github-actions[bot]", workflow_lower)
 
 
 if __name__ == "__main__":
