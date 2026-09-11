@@ -120,7 +120,9 @@ public final class MainActivity extends Activity {
     private String currentRemotePath = "/";
     private int selectedLocal = -1;
     private int selectedRemote = -1;
-    private FtpSession session;
+    private volatile FtpSession session;
+    private volatile FtpSession connectingSession;
+    private volatile boolean destroyed;
     private boolean busy;
     private boolean rememberEndpoint = true;
     private boolean showFileSizes = true;
@@ -147,13 +149,16 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        destroyed = true;
         transferGeneration++;
         transferActive = false;
         transferFinalizing = false;
         TransferCommitGate gate = activeTransferGate;
         activeTransferGate = null;
         FtpSession current = session;
+        FtpSession pending = connectingSession;
         session = null;
+        connectingSession = null;
         connectedIdentityKey = null;
         if (current != null) {
             if (gate == null) {
@@ -164,6 +169,9 @@ public final class MainActivity extends Activity {
                     current.cancelActiveTransfer();
                 }
             }
+        }
+        if (pending != null && pending != current) {
+            pending.cancelActiveTransfer();
         }
         io.shutdownNow();
         super.onDestroy();
@@ -458,7 +466,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Bookmarks", "Navigation state is explicit and account-bound. Quick Connect does not create hidden bookmarks."));
 
-        LinearLayout localCard = card("LOCAL SAF BOOKMARKS", "Local starts/bookmarks are SAF capability URIs and are freshly revalidated before navigation.");
+        LinearLayout localCard = card("LOCAL SAF BOOKMARKS", "Local starts/bookmarks are SAF capability URIs and are freshly revalidated before navigation."));
         bookmarkLocalCurrent = pathLabel("No folder selected");
         localCard.addView(bookmarkLocalCurrent, matchWrapSpaced());
         LinearLayout localActions = row();
@@ -480,7 +488,7 @@ public final class MainActivity extends Activity {
         localOpenBookmark.setOnClickListener(v -> openLocalBookmark());
         content.addView(localCard, cardParams());
 
-        LinearLayout remoteCard = card("SERVER BOOKMARKS", "Remote paths are bound to protocol, canonical host, port and exact username, and are freshly listed before visible commit.");
+        LinearLayout remoteCard = card("SERVER BOOKMARKS", "Remote paths are bound to protocol, canonical host, port and exact username, and are freshly listed before visible commit."));
         bookmarkRemoteCurrent = pathLabel(currentRemotePath);
         remoteCard.addView(bookmarkRemoteCurrent, matchWrapSpaced());
         LinearLayout remoteActions = row();
@@ -507,7 +515,7 @@ public final class MainActivity extends Activity {
     private View buildTransfersSurface() {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Transfers", "This surface shows the real active transfer lifecycle. No decorative queue or fake history is displayed."));
-        LinearLayout card = card("ACTIVE TRANSFER", "Progress comes from actual bytes read/written. Cancellation is available only before the irreversible final-name commit gate.");
+        LinearLayout card = card("ACTIVE TRANSFER", "Progress comes from actual bytes read/written. Cancellation is available only before the irreversible final-name commit gate."));
         transferStatus = label("No active transfer.", 14, GhostTheme.MUTED);
         transferStatus.setPadding(dp(10), dp(12), dp(10), dp(12));
         transferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
@@ -525,7 +533,7 @@ public final class MainActivity extends Activity {
     private View buildSettingsSurface() {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Settings", "Only settings with a real Android runtime owner are interactive."));
-        LinearLayout uiCard = card("UI / LOCAL PREFERENCES", "Ghost FTP Android uses the canonical dark brand palette. These options change actual local runtime behavior.");
+        LinearLayout uiCard = card("UI / LOCAL PREFERENCES", "Ghost FTP Android uses the canonical dark brand palette. These options change actual local runtime behavior."));
         rememberEndpointToggle = checkBox("Remember Quick Connect host, username, protocol and port");
         rememberEndpointToggle.setOnClickListener(v -> {
             rememberEndpoint = rememberEndpointToggle.isChecked();
@@ -546,7 +554,7 @@ public final class MainActivity extends Activity {
         uiCard.addView(showFileSizesToggle, matchWrapSpaced());
         content.addView(uiCard, cardParams());
 
-        LinearLayout securityCard = card("SECURITY", "Runtime security policy is informational here and cannot be weakened from the UI.");
+        LinearLayout securityCard = card("SECURITY", "Runtime security policy is informational here and cannot be weakened from the UI."));
         securityCard.addView(infoLine("FTPS", "Platform trust store + strict hostname verification"), matchWrapSpaced());
         securityCard.addView(infoLine("Passwords", "Memory-only; never stored in site JSON/preferences"), matchWrapSpaced());
         securityCard.addView(infoLine("Local storage", "Android SAF grants only; no all-files permission"), matchWrapSpaced());
@@ -559,7 +567,7 @@ public final class MainActivity extends Activity {
     private View buildAboutSurface() {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("About", "Build identity and privacy/security status for this Android development client."));
-        LinearLayout card = card("GHOST FTP", "Private file transfer client for direct connections to servers you control.");
+        LinearLayout card = card("GHOST FTP", "Private file transfer client for direct connections to servers you control."));
         card.addView(infoLine("Version", BuildConfig.VERSION_NAME), matchWrapSpaced());
         card.addView(infoLine("Package", BuildConfig.APPLICATION_ID), matchWrapSpaced());
         card.addView(infoLine("Protocols", "FTP + strict explicit FTPS on Android source line"), matchWrapSpaced());
@@ -842,7 +850,7 @@ public final class MainActivity extends Activity {
     }
 
     private void connect() {
-        if (busy || session != null) return;
+        if (busy || session != null || destroyed) return;
         String hostValue = host.getText().toString().trim();
         String userValue = username.getText().toString().trim();
         String passwordValue = password.getText().toString();
@@ -870,11 +878,26 @@ public final class MainActivity extends Activity {
             FtpSession next = null;
             try {
                 next = new FtpSession(hostValue, portValue, secure);
+                if (destroyed) {
+                    next.close();
+                    return;
+                }
+                connectingSession = next;
+                if (destroyed) {
+                    connectingSession = null;
+                    next.close();
+                    return;
+                }
                 next.connect(userValue, passwordValue);
                 String start = requestedStart == null ? next.pwd() : requestedStart;
                 List<RemoteEntry> entries = next.list(start);
                 FtpSession ready = next;
-                runOnUiThread(() -> {
+                postToUi(() -> {
+                    if (connectingSession != ready) {
+                        ready.close();
+                        return;
+                    }
+                    connectingSession = null;
                     session = ready;
                     connectedIdentityKey = identity;
                     currentRemotePath = start;
@@ -889,6 +912,7 @@ public final class MainActivity extends Activity {
                             : "FTP connected. Warning: transport is unencrypted; server start directory freshly listed.");
                 });
             } catch (Exception e) {
+                if (connectingSession == next) connectingSession = null;
                 if (next != null) next.close();
                 postError(profile == null ? "Connection failed" : "Connection or saved server start directory failed", e);
             }
@@ -971,7 +995,7 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             try {
                 List<RemoteEntry> entries = current.list(requested);
-                runOnUiThread(() -> {
+                postToUi(() -> {
                     if (session != current) return;
                     currentRemotePath = requested;
                     remoteEntries.clear();
@@ -1329,7 +1353,7 @@ public final class MainActivity extends Activity {
                     current.close();
                     return;
                 }
-                runOnUiThread(() -> {
+                postToUi(() -> {
                     if (!finishTransferState(attempt)) return;
                     if (session != current || !current.isConnected()) {
                         setBusy(false, "Upload finalization lost its connection. Reconnect and refresh before retrying.");
@@ -1397,7 +1421,7 @@ public final class MainActivity extends Activity {
                     current.close();
                     return;
                 }
-                runOnUiThread(() -> {
+                postToUi(() -> {
                     if (!finishTransferState(attempt)) return;
                     if (session != current || !current.isConnected()) {
                         refreshLocal();
@@ -1420,7 +1444,7 @@ public final class MainActivity extends Activity {
     }
 
     private TransferProgress transferProgress(long totalBytes, String action, FtpSession current, TransferAttempt attempt) {
-        return new TransferProgress(totalBytes, action, text -> runOnUiThread(() -> {
+        return new TransferProgress(totalBytes, action, text -> postToUi(() -> {
             if (!isTransferCurrent(attempt) || !current.isConnected()) return;
             setStatus(text);
         }));
@@ -1458,7 +1482,7 @@ public final class MainActivity extends Activity {
             throw new IOException("Transfer cancelled before final-name commit.");
         }
         transferFinalizing = true;
-        runOnUiThread(() -> {
+        postToUi(() -> {
             if (!isTransferCurrent(attempt)) return;
             setStatus(message);
             refreshButtons();
@@ -1475,7 +1499,7 @@ public final class MainActivity extends Activity {
 
     private void finishTransferFailure(TransferAttempt attempt, FtpSession current, String prefix, Exception e, boolean refreshLocalAfter) {
         boolean cancelled = attempt.gate.isCancelled() || transferCancelled(attempt.token);
-        runOnUiThread(() -> {
+        postToUi(() -> {
             if (!finishTransferState(attempt)) return;
             if (session == current && !current.isConnected()) {
                 session = null;
@@ -1648,8 +1672,16 @@ public final class MainActivity extends Activity {
                 + port + "\n" + (username == null ? "" : username.trim());
     }
 
-    private void postError(String prefix, Exception e) {
+    private void postToUi(Runnable action) {
+        if (action == null || destroyed) return;
         runOnUiThread(() -> {
+            if (destroyed || isFinishing() || isDestroyed()) return;
+            action.run();
+        });
+    }
+
+    private void postError(String prefix, Exception e) {
+        postToUi(() -> {
             FtpSession current = session;
             if (current != null && !current.isConnected()) {
                 session = null;
