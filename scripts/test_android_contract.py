@@ -40,10 +40,19 @@ class AndroidContractTests(unittest.TestCase):
             self.assertIn("package app.ghostftp.client;", text)
             self.assertNotIn(AUTHOR_IDENTITY, text.lower())
 
-    def test_android_permissions_stay_narrow(self) -> None:
+    def test_android_permissions_and_backup_stay_narrow(self) -> None:
         manifest = self.read("android/app/src/main/AndroidManifest.xml")
+        extraction = self.read("android/app/src/main/res/xml/data_extraction_rules.xml")
+        legacy = self.read("android/app/src/main/res/xml/backup_rules.xml")
         self.assertIn("android.permission.INTERNET", manifest)
         self.assertIn('android:allowBackup="false"', manifest)
+        self.assertIn('android:dataExtractionRules="@xml/data_extraction_rules"', manifest)
+        self.assertIn('android:fullBackupContent="@xml/backup_rules"', manifest)
+        self.assertIn('android:icon="@drawable/ic_ghostftp"', manifest)
+        self.assertIn('android:label="@string/app_name"', manifest)
+        for domain in ("root", "file", "database", "sharedpref", "external"):
+            self.assertIn(f'<exclude domain="{domain}" path="." />', extraction)
+            self.assertIn(f'<exclude domain="{domain}" path="." />', legacy)
         for forbidden in (
             "MANAGE_EXTERNAL_STORAGE",
             "READ_EXTERNAL_STORAGE",
