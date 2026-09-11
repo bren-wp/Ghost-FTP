@@ -1,10 +1,10 @@
 # Ghost FTP security
 
-Ghost FTP **0.0.1** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed Go code and covered by platform-specific regression tests plus repository audits.
+Ghost FTP **0.0.4** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed code and covered by platform-specific regression tests, exact-head native builds and repository audits.
 
 ## Supported transport security
 
-Ghost FTP supports FTP, FTPS and SFTP.
+Ghost FTP supports FTP, FTPS and SFTP on the maintained desktop engine.
 
 - Plain FTP is an unencrypted compatibility mode and must not be confused with a secure transport.
 - Fresh/quick-connect defaults use explicit **FTPS on port 21** on Windows and Linux.
@@ -12,6 +12,8 @@ Ghost FTP supports FTP, FTPS and SFTP.
 - SFTP uses SSH semantics and enforces host-key trust/fingerprint validation before a server is treated as trusted.
 
 Connection profiles are validated before use: host, port, protocol, remote path, credential fields and key/fingerprint inputs pass through bounded validation logic.
+
+The Android development client preserves the same no-silent-downgrade and strict FTPS certificate/hostname-verification intent while using platform-native storage/activity boundaries. Its APK is development evidence in 0.0.4, not a public release artifact.
 
 ## SFTP host-key trust
 
@@ -37,6 +39,8 @@ Untrusted values are bounded before use. The maintained validators cover host na
 
 Remote/local tree operations are designed to avoid traversal through unsafe paths. Local recursive deletion includes symlink/reparse-aware protections so a selected tree cannot silently escape its intended root.
 
+Android local-file access remains Storage Access Framework based rather than introducing arbitrary filesystem-path authority. Saved Android navigation state remains account/endpoint bound where remote identity matters.
+
 ## Transfer staging and commit safety
 
 Transfers are treated as lifecycle operations rather than blind file copies. The maintained release includes tests for:
@@ -47,9 +51,10 @@ Transfers are treated as lifecycle operations rather than blind file copies. The
 - local rollback cleanup;
 - transfer generation binding across reconnects;
 - cancellation/failure terminal-state correctness;
+- cancellation checks before final-name activation;
 - symlink-safe filesystem handling.
 
-The goal is fail-closed behavior when the source/destination identity changes while an operation is in flight.
+The goal is fail-closed behavior when the source/destination identity changes while an operation is in flight. Android staged downloads preserve the same principle: incomplete or cancelled work must not be promoted to the final user-visible object.
 
 ## Process execution boundary
 
@@ -65,7 +70,7 @@ The immediate AskPass parent must also resolve to a trusted root-controlled `ssh
 
 ## Saved credential protection
 
-Saved credentials are opt-in. The main Save Profile flow and Windows Site Manager use the same explicit consent policy before a newly entered password or private-key passphrase is persisted.
+Saved credentials are opt-in. Windows and Linux profile-save flows use explicit credential-persistence consent before a newly entered password or private-key passphrase is persisted.
 
 ### Windows
 
@@ -77,6 +82,8 @@ Saved secrets use local authenticated encryption with user-private key material.
 
 If protected data cannot be safely decrypted, Ghost FTP should require the user to re-enter the secret rather than falling back to plaintext persistence.
 
+On both desktop platforms, changing endpoint/account/private-key identity must not silently carry an existing protected credential into the changed profile identity.
+
 ## Runtime secret minimization
 
 Runtime secrets are kept only as long as required for the selected operation. Diagnostic/error classification is deliberately separated from secret values. Tests cover privacy-safe error reporting, profile-secret binding and owned/borrowed secret lifetime.
@@ -85,32 +92,38 @@ Runtime secrets are kept only as long as required for the selected operation. Di
 
 Settings and profiles use local persistence with replacement/recovery behavior rather than unbounded append logs. Validation runs again when data is loaded. Malformed or invalid state must not become trusted merely because it came from a local file.
 
+Bookmarks persist navigation metadata only; they are not a second credential store. Remote bookmark activation is revalidated against the active account/session before navigation becomes authoritative.
+
 ## Network privacy boundary
 
 Ghost FTP has no application telemetry service, ad SDK or account backend. Production CI and release jobs explicitly disable Go telemetry. Network activity is user-directed transport traffic plus the selected server diagnostics required to operate the chosen protocol.
 
 ## Release supply-chain security
 
-The production release workflow:
+The production/release-validation workflows:
 
-- pins GitHub Actions to exact revisions;
-- disables Go telemetry and external Go module resolution;
-- runs race tests, vet and security/privacy/dependency audits;
-- builds Windows/Linux artifacts from exact source;
-- optionally signs Windows artifacts with a protected trusted Authenticode identity when configured;
-- verifies every configured production signature and never labels unsigned artifacts as signed;
-- never generates a self-signed production publisher identity;
-- removes temporary signing material from the runner when signing is used;
-- assembles only an explicit release file set;
-- records the Windows signing state in `BUILD-METADATA.txt`;
-- generates SHA-256 checksums;
-- prevents an existing version tag from being rewritten to another commit;
-- verifies the published GitHub Release asset set and current `prerelease=false` state;
-- publishes the current GHCR release bundle only from the verified `release/` directory;
-- verifies the registry artifact can be read back;
-- permits latest-only cleanup only after the newly published release has been fully verified.
+- pin GitHub Actions to exact revisions;
+- disable Go telemetry and external Go module resolution;
+- run race tests, vet and security/privacy/dependency audits;
+- build Windows/Linux artifacts from exact source;
+- lint/build/verify the Android development APK from exact source;
+- run exact-head authentic Windows/Linux/Android UI evidence without allowing the evidence workflow to commit or push into the tested branch;
+- optionally sign Windows artifacts with a protected trusted Authenticode identity when configured;
+- verify every configured production signature and never label unsigned artifacts as signed;
+- never generate a self-signed production publisher identity;
+- remove temporary signing material from the runner when signing is used;
+- assemble only an explicit Windows/Linux public release file set;
+- record the Windows signing state in `BUILD-METADATA.txt`;
+- generate SHA-256 checksums;
+- prevent an existing version tag from being rewritten to another commit;
+- verify the published GitHub Release asset set and current `prerelease=false` state;
+- publish the current GHCR release bundle only from the verified release directory;
+- verify the registry artifact can be read back;
+- permit latest-only cleanup only after the newly published release has been fully verified.
 
 Private signing material must never be committed to source. Absence of a production code-signing certificate is represented truthfully as an unsigned Windows release rather than “fixed” with an untrusted generated key.
+
+Android remains outside the 0.0.4 public release allow-list. A development APK succeeding in CI is not authorization to publish it as a production mobile release.
 
 ## GitHub Packages boundary
 
@@ -118,7 +131,7 @@ The current package at `ghcr.io/bren-wp/ghost-ftp` is a release distribution bun
 
 ## Security testing
 
-The exact 0.0.1 candidate is expected to pass:
+The exact 0.0.4 candidate is expected to pass:
 
 ```text
 go test -race ./...
@@ -131,7 +144,7 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Dedicated Go tests additionally cover host validation, SFTP fingerprints, private-key handling, FTP/FTPS protocol behavior, `remote.Manager.Connect()` lifecycle, transfer staging/cleanup, process lifecycle, filesystem hardening, configuration recovery and protected-secret ownership.
+Dedicated Go tests additionally cover host validation, SFTP fingerprints, private-key handling, FTP/FTPS protocol behavior, `remote.Manager.Connect()` lifecycle, transfer staging/cleanup, process lifecycle, filesystem hardening, configuration recovery and protected-secret ownership. Exact-head CI separately proves Windows/Linux production builds, Linux distro packaging/install lifecycle, Android APK validation and authentic cross-platform runtime evidence.
 
 ## Reporting a vulnerability
 
