@@ -106,6 +106,41 @@ class AndroidContractTests(unittest.TestCase):
         self.assertLess(rename_from, rename_to)
         self.assertIn('".ghostftp-upload-" + UUID.randomUUID() + ".part"', ftp)
 
+    def test_download_stages_saf_document_before_final_name_commit(self) -> None:
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        download_start = activity.index("private void downloadSelected()")
+        download_end = activity.index("private void clearLocalRoot()", download_start)
+        download = activity[download_start:download_end]
+        for marker in (
+            '".ghostftp-download-" + UUID.randomUUID() + ".part"',
+            "ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,",
+            "current.download(FtpSession.joinRemote(remoteBase, entry.name), out);",
+            "DocumentsContract.renameDocument(getContentResolver(), staged, entry.name)",
+            "queryDocumentDisplayName(committed)",
+            "DocumentsContract.deleteDocument(getContentResolver(), staged)",
+        ):
+            self.assertIn(marker, download)
+        self.assertGreaterEqual(download.count("ensureNoLocalNameConflict("), 2)
+        self.assertNotIn(
+            'DocumentsContract.createDocument(getContentResolver(), parent, "application/octet-stream", entry.name)',
+            download,
+        )
+        create = download.index("DocumentsContract.createDocument")
+        transfer = download.index("current.download(")
+        second_conflict = download.rindex("ensureNoLocalNameConflict(")
+        rename = download.index("DocumentsContract.renameDocument")
+        verify = download.index("queryDocumentDisplayName(committed)")
+        success = download.index('setBusy(false, "Download completed and committed: "')
+        self.assertLess(create, transfer)
+        self.assertLess(transfer, second_conflict)
+        self.assertLess(second_conflict, rename)
+        self.assertLess(rename, verify)
+        self.assertLess(verify, success)
+        helper = activity[download_end:activity.index("private void renderLocal()", download_end)]
+        self.assertIn("List<LocalEntry> fresh = queryChildren(rootTreeUri, documentId);", helper)
+        self.assertIn("if (name.equals(local.name)) throw new IOException(message);", helper)
+        self.assertIn("DocumentsContract.Document.COLUMN_DISPLAY_NAME", helper)
+
     def test_password_is_memory_only_and_storage_uses_saf(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
         for marker in (
