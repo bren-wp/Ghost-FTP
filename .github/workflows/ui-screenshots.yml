@@ -4,7 +4,8 @@ name: Ghost FTP Authentic Cross-Platform UI Screenshots
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches:
+      - main
     paths:
       - 'VERSION'
       - 'BUILD-WINDOWS.ps1'
@@ -17,9 +18,16 @@ on:
       - 'linux/**'
       - 'android/**'
       - 'scripts/capture_windows_screenshots.ps1'
+      - 'docs/UI-SCREENSHOT-REQUEST'
       - '.github/workflows/ui-screenshots.yml'
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'hardening/**'
+      - 'release-prep/**'
+      - 'work/**'
+      - 'release/**'
+      - 'packaging/**'
     paths:
       - 'VERSION'
       - 'BUILD-WINDOWS.ps1'
@@ -32,6 +40,7 @@ on:
       - 'linux/**'
       - 'android/**'
       - 'scripts/capture_windows_screenshots.ps1'
+      - 'docs/UI-SCREENSHOT-REQUEST'
       - '.github/workflows/ui-screenshots.yml'
 
 permissions:
@@ -56,12 +65,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.27.1'
           check-latest: false
           cache: false
+
       - name: Disable Go telemetry
         shell: pwsh
         run: |
@@ -69,10 +80,12 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') {
             throw 'Go telemetry is not disabled.'
           }
+
       - name: Build production Windows packages
         shell: pwsh
         run: .\BUILD-WINDOWS.ps1
-      - name: Capture real Windows UI
+
+      - name: Capture authentic main, Site Manager, Bookmarks, Settings and About windows
         shell: pwsh
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
@@ -81,7 +94,8 @@ jobs:
             throw "Missing verified native production executable: $exe"
           }
           .\scripts\capture_windows_screenshots.ps1 -Executable $exe -OutputDirectory "ui-screenshots\windows"
-      - name: Verify Windows PNG evidence
+
+      - name: Verify screenshot outputs
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -114,7 +128,8 @@ jobs:
             }
             finally { $bitmap.Dispose() }
           }
-      - name: Upload Windows UI evidence
+
+      - name: Publish authentic UI screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ghostftp-authentic-ui-windows
@@ -131,18 +146,21 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.27.1'
           check-latest: false
           cache: false
+
       - name: Install native capture tools
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends xvfb xdotool imagemagick
+
       - name: Build production Linux portable packages
         shell: bash
         run: |
@@ -150,6 +168,7 @@ jobs:
           go telemetry off
           test "$(go telemetry)" = 'off'
           bash linux/BUILD.sh
+
       - name: Capture real Linux X11 UI
         shell: bash
         run: |
@@ -218,7 +237,8 @@ jobs:
             }
             printf 'LINUX_UI=%s SHA256=%s\n' "$(basename "$png")" "$(sha256sum "$png" | awk '{print $1}')"
           done
-      - name: Upload Linux UI evidence
+
+      - name: Publish authentic Linux UI screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ghostftp-authentic-ui-linux
@@ -233,17 +253,21 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Set up Java 17
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
         with:
           gradle-version: '8.9'
+
       - name: Install Android capture dependencies
         shell: bash
         run: |
@@ -251,6 +275,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends imagemagick
           sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'emulator' 'system-images;android-35;google_apis;x86_64'
+
       - name: Build exact-source Android APK
         working-directory: android
         shell: bash
@@ -258,6 +283,7 @@ jobs:
           set -euo pipefail
           gradle :app:lintDebug :app:packageGhostFtpApk --no-daemon --stacktrace
           test -s dist/Ghost-FTP-Android.apk
+
       - name: Boot emulator and capture real Android UI
         shell: bash
         run: |
@@ -344,7 +370,8 @@ PY
             }
             printf 'ANDROID_UI=%s SHA256=%s\n' "$(basename "$png")" "$(sha256sum "$png" | awk '{print $1}')"
           done
-      - name: Upload Android UI evidence
+
+      - name: Publish authentic Android UI screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ghostftp-authentic-ui-android
@@ -366,22 +393,26 @@ PY
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+
       - name: Download Windows evidence
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
           name: ghostftp-authentic-ui-windows
           path: staging/windows
+
       - name: Download Linux evidence
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
           name: ghostftp-authentic-ui-linux
           path: staging/linux
+
       - name: Download Android evidence
         uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
         with:
           name: ghostftp-authentic-ui-android
           path: staging/android
-      - name: Persist images and cryptographic provenance
+
+      - name: Persist authentic screenshots in repository
         shell: bash
         env:
           SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
@@ -392,7 +423,7 @@ PY
           git fetch origin "$HEAD_BRANCH"
           remote_sha="$(git rev-parse "origin/$HEAD_BRANCH")"
           test "$remote_sha" = "$SOURCE_SHA" || {
-            echo "PR branch moved from capture source $SOURCE_SHA to $remote_sha; refusing stale screenshot persistence." >&2
+            echo "PR branch moved from the capture commit ($SOURCE_SHA) to $remote_sha; refusing a stale screenshot commit." >&2
             exit 1
           }
 
