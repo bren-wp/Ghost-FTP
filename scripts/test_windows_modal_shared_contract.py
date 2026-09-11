@@ -67,6 +67,32 @@ class WindowsModalSharedContractTests(unittest.TestCase):
             source.index("premiumShowWindow.Call(owner, premiumSWRestore)"),
         )
 
+    def test_desktop_top_level_reenable_restores_only_unexpected_iconic_state(self) -> None:
+        defs = read("internal/desktop/win32_defs_windows.go")
+        helper = read("internal/desktop/modal_enable_windows.go")
+        self.assertIn("enableWindow            = newModalAwareEnableWindowProc(user32)", defs)
+        for marker in (
+            'user32.NewProc("EnableWindow")',
+            'user32.NewProc("IsIconic")',
+            'user32.NewProc("GetParent")',
+            'user32.NewProc("ShowWindow")',
+            "const swRestore = 9",
+            "trackTopLevel = parent == 0",
+            "if _, exists := p.wasIconic[hwnd]; !exists",
+            "if tracked && !wasIconic",
+            "p.showWindow.Call(hwnd, swRestore)",
+            "delete(p.wasIconic, hwnd)",
+        ):
+            self.assertIn(marker, helper)
+
+        for relative in (
+            "internal/desktop/site_manager_windows.go",
+            "internal/desktop/bookmark_manager_windows.go",
+        ):
+            source = read(relative)
+            self.assertIn("enableWindow.Call(a.hwnd, 0)", source, relative)
+            self.assertIn("enableWindow.Call(a.hwnd, 1)", source, relative)
+
     def test_option_selector_uses_native_enter_and_escape_commands(self) -> None:
         source = read("internal/platform/language_windows.go")
         self.assertIn("languageIDInstall = 1 // IDOK", source)

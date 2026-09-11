@@ -184,7 +184,7 @@ var (
 	setWindowTextW          = user32.NewProc("SetWindowTextW")
 	getWindowTextW          = user32.NewProc("GetWindowTextW")
 	getWindowTextLengthW    = user32.NewProc("GetWindowTextLengthW")
-	enableWindow            = user32.NewProc("EnableWindow")
+	enableWindow            = newModalAwareEnableWindowProc(user32)
 	loadCursorW             = user32.NewProc("LoadCursorW")
 	loadIconW               = user32.NewProc("LoadIconW")
 	setTimer                = user32.NewProc("SetTimer")
