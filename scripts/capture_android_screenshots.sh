@@ -222,12 +222,18 @@ capture() {
 capture 'ghost-ftp-android-files.png'
 tap_ui 'Open navigation'
 capture 'ghost-ftp-android-navigation.png'
-timeout 10s adb shell input keyevent KEYCODE_BACK
-sleep 0.4
 
+# The drawer is already open after the navigation evidence capture. Select the
+# first destination directly instead of closing it with BACK and racing the
+# accessibility hierarchy while trying to reopen it. Each navigation button
+# transitions sections and closes the drawer, so subsequent sections reopen it.
+first_section=1
 for section in Sites Bookmarks Transfers Settings About; do
-  tap_ui 'Open navigation'
+  if (( first_section == 0 )); then
+    tap_ui 'Open navigation'
+  fi
   tap_ui "$section"
+  first_section=0
   lower="$(printf '%s' "$section" | tr '[:upper:]' '[:lower:]')"
   capture "ghost-ftp-android-${lower}.png"
 done
