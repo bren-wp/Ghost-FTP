@@ -83,6 +83,29 @@ class AndroidContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, ftp)
 
+    def test_upload_stages_before_final_remote_name_commit(self) -> None:
+        ftp = self.read(f"{ANDROID_JAVA}/FtpSession.java")
+        upload_start = ftp.index("synchronized void upload(")
+        upload_end = ftp.index("synchronized void download(", upload_start)
+        upload = ftp[upload_start:upload_end]
+        for marker in (
+            "String tempPath = uploadTempPath(path);",
+            'command("STOR " + sanitizeArgument(tempPath))',
+            "expect(terminal, 226, 250);",
+            'command("RNFR " + sanitizeArgument(tempPath))',
+            'command("RNTO " + sanitizeArgument(path))',
+            "deleteRemoteBestEffort(tempPath);",
+            "hardClose();",
+        ):
+            self.assertIn(marker, upload)
+        self.assertNotIn('command("STOR " + sanitizeArgument(path))', upload)
+        completion = upload.index("expect(terminal, 226, 250);")
+        rename_from = upload.index('command("RNFR " + sanitizeArgument(tempPath))')
+        rename_to = upload.index('command("RNTO " + sanitizeArgument(path))')
+        self.assertLess(completion, rename_from)
+        self.assertLess(rename_from, rename_to)
+        self.assertIn('".ghostftp-upload-" + UUID.randomUUID() + ".part"', ftp)
+
     def test_password_is_memory_only_and_storage_uses_saf(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
         for marker in (

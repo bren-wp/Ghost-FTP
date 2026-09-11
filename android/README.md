@@ -11,6 +11,7 @@ Native Android client source lives entirely under this `android/` directory.
 - Local navigation uses Android Storage Access Framework (`ACTION_OPEN_DOCUMENT_TREE`); the app does not request all-files storage access.
 - Remote directory listing uses MLSD over EPSV/PASV.
 - Binary upload and download are implemented.
+- Uploads are staged under a random same-directory `.ghostftp-upload-<uuid>.part` name and are committed to the requested remote name only after the FTP server confirms transfer completion and accepts `RNFR`/`RNTO`.
 - Host, username, protocol, port and the user-granted folder URI may be remembered. Passwords are memory-only and are cleared from the UI after connection.
 - Explicit saved sites store only non-secret connection identity and navigation metadata; Quick Connect never creates a hidden site.
 - A saved site can own a local SAF start folder, a remote start directory, local SAF bookmarks and remote path bookmarks.
@@ -20,6 +21,16 @@ Native Android client source lives entirely under this `android/` directory.
 - Local starts/bookmarks are usable only while their persisted SAF read permission still exists and the provider can return a fresh directory listing.
 - Site/bookmark persistence is bounded to 50 sites and 50 bookmarks of each type per site.
 - No telemetry, analytics, ads, crash-reporting service or Ghost FTP backend is used.
+
+## Upload commit safety
+
+Android upload never writes the incoming stream directly to the requested final remote path. Ghost FTP generates a random `.ghostftp-upload-<uuid>.part` object in the same remote directory and sends `STOR` only to that staging path. The requested final path is used only after the data transfer has finished and the server has returned an accepted `226` or `250` completion reply.
+
+After confirmed transfer completion, Ghost FTP requires `RNFR` for the staging object and `RNTO` for the requested final path. There is no silent fallback to direct, non-atomic `STOR` when a server does not support this safe commit sequence. A rejected final rename is reported as an upload failure rather than as success.
+
+If the data stream or the completion reply fails in a way that can leave the FTP control channel state uncertain, Ghost FTP hard-closes that session instead of issuing further commands against a potentially desynchronized connection. A staging `.part` object can therefore remain on the server after a transport interruption, but the requested final remote name is not reported as successfully committed. When a rename is rejected after the transfer has been cleanly confirmed, Ghost FTP makes a best-effort attempt to delete the staging object.
+
+The staging flow uses the same existing passive-data transport. For FTPS, the staging upload therefore retains platform-trusted certificate validation and strict hostname verification on the protected data channel; it does not introduce a trust downgrade.
 
 ## Saved-site and bookmark security boundary
 
