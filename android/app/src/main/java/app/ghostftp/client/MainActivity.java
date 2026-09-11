@@ -563,7 +563,7 @@ public final class MainActivity extends Activity {
         card.addView(infoLine("Version", BuildConfig.VERSION_NAME), matchWrapSpaced());
         card.addView(infoLine("Package", BuildConfig.APPLICATION_ID), matchWrapSpaced());
         card.addView(infoLine("Protocols", "FTP + strict explicit FTPS on Android source line"), matchWrapSpaced());
-        card.addView(infoLine("Public release", "0.0.3 remains the published Windows/Linux release; this APK is development source output"), matchWrapSpaced());
+        card.addView(infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME + "; Android APK remains development-only and is not a public Android release"), matchWrapSpaced());
         card.addView(infoLine("Data collection", "None: no telemetry, analytics, ads or hidden backend"), matchWrapSpaced());
         content.addView(card, cardParams());
         return scrollSurface(content);
