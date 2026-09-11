@@ -11,6 +11,7 @@ UI_XML_DEVICE="/sdcard/ghostftp-window.xml"
 UI_XML_LOCAL="${RUNNER_TEMP:-/tmp}/ghostftp-window.xml"
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 EMULATOR_BIN="${SDK_ROOT:+$SDK_ROOT/emulator/emulator}"
+AVD_HOME="${GHOSTFTP_UI_AVD_HOME:-${RUNNER_TEMP:-/tmp}/ghostftp-avd}"
 
 [[ -s "$APK_PATH" ]] || {
   echo "Missing Android APK: $APK_PATH" >&2
@@ -27,12 +28,26 @@ if [[ -e /dev/kvm ]]; then
   sudo chmod 666 /dev/kvm
 fi
 
+# avdmanager and emulator can otherwise resolve different HOME/SDK locations on
+# hosted runners. Give both tools one disposable AVD registry and prove the AVD
+# is visible to the exact emulator binary before attempting boot.
+rm -rf "$AVD_HOME"
+install -d -m 700 "$AVD_HOME"
+export ANDROID_AVD_HOME="$AVD_HOME"
 printf 'no\n' | avdmanager create avd --force --name "$AVD_NAME" --package "$SYSTEM_IMAGE" --device "$DEVICE"
+if ! "$EMULATOR_BIN" -list-avds | grep -Fxq "$AVD_NAME"; then
+  find "$AVD_HOME" -maxdepth 2 -type f -print >&2 || true
+  echo "Android AVD was not registered in the shared AVD home: $AVD_HOME" >&2
+  exit 1
+fi
+printf 'ANDROID_AVD_READY=%s HOME=%s\n' "$AVD_NAME" "$AVD_HOME"
+
 "$EMULATOR_BIN" -avd "$AVD_NAME" -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect >"$EMULATOR_LOG" 2>&1 &
 emulator_pid=$!
 cleanup() {
   timeout 10s adb emu kill >/dev/null 2>&1 || true
   kill "$emulator_pid" 2>/dev/null || true
+  rm -rf "$AVD_HOME"
 }
 trap cleanup EXIT
 
