@@ -1,6 +1,6 @@
 # Ghost FTP dependencies
 
-Ghost FTP **0.0.1** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit.
+Ghost FTP **0.0.4** minimizes bundled third-party code, keeps the maintained Go module free of external module requirements and makes operating-system protocol prerequisites explicit.
 
 ## Go module contract
 
@@ -17,11 +17,11 @@ and explicitly disable Go telemetry before build/test.
 
 ## Runtime protocol prerequisites
 
-Ghost FTP delegates protocol execution to audited system tools rather than embedding a second third-party networking stack into the Go module.
+Ghost FTP delegates desktop protocol execution to audited system tools rather than embedding a second third-party networking stack into the Go module.
 
 ### FTP / FTPS
 
-The maintained transport uses system `curl`. Ghost FTP supplies a controlled configuration/environment so ambient proxy/configuration state cannot silently redirect a selected FTP/FTPS connection.
+The maintained desktop transport uses system `curl`. Ghost FTP supplies a controlled configuration/environment so ambient proxy/configuration state cannot silently redirect a selected FTP/FTPS connection.
 
 Security invariants include:
 
@@ -33,11 +33,11 @@ Security invariants include:
 - no blanket certificate-revocation disable switch;
 - no silent FTPS-to-plain-FTP downgrade.
 
-Explicit FTPS/21 is the fresh quick-connect default; plain FTP remains an intentional compatibility selection rather than a fallback dependency mode.
+Explicit FTPS/21 is the fresh desktop quick-connect default; plain FTP remains an intentional compatibility selection rather than a fallback dependency mode.
 
 ### SFTP
 
-The maintained SFTP transport uses system OpenSSH `ssh`/`sftp`. Ghost FTP creates a constrained SSH configuration that disables ambient proxy/jump/agent/forwarding behavior that would escape the selected connection boundary.
+The maintained desktop SFTP transport uses system OpenSSH `ssh`/`sftp`. Ghost FTP creates a constrained SSH configuration that disables ambient proxy/jump/agent/forwarding behavior that would escape the selected connection boundary.
 
 Passwords/passphrases use the bounded AskPass/runtime-secret path and are not intentionally written into a password file. Linux supports password authentication and private-key authentication with an optional key passphrase; documentation/runtime strings must not claim a narrower obsolete capability set.
 
@@ -51,13 +51,21 @@ Windows production packages are native application executables/Setup wrappers ge
 
 Linux uses the maintained native X11/XWayland-compatible frontend backed by the same Engine. The Linux renderer is not a second protocol implementation.
 
-The DEB format declares `ca-certificates`, `curl` and `openssh-client` as package dependencies. The maintained source/CI packaging also builds package-manager-neutral `.tar.gz` archives for amd64, arm64 and i386. Those archives intentionally do **not** bundle Debian metadata, `curl`, OpenSSH, CA certificates or a desktop toolkit; users on non-Debian distributions must provide equivalent system protocol prerequisites through their own package manager.
+Canonical Debian/Ubuntu packages declare `ca-certificates`, `curl` and `openssh-client`; Fedora packages declare the corresponding `ca-certificates`, `curl` and `openssh-clients` runtime requirements. Distro-neutral Portable archives intentionally do **not** bundle copies of those networking tools or CA stores.
 
-Creating a portable tarball therefore does not change Ghost FTP's runtime dependency model and does not justify claiming a distribution-specific RPM/AppImage/Flatpak/Snap package until that format has its own build and verification contract.
+Canonical 0.0.4 Linux publication includes Debian, Ubuntu, Fedora and Portable families for the maintained amd64/arm64/i386 architecture mapping. One production executable per architecture is reused across matching package variants and verified byte-for-byte.
+
+Creating a portable tarball does not change Ghost FTP's runtime dependency model. A user-writable Portable/per-user executable also does not inherit the trusted root-controlled AskPass provenance of a package-manager installation, so automatic SFTP password/private-key-passphrase delivery fails closed when that boundary is unavailable.
+
+## Android dependency boundary
+
+Android is an active development source/APK surface in 0.0.4, not a public release artifact. Its Java/Android SDK dependencies are build/runtime platform dependencies and do not alter the public Windows/Linux 17-file release contract.
+
+The Android client uses platform storage/document APIs for local files rather than introducing a hidden Ghost FTP sync backend. Exact-head CI pins the maintained Java/Gradle/Android SDK build contract, lints the source, builds an installable APK and verifies the APK artifact separately from public release publication.
 
 ## Accurate dependency wording
 
-Ghost FTP has **zero external Go modules** in the maintained root module, but it does have operating-system runtime prerequisites. Documentation must not misrepresent that distinction as “zero runtime dependencies.”
+Ghost FTP has **zero external Go modules** in the maintained root module, but it does have operating-system/runtime prerequisites. Documentation must not misrepresent that distinction as “zero runtime dependencies.”
 
 ## GitHub Actions dependencies
 
@@ -67,7 +75,7 @@ The current release additionally uses Docker available on the GitHub-hosted Ubun
 
 ## GitHub Packages
 
-The OCI release package has no runtime base image. It copies the already verified `release/` directory into `/ghostftp-release/`. The package is a distribution bundle only and does not add a runtime dependency to Ghost FTP.
+The OCI release package has no runtime base image. It copies the already verified release directory into `/ghostftp-release/`. The package is a distribution bundle only and does not add a runtime dependency to Ghost FTP.
 
 ## Tracking and analytics prohibition
 
@@ -80,7 +88,7 @@ Repository privacy/dependency audits scan for known tracking/vendor markers and 
 Any proposal for a new runtime/library dependency must document:
 
 1. exact component/version;
-2. why existing standard-library/system facilities are insufficient;
+2. why existing standard-library/system/platform facilities are insufficient;
 3. license/provenance;
 4. security/update ownership;
 5. network/telemetry behavior;
