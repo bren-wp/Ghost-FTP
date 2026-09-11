@@ -43,6 +43,12 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         ):
             self.assertIn(path, trigger)
 
+    def test_capture_jobs_checkout_exact_pr_head(self) -> None:
+        workflow = read(".github/workflows/ui-screenshots.yml")
+        exact_ref = "github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha"
+        capture_jobs = workflow.split("  persist:", 1)[0]
+        self.assertEqual(capture_jobs.count(exact_ref), 3)
+
     def test_verified_captures_are_always_published_as_artifacts(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
         for artifact in (
@@ -56,6 +62,7 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         windows = workflow
         linux = read("scripts/capture_linux_screenshots.sh")
         android = read("scripts/capture_android_screenshots.sh")
+        assembly = read("scripts/assemble_ui_evidence.py")
         for name in (
             "Ghost-FTP-main-workspace.png",
             "Ghost-FTP-site-manager.png",
@@ -70,6 +77,10 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
             "ghost-ftp-linux-settings.png",
         ):
             self.assertIn(name, linux)
+        self.assertIn("capture 'ghost-ftp-android-files.png'", android)
+        self.assertIn("capture 'ghost-ftp-android-navigation.png'", android)
+        self.assertIn("Sites Bookmarks Transfers Settings About", android)
+        self.assertIn('capture "ghost-ftp-android-${lower}.png"', android)
         for name in (
             "ghost-ftp-android-files.png",
             "ghost-ftp-android-navigation.png",
@@ -79,7 +90,7 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
             "ghost-ftp-android-settings.png",
             "ghost-ftp-android-about.png",
         ):
-            self.assertIn(name, android)
+            self.assertIn(name, assembly)
 
     def test_persistence_is_sha_bound_and_records_provenance(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
@@ -113,6 +124,8 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("Xvfb", capture)
         self.assertIn("xdotool", capture)
         self.assertIn("import -window", capture)
+        self.assertNotIn('export HOME="${RUNNER_TEMP', capture)
+        self.assertIn('export XDG_DATA_HOME="$HOME/.ghostftp-ui-evidence-data"', capture)
 
     def test_workflow_avoids_yaml_sensitive_embedded_heredocs(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
