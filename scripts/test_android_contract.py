@@ -142,6 +142,71 @@ class AndroidContractTests(unittest.TestCase):
         self.assertIn("if (name.equals(local.name)) throw new IOException(message);", helpers)
         self.assertIn("DocumentsContract.Document.COLUMN_DISPLAY_NAME", helpers)
 
+    def test_active_transfer_cancel_is_nonblocking_and_fail_closed(self) -> None:
+        ftp = self.read(f"{ANDROID_JAVA}/FtpSession.java")
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+
+        for marker in (
+            "private volatile Socket controlSocket;",
+            "private volatile Socket activeDataSocket;",
+            "private volatile boolean connected;",
+            "void cancelActiveTransfer()",
+            "closeQuietly(activeDataSocket);",
+            "closeQuietly(controlSocket);",
+            "activeDataSocket = plain;",
+            "activeDataSocket = tls;",
+            "private void releaseDataSocket(Socket socket)",
+        ):
+            self.assertIn(marker, ftp)
+        self.assertNotIn("synchronized void cancelActiveTransfer()", ftp)
+        self.assertIn("boolean isConnected()", ftp)
+        self.assertNotIn("synchronized boolean isConnected()", ftp)
+
+        cancel_start = ftp.index("void cancelActiveTransfer()")
+        cancel_end = ftp.index("@Override", cancel_start)
+        cancel = ftp[cancel_start:cancel_end]
+        self.assertIn("connected = false;", cancel)
+        self.assertLess(cancel.index("connected = false;"), cancel.index("closeQuietly(activeDataSocket);"))
+        self.assertLess(cancel.index("closeQuietly(activeDataSocket);"), cancel.index("closeQuietly(controlSocket);"))
+
+        download_start = ftp.index("synchronized void download(")
+        download_end = ftp.index("synchronized String pwd()", download_start)
+        download = ftp[download_start:download_end]
+        self.assertIn("Download data transfer failed before local commit; the connection was closed.", download)
+        self.assertIn("Download was not confirmed complete; local final name was not committed and the connection was closed.", download)
+        self.assertGreaterEqual(download.count("hardClose();"), 3)
+
+        for marker in (
+            "private volatile boolean transferActive;",
+            "private volatile long transferGeneration;",
+            'disconnect.setText(transferActive ? "Cancel transfer" : "Disconnect");',
+            "disconnect.setEnabled(transferActive || (!busy && connected));",
+            "long transferToken = beginTransfer(",
+            "requireTransferCurrent(transferToken);",
+            "finishTransferFailure(transferToken, current,",
+            "current.cancelActiveTransfer();",
+        ):
+            self.assertIn(marker, activity)
+        self.assertGreaterEqual(activity.count("long transferToken = beginTransfer("), 2)
+        self.assertGreaterEqual(activity.count("if (transferCancelled(transferToken) || session != current || !current.isConnected())"), 2)
+
+        disconnect_start = activity.index("private void disconnect()")
+        disconnect_end = activity.index("private void refreshRemote(", disconnect_start)
+        disconnect = activity[disconnect_start:disconnect_end]
+        self.assertIn("if (transferActive) {", disconnect)
+        self.assertIn("cancelTransfer();", disconnect)
+        self.assertLess(disconnect.index("if (transferActive) {"), disconnect.index("if (busy) return;"))
+        self.assertIn("transferGeneration++;", disconnect)
+        self.assertIn("session = null;", disconnect)
+        self.assertIn("current.cancelActiveTransfer();", disconnect)
+
+        destroy_start = activity.index("protected void onDestroy()")
+        destroy_end = activity.index("private void buildUi()", destroy_start)
+        destroy = activity[destroy_start:destroy_end]
+        self.assertIn("transferGeneration++;", destroy)
+        self.assertIn("current.cancelActiveTransfer();", destroy)
+        self.assertNotIn("current.close();", destroy)
+
     def test_password_is_memory_only_and_storage_uses_saf(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
         for marker in (
