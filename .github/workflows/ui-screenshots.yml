@@ -452,3 +452,4 @@ PY
           git commit -m 'docs: refresh authentic cross-platform UI evidence'
           git push origin "HEAD:$HEAD_BRANCH"
           echo "AUTHENTIC_UI_EVIDENCE=PERSISTED SOURCE_SHA=$SOURCE_SHA COMMIT_SHA=$(git rev-parse HEAD)"
+          echo 'AUTHENTIC_UI_SCREENSHOTS=PERSISTED'
