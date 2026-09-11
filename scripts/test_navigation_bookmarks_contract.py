@@ -85,16 +85,18 @@ class NavigationBookmarksContractTests(unittest.TestCase):
             "u.localCurrent = previousLocal",
             "u.refreshLocal(profile.LocalPath)",
             "currentAccountKey != state.accountKey",
-            "u.remoteCurrent == state.inheritedRemote",
             "u.remoteCurrent = linuxProtocolRemoteDefault(u.protocol)",
-            'state.inheritedRemote = ""',
+            "state.inheritedRemote = u.remoteCurrent",
+            "state.accountKey = currentAccountKey",
+            "navigated, or typed server path once at this boundary",
             "protocol/host/port/username",
         ):
             self.assertIn(marker, linux)
         for marker in (
             "TestLinuxProfileRemoteStartDoesNotOverwriteManualEditOnRepaint",
             "TestLinuxProfileRemoteStartResetsInheritedPathOnAccountChange",
-            "TestLinuxProfileExplicitRemoteStartSurvivesAccountChange",
+            "TestLinuxProfileRemoteStartResetsNavigatedOldAccountPathOnAccountChange",
+            "TestLinuxProfileExplicitRemoteStartSurvivesRepaintAfterAccountChange",
         ):
             self.assertIn(marker, linux_tests)
         for marker in (
