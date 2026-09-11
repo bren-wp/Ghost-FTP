@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ghost_window">#0B0F17</color>
+    <color name="ghost_panel">#121824</color>
+    <color name="ghost_list">#161D2A</color>
+    <color name="ghost_border">#2C3648</color>
+    <color name="ghost_text">#F2F5FA</color>
+    <color name="ghost_muted">#97A3B8</color>
+    <color name="ghost_accent">#5B7CFA</color>
+    <color name="ghost_accent_strong">#7A98FF</color>
+    <color name="ghost_success">#4AD79B</color>
+    <color name="ghost_warn">#F2BA55</color>
+    <color name="ghost_danger">#FF6878</color>
+    <color name="ghost_selection">#202F50</color>
+</resources>
