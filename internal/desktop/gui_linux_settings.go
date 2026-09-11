@@ -12,15 +12,15 @@ import (
 )
 
 type linuxSettingsRects struct {
-	language, appearance		linuxRect
-	parallelMinus, parallelPlus	linuxRect
-	uploadMinus, uploadPlus		linuxRect
-	downloadMinus, downloadPlus	linuxRect
-	retriesMinus, retriesPlus	linuxRect
-	delayMinus, delayPlus		linuxRect
-	timeoutMinus, timeoutPlus	linuxRect
-	conflict, confirmDelete		linuxRect
-	save, close			linuxRect
+	language, appearance         linuxRect
+	parallelMinus, parallelPlus linuxRect
+	uploadMinus, uploadPlus     linuxRect
+	downloadMinus, downloadPlus linuxRect
+	retriesMinus, retriesPlus   linuxRect
+	delayMinus, delayPlus       linuxRect
+	timeoutMinus, timeoutPlus   linuxRect
+	conflict, confirmDelete     linuxRect
+	save, close                 linuxRect
 }
 
 func (u *linuxDesktop) tr(key string, args ...any) string {
