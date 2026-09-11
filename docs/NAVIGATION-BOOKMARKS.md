@@ -1,8 +1,6 @@
 # Navigation bookmarks and profile start directories
 
-Ghost FTP implements navigation bookmarks and explicit local/server start directories in the **post-0.0.3 source line**, targeted for the next public release. This source capability is **not retroactively part of the already published Ghost FTP 0.0.3 release**. Root `VERSION` remains **0.0.3** until the normal versioned release lifecycle explicitly advances it.
-
-The feature is intentionally narrow: it improves repeated navigation without turning path metadata into credentials, weakening connection identity boundaries, or creating hidden Site Manager profiles.
+Ghost FTP **0.0.4** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux capabilities. The feature is intentionally narrow: it improves repeated navigation without turning path metadata into credentials, weakening connection identity boundaries or creating hidden Site Manager profiles.
 
 ## Scope
 
@@ -25,205 +23,155 @@ Both Windows and Linux expose bookmark navigation. Profile start directories reu
 - path;
 - for remote bookmarks only: protocol, host, port and username.
 
-The bookmark model does **not** contain password, passphrase, private-key contents/path, host-key fingerprint, profile ID, access token or other authentication/trust material. Username is treated as account identity, not as a credential.
-
-This distinction is deliberate. A remote server path such as `/home/alice/site` can be safe only when associated with the same login identity that created it. The account metadata exists to reject cross-account reuse, not to reconnect automatically.
+The bookmark model does **not** contain password, passphrase, private-key data, host-key fingerprint, profile ID, access token or other authentication/trust material. Username is treated as account identity, not as a credential.
 
 ### Account identity is stricter than endpoint identity
 
-Remote bookmark and profile-start binding use `profilebinding.AccountMatches` rather than endpoint-only comparison. The identity boundary is:
+Remote bookmark and profile-start binding use `profilebinding.AccountMatches`. The identity boundary is:
 
 ```text
 protocol + canonical host + port + exact username
 ```
 
-Host/protocol canonicalization follows the shared profile-binding rules, while username remains exact. Changing only the username is therefore enough to invalidate an inherited server path.
-
-Endpoint-only matching remains appropriate for server-scoped data such as host-key identity, but it is not sufficient authority for account-scoped navigation.
+Changing only the username is enough to invalidate an inherited server path. Endpoint-only matching remains appropriate for server-scoped data such as host-key identity, but it is not sufficient authority for account-scoped navigation.
 
 ## Bookmark persistence
 
-`internal/config/bookmarks.go` owns bookmark persistence in `bookmarks.json` under the normal local Ghost FTP state directory.
-
-The store enforces the following contract:
+`internal/config/bookmarks.go` owns `bookmarks.json` under the normal local Ghost FTP state directory. The store enforces:
 
 - maximum 256 bookmarks;
-- generated IDs are fixed-length random hexadecimal identities;
-- names are trimmed, valid UTF-8, bounded, and reject NUL/newline characters;
-- local paths must be absolute and are cleaned with platform-local path semantics;
-- a local bookmark is rejected if network/account fields are supplied;
-- remote paths pass the shared remote-path validator;
-- remote protocol/host/port/username pass the shared connection validator;
-- duplicate IDs and malformed persisted entries fail closed;
-- an existing corrupt bookmark state must not silently become an empty collection during a later save;
-- list results are stable-sorted by name, kind and ID.
+- generated fixed-length random hexadecimal IDs;
+- bounded valid UTF-8 names with NUL/newline rejection;
+- absolute cleaned local paths;
+- shared remote-path validation;
+- shared protocol/host/port/username validation;
+- exact account binding for remote entries;
+- duplicate-ID and malformed-state rejection;
+- corrupt existing state failing closed rather than silently becoming an empty collection;
+- stable sorting by name, kind and ID.
 
-Persistence uses the existing durable state-store behavior, including the previous-generation file used by that store. A missing bookmark file means an empty collection; an unreadable/corrupt existing state is treated as an error instead of authorizing destructive replacement.
+Persistence uses the existing durable state-store/recovery behavior. A missing bookmark file means an empty collection; an unreadable existing file is an error.
 
 ## Creating bookmarks
 
 ### Local bookmark
 
-`Engine.SaveLocalBookmark(id, name, path)` persists only local navigation metadata. The local path is validated by the bookmark store. No profile or connection identity is involved.
+`Engine.SaveLocalBookmark(id, name, path)` persists only validated local navigation metadata. No profile or remote identity is created as a side effect.
 
 ### Remote bookmark
 
-`Engine.SaveRemoteBookmark(id, name, path)` requires a real active remote connection. The Engine reads the active `remote.Config()` and binds the bookmark to that actual connection's protocol, host, port and username.
+`Engine.SaveRemoteBookmark(id, name, path)` requires a real active remote connection. The Engine reads the active `remote.Config()` and binds the bookmark to that session's protocol, host, port and username.
 
-The desktop UI does not get to provide or forge this identity. This prevents stale text fields from creating a bookmark that claims to belong to a session that is not actually active.
-
-Saving a bookmark has no `SaveProfile` side effect. A bookmark created while using Quick Connect therefore remains a bookmark and **does not create a hidden persistent Site Manager profile**.
+The UI cannot forge this identity from stale text fields. Saving a Quick Connect bookmark has no `SaveProfile` side effect and does **not** create a hidden persistent Site Manager profile.
 
 ## Opening bookmarks
 
-All bookmark activation goes through `Engine.NavigateBookmark(ctx, id)`. The desktop panes must not treat stored paths as already-proven navigation authority.
+All activation goes through `Engine.NavigateBookmark(ctx, id)`. Stored paths are never treated as already-proven navigation authority.
 
 ### Local navigation
 
-For a local bookmark, `NavigateBookmark` performs a real bounded local directory list through the local manager. Only a successful list returns a canonical local base and item snapshot for UI commit. A stale, missing or inaccessible local directory therefore returns an actionable error instead of changing the pane to an unverified path.
+A local bookmark performs a fresh bounded local listing. Only a successful listing returns a canonical local base and authoritative item snapshot for UI commit.
 
 ### Remote navigation
 
-For a remote bookmark, the Engine performs all of the following before returning success:
+A remote bookmark requires all of the following before visible state can commit:
 
-1. require an active remote connection;
-2. compare bookmark identity with the current connection using `RemoteBookmarkMatchesAccount` / `AccountMatches`;
-3. capture the remote connection identity;
-4. perform a real `RemoteList` of the bookmark path through the active session;
-5. capture connection identity again after the list;
-6. reject the result if the connection identity changed;
-7. re-read active connection configuration and re-check the bookmark/account match.
+1. an active remote connection;
+2. `RemoteBookmarkMatchesAccount` / `AccountMatches` against current connection configuration;
+3. capture of the current connection identity;
+4. a real `RemoteList` of the stored path;
+5. a second connection-identity read after the listing;
+6. rejection if identity changed during the operation;
+7. a fresh active-config/account match after the listing.
 
-This double revalidation closes the reconnect race: a request started on one session cannot commit navigation state after the application has reconnected to another server/account.
+This closes the reconnect race: work started on one session cannot commit navigation after the application reconnects to another account/server identity.
 
 ## Windows desktop behavior
 
-Windows exposes **Bookmarks** as a real desktop navigation entry backed by `internal/desktop/bookmark_manager_windows.go`.
+Windows exposes a native Bookmarks manager backed by `internal/desktop/bookmark_manager_windows.go` with:
 
-The native manager supports:
-
-- **Open** selected bookmark;
-- **Add local** from the currently verified local path;
-- **Add remote** from the current remote path only while connected;
+- **Open**;
+- **Add local**;
+- **Add remote** only while connected;
 - **Delete** with confirmation;
 - **Close**.
 
-Opening a local bookmark uses the normal local navigation sequence/cancellation guard. Opening a remote bookmark additionally captures the desktop `connectionGeneration`; the callback is discarded when its sequence is stale, the connection generation changed, or the client disconnected before UI commit.
-
-Remote identity is therefore defended twice: once by the Engine's account/session verification and again by the desktop generation guard that protects visible state from stale asynchronous completion.
+Remote opening is protected both by the Engine account/session checks and by the desktop `connectionGeneration` guard so stale asynchronous completion cannot mutate visible state.
 
 ## Linux desktop behavior
 
-Linux exposes **Bookmarks** as a native X11 header control and modal overlay through `internal/desktop/bookmark_linux.go`.
+Linux exposes a native X11 Bookmarks control and modal overlay through `internal/desktop/bookmark_linux.go`. It provides the same functional Open/Add local/Add remote/Delete/Close contract as Windows.
 
-The overlay supports the same functional actions as Windows:
-
-- open selected bookmark;
-- add current local directory;
-- add current remote directory when connected;
-- delete selected bookmark;
-- close.
-
-The bookmark list uses a bounded visible viewport. Keyboard selection automatically keeps the selected item in view, while mouse-accessible up/down controls move through collections larger than the overlay. Hit testing includes the viewport offset and rejects the list padding, so Open/Delete always refer to a visibly selectable bookmark even when the persisted collection is larger than one page.
-
-Keyboard and mouse handling are routed through the established Linux prompt/modal dispatcher. Bookmark naming prompts feed the same Engine save methods used by Windows, and bookmark activation goes through `Engine.NavigateBookmark` rather than directly trusting the stored path. Cancelling a bookmark-name child prompt returns to the manager instead of abandoning the entire bookmark flow.
-
-The Bookmarks control is rendered through the existing workspace/file-filter extension path and has a matching click handler; it is not a decorative or dead control.
+The Linux list has a bounded viewport, keyboard-visible selection, mouse-accessible scrolling and offset-aware hit testing. Child naming prompts return to the bookmark manager on cancellation instead of abandoning the whole flow. All save/open/delete operations route through the shared Engine methods rather than directly trusting persisted path state.
 
 ## Profile start directories
 
-Site Manager profiles already contain `LocalPath` and `RemotePath`. The navigation feature treats these values as explicit requested start locations, not as unconditional UI state.
+Site Manager profiles contain `LocalPath` and `RemotePath`, but those values are requested starts rather than unconditional UI authority.
 
-### Identity-changing profile edits
+When profile account identity changes, an inherited server start is not carried across that boundary. Tests cover FTP/FTPS reset to `/`, SFTP reset to `.`, and preservation of an explicitly supplied new remote start for the new account identity.
 
-When an existing profile's account identity changes, an inherited remote path is not automatically carried across that boundary. Configuration tests cover:
+### Windows
 
-- host/account identity change resetting an inherited FTPS/FTP remote start to `/`;
-- SFTP reset using protocol default `.`;
-- an explicitly supplied new remote start for the new identity remaining valid.
+Windows applies a saved remote start only while the selected profile still matches the connection fields under the strict account-identity contract. Local starts are validated through actual local listing before they become authoritative pane state.
 
-This preserves user intent while preventing an old account's directory from silently becoming the start directory of a different login.
+### Linux
 
-### Windows profile start behavior
+`internal/desktop/profile_start_linux.go` treats copied profile paths as drafts until validation succeeds:
 
-Windows applies a saved remote start only when the selected profile still matches the connection fields through the same strict account-identity contract, including username. A user who selects a profile and then edits the login identity cannot silently inherit that profile's unrelated remote path.
+- restores the previous verified local base before a fresh local listing;
+- commits the requested local start only after successful listing;
+- installs a selected profile's saved/default remote start once;
+- resets inherited or previously navigated server state once when protocol/host/port/username identity changes;
+- preserves a newly entered explicit Remote Path after that account-bound reset;
+- blocks profile switching while connected or while another Linux UI action is busy.
 
-The local start path is validated through actual local listing behavior before it becomes authoritative pane state.
+## Failure behavior
 
-### Linux profile start behavior
+The feature fails closed around navigation authority:
 
-`internal/desktop/profile_start_linux.go` compensates for legacy `cycleProfile()` behavior that copies profile paths into editable fields immediately.
-
-The guard runs on the UI goroutine before the Bookmarks header is painted and treats those copied values as drafts:
-
-- the previous verified local base is restored immediately;
-- the requested profile local start is passed to `refreshLocal`;
-- only successful local listing may commit the resulting canonical base;
-- selecting a profile installs its saved/default remote start once;
-- any subsequent change to protocol, canonical host, port or exact username resets the current server start once to the new protocol default (`/` for FTP/FTPS, `.` for SFTP), even if the current value came from navigation on the old account;
-- after that account-bound reset has occurred, a newly entered explicit Remote Path survives ordinary repaints;
-- profile switching itself is disabled while a Linux connection is active or another Linux UI action is busy, preventing profile selection from mutating path/account drafts in the middle of an active session.
-
-This keeps stale local, inherited, or previously navigated server paths from becoming visible authority merely because a profile row was selected or its account identity was edited.
-
-## Error and stale-state behavior
-
-The feature is fail-closed around navigation authority:
-
-- missing/corrupt bookmark state returns an error;
+- corrupt bookmark state returns an error;
 - invalid bookmark input is rejected before persistence;
-- unavailable local paths fail during fresh listing;
+- missing local paths fail during fresh listing;
 - unavailable server paths fail during `RemoteList`;
-- remote bookmark account mismatch is rejected;
+- remote account mismatch is rejected;
 - disconnect/reconnect during remote navigation invalidates the operation;
-- Windows stale async callbacks are rejected by navigation sequence / connection generation;
-- profile identity changes discard the previous account's inherited or navigated server start before a new explicit start can be entered.
+- stale Windows callbacks fail the sequence/generation gate;
+- profile identity changes discard old-account inherited/navigation state before a new explicit start is accepted.
 
-A failure must leave the previously verified pane state intact whenever the surrounding navigation path supports that behavior; it must not manufacture a successful empty listing.
+Failures must preserve the previously verified pane state wherever the surrounding navigation path supports that behavior; they must not manufacture a successful empty listing.
 
 ## Privacy
 
-Bookmarks and start directories are local application state. The feature adds no telemetry, analytics, remote Ghost FTP service, synchronization backend or mandatory account.
-
-Paths and usernames may themselves be sensitive metadata, so UI and diagnostics should avoid exposing them outside the explicit navigation surfaces. Authentication secrets remain governed by the existing protected-profile secret handling and are never copied into `bookmarks.json`.
+Bookmarks and start directories are local application state. The feature adds no telemetry, analytics, Ghost FTP synchronization service or credential store. Paths/usernames may be sensitive metadata, so they remain limited to explicit local navigation surfaces and privacy-safe diagnostics.
 
 ## Cross-platform parity
-
-The maintained parity target is behavioral rather than pixel-identical:
 
 | Capability | Windows | Linux |
 | --- | --- | --- |
 | List bookmarks | Native manager | Native X11 overlay with bounded viewport |
 | Add local bookmark | Yes | Yes |
 | Add remote bookmark | Connected session only | Connected session only |
-| Delete bookmark | Confirmed | Confirmed through existing destructive-action policy |
-| Open local bookmark via `NavigateBookmark` | Yes | Yes |
-| Open remote bookmark via `NavigateBookmark` | Yes | Yes |
+| Delete bookmark | Confirmed | Confirmed through destructive-action policy |
+| Open via `NavigateBookmark` | Yes | Yes |
 | Remote account binding | Yes | Yes |
-| Stale-session protection | Engine + connection generation | Engine + serialized Linux action/session behavior |
-| Profile local start requires real listing | Yes | Yes |
-| Profile remote start rejects account drift | Yes | Yes, one-time reset per identity change |
+| Stale-session protection | Engine + connection generation | Engine + serialized action/session behavior |
+| Profile local start requires fresh listing | Yes | Yes |
+| Profile remote start rejects account drift | Yes | Yes |
 
 ## Regression coverage
 
-The implementation is protected by Go unit tests and source-level regression contracts, including:
+The 0.0.4 contract is protected by:
 
-- `internal/config/bookmarks_test.go` — CRUD, validation, non-secret persisted schema, account binding and corrupt-state fail-closed behavior;
-- `internal/config/profile_start_directory_binding_test.go` — inherited remote-start reset and explicit-new-path behavior across identity changes;
-- `internal/profilebinding/*_test.go` — canonical endpoint/account identity semantics;
-- `internal/desktop/profile_start_linux_test.go` — repaint safety, inherited/navigated old-account reset and explicit-new-path behavior after the identity boundary;
-- `internal/desktop/profile_cycle_linux_test.go` — connected/busy profile-switch guards and normal idle profile loading;
-- `internal/desktop/bookmark_prompt_linux_test.go` — bookmark-name child-prompt classification;
-- `internal/desktop/bookmark_viewport_linux_test.go` — viewport clamping, later-row reachability and hit-test padding/offset behavior;
+- `internal/config/bookmarks_test.go` for CRUD, validation, non-secret schema, account binding and corrupt-state fail-closed behavior;
+- `internal/config/profile_start_directory_binding_test.go` for inherited start reset and explicit-new-path behavior;
+- `internal/profilebinding/*_test.go` for endpoint/account identity semantics;
+- `internal/desktop/profile_start_linux_test.go` and `profile_cycle_linux_test.go` for repaint/account/switching guards;
+- `internal/desktop/bookmark_prompt_linux_test.go` and `bookmark_viewport_linux_test.go` for Linux modal/viewport behavior;
 - desktop tests for shared bookmark wording and Site Manager navigation privacy;
-- `scripts/test_navigation_bookmarks_contract.py` — cross-layer Engine/config/Windows/Linux/documentation wiring and security invariants.
+- `scripts/test_navigation_bookmarks_contract.py` for cross-layer Engine/config/Windows/Linux/documentation invariants.
 
-The regression contract intentionally checks that visible desktop controls have real handlers and that source documentation continues to distinguish this post-0.0.3 work from the already published 0.0.3 binaries.
+## 0.0.4 release boundary
 
-## Release boundary
+Root `VERSION` is **0.0.4**. Navigation bookmarks and profile start directories are part of the 0.0.4 source/release contract, but this document never authorizes publication by itself. Publication still requires exact-head CI/native-build/authentic-runtime evidence, review/merge, exact post-merge verification, canonical `ghostftp-v0.0.4` publication/read-back and latest-only retention.
 
-This document describes implemented source behavior on the feature-development line. It does not authorize publication by itself.
-
-Before the capability is called part of a public release, the normal Ghost FTP lifecycle still requires exact-head tests/builds, platform packaging/install gates, review/merge, version advancement, release publication, remote read-back and canonical retention verification.
-
-Root `VERSION` remains **0.0.3** during this work. The eventual successor version must be created as a new immutable public release identity rather than rewriting the existing 0.0.3 release.
+The feature does not change the public platform allow-list: Windows/Linux remain the published release surfaces and Android remains a separately validated development APK.
