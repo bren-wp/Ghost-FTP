@@ -85,12 +85,28 @@ final class SiteProfile {
                 remoteStartPath, next, remoteBookmarks);
     }
 
+    SiteProfile withoutLocalBookmark(int index) {
+        if (index < 0 || index >= localBookmarks.size()) return this;
+        List<String> next = new ArrayList<>(localBookmarks);
+        next.remove(index);
+        return new SiteProfile(id, name, protocol, host, port, username, localStartTreeUri,
+                remoteStartPath, next, remoteBookmarks);
+    }
+
     SiteProfile withRemoteBookmark(String path) {
         String normalized = normalizeRemotePath(path);
         List<String> next = new ArrayList<>(remoteBookmarks);
         if (!next.contains(normalized)) {
             next.add(normalized);
         }
+        return new SiteProfile(id, name, protocol, host, port, username, localStartTreeUri,
+                remoteStartPath, localBookmarks, next);
+    }
+
+    SiteProfile withoutRemoteBookmark(int index) {
+        if (index < 0 || index >= remoteBookmarks.size()) return this;
+        List<String> next = new ArrayList<>(remoteBookmarks);
+        next.remove(index);
         return new SiteProfile(id, name, protocol, host, port, username, localStartTreeUri,
                 remoteStartPath, localBookmarks, next);
     }
