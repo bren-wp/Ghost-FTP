@@ -67,9 +67,12 @@ done
 "$exe" >"$app_log" 2>&1 &
 app_pid=$!
 
+# Ghost FTP is a direct X11 client and intentionally does not depend on EWMH
+# window-manager metadata such as _NET_WM_PID. Identify its real client window
+# by the WM_CLASS/WM_NAME values the product itself sets in x11_linux.go.
 win=''
 for _ in $(seq 1 100); do
-  win="$(xdotool search --onlyvisible --pid "$app_pid" --name '.*' 2>/dev/null | head -n1 || true)"
+  win="$(xdotool search --onlyvisible --class 'GhostFTP' --name 'Ghost FTP' 2>/dev/null | head -n1 || true)"
   if [[ -n "$win" ]]; then
     break
   fi
@@ -81,9 +84,15 @@ for _ in $(seq 1 100); do
 done
 [[ -n "$win" ]] || {
   cat "$app_log" >&2 || true
-  echo 'Unable to locate Ghost FTP Linux window.' >&2
+  echo 'Unable to locate the Ghost FTP WM_CLASS/WM_NAME Linux window.' >&2
   exit 1
 }
+window_name="$(xdotool getwindowname "$win" 2>/dev/null || true)"
+[[ "$window_name" == Ghost\ FTP* ]] || {
+  echo "Resolved X11 window has an unexpected title: $window_name" >&2
+  exit 1
+}
+printf 'LINUX_UI_WINDOW=%s TITLE=%s PID=%s\n' "$win" "$window_name" "$app_pid"
 
 read_window_geometry() {
   local geometry
