@@ -69,10 +69,9 @@ def run_checks() -> None:
         "os.Rename(src, dst)",
     ))
 
-    # 2.x intentionally supports only Windows and Linux application targets.
-    # Regression tests must not silently recreate platform-specific source for
-    # retired application targets.
-    for retired in ("android", "ios", "macos", "internal/platform/filemove_darwin.go"):
+    # Windows/Linux desktop and Android source are active. Retired native
+    # targets and Darwin-specific desktop source must not silently return.
+    for retired in ("ios", "macos", "internal/platform/filemove_darwin.go"):
         require_absent(retired)
 
     # Recursive delete must keep traversal anchored to held os.Root
