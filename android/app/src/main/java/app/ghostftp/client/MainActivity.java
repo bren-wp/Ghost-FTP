@@ -239,7 +239,7 @@ public final class MainActivity extends Activity {
         port.setText(prefs.getString("port", "21"));
         String savedTree = prefs.getString("treeUri", "");
         if (!savedTree.isEmpty()) {
-            tryActivateLocalTree(Uri.parse(savedTree), "Saved local folder is no longer available.");
+            tryActivateLocalTree(Uri.parse(savedTree), "Saved local folder is no longer available.", true);
         }
     }
 
@@ -311,14 +311,20 @@ public final class MainActivity extends Activity {
         renderRemote();
         clearLocalRoot();
         renderLocal();
+        boolean localStartUnavailable = false;
         if (!profile.localStartTreeUri.isEmpty()) {
-            if (!tryActivateLocalTree(Uri.parse(profile.localStartTreeUri), "This site's local start folder is unavailable. Choose it again and update the site.")) {
-                setStatus("Site loaded, but its local start folder is unavailable. Choose it again and update the site.");
-            }
+            localStartUnavailable = !tryActivateLocalTree(
+                    Uri.parse(profile.localStartTreeUri),
+                    "This site's local start folder is unavailable. Choose it again and update the site.",
+                    true);
         }
         renderSites();
         renderBookmarks();
-        setStatus("Site loaded. Password remains blank; connect to validate the saved server start directory.");
+        if (localStartUnavailable) {
+            setStatus("Site loaded, but its local start folder is unavailable. Choose it again and update the site.");
+        } else {
+            setStatus("Site loaded. Password remains blank; connect to validate the saved server start directory.");
+        }
     }
 
     private void saveOrUpdateSite() {
@@ -597,13 +603,19 @@ public final class MainActivity extends Activity {
                 getContentResolver().takePersistableUriPermission(selected, Intent.FLAG_GRANT_READ_URI_PERMISSION);
             }
         } catch (SecurityException ignored) {
-            setStatus("Folder selected for this session; persistent permission was not granted, so it cannot become a saved site start/bookmark.");
+            // A transient grant may still be usable for this Activity session.
         }
-        if (tryActivateLocalTree(selected, "Selected folder could not be opened.")) savePreferences();
+        boolean persisted = hasPersistedReadPermission(selected);
+        if (tryActivateLocalTree(selected, "Selected folder could not be opened.", false)) {
+            savePreferences();
+            setStatus(persisted
+                    ? "Local folder selected with persistent SAF permission."
+                    : "Local folder opened for this session only; persistent permission was not granted, so it cannot become a saved site start/bookmark.");
+        }
     }
 
-    private boolean tryActivateLocalTree(Uri selected, String failureMessage) {
-        if (selected == null || !hasPersistedReadPermission(selected)) {
+    private boolean tryActivateLocalTree(Uri selected, String failureMessage, boolean requirePersisted) {
+        if (selected == null || (requirePersisted && !hasPersistedReadPermission(selected))) {
             clearLocalRoot();
             renderLocal();
             setStatus(failureMessage);
@@ -768,7 +780,10 @@ public final class MainActivity extends Activity {
             return;
         }
         Uri uri = Uri.parse(profile.localBookmarks.get(index));
-        if (!tryActivateLocalTree(uri, "Local bookmark is stale or its persisted permission is unavailable. Re-select the folder to restore access.")) {
+        if (!tryActivateLocalTree(
+                uri,
+                "Local bookmark is stale or its persisted permission is unavailable. Re-select the folder to restore access.",
+                true)) {
             return;
         }
         savePreferences();
