@@ -4,6 +4,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 ACTIVITY = ROOT / "android/app/src/main/java/app/ghostftp/client/MainActivity.java"
+ANDROID_BUILD = ROOT / "android/app/build.gradle"
 ANDROID_README = ROOT / "android/README.md"
 UI_DOC = ROOT / "android/UI-UX.md"
 DRAWABLES = ROOT / "android/app/src/main/res/drawable"
@@ -117,6 +118,20 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("renderLocal();", settings)
         self.assertIn("renderRemote();", settings)
         self.assertIn("Runtime security policy is informational here and cannot be weakened from the UI.", settings)
+
+    def test_about_uses_generated_build_identity_not_hardcoded_version(self) -> None:
+        activity = self.read(ACTIVITY)
+        build = self.read(ANDROID_BUILD)
+        self.assertIn("buildFeatures {", build)
+        self.assertIn("buildConfig true", build)
+        self.assertIn("versionName \"${ghostFtpVersion}-dev\"", build)
+        self.assertIn('infoLine("Version", BuildConfig.VERSION_NAME)', activity)
+        self.assertIn('infoLine("Package", BuildConfig.APPLICATION_ID)', activity)
+        about_start = activity.index("private View buildAboutSurface()")
+        about_end = activity.index("private void addSurface(", about_start)
+        about = activity[about_start:about_end]
+        self.assertNotIn('infoLine("Version", "0.0.3', about)
+        self.assertIn("0.0.3 remains the published Windows/Linux release", about)
 
     def test_android_docs_describe_the_same_surface_contract(self) -> None:
         readme = self.read(ANDROID_README)
