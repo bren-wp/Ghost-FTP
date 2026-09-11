@@ -1,5 +1,48 @@
 # Ghost FTP release history
 
+## 0.0.4 — 2026-09-11
+
+Ghost FTP 0.0.4 focuses on Windows/Linux product parity, Android stability/security hardening and release-evidence quality while preserving the 0.0.3 transport, packaging, security and privacy baseline.
+
+### Desktop parity and UX
+
+- Linux now exposes the same validated Classic Light/Dark `Appearance` lifecycle as Windows and applies the persisted palette before first paint.
+- Added Linux file-pane sorting through the same shared sorter used by Windows: Name, Type, Size and Modified on both panes plus remote Permissions, with ascending/descending cycles and directories-first behavior.
+- Kept filtering and sorting non-destructive over authoritative loaded snapshots and preserved visible selection after Linux sort changes.
+- Added explicit Linux profile password/private-key-passphrase save consent with bounded second confirmation, protected local persistence and plaintext UI clearing.
+- Added queued Top/Up/Down/Bottom priority/reordering and local/server bookmark/profile-start workflows to the maintained current desktop capability line.
+- Preserved Remote Edit, bounded recursive search, directory comparison, synchronized navigation, bandwidth limits and all existing engine/security invariants.
+
+### Android development surface
+
+- Preserved the native Files, Sites, Bookmarks, Transfers, Settings and About workflow with semantic drawer/sidebar navigation and Android 35 system-bar inset handling.
+- Hardened FTP/FTPS parsing with explicit control-line, multiline-response, MLSD-line and directory-entry bounds.
+- Preserved strict explicit FTPS certificate/hostname verification with no trust-all fallback.
+- Preserved SAF-only local access, non-secret saved-site metadata, staged transfer final-name commit and cancellation/irreversible-commit gating.
+- Android remains an installable `-dev` APK source surface and is not silently added to the public Windows/Linux release allow-list; SFTP remains hidden until strict native host-key identity verification exists.
+
+### Testing and authentic UI evidence
+
+- Exact-head CI covers Core race/vet/audits/regressions, universal Windows production packaging, Linux production/distro packaging and native x86-64 distro install/remove/GUI lifecycle.
+- Android exact-head CI runs source/security contracts, lint, installable APK build, APK contract verification and artifact upload.
+- Authentic UI evidence is read-only and exact-head: 5 Windows + 3 Linux + 7 Android runtime images are independently captured and assembled into one verified 15-image bundle with source/workflow/size/SHA-256 provenance.
+- Evidence automation no longer commits or pushes screenshots to the tested PR branch.
+
+### Release engineering
+
+- Maintains the canonical **14 platform artifacts / 17 public files** Windows/Linux publication shape.
+- Public Windows files remain two universal Setup/Portable executables with verified native x64/x86 payloads internally.
+- Linux public files remain Debian/Ubuntu DEB, Fedora RPM and distro-neutral Portable families across the maintained architecture matrix.
+- Publication remains `ghostftp-v0.0.4`, `prerelease=false`, with exact delayed GitHub Release read-back, GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.4` read-back and latest-only retention.
+- Android APK verification is a required source-readiness gate but does not enlarge the 17-file public Windows/Linux release set.
+
+### Security and privacy
+
+- Preserves strict FTPS certificate/hostname validation and no silent downgrade.
+- Preserves strict desktop SFTP host-key verification/pinning and trusted Linux transport/AskPass executable/parent provenance.
+- Preserves rooted local path/transfer protections, staged activation/rollback, protected saved-secret handling and connection-generation/account binding.
+- Preserves the no-telemetry, no-analytics, no-advertising, no-fingerprinting, no-automatic-crash-upload and no-hidden-backend contract.
+
 ## 0.0.3 — 2026-09-10
 
 Ghost FTP 0.0.3 adds real bandwidth-aware transfer controls and completes the public packaging transition while preserving the 0.0.2 security/privacy and navigation baseline.
@@ -35,8 +78,8 @@ Ghost FTP 0.0.3 adds real bandwidth-aware transfer controls and completes the pu
 - **14 platform artifacts / 17 public files**.
 - Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native lifecycle/GUI smoke.
 - Exact-head and exact post-merge workflow verification before publication.
-- Current source identity `ghostftp-v0.0.3` with `prerelease=false` once canonical publication is authorized and completed.
-- Verified distribution bundle target `ghcr.io/bren-wp/ghost-ftp:0.0.3`.
+- Historical release identity `ghostftp-v0.0.3` with `prerelease=false`.
+- Historical distribution bundle target `ghcr.io/bren-wp/ghost-ftp:0.0.3`.
 
 ## 0.0.2 — 2026-09-10
 
