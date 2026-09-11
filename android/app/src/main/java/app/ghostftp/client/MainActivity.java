@@ -1033,7 +1033,18 @@ public final class MainActivity extends Activity {
     }
 
     private void postError(String prefix, Exception e) {
-        runOnUiThread(() -> setBusy(false, prefix + ": " + safeMessage(e)));
+        runOnUiThread(() -> {
+            FtpSession current = session;
+            if (current != null && !current.isConnected()) {
+                session = null;
+                connectedIdentityKey = null;
+                remoteEntries.clear();
+                selectedRemote = -1;
+                currentRemotePath = "/";
+                renderRemote();
+            }
+            setBusy(false, prefix + ": " + safeMessage(e));
+        });
     }
 
     private void setStatus(String value) {
