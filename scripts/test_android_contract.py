@@ -207,6 +207,16 @@ class AndroidContractTests(unittest.TestCase):
         self.assertIn("current.cancelActiveTransfer();", destroy)
         self.assertNotIn("current.close();", destroy)
 
+        post_start = activity.index("private void postError(")
+        post_end = activity.index("private void setStatus(", post_start)
+        post_error = activity[post_start:post_end]
+        self.assertIn("FtpSession current = session;", post_error)
+        self.assertIn("if (current != null && !current.isConnected()) {", post_error)
+        self.assertIn("session = null;", post_error)
+        self.assertIn("connectedIdentityKey = null;", post_error)
+        self.assertIn("remoteEntries.clear();", post_error)
+        self.assertIn('currentRemotePath = "/";', post_error)
+
     def test_password_is_memory_only_and_storage_uses_saf(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
         for marker in (
