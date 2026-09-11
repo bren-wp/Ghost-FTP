@@ -225,6 +225,57 @@ final class FtpSession implements Closeable {
         }
     }
 
+    synchronized void makeDirectory(String parentPath, String name) throws IOException {
+        ensureConnected();
+        String path = joinRemote(normalizeRemotePath(parentPath), requireLeafName(name));
+        Reply reply = mutationCommand("MKD " + sanitizeArgument(path), "Remote folder creation failed; the connection was closed.");
+        if (reply.code != 257 && reply.code != 250) {
+            throw new IOException("Server rejected remote folder creation: " + reply.message);
+        }
+    }
+
+    synchronized void renameRemote(String remotePath, String newName) throws IOException {
+        ensureConnected();
+        String source = normalizeRemotePath(remotePath);
+        if ("/".equals(source)) {
+            throw new IOException("The remote root cannot be renamed.");
+        }
+        String target = joinRemote(parentRemote(source), requireLeafName(newName));
+        if (source.equals(target)) {
+            return;
+        }
+
+        Reply from = mutationCommand("RNFR " + sanitizeArgument(source), "Remote rename could not start; the connection was closed.");
+        if (from.code != 350) {
+            throw new IOException("Server rejected remote rename source: " + from.message);
+        }
+
+        final Reply to;
+        try {
+            to = command("RNTO " + sanitizeArgument(target));
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Remote rename lost the connection before commit confirmation.", e);
+        }
+        if (to.code != 250) {
+            hardClose();
+            throw new IOException("Server rejected remote rename commit; the connection was closed to avoid reusing ambiguous rename state: " + to.message);
+        }
+    }
+
+    synchronized void deleteRemote(String remotePath, boolean directory) throws IOException {
+        ensureConnected();
+        String path = normalizeRemotePath(remotePath);
+        if ("/".equals(path)) {
+            throw new IOException("The remote root cannot be deleted.");
+        }
+        String verb = directory ? "RMD " : "DELE ";
+        Reply reply = mutationCommand(verb + sanitizeArgument(path), "Remote delete failed; the connection was closed.");
+        if (reply.code != 250 && reply.code != 200) {
+            throw new IOException("Server rejected remote delete: " + reply.message);
+        }
+    }
+
     synchronized String pwd() throws IOException {
         ensureConnected();
         Reply reply = command("PWD");
@@ -324,6 +375,15 @@ final class FtpSession implements Closeable {
         writer.write("\r\n");
         writer.flush();
         return readReply();
+    }
+
+    private Reply mutationCommand(String command, String failureMessage) throws IOException {
+        try {
+            return command(command);
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException(failureMessage, e);
+        }
     }
 
     private Reply readReply() throws IOException {
@@ -446,6 +506,16 @@ final class FtpSession implements Closeable {
             value = value.replace("//", "/");
         }
         return value;
+    }
+
+    private static String requireLeafName(String value) throws IOException {
+        String name = value == null ? "" : value.trim();
+        if (name.isEmpty() || ".".equals(name) || "..".equals(name)
+                || name.indexOf('/') >= 0 || name.indexOf('\\') >= 0
+                || name.indexOf('\0') >= 0 || name.indexOf('\r') >= 0 || name.indexOf('\n') >= 0) {
+            throw new IOException("Remote item name must be one safe path segment.");
+        }
+        return name;
     }
 
     private static String uploadTempPath(String finalPath) throws IOException {
