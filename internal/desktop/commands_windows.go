@@ -30,6 +30,8 @@ func (a *app) command(id int) {
 		a.removeCurrentProfile()
 	case idSettings:
 		a.openSettings()
+	case idRemoteDesktop:
+		a.openRemoteDesktop()
 	case idAbout:
 		a.openAbout()
 	case idDiagnostics:
