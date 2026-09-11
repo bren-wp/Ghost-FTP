@@ -6,18 +6,20 @@
 
 <p align="center"><strong>Production behavior, security boundaries, UI evidence and release engineering for Ghost FTP.</strong></p>
 
-- **Current Ghost FTP release: 0.0.3**
+- **Current Ghost FTP release: 0.0.4**
 - Development status: **Active**
 - Release channel: **Current**
 - GitHub Release policy: **PRERELEASE=false**
 - Public version retention: **latest release only**
-- Platforms: **Windows and Linux**
-- Protocols: **FTP, FTPS and SFTP**
-- Languages: **24 selectable local languages**
+- Public release platforms: **Windows and Linux**
+- Active native source platforms: **Windows, Linux and Android**
+- Protocols: **FTP, FTPS and SFTP** on desktop; **FTP and strict explicit FTPS** on the current Android development surface
+- Languages: **24 selectable local desktop languages**
 - Release shape: **14 platform artifacts / 17 public files**
 - Product website: **https://ghostftp.com**
+- Verified distribution bundle identity: **ghcr.io/bren-wp/ghost-ftp:0.0.4**
 
-The root [`VERSION`](../VERSION) file is the authoritative production version source. Release-bound documentation describes the current 0.0.3 public line. Documents that explicitly say **post-0.0.3 source line** may describe implemented work targeted for a future release and do not retroactively change the published 0.0.3 binaries. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and the canonical retention workflow.
+The root [`VERSION`](../VERSION) file is the authoritative production version source. Release-bound documentation describes the 0.0.4 current line. Public Windows/Linux release publication remains fail-closed and separate from the Android development APK path. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and the canonical retention workflow.
 
 ## Start here
 
@@ -29,7 +31,7 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 | Understand security boundaries | [`SECURITY.md`](SECURITY.md) |
 | Understand privacy/no-telemetry behavior | [`PRIVACY.md`](PRIVACY.md) |
 | Understand architecture/Core ownership | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
-| Understand post-0.0.3 navigation bookmarks/profile starts | [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) |
+| Understand navigation bookmarks/profile starts | [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) |
 | Verify Windows/Linux parity | [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) |
 | Validate a downloaded release | [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) |
 | Understand release/version lifecycle | [`VERSIONING.md`](VERSIONING.md) and [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) |
@@ -38,7 +40,7 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 
 ## Authentic visual reference
 
-Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render. Production screenshots come from the **verified internal native x64 payload produced by the universal Windows build**; the architecture-specific payload is evidence-only and is not a public download. Mockups/generated approximations are not production evidence.
+Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render. Exact-head CI captures real native runtime evidence for Windows, Linux and Android and assembles a read-only verified cross-platform evidence bundle. Mockups/generated approximations are not production evidence.
 
 <table>
 <tr>
@@ -53,33 +55,36 @@ Documentation media is **repository-local**. No remote badge image, tracking pix
 
 See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockups/generated approximations are not production UI evidence.
 
-## Current 0.0.3 capability contract
+## Current 0.0.4 capability contract
 
-- FTP, explicit FTPS and SFTP through one typed Core engine.
+- FTP, explicit FTPS and SFTP through one typed desktop Core engine.
 - Native Windows and Linux frontends consuming the same typed engine behavior.
+- Persisted Classic Light/Dark appearance on both desktop platforms; Linux applies the selected palette before first paint.
+- Shared deterministic file ordering semantics on Windows/Linux for Name, Type, Size and Modified, plus remote Permissions, with directories-first behavior.
 - Built-in Remote Edit with bounded text validation, revision/conflict protection and verified read-back.
-- Transfer queue pause/resume/cancel/retry and truthful progress/speed/ETA.
+- Transfer queue pause/resume/cancel/retry/clear plus queued Top/Up/Down/Bottom priority reordering and truthful progress/speed/ETA.
 - Independent upload/download bandwidth ceilings with aggregate directional scheduling and real transport enforcement.
 - Non-destructive current-folder filtering and bounded recursive local/server search.
 - Conservative directory comparison and synchronized navigation for safely proven paired ordinary directories.
+- Local/server bookmarks and profile start directories with account/session revalidation.
 - Explicit conflict policy with safe staged activation and rollback behavior.
-- Site Manager profiles with protected saved-secret handling and connection identity binding.
+- Site Manager profiles with protected opt-in saved-secret handling and connection identity binding on Windows and Linux.
 - Strict SFTP host-key verification/pinning and no silent FTPS downgrade.
 - Rooted local path/transfer protections and remote cleanup uncertainty reporting.
 - Trusted Linux transport/AskPass provenance.
 - Ownership-bound Windows installer/uninstaller/shortcut cleanup.
-- Validated local settings for concurrency, upload/download KiB/s ceilings, timeout, retry, overwrite policy, delete confirmation, appearance and language.
+- Validated local settings for concurrency, upload/download KiB/s ceilings, timeout, retry, conflict policy, delete confirmation, appearance and language.
 - No telemetry, analytics, advertising, tracking or hidden product backend.
-
-Post-0.0.3 source capabilities are deliberately kept outside this public 0.0.3 list. Their implementation and acceptance boundaries are documented separately in [`ROADMAP.md`](ROADMAP.md), [`QUEUE-PRIORITY.md`](QUEUE-PRIORITY.md) and [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md).
+- Active Android native development APK with Files/Sites/Bookmarks/Transfers/Settings/About, FTP + strict explicit FTPS, SAF-scoped local access, staged transfer commit/cancellation and bounded server-response parsing. Android SFTP remains hidden until strict native host-key verification exists.
 
 ## Product and architecture
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — components, ownership and trust boundaries.
-- [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux parity contract.
-- [`REFERENCE-UI.md`](REFERENCE-UI.md) — native desktop UI and authentic evidence.
+- [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux parity contract and Android source boundary.
+- [`REFERENCE-UI.md`](REFERENCE-UI.md) — native UI and authentic evidence contract.
 - [`SETTINGS.md`](SETTINGS.md) — validated settings and persistence behavior.
-- [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) — post-0.0.3 bookmark and profile-start source/security contract.
+- [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) — bookmark and profile-start source/security contract.
+- [`QUEUE-PRIORITY.md`](QUEUE-PRIORITY.md) — queue Top/Up/Down/Bottom ordering contract.
 - [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language local localization model.
 - [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency and external-tool policy.
 
@@ -92,16 +97,16 @@ Post-0.0.3 source capabilities are deliberately kept outside this public 0.0.3 l
 
 ## Installation and releases
 
-- [`INSTALLATION.md`](INSTALLATION.md) — universal Windows Setup/Portable and Linux distro/Portable installation.
+- [`INSTALLATION.md`](INSTALLATION.md) — universal Windows Setup/Portable, Linux distro/Portable installation and Android development APK boundary.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical release shape and deterministic latest-only retention lifecycle.
 - [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution bundle policy.
 - [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity and signing verification.
 - [`VERSIONING.md`](VERSIONING.md) — controlled 0.0.x public version policy.
 
-Ghost FTP 0.0.3 uses the canonical **14 platform artifacts / 17 public files** release shape and publishes with `prerelease=false` when publication is explicitly authorized. The same verified release directory is mirrored as a distribution-only bundle at:
+Ghost FTP 0.0.4 uses the canonical **14 platform artifacts / 17 public files** Windows/Linux release shape and publishes with `prerelease=false` when publication is explicitly authorized. The same verified release directory is mirrored as a distribution-only bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.3
+ghcr.io/bren-wp/ghost-ftp:0.0.4
 ```
 
 Canonical Linux packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. Additional architectures retain exact-head build, metadata, extraction and byte-parity verification.
@@ -109,8 +114,8 @@ Canonical Linux packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu,
 ## Current publication identity
 
 ```text
-VERSION=0.0.3
-TAG=ghostftp-v0.0.3
+VERSION=0.0.4
+TAG=ghostftp-v0.0.4
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=14
@@ -120,32 +125,40 @@ PUBLIC_RELEASE_FILES=17
 Windows:
 
 ```text
-Ghost-FTP-0.0.3-Setup.exe
-Ghost-FTP-0.0.3-Portable.exe
+Ghost-FTP-0.0.4-Setup.exe
+Ghost-FTP-0.0.4-Portable.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.3-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.3-Linux-Debian-i386.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.3-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.3-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.3-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.3-Linux-Portable-i386.tar.gz
+Ghost-FTP-0.0.4-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.4-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.4-Linux-Debian-i386.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.4-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.4-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.4-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.4-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.4-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.4-Linux-Portable-i386.tar.gz
 ```
+
+Android development CI artifact:
+
+```text
+Ghost-FTP-Android.apk
+```
+
+The Android artifact is independently exact-head verified but is not counted in the Windows/Linux public release allow-list.
 
 After publication and remote read-back succeed, `.github/workflows/release-retention.yml` verifies the current tag/release/17-file set and removes superseded Ghost FTP releases, tags, canonical release branches and package versions. The release-branch trigger additionally waits for both the canonical publish run and canonical retention run to succeed. `main` commit history is not rewritten.
 
 ## Quality and engineering
 
-- [`TESTING.md`](TESTING.md) — exact-head CI, package lifecycle and regression suites.
+- [`TESTING.md`](TESTING.md) — exact-head CI, Android APK, cross-platform authentic UI, package lifecycle and regression suites.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — engineering rules and PR expectations.
 - [`ROADMAP.md`](ROADMAP.md) — prioritized next capabilities and acceptance criteria.
 - [`SUPPORT.md`](SUPPORT.md) — support information and diagnostic expectations.
