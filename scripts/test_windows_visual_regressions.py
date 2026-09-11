@@ -101,7 +101,10 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("- 'internal/i18n/**'", workflow)
         self.assertIn("Capture authentic main, Site Manager, Bookmarks, Settings and About windows", workflow)
         self.assertIn("Ghost-FTP-$version-Portable-x64.exe", workflow)
-        self.assertIn("!startsWith(github.ref_name, 'release-prep/')", workflow)
+        persist = workflow.split("  persist:", 1)[1]
+        self.assertIn("github.event_name == 'pull_request'", persist)
+        self.assertNotIn("github.event_name == 'push'", persist)
+        self.assertNotIn("[skip ci]", workflow)
 
 
 if __name__ == "__main__":
