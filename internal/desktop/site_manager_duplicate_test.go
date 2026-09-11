@@ -1,7 +1,9 @@
 package desktop
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
@@ -38,6 +40,35 @@ func TestDuplicateProfileDraftCopiesOnlyNonSecretConfiguration(t *testing.T) {
 	}
 	if got.PrivateKeyPath != source.PrivateKeyPath || got.RemotePath != source.RemotePath || got.LocalPath != source.LocalPath {
 		t.Fatalf("duplicate lost non-secret path configuration: %#v", got)
+	}
+}
+
+func TestDuplicateProfileNameStaysWithinSaveLimit(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		source string
+	}{
+		{name: "ASCII limit", source: strings.Repeat("a", siteManagerProfileNameLimit)},
+		{name: "UTF-8 limit", source: strings.Repeat("🙂", siteManagerProfileNameLimit/4)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := duplicateProfileName(test.source)
+			if !utf8.ValidString(got) {
+				t.Fatalf("duplicate name is invalid UTF-8: %q", got)
+			}
+			if len(got) > siteManagerProfileNameLimit {
+				t.Fatalf("duplicate name length = %d bytes, want <= %d", len(got), siteManagerProfileNameLimit)
+			}
+			if !strings.HasSuffix(got, " 2") {
+				t.Fatalf("duplicate name = %q, want duplicate suffix", got)
+			}
+		})
+	}
+}
+
+func TestDuplicateProfileNameKeepsShortNameUnchangedBeforeSuffix(t *testing.T) {
+	if got := duplicateProfileName(" Production "); got != "Production 2" {
+		t.Fatalf("duplicate name = %q, want %q", got, "Production 2")
 	}
 }
 
