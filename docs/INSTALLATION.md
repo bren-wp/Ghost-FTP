@@ -1,6 +1,6 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.4** is the current source/release candidate and this document defines its canonical installation/publication contract. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.4** is the current published release and this document defines its canonical installation/publication contract. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical release packages
 
