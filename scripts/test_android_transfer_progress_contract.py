@@ -25,8 +25,8 @@ class AndroidTransferProgressContractTests(unittest.TestCase):
     def test_runtime_uses_known_entry_size_without_inventing_totals(self) -> None:
         activity = self.read("MainActivity.java")
         progress = self.read("TransferProgress.java")
-        self.assertIn('transferProgress(entry.size, "Uploading", current, transferToken)', activity)
-        self.assertIn('transferProgress(entry.size, "Downloading", current, transferToken)', activity)
+        self.assertIn('transferProgress(entry.size, "Uploading", current, attempt)', activity)
+        self.assertIn('transferProgress(entry.size, "Downloading", current, attempt)', activity)
         self.assertIn("this.totalBytes = totalBytes > 0L ? totalBytes : -1L;", progress)
         self.assertIn("boolean trustworthyTotal = totalBytes > 0L && transferredBytes <= totalBytes;", progress)
         self.assertIn("if (trustworthyTotal)", progress)
@@ -40,25 +40,29 @@ class AndroidTransferProgressContractTests(unittest.TestCase):
         upload = activity[upload_start:download_start]
         download = activity[download_start:helper_start]
         self.assertIn("ProgressStreams.input(source, progress::onTransferred)", upload)
-        self.assertIn("current.upload(FtpSession.joinRemote(remoteBase, entry.name), in);", upload)
+        self.assertIn("current.upload(FtpSession.joinRemote(remoteBase, entry.name), in, attempt.gate);", upload)
         self.assertLess(upload.index("ProgressStreams.input"), upload.index("current.upload("))
         self.assertIn("ProgressStreams.output(destination, progress::onTransferred)", download)
-        self.assertIn("current.download(FtpSession.joinRemote(remoteBase, entry.name), out);", download)
+        self.assertIn("current.download(FtpSession.joinRemote(remoteBase, entry.name), out, attempt.gate);", download)
         self.assertLess(download.index("ProgressStreams.output"), download.index("current.download("))
 
-    def test_progress_ui_is_guarded_by_transfer_generation_and_session(self) -> None:
+    def test_progress_ui_is_guarded_by_exact_transfer_ownership_and_session(self) -> None:
         activity = self.read("MainActivity.java")
         helper_start = activity.index("private TransferProgress transferProgress")
-        helper_end = activity.index("private long beginTransfer", helper_start)
+        helper_end = activity.index("private TransferAttempt beginTransfer", helper_start)
         helper = activity[helper_start:helper_end]
         for marker in (
-            "!transferActive",
-            "transferCancelled(token)",
-            "session != current",
+            "isTransferCurrent(attempt)",
             "!current.isConnected()",
             "setStatus(text);",
         ):
             self.assertIn(marker, helper)
+
+        ownership_start = activity.index("private boolean isTransferCurrent(")
+        ownership_end = activity.index("private void requireTransferCurrent(", ownership_start)
+        ownership = activity[ownership_start:ownership_end]
+        self.assertIn("attempt.token == transferGeneration", ownership)
+        self.assertIn("activeTransferGate == attempt.gate", ownership)
 
     def test_progress_never_replaces_final_commit_semantics(self) -> None:
         activity = self.read("MainActivity.java")
@@ -68,7 +72,8 @@ class AndroidTransferProgressContractTests(unittest.TestCase):
         upload = activity[upload_start:download_start]
         download = activity[download_start:helper_start]
         self.assertLess(upload.index("current.upload("), upload.index('"Upload completed: "'))
-        self.assertLess(download.index("current.download("), download.index("DocumentsContract.renameDocument"))
+        self.assertLess(download.index("current.download("), download.index("beginFinalCommit(attempt"))
+        self.assertLess(download.index("beginFinalCommit(attempt"), download.index("DocumentsContract.renameDocument"))
         self.assertLess(download.index("queryDocumentDisplayName(committed)"), download.index('"Download completed and committed: "'))
 
     def test_progress_has_no_network_or_telemetry_side_channel(self) -> None:
