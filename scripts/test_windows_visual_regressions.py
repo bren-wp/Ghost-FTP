@@ -101,9 +101,14 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("- 'internal/i18n/**'", workflow)
         self.assertIn("Capture authentic main, Site Manager, Bookmarks, Settings and About windows", workflow)
         self.assertIn("Ghost-FTP-$version-Portable-x64.exe", workflow)
-        persist = workflow.split("  persist:", 1)[1]
-        self.assertIn("github.event_name == 'pull_request'", persist)
-        self.assertNotIn("github.event_name == 'push'", persist)
+        evidence = workflow.split("  evidence:", 1)[1]
+        self.assertIn("SOURCE_SHA:", evidence)
+        self.assertIn("github.event_name == 'pull_request'", evidence)
+        self.assertIn("ref: ${{ env.SOURCE_SHA }}", evidence)
+        self.assertIn("ghostftp-authentic-ui-verified-bundle", evidence)
+        self.assertNotIn("git push", workflow)
+        self.assertNotIn("git commit", workflow)
+        self.assertNotIn("github-actions[bot]", workflow)
         self.assertNotIn("[skip ci]", workflow)
 
 
