@@ -72,3 +72,26 @@ func TestLinuxBookmarkViewportClampsAfterCollectionShrinks(t *testing.T) {
 		t.Fatalf("shrunk collection was not clamped: first=%d selected=%d", state.firstVisible, state.selected)
 	}
 }
+
+func TestLinuxBookmarkRowHitTestRejectsPaddingAndUsesViewportOffset(t *testing.T) {
+	u := &linuxDesktop{}
+	state := &linuxBookmarkUIState{
+		items:        linuxBookmarkTestItems(20),
+		selected:     7,
+		firstVisible: 7,
+		visibleRows:  5,
+		rows:         linuxRectWH(100, 200, 400, 168),
+	}
+	linuxBookmarkUIStates.Store(u, state)
+	t.Cleanup(func() { linuxBookmarkUIStates.Delete(u) })
+
+	if got := u.bookmarkRowAt(110, 202); got != -1 {
+		t.Fatalf("top padding selected bookmark %d, want no row", got)
+	}
+	if got := u.bookmarkRowAt(110, 204); got != 7 {
+		t.Fatalf("first visible row mapped to %d, want bookmark 7", got)
+	}
+	if got := u.bookmarkRowAt(110, 236); got != 8 {
+		t.Fatalf("second visible row mapped to %d, want bookmark 8", got)
+	}
+}
