@@ -40,9 +40,10 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("cfg.Password = password", src)
         self.assertIn("cfg.Passphrase = passphrase", src)
 
-    def test_retired_application_targets_and_release_surfaces_remain_absent(self) -> None:
+    def test_active_android_and_retired_release_surfaces(self) -> None:
+        self.assertTrue((ROOT / "android").is_dir(), "active Android source surface is missing")
+        self.assertTrue((ROOT / ".github/workflows/android-apk.yml").is_file(), "Android APK workflow is missing")
         for rel in (
-            "android",
             "ios",
             "macos",
             "GhostFTP WEB",
@@ -53,12 +54,15 @@ class MaintenanceRegressionTests(unittest.TestCase):
         ):
             self.assertFalse((ROOT / rel).exists(), f"retired application/release surface exists: {rel}")
 
-    def test_platform_contract_rejects_retired_target_reintroduction(self) -> None:
+    def test_platform_contract_rejects_only_retired_target_reintroduction(self) -> None:
         audit = read("scripts/audit_platform_contract.py")
-        self.assertIn('RETIRED_ROOTS = ("android/", "ios/", "macos/", "GhostFTP WEB/")', audit)
+        self.assertIn('RETIRED_ROOTS = ("ios/", "macos/", "GhostFTP WEB/")', audit)
+        self.assertIn("ANDROID_REQUIRED", audit)
+        self.assertIn("active Android source contract is incomplete", audit)
         self.assertIn("retired application platform/surface is tracked", audit)
-        self.assertIn("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", audit)
-        self.assertIn("RETIRED_APPLICATION_PLATFORMS=ANDROID,IOS,MACOS", audit)
+        self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX", audit)
+        self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID", audit)
+        self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS", audit)
 
     def test_release_workflow_refuses_stale_main_or_tag_rewrite(self) -> None:
         workflow = read(".github/workflows/release.yml")
