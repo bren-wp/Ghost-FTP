@@ -1,12 +1,12 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **0.0.3** is the current published release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
+Ghost FTP **0.0.4** is the current published release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
 ```text
-Tag: ghostftp-v0.0.3
-Title: Ghost FTP 0.0.3
+Tag: ghostftp-v0.0.4
+Title: Ghost FTP 0.0.4
 Prerelease: false
 ```
 
@@ -29,7 +29,7 @@ release/ghostftp-vX.Y.Z
 For the current candidate:
 
 ```text
-release/ghostftp-v0.0.3
+release/ghostftp-v0.0.4
 ```
 
 `.github/workflows/release-branch-trigger.yml` accepts the branch only when its semantic version matches root `VERSION` and its SHA equals exact current `main`.
@@ -49,32 +49,32 @@ This explicit completion chain exists because a workflow dispatched with the rep
 
 The trigger never force-moves release identities and never dispatches retention before the canonical release run succeeds.
 
-## 0.0.3 public files
+## 0.0.4 public files
 
-Ghost FTP 0.0.3 exposes **14 platform artifacts**.
+Ghost FTP 0.0.4 exposes **14 platform artifacts**.
 
 Windows:
 
 ```text
-Ghost-FTP-0.0.3-Setup.exe
-Ghost-FTP-0.0.3-Portable.exe
+Ghost-FTP-0.0.4-Setup.exe
+Ghost-FTP-0.0.4-Portable.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.3-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.3-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.3-Linux-Debian-i386.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.3-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.3-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.3-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.3-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.3-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.3-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.3-Linux-Portable-i386.tar.gz
+Ghost-FTP-0.0.4-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.4-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.4-Linux-Debian-i386.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.4-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.4-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.4-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.4-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.4-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.4-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.4-Linux-Portable-i386.tar.gz
 ```
 
 Verification/metadata:
@@ -87,6 +87,8 @@ SHA256.txt
 
 That is **17 public files** total.
 
+The independently verified Android development APK is not part of this public Windows/Linux release allow-list. Android production publication remains blocked until a dedicated maintained signing/publication contract exists.
+
 ## Exact-head rule
 
 Before publication the release workflow compares current `main` with the release workflow source SHA. It performs the comparison again after publication before delayed remote asset read-back. If `main` moves, publication fails rather than claiming stale source.
@@ -95,7 +97,7 @@ The release-branch trigger also filters newly dispatched publish and retention w
 
 ## Immutable-current publication transaction
 
-The requested `ghostftp-v0.0.3` tag/release must not already exist. The publish workflow never clobbers a release asset or rewrites an existing current release tag.
+The requested `ghostftp-v0.0.4` tag/release must not already exist. The publish workflow never clobbers a release asset or rewrites an existing current release tag.
 
 After the new release is successfully published and remotely verified, `.github/workflows/release-retention.yml` enforces the project policy that **only the latest public Ghost FTP version remains**. It removes older `ghostftp-v*` GitHub Releases, older/orphan `ghostftp-v*` tags, superseded `release/ghostftp-v*` branches and obsolete Ghost FTP container package versions.
 
@@ -147,7 +149,7 @@ PUBLIC_RELEASE_FILES=17
 
 ## Read-back verification
 
-The release transaction compares the remote sorted asset set with the expected exact 17-file allow-list immediately and again after a delay. For 0.0.3 it requires `prerelease=false`.
+The release transaction compares the remote sorted asset set with the expected exact 17-file allow-list immediately and again after a delay. For 0.0.4 it requires `prerelease=false`.
 
 Only after this verification succeeds may the retention workflow delete superseded public version identities.
 
@@ -156,7 +158,7 @@ Only after this verification succeeds may the retention workflow delete supersed
 The same verified release directory is published as an OCI distribution bundle at:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.3
+ghcr.io/bren-wp/ghost-ftp:0.0.4
 ```
 
 It is a **distribution bundle**, not a runtime container. The release workflow publishes the exact-version tag together with current aliases and verifies the exact-version package after push. Retention preserves the package version carrying the current exact semantic-version tag and removes obsolete package versions only after release verification succeeds.
