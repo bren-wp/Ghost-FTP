@@ -127,14 +127,16 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertNotIn('export HOME="${RUNNER_TEMP', capture)
         self.assertIn('export XDG_DATA_HOME="$HOME/.ghostftp-ui-evidence-data"', capture)
         self.assertIn('x11_socket="/tmp/.X11-unix/X${display_number}"', capture)
+        self.assertIn("two consecutive native-window", capture)
 
     def test_linux_bookmarks_and_settings_evidence_is_user_reachable_and_distinct(self) -> None:
         gui = read("internal/desktop/gui_linux.go")
         capture = read("scripts/capture_linux_screenshots.sh")
         self.assertIn("u.renderBookmarksHeaderButton()", gui)
         self.assertIn("u.handleBookmarksHeaderMouse(x, y)", gui)
-        self.assertIn('cmp -s "$main_png" "$bookmarks_png"', capture)
-        self.assertIn('cmp -s "$main_png" "$settings_png"', capture)
+        self.assertIn("open_distinct_overlay 'Bookmarks'", capture)
+        self.assertIn("open_distinct_overlay 'Settings'", capture)
+        self.assertIn('! cmp -s "$main_png" "$output"', capture)
         self.assertIn('cmp -s "$bookmarks_png" "$settings_png"', capture)
 
     def test_workflow_avoids_yaml_sensitive_embedded_heredocs(self) -> None:
