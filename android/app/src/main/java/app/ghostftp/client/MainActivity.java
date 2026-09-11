@@ -154,6 +154,8 @@ public final class MainActivity extends Activity {
         connect.setOnClickListener(v -> connect());
         disconnect.setOnClickListener(v -> disconnect());
 
+        root.addView(RemoteDesktopPanel.create(this, host), matchWrap());
+
         root.addView(section("LOCAL STORAGE"));
         localPath = label("No folder selected", 14, Color.LTGRAY);
         root.addView(localPath);
