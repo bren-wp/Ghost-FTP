@@ -142,6 +142,45 @@ class AndroidContractTests(unittest.TestCase):
         self.assertIn("if (name.equals(local.name)) throw new IOException(message);", helpers)
         self.assertIn("DocumentsContract.Document.COLUMN_DISPLAY_NAME", helpers)
 
+    def test_active_transfer_cancel_closes_transport_and_blocks_stale_success(self) -> None:
+        ftp = self.read(f"{ANDROID_JAVA}/FtpSession.java")
+        activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
+        self.assertIn("private volatile Socket activeDataSocket;", ftp)
+        self.assertIn("void cancelActiveTransfer() {\n        hardClose();\n    }", ftp)
+        self.assertNotIn("synchronized void cancelActiveTransfer()", ftp)
+        hard_close_start = ftp.index("private void hardClose()")
+        hard_close_end = ftp.index("private static String sanitizeArgument", hard_close_start)
+        hard_close = ftp[hard_close_start:hard_close_end]
+        self.assertIn("Socket data = activeDataSocket;", hard_close)
+        self.assertIn("Socket control = controlSocket;", hard_close)
+        self.assertIn("closeQuietly(data);", hard_close)
+        self.assertIn("closeQuietly(control);", hard_close)
+        self.assertIn("activeDataSocket = plain;", ftp)
+
+        for marker in (
+            "private boolean transferActive;",
+            "private long transferGeneration;",
+            'disconnect.setText(canCancelTransfer ? "Cancel transfer" : "Disconnect");',
+            "disconnect.setEnabled(canCancelTransfer || (!busy && connected));",
+            "current.cancelActiveTransfer();",
+            "transferGeneration++;",
+            "if (!transferIsCurrent(current, generation)) return;",
+            "if (transferGeneration != generation) return;",
+            "session = null;",
+            "connectedIdentityKey = null;",
+            'setBusy(false, "Transfer cancelled. Connection closed; reconnect before continuing.");',
+        ):
+            self.assertIn(marker, activity)
+
+        cancel_start = activity.index("private void cancelActiveTransfer()")
+        cancel_end = activity.index("private void refreshRemote(", cancel_start)
+        cancel = activity[cancel_start:cancel_end]
+        generation = cancel.index("transferGeneration++;")
+        detach = cancel.index("session = null;")
+        close = cancel.index("current.cancelActiveTransfer();")
+        self.assertLess(generation, detach)
+        self.assertLess(detach, close)
+
     def test_password_is_memory_only_and_storage_uses_saf(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
         for marker in (
