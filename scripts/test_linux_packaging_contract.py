@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,16 +80,20 @@ class LinuxPackagingContractTests(unittest.TestCase):
         verification = read("docs/RELEASE-VERIFICATION.md")
         transition = read("docs/PACKAGING-TRANSITION.md")
 
-        self.assertEqual(version, "0.0.3")
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+        self.assertNotEqual(version, "0.0.0")
         self.assertIn(f"Ghost FTP **{version}** is the current public release line", linux_readme)
         self.assertIn(f"Canonical {version} release artifacts", linux_readme)
         self.assertIn("distro-specific artifacts are no longer supplemental", linux_readme)
         self.assertIn(f"ghcr.io/bren-wp/ghost-ftp:{version}", linux_readme)
         self.assertNotIn("not part of the canonical 0.0.3 public release allow-list", linux_readme)
 
+        self.assertIn(f"Ghost FTP **{version}**", parity)
         self.assertIn("14 platform artifacts / 17 public files", parity)
+        self.assertIn(f"ghostftp-v{version}", releases)
         self.assertIn("14 platform artifacts", releases)
         self.assertIn("17 public files", releases)
+        self.assertIn(f"VERSION={version}", verification)
         self.assertIn("14 platform artifacts", verification)
         self.assertIn("17 public files", verification)
 
