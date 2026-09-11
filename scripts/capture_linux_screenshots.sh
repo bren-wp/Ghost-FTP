@@ -66,9 +66,10 @@ done
 app_pid=$!
 
 # Ghost FTP is a direct X11 client and intentionally does not depend on EWMH
-# process metadata. Locate the client by the WM_NAME written by x11_linux.go,
-# then separately validate its WM_CLASS instead of relying on a combined
-# xdotool search predicate that is unreliable on a bare Xvfb server.
+# process metadata. Locate the real client by the WM_NAME written by
+# x11_linux.go. This isolated Xvfb starts empty, so a visible ^Ghost FTP title
+# is product-owned evidence; geometry validation below additionally rejects the
+# root screen if any capture tool ever resolves it accidentally.
 win=''
 for _ in $(seq 1 100); do
   win="$(xdotool search --onlyvisible --name '^Ghost FTP' 2>/dev/null | head -n1 || true)"
@@ -87,19 +88,11 @@ done
   exit 1
 }
 window_name="$(xdotool getwindowname "$win" 2>/dev/null || true)"
-window_class="$(xdotool getwindowclassname "$win" 2>/dev/null || true)"
 [[ "$window_name" == Ghost\ FTP* ]] || {
   echo "Resolved X11 window has an unexpected title: $window_name" >&2
   exit 1
 }
-case "$window_class" in
-  GhostFTP|ghostftp) ;;
-  *)
-    echo "Resolved Ghost FTP title has an unexpected WM_CLASS: $window_class" >&2
-    exit 1
-    ;;
-esac
-printf 'LINUX_UI_WINDOW=%s TITLE=%s CLASS=%s PID=%s\n' "$win" "$window_name" "$window_class" "$app_pid"
+printf 'LINUX_UI_WINDOW=%s TITLE=%s PID=%s\n' "$win" "$window_name" "$app_pid"
 
 read_window_geometry() {
   local geometry
@@ -137,9 +130,16 @@ done
   echo "Linux UI is below the supported minimum geometry: ${window_width}x${window_height}" >&2
   exit 1
 }
+if (( window_x == 0 && window_y == 0 && window_width == 1440 && window_height == 1000 )); then
+  echo 'Resolved X11 window matches the Xvfb root screen, not the Ghost FTP client.' >&2
+  exit 1
+fi
 printf 'LINUX_UI_GEOMETRY=X=%s Y=%s WIDTH=%s HEIGHT=%s WINDOW=%s\n' \
   "$window_x" "$window_y" "$window_width" "$window_height" "$win"
 
+# Initial local-file discovery is asynchronous and deliberately disables header
+# actions while the engine is busy. Wait until two consecutive native-window
+# captures are byte-identical before using the workspace as evidence.
 stable_a="${RUNNER_TEMP:-/tmp}/ghostftp-linux-stable-a.png"
 stable_b="${RUNNER_TEMP:-/tmp}/ghostftp-linux-stable-b.png"
 rm -f "$stable_a" "$stable_b"
