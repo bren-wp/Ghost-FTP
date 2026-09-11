@@ -816,30 +816,73 @@ public final class MainActivity extends Activity {
         FtpSession current = session;
         if (busy || current == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size() || treeUri == null) return;
         RemoteEntry entry = remoteEntries.get(selectedRemote);
-        Uri parent = DocumentsContract.buildDocumentUriUsingTree(treeUri, currentDocumentId);
+        Uri selectedTree = treeUri;
+        String selectedDocumentId = currentDocumentId;
+        Uri parent = DocumentsContract.buildDocumentUriUsingTree(selectedTree, selectedDocumentId);
         String remoteBase = currentRemotePath;
-        setBusy(true, "Downloading " + entry.name + "…");
+        setBusy(true, "Downloading " + entry.name + " to a staged local document…");
         io.execute(() -> {
-            Uri created = null;
+            Uri staged = null;
             try {
-                created = DocumentsContract.createDocument(getContentResolver(), parent, "application/octet-stream", entry.name);
-                if (created == null) throw new IOException("Could not create local destination file.");
-                try (OutputStream out = getContentResolver().openOutputStream(created, "w")) {
-                    if (out == null) throw new IOException("Could not open local destination file.");
+                ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,
+                        "A local item with this exact name already exists. Remove or rename it before downloading.");
+
+                String stagedName = ".ghostftp-download-" + UUID.randomUUID() + ".part";
+                staged = DocumentsContract.createDocument(getContentResolver(), parent, "application/octet-stream", stagedName);
+                if (staged == null) throw new IOException("Could not create staged local download document.");
+
+                try (OutputStream out = getContentResolver().openOutputStream(staged, "w")) {
+                    if (out == null) throw new IOException("Could not open staged local download document.");
                     current.download(FtpSession.joinRemote(remoteBase, entry.name), out);
                 }
+
+                ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,
+                        "A local item with the destination name appeared during download; staged data was not committed.");
+
+                Uri committed = DocumentsContract.renameDocument(getContentResolver(), staged, entry.name);
+                if (committed == null) throw new IOException("Storage provider rejected the final download name commit.");
+                staged = committed;
+                String committedName = queryDocumentDisplayName(committed);
+                if (!entry.name.equals(committedName)) {
+                    throw new IOException("Storage provider changed the requested final download name; commit was rejected.");
+                }
+                staged = null;
+
                 runOnUiThread(() -> {
                     if (session != current) return;
-                    setBusy(false, "Download completed: " + entry.name);
+                    setBusy(false, "Download completed and committed: " + entry.name);
                     refreshLocal();
                 });
             } catch (Exception e) {
-                if (created != null) {
-                    try { DocumentsContract.deleteDocument(getContentResolver(), created); } catch (Exception ignored) { }
+                if (staged != null) {
+                    try { DocumentsContract.deleteDocument(getContentResolver(), staged); } catch (Exception ignored) { }
                 }
                 postError("Download failed", e);
             }
         });
+    }
+
+    private void ensureNoLocalNameConflict(Uri rootTreeUri, String documentId, String name, String message) throws IOException {
+        List<LocalEntry> fresh = queryChildren(rootTreeUri, documentId);
+        for (LocalEntry local : fresh) {
+            if (name.equals(local.name)) throw new IOException(message);
+        }
+    }
+
+    private String queryDocumentDisplayName(Uri document) throws IOException {
+        String[] projection = {DocumentsContract.Document.COLUMN_DISPLAY_NAME};
+        try (Cursor cursor = getContentResolver().query(document, projection, null, null, null)) {
+            if (cursor == null || !cursor.moveToFirst()) {
+                throw new IOException("Storage provider could not verify the committed download name.");
+            }
+            String name = cursor.getString(0);
+            if (name == null || name.isEmpty()) {
+                throw new IOException("Storage provider returned an empty committed download name.");
+            }
+            return name;
+        } catch (SecurityException e) {
+            throw new IOException("Storage permission was lost while verifying the committed download.", e);
+        }
     }
 
     private void clearLocalRoot() {
