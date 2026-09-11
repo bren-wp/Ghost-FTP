@@ -42,8 +42,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Ghost FTP intentionally connects directly to the local Unix X11 socket. Wait
-# for Xvfb to publish that socket instead of racing application startup.
 display_number="${DISPLAY#:}"
 display_number="${display_number%%.*}"
 x11_socket="/tmp/.X11-unix/X${display_number}"
@@ -68,11 +66,12 @@ done
 app_pid=$!
 
 # Ghost FTP is a direct X11 client and intentionally does not depend on EWMH
-# window-manager metadata such as _NET_WM_PID. Identify its real client window
-# by the WM_CLASS/WM_NAME values the product itself sets in x11_linux.go.
+# process metadata. Locate the client by the WM_NAME written by x11_linux.go,
+# then separately validate its WM_CLASS instead of relying on a combined
+# xdotool search predicate that is unreliable on a bare Xvfb server.
 win=''
 for _ in $(seq 1 100); do
-  win="$(xdotool search --onlyvisible --class 'GhostFTP' --name 'Ghost FTP' 2>/dev/null | head -n1 || true)"
+  win="$(xdotool search --onlyvisible --name '^Ghost FTP' 2>/dev/null | head -n1 || true)"
   if [[ -n "$win" ]]; then
     break
   fi
@@ -84,15 +83,23 @@ for _ in $(seq 1 100); do
 done
 [[ -n "$win" ]] || {
   cat "$app_log" >&2 || true
-  echo 'Unable to locate the Ghost FTP WM_CLASS/WM_NAME Linux window.' >&2
+  echo 'Unable to locate the Ghost FTP WM_NAME Linux window.' >&2
   exit 1
 }
 window_name="$(xdotool getwindowname "$win" 2>/dev/null || true)"
+window_class="$(xdotool getwindowclassname "$win" 2>/dev/null || true)"
 [[ "$window_name" == Ghost\ FTP* ]] || {
   echo "Resolved X11 window has an unexpected title: $window_name" >&2
   exit 1
 }
-printf 'LINUX_UI_WINDOW=%s TITLE=%s PID=%s\n' "$win" "$window_name" "$app_pid"
+case "$window_class" in
+  GhostFTP|ghostftp) ;;
+  *)
+    echo "Resolved Ghost FTP title has an unexpected WM_CLASS: $window_class" >&2
+    exit 1
+    ;;
+esac
+printf 'LINUX_UI_WINDOW=%s TITLE=%s CLASS=%s PID=%s\n' "$win" "$window_name" "$window_class" "$app_pid"
 
 read_window_geometry() {
   local geometry
@@ -103,9 +110,6 @@ read_window_geometry() {
   window_height="$(printf '%s\n' "$geometry" | awk -F= '$1=="HEIGHT" {print $2}')"
 }
 
-# A bare Xvfb server has no window manager. Evidence therefore follows the real
-# production window position and size instead of assuming a desktop compositor
-# has normalized either value.
 window_x=''
 window_y=''
 window_width=''
@@ -136,9 +140,6 @@ done
 printf 'LINUX_UI_GEOMETRY=X=%s Y=%s WIDTH=%s HEIGHT=%s WINDOW=%s\n' \
   "$window_x" "$window_y" "$window_width" "$window_height" "$win"
 
-# Initial local-file discovery is asynchronous and deliberately disables header
-# actions while the engine is busy. Wait until two consecutive native-window
-# captures are byte-identical before using the workspace as evidence.
 stable_a="${RUNNER_TEMP:-/tmp}/ghostftp-linux-stable-a.png"
 stable_b="${RUNNER_TEMP:-/tmp}/ghostftp-linux-stable-b.png"
 rm -f "$stable_a" "$stable_b"
@@ -159,9 +160,6 @@ cmp -s "$stable_a" "$stable_b" || {
 }
 cp "$stable_b" "$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 
-# Re-read geometry after startup settles. Xdotool's window-relative pointer
-# movement can be ambiguous on a bare X server with no window manager, so map
-# the application's real client coordinates to absolute root-screen positions.
 read_window_geometry
 bookmarks_client_x=$((window_width - 173))
 settings_client_x=$((window_width - 68))
@@ -184,8 +182,6 @@ open_distinct_overlay() {
 
   for _ in $(seq 1 20); do
     xdotool windowfocus "$win" >/dev/null 2>&1 || true
-    # Do not use xdotool --sync here: a retry intentionally targets the same
-    # point, and --sync can wait forever when the pointer is already there.
     xdotool mousemove "$root_x" "$root_y"
     xdotool click 1
     sleep 0.3
@@ -201,10 +197,6 @@ open_distinct_overlay() {
   return 1
 }
 
-# These centers mirror the production Linux layout: Settings occupies
-# [width-106,width-30) and Bookmarks occupies [width-232,width-114), both at
-# y=[20,50). The client coordinates are converted to actual root coordinates
-# immediately before pointer injection.
 open_distinct_overlay 'Bookmarks' "$bookmarks_client_x" "$header_client_y" "$bookmarks_png"
 xdotool key --window "$win" Escape
 sleep 0.3
