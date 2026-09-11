@@ -2,16 +2,18 @@ plugins {
     id 'com.android.application'
 }
 
+def ghostFtpVersion = rootProject.file('../VERSION').text.trim()
+
 android {
-    namespace 'com.brendigo.ghostftp'
+    namespace 'app.ghostftp.client'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.brendigo.ghostftp'
+        applicationId 'app.ghostftp.client'
         minSdk 26
         targetSdk 35
         versionCode 3
-        versionName '0.0.3-dev'
+        versionName "${ghostFtpVersion}-dev"
     }
 
     buildTypes {
