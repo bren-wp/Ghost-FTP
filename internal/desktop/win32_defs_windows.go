@@ -172,7 +172,7 @@ var (
 	defWindowProcW          = user32.NewProc("DefWindowProcW")
 	showWindow              = user32.NewProc("ShowWindow")
 	updateWindow            = user32.NewProc("UpdateWindow")
-	getMessageW             = user32.NewProc("GetMessageW")
+	getMessageW             = newModalAwareGetMessageProc(user32)
 	getClientRect           = user32.NewProc("GetClientRect")
 	getSystemMetrics        = user32.NewProc("GetSystemMetrics")
 	translateMessage        = user32.NewProc("TranslateMessage")
