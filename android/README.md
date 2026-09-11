@@ -12,6 +12,7 @@ Native Android client source lives entirely under this `android/` directory.
 - Remote directory listing uses MLSD over EPSV/PASV.
 - Binary upload and download are implemented.
 - Uploads are staged under a random same-directory `.ghostftp-upload-<uuid>.part` name and are committed to the requested remote name only after the FTP server confirms transfer completion and accepts `RNFR`/`RNTO`.
+- Downloads are written to a temporary SAF `.ghostftp-download-<uuid>.part` document and receive the requested final local name only after the FTP transfer is confirmed complete and the storage provider accepts an exact-name commit.
 - Host, username, protocol, port and the user-granted folder URI may be remembered. Passwords are memory-only and are cleared from the UI after connection.
 - Explicit saved sites store only non-secret connection identity and navigation metadata; Quick Connect never creates a hidden site.
 - A saved site can own a local SAF start folder, a remote start directory, local SAF bookmarks and remote path bookmarks.
@@ -31,6 +32,18 @@ After confirmed transfer completion, Ghost FTP requires `RNFR` for the staging o
 If the data stream or the completion reply fails in a way that can leave the FTP control channel state uncertain, Ghost FTP hard-closes that session instead of issuing further commands against a potentially desynchronized connection. A staging `.part` object can therefore remain on the server after a transport interruption, but the requested final remote name is not reported as successfully committed. When a rename is rejected after the transfer has been cleanly confirmed, Ghost FTP makes a best-effort attempt to delete the staging object.
 
 The staging flow uses the same existing passive-data transport. For FTPS, the staging upload therefore retains platform-trusted certificate validation and strict hostname verification on the protected data channel; it does not introduce a trust downgrade.
+
+## Download commit safety
+
+Android download does not create the requested final local filename before the server has confirmed transfer completion. Before transfer starts, Ghost FTP performs a fresh SAF listing of the selected destination directory and rejects an exact-name conflict rather than asking the storage provider to overwrite or auto-rename an existing object.
+
+The incoming data is written only to a temporary `.ghostftp-download-<uuid>.part` SAF document. `FtpSession.download()` returns only after the remote data stream has finished and the FTP server has returned an accepted `226` or `250` completion reply, so the final local-name commit is not attempted before that protocol confirmation.
+
+Immediately before commit, Ghost FTP performs a second fresh SAF listing and again rejects an exact-name conflict. It then asks the provider to rename the staging document to the requested filename and reads back `COLUMN_DISPLAY_NAME`. A provider result such as `file (1)` is not treated as a successful download when `file` was requested. If final-name verification fails, Ghost FTP best-effort deletes the unverified result and reports failure.
+
+Any failure before final commit best-effort deletes the staging document. The download is reported as completed only after exact-name read-back succeeds. This is a local SAF commit-safety guarantee; active-transfer cancellation, resume, and FTP control-channel interruption recovery remain separate lifecycle work and are not implied by this staging contract.
+
+All local download work remains inside the user-granted Storage Access Framework tree. No broad or all-files storage permission is introduced.
 
 ## Saved-site and bookmark security boundary
 
