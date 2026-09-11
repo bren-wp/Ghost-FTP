@@ -278,6 +278,9 @@ public final class MainActivity extends Activity {
         navigation.setPadding(dp(12), dp(18), dp(12), dp(18));
         navigation.setBackgroundColor(GhostTheme.PANEL);
         navigation.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            navigation.setAccessibilityPaneTitle("Navigation");
+        }
 
         TextView product = label("Ghost FTP", 20, GhostTheme.TEXT);
         product.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
