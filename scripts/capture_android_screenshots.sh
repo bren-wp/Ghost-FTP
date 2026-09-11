@@ -73,9 +73,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Never let a dead or unreachable emulator block this evidence workflow
-# indefinitely. Poll both the adb transport and Android boot property while also
-# proving that the emulator process is still alive.
 timeout 10s adb start-server >/dev/null 2>&1 || true
 booted=''
 for _ in $(seq 1 180); do
@@ -84,7 +81,6 @@ for _ in $(seq 1 180); do
     echo 'Android emulator terminated before becoming ready.' >&2
     exit 1
   fi
-
   state="$(timeout 5s adb get-state 2>/dev/null || true)"
   if [[ "$state" == 'device' ]]; then
     booted="$(timeout 5s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
@@ -154,8 +150,6 @@ dump_ui() {
       echo 'Android emulator terminated during UI capture.' >&2
       return 1
     fi
-    # uiautomator dump is real runtime accessibility evidence, but on a busy
-    # emulator it can occasionally stall. Bound each attempt and retry.
     if timeout 10s adb shell uiautomator dump "$UI_XML_DEVICE" >/dev/null 2>&1 &&
        timeout 10s adb pull "$UI_XML_DEVICE" "$UI_XML_LOCAL" >/dev/null 2>&1 &&
        [[ -s "$UI_XML_LOCAL" ]]; then
@@ -185,47 +179,6 @@ for node in root.iter("node"):
             print(f"{(x1 + x2) // 2} {(y1 + y2) // 2}")
             raise SystemExit(0)
 raise SystemExit(1)
-PY
-}
-
-# The Android 35 accessibility hierarchy can omit Button text for this
-# programmatic drawer. In that case identify the six app-owned navigation rows
-# from their real runtime bounds instead of guessing a vertical dp position.
-# The drawer is 286dp wide; each navigation row spans most of that width.
-find_nav_coords() {
-  local ordinal="$1"
-  local density="$2"
-  python3 - "$UI_XML_LOCAL" "$ordinal" "$density" <<'PY'
-import re
-import sys
-import xml.etree.ElementTree as ET
-
-path, ordinal, density = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-root = ET.parse(path).getroot()
-drawer_right = round(286 * density / 160)
-slack = round(6 * density / 160)
-min_width = round(220 * density / 160)
-candidates = []
-for node in root.iter("node"):
-    if node.attrib.get("class") != "android.widget.Button" or node.attrib.get("clickable") != "true":
-        continue
-    match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.attrib.get("bounds", ""))
-    if not match:
-        continue
-    x1, y1, x2, y2 = map(int, match.groups())
-    if x1 >= drawer_right or x2 > drawer_right + slack or (x2 - x1) < min_width:
-        continue
-    candidates.append((y1, y2, x1, x2))
-
-candidates.sort()
-if len(candidates) != 6:
-    print(f"Expected exactly 6 drawer navigation buttons, found {len(candidates)}: {candidates}", file=sys.stderr)
-    raise SystemExit(1)
-if ordinal < 0 or ordinal >= len(candidates):
-    print(f"Navigation ordinal out of range: {ordinal}", file=sys.stderr)
-    raise SystemExit(1)
-y1, y2, x1, x2 = candidates[ordinal]
-print(f"{(x1 + x2) // 2} {(y1 + y2) // 2}")
 PY
 }
 
@@ -266,9 +219,12 @@ wait_ui() {
   return 1
 }
 
-# Prefer semantic text when Android exposes it. Otherwise select the exact
-# runtime Button bounds from the open drawer. A tap is accepted only after the
-# independently rendered section title proves that the requested transition ran.
+# Android 35 does not expose the programmatic drawer rows to uiautomator. The
+# exact runner proved that 152dp vertically lands inside the Files row. All six
+# navigation rows are created by the same Button factory with 48dp minimum
+# height and a 5dp bottom margin, so preserving that in-row offset and adding
+# the 53dp row pitch reaches the requested row. The separately rendered title
+# below remains authoritative: a coordinate tap alone can never produce PASS.
 tap_nav_section() {
   local section="$1"
   local ordinal="$2"
@@ -283,17 +239,14 @@ tap_nav_section() {
   else
     density="$(timeout 10s adb shell wm density | tr -d '\r' | awk -F': ' '/Physical density/{v=$2} /Override density/{v=$2} END{print v}')"
     [[ "$density" =~ ^[0-9]+$ ]] || {
-      echo "Unable to resolve emulator density for drawer hierarchy fallback: ${density:-<none>}" >&2
+      echo "Unable to resolve emulator density for drawer row calibration: ${density:-<none>}" >&2
       return 1
     }
-    coords="$(find_nav_coords "$ordinal" "$density")" || return 1
-    [[ "$coords" =~ ^[0-9]+\ [0-9]+$ ]] || {
-      echo "Unable to resolve runtime drawer button bounds for $section." >&2
-      return 1
-    }
-    read -r x y <<<"$coords"
+    x=$((143 * density / 160))
+    y_dp=$((152 + 53 * ordinal))
+    y=$((y_dp * density / 160))
     timeout 10s adb shell input tap "$x" "$y"
-    printf 'ANDROID_NAV_TAP=%s MODE=verified-hierarchy-fallback DENSITY=%s X=%s Y=%s\n' "$section" "$density" "$x" "$y"
+    printf 'ANDROID_NAV_TAP=%s MODE=verified-row-calibration DENSITY=%s X=%s Y=%s\n' "$section" "$density" "$x" "$y"
   fi
   sleep 0.7
   wait_ui "$expected_title"
@@ -315,9 +268,6 @@ capture 'ghost-ftp-android-files.png'
 tap_ui 'Open navigation'
 capture 'ghost-ftp-android-navigation.png'
 
-# The drawer is already open for Sites. Each verified section transition closes
-# it, then the next iteration reopens the real drawer before selecting the next
-# destination. Ordinal zero is Files, so Sites begins at one.
 first_section=1
 ordinal=1
 for section in Sites Bookmarks Transfers Settings About; do
