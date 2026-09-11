@@ -69,8 +69,7 @@ final class GhostTheme {
     }
 
     static void styleSpinner(Spinner spinner) {
-        spinner.setPadding(dp(spinner.getContext(), 8), 0, dp(spinner.getContext(), 8), 0);
-        spinner.setMinimumHeight(dp(spinner.getContext(), 48));
+        spinner.setPadding(dp(spinner.getContext(), 8), dp(spinner.getContext(), 6), dp(spinner.getContext(), 8), dp(spinner.getContext(), 6));
         spinner.setBackground(rounded(spinner.getContext(), LIST, BORDER, 10));
         spinner.setPopupBackgroundDrawable(rounded(spinner.getContext(), PANEL, BORDER, 10));
     }
