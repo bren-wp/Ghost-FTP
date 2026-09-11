@@ -98,7 +98,6 @@ func TestLinuxProfileRemoteStartDoesNotOverwriteManualEditOnRepaint(t *testing.T
 		selectedProfileID: u.selectedProfileID,
 		accountKey:        u.linuxEditableAccountKey(),
 		inheritedRemote:   "/saved-home",
-		verifiedRemote:    "/",
 	}
 	installLinuxProfileStartTestState(t, u, state)
 
@@ -118,7 +117,6 @@ func TestLinuxProfileRemoteStartResetsInheritedPathOnAccountChange(t *testing.T)
 		selectedProfileID: u.selectedProfileID,
 		accountKey:        oldAccountKey,
 		inheritedRemote:   "/saved-home",
-		verifiedRemote:    "/",
 	}
 	installLinuxProfileStartTestState(t, u, state)
 
@@ -130,7 +128,7 @@ func TestLinuxProfileRemoteStartResetsInheritedPathOnAccountChange(t *testing.T)
 	}
 }
 
-func TestLinuxProfileExplicitRemoteStartSurvivesAccountChange(t *testing.T) {
+func TestLinuxProfileRemoteStartResetsNavigatedOldAccountPathOnAccountChange(t *testing.T) {
 	u, _ := linuxProfileStartTestDesktop()
 	oldAccountKey := u.linuxEditableAccountKey()
 	state := &linuxProfileStartState{
@@ -138,15 +136,38 @@ func TestLinuxProfileExplicitRemoteStartSurvivesAccountChange(t *testing.T) {
 		selectedProfileID: u.selectedProfileID,
 		accountKey:        oldAccountKey,
 		inheritedRemote:   "/saved-home",
-		verifiedRemote:    "/",
 	}
 	installLinuxProfileStartTestState(t, u, state)
 
-	u.remoteCurrent = "/new-account-home"
+	u.remoteCurrent = "/navigated-on-old-account"
 	u.username = "bob"
 	u.enforceLinuxProfileStartDirectories()
 
+	if u.remoteCurrent != "/" {
+		t.Fatalf("navigated old-account path crossed account boundary: got %q, want /", u.remoteCurrent)
+	}
+}
+
+func TestLinuxProfileExplicitRemoteStartSurvivesRepaintAfterAccountChange(t *testing.T) {
+	u, _ := linuxProfileStartTestDesktop()
+	oldAccountKey := u.linuxEditableAccountKey()
+	state := &linuxProfileStartState{
+		initialized:       true,
+		selectedProfileID: u.selectedProfileID,
+		accountKey:        oldAccountKey,
+		inheritedRemote:   "/saved-home",
+	}
+	installLinuxProfileStartTestState(t, u, state)
+
+	u.username = "bob"
+	u.enforceLinuxProfileStartDirectories()
+	if u.remoteCurrent != "/" {
+		t.Fatalf("account change did not reset remote start before explicit edit: got %q", u.remoteCurrent)
+	}
+
+	u.remoteCurrent = "/new-account-home"
+	u.enforceLinuxProfileStartDirectories()
 	if u.remoteCurrent != "/new-account-home" {
-		t.Fatalf("explicit new remote start was overwritten: got %q", u.remoteCurrent)
+		t.Fatalf("explicit new-account remote start was overwritten on repaint: got %q", u.remoteCurrent)
 	}
 }
