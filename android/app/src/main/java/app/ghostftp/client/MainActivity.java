@@ -798,7 +798,7 @@ public final class MainActivity extends Activity {
 
     private void deleteActiveSite() {
         if (busy || session != null) {
-            setStatus("Disconnect before deleting a saved site identity changes.");
+            setStatus("Disconnect before deleting a saved site.");
             return;
         }
         SiteProfile profile = activeProfile();
