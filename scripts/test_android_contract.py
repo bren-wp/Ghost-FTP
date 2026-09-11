@@ -109,8 +109,10 @@ class AndroidContractTests(unittest.TestCase):
     def test_download_stages_saf_document_before_final_name_commit(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
         download_start = activity.index("private void downloadSelected()")
-        download_end = activity.index("private void clearLocalRoot()", download_start)
-        download = activity[download_start:download_end]
+        helper_start = activity.index("private void ensureNoLocalNameConflict(", download_start)
+        helper_end = activity.index("private void clearLocalRoot()", helper_start)
+        download = activity[download_start:helper_start]
+        helpers = activity[helper_start:helper_end]
         for marker in (
             '".ghostftp-download-" + UUID.randomUUID() + ".part"',
             "ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,",
@@ -136,10 +138,9 @@ class AndroidContractTests(unittest.TestCase):
         self.assertLess(second_conflict, rename)
         self.assertLess(rename, verify)
         self.assertLess(verify, success)
-        helper = activity[download_end:activity.index("private void renderLocal()", download_end)]
-        self.assertIn("List<LocalEntry> fresh = queryChildren(rootTreeUri, documentId);", helper)
-        self.assertIn("if (name.equals(local.name)) throw new IOException(message);", helper)
-        self.assertIn("DocumentsContract.Document.COLUMN_DISPLAY_NAME", helper)
+        self.assertIn("List<LocalEntry> fresh = queryChildren(rootTreeUri, documentId);", helpers)
+        self.assertIn("if (name.equals(local.name)) throw new IOException(message);", helpers)
+        self.assertIn("DocumentsContract.Document.COLUMN_DISPLAY_NAME", helpers)
 
     def test_password_is_memory_only_and_storage_uses_saf(self) -> None:
         activity = self.read(f"{ANDROID_JAVA}/MainActivity.java")
