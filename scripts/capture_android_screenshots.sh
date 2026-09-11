@@ -9,11 +9,18 @@ DEVICE="${GHOSTFTP_UI_DEVICE:-pixel_6}"
 EMULATOR_LOG="${RUNNER_TEMP:-/tmp}/android-emulator.log"
 UI_XML_DEVICE="/sdcard/ghostftp-window.xml"
 UI_XML_LOCAL="${RUNNER_TEMP:-/tmp}/ghostftp-window.xml"
+SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+EMULATOR_BIN="${SDK_ROOT:+$SDK_ROOT/emulator/emulator}"
 
 [[ -s "$APK_PATH" ]] || {
   echo "Missing Android APK: $APK_PATH" >&2
   exit 1
 }
+[[ -n "$SDK_ROOT" && -x "$EMULATOR_BIN" ]] || {
+  echo "Installed Android emulator binary is unavailable: ${EMULATOR_BIN:-<unset SDK root>}" >&2
+  exit 1
+}
+printf 'ANDROID_EMULATOR_BIN=%s\n' "$EMULATOR_BIN"
 
 mkdir -p "$OUTPUT_DIR"
 if [[ -e /dev/kvm ]]; then
@@ -21,7 +28,7 @@ if [[ -e /dev/kvm ]]; then
 fi
 
 printf 'no\n' | avdmanager create avd --force --name "$AVD_NAME" --package "$SYSTEM_IMAGE" --device "$DEVICE"
-emulator -avd "$AVD_NAME" -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect >"$EMULATOR_LOG" 2>&1 &
+"$EMULATOR_BIN" -avd "$AVD_NAME" -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect >"$EMULATOR_LOG" 2>&1 &
 emulator_pid=$!
 cleanup() {
   timeout 10s adb emu kill >/dev/null 2>&1 || true
