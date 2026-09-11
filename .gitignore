@@ -4,6 +4,13 @@
 /cmd/installer/payload/payload.zip
 /ui-screenshots/
 /dev-signing/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/dist/*.apk
+/android/dist/*.sha256
+/android/dist/APK-BADGING.txt
 
 # Generated release/package artifacts
 *.exe

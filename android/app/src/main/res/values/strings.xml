@@ -12,6 +12,7 @@
     <string name="remote_path">Remote path</string>
     <string name="up">Up</string>
     <string name="refresh">Refresh</string>
+    <string name="open">Open</string>
     <string name="upload">Upload</string>
     <string name="download">Download</string>
     <string name="new_folder">New folder</string>
@@ -19,6 +20,7 @@
     <string name="cancel">Cancel</string>
     <string name="create">Create</string>
     <string name="trust">Trust</string>
+    <string name="ok">OK</string>
     <string name="status_ready">Ready. Credentials are kept in memory only for the active connection.</string>
     <string name="status_connecting">Connecting to %1$s…</string>
     <string name="status_connected">Connected to %1$s.</string>
@@ -29,10 +31,13 @@
     <string name="status_downloaded">Download complete: %1$s</string>
     <string name="status_created">Folder created: %1$s</string>
     <string name="status_deleted">Deleted: %1$s</string>
+    <string name="status_selected">Selected: %1$s</string>
     <string name="error_title">Ghost FTP error</string>
     <string name="validation_error">Check server, port and login fields.</string>
-    <string name="select_file">Select a remote file first.</string>
+    <string name="select_file">Select an ordinary remote file first.</string>
     <string name="select_entry">Select a server item first.</string>
+    <string name="select_directory">Select a remote directory first.</string>
+    <string name="upload_conflict">A server item named %1$s already exists. Android preview uploads do not overwrite existing objects.</string>
     <string name="symlink_blocked">Symlink operations are blocked on Android until the target can be proven safely.</string>
     <string name="ftp_warning_title">Plain FTP is unencrypted</string>
     <string name="ftp_warning_message">FTP sends credentials and file data without TLS. Continue only for a legacy server you intentionally trust.</string>

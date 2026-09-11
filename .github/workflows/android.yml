@@ -1,0 +1,75 @@
+name: Ghost FTP Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'work/**']
+    paths:
+      - 'android/**'
+      - 'scripts/test_android_contract.py'
+      - '.github/workflows/android.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'scripts/test_android_contract.py'
+      - '.github/workflows/android.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Native Android debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Java 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          gradle-version: '8.9'
+      - name: Install exact Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Android source/security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_android_contract.py
+      - name: Build native APK
+        shell: bash
+        run: bash android/BUILD.sh
+      - name: Verify APK identity and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk='android/dist/Ghost-FTP-Android-debug.apk'
+          test -s "$apk"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" | tee android/dist/APK-BADGING.txt
+          grep -F "package: name='com.brendigo.ghostftp' versionCode='4' versionName='0.0.4-dev'" android/dist/APK-BADGING.txt
+          grep -F "sdkVersion:'26'" android/dist/APK-BADGING.txt
+          grep -F "targetSdkVersion:'35'" android/dist/APK-BADGING.txt
+          (cd android/dist && sha256sum -c Ghost-FTP-Android-debug.apk.sha256)
+      - name: Upload generated Android folder artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-android-apk
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            android/dist/Ghost-FTP-Android-debug.apk
+            android/dist/Ghost-FTP-Android-debug.apk.sha256
+            android/dist/APK-BADGING.txt
