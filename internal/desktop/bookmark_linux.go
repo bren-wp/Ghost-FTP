@@ -295,7 +295,7 @@ func (u *linuxDesktop) renderBookmarkManagerOverlay() error {
 
 func (u *linuxDesktop) bookmarkRowAt(x, y int) int {
 	state := linuxBookmarkStateFor(u)
-	if !state.rows.contains(x, y) {
+	if !state.rows.contains(x, y) || y < state.rows.top+4 {
 		return -1
 	}
 	visualRow := (y - state.rows.top - 4) / 32
