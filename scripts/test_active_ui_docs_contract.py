@@ -54,6 +54,7 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
     def test_screenshot_evidence_requires_complete_authentic_capture_provenance(self) -> None:
         reference = read("docs/REFERENCE-UI.md")
         workflow = read(".github/workflows/ui-screenshots.yml")
+        assembly = read("scripts/assemble_ui_evidence.py")
 
         for marker in (
             "authentic UI workflow run **#201**",
@@ -79,7 +80,13 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
 
         self.assertIn('dist\\internal\\Ghost-FTP-$version-Portable-x64.exe', workflow)
         self.assertIn("Verify screenshot outputs", workflow)
-        self.assertIn("AUTHENTIC_UI_SCREENSHOTS=PERSISTED", workflow)
+        self.assertIn("Verify exact-head cross-platform evidence bundle", workflow)
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn("ghostftp-authentic-ui-verified-bundle", workflow)
+        self.assertIn("AUTHENTIC_UI_EVIDENCE=VERIFIED", assembly)
+        self.assertNotIn("AUTHENTIC_UI_SCREENSHOTS=PERSISTED", workflow)
+        self.assertNotIn("git push", workflow)
+        self.assertNotIn("github-actions[bot]", workflow)
 
 
 if __name__ == "__main__":
