@@ -20,6 +20,8 @@ var premiumAdjustWindowRectEx = user32.NewProc("AdjustWindowRectEx")
 var premiumAdjustWindowRectExForDpi = user32.NewProc("AdjustWindowRectExForDpi")
 var premiumEnableWindow = user32.NewProc("EnableWindow")
 var premiumSetActiveWindow = user32.NewProc("SetActiveWindow")
+var premiumShowWindow = user32.NewProc("ShowWindow")
+var premiumIsIconic = user32.NewProc("IsIconic")
 var premiumIsWindow = user32.NewProc("IsWindow")
 var premiumDwmapi = syscall.NewLazyDLL("dwmapi.dll")
 var premiumDwmSetAttribute = premiumDwmapi.NewProc("DwmSetWindowAttribute")
@@ -35,6 +37,7 @@ const (
 	premiumWMCtlColorListBox = 0x0134
 	premiumWMCtlColorBtn     = 0x0135
 	premiumWMCtlColorStatic  = 0x0138
+	premiumSWRestore         = 9
 )
 
 type premiumRect struct {
@@ -265,11 +268,14 @@ func premiumDialogPosition(owner uintptr, width, height int) (int, int) {
 }
 
 // premiumModalOwner makes the custom top-level window actually modal. Without
-// this, the nested message loop still dispatches input to the main window.
+// this, the nested message loop still dispatches input to the main window. Keep
+// the owner's pre-dialog iconic state so a dialog can repair an unexpected
+// minimize without overriding a window the user had already minimized.
 func premiumModalOwner(owner uintptr) func() {
 	if owner == 0 {
 		return func() {}
 	}
+	wasIconic, _, _ := premiumIsIconic.Call(owner)
 	premiumEnableWindow.Call(owner, 0)
 	var once sync.Once
 	return func() {
@@ -279,6 +285,12 @@ func premiumModalOwner(owner uintptr) func() {
 				return
 			}
 			premiumEnableWindow.Call(owner, 1)
+			if wasIconic == 0 {
+				isIconic, _, _ := premiumIsIconic.Call(owner)
+				if isIconic != 0 {
+					premiumShowWindow.Call(owner, premiumSWRestore)
+				}
+			}
 			premiumSetActiveWindow.Call(owner)
 		})
 	}
