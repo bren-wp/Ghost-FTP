@@ -1,0 +1,83 @@
+name: Ghost FTP Windows Modal Keyboard Runtime
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'VERSION'
+      - 'BUILD-WINDOWS.ps1'
+      - 'BUILD-WINDOWS-ARCH-STAGE.ps1'
+      - 'cmd/ghostftp/**'
+      - 'internal/desktop/**'
+      - 'internal/platform/**'
+      - 'scripts/test_windows_modal_keyboard_runtime.ps1'
+      - 'scripts/test_windows_modal_keyboard_runtime_contract.py'
+      - '.github/workflows/windows-modal-keyboard-runtime.yml'
+  push:
+    branches:
+      - main
+      - 'hardening/**'
+      - 'release-prep/**'
+      - 'work/**'
+      - 'release/**'
+      - 'packaging/**'
+    paths:
+      - 'VERSION'
+      - 'BUILD-WINDOWS.ps1'
+      - 'BUILD-WINDOWS-ARCH-STAGE.ps1'
+      - 'cmd/ghostftp/**'
+      - 'internal/desktop/**'
+      - 'internal/platform/**'
+      - 'scripts/test_windows_modal_keyboard_runtime.ps1'
+      - 'scripts/test_windows_modal_keyboard_runtime_contract.py'
+      - '.github/workflows/windows-modal-keyboard-runtime.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-windows-modal-keyboard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime:
+    name: Authentic Site Manager and Bookmarks keyboard lifecycle
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Disable Go telemetry
+        shell: pwsh
+        run: |
+          go telemetry off
+          if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') {
+            throw 'Go telemetry is not disabled.'
+          }
+
+      - name: Build verified production Windows packages
+        shell: pwsh
+        run: .\BUILD-WINDOWS.ps1
+
+      - name: Verify native modal keyboard lifecycle
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $exe = "dist\internal\Ghost-FTP-$version-Portable-x64.exe"
+          if (-not (Test-Path $exe -PathType Leaf)) {
+            throw "Missing verified native production executable: $exe"
+          }
+          .\scripts\test_windows_modal_keyboard_runtime.ps1 -Executable $exe
