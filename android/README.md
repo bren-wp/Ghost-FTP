@@ -13,6 +13,7 @@ Native Android client source lives entirely under this `android/` directory.
 - Binary upload and download are implemented.
 - Uploads are staged under a random same-directory `.ghostftp-upload-<uuid>.part` name and are committed to the requested remote name only after the FTP server confirms transfer completion and accepts `RNFR`/`RNTO`.
 - Downloads are written to a temporary SAF `.ghostftp-download-<uuid>.part` document and receive the requested final local name only after the FTP transfer is confirmed complete and the storage provider accepts an exact-name commit.
+- Active upload/download transfers can be cancelled from the connection button. Cancellation closes the active data and control transports, invalidates the session, and requires reconnecting before further server work.
 - Host, username, protocol, port and the user-granted folder URI may be remembered. Passwords are memory-only and are cleared from the UI after connection.
 - Explicit saved sites store only non-secret connection identity and navigation metadata; Quick Connect never creates a hidden site.
 - A saved site can own a local SAF start folder, a remote start directory, local SAF bookmarks and remote path bookmarks.
@@ -41,9 +42,17 @@ The incoming data is written only to a temporary `.ghostftp-download-<uuid>.part
 
 Immediately before commit, Ghost FTP performs a second fresh SAF listing and again rejects an exact-name conflict. It then asks the provider to rename the staging document to the requested filename and reads back `COLUMN_DISPLAY_NAME`. A provider result such as `file (1)` is not treated as a successful download when `file` was requested. If final-name verification fails, Ghost FTP best-effort deletes the unverified result and reports failure.
 
-Any failure before final commit best-effort deletes the staging document. The download is reported as completed only after exact-name read-back succeeds. This is a local SAF commit-safety guarantee; active-transfer cancellation, resume, and FTP control-channel interruption recovery remain separate lifecycle work and are not implied by this staging contract.
+Any failure before final commit best-effort deletes the staging document. The download is reported as completed only after exact-name read-back succeeds. All local download work remains inside the user-granted Storage Access Framework tree. No broad or all-files storage permission is introduced.
 
-All local download work remains inside the user-granted Storage Access Framework tree. No broad or all-files storage permission is introduced.
+## Active transfer cancellation
+
+During an active upload or download, the existing **Disconnect** control becomes **Cancel transfer**. Cancellation is deliberately fail-closed: Ghost FTP invalidates the active transfer generation, detaches the current session from visible UI state, and closes both the passive data socket and the FTP control socket. The cancelled connection is not reused; the user reconnects before performing further server operations.
+
+The transport abort path is intentionally not synchronized on the long-running upload/download monitor. This allows the UI thread to close sockets while a worker is blocked in network I/O. The worker can unwind afterward, but generation/session guards prevent its stale completion or error callback from converting the cancelled operation into a visible success or replacing the cancellation status.
+
+For a staged download, the worker's failure path best-effort deletes the local `.ghostftp-download-*.part` document after the socket abort. For a staged upload, cancellation can leave the remote `.ghostftp-upload-*.part` object because Ghost FTP does not issue cleanup commands over a control connection that it has intentionally invalidated. The requested final remote name is still not committed by the cancellation path.
+
+Cancellation is not resume. Ghost FTP does not currently continue a partially transferred Android upload/download after reconnect, and it does not claim FTP `ABOR` interoperability across servers. Closing the transport and requiring a fresh session is the authoritative cancellation boundary.
 
 ## Saved-site and bookmark security boundary
 
