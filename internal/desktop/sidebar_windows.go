@@ -116,11 +116,6 @@ func (a *app) transformSidebarContent(hwnd uintptr, oldLeft, oldRight, newLeft, 
 }
 
 func (a *app) resizeSidebarColumns() {
-	// File panes have one canonical width policy. The old sidebar-specific
-	// percentages (35/16/14/22/13 for Remote) overrode resizeListColumns and made
-	// Permissions only ~45 px wide in the standard captured workspace. Fit from
-	// each ListView's actual client width instead so sidebar and non-sidebar passes
-	// cannot disagree about the same columns.
 	a.fitFileColumnsToWorkspace()
 
 	if a.transferList != 0 {
@@ -137,34 +132,26 @@ func (a *app) resizeSidebarColumns() {
 	}
 }
 
-// applyApplicationSidebar turns the application-level navigation into one
-// canonical left rail without rewriting the proven two-pane layout engine.
-// The normal layout first computes a complete baseline. If the language combo
-// is still in that baseline header position, this function applies one affine
-// horizontal transform to the operational workspace and then anchors the rail.
-// State-only refreshes see the already-left language selector and therefore do
-// not compound the transform.
 func (a *app) applyApplicationSidebar() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
 	diagnostics := a.ensureSidebarDiagnostics()
+	remoteDesktop := a.ensureSidebarRemoteDesktop()
 	labels := navigationLabelsForLanguage(a.languageCode())
 	a.setSidebarButtonVisual(a.siteManagerBtn, iconOpenLocal, labels.SiteManager, buttonDefault)
 	a.setSidebarButtonVisual(a.settingsBtn, iconSettings, a.tr("common.settings"), buttonSubtle)
+	a.setSidebarButtonVisual(remoteDesktop, iconDiagnostics, "Remote Desktop", buttonSubtle)
 	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, labels.Diagnostics, buttonSubtle)
 	a.setSidebarButtonVisual(a.aboutBtn, iconInfo, a.tr("common.about"), buttonSubtle)
 
-	// Rail controls are always anchored explicitly, including state-only passes.
 	a.move(a.languageCombo, applicationSidebarX, 54, applicationSidebarWidth, 29)
 	y := 96
-	for _, control := range []uintptr{a.siteManagerBtn, a.settingsBtn, diagnostics, a.aboutBtn} {
+	for _, control := range []uintptr{a.siteManagerBtn, a.settingsBtn, remoteDesktop, diagnostics, a.aboutBtn} {
 		a.move(control, applicationSidebarX, y, applicationSidebarWidth, applicationSidebarCardH)
 		y += applicationSidebarCardH + applicationSidebarCardGap
 	}
 
-	// If the profile combo is already to the right of the rail then this layout
-	// pass was transformed previously. Do not scale a transformed workspace twice.
 	profileRect, ok := a.sidebarLogicalRect(a.profilesCombo)
 	if ok && int(profileRect.Left) >= applicationContentLeft-2 {
 		a.resizeSidebarColumns()
