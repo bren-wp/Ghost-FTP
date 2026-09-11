@@ -124,7 +124,9 @@ The overlay supports the same functional actions as Windows:
 - delete selected bookmark;
 - close.
 
-Keyboard and mouse handling are routed through the established Linux prompt/modal dispatcher. Bookmark naming prompts feed the same Engine save methods used by Windows, and bookmark activation goes through `Engine.NavigateBookmark` rather than directly trusting the stored path.
+The bookmark list uses a bounded visible viewport. Keyboard selection automatically keeps the selected item in view, while mouse-accessible up/down controls move through collections larger than the overlay. Hit testing includes the viewport offset and rejects the list padding, so Open/Delete always refer to a visibly selectable bookmark even when the persisted collection is larger than one page.
+
+Keyboard and mouse handling are routed through the established Linux prompt/modal dispatcher. Bookmark naming prompts feed the same Engine save methods used by Windows, and bookmark activation goes through `Engine.NavigateBookmark` rather than directly trusting the stored path. Cancelling a bookmark-name child prompt returns to the manager instead of abandoning the entire bookmark flow.
 
 The Bookmarks control is rendered through the existing workspace/file-filter extension path and has a matching click handler; it is not a decorative or dead control.
 
@@ -157,10 +159,12 @@ The guard runs on the UI goroutine before the Bookmarks header is painted and tr
 - the previous verified local base is restored immediately;
 - the requested profile local start is passed to `refreshLocal`;
 - only successful local listing may commit the resulting canonical base;
-- a remote start is retained only while protocol/host/port/username still match the selected profile;
-- editing the selected profile's account fields resets the remote start to the protocol default (`/` for FTP/FTPS, `.` for SFTP).
+- selecting a profile installs its saved/default remote start once;
+- any subsequent change to protocol, canonical host, port or exact username resets the current server start once to the new protocol default (`/` for FTP/FTPS, `.` for SFTP), even if the current value came from navigation on the old account;
+- after that account-bound reset has occurred, a newly entered explicit Remote Path survives ordinary repaints;
+- profile switching itself is disabled while a Linux connection is active or another Linux UI action is busy, preventing profile selection from mutating path/account drafts in the middle of an active session.
 
-This keeps a stale local or server path from becoming visible authority merely because a profile row was selected.
+This keeps stale local, inherited, or previously navigated server paths from becoming visible authority merely because a profile row was selected or its account identity was edited.
 
 ## Error and stale-state behavior
 
@@ -173,7 +177,7 @@ The feature is fail-closed around navigation authority:
 - remote bookmark account mismatch is rejected;
 - disconnect/reconnect during remote navigation invalidates the operation;
 - Windows stale async callbacks are rejected by navigation sequence / connection generation;
-- profile identity changes cannot silently retain an unrelated inherited server start.
+- profile identity changes discard the previous account's inherited or navigated server start before a new explicit start can be entered.
 
 A failure must leave the previously verified pane state intact whenever the surrounding navigation path supports that behavior; it must not manufacture a successful empty listing.
 
@@ -189,7 +193,7 @@ The maintained parity target is behavioral rather than pixel-identical:
 
 | Capability | Windows | Linux |
 | --- | --- | --- |
-| List bookmarks | Native manager | Native X11 overlay |
+| List bookmarks | Native manager | Native X11 overlay with bounded viewport |
 | Add local bookmark | Yes | Yes |
 | Add remote bookmark | Connected session only | Connected session only |
 | Delete bookmark | Confirmed | Confirmed through existing destructive-action policy |
@@ -198,7 +202,7 @@ The maintained parity target is behavioral rather than pixel-identical:
 | Remote account binding | Yes | Yes |
 | Stale-session protection | Engine + connection generation | Engine + serialized Linux action/session behavior |
 | Profile local start requires real listing | Yes | Yes |
-| Profile remote start rejects account drift | Yes | Yes |
+| Profile remote start rejects account drift | Yes | Yes, one-time reset per identity change |
 
 ## Regression coverage
 
@@ -207,6 +211,10 @@ The implementation is protected by Go unit tests and source-level regression con
 - `internal/config/bookmarks_test.go` — CRUD, validation, non-secret persisted schema, account binding and corrupt-state fail-closed behavior;
 - `internal/config/profile_start_directory_binding_test.go` — inherited remote-start reset and explicit-new-path behavior across identity changes;
 - `internal/profilebinding/*_test.go` — canonical endpoint/account identity semantics;
+- `internal/desktop/profile_start_linux_test.go` — repaint safety, inherited/navigated old-account reset and explicit-new-path behavior after the identity boundary;
+- `internal/desktop/profile_cycle_linux_test.go` — connected/busy profile-switch guards and normal idle profile loading;
+- `internal/desktop/bookmark_prompt_linux_test.go` — bookmark-name child-prompt classification;
+- `internal/desktop/bookmark_viewport_linux_test.go` — viewport clamping, later-row reachability and hit-test padding/offset behavior;
 - desktop tests for shared bookmark wording and Site Manager navigation privacy;
 - `scripts/test_navigation_bookmarks_contract.py` — cross-layer Engine/config/Windows/Linux/documentation wiring and security invariants.
 
