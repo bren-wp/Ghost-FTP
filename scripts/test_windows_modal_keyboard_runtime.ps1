@@ -41,9 +41,6 @@ public static class GhostFtpKeyboardNative
     [DllImport("user32.dll")]
     public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr extraData);
 
-    [DllImport("user32.dll")]
-    public static extern bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc callback, IntPtr extraData);
-
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int maxCount);
 
@@ -52,6 +49,9 @@ public static class GhostFtpKeyboardNative
 
     [DllImport("user32.dll")]
     public static extern bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO info);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetDlgItem(IntPtr hDlg, int nIDDlgItem);
 
     [DllImport("user32.dll")]
     public static extern bool IsWindow(IntPtr hWnd);
@@ -82,6 +82,8 @@ $vkReturn = 0x0D
 $vkEscape = 0x1B
 $siteManagerCommand = 701
 $bookmarksCommand = 97
+$siteManagerCloseControlId = 8114
+$bookmarksCloseControlId = 8206
 
 function Wait-ForMainWindow {
     param(
@@ -145,41 +147,24 @@ function Find-ProcessWindow {
     throw "Timed out waiting for Ghost FTP window containing '$TitleContains'."
 }
 
-function Find-ChildWindowByText {
+function Wait-ForControlById {
     param(
-        [Parameter(Mandatory = $true)]
-        [IntPtr]$Parent,
-        [Parameter(Mandatory = $true)]
-        [string]$Text,
+        [Parameter(Mandatory = $true)][IntPtr]$Parent,
+        [Parameter(Mandatory = $true)][int]$ControlId,
+        [Parameter(Mandatory = $true)][string]$Name,
         [int]$TimeoutSeconds = 10
     )
 
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     do {
-        $script:ghostFtpKeyboardFoundChild = [IntPtr]::Zero
-        $script:ghostFtpKeyboardChildText = $Text
-        $callback = [GhostFtpKeyboardNative+EnumWindowsProc]{
-            param([IntPtr]$hWnd, [IntPtr]$lParam)
-
-            if (-not [GhostFtpKeyboardNative]::IsWindowVisible($hWnd)) {
-                return $true
-            }
-            $buffer = New-Object System.Text.StringBuilder 512
-            [GhostFtpKeyboardNative]::GetWindowText($hWnd, $buffer, $buffer.Capacity) | Out-Null
-            if ($buffer.ToString() -eq $script:ghostFtpKeyboardChildText) {
-                $script:ghostFtpKeyboardFoundChild = $hWnd
-                return $false
-            }
-            return $true
-        }
-        [GhostFtpKeyboardNative]::EnumChildWindows($Parent, $callback, [IntPtr]::Zero) | Out-Null
-        if ($script:ghostFtpKeyboardFoundChild -ne [IntPtr]::Zero) {
-            return $script:ghostFtpKeyboardFoundChild
+        $control = [GhostFtpKeyboardNative]::GetDlgItem($Parent, $ControlId)
+        if ($control -ne [IntPtr]::Zero -and [GhostFtpKeyboardNative]::IsWindow($control)) {
+            return $control
         }
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $deadline)
 
-    throw "Timed out waiting for child control '$Text'."
+    throw "Timed out waiting for $Name control ID $ControlId."
 }
 
 function Get-FocusedWindow {
@@ -256,10 +241,11 @@ function Open-ModalWindow {
 function Focus-CloseWithTab {
     param(
         [Parameter(Mandatory = $true)][IntPtr]$Window,
+        [Parameter(Mandatory = $true)][int]$CloseControlId,
         [Parameter(Mandatory = $true)][string]$Name
     )
 
-    $closeButton = Find-ChildWindowByText -Parent $Window -Text 'Close'
+    $closeButton = Wait-ForControlById -Parent $Window -ControlId $CloseControlId -Name "$Name dismiss"
     for ($index = 0; $index -lt 40; $index++) {
         $focus = Get-FocusedWindow -Window $Window
         if ($focus -eq $closeButton) {
@@ -272,7 +258,7 @@ function Focus-CloseWithTab {
         [GhostFtpKeyboardNative]::PostMessage($target, $wmKeyUp, [IntPtr]$vkTab, [IntPtr]::Zero) | Out-Null
         Start-Sleep -Milliseconds 100
     }
-    throw "Tab traversal did not reach the Close button in $Name."
+    throw "Tab traversal did not reach the dismiss button in $Name."
 }
 
 function Verify-ModalKeyboardContract {
@@ -280,6 +266,7 @@ function Verify-ModalKeyboardContract {
         [Parameter(Mandatory = $true)][IntPtr]$Main,
         [Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process,
         [Parameter(Mandatory = $true)][int]$Command,
+        [Parameter(Mandatory = $true)][int]$CloseControlId,
         [Parameter(Mandatory = $true)][string]$Title
     )
 
@@ -287,13 +274,13 @@ function Verify-ModalKeyboardContract {
     if ([GhostFtpKeyboardNative]::IsWindowEnabled($Main)) {
         throw "Main window remained enabled while $Title was open."
     }
-    $closeButton = Focus-CloseWithTab -Window $modal -Name $Title
+    $closeButton = Focus-CloseWithTab -Window $modal -CloseControlId $CloseControlId -Name $Title
     $focus = Get-FocusedWindow -Window $modal
     if ($focus -ne $closeButton) {
-        throw "Close button did not retain keyboard focus in $Title."
+        throw "Dismiss button did not retain keyboard focus in $Title."
     }
     if (-not [GhostFtpKeyboardNative]::PostMessage($closeButton, $wmKeyDown, [IntPtr]$vkReturn, [IntPtr]::Zero)) {
-        throw "Could not post Enter to the focused Close button in $Title."
+        throw "Could not post Enter to the focused dismiss button in $Title."
     }
     Wait-ForWindowClosed -Window $modal -Name $Title
     Assert-MainRestored -Main $Main -Process $Process -Context "$Title Enter close"
@@ -315,8 +302,8 @@ try {
     [GhostFtpKeyboardNative]::SetForegroundWindow($main) | Out-Null
     Start-Sleep -Milliseconds 500
 
-    Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -Title 'Site Manager'
-    Verify-ModalKeyboardContract -Main $main -Process $process -Command $bookmarksCommand -Title 'Bookmarks'
+    Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -CloseControlId $siteManagerCloseControlId -Title 'Site Manager'
+    Verify-ModalKeyboardContract -Main $main -Process $process -Command $bookmarksCommand -CloseControlId $bookmarksCloseControlId -Title 'Bookmarks'
 
     if (-not [GhostFtpKeyboardNative]::PostMessage($main, $wmClose, [IntPtr]::Zero, [IntPtr]::Zero)) {
         throw 'Could not close the Ghost FTP main window.'
