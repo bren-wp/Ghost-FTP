@@ -260,28 +260,28 @@ final class FtpSession implements Closeable {
     }
 
     private Socket openPassiveDataSocket() throws IOException {
-        Reply epsv = command("EPSV");
-        int dataPort;
-        if (epsv.code == 229) {
-            dataPort = parseEpsvPort(epsv.message);
-        } else {
-            Reply pasv = command("PASV");
-            expect(pasv, 227);
-            dataPort = parsePasvPort(pasv.message);
-        }
-
-        Socket plain = new Socket();
-        activeDataSocket = plain;
-        if (!connected) {
-            releaseDataSocket(plain);
-            throw new IOException("Transfer was cancelled before the data connection opened.");
-        }
+        Socket plain = null;
         try {
+            Reply epsv = command("EPSV");
+            int dataPort;
+            if (epsv.code == 229) {
+                dataPort = parseEpsvPort(epsv.message);
+            } else {
+                Reply pasv = command("PASV");
+                expect(pasv, 227);
+                dataPort = parsePasvPort(pasv.message);
+            }
+
+            plain = new Socket();
+            activeDataSocket = plain;
+            if (!connected) {
+                throw new IOException("Transfer was cancelled before the data connection opened.");
+            }
+
             plain.connect(new InetSocketAddress(host, dataPort), CONNECT_TIMEOUT_MS);
             plain.setSoTimeout(READ_TIMEOUT_MS);
             if (!secure) {
                 if (!connected) {
-                    releaseDataSocket(plain);
                     throw new IOException("Transfer was cancelled while the data connection opened.");
                 }
                 return plain;
@@ -290,13 +290,15 @@ final class FtpSession implements Closeable {
             SSLSocket tls = wrapTls(plain);
             activeDataSocket = tls;
             if (!connected) {
-                releaseDataSocket(tls);
                 throw new IOException("Transfer was cancelled while the protected data channel opened.");
             }
             return tls;
         } catch (IOException e) {
-            releaseDataSocket(plain);
-            throw e;
+            if (plain != null) {
+                releaseDataSocket(plain);
+            }
+            hardClose();
+            throw new IOException("Passive data connection setup failed; the FTP session was closed.", e);
         }
     }
 
@@ -377,12 +379,19 @@ final class FtpSession implements Closeable {
             throw new IOException("Invalid EPSV response.");
         }
         String payload = message.substring(open + 1, close);
+        if (payload.isEmpty()) {
+            throw new IOException("Invalid EPSV response.");
+        }
         char delimiter = payload.charAt(0);
         String[] parts = payload.split(java.util.regex.Pattern.quote(String.valueOf(delimiter)), -1);
         if (parts.length < 4) {
             throw new IOException("Invalid EPSV response.");
         }
-        return requirePort(Integer.parseInt(parts[3]));
+        try {
+            return requirePort(Integer.parseInt(parts[3]));
+        } catch (NumberFormatException e) {
+            throw new IOException("Invalid EPSV port.", e);
+        }
     }
 
     private static int parsePasvPort(String message) throws IOException {
