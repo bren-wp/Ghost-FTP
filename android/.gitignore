@@ -1,0 +1,8 @@
+# Android/Gradle local state
+.gradle/
+local.properties
+app/build/
+
+# Generated APKs live here during CI/local builds.
+dist/*.apk
+!dist/.gitkeep

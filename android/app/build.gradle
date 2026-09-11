@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.brendigo.ghostftp'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.brendigo.ghostftp'
+        minSdk 26
+        targetSdk 35
+        versionCode 3
+        versionName '0.0.3-dev'
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        warningsAsErrors true
+        checkReleaseBuilds true
+    }
+}
+
+tasks.register('packageGhostFtpApk', Copy) {
+    dependsOn 'assembleDebug'
+    from(layout.buildDirectory.file('outputs/apk/debug/app-debug.apk'))
+    into(rootProject.layout.projectDirectory.dir('dist'))
+    rename { 'Ghost-FTP-Android.apk' }
+    doLast {
+        def apk = rootProject.layout.projectDirectory.file('dist/Ghost-FTP-Android.apk').asFile
+        if (!apk.isFile() || apk.length() <= 0) {
+            throw new GradleException("Android APK was not generated at ${apk}")
+        }
+        println "ANDROID_APK=${apk}"
+    }
+}
