@@ -12,6 +12,10 @@ def read(relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def retired_roots_declaration(source: str) -> str:
+    return source.split("RETIRED_ROOTS =", 1)[1].split(")", 1)[0]
+
+
 WINDOWS_PARITY_ACTIONS = (
     "Connect",
     "Disconnect",
@@ -61,7 +65,7 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         desktop_audit = read("scripts/audit_desktop_surface.py")
         for source in (platform_audit, desktop_audit):
             self.assertIn("WINDOWS,LINUX,ANDROID,MACOS", source)
-            self.assertNotIn('"macos/",', source)
+            self.assertNotIn("macos", retired_roots_declaration(source).lower())
             self.assertNotIn("IOS,MACOS", source)
         self.assertNotIn("DARWIN_SOURCE=BLOCKED", platform_audit)
 
@@ -124,7 +128,7 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         self.assertIn("Ghost FTP.app", build)
         self.assertIn("CFBundleShortVersionString", build)
         self.assertIn("CFBundleVersion", build)
-        self.assertIn("com.brendigo.ghostftp", build)
+        self.assertIn("app.ghostftp.client", build)
         self.assertIn("Ghost-FTP-${VERSION}-macOS.app.zip", build)
         self.assertNotIn("curl ", build)
         self.assertNotIn("wget ", build)
