@@ -21,6 +21,7 @@ RESOURCES="$CONTENTS/Resources"
 ZIP="$DIST/Ghost-FTP-${VERSION}-macOS.app.zip"
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
 DEPLOYMENT_TARGET="13.0"
+BUNDLE_ID="app.ghostftp.client"
 
 for required in "$SOURCE" "$ICON_SOURCE"; do
   if [[ ! -s "$required" ]]; then
@@ -67,7 +68,7 @@ cat > "$CONTENTS/Info.plist" <<EOF
   <key>CFBundleIconFile</key>
   <string>GhostFTP</string>
   <key>CFBundleIdentifier</key>
-  <string>com.brendigo.ghostftp</string>
+  <string>${BUNDLE_ID}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -105,7 +106,7 @@ make_icon 512 icon_512x512.png
 make_icon 1024 icon_512x512@2x.png
 iconutil -c icns "$ICONSET" -o "$RESOURCES/GhostFTP.icns"
 
-/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$CONTENTS/Info.plist" | grep -Fx 'com.brendigo.ghostftp' >/dev/null
+/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$CONTENTS/Info.plist" | grep -Fx "$BUNDLE_ID" >/dev/null
 /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$CONTENTS/Info.plist" | grep -Fx "$VERSION" >/dev/null
 /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$CONTENTS/Info.plist" | grep -Fx "$VERSION" >/dev/null
 
