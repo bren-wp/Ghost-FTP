@@ -24,8 +24,9 @@ MACOS="$CONTENTS/MacOS"
 FRAMEWORKS="$CONTENTS/Frameworks"
 RESOURCES="$CONTENTS/Resources"
 MODULE_DIR="$OUT/GhostFTPEngineModule"
-GENERATED_SOURCE="$OUT/main.site-manager.swift"
-GENERATED_SITE_MANAGER_SOURCE="$OUT/SiteManager.integrated.swift"
+GENERATED_SOURCE_DIR="$OUT/generated-swift"
+GENERATED_SOURCE="$GENERATED_SOURCE_DIR/main.swift"
+GENERATED_SITE_MANAGER_SOURCE="$GENERATED_SOURCE_DIR/SiteManager.swift"
 ZIP="$DIST/Ghost-FTP-${VERSION}-macOS.app.zip"
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
 DEPLOYMENT_TARGET="13.0"
@@ -39,7 +40,7 @@ for required in "$SOURCE" "$SITE_MANAGER_SOURCE" "$PREPARE_SITE_MANAGER_SOURCES"
 done
 
 rm -rf "$OUT" "$DIST"
-mkdir -p "$MACOS" "$FRAMEWORKS" "$RESOURCES" "$DIST" "$MODULE_DIR"
+mkdir -p "$MACOS" "$FRAMEWORKS" "$RESOURCES" "$DIST" "$MODULE_DIR" "$GENERATED_SOURCE_DIR"
 
 python3 "$PREPARE_SITE_MANAGER_SOURCES" \
   "$SOURCE" \
