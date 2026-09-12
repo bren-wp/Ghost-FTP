@@ -1,6 +1,6 @@
 # Ghost FTP security
 
-Ghost FTP **0.0.4** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed code and covered by platform-specific regression tests, exact-head native builds and repository audits.
+Ghost FTP **0.0.5** uses explicit transport, path, secret, process and release boundaries. Security-sensitive behavior is implemented in typed code and covered by platform-specific regression tests, exact-head native builds and repository audits.
 
 ## Supported transport security
 
@@ -13,7 +13,7 @@ Ghost FTP supports FTP, FTPS and SFTP on the maintained desktop engine.
 
 Connection profiles are validated before use: host, port, protocol, remote path, credential fields and key/fingerprint inputs pass through bounded validation logic.
 
-The Android development client preserves the same no-silent-downgrade and strict FTPS certificate/hostname-verification intent while using platform-native storage/activity boundaries. Its APK is development evidence in 0.0.4, not a public release artifact.
+The Android development client preserves the same no-silent-downgrade and strict FTPS certificate/hostname-verification intent while using platform-native storage/activity boundaries. Its APK is development evidence in 0.0.5, not a public release artifact.
 
 ## SFTP host-key trust
 
@@ -123,7 +123,7 @@ The production/release-validation workflows:
 
 Private signing material must never be committed to source. Absence of a production code-signing certificate is represented truthfully as an unsigned Windows release rather than “fixed” with an untrusted generated key.
 
-Android remains outside the 0.0.4 public release allow-list. A development APK succeeding in CI is not authorization to publish it as a production mobile release.
+Android remains outside the 0.0.5 public release allow-list. A development APK succeeding in CI is not authorization to publish it as a production mobile release.
 
 ## GitHub Packages boundary
 
@@ -131,7 +131,7 @@ The current package at `ghcr.io/bren-wp/ghost-ftp` is a release distribution bun
 
 ## Security testing
 
-The exact 0.0.4 candidate is expected to pass:
+The exact 0.0.5 candidate is expected to pass:
 
 ```text
 go test -race ./...
