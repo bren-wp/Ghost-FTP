@@ -79,6 +79,7 @@ IMPLEMENTED_MACOS_ACTIONS = {
     "Remote Edit",
     "Remote Filter",
     "Remote Recursive Search",
+    "Directory Compare",
     "Upload",
     "Download",
 }
