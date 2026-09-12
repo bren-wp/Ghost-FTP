@@ -20,6 +20,7 @@ The native AppKit application currently includes:
 - stale-folder and stale-selection rejection before mutations can reach the engine;
 - navigation-generation ownership so an old mutation cannot refresh a newly selected folder;
 - remote file metadata including size, modification time and permissions when provided by the protocol;
+- Remote Permissions/CHMOD through `Engine.RemoteChmod`, with the same 1000-item safety bound as Windows, 3/4-digit octal modes, symbolic-link skipping and success/failure/skipped reporting;
 - real Upload and Download queue entry points; regular files use `Engine.AddTransfer` and directories use the bounded `Engine.AddTreeTransfer` path;
 - symbolic-link rejection for transfer actions rather than silent traversal;
 - visible-snapshot binding for transfer actions so stale names cannot be submitted after navigation.
@@ -45,7 +46,7 @@ Persistent saved-profile secrets remain fail-closed on macOS until the dedicated
 
 ## Remaining parity work
 
-The development surface is not yet a complete Mac release. Site Manager, saved-profile Keychain support, Bookmarks, Settings/About/Diagnostics, permissions, filtering/search, Directory Compare, Remote Edit, full transfer queue controls, localization and the remaining Windows behavior inventory are still tracked in `PARITY.md` and remain intentionally absent until their real engine-backed implementations are ready.
+The development surface is not yet a complete Mac release. Site Manager, saved-profile Keychain support, Bookmarks, Settings/About/Diagnostics, filtering/search, Directory Compare, Remote Edit, full transfer queue controls, localization and the remaining Windows behavior inventory are still tracked in `PARITY.md` and remain intentionally absent until their real engine-backed implementations are ready.
 
 The Mac development artifact is **not part of the current 0.0.5 public release allow-list**. The existing verified Windows/Linux 14-platform-artifact / 17-public-file release contract remains unchanged until macOS reaches full functionality, runtime evidence and distribution/signing/notarization gates.
 
