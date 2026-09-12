@@ -36,7 +36,7 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 - [x] Local New Folder
 - [x] Local Rename
 - [x] Local Delete
-- [ ] Local Filter
+- [x] Local Filter
 - [ ] Local Recursive Search
 
 ### Remote file pane
@@ -48,7 +48,7 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 - [x] Remote Delete
 - [x] Remote Permissions
 - [ ] Remote Edit
-- [ ] Remote Filter
+- [x] Remote Filter
 - [ ] Remote Recursive Search
 - [ ] Directory Compare
 
@@ -73,6 +73,8 @@ The native AppKit workspace exposes real Local and Remote file tables backed by 
 Local and Remote New Folder, Rename and Delete are wired to the same `Engine.LocalMkdir` / `LocalRename` / `LocalDelete` and `Engine.RemoteMkdir` / `RemoteRename` / `RemoteDelete` APIs used by the desktop model. Mutation bridge calls require the directory shown in AppKit to match the engine snapshot, and rename/delete require the selected name to still exist in that snapshot. A stale folder or stale selection therefore fails closed rather than mutating an unseen target. Destructive delete always requires an explicit native confirmation in the current Mac development surface.
 
 Remote Permissions is wired to `Engine.RemoteChmod` for both FTP/FTPS and SFTP. The Mac action mirrors the Windows safety boundary: at most 1000 selected items, symbolic links are skipped, the prompt defaults to `644`, and only 3- or 4-digit octal modes are accepted by the UI before the shared transport layer validates the mode again. Each target must still exist in the active remote snapshot, and mutation completion remains navigation-generation-bound before the pane is refreshed.
+
+Local and Remote Filter now use the same shared `internal/itemlist.Filter` implementation as Windows/Linux. The bridge keeps the authoritative Local/Remote directory snapshots separate from the filtered visible slices, so filtering cannot change mutation or transfer authority. Matching remains Unicode `SimpleFold` aware, whitespace-delimited terms use AND semantics, clearing the query restores an independent full-snapshot view, and applying a filter performs no filesystem or network I/O. Explicit Refresh/List performs one real listing and then reapplies the current filter to that new snapshot. Selection is restored by item name where the filtered result still contains it, and row actions are disabled while a filtered view is being replaced.
 
 Mutation completion is generation-bound: if the user navigates away while an operation is queued or running, the old operation cannot refresh the newly selected directory. Remote mutations also require the active connection and use bounded engine contexts.
 
