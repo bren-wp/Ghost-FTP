@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ghost FTP Connection Helper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="brand">
+      <img src="icons/icon.png" width="42" height="42" alt="">
+      <div>
+        <p class="eyebrow">Ghost FTP</p>
+        <h1>Connection Helper</h1>
+      </div>
+    </header>
+
+    <p class="intro">Validate and sanitize FTP connection targets locally. Nothing is uploaded or stored.</p>
+
+    <form id="connection-form" novalidate>
+      <label for="connection-target">FTP, FTPS or SFTP address</label>
+      <textarea id="connection-target" rows="3" spellcheck="false" autocomplete="off" placeholder="sftp://user@example.invalid/home/user"></textarea>
+      <div class="actions">
+        <button type="submit" class="primary">Analyze locally</button>
+        <button type="button" id="clear-button" class="secondary">Clear</button>
+      </div>
+    </form>
+
+    <p id="status" class="status" data-kind="neutral" role="status" aria-live="polite"></p>
+
+    <section id="result" class="result" hidden aria-label="Parsed connection target">
+      <div id="password-notice" class="notice" hidden role="note">
+        Password detected. It is intentionally excluded from every displayed and copied output.
+      </div>
+
+      <div class="field-grid">
+        <div class="field">
+          <label for="protocol">Protocol</label>
+          <div class="copy-row"><input id="protocol" readonly><button type="button" data-copy-target="protocol">Copy</button></div>
+        </div>
+        <div class="field">
+          <label for="host">Host</label>
+          <div class="copy-row"><input id="host" readonly><button type="button" data-copy-target="host">Copy</button></div>
+        </div>
+        <div class="field">
+          <label for="port">Port</label>
+          <div class="copy-row"><input id="port" readonly><button type="button" data-copy-target="port">Copy</button></div>
+        </div>
+        <div class="field">
+          <label for="username">Username</label>
+          <div class="copy-row"><input id="username" readonly><button type="button" data-copy-target="username">Copy</button></div>
+        </div>
+        <div class="field field-wide">
+          <label for="path">Remote path</label>
+          <div class="copy-row"><input id="path" readonly><button type="button" data-copy-target="path">Copy</button></div>
+        </div>
+        <div class="field field-wide safe-field">
+          <label for="safe-target">Safe target</label>
+          <div class="copy-row"><input id="safe-target" readonly><button type="button" data-copy-target="safe-target" class="copy-safe">Copy safe target</button></div>
+          <p>Safe target excludes URL username, password, query and fragment data.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>No telemetry · No tracking · No server connection</footer>
+  </main>
+  <script src="core.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
