@@ -1,156 +1,80 @@
 # Ghost FTP settings
 
-Ghost FTP **0.0.4** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls must map to behavior in the shared engine rather than maintaining frontend-only shadow state.
+Ghost FTP **0.0.5** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within bounds enforced by the shared configuration layer, and visible controls map to real engine/runtime behavior.
 
 ## Current persisted settings
 
-- `language` — canonical local UI language; invalid state normalizes to English.
-- `appearance` — Windows/Linux appearance, `light` or `dark`; fresh/invalid state resolves to Classic Light.
-- `parallelism` — concurrent transfers, range **1–8**, default **2**.
-- `uploadLimitKiBPerSecond` — aggregate upload ceiling in **KiB/s**, range **0–1,048,576**, default **0 = unlimited**.
-- `downloadLimitKiBPerSecond` — aggregate download ceiling in **KiB/s**, range **0–1,048,576**, default **0 = unlimited**.
-- `connectionTimeoutSeconds` — range **5–60 seconds**, default **15**.
-- `autoRetryCount` — range **0–3**, default **0**.
-- `retryDelaySeconds` — range **1–30 seconds**, default **3**.
+- `language` — local UI language; invalid state normalizes to English.
+- `appearance` — Windows/Linux `light` or `dark`; fresh/invalid state resolves to Classic Light.
+- `parallelism` — concurrent transfers, **1–8**, default **2**.
+- `uploadLimitKiBPerSecond` — aggregate upload ceiling, **0–1,048,576 KiB/s**, default **0 = unlimited**.
+- `downloadLimitKiBPerSecond` — aggregate download ceiling, same range/default.
+- `connectionTimeoutSeconds` — **5–60 seconds**, default **15**.
+- `autoRetryCount` — **0–3**, default **0**.
+- `retryDelaySeconds` — **1–30 seconds**, default **3**.
 - `conflictPolicy` — canonical destination conflict behavior.
 - `confirmDelete` — confirmation for user-initiated destructive operations.
 
-Compatibility state such as older overwrite booleans may be normalized internally but must not become duplicate user-facing controls.
-
 ## Runtime ownership
-
-Every exposed option has one explicit runtime owner:
 
 | Option | Runtime effect |
 | --- | --- |
-| Parallel transfers | Bounds how many transfer workers may run concurrently. |
-| Upload bandwidth | Applies the validated aggregate upload budget to actual FTP/FTPS/SFTP transport work. |
-| Download bandwidth | Applies the validated aggregate download budget to actual FTP/FTPS/SFTP transport work. |
-| Connection timeout | Bounds connection establishment and related connection work. |
-| Automatic retries | Limits retries for failures classified as retryable. |
-| Retry delay | Defines the bounded delay between eligible automatic retries. |
-| Conflict policy | Selects skip, safe replace, or safe replace with retained recovery backup. |
-| Delete confirmation | Controls user confirmation before destructive local/server deletion. |
-| Appearance | Selects the maintained Windows/Linux Classic Light or Dark workspace palette. |
-| Language | Selects one of the local 24-language catalogs with English fallback. |
+| Parallel transfers | Bounds concurrently running transfer workers. |
+| Upload/download bandwidth | Applies validated aggregate directional budgets to actual transport work. |
+| Connection timeout | Bounds connection establishment work. |
+| Automatic retries / retry delay | Bounds eligible retry attempts and spacing. |
+| Conflict policy | Selects skip, safe replace, or replace with recovery backup. |
+| Delete confirmation | Controls confirmation before destructive local/server deletion. |
+| Appearance | Selects maintained Windows/Linux Classic Light or Dark workspace palette. |
+| Language | Selects one of 24 local catalogs with English fallback. |
 
-The Windows and Linux settings surfaces consume the same shared model. A frontend must not silently accept a value that the shared configuration layer rejects.
+Windows and Linux consume the same validated settings model; frontends must not silently accept values rejected by shared configuration.
 
 ## Bandwidth policy
 
-Bandwidth values are expressed in binary **KiB/s** (`1 KiB = 1024 bytes`) and are directional. Upload and download limits are independent. `0` is deliberately reserved for **unlimited**, which preserves the transfer behavior of settings files created by Ghost FTP 0.0.2 and older builds.
+Bandwidth is expressed in binary KiB/s. Upload and download values are independent aggregate directional ceilings and `0 = unlimited`. The scheduler divides non-zero budgets conservatively across configured worker slots; idle slots do not create an undocumented burst entitlement.
 
-A non-zero value is an **aggregate ceiling for that direction**, not a per-transfer entitlement. The shared transfer scheduler divides the configured directional budget conservatively across all configured parallel worker slots. Idle slots do not temporarily lend their allowance to another transfer. This intentionally favors a stable aggregate ceiling over opportunistic bursting as jobs start and finish.
-
-The resulting per-attempt cap is enforced by the transport itself:
-
-- FTP and FTPS use curl's native `limit-rate` setting;
-- SFTP uses OpenSSH `sftp -l`, converted to Kbit/s by flooring so conversion cannot round above the scheduler budget.
-
-There is no application busy-wait loop and no UI-only timer pretending to throttle traffic.
-
-A transfer attempt snapshots its effective bandwidth budget when that attempt starts. Saving a new limit never mutates or corrupts an already-running transport process. A new transfer, or a later retry attempt, samples the currently saved bandwidth settings and therefore observes the new limit.
+FTP/FTPS enforce effective limits through curl `limit-rate`; SFTP uses OpenSSH `sftp -l` with conservative unit conversion. A running attempt snapshots its budget at start. Saving settings affects future/retried attempts without mutating an already-running transport process.
 
 ## Compatibility and migration
 
-Older or partial settings payloads are migrated only when a missing value can be distinguished safely from an explicit user value.
-
-- Missing legacy `parallelism=0` migrates to the canonical default **2**, because valid user values begin at 1.
-- Missing bandwidth fields deserialize as `0`, which is the canonical **unlimited** default and therefore needs no destructive migration.
-- Missing connection timeout and retry delay continue to migrate to their canonical safe defaults.
-- Explicit invalid parallelism such as a negative value or a value above 8 is still rejected rather than silently rewritten.
-- Explicit negative bandwidth limits or values above **1,048,576 KiB/s** are rejected on save; corrupt persisted values normalize to unlimited rather than becoming an unintended throttle.
-- Unknown persisted conflict-policy state fails closed to the conservative replace-with-recovery-backup behavior.
-- Invalid/missing appearance state normalizes to the canonical Classic Light fallback.
-- Legacy overwrite booleans are synchronized from the one canonical `conflictPolicy` field when settings are saved.
-
-Regression tests cover migration, independent upload/download values, aggregate allocation, appearance selection and continued rejection of explicit invalid values.
+- Missing legacy `parallelism=0` migrates to default 2; explicit negative/above-range values remain invalid.
+- Missing bandwidth fields remain unlimited (`0`).
+- Corrupt negative/above-maximum bandwidth values normalize safely rather than becoming unintended throttles.
+- Missing timeout/retry delay use canonical defaults.
+- Unknown conflict policy fails closed to conservative recovery behavior.
+- Invalid/missing appearance state resolves to Classic Light.
 
 ## Windows settings surface
 
-Windows exposes one application-owned native Settings dialog for appearance, transfer concurrency, independent upload/download bandwidth ceilings, connection timeout, retry behavior, conflict policy and delete confirmation. Numeric values are validated before one complete settings candidate is persisted.
-
-Bandwidth labels always state `KiB/s` and `0 = unlimited`. The native dialog accepts all six maintained numeric settings in one transaction rather than opening secondary prompts.
-
-Invalid input keeps the dialog open, shows localized corrective text and restores keyboard focus to the invalid field instead of partially committing the remaining settings. A successful **OK** returns one complete settings candidate to the typed engine. Closing with **X** or **Cancel** closes only Settings and does not end the application message loop.
+Windows exposes one application-owned native Settings dialog for appearance, concurrency, upload/download bandwidth, timeout, retry behavior, conflict policy and delete confirmation. Numeric values are validated before one complete candidate is persisted. Invalid input keeps the dialog open; Cancel/X discards pending values.
 
 ## Linux settings surface
 
-Linux exposes the same validated runtime policy through the maintained native X11/XWayland-compatible Settings overlay. Appearance, language, transfer concurrency, upload/download bandwidth ceilings, connection timeout, retry behavior, conflict policy and delete confirmation all persist through the shared settings model.
-
-Because the Linux surface uses bounded steppers rather than free-form numeric text entry, bandwidth controls advance through maintained presets from unlimited up to the same validated maximum. Persisted values that came from another supported surface remain valid and the next step moves to the adjacent bounded preset.
+Linux exposes the same runtime policy through the maintained native X11/XWayland-compatible Settings overlay. Bounded steppers/presets preserve the same shared ranges and `0 = unlimited` semantics.
 
 ## Appearance
 
-### Windows
-
-- `light` — Classic Light and the fresh-install fallback.
-- `dark` — the maintained Ghost FTP dark workspace.
-
-An explicitly saved Dark preference is preserved. Windows additionally applies the maintained native title-bar/control theming for the selected appearance.
-
-### Linux
-
-- `light` — the same canonical Classic Light palette and fresh/invalid fallback.
-- `dark` — the maintained Ghost FTP dark palette.
-
-The persisted Linux appearance is applied before the first native frame is rendered. Saving Settings applies the newly validated palette immediately. Appearance does not load remote fonts, styles, images or theme services on either desktop platform.
+Classic Light is the fresh/fallback appearance. Dark is a maintained explicit choice. Both are local source-defined palettes with no remote theme/font/style dependency. Linux applies persisted appearance before first paint; Windows maintains coherent title-bar/control theming.
 
 ## Fresh connection protocol
 
-A fresh/quick connection starts on **explicit FTPS, port 21**.
+A fresh/quick connection starts on **explicit FTPS, port 21**. SFTP remains available with strict host-key verification/pinning. Plain FTP remains explicit compatibility. Failed FTPS is never silently retried as FTP.
 
-- FTPS stays selected unless the user explicitly changes it or loads a profile.
-- SFTP remains available with strict host-key verification/pinning.
-- Plain FTP remains explicit legacy compatibility.
-- Failed FTPS negotiation is never silently retried as plain FTP.
-- Saved profiles restore their explicitly stored protocol/port.
+## Conflict and retry policy
 
-## Conflict policy
-
-Canonical values are:
-
-- `skip` — leave an existing destination untouched;
-- `replace` — replace through the supported safe transfer/commit path;
-- `replace_backup` — replace through the safe path while retaining supported recovery backup behavior.
-
-Unknown values fail to a safe/default policy rather than silently enabling destructive behavior.
-
-## Retry policy
-
-Automatic retry applies only to errors classified as retryable by the shared engine. Validation failures, trust failures, unsafe paths and explicit cancellation must not become blind retry loops. Retry count/delay remain bounded and tied to connection identity/generation.
+Canonical conflict values are `skip`, `replace` and `replace_backup`. Automatic retry applies only to retryable failures; trust, validation, unsafe-path and explicit-cancel failures do not become blind retry loops.
 
 ## Language
 
-English is the default/fallback and the canonical registry contains **24 languages**. Localization is local and does not create online translation traffic. Bandwidth labels are maintained for all 24 languages and retain explicit `KiB/s` units in every locale.
+English is default/fallback and the canonical registry contains **24 languages**. Localization is local and creates no online translation traffic.
 
 ## Credential persistence
 
-Credential persistence is a per-save privacy decision rather than a hidden global toggle.
+Credential persistence is a per-save privacy decision. Windows uses the maintained current-user protected secret boundary. Linux requires bounded explicit confirmation before newly entered password/private-key-passphrase material is persisted, clears plaintext UI fields after the attempt and retains trusted AskPass provenance as a separate runtime boundary.
 
-- Saving newly entered Windows profile credentials requires explicit consent and uses the maintained current-user protected secret boundary.
-- Saving newly entered Linux password/private-key-passphrase material requires a bounded second confirmation before the shared profile save is allowed to persist it in the protected local profile store.
-- Linux clears the entered plaintext password/passphrase fields after the save attempt; session-only protected-secret handles remain session-only.
-- Declining or not completing credential consent still permits non-secret profile state to remain separate from secret persistence.
-- Profile binding prevents old credentials from silently moving to a changed protocol/server/account/private-key identity.
-- The Linux SFTP AskPass path still requires trusted executable/helper/parent provenance; credential-save parity does not weaken that runtime delivery boundary.
+## 0.0.5 lifecycle note
 
-## Delete confirmation
-
-Delete confirmation defaults to enabled. Destructive actions must respect the validated shared setting.
-
-## Button and option quality rule
-
-A control is not considered implemented merely because it is visible. Main desktop controls are covered by a regression contract that compares the Windows button IDs with their command handlers and the Linux rendered control rectangles with their click handlers. Settings changes additionally require a backend validation path and tests proving the setting changes runtime behavior or policy.
-
-Directory comparison/synchronized browsing, recursive search/filter, shared file sorting, bookmarks and queue priority are implemented maintained capabilities. Future power-user options remain roadmap items until their complete engine + Windows + Linux + localization + test path exists; they must not appear as decorative or non-functional switches.
-
-## Persistence and recovery
-
-Settings are stored in bounded local state with safe replacement/recovery behavior. Loaded data is normalized before it becomes effective runtime policy, and the state-directory identity is pinned so later pathname replacement cannot silently redirect settings/profile I/O.
-
-## Option design rule
-
-One behavior has one canonical setting. A new option is release-ready only when it has a clear runtime owner, safe bounded default, migration behavior, honest platform exposure and localized user-facing copy where required.
+The 0.0.5 Windows profile-save/delete path adds an in-flight mutation guard. While encrypted profile persistence is active, duplicate profile mutations are rejected and application close does not terminate that operation mid-write. This is lifecycle protection, not a new user-facing setting.
 
 See [Architecture](ARCHITECTURE.md), [Privacy](PRIVACY.md), [Security](SECURITY.md), [Testing](TESTING.md) and [Localization](LOCALIZATION.md).
