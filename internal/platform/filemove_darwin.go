@@ -18,3 +18,10 @@ func RenameNoReplace(src, dst string) error {
 	}
 	return nil
 }
+
+// ReplaceFile atomically activates a staged file in place. Callers create the
+// staged file in the destination directory, so os.Rename preserves the same
+// same-filesystem atomic replacement contract used by the Linux implementation.
+func ReplaceFile(src, dst string) error {
+	return os.Rename(src, dst)
+}
