@@ -40,8 +40,42 @@ jobs:
       - name: Disable Go telemetry
         run: go telemetry off
 
+      - name: Normalize current parity documentation anchor
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply_macos_site_manager_patch.py')
+          source = p.read_text(encoding='utf-8')
+          start_marker = '''replace_once(
+              "macos/PARITY.md",
+              "The macOS client is currently a development source platform."'''
+          next_marker = '''replace_once(
+              "scripts/test_macos_windows_parity_contract.py"'''
+          start = source.find(start_marker)
+          if start < 0:
+              raise SystemExit('obsolete PARITY replacement block was not found')
+          end = source.find(next_marker, start)
+          if end < 0:
+              raise SystemExit('next parity-contract replacement block was not found')
+          source = source[:start] + source[end:]
+          p.write_text(source, encoding='utf-8')
+          PY
+
       - name: Apply guarded production patch
         run: python3 scripts/apply_macos_site_manager_patch.py
+
+      - name: Document Keychain and runtime-secret boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('macos/PARITY.md')
+          source = p.read_text(encoding='utf-8')
+          anchor = 'The Windows desktop is the canonical visual and behavior reference for the macOS client. macOS may use native AppKit windowing, accessibility, file panels and menu conventions, but capability/state/security parity is mandatory. The Mac frontend must use the same typed `internal/api.Engine`; no decorative or dead controls are allowed.\n'
+          paragraph = '\nSaved profiles use a native `Security.framework` Keychain-protected 256-bit wrapping key with `WhenUnlockedThisDeviceOnly`; profile envelopes and stored credentials are authenticated with purpose-separated AES-GCM. Durable profile credentials are converted to short-lived runtime capabilities only inside the shared engine after exact account/private-key binding succeeds. Site Manager exposes `PublicProfile` metadata and `HasPassword` / `HasPassphrase` flags only, requires explicit credential save/retain consent, and never returns saved password or passphrase values to Swift.\n'
+          if source.count(anchor) != 1:
+              raise SystemExit('current parity introduction anchor is not unique')
+          p.write_text(source.replace(anchor, anchor + paragraph, 1), encoding='utf-8')
+          PY
 
       - name: Format changed Go source
         run: |
