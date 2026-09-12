@@ -40,12 +40,13 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("cfg.Password = password", src)
         self.assertIn("cfg.Passphrase = passphrase", src)
 
-    def test_active_android_and_retired_release_surfaces(self) -> None:
+    def test_active_android_macos_and_retired_release_surfaces(self) -> None:
         self.assertTrue((ROOT / "android").is_dir(), "active Android source surface is missing")
         self.assertTrue((ROOT / ".github/workflows/android-apk.yml").is_file(), "Android APK workflow is missing")
+        self.assertTrue((ROOT / "macos").is_dir(), "active macOS source surface is missing")
+        self.assertTrue((ROOT / ".github/workflows/macos-app.yml").is_file(), "macOS app workflow is missing")
         for rel in (
             "ios",
-            "macos",
             "GhostFTP WEB",
             "scripts/package_web.py",
             "scripts/test_package_web.py",
@@ -54,15 +55,23 @@ class MaintenanceRegressionTests(unittest.TestCase):
         ):
             self.assertFalse((ROOT / rel).exists(), f"retired application/release surface exists: {rel}")
 
+        release = read(".github/workflows/release.yml").lower()
+        self.assertNotIn("macos/", release)
+        self.assertNotIn("runs-on: macos", release)
+        self.assertNotIn("android/", release)
+
     def test_platform_contract_rejects_only_retired_target_reintroduction(self) -> None:
         audit = read("scripts/audit_platform_contract.py")
-        self.assertIn('RETIRED_ROOTS = ("ios/", "macos/", "GhostFTP WEB/")', audit)
+        self.assertIn('RETIRED_ROOTS = ("ios/", "GhostFTP WEB/")', audit)
         self.assertIn("ANDROID_REQUIRED", audit)
+        self.assertIn("MACOS_REQUIRED", audit)
         self.assertIn("active Android source contract is incomplete", audit)
+        self.assertIn("active macOS source contract is incomplete", audit)
         self.assertIn("retired application platform/surface is tracked", audit)
         self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX", audit)
-        self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID", audit)
-        self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS", audit)
+        self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS", audit)
+        self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS", audit)
+        self.assertIn("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE", audit)
 
     def test_release_workflow_refuses_stale_main_or_tag_rewrite(self) -> None:
         workflow = read(".github/workflows/release.yml")
