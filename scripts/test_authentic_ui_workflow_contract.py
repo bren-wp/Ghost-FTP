@@ -136,6 +136,15 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("Sites Bookmarks Transfers Settings About", capture)
         self.assertIn("adb exec-out screencap -p", capture)
 
+    def test_android_capture_teardown_waits_before_bounded_avd_cleanup(self) -> None:
+        capture = read("scripts/capture_android_screenshots.sh")
+        self.assertIn("cleanup_avd_home()", capture)
+        self.assertIn("for attempt in $(seq 1 5); do", capture)
+        self.assertIn('if rm -rf "$AVD_HOME"; then', capture)
+        self.assertIn('wait "$emulator_pid" 2>/dev/null || true', capture)
+        cleanup = capture[capture.index("cleanup() {"):capture.index("trap cleanup EXIT")]
+        self.assertLess(cleanup.index('wait "$emulator_pid"'), cleanup.index("cleanup_avd_home"))
+
     def test_linux_capture_uses_packaged_native_runtime(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
         capture = read("scripts/capture_linux_screenshots.sh")

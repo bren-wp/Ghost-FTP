@@ -66,10 +66,39 @@ printf 'ANDROID_AVD_READY=%s HOME=%s\n' "$AVD_NAME" "$AVD_HOME"
 
 "$EMULATOR_BIN" -avd "$AVD_NAME" -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect >"$EMULATOR_LOG" 2>&1 &
 emulator_pid=$!
+
+cleanup_avd_home() {
+  local attempt=''
+  for attempt in $(seq 1 5); do
+    if rm -rf "$AVD_HOME"; then
+      [[ ! -e "$AVD_HOME" ]] && return 0
+    fi
+    sleep 0.5
+  done
+  echo "Android AVD cleanup remained busy after bounded retries: $AVD_HOME" >&2
+  return 0
+}
+
 cleanup() {
+  local status=$?
+  set +e
+
+  # adb emu kill is graceful but asynchronous. Hosted runners can keep writing
+  # AVD lock/state files briefly after the command returns, so explicitly stop
+  # and reap the emulator process before removing its disposable AVD registry.
   timeout 10s adb emu kill >/dev/null 2>&1 || true
   kill "$emulator_pid" 2>/dev/null || true
-  rm -rf "$AVD_HOME"
+  for _ in $(seq 1 40); do
+    kill -0 "$emulator_pid" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$emulator_pid" 2>/dev/null; then
+    kill -KILL "$emulator_pid" 2>/dev/null || true
+  fi
+  wait "$emulator_pid" 2>/dev/null || true
+  cleanup_avd_home
+
+  return "$status"
 }
 trap cleanup EXIT
 
