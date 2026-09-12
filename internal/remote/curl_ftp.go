@@ -355,6 +355,7 @@ func (c *CurlFTP) List(ctx context.Context, p string) ([]model.Item, error) {
 				return nil, errors.New("folder contains too many items for safe display")
 			}
 		}
+	}
 	sortItems(items)
 	return items, nil
 }
