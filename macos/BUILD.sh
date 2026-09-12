@@ -11,6 +11,7 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 SOURCE="$SCRIPT_DIR/Sources/GhostFTPApp/main.swift"
+SITE_MANAGER_SOURCE="$SCRIPT_DIR/Sources/GhostFTPApp/SiteManager.swift"
 BRIDGE_SOURCE="$SCRIPT_DIR/Bridge/main.go"
 ASKPASS_SOURCE="$SCRIPT_DIR/AskPass/main.go"
 ICON_SOURCE="$REPO_ROOT/build/icon.png"
@@ -27,7 +28,7 @@ SDK="$(xcrun --sdk macosx --show-sdk-path)"
 DEPLOYMENT_TARGET="13.0"
 BUNDLE_ID="app.ghostftp.client"
 
-for required in "$SOURCE" "$BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
+for required in "$SOURCE" "$SITE_MANAGER_SOURCE" "$BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
   if [[ ! -s "$required" ]]; then
     echo "Missing required macOS build input: $required" >&2
     exit 1
@@ -91,7 +92,7 @@ build_swift_arch() {
     -Xlinker -rpath \
     -Xlinker '@executable_path/../Frameworks' \
     -framework AppKit \
-    "$SOURCE" \
+    "$SOURCE" "$SITE_MANAGER_SOURCE" \
     -o "$OUT/GhostFTP-$arch"
 }
 
