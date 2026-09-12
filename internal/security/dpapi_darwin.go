@@ -2,6 +2,22 @@
 
 package security
 
+/*
+#include <sys/types.h>
+#include <unistd.h>
+
+static int ghostftp_getpeereid(int fd, unsigned int *uid) {
+	uid_t euid;
+	gid_t egid;
+	if (getpeereid(fd, &euid, &egid) != 0) {
+		return -1;
+	}
+	*uid = (unsigned int)euid;
+	return 0;
+}
+*/
+import "C"
+
 import (
 	"crypto/rand"
 	"encoding/base64"
@@ -106,12 +122,12 @@ func darwinPeerUID(conn *net.UnixConn) (int, error) {
 	uid := -1
 	var peerErr error
 	if err := raw.Control(func(fd uintptr) {
-		euid, _, err := syscall.Getpeereid(int(fd))
-		if err != nil {
-			peerErr = err
+		var euid C.uint
+		if C.ghostftp_getpeereid(C.int(fd), &euid) != 0 {
+			peerErr = errors.New("macOS peer credential lookup failed")
 			return
 		}
-		uid = euid
+		uid = int(euid)
 	}); err != nil {
 		return -1, err
 	}
