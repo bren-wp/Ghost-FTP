@@ -66,7 +66,7 @@ class MacOSEngineBridgeContractTests(unittest.TestCase):
     def test_macos_build_links_universal_go_engine_dylib(self) -> None:
         build = read("macos/BUILD.sh")
         for marker in (
-            "macos/Bridge/main.go",
+            "./macos/Bridge",
             "-buildmode=c-shared",
             "GOOS=darwin",
             "GOARCH=arm64",
