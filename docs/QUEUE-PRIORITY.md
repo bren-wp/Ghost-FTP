@@ -1,6 +1,6 @@
 # Ghost FTP queue priority and reordering
 
-Ghost FTP **0.0.4** includes queue priority/reordering as a maintained Windows/Linux capability. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or the lifecycle state of running/terminal work.
+Ghost FTP **0.0.5** includes queue priority/reordering as a maintained Windows/Linux capability. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or the lifecycle state of running/terminal work.
 
 ## User contract
 
@@ -77,7 +77,7 @@ A reorder also does not rewrite `jobConnections`. Existing generation/connection
 
 ## Regression coverage
 
-The 0.0.4 contract is protected by:
+The 0.0.5 contract is protected by:
 
 - `internal/transfer/queue_order_test.go` — four-way ordering, non-queued slot preservation, connection binding, edge idempotence, rejection and complete state snapshots;
 - `internal/desktop/queue_priority_test.go` — shared single-selection/queued-only policy and all 24 translations;
@@ -86,11 +86,11 @@ The 0.0.4 contract is protected by:
 
 Native Windows/Linux CI builds remain the compile/runtime gate for the platform frontends. Authentic Windows/Linux runtime evidence is required on the exact final release-prep head where the maintained queue UI changes are part of the candidate.
 
-## 0.0.4 release boundary
+## 0.0.5 release boundary
 
-Root `VERSION` is **0.0.4**. Queue priority is part of the 0.0.4 source/release contract, but this document does not authorize publication by itself.
+Root `VERSION` is **0.0.5**. Queue priority is part of the 0.0.5 source/release contract, but this document does not authorize publication by itself.
 
-Publication still requires exact-head tests/builds, Linux packaging/install gates, Android development APK validation, read-only authentic Windows/Linux/Android runtime evidence, review/merge, exact post-merge verification and the canonical `ghostftp-v0.0.4` publication/read-back/retention lifecycle.
+Publication still requires exact-head tests/builds, Linux packaging/install gates, Android development APK validation, read-only authentic Windows/Linux/Android runtime evidence, review/merge, exact post-merge verification and the canonical `ghostftp-v0.0.5` publication/read-back/retention lifecycle.
 
 Queue priority does not change the public platform allow-list or artifact count: Windows/Linux remain the 14-platform-artifact / 17-public-file release surface, and Android remains a separately validated development APK.
 

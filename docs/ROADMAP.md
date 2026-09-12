@@ -53,7 +53,7 @@ The immediate 0.0.x hardening lane includes:
 10. continued Android lifecycle/rotation/resume hardening without weakening SAF, strict FTPS or staged-transfer boundaries;
 11. documentation and authentic real-application evidence synchronized with exact maintained source.
 
-## 0.0.5 navigation and productivity baseline
+## 0.0.5 navigation work
 
 Ghost FTP 0.0.5 retains the **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, composes with shared sorting and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request.
 

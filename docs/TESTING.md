@@ -22,7 +22,15 @@ The maintained source provides independent upload/download ceilings as real runt
 
 ## Filtering, sorting, recursive search and comparison
 
-Current-folder filtering is non-destructive over loaded snapshots and performs no hidden scan. Shared sorting supports Name, Type, Size, Modified and remote Permissions while retaining directories-first behavior. Recursive search is explicitly bounded/cancellable and navigation from results performs a fresh parent listing. Directory comparison uses conservative `same/local_only/remote_only/newer_local/newer_remote/conflict/unknown` semantics and synchronized navigation only for safely proven paired ordinary directories.
+### Current-folder filter and sorting regression contract
+
+Current-folder filtering is non-destructive over loaded snapshots and performs no hidden scan. The current-folder filter is deliberately separate from bounded recursive search: it operates only on entries already loaded in the pane and performs no additional filesystem or network scan. Regression coverage verifies filtering and subsequent sorting over copies of the authoritative snapshot, directories-first ordering, visible-slice action binding and selection restoration.
+
+### Bounded recursive search regression contract
+
+Bounded recursive search is an explicit I/O-producing action with cancellation, maintained depth/item/result/batch/time ceilings and fresh-list navigation from a result. It reuses matching semantics without turning the instant loaded-snapshot filter into a hidden recursive scan.
+
+Directory comparison uses conservative `same/local_only/remote_only/newer_local/newer_remote/conflict/unknown` semantics and synchronized navigation only for safely proven paired ordinary directories.
 
 ## Settings regression contract
 
@@ -86,7 +94,7 @@ The final read-only evidence job verifies provenance, manifest and hashes and as
 For a 0.0.5 release-prep change, expected broad gates include:
 
 1. Ghost FTP CI;
-2. Ghost FTP Android APK;
+2. Ghost FTP Android APK when its path filters trigger;
 3. Ghost FTP Linux Distro Packages;
 4. Ghost FTP Linux Distro Install Matrix;
 5. Ghost FTP Authentic Cross-Platform UI Screenshots;

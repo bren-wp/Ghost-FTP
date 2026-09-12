@@ -14,7 +14,7 @@ Root `VERSION` is authoritative. Major version zero is not automatically mapped 
 
 ## Canonical release trigger
 
-A normal push to `main`, including a `VERSION` change, does not publish directly. Canonical `release.yml` is **`workflow_dispatch`-only**. Canonical release branches use:
+A normal push to `main`, including a change to `VERSION`, does not publish a release directly. Canonical `release.yml` is **`workflow_dispatch`-only**. Canonical release branches use:
 
 ```text
 release/ghostftp-vX.Y.Z
