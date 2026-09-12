@@ -15,6 +15,10 @@ The native AppKit application currently includes:
 - strict SFTP pending host-key trust with the bundled AskPass helper and Darwin runtime secret broker;
 - Local and Remote file panes backed by `Engine.LocalList` and `Engine.RemoteList`;
 - local native folder selection, Local/Remote Up and Refresh, and directory double-click navigation;
+- Local and Remote New Folder, Rename and Delete through the shared engine;
+- explicit native confirmation before destructive delete operations;
+- stale-folder and stale-selection rejection before mutations can reach the engine;
+- navigation-generation ownership so an old mutation cannot refresh a newly selected folder;
 - remote file metadata including size, modification time and permissions when provided by the protocol;
 - real Upload and Download queue entry points; regular files use `Engine.AddTransfer` and directories use the bounded `Engine.AddTreeTransfer` path;
 - symbolic-link rejection for transfer actions rather than silent traversal;
@@ -41,7 +45,7 @@ Persistent saved-profile secrets remain fail-closed on macOS until the dedicated
 
 ## Remaining parity work
 
-The development surface is not yet a complete Mac release. Site Manager, saved-profile Keychain support, Bookmarks, Settings/About/Diagnostics, file mutations, permissions, filtering/search, Directory Compare, Remote Edit, full transfer queue controls, localization and the remaining Windows behavior inventory are still tracked in `PARITY.md` and remain intentionally absent until their real engine-backed implementations are ready.
+The development surface is not yet a complete Mac release. Site Manager, saved-profile Keychain support, Bookmarks, Settings/About/Diagnostics, permissions, filtering/search, Directory Compare, Remote Edit, full transfer queue controls, localization and the remaining Windows behavior inventory are still tracked in `PARITY.md` and remain intentionally absent until their real engine-backed implementations are ready.
 
 The Mac development artifact is **not part of the current 0.0.5 public release allow-list**. The existing verified Windows/Linux 14-platform-artifact / 17-public-file release contract remains unchanged until macOS reaches full functionality, runtime evidence and distribution/signing/notarization gates.
 

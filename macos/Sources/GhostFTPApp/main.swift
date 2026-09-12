@@ -55,6 +55,12 @@ private struct FileItem {
     let permissions: String
 }
 
+private struct MutationResult {
+    let changed: Bool
+    let status: String
+    let error: String
+}
+
 private func bridgeString(_ pointer: UnsafeMutablePointer<CChar>?) -> String {
     guard let pointer else { return "" }
     defer { GhostFTPFreeCString(pointer) }
@@ -68,6 +74,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private var connectionBusy = false
     private var localNavigationGeneration = 0
     private var remoteNavigationGeneration = 0
+    private var localMutationGeneration = 0
+    private var remoteMutationGeneration = 0
+    private var localMutationBusy = false
+    private var remoteMutationBusy = false
 
     private let protocolPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let hostField = NSTextField(string: "")
@@ -91,9 +101,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private let localChooseButton = NSButton(title: "Choose Folder…", target: nil, action: nil)
     private let localUpButton = NSButton(title: "Up", target: nil, action: nil)
     private let localRefreshButton = NSButton(title: "Refresh", target: nil, action: nil)
+    private let localNewFolderButton = NSButton(title: "New Folder", target: nil, action: nil)
+    private let localRenameButton = NSButton(title: "Rename", target: nil, action: nil)
+    private let localDeleteButton = NSButton(title: "Delete", target: nil, action: nil)
     private let uploadButton = NSButton(title: "Upload", target: nil, action: nil)
     private let remoteUpButton = NSButton(title: "Up", target: nil, action: nil)
     private let remoteRefreshButton = NSButton(title: "Refresh", target: nil, action: nil)
+    private let remoteNewFolderButton = NSButton(title: "New Folder", target: nil, action: nil)
+    private let remoteRenameButton = NSButton(title: "Rename", target: nil, action: nil)
+    private let remoteDeleteButton = NSButton(title: "Delete", target: nil, action: nil)
     private let downloadButton = NSButton(title: "Download", target: nil, action: nil)
 
     private var localCurrent = NSHomeDirectory()
@@ -137,13 +153,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     private func buildWindow() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1320, height: 820),
+            contentRect: NSRect(x: 0, y: 0, width: 1440, height: 840),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Ghost FTP"
-        window.minSize = NSSize(width: 1040, height: 680)
+        window.minSize = NSSize(width: 1120, height: 700)
         window.center()
         window.delegate = self
         window.contentView?.wantsLayer = true
@@ -209,7 +225,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             root.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             root.topAnchor.constraint(equalTo: content.topAnchor),
             root.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 360),
+            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 380),
             connectionStack.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -36)
         ])
         protocolChanged()
@@ -244,8 +260,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         split.isVertical = true
         split.dividerStyle = .thin
         split.translatesAutoresizingMaskIntoConstraints = false
-        split.addArrangedSubview(makeFilePane(title: "Local", table: localTable, pathLabel: localPathLabel, buttons: [localChooseButton, localUpButton, localRefreshButton, uploadButton]))
-        split.addArrangedSubview(makeFilePane(title: "Remote", table: remoteTable, pathLabel: remotePathLabel, buttons: [remoteUpButton, remoteRefreshButton, downloadButton]))
+        split.addArrangedSubview(makeFilePane(
+            title: "Local",
+            table: localTable,
+            pathLabel: localPathLabel,
+            buttons: [localChooseButton, localUpButton, localRefreshButton, localNewFolderButton, localRenameButton, localDeleteButton, uploadButton]
+        ))
+        split.addArrangedSubview(makeFilePane(
+            title: "Remote",
+            table: remoteTable,
+            pathLabel: remotePathLabel,
+            buttons: [remoteUpButton, remoteRefreshButton, remoteNewFolderButton, remoteRenameButton, remoteDeleteButton, downloadButton]
+        ))
 
         let container = NSView()
         container.wantsLayer = true
@@ -282,7 +308,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         let toolbar = NSStackView(views: buttons)
         toolbar.orientation = .horizontal
         toolbar.alignment = .centerY
-        toolbar.spacing = 8
+        toolbar.spacing = 6
 
         let scroll = NSScrollView()
         scroll.documentView = table
@@ -323,12 +349,25 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         localUpButton.action = #selector(localUp)
         localRefreshButton.target = self
         localRefreshButton.action = #selector(refreshLocalTapped)
+        localNewFolderButton.target = self
+        localNewFolderButton.action = #selector(localNewFolderTapped)
+        localRenameButton.target = self
+        localRenameButton.action = #selector(localRenameTapped)
+        localDeleteButton.target = self
+        localDeleteButton.action = #selector(localDeleteTapped)
         uploadButton.target = self
         uploadButton.action = #selector(uploadTapped)
+
         remoteUpButton.target = self
         remoteUpButton.action = #selector(remoteUp)
         remoteRefreshButton.target = self
         remoteRefreshButton.action = #selector(refreshRemoteTapped)
+        remoteNewFolderButton.target = self
+        remoteNewFolderButton.action = #selector(remoteNewFolderTapped)
+        remoteRenameButton.target = self
+        remoteRenameButton.action = #selector(remoteRenameTapped)
+        remoteDeleteButton.target = self
+        remoteDeleteButton.action = #selector(remoteDeleteTapped)
         downloadButton.target = self
         downloadButton.action = #selector(downloadTapped)
     }
@@ -493,10 +532,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     @objc private func disconnectTapped() {
         setBusy(true, status: "Disconnecting…")
         remoteNavigationGeneration += 1
+        remoteMutationGeneration += 1
         engineQueue.async { [weak self] in
             let ok = GhostFTPDisconnect() == 1
             let message = ok ? "" : bridgeString(GhostFTPLastError())
             DispatchQueue.main.async {
+                self?.remoteMutationBusy = false
                 self?.setBusy(false, status: ok ? "Not connected" : "Disconnect failed")
                 if !ok { self?.showError(message) }
                 self?.remoteItems.removeAll(keepingCapacity: true)
@@ -535,6 +576,194 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func refreshRemoteTapped() {
         refreshRemote(remoteCurrent)
+    }
+
+    @objc private func localNewFolderTapped() {
+        guard !localMutationBusy, let name = promptName(title: "New local folder", initial: "New Folder") else { return }
+        let base = localCurrent
+        runLocalMutation(status: "Creating local folder…") {
+            let baseValue = CStringBox(base)
+            let nameValue = CStringBox(name)
+            let ok = GhostFTPLocalMkdir(baseValue.pointer, nameValue.pointer) == 1
+            return MutationResult(changed: ok, status: ok ? "Created local folder: \(name)" : "Local folder creation failed", error: ok ? "" : bridgeString(GhostFTPLastError()))
+        }
+    }
+
+    @objc private func localRenameTapped() {
+        let rows = localTable.selectedRowIndexes
+        guard !localMutationBusy, rows.count == 1, let row = rows.first, row < localItems.count else { return }
+        let item = localItems[row]
+        guard let newName = promptName(title: "Rename local item", initial: item.name), newName != item.name else { return }
+        let base = localCurrent
+        runLocalMutation(status: "Renaming local item…") {
+            let baseValue = CStringBox(base)
+            let oldValue = CStringBox(item.name)
+            let newValue = CStringBox(newName)
+            let ok = GhostFTPLocalRename(baseValue.pointer, oldValue.pointer, newValue.pointer) == 1
+            return MutationResult(changed: ok, status: ok ? "Renamed: \(newName)" : "Local rename failed", error: ok ? "" : bridgeString(GhostFTPLastError()))
+        }
+    }
+
+    @objc private func localDeleteTapped() {
+        let selected = selectedItems(table: localTable, items: localItems)
+        guard !localMutationBusy, !selected.isEmpty, confirmDelete(selected) else { return }
+        let base = localCurrent
+        runLocalMutation(status: "Deleting local items…") {
+            var deleted = 0
+            var firstError = ""
+            for item in selected {
+                let baseValue = CStringBox(base)
+                let nameValue = CStringBox(item.name)
+                if GhostFTPLocalDelete(baseValue.pointer, nameValue.pointer) == 1 {
+                    deleted += 1
+                } else if firstError.isEmpty {
+                    firstError = bridgeString(GhostFTPLastError())
+                }
+            }
+            let failed = selected.count - deleted
+            var status = "Deleted: \(deleted)"
+            if failed > 0 { status += " • Failed: \(failed)" }
+            return MutationResult(changed: deleted > 0, status: status, error: firstError)
+        }
+    }
+
+    @objc private func remoteNewFolderTapped() {
+        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, let name = promptName(title: "New remote folder", initial: "New Folder") else { return }
+        let base = remoteCurrent
+        runRemoteMutation(status: "Creating remote folder…") {
+            let baseValue = CStringBox(base)
+            let nameValue = CStringBox(name)
+            let ok = GhostFTPRemoteMkdir(baseValue.pointer, nameValue.pointer) == 1
+            return MutationResult(changed: ok, status: ok ? "Created remote folder: \(name)" : "Remote folder creation failed", error: ok ? "" : bridgeString(GhostFTPLastError()))
+        }
+    }
+
+    @objc private func remoteRenameTapped() {
+        let rows = remoteTable.selectedRowIndexes
+        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, rows.count == 1, let row = rows.first, row < remoteItems.count else { return }
+        let item = remoteItems[row]
+        guard let newName = promptName(title: "Rename remote item", initial: item.name), newName != item.name else { return }
+        let base = remoteCurrent
+        runRemoteMutation(status: "Renaming remote item…") {
+            let baseValue = CStringBox(base)
+            let oldValue = CStringBox(item.name)
+            let newValue = CStringBox(newName)
+            let ok = GhostFTPRemoteRename(baseValue.pointer, oldValue.pointer, newValue.pointer) == 1
+            return MutationResult(changed: ok, status: ok ? "Renamed: \(newName)" : "Remote rename failed", error: ok ? "" : bridgeString(GhostFTPLastError()))
+        }
+    }
+
+    @objc private func remoteDeleteTapped() {
+        let selected = selectedItems(table: remoteTable, items: remoteItems)
+        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, !selected.isEmpty, confirmDelete(selected) else { return }
+        let base = remoteCurrent
+        runRemoteMutation(status: "Deleting remote items…") {
+            var deleted = 0
+            var firstError = ""
+            for item in selected {
+                let baseValue = CStringBox(base)
+                let nameValue = CStringBox(item.name)
+                if GhostFTPRemoteDelete(baseValue.pointer, nameValue.pointer) == 1 {
+                    deleted += 1
+                } else if firstError.isEmpty {
+                    firstError = bridgeString(GhostFTPLastError())
+                }
+            }
+            let failed = selected.count - deleted
+            var status = "Deleted: \(deleted)"
+            if failed > 0 { status += " • Failed: \(failed)" }
+            return MutationResult(changed: deleted > 0, status: status, error: firstError)
+        }
+    }
+
+    private func promptName(title: String, initial: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = "Name:"
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        let input = NSTextField(string: initial)
+        input.frame = NSRect(x: 0, y: 0, width: 320, height: 24)
+        alert.accessoryView = input
+        window.makeFirstResponder(input)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let value = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else {
+            showError("Name cannot be empty.")
+            return nil
+        }
+        return value
+    }
+
+    private func confirmDelete(_ items: [FileItem]) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Delete selected item?"
+        if items.count == 1 {
+            alert.informativeText = items[0].name
+        } else {
+            alert.informativeText = "\(items.count) selected items will be deleted."
+        }
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func selectedItems(table: NSTableView, items: [FileItem]) -> [FileItem] {
+        table.selectedRowIndexes.compactMap { index in
+            guard index >= 0, index < items.count else { return nil }
+            return items[index]
+        }
+    }
+
+    private func runLocalMutation(status: String, operation: @escaping () -> MutationResult) {
+        guard engineReady, !localMutationBusy else { return }
+        localMutationBusy = true
+        localMutationGeneration += 1
+        let mutation = localMutationGeneration
+        let generation = localNavigationGeneration
+        let base = localCurrent
+        statusLabel.stringValue = status
+        updateWorkspaceControls()
+        engineQueue.async { [weak self] in
+            let result = operation()
+            DispatchQueue.main.async {
+                guard let self, mutation == self.localMutationGeneration else { return }
+                self.localMutationBusy = false
+                self.statusLabel.stringValue = result.status
+                if !result.error.isEmpty { self.showError(result.error) }
+                if result.changed && generation == self.localNavigationGeneration {
+                    self.refreshLocal(base)
+                } else {
+                    self.updateWorkspaceControls()
+                }
+            }
+        }
+    }
+
+    private func runRemoteMutation(status: String, operation: @escaping () -> MutationResult) {
+        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy else { return }
+        remoteMutationBusy = true
+        remoteMutationGeneration += 1
+        let mutation = remoteMutationGeneration
+        let generation = remoteNavigationGeneration
+        let base = remoteCurrent
+        statusLabel.stringValue = status
+        updateWorkspaceControls()
+        engineQueue.async { [weak self] in
+            let result = operation()
+            DispatchQueue.main.async {
+                guard let self, mutation == self.remoteMutationGeneration else { return }
+                self.remoteMutationBusy = false
+                self.statusLabel.stringValue = result.status
+                if !result.error.isEmpty { self.showError(result.error) }
+                if result.changed && generation == self.remoteNavigationGeneration && GhostFTPIsConnected() == 1 {
+                    self.refreshRemote(base)
+                } else {
+                    self.updateWorkspaceControls()
+                }
+            }
+        }
     }
 
     @objc private func localDoubleClicked() {
@@ -756,13 +985,23 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     private func updateWorkspaceControls() {
         let connected = engineReady && GhostFTPIsConnected() == 1 && !connectionBusy
-        localChooseButton.isEnabled = engineReady
-        localUpButton.isEnabled = engineReady && localCurrent != "/"
-        localRefreshButton.isEnabled = engineReady
-        remoteUpButton.isEnabled = connected && remoteCurrent != "/" && remoteCurrent != "."
-        remoteRefreshButton.isEnabled = connected
-        uploadButton.isEnabled = connected && !localTable.selectedRowIndexes.isEmpty
-        downloadButton.isEnabled = connected && !remoteTable.selectedRowIndexes.isEmpty
+        let localSelectionCount = localTable.selectedRowIndexes.count
+        let remoteSelectionCount = remoteTable.selectedRowIndexes.count
+
+        localChooseButton.isEnabled = engineReady && !localMutationBusy
+        localUpButton.isEnabled = engineReady && !localMutationBusy && localCurrent != "/"
+        localRefreshButton.isEnabled = engineReady && !localMutationBusy
+        localNewFolderButton.isEnabled = engineReady && !localMutationBusy
+        localRenameButton.isEnabled = engineReady && !localMutationBusy && localSelectionCount == 1
+        localDeleteButton.isEnabled = engineReady && !localMutationBusy && localSelectionCount > 0
+        uploadButton.isEnabled = connected && !localMutationBusy && localSelectionCount > 0
+
+        remoteUpButton.isEnabled = connected && !remoteMutationBusy && remoteCurrent != "/" && remoteCurrent != "."
+        remoteRefreshButton.isEnabled = connected && !remoteMutationBusy
+        remoteNewFolderButton.isEnabled = connected && !remoteMutationBusy
+        remoteRenameButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount == 1
+        remoteDeleteButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
+        downloadButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
         remoteTable.isEnabled = connected
     }
 
