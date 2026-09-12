@@ -108,7 +108,9 @@ func publicText(value string) string {
 func T(language, key string, args ...any) string {
 	language = Normalize(language)
 	template := ""
-	if catalog := catalogs[language]; catalog != nil {
+	if securityTemplate, ok := sftpTrustText(language, key); ok {
+		template = securityTemplate
+	} else if catalog := catalogs[language]; catalog != nil {
 		template = catalog[key]
 	}
 	if template == "" {
