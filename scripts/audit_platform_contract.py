@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
-RETIRED_ROOTS = ("ios/", "macos/", "GhostFTP WEB/")
+RETIRED_ROOTS = ("ios/", "GhostFTP WEB/")
 RETIRED_SCRIPTS = {
     "scripts/audit_android.py",
     "scripts/audit_android_localization.py",
@@ -33,6 +33,14 @@ ANDROID_REQUIRED = {
     "android/app/src/main/java/app/ghostftp/client/FtpSession.java",
     ".github/workflows/android-apk.yml",
     "scripts/test_android_contract.py",
+}
+MACOS_REQUIRED = {
+    "macos/README.md",
+    "macos/PARITY.md",
+    "macos/BUILD.sh",
+    "macos/Sources/GhostFTPApp/main.swift",
+    ".github/workflows/macos-app.yml",
+    "scripts/test_macos_windows_parity_contract.py",
 }
 
 
@@ -57,17 +65,18 @@ def main() -> int:
     path_set = set(paths)
     for path in paths:
         normalized = path.replace("\\", "/")
-        lowered = normalized.lower()
         if normalized.startswith(RETIRED_ROOTS):
             fail(f"retired application platform/surface is tracked: {path}")
         if normalized in RETIRED_SCRIPTS:
             fail(f"retired platform tooling is tracked: {path}")
-        if lowered.endswith("_darwin.go"):
-            fail(f"retired macOS/Darwin platform source is tracked: {path}")
 
     missing_android = sorted(ANDROID_REQUIRED - path_set)
     if missing_android:
         fail("active Android source contract is incomplete: " + ", ".join(missing_android))
+
+    missing_macos = sorted(MACOS_REQUIRED - path_set)
+    if missing_macos:
+        fail("active macOS source contract is incomplete: " + ", ".join(missing_macos))
 
     if "internal/platform/filemove_other.go" in path_set:
         fail("generic unsupported-OS filemove fallback must not be restored")
@@ -85,7 +94,7 @@ def main() -> int:
         lowered = text.lower()
         for marker in ("runs-on: macos", "ios/", "macos/", "ghostftp web/"):
             if marker in lowered:
-                fail(f"{rel} still references retired application platform marker: {marker}")
+                fail(f"{rel} public Windows/Linux workflow contract unexpectedly references: {marker}")
         for marker in ("windows:", "linux:"):
             if marker not in text:
                 fail(f"Windows/Linux public workflow contract is incomplete in {rel}: missing {marker}")
@@ -101,6 +110,16 @@ def main() -> int:
         if marker not in android_workflow:
             fail(f"Android development workflow is missing contract marker: {marker}")
 
+    macos_workflow = read(".github/workflows/macos-app.yml")
+    for marker in (
+        "Ghost FTP macOS Development App",
+        "runs-on: macos-",
+        "bash macos/BUILD.sh",
+        "ghostftp-macos-development",
+    ):
+        if marker not in macos_workflow:
+            fail(f"macOS development workflow is missing contract marker: {marker}")
+
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
@@ -110,12 +129,13 @@ def main() -> int:
 
     print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
-    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ANDROID_APK_DEVELOPMENT_SURFACE=ACTIVE")
-    print("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS")
+    print("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE")
+    print("RETIRED_APPLICATION_PLATFORMS=IOS")
     print("RETIRED_APPLICATION_SURFACES=WEB,PWA")
     print("LINUX_PLATFORM_STUBS=EXPLICIT")
-    print("DARWIN_SOURCE=BLOCKED")
+    print("DARWIN_SOURCE=ALLOWED_FOR_MACOS_DEVELOPMENT")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("VERSIONING_PLATFORM_INDEPENDENT=YES")
     return 0
