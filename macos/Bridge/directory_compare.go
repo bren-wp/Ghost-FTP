@@ -98,10 +98,6 @@ func GhostFTPCompareDirectories(localBaseValue, remoteBaseValue *C.char) C.int {
 	}()
 
 	localResolved, localItems, err := engine.LocalList(ctx, localBase)
-	if err == nil {
-		var remoteItems []apiItemAlias
-		_ = remoteItems
-	}
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			return 2
@@ -126,10 +122,6 @@ func GhostFTPCompareDirectories(localBaseValue, remoteBaseValue *C.char) C.int {
 	setDirectoryCompareError(nil, "")
 	return 1
 }
-
-// apiItemAlias exists only to keep the compiler from permitting accidental
-// direct filesystem/network traversal additions in the guarded block above.
-type apiItemAlias = struct{}
 
 //export GhostFTPCancelDirectoryCompare
 func GhostFTPCancelDirectoryCompare() {
@@ -160,71 +152,93 @@ func GhostFTPDirectoryCompareCount() C.int {
 //export GhostFTPDirectoryCompareName
 func GhostFTPDirectoryCompareName(index C.int) *C.char {
 	entry, ok := directoryCompareEntryAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(entry.Name)
 }
 
 //export GhostFTPDirectoryCompareStatus
 func GhostFTPDirectoryCompareStatus(index C.int) *C.char {
 	entry, ok := directoryCompareEntryAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(string(entry.Status))
 }
 
 //export GhostFTPDirectoryCompareHasLocal
 func GhostFTPDirectoryCompareHasLocal(index C.int) C.int {
 	entry, ok := directoryCompareEntryAt(index)
-	if ok && entry.HasLocal { return 1 }
+	if ok && entry.HasLocal {
+		return 1
+	}
 	return 0
 }
 
 //export GhostFTPDirectoryCompareHasRemote
 func GhostFTPDirectoryCompareHasRemote(index C.int) C.int {
 	entry, ok := directoryCompareEntryAt(index)
-	if ok && entry.HasRemote { return 1 }
+	if ok && entry.HasRemote {
+		return 1
+	}
 	return 0
 }
 
 //export GhostFTPDirectoryCompareLocalSize
 func GhostFTPDirectoryCompareLocalSize(index C.int) C.longlong {
 	entry, ok := directoryCompareEntryAt(index)
-	if !ok || !entry.HasLocal { return 0 }
+	if !ok || !entry.HasLocal {
+		return 0
+	}
 	return C.longlong(entry.Local.Size)
 }
 
 //export GhostFTPDirectoryCompareRemoteSize
 func GhostFTPDirectoryCompareRemoteSize(index C.int) C.longlong {
 	entry, ok := directoryCompareEntryAt(index)
-	if !ok || !entry.HasRemote { return 0 }
+	if !ok || !entry.HasRemote {
+		return 0
+	}
 	return C.longlong(entry.Remote.Size)
 }
 
 //export GhostFTPDirectoryCompareLocalModifiedUnix
 func GhostFTPDirectoryCompareLocalModifiedUnix(index C.int) C.longlong {
 	entry, ok := directoryCompareEntryAt(index)
-	if !ok || !entry.HasLocal { return 0 }
+	if !ok || !entry.HasLocal {
+		return 0
+	}
 	return itemModifiedUnix(entry.Local)
 }
 
 //export GhostFTPDirectoryCompareRemoteModifiedUnix
 func GhostFTPDirectoryCompareRemoteModifiedUnix(index C.int) C.longlong {
 	entry, ok := directoryCompareEntryAt(index)
-	if !ok || !entry.HasRemote { return 0 }
+	if !ok || !entry.HasRemote {
+		return 0
+	}
 	return itemModifiedUnix(entry.Remote)
 }
 
 //export GhostFTPDirectoryCompareCanOpenBoth
 func GhostFTPDirectoryCompareCanOpenBoth(index C.int) C.int {
 	entry, ok := directoryCompareEntryAt(index)
-	if !ok { return 0 }
+	if !ok {
+		return 0
+	}
 	bridgeState.mu.Lock()
 	engine := bridgeState.engine
 	bridgeState.mu.Unlock()
-	if engine == nil { return 0 }
+	if engine == nil {
+		return 0
+	}
 	directoryCompareState.mu.Lock()
 	entries := append([]api.DirectoryComparisonEntry(nil), directoryCompareState.entries...)
 	directoryCompareState.mu.Unlock()
-	if _, ok := engine.SynchronizedDirectoryName(entries, entry.Name); ok { return 1 }
+	if _, ok := engine.SynchronizedDirectoryName(entries, entry.Name); ok {
+		return 1
+	}
 	return 0
 }
 
