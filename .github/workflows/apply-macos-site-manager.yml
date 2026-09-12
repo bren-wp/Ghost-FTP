@@ -64,6 +64,28 @@ jobs:
       - name: Apply guarded production patch
         run: python3 scripts/apply_macos_site_manager_patch.py
 
+      - name: Preserve tested pending trust API
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('internal/remote/manager.go')
+          source = p.read_text(encoding='utf-8')
+          signature = 'func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved *resolvedConnection, fingerprint string) error {'
+          replacement = '''func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolvedConnection, fingerprint string) error {
+          return m.stashPendingTrustResolved(cfg, &resolved, fingerprint)
+          }
+
+          func (m *Manager) stashPendingTrustResolved(cfg model.ConnectionConfig, resolved *resolvedConnection, fingerprint string) error {'''
+          if source.count(signature) != 1:
+              raise SystemExit('patched pending trust signature is not unique')
+          source = source.replace(signature, replacement, 1)
+          call = 'if err := m.stashPendingTrust(cfg, &resolved, fp); err != nil {'
+          if source.count(call) != 1:
+              raise SystemExit('profile-aware pending trust call is not unique')
+          source = source.replace(call, 'if err := m.stashPendingTrustResolved(cfg, &resolved, fp); err != nil {', 1)
+          p.write_text(source, encoding='utf-8')
+          PY
+
       - name: Document Keychain and runtime-secret boundary
         run: |
           python3 - <<'PY'
