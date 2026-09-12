@@ -82,6 +82,15 @@ IMPLEMENTED_MACOS_ACTIONS = {
     "Directory Compare",
     "Upload",
     "Download",
+    "Pause Queue",
+    "Resume Queue",
+    "Cancel Transfer",
+    "Retry Transfer",
+    "Clear Finished",
+    "Move Top",
+    "Move Up",
+    "Move Down",
+    "Move Bottom",
 }
 
 
