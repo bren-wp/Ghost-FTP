@@ -112,6 +112,7 @@ class MacOSDirectoryCompareContract(unittest.TestCase):
         self.assertIn("GhostFTPOpenComparedDirectoryBoth", open_swift)
         self.assertIn("GhostFTPLocalPath", open_swift)
         self.assertIn("GhostFTPRemotePath", open_swift)
+        self.assertLess(open_swift.find("GhostFTPPrepareDirectoryCompareOpen()"), open_swift.find("engineQueue.async"))
         self.assertNotIn("refreshLocal(", open_swift)
         self.assertNotIn("refreshRemote(", open_swift)
 
