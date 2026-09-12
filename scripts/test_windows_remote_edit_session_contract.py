@@ -21,20 +21,23 @@ def function_source(source: str, name: str) -> str:
 
 
 class WindowsRemoteEditSessionContractTests(unittest.TestCase):
-    def test_app_tracks_remote_edit_session_busy_state(self) -> None:
-        source = read("internal/desktop/windows.go")
-        self.assertIn("remoteEditBusy", source)
+    def test_remote_edit_sessions_are_tracked_per_app(self) -> None:
+        source = read("internal/desktop/remote_edit_windows.go")
+        self.assertIn("remoteEditSessions sync.Map", source)
+        self.assertIn("func remoteEditSessionBusy(a *app) bool", source)
 
     def test_remote_edit_readiness_rejects_reentry(self) -> None:
         source = read("internal/desktop/remote_edit_windows.go")
         body = function_source(source, "remoteEditSelectionReady")
         self.assertTrue(body)
-        self.assertIn("a.remoteEditBusy", body)
+        self.assertIn("remoteEditSessionBusy(a)", body)
 
-    def test_remote_edit_session_has_code_level_begin_and_finish_guards(self) -> None:
+    def test_remote_edit_session_has_atomic_code_level_begin_and_finish_guards(self) -> None:
         source = read("internal/desktop/remote_edit_windows.go")
-        self.assertIn("func (a *app) beginRemoteEditSession() bool", source)
-        self.assertIn("func (a *app) finishRemoteEditSession()", source)
+        begin = function_source(source, "beginRemoteEditSession")
+        finish = function_source(source, "finishRemoteEditSession")
+        self.assertIn("LoadOrStore", begin)
+        self.assertIn("remoteEditSessions.Delete(a)", finish)
         action = function_source(source, "remoteEditAction")
         self.assertTrue(action)
         self.assertIn("beginRemoteEditSession()", action)
@@ -57,6 +60,11 @@ class WindowsRemoteEditSessionContractTests(unittest.TestCase):
         finish = function_source(source, "finishRemoteEditSession")
         self.assertIn("a.updateActionControls()", begin)
         self.assertIn("a.updateActionControls()", finish)
+
+    def test_destroy_cleanup_drops_stale_session_state(self) -> None:
+        source = read("internal/desktop/remote_edit_windows.go")
+        body = function_source(source, "clearRemoteEditButton")
+        self.assertIn("remoteEditSessions.Delete(a)", body)
 
 
 if __name__ == "__main__":
