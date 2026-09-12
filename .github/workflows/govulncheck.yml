@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           install_dir="$RUNNER_TEMP/ghostftp-security-bin"
           mkdir -p "$install_dir"
-          GOBIN="$install_dir" go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          GOBIN="$install_dir" go install golang.org/x/vuln/cmd/govulncheck@709015412431dd2b5b28a53c06c70bc02d49074c
           test -x "$install_dir/govulncheck"
       - name: Scan Ghost FTP Go packages
         shell: bash
