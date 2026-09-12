@@ -128,6 +128,16 @@ func transferResolvedSecretOwnershipToSFTP(resolved *resolvedConnection, s *SFTP
 	}
 }
 
+func transferResolvedSecretOwnershipToCurl(resolved *resolvedConnection, s *CurlFTP) {
+	if resolved == nil || s == nil {
+		return
+	}
+	if resolved.ownsPasswordBlob && resolved.PasswordBlob != "" && s.passwordBlob == resolved.PasswordBlob {
+		s.ownsPasswordBlob = true
+		resolved.ownsPasswordBlob = false
+	}
+}
+
 // sanitizeProtocolState removes fields that have no meaning outside SFTP.
 // Keeping dead key/trust state on FTP/FTPS connections can otherwise leak into
 // public runtime config and create false connection-identity boundaries.
@@ -428,13 +438,15 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		s = sftpSession
 		cfg.Fingerprint = fp
 	} else {
-		s, err = newCurlFTPWithProtectedSecret(cfg.Protocol, cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, connectTimeout)
-		if err != nil {
-			return ConnectResult{}, err
+		curlSession, curlErr := newCurlFTPWithProtectedSecret(cfg.Protocol, cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, connectTimeout)
+		if curlErr != nil {
+			return ConnectResult{}, curlErr
 		}
-		// Curl consumes the protected secret synchronously per operation. Keep the
-		// owned runtime capability with this connection result until Connect exits;
-		// it will be forgotten by the deferred cleanup above after the probe.
+		// A converted macOS saved credential must survive beyond the initial probe:
+		// every later FTP/FTPS operation asks CurlFTP to unlock the same runtime
+		// capability. Transfer ownership to the live session and release it on Close.
+		transferResolvedSecretOwnershipToCurl(&resolved, curlSession)
+		s = curlSession
 	}
 
 	cctx, cancel := context.WithTimeout(ctx, time.Duration(connectTimeout+5)*time.Second)
