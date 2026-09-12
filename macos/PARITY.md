@@ -17,11 +17,11 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 ### Connection, profiles and application
 
-- [ ] Connect
-- [ ] Disconnect
+- [x] Connect
+- [x] Disconnect
 - [ ] Site Manager
 - [ ] Bookmarks
-- [ ] Private Key
+- [x] Private Key
 - [ ] Save Profile
 - [ ] Remove Profile
 - [ ] Settings
@@ -30,9 +30,9 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 ### Local file pane
 
-- [ ] Local Refresh
-- [ ] Local Choose Folder
-- [ ] Local Up
+- [x] Local Refresh
+- [x] Local Choose Folder
+- [x] Local Up
 - [ ] Local New Folder
 - [ ] Local Rename
 - [ ] Local Delete
@@ -41,8 +41,8 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 ### Remote file pane
 
-- [ ] Remote Refresh
-- [ ] Remote Up
+- [x] Remote Refresh
+- [x] Remote Up
 - [ ] Remote New Folder
 - [ ] Remote Rename
 - [ ] Remote Delete
@@ -54,8 +54,8 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 ### Transfer actions and queue
 
-- [ ] Upload
-- [ ] Download
+- [x] Upload
+- [x] Download
 - [ ] Pause Queue
 - [ ] Resume Queue
 - [ ] Cancel Transfer
@@ -65,6 +65,14 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 - [ ] Move Up
 - [ ] Move Down
 - [ ] Move Bottom
+
+## Implemented file-workspace boundary
+
+The native AppKit workspace now exposes real Local and Remote file tables backed by `internal/api.Engine.LocalList` and `internal/api.Engine.RemoteList`. Local folder selection uses the native macOS folder panel. Local/remote Up and Refresh actions operate on the active engine paths, and directory double-click navigation follows the same intent as Windows. Upload and Download queue real shared-engine transfers; regular files use `AddTransfer`, directories use bounded `AddTreeTransfer`, and symbolic links are rejected rather than silently followed.
+
+The macOS bridge keeps each transfer action bound to the currently visible engine snapshot so stale UI names cannot be used after navigation. Download targets are derived with the shared safe-local-child validation and remote names are validated before transfer. The bridge remains typed C ABI only: no JSON dispatcher, localhost server, browser IPC or credential-bearing generic payload was added.
+
+SFTP host-key confirmation retains the transient connection secret only for the pending trust retry while password/passphrase fields are cleared from the visible UI immediately. The transient value is discarded after the connect/trust decision and is never stored as app state.
 
 ## Behavior that must remain identical
 

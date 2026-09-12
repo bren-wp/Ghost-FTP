@@ -4,7 +4,23 @@ The `macos/` tree is the dedicated native macOS development surface for Ghost FT
 
 **Windows desktop is the canonical visual and behavior reference.** The target is 1:1 feature parity in the sense that every supported Windows desktop action has an equivalent, real macOS action backed by the same product state and security rules. Native platform primitives may differ where macOS requires them, but capability, labels, ordering, validation, enabled/disabled state and workflow semantics must remain aligned.
 
-The completed macOS client will use the same typed `internal/api.Engine` as the maintained Windows/Linux desktop clients. UI work must therefore follow one non-negotiable rule: **no decorative or dead controls**. A control is added to the visible Mac UI only when the corresponding engine-backed operation is functional and testable.
+The macOS client uses the same typed `internal/api.Engine` as the maintained Windows/Linux desktop clients through an in-process C ABI bridge. UI work follows one non-negotiable rule: **no decorative or dead controls**. A control is added to the visible Mac UI only when the corresponding engine-backed operation is functional and testable.
+
+## Implemented development surface
+
+The native AppKit application currently includes:
+
+- FTP, explicit FTPS and SFTP Quick Connect and Disconnect through the shared engine;
+- native private-key file selection for SFTP;
+- strict SFTP pending host-key trust with the bundled AskPass helper and Darwin runtime secret broker;
+- Local and Remote file panes backed by `Engine.LocalList` and `Engine.RemoteList`;
+- local native folder selection, Local/Remote Up and Refresh, and directory double-click navigation;
+- remote file metadata including size, modification time and permissions when provided by the protocol;
+- real Upload and Download queue entry points; regular files use `Engine.AddTransfer` and directories use the bounded `Engine.AddTreeTransfer` path;
+- symbolic-link rejection for transfer actions rather than silent traversal;
+- visible-snapshot binding for transfer actions so stale names cannot be submitted after navigation.
+
+The password and private-key passphrase fields are cleared from the visible UI immediately when connecting. For SFTP first-contact trust, the transient in-memory connection input is retained only long enough to perform the explicitly approved host-key retry, then discarded; it is not stored as persistent app state.
 
 ## Visual contract
 
@@ -19,11 +35,13 @@ The finished Mac client must expose the same **24 languages**, with English as c
 
 ## Privacy and dependency boundary
 
-The Mac app has no telemetry, analytics, advertising, tracking pixels, remote fonts, remote styles or mandatory Ghost FTP account. The build is source-local and must not download runtime UI or application code. macOS credential/keychain integration will be added only behind the same explicit credential-persistence consent and account-identity binding used by the shared desktop model.
+The Mac app has no telemetry, analytics, advertising, tracking pixels, remote fonts, remote styles or mandatory Ghost FTP account. The build is source-local and must not download runtime UI or application code. The bridge is typed and in-process: no JSON dispatcher, localhost application server or browser IPC is used.
 
-## Current stage
+Persistent saved-profile secrets remain fail-closed on macOS until the dedicated Keychain-backed implementation is added behind the same explicit credential-persistence consent and account-identity binding used by the shared desktop model.
 
-This is an active **development surface**. The first maintained stage establishes a native AppKit application bundle, universal Intel/Apple-Silicon build verification, the Windows parity inventory and fail-closed platform audits. Feature controls are intentionally introduced only as their `internal/api.Engine` bridge is implemented; placeholders are not accepted as parity.
+## Remaining parity work
+
+The development surface is not yet a complete Mac release. Site Manager, saved-profile Keychain support, Bookmarks, Settings/About/Diagnostics, file mutations, permissions, filtering/search, Directory Compare, Remote Edit, full transfer queue controls, localization and the remaining Windows behavior inventory are still tracked in `PARITY.md` and remain intentionally absent until their real engine-backed implementations are ready.
 
 The Mac development artifact is **not part of the current 0.0.5 public release allow-list**. The existing verified Windows/Linux 14-platform-artifact / 17-public-file release contract remains unchanged until macOS reaches full functionality, runtime evidence and distribution/signing/notarization gates.
 

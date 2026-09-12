@@ -58,6 +58,19 @@ WINDOWS_PARITY_ACTIONS = (
     "Move Bottom",
 )
 
+IMPLEMENTED_MACOS_ACTIONS = {
+    "Connect",
+    "Disconnect",
+    "Private Key",
+    "Local Refresh",
+    "Local Choose Folder",
+    "Local Up",
+    "Remote Refresh",
+    "Remote Up",
+    "Upload",
+    "Download",
+}
+
 
 class MacOSWindowsParityContractTests(unittest.TestCase):
     def test_macos_is_an_active_separate_development_surface(self) -> None:
@@ -108,10 +121,13 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, combined)
 
-    def test_complete_windows_action_inventory_is_recorded(self) -> None:
+    def test_complete_windows_action_inventory_is_recorded_truthfully(self) -> None:
         parity = read("macos/PARITY.md")
         for action in WINDOWS_PARITY_ACTIONS:
-            self.assertIn(f"- [ ] {action}", parity)
+            expected = "x" if action in IMPLEMENTED_MACOS_ACTIONS else " "
+            self.assertIn(f"- [{expected}] {action}", parity)
+            opposite = " " if expected == "x" else "x"
+            self.assertNotIn(f"- [{opposite}] {action}", parity)
 
     def test_macos_does_not_silently_expand_current_public_release(self) -> None:
         readme = read("macos/README.md")
