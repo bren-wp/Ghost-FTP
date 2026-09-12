@@ -8,13 +8,6 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def read_bridge_package() -> str:
-    sources = sorted((ROOT / "macos/Bridge").glob("*.go"))
-    if not sources:
-        raise AssertionError("missing macOS bridge Go sources")
-    return "\n".join(path.read_text(encoding="utf-8") for path in sources)
-
-
 def function_body(source: str, signature: str) -> str:
     start = source.find(signature)
     if start < 0:
@@ -37,28 +30,29 @@ def function_body(source: str, signature: str) -> str:
 class MacOSCurrentFolderFilterContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.bridge = read_bridge_package()
+        cls.filters = read("macos/Bridge/filters.go")
         cls.bridge_main = read("macos/Bridge/main.go")
+        cls.mutations = read("macos/Bridge/mutations.go")
         cls.swift = read("macos/Sources/GhostFTPApp/main.swift")
         cls.parity = read("macos/PARITY.md")
         cls.shared = read("internal/itemlist/filter.go")
         cls.windows = read("internal/desktop/file_filter_windows.go")
 
-    def test_bridge_uses_shared_non_destructive_filter_semantics(self):
+    def test_bridge_filters_authoritative_snapshots_with_shared_semantics(self):
         for marker in (
             '"github.com/bren-wp/Ghost-FTP/internal/itemlist"',
-            "localVisibleItems",
-            "remoteVisibleItems",
-            "localFilterQuery",
-            "remoteFilterQuery",
-            "itemlist.Filter(bridgeState.localItems, bridgeState.localFilterQuery)",
-            "itemlist.Filter(bridgeState.remoteItems, bridgeState.remoteFilterQuery)",
+            "macFileFilterState.localVisible",
+            "macFileFilterState.remoteVisible",
+            "macFileFilterState.localQuery",
+            "macFileFilterState.remoteQuery",
+            "itemlist.Filter(bridgeState.localItems, macFileFilterState.localQuery)",
+            "itemlist.Filter(bridgeState.remoteItems, macFileFilterState.remoteQuery)",
             "GhostFTPLocalFilter",
             "GhostFTPRemoteFilter",
-            "GhostFTPLocalAllItemCount",
-            "GhostFTPRemoteAllItemCount",
+            "GhostFTPLocalFilteredItemCount",
+            "GhostFTPRemoteFilteredItemCount",
         ):
-            self.assertIn(marker, self.bridge)
+            self.assertIn(marker, self.filters)
 
         self.assertIn("unicode.SimpleFold", self.shared)
         self.assertIn("strings.Fields", self.shared)
@@ -66,40 +60,39 @@ class MacOSCurrentFolderFilterContract(unittest.TestCase):
 
     def test_filter_exports_never_trigger_hidden_io(self):
         for action in ("GhostFTPLocalFilter", "GhostFTPRemoteFilter"):
-            body = function_body(self.bridge, f"func {action}(")
-            self.assertIn("FilterQuery", body)
+            body = function_body(self.filters, f"func {action}(")
             self.assertNotIn("LocalList", body)
             self.assertNotIn("RemoteList", body)
             self.assertNotIn("context.WithTimeout", body)
+        remote = function_body(self.filters, "func GhostFTPRemoteFilter(")
+        self.assertIn("ActiveConnection", remote)
 
-    def test_directory_refresh_reapplies_existing_filter_to_new_snapshot(self):
+    def test_authoritative_snapshots_remain_separate_from_filtered_rows(self):
         local_list = function_body(self.bridge_main, "func GhostFTPLocalList(")
         remote_list = function_body(self.bridge_main, "func GhostFTPRemoteList(")
-        self.assertIn("refreshLocalFilterLocked()", local_list)
-        self.assertIn("refreshRemoteFilterLocked()", remote_list)
         self.assertIn("bridgeState.localItems", local_list)
         self.assertIn("bridgeState.remoteItems", remote_list)
+        self.assertNotIn("localVisible", local_list)
+        self.assertNotIn("remoteVisible", remote_list)
 
-    def test_existing_item_accessors_expose_visible_not_authoritative_rows(self):
-        for signature in (
-            "func GhostFTPLocalItemCount(",
-            "func GhostFTPLocalItemName(",
-            "func GhostFTPLocalItemSize(",
-            "func GhostFTPLocalItemIsDirectory(",
-            "func GhostFTPLocalItemIsSymlink(",
-            "func GhostFTPLocalItemModifiedUnix(",
-        ):
-            self.assertIn("localVisibleItems", function_body(self.bridge_main, signature))
-        for signature in (
-            "func GhostFTPRemoteItemCount(",
-            "func GhostFTPRemoteItemName(",
-            "func GhostFTPRemoteItemSize(",
-            "func GhostFTPRemoteItemIsDirectory(",
-            "func GhostFTPRemoteItemIsSymlink(",
-            "func GhostFTPRemoteItemModifiedUnix(",
-            "func GhostFTPRemoteItemPermissions(",
-        ):
-            self.assertIn("remoteVisibleItems", function_body(self.bridge_main, signature))
+        for action in ("GhostFTPLocalRename", "GhostFTPLocalDelete"):
+            body = function_body(self.mutations, f"func {action}(")
+            self.assertIn("requireVisibleLocalItem", body)
+        for action in ("GhostFTPRemoteRename", "GhostFTPRemoteDelete"):
+            body = function_body(self.mutations, f"func {action}(")
+            self.assertIn("requireVisibleRemoteItem", body)
+
+    def test_directory_refresh_reapplies_filter_without_extra_listing(self):
+        local = function_body(self.swift, "private func refreshLocal(")
+        remote = function_body(self.swift, "private func refreshRemote(")
+        self.assertEqual(local.count("GhostFTPLocalList("), 1)
+        self.assertEqual(remote.count("GhostFTPRemoteList("), 1)
+        self.assertIn("GhostFTPLocalFilter", local)
+        self.assertIn("readLocalFilteredSnapshot", local)
+        self.assertIn("GhostFTPRemoteFilter", remote)
+        self.assertIn("readRemoteFilteredSnapshot", remote)
+        self.assertIn("GhostFTPLocalItemCount", local)
+        self.assertIn("GhostFTPRemoteItemCount", remote)
 
     def test_app_exposes_real_local_and_remote_filter_actions(self):
         for marker in (
@@ -114,8 +107,8 @@ class MacOSCurrentFolderFilterContract(unittest.TestCase):
             "applyCurrentFolderFilter",
             "GhostFTPLocalFilter",
             "GhostFTPRemoteFilter",
-            "GhostFTPLocalAllItemCount",
-            "GhostFTPRemoteAllItemCount",
+            "GhostFTPLocalFilteredItemCount",
+            "GhostFTPRemoteFilteredItemCount",
         ):
             self.assertIn(marker, self.swift)
 
@@ -124,14 +117,28 @@ class MacOSCurrentFolderFilterContract(unittest.TestCase):
         self.assertNotIn("refreshRemote(", apply_filter)
         self.assertNotIn("GhostFTPLocalList", apply_filter)
         self.assertNotIn("GhostFTPRemoteList", apply_filter)
+        self.assertIn("engineQueue.async", apply_filter)
 
-    def test_filter_preserves_visible_selection_by_name_and_remote_enablement(self):
+    def test_filter_preserves_selection_and_blocks_row_actions_while_replacing_view(self):
         apply_filter = function_body(self.swift, "private func applyCurrentFolderFilter(")
         self.assertIn("selectedItemNames", apply_filter)
         self.assertIn("restoreSelection", apply_filter)
+        self.assertIn("localFilterBusy", apply_filter)
+        self.assertIn("remoteFilterBusy", apply_filter)
+
         controls = function_body(self.swift, "private func updateWorkspaceControls(")
-        self.assertIn("localFilterButton.isEnabled", controls)
-        self.assertIn("remoteFilterButton.isEnabled = connected", controls)
+        self.assertIn("!localFilterBusy", controls)
+        self.assertIn("!remoteFilterBusy", controls)
+        self.assertIn("localFilterButton.isEnabled = localReady", controls)
+        self.assertIn("remoteFilterButton.isEnabled = remoteReady", controls)
+        self.assertIn("remoteTable.isEnabled = remoteReady", controls)
+
+    def test_disconnect_clears_remote_visible_rows_and_source_count(self):
+        disconnect = function_body(self.swift, "private func disconnectTapped(")
+        self.assertIn("remoteNavigationGeneration += 1", disconnect)
+        self.assertIn("remoteFilterBusy = false", disconnect)
+        self.assertIn("remoteSourceCount = 0", disconnect)
+        self.assertIn("remoteItems.removeAll", disconnect)
 
     def test_windows_and_macos_parity_are_aligned(self):
         self.assertIn("itemlist.Filter(state.localAll, state.localQuery)", self.windows)
