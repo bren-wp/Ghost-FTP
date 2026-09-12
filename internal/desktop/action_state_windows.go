@@ -28,11 +28,11 @@ func (a *app) updateActionControls() {
 		return
 	}
 
-	profileEditable := !a.connected && !a.connectionBusy
+	profileEditable := !a.connected && !a.connectionBusy && !a.profileMutationBusy
 	setControlEnabled(a.siteManagerBtn, profileEditable)
 	setControlEnabled(a.saveProfile, profileEditable)
 	setControlEnabled(a.removeProfile, profileEditable && a.selectedProfileID != "")
-	setControlEnabled(a.settingsBtn, !a.connectionBusy)
+	setControlEnabled(a.settingsBtn, !a.connectionBusy && !a.profileMutationBusy)
 
 	comparisonActive := a.directoryComparisonActive()
 	localRecursiveActive := a.recursiveSearchPaneActive(false)

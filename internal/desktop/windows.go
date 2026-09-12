@@ -53,6 +53,7 @@ type app struct {
 	selectedProfileID    string
 	connected            bool
 	connectionBusy       bool
+	profileMutationBusy  bool
 	connectionGeneration uint64
 	healthCheckRunning   bool
 	connectionCancel     context.CancelFunc
@@ -353,6 +354,12 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		a.runDispatch()
 		return 0
 	case wmClose:
+		// Profile persistence is intentionally short and cannot be cancelled safely.
+		// Keep the process alive until the in-flight save/delete has committed so a
+		// close click cannot leave the encrypted profile store partially updated.
+		if a.profileMutationBusy {
+			return 0
+		}
 		if a.connected || a.connectionBusy || a.hasActiveTransfers() {
 			if !platform.ConfirmDialog("Ghost FTP", closeQuestion(a.languageCode()), closeBody(a.languageCode())) {
 				return 0
