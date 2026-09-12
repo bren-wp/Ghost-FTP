@@ -28,12 +28,12 @@ class WindowsNativeDialogOwnerContractTests(unittest.TestCase):
     def test_private_key_picker_uses_validated_active_owner(self) -> None:
         source = read("internal/platform/windows.go")
         body = function_body(source, "func ChoosePrivateKey()")
-        self.assertIn("Owner:       premiumDialogOwner(),", body)
+        self.assertRegex(body, r"Owner:\s+premiumDialogOwner\(\),")
 
     def test_directory_picker_uses_validated_active_owner(self) -> None:
         source = read("internal/platform/windows.go")
         body = function_body(source, "func ChooseDirectory()")
-        self.assertIn("Owner: premiumDialogOwner(),", body)
+        self.assertRegex(body, r"Owner:\s+premiumDialogOwner\(\),")
 
     def test_task_dialog_fallback_uses_validated_active_owner(self) -> None:
         source = read("internal/platform/windows.go")
