@@ -63,6 +63,21 @@ class MacOSEngineBridgeContractTests(unittest.TestCase):
             self.assertIn(marker, darwin)
         self.assertNotIn("XDG_DATA_HOME", darwin)
 
+    def test_persistent_macos_profiles_fail_closed_until_keychain(self) -> None:
+        profile_crypto = read("internal/config/profile_crypto_darwin.go")
+        for marker in (
+            "//go:build darwin",
+            "saved profiles are unavailable until macOS Keychain protection is enabled",
+            "func protectProfileData([]byte, string) (string, error)",
+            "func unprotectProfileData(string, string) ([]byte, error)",
+            "return \"\", errDarwinPersistentProfilesUnavailable",
+            "return nil, errDarwinPersistentProfilesUnavailable",
+        ):
+            self.assertIn(marker, profile_crypto)
+        self.assertNotIn("base64", profile_crypto)
+        self.assertNotIn("WriteFile", profile_crypto)
+        self.assertNotIn("ProtectString", profile_crypto)
+
     def test_macos_build_links_universal_go_engine_dylib(self) -> None:
         build = read("macos/BUILD.sh")
         for marker in (
