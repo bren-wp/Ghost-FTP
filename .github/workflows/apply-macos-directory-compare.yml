@@ -1,0 +1,37 @@
+name: Apply macOS Directory Compare
+
+on:
+  push:
+    branches:
+      - feature/macos-directory-compare
+    paths:
+      - .github/workflows/apply-macos-directory-compare.yml
+      - scripts/apply_macos_directory_compare_patch.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/macos-directory-compare
+          fetch-depth: 0
+      - name: Apply guarded source patch
+        run: python3 scripts/apply_macos_directory_compare_patch.py
+      - name: Remove one-shot patch machinery
+        run: |
+          rm scripts/apply_macos_directory_compare_patch.py
+          rm .github/workflows/apply-macos-directory-compare.yml
+      - name: Commit production changes only
+        run: |
+          git config user.name "Brendigo"
+          git config user.email "info@brendigo.com"
+          git add -A
+          git diff --cached --check
+          git diff --cached --quiet && { echo "Patch produced no changes" >&2; exit 1; }
+          git commit -m "feat: add native macOS directory compare"
+          git push origin HEAD:feature/macos-directory-compare
