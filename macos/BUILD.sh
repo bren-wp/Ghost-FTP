@@ -11,6 +11,8 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 SOURCE="$SCRIPT_DIR/Sources/GhostFTPApp/main.swift"
+SITE_MANAGER_SOURCE="$SCRIPT_DIR/Sources/GhostFTPApp/SiteManager.swift"
+PREPARE_SITE_MANAGER_SOURCES="$SCRIPT_DIR/prepare_site_manager_sources.py"
 BRIDGE_SOURCE="$SCRIPT_DIR/Bridge/main.go"
 ASKPASS_SOURCE="$SCRIPT_DIR/AskPass/main.go"
 ICON_SOURCE="$REPO_ROOT/build/icon.png"
@@ -22,12 +24,15 @@ MACOS="$CONTENTS/MacOS"
 FRAMEWORKS="$CONTENTS/Frameworks"
 RESOURCES="$CONTENTS/Resources"
 MODULE_DIR="$OUT/GhostFTPEngineModule"
+GENERATED_SOURCE_DIR="$OUT/generated-swift"
+GENERATED_SOURCE="$GENERATED_SOURCE_DIR/main.swift"
+GENERATED_SITE_MANAGER_SOURCE="$GENERATED_SOURCE_DIR/SiteManager.swift"
 ZIP="$DIST/Ghost-FTP-${VERSION}-macOS.app.zip"
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
 DEPLOYMENT_TARGET="13.0"
 BUNDLE_ID="app.ghostftp.client"
 
-for required in "$SOURCE" "$BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
+for required in "$SOURCE" "$SITE_MANAGER_SOURCE" "$PREPARE_SITE_MANAGER_SOURCES" "$BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
   if [[ ! -s "$required" ]]; then
     echo "Missing required macOS build input: $required" >&2
     exit 1
@@ -35,7 +40,18 @@ for required in "$SOURCE" "$BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
 done
 
 rm -rf "$OUT" "$DIST"
-mkdir -p "$MACOS" "$FRAMEWORKS" "$RESOURCES" "$DIST" "$MODULE_DIR"
+mkdir -p "$MACOS" "$FRAMEWORKS" "$RESOURCES" "$DIST" "$MODULE_DIR" "$GENERATED_SOURCE_DIR"
+
+python3 "$PREPARE_SITE_MANAGER_SOURCES" \
+  "$SOURCE" \
+  "$SITE_MANAGER_SOURCE" \
+  "$GENERATED_SOURCE" \
+  "$GENERATED_SITE_MANAGER_SOURCE"
+test -s "$GENERATED_SOURCE"
+test -s "$GENERATED_SITE_MANAGER_SOURCE"
+grep -F 'NSButton(title: "Site Manager"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'controller.onConnected' "$GENERATED_SOURCE" >/dev/null
+grep -F 'var onConnected: ((String, String, String) -> Void)?' "$GENERATED_SITE_MANAGER_SOURCE" >/dev/null
 
 build_go_arch() {
   local arch="$1"
@@ -91,7 +107,7 @@ build_swift_arch() {
     -Xlinker -rpath \
     -Xlinker '@executable_path/../Frameworks' \
     -framework AppKit \
-    "$SOURCE" \
+    "$GENERATED_SOURCE" "$GENERATED_SITE_MANAGER_SOURCE" \
     -o "$OUT/GhostFTP-$arch"
 }
 

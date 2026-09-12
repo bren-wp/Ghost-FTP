@@ -292,7 +292,7 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 		if err = security.ValidateSecret(in.Password); err != nil {
 			return model.PublicProfile{}, err
 		}
-		x.PasswordBlob, err = security.ProtectString(in.Password)
+		x.PasswordBlob, err = protectStoredProfileSecret(in.Password)
 		if err != nil {
 			return model.PublicProfile{}, err
 		}
@@ -303,7 +303,7 @@ func (p *Profiles) Save(in model.ProfileInput) (model.PublicProfile, error) {
 		if err = security.ValidateSecret(in.Passphrase); err != nil {
 			return model.PublicProfile{}, err
 		}
-		x.PassphraseBlob, err = security.ProtectString(in.Passphrase)
+		x.PassphraseBlob, err = protectStoredProfileSecret(in.Passphrase)
 		if err != nil {
 			return model.PublicProfile{}, err
 		}
