@@ -69,6 +69,7 @@ IMPLEMENTED_MACOS_ACTIONS = {
     "Local Rename",
     "Local Delete",
     "Local Filter",
+    "Local Recursive Search",
     "Remote Refresh",
     "Remote Up",
     "Remote New Folder",
@@ -77,6 +78,7 @@ IMPLEMENTED_MACOS_ACTIONS = {
     "Remote Permissions",
     "Remote Edit",
     "Remote Filter",
+    "Remote Recursive Search",
     "Upload",
     "Download",
 }
