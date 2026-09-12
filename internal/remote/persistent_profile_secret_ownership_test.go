@@ -36,3 +36,23 @@ func TestPendingTrustPreservesOwnedResolvedSecretCapabilities(t *testing.T) {
 	m.pendingTrust.ownsPassphraseBlob = false
 	m.clearPendingTrustLocked()
 }
+
+func TestCurlFTPTakesOwnedResolvedPasswordCapability(t *testing.T) {
+	resolved := resolvedConnection{
+		PasswordBlob:     "owned-password-capability",
+		ownsPasswordBlob: true,
+	}
+	session := &CurlFTP{passwordBlob: resolved.PasswordBlob}
+
+	transferResolvedSecretOwnershipToCurl(&resolved, session)
+
+	if resolved.ownsPasswordBlob {
+		t.Fatal("resolved connection retained password ownership after CurlFTP transfer")
+	}
+	if !session.ownsPasswordBlob {
+		t.Fatal("CurlFTP session did not receive owned password capability")
+	}
+
+	// Avoid destroying a synthetic handle in Close.
+	session.ownsPasswordBlob = false
+}
