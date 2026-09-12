@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !darwin
 
 package security
 
@@ -16,8 +16,8 @@ var runtimeValues = struct {
 	values map[string][]byte
 }{values: make(map[string][]byte)}
 
-func ProtectRuntimeString(value string) (string, error) {
-	if value == "" {
+func ProtectRuntimeBytes(value []byte) (string, error) {
+	if len(value) == 0 {
 		return "", nil
 	}
 	buf := make([]byte, 32)
@@ -25,7 +25,7 @@ func ProtectRuntimeString(value string) (string, error) {
 		return "", err
 	}
 	token := hex.EncodeToString(buf)
-	valueBytes := []byte(value)
+	valueBytes := append([]byte(nil), value...)
 	runtimeValues.Lock()
 	defer runtimeValues.Unlock()
 	if _, exists := runtimeValues.values[token]; exists {
@@ -38,6 +38,10 @@ func ProtectRuntimeString(value string) (string, error) {
 	}
 	runtimeValues.values[token] = valueBytes
 	return token, nil
+}
+
+func ProtectRuntimeString(value string) (string, error) {
+	return ProtectRuntimeBytes([]byte(value))
 }
 
 func UnprotectRuntimeBytes(token string) ([]byte, error) {
