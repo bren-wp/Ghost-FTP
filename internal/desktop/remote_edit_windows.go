@@ -60,6 +60,10 @@ func (a *app) beginRemoteEditSession() bool {
 	if _, loaded := remoteEditSessions.LoadOrStore(a, struct{}{}); loaded {
 		return false
 	}
+	// Share the remote mutation exclusion flag for the lifetime of the edit
+	// session so stale/direct rename, delete, chmod, or mkdir commands also
+	// fail closed instead of relying only on disabled controls.
+	a.remoteMutationBusy = true
 	a.updateActionControls()
 	return true
 }
@@ -69,6 +73,7 @@ func (a *app) finishRemoteEditSession() {
 		return
 	}
 	remoteEditSessions.Delete(a)
+	a.remoteMutationBusy = false
 	if !a.closing {
 		a.updateActionControls()
 	}
