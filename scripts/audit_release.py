@@ -209,6 +209,12 @@ def main() -> int:
         "WINDOWS_PUBLIC_EXECUTABLES=2",
     )
     require(
+        "scripts/verify_release.py",
+        'PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"',
+        "public Windows release artifacts must be Authenticode signed",
+        "require_public_release_signatures(ssigned, psigned)",
+    )
+    require(
         "BUILD-WINDOWS-ARCH-STAGE.ps1",
         "function Build-GhostFTPArchitecture",
         "function Sign-WindowsTarget",
@@ -305,7 +311,7 @@ def main() -> int:
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("RELEASE_RETENTION_CHAIN=REQUIRED")
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
-    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=14")

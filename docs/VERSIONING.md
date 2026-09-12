@@ -96,19 +96,19 @@ Android source reads root `VERSION`, but the maintained artifact is an installab
 
 ## Windows signing state
 
-Windows Authenticode is an **optional production hardening layer**. When a trusted production identity is configured through protected Actions secrets, signatures must verify or publication fails.
+Windows Authenticode is a **required public-release trust boundary**. Public Setup and Portable executables must be signed with the protected trusted production identity, and the signatures must verify successfully before publication can continue.
 
-Without a production certificate, publication remains truthful through:
+The canonical public release state is:
 
 ```text
-WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_AUTHENTICODE=signed
 ```
 
-**Absence of a production Authenticode certificate by itself is not a versioning failure.** Ghost FTP never creates a self-signed production certificate and represents it as a trusted publisher.
+**Absence of the production Authenticode identity is a release failure.** Ghost FTP never creates a self-signed production certificate or publishes unsigned Windows binaries as the current public release. Ordinary CI, development and local builds may remain unsigned because they are not public release artifacts.
 
 ## Version source integrity
 
-Release/CI validation rejects malformed semantic versions, `0.0.0`, release-branch/source-version mismatch, non-exact-main release branches, conflicting current tags/releases, incomplete release assets, architecture-specific public Windows leakage, failed configured signatures, source/main drift, incorrect prerelease flags, missing GHCR exact-version bundle, failed release read-back or failed latest-only retention cleanup.
+Release/CI validation rejects malformed semantic versions, `0.0.0`, release-branch/source-version mismatch, non-exact-main release branches, conflicting current tags/releases, incomplete release assets, architecture-specific public Windows leakage, absent or failed public Windows signatures, source/main drift, incorrect prerelease flags, missing GHCR exact-version bundle, failed release read-back or failed latest-only retention cleanup.
 
 Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the 14/17 packaging contract and the current package identity.
 
@@ -134,6 +134,7 @@ The exact candidate must pass:
 - Linux trusted transport/AskPass provenance checks;
 - Android source contract, lifecycle connection ownership, strict FTPS/parser bounds, lint, installable development APK and APK verification;
 - universal Windows Setup and Portable production builds with verified native payloads;
+- trusted Authenticode signing and verification for both public Windows executables;
 - Linux Debian/Ubuntu/Fedora/Portable build, metadata, extraction and binary parity;
 - Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 install/remove/GUI smoke;
 - 24-language localization and authentic Windows/Linux/Android UI evidence;
