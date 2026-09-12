@@ -82,83 +82,106 @@ func GhostFTPProfileCount() C.int {
 //export GhostFTPProfileID
 func GhostFTPProfileID(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.ID)
 }
 
 //export GhostFTPProfileName
 func GhostFTPProfileName(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.Name)
 }
 
 //export GhostFTPProfileProtocol
 func GhostFTPProfileProtocol(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.Protocol)
 }
 
 //export GhostFTPProfileHost
 func GhostFTPProfileHost(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.Host)
 }
 
 //export GhostFTPProfilePort
 func GhostFTPProfilePort(index C.int) C.int {
 	profile, ok := profileAt(index)
-	if !ok { return 0 }
+	if !ok {
+		return 0
+	}
 	return C.int(profile.Port)
 }
 
 //export GhostFTPProfileUsername
 func GhostFTPProfileUsername(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.Username)
 }
 
 //export GhostFTPProfileHasPassword
 func GhostFTPProfileHasPassword(index C.int) C.int {
 	profile, ok := profileAt(index)
-	if ok && profile.HasPassword { return 1 }
+	if ok && profile.HasPassword {
+		return 1
+	}
 	return 0
 }
 
 //export GhostFTPProfilePrivateKeyPath
 func GhostFTPProfilePrivateKeyPath(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.PrivateKeyPath)
 }
 
 //export GhostFTPProfileHasPassphrase
 func GhostFTPProfileHasPassphrase(index C.int) C.int {
 	profile, ok := profileAt(index)
-	if ok && profile.HasPassphrase { return 1 }
+	if ok && profile.HasPassphrase {
+		return 1
+	}
 	return 0
 }
 
 //export GhostFTPProfileRemotePath
 func GhostFTPProfileRemotePath(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.RemotePath)
 }
 
 //export GhostFTPProfileLocalPath
 func GhostFTPProfileLocalPath(index C.int) *C.char {
 	profile, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(profile.LocalPath)
 }
 
 // GhostFTPSaveProfile accepts typed fields only. clearPassword/clearPassphrase
 // explicitly model credential consent; an empty secret with a false clear flag
 // retains an existing saved credential after shared identity checks pass.
+//
 //export GhostFTPSaveProfile
 func GhostFTPSaveProfile(id, name, protocol, host *C.char, port C.int, username, password *C.char, clearPassword C.int, privateKeyPath, passphrase *C.char, clearPassphrase C.int, remotePath, localPath *C.char) C.int {
 	engine, err := profileEngine()
@@ -219,9 +242,13 @@ func GhostFTPRemoveProfile(id *C.char) C.int {
 
 func publicProfileByID(engine *api.Engine, id string) (model.PublicProfile, error) {
 	profiles, err := engine.Profiles()
-	if err != nil { return model.PublicProfile{}, err }
+	if err != nil {
+		return model.PublicProfile{}, err
+	}
 	for _, profile := range profiles {
-		if profile.ID == id { return profile, nil }
+		if profile.ID == id {
+			return profile, nil
+		}
 	}
 	return model.PublicProfile{}, errors.New("saved profile was not found")
 }
@@ -229,6 +256,7 @@ func publicProfileByID(engine *api.Engine, id string) (model.PublicProfile, erro
 // GhostFTPConnectProfile returns the same 0/1/2 state contract as Quick
 // Connect. Saved password/passphrase values are resolved inside Engine.Connect;
 // only PublicProfile metadata crosses this bridge.
+//
 //export GhostFTPConnectProfile
 func GhostFTPConnectProfile(profileID, trustFingerprint *C.char, rememberFingerprint C.int) C.int {
 	engine, err := profileEngine()
@@ -268,7 +296,9 @@ func GhostFTPConnectProfile(profileID, trustFingerprint *C.char, rememberFingerp
 	bridgeState.pendingFingerprint = ""
 	bridgeState.remotePath = ""
 	bridgeState.remoteItems = nil
-	if result.Connected { return 1 }
+	if result.Connected {
+		return 1
+	}
 	setBridgeError(errors.New("connection was not established"), "Connection failed. Please try again.")
 	return 0
 }

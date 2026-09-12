@@ -61,6 +61,9 @@ WINDOWS_PARITY_ACTIONS = (
 IMPLEMENTED_MACOS_ACTIONS = {
     "Connect",
     "Disconnect",
+    "Site Manager",
+    "Save Profile",
+    "Remove Profile",
     "Private Key",
     "Local Refresh",
     "Local Choose Folder",

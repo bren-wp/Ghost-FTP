@@ -2,6 +2,8 @@
 
 The Windows desktop is the canonical visual and behavior reference for the macOS client. macOS may use native AppKit windowing, accessibility, file panels and menu conventions, but capability/state/security parity is mandatory. The Mac frontend must use the same typed `internal/api.Engine`; no decorative or dead controls are allowed.
 
+Saved profiles use a native `Security.framework` Keychain-protected 256-bit wrapping key with `WhenUnlockedThisDeviceOnly`; profile envelopes and stored credentials are authenticated with purpose-separated AES-GCM. Durable profile credentials are converted to short-lived runtime capabilities only inside the shared engine after exact account/private-key binding succeeds. Site Manager exposes `PublicProfile` metadata and `HasPassword` / `HasPassphrase` flags only, requires explicit credential save/retain consent, and never returns saved password or passphrase values to Swift.
+
 ## Appearance and product identity
 
 - Classic Light uses workspace `#EEF1F5`, panel `#F6F8FB`, list `#FAFBFD`.
@@ -19,11 +21,11 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 - [x] Connect
 - [x] Disconnect
-- [ ] Site Manager
+- [x] Site Manager
 - [ ] Bookmarks
 - [x] Private Key
-- [ ] Save Profile
-- [ ] Remove Profile
+- [x] Save Profile
+- [x] Remove Profile
 - [ ] Settings
 - [ ] About
 - [ ] Diagnostics

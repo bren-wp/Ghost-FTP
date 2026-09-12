@@ -128,6 +128,15 @@ func transferResolvedSecretOwnershipToSFTP(resolved *resolvedConnection, s *SFTP
 	}
 }
 
+func transferResolvedSecretOwnershipToCurl(resolved *resolvedConnection, s *CurlFTP) {
+	if resolved == nil || s == nil {
+		return
+	}
+	if resolved.ownsPasswordBlob && resolved.PasswordBlob != "" && s.passwordBlob == resolved.PasswordBlob {
+		resolved.ownsPasswordBlob = false
+	}
+}
+
 // sanitizeProtocolState removes fields that have no meaning outside SFTP.
 // Keeping dead key/trust state on FTP/FTPS connections can otherwise leak into
 // public runtime config and create false connection-identity boundaries.
@@ -200,11 +209,22 @@ func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolved
 		}, in)
 		// Spremljene tajne nikada se ne prenose preko privremeno izmijenjenog
 		// endpointa/računa. Korisnik tada mora izričito upisati vjerodajnicu.
-		if in.Password == "" && profileAccountMatches(p, resolved.Config) {
-			resolved.PasswordBlob = p.PasswordBlob
+		if in.Password == "" && p.PasswordBlob != "" && profileAccountMatches(p, resolved.Config) {
+			runtimeBlob, convertErr := security.PersistentProfileSecretToRuntime(p.PasswordBlob)
+			if convertErr != nil {
+				return resolved, profile, convertErr
+			}
+			resolved.PasswordBlob = runtimeBlob
+			resolved.ownsPasswordBlob = runtime.GOOS == "darwin" && runtimeBlob != ""
 		}
-		if in.Passphrase == "" && profilePrivateKeyMatches(p, resolved.Config) {
-			resolved.PassphraseBlob = p.PassphraseBlob
+		if in.Passphrase == "" && p.PassphraseBlob != "" && profilePrivateKeyMatches(p, resolved.Config) {
+			runtimeBlob, convertErr := security.PersistentProfileSecretToRuntime(p.PassphraseBlob)
+			if convertErr != nil {
+				resolved.forgetOwnedSecrets()
+				return resolved, profile, convertErr
+			}
+			resolved.PassphraseBlob = runtimeBlob
+			resolved.ownsPassphraseBlob = runtime.GOOS == "darwin" && runtimeBlob != ""
 		}
 	}
 	resolved.Config = sanitizeProtocolState(resolved.Config)
@@ -254,11 +274,23 @@ func (m *Manager) CancelPendingTrust() {
 }
 
 func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolvedConnection, fingerprint string) error {
+	return m.stashPendingTrustResolved(cfg, &resolved, fingerprint)
+}
+
+func (m *Manager) stashPendingTrustResolved(cfg model.ConnectionConfig, resolved *resolvedConnection, fingerprint string) error {
 	m.clearPendingTrustLocked()
-	passwordBlob := resolved.PasswordBlob
-	passphraseBlob := resolved.PassphraseBlob
-	ownsPasswordBlob := false
-	ownsPassphraseBlob := false
+	passwordBlob := ""
+	passphraseBlob := ""
+	adoptPasswordBlob := false
+	adoptPassphraseBlob := false
+	if resolved != nil {
+		passwordBlob = resolved.PasswordBlob
+		passphraseBlob = resolved.PassphraseBlob
+		adoptPasswordBlob = cfg.Password == "" && resolved.ownsPasswordBlob && passwordBlob != ""
+		adoptPassphraseBlob = cfg.Passphrase == "" && resolved.ownsPassphraseBlob && passphraseBlob != ""
+	}
+	ownsPasswordBlob := adoptPasswordBlob
+	ownsPassphraseBlob := adoptPassphraseBlob
 	var err error
 	if cfg.Password != "" {
 		passwordBlob, err = security.ProtectString(cfg.Password)
@@ -287,6 +319,14 @@ func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolve
 		ownsPasswordBlob:   ownsPasswordBlob,
 		ownsPassphraseBlob: ownsPassphraseBlob,
 		expires:            time.Now().Add(2 * time.Minute),
+	}
+	if resolved != nil {
+		if adoptPasswordBlob {
+			resolved.ownsPasswordBlob = false
+		}
+		if adoptPassphraseBlob {
+			resolved.ownsPassphraseBlob = false
+		}
 	}
 	return nil
 }
@@ -385,7 +425,7 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 			return ConnectResult{}, errors.New("otisak SFTP host ključa se promijenio; veza je blokirana")
 		}
 		if expected == "" && trust == "" {
-			if err := m.stashPendingTrust(cfg, resolved, fp); err != nil {
+			if err := m.stashPendingTrustResolved(cfg, &resolved, fp); err != nil {
 				return ConnectResult{}, err
 			}
 			preservePendingTrust = true
@@ -420,10 +460,12 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		s = sftpSession
 		cfg.Fingerprint = fp
 	} else {
-		s, err = newCurlFTPWithProtectedSecret(cfg.Protocol, cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, connectTimeout)
-		if err != nil {
-			return ConnectResult{}, err
+		curlSession, curlErr := newCurlFTPWithProtectedSecret(cfg.Protocol, cfg.Host, cfg.Port, cfg.Username, cfg.Password, resolved.PasswordBlob, connectTimeout)
+		if curlErr != nil {
+			return ConnectResult{}, curlErr
 		}
+		transferResolvedSecretOwnershipToCurl(&resolved, curlSession)
+		s = curlSession
 	}
 
 	cctx, cancel := context.WithTimeout(ctx, time.Duration(connectTimeout+5)*time.Second)
