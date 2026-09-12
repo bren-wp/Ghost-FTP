@@ -33,9 +33,9 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 - [x] Local Refresh
 - [x] Local Choose Folder
 - [x] Local Up
-- [ ] Local New Folder
-- [ ] Local Rename
-- [ ] Local Delete
+- [x] Local New Folder
+- [x] Local Rename
+- [x] Local Delete
 - [ ] Local Filter
 - [ ] Local Recursive Search
 
@@ -43,9 +43,9 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 - [x] Remote Refresh
 - [x] Remote Up
-- [ ] Remote New Folder
-- [ ] Remote Rename
-- [ ] Remote Delete
+- [x] Remote New Folder
+- [x] Remote Rename
+- [x] Remote Delete
 - [ ] Remote Permissions
 - [ ] Remote Edit
 - [ ] Remote Filter
@@ -68,7 +68,11 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 ## Implemented file-workspace boundary
 
-The native AppKit workspace now exposes real Local and Remote file tables backed by `internal/api.Engine.LocalList` and `internal/api.Engine.RemoteList`. Local folder selection uses the native macOS folder panel. Local/remote Up and Refresh actions operate on the active engine paths, and directory double-click navigation follows the same intent as Windows. Upload and Download queue real shared-engine transfers; regular files use `AddTransfer`, directories use bounded `AddTreeTransfer`, and symbolic links are rejected rather than silently followed.
+The native AppKit workspace exposes real Local and Remote file tables backed by `internal/api.Engine.LocalList` and `internal/api.Engine.RemoteList`. Local folder selection uses the native macOS folder panel. Local/remote Up and Refresh actions operate on the active engine paths, and directory double-click navigation follows the same intent as Windows. Upload and Download queue real shared-engine transfers; regular files use `AddTransfer`, directories use bounded `AddTreeTransfer`, and symbolic links are rejected rather than silently followed.
+
+Local and Remote New Folder, Rename and Delete are now wired to the same `Engine.LocalMkdir` / `LocalRename` / `LocalDelete` and `Engine.RemoteMkdir` / `RemoteRename` / `RemoteDelete` APIs used by the desktop model. Mutation bridge calls require the directory shown in AppKit to match the engine snapshot, and rename/delete require the selected name to still exist in that snapshot. A stale folder or stale selection therefore fails closed rather than mutating an unseen target. Destructive delete always requires an explicit native confirmation in the current Mac development surface.
+
+Mutation completion is generation-bound: if the user navigates away while an operation is queued or running, the old operation cannot refresh the newly selected directory. Remote mutations also require the active connection and use bounded engine contexts. Permissions/chmod remains a separate unfinished parity item rather than being represented by a dead control.
 
 The macOS bridge keeps each transfer action bound to the currently visible engine snapshot so stale UI names cannot be used after navigation. Download targets are derived with the shared safe-local-child validation and remote names are validated before transfer. The bridge remains typed C ABI only: no JSON dispatcher, localhost server, browser IPC or credential-bearing generic payload was added.
 
