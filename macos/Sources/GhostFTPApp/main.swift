@@ -78,6 +78,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private var remoteMutationGeneration = 0
     private var localMutationBusy = false
     private var remoteMutationBusy = false
+    private var localFilterBusy = false
+    private var remoteFilterBusy = false
 
     private let protocolPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let hostField = NSTextField(string: "")
@@ -104,6 +106,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private let localNewFolderButton = NSButton(title: "New Folder", target: nil, action: nil)
     private let localRenameButton = NSButton(title: "Rename", target: nil, action: nil)
     private let localDeleteButton = NSButton(title: "Delete", target: nil, action: nil)
+    private let localFilterButton = NSButton(title: "Filter", target: nil, action: nil)
     private let uploadButton = NSButton(title: "Upload", target: nil, action: nil)
     private let remoteUpButton = NSButton(title: "Up", target: nil, action: nil)
     private let remoteRefreshButton = NSButton(title: "Refresh", target: nil, action: nil)
@@ -111,12 +114,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private let remoteRenameButton = NSButton(title: "Rename", target: nil, action: nil)
     private let remoteDeleteButton = NSButton(title: "Delete", target: nil, action: nil)
     private let remotePermissionsButton = NSButton(title: "Permissions", target: nil, action: nil)
+    private let remoteFilterButton = NSButton(title: "Filter", target: nil, action: nil)
     private let downloadButton = NSButton(title: "Download", target: nil, action: nil)
 
     private var localCurrent = NSHomeDirectory()
     private var remoteCurrent = "/"
     private var localItems: [FileItem] = []
     private var remoteItems: [FileItem] = []
+    private var localFilterQuery = ""
+    private var remoteFilterQuery = ""
+    private var localSourceCount = 0
+    private var remoteSourceCount = 0
 
     private lazy var byteFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
@@ -265,13 +273,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             title: "Local",
             table: localTable,
             pathLabel: localPathLabel,
-            buttons: [localChooseButton, localUpButton, localRefreshButton, localNewFolderButton, localRenameButton, localDeleteButton, uploadButton]
+            buttons: [localChooseButton, localUpButton, localRefreshButton, localNewFolderButton, localRenameButton, localDeleteButton, localFilterButton, uploadButton]
         ))
         split.addArrangedSubview(makeFilePane(
             title: "Remote",
             table: remoteTable,
             pathLabel: remotePathLabel,
-            buttons: [remoteUpButton, remoteRefreshButton, remoteNewFolderButton, remoteRenameButton, remoteDeleteButton, remotePermissionsButton, downloadButton]
+            buttons: [remoteUpButton, remoteRefreshButton, remoteNewFolderButton, remoteRenameButton, remoteDeleteButton, remotePermissionsButton, remoteFilterButton, downloadButton]
         ))
 
         let container = NSView()
@@ -356,6 +364,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         localRenameButton.action = #selector(localRenameTapped)
         localDeleteButton.target = self
         localDeleteButton.action = #selector(localDeleteTapped)
+        localFilterButton.target = self
+        localFilterButton.action = #selector(localFilterTapped)
         uploadButton.target = self
         uploadButton.action = #selector(uploadTapped)
 
@@ -371,6 +381,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         remoteDeleteButton.action = #selector(remoteDeleteTapped)
         remotePermissionsButton.target = self
         remotePermissionsButton.action = #selector(remotePermissionsTapped)
+        remoteFilterButton.target = self
+        remoteFilterButton.action = #selector(remoteFilterTapped)
         downloadButton.target = self
         downloadButton.action = #selector(downloadTapped)
     }
@@ -541,6 +553,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             let message = ok ? "" : bridgeString(GhostFTPLastError())
             DispatchQueue.main.async {
                 self?.remoteMutationBusy = false
+                self?.remoteFilterBusy = false
+                self?.remoteSourceCount = 0
                 self?.setBusy(false, status: ok ? "Not connected" : "Disconnect failed")
                 if !ok { self?.showError(message) }
                 self?.remoteItems.removeAll(keepingCapacity: true)
@@ -582,7 +596,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func localNewFolderTapped() {
-        guard !localMutationBusy, let name = promptName(title: "New local folder", initial: "New Folder") else { return }
+        guard !localMutationBusy, !localFilterBusy, let name = promptName(title: "New local folder", initial: "New Folder") else { return }
         let base = localCurrent
         runLocalMutation(status: "Creating local folder…") {
             let baseValue = CStringBox(base)
@@ -594,7 +608,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func localRenameTapped() {
         let rows = localTable.selectedRowIndexes
-        guard !localMutationBusy, rows.count == 1, let row = rows.first, row < localItems.count else { return }
+        guard !localMutationBusy, !localFilterBusy, rows.count == 1, let row = rows.first, row < localItems.count else { return }
         let item = localItems[row]
         guard let newName = promptName(title: "Rename local item", initial: item.name), newName != item.name else { return }
         let base = localCurrent
@@ -609,7 +623,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func localDeleteTapped() {
         let selected = selectedItems(table: localTable, items: localItems)
-        guard !localMutationBusy, !selected.isEmpty, confirmDelete(selected) else { return }
+        guard !localMutationBusy, !localFilterBusy, !selected.isEmpty, confirmDelete(selected) else { return }
         let base = localCurrent
         runLocalMutation(status: "Deleting local items…") {
             var deleted = 0
@@ -631,7 +645,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func remoteNewFolderTapped() {
-        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, let name = promptName(title: "New remote folder", initial: "New Folder") else { return }
+        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, let name = promptName(title: "New remote folder", initial: "New Folder") else { return }
         let base = remoteCurrent
         runRemoteMutation(status: "Creating remote folder…") {
             let baseValue = CStringBox(base)
@@ -643,7 +657,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remoteRenameTapped() {
         let rows = remoteTable.selectedRowIndexes
-        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, rows.count == 1, let row = rows.first, row < remoteItems.count else { return }
+        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, rows.count == 1, let row = rows.first, row < remoteItems.count else { return }
         let item = remoteItems[row]
         guard let newName = promptName(title: "Rename remote item", initial: item.name), newName != item.name else { return }
         let base = remoteCurrent
@@ -658,7 +672,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remoteDeleteTapped() {
         let selected = selectedItems(table: remoteTable, items: remoteItems)
-        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, !selected.isEmpty, confirmDelete(selected) else { return }
+        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, !selected.isEmpty, confirmDelete(selected) else { return }
         let base = remoteCurrent
         runRemoteMutation(status: "Deleting remote items…") {
             var deleted = 0
@@ -681,7 +695,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remotePermissionsTapped() {
         let selected = selectedItems(table: remoteTable, items: remoteItems)
-        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, !selected.isEmpty else { return }
+        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, !selected.isEmpty else { return }
         if selected.count > 1000 {
             statusLabel.stringValue = "Permissions: too many selected items."
             return
@@ -718,6 +732,98 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             if failed > 0 { status += " • Failed: \(failed)" }
             if skipped > 0 { status += " • Skipped links: \(skipped)" }
             return MutationResult(changed: changed > 0, status: status, error: firstError)
+        }
+    }
+
+    @objc private func localFilterTapped() {
+        guard engineReady, !localMutationBusy, !localFilterBusy else { return }
+        guard let query = promptCurrentFolderFilter(title: "Ghost FTP — Local", current: localFilterQuery) else { return }
+        applyCurrentFolderFilter(remote: false, query: query)
+    }
+
+    @objc private func remoteFilterTapped() {
+        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy, !remoteFilterBusy else { return }
+        guard let query = promptCurrentFolderFilter(title: "Ghost FTP — Remote", current: remoteFilterQuery) else { return }
+        applyCurrentFolderFilter(remote: true, query: query)
+    }
+
+    private func promptCurrentFolderFilter(title: String, current: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = "Filter names in the current folder. Multiple terms must all match."
+        alert.addButton(withTitle: "Apply")
+        alert.addButton(withTitle: "Cancel")
+        let input = NSTextField(string: current)
+        input.frame = NSRect(x: 0, y: 0, width: 340, height: 24)
+        alert.accessoryView = input
+        window.makeFirstResponder(input)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func applyCurrentFolderFilter(remote: Bool, query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let table = remote ? remoteTable : localTable
+        let items = remote ? remoteItems : localItems
+        let selectedItemNames = Set(selectedItems(table: table, items: items).map(\.name))
+        let generation = remote ? remoteNavigationGeneration : localNavigationGeneration
+        if remote {
+            remoteFilterQuery = trimmed
+            remoteFilterBusy = true
+        } else {
+            localFilterQuery = trimmed
+            localFilterBusy = true
+        }
+        updateWorkspaceControls()
+
+        engineQueue.async { [weak self] in
+            let value = CStringBox(trimmed)
+            let ok: Bool
+            let visible: [FileItem]
+            let sourceCount: Int
+            if remote {
+                ok = GhostFTPRemoteFilter(value.pointer) == 1
+                visible = ok ? self?.readRemoteFilteredSnapshot() ?? [] : []
+                sourceCount = ok ? max(0, Int(GhostFTPRemoteItemCount())) : 0
+            } else {
+                ok = GhostFTPLocalFilter(value.pointer) == 1
+                visible = ok ? self?.readLocalFilteredSnapshot() ?? [] : []
+                sourceCount = ok ? max(0, Int(GhostFTPLocalItemCount())) : 0
+            }
+            let message = ok ? "" : bridgeString(GhostFTPLastError())
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if remote {
+                    self.remoteFilterBusy = false
+                    guard generation == self.remoteNavigationGeneration,
+                          trimmed == self.remoteFilterQuery,
+                          GhostFTPIsConnected() == 1 else {
+                        self.updateWorkspaceControls()
+                        return
+                    }
+                    if ok {
+                        self.remoteSourceCount = sourceCount
+                        self.remoteItems = visible
+                        self.remoteTable.reloadData()
+                        self.restoreSelection(table: self.remoteTable, items: visible, names: selectedItemNames)
+                    }
+                } else {
+                    self.localFilterBusy = false
+                    guard generation == self.localNavigationGeneration,
+                          trimmed == self.localFilterQuery else {
+                        self.updateWorkspaceControls()
+                        return
+                    }
+                    if ok {
+                        self.localSourceCount = sourceCount
+                        self.localItems = visible
+                        self.localTable.reloadData()
+                        self.restoreSelection(table: self.localTable, items: visible, names: selectedItemNames)
+                    }
+                }
+                if !ok { self.showError(message) }
+                self.updateWorkspaceControls()
+            }
         }
     }
 
@@ -780,8 +886,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         }
     }
 
+    private func restoreSelection(table: NSTableView, items: [FileItem], names: Set<String>) {
+        var indexes = IndexSet()
+        for (index, item) in items.enumerated() where names.contains(item.name) {
+            indexes.insert(index)
+        }
+        table.selectRowIndexes(indexes, byExtendingSelection: false)
+    }
+
     private func runLocalMutation(status: String, operation: @escaping () -> MutationResult) {
-        guard engineReady, !localMutationBusy else { return }
+        guard engineReady, !localMutationBusy, !localFilterBusy else { return }
         localMutationBusy = true
         localMutationGeneration += 1
         let mutation = localMutationGeneration
@@ -806,7 +920,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     private func runRemoteMutation(status: String, operation: @escaping () -> MutationResult) {
-        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy else { return }
+        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy, !remoteFilterBusy else { return }
         remoteMutationBusy = true
         remoteMutationGeneration += 1
         let mutation = remoteMutationGeneration
@@ -832,7 +946,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func localDoubleClicked() {
         let row = localTable.clickedRow
-        guard row >= 0, row < localItems.count else { return }
+        guard !localFilterBusy, row >= 0, row < localItems.count else { return }
         let item = localItems[row]
         if item.isDirectory && !item.isSymlink {
             refreshLocal(URL(fileURLWithPath: localCurrent, isDirectory: true).appendingPathComponent(item.name, isDirectory: true).path)
@@ -843,7 +957,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remoteDoubleClicked() {
         let row = remoteTable.clickedRow
-        guard row >= 0, row < remoteItems.count else { return }
+        guard !remoteFilterBusy, row >= 0, row < remoteItems.count else { return }
         let item = remoteItems[row]
         if item.isDirectory && !item.isSymlink {
             refreshRemote(remoteChild(remoteCurrent, item.name))
@@ -853,10 +967,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func uploadTapped() {
+        guard !localFilterBusy else { return }
         queueTransfer(direction: "upload", rows: localTable.selectedRowIndexes)
     }
 
     @objc private func downloadTapped() {
+        guard !remoteFilterBusy else { return }
         queueTransfer(direction: "download", rows: remoteTable.selectedRowIndexes)
     }
 
@@ -865,13 +981,24 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         localNavigationGeneration += 1
         let generation = localNavigationGeneration
         let target = requestedPath
+        let filterQuery = localFilterQuery
         localRefreshButton.isEnabled = false
         engineQueue.async { [weak self] in
             let path = CStringBox(target)
-            let ok = GhostFTPLocalList(path.pointer) == 1
-            let message = ok ? "" : bridgeString(GhostFTPLastError())
+            var ok = GhostFTPLocalList(path.pointer) == 1
+            var message = ok ? "" : bridgeString(GhostFTPLastError())
             let resolved = ok ? bridgeString(GhostFTPLocalPath()) : ""
-            let items = ok ? self?.readLocalSnapshot() ?? [] : []
+            let sourceCount = ok ? max(0, Int(GhostFTPLocalItemCount())) : 0
+            var items: [FileItem] = []
+            if ok {
+                let query = CStringBox(filterQuery)
+                ok = GhostFTPLocalFilter(query.pointer) == 1
+                if ok {
+                    items = self?.readLocalFilteredSnapshot() ?? []
+                } else {
+                    message = bridgeString(GhostFTPLastError())
+                }
+            }
             DispatchQueue.main.async {
                 guard let self, generation == self.localNavigationGeneration else { return }
                 self.localRefreshButton.isEnabled = true
@@ -882,9 +1009,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
                     return
                 }
                 self.localCurrent = resolved
-                self.localItems = items
+                self.localSourceCount = sourceCount
+                if filterQuery == self.localFilterQuery {
+                    self.localItems = items
+                    self.localTable.reloadData()
+                }
                 self.localPathLabel.stringValue = resolved
-                self.localTable.reloadData()
                 self.statusLabel.stringValue = GhostFTPIsConnected() == 1 ? "Connected" : "Not connected"
                 self.updateWorkspaceControls()
             }
@@ -896,13 +1026,24 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         remoteNavigationGeneration += 1
         let generation = remoteNavigationGeneration
         let target = requestedPath
+        let filterQuery = remoteFilterQuery
         remoteRefreshButton.isEnabled = false
         engineQueue.async { [weak self] in
             let path = CStringBox(target)
-            let ok = GhostFTPRemoteList(path.pointer) == 1
-            let message = ok ? "" : bridgeString(GhostFTPLastError())
+            var ok = GhostFTPRemoteList(path.pointer) == 1
+            var message = ok ? "" : bridgeString(GhostFTPLastError())
             let resolved = ok ? bridgeString(GhostFTPRemotePath()) : ""
-            let items = ok ? self?.readRemoteSnapshot() ?? [] : []
+            let sourceCount = ok ? max(0, Int(GhostFTPRemoteItemCount())) : 0
+            var items: [FileItem] = []
+            if ok {
+                let query = CStringBox(filterQuery)
+                ok = GhostFTPRemoteFilter(query.pointer) == 1
+                if ok {
+                    items = self?.readRemoteFilteredSnapshot() ?? []
+                } else {
+                    message = bridgeString(GhostFTPLastError())
+                }
+            }
             DispatchQueue.main.async {
                 guard let self, generation == self.remoteNavigationGeneration else { return }
                 self.remoteRefreshButton.isEnabled = true
@@ -913,41 +1054,44 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
                     return
                 }
                 self.remoteCurrent = resolved
-                self.remoteItems = items
+                self.remoteSourceCount = sourceCount
+                if filterQuery == self.remoteFilterQuery {
+                    self.remoteItems = items
+                    self.remoteTable.reloadData()
+                }
                 self.remotePathLabel.stringValue = resolved
-                self.remoteTable.reloadData()
                 self.statusLabel.stringValue = "Connected"
                 self.updateWorkspaceControls()
             }
         }
     }
 
-    private func readLocalSnapshot() -> [FileItem] {
-        let count = max(0, Int(GhostFTPLocalItemCount()))
+    private func readLocalFilteredSnapshot() -> [FileItem] {
+        let count = max(0, Int(GhostFTPLocalFilteredItemCount()))
         return (0..<count).map { index in
             let cIndex = CInt(index)
             return FileItem(
-                name: bridgeString(GhostFTPLocalItemName(cIndex)),
-                size: Int64(GhostFTPLocalItemSize(cIndex)),
-                isDirectory: GhostFTPLocalItemIsDirectory(cIndex) == 1,
-                isSymlink: GhostFTPLocalItemIsSymlink(cIndex) == 1,
-                modifiedUnix: Int64(GhostFTPLocalItemModifiedUnix(cIndex)),
+                name: bridgeString(GhostFTPLocalFilteredItemName(cIndex)),
+                size: Int64(GhostFTPLocalFilteredItemSize(cIndex)),
+                isDirectory: GhostFTPLocalFilteredItemIsDirectory(cIndex) == 1,
+                isSymlink: GhostFTPLocalFilteredItemIsSymlink(cIndex) == 1,
+                modifiedUnix: Int64(GhostFTPLocalFilteredItemModifiedUnix(cIndex)),
                 permissions: ""
             )
         }
     }
 
-    private func readRemoteSnapshot() -> [FileItem] {
-        let count = max(0, Int(GhostFTPRemoteItemCount()))
+    private func readRemoteFilteredSnapshot() -> [FileItem] {
+        let count = max(0, Int(GhostFTPRemoteFilteredItemCount()))
         return (0..<count).map { index in
             let cIndex = CInt(index)
             return FileItem(
-                name: bridgeString(GhostFTPRemoteItemName(cIndex)),
-                size: Int64(GhostFTPRemoteItemSize(cIndex)),
-                isDirectory: GhostFTPRemoteItemIsDirectory(cIndex) == 1,
-                isSymlink: GhostFTPRemoteItemIsSymlink(cIndex) == 1,
-                modifiedUnix: Int64(GhostFTPRemoteItemModifiedUnix(cIndex)),
-                permissions: bridgeString(GhostFTPRemoteItemPermissions(cIndex))
+                name: bridgeString(GhostFTPRemoteFilteredItemName(cIndex)),
+                size: Int64(GhostFTPRemoteFilteredItemSize(cIndex)),
+                isDirectory: GhostFTPRemoteFilteredItemIsDirectory(cIndex) == 1,
+                isSymlink: GhostFTPRemoteFilteredItemIsSymlink(cIndex) == 1,
+                modifiedUnix: Int64(GhostFTPRemoteFilteredItemModifiedUnix(cIndex)),
+                permissions: bridgeString(GhostFTPRemoteFilteredItemPermissions(cIndex))
             )
         }
     }
@@ -955,6 +1099,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private func queueTransfer(direction: String, rows: IndexSet) {
         guard GhostFTPIsConnected() == 1 else {
             showError("Connect to a server before transferring files.")
+            return
+        }
+        if (direction == "upload" && localFilterBusy) || (direction == "download" && remoteFilterBusy) {
             return
         }
         let items = direction == "upload" ? localItems : remoteItems
@@ -1047,27 +1194,40 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         updateWorkspaceControls()
     }
 
+    private func updateFilterButtonLabels() {
+        let localQuery = localFilterQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let remoteQuery = remoteFilterQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        localFilterButton.title = localQuery.isEmpty ? "Filter" : "Filter · \(localItems.count)/\(localSourceCount)"
+        remoteFilterButton.title = remoteQuery.isEmpty ? "Filter" : "Filter · \(remoteItems.count)/\(remoteSourceCount)"
+    }
+
     private func updateWorkspaceControls() {
         let connected = engineReady && GhostFTPIsConnected() == 1 && !connectionBusy
         let localSelectionCount = localTable.selectedRowIndexes.count
         let remoteSelectionCount = remoteTable.selectedRowIndexes.count
+        let localReady = engineReady && !localMutationBusy && !localFilterBusy
+        let remoteReady = connected && !remoteMutationBusy && !remoteFilterBusy
 
-        localChooseButton.isEnabled = engineReady && !localMutationBusy
-        localUpButton.isEnabled = engineReady && !localMutationBusy && localCurrent != "/"
-        localRefreshButton.isEnabled = engineReady && !localMutationBusy
-        localNewFolderButton.isEnabled = engineReady && !localMutationBusy
-        localRenameButton.isEnabled = engineReady && !localMutationBusy && localSelectionCount == 1
-        localDeleteButton.isEnabled = engineReady && !localMutationBusy && localSelectionCount > 0
-        uploadButton.isEnabled = connected && !localMutationBusy && localSelectionCount > 0
+        updateFilterButtonLabels()
+        localChooseButton.isEnabled = localReady
+        localUpButton.isEnabled = localReady && localCurrent != "/"
+        localRefreshButton.isEnabled = localReady
+        localNewFolderButton.isEnabled = localReady
+        localRenameButton.isEnabled = localReady && localSelectionCount == 1
+        localDeleteButton.isEnabled = localReady && localSelectionCount > 0
+        localFilterButton.isEnabled = localReady
+        uploadButton.isEnabled = connected && localReady && localSelectionCount > 0
+        localTable.isEnabled = localReady
 
-        remoteUpButton.isEnabled = connected && !remoteMutationBusy && remoteCurrent != "/" && remoteCurrent != "."
-        remoteRefreshButton.isEnabled = connected && !remoteMutationBusy
-        remoteNewFolderButton.isEnabled = connected && !remoteMutationBusy
-        remoteRenameButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount == 1
-        remoteDeleteButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
-        remotePermissionsButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
-        downloadButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
-        remoteTable.isEnabled = connected
+        remoteUpButton.isEnabled = remoteReady && remoteCurrent != "/" && remoteCurrent != "."
+        remoteRefreshButton.isEnabled = remoteReady
+        remoteNewFolderButton.isEnabled = remoteReady
+        remoteRenameButton.isEnabled = remoteReady && remoteSelectionCount == 1
+        remoteDeleteButton.isEnabled = remoteReady && remoteSelectionCount > 0
+        remotePermissionsButton.isEnabled = remoteReady && remoteSelectionCount > 0
+        remoteFilterButton.isEnabled = remoteReady
+        downloadButton.isEnabled = remoteReady && remoteSelectionCount > 0
+        remoteTable.isEnabled = remoteReady
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
