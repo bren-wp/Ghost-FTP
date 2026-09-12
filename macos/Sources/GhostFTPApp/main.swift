@@ -48,7 +48,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             backing: .buffered,
             defer: false
         )
-        window.title = "Ghost FTP \(productVersion()) — Brendigo"
+        window.title = "Ghost FTP \(productVersion())"
         window.minSize = NSSize(width: 1100, height: 720)
         window.isReleasedWhenClosed = false
         window.delegate = self
