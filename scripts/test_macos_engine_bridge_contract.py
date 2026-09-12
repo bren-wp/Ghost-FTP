@@ -69,15 +69,16 @@ class MacOSEngineBridgeContractTests(unittest.TestCase):
             "./macos/Bridge",
             "-buildmode=c-shared",
             "GOOS=darwin",
-            "GOARCH=arm64",
-            "GOARCH=amd64",
+            'GOARCH="$arch"',
+            "build_go_arch arm64 arm64",
+            "build_go_arch amd64 x86_64",
             "libGhostFTPEngine.dylib",
             "GhostFTPEngine.h",
             "module.modulemap",
             "lipo -create",
             "@rpath/libGhostFTPEngine.dylib",
             "@executable_path/../Frameworks",
-            "Contents/Frameworks",
+            'FRAMEWORKS="$CONTENTS/Frameworks"',
         ):
             self.assertIn(marker, build)
 
