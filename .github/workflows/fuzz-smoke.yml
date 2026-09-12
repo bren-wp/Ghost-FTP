@@ -58,6 +58,16 @@ jobs:
         run: |
           set -euo pipefail
           go test ./internal/remote -run='^$' -fuzz='^FuzzCurlConfigQuoting$' -fuzztime=15s
+      - name: Fuzz SFTP command serialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./internal/remote -run='^$' -fuzz='^FuzzSFTPCommandSerialization$' -fuzztime=15s
+      - name: Fuzz SFTP fingerprint parsing
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./internal/remote -run='^$' -fuzz='^FuzzSFTPFingerprintParser$' -fuzztime=15s
       - name: Fuzz security validators
         shell: bash
         run: |
