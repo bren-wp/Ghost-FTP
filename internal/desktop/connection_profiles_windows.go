@@ -61,6 +61,28 @@ func (a *app) setProtocolValue(protocol string) {
 	a.updateProtocolControls()
 }
 
+func (a *app) setProfileMutationBusy(busy bool) {
+	if a == nil {
+		return
+	}
+	a.profileMutationBusy = busy
+	if a.closing {
+		return
+	}
+
+	editable := !busy && !a.connected && !a.connectionBusy
+	for _, h := range []uintptr{
+		a.connect, a.profilesCombo, a.protocol, a.host, a.port, a.user, a.pass,
+		a.keyPath, a.chooseKey, a.passphrase,
+	} {
+		setControlEnabled(h, editable)
+	}
+	if editable {
+		a.updateProtocolControls()
+	}
+	a.updateActionControls()
+}
+
 func (a *app) setConnectionBusy(busy bool) {
 	a.connectionBusy = busy
 	if !busy {
@@ -105,7 +127,7 @@ func (a *app) setConnectionUI(connected bool) {
 }
 
 func (a *app) connectNow() {
-	if a.connectionBusy || a.connected {
+	if a.connectionBusy || a.connected || a.profileMutationBusy {
 		return
 	}
 	host := getText(a.host)
@@ -303,6 +325,9 @@ func (a *app) disconnectNow() {
 }
 
 func (a *app) choosePrivateKey() {
+	if a.profileMutationBusy {
+		return
+	}
 	p, err := a.engine.ChoosePrivateKey()
 	if err != nil {
 		platform.ErrorDialog("Ghost FTP", a.tr("key.choose_failed"), a.userMessage(err, "key.choose_failed_body"))
@@ -387,7 +412,7 @@ func (a *app) currentProfile() (model.PublicProfile, bool) {
 }
 
 func (a *app) selectProfile() {
-	if a.connectionBusy || a.connected {
+	if a.connectionBusy || a.connected || a.profileMutationBusy {
 		return
 	}
 	idx, _, _ := sendMessageW.Call(a.profilesCombo, cbGetCurSel, 0, 0)
@@ -421,6 +446,9 @@ func (a *app) selectProfile() {
 func (a *app) saveCurrentProfile() {
 	language := a.languageCode()
 	profileTitle := "Ghost FTP — " + a.tr("profile.save")
+	if a.profileMutationBusy {
+		return
+	}
 	if a.connected || a.connectionBusy {
 		platform.InfoDialog("Ghost FTP", profileBusyHeading(language), profileBusyBody(language))
 		return
@@ -517,6 +545,9 @@ func (a *app) saveCurrentProfile() {
 		}
 	}
 
+	if a.profileMutationBusy || a.connected || a.connectionBusy {
+		return
+	}
 	payload := model.ProfileInput{
 		ID:              a.selectedProfileID,
 		Name:            name,
@@ -536,12 +567,14 @@ func (a *app) saveCurrentProfile() {
 	setText(a.passphrase, "")
 	password = ""
 	passphrase = ""
+	a.setProfileMutationBusy(true)
 	a.goSafe(func() {
 		saved, err := a.engine.SaveProfile(payload)
 		payload.Password = ""
 		payload.Passphrase = ""
 		a.dispatch(func() {
 			if err != nil {
+				a.setProfileMutationBusy(false)
 				platform.ErrorDialog(profileTitle, a.tr("settings.save_failed"), a.userMessage(err, "settings.save_failed_body"))
 				return
 			}
@@ -549,6 +582,7 @@ func (a *app) saveCurrentProfile() {
 			setText(a.pass, "")
 			setText(a.passphrase, "")
 			a.setProfileCredentialCues(saved)
+			a.setProfileMutationBusy(false)
 			a.setStatus(a.tr("profile.save") + ": " + saved.Name)
 			a.loadProfiles()
 		})
@@ -556,7 +590,7 @@ func (a *app) saveCurrentProfile() {
 }
 
 func (a *app) removeCurrentProfile() {
-	if a.connectionBusy {
+	if a.profileMutationBusy || a.connectionBusy {
 		return
 	}
 	p, ok := a.currentProfile()
@@ -571,16 +605,22 @@ func (a *app) removeCurrentProfile() {
 	if !platform.ConfirmDialog("Ghost FTP — "+a.tr("profile.delete"), a.tr("profile.delete"), p.Name) {
 		return
 	}
+	if a.profileMutationBusy || a.connected || a.connectionBusy {
+		return
+	}
 	id := p.ID
+	a.setProfileMutationBusy(true)
 	a.goSafe(func() {
 		err := a.engine.RemoveProfile(id)
 		a.dispatch(func() {
 			if err != nil {
+				a.setProfileMutationBusy(false)
 				platform.ErrorDialog("Ghost FTP — "+a.tr("profile.delete"), a.tr("profile.delete"), a.userMessage(err, "error.generic"))
 				return
 			}
 			a.selectedProfileID = ""
 			a.resetProfileCredentialCues()
+			a.setProfileMutationBusy(false)
 			a.loadProfiles()
 			a.setStatus(a.tr("profile.delete"))
 			a.updateActionControls()
