@@ -156,6 +156,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        GhostFTPCancelRemoteChmodBatch()
         GhostFTPCancelPendingTrust()
         GhostFTPShutdown()
     }
@@ -545,6 +546,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func disconnectTapped() {
+        GhostFTPCancelRemoteChmodBatch()
         setBusy(true, status: "Disconnecting…")
         remoteNavigationGeneration += 1
         remoteMutationGeneration += 1
@@ -700,6 +702,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             statusLabel.stringValue = "Permissions: too many selected items."
             return
         }
+        let actionable = selected.filter { !$0.isSymlink }
+        let initiallySkipped = selected.count - actionable.count
+        guard !actionable.isEmpty else {
+            statusLabel.stringValue = "Skipped links: \(initiallySkipped)"
+            return
+        }
         guard let mode = promptPermissionMode() else { return }
         guard isValidPermissionMode(mode) else {
             showError("Permissions must contain exactly 3 or 4 octal digits (0–7).")
@@ -707,19 +715,24 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         }
         let base = remoteCurrent
         runRemoteMutation(status: "Changing remote permissions…") {
+            let baseValue = CStringBox(base)
+            let modeValue = CStringBox(mode)
+            guard GhostFTPBeginRemoteChmodBatch(baseValue.pointer, modeValue.pointer, CInt(actionable.count)) == 1 else {
+                return MutationResult(changed: false, status: "Remote permissions change failed", error: bridgeString(GhostFTPLastError()))
+            }
+            defer { GhostFTPEndRemoteChmodBatch() }
+
             var changed = 0
             var failed = 0
-            var skipped = 0
+            var skipped = initiallySkipped
             var firstError = ""
-            for item in selected {
+            for item in actionable {
                 if item.isSymlink {
                     skipped += 1
                     continue
                 }
-                let baseValue = CStringBox(base)
                 let nameValue = CStringBox(item.name)
-                let modeValue = CStringBox(mode)
-                if GhostFTPRemoteChmod(baseValue.pointer, nameValue.pointer, modeValue.pointer) == 1 {
+                if GhostFTPRemoteChmodBatchItem(nameValue.pointer) == 1 {
                     changed += 1
                 } else {
                     failed += 1

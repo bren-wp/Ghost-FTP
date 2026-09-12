@@ -39,11 +39,14 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
         cls.windows = (ROOT / "internal/desktop/files_actions_windows.go").read_text(encoding="utf-8")
 
     def test_bridge_exposes_snapshot_bound_remote_chmod(self):
-        body = function_body(self.bridge, "func GhostFTPRemoteChmod(")
-        self.assertIn("requireRemoteSnapshot", body)
-        self.assertIn("requireVisibleRemotePermissionItem", body)
-        self.assertIn("engine.RemoteChmod", body)
-        self.assertIn("context.WithTimeout", body)
+        begin = function_body(self.bridge, "func GhostFTPBeginRemoteChmodBatch(")
+        self.assertIn("requireRemoteSnapshot", begin)
+        self.assertIn("remoteChmodBatchTimeout", begin)
+        self.assertIn("context.WithTimeout", begin)
+
+        item = function_body(self.bridge, "func GhostFTPRemoteChmodBatchItem(")
+        self.assertIn("requireVisibleRemotePermissionItem", item)
+        self.assertIn("engine.RemoteChmod", item)
 
         guard = function_body(self.bridge, "func requireVisibleRemotePermissionItem(")
         self.assertIn("snapshotItem(bridgeState.remoteItems", guard)
@@ -59,7 +62,9 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
             'NSTextField(string: "644")',
             "selected.count > 1000",
             "item.isSymlink",
-            "GhostFTPRemoteChmod",
+            "GhostFTPBeginRemoteChmodBatch",
+            "GhostFTPRemoteChmodBatchItem",
+            "GhostFTPEndRemoteChmodBatch",
         ):
             self.assertIn(marker, self.swift)
 
@@ -70,7 +75,7 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
         self.assertIn("value.count == 3 || value.count == 4", validator)
         self.assertIn("$0 >= \"0\" && $0 <= \"7\"", validator)
 
-        bridge = function_body(self.bridge, "func GhostFTPRemoteChmod(")
+        bridge = function_body(self.bridge, "func GhostFTPRemoteChmodBatchItem(")
         self.assertIn("engine.RemoteChmod", bridge)
 
     def test_permissions_batch_reports_success_failure_and_skipped_links(self):
@@ -78,13 +83,32 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
         for marker in (
             "var changed = 0",
             "var failed = 0",
-            "var skipped = 0",
+            "var skipped = initiallySkipped",
             '"Changed: \\(changed)"',
-            'Failed: \\(failed)',
-            'Skipped links: \\(skipped)',
+            '" • Failed: \\(failed)"',
+            '" • Skipped links: \\(skipped)"',
         ):
             self.assertIn(marker, action)
         self.assertIn("runRemoteMutation", action)
+
+    def test_permissions_batch_uses_one_bounded_cancellable_deadline(self):
+        timeout = function_body(self.bridge, "func remoteChmodBatchTimeout(")
+        self.assertIn("90*time.Second", timeout)
+        self.assertIn("time.Duration(count-1)*2*time.Second", timeout)
+        self.assertIn("10*time.Minute", timeout)
+
+        begin = function_body(self.bridge, "func GhostFTPBeginRemoteChmodBatch(")
+        self.assertIn("context.WithTimeout(context.Background(), remoteChmodBatchTimeout(count))", begin)
+        self.assertIn("count > 1000", begin)
+
+        cancel = function_body(self.bridge, "func GhostFTPCancelRemoteChmodBatch(")
+        self.assertIn("cancelRemoteChmodBatch", cancel)
+
+        disconnect = function_body(self.swift, "private func disconnectTapped(")
+        cancel_pos = disconnect.find("GhostFTPCancelRemoteChmodBatch()")
+        queue_pos = disconnect.find("engineQueue.async")
+        self.assertGreaterEqual(cancel_pos, 0)
+        self.assertGreater(queue_pos, cancel_pos)
 
     def test_permissions_reuses_remote_mutation_generation_refresh_guard(self):
         runner = function_body(self.swift, "private func runRemoteMutation(")
@@ -99,6 +123,7 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
         self.assertIn("item.IsSymlink", windows)
         self.assertIn('"644"', windows)
         self.assertIn("engine.RemoteChmod", windows)
+        self.assertIn("remoteBatchTimeout(len(items))", windows)
         self.assertIn("- [x] Remote Permissions", self.parity)
 
 
