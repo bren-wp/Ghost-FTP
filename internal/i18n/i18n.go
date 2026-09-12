@@ -99,8 +99,9 @@ func LanguageByCode(code string) Language {
 }
 
 // publicText keeps the technical GhostFTP identifier available in source and
-// compatibility data while guaranteeing that every localized string returned to
-// a user renders the public product name consistently as "Ghost FTP".
+// compatibility data while guaranteeing that localized template text renders
+// the public product name consistently as "Ghost FTP". Runtime formatting
+// arguments are opaque data and must never be rewritten by branding logic.
 func publicText(value string) string {
 	return strings.ReplaceAll(value, "GhostFTP", "Ghost FTP")
 }
@@ -117,10 +118,11 @@ func T(language, key string, args ...any) string {
 	if template == "" {
 		template = key
 	}
+	template = publicText(template)
 	if len(args) == 0 {
-		return publicText(template)
+		return template
 	}
-	return publicText(fmt.Sprintf(template, args...))
+	return fmt.Sprintf(template, args...)
 }
 
 func IsAffirmative(language, answer string) bool {
