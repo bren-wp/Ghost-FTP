@@ -83,7 +83,7 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
         for marker in (
             "var changed = 0",
             "var failed = 0",
-            "var skipped = 0",
+            "var skipped = initiallySkipped",
             '"Changed: \\(changed)"',
             '" • Failed: \\(failed)"',
             '" • Skipped links: \\(skipped)"',
@@ -93,7 +93,7 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
 
     def test_permissions_batch_uses_one_bounded_cancellable_deadline(self):
         timeout = function_body(self.bridge, "func remoteChmodBatchTimeout(")
-        self.assertIn("90 * time.Second", timeout)
+        self.assertIn("90*time.Second", timeout)
         self.assertIn("time.Duration(count-1)*2*time.Second", timeout)
         self.assertIn("10*time.Minute", timeout)
 
