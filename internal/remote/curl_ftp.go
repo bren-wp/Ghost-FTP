@@ -80,18 +80,47 @@ func (c *CurlFTP) Close() error {
 }
 
 func cfgQuote(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	return `"` + s + `"`
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteByte('"')
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\', '"':
+			b.WriteByte('\\')
+			b.WriteByte(s[i])
+		case '\t':
+			b.WriteString(`\t`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\v':
+			b.WriteString(`\v`)
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 func appendCfgQuotedBytes(dst []byte, value []byte) []byte {
 	dst = append(dst, '"')
 	for _, b := range value {
-		if b == '\\' || b == '"' {
-			dst = append(dst, '\\')
+		switch b {
+		case '\\', '"':
+			dst = append(dst, '\\', b)
+		case '\t':
+			dst = append(dst, '\\', 't')
+		case '\n':
+			dst = append(dst, '\\', 'n')
+		case '\r':
+			dst = append(dst, '\\', 'r')
+		case '\v':
+			dst = append(dst, '\\', 'v')
+		default:
+			dst = append(dst, b)
 		}
-		dst = append(dst, b)
 	}
 	return append(dst, '"')
 }
