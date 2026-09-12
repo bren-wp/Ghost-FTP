@@ -255,7 +255,7 @@ func TextEditorDialog(config TextEditorDialogConfig) TextEditorDialogResult {
 	var message promptMsg
 	for !state.closed {
 		r, _, _ := promptGetMessageW.Call(uintptr(unsafe.Pointer(&message)), 0, 0, 0)
-		if int32(r) <= 0 {
+		if !premiumDialogMessageAvailable(r, &message) {
 			break
 		}
 		if textEditorShortcut(&message, state) {
