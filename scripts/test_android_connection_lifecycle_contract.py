@@ -54,7 +54,8 @@ class AndroidConnectionLifecycleContractTests(unittest.TestCase):
         source = read(ACTIVITY)
         body = method_body(source, "private void connect()")
         for marker in (
-            "FtpSession next = new FtpSession(",
+            "final FtpSession next;",
+            "next = new FtpSession(",
             "connectingSession = next;",
             "io.execute(() -> {",
             "if (!connectionAttemptCurrent(next))",
