@@ -24,9 +24,29 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def expected_release_names(version: str) -> set[str]:
+    names = {
+        "BUILD-METADATA.txt",
+        "RELEASE-NOTES.txt",
+        "SHA256.txt",
+        f"Ghost-FTP-{version}-Setup.exe",
+        f"Ghost-FTP-{version}-Portable.exe",
+    }
+    for distro in ("Debian", "Ubuntu"):
+        for arch in ("amd64", "arm64", "i386"):
+            names.add(f"Ghost-FTP-{version}-Linux-{distro}-{arch}.deb")
+    for arch in ("x86_64", "aarch64", "i686"):
+        names.add(f"Ghost-FTP-{version}-Linux-Fedora-{arch}.rpm")
+    for arch in ("amd64", "arm64", "i386"):
+        names.add(f"Ghost-FTP-{version}-Linux-Portable-{arch}.tar.gz")
+    if len(names) != EXPECTED_RELEASE_FILES:
+        fail("internal canonical release asset set is invalid")
+    return names
+
+
 def parse_build_metadata(path: Path) -> dict[str, str]:
-    if not path.is_file():
-        fail("BUILD-METADATA.txt is missing from the release bundle")
+    if not path.is_file() or path.is_symlink():
+        fail("BUILD-METADATA.txt is missing or is not a regular release file")
     result: dict[str, str] = {}
     for raw in path.read_text(encoding="utf-8").splitlines():
         if not raw.strip():
@@ -43,8 +63,8 @@ def parse_build_metadata(path: Path) -> dict[str, str]:
 
 
 def parse_manifest(path: Path) -> dict[str, str]:
-    if not path.is_file():
-        fail("SHA256.txt is missing from the release bundle")
+    if not path.is_file() or path.is_symlink():
+        fail("SHA256.txt is missing or is not a regular release file")
     result: dict[str, str] = {}
     for raw in path.read_text(encoding="utf-8").splitlines():
         if not raw.strip():
@@ -55,7 +75,7 @@ def parse_manifest(path: Path) -> dict[str, str]:
         digest, name = match.groups()
         if name in result:
             fail(f"duplicate SHA256.txt entry: {name}")
-        if Path(name).name != name or name in {".", ".."}:
+        if Path(name).name != name or "/" in name or "\\" in name or name in {".", ".."}:
             fail(f"unsafe SHA256.txt filename: {name!r}")
         result[name] = digest
     return result
@@ -68,7 +88,10 @@ def verify_release(bundle_dir: Path, release_json_path: Path, expected_commit: s
     if not re.fullmatch(r"[0-9a-f]{40}", expected_commit):
         fail(f"invalid expected commit SHA: {expected_commit!r}")
 
-    files = sorted(path for path in bundle_dir.iterdir() if path.is_file())
+    entries = sorted(bundle_dir.iterdir(), key=lambda path: path.name)
+    if any(path.is_symlink() or not path.is_file() for path in entries):
+        fail("release bundle contains a symlink, directory or non-regular top-level entry")
+    files = entries
     if len(files) != EXPECTED_RELEASE_FILES:
         fail(f"release bundle has {len(files)} files; expected {EXPECTED_RELEASE_FILES}")
     local_names = {path.name for path in files}
@@ -81,6 +104,8 @@ def verify_release(bundle_dir: Path, release_json_path: Path, expected_commit: s
     match = TAG_RE.fullmatch(tag)
     if not match or match.group(1) != version:
         fail(f"release tag/version mismatch: tag={tag!r} version={version!r}")
+    if local_names != expected_release_names(version):
+        fail("source workflow bundle does not contain the canonical 17-file release set")
     if commit != expected_commit:
         fail(f"BUILD-METADATA commit {commit!r} does not match source run {expected_commit!r}")
     if public_files != str(EXPECTED_RELEASE_FILES):
