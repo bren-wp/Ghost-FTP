@@ -53,6 +53,11 @@ jobs:
         run: |
           set -euo pipefail
           go test ./internal/remote -run='^$' -fuzz='^FuzzRemoteListingParsers$' -fuzztime=15s
+      - name: Fuzz curl config quoting
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./internal/remote -run='^$' -fuzz='^FuzzCurlConfigQuoting$' -fuzztime=15s
       - name: Fuzz security validators
         shell: bash
         run: |
