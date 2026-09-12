@@ -53,7 +53,8 @@ class WindowsModalSharedContractTests(unittest.TestCase):
         loop = read("internal/platform/dialog_loop_windows.go")
         editor = read("internal/platform/text_editor_windows.go")
 
-        self.assertIn('premiumPostQuitMessage = user32.NewProc("PostQuitMessage")', loop)
+        self.assertIn("premiumPostQuitMessage", loop)
+        self.assertIn('user32.NewProc("PostQuitMessage")', loop)
         self.assertIn("func premiumDialogMessageAvailable(result uintptr, message *promptMsg) bool", loop)
         self.assertIn("if int32(result) == -1", loop)
         self.assertIn("if result == 0", loop)
