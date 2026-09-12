@@ -119,10 +119,14 @@ func T(language, key string, args ...any) string {
 	if template == "" {
 		template = key
 	}
+	// Branding normalization belongs to static application copy only. Dynamic
+	// arguments can be security identifiers, hosts, paths or user data and must
+	// be preserved byte-for-byte through localization formatting.
+	template = publicText(template)
 	if len(args) == 0 {
-		return publicText(template)
+		return template
 	}
-	return publicText(fmt.Sprintf(template, args...))
+	return fmt.Sprintf(template, args...)
 }
 
 func IsAffirmative(language, answer string) bool {
