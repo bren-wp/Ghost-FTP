@@ -12,6 +12,25 @@ def read_bridge_package() -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in sources)
 
 
+def function_body(source: str, signature: str) -> str:
+    start = source.find(signature)
+    if start < 0:
+        raise AssertionError(f"missing function signature: {signature}")
+    open_brace = source.find("{", start)
+    if open_brace < 0:
+        raise AssertionError(f"missing function body: {signature}")
+    depth = 0
+    for index in range(open_brace, len(source)):
+        char = source[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return source[open_brace : index + 1]
+    raise AssertionError(f"unterminated function body: {signature}")
+
+
 class MacOSFileMutationsContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -29,7 +48,16 @@ class MacOSFileMutationsContract(unittest.TestCase):
             "engine.LocalDelete",
         ):
             self.assertIn(marker, self.bridge)
-        self.assertIn("local folder changed; refresh and try again", self.bridge)
+
+        snapshot_guard = function_body(self.bridge, "func requireLocalSnapshot(")
+        self.assertIn("bridgeState.localPath", snapshot_guard)
+        self.assertIn("local folder changed; refresh and try again", snapshot_guard)
+        for action in ("GhostFTPLocalMkdir", "GhostFTPLocalRename", "GhostFTPLocalDelete"):
+            body = function_body(self.bridge, f"func {action}(")
+            self.assertIn("requireLocalSnapshot", body)
+        for action in ("GhostFTPLocalRename", "GhostFTPLocalDelete"):
+            body = function_body(self.bridge, f"func {action}(")
+            self.assertIn("requireVisibleLocalItem", body)
 
     def test_bridge_exposes_real_remote_mutations(self):
         for marker in (
@@ -41,7 +69,16 @@ class MacOSFileMutationsContract(unittest.TestCase):
             "engine.RemoteDelete",
         ):
             self.assertIn(marker, self.bridge)
-        self.assertIn("remote folder changed; refresh and try again", self.bridge)
+
+        snapshot_guard = function_body(self.bridge, "func requireRemoteSnapshot(")
+        self.assertIn("bridgeState.remotePath", snapshot_guard)
+        self.assertIn("remote folder changed; refresh and try again", snapshot_guard)
+        for action in ("GhostFTPRemoteMkdir", "GhostFTPRemoteRename", "GhostFTPRemoteDelete"):
+            body = function_body(self.bridge, f"func {action}(")
+            self.assertIn("requireRemoteSnapshot", body)
+        for action in ("GhostFTPRemoteRename", "GhostFTPRemoteDelete"):
+            body = function_body(self.bridge, f"func {action}(")
+            self.assertIn("requireVisibleRemoteItem", body)
 
     def test_app_exposes_native_mutation_actions_and_delete_confirmation(self):
         for marker in (
@@ -59,11 +96,17 @@ class MacOSFileMutationsContract(unittest.TestCase):
         ):
             self.assertIn(marker, self.swift)
 
-    def test_mutations_refresh_only_the_unchanged_navigation_generation(self):
-        self.assertIn("localMutationGeneration", self.swift)
-        self.assertIn("remoteMutationGeneration", self.swift)
-        self.assertIn("generation == self.localNavigationGeneration", self.swift)
-        self.assertIn("generation == self.remoteNavigationGeneration", self.swift)
+    def test_mutation_completion_guards_refresh_by_navigation_generation(self):
+        local = function_body(self.swift, "private func runLocalMutation(")
+        self.assertIn("let generation = localNavigationGeneration", local)
+        self.assertIn("result.changed && generation == self.localNavigationGeneration", local)
+        self.assertIn("self.refreshLocal(base)", local)
+
+        remote = function_body(self.swift, "private func runRemoteMutation(")
+        self.assertIn("let generation = remoteNavigationGeneration", remote)
+        self.assertIn("result.changed && generation == self.remoteNavigationGeneration", remote)
+        self.assertIn("GhostFTPIsConnected() == 1", remote)
+        self.assertIn("self.refreshRemote(base)", remote)
 
     def test_parity_marks_only_newly_wired_mutations_complete(self):
         for item in (
