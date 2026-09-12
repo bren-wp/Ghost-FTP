@@ -46,6 +46,19 @@ class WindowsProfileMutationContractTests(unittest.TestCase):
         ):
             self.assertIn(control, helper)
 
+    def test_shutdown_waits_for_profile_persistence(self):
+        close_case = re.search(
+            r"case wmClose:\s*(.*?)\s*case wmDestroy:",
+            WINDOWS,
+            re.S,
+        )
+        self.assertIsNotNone(close_case, "missing WM_CLOSE lifecycle")
+        self.assertIn("if a.profileMutationBusy", close_case.group(1))
+        self.assertLess(
+            close_case.group(1).find("if a.profileMutationBusy"),
+            close_case.group(1).find("destroyWindow.Call(hwnd)"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
