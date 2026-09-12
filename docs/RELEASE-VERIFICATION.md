@@ -107,7 +107,7 @@ Android remains an independently validated source platform and is not silently a
 
 The release contract supports a **truthful supported publication state** with or without a configured production signing identity. When a trusted production certificate is configured, signatures must verify. The production workflow **does not create a self-signed production identity**.
 
-When no production certificate is configured, publication uses explicit unsigned metadata:
+When no production certificate is configured, publication uses explicit unsigned metadata when no production certificate is configured:
 
 ```text
 WINDOWS_AUTHENTICODE=unsigned
@@ -121,7 +121,7 @@ Debian/Ubuntu DEB and Fedora RPM metadata must match version, architecture, prod
 
 ## Android development verification
 
-The Android APK workflow verifies source/security/lifecycle contracts, lint, installable APK construction, APK identity and artifact upload. This proves the maintained development surface builds cleanly but does not add an APK to the 17-file public Windows/Linux release allow-list.
+The Android APK workflow verifies source/security/lifecycle contracts, lint, installable APK construction, APK identity verification and artifact upload. This proves the maintained development surface builds cleanly but does not add an APK to the 17-file public Windows/Linux release allow-list.
 
 ## Authentic runtime evidence
 
