@@ -56,15 +56,15 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 
 - [x] Upload
 - [x] Download
-- [ ] Pause Queue
-- [ ] Resume Queue
-- [ ] Cancel Transfer
-- [ ] Retry Transfer
-- [ ] Clear Finished
-- [ ] Move Top
-- [ ] Move Up
-- [ ] Move Down
-- [ ] Move Bottom
+- [x] Pause Queue
+- [x] Resume Queue
+- [x] Cancel Transfer
+- [x] Retry Transfer
+- [x] Clear Finished
+- [x] Move Top
+- [x] Move Up
+- [x] Move Down
+- [x] Move Bottom
 
 ## Implemented file-workspace boundary
 
@@ -85,6 +85,8 @@ Local and Remote Filter now use the same shared `internal/itemlist.Filter` imple
 Mutation completion is generation-bound: if the user navigates away while an operation is queued or running, the old operation cannot refresh the newly selected directory. Remote mutations also require the active connection and use bounded engine contexts.
 
 The macOS bridge keeps each transfer action bound to the currently visible engine snapshot so stale UI names cannot be used after navigation. Download targets are derived with the shared safe-local-child validation and remote names are validated before transfer. The bridge remains typed C ABI only: no JSON dispatcher, localhost server, browser IPC or credential-bearing generic payload was added.
+
+The native AppKit Transfer Queue now renders the authoritative shared transfer-manager snapshot and paused state. Pause/Resume, multi-select Cancel/Retry, Clear Finished and Top/Up/Down/Bottom priority controls call the existing typed `internal/api.Engine` queue APIs; macOS does not run a second scheduler or protocol stack. The queue refreshes at a bounded one-second cadence, preserves selection by stable transfer ID, allows reordering only for one queued job, and uses the shared `TransferJob` byte/progress/speed/ETA fields without fabricating unsupported metrics. Retry remains connection-bound, and terminal completion refreshes the file panes without changing queue authority.
 
 SFTP host-key confirmation retains the transient connection secret only for the pending trust retry while password/passphrase fields are cleared from the visible UI immediately. The transient value is discarded after the connect/trust decision and is never stored as app state.
 
