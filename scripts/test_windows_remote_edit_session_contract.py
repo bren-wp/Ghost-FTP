@@ -26,17 +26,26 @@ class WindowsRemoteEditSessionContractTests(unittest.TestCase):
         self.assertIn("remoteEditSessions sync.Map", source)
         self.assertIn("func remoteEditSessionBusy(a *app) bool", source)
 
-    def test_remote_edit_readiness_rejects_reentry(self) -> None:
+    def test_remote_edit_readiness_rejects_reentry_and_remote_mutation_overlap(self) -> None:
         source = read("internal/desktop/remote_edit_windows.go")
         body = function_source(source, "remoteEditSelectionReady")
         self.assertTrue(body)
         self.assertIn("remoteEditSessionBusy(a)", body)
+        self.assertIn("a.remoteMutationBusy", body)
+
+    def test_remote_mutations_are_disabled_while_remote_edit_session_is_active(self) -> None:
+        source = read("internal/desktop/action_state_windows.go")
+        self.assertIn(
+            "remoteMutationReady := remoteReady && !a.remoteMutationBusy && !remoteEditSessionBusy(a)",
+            source,
+        )
 
     def test_remote_edit_session_has_atomic_code_level_begin_and_finish_guards(self) -> None:
         source = read("internal/desktop/remote_edit_windows.go")
         begin = function_source(source, "beginRemoteEditSession")
         finish = function_source(source, "finishRemoteEditSession")
         self.assertIn("LoadOrStore", begin)
+        self.assertIn("a.remoteMutationBusy", begin)
         self.assertIn("remoteEditSessions.Delete(a)", finish)
         action = function_source(source, "remoteEditAction")
         self.assertTrue(action)
