@@ -8,23 +8,78 @@ import "C"
 import (
 	"context"
 	"errors"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/bren-wp/Ghost-FTP/internal/api"
+	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 var directoryCompareState struct {
-	mu         sync.Mutex
-	seq        uint64
-	entries    []api.DirectoryComparisonEntry
-	localBase  string
-	remoteBase string
+	mu              sync.Mutex
+	seq             uint64
+	cancelRequested bool
+	cancel          context.CancelFunc
+	entries         []api.DirectoryComparisonEntry
+	localBase       string
+	remoteBase      string
 }
 
-var cancelDirectoryCompare context.CancelFunc
+func prepareDirectoryCompareOperation(clearResults bool) uint64 {
+	directoryCompareState.mu.Lock()
+	defer directoryCompareState.mu.Unlock()
+	if directoryCompareState.cancel != nil {
+		directoryCompareState.cancel()
+	}
+	directoryCompareState.seq++
+	directoryCompareState.cancelRequested = false
+	directoryCompareState.cancel = nil
+	if clearResults {
+		directoryCompareState.entries = nil
+		directoryCompareState.localBase = ""
+		directoryCompareState.remoteBase = ""
+	}
+	return directoryCompareState.seq
+}
+
+func beginDirectoryCompareOperation(seq uint64) (context.Context, bool) {
+	directoryCompareState.mu.Lock()
+	defer directoryCompareState.mu.Unlock()
+	if seq == 0 || directoryCompareState.seq != seq || directoryCompareState.cancelRequested {
+		return nil, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	directoryCompareState.cancel = cancel
+	return ctx, true
+}
+
+func finishDirectoryCompareOperation(seq uint64) {
+	directoryCompareState.mu.Lock()
+	defer directoryCompareState.mu.Unlock()
+	if directoryCompareState.seq != seq {
+		return
+	}
+	if directoryCompareState.cancel != nil {
+		directoryCompareState.cancel()
+	}
+	directoryCompareState.cancel = nil
+}
+
+func publishDirectoryCompare(seq uint64, localBase, remoteBase string, entries []api.DirectoryComparisonEntry) bool {
+	directoryCompareState.mu.Lock()
+	defer directoryCompareState.mu.Unlock()
+	if directoryCompareState.seq != seq || directoryCompareState.cancelRequested {
+		return false
+	}
+	directoryCompareState.entries = append([]api.DirectoryComparisonEntry(nil), entries...)
+	directoryCompareState.localBase = localBase
+	directoryCompareState.remoteBase = remoteBase
+	return true
+}
 
 func requireDirectoryCompareSnapshot(localBase, remoteBase string) (*api.Engine, string, string, error) {
 	bridgeState.mu.Lock()
@@ -46,57 +101,34 @@ func requireDirectoryCompareSnapshot(localBase, remoteBase string) (*api.Engine,
 	return bridgeState.engine, bridgeState.localPath, remoteBase, nil
 }
 
-func beginDirectoryCompare() (context.Context, uint64) {
-	directoryCompareState.mu.Lock()
-	defer directoryCompareState.mu.Unlock()
-	if cancelDirectoryCompare != nil {
-		cancelDirectoryCompare()
-	}
-	directoryCompareState.seq++
-	seq := directoryCompareState.seq
-	directoryCompareState.entries = nil
-	directoryCompareState.localBase = ""
-	directoryCompareState.remoteBase = ""
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	cancelDirectoryCompare = cancel
-	return ctx, seq
-}
-
-func finishDirectoryCompare(seq uint64, localBase, remoteBase string, entries []api.DirectoryComparisonEntry) {
-	directoryCompareState.mu.Lock()
-	defer directoryCompareState.mu.Unlock()
-	if directoryCompareState.seq != seq {
-		return
-	}
-	directoryCompareState.entries = append([]api.DirectoryComparisonEntry(nil), entries...)
-	directoryCompareState.localBase = localBase
-	directoryCompareState.remoteBase = remoteBase
-	cancelDirectoryCompare = nil
-}
-
 func setDirectoryCompareError(err error, fallback string) {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	setBridgeError(err, fallback)
 }
 
+// GhostFTPPrepareDirectoryCompare arms cancellation before the compare is
+// queued on the serialized engine worker. A Cancel/Close/Disconnect that
+// happens while the worker is still busy is therefore latched instead of lost.
+//export GhostFTPPrepareDirectoryCompare
+func GhostFTPPrepareDirectoryCompare() C.ulonglong {
+	return C.ulonglong(prepareDirectoryCompareOperation(true))
+}
+
 //export GhostFTPCompareDirectories
-func GhostFTPCompareDirectories(localBaseValue, remoteBaseValue *C.char) C.int {
+func GhostFTPCompareDirectories(operationToken C.ulonglong, localBaseValue, remoteBaseValue *C.char) C.int {
+	seq := uint64(operationToken)
+	ctx, ok := beginDirectoryCompareOperation(seq)
+	if !ok {
+		return 2
+	}
+	defer finishDirectoryCompareOperation(seq)
+
 	engine, localBase, remoteBase, err := requireDirectoryCompareSnapshot(goString(localBaseValue), goString(remoteBaseValue))
 	if err != nil {
 		setDirectoryCompareError(err, "Ghost FTP could not start directory comparison.")
 		return 0
 	}
-	ctx, seq := beginDirectoryCompare()
-	defer func() {
-		directoryCompareState.mu.Lock()
-		if directoryCompareState.seq == seq && cancelDirectoryCompare != nil {
-			cancelDirectoryCompare()
-			cancelDirectoryCompare = nil
-		}
-		directoryCompareState.mu.Unlock()
-	}()
-
 	localResolved, localItems, err := engine.LocalList(ctx, localBase)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
@@ -118,7 +150,9 @@ func GhostFTPCompareDirectories(localBaseValue, remoteBaseValue *C.char) C.int {
 		setDirectoryCompareError(err, "Ghost FTP could not compare these folders.")
 		return 0
 	}
-	finishDirectoryCompare(seq, localResolved, remoteBase, entries)
+	if ctx.Err() != nil || !publishDirectoryCompare(seq, localResolved, remoteBase, entries) {
+		return 2
+	}
 	setDirectoryCompareError(nil, "")
 	return 1
 }
@@ -127,8 +161,9 @@ func GhostFTPCompareDirectories(localBaseValue, remoteBaseValue *C.char) C.int {
 func GhostFTPCancelDirectoryCompare() {
 	directoryCompareState.mu.Lock()
 	defer directoryCompareState.mu.Unlock()
-	if cancelDirectoryCompare != nil {
-		cancelDirectoryCompare()
+	directoryCompareState.cancelRequested = true
+	if directoryCompareState.cancel != nil {
+		directoryCompareState.cancel()
 	}
 }
 
@@ -221,25 +256,125 @@ func GhostFTPDirectoryCompareRemoteModifiedUnix(index C.int) C.longlong {
 	return itemModifiedUnix(entry.Remote)
 }
 
+func synchronizedDirectoryForOpen(index C.int) (*api.Engine, string, string, string, error) {
+	directoryCompareState.mu.Lock()
+	i := int(index)
+	if i < 0 || i >= len(directoryCompareState.entries) {
+		directoryCompareState.mu.Unlock()
+		return nil, "", "", "", errors.New("directory comparison selection is no longer valid")
+	}
+	entry := directoryCompareState.entries[i]
+	entries := append([]api.DirectoryComparisonEntry(nil), directoryCompareState.entries...)
+	localBase := directoryCompareState.localBase
+	remoteBase := directoryCompareState.remoteBase
+	directoryCompareState.mu.Unlock()
+
+	engine, currentLocal, currentRemote, err := requireDirectoryCompareSnapshot(localBase, remoteBase)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	name, ok := engine.SynchronizedDirectoryName(entries, entry.Name)
+	if !ok {
+		return nil, "", "", "", errors.New("selected item is not a synchronized ordinary directory")
+	}
+	return engine, currentLocal, currentRemote, name, nil
+}
+
 //export GhostFTPDirectoryCompareCanOpenBoth
 func GhostFTPDirectoryCompareCanOpenBoth(index C.int) C.int {
-	entry, ok := directoryCompareEntryAt(index)
-	if !ok {
-		return 0
-	}
-	bridgeState.mu.Lock()
-	engine := bridgeState.engine
-	bridgeState.mu.Unlock()
-	if engine == nil {
-		return 0
-	}
-	directoryCompareState.mu.Lock()
-	entries := append([]api.DirectoryComparisonEntry(nil), directoryCompareState.entries...)
-	directoryCompareState.mu.Unlock()
-	if _, ok := engine.SynchronizedDirectoryName(entries, entry.Name); ok {
+	if _, _, _, _, err := synchronizedDirectoryForOpen(index); err == nil {
 		return 1
 	}
 	return 0
+}
+
+// GhostFTPPrepareDirectoryCompareOpen retains the completed comparison result
+// while arming cancellation for the queued atomic Open Both operation.
+//export GhostFTPPrepareDirectoryCompareOpen
+func GhostFTPPrepareDirectoryCompareOpen() C.ulonglong {
+	return C.ulonglong(prepareDirectoryCompareOperation(false))
+}
+
+func commitComparedDirectories(seq uint64, engine *api.Engine, localBase, remoteBase, localResolved, remoteTarget string, localItems, remoteItems []model.Item) bool {
+	directoryCompareState.mu.Lock()
+	defer directoryCompareState.mu.Unlock()
+	if directoryCompareState.seq != seq || directoryCompareState.cancelRequested {
+		return false
+	}
+
+	bridgeState.mu.Lock()
+	defer bridgeState.mu.Unlock()
+	if bridgeState.engine != engine || bridgeState.engine == nil {
+		return false
+	}
+	if _, ok := bridgeState.engine.ActiveConnection(); !ok {
+		return false
+	}
+	if filepath.Clean(bridgeState.localPath) != filepath.Clean(localBase) || cleanRemotePath(bridgeState.remotePath) != cleanRemotePath(remoteBase) {
+		return false
+	}
+	bridgeState.localPath = localResolved
+	bridgeState.localItems = append(bridgeState.localItems[:0], localItems...)
+	bridgeState.remotePath = remoteTarget
+	bridgeState.remoteItems = append(bridgeState.remoteItems[:0], remoteItems...)
+	updateLocalFilterLocked("")
+	updateRemoteFilterLocked("")
+	bridgeState.lastError = ""
+	return true
+}
+
+// GhostFTPOpenComparedDirectoryBoth stages both listings and commits neither
+// visible snapshot unless both reads and the final stale-snapshot check pass.
+//export GhostFTPOpenComparedDirectoryBoth
+func GhostFTPOpenComparedDirectoryBoth(operationToken C.ulonglong, index C.int) C.int {
+	seq := uint64(operationToken)
+	ctx, ok := beginDirectoryCompareOperation(seq)
+	if !ok {
+		return 2
+	}
+	defer finishDirectoryCompareOperation(seq)
+
+	engine, localBase, remoteBase, name, err := synchronizedDirectoryForOpen(index)
+	if err != nil {
+		setDirectoryCompareError(err, "Ghost FTP could not open the compared directory.")
+		return 0
+	}
+	localTarget, err := security.SafeLocalChild(localBase, name)
+	if err != nil {
+		setDirectoryCompareError(err, "Ghost FTP could not safely open the local directory.")
+		return 0
+	}
+	if err := security.ValidateRemoteName(name); err != nil {
+		setDirectoryCompareError(err, "Ghost FTP could not safely open the remote directory.")
+		return 0
+	}
+	remoteTarget := pathpkg.Clean(pathpkg.Join(remoteBase, name))
+	if err := security.ValidateRemotePath(remoteTarget); err != nil {
+		setDirectoryCompareError(err, "Ghost FTP could not safely open the remote directory.")
+		return 0
+	}
+
+	localResolved, localItems, err := engine.LocalList(ctx, localTarget)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+			return 2
+		}
+		setDirectoryCompareError(err, "Ghost FTP could not read the compared local directory.")
+		return 0
+	}
+	remoteItems, err := engine.RemoteList(ctx, remoteTarget)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+			return 2
+		}
+		setDirectoryCompareError(err, "Ghost FTP could not read the compared remote directory.")
+		return 0
+	}
+	if ctx.Err() != nil || !commitComparedDirectories(seq, engine, localBase, remoteBase, localResolved, remoteTarget, localItems, remoteItems) {
+		return 2
+	}
+	setDirectoryCompareError(nil, "")
+	return 1
 }
 
 //export GhostFTPDirectoryCompareLocalBase
@@ -260,10 +395,11 @@ func GhostFTPDirectoryCompareRemoteBase() *C.char {
 func GhostFTPClearDirectoryCompare() {
 	directoryCompareState.mu.Lock()
 	defer directoryCompareState.mu.Unlock()
-	if cancelDirectoryCompare != nil {
-		cancelDirectoryCompare()
+	if directoryCompareState.cancel != nil {
+		directoryCompareState.cancel()
 	}
-	cancelDirectoryCompare = nil
+	directoryCompareState.cancel = nil
+	directoryCompareState.cancelRequested = true
 	directoryCompareState.seq++
 	directoryCompareState.entries = nil
 	directoryCompareState.localBase = ""
