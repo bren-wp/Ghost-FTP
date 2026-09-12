@@ -53,6 +53,7 @@ type app struct {
 	selectedProfileID    string
 	connected            bool
 	connectionBusy       bool
+	profileMutationBusy  bool
 	connectionGeneration uint64
 	healthCheckRunning   bool
 	connectionCancel     context.CancelFunc
