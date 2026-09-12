@@ -76,8 +76,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private var remoteNavigationGeneration = 0
     private var localMutationGeneration = 0
     private var remoteMutationGeneration = 0
+    private var remoteEditGeneration = 0
     private var localMutationBusy = false
     private var remoteMutationBusy = false
+    private var remoteEditBusy = false
     private var localFilterBusy = false
     private var remoteFilterBusy = false
 
@@ -114,6 +116,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private let remoteRenameButton = NSButton(title: "Rename", target: nil, action: nil)
     private let remoteDeleteButton = NSButton(title: "Delete", target: nil, action: nil)
     private let remotePermissionsButton = NSButton(title: "Permissions", target: nil, action: nil)
+    private let remoteEditButton = NSButton(title: "Edit", target: nil, action: nil)
     private let remoteFilterButton = NSButton(title: "Filter", target: nil, action: nil)
     private let downloadButton = NSButton(title: "Download", target: nil, action: nil)
 
@@ -156,6 +159,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        remoteEditGeneration += 1
+        remoteEditBusy = false
+        GhostFTPRemoteEditClear()
         GhostFTPCancelRemoteChmodBatch()
         GhostFTPCancelPendingTrust()
         GhostFTPShutdown()
@@ -280,7 +286,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             title: "Remote",
             table: remoteTable,
             pathLabel: remotePathLabel,
-            buttons: [remoteUpButton, remoteRefreshButton, remoteNewFolderButton, remoteRenameButton, remoteDeleteButton, remotePermissionsButton, remoteFilterButton, downloadButton]
+            buttons: [remoteUpButton, remoteRefreshButton, remoteNewFolderButton, remoteRenameButton, remoteDeleteButton, remotePermissionsButton, remoteEditButton, remoteFilterButton, downloadButton]
         ))
 
         let container = NSView()
@@ -382,6 +388,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         remoteDeleteButton.action = #selector(remoteDeleteTapped)
         remotePermissionsButton.target = self
         remotePermissionsButton.action = #selector(remotePermissionsTapped)
+        remoteEditButton.target = self
+        remoteEditButton.action = #selector(remoteEditTapped)
         remoteFilterButton.target = self
         remoteFilterButton.action = #selector(remoteFilterTapped)
         downloadButton.target = self
@@ -546,6 +554,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func disconnectTapped() {
+        remoteEditGeneration += 1
+        remoteEditBusy = false
+        GhostFTPRemoteEditClear()
         GhostFTPCancelRemoteChmodBatch()
         setBusy(true, status: "Disconnecting…")
         remoteNavigationGeneration += 1
@@ -555,6 +566,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             let message = ok ? "" : bridgeString(GhostFTPLastError())
             DispatchQueue.main.async {
                 self?.remoteMutationBusy = false
+                self?.remoteEditBusy = false
                 self?.remoteFilterBusy = false
                 self?.remoteSourceCount = 0
                 self?.setBusy(false, status: ok ? "Not connected" : "Disconnect failed")
@@ -647,7 +659,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func remoteNewFolderTapped() {
-        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, let name = promptName(title: "New remote folder", initial: "New Folder") else { return }
+        guard !remoteMutationBusy, !remoteEditBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, let name = promptName(title: "New remote folder", initial: "New Folder") else { return }
         let base = remoteCurrent
         runRemoteMutation(status: "Creating remote folder…") {
             let baseValue = CStringBox(base)
@@ -659,7 +671,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remoteRenameTapped() {
         let rows = remoteTable.selectedRowIndexes
-        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, rows.count == 1, let row = rows.first, row < remoteItems.count else { return }
+        guard !remoteMutationBusy, !remoteEditBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, rows.count == 1, let row = rows.first, row < remoteItems.count else { return }
         let item = remoteItems[row]
         guard let newName = promptName(title: "Rename remote item", initial: item.name), newName != item.name else { return }
         let base = remoteCurrent
@@ -674,7 +686,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remoteDeleteTapped() {
         let selected = selectedItems(table: remoteTable, items: remoteItems)
-        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, !selected.isEmpty, confirmDelete(selected) else { return }
+        guard !remoteMutationBusy, !remoteEditBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, !selected.isEmpty, confirmDelete(selected) else { return }
         let base = remoteCurrent
         runRemoteMutation(status: "Deleting remote items…") {
             var deleted = 0
@@ -697,7 +709,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remotePermissionsTapped() {
         let selected = selectedItems(table: remoteTable, items: remoteItems)
-        guard !remoteMutationBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, !selected.isEmpty else { return }
+        guard !remoteMutationBusy, !remoteEditBusy, !remoteFilterBusy, GhostFTPIsConnected() == 1, !selected.isEmpty else { return }
         if selected.count > 1000 {
             statusLabel.stringValue = "Permissions: too many selected items."
             return
@@ -748,6 +760,306 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         }
     }
 
+    @objc private func remoteEditTapped() {
+        let rows = remoteTable.selectedRowIndexes
+        guard engineReady,
+              GhostFTPIsConnected() == 1,
+              !remoteMutationBusy,
+              !remoteEditBusy,
+              !remoteFilterBusy,
+              rows.count == 1,
+              let row = rows.first,
+              row >= 0,
+              row < remoteItems.count else { return }
+        let item = remoteItems[row]
+        guard !item.isDirectory, !item.isSymlink else {
+            statusLabel.stringValue = "Select one regular remote file to edit."
+            return
+        }
+
+        remoteEditGeneration += 1
+        let editGeneration = remoteEditGeneration
+        let navigationGeneration = remoteNavigationGeneration
+        let base = remoteCurrent
+        let name = item.name
+        remoteEditBusy = true
+        statusLabel.stringValue = "Opening remote file…"
+        updateWorkspaceControls()
+        loadRemoteEdit(base: base, name: name, navigationGeneration: navigationGeneration, editGeneration: editGeneration)
+    }
+
+    private func loadRemoteEdit(base: String, name: String, navigationGeneration: Int, editGeneration: Int) {
+        engineQueue.async { [weak self] in
+            let baseValue = CStringBox(base)
+            let nameValue = CStringBox(name)
+            let ok = GhostFTPRemoteEditOpen(baseValue.pointer, nameValue.pointer) == 1
+            let text = ok ? bridgeString(GhostFTPRemoteEditText()) : ""
+            let revision = ok ? bridgeString(GhostFTPRemoteEditRevision()) : ""
+            let message = ok ? "" : bridgeString(GhostFTPLastError())
+            DispatchQueue.main.async {
+                guard let self,
+                      editGeneration == self.remoteEditGeneration,
+                      navigationGeneration == self.remoteNavigationGeneration,
+                      self.remoteCurrent == base,
+                      GhostFTPIsConnected() == 1 else { return }
+                if !ok {
+                    self.remoteEditBusy = false
+                    self.statusLabel.stringValue = "Remote edit unavailable"
+                    self.showError(message)
+                    self.updateWorkspaceControls()
+                    return
+                }
+                self.statusLabel.stringValue = "Editing: \(name)"
+                self.presentRemoteEditor(
+                    base: base,
+                    name: name,
+                    text: text,
+                    originalText: text,
+                    expectedRevision: revision,
+                    navigationGeneration: navigationGeneration,
+                    editGeneration: editGeneration,
+                    notice: "",
+                    conflict: false
+                )
+            }
+        }
+    }
+
+    private func presentRemoteEditor(
+        base: String,
+        name: String,
+        text: String,
+        originalText: String,
+        expectedRevision: String,
+        navigationGeneration: Int,
+        editGeneration: Int,
+        notice: String,
+        conflict: Bool
+    ) {
+        guard editGeneration == remoteEditGeneration,
+              navigationGeneration == remoteNavigationGeneration,
+              remoteCurrent == base,
+              GhostFTPIsConnected() == 1 else {
+            finishRemoteEditSession(status: "Remote edit was cancelled because the folder changed.")
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Remote Edit — \(name)"
+        let safety = "Built-in editor • UTF-8 text • conflict-checked • read-back verified"
+        alert.informativeText = notice.isEmpty ? safety : "\(notice)\n\n\(safety)"
+        alert.alertStyle = conflict ? .warning : .informational
+        if conflict {
+            alert.addButton(withTitle: "Reload Remote")
+            alert.addButton(withTitle: "Cancel")
+        } else {
+            alert.addButton(withTitle: "Save")
+            alert.addButton(withTitle: "Reload Remote")
+            alert.addButton(withTitle: "Cancel")
+        }
+
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 760, height: 470))
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = true
+        scroll.autohidesScrollers = false
+        scroll.borderType = .bezelBorder
+        let textView = NSTextView(frame: scroll.contentView.bounds)
+        textView.isRichText = false
+        textView.importsGraphics = false
+        textView.allowsUndo = true
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isContinuousSpellCheckingEnabled = false
+        textView.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+        textView.string = text
+        textView.isEditable = !conflict
+        textView.isSelectable = true
+        textView.minSize = NSSize(width: 0, height: scroll.contentSize.height)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = true
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = false
+        textView.setAccessibilityLabel("Remote file contents")
+        scroll.documentView = textView
+        alert.accessoryView = scroll
+        window.makeFirstResponder(textView)
+
+        let result = alert.runModal()
+        if conflict {
+            if result == .alertFirstButtonReturn {
+                reloadRemoteEdit(
+                    base: base,
+                    name: name,
+                    navigationGeneration: navigationGeneration,
+                    editGeneration: editGeneration
+                )
+            } else {
+                finishRemoteEditSession(status: "Remote edit cancelled; remote changes were preserved.")
+            }
+            return
+        }
+
+        if result == .alertFirstButtonReturn {
+            saveRemoteEdit(
+                text: textView.string,
+                base: base,
+                name: name,
+                expectedRevision: expectedRevision,
+                navigationGeneration: navigationGeneration,
+                editGeneration: editGeneration
+            )
+            return
+        }
+        if result == .alertSecondButtonReturn {
+            if textView.string != originalText {
+                let confirm = NSAlert()
+                confirm.messageText = "Discard local edits and reload?"
+                confirm.informativeText = "Reloading fetches the current remote file and discards the unsaved text in this editor."
+                confirm.alertStyle = .warning
+                confirm.addButton(withTitle: "Reload")
+                confirm.addButton(withTitle: "Keep Editing")
+                if confirm.runModal() != .alertFirstButtonReturn {
+                    presentRemoteEditor(
+                        base: base,
+                        name: name,
+                        text: textView.string,
+                        originalText: originalText,
+                        expectedRevision: expectedRevision,
+                        navigationGeneration: navigationGeneration,
+                        editGeneration: editGeneration,
+                        notice: "Unsaved changes kept.",
+                        conflict: false
+                    )
+                    return
+                }
+            }
+            reloadRemoteEdit(
+                base: base,
+                name: name,
+                navigationGeneration: navigationGeneration,
+                editGeneration: editGeneration
+            )
+            return
+        }
+        finishRemoteEditSession(status: "Remote edit cancelled.")
+    }
+
+    private func reloadRemoteEdit(base: String, name: String, navigationGeneration: Int, editGeneration: Int) {
+        guard editGeneration == remoteEditGeneration,
+              navigationGeneration == remoteNavigationGeneration,
+              remoteCurrent == base,
+              GhostFTPIsConnected() == 1 else {
+            finishRemoteEditSession(status: "Remote edit was cancelled because the folder changed.")
+            return
+        }
+        statusLabel.stringValue = "Reloading remote file…"
+        loadRemoteEdit(base: base, name: name, navigationGeneration: navigationGeneration, editGeneration: editGeneration)
+    }
+
+    private func saveRemoteEdit(text: String, base: String, name: String, expectedRevision: String, navigationGeneration: Int, editGeneration: Int) {
+        guard editGeneration == remoteEditGeneration,
+              navigationGeneration == remoteNavigationGeneration,
+              remoteCurrent == base,
+              GhostFTPIsConnected() == 1 else {
+            finishRemoteEditSession(status: "Remote edit was cancelled because the folder changed.")
+            return
+        }
+        let encoded = Data(text.utf8)
+        let maximum = Int64(GhostFTPRemoteEditMaxBytes())
+        guard Int64(encoded.count) <= maximum else {
+            presentRemoteEditor(
+                base: base,
+                name: name,
+                text: text,
+                originalText: text,
+                expectedRevision: expectedRevision,
+                navigationGeneration: navigationGeneration,
+                editGeneration: editGeneration,
+                notice: "The edited text exceeds the 4 MiB safe editor limit.",
+                conflict: false
+            )
+            return
+        }
+
+        remoteEditBusy = true
+        statusLabel.stringValue = "Saving remote file…"
+        updateWorkspaceControls()
+        engineQueue.async { [weak self] in
+            let baseValue = CStringBox(base)
+            let nameValue = CStringBox(name)
+            let revisionValue = CStringBox(expectedRevision)
+            let result: Int32 = encoded.withUnsafeBytes { bytes in
+                let pointer = bytes.baseAddress.map { UnsafeMutableRawPointer(mutating: $0) }
+                return Int32(GhostFTPRemoteEditSave(
+                    baseValue.pointer,
+                    nameValue.pointer,
+                    revisionValue.pointer,
+                    pointer,
+                    CLongLong(encoded.count)
+                ))
+            }
+            let nextRevision = result == 1 ? bridgeString(GhostFTPRemoteEditRevision()) : expectedRevision
+            let message = result == 1 ? "" : bridgeString(GhostFTPLastError())
+            DispatchQueue.main.async {
+                guard let self, editGeneration == self.remoteEditGeneration else { return }
+                if result == 1 {
+                    self.remoteEditBusy = false
+                    self.statusLabel.stringValue = "Saved: \(name)"
+                    self.remoteEditGeneration += 1
+                    GhostFTPRemoteEditClear()
+                    if navigationGeneration == self.remoteNavigationGeneration,
+                       self.remoteCurrent == base,
+                       GhostFTPIsConnected() == 1 {
+                        self.refreshRemote(base)
+                    } else {
+                        self.updateWorkspaceControls()
+                    }
+                    _ = nextRevision
+                    return
+                }
+                if result == 2 {
+                    self.statusLabel.stringValue = "Remote edit conflict"
+                    self.presentRemoteEditor(
+                        base: base,
+                        name: name,
+                        text: text,
+                        originalText: text,
+                        expectedRevision: expectedRevision,
+                        navigationGeneration: navigationGeneration,
+                        editGeneration: editGeneration,
+                        notice: message,
+                        conflict: true
+                    )
+                    return
+                }
+                self.statusLabel.stringValue = "Remote save failed"
+                self.presentRemoteEditor(
+                    base: base,
+                    name: name,
+                    text: text,
+                    originalText: text,
+                    expectedRevision: expectedRevision,
+                    navigationGeneration: navigationGeneration,
+                    editGeneration: editGeneration,
+                    notice: message.isEmpty ? "The remote file could not be saved safely." : message,
+                    conflict: false
+                )
+            }
+        }
+    }
+
+    private func finishRemoteEditSession(status: String) {
+        remoteEditGeneration += 1
+        remoteEditBusy = false
+        statusLabel.stringValue = status
+        engineQueue.async { GhostFTPRemoteEditClear() }
+        updateWorkspaceControls()
+    }
+
     @objc private func localFilterTapped() {
         guard engineReady, !localMutationBusy, !localFilterBusy else { return }
         guard let query = promptCurrentFolderFilter(title: "Ghost FTP — Local", current: localFilterQuery) else { return }
@@ -755,7 +1067,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func remoteFilterTapped() {
-        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy, !remoteFilterBusy else { return }
+        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy, !remoteEditBusy, !remoteFilterBusy else { return }
         guard let query = promptCurrentFolderFilter(title: "Ghost FTP — Remote", current: remoteFilterQuery) else { return }
         applyCurrentFolderFilter(remote: true, query: query)
     }
@@ -933,7 +1245,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     private func runRemoteMutation(status: String, operation: @escaping () -> MutationResult) {
-        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy, !remoteFilterBusy else { return }
+        guard engineReady, GhostFTPIsConnected() == 1, !remoteMutationBusy, !remoteEditBusy, !remoteFilterBusy else { return }
         remoteMutationBusy = true
         remoteMutationGeneration += 1
         let mutation = remoteMutationGeneration
@@ -970,7 +1282,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     @objc private func remoteDoubleClicked() {
         let row = remoteTable.clickedRow
-        guard !remoteFilterBusy, row >= 0, row < remoteItems.count else { return }
+        guard !remoteFilterBusy, !remoteEditBusy, row >= 0, row < remoteItems.count else { return }
         let item = remoteItems[row]
         if item.isDirectory && !item.isSymlink {
             refreshRemote(remoteChild(remoteCurrent, item.name))
@@ -985,7 +1297,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     @objc private func downloadTapped() {
-        guard !remoteFilterBusy else { return }
+        guard !remoteFilterBusy, !remoteEditBusy else { return }
         queueTransfer(direction: "download", rows: remoteTable.selectedRowIndexes)
     }
 
@@ -1035,7 +1347,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     private func refreshRemote(_ requestedPath: String) {
-        guard engineReady, GhostFTPIsConnected() == 1 else { return }
+        guard engineReady, GhostFTPIsConnected() == 1, !remoteEditBusy else { return }
         remoteNavigationGeneration += 1
         let generation = remoteNavigationGeneration
         let target = requestedPath
@@ -1114,7 +1426,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             showError("Connect to a server before transferring files.")
             return
         }
-        if (direction == "upload" && localFilterBusy) || (direction == "download" && remoteFilterBusy) {
+        if (direction == "upload" && localFilterBusy) || (direction == "download" && (remoteFilterBusy || remoteEditBusy)) {
             return
         }
         let items = direction == "upload" ? localItems : remoteItems
@@ -1217,9 +1529,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private func updateWorkspaceControls() {
         let connected = engineReady && GhostFTPIsConnected() == 1 && !connectionBusy
         let localSelectionCount = localTable.selectedRowIndexes.count
-        let remoteSelectionCount = remoteTable.selectedRowIndexes.count
+        let remoteSelection = remoteTable.selectedRowIndexes
+        let remoteSelectionCount = remoteSelection.count
+        let selectedRemoteFile: FileItem? = {
+            guard remoteSelectionCount == 1,
+                  let index = remoteSelection.first,
+                  index >= 0,
+                  index < remoteItems.count else { return nil }
+            return remoteItems[index]
+        }()
         let localReady = engineReady && !localMutationBusy && !localFilterBusy
-        let remoteReady = connected && !remoteMutationBusy && !remoteFilterBusy
+        let remoteReady = connected && !remoteMutationBusy && !remoteEditBusy && !remoteFilterBusy
 
         updateFilterButtonLabels()
         localChooseButton.isEnabled = localReady
@@ -1238,6 +1558,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         remoteRenameButton.isEnabled = remoteReady && remoteSelectionCount == 1
         remoteDeleteButton.isEnabled = remoteReady && remoteSelectionCount > 0
         remotePermissionsButton.isEnabled = remoteReady && remoteSelectionCount > 0
+        remoteEditButton.isEnabled = remoteReady && selectedRemoteFile.map { !$0.isDirectory && !$0.isSymlink } == true
         remoteFilterButton.isEnabled = remoteReady
         downloadButton.isEnabled = remoteReady && remoteSelectionCount > 0
         remoteTable.isEnabled = remoteReady
