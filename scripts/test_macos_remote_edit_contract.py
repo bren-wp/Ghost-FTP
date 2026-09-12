@@ -39,7 +39,7 @@ class MacOSRemoteEditContract(unittest.TestCase):
         self.assertIn("remoteEditGeneration", source)
         self.assertIn("expectedRevision", source)
         self.assertIn("NSTextView", source)
-        self.assertIn("api.MaxRemoteEditBytes", self.read("internal/api/remote_edit.go"))
+        self.assertIn("const MaxRemoteEditBytes int64 = 4 << 20", self.read("internal/api/remote_edit.go"))
         self.assertNotIn("NSWorkspace.shared.open", source)
 
     def test_save_revalidates_navigation_before_refresh(self):
