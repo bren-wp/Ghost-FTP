@@ -57,7 +57,7 @@ type darwinSecretBrokerState struct {
 
 var darwinSecretBroker darwinSecretBrokerState
 
-func PersistentSecretStorageAvailable() bool { return false }
+func PersistentSecretStorageAvailable() bool { return true }
 
 func purgeExpiredDarwinSecretsLocked(now time.Time) {
 	for token, entry := range darwinSecretBroker.entries {
