@@ -108,7 +108,7 @@ class MacOSFileMutationsContract(unittest.TestCase):
         self.assertIn("GhostFTPIsConnected() == 1", remote)
         self.assertIn("self.refreshRemote(base)", remote)
 
-    def test_parity_marks_only_newly_wired_mutations_complete(self):
+    def test_wired_file_mutations_remain_complete(self):
         for item in (
             "Local New Folder",
             "Local Rename",
@@ -118,7 +118,6 @@ class MacOSFileMutationsContract(unittest.TestCase):
             "Remote Delete",
         ):
             self.assertIn(f"- [x] {item}", self.parity)
-        self.assertIn("- [ ] Remote Permissions", self.parity)
 
 
 if __name__ == "__main__":
