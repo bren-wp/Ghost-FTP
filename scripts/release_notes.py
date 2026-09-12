@@ -45,20 +45,28 @@ ghostftp-v{version}
 Public platform packages
 ------------------------
 Windows:
-- Ghost-FTP-{version}-Setup-x64.exe — 64-bit Windows installer.
-- Ghost-FTP-{version}-Setup-x86.exe — 32-bit x86 Windows installer.
-- Ghost-FTP-{version}-Setup-x32.exe — byte-identical compatibility alias of the x86 installer.
-- Ghost-FTP-{version}-Portable-x64.exe — portable 64-bit Windows executable.
-- Ghost-FTP-{version}-Portable-x86.exe — portable 32-bit x86 Windows executable.
+- Ghost-FTP-{version}-Setup.exe — self-contained universal Windows Setup launcher with verified native x64/x86 application payloads.
+- Ghost-FTP-{version}-Portable.exe — self-contained universal Windows Portable launcher with verified native x64/x86 application payloads.
 
-Linux:
-- Ghost-FTP-{version}-Linux-amd64.deb — Debian package for amd64.
-- Ghost-FTP-{version}-Linux-arm64.deb — Debian package for arm64.
-- Ghost-FTP-{version}-Linux-i386.deb — Debian package for i386.
-- Ghost-FTP-{version}-Linux-amd64.tar.gz — package-manager-neutral portable archive for amd64.
-- Ghost-FTP-{version}-Linux-arm64.tar.gz — package-manager-neutral portable archive for arm64.
-- Ghost-FTP-{version}-Linux-i386.tar.gz — package-manager-neutral portable archive for i386.
-- Ghost-FTP-{version}-Linux-multiarch.zip — bundle containing the three verified Debian packages.
+Linux / Debian:
+- Ghost-FTP-{version}-Linux-Debian-amd64.deb
+- Ghost-FTP-{version}-Linux-Debian-arm64.deb
+- Ghost-FTP-{version}-Linux-Debian-i386.deb
+
+Linux / Ubuntu:
+- Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb
+- Ghost-FTP-{version}-Linux-Ubuntu-arm64.deb
+- Ghost-FTP-{version}-Linux-Ubuntu-i386.deb
+
+Linux / Fedora:
+- Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm
+- Ghost-FTP-{version}-Linux-Fedora-aarch64.rpm
+- Ghost-FTP-{version}-Linux-Fedora-i686.rpm
+
+Linux / Portable:
+- Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz
+- Ghost-FTP-{version}-Linux-Portable-arm64.tar.gz
+- Ghost-FTP-{version}-Linux-Portable-i386.tar.gz
 
 GitHub Packages
 ---------------
@@ -72,17 +80,18 @@ Verification files
 ------------------
 - SHA256.txt — SHA-256 checksums for every public release file except SHA256.txt itself.
 - RELEASE-NOTES.txt — these notes generated from CHANGELOG.md.
-- BUILD-METADATA.txt — version, release tag, source commit, signing state and distribution metadata.
+- BUILD-METADATA.txt — version, release tag, exact source commit, signing state and distribution metadata.
 
 Release contract
 ----------------
 - Current Ghost FTP releases are not inferred to be prereleases from semantic-version major zero.
-- 12 platform artifacts.
-- 15 public release files total, including the three verification/metadata files.
-- Active application platforms: Windows and Linux.
-- Local language catalog: 24 selectable languages with English default/fallback.
+- 14 platform artifacts.
+- 17 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
+- Public release platforms: Windows and Linux.
+- The Android development APK is independently exact-head verified but remains outside the public Windows/Linux release allow-list.
+- Local language catalog: 24 selectable desktop languages with English default/fallback.
 - Application telemetry: disabled.
-- Linux portable archives are structurally verified and their ghostftp executable must be byte-identical to the matching DEB payload before publication.
+- Linux Debian/Ubuntu/Fedora/Portable packages reuse one verified production executable per matching architecture and are byte-parity checked before publication.
 - Publication is bound to the exact verified main commit and followed by canonical latest-only retention verification.
 
 Signing and trust
