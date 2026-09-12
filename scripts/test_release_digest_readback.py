@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from verify_release_digest_readback import verify_release
+from verify_release_digest_readback import expected_release_names, verify_release
 
 
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
@@ -34,8 +34,14 @@ class ReleaseDigestReadbackTests(unittest.TestCase):
         )
         (bundle / "BUILD-METADATA.txt").write_text(metadata, encoding="utf-8")
         (bundle / "RELEASE-NOTES.txt").write_text("Synthetic release notes\n", encoding="utf-8")
-        for index in range(1, 15):
-            (bundle / f"artifact-{index:02d}.bin").write_bytes(f"artifact-{index}\n".encode())
+
+        payload_names = expected_release_names(VERSION) - {
+            "BUILD-METADATA.txt",
+            "RELEASE-NOTES.txt",
+            "SHA256.txt",
+        }
+        for index, name in enumerate(sorted(payload_names), start=1):
+            (bundle / name).write_bytes(f"synthetic-release-payload-{index}\n".encode())
 
         manifest_lines = []
         for path in sorted(bundle.iterdir()):
@@ -114,9 +120,24 @@ class ReleaseDigestReadbackTests(unittest.TestCase):
     def test_internal_sha256_manifest_mismatch_fails(self) -> None:
         temp, bundle, release_json = self.make_fixture()
         self.addCleanup(temp.cleanup)
-        artifact = bundle / "artifact-01.bin"
+        artifact = bundle / f"Ghost-FTP-{VERSION}-Setup.exe"
         artifact.write_bytes(b"changed after manifest\n")
         with self.assertRaisesRegex(ValueError, "SHA256.txt digest mismatch"):
+            verify_release(bundle, release_json, COMMIT)
+
+    def test_noncanonical_local_asset_name_fails_even_with_same_count(self) -> None:
+        temp, bundle, release_json = self.make_fixture()
+        self.addCleanup(temp.cleanup)
+        source = bundle / f"Ghost-FTP-{VERSION}-Portable.exe"
+        source.rename(bundle / "unexpected.bin")
+        with self.assertRaisesRegex(ValueError, "canonical 17-file release set"):
+            verify_release(bundle, release_json, COMMIT)
+
+    def test_non_regular_bundle_entry_fails_closed(self) -> None:
+        temp, bundle, release_json = self.make_fixture()
+        self.addCleanup(temp.cleanup)
+        (bundle / "unexpected-directory").mkdir()
+        with self.assertRaisesRegex(ValueError, "non-regular"):
             verify_release(bundle, release_json, COMMIT)
 
 
