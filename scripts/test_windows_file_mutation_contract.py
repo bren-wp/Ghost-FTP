@@ -64,7 +64,7 @@ class WindowsFileMutationContractTests(unittest.TestCase):
     def test_async_mutation_guards_are_released_from_dispatch(self) -> None:
         source = read("internal/desktop/files_actions_windows.go")
         self.assertGreaterEqual(source.count("a.finishLocalMutation()"), 4)
-        self.assertGreaterEqual(source.count("a.finishRemoteMutation()"), 3)
+        self.assertEqual(source.count("a.finishRemoteMutation()"), 2)
         self.assertIn("a.updateActionControls()", source)
 
 
