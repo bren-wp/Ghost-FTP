@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.1"
-RETIRED_ROOTS = ("ios", "macos", "GhostFTP WEB")
+RETIRED_ROOTS = ("ios", "GhostFTP WEB")
 CURRENT_LINE_DOCS = (
     "README.md",
     "CHANGELOG.md",
@@ -174,6 +174,29 @@ def main() -> int:
         ".github/workflows/android-apk.yml",
     )
 
+    macos_build = read("macos/BUILD.sh")
+    require(
+        macos_build,
+        (
+            'VERSION="$(tr -d \'\\r\\n\' < "$SCRIPT_DIR/../VERSION")"',
+            "CFBundleShortVersionString",
+            "CFBundleVersion",
+            "app.ghostftp.client",
+            'Ghost-FTP-${VERSION}-macOS.app.zip',
+        ),
+        "macos/BUILD.sh",
+    )
+    macos_workflow = read(".github/workflows/macos-app.yml")
+    require(
+        macos_workflow,
+        (
+            "Ghost FTP macOS Development App",
+            "bash macos/BUILD.sh",
+            "name: ghostftp-macos-development",
+        ),
+        ".github/workflows/macos-app.yml",
+    )
+
     for retired in RETIRED_ROOTS:
         if (ROOT / retired).exists():
             fail(f"retired application surface must be removed: {retired}/")
@@ -190,11 +213,11 @@ def main() -> int:
         lowered = workflow.lower()
         for marker in ("ios/", "macos/", "ghostftp web/", "runs-on: macos"):
             if marker in lowered:
-                fail(f"{workflow_rel} references retired application marker: {marker}")
+                fail(f"{workflow_rel} references non-public application marker: {marker}")
 
     release_workflow = read(".github/workflows/release.yml")
-    if "android/" in release_workflow.lower():
-        fail("published Windows/Linux release workflow must not retroactively include Android development artifacts")
+    if "android/" in release_workflow.lower() or "macos/" in release_workflow.lower():
+        fail("published Windows/Linux release workflow must not retroactively include development-platform artifacts")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded production version")
     require(
@@ -274,8 +297,9 @@ def main() -> int:
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
-    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ANDROID_VERSION_BOUND_TO_ROOT_VERSION=YES")
+    print("MACOS_VERSION_BOUND_TO_ROOT_VERSION=YES")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")

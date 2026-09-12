@@ -1,0 +1,112 @@
+name: Ghost FTP macOS Development App
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'VERSION'
+      - 'build/icon.png'
+      - 'macos/**'
+      - 'scripts/audit_platform_contract.py'
+      - 'scripts/audit_desktop_surface.py'
+      - 'scripts/audit_version.py'
+      - 'scripts/test_macos_windows_parity_contract.py'
+      - '.github/workflows/macos-app.yml'
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'VERSION'
+      - 'build/icon.png'
+      - 'macos/**'
+      - 'scripts/audit_platform_contract.py'
+      - 'scripts/audit_desktop_surface.py'
+      - 'scripts/audit_version.py'
+      - 'scripts/test_macos_windows_parity_contract.py'
+      - '.github/workflows/macos-app.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-macos-development-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: Universal native macOS development app
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Confirm exact tested SHA
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          echo "MACOS_SOURCE_SHA=$SOURCE_SHA"
+
+      - name: Verify Apple toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun swiftc --version
+          xcrun --sdk macosx --show-sdk-path
+
+      - name: Validate macOS parity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_macos_windows_parity_contract.py
+          python3 scripts/audit_platform_contract.py
+          python3 scripts/audit_desktop_surface.py
+          python3 scripts/audit_version.py
+
+      - name: Build universal native macOS app
+        shell: bash
+        run: bash macos/BUILD.sh
+
+      - name: Verify app bundle and universal executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          archive="macos/dist/Ghost-FTP-${version}-macOS.app.zip"
+          test -s "$archive"
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          ditto -x -k "$archive" "$work"
+          app="$work/Ghost FTP.app"
+          executable="$app/Contents/MacOS/GhostFTP"
+          plist="$app/Contents/Info.plist"
+          icon="$app/Contents/Resources/GhostFTP.icns"
+          test -x "$executable"
+          test -s "$plist"
+          test -s "$icon"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = 'app.ghostftp.client'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "$version"
+          archs="$(xcrun lipo -archs "$executable")"
+          [[ " $archs " == *" arm64 "* ]]
+          [[ " $archs " == *" x86_64 "* ]]
+          codesign --verify --deep --strict "$app"
+          echo "MACOS_APP_BUNDLE=PASS"
+          echo "MACOS_APP_ARCHS=$archs"
+          echo "MACOS_APP_SIGNING=adhoc-development"
+
+      - name: Store macOS development artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-macos-development
+          if-no-files-found: error
+          retention-days: 14
+          path: macos/dist/Ghost-FTP-*-macOS.app.zip

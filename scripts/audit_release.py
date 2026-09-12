@@ -270,7 +270,19 @@ def main() -> int:
         "latest",
     )
 
-    for retired in ("ios", "macos", "GhostFTP WEB"):
+    # macOS is an active development source platform but is deliberately not
+    # part of this Windows/Linux public release contract yet. The workflow
+    # checks above fail closed on any macOS path, runner or artifact leakage.
+    for required_macos in (
+        "macos/README.md",
+        "macos/PARITY.md",
+        "macos/BUILD.sh",
+        ".github/workflows/macos-app.yml",
+    ):
+        if not (ROOT / required_macos).is_file():
+            fail(f"active macOS development source is incomplete: {required_macos}")
+
+    for retired in ("ios", "GhostFTP WEB"):
         if (ROOT / retired).exists():
             fail(f"retired application directory exists: {retired}/")
     for retired_file in (
@@ -284,8 +296,9 @@ def main() -> int:
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
-    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ANDROID_PUBLIC_RELEASE_ARTIFACT=NO")
+    print("MACOS_PUBLIC_RELEASE_ARTIFACT=NO")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")

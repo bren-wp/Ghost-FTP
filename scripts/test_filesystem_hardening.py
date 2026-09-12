@@ -69,10 +69,12 @@ def run_checks() -> None:
         "os.Rename(src, dst)",
     ))
 
-    # Windows/Linux desktop and Android source are active. Retired native
-    # targets and Darwin-specific desktop source must not silently return.
-    for retired in ("ios", "macos", "internal/platform/filemove_darwin.go"):
-        require_absent(retired)
+    # Windows/Linux desktop, Android and macOS source are active. iOS remains
+    # retired; macOS-specific filesystem implementations may now be added, but
+    # they must receive their own no-replace/root-capability regression tests.
+    require_absent("ios")
+    if not (ROOT / "macos").is_dir():
+        raise AssertionError("active macOS development source is missing")
 
     # Recursive delete must keep traversal anchored to held os.Root
     # capabilities. Path-based ReadDir/recursive descent would reopen the
