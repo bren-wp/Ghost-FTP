@@ -9,3 +9,10 @@ import "github.com/bren-wp/Ghost-FTP/internal/model"
 func (e *Engine) Transfers() []model.TransferJob {
 	return e.transfers.List()
 }
+
+// TransferQueueSnapshot returns one isolated queue snapshot together with the
+// transfer manager's authoritative paused state. UI surfaces therefore do not
+// need to invent or mirror scheduler state independently.
+func (e *Engine) TransferQueueSnapshot() ([]model.TransferJob, bool) {
+	return e.transfers.Snapshot()
+}
