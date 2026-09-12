@@ -80,8 +80,8 @@ class MacOSRemotePermissionsContract(unittest.TestCase):
             "var failed = 0",
             "var skipped = 0",
             '"Changed: \\(changed)"',
-            '"Failed: \\(failed)"',
-            '"Skipped links: \\(skipped)"',
+            'Failed: \\(failed)',
+            'Skipped links: \\(skipped)',
         ):
             self.assertIn(marker, action)
         self.assertIn("runRemoteMutation", action)
