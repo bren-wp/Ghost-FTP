@@ -67,6 +67,7 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
         runtime_darwin = (ROOT / "internal" / "security" / "runtime_secret_darwin.go").read_text(encoding="utf-8")
         curl = (ROOT / "internal" / "remote" / "curl_ftp.go").read_text(encoding="utf-8")
         manager = (ROOT / "internal" / "remote" / "manager.go").read_text(encoding="utf-8")
+        ownership_test = (ROOT / "internal" / "remote" / "curl_ftp_secret_ownership_other_test.go").read_text(encoding="utf-8")
         self.assertIn("//go:build !windows && !darwin", runtime_other)
         for marker in ("return ProtectString(value)", "return UnprotectBytes(encoded)", "ForgetProtectedSecret(encoded)"):
             self.assertIn(marker, runtime_darwin)
@@ -74,6 +75,12 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
             self.assertIn(marker, curl)
         for marker in ("transferResolvedSecretOwnershipToCurl", "s.ownsPasswordBlob = true", "transferResolvedSecretOwnershipToCurl(&resolved, curlSession)"):
             self.assertIn(marker, manager)
+        for marker in (
+            "TestCurlFTPClosePreservesBorrowedRuntimeSecret",
+            "TestCurlFTPCloseForgetsOwnedRuntimeSecret",
+            "UnprotectRuntimeBytes(blob)",
+        ):
+            self.assertIn(marker, ownership_test)
 
     def test_preparer_rejects_missing_anchor(self) -> None:
         preparer = ROOT / "macos" / "prepare_site_manager_sources.py"
