@@ -110,6 +110,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private let remoteNewFolderButton = NSButton(title: "New Folder", target: nil, action: nil)
     private let remoteRenameButton = NSButton(title: "Rename", target: nil, action: nil)
     private let remoteDeleteButton = NSButton(title: "Delete", target: nil, action: nil)
+    private let remotePermissionsButton = NSButton(title: "Permissions", target: nil, action: nil)
     private let downloadButton = NSButton(title: "Download", target: nil, action: nil)
 
     private var localCurrent = NSHomeDirectory()
@@ -270,7 +271,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             title: "Remote",
             table: remoteTable,
             pathLabel: remotePathLabel,
-            buttons: [remoteUpButton, remoteRefreshButton, remoteNewFolderButton, remoteRenameButton, remoteDeleteButton, downloadButton]
+            buttons: [remoteUpButton, remoteRefreshButton, remoteNewFolderButton, remoteRenameButton, remoteDeleteButton, remotePermissionsButton, downloadButton]
         ))
 
         let container = NSView()
@@ -368,6 +369,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         remoteRenameButton.action = #selector(remoteRenameTapped)
         remoteDeleteButton.target = self
         remoteDeleteButton.action = #selector(remoteDeleteTapped)
+        remotePermissionsButton.target = self
+        remotePermissionsButton.action = #selector(remotePermissionsTapped)
         downloadButton.target = self
         downloadButton.action = #selector(downloadTapped)
     }
@@ -674,6 +677,67 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             if failed > 0 { status += " • Failed: \(failed)" }
             return MutationResult(changed: deleted > 0, status: status, error: firstError)
         }
+    }
+
+    @objc private func remotePermissionsTapped() {
+        let selected = selectedItems(table: remoteTable, items: remoteItems)
+        guard !remoteMutationBusy, GhostFTPIsConnected() == 1, !selected.isEmpty else { return }
+        if selected.count > 1000 {
+            statusLabel.stringValue = "Permissions: too many selected items."
+            return
+        }
+        guard let mode = promptPermissionMode() else { return }
+        guard isValidPermissionMode(mode) else {
+            showError("Permissions must contain exactly 3 or 4 octal digits (0–7).")
+            return
+        }
+        let base = remoteCurrent
+        runRemoteMutation(status: "Changing remote permissions…") {
+            var changed = 0
+            var failed = 0
+            var skipped = 0
+            var firstError = ""
+            for item in selected {
+                if item.isSymlink {
+                    skipped += 1
+                    continue
+                }
+                let baseValue = CStringBox(base)
+                let nameValue = CStringBox(item.name)
+                let modeValue = CStringBox(mode)
+                if GhostFTPRemoteChmod(baseValue.pointer, nameValue.pointer, modeValue.pointer) == 1 {
+                    changed += 1
+                } else {
+                    failed += 1
+                    if firstError.isEmpty {
+                        firstError = bridgeString(GhostFTPLastError())
+                    }
+                }
+            }
+            var status = "Changed: \(changed)"
+            if failed > 0 { status += " • Failed: \(failed)" }
+            if skipped > 0 { status += " • Skipped links: \(skipped)" }
+            return MutationResult(changed: changed > 0, status: status, error: firstError)
+        }
+    }
+
+    private func promptPermissionMode() -> String? {
+        let alert = NSAlert()
+        alert.messageText = "Remote permissions"
+        alert.informativeText = "Permissions (644 / 755):"
+        alert.addButton(withTitle: "Apply")
+        alert.addButton(withTitle: "Cancel")
+        let input = NSTextField(string: "644")
+        input.frame = NSRect(x: 0, y: 0, width: 180, height: 24)
+        alert.accessoryView = input
+        window.makeFirstResponder(input)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isValidPermissionMode(_ value: String) -> Bool {
+        guard value.count == 3 || value.count == 4 else { return false }
+        return value.allSatisfy { $0 >= "0" && $0 <= "7" }
     }
 
     private func promptName(title: String, initial: String) -> String? {
@@ -1001,6 +1065,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         remoteNewFolderButton.isEnabled = connected && !remoteMutationBusy
         remoteRenameButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount == 1
         remoteDeleteButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
+        remotePermissionsButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
         downloadButton.isEnabled = connected && !remoteMutationBusy && remoteSelectionCount > 0
         remoteTable.isEnabled = connected
     }
