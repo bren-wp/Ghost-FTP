@@ -1395,6 +1395,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         let remoteBase = remoteCurrent
         let localGeneration = localNavigationGeneration
         let remoteGeneration = remoteNavigationGeneration
+        let operationToken = UInt64(GhostFTPPrepareDirectoryCompare())
+        guard operationToken != 0 else {
+            showError("Directory comparison could not be prepared safely.")
+            return
+        }
         directoryCompareGeneration += 1
         let generation = directoryCompareGeneration
         directoryCompareBusy = true
@@ -1424,7 +1429,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         engineQueue.async { [weak self] in
             let local = CStringBox(localBase)
             let remote = CStringBox(remoteBase)
-            let code = Int32(GhostFTPCompareDirectories(local.pointer, remote.pointer))
+            let code = Int32(GhostFTPCompareDirectories(CUnsignedLongLong(operationToken), local.pointer, remote.pointer))
             let entries = self?.readDirectoryCompareEntries() ?? []
             let message = code == 0 ? bridgeString(GhostFTPLastError()) : ""
             DispatchQueue.main.async {
@@ -1492,23 +1497,68 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private func openComparedDirectoryBoth(index: Int) {
         guard !directoryCompareBusy,
               let controller = directoryCompareController,
-              let entry = controller.entry(at: index),
-              GhostFTPDirectoryCompareCanOpenBoth(CInt(index)) == 1 else { return }
-        let localBase = bridgeString(GhostFTPDirectoryCompareLocalBase())
-        let remoteBase = bridgeString(GhostFTPDirectoryCompareRemoteBase())
-        guard !localBase.isEmpty, !remoteBase.isEmpty, GhostFTPIsConnected() == 1 else { return }
-        let localTarget = URL(fileURLWithPath: localBase, isDirectory: true).appendingPathComponent(entry.name, isDirectory: true).path
-        let remoteTarget = remoteChild(remoteBase, entry.name)
+              controller.entry(at: index) != nil,
+              GhostFTPDirectoryCompareCanOpenBoth(CInt(index)) == 1,
+              GhostFTPIsConnected() == 1 else { return }
+        let operationToken = UInt64(GhostFTPPrepareDirectoryCompareOpen())
+        guard operationToken != 0 else {
+            showError("Compared directory navigation could not be prepared safely.")
+            return
+        }
         directoryCompareGeneration += 1
-        directoryCompareBusy = false
-        controller.closeSilently()
-        directoryCompareController = nil
-        GhostFTPClearDirectoryCompare()
-        localFilterQuery = ""
-        remoteFilterQuery = ""
+        let generation = directoryCompareGeneration
+        directoryCompareBusy = true
         statusLabel.stringValue = "Opening synchronized directory…"
-        refreshLocal(localTarget)
-        refreshRemote(remoteTarget)
+        updateWorkspaceControls()
+
+        engineQueue.async { [weak self] in
+            let code = Int32(GhostFTPOpenComparedDirectoryBoth(CUnsignedLongLong(operationToken), CInt(index)))
+            let localResolved = code == 1 ? bridgeString(GhostFTPLocalPath()) : ""
+            let remoteResolved = code == 1 ? bridgeString(GhostFTPRemotePath()) : ""
+            let localSourceCount = code == 1 ? max(0, Int(GhostFTPLocalItemCount())) : 0
+            let remoteSourceCount = code == 1 ? max(0, Int(GhostFTPRemoteItemCount())) : 0
+            let localItems = code == 1 ? self?.readLocalFilteredSnapshot() ?? [] : []
+            let remoteItems = code == 1 ? self?.readRemoteFilteredSnapshot() ?? [] : []
+            let message = code == 0 ? bridgeString(GhostFTPLastError()) : ""
+            DispatchQueue.main.async {
+                guard let self, generation == self.directoryCompareGeneration else { return }
+                self.directoryCompareBusy = false
+                switch code {
+                case 1:
+                    guard !localResolved.isEmpty,
+                          !remoteResolved.isEmpty,
+                          GhostFTPIsConnected() == 1 else {
+                        self.statusLabel.stringValue = "Compared directory navigation was discarded."
+                        self.updateWorkspaceControls()
+                        return
+                    }
+                    self.localNavigationGeneration += 1
+                    self.remoteNavigationGeneration += 1
+                    self.localFilterQuery = ""
+                    self.remoteFilterQuery = ""
+                    self.localCurrent = localResolved
+                    self.remoteCurrent = remoteResolved
+                    self.localSourceCount = localSourceCount
+                    self.remoteSourceCount = remoteSourceCount
+                    self.localItems = localItems
+                    self.remoteItems = remoteItems
+                    self.localPathLabel.stringValue = localResolved
+                    self.remotePathLabel.stringValue = remoteResolved
+                    self.localTable.reloadData()
+                    self.remoteTable.reloadData()
+                    controller.closeSilently()
+                    self.directoryCompareController = nil
+                    GhostFTPClearDirectoryCompare()
+                    self.statusLabel.stringValue = "Opened synchronized directory on both sides."
+                case 2:
+                    self.statusLabel.stringValue = "Compared directory navigation cancelled."
+                default:
+                    self.statusLabel.stringValue = "Could not open the compared directory."
+                    self.showError(message.isEmpty ? "Both folders must remain available before either pane can navigate." : message)
+                }
+                self.updateWorkspaceControls()
+            }
+        }
     }
 
     private func promptPermissionMode() -> String? {
