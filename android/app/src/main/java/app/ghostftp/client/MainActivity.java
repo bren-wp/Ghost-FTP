@@ -121,6 +121,8 @@ public final class MainActivity extends Activity {
     private int selectedLocal = -1;
     private int selectedRemote = -1;
     private FtpSession session;
+    private volatile FtpSession connectingSession;
+    private volatile boolean lifecycleDestroyed;
     private boolean busy;
     private boolean rememberEndpoint = true;
     private boolean showFileSizes = true;
@@ -147,6 +149,12 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        lifecycleDestroyed = true;
+        FtpSession pending = connectingSession;
+        connectingSession = null;
+        if (pending != null) {
+            pending.abort();
+        }
         transferGeneration++;
         transferActive = false;
         transferFinalizing = false;
@@ -841,8 +849,12 @@ public final class MainActivity extends Activity {
         return null;
     }
 
+    private boolean connectionAttemptCurrent(FtpSession candidate) {
+        return !lifecycleDestroyed && connectingSession == candidate;
+    }
+
     private void connect() {
-        if (busy || session != null) return;
+        if (lifecycleDestroyed || busy || session != null || connectingSession != null) return;
         String hostValue = host.getText().toString().trim();
         String userValue = username.getText().toString().trim();
         String passwordValue = password.getText().toString();
@@ -865,17 +877,39 @@ public final class MainActivity extends Activity {
             return;
         }
         String requestedStart = profile == null ? null : profile.remoteStartPath;
+        final FtpSession next;
+        try {
+            next = new FtpSession(hostValue, portValue, secure);
+        } catch (IllegalArgumentException e) {
+            setStatus(e.getMessage());
+            return;
+        }
+        connectingSession = next;
         setBusy(true, secure ? "Connecting with strict FTPS TLS verification…" : "Connecting with unencrypted FTP…");
         io.execute(() -> {
-            FtpSession next = null;
             try {
-                next = new FtpSession(hostValue, portValue, secure);
+                if (!connectionAttemptCurrent(next)) {
+                    next.abort();
+                    return;
+                }
                 next.connect(userValue, passwordValue);
+                if (!connectionAttemptCurrent(next)) {
+                    next.abort();
+                    return;
+                }
                 String start = requestedStart == null ? next.pwd() : requestedStart;
                 List<RemoteEntry> entries = next.list(start);
-                FtpSession ready = next;
+                if (!connectionAttemptCurrent(next)) {
+                    next.abort();
+                    return;
+                }
                 runOnUiThread(() -> {
-                    session = ready;
+                    if (!connectionAttemptCurrent(next)) {
+                        next.abort();
+                        return;
+                    }
+                    connectingSession = null;
+                    session = next;
                     connectedIdentityKey = identity;
                     currentRemotePath = start;
                     remoteEntries.clear();
@@ -889,8 +923,13 @@ public final class MainActivity extends Activity {
                             : "FTP connected. Warning: transport is unencrypted; server start directory freshly listed.");
                 });
             } catch (Exception e) {
-                if (next != null) next.close();
-                postError(profile == null ? "Connection failed" : "Connection or saved server start directory failed", e);
+                next.abort();
+                runOnUiThread(() -> {
+                    if (!connectionAttemptCurrent(next)) return;
+                    connectingSession = null;
+                    setBusy(false, (profile == null ? "Connection failed" : "Connection or saved server start directory failed")
+                            + ": " + safeMessage(e));
+                });
             }
         });
     }
@@ -1649,7 +1688,9 @@ public final class MainActivity extends Activity {
     }
 
     private void postError(String prefix, Exception e) {
+        if (lifecycleDestroyed) return;
         runOnUiThread(() -> {
+            if (lifecycleDestroyed) return;
             FtpSession current = session;
             if (current != null && !current.isConnected()) {
                 session = null;

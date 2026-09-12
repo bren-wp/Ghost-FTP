@@ -39,6 +39,7 @@ final class FtpSession implements Closeable {
     private BufferedReader reader;
     private BufferedWriter writer;
     private volatile boolean connected;
+    private volatile boolean aborted;
 
     FtpSession(String host, int port, boolean secure) {
         this.host = requireHost(host);
@@ -47,20 +48,25 @@ final class FtpSession implements Closeable {
     }
 
     synchronized void connect(String username, String password) throws IOException {
+        requireNotAborted();
         if (connected) {
             throw new IOException("Session is already connected.");
         }
         Socket plain = new Socket();
+        controlSocket = plain;
+        requireNotAborted();
         plain.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
         plain.setSoTimeout(READ_TIMEOUT_MS);
-        controlSocket = plain;
+        requireNotAborted();
         bindStreams(plain);
         expect(readReply(), 220);
 
         if (secure) {
             expect(command("AUTH TLS"), 234, 334);
+            requireNotAborted();
             SSLSocket tls = wrapTls(plain);
             controlSocket = tls;
+            requireNotAborted();
             bindStreams(tls);
         }
 
@@ -76,6 +82,7 @@ final class FtpSession implements Closeable {
             expect(command("PBSZ 0"), 200);
             expect(command("PROT P"), 200);
         }
+        requireNotAborted();
         connected = true;
     }
 
@@ -294,6 +301,13 @@ final class FtpSession implements Closeable {
     }
 
     void cancelActiveTransfer() {
+        connected = false;
+        closeQuietly(activeDataSocket);
+        closeQuietly(controlSocket);
+    }
+
+    void abort() {
+        aborted = true;
         connected = false;
         closeQuietly(activeDataSocket);
         closeQuietly(controlSocket);
@@ -547,6 +561,13 @@ final class FtpSession implements Closeable {
         controlSocket = null;
         reader = null;
         writer = null;
+    }
+
+    private void requireNotAborted() throws IOException {
+        if (aborted) {
+            hardClose();
+            throw new IOException("Connection cancelled.");
+        }
     }
 
     private static String sanitizeArgument(String value) throws IOException {
