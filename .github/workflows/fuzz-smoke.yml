@@ -1,0 +1,70 @@
+name: Ghost FTP Fuzz Smoke
+
+on:
+  push:
+    branches: [main, 'work/**', 'release/**']
+    paths:
+      - 'internal/remote/**'
+      - 'internal/security/**'
+      - '.github/workflows/fuzz-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'internal/remote/**'
+      - 'internal/security/**'
+      - '.github/workflows/fuzz-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: off
+  GOSUMDB: off
+
+jobs:
+  fuzz:
+    name: Security parser fuzz smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Disable Go telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+      - name: Fuzz remote listing parsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./internal/remote -run='^$' -fuzz='^FuzzRemoteListingParsers$' -fuzztime=15s
+      - name: Fuzz security validators
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test ./internal/security -run='^$' -fuzz='^FuzzSecurityValidators$' -fuzztime=15s
+      - name: Store fuzz failure corpus
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-fuzz-failure-corpus
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            internal/remote/testdata/fuzz/**
+            internal/security/testdata/fuzz/**
