@@ -28,9 +28,16 @@ require(
     "UnprotectPersistentProfileBytes",
     "PersistentProfileSecretToRuntime",
     "ProtectRuntimeBytes",
+    'persistentProfileSecretAAD    = "profile-secret-v1"',
 )
 if "/usr/bin/security" in keychain or "exec.Command" in keychain:
     raise SystemExit("Keychain integration must use Security.framework, not shell commands")
+
+runtime_darwin = text("internal/security/runtime_secret_darwin.go")
+require(runtime_darwin, "ProtectRuntimeBytes", "return ProtectBytes(value)", "ForgetProtectedSecret")
+
+capability = text("internal/security/dpapi_darwin.go")
+require(capability, "func PersistentSecretStorageAvailable() bool { return true }")
 
 profile_crypto = text("internal/config/profile_crypto_darwin.go")
 require(
@@ -52,6 +59,9 @@ require(
     "ownsPasswordBlob",
     "ownsPassphraseBlob",
     "forgetOwnedSecrets",
+    "stashPendingTrustResolved",
+    "transferResolvedSecretOwnershipToCurl",
+    "func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolvedConnection",
 )
 
 bridge = text("macos/Bridge/profiles.go")
@@ -97,6 +107,7 @@ for forbidden in ("PasswordBlob", "PassphraseBlob"):
 parity = text("macos/PARITY.md")
 for action in ("Site Manager", "Save Profile", "Remove Profile"):
     require(parity, f"- [x] {action}")
+require(parity, "Security.framework", "WhenUnlockedThisDeviceOnly")
 
 global_parity = text("scripts/test_macos_windows_parity_contract.py")
 for action in ("Site Manager", "Save Profile", "Remove Profile"):
