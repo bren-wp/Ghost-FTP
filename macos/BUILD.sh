@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-VERSION="$(tr -d '\r\n' < "$REPO_ROOT/VERSION")"
+VERSION="$(tr -d '\r\n' < "$SCRIPT_DIR/../VERSION")"
 
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Invalid root VERSION: $VERSION" >&2
