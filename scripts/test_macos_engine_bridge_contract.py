@@ -63,20 +63,31 @@ class MacOSEngineBridgeContractTests(unittest.TestCase):
             self.assertIn(marker, darwin)
         self.assertNotIn("XDG_DATA_HOME", darwin)
 
-    def test_persistent_macos_profiles_fail_closed_until_keychain(self) -> None:
+    def test_persistent_macos_profiles_use_keychain_protection(self) -> None:
         profile_crypto = read("internal/config/profile_crypto_darwin.go")
+        keychain = read("internal/security/profile_secret_darwin.go")
         for marker in (
             "//go:build darwin",
-            "saved profiles are unavailable until macOS Keychain protection is enabled",
-            "func protectProfileData([]byte, string) (string, error)",
-            "func unprotectProfileData(string, string) ([]byte, error)",
-            "return \"\", errDarwinPersistentProfilesUnavailable",
-            "return nil, errDarwinPersistentProfilesUnavailable",
+            "ProtectPersistentProfileBytes",
+            "UnprotectPersistentProfileBytes",
+            '"profile-envelope-v1\\x00"',
         ):
             self.assertIn(marker, profile_crypto)
-        self.assertNotIn("base64", profile_crypto)
-        self.assertNotIn("WriteFile", profile_crypto)
-        self.assertNotIn("ProtectString", profile_crypto)
+        for marker in (
+            "#cgo LDFLAGS: -framework Security -framework CoreFoundation",
+            "kSecClassGenericPassword",
+            "kSecAttrAccessibleWhenUnlockedThisDeviceOnly",
+            "darwin-keychain-aesgcm-v1:",
+            "ProtectPersistentProfileBytes",
+            "UnprotectPersistentProfileBytes",
+            "PersistentProfileSecretToRuntime",
+            "ProtectRuntimeBytes",
+        ):
+            self.assertIn(marker, keychain)
+        self.assertNotIn("errDarwinPersistentProfilesUnavailable", profile_crypto)
+        self.assertNotIn("saved profiles are unavailable until macOS Keychain protection is enabled", profile_crypto)
+        self.assertNotIn("/usr/bin/security", keychain)
+        self.assertNotIn("exec.Command", keychain)
 
     def test_macos_build_links_universal_go_engine_dylib(self) -> None:
         build = read("macos/BUILD.sh")
@@ -94,6 +105,7 @@ class MacOSEngineBridgeContractTests(unittest.TestCase):
             "@rpath/libGhostFTPEngine.dylib",
             "@executable_path/../Frameworks",
             'FRAMEWORKS="$CONTENTS/Frameworks"',
+            "SiteManager.swift",
         ):
             self.assertIn(marker, build)
 
