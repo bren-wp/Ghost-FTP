@@ -1,3 +1,4 @@
+# Site Manager parity promotion is committed before this guarded production apply.
 name: Apply macOS Site Manager credential hardening
 
 on:
