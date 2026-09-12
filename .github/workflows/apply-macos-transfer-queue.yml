@@ -1,0 +1,55 @@
+name: Apply macOS transfer queue UI
+
+on:
+  push:
+    branches:
+      - feature/macos-transfer-queue
+    paths:
+      - scripts/apply_macos_transfer_queue_patch.py
+      - .github/workflows/apply-macos-transfer-queue.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/macos-transfer-queue
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Apply guarded patch
+        run: python3 scripts/apply_macos_transfer_queue_patch.py
+
+      - name: Format Go changes
+        run: gofmt -w internal/transfer/snapshot.go internal/api/transfer_snapshot.go macos/Bridge/transfer_queue.go
+
+      - name: Validate transfer queue contracts
+        run: |
+          python3 scripts/test_macos_transfer_queue_contract.py
+          python3 scripts/test_macos_windows_parity_contract.py
+          go test ./internal/transfer ./internal/api
+
+      - name: Commit production diff only
+        shell: bash
+        run: |
+          rm -f scripts/apply_macos_transfer_queue_patch.py .github/workflows/apply-macos-transfer-queue.yml
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No production changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat: add native macOS transfer queue controls"
+          git push origin HEAD:feature/macos-transfer-queue
