@@ -54,6 +54,8 @@ type app struct {
 	connected            bool
 	connectionBusy       bool
 	profileMutationBusy  bool
+	localMutationBusy    bool
+	remoteMutationBusy   bool
 	connectionGeneration uint64
 	healthCheckRunning   bool
 	connectionCancel     context.CancelFunc

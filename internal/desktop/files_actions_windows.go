@@ -21,6 +21,56 @@ func (a *app) suppressExpectedDisconnectError(err error) bool {
 	return err != nil && errors.Is(err, context.Canceled) && (a.connectionBusy || !a.connected || a.closing)
 }
 
+func (a *app) beginLocalMutation() bool {
+	if a == nil || a.localMutationBusy {
+		return false
+	}
+	a.localMutationBusy = true
+	a.updateActionControls()
+	return true
+}
+
+func (a *app) finishLocalMutation() {
+	if a == nil || !a.localMutationBusy {
+		return
+	}
+	a.localMutationBusy = false
+	a.updateActionControls()
+}
+
+func (a *app) remoteMutationActionReady() bool {
+	return a != nil && a.connected && !a.connectionBusy && !a.remoteMutationBusy
+}
+
+func (a *app) beginRemoteMutation() bool {
+	if !a.remoteMutationActionReady() {
+		return false
+	}
+	a.remoteMutationBusy = true
+	a.updateActionControls()
+	return true
+}
+
+func (a *app) finishRemoteMutation() {
+	if a == nil || !a.remoteMutationBusy {
+		return
+	}
+	a.remoteMutationBusy = false
+	a.updateActionControls()
+}
+
+func (a *app) runLocalMutation(operation func() error, complete func(error)) {
+	a.goSafe(func() {
+		defer a.dispatch(func() {
+			a.finishLocalMutation()
+		})
+		err := operation()
+		a.dispatch(func() {
+			complete(err)
+		})
+	})
+}
+
 func (a *app) chooseLocalDirectory() {
 	p, err := a.engine.ChooseDirectory()
 	if err != nil {
@@ -164,53 +214,64 @@ func (a *app) openSelectedRemote() {
 }
 
 func (a *app) localMkdirAction() {
+	if !a.beginLocalMutation() {
+		return
+	}
 	name, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.new_folder"), a.tr("column.name")+":", a.tr("common.new_folder"))
 	if !ok {
+		a.finishLocalMutation()
 		return
 	}
 	name = strings.TrimSpace(name)
 	base := a.localCurrent
-	a.goSafe(func() {
-		err := a.engine.LocalMkdir(base, name)
-		a.dispatch(func() {
-			if err != nil {
-				platform.ErrorDialog("Ghost FTP", a.tr("common.new_folder"), a.userMessage(err, "error.generic"))
-				return
-			}
-			a.refreshLocal(a.localCurrent)
-			a.setStatus(a.tr("common.new_folder") + ": " + name)
-		})
+	a.runLocalMutation(func() error {
+		return a.engine.LocalMkdir(base, name)
+	}, func(err error) {
+		if err != nil {
+			platform.ErrorDialog("Ghost FTP", a.tr("common.new_folder"), a.userMessage(err, "error.generic"))
+			return
+		}
+		a.refreshLocal(a.localCurrent)
+		a.setStatus(a.tr("common.new_folder") + ": " + name)
 	})
 }
 
 func (a *app) localRenameAction() {
+	if !a.beginLocalMutation() {
+		return
+	}
 	indices := selectedIndices(a.localList)
 	if len(indices) != 1 || indices[0] < 0 || indices[0] >= len(a.localItems) {
+		a.finishLocalMutation()
 		a.setStatus(a.tr("common.rename") + ": " + a.tr("error.invalid_name"))
 		return
 	}
 	item := a.localItems[indices[0]]
 	name, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.rename"), a.tr("column.name")+":", item.Name)
 	if !ok || strings.TrimSpace(name) == item.Name {
+		a.finishLocalMutation()
 		return
 	}
 	base := a.localCurrent
-	a.goSafe(func() {
-		err := a.engine.LocalRename(base, item.Name, strings.TrimSpace(name))
-		a.dispatch(func() {
-			if err != nil {
-				platform.ErrorDialog("Ghost FTP", a.tr("common.rename"), a.userMessage(err, "error.generic"))
-				return
-			}
-			a.refreshLocal(a.localCurrent)
-			a.setStatus(a.tr("common.rename") + ": " + item.Name)
-		})
+	a.runLocalMutation(func() error {
+		return a.engine.LocalRename(base, item.Name, strings.TrimSpace(name))
+	}, func(err error) {
+		if err != nil {
+			platform.ErrorDialog("Ghost FTP", a.tr("common.rename"), a.userMessage(err, "error.generic"))
+			return
+		}
+		a.refreshLocal(a.localCurrent)
+		a.setStatus(a.tr("common.rename") + ": " + item.Name)
 	})
 }
 
 func (a *app) localDeleteAction() {
+	if !a.beginLocalMutation() {
+		return
+	}
 	indices := selectedIndices(a.localList)
 	if len(indices) == 0 {
+		a.finishLocalMutation()
 		a.setStatus(a.tr("common.delete") + ": " + a.tr("error.invalid_name"))
 		return
 	}
@@ -221,6 +282,7 @@ func (a *app) localDeleteAction() {
 		}
 	}
 	if len(items) == 0 {
+		a.finishLocalMutation()
 		return
 	}
 	if a.settings.ConfirmDelete {
@@ -229,11 +291,12 @@ func (a *app) localDeleteAction() {
 			detail = strconv.Itoa(len(items)) + " × " + a.tr("column.name")
 		}
 		if !platform.ConfirmDialog("Ghost FTP — "+a.tr("common.delete"), a.tr("common.delete")+"?", detail) {
+			a.finishLocalMutation()
 			return
 		}
 	}
 	base := a.localCurrent
-	a.goSafe(func() {
+	a.runLocalMutation(func() error {
 		deleted := 0
 		var errs []error
 		for _, item := range items {
@@ -243,19 +306,46 @@ func (a *app) localDeleteAction() {
 			}
 			deleted++
 		}
-		err := errors.Join(errs...)
-		a.dispatch(func() {
-			if err != nil {
-				platform.ErrorDialog("Ghost FTP", a.tr("common.delete"), a.userMessage(err, "error.generic"))
-			}
-			a.refreshLocal(a.localCurrent)
-			a.setStatus(a.tr("common.delete") + ": " + strconv.Itoa(deleted) + " • " + a.tr("status.failed") + ": " + strconv.Itoa(len(items)-deleted))
-		})
+		if err := errors.Join(errs...); err != nil {
+			return &localDeleteResultError{err: err, deleted: deleted}
+		}
+		return &localDeleteResultError{deleted: deleted}
+	}, func(err error) {
+		deleted := len(items)
+		var result *localDeleteResultError
+		if errors.As(err, &result) {
+			deleted = result.deleted
+			err = result.err
+		}
+		if err != nil {
+			platform.ErrorDialog("Ghost FTP", a.tr("common.delete"), a.userMessage(err, "error.generic"))
+		}
+		a.refreshLocal(a.localCurrent)
+		a.setStatus(a.tr("common.delete") + ": " + strconv.Itoa(deleted) + " • " + a.tr("status.failed") + ": " + strconv.Itoa(len(items)-deleted))
 	})
 }
 
+type localDeleteResultError struct {
+	err     error
+	deleted int
+}
+
+func (e *localDeleteResultError) Error() string {
+	if e == nil || e.err == nil {
+		return ""
+	}
+	return e.err.Error()
+}
+
+func (e *localDeleteResultError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.err
+}
+
 func (a *app) remoteMkdirAction() {
-	if !a.connected || a.connectionBusy {
+	if !a.remoteMutationActionReady() {
 		return
 	}
 	name, ok := platform.PromptDialog("Ghost FTP — "+a.tr("common.new_folder"), a.tr("column.name")+":", a.tr("common.new_folder"))
@@ -271,8 +361,11 @@ func (a *app) remoteMkdirAction() {
 }
 
 func (a *app) remoteRenameAction() {
+	if !a.remoteMutationActionReady() {
+		return
+	}
 	indices := selectedIndices(a.remoteList)
-	if len(indices) != 1 || indices[0] < 0 || indices[0] >= len(a.remoteItems) || a.connectionBusy {
+	if len(indices) != 1 || indices[0] < 0 || indices[0] >= len(a.remoteItems) {
 		a.setStatus(a.tr("common.rename") + ": " + a.tr("error.invalid_name"))
 		return
 	}
@@ -295,8 +388,11 @@ func (a *app) remoteRenameAction() {
 }
 
 func (a *app) remoteDeleteAction() {
+	if !a.remoteMutationActionReady() {
+		return
+	}
 	indices := selectedIndices(a.remoteList)
-	if len(indices) == 0 || a.connectionBusy {
+	if len(indices) == 0 {
 		a.setStatus(a.tr("common.delete") + ": " + a.tr("error.invalid_name"))
 		return
 	}
@@ -326,8 +422,11 @@ func (a *app) remoteDeleteAction() {
 }
 
 func (a *app) remoteChmodAction() {
+	if !a.remoteMutationActionReady() {
+		return
+	}
 	indices := selectedIndices(a.remoteList)
-	if len(indices) == 0 || a.connectionBusy {
+	if len(indices) == 0 {
 		a.setStatus(a.tr("common.permissions") + ": " + a.tr("error.invalid_name"))
 		return
 	}
@@ -379,13 +478,16 @@ func (a *app) runRemoteMutation(label string, operation func(context.Context) er
 }
 
 func (a *app) runRemoteMutationWithTimeout(label string, timeout time.Duration, operation func(context.Context) error, success string) {
-	if !a.connected || a.connectionBusy {
+	if !a.beginRemoteMutation() {
 		return
 	}
 	baseNavGeneration := a.remoteNavSeq
 	connectionGeneration := a.connectionGeneration
 	a.setStatus(label + "…")
 	a.goSafe(func() {
+		defer a.dispatch(func() {
+			a.finishRemoteMutation()
+		})
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		err := operation(ctx)
@@ -411,13 +513,16 @@ func (a *app) runRemoteMutationWithTimeout(label string, timeout time.Duration, 
 }
 
 func (a *app) runRemoteBatchMutationWithTimeout(label string, timeout time.Duration, count int, operation func(context.Context, int) error, successPrefix string, skipped int) {
-	if !a.connected || a.connectionBusy || count <= 0 {
+	if count <= 0 || !a.beginRemoteMutation() {
 		return
 	}
 	baseNavGeneration := a.remoteNavSeq
 	connectionGeneration := a.connectionGeneration
 	a.setStatus(label + "…")
 	a.goSafe(func() {
+		defer a.dispatch(func() {
+			a.finishRemoteMutation()
+		})
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		result := executeBatchMutation(ctx, count, operation)

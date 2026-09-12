@@ -38,17 +38,19 @@ func (a *app) updateActionControls() {
 	localRecursiveActive := a.recursiveSearchPaneActive(false)
 	localSelected := validSelectionCount(a.localList, len(a.localItems))
 	localReady := !localRecursiveActive && !comparisonActive
-	setControlEnabled(a.localMkdir, localReady)
-	setControlEnabled(a.localRename, localReady && localSelected == 1)
-	setControlEnabled(a.localDelete, localReady && localSelected > 0)
+	localMutationReady := localReady && !a.localMutationBusy
+	setControlEnabled(a.localMkdir, localMutationReady)
+	setControlEnabled(a.localRename, localMutationReady && localSelected == 1)
+	setControlEnabled(a.localDelete, localMutationReady && localSelected > 0)
 	setControlEnabled(a.upload, localReady && a.connected && !a.connectionBusy && localSelected > 0)
 
 	remoteRecursiveActive := a.recursiveSearchPaneActive(true)
 	remoteSelected := validSelectionCount(a.remoteList, len(a.remoteItems))
 	remoteReady := a.connected && !a.connectionBusy && !remoteRecursiveActive && !comparisonActive
-	setControlEnabled(a.remoteMkdir, remoteReady)
-	setControlEnabled(a.remoteRename, remoteReady && remoteSelected == 1)
-	setControlEnabled(a.remoteDelete, remoteReady && remoteSelected > 0)
+	remoteMutationReady := remoteReady && !a.remoteMutationBusy
+	setControlEnabled(a.remoteMkdir, remoteMutationReady)
+	setControlEnabled(a.remoteRename, remoteMutationReady && remoteSelected == 1)
+	setControlEnabled(a.remoteDelete, remoteMutationReady && remoteSelected > 0)
 	setControlEnabled(a.download, remoteReady && remoteSelected > 0)
 	setControlEnabled(remoteEditButton(a), remoteReady && a.remoteEditSelectionReady())
 
@@ -60,7 +62,7 @@ func (a *app) updateActionControls() {
 			}
 		}
 	}
-	setControlEnabled(a.remoteChmod, remoteReady && chmodSelected > 0)
+	setControlEnabled(a.remoteChmod, remoteMutationReady && chmodSelected > 0)
 
 	selectedTransfers := selectedIndices(a.transferList)
 	transferState := deriveTransferActionState(a.transferJobs, selectedTransfers, a.connected && !a.connectionBusy, a.queuePaused)
