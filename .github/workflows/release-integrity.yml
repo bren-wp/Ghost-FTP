@@ -1,0 +1,90 @@
+name: Verify Ghost FTP Release Integrity
+
+on:
+  workflow_run:
+    workflows:
+      - Publish Ghost FTP
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ghostftp-release-integrity-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+      SOURCE_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - name: Validate canonical source run identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SOURCE_RUN_BRANCH" = 'main' || {
+            echo "Release integrity verification only accepts main; got $SOURCE_RUN_BRANCH" >&2
+            exit 1
+          }
+          [[ "$SOURCE_RUN_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "Invalid source release SHA: $SOURCE_RUN_SHA" >&2
+            exit 1
+          }
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || {
+            echo "Invalid source release run id: $SOURCE_RUN_ID" >&2
+            exit 1
+          }
+
+      - name: Checkout exact released source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact release workflow bundle
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
+        with:
+          pattern: ghostftp-release-*
+          path: source-release
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          digest-mismatch: error
+
+      - name: Fetch published release metadata and verify exact digests
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          metadata='source-release/BUILD-METADATA.txt'
+          test -s "$metadata"
+          tag="$(awk -F= '$1 == "RELEASE_TAG" { print substr($0, index($0, "=") + 1) }' "$metadata")"
+          [[ "$tag" =~ ^ghostftp-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Invalid release tag in BUILD-METADATA.txt: $tag" >&2
+            exit 1
+          }
+
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > release.json
+          tag_commit_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)"
+          test "$tag_commit_sha" = "$SOURCE_RUN_SHA" || {
+            echo "Release tag resolves to $tag_commit_sha, expected $SOURCE_RUN_SHA" >&2
+            exit 1
+          }
+
+          python scripts/verify_release_digest_readback.py \
+            source-release \
+            release.json \
+            --expected-commit "$SOURCE_RUN_SHA"
+
+          echo "RELEASE_TAG_COMMIT_READBACK=PASS ($tag -> $tag_commit_sha)"
+          echo "RELEASE_SOURCE_WORKFLOW_RUN=$SOURCE_RUN_ID"
