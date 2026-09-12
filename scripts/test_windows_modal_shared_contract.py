@@ -49,6 +49,20 @@ class WindowsModalSharedContractTests(unittest.TestCase):
             self.assertIn("premiumRunDialogLoop(hwnd", source, relative)
             self.assertNotIn('NewProc("IsDialogMessageW")', source, relative)
 
+    def test_nested_platform_modal_loops_preserve_wm_quit(self) -> None:
+        loop = read("internal/platform/dialog_loop_windows.go")
+        editor = read("internal/platform/text_editor_windows.go")
+
+        self.assertIn('premiumPostQuitMessage = user32.NewProc("PostQuitMessage")', loop)
+        self.assertIn("func premiumDialogMessageAvailable(result uintptr, message *promptMsg) bool", loop)
+        self.assertIn("if int32(result) == -1", loop)
+        self.assertIn("if result == 0", loop)
+        self.assertIn("premiumPostQuitMessage.Call(message.WParam)", loop)
+        self.assertIn("if !premiumDialogMessageAvailable(r, &message)", loop)
+        self.assertIn("if !premiumDialogMessageAvailable(r, &message)", editor)
+        self.assertNotIn("if int32(r) <= 0", loop)
+        self.assertNotIn("if int32(r) <= 0", editor)
+
     def test_modal_owner_restores_only_unexpected_iconic_state(self) -> None:
         source = read("internal/platform/dialog_premium_windows.go")
         for marker in (
