@@ -57,10 +57,18 @@ class WindowsRemoteEditSessionContractTests(unittest.TestCase):
         finish = method_source(source, "finishRemoteEditSession")
         self.assertIn("LoadOrStore", begin)
         self.assertIn("a.remoteMutationBusy", begin)
+        self.assertIn("a.remoteMutationBusy = true", begin)
         self.assertIn("remoteEditSessions.Delete(a)", finish)
+        self.assertIn("a.remoteMutationBusy = false", finish)
         action = method_source(source, "remoteEditAction")
         self.assertTrue(action)
         self.assertIn("beginRemoteEditSession()", action)
+
+    def test_remote_mutation_execution_guard_observes_shared_busy_flag(self) -> None:
+        source = read("internal/desktop/files_actions_windows.go")
+        body = method_source(source, "remoteMutationActionReady")
+        self.assertTrue(body)
+        self.assertIn("!a.remoteMutationBusy", body)
 
     def test_terminal_remote_edit_paths_release_session(self) -> None:
         source = read("internal/desktop/remote_edit_windows.go")
