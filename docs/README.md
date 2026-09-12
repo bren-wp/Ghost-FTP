@@ -6,7 +6,7 @@
 
 <p align="center"><strong>Production behavior, security boundaries, UI evidence and release engineering for Ghost FTP.</strong></p>
 
-- **Current Ghost FTP release: 0.0.4**
+- **Current Ghost FTP release: 0.0.5**
 - Development status: **Active**
 - Release channel: **Current**
 - GitHub Release policy: **PRERELEASE=false**
@@ -17,16 +17,16 @@
 - Languages: **24 selectable local desktop languages**
 - Release shape: **14 platform artifacts / 17 public files**
 - Product website: **https://ghostftp.com**
-- Verified distribution bundle identity: **ghcr.io/bren-wp/ghost-ftp:0.0.4**
+- Verified distribution bundle identity: **ghcr.io/bren-wp/ghost-ftp:0.0.5**
 
-The root [`VERSION`](../VERSION) file is the authoritative production version source. Release-bound documentation describes the 0.0.4 current line. Public Windows/Linux release publication remains fail-closed and separate from the Android development APK path. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and the canonical retention workflow.
+The root [`VERSION`](../VERSION) file is the authoritative production version source. Release-bound documentation describes the 0.0.5 current line. Public Windows/Linux release publication remains fail-closed and separate from the Android development APK path. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and canonical retention.
 
 ## Start here
 
 | Goal | Document |
 | --- | --- |
 | Install or run Ghost FTP | [`INSTALLATION.md`](INSTALLATION.md) |
-| Understand all current settings | [`SETTINGS.md`](SETTINGS.md) |
+| Understand current settings | [`SETTINGS.md`](SETTINGS.md) |
 | Verify UI behavior and screenshots | [`REFERENCE-UI.md`](REFERENCE-UI.md) |
 | Understand security boundaries | [`SECURITY.md`](SECURITY.md) |
 | Understand privacy/no-telemetry behavior | [`PRIVACY.md`](PRIVACY.md) |
@@ -35,8 +35,8 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 | Verify Windows/Linux parity | [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) |
 | Validate a downloaded release | [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) |
 | Understand release/version lifecycle | [`VERSIONING.md`](VERSIONING.md) and [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) |
-| See next power-user work | [`ROADMAP.md`](ROADMAP.md) |
 | Build/test/contribute | [`TESTING.md`](TESTING.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Get support | [`SUPPORT.md`](SUPPORT.md) |
 
 ## Authentic visual reference
 
@@ -55,67 +55,29 @@ Documentation media is **repository-local**. No remote badge image, tracking pix
 
 See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockups/generated approximations are not production UI evidence.
 
-## Current 0.0.4 capability contract
+## Current 0.0.5 capability contract
+
+Ghost FTP 0.0.5 retains the complete 0.0.4 desktop feature set and adds lifecycle/re-entry hardening plus optional browser companion source.
 
 - FTP, explicit FTPS and SFTP through one typed desktop Core engine.
 - Native Windows and Linux frontends consuming the same typed engine behavior.
-- Persisted Classic Light/Dark appearance on both desktop platforms; Linux applies the selected palette before first paint.
-- Shared deterministic file ordering semantics on Windows/Linux for Name, Type, Size and Modified, plus remote Permissions, with directories-first behavior.
 - Built-in Remote Edit with bounded text validation, revision/conflict protection and verified read-back.
-- Transfer queue pause/resume/cancel/retry/clear plus queued Top/Up/Down/Bottom priority reordering and truthful progress/speed/ETA.
-- Independent upload/download bandwidth ceilings with aggregate directional scheduling and real transport enforcement.
-- Non-destructive current-folder filtering and bounded recursive local/server search.
-- Conservative directory comparison and synchronized navigation for safely proven paired ordinary directories.
+- Transfer queue pause/resume/cancel/retry/clear plus queued Top/Up/Down/Bottom ordering.
+- Independent aggregate upload/download bandwidth ceilings with real transport enforcement.
+- Current-folder filtering, deterministic sorting, bounded recursive search and conservative directory comparison.
 - Local/server bookmarks and profile start directories with account/session revalidation.
-- Explicit conflict policy with safe staged activation and rollback behavior.
-- Site Manager profiles with protected opt-in saved-secret handling and connection identity binding on Windows and Linux.
-- Strict SFTP host-key verification/pinning and no silent FTPS downgrade.
-- Rooted local path/transfer protections and remote cleanup uncertainty reporting.
-- Trusted Linux transport/AskPass provenance.
-- Ownership-bound Windows installer/uninstaller/shortcut cleanup.
-- Validated local settings for concurrency, upload/download KiB/s ceilings, timeout, retry, conflict policy, delete confirmation, appearance and language.
-- No telemetry, analytics, advertising, tracking or hidden product backend.
-- Active Android native development APK with Files/Sites/Bookmarks/Transfers/Settings/About, FTP + strict explicit FTPS, SAF-scoped local access, staged transfer commit/cancellation and bounded server-response parsing. Android SFTP remains hidden until strict native host-key verification exists.
-
-## Product and architecture
-
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — components, ownership and trust boundaries.
-- [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux parity contract and Android source boundary.
-- [`REFERENCE-UI.md`](REFERENCE-UI.md) — native UI and authentic evidence contract.
-- [`SETTINGS.md`](SETTINGS.md) — validated settings and persistence behavior.
-- [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) — bookmark and profile-start source/security contract.
-- [`QUEUE-PRIORITY.md`](QUEUE-PRIORITY.md) — queue Top/Up/Down/Bottom ordering contract.
-- [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language local localization model.
-- [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency and external-tool policy.
-
-## Security and privacy
-
-- [`SECURITY.md`](SECURITY.md) — protocol, filesystem, installer and release trust boundaries.
-- [`PRIVACY.md`](PRIVACY.md) — local-first data handling and no-telemetry contract.
-- [`SIGNING.md`](SIGNING.md) — optional production Authenticode and truthful unsigned state.
-- [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) — third-party notices.
-
-## Installation and releases
-
-- [`INSTALLATION.md`](INSTALLATION.md) — universal Windows Setup/Portable, Linux distro/Portable installation and Android development APK boundary.
-- [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical release shape and deterministic latest-only retention lifecycle.
-- [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution bundle policy.
-- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity and signing verification.
-- [`VERSIONING.md`](VERSIONING.md) — controlled 0.0.x public version policy.
-
-Ghost FTP 0.0.4 uses the canonical **14 platform artifacts / 17 public files** Windows/Linux release shape and publishes with `prerelease=false` when publication is explicitly authorized. The same verified release directory is mirrored as a distribution-only bundle at:
-
-```text
-ghcr.io/bren-wp/ghost-ftp:0.0.4
-```
-
-Canonical Linux packages built by `linux/BUILD-DISTROS.sh` cover Debian, Ubuntu, Fedora and a distro-neutral Portable family. Native lifecycle/GUI smoke verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. Additional architectures retain exact-head build, metadata, extraction and byte-parity verification.
+- Site Manager profiles with explicit protected credential-save consent.
+- Windows mutation/re-entry guards for profile persistence, file mutations and Remote Edit lifecycle.
+- Android pending connections owned by the Activity lifecycle so destroyed/recreated UI instances cannot be revived by stale callbacks.
+- Optional browser companion source for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox; companion packages remain outside the public 17-file desktop release.
+- Strict FTPS verification, strict desktop SFTP host-key verification/pinning and no silent secure-to-plain downgrade.
+- **No telemetry, analytics, advertising, tracking or hidden product backend.**
 
 ## Current publication identity
 
 ```text
-VERSION=0.0.4
-TAG=ghostftp-v0.0.4
+VERSION=0.0.5
+TAG=ghostftp-v0.0.5
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=14
@@ -125,26 +87,20 @@ PUBLIC_RELEASE_FILES=17
 Windows:
 
 ```text
-Ghost-FTP-0.0.4-Setup.exe
-Ghost-FTP-0.0.4-Portable.exe
+Ghost-FTP-0.0.5-Setup.exe
+Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Linux:
+Representative Linux files:
 
 ```text
-Ghost-FTP-0.0.4-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.4-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.4-Linux-Debian-i386.deb
-Ghost-FTP-0.0.4-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.4-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.4-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.4-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.4-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.4-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.4-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.4-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.4-Linux-Portable-i386.tar.gz
+Ghost-FTP-0.0.5-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.5-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.5-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz
 ```
+
+The complete Linux matrix covers Debian/Ubuntu `amd64`, `arm64`, `i386`; Fedora `x86_64`, `aarch64`, `i686`; and Portable `amd64`, `arm64`, `i386`.
 
 Android development CI artifact:
 
@@ -154,20 +110,49 @@ Ghost-FTP-Android.apk
 
 The Android artifact is independently exact-head verified but is not counted in the Windows/Linux public release allow-list.
 
-After publication and remote read-back succeed, `.github/workflows/release-retention.yml` verifies the current tag/release/17-file set and removes superseded Ghost FTP releases, tags, canonical release branches and package versions. The release-branch trigger additionally waits for both the canonical publish run and canonical retention run to succeed. `main` commit history is not rewritten.
+The verified desktop release directory is also distributed as:
 
-## Quality and engineering
+```text
+ghcr.io/bren-wp/ghost-ftp:0.0.5
+```
 
-- [`TESTING.md`](TESTING.md) — exact-head CI, Android APK, cross-platform authentic UI, package lifecycle and regression suites.
+This is a distribution bundle, not a runtime container.
+
+## Documentation map
+
+### Product and architecture
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — components, ownership and trust boundaries.
+- [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux parity and Android boundary.
+- [`REFERENCE-UI.md`](REFERENCE-UI.md) — native UI and authentic evidence contract.
+- [`SETTINGS.md`](SETTINGS.md) — validated settings and persistence behavior.
+- [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) — bookmark and profile-start contract.
+- [`QUEUE-PRIORITY.md`](QUEUE-PRIORITY.md) — queue ordering contract.
+- [`LOCALIZATION.md`](LOCALIZATION.md) — 24-language local localization model.
+- [`DEPENDENCIES.md`](DEPENDENCIES.md) — dependency and external-tool policy.
+
+### Security and privacy
+
+- [`SECURITY.md`](SECURITY.md) — protocol, filesystem, installer and release trust boundaries.
+- [`PRIVACY.md`](PRIVACY.md) — local-first data handling and no-telemetry contract.
+- [`SIGNING.md`](SIGNING.md) — optional production Authenticode and truthful unsigned state.
+- [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) — third-party notices.
+
+### Distribution and release verification
+
+- [`INSTALLATION.md`](INSTALLATION.md) — Windows/Linux installation and Android development boundary.
+- [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical release shape and deterministic retention lifecycle.
+- [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution bundle policy.
+- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity and signing verification.
+- [`VERSIONING.md`](VERSIONING.md) — controlled 0.0.x public version policy.
+
+### Engineering
+
+- [`TESTING.md`](TESTING.md) — exact-head CI, Android APK, authentic UI and release gates.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — engineering rules and PR expectations.
-- [`ROADMAP.md`](ROADMAP.md) — prioritized next capabilities and acceptance criteria.
-- [`SUPPORT.md`](SUPPORT.md) — support information and diagnostic expectations.
-- [`prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md`](prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md) — engineering audit prompt.
-- [`prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md`](prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md) — website theme prompt.
-
-## Release history
-
-- [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — current public-line history.
+- [`ROADMAP.md`](ROADMAP.md) — future capabilities and acceptance criteria.
+- [`SUPPORT.md`](SUPPORT.md) — support and privacy-safe diagnostic guidance.
+- [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — public-line history.
 - [`../CHANGELOG.md`](../CHANGELOG.md) — source for generated release notes.
 
-Only the current public version is retained in active release infrastructure after retention cleanup succeeds. Git history remains the engineering provenance of earlier work.
+Only the latest public Ghost FTP version remains in active release infrastructure after retention cleanup succeeds. Git history remains the engineering provenance of earlier work.

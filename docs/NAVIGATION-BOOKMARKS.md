@@ -1,6 +1,6 @@
 # Navigation bookmarks and profile start directories
 
-Ghost FTP **0.0.4** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux capabilities. The feature is intentionally narrow: it improves repeated navigation without turning path metadata into credentials, weakening connection identity boundaries or creating hidden Site Manager profiles.
+Ghost FTP **0.0.5** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux capabilities. The feature is intentionally narrow: it improves repeated navigation without turning path metadata into credentials, weakening connection identity boundaries or creating hidden Site Manager profiles.
 
 ## Scope
 
@@ -160,7 +160,7 @@ Bookmarks and start directories are local application state. The feature adds no
 
 ## Regression coverage
 
-The 0.0.4 contract is protected by:
+The 0.0.5 contract is protected by:
 
 - `internal/config/bookmarks_test.go` for CRUD, validation, non-secret schema, account binding and corrupt-state fail-closed behavior;
 - `internal/config/profile_start_directory_binding_test.go` for inherited start reset and explicit-new-path behavior;
@@ -170,8 +170,8 @@ The 0.0.4 contract is protected by:
 - desktop tests for shared bookmark wording and Site Manager navigation privacy;
 - `scripts/test_navigation_bookmarks_contract.py` for cross-layer Engine/config/Windows/Linux/documentation invariants.
 
-## 0.0.4 release boundary
+## 0.0.5 release boundary
 
-Root `VERSION` is **0.0.4**. Navigation bookmarks and profile start directories are part of the 0.0.4 source/release contract, but this document never authorizes publication by itself. Publication still requires exact-head CI/native-build/authentic-runtime evidence, review/merge, exact post-merge verification, canonical `ghostftp-v0.0.4` publication/read-back and latest-only retention.
+Root `VERSION` is **0.0.5**. Navigation bookmarks and profile start directories are part of the 0.0.5 source/release contract, but this document never authorizes publication by itself. Publication still requires exact-head CI/native-build/authentic-runtime evidence, review/merge, exact post-merge verification, canonical `ghostftp-v0.0.5` publication/read-back and latest-only retention.
 
 The feature does not change the public platform allow-list: Windows/Linux remain the published release surfaces and Android remains a separately validated development APK.

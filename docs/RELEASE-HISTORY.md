@@ -1,174 +1,76 @@
 # Ghost FTP release history
 
-## 0.0.4 — 2026-09-11
+## 0.0.5 — 2026-09-12
 
-Ghost FTP 0.0.4 focuses on Windows/Linux product parity, Android stability/security hardening and release-evidence quality while preserving the 0.0.3 transport, packaging, security and privacy baseline.
+Ghost FTP 0.0.5 focuses on lifecycle reliability, re-entry safety, Android connection ownership, truthful release documentation and optional browser companion source while preserving the established 0.0.4 desktop feature/security baseline.
 
-### Desktop parity and UX
+### Windows reliability
 
-- Linux now exposes the same validated Classic Light/Dark `Appearance` lifecycle as Windows and applies the persisted palette before first paint.
-- Added Linux file-pane sorting through the same shared sorter used by Windows: Name, Type, Size and Modified on both panes plus remote Permissions, with ascending/descending cycles and directories-first behavior.
-- Kept filtering and sorting non-destructive over authoritative loaded snapshots and preserved visible selection after Linux sort changes.
-- Added explicit Linux profile password/private-key-passphrase save consent with bounded second confirmation, protected local persistence and plaintext UI clearing.
-- Added queued Top/Up/Down/Bottom priority/reordering and local/server bookmark/profile-start workflows to the maintained current desktop capability line.
-- Preserved Remote Edit, bounded recursive search, directory comparison, synchronized navigation, bandwidth limits and all existing engine/security invariants.
+- Added explicit in-flight ownership for encrypted profile persistence so duplicate save/delete commands cannot overlap and application close cannot terminate an active profile mutation mid-write.
+- Preserved process shutdown across nested application-owned modal loops by reposting `WM_QUIT` rather than consuming it inside a dialog loop.
+- Added local/remote file mutation guards around create-directory, rename, delete and remote permissions, with code-level protection behind UI state.
+- Serialized Windows Remote Edit across open/save/reload/close continuations so asynchronous editor work cannot be re-entered into a parallel stale session.
 
-### Android development surface
+### Android lifecycle stability
 
-- Preserved the native Files, Sites, Bookmarks, Transfers, Settings and About workflow with semantic drawer/sidebar navigation and Android 35 system-bar inset handling.
-- Hardened FTP/FTPS parsing with explicit control-line, multiline-response, MLSD-line and directory-entry bounds.
-- Preserved strict explicit FTPS certificate/hostname verification with no trust-all fallback.
-- Preserved SAF-only local access, non-secret saved-site metadata, staged transfer final-name commit and cancellation/irreversible-commit gating.
-- Android remains an installable `-dev` APK source surface and is not silently added to the public Windows/Linux release allow-list; SFTP remains hidden until strict native host-key identity verification exists.
+- Pending FTP/FTPS connection attempts are owned by the current Activity lifecycle.
+- Activity destruction/recreation aborts the pending session through a non-blocking path.
+- Late success/error callbacks are rejected so a destroyed Activity cannot be revived by an old connection result.
+- Strict explicit FTPS, SAF-only storage and staged transfer safeguards remain unchanged.
 
-### Testing and authentic UI evidence
+### Browser companion source
 
-- Exact-head CI covers Core race/vet/audits/regressions, universal Windows production packaging, Linux production/distro packaging and native x86-64 distro install/remove/GUI lifecycle.
-- Android exact-head CI runs source/security contracts, lint, installable APK build, APK contract verification and artifact upload.
-- Authentic UI evidence is read-only and exact-head: 5 Windows + 3 Linux + 7 Android runtime images are independently captured and assembled into one verified 15-image bundle with source/workflow/size/SHA-256 provenance.
-- Evidence automation no longer commits or pushes screenshots to the tested PR branch.
+- Added optional source packages for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox.
+- Supported `ftp://`, `ftps://` and `sftp://` link handling remains local and narrow, without telemetry, remote code, credential persistence, tab scraping or broad host permissions.
+- Browser companion source is not part of the public Windows/Linux 17-file binary release.
 
-### Release engineering
+### Documentation and release quality
 
-- Maintains the canonical **14 platform artifacts / 17 public files** Windows/Linux publication shape.
-- Public Windows files remain two universal Setup/Portable executables with verified native x64/x86 payloads internally.
-- Linux public files remain Debian/Ubuntu DEB, Fedora RPM and distro-neutral Portable families across the maintained architecture matrix.
-- Publication remains `ghostftp-v0.0.4`, `prerelease=false`, with exact delayed GitHub Release read-back, GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.4` read-back and latest-only retention.
-- Android APK verification is a required source-readiness gate but does not enlarge the 17-file public Windows/Linux release set.
+- Reworked the root README around practical user value, downloads, privacy, Remote Edit, transfer control and security while retaining verifiable technical claims.
+- Corrected generated release notes to the actual universal Windows + Debian/Ubuntu/Fedora/Portable Linux shape.
+- Added a regression contract that rejects old architecture-specific Windows filenames and obsolete **12 platform artifacts / 15 public files** counts from current release notes.
+- Maintains the canonical **14 platform artifacts / 17 public files** release shape, exact read-back, GHCR verification and latest-only retention.
 
 ### Security and privacy
 
-- Preserves strict FTPS certificate/hostname validation and no silent downgrade.
-- Preserves strict desktop SFTP host-key verification/pinning and trusted Linux transport/AskPass executable/parent provenance.
-- Preserves rooted local path/transfer protections, staged activation/rollback, protected saved-secret handling and connection-generation/account binding.
-- Preserves the no-telemetry, no-analytics, no-advertising, no-fingerprinting, no-automatic-crash-upload and no-hidden-backend contract.
+- Preserves strict FTPS certificate/hostname validation, strict desktop SFTP host-key verification/pinning, trusted Linux AskPass provenance, rooted local path/transfer safeguards and protected-secret lifetime rules.
+- Preserves no telemetry, analytics, advertising, fingerprinting, automatic crash upload, hidden backend or mandatory product account.
+
+## 0.0.4 — 2026-09-11
+
+Ghost FTP 0.0.4 focused on Windows/Linux parity, Android stability/security and release-evidence quality.
+
+- Linux Light/Dark appearance parity and shared file sorting.
+- Explicit Linux protected credential-save consent.
+- Queued Top/Up/Down/Bottom priority and bookmark/profile-start workflows.
+- Android bounded FTP/FTPS parsing and maintained strict TLS/SAF behavior.
+- Read-only exact-head authentic UI evidence across Windows/Linux/Android.
+- Canonical 14/17 Windows/Linux distribution with universal Windows files and distro-specific Linux packages.
 
 ## 0.0.3 — 2026-09-10
 
-Ghost FTP 0.0.3 adds real bandwidth-aware transfer controls and completes the public packaging transition while preserving the 0.0.2 security/privacy and navigation baseline.
+Ghost FTP 0.0.3 added real bandwidth-aware transfer controls and completed the public packaging transition.
 
-### Application and settings
-
-- Added independent upload/download bandwidth ceilings on Windows and Linux with explicit binary KiB/s units and `0 = unlimited`.
-- Added conservative aggregate directional allocation across configured worker slots so concurrent transfers cannot multiply the configured limit.
-- Enforced the resulting attempt budget in the actual FTP/FTPS/SFTP transport path through curl `limit-rate` or OpenSSH `sftp -l`.
-- New/retried attempts observe newly saved limits while already-running child processes retain their start-time snapshot.
-- Added shared configuration, scheduler, transport conversion and Windows/Linux settings-surface regression coverage.
-
-### Release engineering
-
-- Replaced five architecture-specific public Windows downloads with two universal Setup/Portable executables while retaining verified native x64/x86 payloads internally.
-- Bound native Windows selection to system architecture information, verified staged embedded payload bytes and introduced no runtime download.
-- Promoted Debian/Ubuntu/Fedora/Portable Linux packages to canonical public release artifacts.
-- Expanded the canonical allow-list to **14 platform artifacts / 17 public files**.
-- Preserved Debian/Ubuntu/Fedora package metadata/binary parity gates and Debian 13, Ubuntu 26.04 LTS and Fedora 44 native lifecycle/GUI smoke.
-- Preserved exact-head/exact-main gating, immediate/delayed release read-back, GHCR verification and latest-only retention.
-
-### Security and privacy
-
-- Preserves strict FTPS certificate/hostname verification and no silent downgrade.
-- Preserves strict SFTP host-key verification/pinning and trusted Linux transport/AskPass provenance.
-- Preserves rooted local path/transfer protections, staged activation/rollback, protected saved-secret handling and connection-generation binding.
-- Preserves the no-telemetry, no-analytics, no-advertising, no-fingerprinting and no-hidden-backend contract.
-
-### Release quality
-
-- Universal Windows Setup and Portable public executables with verified internal x64/x86 payloads.
-- Debian DEB amd64/arm64/i386; Ubuntu DEB amd64/arm64/i386; Fedora RPM x86_64/aarch64/i686; Portable tar.gz amd64/arm64/i386.
-- **14 platform artifacts / 17 public files**.
-- Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native lifecycle/GUI smoke.
-- Exact-head and exact post-merge workflow verification before publication.
-- Historical release identity `ghostftp-v0.0.3` with `prerelease=false`.
-- Historical distribution bundle target `ghcr.io/bren-wp/ghost-ftp:0.0.3`.
+- Independent upload/download bandwidth ceilings with conservative aggregate scheduling and real transport enforcement.
+- Public Windows downloads reduced to universal Setup/Portable while retaining verified native x64/x86 payloads internally.
+- Debian/Ubuntu/Fedora/Portable Linux packages promoted to canonical release artifacts.
+- Canonical allow-list expanded to **14 platform artifacts / 17 public files**.
+- Exact-head/exact-main gates, release read-back, GHCR verification and latest-only retention preserved.
 
 ## 0.0.2 — 2026-09-10
 
-Ghost FTP 0.0.2 advances the current public release line with reliability hardening and production-ready local/server navigation workflows while preserving the 0.0.1 security and privacy baseline.
+Ghost FTP 0.0.2 advanced reliability and navigation workflows.
 
-### Application and navigation
-
-- Added non-destructive current-folder filtering on Windows and Linux without hidden listing/network I/O while filtering the loaded snapshot.
-- Added bounded recursive local/server search with explicit nested-folder I/O disclosure, cancellation, hard limits, incremental results and fresh-list navigation.
-- Added conservative local/server directory comparison with `same`, `local_only`, `remote_only`, `newer_local`, `newer_remote`, `conflict` and `unknown` states.
-- Added synchronized navigation only for exact paired ordinary directories proven safe on both sides; both targets are freshly listed before either pane path is committed.
-- Kept comparison read-only: it grants no transfer, delete, rename, overwrite or CHMOD authority.
-- Localized the new filter/search/comparison workflows across all 24 supported desktop languages.
-
-### Reliability and review hardening
-
-- Made timestamp comparison directional so saturated `time.Duration` arithmetic cannot turn extreme timestamp differences into false equality.
-- Treat zero-size comparison ambiguity conservatively as `unknown` where remote metadata cannot prove the size fact was present.
-- Windows comparison synchronizes row selection between both dedicated ListViews and invalidates stale comparison state across disconnect/reconnect generation changes.
-- Linux comparison preserves authoritative pre-filter snapshots and restores both panes after cancellation or asynchronous listing failure.
-- Added cross-platform regression contracts for file-filter, recursive-search, comparison, action wiring and fresh-list synchronized navigation behavior.
-- Hardened legacy settings migration so omitted `parallelism=0` becomes the safe default 2 while explicit invalid values remain rejected.
-
-### Release engineering
-
-- The canonical release-branch lifecycle identifies and waits for the exact newly dispatched publish run before retention can begin.
-- Canonical retention is explicitly dispatched and verified after successful publication, with the existing `workflow_run` trigger retained as defense in depth.
-- Release-note generation no longer infers Beta/prerelease status from semantic major version zero.
-- Windows release verification rejects unexpected executable files outside the canonical Setup/Portable x64/x86 contract.
-
-### Security and privacy
-
-- Preserves strict FTPS certificate/hostname verification and no silent downgrade.
-- Preserves strict SFTP host-key verification/pinning and trusted Linux transport/AskPass provenance.
-- Preserves rooted local path/transfer protections, staged activation/rollback, protected saved-secret handling and connection-generation binding.
-- Preserves the no-telemetry, no-analytics, no-advertising, no-fingerprinting and no-hidden-backend contract.
-
-### Release quality
-
-- Windows Setup x64/x86, x32 compatibility alias and Portable x64/x86.
-- Linux DEB/tar.gz for amd64/arm64/i386 plus multiarch ZIP.
-- **12 platform artifacts / 15 public files**.
-- Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 native lifecycle/GUI smoke.
-- Exact-head and exact post-merge workflow verification before publication.
-- Historical release identity `ghostftp-v0.0.2` with `prerelease=false`.
-- Historical GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.2`.
+- Non-destructive current-folder filtering, bounded recursive search and conservative directory comparison.
+- Synchronized navigation only for safely proven paired ordinary directories.
+- Stronger Windows comparison/session guards and safe legacy settings migration.
+- Deterministic exact release-run/retention orchestration.
+- Historical release shape: 12 platform artifacts / 15 public files.
 
 ## 0.0.1 — 2026-09-09
 
-Ghost FTP 0.0.1 started the current public release line.
-
-### Application
-
-- Native Windows and Linux desktop client using the same typed FTP/FTPS/SFTP engine.
-- Local/Remote dual-pane file workflow, Site Manager, transfer queue and 24-language local UI contract.
-- Built-in Remote Edit for supported remote text files on FTP, FTPS and SFTP.
-- Remote Edit uses bounded text handling, revision/conflict detection, line-ending preservation, transactional upload/read-back verification and post-save metadata refresh.
-
-### Security and privacy
-
-- Strict FTPS certificate/hostname verification with no silent downgrade.
-- Strict SFTP host-key verification/pinning.
-- Trusted Linux transport and credential-bearing AskPass executable provenance.
-- Rooted local file/transfer protections and staged activation/rollback.
-- State-directory identity pinning.
-- Windows installer/uninstaller/shortcut ownership and exact-object cleanup hardening.
-- No telemetry, analytics, advertising, tracking, automatic crash upload or hidden product backend.
-
-### UI and platform quality
-
-- Focused, non-cluttered file-management layout.
-- Responsive Windows work-area and mixed-DPI geometry.
-- Remote Edit exposed as one clear action rather than a permanent additional pane.
-- Windows and Linux behavior routed through the same engine contract where platform-native presentation permits.
-
-### Release quality
-
-- Windows Setup x64/x86, x32 alias and Portable x64/x86.
-- Linux DEB/tar.gz for amd64/arm64/i386 plus multiarch ZIP.
-- **12 platform artifacts / 15 public files**.
-- Debian 13, Ubuntu 26.04 LTS and Fedora 44 native lifecycle/GUI smoke.
-- Exact-head and exact post-merge workflow verification.
-- Historical release identity `ghostftp-v0.0.1` with `prerelease=false`.
-- Historical GHCR distribution bundle `ghcr.io/bren-wp/ghost-ftp:0.0.1`.
+Ghost FTP 0.0.1 started the current public release line with native Windows/Linux FTP/FTPS/SFTP, Site Manager, dual-pane transfer workflow, Remote Edit, strict trust validation, rooted local safety, no application telemetry and exact-head release verification.
 
 ## Public history retention policy
 
-Only the latest public Ghost FTP version is retained after successful publication and remote verification. Older GitHub Releases, `ghostftp-v*` tags, superseded versioned release branches and obsolete package versions are removed by `.github/workflows/release-retention.yml` while the current release package and current canonical branch are retained.
-
-The Git commit history on `main` is not rewritten by this policy.
-
-The next release must start from the verified current source and advance through a separate release-prep change after the current publication and retention cycle succeeds.
+Only the **latest public Ghost FTP version** is retained after successful publication and remote verification. Older releases, `ghostftp-v*` tags, superseded versioned release branches and obsolete package versions are removed by `.github/workflows/release-retention.yml` while current package/branch identities remain. Git commit history on `main` is not rewritten.

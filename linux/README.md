@@ -1,13 +1,13 @@
 # Ghost FTP for Linux
 
-Ghost FTP **0.0.4** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit, sorting and localization engine contracts as the Windows application.
+Ghost FTP **0.0.5** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit, sorting and localization engine contracts as the Windows application.
 
-The canonical 0.0.4 release workflow uses `linux/BUILD-DISTROS.sh`. The older generic `linux/BUILD.sh` path remains independent CI compatibility coverage, but the Debian/Ubuntu/Fedora/Portable family is now the canonical public Linux allow-list.
+The canonical 0.0.5 release workflow uses `linux/BUILD-DISTROS.sh`. The older `linux/BUILD.sh` remains independent CI compatibility coverage.
 
-This document distinguishes two build contracts:
+This document distinguishes:
 
-1. **Canonical 0.0.4 release artifacts** — produced by `linux/BUILD-DISTROS.sh`, verified by the distro packaging workflow and staged by `.github/workflows/release.yml`.
-2. **Generic CI compatibility artifacts** — produced by `linux/BUILD.sh` to retain independent DEB/portable build and binary-parity coverage.
+1. **Canonical 0.0.5 release artifacts** — produced by `linux/BUILD-DISTROS.sh`, verified by distro packaging and staged by canonical release workflow.
+2. **Generic CI compatibility artifacts** — produced by `linux/BUILD.sh` for independent DEB/portable build and binary-parity coverage.
 
 ## Canonical distro-specific build
 
@@ -16,49 +16,9 @@ go telemetry off
 GHOSTFTP_REQUIRE_DEB=1 GHOSTFTP_REQUIRE_RPM=1 bash linux/BUILD-DISTROS.sh
 ```
 
-It compiles exactly one Linux executable per Go architecture and reuses that executable across the matching Debian, Ubuntu, Fedora and Portable packages.
+It compiles one Linux executable per Go architecture and reuses it across matching Debian, Ubuntu, Fedora and Portable packages.
 
-### Portable
-
-```text
-dist/Ghost-FTP-X.Y.Z-Linux-Portable-amd64.tar.gz
-dist/Ghost-FTP-X.Y.Z-Linux-Portable-arm64.tar.gz
-dist/Ghost-FTP-X.Y.Z-Linux-Portable-i386.tar.gz
-```
-
-Representative canonical name: `Linux-Portable-amd64.tar.gz`.
-
-### Debian
-
-```text
-dist/Ghost-FTP-X.Y.Z-Linux-Debian-amd64.deb
-dist/Ghost-FTP-X.Y.Z-Linux-Debian-arm64.deb
-dist/Ghost-FTP-X.Y.Z-Linux-Debian-i386.deb
-```
-
-Representative canonical name: `Linux-Debian-amd64.deb`.
-
-### Ubuntu
-
-```text
-dist/Ghost-FTP-X.Y.Z-Linux-Ubuntu-amd64.deb
-dist/Ghost-FTP-X.Y.Z-Linux-Ubuntu-arm64.deb
-dist/Ghost-FTP-X.Y.Z-Linux-Ubuntu-i386.deb
-```
-
-Representative canonical name: `Linux-Ubuntu-amd64.deb`.
-
-### Fedora
-
-```text
-dist/Ghost-FTP-X.Y.Z-Linux-Fedora-x86_64.rpm
-dist/Ghost-FTP-X.Y.Z-Linux-Fedora-aarch64.rpm
-dist/Ghost-FTP-X.Y.Z-Linux-Fedora-i686.rpm
-```
-
-Representative canonical name: `Linux-Fedora-x86_64.rpm`.
-
-Architecture mapping is explicit:
+### Architecture mapping
 
 | Go / portable / DEB | RPM |
 | --- | --- |
@@ -66,153 +26,76 @@ Architecture mapping is explicit:
 | `arm64` | `aarch64` |
 | `i386` | `i686` |
 
-`.github/workflows/linux-distro-packages.yml` verifies package metadata and byte-for-byte executable parity across the canonical distro package family. Debian/Ubuntu DEBs and Fedora RPMs must carry the same production executable as their matching Portable archive for each architecture.
+Canonical families use names `Linux-Debian-amd64.deb`, `Linux-Ubuntu-amd64.deb`, `Linux-Fedora-x86_64.rpm` and `Linux-Portable-amd64.tar.gz` with the current version prefix. `.github/workflows/linux-distro-packages.yml` verifies package metadata and byte-for-byte executable parity. These **distro-specific artifacts are no longer supplemental**; they are canonical release files.
 
-These distro-specific artifacts are no longer supplemental: they are the canonical 0.0.4 public Linux release allow-list.
+## Canonical 0.0.5 release contract
 
-## Generic CI compatibility build
+Twelve Linux files plus two universal Windows executables produce **14 platform artifacts / 17 public files** after metadata/verification files are added.
 
-```bash
-go telemetry off
-GHOSTFTP_REQUIRE_DEB=1 bash linux/BUILD.sh
+```text
+Ghost-FTP-0.0.5-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.5-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.5-Linux-Debian-i386.deb
+Ghost-FTP-0.0.5-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.5-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.5-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.5-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.5-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.5-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.5-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.5-Linux-Portable-i386.tar.gz
 ```
 
-`linux/BUILD.sh` continues to build generic DEBs and portable tarballs for `amd64`, `arm64` and `i386`. The Core CI extracts each pair and compares the `ghostftp` binary byte-for-byte. Those generic filenames are intentionally not staged by the 0.0.4 canonical release workflow.
+The verified release directory is also distributed at `ghcr.io/bren-wp/ghost-ftp:0.0.5` as a distribution bundle, not a runtime container.
 
 ## Native distro installation verification
 
-`.github/workflows/linux-distro-install.yml` performs a separate clean-container installation lifecycle on native x86-64 targets:
+`.github/workflows/linux-distro-install.yml` performs clean-container installation lifecycle on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. It verifies distro/package identity, dependencies, installed files, startup of `/usr/bin/ghostftp` under isolated local Xvfb, removal and absence of package-owned system residue.
 
-- **Debian 13 amd64**;
-- **Ubuntu 26.04 LTS amd64**;
-- **Fedora 44 x86_64**.
-
-For each target the gate verifies distro identity, package metadata, package-manager dependency resolution, installed runtime tools, package-owned system files, startup of the installed `/usr/bin/ghostftp` under an isolated local Xvfb server, package removal and absence of package-owned system residue.
-
-The GUI smoke test uses a private test HOME, the normal `$HOME/.local/share` data root and a private `XDG_RUNTIME_DIR`; it does not weaken Ghost FTP's production safe-path validation. Xvfb listens locally only (`-nolisten tcp`).
-
-Fedora-specific verification is provider-aware: the RPM `curl` requirement may be satisfied by a provider such as `curl-minimal`, so the gate verifies the installed `curl` executable and its RPM owner. CA trust is derived from the installed `ca-certificates` package instead of assuming one fixed path. The Fedora transaction also clears minimal-container `tsflags=nodocs` so the full RPM payload, including packaged documentation, is tested.
-
-Native install coverage above is intentionally **x86-64 only**. `arm64`/`aarch64` and `i386`/`i686` distro artifacts are still protected by exact-head build, metadata, extraction and byte-parity checks; the maintained CI does not claim native package-manager/runtime installation coverage for those architectures.
-
-## Canonical 0.0.4 release contract
-
-The maintained `.github/workflows/release.yml` stages twelve Linux files from `BUILD-DISTROS.sh`. Together with two universal Windows executables, the current assembly contract is **14 platform artifacts / 17 public files**.
-
-Canonical Linux 0.0.4 files are:
-
-```text
-Ghost-FTP-0.0.4-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.4-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.4-Linux-Debian-i386.deb
-Ghost-FTP-0.0.4-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.4-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.4-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.4-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.4-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.4-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.4-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.4-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.4-Linux-Portable-i386.tar.gz
-```
-
-The same verified public release directory is published as the distribution-only GHCR bundle `ghcr.io/bren-wp/ghost-ftp:0.0.4`. It is not a runtime container.
+Native install coverage above is **x86-64 only**. Other canonical architectures retain exact-head build, metadata, extraction and binary-parity verification.
 
 ## Portable use
 
-For the canonical distro-neutral archive:
-
 ```bash
-tar -xzf Ghost-FTP-0.0.4-Linux-Portable-amd64.tar.gz
-cd Ghost-FTP-0.0.4-Linux-Portable-amd64
+tar -xzf Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz
+cd Ghost-FTP-0.0.5-Linux-Portable-amd64
 ./ghostftp
 ```
 
-Portable layouts contain:
-
-```text
-ghostftp
-ghost-ftp.desktop
-ghost-ftp.png
-LICENSE
-README.md
-```
-
-For optional per-user desktop integration without root privileges:
-
-```bash
-mkdir -p "$HOME/.local/bin" \
-  "$HOME/.local/share/applications" \
-  "$HOME/.local/share/icons/hicolor/512x512/apps"
-install -m 0755 ghostftp "$HOME/.local/bin/ghostftp"
-install -m 0644 ghost-ftp.desktop "$HOME/.local/share/applications/ghost-ftp.desktop"
-install -m 0644 ghost-ftp.png "$HOME/.local/share/icons/hicolor/512x512/apps/ghost-ftp.png"
-```
-
-Ensure `$HOME/.local/bin` is on `PATH` before launching from the desktop entry. System protocol prerequisites still apply: a usable CA certificate store, `curl` for FTP/FTPS and OpenSSH client tools for SFTP.
-
-A directly extracted or per-user-installed executable is intentionally user-writable and therefore cannot provide the same immutable AskPass helper boundary as a package-manager-installed root-controlled executable. Ghost FTP still starts in this mode, but it does not automatically deliver SFTP passwords or private-key passphrases through OpenSSH AskPass. Credential-bearing SFTP AskPass requires a trusted package/system installation; the portable layout fails closed before generating the AskPass capability token or starting the OpenSSH child.
+Portable includes `ghostftp`, desktop entry, icon, LICENSE and README. A user-writable Portable/per-user executable cannot provide the same root-controlled OpenSSH AskPass boundary as a package-installed binary, so automatic SFTP password/passphrase delivery fails closed where trusted provenance is unavailable.
 
 ## Installed identity and dependencies
 
-- package name: `ghost-ftp`;
-- installed executable: `/usr/bin/ghostftp`;
+- package: `ghost-ftp`;
+- executable: `/usr/bin/ghostftp`;
 - desktop entry: `/usr/share/applications/ghost-ftp.desktop`;
-- desktop icon: `/usr/share/icons/hicolor/512x512/apps/ghost-ftp.png`;
-- optional user-local portable executable: `$HOME/.local/bin/ghostftp`.
+- icon: `/usr/share/icons/hicolor/512x512/apps/ghost-ftp.png`.
 
-Debian and Ubuntu packages declare `ca-certificates`, `curl` and `openssh-client`. Fedora RPMs declare `ca-certificates`, `curl` and `openssh-clients`. Portable archives intentionally do not bundle package-manager metadata or copies of those system tools.
+Debian/Ubuntu declare `ca-certificates`, `curl`, `openssh-client`; Fedora declares `ca-certificates`, `curl`, `openssh-clients`.
 
 ## Graphical desktop
 
-When a local `DISPLAY` is available, `ghostftp` starts the native Ghost FTP graphical frontend by default. The GUI is implemented directly against X11/XWayland-compatible display transport without GTK, Qt, Electron, a webview or an external Go GUI module.
+When local `DISPLAY` is available, `ghostftp` starts the native graphical frontend. It is implemented directly against X11/XWayland-compatible display transport without GTK, Qt, Electron, a webview or an external Go GUI module.
 
-The graphical workspace includes Quick Connect, FTP/FTPS/implicit-FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual local/server file panes, shared deterministic sorting, single-file and tree transfers, queue controls and four-way queued priority, local/remote file operations, remote permissions, built-in Remote Edit, bookmarks/profile start directories, recursive search/comparison and validated transfer/bandwidth/settings behavior.
+The workspace includes Quick Connect, FTP/FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual panes, shared sorting/filter/search/comparison, transfers, queue priority, file operations, Remote Edit, bookmarks/profile starts and validated settings/bandwidth behavior.
 
-**Classic Light is the fresh/fallback Linux appearance.** Ghost FTP 0.0.4 also exposes the maintained Dark appearance through the same validated `Appearance` setting as Windows. The persisted palette is applied before the first frame and saving Settings applies the new palette immediately; no remote theme service or browser runtime is involved.
+Classic Light is the fresh/fallback appearance; Dark is maintained. Persisted appearance is applied before first frame and no remote theme service/browser runtime is involved.
 
-The fresh Quick Connect protocol is **explicit FTPS on port 21**. Plain FTP remains available as an explicit compatibility choice for servers that intentionally require unencrypted FTP; failed FTPS is not silently retried as FTP.
-
-For a headless session, or to explicitly use the hardened command interface, set:
+For headless/terminal operation:
 
 ```text
 GHOSTFTP_UI=terminal ghostftp
 ```
 
-A graphical session requires a local X11-compatible display (native X11 or XWayland). File-transfer protocols continue to use the system transport prerequisites documented above.
-
 ## Authentication and protected credentials
 
-Linux supports the maintained desktop protocol contract:
+Linux supports FTP password, explicit FTPS with certificate validation, SFTP password and private-key authentication plus explicit host-key fingerprint confirmation. Automatic SFTP password/private-key-passphrase delivery requires trusted package/system installation provenance.
 
-- FTP with password authentication;
-- explicit FTPS with certificate validation;
-- SFTP password authentication on a trusted package/system installation;
-- SFTP with a private key; automatic private-key-passphrase delivery requires the same trusted installation boundary;
-- explicit SFTP host-key fingerprint confirmation.
+Saving newly entered password/passphrase material is opt-in with bounded confirmation, protected local storage and plaintext UI clearing. Runtime AskPass provenance remains a separate fail-closed boundary.
 
-Saving newly entered profile password/private-key-passphrase material is opt-in. The Linux GUI requires a bounded second confirmation before allowing the shared profile save to persist entered secrets, then clears plaintext password/passphrase fields. Protected profile storage and account binding remain separate from runtime AskPass delivery.
+## 0.0.5 compatibility note
 
-For Linux SFTP credential prompts, `SSH_ASKPASS` is populated only with a root-controlled Ghost FTP executable path that is verified to name the same inode as the running application. `/proc/self/exe` is used only as an in-process identity oracle and is never supplied to OpenSSH as the helper executable. The immediate AskPass parent must also be a trusted root-controlled `ssh` or `sftp` executable. User-writable Portable/per-user execution deliberately does not emit password/passphrase AskPass capability environment data.
+0.0.5's new lifecycle hardening is concentrated in Windows and Android connection ownership; Linux retains the already verified 0.0.4 desktop feature/security behavior and is rebuilt/revalidated through all canonical distro gates for this release.
 
-Passwords and key passphrases are cleared from the public connection config after authentication. Runtime protected-secret handles distinguish session-owned and borrowed profile-owned material so session close/failed setup can forget owned secrets without invalidating stored-profile credentials needed for a later reconnect.
-
-The accepted public SFTP fingerprint can remain as non-secret session metadata so a saved profile can retain the verified endpoint identity.
-
-## Connection, file workflow, transfer and Remote Edit parity
-
-Linux uses the same shared remote manager, transfer manager, item sorter, Remote Edit engine and guarded local filesystem service as Windows. Regression coverage protects successful manager connection, remote listing/operation access and disconnect, invalid FTP credentials, FTPS-to-plaintext failure, generation binding, staged transfers, bounded tree operations, rooted download activation, local destructive-operation safeguards and Remote Edit conflict/read-back behavior.
-
-Both Linux panes support shared Name, Type, Size and Modified ordering; the remote pane also supports Permissions. Ascending/descending sorting keeps directories first and composes with the non-destructive current-folder filter over the authoritative loaded snapshot. Selection is restored by visible item name after a sort.
-
-Directional bandwidth limits are enforced in the same shared transfer/remote path as Windows. FTP/FTPS use curl `limit-rate`; SFTP uses OpenSSH `sftp -l` after conservative KiB/s-to-Kbit/s conversion. A transfer attempt snapshots its effective budget at start, so changing the persisted setting affects new/retried attempts without mutating an existing child process.
-
-The terminal fallback exposes remote/local navigation, file operations, transfers, queue controls, profiles, settings and language selection through typed Engine calls. Its parser does not invoke a shell for Ghost FTP commands and rejects embedded NUL/newline control characters before dispatch.
-
-## Settings and languages
-
-English is the canonical/default language. The maintained registry contains **24 languages**, and Linux uses the same catalogs and fallback normalization as Windows and Setup.
-
-Linux Settings expose the same validated Appearance, concurrency, upload/download bandwidth, timeout, retry, conflict and delete-confirmation policy as the shared configuration model. The X11 surface uses bounded steppers/presets for numeric values while preserving the shared allowed ranges and explicit `0 = unlimited` bandwidth semantics.
-
-Production build scripts require Go telemetry to be disabled and CI uses controlled Go dependency settings. See `docs/SECURITY.md`, `docs/PLATFORM-PARITY.md`, `docs/DEPENDENCIES.md`, `docs/INSTALLATION.md` and `docs/TESTING.md` for the maintained release/security contract.
+See `docs/SECURITY.md`, `docs/PLATFORM-PARITY.md`, `docs/DEPENDENCIES.md`, `docs/INSTALLATION.md` and `docs/TESTING.md`.

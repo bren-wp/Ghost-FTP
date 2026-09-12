@@ -1,8 +1,8 @@
 # Ghost FTP roadmap
 
-Ghost FTP **0.0.4** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
+Ghost FTP **0.0.5** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
 
-## Current 0.0.4 foundation
+## Current 0.0.5 foundation
 
 The current release gate includes:
 
@@ -24,6 +24,9 @@ The current release gate includes:
 - conservative directory comparison and synchronized navigation for proven paired directories;
 - shared file sorting semantics on Windows and Linux, including server Permissions sorting where metadata exists;
 - local/remote navigation bookmarks and account-bound profile start directories;
+- Windows profile/file mutation and Remote Edit session re-entry guards;
+- Android pending-connection lifecycle ownership across Activity destruction/recreation;
+- optional privacy-minimal browser companion source for Chromium-family browsers and Firefox;
 - two public universal Windows Setup/Portable executables backed by verified internal x64/x86 payloads;
 - canonical Debian/Ubuntu/Fedora/Portable Linux release packaging;
 - 24-language local catalog with English default/fallback;
@@ -47,26 +50,26 @@ The immediate 0.0.x hardening lane includes:
 7. large-directory/list memory and UI responsiveness;
 8. further Remote Edit shutdown/disconnect/conflict edge cases;
 9. continued Windows/Linux parity for keyboard/file workflows, file operations, queue state, settings and error handling;
-10. Android lifecycle/rotation/resume hardening without weakening SAF, strict FTPS or staged-transfer boundaries;
+10. continued Android lifecycle/rotation/resume hardening without weakening SAF, strict FTPS or staged-transfer boundaries;
 11. documentation and authentic real-application evidence synchronized with exact maintained source.
 
-## 0.0.4 navigation work
+## 0.0.5 navigation work
 
-Ghost FTP 0.0.4 retains the **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, composes with shared sorting and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request.
+Ghost FTP 0.0.5 retains the **non-destructive current-folder filter** for both local and server panes on Windows and Linux. It filters only entries already loaded into the pane, performs no filesystem or network scan while filtering, preserves an authoritative unfiltered snapshot, composes with shared sorting and gives row-indexed actions only the visible filtered slice. Empty input restores the complete snapshot without another listing request.
 
-Ghost FTP 0.0.4 retains the **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it reads nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
+Ghost FTP 0.0.5 retains the **bounded recursive local/server search** that is deliberately separate from the current-folder filter. Recursive search clearly discloses that it reads nested local or server folders, uses the same Unicode-aware matching semantics, incrementally presents bounded result batches, supports cancellation, never intentionally traverses symlink/reparse entries, and treats every result as an informational navigation hint rather than mutation authority. Activating a result performs a fresh listing of its parent and reselects the name only from that fresh listing.
 
-Ghost FTP 0.0.4 retains **conservative directory comparison and synchronized navigation** on Windows and Linux. Comparison is read-only, uses exact-name matching, reports deterministic same/only/newer/conflict/unknown states, treats duplicate names and uncertain metadata fail-closed, and never treats a symlink comparison row as transfer authority. Synchronized navigation is available only for an exact ordinary directory proved present on both sides; both target directories are freshly listed and compared before either visible pane path is committed.
+Ghost FTP 0.0.5 retains **conservative directory comparison and synchronized navigation** on Windows and Linux. Comparison is read-only, uses exact-name matching, reports deterministic same/only/newer/conflict/unknown states, treats duplicate names and uncertain metadata fail-closed, and never treats a symlink comparison row as transfer authority. Synchronized navigation is available only for an exact ordinary directory proved present on both sides; both target directories are freshly listed and compared before either visible pane path is committed.
 
-Ghost FTP 0.0.4 adds reusable **navigation bookmarks and profile start directories**. Bookmarks persist non-secret local/remote navigation metadata; remote activation is revalidated against active account/session identity before navigation commits. Profile remote starts remain account-bound, preventing an inherited server path from silently crossing protocol/host/port/username identity.
+Ghost FTP 0.0.5 retains reusable **navigation bookmarks and profile start directories**. Bookmarks persist non-secret local/remote navigation metadata; remote activation is revalidated against active account/session identity before navigation commits. Profile remote starts remain account-bound, preventing an inherited server path from silently crossing protocol/host/port/username identity.
 
 ## High-value power-user lane
 
-Items explicitly marked implemented are shipped in the 0.0.4 source/release candidate. Other items are planned and must not be advertised as shipped until all acceptance gates below are satisfied.
+Items explicitly marked implemented are shipped in the 0.0.5 source/release candidate. Other items are planned and must not be advertised as shipped until all acceptance gates below are satisfied.
 
 ### P0 — directory comparison and synchronized navigation
 
-**Status: implemented in Ghost FTP 0.0.4.** Windows and Linux expose the same shared comparison states while keeping comparison read-only and separate from ordinary file-operation authority.
+**Status: implemented in Ghost FTP 0.0.5.** Windows and Linux expose the same shared comparison states while keeping comparison read-only and separate from ordinary file-operation authority.
 
 Implemented contract:
 
@@ -81,7 +84,7 @@ Implemented contract:
 
 ### P0 — bounded recursive local/server search
 
-**Status: implemented in Ghost FTP 0.0.4.** The instant current-folder filter remains I/O-free; recursive search is a separate explicit action because it performs additional local/server listing work.
+**Status: implemented in Ghost FTP 0.0.5.** The instant current-folder filter remains I/O-free; recursive search is a separate explicit action because it performs additional local/server listing work.
 
 Implemented contract:
 
@@ -94,7 +97,7 @@ Implemented contract:
 
 ### P0 — bandwidth-aware transfer controls
 
-**Status: implemented in Ghost FTP 0.0.4.** Upload/download limits are shared validated runtime policy, not decorative frontend timers.
+**Status: implemented in Ghost FTP 0.0.5.** Upload/download limits are shared validated runtime policy, not decorative frontend timers.
 
 Implemented contract:
 
@@ -107,7 +110,7 @@ Implemented contract:
 
 ### P0 — queue priority and reorder
 
-**Status: implemented in Ghost FTP 0.0.4.**
+**Status: implemented in Ghost FTP 0.0.5.**
 
 Implemented contract:
 
@@ -124,7 +127,7 @@ See [Queue priority and reordering](QUEUE-PRIORITY.md).
 
 ### P1 — navigation bookmarks and profile start directories
 
-**Status: implemented in Ghost FTP 0.0.4.**
+**Status: implemented in Ghost FTP 0.0.5.**
 
 Implemented contract:
 
@@ -234,7 +237,7 @@ Future work must preserve:
 
 ## Release direction
 
-The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place. A newer version must pass exact-head and post-merge verification, publication, remote read-back and canonical retention verification before the release lifecycle is considered complete.
+The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place. A newer version must pass exact-head and post-merge verification, publication, remote read-back and canonical retention verification before the release lifecycle is considered complete.
 
 ## Definition of roadmap completion
 
