@@ -50,7 +50,7 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 - [x] Remote Edit
 - [x] Remote Filter
 - [x] Remote Recursive Search
-- [ ] Directory Compare
+- [x] Directory Compare
 
 ### Transfer actions and queue
 
@@ -75,6 +75,8 @@ Local and Remote New Folder, Rename and Delete are wired to the same `Engine.Loc
 Remote Permissions is wired to `Engine.RemoteChmod` for both FTP/FTPS and SFTP. The Mac action mirrors the Windows safety boundary: at most 1000 selected items, symbolic links are skipped, the prompt defaults to `644`, and only 3- or 4-digit octal modes are accepted by the UI before the shared transport layer validates the mode again. Each target must still exist in the active remote snapshot, and mutation completion remains navigation-generation-bound before the pane is refreshed.
 
 Remote Edit is wired directly to the shared `Engine.RemoteEditOpen` / `Engine.RemoteEditSave` contract and uses a native built-in AppKit text editor rather than an external process or a second transfer path. Only one visible regular remote file can be opened; the bridge revalidates the current remote directory snapshot before open and save. The shared engine enforces the UTF-8/size boundary, revision conflict detection, private staging, permission preservation and post-upload read-back verification. A revision conflict is fail-closed: the editor keeps the user's text selectable but requires an explicit reload before another save, so a stale revision cannot silently overwrite newer remote content. The remote listing is refreshed only after a verified save and only while the originating navigation generation and directory are still current.
+
+Directory Compare is wired to the shared `Engine.CompareDirectoryItems` contract using fresh Local/Remote listings from the existing engine. The native comparison window shows conservative status for both sides and enables Open Both only when `Engine.SynchronizedDirectoryName` proves an ordinary directory exists on both sides. Compare cancellation is latched before work enters the serialized engine queue, so Cancel, Close or Disconnect cannot be lost while earlier work is still running. Open Both stages both shared `Engine.LocalList` and `Engine.RemoteList` reads under one cancellable operation and atomically publishes both visible snapshots only after both reads and the final stale-path check succeed; one pane can never navigate while the other fails. Directory Compare performs no independent filesystem or protocol traversal.
 
 Local and Remote Recursive Search are wired to the shared `Engine.SearchLocalRecursive` / `Engine.SearchRemoteRecursive` APIs. The AppKit search window exposes Search, Cancel, Close and Navigate; the bridge requires the visible Local/Remote snapshot to still match the requested root, and the shared engine retains bounded depth, visited-item, result, batch and timeout limits. Remote search holds one generation-bound remote operation for the scan, Disconnect cancels search before entering the serialized engine queue, and stale navigation generations discard results rather than applying them to another folder. Navigate opens the containing Local/Remote folder through the normal listing path; recursive search does not introduce a second filesystem or FTP/SFTP traversal implementation.
 
