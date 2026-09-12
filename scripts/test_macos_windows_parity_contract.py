@@ -75,6 +75,7 @@ IMPLEMENTED_MACOS_ACTIONS = {
     "Remote Rename",
     "Remote Delete",
     "Remote Permissions",
+    "Remote Edit",
     "Remote Filter",
     "Upload",
     "Download",
