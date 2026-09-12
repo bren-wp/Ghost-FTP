@@ -47,7 +47,7 @@ func (a *app) updateActionControls() {
 	remoteRecursiveActive := a.recursiveSearchPaneActive(true)
 	remoteSelected := validSelectionCount(a.remoteList, len(a.remoteItems))
 	remoteReady := a.connected && !a.connectionBusy && !remoteRecursiveActive && !comparisonActive
-	remoteMutationReady := remoteReady && !a.remoteMutationBusy
+	remoteMutationReady := remoteReady && !a.remoteMutationBusy && !remoteEditSessionBusy(a)
 	setControlEnabled(a.remoteMkdir, remoteMutationReady)
 	setControlEnabled(a.remoteRename, remoteMutationReady && remoteSelected == 1)
 	setControlEnabled(a.remoteDelete, remoteMutationReady && remoteSelected > 0)

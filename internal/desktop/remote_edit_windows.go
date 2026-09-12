@@ -17,6 +17,7 @@ import (
 const idRemoteEdit = 309
 
 var remoteEditButtons sync.Map
+var remoteEditSessions sync.Map
 
 func storeRemoteEditButton(a *app, hwnd uintptr) {
 	if a == nil || hwnd == 0 {
@@ -37,14 +38,49 @@ func remoteEditButton(a *app) uintptr {
 	return 0
 }
 
+func remoteEditSessionBusy(a *app) bool {
+	if a == nil {
+		return false
+	}
+	_, ok := remoteEditSessions.Load(a)
+	return ok
+}
+
 func clearRemoteEditButton(a *app) {
 	if a != nil {
 		remoteEditButtons.Delete(a)
+		remoteEditSessions.Delete(a)
+	}
+}
+
+func (a *app) beginRemoteEditSession() bool {
+	if a == nil || a.closing || !a.connected || a.connectionBusy || a.remoteMutationBusy {
+		return false
+	}
+	if _, loaded := remoteEditSessions.LoadOrStore(a, struct{}{}); loaded {
+		return false
+	}
+	// Share the remote mutation exclusion flag for the lifetime of the edit
+	// session so stale/direct rename, delete, chmod, or mkdir commands also
+	// fail closed instead of relying only on disabled controls.
+	a.remoteMutationBusy = true
+	a.updateActionControls()
+	return true
+}
+
+func (a *app) finishRemoteEditSession() {
+	if a == nil {
+		return
+	}
+	remoteEditSessions.Delete(a)
+	a.remoteMutationBusy = false
+	if !a.closing {
+		a.updateActionControls()
 	}
 }
 
 func (a *app) remoteEditSelectionReady() bool {
-	if a == nil || !a.connected || a.connectionBusy {
+	if a == nil || !a.connected || a.connectionBusy || a.remoteMutationBusy || remoteEditSessionBusy(a) {
 		return false
 	}
 	indices := selectedIndices(a.remoteList)
@@ -66,11 +102,20 @@ func (a *app) remoteEditAction() {
 		a.setStatus(a.userMessage(err, "error.invalid_name"))
 		return
 	}
+	if !a.beginRemoteEditSession() {
+		return
+	}
 	remotePath := path.Join(a.remoteCurrent, item.Name)
 	generation := a.connectionGeneration
 	words := remoteEditWords(a.languageCode())
 	a.setStatus(words.Opening)
 	a.goSafe(func() {
+		handedOff := false
+		defer func() {
+			if !handedOff {
+				a.dispatch(func() { a.finishRemoteEditSession() })
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		doc, err := a.engine.RemoteEditOpen(ctx, remotePath)
@@ -78,12 +123,15 @@ func (a *app) remoteEditAction() {
 		if err == nil {
 			buffer, err = newRemoteEditBuffer(doc.Text)
 		}
+		handedOff = true
 		a.dispatch(func() {
 			if generation != a.connectionGeneration || !a.connected {
+				a.finishRemoteEditSession()
 				a.setStatus(words.ConnectionChanged)
 				return
 			}
 			if err != nil {
+				a.finishRemoteEditSession()
 				message := a.userMessage(err, "error.generic")
 				if errors.Is(err, errRemoteEditMixedNewlines) {
 					message = words.MixedNewlines
@@ -100,6 +148,7 @@ func (a *app) remoteEditAction() {
 
 func (a *app) showRemoteTextEditor(doc api.RemoteEditDocument, buffer remoteEditBuffer, text string, generation uint64) {
 	if generation != a.connectionGeneration || !a.connected {
+		a.finishRemoteEditSession()
 		a.setStatus(remoteEditWords(a.languageCode()).ConnectionChanged)
 		return
 	}
@@ -115,6 +164,7 @@ func (a *app) showRemoteTextEditor(doc api.RemoteEditDocument, buffer remoteEdit
 	})
 	result.Text = normalizeRemoteEditorText(result.Text)
 	if generation != a.connectionGeneration || !a.connected {
+		a.finishRemoteEditSession()
 		a.setStatus(words.ConnectionChanged)
 		return
 	}
@@ -132,7 +182,9 @@ func (a *app) showRemoteTextEditor(doc api.RemoteEditDocument, buffer remoteEdit
 	default:
 		if dirty && !platform.ConfirmDialog("Ghost FTP — "+words.Title, words.Close+"?", words.DiscardClose) {
 			a.showRemoteTextEditor(doc, buffer, result.Text, generation)
+			return
 		}
+		a.finishRemoteEditSession()
 	}
 }
 
@@ -141,6 +193,12 @@ func (a *app) saveRemoteTextEditor(doc api.RemoteEditDocument, buffer remoteEdit
 	encoded := buffer.Encode(text)
 	a.setStatus(words.Saving)
 	a.goSafe(func() {
+		handedOff := false
+		defer func() {
+			if !handedOff {
+				a.dispatch(func() { a.finishRemoteEditSession() })
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 		saved, err := a.engine.RemoteEditSave(ctx, doc.Path, doc.Revision, encoded)
@@ -148,8 +206,10 @@ func (a *app) saveRemoteTextEditor(doc api.RemoteEditDocument, buffer remoteEdit
 		if err == nil {
 			next, err = newRemoteEditBuffer(saved.Text)
 		}
+		handedOff = true
 		a.dispatch(func() {
 			if generation != a.connectionGeneration || !a.connected {
+				a.finishRemoteEditSession()
 				a.setStatus(words.ConnectionChanged)
 				return
 			}
@@ -176,6 +236,12 @@ func (a *app) reloadRemoteTextEditor(remotePath string, generation uint64) {
 	words := remoteEditWords(a.languageCode())
 	a.setStatus(words.Reloading)
 	a.goSafe(func() {
+		handedOff := false
+		defer func() {
+			if !handedOff {
+				a.dispatch(func() { a.finishRemoteEditSession() })
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		doc, err := a.engine.RemoteEditOpen(ctx, remotePath)
@@ -183,12 +249,15 @@ func (a *app) reloadRemoteTextEditor(remotePath string, generation uint64) {
 		if err == nil {
 			buffer, err = newRemoteEditBuffer(doc.Text)
 		}
+		handedOff = true
 		a.dispatch(func() {
 			if generation != a.connectionGeneration || !a.connected {
+				a.finishRemoteEditSession()
 				a.setStatus(words.ConnectionChanged)
 				return
 			}
 			if err != nil {
+				a.finishRemoteEditSession()
 				message := a.userMessage(err, "error.generic")
 				if errors.Is(err, errRemoteEditMixedNewlines) {
 					message = words.MixedNewlines
