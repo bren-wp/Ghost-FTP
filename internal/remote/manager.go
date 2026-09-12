@@ -273,8 +273,8 @@ func (m *Manager) stashPendingTrust(cfg model.ConnectionConfig, resolved resolve
 	m.clearPendingTrustLocked()
 	passwordBlob := resolved.PasswordBlob
 	passphraseBlob := resolved.PassphraseBlob
-	ownsPasswordBlob := false
-	ownsPassphraseBlob := false
+	ownsPasswordBlob := resolved.ownsPasswordBlob
+	ownsPassphraseBlob := resolved.ownsPassphraseBlob
 	var err error
 	if cfg.Password != "" {
 		passwordBlob, err = security.ProtectString(cfg.Password)
