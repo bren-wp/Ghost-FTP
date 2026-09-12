@@ -4,6 +4,8 @@
 /cmd/installer/payload/payload.zip
 /ui-screenshots/
 /dev-signing/
+/macos/out/
+/macos/dist/
 
 # Generated release/package artifacts
 *.exe
