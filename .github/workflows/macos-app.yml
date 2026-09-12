@@ -10,6 +10,7 @@ on:
       - 'macos/**'
       - 'scripts/audit_platform_contract.py'
       - 'scripts/audit_desktop_surface.py'
+      - 'scripts/audit_version.py'
       - 'scripts/test_macos_windows_parity_contract.py'
       - '.github/workflows/macos-app.yml'
   push:
@@ -22,6 +23,7 @@ on:
       - 'macos/**'
       - 'scripts/audit_platform_contract.py'
       - 'scripts/audit_desktop_surface.py'
+      - 'scripts/audit_version.py'
       - 'scripts/test_macos_windows_parity_contract.py'
       - '.github/workflows/macos-app.yml'
 
@@ -68,6 +70,7 @@ jobs:
           python3 scripts/test_macos_windows_parity_contract.py
           python3 scripts/audit_platform_contract.py
           python3 scripts/audit_desktop_surface.py
+          python3 scripts/audit_version.py
 
       - name: Build universal native macOS app
         shell: bash
@@ -90,7 +93,7 @@ jobs:
           test -x "$executable"
           test -s "$plist"
           test -s "$icon"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = 'com.brendigo.ghostftp'
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = 'app.ghostftp.client'
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "$version"
           archs="$(xcrun lipo -archs "$executable")"
           [[ " $archs " == *" arm64 "* ]]
