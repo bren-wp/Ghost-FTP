@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import struct
 from pathlib import Path
@@ -10,6 +11,7 @@ from pathlib import Path
 I386 = 0x014C
 AMD64 = 0x8664
 GUI_SUBSYSTEM = 2
+PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"
 
 ARCH_SPECS = {
     "x86": {"machine": I386, "magic": 0x10B, "pe": "PE32", "data_dir": 96},
@@ -144,6 +146,22 @@ def read_pe(path: Path, expected_arch: str | None = None):
     return data, bool(cert_offset and cert_size), arch, required_mitigations
 
 
+def require_public_release_signatures(
+    setup_signed: bool,
+    portable_signed: bool,
+    workflow_name: str | None = None,
+) -> None:
+    if workflow_name is None:
+        workflow_name = os.environ.get("GITHUB_WORKFLOW", "")
+    if workflow_name.strip() != PUBLIC_WINDOWS_RELEASE_WORKFLOW:
+        return
+    if not setup_signed or not portable_signed:
+        raise ValueError(
+            "public Windows release artifacts must be Authenticode signed; "
+            "configure the trusted production signing identity before publishing"
+        )
+
+
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -172,6 +190,7 @@ def main() -> None:
     arch = next(iter(arches))
     (sdat, ssigned, _, mitigations), (pdat, psigned, _, _) = results
 
+    require_public_release_signatures(ssigned, psigned)
     assert_no_telemetry_markers(args.setup, sdat)
     assert_no_telemetry_markers(args.portable, pdat)
     hashes = {sha256(sdat), sha256(pdat)}

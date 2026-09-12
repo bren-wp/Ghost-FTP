@@ -108,10 +108,11 @@ The production/release-validation workflows:
 - build Windows/Linux artifacts from exact source;
 - lint/build/verify the Android development APK from exact source;
 - run exact-head authentic Windows/Linux/Android UI evidence without allowing the evidence workflow to commit or push into the tested branch;
-- optionally sign Windows artifacts with a protected trusted Authenticode identity when configured;
-- verify every configured production signature and never label unsigned artifacts as signed;
+- require public Windows release artifacts to be signed with a protected trusted Authenticode identity;
+- fail closed before publication when the production Windows signing identity is absent or either public executable is unsigned;
+- verify every configured production signature and require valid Authenticode status before publication;
 - never generate a self-signed production publisher identity;
-- remove temporary signing material from the runner when signing is used;
+- remove temporary signing material from the runner after signing;
 - assemble only an explicit Windows/Linux public release file set;
 - record the Windows signing state in `BUILD-METADATA.txt`;
 - generate SHA-256 checksums;
@@ -121,7 +122,7 @@ The production/release-validation workflows:
 - verify the registry artifact can be read back;
 - permit latest-only cleanup only after the newly published release has been fully verified.
 
-Private signing material must never be committed to source. Absence of a production code-signing certificate is represented truthfully as an unsigned Windows release rather than “fixed” with an untrusted generated key.
+Private signing material must never be committed to source. Public Windows publication requires the protected production signing identity; absence of that identity causes the release build to fail instead of publishing unsigned Windows binaries. Ordinary CI, development and local builds may remain unsigned because they are not public release artifacts.
 
 Android remains outside the 0.0.5 public release allow-list. A development APK succeeding in CI is not authorization to publish it as a production mobile release.
 

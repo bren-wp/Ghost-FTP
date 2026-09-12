@@ -110,9 +110,9 @@ def main() -> int:
             "major version `0` does not imply prerelease",
             "latest public version",
             "release-retention.yml",
-            "optional production hardening layer",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "Absence of a production Authenticode certificate by itself is not a versioning failure.",
+            "required public-release trust boundary",
+            "WINDOWS_AUTHENTICODE=signed",
+            "Absence of the production Authenticode identity is a release failure.",
         ),
         "docs/VERSIONING.md",
     )
@@ -278,7 +278,7 @@ def main() -> int:
             "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
             "LINUX_PORTABLE=amd64,arm64,i386",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
-            "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO",
+            "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES",
             "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
         ),
         "scripts/audit_release.py",
@@ -305,7 +305,7 @@ def main() -> int:
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
-    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("CURRENT_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
