@@ -1,9 +1,9 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 package remote
 
 import "errors"
 
 func findTrustedTransportExecutable(string) (string, error) {
-	return "", errors.New("trusted Linux transport resolution is unavailable")
+	return "", errors.New("trusted transport resolution is unavailable")
 }

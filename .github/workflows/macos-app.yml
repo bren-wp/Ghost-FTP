@@ -8,10 +8,16 @@ on:
       - 'VERSION'
       - 'build/icon.png'
       - 'macos/**'
+      - 'internal/api/**'
+      - 'internal/model/**'
+      - 'internal/platform/**'
+      - 'internal/remote/**'
+      - 'internal/security/**'
       - 'scripts/audit_platform_contract.py'
       - 'scripts/audit_desktop_surface.py'
       - 'scripts/audit_version.py'
       - 'scripts/test_macos_windows_parity_contract.py'
+      - 'scripts/test_macos_engine_bridge_contract.py'
       - '.github/workflows/macos-app.yml'
   push:
     branches:
@@ -21,10 +27,16 @@ on:
       - 'VERSION'
       - 'build/icon.png'
       - 'macos/**'
+      - 'internal/api/**'
+      - 'internal/model/**'
+      - 'internal/platform/**'
+      - 'internal/remote/**'
+      - 'internal/security/**'
       - 'scripts/audit_platform_contract.py'
       - 'scripts/audit_desktop_surface.py'
       - 'scripts/audit_version.py'
       - 'scripts/test_macos_windows_parity_contract.py'
+      - 'scripts/test_macos_engine_bridge_contract.py'
       - '.github/workflows/macos-app.yml'
 
 permissions:
@@ -38,7 +50,7 @@ jobs:
   macos:
     name: Universal native macOS development app
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,28 +67,43 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           echo "MACOS_SOURCE_SHA=$SOURCE_SHA"
 
-      - name: Verify Apple toolchain
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.2.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Verify toolchains and disable Go telemetry
         shell: bash
         run: |
           set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+          go version
           xcodebuild -version
           xcrun swiftc --version
           xcrun --sdk macosx --show-sdk-path
 
-      - name: Validate macOS parity contract
+      - name: Validate macOS engine and parity contracts
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/test_macos_windows_parity_contract.py
+          python3 scripts/test_macos_engine_bridge_contract.py
           python3 scripts/audit_platform_contract.py
           python3 scripts/audit_desktop_surface.py
           python3 scripts/audit_version.py
 
-      - name: Build universal native macOS app
+      - name: Build universal native macOS app and shared engine
         shell: bash
+        env:
+          GOTOOLCHAIN: local
+          GOPROXY: 'off'
+          GOSUMDB: 'off'
         run: bash macos/BUILD.sh
 
-      - name: Verify app bundle and universal executable
+      - name: Verify app, shared engine and AskPass helper
         shell: bash
         run: |
           set -euo pipefail
@@ -88,19 +115,24 @@ jobs:
           ditto -x -k "$archive" "$work"
           app="$work/Ghost FTP.app"
           executable="$app/Contents/MacOS/GhostFTP"
+          askpass="$app/Contents/MacOS/GhostFTPAskPass"
+          engine="$app/Contents/Frameworks/libGhostFTPEngine.dylib"
           plist="$app/Contents/Info.plist"
           icon="$app/Contents/Resources/GhostFTP.icns"
+          for file in "$executable" "$askpass" "$engine" "$plist" "$icon"; do test -s "$file"; done
           test -x "$executable"
-          test -s "$plist"
-          test -s "$icon"
+          test -x "$askpass"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = 'app.ghostftp.client'
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" = "$version"
-          archs="$(xcrun lipo -archs "$executable")"
-          [[ " $archs " == *" arm64 "* ]]
-          [[ " $archs " == *" x86_64 "* ]]
+          for binary in "$executable" "$askpass" "$engine"; do
+            archs="$(xcrun lipo -archs "$binary")"
+            [[ " $archs " == *" arm64 "* ]]
+            [[ " $archs " == *" x86_64 "* ]]
+          done
+          otool -D "$engine" | grep -F '@rpath/libGhostFTPEngine.dylib'
+          otool -L "$executable" | grep -F '@rpath/libGhostFTPEngine.dylib'
           codesign --verify --deep --strict "$app"
-          echo "MACOS_APP_BUNDLE=PASS"
-          echo "MACOS_APP_ARCHS=$archs"
+          echo "MACOS_APP_ENGINE_BRIDGE=PASS"
           echo "MACOS_APP_SIGNING=adhoc-development"
 
       - name: Store macOS development artifact
