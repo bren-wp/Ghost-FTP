@@ -10,28 +10,28 @@ The Windows/Linux surface consists of application/profile actions, Quick Connect
 
 ## Appearance contract
 
-Classic Light is the fresh/missing/invalid-state primary appearance. Dark is the maintained explicit choice. Both palettes are local source data; no remote stylesheet/font/theme/analytics service is loaded.
+Classic Light is the fresh/missing/invalid-state primary appearance. Its maintained source palette uses workspace `#EEF1F5`, panel `#F6F8FB` and list `#FAFBFD`. Classic Light deliberately avoids pure white as the dominant application surface so file panes, application chrome and cards retain visible hierarchy without high-contrast glare.
+
+Dark is the maintained explicit choice and uses workspace `#0B0F17`, panel `#121824` and list `#161D2A`. Both palettes are local source data; no remote stylesheet, font, theme or analytics service is loaded.
 
 Windows applies appearance coherently across title bar, menus and controls. Linux applies the validated persisted palette before first frame and applies a newly saved palette immediately.
 
 ## Native dialog and lifecycle contract
 
-Ghost FTP-owned Windows dialogs visually belong to the active appearance and must not terminate the application message loop when they close.
+Ghost FTP-owned Windows dialogs visually belong to the active appearance and must not terminate the application message loop when they close. The lifecycle contract is explicit: only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle.
 
-Maintained rules include:
+Closing **Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O programu** closes only that bounded application-owned dialog/session surface and must not terminate the desktop application. Nested modal loops preserve a received process shutdown request instead of swallowing it.
 
-- only the main desktop window owns process-level shutdown lifecycle;
+Windows Settings is one application-owned modal surface for appearance, concurrency, independent upload and download bandwidth ceilings, connection timeout, retry policy, destination conflict policy and delete confirmation. Bandwidth fields state `KiB/s` and `0 = unlimited`.
+
+Additional maintained rules include:
+
 - Prompt, Option, Settings, information cards and Remote Edit close only their bounded modal/session loop;
 - application-owned dialogs use the active Ghost FTP owner where available;
-- controls/fonts/geometry scale from current DPI;
-- nested modal loops preserve a received process shutdown request;
+- controls, fonts and geometry scale from current DPI;
 - 0.0.5 mutation/session guards prevent stale command re-entry while asynchronous profile, file or Remote Edit work is active.
 
 Linux overlays own only their bounded overlay lifecycle and cannot fabricate engine state.
-
-## Settings surfaces
-
-Windows Settings presents appearance, concurrency, independent upload/download bandwidth ceilings, connection timeout, retry policy, destination conflict policy and delete confirmation in one validated native surface. Bandwidth fields state `KiB/s` and `0 = unlimited`. Linux exposes the same shared settings policy through bounded native controls.
 
 ## Site Manager and saved profiles
 
@@ -87,7 +87,7 @@ The maintained evidence contract is:
 - Linux — 3 images: Main Workspace, Bookmarks, Settings;
 - Android — 7 images: Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
 
-The final verifier requires 15 runtime images, verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The workflow does not commit/push evidence back to the tested branch.
+The final verifier requires exactly **15 runtime images**, verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The workflow does **not** commit or push screenshots back to the tested branch.
 
 Repository-local documentation assets remain:
 

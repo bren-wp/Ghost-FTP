@@ -55,9 +55,11 @@ The independently validated `Ghost-FTP-Android.apk` development artifact and bro
 
 ## Canonical release dispatch
 
-The canonical release branch is `release/ghostftp-v0.0.5`. It must point to exact fully verified current `main`. The branch trigger validates source/version equality, dispatches canonical `release.yml`, waits for exact release success, then dispatches and verifies retention.
+The canonical branch namespace is `release/ghostftp-vX.Y.Z`; the 0.0.5 release branch is `release/ghostftp-v0.0.5`. It must point to exact fully verified current `main` and its version must match root `VERSION`.
 
-A push to `main`, including a `VERSION` change, must never publish a release directly.
+Canonical `.github/workflows/release.yml` is `workflow_dispatch`-only. The branch trigger validates source/version equality, dispatches canonical `release.yml`, waits for the exact newly created release run to finish successfully, then dispatches and verifies retention.
+
+A push to `main`, including a change to `VERSION`, must never publish a release directly.
 
 ## Source verification
 
@@ -103,11 +105,9 @@ Android remains an independently validated source platform and is not silently a
 
 ## Windows Authenticode
 
-The release contract supports a **truthful supported publication state** with or without a configured production signing identity.
+The release contract supports a **truthful supported publication state** with or without a configured production signing identity. When a trusted production certificate is configured, signatures must verify. The production workflow **does not create a self-signed production identity**.
 
-When a trusted production certificate is configured, signatures must verify. The production workflow **does not create a self-signed production identity**.
-
-When no production certificate is configured, publication uses **explicit unsigned metadata when no production certificate is configured**:
+When no production certificate is configured, publication uses explicit unsigned metadata:
 
 ```text
 WINDOWS_AUTHENTICODE=unsigned

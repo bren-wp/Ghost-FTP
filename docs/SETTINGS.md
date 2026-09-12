@@ -32,7 +32,7 @@ Windows and Linux consume the same validated settings model; frontends must not 
 
 ## Bandwidth policy
 
-Bandwidth is expressed in binary KiB/s. Upload and download values are independent aggregate directional ceilings and `0 = unlimited`. The scheduler divides non-zero budgets conservatively across configured worker slots; idle slots do not create an undocumented burst entitlement.
+Bandwidth is expressed in binary KiB/s. Upload and download values are independent aggregate directional ceilings and `0 = unlimited`. Each non-zero configured value is the aggregate ceiling for that direction. The scheduler divides non-zero budgets conservatively across configured worker slots; idle slots do not create an undocumented burst entitlement.
 
 FTP/FTPS enforce effective limits through curl `limit-rate`; SFTP uses OpenSSH `sftp -l` with conservative unit conversion. A running attempt snapshots its budget at start. Saving settings affects future/retried attempts without mutating an already-running transport process.
 
