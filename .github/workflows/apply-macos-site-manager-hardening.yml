@@ -1,0 +1,77 @@
+name: Apply macOS Site Manager credential hardening
+
+on:
+  push:
+    branches:
+      - feature/macos-site-manager-hardening
+    paths:
+      - scripts/apply_macos_site_manager_hardening.py
+      - .github/workflows/apply-macos-site-manager-hardening.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-macos-site-manager-hardening-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/macos-site-manager-hardening
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Disable Go telemetry
+        run: go telemetry off
+
+      - name: Apply guarded hardening patch
+        run: python3 scripts/apply_macos_site_manager_hardening.py
+
+      - name: Format Go source
+        run: |
+          gofmt -w \
+            internal/security/runtime_secret_other.go \
+            internal/security/runtime_secret_darwin.go \
+            internal/remote/curl_ftp.go \
+            internal/remote/manager.go \
+            internal/remote/persistent_profile_secret_ownership_test.go \
+            internal/remote/curl_ftp_secret_ownership_other_test.go
+
+      - name: Validate targeted behavior and contracts
+        run: |
+          git diff --check
+          go test ./internal/security ./internal/config ./internal/remote ./internal/api
+          python3 scripts/test_macos_site_manager_integration.py
+          python3 scripts/test_macos_windows_parity_contract.py
+
+      - name: Remove one-shot integration files
+        run: |
+          rm scripts/apply_macos_site_manager_hardening.py
+          rm .github/workflows/apply-macos-site-manager-hardening.yml
+          git diff --check
+
+      - name: Commit production-only hardening
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: preserve macOS saved FTP credentials for live sessions'
+          git push origin HEAD:feature/macos-site-manager-hardening
