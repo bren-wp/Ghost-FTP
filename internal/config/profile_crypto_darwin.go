@@ -2,24 +2,36 @@
 
 package config
 
-import "errors"
+import (
+	"bytes"
+	"errors"
 
-var errDarwinPersistentProfilesUnavailable = errors.New("saved profiles are unavailable until macOS Keychain protection is enabled")
+	"github.com/bren-wp/Ghost-FTP/internal/security"
+)
 
-// protectProfileData deliberately fails closed on macOS for now. The native
-// Quick Connect path does not persist connection secrets, and the in-memory
-// AskPass capability broker must never be reused as durable profile storage.
-// A later Site Manager parity change will replace this gate with Keychain-backed
-// profile protection before saved macOS profiles are enabled.
-func protectProfileData([]byte, string) (string, error) {
-	return "", errDarwinPersistentProfilesUnavailable
+const darwinProfileEnvelopeMarker = "profile-envelope-v1\x00"
+
+func protectProfileData(data []byte, _ string) (string, error) {
+	payload := make([]byte, 0, len(darwinProfileEnvelopeMarker)+len(data))
+	payload = append(payload, darwinProfileEnvelopeMarker...)
+	payload = append(payload, data...)
+	defer security.WipeBytes(payload)
+	return security.ProtectPersistentProfileBytes(payload)
 }
 
-// Existing protected profile envelopes are not interpreted with a weaker or
-// platform-incompatible codec. Until Keychain-backed storage lands, macOS
-// refuses to unlock durable profile data rather than silently downgrading it.
-func unprotectProfileData(string, string) ([]byte, error) {
-	return nil, errDarwinPersistentProfilesUnavailable
+func unprotectProfileData(encoded, _ string) ([]byte, error) {
+	plain, err := security.UnprotectPersistentProfileBytes(encoded)
+	if err != nil {
+		return nil, err
+	}
+	marker := []byte(darwinProfileEnvelopeMarker)
+	if !bytes.HasPrefix(plain, marker) {
+		security.WipeBytes(plain)
+		return nil, errors.New("macOS saved profile envelope is malformed")
+	}
+	out := append([]byte(nil), plain[len(marker):]...)
+	security.WipeBytes(plain)
+	return out, nil
 }
 
 func profileDataNeedsMigration(string) bool { return false }
