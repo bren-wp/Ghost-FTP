@@ -198,31 +198,47 @@ func (m *Manager) Resolve(profileID string, in model.ConnectionConfig) (resolved
 		resolved.Config = mergeConnection(model.ConnectionConfig{
 			Protocol: p.Protocol, Host: p.Host, Port: p.Port, Username: p.Username,
 		}, in)
-		// Spremljene tajne nikada se ne prenose preko privremeno izmijenjenog
-		// endpointa/računa. Korisnik tada mora izričito upisati vjerodajnicu.
-		if in.Password == "" && profileAccountMatches(p, resolved.Config) {
-			resolved.PasswordBlob = p.PasswordBlob
+		// Durable profile credentials are converted to a short-lived runtime
+		// capability only for the exact matching account/key identity. On macOS
+		// this decrypts the Keychain-backed blob and immediately re-wraps it in
+		// the same-user runtime broker; other platforms preserve their existing
+		// borrowed protected-blob behavior.
+		if in.Password == "" && profileAccountMatches(p, resolved.Config) && p.PasswordBlob != "" {
+			resolved.PasswordBlob, resolved.ownsPasswordBlob, err = security.PersistentProfileSecretToRuntime(p.PasswordBlob)
+			if err != nil {
+				resolved.forgetOwnedSecrets()
+				return resolved, profile, err
+			}
 		}
-		if in.Passphrase == "" && profilePrivateKeyMatches(p, resolved.Config) {
-			resolved.PassphraseBlob = p.PassphraseBlob
+		if in.Passphrase == "" && profilePrivateKeyMatches(p, resolved.Config) && p.PassphraseBlob != "" {
+			resolved.PassphraseBlob, resolved.ownsPassphraseBlob, err = security.PersistentProfileSecretToRuntime(p.PassphraseBlob)
+			if err != nil {
+				resolved.forgetOwnedSecrets()
+				return resolved, profile, err
+			}
 		}
 	}
 	resolved.Config = sanitizeProtocolState(resolved.Config)
 	if resolved.Config.Protocol != "sftp" {
 		resolved.PassphraseBlob = ""
+		resolved.ownsPassphraseBlob = false
 	}
 	cfg := resolved.Config
 	if err := security.ValidateConnection(cfg.Protocol, cfg.Host, cfg.Username, cfg.Port); err != nil {
+		resolved.forgetOwnedSecrets()
 		return resolved, profile, err
 	}
 	if err := security.ValidateSecret(cfg.Password); err != nil {
+		resolved.forgetOwnedSecrets()
 		return resolved, profile, err
 	}
 	if err := security.ValidateSecret(cfg.Passphrase); err != nil {
+		resolved.forgetOwnedSecrets()
 		return resolved, profile, err
 	}
 	if cfg.Protocol == "sftp" && cfg.Fingerprint != "" {
 		if err := security.ValidateSFTPFingerprint(cfg.Fingerprint); err != nil {
+			resolved.forgetOwnedSecrets()
 			return resolved, profile, err
 		}
 	}
@@ -301,10 +317,6 @@ func (m *Manager) applyPendingTrust(cfg model.ConnectionConfig, resolved *resolv
 		p.fingerprint != fingerprint {
 		return
 	}
-	// A credential captured for the exact trust prompt belongs to that connection
-	// attempt and takes precedence over a profile blob re-resolved on confirmation.
-	// An explicitly re-entered plaintext credential on the confirmation request
-	// still wins and causes the pending owned blob to be discarded below.
 	if cfg.Password == "" && p.passwordBlob != "" {
 		if resolved.ownsPasswordBlob {
 			security.ForgetProtectedSecret(resolved.PasswordBlob)
@@ -351,9 +363,7 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		m.clearPendingTrustLocked()
 		return ConnectResult{}, err
 	}
-	defer func() {
-		resolved.forgetOwnedSecrets()
-	}()
+	defer func() { resolved.forgetOwnedSecrets() }()
 	cfg := resolved.Config
 	profileEndpoint := profileEndpointMatches(profile, cfg)
 	connectTimeout := m.settings.Effective().ConnectionTimeoutSeconds
@@ -366,10 +376,6 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		if err := security.EnsureNoRedirectDirectory(m.dataDir, knownHostsDir); err != nil {
 			return ConnectResult{}, errors.New("mapa SFTP sesije nije sigurna")
 		}
-		// Windows klijent je single-instance, pa se crash-ostatci mogu očistiti
-		// tek nakon no-redirect provjere. Linux/macOS namjerno dopuštaju više
-		// terminalskih procesa; ondje startup cleanup ne smije dirati artefakte
-		// druge aktivne sesije.
 		if runtime.GOOS == "windows" {
 			cleanupStaleSFTPArtifacts(knownHostsDir)
 		}
@@ -388,6 +394,10 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 			if err := m.stashPendingTrust(cfg, resolved, fp); err != nil {
 				return ConnectResult{}, err
 			}
+			// Ownership copied into pending trust must no longer be reclaimed by
+			// this Resolve result while the user verifies the fingerprint.
+			resolved.ownsPasswordBlob = false
+			resolved.ownsPassphraseBlob = false
 			preservePendingTrust = true
 			return ConnectResult{RequiresTrust: true, Fingerprint: fp}, nil
 		}
@@ -402,8 +412,6 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		if err != nil {
 			return ConnectResult{}, err
 		}
-		// Privremena promjena hosta/porta smije vrijediti samo za ovu sesiju.
-		// Nikada ne prepisuj spremljeni pin originalnog profila drugim endpointom.
 		if remember && profileID != "" && profileEndpoint {
 			if err := m.profiles.UpdateFingerprint(profileID, fp); err != nil {
 				_ = os.Remove(kh)
@@ -424,6 +432,9 @@ func (m *Manager) Connect(ctx context.Context, profileID string, in model.Connec
 		if err != nil {
 			return ConnectResult{}, err
 		}
+		// Curl consumes the protected secret synchronously per operation. Keep the
+		// owned runtime capability with this connection result until Connect exits;
+		// it will be forgotten by the deferred cleanup above after the probe.
 	}
 
 	cctx, cancel := context.WithTimeout(ctx, time.Duration(connectTimeout+5)*time.Second)
