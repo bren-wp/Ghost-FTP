@@ -4,10 +4,18 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def read_bridge_package() -> str:
+    bridge_dir = ROOT / "macos/Bridge"
+    sources = sorted(bridge_dir.glob("*.go"))
+    if not sources:
+        raise AssertionError("missing macOS bridge Go sources")
+    return "\n".join(path.read_text(encoding="utf-8") for path in sources)
+
+
 class MacOSFileMutationsContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.bridge = (ROOT / "macos/Bridge/main.go").read_text(encoding="utf-8")
+        cls.bridge = read_bridge_package()
         cls.swift = (ROOT / "macos/Sources/GhostFTPApp/main.swift").read_text(encoding="utf-8")
         cls.parity = (ROOT / "macos/PARITY.md").read_text(encoding="utf-8")
 
