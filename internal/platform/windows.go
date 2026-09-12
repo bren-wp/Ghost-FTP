@@ -209,6 +209,7 @@ func ChoosePrivateKey() (string, error) {
 	filter := multiString(privateKeyFilter + "|id_*;*.pem;*.key|" + allFilesLabel + "|*.*")
 	title, _ := syscall.UTF16PtrFromString(privateKeyTitle)
 	ofn := openFileName{
+		Owner:       premiumDialogOwner(),
 		File:        &buf[0],
 		MaxFile:     uint32(len(buf)),
 		Filter:      &filter[0],
@@ -228,7 +229,12 @@ func ChooseDirectory() (string, error) {
 	display := make([]uint16, 260)
 	_, _, _, directoryTitle := resolvedPickerLabels()
 	title, _ := syscall.UTF16PtrFromString(directoryTitle)
-	bi := browseInfo{DisplayName: &display[0], Title: title, Flags: bifReturnOnlyFS | bifNewDialogStyle}
+	bi := browseInfo{
+		Owner:       premiumDialogOwner(),
+		DisplayName: &display[0],
+		Title:       title,
+		Flags:       bifReturnOnlyFS | bifNewDialogStyle,
+	}
 	pidl, _, _ := browseFolder.Call(uintptr(unsafe.Pointer(&bi)))
 	if pidl == 0 {
 		return "", nil // cancel
@@ -249,9 +255,10 @@ func taskDialogCall(title, instruction, content string, buttons uintptr) (int, b
 	t, _ := syscall.UTF16PtrFromString(title)
 	i, _ := syscall.UTF16PtrFromString(instruction)
 	c, _ := syscall.UTF16PtrFromString(content)
+	owner := premiumDialogOwner()
 	var pressed int32
 	hr, _, _ := taskDialog.Call(
-		0, 0,
+		owner, 0,
 		uintptr(unsafe.Pointer(t)),
 		uintptr(unsafe.Pointer(i)),
 		uintptr(unsafe.Pointer(c)),
@@ -301,7 +308,7 @@ func ErrorDialog(title, instruction, content string) {
 func MessageBox(title, text string, flags uintptr) int {
 	t, _ := syscall.UTF16PtrFromString(text)
 	c, _ := syscall.UTF16PtrFromString(title)
-	r, _, _ := messageBox.Call(0, uintptr(unsafe.Pointer(t)), uintptr(unsafe.Pointer(c)), flags)
+	r, _, _ := messageBox.Call(premiumDialogOwner(), uintptr(unsafe.Pointer(t)), uintptr(unsafe.Pointer(c)), flags)
 	return int(r)
 }
 
