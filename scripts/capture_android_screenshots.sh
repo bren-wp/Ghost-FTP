@@ -108,7 +108,7 @@ sleep 2
 # between platform releases, so parse both ActivityTaskManager and WindowManager
 # evidence instead of depending on one historical mResumedActivity label.
 activity_dump="$(timeout 10s adb shell dumpsys activity activities 2>/dev/null | tr -d '\r' || true)"
-resolved_component="$(printf '%s\n' "$activity_dump" | awk '
+resolved_component="$(awk '
 /topResumedActivity=ActivityRecord|ResumedActivity: ActivityRecord/ {
   for (i = 1; i <= NF; i++) {
     candidate = $i
@@ -118,11 +118,11 @@ resolved_component="$(printf '%s\n' "$activity_dump" | awk '
       exit
     }
   }
-}')"
+}' <<<"$activity_dump")"
 window_dump=''
 if [[ -z "$resolved_component" ]]; then
   window_dump="$(timeout 10s adb shell dumpsys window windows 2>/dev/null | tr -d '\r' || true)"
-  resolved_component="$(printf '%s\n' "$window_dump" | awk '
+  resolved_component="$(awk '
 /mCurrentFocus=Window|mFocusedApp=ActivityRecord/ {
   for (i = 1; i <= NF; i++) {
     candidate = $i
@@ -132,7 +132,7 @@ if [[ -z "$resolved_component" ]]; then
       exit
     }
   }
-}')"
+}' <<<"$window_dump")"
 fi
 [[ "$resolved_component" == "$package_name/"* ]] || {
   printf '%s\n' "$activity_dump" >&2
