@@ -53,8 +53,9 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
         build = (ROOT / "macos" / "BUILD.sh").read_text(encoding="utf-8")
         for marker in (
             "prepare_site_manager_sources.py",
-            'GENERATED_SOURCE="$OUT/main.site-manager.swift"',
-            'GENERATED_SITE_MANAGER_SOURCE="$OUT/SiteManager.integrated.swift"',
+            'GENERATED_SOURCE_DIR="$OUT/generated-swift"',
+            'GENERATED_SOURCE="$GENERATED_SOURCE_DIR/main.swift"',
+            'GENERATED_SITE_MANAGER_SOURCE="$GENERATED_SOURCE_DIR/SiteManager.swift"',
             'python3 "$PREPARE_SITE_MANAGER_SOURCES"',
             'grep -F \'NSButton(title: "Site Manager"\' "$GENERATED_SOURCE"',
             '"$GENERATED_SOURCE" "$GENERATED_SITE_MANAGER_SOURCE"',
