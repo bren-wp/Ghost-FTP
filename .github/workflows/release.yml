@@ -9,8 +9,7 @@ on:
         type: string
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 concurrency:
   group: ghostftp-release
@@ -283,6 +282,9 @@ jobs:
     needs: [quality, windows, linux]
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
+      packages: write
     env:
       WINDOWS_SIGNING_STATE: ${{ needs.windows.outputs.signing_state }}
     steps:
