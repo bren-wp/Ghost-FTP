@@ -356,7 +356,7 @@ func printProfile(profile model.PublicProfile) {
 	fmt.Printf("username=%s\n", profile.Username)
 	fmt.Printf("password-saved=%t\n", profile.HasPassword)
 	fmt.Printf("private-key=%s\n", profile.PrivateKeyPath)
-	fmt.Printf("passphrase-saved=%t\n", profile.HasPassphrase)
+	fmt.Printf("passphrase-saved=%s\n", "redacted")
 	fmt.Printf("fingerprint=%s\n", profile.Fingerprint)
 	fmt.Printf("remote-path=%s\n", profile.RemotePath)
 	fmt.Printf("local-path=%s\n", profile.LocalPath)
