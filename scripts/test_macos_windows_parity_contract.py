@@ -73,6 +73,7 @@ IMPLEMENTED_MACOS_ACTIONS = {
     "Remote New Folder",
     "Remote Rename",
     "Remote Delete",
+    "Remote Permissions",
     "Upload",
     "Download",
 }
