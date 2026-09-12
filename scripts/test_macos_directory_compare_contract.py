@@ -51,12 +51,19 @@ class MacOSDirectoryCompareContract(unittest.TestCase):
         self.assertNotIn("session.List", compare)
         self.assertIn("directorycompare.Compare", self.api)
 
-    def test_compare_is_snapshot_bound_and_cancellable(self):
+    def test_compare_is_snapshot_bound_and_cancellable_even_while_queued(self):
         compare = function_body(self.bridge, "func GhostFTPCompareDirectories(")
         self.assertIn("requireDirectoryCompareSnapshot", compare)
+        self.assertIn("beginDirectoryCompareOperation", compare)
         cancel = function_body(self.bridge, "func GhostFTPCancelDirectoryCompare(")
-        self.assertIn("cancelDirectoryCompare", cancel)
-        self.assertIn("GhostFTPCancelDirectoryCompare()", self.swift)
+        self.assertIn("cancelRequested = true", cancel)
+        self.assertIn("directoryCompareState.cancel", cancel)
+
+        start = function_body(self.swift, "private func startDirectoryCompare(")
+        self.assertIn("GhostFTPPrepareDirectoryCompare()", start)
+        self.assertIn("GhostFTPCompareDirectories(CUnsignedLongLong(operationToken)", start)
+        self.assertLess(start.find("GhostFTPPrepareDirectoryCompare()"), start.find("engineQueue.async"))
+
         disconnect = function_body(self.swift, "private func disconnectTapped(")
         self.assertIn("GhostFTPCancelDirectoryCompare()", disconnect)
         self.assertLess(disconnect.find("GhostFTPCancelDirectoryCompare()"), disconnect.find("engineQueue.async"))
@@ -83,13 +90,30 @@ class MacOSDirectoryCompareContract(unittest.TestCase):
         ):
             self.assertIn(marker, self.swift)
 
-    def test_open_both_reuses_normal_navigation_paths(self):
-        body = function_body(self.swift, "private func openComparedDirectoryBoth(")
-        self.assertIn("GhostFTPDirectoryCompareCanOpenBoth", body)
-        self.assertIn("refreshLocal", body)
-        self.assertIn("refreshRemote", body)
-        self.assertNotIn("GhostFTPLocalList", body)
-        self.assertNotIn("GhostFTPRemoteList", body)
+    def test_open_both_is_staged_and_committed_atomically(self):
+        open_bridge = function_body(self.bridge, "func GhostFTPOpenComparedDirectoryBoth(")
+        self.assertIn("security.SafeLocalChild", open_bridge)
+        self.assertIn("security.ValidateRemoteName", open_bridge)
+        self.assertIn("engine.LocalList", open_bridge)
+        self.assertIn("engine.RemoteList", open_bridge)
+        self.assertIn("commitComparedDirectories", open_bridge)
+        self.assertLess(open_bridge.find("engine.LocalList"), open_bridge.find("engine.RemoteList"))
+        self.assertLess(open_bridge.find("engine.RemoteList"), open_bridge.find("commitComparedDirectories"))
+
+        commit = function_body(self.bridge, "func commitComparedDirectories(")
+        self.assertIn("bridgeState.localPath = localResolved", commit)
+        self.assertIn("bridgeState.remotePath = remoteTarget", commit)
+        self.assertIn('updateLocalFilterLocked("")', commit)
+        self.assertIn('updateRemoteFilterLocked("")', commit)
+        self.assertIn("cancelRequested", commit)
+
+        open_swift = function_body(self.swift, "private func openComparedDirectoryBoth(")
+        self.assertIn("GhostFTPPrepareDirectoryCompareOpen()", open_swift)
+        self.assertIn("GhostFTPOpenComparedDirectoryBoth", open_swift)
+        self.assertIn("GhostFTPLocalPath", open_swift)
+        self.assertIn("GhostFTPRemotePath", open_swift)
+        self.assertNotIn("refreshLocal(", open_swift)
+        self.assertNotIn("refreshRemote(", open_swift)
 
     def test_windows_and_macos_parity_are_aligned(self):
         self.assertIn("CompareDirectoryItems", self.windows)
