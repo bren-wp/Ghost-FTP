@@ -90,6 +90,26 @@ jobs:
           keychain_password="$(openssl rand -hex 32)"
           profile="ghostftp-notary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+          # Publish cleanup locations before handling any decrypted material so
+          # the later always() step can clean even when provisioning fails.
+          {
+            echo "work=$work"
+            echo "keychain=$keychain"
+            echo "profile=$profile"
+          } >> "$GITHUB_OUTPUT"
+
+          cleanup_provisioning() {
+            status=$?
+            if [[ "$status" -ne 0 ]]; then
+              set +e
+              rm -f "$p12" "$api_key"
+              security delete-keychain "$keychain" >/dev/null 2>&1
+              rm -rf "$work"
+            fi
+            return "$status"
+          }
+          trap cleanup_provisioning EXIT
+
           printf '%s' "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$p12"
           printf '%s' "$NOTARY_API_KEY_P8" > "$api_key"
           chmod 600 "$p12" "$api_key"
@@ -117,11 +137,7 @@ jobs:
             --issuer "$NOTARY_ISSUER_ID"
 
           rm -f "$p12" "$api_key"
-          {
-            echo "work=$work"
-            echo "keychain=$keychain"
-            echo "profile=$profile"
-          } >> "$GITHUB_OUTPUT"
+          trap - EXIT
 
       - name: Build sign notarize staple and assess
         shell: bash
