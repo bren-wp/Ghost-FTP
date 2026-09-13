@@ -102,7 +102,20 @@ Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Verified native x64/x86 application payloads remain internal staging artifacts embedded in the universal build. Architecture-specific Windows staging executables must not leak into the public directory.
+Verified native x64, x86 and ARM64 application/installer payloads remain internal staging artifacts embedded in the universal build. Architecture-specific Windows staging executables must not leak into the public directory, including `*-arm64.exe` aliases.
+
+The current release metadata contract is:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+WINDOWS_AUTHENTICODE=signed
+```
+
+The evidence marker is deliberate: ARM64 is cross-built and verified through PE/resource/package/signing gates, while native Windows ARM64 runtime execution is not claimed without a maintained ARM64 runner/device.
 
 ## Linux packaging identity
 
@@ -136,6 +149,8 @@ WINDOWS_AUTHENTICODE=signed
 
 Release/CI validation rejects malformed semantic versions, `0.0.0`, release-branch/source-version mismatch, non-exact-main release branches, conflicting current tags/releases, incomplete release assets, architecture-specific public Windows leakage, absent or failed public Windows signatures, source/main drift, incorrect prerelease flags, missing GHCR exact-version bundle, failed release read-back or failed latest-only retention cleanup.
 
+The same validation binds the Windows package identity to `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64` and `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`, so version/release documentation cannot silently return to the previous x64/x86-only packaging description while code ships ARM64.
+
 Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the 14/17 packaging contract, active source-platform boundaries and current package identity.
 
 ## Changelog and release notes
@@ -150,15 +165,18 @@ The exact candidate must pass:
 
 - Go formatting, `go test -race ./...` and `go vet ./...`;
 - repository/platform/desktop/dependency/version/localization/security/privacy/documentation/release audits;
-- the complete Python regression suite;
+- the complete Python regression suite, including the Windows ARM64 universal-package contract;
 - FTP/FTPS/SFTP trust/no-downgrade and local-path safeguards;
 - Remote Edit size/text/revision/conflict/permission/read-back/metadata and session-lifecycle safeguards;
 - profile persistence and local/remote mutation re-entry contracts;
 - filtering, sorting, recursive search, directory comparison and synchronized-navigation contracts;
 - queue Top/Up/Down/Bottom ordering and connection binding;
+- Windows Add/Retry/Cancel transfer-callback generation ownership;
 - navigation bookmark/profile-start account/session validation;
 - upload/download bandwidth settings, aggregate scheduling and transport enforcement;
 - Windows installer/uninstaller/shortcut ownership checks;
+- Windows native x64/x86/ARM64 staging builds, PE resources, verifier gates, universal bootstrap selection and public two-executable leakage checks;
+- an explicit `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` boundary until maintained native ARM64 execution evidence exists;
 - Linux trusted transport/AskPass provenance checks;
 - Android source contract, lifecycle connection ownership, authentication-error redaction, strict FTPS/parser bounds, JVM tests, lint, installable development APK and APK verification;
 - universal macOS development-app build/validation against the shared source contract;
