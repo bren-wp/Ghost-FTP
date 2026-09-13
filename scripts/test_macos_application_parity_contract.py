@@ -82,6 +82,9 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, source)
 
+        preparer = read("macos/prepare_site_manager_sources.py")
+        self.assertIn("GhostFTPSettingsConfirmDelete() == 0", preparer)
+
     def test_about_and_diagnostics_are_privacy_safe(self) -> None:
         source = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
         for marker in (
@@ -123,6 +126,7 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             'grep -F \'NSButton(title: "Settings"\'',
             'grep -F \'NSButton(title: "About"\'',
             'grep -F \'NSButton(title: "Diagnostics"\'',
+            "main.productVersion=${VERSION}",
         ):
             self.assertIn(marker, build)
 
@@ -132,7 +136,7 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
         for action in ("Bookmarks", "Settings", "About", "Diagnostics"):
             self.assertIn(f"- [x] {action}", parity)
             self.assertIn(f'"{action}"', global_contract.split("IMPLEMENTED_MACOS_ACTIONS =", 1)[1])
-        self.assertNotIn("- [ ]", parity.split("## Implemented file-workspace boundary", 1)[0])
+        self.assertNotIn("- [ ]", parity.split("## Implemented application boundary", 1)[0])
 
 
 if __name__ == "__main__":
