@@ -1,0 +1,174 @@
+name: Ghost FTP macOS Production Artifact
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghostftp-macos-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production:
+    name: Developer ID signed and notarized universal app
+    runs-on: macos-15
+    timeout-minutes: 35
+    environment: macos-production
+    steps:
+      - name: Checkout exact selected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Confirm exact source and required credentials
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
+          NOTARY_API_KEY_P8: ${{ secrets.APPLE_NOTARY_API_KEY_P8 }}
+          NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          for value in \
+            "$DEVELOPER_ID_P12_BASE64" \
+            "$DEVELOPER_ID_P12_PASSWORD" \
+            "$DEVELOPER_IDENTITY" \
+            "$NOTARY_API_KEY_P8" \
+            "$NOTARY_API_KEY_ID" \
+            "$NOTARY_ISSUER_ID"; do
+            test -n "$value"
+          done
+          case "$DEVELOPER_IDENTITY" in
+            'Developer ID Application:'*) ;;
+            *) echo 'MACOS_PRODUCTION_FAILED: invalid Developer ID identity' >&2; exit 1 ;;
+          esac
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+
+      - name: Disable Go telemetry and validate source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          go telemetry off
+          test "$(go telemetry)" = 'off'
+          python3 scripts/test_macos_windows_parity_contract.py
+          python3 scripts/test_macos_application_parity_contract.py
+          python3 scripts/test_macos_distribution_contract.py
+          python3 scripts/audit_security.py
+          python3 scripts/audit_privacy.py
+          bash -n macos/BUILD.sh
+          bash -n macos/SIGN_AND_NOTARIZE.sh
+
+      - name: Provision ephemeral signing and notarization keychain
+        id: signing
+        shell: bash
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
+          NOTARY_API_KEY_P8: ${{ secrets.APPLE_NOTARY_API_KEY_P8 }}
+          NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          keychain="$work/ghostftp-signing.keychain-db"
+          p12="$work/developer-id.p12"
+          api_key="$work/AuthKey.p8"
+          keychain_password="$(openssl rand -hex 32)"
+          profile="ghostftp-notary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          printf '%s' "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$p12"
+          printf '%s' "$NOTARY_API_KEY_P8" > "$api_key"
+          chmod 600 "$p12" "$api_key"
+
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$p12" \
+            -k "$keychain" \
+            -P "$DEVELOPER_ID_P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -d user -s "$keychain"
+          security find-identity -v -p codesigning "$keychain" | grep -F -- "$DEVELOPER_IDENTITY" >/dev/null
+
+          xcrun notarytool store-credentials "$profile" \
+            --key "$api_key" \
+            --key-id "$NOTARY_API_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID"
+
+          rm -f "$p12" "$api_key"
+          {
+            echo "work=$work"
+            echo "keychain=$keychain"
+            echo "profile=$profile"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build sign notarize staple and assess
+        shell: bash
+        env:
+          GOTOOLCHAIN: local
+          GOPROXY: 'off'
+          GOSUMDB: 'off'
+          MACOS_DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
+          MACOS_NOTARY_KEYCHAIN_PROFILE: ${{ steps.signing.outputs.profile }}
+        run: bash macos/SIGN_AND_NOTARIZE.sh
+
+      - name: Verify final notarized artifact
+        shell: bash
+        env:
+          MACOS_DEVELOPER_IDENTITY: ${{ secrets.MACOS_DEVELOPER_IDENTITY }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          archive="macos/dist/Ghost-FTP-${version}-macOS-notarized.app.zip"
+          test -s "$archive"
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          ditto -x -k "$archive" "$work"
+          app="$work/Ghost FTP.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=4 "$app"
+          codesign --display --verbose=4 "$app" 2>&1 | grep -F 'runtime'
+          codesign --display --verbose=4 "$app" 2>&1 | grep -F 'Timestamp='
+          codesign --display --verbose=4 "$app" 2>&1 | grep -F -- "$MACOS_DEVELOPER_IDENTITY"
+          echo 'MACOS_PRODUCTION_ARTIFACT_VERIFIED=PASS'
+
+      - name: Store notarized production artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-macos-notarized
+          if-no-files-found: error
+          retention-days: 14
+          path: macos/dist/Ghost-FTP-*-macOS-notarized.app.zip
+
+      - name: Destroy ephemeral signing keychain
+        if: always() && steps.signing.outputs.work != ''
+        shell: bash
+        env:
+          SIGNING_KEYCHAIN: ${{ steps.signing.outputs.keychain }}
+          SIGNING_WORK: ${{ steps.signing.outputs.work }}
+        run: |
+          set +e
+          security delete-keychain "$SIGNING_KEYCHAIN" >/dev/null 2>&1
+          rm -rf "$SIGNING_WORK"
