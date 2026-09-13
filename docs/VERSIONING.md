@@ -36,6 +36,24 @@ The current public numbering started at **0.0.1**. `0.0.0` is reserved and must 
 
 Each new release must be based on a fully verified current `main` revision. A release identity is never rewritten in place. For this project, **major version `0` does not imply prerelease**: the 0.0.x line is the current public release line and uses `prerelease=false` unless a future explicit policy change says otherwise.
 
+## Platform and version boundaries
+
+The current public release platforms are:
+
+```text
+WINDOWS,LINUX
+```
+
+The active native source platforms are:
+
+```text
+WINDOWS,LINUX,ANDROID,MACOS
+```
+
+All active source surfaces remain tied to root `VERSION`, but public-release inclusion is an independent contract. Android and macOS must not become public release artifacts merely because their source version matches 0.0.5; each requires the platform-specific production distribution evidence defined for that platform.
+
+Browser-helper source follows the current repository/product line but is not an application release platform and is not counted in the Windows/Linux public artifact allow-list.
+
 ## Latest-only public release retention
 
 Ghost FTP intentionally keeps only the **latest public version** visible in release infrastructure.
@@ -90,9 +108,17 @@ Verified native x64/x86 application payloads remain internal staging artifacts e
 
 Canonical Linux packaging uses `linux/BUILD-DISTROS.sh` and publishes Debian DEBs for `amd64`, `arm64`, `i386`; Ubuntu DEBs for the same architectures; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and Portable tarballs for `amd64`, `arm64`, `i386`.
 
-## Android source identity
+## Android development identity
 
-Android source reads root `VERSION`, but the maintained artifact is an installable development APK with a `-dev` version identity. It is independently verified and is not silently included in the public Windows/Linux 17-file release allow-list.
+Android source reads root `VERSION`, while the maintained installable APK carries the development identity defined by the Android build contract. The APK is independently verified by Android CI and is not silently included in the public Windows/Linux 17-file release allow-list.
+
+A public Android release would require a separate reviewed production signing/publication contract. Development APK success is not proof of such publication.
+
+## macOS development identity
+
+macOS source is likewise bound to root `VERSION`. The maintained macOS workflow builds a universal native development app and validates it against the shared-engine/platform contract.
+
+The development app is ad-hoc signed for native CI/regression use. A public macOS artifact may be described as production-distributable only after the dedicated Developer ID signing/notarization path succeeds with real protected credentials. macOS development build success does not enlarge the current 17-file public Windows/Linux release set.
 
 ## Windows signing state
 
@@ -110,11 +136,13 @@ WINDOWS_AUTHENTICODE=signed
 
 Release/CI validation rejects malformed semantic versions, `0.0.0`, release-branch/source-version mismatch, non-exact-main release branches, conflicting current tags/releases, incomplete release assets, architecture-specific public Windows leakage, absent or failed public Windows signatures, source/main drift, incorrect prerelease flags, missing GHCR exact-version bundle, failed release read-back or failed latest-only retention cleanup.
 
-Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the 14/17 packaging contract and the current package identity.
+Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the 14/17 packaging contract, active source-platform boundaries and current package identity.
 
 ## Changelog and release notes
 
 `CHANGELOG.md` contains the maintained public release line and includes a `## <VERSION>` section. `scripts/release_notes.py` extracts that section and must describe the same public package names/counts as canonical `release.yml`.
+
+Historical version references remain valid inside explicitly historical records. Active product/install/security/release guidance must not silently use an older version as its current contract.
 
 ## 0.0.5 release checklist
 
@@ -132,17 +160,20 @@ The exact candidate must pass:
 - upload/download bandwidth settings, aggregate scheduling and transport enforcement;
 - Windows installer/uninstaller/shortcut ownership checks;
 - Linux trusted transport/AskPass provenance checks;
-- Android source contract, lifecycle connection ownership, strict FTPS/parser bounds, lint, installable development APK and APK verification;
+- Android source contract, lifecycle connection ownership, authentication-error redaction, strict FTPS/parser bounds, JVM tests, lint, installable development APK and APK verification;
+- universal macOS development-app build/validation against the shared source contract;
 - universal Windows Setup and Portable production builds with verified native payloads;
 - trusted Authenticode signing and verification for both public Windows executables;
 - Linux Debian/Ubuntu/Fedora/Portable build, metadata, extraction and binary parity;
 - Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 install/remove/GUI smoke;
-- 24-language localization and authentic Windows/Linux/Android UI evidence;
+- 24-language desktop localization and authentic Windows/Linux/Android UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
 - exact-main `release/ghostftp-v0.0.5` validation;
 - GitHub Release `ghostftp-v0.0.5` with `prerelease=false` and exact 17-file read-back;
 - GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.5` publication/read-back;
 - successful latest-only retention cleanup.
+
+macOS production signing/notarization is not silently implied by the current Windows/Linux public-release checklist. If macOS is later promoted into public distribution, that promotion requires explicit successful platform-specific evidence and an intentional release-contract change.
 
 ## Next release
 

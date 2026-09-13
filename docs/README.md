@@ -1,10 +1,10 @@
 # Ghost FTP documentation
 
 <p align="center">
-  <img src="../build/icon.png" alt="Ghost FTP application icon" width="108">
+  <img src="../build/icon.png" alt="Ghost FTP application icon" width="118">
 </p>
 
-<p align="center"><strong>Production behavior, security boundaries, UI evidence and release engineering for Ghost FTP.</strong></p>
+<p align="center"><strong>Authoritative product behavior, security boundaries, native-platform status, UI evidence and release engineering for Ghost FTP.</strong></p>
 
 - **Current Ghost FTP release: 0.0.5**
 - Development status: **Active**
@@ -12,14 +12,24 @@
 - GitHub Release policy: **PRERELEASE=false**
 - Public version retention: **latest release only**
 - Public release platforms: **Windows and Linux**
-- Active native source platforms: **Windows, Linux and Android**
-- Protocols: **FTP, FTPS and SFTP** on desktop; **FTP and strict explicit FTPS** on the current Android development surface
-- Languages: **24 selectable local desktop languages**
+- Active native source platforms: **Windows, Linux, Android and macOS**
+- Desktop protocols: **FTP, FTPS and SFTP**
+- Android protocols: **FTP and strict explicit FTPS**; SFTP remains hidden until strict native host-key verification exists
+- Desktop languages: **24 selectable local languages**
 - Release shape: **14 platform artifacts / 17 public files**
 - Product website: **https://ghostftp.com**
-- Verified distribution bundle identity: **ghcr.io/bren-wp/ghost-ftp:0.0.5**
+- Verified distribution bundle: **ghcr.io/bren-wp/ghost-ftp:0.0.5**
 
-The root [`VERSION`](../VERSION) file is the authoritative production version source. Release-bound documentation describes the 0.0.5 current line. Public Windows/Linux release publication remains fail-closed and separate from the Android development APK path. Superseded release identities are removed only after the successor has passed source gates, publication, remote read-back and canonical retention.
+The root [`VERSION`](../VERSION) file is the authoritative production version source. All active release-bound documentation must describe the current 0.0.5 contract unless a section is explicitly labeled historical. Public Windows/Linux publication is separate from Android/macOS development artifacts and browser companion source.
+
+## Documentation principles
+
+Ghost FTP documentation follows four rules:
+
+1. **Current behavior first.** Active documents describe the maintained source and current release contract, not superseded packaging assumptions.
+2. **No invented platform status.** Windows/Linux are public release platforms; Android/macOS are active native source/development platforms with separate evidence boundaries.
+3. **Security claims are fail-closed.** Official Windows publication requires trusted Authenticode; development builds may be unsigned but are not official release evidence.
+4. **Visual claims use real evidence.** Documentation media is repository-local and maintained runtime screenshots come from actual application surfaces, not generated mockups.
 
 ## Start here
 
@@ -30,17 +40,23 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 | Verify UI behavior and screenshots | [`REFERENCE-UI.md`](REFERENCE-UI.md) |
 | Understand security boundaries | [`SECURITY.md`](SECURITY.md) |
 | Understand privacy/no-telemetry behavior | [`PRIVACY.md`](PRIVACY.md) |
-| Understand architecture/Core ownership | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
-| Understand navigation bookmarks/profile starts | [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) |
-| Verify Windows/Linux parity | [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) |
+| Understand architecture/core ownership | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| Understand Windows/Linux/macOS/Android boundaries | [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) |
+| Understand bookmarks/profile starts | [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) |
 | Validate a downloaded release | [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) |
+| Understand signing | [`SIGNING.md`](SIGNING.md) |
 | Understand release/version lifecycle | [`VERSIONING.md`](VERSIONING.md) and [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) |
 | Build/test/contribute | [`TESTING.md`](TESTING.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Review current roadmap | [`ROADMAP.md`](ROADMAP.md) |
 | Get support | [`SUPPORT.md`](SUPPORT.md) |
+| macOS development details | [`../macos/README.md`](../macos/README.md) |
+| Browser helper behavior | [`../ekstenzije/README.md`](../ekstenzije/README.md) |
 
 ## Authentic visual reference
 
-Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render. Exact-head CI captures real native runtime evidence for Windows, Linux and Android and assembles a read-only verified cross-platform evidence bundle. Mockups/generated approximations are not production evidence.
+Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render.
+
+Exact-head CI captures real native runtime evidence for Windows, Linux and Android and assembles a read-only verified cross-platform evidence bundle. macOS has its own native development-app validation workflow. A development macOS build is not represented as Developer ID/notarized public-distribution evidence.
 
 <table>
 <tr>
@@ -53,14 +69,16 @@ Documentation media is **repository-local**. No remote badge image, tracking pix
 </tr>
 </table>
 
-See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockups/generated approximations are not production UI evidence.
+See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and the rule that mockups, image-generation output and manually composed approximations are not accepted as production UI evidence.
 
 ## Current 0.0.5 capability contract
 
-Ghost FTP 0.0.5 retains the complete 0.0.4 desktop feature set and adds lifecycle/re-entry hardening plus optional browser companion source.
+Ghost FTP 0.0.5 retains the complete maintained desktop feature line and adds lifecycle, privacy and release hardening.
 
-- FTP, explicit FTPS and SFTP through one typed desktop Core engine.
-- Native Windows and Linux frontends consuming the same typed engine behavior.
+- FTP, explicit FTPS and SFTP through one typed shared desktop engine.
+- Native Windows and Linux public-release frontends consuming the same typed engine behavior.
+- Native macOS AppKit development frontend using the shared engine and complete maintained parity inventory.
+- Native Android development client with FTP + strict explicit FTPS, SAF-scoped storage and lifecycle-owned sessions.
 - Built-in Remote Edit with bounded text validation, revision/conflict protection and verified read-back.
 - Transfer queue pause/resume/cancel/retry/clear plus queued Top/Up/Down/Bottom ordering.
 - Independent aggregate upload/download bandwidth ceilings with real transport enforcement.
@@ -68,8 +86,8 @@ Ghost FTP 0.0.5 retains the complete 0.0.4 desktop feature set and adds lifecycl
 - Local/server bookmarks and profile start directories with account/session revalidation.
 - Site Manager profiles with explicit protected credential-save consent.
 - Windows mutation/re-entry guards for profile persistence, file mutations and Remote Edit lifecycle.
-- Android pending connections owned by the Activity lifecycle so destroyed/recreated UI instances cannot be revived by stale callbacks.
-- Optional browser companion source for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox; companion packages remain outside the public 17-file desktop release.
+- Android stale-callback protection and authentication-error redaction.
+- Privacy-minimal browser helper source for Chromium-family browsers and Firefox; local parsing/copy only, with no supported desktop launch/handoff contract today.
 - Strict FTPS verification, strict desktop SFTP host-key verification/pinning and no silent secure-to-plain downgrade.
 - **No telemetry, analytics, advertising, tracking or hidden product backend.**
 
@@ -84,14 +102,31 @@ PUBLIC_PLATFORM_ARTIFACTS=14
 PUBLIC_RELEASE_FILES=17
 ```
 
-Windows:
+### Windows public files
 
 ```text
 Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Representative Linux files:
+Official Windows publication requires trusted Authenticode and records:
+
+```text
+WINDOWS_AUTHENTICODE=signed
+```
+
+Local development and ordinary CI Windows builds may remain unsigned, but they are not official public release artifacts.
+
+### Linux public files
+
+The complete Linux matrix covers:
+
+- Debian: `amd64`, `arm64`, `i386`;
+- Ubuntu: `amd64`, `arm64`, `i386`;
+- Fedora: `x86_64`, `aarch64`, `i686`;
+- Portable: `amd64`, `arm64`, `i386`.
+
+Representative files:
 
 ```text
 Ghost-FTP-0.0.5-Linux-Debian-amd64.deb
@@ -100,17 +135,21 @@ Ghost-FTP-0.0.5-Linux-Fedora-x86_64.rpm
 Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz
 ```
 
-The complete Linux matrix covers Debian/Ubuntu `amd64`, `arm64`, `i386`; Fedora `x86_64`, `aarch64`, `i686`; and Portable `amd64`, `arm64`, `i386`.
-
-Android development CI artifact:
+### Android development artifact
 
 ```text
 Ghost-FTP-Android.apk
 ```
 
-The Android artifact is independently exact-head verified but is not counted in the Windows/Linux public release allow-list.
+The Android development APK is independently exact-head verified but is not counted in the public Windows/Linux release allow-list.
 
-The verified desktop release directory is also distributed as:
+### macOS development artifact
+
+The maintained macOS workflow builds a universal native development app. Its development ZIP is not counted in the 17-file public release allow-list and does not claim Developer ID/notarization success. Production macOS distribution requires the separate fail-closed signing/notarization path documented in [`../macos/README.md`](../macos/README.md).
+
+### Distribution bundle
+
+The verified public Windows/Linux release directory is also distributed as:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:0.0.5
@@ -123,7 +162,7 @@ This is a distribution bundle, not a runtime container.
 ### Product and architecture
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — components, ownership and trust boundaries.
-- [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux parity and Android boundary.
+- [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux public parity plus Android/macOS development boundaries.
 - [`REFERENCE-UI.md`](REFERENCE-UI.md) — native UI and authentic evidence contract.
 - [`SETTINGS.md`](SETTINGS.md) — validated settings and persistence behavior.
 - [`NAVIGATION-BOOKMARKS.md`](NAVIGATION-BOOKMARKS.md) — bookmark and profile-start contract.
@@ -135,22 +174,22 @@ This is a distribution bundle, not a runtime container.
 
 - [`SECURITY.md`](SECURITY.md) — protocol, filesystem, installer and release trust boundaries.
 - [`PRIVACY.md`](PRIVACY.md) — local-first data handling and no-telemetry contract.
-- [`SIGNING.md`](SIGNING.md) — optional production Authenticode and truthful unsigned state.
+- [`SIGNING.md`](SIGNING.md) — signed-only official Windows publication and development-build distinction.
 - [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) — third-party notices.
 
 ### Distribution and release verification
 
-- [`INSTALLATION.md`](INSTALLATION.md) — Windows/Linux installation and Android development boundary.
+- [`INSTALLATION.md`](INSTALLATION.md) — Windows/Linux installation plus Android/macOS development boundaries.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical release shape and deterministic retention lifecycle.
-- [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution bundle policy.
+- [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution-bundle policy.
 - [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity and signing verification.
-- [`VERSIONING.md`](VERSIONING.md) — controlled 0.0.x public version policy.
+- [`VERSIONING.md`](VERSIONING.md) — controlled current public version policy.
 
 ### Engineering
 
-- [`TESTING.md`](TESTING.md) — exact-head CI, Android APK, authentic UI and release gates.
+- [`TESTING.md`](TESTING.md) — exact-head CI, Android APK, macOS development app, authentic UI and release gates.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — engineering rules and PR expectations.
-- [`ROADMAP.md`](ROADMAP.md) — future capabilities and acceptance criteria.
+- [`ROADMAP.md`](ROADMAP.md) — current capability direction and acceptance criteria.
 - [`SUPPORT.md`](SUPPORT.md) — support and privacy-safe diagnostic guidance.
 - [`RELEASE-HISTORY.md`](RELEASE-HISTORY.md) — public-line history.
 - [`../CHANGELOG.md`](../CHANGELOG.md) — source for generated release notes.

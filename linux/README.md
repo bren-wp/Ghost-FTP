@@ -2,11 +2,13 @@
 
 Ghost FTP **0.0.5** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit, sorting and localization engine contracts as the Windows application.
 
-The canonical 0.0.5 release workflow uses `linux/BUILD-DISTROS.sh`. The older `linux/BUILD.sh` remains independent CI compatibility coverage.
+Linux and Windows are the current public release platforms. Android and macOS are active native development/source surfaces with independent validation; they are not counted in the current Windows/Linux 17-file public release allow-list.
+
+The canonical 0.0.5 Linux release workflow uses `linux/BUILD-DISTROS.sh`. The older `linux/BUILD.sh` remains independent CI compatibility coverage.
 
 This document distinguishes:
 
-1. **Canonical 0.0.5 release artifacts** — produced by `linux/BUILD-DISTROS.sh`, verified by distro packaging and staged by canonical release workflow.
+1. **Canonical 0.0.5 release artifacts** — produced by `linux/BUILD-DISTROS.sh`, verified by distro packaging and staged by the canonical release workflow.
 2. **Generic CI compatibility artifacts** — produced by `linux/BUILD.sh` for independent DEB/portable build and binary-parity coverage.
 
 ## Canonical distro-specific build
@@ -94,8 +96,16 @@ Linux supports FTP password, explicit FTPS with certificate validation, SFTP pas
 
 Saving newly entered password/passphrase material is opt-in with bounded confirmation, protected local storage and plaintext UI clearing. Runtime AskPass provenance remains a separate fail-closed boundary.
 
+## Active-source context
+
+The Linux public-release contract is intentionally separate from the other active source platforms:
+
+- Android CI validates its native development APK, strict FTPS/lifecycle/security contracts and authentic emulator UI without adding an APK to this release set.
+- macOS CI validates the native universal AppKit development app against the shared engine. Development app success is not a public Developer ID/notarization claim.
+- browser-helper source parses/copies supported FTP-family targets locally and is not a Linux runtime dependency or release artifact.
+
 ## 0.0.5 compatibility note
 
-0.0.5's new lifecycle hardening is concentrated in Windows and Android connection ownership; Linux retains the already verified 0.0.4 desktop feature/security behavior and is rebuilt/revalidated through all canonical distro gates for this release.
+0.0.5 keeps the mature Linux desktop behavior under the current shared engine/security contract and rebuilds/revalidates it through all canonical distro gates. Release-quality changes elsewhere in the repository do not weaken Linux protocol trust, AskPass provenance, package parity or native lifecycle verification.
 
 See `docs/SECURITY.md`, `docs/PLATFORM-PARITY.md`, `docs/DEPENDENCIES.md`, `docs/INSTALLATION.md` and `docs/TESTING.md`.

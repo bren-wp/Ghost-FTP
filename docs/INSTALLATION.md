@@ -17,7 +17,7 @@ Both public files are self-contained x86-compatible universal launchers carrying
 
 Setup installs the matching native application payload and keeps the integrated uninstall path; no permanent separate uninstaller executable is required. Portable requires no installer registration.
 
-Production Authenticode is optional. When a trusted production certificate is configured, every public Windows executable must verify. If no production certificate is configured, `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned`.
+Official Windows publication requires trusted Authenticode. The canonical `Publish Ghost FTP` workflow requires the protected production signing identity and verifies both public executables before publication. A successful official release records `WINDOWS_AUTHENTICODE=signed`. Local development and ordinary CI Windows builds may remain unsigned, but they are not official public release artifacts.
 
 ### Linux
 
@@ -52,11 +52,15 @@ Ghost-FTP-Android.apk
 
 Its Android version identity remains bound to root `VERSION` with the maintained `-dev` suffix. The APK is not represented as a production-signed public Android release until a dedicated production signing/publication contract exists.
 
+### macOS development app
+
+macOS is also an active native development/source surface tied to root `VERSION`. The maintained macOS workflow builds and verifies the universal development app, but it is **not** part of the current 17-file public release allow-list. Development build success is not a claim of Developer ID signing, notarization or public macOS distribution.
+
 ## Windows Setup
 
 1. Download `Ghost-FTP-0.0.5-Setup.exe`.
 2. Verify SHA-256 against `SHA256.txt`.
-3. Inspect `BUILD-METADATA.txt`; require a valid Authenticode signature only when it reports `WINDOWS_AUTHENTICODE=signed`.
+3. Require `WINDOWS_AUTHENTICODE=signed` in `BUILD-METADATA.txt` and a valid Authenticode signature on the executable.
 4. Run Setup as the intended user.
 5. Uninstall through the integrated installed application path.
 
@@ -107,7 +111,7 @@ The distro-install workflow performs real install/remove/runtime/GUI smoke in th
 
 Windows and Linux expose the same supported desktop feature line: FTP/FTPS/SFTP, Site Manager/profile state, Remote Edit, transfer queue actions, bandwidth controls, bookmarks/start directories, current-folder filtering, recursive search, directory comparison and shared file sorting.
 
-0.0.5 additionally carries the Windows profile/file/Remote-Edit re-entry hardening completed after 0.0.4. Android connection lifecycle hardening remains independently verified in the development APK.
+0.0.5 additionally carries the Windows profile/file/Remote-Edit re-entry hardening completed after 0.0.4. Android connection lifecycle hardening remains independently verified in the development APK, and macOS remains independently validated as a native development source surface.
 
 ## Verification
 
@@ -116,8 +120,8 @@ Before using an official 0.0.5 package:
 1. confirm the requested version is `0.0.5`;
 2. verify the filename is one of the canonical names above;
 3. verify SHA-256 against `SHA256.txt`;
-4. inspect `BUILD-METADATA.txt` for source commit and Windows signing state;
-5. where metadata says `signed`, require valid Authenticode;
+4. inspect `BUILD-METADATA.txt` for source commit and platform/signing state;
+5. for official Windows Setup/Portable, require `WINDOWS_AUTHENTICODE=signed` and valid Authenticode;
 6. distinguish native x86-64 distro lifecycle coverage from build/parity coverage for other architectures.
 
 The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.5`; it is distribution infrastructure, not a runtime container.

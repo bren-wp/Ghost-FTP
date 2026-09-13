@@ -51,7 +51,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-The independently validated `Ghost-FTP-Android.apk` development artifact and browser companion source are not among these 17 public Windows/Linux release files.
+The independently validated Android APK, macOS development app and browser companion source are not among these 17 public Windows/Linux release files.
 
 ## Canonical release dispatch
 
@@ -69,12 +69,13 @@ Before publication:
 2. the release branch must equal `release/ghostftp-v0.0.5` and exact current `main`;
 3. all exact-head release-prep workflows triggered for the final candidate must be successful;
 4. all required post-merge push workflows on the exact merge SHA must be successful;
-5. authentic Windows/Linux/Android evidence must bind to the exact source revision;
-6. the release workflow's quality, Windows and Linux jobs must succeed again from fresh source.
+5. authentic maintained runtime evidence must bind to the exact source revision;
+6. the release workflow's quality, Windows and Linux jobs must succeed again from fresh source;
+7. the public Windows Setup and Portable artifacts must pass trusted Authenticode verification.
 
 ## SHA-256 verification
 
-`SHA256.txt` contains a checksum for every public file except itself. A downloaded artifact is trusted for integrity only when its local hash matches the corresponding entry.
+`SHA256.txt` contains a checksum for every public file except itself. A downloaded artifact is trusted for exact-byte integrity only when its local hash matches the corresponding entry.
 
 There is no public x32/x86/x64 Windows alias set in 0.0.5. Only universal Setup and Portable executables are public; architecture-specific native payloads are internal verified staging inputs.
 
@@ -92,6 +93,7 @@ WINDOWS_SETUP=universal-x86-x64
 WINDOWS_PORTABLE=universal-x86-x64
 WINDOWS_BOOTSTRAP_PE=x86
 WINDOWS_NATIVE_PAYLOADS=x64,x86
+WINDOWS_AUTHENTICODE=signed
 LINUX_DEBIAN_DEB=amd64,arm64,i386
 LINUX_UBUNTU_DEB=amd64,arm64,i386
 LINUX_FEDORA_RPM=x86_64,aarch64,i686
@@ -101,19 +103,17 @@ PUBLIC_RELEASE_FILES=17
 GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.5
 ```
 
-Android remains an independently validated source platform and is not silently added to the release platform/file count.
+Android and macOS remain independently validated source/development platforms and are not silently added to the release platform/file count.
 
 ## Windows Authenticode
 
-The release contract supports a **truthful supported publication state** with or without a configured production signing identity. When a trusted production certificate is configured, signatures must verify. The production workflow **does not create a self-signed production identity**.
+Official Windows publication requires trusted Authenticode. The production workflow **does not create a self-signed production identity** and has no unsigned-publication fallback.
 
-When no production certificate is configured, publication uses explicit unsigned metadata when no production certificate is configured:
+The canonical `Publish Ghost FTP` workflow requires protected production signing credentials. If the PFX or its password is unavailable, publication fails before release creation. Both public Windows executables are checked with the Windows Authenticode API and must have a signer certificate with status `Valid`.
 
-```text
-WINDOWS_AUTHENTICODE=unsigned
-```
+`scripts/verify_release.py` adds an independent fail-closed check: while running under the public release workflow it rejects unsigned Setup or Portable artifacts.
 
-If metadata says `signed`, require valid Authenticode. If metadata says `unsigned`, do not represent the file as publisher-signed.
+Local development and ordinary CI Windows builds may be unsigned. Those artifacts are test/development outputs and are not accepted as official public release evidence.
 
 ## Linux package verification
 
@@ -121,11 +121,15 @@ Debian/Ubuntu DEB and Fedora RPM metadata must match version, architecture, prod
 
 ## Android development verification
 
-The Android APK workflow verifies source/security/lifecycle contracts, lint, installable APK construction, APK identity verification and artifact upload. This proves the maintained development surface builds cleanly but does not add an APK to the 17-file public Windows/Linux release allow-list.
+The Android APK workflow verifies source/security/lifecycle contracts, JVM regressions, lint, installable APK construction, APK identity verification and artifact upload. This proves the maintained development surface builds cleanly but does not add an APK to the 17-file public Windows/Linux release allow-list.
+
+## macOS development verification
+
+The macOS workflow builds and validates the universal native development app against the shared engine and platform-specific source contract. Development app success is not equivalent to a public notarized macOS release; macOS remains outside the current 17-file public release allow-list until a separate production signing/notarization/publication transaction is completed.
 
 ## Authentic runtime evidence
 
-The exact-head UI workflow captures real Windows, Linux and Android runtime surfaces and assembles one read-only verified evidence bundle. The maintained manifest contains **15 runtime images**: five Windows, three Linux and seven Android. The assembler verifies source SHA, workflow run identity, expected filenames, byte counts and SHA-256 hashes before emitting `AUTHENTIC_UI_EVIDENCE=VERIFIED`.
+Exact-head UI evidence is immutable and source-bound. Maintained workflows capture real runtime surfaces and record exact source SHA, expected filenames, byte counts and SHA-256 hashes before emitting verified evidence. Mockups and generated approximations are not release evidence.
 
 ## Remote release read-back
 
@@ -137,7 +141,7 @@ The publish workflow requires the remote GitHub Release asset set to match the e
 ghcr.io/bren-wp/ghost-ftp:0.0.5
 ```
 
-The exact version tag is verified after push. The package is not a supported runtime container.
+The exact version tag is verified after push. The package is a distribution bundle, not a supported runtime container.
 
 ## Latest-only retention verification
 
@@ -151,6 +155,6 @@ Completion requires the current release/tag to be `ghostftp-v0.0.5`, the current
 sha256sum -c SHA256.txt
 ```
 
-For Windows, inspect `BUILD-METADATA.txt` before deciding whether Authenticode verification is expected.
+For Windows, also require a valid Authenticode signature on both official executables; an unsigned file does not satisfy the current official public-release contract.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).

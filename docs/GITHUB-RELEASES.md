@@ -38,11 +38,11 @@ The trigger lifecycle is deterministic:
 6. identify the new exact-main retention run;
 7. wait for and require terminal retention success.
 
-A successful workflow dispatch request by itself is **not** successful publication.
+A successful workflow-dispatch request by itself is **not** successful publication.
 
 ## 0.0.5 public files
 
-Ghost FTP 0.0.5 exposes **14 platform artifacts**.
+Ghost FTP 0.0.5 exposes **14 platform artifacts / 17 public files**.
 
 Windows:
 
@@ -76,9 +76,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-That is **17 public files** total.
-
-The Android development APK and optional browser companion source are independently maintained but are not part of this public Windows/Linux release allow-list.
+The Android development APK, macOS development app and browser companion source are independently maintained source/development surfaces and are not part of this public Windows/Linux release allow-list.
 
 ## Exact-head rule
 
@@ -92,17 +90,21 @@ The requested `ghostftp-v0.0.5` tag/release must not already exist. The workflow
 
 After the successor is successfully published and remotely verified, `.github/workflows/release-retention.yml` enforces the policy that **only the latest public Ghost FTP version remains**. It removes superseded Ghost FTP Releases, tags, canonical release branches and obsolete GHCR package versions while retaining current identities. `main` history is not rewritten.
 
-## Windows universal artifact gate
+## Windows universal artifact and signing gate
 
 The Windows release job builds only two public universal executables. Verified native x64/x86 Setup/Portable binaries remain internal staging inputs. No public `-x64.exe`, `-x86.exe` or `-x32.exe` release aliases are allowed.
 
-Production Authenticode is optional. If protected trusted signing secrets are configured, signatures must verify. If no production certificate is configured, metadata records:
+Official Windows publication requires a protected trusted Authenticode identity. `Publish Ghost FTP` fails when the production PFX or password is unavailable, and it verifies both public executables with `Get-AuthenticodeSignature` before staging them for publication.
+
+A successful public release records:
 
 ```text
-WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_AUTHENTICODE=signed
 ```
 
-The workflow never fabricates a self-signed production publisher identity.
+There is no supported unsigned-publication fallback for the official release workflow. Local development and ordinary CI builds may be unsigned, but they are not official public release artifacts.
+
+The production workflow never fabricates a self-signed publisher identity. The CI signing smoke test may use a short-lived development certificate only to prove signing mechanics.
 
 ## Linux distro and portable parity gate
 
@@ -116,6 +118,7 @@ The workflow never fabricates a self-signed production publisher identity.
 WINDOWS_SETUP=universal-x86-x64
 WINDOWS_PORTABLE=universal-x86-x64
 WINDOWS_NATIVE_PAYLOADS=x64,x86
+WINDOWS_AUTHENTICODE=signed
 LINUX_DEBIAN_DEB=amd64,arm64,i386
 LINUX_UBUNTU_DEB=amd64,arm64,i386
 LINUX_FEDORA_RPM=x86_64,aarch64,i686
@@ -135,5 +138,9 @@ ghcr.io/bren-wp/ghost-ftp:0.0.5
 ```
 
 It is a distribution bundle, not a runtime container. The exact-version package is verified after push and preserved by retention.
+
+## What counts as release evidence
+
+A local build, successful PR workflow or unsigned development executable is not proof of an official release. Release evidence requires the canonical publish workflow, exact source identity, successful signing verification, remote GitHub Release read-back, GHCR read-back and the documented retention chain.
 
 See [Packages](PACKAGES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [Versioning](VERSIONING.md).

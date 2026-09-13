@@ -1,145 +1,165 @@
 # Ghost FTP
 
 <p align="center">
-  <img src="build/icon.png" alt="Ghost FTP application icon" width="132">
+  <img src="build/icon.png" alt="Ghost FTP application icon" width="156">
 </p>
 
-<p align="center"><strong>Your servers. Your files. No cloud middleman.</strong></p>
+<p align="center"><strong>Fast native file transfer. Direct to your server. No cloud middleman.</strong></p>
 
 <p align="center">
-  A native, privacy-first FTP/FTPS/SFTP client for Windows and Linux — built for people who want fast file workflows, clear control and strong security boundaries without telemetry or a mandatory account.
+  Ghost FTP is a privacy-first FTP, FTPS and SFTP workspace for people who manage real infrastructure and want native performance, explicit security boundaries and professional transfer control without telemetry or a mandatory product account.
 </p>
 
 <p align="center">
-  <a href="https://github.com/bren-wp/Ghost-FTP/releases"><strong>Download Ghost FTP</strong></a> ·
-  <a href="https://ghostftp.com"><strong>ghostftp.com</strong></a> ·
-  <a href="docs/INSTALLATION.md"><strong>Installation</strong></a> ·
-  <a href="docs/SECURITY.md"><strong>Security</strong></a>
+  <a href="https://github.com/bren-wp/Ghost-FTP/releases"><strong>Download</strong></a> ·
+  <a href="https://ghostftp.com"><strong>Website</strong></a> ·
+  <a href="docs/INSTALLATION.md"><strong>Install</strong></a> ·
+  <a href="docs/SECURITY.md"><strong>Security</strong></a> ·
+  <a href="docs/PRIVACY.md"><strong>Privacy</strong></a> ·
+  <a href="docs/README.md"><strong>Documentation</strong></a>
 </p>
 
-**Ghost FTP** gives you a focused native workspace for everyday server work: connect, browse, transfer, edit remote text files, manage sites and keep large transfer queues under control. The desktop client supports **FTP, explicit FTPS and SFTP**, uses native Windows/Linux interfaces, keeps application telemetry disabled and does not depend on a Ghost FTP cloud account or hidden backend.
+---
+
+## ⚡ Why Ghost FTP
+
+| | What you get |
+| --- | --- |
+| **🚀 Native workflow** | Focused native desktop clients instead of a web app wrapped in a desktop shell. |
+| **🔐 Security first** | Explicit FTPS verification, strict desktop SFTP host-key trust, safe path handling and no silent secure-to-plain downgrade. |
+| **📦 Serious transfers** | File/tree transfers, queue control, retries, directional bandwidth limits, staged commit/rollback and truthful progress. |
+| **✏️ Remote Edit** | Built-in bounded text editing with revision conflict detection and verified read-back. |
+| **🧭 Server navigation** | Site Manager, bookmarks, start directories, filtering, recursive search and directory comparison. |
+| **🛡️ Local-first privacy** | No application analytics, advertising, tracking backend, mandatory account or hidden Ghost FTP relay. |
+| **🌍 Localized** | English-first local catalog with **24 selectable desktop languages**. |
+| **✅ Verifiable releases** | SHA-256 metadata, exact-source CI gates and signed-only official Windows publication. |
 
 - Current Ghost FTP version: **0.0.5**
 - Development status: **Active**
 - Release channel: **Current**
-- Default language: **English**
-- Selectable local languages: **24 languages**
-- Official product website: **https://ghostftp.com**
-- Releases: https://github.com/bren-wp/Ghost-FTP/releases
-- Repository: https://github.com/bren-wp/Ghost-FTP
+- Public release platforms: **Windows and Linux**
+- Active native source platforms: **Windows, Linux, Android and macOS**
 - Public release identity: `ghostftp-v0.0.5`, `prerelease=false`
 - Verified distribution bundle: `ghcr.io/bren-wp/ghost-ftp:0.0.5`
-- Android source surface: installable development APK tied to root `VERSION`; not part of the public Windows/Linux release allow-list
+- Public release shape: **14 platform artifacts / 17 public files**
+
+> Ghost FTP keeps release claims narrow on purpose. Android and macOS are active native development/source surfaces, while the current public GitHub Release contract remains Windows + Linux.
+
+## 🖥️ See the product
 
 ![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
 
-The icon and UI images rendered by this README are **repository-local assets**. Maintained release UI evidence is captured from real native Windows, Linux and Android runtime surfaces through exact-head CI. Mockups and generated approximations are not accepted as production UI evidence. No remote badge, tracking pixel, icon CDN or webfont is required to render this README.
-
-## Why Ghost FTP?
-
-| What you need | What Ghost FTP gives you |
-| --- | --- |
-| **A focused file-transfer workspace** | Native Local/Remote panes, saved sites, bookmarks, queue controls and clear connection state. |
-| **Secure modern protocols** | Explicit FTPS with certificate/hostname validation and SFTP with strict host-key verification/pinning. |
-| **Remote changes without tool switching** | Built-in **Remote Edit** for supported text files with conflict detection and verified save/read-back. |
-| **Control over busy transfer sessions** | Pause/resume/cancel/retry, queued Top/Up/Down/Bottom ordering, parallelism controls and upload/download bandwidth ceilings. |
-| **Privacy by design** | No application analytics, advertising, fingerprinting, tracking pixels, automatic crash upload or hidden product backend. |
-| **A client that stays understandable** | Native controls, bounded operations, explicit destructive actions and documented fail-closed behavior instead of silent fallback. |
-
-Ghost FTP is designed for developers, administrators, hosting users, agencies and anyone who regularly moves files between a local machine and remote servers but does not want their connection workflow routed through an application-owned cloud service.
-
-## Product surfaces
-
 <table>
 <tr>
-<td width="50%" valign="top"><strong>Site Manager</strong><br><br><img src="docs/images/ghost-ftp-site-manager.png" alt="Ghost FTP Site Manager"></td>
-<td width="50%" valign="top"><strong>Settings</strong><br><br><img src="docs/images/ghost-ftp-settings.png" alt="Ghost FTP Settings"></td>
+<td width="50%" valign="top"><strong>🗂️ Site Manager</strong><br><br><img src="docs/images/ghost-ftp-site-manager.png" alt="Ghost FTP Site Manager"></td>
+<td width="50%" valign="top"><strong>⚙️ Settings</strong><br><br><img src="docs/images/ghost-ftp-settings.png" alt="Ghost FTP Settings"></td>
 </tr>
 <tr>
-<td colspan="2" align="center"><strong>About / product identity</strong><br><br><img src="docs/images/ghost-ftp-about.png" alt="Ghost FTP About" width="620"></td>
+<td colspan="2" align="center"><strong>ℹ️ Product identity</strong><br><br><img src="docs/images/ghost-ftp-about.png" alt="Ghost FTP About" width="620"></td>
 </tr>
 </table>
 
-See [Reference UI](docs/REFERENCE-UI.md) for screenshot provenance and the production visual contract.
+The logo and UI media rendered by this README are **repository-local assets**. No remote badge image, tracking pixel, icon CDN or remote webfont is required to render this page. Maintained runtime evidence comes from real Windows, Linux and Android application surfaces captured by exact-head CI; generated mockups are not treated as production evidence.
 
-## What you can do today
+See [Reference UI](docs/REFERENCE-UI.md) for the screenshot and evidence contract.
 
-### Connect your way
+## 🔌 Connect the way your server requires
 
-- **FTP** for explicit legacy compatibility.
-- **FTPS** with certificate and hostname validation; a failed secure connection is never silently retried as plain FTP.
-- **SFTP** with strict host-key verification/pinning plus password or private-key authentication on the maintained desktop platforms.
-- Saved Site Manager profiles with explicit credential-persistence consent rather than hidden secret storage.
-- Local and remote bookmarks plus profile start directories with account/session revalidation.
+Ghost FTP keeps protocol choice explicit:
 
-### Move files with real queue control
+- **FTP** — available only as an intentional unencrypted compatibility choice.
+- **FTPS** — explicit TLS with certificate and hostname verification; a failed secure connection is never silently retried as FTP.
+- **SFTP** — strict host-key verification/pinning plus password or private-key authentication on maintained desktop platforms.
 
-- Upload/download single files and recursive directory trees.
-- Pause, resume, cancel, retry and clear finished transfers.
-- Move queued work **Top / Up / Down / Bottom** without mutating running or terminal history.
-- See real progress, transferred bytes, speed and ETA from transfer events.
-- Configure independent upload/download bandwidth ceilings in binary KiB/s, including `0 = unlimited`.
-- Keep configured bandwidth as a conservative aggregate directional ceiling across worker slots.
-- Choose explicit conflict behavior: **Skip**, **Replace**, or **Replace + recovery backup**.
-- Use staged activation/rollback rather than direct destructive overwrite where the maintained transfer path requires it.
+Fresh desktop Quick Connect defaults to **explicit FTPS on port 21**. Saved Site Manager profiles use explicit credential-persistence consent rather than silently turning entered secrets into durable state.
 
-### Edit remote text files in place
+## 📂 A real two-pane file workspace
 
-Ghost FTP includes a built-in **Remote Edit** workflow for supported regular text files. It provides bounded text handling, UTF-8/binary validation, LF/CRLF/CR preservation, mixed-line-ending rejection, SHA-256 revision/conflict detection, verified upload/read-back and remote permission preservation when trustworthy metadata is available.
+The maintained desktop workflow includes Local and Remote panes with deterministic sorting, current-folder filtering, bounded recursive search, bookmarks, saved start directories and conservative directory comparison.
 
-No permanent third pane and no mandatory external editor process: open, edit, **Save / Reload / Close**, then return to the normal file workflow.
+File-management actions are backed by authoritative runtime state. Create folder, rename, delete and remote permissions revalidate the active path/selection instead of trusting stale visible text. Account-bound remote navigation is revalidated before a saved path becomes authoritative on a new session.
 
-### Find and compare without turning the UI into a maze
+## 📦 Transfer control built for real workloads
 
-- Non-destructive current-folder filtering over the already loaded snapshot.
-- Shared deterministic sorting by Name, Type, Size and Modified, plus remote Permissions.
-- Bounded recursive local/server search with cancellation and fresh-list navigation.
-- Conservative local/server directory comparison with synchronized navigation only for safely proven paired ordinary directories.
+Ghost FTP exposes real transfer lifecycle state instead of decorative progress UI:
 
-## 0.0.5
+- single-file and recursive directory-tree upload/download;
+- pause, resume, cancel, retry and clear finished;
+- queued **Top / Up / Down / Bottom** ordering;
+- truthful bytes, speed and ETA from runtime transfer state;
+- independent aggregate upload/download limits in KiB/s;
+- bounded retry and timeout policy;
+- **Skip**, **Replace** and **Replace + recovery backup** conflict handling;
+- staged activation/rollback where the maintained transfer path requires it;
+- connection/session generation ownership so stale workers cannot publish into a newer session.
 
-Ghost FTP 0.0.5 is a reliability, lifecycle and distribution-quality release built on the 0.0.4 feature line.
+## ✏️ Remote Edit without breaking transfer safety
 
-- **Windows lifecycle hardening:** profile persistence and file mutations are guarded against duplicate/re-entrant actions; modal loops preserve application shutdown semantics; Remote Edit sessions are protected from parallel re-entry and stale async continuation paths.
-- **Android connection lifecycle hardening:** an in-flight FTP/FTPS session is explicitly owned by its Activity instance, is aborted on destruction/recreation, and stale success/error callbacks cannot revive a destroyed UI/session.
-- **Browser companion source:** maintained source packages for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox can hand supported `ftp://`, `ftps://` and `sftp://` links into the Ghost FTP workflow without telemetry, remote code, credential storage or broad browsing permissions.
-- **Release documentation accuracy:** public release notes now describe the actual universal Windows + Debian/Ubuntu/Fedora/Portable Linux contract: **14 platform artifacts / 17 public files**.
-- **Documentation refresh:** the public README and release guidance are rewritten around user value while retaining the same exact security, privacy and verification boundaries.
+Built-in **Remote Edit** is intentionally bounded. It supports regular text files through a controlled edit lifecycle with UTF-8/binary validation, size limits, line-ending preservation, revision conflict detection, verified upload/read-back and permission preservation when trustworthy metadata exists.
 
-The browser extension source is an optional companion source surface and is **not** added to the 17-file desktop GitHub Release allow-list.
+The visible workflow stays simple: **Open → Edit → Save / Reload / Close**. The underlying implementation does not bypass the normal transport/security boundary just because the user is editing text.
 
-## Security and privacy are product features
+## 🔐 Security is a product boundary
 
-Ghost FTP preserves FTPS certificate/hostname validation, explicit secure-protocol selection with no silent downgrade, strict SFTP host-key verification/pinning, protected-secret lifetime rules, local root/path protections, staged transfer activation/rollback, trusted Linux transport/AskPass provenance and exact-object Windows cleanup where ownership must be proven.
+Ghost FTP treats security-sensitive behavior as typed runtime policy:
 
-Ghost FTP includes **no application analytics, advertising, tracking pixels, fingerprinting, automatic crash upload, mandatory Ghost FTP account or hidden profile synchronization**. Go telemetry is disabled in production CI and release workflows.
+- FTPS certificate and hostname validation;
+- strict desktop SFTP host-key trust/pinning;
+- no silent FTPS-to-FTP fallback;
+- protected saved-secret lifetime and explicit persistence consent;
+- local path confinement and symlink/reparse safety;
+- staged transfer commit/rollback;
+- privacy-safe diagnostics instead of replaying raw credential-bearing tool/server output;
+- trusted Linux transport/AskPass provenance;
+- exact-object Windows cleanup/ownership checks;
+- fail-closed official Windows Authenticode publication.
 
-See [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md) and [Architecture](docs/ARCHITECTURE.md).
+Android 0.0.5 also sanitizes FTP authentication failures so server-controlled USER/PASS replies cannot echo a submitted password into user-facing exceptions.
 
-## Settings that change real behavior
+Read [Security](docs/SECURITY.md), [Architecture](docs/ARCHITECTURE.md) and [Signing](docs/SIGNING.md).
 
-The Settings surfaces are backed by one validated configuration model rather than decorative UI state:
+## 🛡️ Privacy without a hidden backend
 
-- **Parallel transfers:** 1–8, default 2.
-- **Upload bandwidth:** 0–1,048,576 KiB/s, default 0 = unlimited.
-- **Download bandwidth:** 0–1,048,576 KiB/s, default 0 = unlimited.
-- **Connection timeout:** 5–60 seconds, default 15.
-- **Automatic retries:** 0–3, default 0.
-- **Retry delay:** 1–30 seconds, default 3.
-- **Conflict policy:** skip / replace / replace with recovery backup.
-- **Delete confirmation:** enabled by default.
-- **Appearance:** maintained Windows and Linux Classic Light/Dark behavior.
-- **Language:** 24 local languages, English fallback.
+Ghost FTP includes no application telemetry, advertising, fingerprinting, tracking backend, automatic crash upload, mandatory Ghost FTP account or hidden profile synchronization service.
 
-Bandwidth limits are aggregate directional ceilings. A transfer attempt snapshots its effective budget when it starts, so saving a new value does not mutate a running transport process; new attempts observe the saved policy. See [Settings](docs/SETTINGS.md).
+User-directed FTP/FTPS/SFTP traffic goes to the server the user configured. Profiles and settings stay local. Production workflows explicitly disable Go telemetry. The browser connection helper parses only explicitly entered targets and does not scrape ordinary tabs, persist FTP credentials or send them to a Ghost FTP service.
 
-## Languages
+Read the complete [Privacy](docs/PRIVACY.md) contract.
 
-**English** is the canonical default and fallback language. Ghost FTP provides **24 languages** through one local catalog shared by the Windows and Linux frontends. Language selection and translation resolution happen locally.
+## 🌍 24 local desktop languages
 
-See [Localization](docs/LOCALIZATION.md).
+**English** is the canonical default/fallback. The maintained local desktop catalog exposes 24 selectable languages:
 
-## Download Ghost FTP 0.0.5
+English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian, Swedish, Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
+
+Localization is local; Ghost FTP does not need an online translation service to render the UI. See [Localization](docs/LOCALIZATION.md).
+
+## 🧩 Platform status
+
+| Platform | Status | Current contract |
+| --- | --- | --- |
+| **🪟 Windows** | **Public release** | Universal Setup + Portable; internal x64/x86 payload validation; official publication requires trusted Authenticode. |
+| **🐧 Linux** | **Public release** | Debian, Ubuntu, Fedora and Portable families across the canonical architecture set. |
+| **🤖 Android** | Active development | Installable development/debug-signed APK; FTP + strict explicit FTPS; SAF-scoped local files; SFTP hidden until verified native host-key identity exists. |
+| **🍎 macOS** | Active development | Native AppKit frontend using the shared `internal/api.Engine`; universal development app; separate fail-closed Developer ID/notarization path. |
+| **🌐 Browser helper** | Source companion | Manifest V3 local parser/copy helper; no network/storage permissions and no supported browser-to-desktop launch/handoff today. |
+
+Android, macOS and browser-helper source are **not** silently counted in the current Windows/Linux **14 platform artifacts / 17 public files** release allow-list.
+
+## 🆕 Ghost FTP 0.0.5 highlights
+
+Version 0.0.5 focuses on lifecycle correctness, privacy hardening and distribution truthfulness while retaining the established desktop feature set.
+
+- **Windows lifecycle hardening** — profile persistence, file mutations and Remote Edit reject duplicate/re-entrant operations and preserve bounded modal lifecycle behavior.
+- **Android lifecycle ownership** — pending FTP/FTPS connections belong to the current Activity and stale callbacks cannot revive obsolete UI/session state.
+- **Android auth privacy** — failed authentication discards raw server-controlled replies before user-facing errors are created.
+- **macOS native parity** — the AppKit frontend is wired to the shared engine and the maintained action inventory is complete for development validation.
+- **Signed-only Windows publication** — official public Setup/Portable publication fails closed when the production Authenticode identity or valid final signatures are unavailable.
+- **Release/documentation consistency** — the current public contract stays explicitly Windows/Linux with **14 platform artifacts / 17 public files**.
+
+See [Changelog](CHANGELOG.md) and [Release history](docs/RELEASE-HISTORY.md).
+
+## ⬇️ Download Ghost FTP 0.0.5
 
 ### Windows
 
@@ -148,13 +168,17 @@ Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Both public Windows files are self-contained x86-compatible universal bootstraps carrying verified native x64/x86 application payloads. The selected payload is chosen from Windows native architecture information, verified before execution and requires no runtime download. Setup retains the integrated uninstall path; Portable requires no installer registration.
+Official Windows publication is signed-only and records:
 
-Production Authenticode is optional: when a trusted certificate is configured, signatures must verify; otherwise `BUILD-METADATA.txt` records `WINDOWS_AUTHENTICODE=unsigned` truthfully.
+```text
+WINDOWS_AUTHENTICODE=signed
+```
+
+Local development and ordinary CI Windows builds may remain unsigned, but those outputs are not official public release artifacts.
 
 ### Linux
 
-Canonical 0.0.5 Linux files are built by `linux/BUILD-DISTROS.sh`:
+Canonical distro-specific files include:
 
 ```text
 Ghost-FTP-0.0.5-Linux-Debian-amd64.deb
@@ -171,81 +195,114 @@ Ghost-FTP-0.0.5-Linux-Portable-arm64.tar.gz
 Ghost-FTP-0.0.5-Linux-Portable-i386.tar.gz
 ```
 
-Matching Debian, Ubuntu, Fedora and Portable variants reuse one compiled production executable per architecture, and release CI compares extracted executable bytes. Native package-manager/runtime/GUI verification is maintained for Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64; additional architectures retain exact-head build, package-metadata, extraction and binary-parity coverage without an unsupported native-install claim.
+Native package-manager/runtime/GUI verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. Other canonical architectures retain exact-head build, metadata, extraction and binary-parity verification without an unsupported native-install claim.
 
-See [Installation](docs/INSTALLATION.md), [Linux documentation](linux/README.md) and [Testing](docs/TESTING.md).
+See [Installation](docs/INSTALLATION.md) and [Linux](linux/README.md).
 
-## Android development APK
+## 🤖 Android development APK
 
-Android is an active native development surface tied to root `VERSION`. CI builds and verifies an installable `Ghost-FTP-Android.apk` development artifact with Files, Sites, Bookmarks, Transfers, Settings and About, FTP and strict explicit FTPS, SAF-scoped local access and lifecycle-safe staged transfers.
-
-Android SFTP remains hidden until strict native host-key identity verification has a maintained implementation. The development APK is not included in the public Windows/Linux 17-file release allow-list.
-
-## Browser companion extensions
-
-The `ekstenzije/` source tree contains optional companion extension packages for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox. Their job is deliberately narrow: recognize supported FTP-family links and route them into the Ghost FTP workflow. They do not require a Ghost FTP account, do not store FTP credentials, do not ship remote executable code and do not turn normal web browsing into an application telemetry source.
-
-These companion packages are source surfaces and are not counted as desktop GitHub Release artifacts.
-
-## Releases and verification
-
-Ghost FTP 0.0.5 uses the canonical **14 platform artifacts / 17 public files** release shape: two universal Windows executables, twelve Linux packages/archives, `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
-
-The public release identity is:
+Android derives its development identity from root `VERSION` and CI builds the installable development artifact:
 
 ```text
-ghostftp-v0.0.5
-prerelease=false
+Ghost-FTP-Android.apk
 ```
 
-The same verified release directory is published as a distribution-only GHCR bundle at:
+The current Android surface contains Files, Sites, Bookmarks, Transfers, Settings and About, supports FTP + strict explicit FTPS, uses Android Storage Access Framework for local files and keeps SFTP hidden until equivalent strict host-key verification is implemented and tested.
+
+The APK is not a production-signed public Android release and is outside the 17-file public desktop release allow-list. See [`android/README.md`](android/README.md).
+
+## 🍎 macOS native development app
+
+macOS is an active native AppKit development/source surface using the shared `internal/api.Engine`. The maintained build produces a universal Intel + Apple Silicon development app.
+
+A development build is **not** proof of production distribution readiness. Public macOS distribution requires the separate Developer ID + Apple notarization path documented in [`macos/README.md`](macos/README.md). Ghost FTP does not claim successful production signing/notarization unless that credentialed path actually succeeds.
+
+macOS is outside the current 17-file public Windows/Linux release allow-list.
+
+## 🌐 Browser connection helper
+
+`ekstenzije/` contains privacy-minimal Manifest V3 helper source for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox.
+
+It can parse explicitly supplied `ftp://`, `ftps://` and `sftp://` targets locally and copy a credential-stripped safe target. It requests no broad host, tab, history, storage, scripting or network permissions. **The helper does not currently launch Ghost FTP and no supported browser-to-desktop handoff contract is implemented.**
+
+See [`ekstenzije/README.md`](ekstenzije/README.md) and [`ekstenzije/PRIVACY.md`](ekstenzije/PRIVACY.md).
+
+## ✅ Verify every download
+
+Canonical public release identity:
+
+```text
+VERSION=0.0.5
+TAG=ghostftp-v0.0.5
+CHANNEL=Current
+prerelease=false
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
+```
+
+Every public release includes `SHA256.txt`. `BUILD-METADATA.txt` binds the release version, tag, exact source commit, public platform set, Windows signing state and release shape to the verified assembly.
+
+For official Windows Setup and Portable, verify both SHA-256 and trusted Authenticode. A missing or invalid Windows signature is a release-integrity failure under the current public contract.
+
+The verified release directory is also published as the distribution-only bundle:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:0.0.5
 ```
 
-The GHCR object is not a supported runtime container. The release workflow validates the exact 17-file allow-list immediately and again after a delay. After successful publication and remote verification, release retention removes superseded Ghost FTP releases/tags/branches/package versions and keeps the latest public version. Git history on `main` is not rewritten.
+The GHCR object is **not** a supported runtime container.
 
-Every public release includes `SHA256.txt`. `BUILD-METADATA.txt` binds the version, tag, source commit, platform set, Windows signing state, language count and packaging shape to the verified release assembly.
+See [Release verification](docs/RELEASE-VERIFICATION.md), [GitHub Releases](docs/GITHUB-RELEASES.md), [Packages](docs/PACKAGES.md) and [Versioning](docs/VERSIONING.md).
 
-See [GitHub Releases](docs/GITHUB-RELEASES.md), [GitHub Packages](docs/PACKAGES.md), [Release verification](docs/RELEASE-VERIFICATION.md) and [Versioning](docs/VERSIONING.md).
+## 🧪 Quality gates
 
-## Build from source
-
-Ghost FTP uses Go **1.27.1**. Root `VERSION` is the production version source of truth.
+A release candidate is expected to pass the repository's layered gates, including:
 
 ```text
-go telemetry off
+gofmt
 go test -race ./...
 go vet ./...
+python scripts/audit_repository.py
+python scripts/audit_platform_contract.py
+python scripts/audit_desktop_surface.py
+python scripts/audit_dependencies.py
+python scripts/audit_version.py
+python scripts/audit_localization.py
+python scripts/audit_security.py
+python scripts/audit_privacy.py
+python scripts/audit_docs.py
+python scripts/audit_release.py
+python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Windows release-style packages:
+Native/package gates additionally validate Windows, canonical Linux distro packages, the Android development APK, the universal macOS development app and authentic runtime UI evidence where that evidence workflow applies.
 
-```powershell
-.\BUILD-WINDOWS.ps1
-```
+A PR is merge-ready only when required workflows for its **exact final head** are successful. Release work then requires successful required post-merge `main` checks on the exact merge SHA.
 
-Canonical Linux release packages:
+## 📚 Documentation
 
-```bash
-GHOSTFTP_REQUIRE_DEB=1 GHOSTFTP_REQUIRE_RPM=1 bash linux/BUILD-DISTROS.sh
-```
+Start with the [documentation index](docs/README.md):
 
-The older `linux/BUILD.sh` generic DEB/portable path remains CI compatibility coverage, not the canonical 0.0.5 public Linux allow-list.
+- [Installation](docs/INSTALLATION.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security](docs/SECURITY.md)
+- [Privacy](docs/PRIVACY.md)
+- [Signing](docs/SIGNING.md)
+- [Testing](docs/TESTING.md)
+- [Platform parity](docs/PLATFORM-PARITY.md)
+- [Localization](docs/LOCALIZATION.md)
+- [Release verification](docs/RELEASE-VERIFICATION.md)
+- [Versioning](docs/VERSIONING.md)
+- [Support](docs/SUPPORT.md)
 
-## Quality gates
+Platform-specific development documentation lives in [`android/`](android/README.md), [`macos/`](macos/README.md), [`linux/`](linux/README.md) and [`ekstenzije/`](ekstenzije/README.md).
 
-The production CI/release path checks Go formatting, race tests, unit/integration tests, vet, dependency policy, privacy/security audits, platform parity, localization, release/version documentation contracts, universal Windows packaging, Linux architecture compatibility packaging, canonical Debian/Ubuntu/Fedora/Portable metadata and binary parity, distro lifecycle smoke tests, Android lint/APK contracts and authentic Windows/Linux/Android UI screenshots. Exact source identity, remote asset read-back, GHCR read-back and retention are fail-closed publication gates.
+## 🤝 Contributing
 
-## Documentation
+Changes should preserve the shared engine as the source of truth, keep visible controls connected to real runtime behavior, avoid weakening privacy/security boundaries, and update documentation/tests when a public contract changes.
 
-Start with the [documentation index](docs/README.md). Key documents include [Architecture](docs/ARCHITECTURE.md), [Installation](docs/INSTALLATION.md), [Settings](docs/SETTINGS.md), [Reference UI](docs/REFERENCE-UI.md), [Localization](docs/LOCALIZATION.md), [Platform parity](docs/PLATFORM-PARITY.md), [Security](docs/SECURITY.md), [Privacy](docs/PRIVACY.md), [Testing](docs/TESTING.md), [Signing](docs/SIGNING.md), [GitHub Releases](docs/GITHUB-RELEASES.md), [GitHub Packages](docs/PACKAGES.md), [Release verification](docs/RELEASE-VERIFICATION.md), [Versioning](docs/VERSIONING.md), [Roadmap](docs/ROADMAP.md), [Support](docs/SUPPORT.md) and [Contributing](docs/CONTRIBUTING.md).
+See [Contributing](docs/CONTRIBUTING.md).
 
-## License
+---
 
-Ghost FTP is source-available proprietary software. Source visibility does not grant permission to redistribute, rebrand, sublicense, sell or operate derivative commercial distributions unless the license explicitly permits it.
-
-See [LICENSE](LICENSE).
-
-Copyright © 2026 **Ghost FTP**. All rights reserved.
+<p align="center"><strong>Ghost FTP — direct file transfer with native control and verifiable boundaries.</strong></p>

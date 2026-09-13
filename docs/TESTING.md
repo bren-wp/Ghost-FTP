@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **0.0.5** is validated through layered source, security, native build, packaging, Android APK, UI-action, authentic runtime evidence and release-lifecycle gates.
+Ghost FTP **0.0.5** is validated through layered source, security, native build, packaging, Android APK, macOS development-app, UI-action, authentic runtime evidence and release-lifecycle gates.
 
 ## Core quality gate
 
@@ -48,26 +48,32 @@ Visible main controls must have matching command/click handlers. 0.0.5 adds regr
 
 ## Android native source and APK gate
 
-`.github/workflows/android-apk.yml` requires source/security contracts, Java/SDK/Gradle setup, Android lint, installable APK build, APK identity verification and artifact upload.
+`.github/workflows/android-apk.yml` requires source/security contracts, Java/SDK/Gradle setup, JVM regression tests, Android lint, installable APK build, APK identity verification and artifact upload.
 
-Android contracts protect strict explicit FTPS certificate/hostname verification, no trust-all fallback, SAF-only local storage, non-secret saved-site metadata, staged transfer final-name commit, non-blocking cancellation, semantic navigation and bounded FTP parsing.
+Android contracts protect strict explicit FTPS certificate/hostname verification, no trust-all fallback, SAF-only local storage, non-secret saved-site metadata, staged transfer final-name commit, non-blocking cancellation, semantic navigation, bounded FTP parsing and authentication-error redaction.
 
-0.0.5 additionally tests that a pending FTP/FTPS connection is owned by the current Activity instance, `onDestroy()` aborts it non-blockingly, and stale success/error callbacks cannot commit a session/UI state after destruction/recreation.
+0.0.5 additionally tests that a pending FTP/FTPS connection is owned by the current Activity instance, `onDestroy()` aborts it non-blockingly, stale success/error callbacks cannot commit a session/UI state after destruction/recreation, and server-controlled authentication replies cannot expose credential text through user-facing exceptions.
+
+## macOS development-app gate
+
+`.github/workflows/macos-app.yml` builds and verifies the maintained universal native macOS development app from exact source. This gate validates the AppKit/shared-engine source surface and packaging mechanics, but it is not evidence of a public Developer ID-signed/notarized macOS release. macOS remains outside the current 17-file public Windows/Linux release allow-list.
 
 ## Browser companion source contract
 
-The optional browser companion source for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox is tested as a source/privacy contract: supported FTP-family schemes are handled locally without telemetry, remote executable code, credential persistence, tab scraping or broad host permissions. These companions do not enlarge the 17-file desktop release allow-list.
+The optional browser companion source for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox is tested as a source/privacy contract: supported FTP-family targets are parsed locally without telemetry, remote executable code, credential persistence, tab scraping or broad host permissions. The current helper does not launch the desktop client and no supported browser-to-desktop handoff contract is claimed. These companions do not enlarge the 17-file desktop release allow-list.
 
-## Windows production gate
+## Windows build and public-release signing gates
 
-The Windows production job builds and verifies:
+The ordinary Windows CI job builds and verifies:
 
 ```text
 Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Native x64/x86 payloads are built and verified internally, then embedded in the two public universal bootstraps. CI rejects architecture-specific public executables and exercises optional Authenticode policy.
+Native x64/x86 payloads are built and verified internally, then embedded in the two public-shape universal bootstraps. Ordinary CI may exercise this packaging path without the protected production signing identity and separately runs an Authenticode private-key pipeline smoke test with development-only material.
+
+The official `Publish Ghost FTP` workflow is stricter: it requires the protected production signing identity, verifies both final public executables with `Get-AuthenticodeSignature`, requires `WINDOWS_SIGNING_STATE=signed`, and is independently checked by `scripts/verify_release.py`. An unsigned ordinary CI build therefore validates engineering mechanics but cannot satisfy the official public-release gate.
 
 ## Linux production and distro package gates
 
@@ -87,6 +93,8 @@ The 0.0.5 canonical set remains **14 platform artifacts / 17 public files**.
 
 The final read-only evidence job verifies provenance, manifest and hashes and assembles the 15-image `ghostftp-authentic-ui-verified-bundle`. It never commits or pushes screenshots back to the tested branch.
 
+macOS uses its separate native development-app workflow rather than being silently represented by the current Windows/Linux/Android evidence bundle. Development build evidence must not be described as notarized public-distribution evidence.
+
 ## Exact-head and post-merge rule
 
 **Exact-head and post-merge rule:** a PR is not merge-ready until every required workflow actually triggered for its exact final head is `completed/success`. After merge, required `push` workflows are identified by the exact merge SHA and must also be `completed/success` before release preparation continues.
@@ -95,10 +103,11 @@ For a 0.0.5 release-prep change, expected broad gates include:
 
 1. Ghost FTP CI;
 2. Ghost FTP Android APK when its path filters trigger;
-3. Ghost FTP Linux Distro Packages;
-4. Ghost FTP Linux Distro Install Matrix;
-5. Ghost FTP Authentic Cross-Platform UI Screenshots;
-6. any additional path-triggered Windows runtime gate.
+3. Ghost FTP macOS Development App when its path filters trigger;
+4. Ghost FTP Linux Distro Packages;
+5. Ghost FTP Linux Distro Install Matrix;
+6. Ghost FTP Authentic Cross-Platform UI Screenshots;
+7. any additional path-triggered Windows runtime gate.
 
 A green run for an older commit does not satisfy a newer candidate.
 
@@ -108,13 +117,15 @@ A green run for an older commit does not satisfy a newer candidate.
 
 - exact current `main` release-branch validation;
 - canonical release workflow quality/build jobs;
+- trusted Authenticode on both official public Windows executables;
+- `WINDOWS_AUTHENTICODE=signed` in verified release metadata;
 - exact **17-file** GitHub Release allow-list;
 - immediate and delayed remote release read-back;
 - `prerelease=false`;
 - verified `ghcr.io/bren-wp/ghost-ftp:0.0.5` distribution-bundle publication/read-back;
 - successful latest-only retention cleanup.
 
-The Android development APK and browser companion source remain outside the 17-file public desktop release allow-list.
+The Android development APK, macOS development app and browser companion source remain outside the 17-file public desktop release allow-list.
 
 ## Deterministic release-to-retention gate
 
@@ -124,4 +135,4 @@ The release branch trigger must record prior run IDs, dispatch canonical publica
 
 Retention must leave only the current `ghostftp-v0.0.5` public release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` history untouched.
 
-See [Security](SECURITY.md), [Release verification](RELEASE-VERIFICATION.md), [GitHub Releases](GITHUB-RELEASES.md) and [Versioning](VERSIONING.md).
+See [Security](SECURITY.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [GitHub Releases](GITHUB-RELEASES.md) and [Versioning](VERSIONING.md).

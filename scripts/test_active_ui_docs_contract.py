@@ -42,10 +42,10 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
         reference = read("docs/REFERENCE-UI.md")
         settings = read("docs/SETTINGS.md")
 
-        self.assertIn("only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle", reference)
-        self.assertIn("Closing **Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O programu**", reference)
+        self.assertIn("Only the main desktop window owns process-level `WM_QUIT`/`PostQuitMessage` lifecycle", reference)
+        self.assertIn("**Nova mapa**, **Preimenuj**, **Postavke**, **Dijagnostika** or **O programu**", reference)
         self.assertIn("Windows Settings is one application-owned modal surface", reference)
-        self.assertIn("independent upload and download bandwidth ceilings", reference)
+        self.assertIn("independent upload/download bandwidth ceilings", reference)
         self.assertIn("`KiB/s`", reference)
         self.assertIn("one application-owned native Settings dialog", settings)
         self.assertIn("Invalid input keeps the dialog open", settings)
