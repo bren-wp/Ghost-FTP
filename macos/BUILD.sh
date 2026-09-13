@@ -59,6 +59,7 @@ grep -F 'NSButton(title: "Diagnostics"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'controller.onConnected' "$GENERATED_SOURCE" >/dev/null
 grep -F 'bookmarkNavigationApplied' "$GENERATED_SOURCE" >/dev/null
 grep -F 'settingsAppearanceChanged' "$GENERATED_SOURCE" >/dev/null
+grep -F 'GhostFTPSettingsConfirmDelete() == 0' "$GENERATED_SOURCE" >/dev/null
 grep -F 'var onConnected: ((String, String, String) -> Void)?' "$GENERATED_SITE_MANAGER_SOURCE" >/dev/null
 
 build_go_arch() {
