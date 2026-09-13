@@ -12,15 +12,18 @@ import (
 )
 
 type linuxFileFilterState struct {
-	localAll         []model.Item
-	remoteAll        []model.Item
-	localQuery       string
-	remoteQuery      string
-	modalFocus       int
-	modalFocusSaved  bool
+	localAll    []model.Item
+	remoteAll   []model.Item
+	localQuery  string
+	remoteQuery string
+}
+
+type linuxModalFocusState struct {
+	focus int
 }
 
 var linuxFileFilters sync.Map
+var linuxModalFocus sync.Map
 
 func (u *linuxDesktop) fileFilterState() *linuxFileFilterState {
 	if u == nil {
@@ -85,10 +88,8 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 }
 
 func (u *linuxDesktop) isolateLinuxModalBackgroundInput() {
-	state := u.fileFilterState()
-	if state != nil && !state.modalFocusSaved && u.focus >= 0 && u.focus < linuxFieldCount {
-		state.modalFocus = u.focus
-		state.modalFocusSaved = true
+	if u.focus >= 0 && u.focus < linuxFieldCount {
+		linuxModalFocus.LoadOrStore(u, linuxModalFocusState{focus: u.focus})
 	}
 	// Recursive search and directory comparison deliberately replace the normal
 	// directory rows with modal result snapshots. The ordinary workspace buttons
@@ -108,15 +109,14 @@ func (u *linuxDesktop) isolateLinuxModalBackgroundInput() {
 }
 
 func (u *linuxDesktop) restoreLinuxModalBackgroundInput() {
-	state := u.fileFilterState()
-	if state == nil || !state.modalFocusSaved {
+	value, ok := linuxModalFocus.LoadAndDelete(u)
+	if !ok || u.focus != linuxFieldCount {
 		return
 	}
-	if u.focus == linuxFieldCount && state.modalFocus >= 0 && state.modalFocus < linuxFieldCount {
-		u.focus = state.modalFocus
+	state, ok := value.(linuxModalFocusState)
+	if ok && state.focus >= 0 && state.focus < linuxFieldCount {
+		u.focus = state.focus
 	}
-	state.modalFocus = 0
-	state.modalFocusSaved = false
 }
 
 func (u *linuxDesktop) renderFileFilterControls() error {
