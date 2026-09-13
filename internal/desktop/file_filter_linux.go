@@ -87,16 +87,20 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 	return fmt.Sprintf("%s  ·  %d/%d", words.Cue, visible, total)
 }
 
-func (u *linuxDesktop) isolateLinuxModalBackgroundInput() {
-	if u.focus >= 0 && u.focus < linuxFieldCount {
-		linuxModalFocus.LoadOrStore(u, linuxModalFocusState{focus: u.focus})
+func (u *linuxDesktop) parkLinuxModalBackgroundFocus() bool {
+	if u.focus < 0 || u.focus >= linuxFieldCount {
+		return false
 	}
-	// Recursive search and directory comparison deliberately replace the normal
-	// directory rows with modal result snapshots. The ordinary workspace buttons
-	// are already swallowed by their modal mouse handlers, but editable fields are
-	// checked earlier by handleMouse. Clear only those hit targets after they have
-	// been rendered, and park keyboard focus outside the editable field range.
+	linuxModalFocus.LoadOrStore(u, linuxModalFocusState{focus: u.focus})
 	u.focus = linuxFieldCount
+	return true
+}
+
+func (u *linuxDesktop) isolateLinuxModalBackgroundHitTargets() {
+	// Recursive search and directory comparison deliberately replace normal
+	// directory rows with modal result snapshots. Editable fields are checked
+	// before modal workspace handlers, so their hit targets must be removed after
+	// those fields have been painted for the current frame.
 	u.layout.protocol = linuxRect{}
 	u.layout.host = linuxRect{}
 	u.layout.port = linuxRect{}
@@ -108,15 +112,43 @@ func (u *linuxDesktop) isolateLinuxModalBackgroundInput() {
 	u.layout.remotePath = linuxRect{}
 }
 
-func (u *linuxDesktop) restoreLinuxModalBackgroundInput() {
+func (u *linuxDesktop) restoreLinuxModalBackgroundFocus() bool {
 	value, ok := linuxModalFocus.LoadAndDelete(u)
 	if !ok || u.focus != linuxFieldCount {
-		return
+		return false
 	}
 	state, ok := value.(linuxModalFocusState)
-	if ok && state.focus >= 0 && state.focus < linuxFieldCount {
-		u.focus = state.focus
+	if !ok || state.focus < 0 || state.focus >= linuxFieldCount {
+		return false
 	}
+	u.focus = state.focus
+	return true
+}
+
+func (u *linuxDesktop) redrawLinuxEditableFields() error {
+	// Modal focus is parked/restored after the ordinary field paint has already
+	// occurred. Repaint only editable fields immediately so the visible focus
+	// border always matches the keyboard owner in the same X11 frame.
+	fields := []struct {
+		index int
+		hint  string
+	}{
+		{linuxFieldProtocol, u.tr("terminal.protocol")},
+		{linuxFieldHost, u.tr("terminal.server")},
+		{linuxFieldPort, u.tr("terminal.port")},
+		{linuxFieldUser, u.tr("terminal.username")},
+		{linuxFieldPassword, u.tr("terminal.password")},
+		{linuxFieldKey, u.tr("cue.private_key")},
+		{linuxFieldPassphrase, u.tr("cue.passphrase")},
+		{linuxFieldLocalPath, u.tr("column.local")},
+		{linuxFieldRemotePath, u.tr("column.remote")},
+	}
+	for _, field := range fields {
+		if err := u.drawField(field.index, field.hint); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (u *linuxDesktop) renderFileFilterControls() error {
@@ -134,9 +166,16 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 	comparisonActive := u.directoryComparisonActiveLinux()
 	searchActive := u.recursiveSearchActive(false) || u.recursiveSearchActive(true)
 	if comparisonActive || searchActive {
-		u.isolateLinuxModalBackgroundInput()
-	} else {
-		u.restoreLinuxModalBackgroundInput()
+		if u.parkLinuxModalBackgroundFocus() {
+			if err := u.redrawLinuxEditableFields(); err != nil {
+				return err
+			}
+		}
+		u.isolateLinuxModalBackgroundHitTargets()
+	} else if u.restoreLinuxModalBackgroundFocus() {
+		if err := u.redrawLinuxEditableFields(); err != nil {
+			return err
+		}
 	}
 	if comparisonActive {
 		return u.renderDirectoryComparisonControlsLinux()
