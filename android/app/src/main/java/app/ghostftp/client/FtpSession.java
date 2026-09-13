@@ -71,12 +71,14 @@ final class FtpSession implements Closeable {
         }
 
         String user = username == null || username.trim().isEmpty() ? "anonymous" : username.trim();
-        Reply userReply = command("USER " + sanitizeArgument(user));
+        Reply userReply = authenticationCommand("USER " + sanitizeArgument(user));
         if (userReply.code == 331) {
-            Reply passwordReply = command("PASS " + sanitizeArgument(password == null ? "" : password));
-            expectAuthentication(passwordReply);
-        } else {
-            expect(userReply, 230);
+            Reply passwordReply = authenticationCommand("PASS " + sanitizeArgument(password == null ? "" : password));
+            if (passwordReply.code != 230 && passwordReply.code != 202) {
+                rejectAuthentication(passwordReply.code);
+            }
+        } else if (userReply.code != 230) {
+            rejectAuthentication(userReply.code);
         }
         expect(command("TYPE I"), 200);
         if (secure) {
@@ -397,6 +399,20 @@ final class FtpSession implements Closeable {
         return readReply();
     }
 
+    private Reply authenticationCommand(String command) throws IOException {
+        try {
+            return command(command);
+        } catch (IOException ignored) {
+            hardClose();
+            throw new IOException("FTP authentication failed before a valid server response was received.");
+        }
+    }
+
+    private void rejectAuthentication(int responseCode) throws IOException {
+        hardClose();
+        throw new IOException("FTP authentication failed (server response code " + responseCode + ").");
+    }
+
     private Reply readReply() throws IOException {
         ensureStreams();
         String first = reader.readLine();
@@ -598,13 +614,6 @@ final class FtpSession implements Closeable {
         if (reader == null || writer == null) {
             throw new IOException("Control connection is not available.");
         }
-    }
-
-    private static void expectAuthentication(Reply reply) throws IOException {
-        if (reply.code == 230 || reply.code == 202) {
-            return;
-        }
-        throw new IOException("FTP authentication failed (server response code " + reply.code + ").");
     }
 
     private static void expect(Reply reply, int... allowed) throws IOException {
