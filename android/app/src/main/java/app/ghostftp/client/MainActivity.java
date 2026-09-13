@@ -2,6 +2,7 @@ package app.ghostftp.client;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.UriPermission;
@@ -54,6 +55,10 @@ public final class MainActivity extends Activity {
         ABOUT
     }
 
+    private interface TextPromptAction {
+        void accept(String value);
+    }
+
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final List<LocalEntry> localEntries = new ArrayList<>();
     private final List<RemoteEntry> remoteEntries = new ArrayList<>();
@@ -84,6 +89,13 @@ public final class MainActivity extends Activity {
     private Button disconnect;
     private Button upload;
     private Button download;
+    private Button localCreateDirectory;
+    private Button localRename;
+    private Button localDelete;
+    private Button remoteCreateDirectory;
+    private Button remoteRename;
+    private Button remoteDelete;
+    private Button remoteChmod;
     private Button saveSite;
     private Button deleteSite;
     private Button localSetStart;
@@ -339,7 +351,7 @@ public final class MainActivity extends Activity {
 
     private View buildFilesSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Files", "Local SAF storage and the active FTP/FTPS server. Only this workspace owns file selection and transfer actions."));
+        content.addView(surfaceHeading("Files", "Local SAF storage and the active FTP/FTPS server. File management mirrors the desktop create, rename, delete and remote-permission workflow while preserving Android scoped storage."));
 
         LinearLayout panes = new LinearLayout(this);
         boolean wideFiles = getResources().getConfiguration().screenWidthDp >= 900;
@@ -371,43 +383,87 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildLocalFilesCard() {
-        LinearLayout card = card("LOCAL", "Android Storage Access Framework only; Ghost FTP never requests broad all-files access.");
+        LinearLayout card = card("LOCAL", "Android Storage Access Framework only; Ghost FTP never requests broad all-files access. Long-press a directory to select it without opening it.");
         localPath = pathLabel("No folder selected");
         card.addView(localPath, matchWrapSpaced());
-        LinearLayout actions = row();
+        LinearLayout navigationActions = row();
         Button choose = button("Choose folder");
         Button up = button("Up");
         Button refresh = button("Refresh");
-        actions.addView(choose, weightedSpaced());
-        actions.addView(up, weightedSpaced());
-        actions.addView(refresh, weightedSpaced());
-        card.addView(actions, matchWrap());
+        navigationActions.addView(choose, weightedSpaced());
+        navigationActions.addView(up, weightedSpaced());
+        navigationActions.addView(refresh, weightedSpaced());
+        card.addView(navigationActions, matchWrap());
         choose.setOnClickListener(v -> chooseFolder());
         up.setOnClickListener(v -> localUp());
         refresh.setOnClickListener(v -> refreshLocal());
+
+        LinearLayout fileActions = row();
+        localCreateDirectory = button("New folder");
+        localRename = button("Rename");
+        localDelete = dangerButton("Delete");
+        fileActions.addView(localCreateDirectory, weightedSpaced());
+        fileActions.addView(localRename, weightedSpaced());
+        fileActions.addView(localDelete, weightedSpaced());
+        card.addView(fileActions, matchWrap());
+        localCreateDirectory.setOnClickListener(v -> createLocalDirectory());
+        localRename.setOnClickListener(v -> renameLocalSelected());
+        localDelete.setOnClickListener(v -> deleteLocalSelected());
+
         localList = new ListView(this);
         GhostTheme.styleList(localList);
         card.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
         localList.setOnItemClickListener((parent, view, position, id) -> selectLocal(position));
+        localList.setOnItemLongClickListener((parent, view, position, id) -> {
+            if (busy || position < 0 || position >= localEntries.size()) return true;
+            selectedLocal = position;
+            renderLocal();
+            setStatus("Local item selected for file management: " + localEntries.get(position).name);
+            return true;
+        });
         return card;
     }
 
     private LinearLayout buildRemoteFilesCard() {
-        LinearLayout card = card("SERVER", "Fresh MLSD listings over the active FTP/FTPS session; FTPS keeps strict TLS and hostname verification.");
+        LinearLayout card = card("SERVER", "Fresh MLSD listings over the active FTP/FTPS session; FTPS keeps strict TLS and hostname verification. Long-press a directory to select it without opening it.");
         remotePath = pathLabel(currentRemotePath);
         card.addView(remotePath, matchWrapSpaced());
-        LinearLayout actions = row();
+        LinearLayout navigationActions = row();
         Button up = button("Up");
         Button refresh = button("Refresh");
-        actions.addView(up, weightedSpaced());
-        actions.addView(refresh, weightedSpaced());
-        card.addView(actions, matchWrap());
+        navigationActions.addView(up, weightedSpaced());
+        navigationActions.addView(refresh, weightedSpaced());
+        card.addView(navigationActions, matchWrap());
         up.setOnClickListener(v -> remoteUp());
         refresh.setOnClickListener(v -> refreshRemote(currentRemotePath));
+
+        LinearLayout primaryActions = row();
+        remoteCreateDirectory = button("New folder");
+        remoteRename = button("Rename");
+        remoteDelete = dangerButton("Delete");
+        primaryActions.addView(remoteCreateDirectory, weightedSpaced());
+        primaryActions.addView(remoteRename, weightedSpaced());
+        primaryActions.addView(remoteDelete, weightedSpaced());
+        card.addView(primaryActions, matchWrap());
+        remoteCreateDirectory.setOnClickListener(v -> createRemoteDirectory());
+        remoteRename.setOnClickListener(v -> renameRemoteSelected());
+        remoteDelete.setOnClickListener(v -> deleteRemoteSelected());
+
+        remoteChmod = button("Permissions / CHMOD");
+        remoteChmod.setOnClickListener(v -> chmodRemoteSelected());
+        card.addView(remoteChmod, matchWrapSpaced());
+
         remoteList = new ListView(this);
         GhostTheme.styleList(remoteList);
         card.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
         remoteList.setOnItemClickListener((parent, view, position, id) -> selectRemote(position));
+        remoteList.setOnItemLongClickListener((parent, view, position, id) -> {
+            if (busy || position < 0 || position >= remoteEntries.size()) return true;
+            selectedRemote = position;
+            renderRemote();
+            setStatus("Server item selected for file management: " + remoteEntries.get(position).name);
+            return true;
+        });
         return card;
     }
 
@@ -1048,6 +1104,105 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void createRemoteDirectory() {
+        FtpSession current = session;
+        if (busy || current == null || !current.isConnected()) return;
+        promptText("Create server folder", "", "Folder name", false, name -> {
+            final String child;
+            try {
+                child = validateItemName(name);
+            } catch (IOException e) {
+                setStatus(e.getMessage());
+                return;
+            }
+            runRemoteMutation(current, "Creating server folder…", "Server folder created: " + child,
+                    () -> current.createDirectory(FtpSession.joinRemote(currentRemotePath, child)));
+        });
+    }
+
+    private void renameRemoteSelected() {
+        FtpSession current = session;
+        if (busy || current == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size()) return;
+        RemoteEntry entry = remoteEntries.get(selectedRemote);
+        promptText("Rename server item", entry.name, "New name", false, name -> {
+            final String child;
+            try {
+                child = validateItemName(name);
+            } catch (IOException e) {
+                setStatus(e.getMessage());
+                return;
+            }
+            if (entry.name.equals(child)) {
+                setStatus("Server item name is unchanged.");
+                return;
+            }
+            try {
+                String from = FtpSession.joinRemote(currentRemotePath, entry.name);
+                String to = FtpSession.joinRemote(currentRemotePath, child);
+                runRemoteMutation(current, "Renaming server item…", "Server item renamed to: " + child,
+                        () -> current.rename(from, to));
+            } catch (IOException e) {
+                setStatus(e.getMessage());
+            }
+        });
+    }
+
+    private void deleteRemoteSelected() {
+        FtpSession current = session;
+        if (busy || current == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size()) return;
+        RemoteEntry entry = remoteEntries.get(selectedRemote);
+        confirmDestructive("Delete server item?", "Delete “" + entry.name + "” from the server? This cannot be undone.", () -> {
+            try {
+                String path = FtpSession.joinRemote(currentRemotePath, entry.name);
+                runRemoteMutation(current, "Deleting server item…", "Server item deleted: " + entry.name,
+                        () -> current.delete(path, entry.directory));
+            } catch (IOException e) {
+                setStatus(e.getMessage());
+            }
+        });
+    }
+
+    private void chmodRemoteSelected() {
+        FtpSession current = session;
+        if (busy || current == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size()) return;
+        RemoteEntry entry = remoteEntries.get(selectedRemote);
+        promptText("Server permissions", "755", "Octal mode (for example 755)", true, mode -> {
+            try {
+                String path = FtpSession.joinRemote(currentRemotePath, entry.name);
+                runRemoteMutation(current, "Changing server permissions…", "Server permissions updated for: " + entry.name,
+                        () -> current.chmod(path, mode));
+            } catch (IOException e) {
+                setStatus(e.getMessage());
+            }
+        });
+    }
+
+    private interface RemoteMutation {
+        void run() throws IOException;
+    }
+
+    private void runRemoteMutation(FtpSession current, String progress, String success, RemoteMutation mutation) {
+        if (busy || current == null || session != current || !current.isConnected()) return;
+        final String directory = currentRemotePath;
+        setBusy(true, progress);
+        io.execute(() -> {
+            try {
+                mutation.run();
+                List<RemoteEntry> fresh = current.list(directory);
+                runOnUiThread(() -> {
+                    if (session != current || !current.isConnected()) return;
+                    remoteEntries.clear();
+                    remoteEntries.addAll(fresh);
+                    selectedRemote = -1;
+                    renderRemote();
+                    setBusy(false, success);
+                });
+            } catch (Exception e) {
+                postError("Server file operation failed", e);
+            }
+        });
+    }
+
     private void setRemoteStart() {
         SiteProfile profile = requireConnectedActiveProfile();
         if (profile == null) return;
@@ -1262,6 +1417,85 @@ public final class MainActivity extends Activity {
         } catch (IOException e) {
             setStatus("Parent folder is unavailable; current path was not changed: " + safeMessage(e));
         }
+    }
+
+    private void createLocalDirectory() {
+        if (busy || treeUri == null || currentDocumentId == null) return;
+        promptText("Create local folder", "", "Folder name", false, name -> {
+            final String child;
+            try {
+                child = validateItemName(name);
+            } catch (IOException e) {
+                setStatus(e.getMessage());
+                return;
+            }
+            try {
+                ensureNoLocalNameConflict(treeUri, currentDocumentId, child, "A local item with this exact name already exists.");
+                Uri parent = DocumentsContract.buildDocumentUriUsingTree(treeUri, currentDocumentId);
+                Uri created = DocumentsContract.createDocument(getContentResolver(), parent, DocumentsContract.Document.MIME_TYPE_DIR, child);
+                if (created == null) throw new IOException("Storage provider rejected the folder creation.");
+                String actual = queryDocumentDisplayName(created);
+                if (!child.equals(actual)) {
+                    try { DocumentsContract.deleteDocument(getContentResolver(), created); } catch (Exception ignored) { }
+                    throw new IOException("Storage provider changed the requested folder name; creation was rolled back.");
+                }
+                refreshLocal();
+                setStatus("Local folder created: " + child);
+            } catch (Exception e) {
+                setStatus("Local folder creation failed: " + safeMessage(e));
+            }
+        });
+    }
+
+    private void renameLocalSelected() {
+        if (busy || treeUri == null || selectedLocal < 0 || selectedLocal >= localEntries.size()) return;
+        LocalEntry entry = localEntries.get(selectedLocal);
+        promptText("Rename local item", entry.name, "New name", false, name -> {
+            final String child;
+            try {
+                child = validateItemName(name);
+            } catch (IOException e) {
+                setStatus(e.getMessage());
+                return;
+            }
+            if (entry.name.equals(child)) {
+                setStatus("Local item name is unchanged.");
+                return;
+            }
+            try {
+                ensureNoLocalNameConflict(treeUri, currentDocumentId, child, "A local item with this exact name already exists.");
+                Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
+                Uri renamed = DocumentsContract.renameDocument(getContentResolver(), document, child);
+                if (renamed == null) throw new IOException("Storage provider rejected the rename.");
+                String actual = queryDocumentDisplayName(renamed);
+                if (!child.equals(actual)) {
+                    throw new IOException("Storage provider changed the requested final name; rename verification failed.");
+                }
+                refreshLocal();
+                setStatus("Local item renamed to: " + child);
+            } catch (Exception e) {
+                refreshLocal();
+                setStatus("Local rename failed: " + safeMessage(e));
+            }
+        });
+    }
+
+    private void deleteLocalSelected() {
+        if (busy || treeUri == null || selectedLocal < 0 || selectedLocal >= localEntries.size()) return;
+        LocalEntry entry = localEntries.get(selectedLocal);
+        confirmDestructive("Delete local item?", "Delete “" + entry.name + "” from the selected Android storage provider? This cannot be undone.", () -> {
+            try {
+                Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
+                if (!DocumentsContract.deleteDocument(getContentResolver(), document)) {
+                    throw new IOException("Storage provider rejected the delete operation.");
+                }
+                refreshLocal();
+                setStatus("Local item deleted: " + entry.name);
+            } catch (Exception e) {
+                refreshLocal();
+                setStatus("Local delete failed: " + safeMessage(e));
+            }
+        });
     }
 
     private void setLocalStart() {
@@ -1554,6 +1788,50 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private static String validateItemName(String value) throws IOException {
+        String name = value == null ? "" : value.trim();
+        if (name.isEmpty()) throw new IOException("Name is required.");
+        if (".".equals(name) || "..".equals(name)) throw new IOException("Dot-segment names are not allowed.");
+        if (name.indexOf('/') >= 0 || name.indexOf('\\') >= 0
+                || name.indexOf('\0') >= 0 || name.indexOf('\r') >= 0 || name.indexOf('\n') >= 0) {
+            throw new IOException("Name must be a single safe item name without separators or control characters.");
+        }
+        return name;
+    }
+
+    private void promptText(String title, String initial, String hint, boolean numeric, TextPromptAction action) {
+        if (busy || lifecycleDestroyed) return;
+        EditText input = field(hint, false);
+        input.setText(initial == null ? "" : initial);
+        if (numeric) input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        int pad = dp(20);
+        FrameLayout holder = new FrameLayout(this);
+        holder.setPadding(pad, dp(8), pad, 0);
+        holder.addView(input, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(holder)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Apply", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String value = input.getText().toString();
+            dialog.dismiss();
+            action.accept(value);
+        }));
+        dialog.show();
+    }
+
+    private void confirmDestructive(String title, String message, Runnable action) {
+        if (busy || lifecycleDestroyed) return;
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (dialog, which) -> action.run())
+                .show();
+    }
+
     private void clearLocalRoot() {
         treeUri = null;
         rootDocumentId = null;
@@ -1601,8 +1879,10 @@ public final class MainActivity extends Activity {
 
     private void refreshButtons() {
         boolean connected = session != null && session.isConnected();
-        boolean selectedLocalFile = selectedLocal >= 0 && selectedLocal < localEntries.size() && !localEntries.get(selectedLocal).directory;
-        boolean selectedRemoteFile = selectedRemote >= 0 && selectedRemote < remoteEntries.size() && !remoteEntries.get(selectedRemote).directory;
+        boolean selectedLocalItem = selectedLocal >= 0 && selectedLocal < localEntries.size();
+        boolean selectedRemoteItem = selectedRemote >= 0 && selectedRemote < remoteEntries.size();
+        boolean selectedLocalFile = selectedLocalItem && !localEntries.get(selectedLocal).directory;
+        boolean selectedRemoteFile = selectedRemoteItem && !remoteEntries.get(selectedRemote).directory;
         SiteProfile profile = activeProfile();
         boolean activeSite = profile != null;
         boolean connectedSite = activeSite && connected && connectedIdentityKey != null && profile.identityKey().equals(connectedIdentityKey);
@@ -1612,6 +1892,13 @@ public final class MainActivity extends Activity {
         disconnect.setEnabled((transferActive && !transferFinalizing) || (!busy && connected));
         upload.setEnabled(!busy && connected && selectedLocalFile);
         download.setEnabled(!busy && connected && selectedRemoteFile && treeUri != null);
+        localCreateDirectory.setEnabled(!busy && treeUri != null && currentDocumentId != null);
+        localRename.setEnabled(!busy && selectedLocalItem && treeUri != null);
+        localDelete.setEnabled(!busy && selectedLocalItem && treeUri != null);
+        remoteCreateDirectory.setEnabled(!busy && connected);
+        remoteRename.setEnabled(!busy && connected && selectedRemoteItem);
+        remoteDelete.setEnabled(!busy && connected && selectedRemoteItem);
+        remoteChmod.setEnabled(!busy && connected && selectedRemoteItem);
         saveSite.setEnabled(!busy && !connected);
         deleteSite.setEnabled(!busy && !connected && activeSite);
         localSetStart.setEnabled(!busy && activeSite && !persistedCurrentTreeUri().isEmpty());
@@ -1628,7 +1915,10 @@ public final class MainActivity extends Activity {
 
         updateConnectionBadge(connected);
         updateTransferSurface();
-        updateEnabledAlpha(connect, disconnect, upload, download, saveSite, deleteSite,
+        updateEnabledAlpha(connect, disconnect, upload, download,
+                localCreateDirectory, localRename, localDelete,
+                remoteCreateDirectory, remoteRename, remoteDelete, remoteChmod,
+                saveSite, deleteSite,
                 localSetStart, localAddBookmark, localRemoveBookmark, localOpenBookmark,
                 remoteSetStart, remoteAddBookmark, remoteRemoveBookmark, remoteOpenBookmark);
     }
