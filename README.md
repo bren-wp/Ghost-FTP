@@ -263,8 +263,11 @@ gofmt
 go test -race ./...
 go vet ./...
 python scripts/audit_repository.py
-python scripts/audit_platforms.py
+python scripts/audit_platform_contract.py
+python scripts/audit_desktop_surface.py
 python scripts/audit_dependencies.py
+python scripts/audit_version.py
+python scripts/audit_localization.py
 python scripts/audit_security.py
 python scripts/audit_privacy.py
 python scripts/audit_docs.py
