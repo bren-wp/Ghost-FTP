@@ -18,7 +18,7 @@ HTML_IMAGE_RE = re.compile(r"<img\b[^>]*\bsrc\s*=\s*[\"']([^\"']+)[\"']", re.IGN
 CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d+)\*\*")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 REMOTE_MEDIA_PREFIXES = ("http://", "https://", "data:", "//")
-RETIRED_ACTIVE_MARKERS = ("android/", "ios/", "macos/", "ghostftp web/", "web companion", "pwa")
+RETIRED_ACTIVE_MARKERS = ("ios/", "ghostftp web/", "web companion", "pwa")
 
 ACTIVE_DOCS = (
     "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
