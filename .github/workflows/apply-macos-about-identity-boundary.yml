@@ -1,0 +1,163 @@
+name: Apply macOS About identity boundary
+
+on:
+  push:
+    branches:
+      - feature/macos-application-parity
+    paths:
+      - .github/workflows/apply-macos-about-identity-boundary.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-macos-about-identity-boundary-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/macos-application-parity
+          fetch-depth: 0
+
+      - name: Apply guarded About-only identity boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one guarded anchor, found {text.count(old)}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          about = Path('macos/Bridge/about_identity.go')
+          if about.exists():
+              raise SystemExit('macOS About identity source already exists unexpectedly')
+          about.write_text('''package main
+
+// Author identity is intentionally isolated to the About surface. Public
+// product branding elsewhere remains Ghost FTP.
+const (
+\tmacAboutPublisher     = "BRENDIGO LTD"
+\tmacAboutWebsite       = "ghostftp.com"
+\tmacAboutAuthorWebsite = "brendigo.com"
+\tmacAboutSupport       = "brendigo.com/kontakt"
+)
+''', encoding='utf-8')
+
+          replace_once(
+              'macos/Bridge/application.go',
+              '''//export GhostFTPAboutPublisher
+func GhostFTPAboutPublisher() *C.char { return C.CString("BRENDIGO LTD") }
+
+//export GhostFTPAboutWebsite
+func GhostFTPAboutWebsite() *C.char { return C.CString("ghostftp.com") }
+
+//export GhostFTPAboutAuthorWebsite
+func GhostFTPAboutAuthorWebsite() *C.char { return C.CString("brendigo.com") }
+
+//export GhostFTPAboutSupport
+func GhostFTPAboutSupport() *C.char { return C.CString("brendigo.com/kontakt") }
+''',
+              '''//export GhostFTPAboutPublisher
+func GhostFTPAboutPublisher() *C.char { return C.CString(macAboutPublisher) }
+
+//export GhostFTPAboutWebsite
+func GhostFTPAboutWebsite() *C.char { return C.CString(macAboutWebsite) }
+
+//export GhostFTPAboutAuthorWebsite
+func GhostFTPAboutAuthorWebsite() *C.char { return C.CString(macAboutAuthorWebsite) }
+
+//export GhostFTPAboutSupport
+func GhostFTPAboutSupport() *C.char { return C.CString(macAboutSupport) }
+''',
+          )
+
+          replace_once(
+              'macos/PARITY.md',
+              'About is the only Mac application surface that exposes the publisher/author identity (`BRENDIGO LTD`, `brendigo.com`). Product version remains bound to root `VERSION` by the native build, while product/support identity remains explicit.',
+              'About is the only Mac application surface that exposes publisher/author identity, sourced from the dedicated macOS About-only metadata file. Product version remains bound to root `VERSION` by the native build, while product/support identity remains explicit.',
+          )
+
+          replace_once(
+              'scripts/test_macos_application_parity_contract.py',
+              '''            "GhostFTPAboutPublisher",
+            '"BRENDIGO LTD"',
+''',
+              '''            "GhostFTPAboutPublisher",
+            "macAboutPublisher",
+''',
+          )
+          replace_once(
+              'scripts/test_macos_application_parity_contract.py',
+              '''        for forbidden in ("json.Marshal", "json.Unmarshal", "PasswordBlob", "PassphraseBlob"):
+            self.assertNotIn(forbidden, bridge)
+''',
+              '''        for forbidden in ("json.Marshal", "json.Unmarshal", "PasswordBlob", "PassphraseBlob"):
+            self.assertNotIn(forbidden, bridge)
+
+        about_identity = read("macos/Bridge/about_identity.go")
+        for marker in ("macAboutPublisher", "macAboutWebsite", "macAboutAuthorWebsite", "macAboutSupport"):
+            self.assertIn(marker, about_identity)
+''',
+          )
+
+          replace_once(
+              'scripts/audit_brand_hardcut.py',
+              '''    "internal/desktop/about_identity_windows.go",
+''',
+              '''    "internal/desktop/about_identity_windows.go",
+    "macos/Bridge/about_identity.go",
+''',
+          )
+          replace_once(
+              'scripts/audit_brand_hardcut.py',
+              '''    if violations:
+        fail("branding contract violation: " + ", ".join(violations))
+''',
+              '''    mac_about = ROOT / "macos" / "Bridge" / "about_identity.go"
+    if not mac_about.is_file():
+        violations.append("missing-macos-about-identity-source")
+    else:
+        mac_about_text = mac_about.read_text(encoding="utf-8")
+        for marker in (
+            'macAboutPublisher     = "BRENDIGO LTD"',
+            'macAboutAuthorWebsite = "brendigo.com"',
+            'macAboutSupport       = "brendigo.com/kontakt"',
+        ):
+            if marker not in mac_about_text:
+                violations.append("macos-about-identity-contract:" + marker)
+
+    if violations:
+        fail("branding contract violation: " + ", ".join(violations))
+''',
+          )
+          PY
+
+      - name: Validate identity and parity contracts
+        run: |
+          gofmt -w macos/Bridge/about_identity.go macos/Bridge/application.go
+          python3 scripts/audit_brand_hardcut.py
+          python3 scripts/test_macos_application_parity_contract.py
+          python3 scripts/test_macos_windows_parity_contract.py
+          go test ./macos/Bridge
+          git diff --check
+
+      - name: Remove one-shot workflow and commit production changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm .github/workflows/apply-macos-about-identity-boundary.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: isolate macOS author identity to About'
+          git push origin HEAD:feature/macos-application-parity
