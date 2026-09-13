@@ -55,13 +55,33 @@ Maintained desktop panes use shared engine/filesystem/remote validation layers. 
 
 Pause/resume/cancel/retry/clear operate through the transfer manager. Four-way queued **Top / Up / Down / Bottom** reorders queued scheduler slots only. Progress/speed/ETA may be shown only when backed by real state.
 
-0.0.5 guards Windows local/remote create-directory, rename, delete and permission mutations against overlapping duplicate/stale commands without globally locking unrelated opposite-side workflow.
+0.0.5 guards Windows local/remote create-directory, rename, delete and permission mutations against overlapping duplicate/stale commands without globally locking unrelated opposite-side workflow. Windows Add, Retry and Cancel-selected transfer completions are bound to the active `connectionGeneration`, so a callback from an obsolete connection cannot update the visible status/queue surface of a replacement session.
 
 ## Built-in Remote Editor
 
 Remote Edit remains deliberately compact: one Edit action, one native/modal editor, **Save / Reload / Close**, dirty-state indication and conflict/error status. Windows uses an application-owned native editor; Linux uses the maintained X11/XWayland-compatible overlay; macOS development uses the native AppKit frontend while preserving shared conflict/read-back semantics.
 
 0.0.5 keeps the Windows editor session busy from initial open through save/reload continuations until terminal close/error, preventing parallel re-entry during async cycles.
+
+## Windows universal package and UI evidence boundary
+
+The two public Windows downloads remain:
+
+```text
+Ghost-FTP-0.0.5-Setup.exe
+Ghost-FTP-0.0.5-Portable.exe
+```
+
+They embed verified native x64, x86 and ARM64 payloads. The public x86 bootstrap selects the native processor through `GetNativeSystemInfo`, verifies staged payload bytes and performs no runtime architecture download.
+
+Release metadata states:
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The Windows screenshots below and in CI are real runtime evidence for the architecture of the maintained Windows runner. They demonstrate the actual Windows UI at the exact tested source revision, but they are **not native ARM64 runtime evidence**. A future ARM64 runtime claim requires a maintained Windows ARM64 runner/device and separate source-bound execution evidence.
 
 ## macOS native development workspace
 
@@ -101,7 +121,7 @@ The current immutable cross-platform evidence contract is:
 
 The final verifier requires exactly **15 runtime images**, verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The workflow does **not** commit or push screenshots back to the tested branch.
 
-macOS native development build/validation is maintained separately. It must not be silently counted as one of those 15 images or described as notarized public-release evidence unless the dedicated production distribution path actually succeeds.
+Windows evidence is architecture-specific to the runner that produced it and must not be generalized into an unexecuted ARM64 runtime claim. macOS native development build/validation is maintained separately. It must not be silently counted as one of those 15 images or described as notarized public-release evidence unless the dedicated production distribution path actually succeeds.
 
 Repository-local documentation assets remain:
 
