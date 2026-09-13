@@ -51,6 +51,25 @@ class TransferGenerationBindingTests(unittest.TestCase):
             self.assertLess(unlock_before, identity, signature)
             self.assertGreater(lock_after, identity, signature)
 
+    def test_windows_cancel_callback_is_bound_to_connection_generation(self) -> None:
+        text = (ROOT / "internal/desktop/transfers_windows.go").read_text(encoding="utf-8")
+        start = text.index("func (a *app) cancelSelectedTransfer()")
+        end = text.index("func (a *app) retrySelectedTransfer()", start)
+        block = text[start:end]
+
+        capture = block.index("generation := a.connectionGeneration")
+        cancel = block.index("a.engine.CancelTransfers(ids)")
+        dispatch = block.index("a.dispatch(func()")
+        recheck = block.index("generation != a.connectionGeneration")
+        status = block.index('a.setStatus(fmt.Sprintf("%s: %d", a.tr("status.cancelled"), len(ids)))')
+        refresh = block.index("a.refreshTransfers()")
+
+        self.assertLess(capture, cancel)
+        self.assertLess(cancel, dispatch)
+        self.assertLess(dispatch, recheck)
+        self.assertLess(recheck, status)
+        self.assertLess(recheck, refresh)
+
 
 if __name__ == "__main__":
     unittest.main()
