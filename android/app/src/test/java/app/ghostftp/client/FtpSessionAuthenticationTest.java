@@ -23,6 +23,26 @@ public final class FtpSessionAuthenticationTest {
     @Test
     public void rejectedPasswordReplyDoesNotLeakSecret() throws Exception {
         String secret = "ghostftp-regression-secret-7419";
+        assertPasswordFailureRedacted(
+                secret,
+                "FTP authentication failed (server response code 530).",
+                "530-Authentication rejected for " + secret,
+                "530 Do not expose " + secret);
+    }
+
+    @Test
+    public void malformedPasswordReplyDoesNotLeakSecret() throws Exception {
+        String secret = "ghostftp-malformed-secret-8526";
+        assertPasswordFailureRedacted(
+                secret,
+                "FTP authentication failed before a valid server response was received.",
+                "not-a-valid-ftp-reply " + secret);
+    }
+
+    private static void assertPasswordFailureRedacted(
+            String secret,
+            String expectedMessage,
+            String... passwordReplies) throws Exception {
         ExecutorService serverExecutor = Executors.newSingleThreadExecutor();
 
         try (ServerSocket server = new ServerSocket(0)) {
@@ -34,8 +54,9 @@ public final class FtpSessionAuthenticationTest {
                     assertEquals("USER test-user", reader.readLine());
                     send(writer, "331 Password required");
                     assertEquals("PASS " + secret, reader.readLine());
-                    send(writer, "530-Authentication rejected for " + secret);
-                    send(writer, "530 Do not expose " + secret);
+                    for (String reply : passwordReplies) {
+                        send(writer, reply);
+                    }
                 }
                 return null;
             });
@@ -43,7 +64,7 @@ public final class FtpSessionAuthenticationTest {
             FtpSession session = new FtpSession("127.0.0.1", server.getLocalPort(), false);
             try {
                 IOException failure = assertThrows(IOException.class, () -> session.connect("test-user", secret));
-                assertEquals("FTP authentication failed (server response code 530).", failure.getMessage());
+                assertEquals(expectedMessage, failure.getMessage());
                 assertFalse(failure.getMessage().contains(secret));
                 serverRun.get(5, TimeUnit.SECONDS);
             } finally {
