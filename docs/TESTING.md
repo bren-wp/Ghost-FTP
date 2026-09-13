@@ -16,6 +16,8 @@ Canonical CI additionally runs repository, platform, desktop-surface, dependency
 
 Coverage protects explicit FTPS verification/no silent downgrade, strict SFTP host-key verification/pinning, rooted local path confinement, staged activation/rollback, connection-generation guards, privacy-safe diagnostics, retry policy, transfer queue lifecycle, queued Top/Up/Down/Bottom ordering, Remote Edit conflict/read-back behavior and navigation bookmark/profile-start revalidation.
 
+Windows transfer-generation tests require Add, Retry and Cancel-selected asynchronous callbacks to capture `connectionGeneration` and refuse to publish completion into a newer connection session.
+
 ## Bandwidth regression contract
 
 The maintained source provides independent upload/download ceilings as real runtime policy. Tests require bounded `0–1,048,576 KiB/s` values with `0 = unlimited`, conservative aggregate directional allocation, attempt-scoped budget snapshots, curl `limit-rate` enforcement for FTP/FTPS and OpenSSH `sftp -l` enforcement for SFTP. Windows/Linux settings must expose the same shared values.
@@ -44,6 +46,7 @@ Visible main controls must have matching command/click handlers. 0.0.5 adds regr
 - shared/nested Windows modal preservation of `WM_QUIT`;
 - local/remote create-directory, rename, delete and remote permission mutation re-entry guards;
 - Remote Edit session serialization across async open/save/reload cycles;
+- transfer cancellation callback generation ownership across disconnect/reconnect;
 - code-level guards behind UI enablement so stale commands cannot bypass busy state.
 
 ## Android native source and APK gate
@@ -64,14 +67,38 @@ The optional browser companion source for Chrome, Microsoft Edge, Opera, Brave, 
 
 ## Windows build and public-release signing gates
 
-The ordinary Windows CI job builds and verifies:
+The ordinary Windows CI job builds and verifies only the public names:
 
 ```text
 Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Native x64/x86 payloads are built and verified internally, then embedded in the two public-shape universal bootstraps. Ordinary CI may exercise this packaging path without the protected production signing identity and separately runs an Authenticode private-key pipeline smoke test with development-only material.
+Internally, `BUILD-WINDOWS-ARCH-STAGE.ps1` builds native Setup and Portable payloads for:
+
+```text
+x64
+x86
+arm64
+```
+
+Each native staging pair is processed through PE resource generation and `scripts/verify_release.py`. ARM64 verification requires machine `0xAA64`, PE32+, `processorArchitecture="arm64"`, required PE mitigations, local resources, telemetry-marker absence and distinct Setup/Portable hashes. Architecture-specific binaries are moved into internal evidence and are forbidden from leaking into the public Windows artifact directory.
+
+`BUILD-WINDOWS.ps1` embeds those three native payload families into the same two public-shape x86 bootstrap executables. `GetNativeSystemInfo` selects `x64`, `x86` or `arm64`; the selected embedded bytes are staged under Local AppData and SHA-256 verified before execution. No runtime download is part of this architecture-selection path.
+
+Ordinary CI may exercise this packaging path without the protected production signing identity and separately runs an Authenticode private-key pipeline smoke test with development-only material.
+
+Current ARM64 evidence is deliberately scoped as:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+`WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` means the repository proves cross-build, PE/resources, payload selection contract, embedded-byte integrity and signing mechanics, but does **not** claim native Windows ARM64 runtime execution because the maintained Windows Actions runner used here is not ARM64.
 
 The official `Publish Ghost FTP` workflow is stricter: it requires the protected production signing identity, verifies both final public executables with `Get-AuthenticodeSignature`, requires `WINDOWS_SIGNING_STATE=signed`, and is independently checked by `scripts/verify_release.py`. An unsigned ordinary CI build therefore validates engineering mechanics but cannot satisfy the official public-release gate.
 
@@ -92,6 +119,8 @@ The 0.0.5 canonical set remains **14 platform artifacts / 17 public files**.
 - Android: Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
 
 The final read-only evidence job verifies provenance, manifest and hashes and assembles the 15-image `ghostftp-authentic-ui-verified-bundle`. It never commits or pushes screenshots back to the tested branch.
+
+The Windows screenshot evidence is runtime evidence for the maintained Windows runner architecture. It must not be relabeled as native ARM64 runtime evidence merely because the same package contains an ARM64 payload.
 
 macOS uses its separate native development-app workflow rather than being silently represented by the current Windows/Linux/Android evidence bundle. Development build evidence must not be described as notarized public-distribution evidence.
 
@@ -118,6 +147,7 @@ A green run for an older commit does not satisfy a newer candidate.
 - exact current `main` release-branch validation;
 - canonical release workflow quality/build jobs;
 - trusted Authenticode on both official public Windows executables;
+- `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64` and `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` in verified release metadata;
 - `WINDOWS_AUTHENTICODE=signed` in verified release metadata;
 - exact **17-file** GitHub Release allow-list;
 - immediate and delayed remote release read-back;
