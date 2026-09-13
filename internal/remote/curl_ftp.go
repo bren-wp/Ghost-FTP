@@ -25,6 +25,7 @@ type CurlFTP struct {
 	host             string
 	username         string
 	passwordBlob     string
+	ownsPasswordBlob bool
 	port             int
 	connectTimeout   int
 	curl             string
@@ -50,11 +51,13 @@ func newCurlFTPWithProtectedSecret(protocol, host string, port int, username, pa
 	if err != nil {
 		return nil, err
 	}
+	ownsPasswordBlob := false
 	if password != "" {
 		passwordBlob, err = security.ProtectRuntimeString(password)
 		if err != nil {
 			return nil, err
 		}
+		ownsPasswordBlob = passwordBlob != ""
 	}
 	return &CurlFTP{
 		protocol:         protocol,
@@ -62,6 +65,7 @@ func newCurlFTPWithProtectedSecret(protocol, host string, port int, username, pa
 		port:             port,
 		username:         username,
 		passwordBlob:     passwordBlob,
+		ownsPasswordBlob: ownsPasswordBlob,
 		connectTimeout:   connectTimeout,
 		curl:             p,
 		revokeBestEffort: protocolNeedsRevokeCapability(protocol) && curlSupportsRevokeBestEffort(p),
@@ -72,8 +76,11 @@ func (c *CurlFTP) Protocol() string { return c.protocol }
 func (c *CurlFTP) Host() string     { return c.host }
 func (c *CurlFTP) Port() int        { return c.port }
 func (c *CurlFTP) Close() error {
-	security.ForgetRuntimeSecret(c.passwordBlob)
+	if c.ownsPasswordBlob {
+		security.ForgetRuntimeSecret(c.passwordBlob)
+	}
 	c.passwordBlob = ""
+	c.ownsPasswordBlob = false
 	c.username = ""
 	c.host = ""
 	return nil
