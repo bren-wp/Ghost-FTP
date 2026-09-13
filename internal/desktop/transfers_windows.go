@@ -173,9 +173,13 @@ func (a *app) cancelSelectedTransfer() {
 		a.setStatus(a.tr("common.cancel"))
 		return
 	}
+	generation := a.connectionGeneration
 	a.goSafe(func() {
 		err := a.engine.CancelTransfers(ids)
 		a.dispatch(func() {
+			if generation != a.connectionGeneration {
+				return
+			}
 			if err != nil {
 				platform.ErrorDialog("Ghost FTP", a.tr("status.failed"), a.userMessage(err, "error.generic"))
 				return
