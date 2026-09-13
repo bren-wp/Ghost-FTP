@@ -66,8 +66,12 @@ def main() -> int:
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_SIGNING_PASSWORD",
         "GHOSTFTP_SIGNING_TIMESTAMP_URL",
-        "state=unsigned",
+        "Require protected Authenticode identity",
+        "Official Ghost FTP publication requires GHOSTFTP_SIGNING_PFX_BASE64.",
+        "Official Ghost FTP publication requires GHOSTFTP_SIGNING_PASSWORD.",
         "state=signed",
+        "test \"$WINDOWS_SIGNING_STATE\" = 'signed'",
+        "Get-AuthenticodeSignature -FilePath $path",
         "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
         "python scripts/audit_platform_contract.py",
         "python scripts/audit_desktop_surface.py",
@@ -125,6 +129,8 @@ def main() -> int:
         "setup-x64.exe",
         "setup-x86.exe",
         "setup-x32.exe",
+        "state=unsigned",
+        "publishing current release with explicitly unsigned windows artifacts",
     ):
         if forbidden in lowered:
             fail(f"release workflow contains retired/incompatible publication marker: {forbidden}")
@@ -312,6 +318,7 @@ def main() -> int:
     print("RELEASE_RETENTION_CHAIN=REQUIRED")
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
+    print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=14")
