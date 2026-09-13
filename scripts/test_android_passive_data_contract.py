@@ -32,16 +32,43 @@ class AndroidPassiveDataContractTests(unittest.TestCase):
         self.assertLess(catch_pos, hard_close_pos)
         self.assertLess(hard_close_pos, throw_pos)
 
-    def test_invalid_epsv_port_is_checked_io_failure(self) -> None:
+    def test_epsv_parser_is_strict_and_checked(self) -> None:
         ftp = FTP.read_text(encoding="utf-8")
-        start = ftp.index("private static int parseEpsvPort(")
-        end = ftp.index("private static int parsePasvPort(", start)
+        start = ftp.index("static int parseEpsvPort(")
+        end = ftp.index("static int parsePasvPort(", start)
         epsv = ftp[start:end]
 
-        self.assertIn("if (payload.isEmpty())", epsv)
-        self.assertIn("catch (NumberFormatException e)", epsv)
-        self.assertIn('throw new IOException("Invalid EPSV port.", e);', epsv)
-        self.assertNotIn("return requirePort(Integer.parseInt(parts[3]));\n    }", epsv)
+        for marker in (
+            "payload.length() < 5",
+            "delimiter < 33 || delimiter > 126",
+            "payload.charAt(1) != delimiter",
+            "payload.charAt(2) != delimiter",
+            "payload.charAt(payload.length() - 1) != delimiter",
+            "String portText = payload.substring(3, payload.length() - 1);",
+            "if (ch < '0' || ch > '9')",
+            "return requirePort(Integer.parseInt(portText));",
+            "catch (IllegalArgumentException e)",
+            'throw new IOException("Invalid EPSV port.", e);',
+        ):
+            self.assertIn(marker, epsv)
+
+    def test_pasv_parser_requires_six_byte_values(self) -> None:
+        ftp = FTP.read_text(encoding="utf-8")
+        start = ftp.index("static int parsePasvPort(")
+        end = ftp.index("static String joinRemote(", start)
+        pasv = ftp[start:end]
+
+        for marker in (
+            'split(",", -1)',
+            "values.length != 6",
+            "int[] octets = new int[6];",
+            "octets[i] = Integer.parseInt(value);",
+            "octets[i] < 0 || octets[i] > 255",
+            "int dataPort = octets[4] * 256 + octets[5];",
+            "return requirePort(dataPort);",
+            'throw new IOException("Invalid PASV port.", e);',
+        ):
+            self.assertIn(marker, pasv)
 
     def test_ftps_data_channel_keeps_strict_hostname_verification(self) -> None:
         ftp = FTP.read_text(encoding="utf-8")
