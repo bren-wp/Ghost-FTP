@@ -471,43 +471,69 @@ final class FtpSession implements Closeable {
         return new RemoteEntry(name, directory, size);
     }
 
-    private static int parseEpsvPort(String message) throws IOException {
+    static int parseEpsvPort(String message) throws IOException {
         int open = message.indexOf('(');
         int close = message.indexOf(')', open + 1);
         if (open < 0 || close <= open) {
             throw new IOException("Invalid EPSV response.");
         }
         String payload = message.substring(open + 1, close);
-        if (payload.isEmpty()) {
+        if (payload.length() < 5) {
             throw new IOException("Invalid EPSV response.");
         }
         char delimiter = payload.charAt(0);
-        String[] parts = payload.split(java.util.regex.Pattern.quote(String.valueOf(delimiter)), -1);
-        if (parts.length < 4) {
+        if (delimiter < 33 || delimiter > 126
+                || payload.charAt(1) != delimiter
+                || payload.charAt(2) != delimiter
+                || payload.charAt(payload.length() - 1) != delimiter) {
             throw new IOException("Invalid EPSV response.");
         }
+        String portText = payload.substring(3, payload.length() - 1);
+        if (portText.isEmpty()) {
+            throw new IOException("Invalid EPSV port.");
+        }
+        for (int i = 0; i < portText.length(); i++) {
+            char ch = portText.charAt(i);
+            if (ch < '0' || ch > '9') {
+                throw new IOException("Invalid EPSV port.");
+            }
+        }
         try {
-            return requirePort(Integer.parseInt(parts[3]));
-        } catch (NumberFormatException e) {
+            return requirePort(Integer.parseInt(portText));
+        } catch (IllegalArgumentException e) {
             throw new IOException("Invalid EPSV port.", e);
         }
     }
 
-    private static int parsePasvPort(String message) throws IOException {
+    static int parsePasvPort(String message) throws IOException {
         int open = message.indexOf('(');
         int close = message.indexOf(')', open + 1);
         if (open < 0 || close <= open) {
             throw new IOException("Invalid PASV response.");
         }
-        String[] values = message.substring(open + 1, close).split(",");
+        String[] values = message.substring(open + 1, close).split(",", -1);
         if (values.length != 6) {
             throw new IOException("Invalid PASV response.");
         }
+        int[] octets = new int[6];
+        for (int i = 0; i < values.length; i++) {
+            String value = values[i].trim();
+            if (value.isEmpty()) {
+                throw new IOException("Invalid PASV response.");
+            }
+            try {
+                octets[i] = Integer.parseInt(value);
+            } catch (NumberFormatException e) {
+                throw new IOException("Invalid PASV response.", e);
+            }
+            if (octets[i] < 0 || octets[i] > 255) {
+                throw new IOException("Invalid PASV response.");
+            }
+        }
+        int dataPort = octets[4] * 256 + octets[5];
         try {
-            int high = Integer.parseInt(values[4].trim());
-            int low = Integer.parseInt(values[5].trim());
-            return requirePort(high * 256 + low);
-        } catch (NumberFormatException e) {
+            return requirePort(dataPort);
+        } catch (IllegalArgumentException e) {
             throw new IOException("Invalid PASV port.", e);
         }
     }
