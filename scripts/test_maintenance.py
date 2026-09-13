@@ -84,17 +84,19 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("gh release create", workflow)
         self.assertLess(workflow.index("main moved from release commit"), workflow.index("gh release create"))
 
-    def test_current_release_allows_truthfully_unsigned_windows(self) -> None:
+    def test_current_release_requires_trusted_windows_signing(self) -> None:
         workflow = read(".github/workflows/release.yml")
-        signing = read("docs/SIGNING.md")
-        self.assertIn("state=unsigned", workflow)
+        verifier = read("scripts/verify_release.py")
+        self.assertNotIn("state=unsigned", workflow)
         self.assertIn("state=signed", workflow)
-        self.assertIn("Publishing current release with explicitly unsigned Windows artifacts", workflow)
+        self.assertIn("Official Ghost FTP publication requires GHOSTFTP_SIGNING_PFX_BASE64.", workflow)
+        self.assertIn("Official Ghost FTP publication requires GHOSTFTP_SIGNING_PASSWORD.", workflow)
+        self.assertIn("Get-AuthenticodeSignature -FilePath $path", workflow)
+        self.assertIn("test \"$WINDOWS_SIGNING_STATE\" = 'signed'", workflow)
         self.assertIn("WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}", workflow)
-        self.assertNotIn("requires a configured trusted Authenticode identity", workflow)
         self.assertNotIn("New-DevCodeSigningCertificate.ps1", workflow)
-        self.assertIn("WINDOWS_AUTHENTICODE=unsigned", signing)
-        self.assertIn("does **not** create a publicly trusted Windows publisher identity", signing)
+        self.assertIn("public Windows release artifacts must be Authenticode signed", verifier)
+        self.assertIn("require_public_release_signatures", verifier)
 
     def test_version_history_and_current_desktop_contract(self) -> None:
         version = read("VERSION").strip()
