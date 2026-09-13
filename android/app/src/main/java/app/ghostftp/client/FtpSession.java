@@ -103,7 +103,7 @@ final class FtpSession implements Closeable {
         }
         if (start.code != 125 && start.code != 150) {
             releaseDataSocket(data);
-            throw new IOException("MLSD failed: " + start.message);
+            throw new IOException("Directory listing failed (server response code " + start.code + ").");
         }
 
         List<RemoteEntry> entries = new ArrayList<>();
@@ -161,7 +161,7 @@ final class FtpSession implements Closeable {
         }
         if (start.code != 125 && start.code != 150) {
             releaseDataSocket(data);
-            throw new IOException("Upload rejected: " + start.message);
+            throw new IOException("Upload rejected (server response code " + start.code + ").");
         }
 
         try {
@@ -205,7 +205,7 @@ final class FtpSession implements Closeable {
         }
         if (renameFrom.code != 350) {
             deleteRemoteBestEffort(tempPath);
-            throw new IOException("Server does not support safe staged upload commit: " + renameFrom.message);
+            throw new IOException("Server does not support safe staged upload commit (server response code " + renameFrom.code + ").");
         }
 
         final Reply renameTo;
@@ -217,7 +217,7 @@ final class FtpSession implements Closeable {
         }
         if (renameTo.code != 250) {
             deleteRemoteBestEffort(tempPath);
-            throw new IOException("Server rejected final staged upload commit: " + renameTo.message);
+            throw new IOException("Server rejected final staged upload commit (server response code " + renameTo.code + ").");
         }
         gate.finish();
     }
@@ -242,7 +242,7 @@ final class FtpSession implements Closeable {
         }
         if (start.code != 125 && start.code != 150) {
             releaseDataSocket(data);
-            throw new IOException("Download rejected: " + start.message);
+            throw new IOException("Download rejected (server response code " + start.code + ").");
         }
 
         try {
@@ -648,14 +648,14 @@ final class FtpSession implements Closeable {
                 return;
             }
         }
-        throw new IOException("FTP server rejected operation: " + reply.message);
+        throw new IOException("FTP server rejected operation (server response code " + reply.code + ").");
     }
 
     private static int parseCode(String line) throws IOException {
         try {
             return Integer.parseInt(line.substring(0, 3));
         } catch (RuntimeException e) {
-            throw new IOException("Invalid FTP response: " + line, e);
+            throw new IOException("Invalid FTP response.", e);
         }
     }
 
