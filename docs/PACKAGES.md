@@ -45,7 +45,7 @@ Official Windows publication requires trusted Authenticode. `Publish Ghost FTP` 
 WINDOWS_AUTHENTICODE=signed
 ```
 
-There is no supported official `WINDOWS_AUTHENTICODE=unsigned` publication state under the current contract. Local development and ordinary CI Windows artifacts may be unsigned, but they are not copied into an official release/GHCR bundle unless the public signing gate has subsequently produced and verified the signed release artifacts.
+There is no supported unsigned official publication state under the current contract. Local development and ordinary CI Windows artifacts may be unsigned, but they are not copied into an official release/GHCR bundle unless the public signing gate has subsequently produced and verified the signed release artifacts.
 
 The project never generates a self-signed production identity and presents it as a trusted publisher.
 
