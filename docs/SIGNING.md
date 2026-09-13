@@ -22,6 +22,11 @@ If the production PFX or its password is missing, the official release job fails
 A successful official release records:
 
 ```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
 
@@ -53,11 +58,25 @@ A self-signed or locally generated certificate can exercise signing mechanics, b
 
 The production workflow never creates its own long-lived publisher key. The separate CI signing smoke test may create a short-lived development certificate only to test the signing pipeline mechanically. That fixture is never a production identity and is never accepted by the public release workflow.
 
-## Windows build ordering
+## Windows build and signing ordering
 
-`BUILD-WINDOWS.ps1` signs finalized Windows targets through the configured signing path. Public Setup and Portable artifacts are verified after their final byte mutations and before publication. Release hashes are generated from final artifact bytes.
+The canonical Windows build has two signing layers because the two public executables embed native application/installer payloads.
 
-The ordinary build path can still run without production credentials; the canonical public-release workflow adds the fail-closed signing requirement around that build.
+First, `BUILD-WINDOWS-ARCH-STAGE.ps1` builds native Setup and Portable staging pairs for:
+
+```text
+x64
+x86
+arm64
+```
+
+For each architecture, deterministic PE resources are applied before signing. The Portable executable is signed before `scripts/make_payload.py` creates the installer payload, so Setup embeds the same signed client bytes. The native Setup is then finalized, signed and verified. When production signing is configured, ARM64 follows the same protected signing path as x64 and x86.
+
+Second, `BUILD-WINDOWS.ps1` embeds the already verified native x64/x86/ARM64 payloads into the public universal Setup and Portable bootstraps. PE resources are finalized on each public bootstrap and the **outer public executable is signed after its final byte mutation**.
+
+Release hashes are generated only from final public artifact bytes.
+
+Architecture-specific staging executables remain internal. Their signing is part of embedded-payload integrity; they do not become extra public release files.
 
 ## Windows verification before publication
 
@@ -73,9 +92,21 @@ Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
+No public `-x64.exe`, `-x86.exe`, `-x32.exe` or `-arm64.exe` alias is part of the current release.
+
 The publish job also requires `WINDOWS_SIGNING_STATE=signed`. `scripts/verify_release.py` independently rejects unsigned public Setup/Portable artifacts when it runs inside `Publish Ghost FTP`.
 
 This gives the release path two independent signing checks: Windows signature verification during artifact production and fail-closed release verification before publication.
+
+## Windows ARM64 evidence boundary
+
+Signing support is not the same as native runtime evidence. Current CI cross-builds and structurally verifies the ARM64 PE32+ payloads and runs them through the same signing mechanics, but the maintained Windows runner is not ARM64. Therefore the release metadata records:
+
+```text
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+Do not reinterpret a successful ARM64 cross-build or valid signature as proof that the binary was executed natively on Windows ARM64 hardware. That claim requires separate maintained ARM64 runtime evidence.
 
 ## Windows end-user verification
 
@@ -142,7 +173,7 @@ The official Windows release fails closed if:
 
 - either required protected signing credential is absent;
 - PFX decoding fails;
-- signing fails;
+- signing fails for any required native staging payload when production signing is configured;
 - Setup or Portable lacks a signer certificate;
 - Authenticode status is not `Valid`; or
 - the publish job receives any signing state other than `signed`.
@@ -153,6 +184,6 @@ Do not weaken either production policy by adding an unsigned-publication fallbac
 
 ## Packages
 
-The GHCR distribution bundle contains already-built verified public release files. Signing credentials are never part of its build context or payload. Release metadata records the verified public Windows signing state but never carries signing key material.
+The GHCR distribution bundle contains already-built verified public release files. Signing credentials are never part of its build context or payload. Release metadata records the verified public Windows signing state and native payload set but never carries signing key material.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md), [GitHub Releases](GITHUB-RELEASES.md), [Packages](PACKAGES.md), [Versioning](VERSIONING.md) and the [macOS development/distribution contract](../macos/README.md).
