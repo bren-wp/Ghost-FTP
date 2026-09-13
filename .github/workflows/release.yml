@@ -64,7 +64,7 @@ jobs:
           python -m unittest discover -s scripts -p 'test_*.py'
 
   windows:
-    name: Windows universal setup and portable
+    name: Windows universal x86 x64 ARM64 setup and portable
     runs-on: windows-latest
     timeout-minutes: 45
     outputs:
@@ -139,7 +139,7 @@ jobs:
               throw "Production Authenticode verification failed for ${path}: $($signature.Status) $($signature.StatusMessage)"
             }
           }
-          if (Get-ChildItem -LiteralPath dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32)\.exe$' }) {
+          if (Get-ChildItem -LiteralPath dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32|arm64)\.exe$' }) {
             throw 'Architecture-specific Windows executables leaked into the public release stage.'
           }
       - name: Remove protected Authenticode identity
@@ -346,10 +346,11 @@ jobs:
           RELEASE_CHANNEL=${RELEASE_CHANNEL}
           COMMIT=${GITHUB_SHA}
           ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
-          WINDOWS_SETUP=universal-x86-x64
-          WINDOWS_PORTABLE=universal-x86-x64
+          WINDOWS_SETUP=universal-x86-x64-arm64
+          WINDOWS_PORTABLE=universal-x86-x64-arm64
           WINDOWS_BOOTSTRAP_PE=x86
-          WINDOWS_NATIVE_PAYLOADS=x64,x86
+          WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+          WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
           WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}
           LINUX_DEBIAN_DEB=amd64,arm64,i386
           LINUX_UBUNTU_DEB=amd64,arm64,i386
@@ -370,7 +371,7 @@ jobs:
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
           test "$count" = '17'
           test "$(find release -maxdepth 1 -type f -name '*.exe' | wc -l | tr -d ' ')" = '2'
-          ! find release -maxdepth 1 -type f -name '*.exe' -print | grep -Eq -- '-(x64|x86|x32)\.exe$'
+          ! find release -maxdepth 1 -type f -name '*.exe' -print | grep -Eq -- '-(x64|x86|x32|arm64)\.exe$'
       - name: Publish verified bundle to GitHub Packages
         shell: bash
         env:
