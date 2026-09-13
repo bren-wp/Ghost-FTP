@@ -281,6 +281,31 @@ final class FtpSession implements Closeable {
         return "/";
     }
 
+    synchronized void createDirectory(String remotePath) throws IOException {
+        String path = requireMutableRemotePath(remotePath);
+        expect(mutationCommand("MKD " + sanitizeArgument(path)), 257, 250);
+    }
+
+    synchronized void rename(String fromRemotePath, String toRemotePath) throws IOException {
+        String from = requireMutableRemotePath(fromRemotePath);
+        String to = requireMutableRemotePath(toRemotePath);
+        Reply fromReply = mutationCommand("RNFR " + sanitizeArgument(from));
+        expect(fromReply, 350);
+        expect(mutationCommand("RNTO " + sanitizeArgument(to)), 250);
+    }
+
+    synchronized void delete(String remotePath, boolean directory) throws IOException {
+        String path = requireMutableRemotePath(remotePath);
+        String verb = directory ? "RMD " : "DELE ";
+        expect(mutationCommand(verb + sanitizeArgument(path)), 250);
+    }
+
+    synchronized void chmod(String remotePath, String mode) throws IOException {
+        String path = requireMutableRemotePath(remotePath);
+        String safeMode = normalizeChmodMode(mode);
+        expect(mutationCommand("SITE CHMOD " + safeMode + " " + sanitizeArgument(path)), 200);
+    }
+
     boolean isConnected() {
         return connected;
     }
@@ -330,6 +355,16 @@ final class FtpSession implements Closeable {
             }
         }
         hardClose();
+    }
+
+    private Reply mutationCommand(String value) throws IOException {
+        ensureConnected();
+        try {
+            return command(value);
+        } catch (IOException e) {
+            hardClose();
+            throw new IOException("Remote file operation lost the FTP control connection; reconnect before retrying.", e);
+        }
     }
 
     private Socket openPassiveDataSocket() throws IOException {
@@ -569,6 +604,28 @@ final class FtpSession implements Closeable {
         }
         while (value.contains("//")) {
             value = value.replace("//", "/");
+        }
+        return value;
+    }
+
+    static String requireMutableRemotePath(String path) throws IOException {
+        String normalized = normalizeRemotePath(path);
+        if ("/".equals(normalized)) {
+            throw new IOException("The server root cannot be modified by this operation.");
+        }
+        return normalized;
+    }
+
+    static String normalizeChmodMode(String mode) throws IOException {
+        String value = mode == null ? "" : mode.trim();
+        if (value.length() != 3 && value.length() != 4) {
+            throw new IOException("Permissions must be a 3- or 4-digit octal mode.");
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch < '0' || ch > '7') {
+                throw new IOException("Permissions must contain only octal digits 0 through 7.");
+            }
         }
         return value;
     }
