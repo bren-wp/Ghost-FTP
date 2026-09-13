@@ -26,6 +26,8 @@ Package publication occurs only after quality, universal Windows and canonical L
 
 - binds version/revision labels to root `VERSION` and exact `GITHUB_SHA`;
 - requires the official Windows Setup and Portable artifacts to pass trusted Authenticode verification;
+- requires the Windows bundle metadata to identify the same two public executables as universal x86/x64/ARM64 packages with `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64`;
+- keeps architecture-specific Windows staging executables, including `*-arm64.exe`, out of the public release directory and therefore out of GHCR;
 - publishes the exact semantic version plus current aliases and `latest`;
 - verifies `ghcr.io/bren-wp/ghost-ftp:0.0.5` after push;
 - builds from the same exact 17-file release directory used for GitHub Release publication;
@@ -39,13 +41,20 @@ After successful release publication/read-back, `.github/workflows/release-reten
 
 Every public release includes `SHA256.txt`. `BUILD-METADATA.txt` records source commit, version, tag, platform set, universal/native Windows payload contract, Linux distro families and verified Windows signing state.
 
-Official Windows publication requires trusted Authenticode. `Publish Ghost FTP` fails when the production signing identity is unavailable or either public Windows executable does not verify successfully. A successful official bundle records:
+The current Windows metadata carried inside the verified 17-file bundle includes:
 
 ```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
 
-There is no supported unsigned official publication state under the current contract. Local development and ordinary CI Windows artifacts may be unsigned, but they are not copied into an official release/GHCR bundle unless the public signing gate has subsequently produced and verified the signed release artifacts.
+The ARM64 evidence marker means the package contains release metadata for a cross-built/verified native ARM64 payload but does not pretend that the maintained Windows CI runtime itself executed on ARM64 hardware.
+
+Official Windows publication requires trusted Authenticode. `Publish Ghost FTP` fails when the production signing identity is unavailable or either public Windows executable does not verify successfully. There is no supported unsigned official publication state under the current contract. Local development and ordinary CI Windows artifacts may be unsigned, but they are not copied into an official release/GHCR bundle unless the public signing gate has subsequently produced and verified the signed release artifacts.
 
 The project never generates a self-signed production identity and presents it as a trusted publisher.
 
