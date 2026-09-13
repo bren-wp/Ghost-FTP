@@ -13,7 +13,10 @@ func TestLinuxModalBackgroundInputIsolation(t *testing.T) {
 		t.Fatal("test requires ordinary editable field hit targets before modal isolation")
 	}
 
-	u.isolateLinuxModalBackgroundInput()
+	if !u.parkLinuxModalBackgroundFocus() {
+		t.Fatal("expected editable focus to be parked")
+	}
+	u.isolateLinuxModalBackgroundHitTargets()
 
 	if u.focus != linuxFieldCount {
 		t.Fatalf("modal isolation focus = %d, want sentinel %d", u.focus, linuxFieldCount)
@@ -35,7 +38,9 @@ func TestLinuxModalBackgroundInputIsolation(t *testing.T) {
 		}
 	}
 
-	u.restoreLinuxModalBackgroundInput()
+	if !u.restoreLinuxModalBackgroundFocus() {
+		t.Fatal("expected previous editable focus to be restored")
+	}
 	if u.focus != linuxFieldHost {
 		t.Fatalf("restored focus = %d, want previous field %d", u.focus, linuxFieldHost)
 	}
@@ -45,11 +50,30 @@ func TestLinuxModalBackgroundInputRestoreDoesNotClobberNewFocus(t *testing.T) {
 	u := &linuxDesktop{}
 	u.focus = linuxFieldHost
 
-	u.isolateLinuxModalBackgroundInput()
+	if !u.parkLinuxModalBackgroundFocus() {
+		t.Fatal("expected editable focus to be parked")
+	}
 	u.focus = linuxFieldPort
-	u.restoreLinuxModalBackgroundInput()
+	if u.restoreLinuxModalBackgroundFocus() {
+		t.Fatal("restore must not claim success after a newer field owns focus")
+	}
 
 	if u.focus != linuxFieldPort {
 		t.Fatalf("restore clobbered newer focus: got %d, want %d", u.focus, linuxFieldPort)
+	}
+}
+
+func TestLinuxModalBackgroundFocusParkingIsIdempotent(t *testing.T) {
+	u := &linuxDesktop{}
+	u.focus = linuxFieldUser
+
+	if !u.parkLinuxModalBackgroundFocus() {
+		t.Fatal("expected first park to change focus")
+	}
+	if u.parkLinuxModalBackgroundFocus() {
+		t.Fatal("sentinel focus must not overwrite the saved pre-modal field")
+	}
+	if !u.restoreLinuxModalBackgroundFocus() || u.focus != linuxFieldUser {
+		t.Fatalf("focus restore = %d, want original field %d", u.focus, linuxFieldUser)
 	}
 }
