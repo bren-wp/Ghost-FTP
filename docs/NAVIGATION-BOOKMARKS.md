@@ -1,6 +1,6 @@
 # Navigation bookmarks and profile start directories
 
-Ghost FTP **0.0.5** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux capabilities. The feature is intentionally narrow: it improves repeated navigation without turning path metadata into credentials, weakening connection identity boundaries or creating hidden Site Manager profiles.
+Ghost FTP **0.0.5** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux capabilities. The native macOS development frontend also wires bookmark navigation through the shared Engine, while public release scope remains Windows/Linux. The feature is intentionally narrow: it improves repeated navigation without turning path metadata into credentials, weakening connection identity boundaries or creating hidden Site Manager profiles.
 
 ## Scope
 
@@ -9,7 +9,7 @@ Two related navigation mechanisms are maintained:
 1. **Bookmarks** are reusable navigation entries independent of Site Manager profiles. A bookmark is either local or remote.
 2. **Profile start directories** are the explicit default local and remote directories saved with one Site Manager profile.
 
-Both Windows and Linux expose bookmark navigation. Profile start directories reuse the existing profile fields and are guarded so a saved server path cannot silently cross to another account identity.
+Windows and Linux expose bookmark navigation in their public desktop frontends. The macOS development frontend uses the same shared bookmark Engine APIs and authoritative path/session rules. Windows/Linux profile start-directory behavior remains the public-release contract described in detail below; macOS source parity does not expand the current public release allow-list.
 
 ## Security model
 
@@ -104,6 +104,12 @@ Linux exposes a native X11 Bookmarks control and modal overlay through `internal
 
 The Linux list has a bounded viewport, keyboard-visible selection, mouse-accessible scrolling and offset-aware hit testing. Child naming prompts return to the bookmark manager on cancellation instead of abandoning the whole flow. All save/open/delete operations route through the shared Engine methods rather than directly trusting persisted path state.
 
+## macOS development behavior
+
+The native AppKit development frontend exposes Bookmarks through the same shared `Engine.Bookmarks`, `SaveLocalBookmark`, `SaveRemoteBookmark`, `RemoveBookmark` and `NavigateBookmark` APIs. Local and remote save actions take their path from the authoritative bridge snapshot rather than arbitrary Swift text, and remote bookmark activation retains shared account/session validation before the verified listing is published back into visible AppKit state.
+
+This is **source/development parity**, not a public macOS release claim. A successful macOS development build or bookmark test does not imply Developer ID signing/notarization or inclusion in the current 17-file public release.
+
 ## Profile start directories
 
 Site Manager profiles contain `LocalPath` and `RemotePath`, but those values are requested starts rather than unconditional UI authority.
@@ -144,19 +150,19 @@ Failures must preserve the previously verified pane state wherever the surroundi
 
 Bookmarks and start directories are local application state. The feature adds no telemetry, analytics, Ghost FTP synchronization service or credential store. Paths/usernames may be sensitive metadata, so they remain limited to explicit local navigation surfaces and privacy-safe diagnostics.
 
-## Cross-platform parity
+## Cross-platform bookmark parity
 
-| Capability | Windows | Linux |
-| --- | --- | --- |
-| List bookmarks | Native manager | Native X11 overlay with bounded viewport |
-| Add local bookmark | Yes | Yes |
-| Add remote bookmark | Connected session only | Connected session only |
-| Delete bookmark | Confirmed | Confirmed through destructive-action policy |
-| Open via `NavigateBookmark` | Yes | Yes |
-| Remote account binding | Yes | Yes |
-| Stale-session protection | Engine + connection generation | Engine + serialized action/session behavior |
-| Profile local start requires fresh listing | Yes | Yes |
-| Profile remote start rejects account drift | Yes | Yes |
+| Capability | Windows | Linux | macOS development |
+| --- | --- | --- | --- |
+| List bookmarks | Native manager | Native X11 overlay with bounded viewport | Native AppKit surface |
+| Add local bookmark | Yes | Yes | Shared Engine API |
+| Add remote bookmark | Connected session only | Connected session only | Connected authoritative snapshot only |
+| Delete bookmark | Confirmed | Confirmed through destructive-action policy | Shared Engine removal path |
+| Open via `NavigateBookmark` | Yes | Yes | Yes |
+| Remote account binding | Yes | Yes | Yes, shared Engine |
+| Stale-session protection | Engine + connection generation | Engine + serialized action/session behavior | Shared Engine + bridge snapshot/generation rules |
+
+Windows/Linux remain the public release surfaces for this contract. macOS entries above describe the active native development/source frontend only.
 
 ## Regression coverage
 
@@ -168,10 +174,11 @@ The 0.0.5 contract is protected by:
 - `internal/desktop/profile_start_linux_test.go` and `profile_cycle_linux_test.go` for repaint/account/switching guards;
 - `internal/desktop/bookmark_prompt_linux_test.go` and `bookmark_viewport_linux_test.go` for Linux modal/viewport behavior;
 - desktop tests for shared bookmark wording and Site Manager navigation privacy;
-- `scripts/test_navigation_bookmarks_contract.py` for cross-layer Engine/config/Windows/Linux/documentation invariants.
+- `scripts/test_navigation_bookmarks_contract.py` for cross-layer Engine/config/Windows/Linux/documentation invariants;
+- `macos/PARITY.md` plus the macOS development workflow for the AppKit bookmark source-parity boundary.
 
 ## 0.0.5 release boundary
 
 Root `VERSION` is **0.0.5**. Navigation bookmarks and profile start directories are part of the 0.0.5 source/release contract, but this document never authorizes publication by itself. Publication still requires exact-head CI/native-build/authentic-runtime evidence, review/merge, exact post-merge verification, canonical `ghostftp-v0.0.5` publication/read-back and latest-only retention.
 
-The feature does not change the public platform allow-list: Windows/Linux remain the published release surfaces and Android remains a separately validated development APK.
+The feature does not change the public platform allow-list: Windows/Linux remain the published release surfaces. Android remains a separately validated development APK and macOS remains a separately validated native development/source frontend until an explicit public-release expansion succeeds.
