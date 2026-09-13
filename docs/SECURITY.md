@@ -70,6 +70,8 @@ Transfers are treated as lifecycle operations rather than blind file copies. The
 
 The goal is fail-closed behavior when source/destination identity changes while an operation is in flight. Android staged downloads preserve the same principle: incomplete or cancelled work must not be promoted to the final user-visible object.
 
+Windows Add, Retry and Cancel-selected completion callbacks are all bound to the connection generation that initiated them. A stale cancellation callback from an obsolete connection is rejected rather than being allowed to update the queue/status state of a replacement connection.
+
 ## Process execution boundary
 
 Some FTP/SFTP functionality uses explicitly detected system transfer tools. Process construction, environment handling, tool capability probing and lifecycle are covered by regression tests. Credentials are not intentionally placed into user-visible command output or persisted runtime credential files.
@@ -81,6 +83,31 @@ On Linux, `curl`, `ssh`, `sftp` and `ssh-keyscan` are accepted only through a ro
 Linux OpenSSH AskPass adds a second executable-identity boundary. The Ghost FTP helper path used for password/private-key-passphrase delivery must have the same trusted root-controlled provenance and must identify the same inode as the already-running Ghost FTP image. `/proc/self/exe` is used only inside Ghost FTP as an identity oracle; it is never handed to OpenSSH as `SSH_ASKPASS`.
 
 The immediate AskPass parent must also resolve to a trusted root-controlled `ssh` or `sftp` executable. If the running Ghost FTP path is user-writable, such as a directly extracted Portable/per-user copy, Ghost FTP continues to run but does not construct a credential-bearing AskPass environment. Failure occurs before the AskPass token is generated and before the OpenSSH child is started.
+
+## Windows universal bootstrap boundary
+
+The public Windows release contains only:
+
+```text
+Ghost-FTP-0.0.5-Setup.exe
+Ghost-FTP-0.0.5-Portable.exe
+```
+
+Each public package embeds internal native **x64, x86 and ARM64** payloads. The PE x86 bootstrap determines the native processor through `GetNativeSystemInfo`; environment variables are not the architecture trust source. It reads only the matching embedded payload and does not fetch architecture-specific executable code from the network.
+
+The selected embedded executable is written to a temporary Local AppData path and verified against the embedded byte identity before execution. An empty, oversized, truncated or hash-mismatched staged payload fails closed.
+
+Architecture-specific staging executables are build evidence only and are forbidden from the public release directory. Release metadata records:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 evidence marker is also a security/trust statement: cross-build, PE/resource, embedded-payload and signing verification must not be inflated into a claim that native ARM64 runtime execution occurred when the maintained Windows runner is not ARM64.
 
 ## Saved credential protection
 
@@ -143,6 +170,8 @@ The production/release-validation workflows:
 - disable Go telemetry and external Go module resolution;
 - run race tests, vet and security/privacy/dependency/documentation/release audits;
 - build Windows/Linux public artifacts from exact source;
+- cross-build and verify native Windows x64/x86/ARM64 Setup/Portable staging payloads before universal packaging;
+- reject architecture-specific Windows executables from the public artifact directory;
 - lint/test/build/verify the Android development APK from exact source;
 - build/validate the universal native macOS development app from exact source;
 - run exact-head authentic Windows/Linux/Android UI evidence without allowing the evidence workflow to commit or push into the tested branch;
@@ -152,7 +181,7 @@ The production/release-validation workflows:
 - never generate a self-signed production publisher identity;
 - remove temporary signing material from the runner after signing;
 - assemble only the explicit Windows/Linux public release file set;
-- record `WINDOWS_AUTHENTICODE=signed` in verified public release metadata;
+- record `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64`, `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` and `WINDOWS_AUTHENTICODE=signed` in verified public release metadata;
 - generate SHA-256 checksums;
 - prevent an existing version tag from being rewritten to another commit;
 - verify the published GitHub Release asset set and current `prerelease=false` state;
@@ -185,7 +214,7 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Dedicated tests additionally cover host validation, SFTP fingerprints, private-key handling, FTP/FTPS protocol behavior, connection lifecycle, transfer staging/cleanup, process lifecycle, filesystem hardening, configuration recovery and protected-secret ownership. Exact-head CI separately proves Windows/Linux production builds, Linux distro packaging/install lifecycle, Android APK validation, macOS development-app validation and authentic maintained runtime evidence where defined.
+Dedicated tests additionally cover host validation, SFTP fingerprints, private-key handling, FTP/FTPS protocol behavior, connection lifecycle, transfer staging/cleanup, process lifecycle, filesystem hardening, configuration recovery, protected-secret ownership and the Windows ARM64 universal-package contract. Exact-head CI separately proves Windows/Linux production builds, Linux distro packaging/install lifecycle, Android APK validation, macOS development-app validation and authentic maintained runtime evidence where defined.
 
 ## Reporting a vulnerability
 
