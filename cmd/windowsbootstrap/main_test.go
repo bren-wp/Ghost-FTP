@@ -15,8 +15,9 @@ func TestNormalizedRole(t *testing.T) {
 
 func TestPayloadPathAcceptsOnlySupportedArchitectures(t *testing.T) {
 	for arch, want := range map[string]string{
-		"x86": "payload/x86/GhostFTP.exe",
-		"x64": "payload/x64/GhostFTP.exe",
+		"x86":   "payload/x86/GhostFTP.exe",
+		"x64":   "payload/x64/GhostFTP.exe",
+		"arm64": "payload/arm64/GhostFTP.exe",
 	} {
 		got, err := payloadPath(arch)
 		if err != nil {
@@ -26,7 +27,7 @@ func TestPayloadPathAcceptsOnlySupportedArchitectures(t *testing.T) {
 			t.Fatalf("arch %q path=%q want=%q", arch, got, want)
 		}
 	}
-	if _, err := payloadPath("arm64"); err == nil {
+	if _, err := payloadPath("mips64"); err == nil {
 		t.Fatal("expected unsupported architecture to be rejected")
 	}
 }
