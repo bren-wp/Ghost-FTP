@@ -18,7 +18,12 @@ type linuxFileFilterState struct {
 	remoteQuery string
 }
 
+type linuxModalFocusState struct {
+	focus int
+}
+
 var linuxFileFilters sync.Map
+var linuxModalFocus sync.Map
 
 func (u *linuxDesktop) fileFilterState() *linuxFileFilterState {
 	if u == nil {
@@ -82,6 +87,70 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 	return fmt.Sprintf("%s  ·  %d/%d", words.Cue, visible, total)
 }
 
+func (u *linuxDesktop) parkLinuxModalBackgroundFocus() bool {
+	if u.focus < 0 || u.focus >= linuxFieldCount {
+		return false
+	}
+	linuxModalFocus.LoadOrStore(u, linuxModalFocusState{focus: u.focus})
+	u.focus = linuxFieldCount
+	return true
+}
+
+func (u *linuxDesktop) isolateLinuxModalBackgroundHitTargets() {
+	// Recursive search and directory comparison deliberately replace normal
+	// directory rows with modal result snapshots. Editable fields are checked
+	// before modal workspace handlers, so their hit targets must be removed after
+	// those fields have been painted for the current frame.
+	u.layout.protocol = linuxRect{}
+	u.layout.host = linuxRect{}
+	u.layout.port = linuxRect{}
+	u.layout.user = linuxRect{}
+	u.layout.password = linuxRect{}
+	u.layout.key = linuxRect{}
+	u.layout.passphrase = linuxRect{}
+	u.layout.localPath = linuxRect{}
+	u.layout.remotePath = linuxRect{}
+}
+
+func (u *linuxDesktop) restoreLinuxModalBackgroundFocus() bool {
+	value, ok := linuxModalFocus.LoadAndDelete(u)
+	if !ok || u.focus != linuxFieldCount {
+		return false
+	}
+	state, ok := value.(linuxModalFocusState)
+	if !ok || state.focus < 0 || state.focus >= linuxFieldCount {
+		return false
+	}
+	u.focus = state.focus
+	return true
+}
+
+func (u *linuxDesktop) redrawLinuxEditableFields() error {
+	// Modal focus is parked/restored after the ordinary field paint has already
+	// occurred. Repaint only editable fields immediately so the visible focus
+	// border always matches the keyboard owner in the same X11 frame.
+	fields := []struct {
+		index int
+		hint  string
+	}{
+		{linuxFieldProtocol, u.tr("terminal.protocol")},
+		{linuxFieldHost, u.tr("terminal.server")},
+		{linuxFieldPort, u.tr("terminal.port")},
+		{linuxFieldUser, u.tr("terminal.username")},
+		{linuxFieldPassword, u.tr("terminal.password")},
+		{linuxFieldKey, u.tr("cue.private_key")},
+		{linuxFieldPassphrase, u.tr("cue.passphrase")},
+		{linuxFieldLocalPath, u.tr("column.local")},
+		{linuxFieldRemotePath, u.tr("column.remote")},
+	}
+	for _, field := range fields {
+		if err := u.drawField(field.index, field.hint); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (u *linuxDesktop) renderFileFilterControls() error {
 	// Bookmarks are application-level navigation, so keep their header entry
 	// visible even when recursive search or directory comparison temporarily owns
@@ -94,7 +163,21 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 	// goroutine before ordinary row-indexed controls are painted.
 	u.reconcileRecursiveSearchState()
 	u.reconcileDirectoryComparisonLinux()
-	if u.directoryComparisonActiveLinux() {
+	comparisonActive := u.directoryComparisonActiveLinux()
+	searchActive := u.recursiveSearchActive(false) || u.recursiveSearchActive(true)
+	if comparisonActive || searchActive {
+		if u.parkLinuxModalBackgroundFocus() {
+			if err := u.redrawLinuxEditableFields(); err != nil {
+				return err
+			}
+		}
+		u.isolateLinuxModalBackgroundHitTargets()
+	} else if u.restoreLinuxModalBackgroundFocus() {
+		if err := u.redrawLinuxEditableFields(); err != nil {
+			return err
+		}
+	}
+	if comparisonActive {
 		return u.renderDirectoryComparisonControlsLinux()
 	}
 	for _, remote := range []bool{false, true} {
