@@ -13,6 +13,10 @@ import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +34,7 @@ final class FtpSession implements Closeable {
     private static final int MAX_REPLY_CHARS = 256 * 1024;
     private static final int MAX_MLSD_LINE_CHARS = 16 * 1024;
     private static final int MAX_DIRECTORY_ENTRIES = 10000;
+    private static final DateTimeFormatter MLSD_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT);
 
     private final String host;
     private final int port;
@@ -482,7 +487,7 @@ final class FtpSession implements Closeable {
         return new Reply(code, message.toString());
     }
 
-    private static RemoteEntry parseMlsd(String line) {
+    static RemoteEntry parseMlsd(String line) {
         int split = line.indexOf(' ');
         if (split <= 0 || split + 1 >= line.length()) {
             return null;
@@ -494,6 +499,8 @@ final class FtpSession implements Closeable {
         }
         boolean directory = facts.contains("type=dir");
         long size = 0L;
+        long modified = 0L;
+        String permissions = "";
         for (String fact : facts.split(";")) {
             if (fact.startsWith("size=")) {
                 try {
@@ -501,9 +508,27 @@ final class FtpSession implements Closeable {
                 } catch (NumberFormatException ignored) {
                     size = 0L;
                 }
+            } else if (fact.startsWith("modify=")) {
+                modified = parseMlsdTimestamp(fact.substring(7));
+            } else if (fact.startsWith("unix.mode=")) {
+                permissions = fact.substring(10).trim();
             }
         }
-        return new RemoteEntry(name, directory, size);
+        return new RemoteEntry(name, directory, size, modified, permissions);
+    }
+
+    static long parseMlsdTimestamp(String value) {
+        String text = value == null ? "" : value.trim();
+        if (text.length() < 14) return 0L;
+        String seconds = text.substring(0, 14);
+        for (int i = 0; i < seconds.length(); i++) {
+            if (seconds.charAt(i) < '0' || seconds.charAt(i) > '9') return 0L;
+        }
+        try {
+            return LocalDateTime.parse(seconds, MLSD_TIMESTAMP).toInstant(ZoneOffset.UTC).toEpochMilli();
+        } catch (DateTimeParseException e) {
+            return 0L;
+        }
     }
 
     static int parseEpsvPort(String message) throws IOException {
