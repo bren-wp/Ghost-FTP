@@ -47,11 +47,15 @@ python -m unittest discover -s scripts -p 'test_*.py'
 
 Run affected native platform gates as well. A change that touches Android or macOS source/build behavior must pass the corresponding maintained native workflow; development build success must not be represented as public signing/notarization evidence.
 
+A Windows packaging/architecture change must preserve the `scripts/test_windows_arm64_universal_contract.py` contract and the real Windows production build. Current Windows architecture support is an internal native **x64, x86 and ARM64** payload set inside the same two public Setup/Portable executables.
+
 ## Connection/protocol changes
 
 Connection changes must preserve explicit protocol identity. The fresh quick-connect policy is explicit FTPS/21 on maintained desktop paths; plain FTP remains an explicit legacy compatibility choice and must never become an automatic fallback from failed FTPS.
 
 Changes to connection establishment should exercise the shared connection lifecycle and include failure-state coverage so invalid login, cancellation or failed secure handshake cannot expose an operational connected state. Android FTP/FTPS changes must also preserve Activity ownership and authentication-error redaction.
+
+Windows asynchronous transfer actions that publish UI completion must remain tied to the connection generation that initiated them. Add, Retry and Cancel-selected completion cannot be allowed to mutate a replacement session after disconnect/reconnect.
 
 ## Security/privacy requirements
 
@@ -75,17 +79,32 @@ Only the **About** surface may expose author/publisher identity. Main workspace,
 
 When a maintained UI change affects documented appearance or behavior, use real runtime evidence from the applicable native workflow. Mockups, generated approximations and screenshots from a different source revision are not release evidence.
 
-The current immutable cross-platform UI evidence bundle covers maintained Windows/Linux/Android runtime surfaces. macOS has a separate native development build/validation path; do not reinterpret that as Developer ID/notarized public-distribution evidence.
+The current immutable cross-platform UI evidence bundle covers maintained Windows/Linux/Android runtime surfaces. The Windows runtime capture represents the maintained Windows runner architecture and must not be relabeled as native ARM64 evidence. Native ARM64 execution may be claimed only after a maintained Windows ARM64 runner/device provides that evidence. macOS has a separate native development build/validation path; do not reinterpret that as Developer ID/notarized public-distribution evidence.
 
 ## Documentation changes
 
 Update active documentation when user-visible behavior, package names, platform status, security/privacy boundaries or release behavior changes. Commit history remains engineering provenance, while active public release documentation follows the current latest-only release policy. All local links and release-policy contracts must pass `scripts/audit_docs.py`.
+
+For the current Windows package contract, active release documentation must remain aligned on:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+WINDOWS_AUTHENTICODE=signed
+```
 
 ## Release changes
 
 Changes to release workflow, packaging or signing must preserve fail-closed behavior:
 
 - official public Windows Setup and Portable require trusted Authenticode and `WINDOWS_AUTHENTICODE=signed`;
+- the public Windows file surface remains exactly two executables while native x64/x86/ARM64 staging executables stay internal;
+- no public `-x64.exe`, `-x86.exe`, `-x32.exe` or `-arm64.exe` alias may leak into the release;
+- the public x86 bootstrap must continue selecting native architecture with `GetNativeSystemInfo`, verifying staged bytes and avoiding runtime payload downloads;
+- `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` remains required until real maintained native ARM64 runtime evidence exists;
 - local/development or ordinary CI Windows outputs may be unsigned but must not be represented as official public release artifacts;
 - no generated/self-signed identity represented as a trusted production publisher;
 - exact `main` commit binding;

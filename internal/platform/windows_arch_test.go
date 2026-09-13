@@ -9,6 +9,7 @@ func TestWindowsArchitectureFromProcessor(t *testing.T) {
 	}{
 		{windowsProcessorArchitectureIntel, "x86"},
 		{windowsProcessorArchitectureAMD64, "x64"},
+		{windowsProcessorArchitectureARM64, "arm64"},
 	} {
 		got, err := windowsArchitectureFromProcessor(tc.code)
 		if err != nil {
@@ -21,7 +22,7 @@ func TestWindowsArchitectureFromProcessor(t *testing.T) {
 }
 
 func TestWindowsArchitectureFromProcessorRejectsUnsupported(t *testing.T) {
-	if _, err := windowsArchitectureFromProcessor(12); err == nil {
-		t.Fatal("expected ARM64/unsupported architecture to be rejected")
+	if _, err := windowsArchitectureFromProcessor(0xffff); err == nil {
+		t.Fatal("expected unsupported architecture to be rejected")
 	}
 }

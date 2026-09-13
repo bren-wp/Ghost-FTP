@@ -96,10 +96,10 @@ def main() -> int:
         "bash linux/BUILD-DISTROS.sh",
         'cmp "$work/${distro,,}/usr/bin/ghostftp" "$portable_root/ghostftp"',
         'cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"',
-        "WINDOWS_SETUP=universal-x86-x64",
-        "WINDOWS_PORTABLE=universal-x86-x64",
+        "WINDOWS_SETUP=universal-x86-x64-arm64",
+        "WINDOWS_PORTABLE=universal-x86-x64-arm64",
         "WINDOWS_BOOTSTRAP_PE=x86",
-        "WINDOWS_NATIVE_PAYLOADS=x64,x86",
+        "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
         "LINUX_DEBIAN_DEB=amd64,arm64,i386",
         "LINUX_UBUNTU_DEB=amd64,arm64,i386",
         "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
@@ -126,9 +126,11 @@ def main() -> int:
         "linux-i386.deb",
         "portable-x64.exe",
         "portable-x86.exe",
+        "portable-arm64.exe",
         "setup-x64.exe",
         "setup-x86.exe",
         "setup-x32.exe",
+        "setup-arm64.exe",
         "state=unsigned",
         "publishing current release with explicitly unsigned windows artifacts",
     ):
@@ -212,13 +214,26 @@ def main() -> int:
         '"Ghost-FTP-$version-Setup.exe"',
         "scripts/verify_release.py",
         "'--arch','universal'",
+        "WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64_ARM64",
+        "WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64_ARM64",
+        "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
         "WINDOWS_PUBLIC_EXECUTABLES=2",
     )
     require(
         "scripts/verify_release.py",
         'PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"',
+        "ARM64 = 0xAA64",
+        '"arm64": {"machine": ARM64',
         "public Windows release artifacts must be Authenticode signed",
         "require_public_release_signatures(ssigned, psigned)",
+        'print("WINDOWS_ARCH=universal-x86-x64-arm64")',
+        'print("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64")',
+    )
+    require(
+        "scripts/pe_resources.py",
+        "ARM64 = 0xAA64",
+        'processor_architecture not in {"amd64", "x86", "arm64"}',
+        'machine == ARM64 and magic == 0x20B',
     )
     require(
         "BUILD-WINDOWS-ARCH-STAGE.ps1",
@@ -231,10 +246,13 @@ def main() -> int:
         "./cmd/installer",
         "scripts/make_payload.py",
         "scripts/verify_release.py",
+        "Build-GhostFTPArchitecture -GoArch 'arm64' -Label 'arm64'",
+        "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
     )
     require(
         "cmd/windowsbootstrap/main.go",
         "platform.NativeWindowsArchitecture()",
+        'case "x86", "x64", "arm64":',
         'return "payload/" + arch + "/GhostFTP.exe", nil',
         "os.CreateTemp(localAppData",
         "verifyStaged(path, data)",
@@ -245,6 +263,11 @@ def main() -> int:
         "internal/platform/windows_arch_windows.go",
         'NewProc("GetNativeSystemInfo")',
         "windowsArchitectureFromProcessor(info.ProcessorArchitecture)",
+    )
+    require(
+        "internal/platform/windows_arch.go",
+        "windowsProcessorArchitectureARM64 = 12",
+        'return "arm64", nil',
     )
     require(
         "cmd/installer/main.go",
@@ -282,9 +305,6 @@ def main() -> int:
         "latest",
     )
 
-    # macOS is an active development source platform but is deliberately not
-    # part of this Windows/Linux public release contract yet. The workflow
-    # checks above fail closed on any macOS path, runner or artifact leakage.
     for required_macos in (
         "macos/README.md",
         "macos/PARITY.md",
@@ -323,9 +343,11 @@ def main() -> int:
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=14")
     print("PUBLIC_RELEASE_FILES=17")
-    print("WINDOWS_SETUP=UNIVERSAL_X86_X64")
-    print("WINDOWS_PORTABLE=UNIVERSAL_X86_X64")
-    print("WINDOWS_NATIVE_PAYLOADS=x64,x86")
+    print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")
+    print("WINDOWS_PORTABLE=UNIVERSAL_X86_X64_ARM64")
+    print("WINDOWS_BOOTSTRAP_PE=x86")
+    print("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64")
+    print("WINDOWS_ARM64_RUNTIME_EVIDENCE=NOT_NATIVE_CI")
     print("LINUX_DEBIAN_DEB=amd64,arm64,i386")
     print("LINUX_UBUNTU_DEB=amd64,arm64,i386")
     print("LINUX_FEDORA_RPM=x86_64,aarch64,i686")

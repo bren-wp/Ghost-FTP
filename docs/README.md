@@ -13,6 +13,7 @@
 - Public version retention: **latest release only**
 - Public release platforms: **Windows and Linux**
 - Active native source platforms: **Windows, Linux, Android and macOS**
+- Windows native payloads: **x64, x86 and ARM64 inside the same two public universal executables**
 - Desktop protocols: **FTP, FTPS and SFTP**
 - Android protocols: **FTP and strict explicit FTPS**; SFTP remains hidden until strict native host-key verification exists
 - Desktop languages: **24 selectable local languages**
@@ -27,7 +28,7 @@ The root [`VERSION`](../VERSION) file is the authoritative production version so
 Ghost FTP documentation follows four rules:
 
 1. **Current behavior first.** Active documents describe the maintained source and current release contract, not superseded packaging assumptions.
-2. **No invented platform status.** Windows/Linux are public release platforms; Android/macOS are active native source/development platforms with separate evidence boundaries.
+2. **No invented platform status.** Windows/Linux are public release platforms; Android/macOS are active native source/development platforms with separate evidence boundaries. Windows ARM64 is a maintained cross-built native payload, but native ARM64 runtime execution is not claimed without ARM64 runner evidence.
 3. **Security claims are fail-closed.** Official Windows publication requires trusted Authenticode; development builds may be unsigned but are not official release evidence.
 4. **Visual claims use real evidence.** Documentation media is repository-local and maintained runtime screenshots come from actual application surfaces, not generated mockups.
 
@@ -56,7 +57,7 @@ Ghost FTP documentation follows four rules:
 
 Documentation media is **repository-local**. No remote badge image, tracking pixel, remote icon resource, remote webfont or analytics resource is required when these documents render.
 
-Exact-head CI captures real native runtime evidence for Windows, Linux and Android and assembles a read-only verified cross-platform evidence bundle. macOS has its own native development-app validation workflow. A development macOS build is not represented as Developer ID/notarized public-distribution evidence.
+Exact-head CI captures real native runtime evidence for Windows, Linux and Android and assembles a read-only verified cross-platform evidence bundle. The Windows evidence reflects the maintained Windows runner architecture; it is not silently relabeled as native ARM64 runtime proof. macOS has its own native development-app validation workflow. A development macOS build is not represented as Developer ID/notarized public-distribution evidence.
 
 <table>
 <tr>
@@ -77,10 +78,12 @@ Ghost FTP 0.0.5 retains the complete maintained desktop feature line and adds li
 
 - FTP, explicit FTPS and SFTP through one typed shared desktop engine.
 - Native Windows and Linux public-release frontends consuming the same typed engine behavior.
+- Windows public Setup/Portable packages with native **x64, x86 and ARM64** payloads selected by `GetNativeSystemInfo` and no runtime download.
 - Native macOS AppKit development frontend using the shared engine and complete maintained parity inventory.
 - Native Android development client with FTP + strict explicit FTPS, SAF-scoped storage and lifecycle-owned sessions.
 - Built-in Remote Edit with bounded text validation, revision/conflict protection and verified read-back.
 - Transfer queue pause/resume/cancel/retry/clear plus queued Top/Up/Down/Bottom ordering.
+- Windows transfer Add/Retry/Cancel completion ownership bound to the active connection generation.
 - Independent aggregate upload/download bandwidth ceilings with real transport enforcement.
 - Current-folder filtering, deterministic sorting, bounded recursive search and conservative directory comparison.
 - Local/server bookmarks and profile start directories with account/session revalidation.
@@ -112,8 +115,15 @@ Ghost-FTP-0.0.5-Portable.exe
 Official Windows publication requires trusted Authenticode and records:
 
 ```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
+
+Architecture-specific Windows binaries are internal only. No public `-x64.exe`, `-x86.exe`, `-x32.exe` or `-arm64.exe` is added to the release. `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` states that ARM64 is cross-built and verified but not natively executed by the current maintained Windows Actions runner.
 
 Local development and ordinary CI Windows builds may remain unsigned, but they are not official public release artifacts.
 
@@ -161,7 +171,7 @@ This is a distribution bundle, not a runtime container.
 
 ### Product and architecture
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — components, ownership and trust boundaries.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — components, ownership, Windows architecture dispatch and trust boundaries.
 - [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) — Windows/Linux public parity plus Android/macOS development boundaries.
 - [`REFERENCE-UI.md`](REFERENCE-UI.md) — native UI and authentic evidence contract.
 - [`SETTINGS.md`](SETTINGS.md) — validated settings and persistence behavior.
@@ -179,15 +189,15 @@ This is a distribution bundle, not a runtime container.
 
 ### Distribution and release verification
 
-- [`INSTALLATION.md`](INSTALLATION.md) — Windows/Linux installation plus Android/macOS development boundaries.
+- [`INSTALLATION.md`](INSTALLATION.md) — Windows universal x64/x86/ARM64 installation plus Linux and development-platform boundaries.
 - [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) — canonical release shape and deterministic retention lifecycle.
 - [`PACKAGES.md`](PACKAGES.md) — verified GitHub Packages distribution-bundle policy.
-- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity and signing verification.
+- [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) — checksums, source identity, Windows ARM64 evidence boundary and signing verification.
 - [`VERSIONING.md`](VERSIONING.md) — controlled current public version policy.
 
 ### Engineering
 
-- [`TESTING.md`](TESTING.md) — exact-head CI, Android APK, macOS development app, authentic UI and release gates.
+- [`TESTING.md`](TESTING.md) — exact-head CI, Windows x64/x86/ARM64 package gates, Android APK, macOS development app, authentic UI and release gates.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — engineering rules and PR expectations.
 - [`ROADMAP.md`](ROADMAP.md) — current capability direction and acceptance criteria.
 - [`SUPPORT.md`](SUPPORT.md) — support and privacy-safe diagnostic guidance.

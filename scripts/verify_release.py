@@ -10,12 +10,14 @@ from pathlib import Path
 
 I386 = 0x014C
 AMD64 = 0x8664
+ARM64 = 0xAA64
 GUI_SUBSYSTEM = 2
 PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"
 
 ARCH_SPECS = {
     "x86": {"machine": I386, "magic": 0x10B, "pe": "PE32", "data_dir": 96},
     "x64": {"machine": AMD64, "magic": 0x20B, "pe": "PE32+", "data_dir": 112},
+    "arm64": {"machine": ARM64, "magic": 0x20B, "pe": "PE32+", "data_dir": 112},
 }
 
 TELEMETRY_MARKERS = [
@@ -29,7 +31,7 @@ PUBLIC_WINDOWS_EXECUTABLE_RE = re.compile(
     re.IGNORECASE,
 )
 STAGING_WINDOWS_EXECUTABLE_RE = re.compile(
-    r"^Ghost-FTP-\d+\.\d+\.\d+-(?:Setup|Portable)-(?:x64|x86)\.exe$",
+    r"^Ghost-FTP-\d+\.\d+\.\d+-(?:Setup|Portable)-(?:x64|x86|arm64)\.exe$",
     re.IGNORECASE,
 )
 
@@ -45,8 +47,9 @@ def assert_windows_artifact_directory_clean(artifact_dir: Path, *, allow_arch_st
     """Reject unexpected Windows executables in public or internal artifact directories.
 
     Public output is intentionally only one Setup.exe and one Portable.exe. The
-    architecture-specific x64/x86 files are accepted only inside an explicitly
-    requested internal staging verification pass and must never leak publicly.
+    architecture-specific x64/x86/arm64 files are accepted only inside an
+    explicitly requested internal staging verification pass and must never leak
+    publicly.
     """
     if not artifact_dir.is_dir():
         raise ValueError(f"Windows artifact directory is unavailable: {artifact_dir}")
@@ -97,7 +100,7 @@ def read_pe(path: Path, expected_arch: str | None = None):
         "NX_COMPAT": 0x100,
         "TERMINAL_SERVER_AWARE": 0x8000,
     }
-    if arch == "x64":
+    if arch in {"x64", "arm64"}:
         required_mitigations["HIGH_ENTROPY_VA"] = 0x20
     missing = [name for name, flag in required_mitigations.items() if not (dll_characteristics & flag)]
     if missing:
@@ -138,7 +141,7 @@ def read_pe(path: Path, expected_arch: str | None = None):
 
     if b'requestedExecutionLevel level="asInvoker"' not in data:
         raise ValueError(f"{path.name}: asInvoker manifest missing")
-    manifest_arch = "amd64" if arch == "x64" else "x86"
+    manifest_arch = {"x64": "amd64", "x86": "x86", "arm64": "arm64"}[arch]
     if f'processorArchitecture="{manifest_arch}"'.encode("ascii") not in data:
         raise ValueError(f"{path.name}: manifest architecture is not {manifest_arch}")
     if b"Ghost FTP file transfer client" not in data:
@@ -170,7 +173,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("setup", type=Path)
     ap.add_argument("portable", type=Path)
-    ap.add_argument("--arch", choices=("x64", "x86", "universal"), default=None)
+    ap.add_argument("--arch", choices=("x64", "x86", "arm64", "universal"), default=None)
     args = ap.parse_args()
 
     setup_parent = args.setup.resolve().parent
@@ -179,7 +182,7 @@ def main() -> None:
         raise SystemExit("Setup and Portable must come from the same Windows artifact directory")
 
     universal = args.arch == "universal"
-    staging = args.arch in {"x64", "x86"}
+    staging = args.arch in {"x64", "x86", "arm64"}
     assert_windows_artifact_directory_clean(setup_parent, allow_arch_staging=staging)
 
     expected_pe_arch = "x86" if universal else args.arch
@@ -202,9 +205,9 @@ def main() -> None:
     print("WINDOWS_EXECUTABLE_ARTIFACT_SET=CANONICAL")
     print("UNINSTALLER_BINARY=ABSENT")
     if universal:
-        print("WINDOWS_ARCH=universal-x86-x64")
+        print("WINDOWS_ARCH=universal-x86-x64-arm64")
         print("WINDOWS_BOOTSTRAP_PE=x86")
-        print("WINDOWS_NATIVE_PAYLOADS=x64,x86")
+        print("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64")
         print("WINDOWS_NATIVE_ARCH_SELECTION=GET_NATIVE_SYSTEM_INFO")
     else:
         print(f"WINDOWS_ARCH={arch}")

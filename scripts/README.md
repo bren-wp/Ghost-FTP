@@ -32,13 +32,16 @@ Keeping GitHub Release and GHCR publication in the canonical release lifecycle p
 
 - `release_notes.py` — generates release notes from the matching `CHANGELOG.md` section.
 - `make_payload.py` — creates the verified Windows Setup payload.
-- `verify_release.py` / `verify_bundle.py` — verify public release/bundle structure, identity and integrity.
+- `pe_resources.py` — writes deterministic Windows icon, VERSIONINFO and manifest resources for x86, x64 and ARM64 PE files.
+- `verify_release.py` / `verify_bundle.py` — verify public release/bundle structure, identity and integrity; Windows staging verification includes native x86/x64/ARM64 PE contracts.
+- `test_windows_installer_artifact_contract.py` — keeps architecture-specific Windows executables internal and the public Windows surface at two files.
+- `test_windows_arm64_universal_contract.py` — binds Windows ARM64 detection, PE tooling, native staging, universal packaging, release metadata and active docs to one regression contract.
 - `audit_brand_hardcut.py` — enforces the Ghost FTP public product identity boundary.
 - `audit_repository.py` — rejects repository layout, generated-artifact, private-key and current-release drift.
 - `audit_platform_contract.py` — enforces the current public Windows/Linux release boundary while allowing active Android/macOS source surfaces.
 - `audit_desktop_surface.py` — validates maintained native desktop/source platform contracts.
 - `audit_dependencies.py` — rejects unexpected dependency and tracking/analytics SDK drift.
-- `audit_version.py` — validates root version, release identity, platform binding and signing contract.
+- `audit_version.py` — validates root version, release identity, Windows x64/x86/ARM64 packaging metadata, platform binding and signing contract.
 - `audit_localization.py` — validates the maintained 24-language desktop catalog and release identity.
 - `audit_security.py` — security-policy and fail-closed behavior checks.
 - `audit_privacy.py` — telemetry, secret-retention and diagnostic-privacy checks.
@@ -96,11 +99,34 @@ Maintained production workflows:
 - run security/privacy/version/documentation/release audits before public publication;
 - generate final SHA-256 metadata only from finalized artifact bytes.
 
+## Windows universal architecture invariant
+
+The user-facing Windows release remains exactly:
+
+```text
+Ghost-FTP-0.0.5-Setup.exe
+Ghost-FTP-0.0.5-Portable.exe
+```
+
+`BUILD-WINDOWS-ARCH-STAGE.ps1` builds internal native Setup/Portable pairs for **x64, x86 and ARM64**. `BUILD-WINDOWS.ps1` embeds those verified payload families into the same two public PE x86 bootstraps. `GetNativeSystemInfo` selects the actual native architecture and the staged executable is byte-verified before execution; there is no runtime architecture download.
+
+The release metadata contract is:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+Architecture-specific `*-x64.exe`, `*-x86.exe`, `*-x32.exe` or `*-arm64.exe` files are internal evidence only and are rejected from the public Windows artifact directory. ARM64 cross-build/PE/package/signing verification is maintained, but native ARM64 execution must not be claimed until a maintained Windows ARM64 runner/device supplies that evidence.
+
 ## Windows Authenticode invariant
 
 Official Windows publication is **signed-only**.
 
-The canonical `Publish Ghost FTP` workflow requires the protected production Authenticode identity, signs the finalized public Setup and Portable executables, verifies each final file with the Windows Authenticode API and accepts only:
+The canonical `Publish Ghost FTP` workflow requires the protected production Authenticode identity, signs the finalized native staging payloads when production signing is configured, signs the finalized public Setup and Portable executables, verifies each final public file with the Windows Authenticode API and accepts only:
 
 ```text
 WINDOWS_AUTHENTICODE=signed
@@ -164,7 +190,9 @@ The maintained release lifecycle verifies, as applicable:
 - repository/platform/dependency/version/localization contracts;
 - security, privacy, documentation and release audits;
 - the complete Python regression suite;
-- Windows universal Setup and Portable construction;
+- Windows native x64/x86/ARM64 staging, PE resources, architecture dispatch and universal Setup/Portable construction;
+- public Windows architecture-specific leakage rejection;
+- the explicit `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` evidence boundary;
 - trusted Authenticode on both official public Windows executables;
 - canonical Linux Debian/Ubuntu/Fedora/Portable build, metadata, extraction and binary parity;
 - the exact **14 platform artifacts / 17 public files** allow-list;

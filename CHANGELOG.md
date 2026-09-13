@@ -9,6 +9,14 @@
 - Added local and remote file-mutation guards around create-directory, rename, delete and remote permission changes. Conflicting mutation controls are disabled only for the relevant side while unrelated navigation/transfer work keeps its existing availability policy.
 - Preserved code-level guards behind UI enablement so stale command delivery cannot bypass the mutation state.
 - Kept Remote Edit session work serialized across open/save/reload/close cycles so one editor session cannot be re-entered into a parallel stale session while asynchronous work is completing.
+- Bound Windows transfer cancellation completion to the connection generation that initiated it, matching Add/Retry ownership and preventing a stale Cancel callback from updating the queue/status surface after disconnect/reconnect.
+
+### Windows universal ARM64 packaging
+
+- Extended native Windows architecture detection to `PROCESSOR_ARCHITECTURE_ARM64` while retaining x86 and x64 support through the same `GetNativeSystemInfo` path.
+- Added native ARM64 Setup and Portable staging builds with ARM64 PE32+ resources/manifests, release-verifier coverage and the same optional local/mandatory production Authenticode pipeline used for x64/x86.
+- Embedded x64, x86 and ARM64 native payloads in the same two public `Ghost-FTP-0.0.5-Setup.exe` and `Ghost-FTP-0.0.5-Portable.exe` files; no public `*-arm64.exe` alias and no runtime architecture download are introduced.
+- Kept the public release shape unchanged at **14 platform artifacts / 17 public files** and added `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` so cross-build/structural verification is not misrepresented as native ARM64 runtime execution.
 
 ### Android lifecycle stability
 
@@ -29,6 +37,7 @@
 - Rewrote the main README around user value and clear download/security/privacy positioning while keeping every public feature claim bound to implemented and tested behavior.
 - Corrected `scripts/release_notes.py` so generated release notes match the actual canonical distribution: two universal Windows executables plus twelve Debian/Ubuntu/Fedora/Portable Linux artifacts, for **14 platform artifacts / 17 public files**.
 - Added a regression contract that rejects the retired architecture-specific Windows filenames, old generic Linux/multiarch release names and obsolete 12/15 release counts from generated current release notes.
+- Added an ARM64 universal-package regression contract that ties native architecture detection, PE verification, build staging, the two-file public Windows allow-list and active release documentation to the same x64/x86/ARM64 package metadata.
 - Preserved fresh release builds, exact asset read-back, GHCR distribution-bundle verification and latest-only release/tag/branch/package retention.
 
 ### Security and privacy

@@ -138,11 +138,13 @@ Localization is local; Ghost FTP does not need an online translation service to 
 
 | Platform | Status | Current contract |
 | --- | --- | --- |
-| **🪟 Windows** | **Public release** | Universal Setup + Portable; internal x64/x86 payload validation; official publication requires trusted Authenticode. |
+| **🪟 Windows** | **Public release** | Universal Setup + Portable with internal native **x64, x86 and ARM64** payloads selected through `GetNativeSystemInfo`; official publication requires trusted Authenticode. |
 | **🐧 Linux** | **Public release** | Debian, Ubuntu, Fedora and Portable families across the canonical architecture set. |
 | **🤖 Android** | Active development | Installable development/debug-signed APK; FTP + strict explicit FTPS; SAF-scoped local files; SFTP hidden until verified native host-key identity exists. |
 | **🍎 macOS** | Active development | Native AppKit frontend using the shared `internal/api.Engine`; universal development app; separate fail-closed Developer ID/notarization path. |
 | **🌐 Browser helper** | Source companion | Manifest V3 local parser/copy helper; no network/storage permissions and no supported browser-to-desktop launch/handoff today. |
+
+The two public Windows executables do not multiply by CPU architecture. Architecture-specific Windows executables remain internal build evidence. Current CI cross-builds and structurally verifies the native ARM64 payload, PE resources, bootstrap routing and signing pipeline; the repository does **not** claim a native Windows ARM64 runtime execution test because its maintained Windows CI runner is not ARM64.
 
 Android, macOS and browser-helper source are **not** silently counted in the current Windows/Linux **14 platform artifacts / 17 public files** release allow-list.
 
@@ -150,7 +152,8 @@ Android, macOS and browser-helper source are **not** silently counted in the cur
 
 Version 0.0.5 focuses on lifecycle correctness, privacy hardening and distribution truthfulness while retaining the established desktop feature set.
 
-- **Windows lifecycle hardening** — profile persistence, file mutations and Remote Edit reject duplicate/re-entrant operations and preserve bounded modal lifecycle behavior.
+- **Windows lifecycle hardening** — profile persistence, file mutations, Remote Edit and transfer-cancellation callbacks are session/lifecycle-bound so stale asynchronous work cannot mutate a replacement session.
+- **Windows ARM64 packaging** — the same two public Setup/Portable files contain verified native x64, x86 and ARM64 payloads with native architecture selection and no runtime download.
 - **Android lifecycle ownership** — pending FTP/FTPS connections belong to the current Activity and stale callbacks cannot revive obsolete UI/session state.
 - **Android auth privacy** — failed authentication discards raw server-controlled replies before user-facing errors are created.
 - **macOS native parity** — the AppKit frontend is wired to the shared engine and the maintained action inventory is complete for development validation.
@@ -168,11 +171,20 @@ Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
+These are the only public Windows executables. Each package embeds verified native **x64, x86 and ARM64** application payloads and selects the native payload from Windows system architecture information. The bootstrap performs no runtime package download.
+
 Official Windows publication is signed-only and records:
 
 ```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
+
+`WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` is deliberate: ARM64 is cross-built and verified by the release pipeline, but native Windows ARM64 runtime execution is not claimed without an ARM64 runner/device.
 
 Local development and ordinary CI Windows builds may remain unsigned, but those outputs are not official public release artifacts.
 
@@ -240,7 +252,7 @@ PUBLIC_PLATFORM_ARTIFACTS=14
 PUBLIC_RELEASE_FILES=17
 ```
 
-Every public release includes `SHA256.txt`. `BUILD-METADATA.txt` binds the release version, tag, exact source commit, public platform set, Windows signing state and release shape to the verified assembly.
+Every public release includes `SHA256.txt`. `BUILD-METADATA.txt` binds the release version, tag, exact source commit, public platform set, Windows native-payload set, ARM64 evidence boundary, Windows signing state and release shape to the verified assembly.
 
 For official Windows Setup and Portable, verify both SHA-256 and trusted Authenticode. A missing or invalid Windows signature is a release-integrity failure under the current public contract.
 
@@ -275,7 +287,7 @@ python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-Native/package gates additionally validate Windows, canonical Linux distro packages, the Android development APK, the universal macOS development app and authentic runtime UI evidence where that evidence workflow applies.
+Native/package gates additionally validate Windows, canonical Linux distro packages, the Android development APK, the universal macOS development app and authentic runtime UI evidence where that evidence workflow applies. Windows CI verifies x64/x86/ARM64 native payload construction and package routing, while native Windows ARM64 execution remains an explicitly unclaimed evidence class until a maintained ARM64 runner is available.
 
 A PR is merge-ready only when required workflows for its **exact final head** are successful. Release work then requires successful required post-merge `main` checks on the exact merge SHA.
 

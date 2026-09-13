@@ -28,6 +28,8 @@ Ghost FTP ships one **24-language** local registry with English default/fallback
 
 Both platforms route transfers through the same manager and remote abstraction: pause/resume/cancel/retry/clear lifecycle, queued **Top / Up / Down / Bottom** ordering, connection-generation binding, truthful progress/speed/ETA, retry classification, path confinement and staged transfer commit/rollback semantics.
 
+Windows Add, Retry and Cancel-selected async transfer callbacks are all bound to the active `connectionGeneration`, so completion from an obsolete server session cannot publish status/queue changes into a replacement session.
+
 Bandwidth ceilings are independent aggregate directional budgets. FTP/FTPS use curl `limit-rate`; SFTP uses OpenSSH `sftp -l` with conservative unit conversion.
 
 Both frontends expose local/remote panes, refresh/navigation, create/rename/delete, upload/download, shared sorting, current-folder filtering, bounded recursive search, conservative directory comparison and synchronized navigation for safely proven paired ordinary directories.
@@ -50,13 +52,18 @@ Both desktop platforms preserve FTPS certificate/hostname validation, SFTP host-
 
 Windows uses native Win32 UI, DPI-aware layout and the current-user saved-secret protection boundary.
 
-Ghost FTP 0.0.5 adds re-entry/lifecycle guards around profile persistence, local/remote file mutations and Remote Edit sessions. Duplicate or stale commands cannot bypass in-flight mutation state, and nested application-owned modal loops preserve process-level shutdown semantics rather than swallowing `WM_QUIT`.
+Ghost FTP 0.0.5 adds re-entry/lifecycle guards around profile persistence, local/remote file mutations and Remote Edit sessions plus session-generation ownership for transfer-cancellation completion. Duplicate or stale commands cannot bypass in-flight mutation state, and nested application-owned modal loops preserve process-level shutdown semantics rather than swallowing `WM_QUIT`.
 
 Official public Windows publication requires trusted Authenticode. The canonical `Publish Ghost FTP` workflow requires the protected production signing identity, verifies both public executables with the operating-system signature API and fails if the signing state is anything other than `signed`.
 
 A successful official release records:
 
 ```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
 
@@ -69,7 +76,9 @@ Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Verified native x64/x86 payloads remain internal. The bootstrap uses `GetNativeSystemInfo`, verifies staged bytes and performs no runtime download.
+Verified native **x64, x86 and ARM64** payloads remain internal. The public PE x86 bootstrap uses `GetNativeSystemInfo`, selects the matching native payload, verifies staged bytes and performs no runtime download. ARM64 support therefore does not create an extra public Windows executable or change the **14 platform artifacts / 17 public files** release shape.
+
+The ARM64 evidence boundary is explicit: Windows CI cross-builds and structurally verifies ARM64 PE32+ binaries/resources plus packaging/signing mechanics, but the repository does not claim native Windows ARM64 runtime execution while its maintained Windows runner is non-ARM64.
 
 ## Linux-specific implementation
 

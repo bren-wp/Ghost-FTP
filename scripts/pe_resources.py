@@ -20,6 +20,7 @@ CODEPAGE_UNICODE = 1200
 SECTION_CHARS = 0x40000040  # IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 I386 = 0x014C
 AMD64 = 0x8664
+ARM64 = 0xAA64
 
 
 def align(value: int, boundary: int) -> int:
@@ -102,7 +103,7 @@ def make_version_info(version: tuple[int, int, int, int], original_filename: str
 
 def make_manifest(version: tuple[int, int, int, int], role: str, processor_architecture: str) -> bytes:
     major, minor, patch, build = version
-    if processor_architecture not in {"amd64", "x86"}:
+    if processor_architecture not in {"amd64", "x86", "arm64"}:
         raise ValueError(f"Unsupported Windows manifest architecture: {processor_architecture}")
     identity = {
         "portable": "GhostFTP.Client",
@@ -237,6 +238,9 @@ def patch_pe(exe: Path, ico: Path, version: tuple[int, int, int, int], role: str
     magic = struct.unpack_from("<H", raw, opt)[0]
     if machine == AMD64 and magic == 0x20B:
         processor_architecture = "amd64"
+        data_directory_offset = 112
+    elif machine == ARM64 and magic == 0x20B:
+        processor_architecture = "arm64"
         data_directory_offset = 112
     elif machine == I386 and magic == 0x10B:
         processor_architecture = "x86"

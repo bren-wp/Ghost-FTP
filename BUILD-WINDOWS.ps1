@@ -107,19 +107,21 @@ function Sign-UniversalTarget {
 function Stage-BootstrapPayload {
     param(
         [Parameter(Mandatory = $true)][string]$X64,
-        [Parameter(Mandatory = $true)][string]$X86
+        [Parameter(Mandatory = $true)][string]$X86,
+        [Parameter(Mandatory = $true)][string]$Arm64
     )
 
-    foreach ($arch in @('x64','x86')) {
+    foreach ($arch in @('x64','x86','arm64')) {
         Remove-Item -LiteralPath (Join-Path $bootstrapPayload $arch) -Recurse -Force -ErrorAction SilentlyContinue
         New-Item -ItemType Directory -Force -Path (Join-Path $bootstrapPayload $arch) | Out-Null
     }
     Copy-Item -LiteralPath $X64 -Destination (Join-Path $bootstrapPayload 'x64\GhostFTP.exe') -Force
     Copy-Item -LiteralPath $X86 -Destination (Join-Path $bootstrapPayload 'x86\GhostFTP.exe') -Force
+    Copy-Item -LiteralPath $Arm64 -Destination (Join-Path $bootstrapPayload 'arm64\GhostFTP.exe') -Force
 }
 
 function Clear-BootstrapPayload {
-    foreach ($arch in @('x64','x86')) {
+    foreach ($arch in @('x64','x86','arm64')) {
         Remove-Item -LiteralPath (Join-Path $bootstrapPayload $arch) -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
@@ -129,13 +131,15 @@ function Build-UniversalBootstrap {
         [Parameter(Mandatory = $true)][ValidateSet('setup','portable')][string]$Role,
         [Parameter(Mandatory = $true)][string]$X64,
         [Parameter(Mandatory = $true)][string]$X86,
+        [Parameter(Mandatory = $true)][string]$Arm64,
         [Parameter(Mandatory = $true)][string]$Output,
         [Parameter(Mandatory = $true)][string]$OriginalFilename
     )
 
     Assert-File -Path $X64 -Description "$Role x64 native payload"
     Assert-File -Path $X86 -Description "$Role x86 native payload"
-    Stage-BootstrapPayload -X64 $X64 -X86 $X86
+    Assert-File -Path $Arm64 -Description "$Role ARM64 native payload"
+    Stage-BootstrapPayload -X64 $X64 -X86 $X86 -Arm64 $Arm64
 
     try {
         $env:GOTOOLCHAIN = 'local'
@@ -147,6 +151,7 @@ function Build-UniversalBootstrap {
         $env:GOARCH = '386'
         $env:GO386 = 'sse2'
         Remove-Item -LiteralPath 'Env:GOAMD64' -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath 'Env:GOARM64' -ErrorAction SilentlyContinue
 
         $ldflags = "-s -w -H=windowsgui -X main.version=$version -X main.role=$Role"
         Invoke-Native -FilePath $go -ArgumentList @(
@@ -183,9 +188,6 @@ $pythonCommand = @(Get-Command python -CommandType Application -ErrorAction Sile
 if (-not $pythonCommand) { throw 'Python 3 is not installed or is not available in PATH.' }
 [string]$python = $pythonCommand.Source
 
-# Enforce telemetry-off at the public packaging boundary as well as inside the
-# native staging builder. This prevents a future staging refactor from silently
-# weakening the privacy contract of the universal Windows build.
 $telemetryMode = Invoke-NativeCapture -FilePath $go -ArgumentList @('telemetry') -FailureMessage 'Unable to verify Go telemetry mode'
 if ($telemetryMode -ne 'off') {
     throw "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetryMode)"
@@ -193,7 +195,7 @@ if ($telemetryMode -ne 'off') {
 
 Write-Host "Ghost FTP $version unified Windows packaging"
 Write-Host "Go telemetry=$telemetryMode"
-Write-Host '[1/6] Build and verify signed native x64/x86 setup and portable staging artifacts'
+Write-Host '[1/6] Build and verify signed native x64/x86/ARM64 setup and portable staging artifacts'
 & $stageBuilder
 if (-not $?) {
     throw 'Native Windows staging build failed.'
@@ -202,13 +204,17 @@ if (-not $?) {
 New-Item -ItemType Directory -Force -Path $internalDist | Out-Null
 $nativeSetupX64 = Join-Path $internalDist "Ghost-FTP-$version-Setup-x64.exe"
 $nativeSetupX86 = Join-Path $internalDist "Ghost-FTP-$version-Setup-x86.exe"
+$nativeSetupArm64 = Join-Path $internalDist "Ghost-FTP-$version-Setup-arm64.exe"
 $nativePortableX64 = Join-Path $internalDist "Ghost-FTP-$version-Portable-x64.exe"
 $nativePortableX86 = Join-Path $internalDist "Ghost-FTP-$version-Portable-x86.exe"
+$nativePortableArm64 = Join-Path $internalDist "Ghost-FTP-$version-Portable-arm64.exe"
 foreach ($name in @(
     "Ghost-FTP-$version-Setup-x64.exe",
     "Ghost-FTP-$version-Setup-x86.exe",
+    "Ghost-FTP-$version-Setup-arm64.exe",
     "Ghost-FTP-$version-Portable-x64.exe",
-    "Ghost-FTP-$version-Portable-x86.exe"
+    "Ghost-FTP-$version-Portable-x86.exe",
+    "Ghost-FTP-$version-Portable-arm64.exe"
 )) {
     $source = Join-Path $dist $name
     Assert-File -Path $source -Description 'Native Windows staging artifact'
@@ -219,14 +225,14 @@ Remove-Item -LiteralPath (Join-Path $dist 'SHA256.txt') -Force -ErrorAction Sile
 Write-Host '[2/6] Build universal Setup.exe with native architecture selection'
 $setupName = "Ghost-FTP-$version-Setup.exe"
 $setup = Join-Path $dist $setupName
-Build-UniversalBootstrap -Role 'setup' -X64 $nativeSetupX64 -X86 $nativeSetupX86 -Output $setup -OriginalFilename $setupName
+Build-UniversalBootstrap -Role 'setup' -X64 $nativeSetupX64 -X86 $nativeSetupX86 -Arm64 $nativeSetupArm64 -Output $setup -OriginalFilename $setupName
 
 Write-Host '[3/6] Build universal Portable.exe with native architecture selection'
 $portableName = "Ghost-FTP-$version-Portable.exe"
 $portable = Join-Path $dist $portableName
-Build-UniversalBootstrap -Role 'portable' -X64 $nativePortableX64 -X86 $nativePortableX86 -Output $portable -OriginalFilename $portableName
+Build-UniversalBootstrap -Role 'portable' -X64 $nativePortableX64 -X86 $nativePortableX86 -Arm64 $nativePortableArm64 -Output $portable -OriginalFilename $portableName
 
-foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386')) {
+foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386','GOARM64')) {
     Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
 }
 
@@ -269,22 +275,21 @@ if ($missingNames.Count -ne 0) {
 if ($actualNames.Count -ne 3) {
     throw "Unexpected public Windows output count: $($actualNames.Count); expected 3 including SHA256.txt."
 }
-if (Get-ChildItem -LiteralPath $dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32)\.exe$' }) {
+if (Get-ChildItem -LiteralPath $dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32|arm64)\.exe$' }) {
     throw 'Architecture-specific Windows executables leaked into the public artifact directory.'
 }
 if (Get-ChildItem -LiteralPath $dist -Recurse -File | Where-Object { $_.Name -match '(?i)uninstall' }) {
     throw 'Windows build unexpectedly produced an uninstaller binary.'
 }
-if (Test-Path -LiteralPath (Join-Path $bootstrapPayload 'x64')) {
-    throw 'Temporary x64 universal bootstrap payload was not removed.'
-}
-if (Test-Path -LiteralPath (Join-Path $bootstrapPayload 'x86')) {
-    throw 'Temporary x86 universal bootstrap payload was not removed.'
+foreach ($arch in @('x64','x86','arm64')) {
+    if (Test-Path -LiteralPath (Join-Path $bootstrapPayload $arch)) {
+        throw "Temporary $arch universal bootstrap payload was not removed."
+    }
 }
 
-Write-Host 'WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64'
-Write-Host 'WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64'
-Write-Host 'WINDOWS_NATIVE_PAYLOADS=x64,x86'
+Write-Host 'WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64_ARM64'
+Write-Host 'WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64_ARM64'
+Write-Host 'WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64'
 Write-Host 'WINDOWS_PUBLIC_EXECUTABLES=2'
 Write-Host 'UNINSTALLER_BINARY=ABSENT'
 Write-Host "Ghost FTP $version unified Windows build completed: $dist"

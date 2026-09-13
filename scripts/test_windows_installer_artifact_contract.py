@@ -49,8 +49,10 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
             "Ghost-FTP-0.0.2-Setup-x64.exe",
             "Ghost-FTP-0.0.2-Setup-x86.exe",
             "Ghost-FTP-0.0.2-Setup-x32.exe",
+            "Ghost-FTP-0.0.2-Setup-arm64.exe",
             "Ghost-FTP-0.0.2-Portable-x64.exe",
             "Ghost-FTP-0.0.2-Portable-x86.exe",
+            "Ghost-FTP-0.0.2-Portable-arm64.exe",
         ):
             with self.subTest(name=name):
                 self.assert_extra_public_executable_rejected(name)
@@ -63,6 +65,8 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
                 "Ghost-FTP-0.0.2-Portable-x64.exe",
                 "Ghost-FTP-0.0.2-Setup-x86.exe",
                 "Ghost-FTP-0.0.2-Portable-x86.exe",
+                "Ghost-FTP-0.0.2-Setup-arm64.exe",
+                "Ghost-FTP-0.0.2-Portable-arm64.exe",
             ):
                 (root / name).write_bytes(b"fixture")
 
@@ -72,7 +76,6 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
 
     def test_noncanonical_public_ghostftp_executable_names_are_rejected(self) -> None:
         for name in (
-            "Ghost-FTP-0.0.2-Setup-arm64.exe",
             "Ghost-FTP-0.0.2-Setup-debug.exe",
             "Ghost-FTP-0.0.2-beta-Setup.exe",
             "GhostFTP-0.0.2-Setup.exe",
@@ -89,11 +92,15 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
         self.assertIn("'./cmd/windowsbootstrap'", public_build)
         self.assertIn("'--arch','universal'", public_build)
         self.assertIn("WINDOWS_PUBLIC_EXECUTABLES=2", public_build)
+        self.assertIn("WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64_ARM64", public_build)
+        self.assertIn("WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64_ARM64", public_build)
+        self.assertIn("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64", public_build)
         self.assertIn("$publicFiles.Count -ne 2", public_build)
         self.assertIn("'./cmd/installer'", native_build)
         self.assertIn("'scripts/make_payload.py'", native_build)
         self.assertIn("'scripts/verify_release.py'", native_build)
-        self.assertIn("$publicFiles.Count -ne 4", native_build)
+        self.assertIn("Build-GhostFTPArchitecture -GoArch 'arm64' -Label 'arm64'", native_build)
+        self.assertIn("$publicFiles.Count -ne 6", native_build)
 
         for marker in ("iscc.exe", "makensis", "candle.exe", "light.exe", "wix build"):
             self.assertNotIn(marker, lower)
@@ -101,12 +108,16 @@ class WindowsInstallerArtifactContractTests(unittest.TestCase):
     def test_bootstrap_selects_native_payload_without_environment_architecture(self) -> None:
         bootstrap = (ROOT / "cmd/windowsbootstrap/main.go").read_text(encoding="utf-8")
         arch = (ROOT / "internal/platform/windows_arch_windows.go").read_text(encoding="utf-8")
+        selector = (ROOT / "internal/platform/windows_arch.go").read_text(encoding="utf-8")
         self.assertIn("platform.NativeWindowsArchitecture()", bootstrap)
+        self.assertIn('case "x86", "x64", "arm64":', bootstrap)
         self.assertIn('"payload/" + arch + "/GhostFTP.exe"', bootstrap)
         self.assertIn("os.CreateTemp(localAppData", bootstrap)
         self.assertIn("verifyStaged(path, data)", bootstrap)
         self.assertIn("cmd.Run()", bootstrap)
         self.assertIn('NewProc("GetNativeSystemInfo")', arch)
+        self.assertIn("windowsProcessorArchitectureARM64 = 12", selector)
+        self.assertIn('return "arm64", nil', selector)
         self.assertNotIn("PROCESSOR_ARCHITECTURE", bootstrap)
         self.assertNotIn("PROCESSOR_ARCHITEW6432", bootstrap)
 

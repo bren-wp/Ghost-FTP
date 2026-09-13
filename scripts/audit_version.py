@@ -88,6 +88,9 @@ def main() -> int:
             f"ghostftp-v{version}",
             "prerelease=false",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            "WINDOWS_SETUP=universal-x86-x64-arm64",
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+            "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
         ),
         "README.md",
     )
@@ -126,9 +129,29 @@ def main() -> int:
                 fail(f"active current-line documentation contains retired public identity {match.group(0)!r}: {rel}")
 
     windows_build = read("BUILD-WINDOWS.ps1")
-    require(windows_build, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version", "WINDOWS_PUBLIC_EXECUTABLES=2"), "BUILD-WINDOWS.ps1")
+    require(
+        windows_build,
+        (
+            "Get-Content -LiteralPath $versionFile",
+            "-X main.version=$version",
+            "WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64_ARM64",
+            "WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64_ARM64",
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+            "WINDOWS_PUBLIC_EXECUTABLES=2",
+        ),
+        "BUILD-WINDOWS.ps1",
+    )
     windows_stage = read("BUILD-WINDOWS-ARCH-STAGE.ps1")
-    require(windows_stage, ("Get-Content -LiteralPath $versionFile", "-X main.version=$version"), "BUILD-WINDOWS-ARCH-STAGE.ps1")
+    require(
+        windows_stage,
+        (
+            "Get-Content -LiteralPath $versionFile",
+            "-X main.version=$version",
+            "Build-GhostFTPArchitecture -GoArch 'arm64' -Label 'arm64'",
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+        ),
+        "BUILD-WINDOWS-ARCH-STAGE.ps1",
+    )
     linux_build = read("linux/BUILD.sh")
     require(linux_build, ("< VERSION", "-X main.version=${VERSION}"), "linux/BUILD.sh")
     linux_distro_build = read("linux/BUILD-DISTROS.sh")
@@ -236,6 +259,10 @@ def main() -> int:
             "Require protected Authenticode identity",
             "state=signed",
             "test \"$WINDOWS_SIGNING_STATE\" = 'signed'",
+            "WINDOWS_SETUP=universal-x86-x64-arm64",
+            "WINDOWS_PORTABLE=universal-x86-x64-arm64",
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+            "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
             "LINUX_DEBIAN_DEB=amd64,arm64,i386",
             "LINUX_UBUNTU_DEB=amd64,arm64,i386",
             "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
@@ -277,6 +304,9 @@ def main() -> int:
             "LATEST_ONLY_RELEASE_RETENTION=YES",
             "PUBLIC_PLATFORM_ARTIFACTS=14",
             "PUBLIC_RELEASE_FILES=17",
+            "WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64",
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+            "WINDOWS_ARM64_RUNTIME_EVIDENCE=NOT_NATIVE_CI",
             "LINUX_DEBIAN_DEB=amd64,arm64,i386",
             "LINUX_UBUNTU_DEB=amd64,arm64,i386",
             "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
@@ -310,6 +340,9 @@ def main() -> int:
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
+    print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")
+    print("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64")
+    print("WINDOWS_ARM64_RUNTIME_EVIDENCE=NOT_NATIVE_CI")
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
     print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
