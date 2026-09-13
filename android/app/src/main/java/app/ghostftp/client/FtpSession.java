@@ -73,7 +73,8 @@ final class FtpSession implements Closeable {
         String user = username == null || username.trim().isEmpty() ? "anonymous" : username.trim();
         Reply userReply = command("USER " + sanitizeArgument(user));
         if (userReply.code == 331) {
-            expect(command("PASS " + sanitizeArgument(password == null ? "" : password)), 230, 202);
+            Reply passwordReply = command("PASS " + sanitizeArgument(password == null ? "" : password));
+            expectAuthentication(passwordReply);
         } else {
             expect(userReply, 230);
         }
@@ -597,6 +598,13 @@ final class FtpSession implements Closeable {
         if (reader == null || writer == null) {
             throw new IOException("Control connection is not available.");
         }
+    }
+
+    private static void expectAuthentication(Reply reply) throws IOException {
+        if (reply.code == 230 || reply.code == 202) {
+            return;
+        }
+        throw new IOException("FTP authentication failed (server response code " + reply.code + ").");
     }
 
     private static void expect(Reply reply, int... allowed) throws IOException {
