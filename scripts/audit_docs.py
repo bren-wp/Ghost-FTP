@@ -37,6 +37,8 @@ SIGNING_CONTRACT_DOCS = (
     "docs/SUPPORT.md",
     "docs/PLATFORM-PARITY.md",
     "docs/ARCHITECTURE.md",
+    "docs/INSTALLATION.md",
+    "docs/TESTING.md",
 )
 
 STALE_OFFICIAL_SIGNING_MARKERS = (
@@ -47,6 +49,7 @@ STALE_OFFICIAL_SIGNING_MARKERS = (
     "explicit unsigned metadata when no production certificate is configured",
     "supports windows authenticode signing as an optional production hardening layer",
     "unsigned publication is never relabeled as signed",
+    "exercises optional authenticode policy",
 )
 
 VISUAL_ASSETS = (
@@ -278,6 +281,8 @@ def main() -> int:
             "Canonical release packages",
             "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
             "x86-64 only", "14 platform artifacts / 17 public files",
+            "Official Windows publication requires trusted Authenticode.",
+            "WINDOWS_AUTHENTICODE=signed", "macOS development app",
         ),
     )
 
@@ -334,6 +339,8 @@ def main() -> int:
             "Native package-manager/runtime coverage is deliberately limited to x86-64.",
             "14 platform artifacts / 17 public files", "Exact-head and post-merge rule",
             f"Ghost-FTP-{version}-Setup.exe", f"Ghost-FTP-{version}-Portable.exe",
+            "Ghost FTP macOS Development App", "WINDOWS_SIGNING_STATE=signed",
+            "trusted Authenticode on both official public Windows executables",
         ),
     )
 
