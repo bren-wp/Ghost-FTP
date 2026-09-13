@@ -1,6 +1,6 @@
 # Ghost FTP queue priority and reordering
 
-Ghost FTP **0.0.5** includes queue priority/reordering as a maintained Windows/Linux capability. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or the lifecycle state of running/terminal work.
+Ghost FTP **0.0.5** includes queue priority/reordering as a maintained Windows/Linux public-desktop capability and as part of the active native macOS development frontend. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or the lifecycle state of running/terminal work.
 
 ## User contract
 
@@ -46,7 +46,7 @@ Queue priority operates only on the resulting queued file-transfer jobs. It cann
 
 ## Engine API
 
-The desktop frontends use four bounded engine calls:
+Native desktop frontends use four bounded engine calls:
 
 ```text
 MoveTransferTop(id)
@@ -55,7 +55,7 @@ MoveTransferDown(id)
 MoveTransferBottom(id)
 ```
 
-Each delegates to the transfer manager's queued-only operation. No frontend edits the queue slice directly.
+Each delegates to the transfer manager's queued-only operation. No frontend edits the queue slice directly or implements a second scheduler.
 
 ## Windows behavior
 
@@ -68,6 +68,14 @@ The controls use the maintained 24-language local catalog and introduce no netwo
 Linux renders Top, Up, Down and Bottom through the same shared policy. Mouse actions call the same four Engine operations, refresh from `Engine.Transfers()` and restore selection by transfer ID rather than a stale row index.
 
 Running or otherwise non-queued selections expose no active priority action. Layout regression coverage keeps the priority controls clear of the existing queue toolbar/actions.
+
+## macOS development behavior
+
+The native AppKit Transfer Queue renders the authoritative shared transfer-manager snapshot and calls the same typed `internal/api.Engine` operations for **Move Top / Move Up / Move Down / Move Bottom**. It preserves selection by stable transfer ID, enables reordering only for one queued job and does not create a Mac-only scheduler or protocol stack.
+
+The macOS development frontend uses the shared transfer byte/progress/speed/ETA state without fabricating unsupported metrics. Retry remains connection-bound, and queue reordering retains the same identity/session invariants as Windows/Linux.
+
+This is source/development parity only. The macOS development app remains outside the current 17-file public Windows/Linux release allow-list and a successful development build is not Developer ID/notarization evidence.
 
 ## Interaction with pause, retry and connection lifecycle
 
@@ -82,9 +90,10 @@ The 0.0.5 contract is protected by:
 - `internal/transfer/queue_order_test.go` — four-way ordering, non-queued slot preservation, connection binding, edge idempotence, rejection and complete state snapshots;
 - `internal/desktop/queue_priority_test.go` — shared single-selection/queued-only policy and all 24 translations;
 - `internal/desktop/queue_priority_linux_test.go` — Linux layout, queued-only state and ID-based selection restoration;
-- `scripts/test_queue_priority_contract.py` — Engine/API/Windows/Linux wiring plus tree-transfer dependency ordering and current-release documentation binding.
+- `scripts/test_queue_priority_contract.py` — Engine/API/Windows/Linux wiring plus tree-transfer dependency ordering and current-release documentation binding;
+- `macos/PARITY.md` plus the macOS development-app workflow for AppKit queue source parity.
 
-Native Windows/Linux CI builds remain the compile/runtime gate for the platform frontends. Authentic Windows/Linux runtime evidence is required on the exact final release-prep head where the maintained queue UI changes are part of the candidate.
+Native Windows/Linux CI builds remain the compile/runtime gate for public desktop frontends. The macOS development workflow separately validates the universal native AppKit source surface. Authentic Windows/Linux/Android runtime evidence remains the current immutable 15-image evidence bundle; macOS development validation is not silently counted in that bundle.
 
 ## 0.0.5 release boundary
 
@@ -92,6 +101,6 @@ Root `VERSION` is **0.0.5**. Queue priority is part of the 0.0.5 source/release 
 
 Publication still requires exact-head tests/builds, Linux packaging/install gates, Android development APK validation, read-only authentic Windows/Linux/Android runtime evidence, review/merge, exact post-merge verification and the canonical `ghostftp-v0.0.5` publication/read-back/retention lifecycle.
 
-Queue priority does not change the public platform allow-list or artifact count: Windows/Linux remain the 14-platform-artifact / 17-public-file release surface, and Android remains a separately validated development APK.
+Queue priority does not change the public platform allow-list or artifact count: Windows/Linux remain the **14 platform artifacts / 17 public files** release surface. Android remains a separately validated development APK and macOS remains a separately validated native development/source frontend until an explicit public-release expansion succeeds.
 
-See [Roadmap](ROADMAP.md), [Testing](TESTING.md), [Architecture](ARCHITECTURE.md) and [Platform parity](PLATFORM-PARITY.md).
+See [Roadmap](ROADMAP.md), [Testing](TESTING.md), [Architecture](ARCHITECTURE.md), [Platform parity](PLATFORM-PARITY.md) and [`../macos/PARITY.md`](../macos/PARITY.md).
