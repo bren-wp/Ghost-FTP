@@ -1,6 +1,6 @@
 # Ghost FTP roadmap
 
-Ghost FTP **0.0.5** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux parity and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
+Ghost FTP **0.0.5** is the current source/release candidate. The roadmap prioritizes correctness, security, privacy, reliability, Windows/Linux production parity, active Android/macOS source quality and measured performance before broad new surface area. The objective is not to reproduce legacy FTP clients screen-for-screen; Ghost FTP should deliver a smaller, clearer and safer professional workflow while adding power-user capabilities only when their complete runtime path is production-ready.
 
 ## Current 0.0.5 foundation
 
@@ -8,9 +8,10 @@ The current release gate includes:
 
 - native Windows and Linux desktop clients backed by one typed Engine;
 - active Android development source with lint/installable-APK and authentic-emulator gates, without adding Android to the public release allow-list;
+- active native macOS development source with a universal AppKit build gate, without representing the development artifact as a notarized public release;
 - FTP, explicit FTPS and SFTP desktop workflows;
 - SFTP password/key/passphrase authentication and host-key trust;
-- local-only profiles with platform-local protected secret handling and explicit Windows/Linux credential-save consent;
+- local-only profiles with platform-local protected secret handling and explicit credential-save consent;
 - validated connection timeout, retry, conflict, parallel-transfer and upload/download bandwidth settings;
 - shared Classic Light/Dark desktop appearance lifecycle;
 - transfer generation binding, source snapshots and staged/rollback-oriented operations;
@@ -19,21 +20,21 @@ The current release gate includes:
 - aggregate directional bandwidth scheduling with real curl/OpenSSH transport enforcement;
 - built-in Remote Edit with bounded text handling, revision/conflict protection and verified save/read-back;
 - queue pause/resume/cancel/retry/clear-finished plus queued-job Top/Up/Down/Bottom priority controls;
-- non-destructive current-folder filtering on both local and server panes;
+- non-destructive current-folder filtering on maintained local/server panes;
 - bounded recursive local/server search with cancellation and fresh-list navigation;
 - conservative directory comparison and synchronized navigation for proven paired directories;
-- shared file sorting semantics on Windows and Linux, including server Permissions sorting where metadata exists;
+- shared file sorting semantics on maintained desktop frontends, including server Permissions sorting where metadata exists;
 - local/remote navigation bookmarks and account-bound profile start directories;
 - Windows profile/file mutation and Remote Edit session re-entry guards;
-- Android pending-connection lifecycle ownership across Activity destruction/recreation;
-- optional privacy-minimal browser companion source for Chromium-family browsers and Firefox;
+- Android pending-connection lifecycle ownership across Activity destruction/recreation and authentication-error redaction;
+- optional privacy-minimal browser companion source for Chromium-family browsers and Firefox, with local target parsing only and no claimed desktop handoff;
 - two public universal Windows Setup/Portable executables backed by verified internal x64/x86 payloads;
 - canonical Debian/Ubuntu/Fedora/Portable Linux release packaging;
 - 24-language local catalog with English default/fallback;
 - production race/vet/security/privacy/dependency/documentation audits;
-- exact-head Android APK verification and read-only Windows/Linux/Android authentic UI evidence;
+- exact-head Android APK verification, macOS development-app validation and read-only Windows/Linux/Android authentic UI evidence;
 - current GitHub Release policy with `prerelease=false`;
-- truthful Windows signing-state metadata with fail-closed verification when trusted production signing is configured;
+- signed-only official Windows publication with fail-closed trusted Authenticode verification;
 - current GitHub Packages/GHCR distribution-bundle publication and read-back;
 - latest-only release/tag/package retention after a successor is successfully published and verified.
 
@@ -49,9 +50,10 @@ The immediate 0.0.x hardening lane includes:
 6. transfer atomicity, overwrite decisions, temp-file cleanup and application-shutdown behavior;
 7. large-directory/list memory and UI responsiveness;
 8. further Remote Edit shutdown/disconnect/conflict edge cases;
-9. continued Windows/Linux parity for keyboard/file workflows, file operations, queue state, settings and error handling;
+9. continued Windows/Linux production parity for keyboard/file workflows, file operations, queue state, settings and error handling;
 10. continued Android lifecycle/rotation/resume hardening without weakening SAF, strict FTPS or staged-transfer boundaries;
-11. documentation and authentic real-application evidence synchronized with exact maintained source.
+11. continued macOS native regression quality and parity without overstating public signing/notarization status;
+12. documentation and authentic real-application evidence synchronized with exact maintained source.
 
 ## 0.0.5 navigation work
 
@@ -207,13 +209,13 @@ Optimization work should target measured hotspots:
 
 Security hardening should favor deterministic rejection and actionable errors over permissive fallback. Privacy improvements should reduce secret lifetime and diagnostic exposure rather than adding remote reporting.
 
-Release security should improve publisher trust when a real certificate is available without weakening integrity verification or inventing trust when it is not.
+Release security must require the configured trusted production publisher identity for official Windows publication and fail closed when it is absent or invalid. Development builds may remain unsigned without being represented as official releases.
 
 New productivity features must preserve the same trust model: search, compare, bandwidth, queue priority, bookmarks, resume, multi-session and proxy functionality may not introduce hidden cloud state, telemetry or credential replication.
 
 ## macOS direction
 
-macOS remains a separate future scope. Documentation must not claim macOS support until the common engine has been audited for Darwin, platform contracts and CI/build gates exist, and a real native macOS frontend is built and tested. Any future macOS implementation must reuse the same FTP/FTPS/SFTP engine, security/privacy rules and Remote Edit logic rather than introducing a third protocol stack.
+macOS is an active native development/source surface with a complete maintained AppKit parity inventory, universal development build and a separate fail-closed Developer ID signing/notarization path. Continued work should focus on native regression quality, accessibility, lifecycle correctness and production-distribution evidence. A development build must not be described as a public notarized release until real Developer ID credentials and Apple notarization complete successfully.
 
 ## Non-negotiable constraints
 
@@ -230,7 +232,8 @@ Future work must preserve:
 - trusted Linux transport and AskPass provenance;
 - exact-object/ownership-aware Windows installer/uninstaller cleanup;
 - exact source/version binding for public releases;
-- truthful Windows signing states: configured trusted signatures verify fail-closed, otherwise current publication remains explicitly `WINDOWS_AUTHENTICODE=unsigned`;
+- trusted Authenticode on both official public Windows executables with `WINDOWS_AUTHENTICODE=signed`;
+- local/development Windows builds may be unsigned but must never be represented as official public release artifacts;
 - no generated/self-signed production identity represented as a trusted publisher;
 - verified GitHub Release and GitHub Package publication;
 - no unreviewed external Go dependencies.
@@ -238,6 +241,8 @@ Future work must preserve:
 ## Release direction
 
 The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place. A newer version must pass exact-head and post-merge verification, publication, remote read-back and canonical retention verification before the release lifecycle is considered complete.
+
+The current public artifact boundary remains Windows/Linux with **14 platform artifacts / 17 public files**. Android and macOS are active development/source surfaces outside that allow-list until separate production publication contracts are satisfied.
 
 ## Definition of roadmap completion
 
