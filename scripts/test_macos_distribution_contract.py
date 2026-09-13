@@ -18,7 +18,7 @@ class MacOSDistributionContractTests(unittest.TestCase):
         for marker in (
             "MACOS_DEVELOPER_IDENTITY is required",
             "MACOS_NOTARY_KEYCHAIN_PROFILE is required",
-            "Developer ID Application:",
+            "MACOS_DEVELOPER_IDENTITY must be a Developer ID Application identity",
             "security find-identity -v -p codesigning",
             "--options runtime",
             "--timestamp",
