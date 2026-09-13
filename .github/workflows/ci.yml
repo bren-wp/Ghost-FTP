@@ -81,7 +81,7 @@ jobs:
           python -m unittest discover -s scripts -p 'test_*.py'
 
   windows:
-    name: Windows universal x86 x64 ARM64 setup and portable production build
+    name: Windows universal setup and portable production build
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
