@@ -1,6 +1,6 @@
 # Ghost FTP native reference UI
 
-Ghost FTP **0.0.5** uses focused native two-pane desktop layouts on Windows and Linux, an active native AppKit development frontend on macOS and a purpose-built native mobile development workspace on Android.
+Ghost FTP **0.0.5** uses focused native two-pane desktop layouts on Windows and Linux, a **macOS native development frontend** built with AppKit and a purpose-built native mobile development workspace on Android.
 
 Windows and Linux are the current public desktop release surfaces. macOS and Android are active native development/source surfaces. This document distinguishes runtime/source parity from public distribution evidence so screenshots or development builds are never used to imply a release state that has not been proven.
 
