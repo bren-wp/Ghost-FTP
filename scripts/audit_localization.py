@@ -125,7 +125,12 @@ def main() -> int:
             fail(f"Windows English fallback marker is missing: {marker}")
 
     readme = read("README.md")
-    for marker in (f"Current Ghost FTP version: **{version}**", "## Languages", "English", "24 languages"):
+    for marker in (
+        f"Current Ghost FTP version: **{version}**",
+        "## 🌍 24 local desktop languages",
+        "English",
+        "24 selectable desktop languages",
+    ):
         if marker not in readme:
             fail(f"README is missing English-first marker: {marker}")
 
