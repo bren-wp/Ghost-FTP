@@ -12,10 +12,12 @@ import (
 )
 
 type linuxFileFilterState struct {
-	localAll    []model.Item
-	remoteAll   []model.Item
-	localQuery  string
-	remoteQuery string
+	localAll         []model.Item
+	remoteAll        []model.Item
+	localQuery       string
+	remoteQuery      string
+	modalFocus       int
+	modalFocusSaved  bool
 }
 
 var linuxFileFilters sync.Map
@@ -83,13 +85,16 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 }
 
 func (u *linuxDesktop) isolateLinuxModalBackgroundInput() {
+	state := u.fileFilterState()
+	if state != nil && !state.modalFocusSaved && u.focus >= 0 && u.focus < linuxFieldCount {
+		state.modalFocus = u.focus
+		state.modalFocusSaved = true
+	}
 	// Recursive search and directory comparison deliberately replace the normal
 	// directory rows with modal result snapshots. The ordinary workspace buttons
 	// are already swallowed by their modal mouse handlers, but editable fields are
 	// checked earlier by handleMouse. Clear only those hit targets after they have
 	// been rendered, and park keyboard focus outside the editable field range.
-	// buildLinuxDesktopLayout restores the real rectangles on the next render once
-	// the modal workflow closes.
 	u.focus = linuxFieldCount
 	u.layout.protocol = linuxRect{}
 	u.layout.host = linuxRect{}
@@ -100,6 +105,18 @@ func (u *linuxDesktop) isolateLinuxModalBackgroundInput() {
 	u.layout.passphrase = linuxRect{}
 	u.layout.localPath = linuxRect{}
 	u.layout.remotePath = linuxRect{}
+}
+
+func (u *linuxDesktop) restoreLinuxModalBackgroundInput() {
+	state := u.fileFilterState()
+	if state == nil || !state.modalFocusSaved {
+		return
+	}
+	if u.focus == linuxFieldCount && state.modalFocus >= 0 && state.modalFocus < linuxFieldCount {
+		u.focus = state.modalFocus
+	}
+	state.modalFocus = 0
+	state.modalFocusSaved = false
 }
 
 func (u *linuxDesktop) renderFileFilterControls() error {
@@ -118,6 +135,8 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 	searchActive := u.recursiveSearchActive(false) || u.recursiveSearchActive(true)
 	if comparisonActive || searchActive {
 		u.isolateLinuxModalBackgroundInput()
+	} else {
+		u.restoreLinuxModalBackgroundInput()
 	}
 	if comparisonActive {
 		return u.renderDirectoryComparisonControlsLinux()
