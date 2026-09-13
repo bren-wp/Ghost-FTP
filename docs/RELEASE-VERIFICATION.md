@@ -71,13 +71,34 @@ Before publication:
 4. all required post-merge push workflows on the exact merge SHA must be successful;
 5. authentic maintained runtime evidence must bind to the exact source revision;
 6. the release workflow's quality, Windows and Linux jobs must succeed again from fresh source;
-7. the public Windows Setup and Portable artifacts must pass trusted Authenticode verification.
+7. the public Windows Setup and Portable artifacts must pass trusted Authenticode verification;
+8. Windows metadata must record the x64/x86/ARM64 embedded payload set and the ARM64 runtime-evidence boundary.
 
 ## SHA-256 verification
 
 `SHA256.txt` contains a checksum for every public file except itself. A downloaded artifact is trusted for exact-byte integrity only when its local hash matches the corresponding entry.
 
-There is no public x32/x86/x64 Windows alias set in 0.0.5. Only universal Setup and Portable executables are public; architecture-specific native payloads are internal verified staging inputs.
+There is no public x32/x86/x64/ARM64 Windows alias set in 0.0.5. Only universal Setup and Portable executables are public; architecture-specific native payloads are internal verified staging inputs.
+
+## Windows universal payload verification
+
+The public Windows packaging contract is:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+`BUILD-WINDOWS-ARCH-STAGE.ps1` creates native Setup/Portable staging binaries for x64, x86 and ARM64. `scripts/verify_release.py` validates the architecture-specific PE machine/magic pair, GUI subsystem, required mitigation flags, `.rsrc`, product/version metadata, manifest architecture, telemetry-marker absence and distinct Setup/Portable identity. ARM64 uses machine `0xAA64`, PE32+ and `processorArchitecture="arm64"`.
+
+`BUILD-WINDOWS.ps1` embeds all three native payload families into each public universal executable. At runtime the x86 bootstrap calls `GetNativeSystemInfo`, maps the native processor to `x64`, `x86` or `arm64`, reads only that embedded payload, stages it under Local AppData, verifies the staged bytes against the embedded SHA-256 identity and starts it without a network download.
+
+Architecture-specific staging executables must never appear among public release assets. An unexpected `*-x64.exe`, `*-x86.exe`, `*-x32.exe` or `*-arm64.exe` is a release failure.
+
+The ARM64 evidence statement is intentionally narrow. Current maintained Windows CI cross-builds and structurally verifies ARM64 artifacts and packaging/signing mechanics, but does not claim native ARM64 execution because the maintained Windows runner is not ARM64. Native ARM64 runtime evidence must only be claimed after a maintained ARM64 Windows runner/device executes that path successfully.
 
 ## Build metadata
 
@@ -89,10 +110,11 @@ VERSION=0.0.5
 RELEASE_TAG=ghostftp-v0.0.5
 RELEASE_CHANNEL=current
 ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
-WINDOWS_SETUP=universal-x86-x64
-WINDOWS_PORTABLE=universal-x86-x64
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_BOOTSTRAP_PE=x86
-WINDOWS_NATIVE_PAYLOADS=x64,x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 LINUX_DEBIAN_DEB=amd64,arm64,i386
 LINUX_UBUNTU_DEB=amd64,arm64,i386
@@ -110,6 +132,8 @@ Android and macOS remain independently validated source/development platforms an
 Official Windows publication requires trusted Authenticode. The production workflow **does not create a self-signed production identity** and has no unsigned-publication fallback.
 
 The canonical `Publish Ghost FTP` workflow requires protected production signing credentials. If the PFX or its password is unavailable, publication fails before release creation. Both public Windows executables are checked with the Windows Authenticode API and must have a signer certificate with status `Valid`.
+
+The native ARM64 client and setup payloads pass through the same signing path as x64/x86 staging payloads before embedding when production signing is configured. The outer universal Setup/Portable executables are then signed and verified as the two public Windows release files.
 
 `scripts/verify_release.py` adds an independent fail-closed check: while running under the public release workflow it rejects unsigned Setup or Portable artifacts.
 
@@ -130,6 +154,8 @@ The macOS workflow builds and validates the universal native development app aga
 ## Authentic runtime evidence
 
 Exact-head UI evidence is immutable and source-bound. Maintained workflows capture real runtime surfaces and record exact source SHA, expected filenames, byte counts and SHA-256 hashes before emitting verified evidence. Mockups and generated approximations are not release evidence.
+
+Current Windows authentic UI evidence runs on the maintained Windows runner architecture. It is valid Windows runtime evidence for that runner, but it is not native ARM64 runtime evidence and must not be represented as such.
 
 ## Remote release read-back
 
@@ -155,6 +181,6 @@ Completion requires the current release/tag to be `ghostftp-v0.0.5`, the current
 sha256sum -c SHA256.txt
 ```
 
-For Windows, also require a valid Authenticode signature on both official executables; an unsigned file does not satisfy the current official public-release contract.
+For Windows, also require a valid Authenticode signature on both official executables; an unsigned file does not satisfy the current official public-release contract. Confirm that release metadata reports `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64`, and do not infer native ARM64 runtime proof from cross-build verification alone.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).
