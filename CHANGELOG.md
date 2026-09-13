@@ -20,7 +20,7 @@
 ### Browser companion source
 
 - Added optional Ghost FTP companion extension source packages under `ekstenzije/` for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox.
-- Kept the companion scope intentionally narrow: supported `ftp://`, `ftps://` and `sftp://` links can be handed into the Ghost FTP workflow without application telemetry, remote executable code, credential persistence, tab scraping or broad host permissions.
+- Kept the companion scope intentionally narrow: explicitly entered `ftp://`, `ftps://` and `sftp://` targets are parsed locally into credential-stripped connection data that can be copied manually; there is no supported browser-to-desktop URI/native-messaging launch or handoff contract, and the helper adds no application telemetry, remote executable code, credential persistence, tab scraping or broad host permissions.
 - Kept browser companion packages outside the canonical 17-file Windows/Linux GitHub Release allow-list; they are source companion surfaces, not a hidden web backend or extra release binary family.
 
 ### Documentation and release engineering
@@ -82,7 +82,7 @@
 
 ### Security and privacy
 
-- Preserved strict FTPS certificate/hostname validation, SFTP host-key verification/pinning, trusted Linux AskPass executable/parent provenance, account-bound stored credentials, local root/path protections, protected-secret lifetime rules and no silent secure-to-plain downgrade.
+- Preserved strict FTPS certificate/hostname verification, SFTP host-key verification/pinning, trusted Linux AskPass executable/parent provenance, account-bound stored credentials, local root/path protections, protected-secret lifetime rules and no silent secure-to-plain downgrade.
 - Preserved the no-telemetry, no-analytics, no-advertising, no-fingerprinting, no-hidden-backend and no-automatic-crash-upload contract across Windows, Linux and Android source surfaces.
 
 ## 0.0.3 - 2026-09-10
