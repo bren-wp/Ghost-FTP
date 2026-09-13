@@ -18,19 +18,20 @@ func TestLinuxModalBackgroundInputIsolation(t *testing.T) {
 	if u.focus != linuxFieldCount {
 		t.Fatalf("modal isolation focus = %d, want sentinel %d", u.focus, linuxFieldCount)
 	}
-	for name, rect := range map[string]linuxRect{
-		"protocol":   u.layout.protocol,
-		"host":       u.layout.host,
-		"port":       u.layout.port,
-		"user":       u.layout.user,
-		"password":   u.layout.password,
-		"key":        u.layout.key,
-		"passphrase": u.layout.passphrase,
-		"local path": u.layout.localPath,
-		"remote path": u.layout.remotePath,
-	} {
+	rects := []linuxRect{
+		u.layout.protocol,
+		u.layout.host,
+		u.layout.port,
+		u.layout.user,
+		u.layout.password,
+		u.layout.key,
+		u.layout.passphrase,
+		u.layout.localPath,
+		u.layout.remotePath,
+	}
+	for _, rect := range rects {
 		if rect != (linuxRect{}) {
-			t.Fatalf("%s hit target remained active during modal workflow: %+v", name, rect)
+			t.Fatalf("editable hit target remained active during modal workflow: %+v", rect)
 		}
 	}
 }
