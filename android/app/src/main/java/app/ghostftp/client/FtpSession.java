@@ -613,6 +613,11 @@ final class FtpSession implements Closeable {
         if ("/".equals(normalized)) {
             throw new IOException("The server root cannot be modified by this operation.");
         }
+        for (String segment : normalized.split("/", -1)) {
+            if (".".equals(segment) || "..".equals(segment)) {
+                throw new IOException("Remote mutation paths cannot contain dot-segment traversal aliases.");
+            }
+        }
         return normalized;
     }
 
