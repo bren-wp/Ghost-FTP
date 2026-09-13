@@ -58,7 +58,47 @@ WINDOWS_PARITY_ACTIONS = (
     "Move Bottom",
 )
 
-IMPLEMENTED_MACOS_ACTIONS = set(WINDOWS_PARITY_ACTIONS)
+IMPLEMENTED_MACOS_ACTIONS = {
+    "Connect",
+    "Disconnect",
+    "Site Manager",
+    "Bookmarks",
+    "Private Key",
+    "Save Profile",
+    "Remove Profile",
+    "Settings",
+    "About",
+    "Diagnostics",
+    "Local Refresh",
+    "Local Choose Folder",
+    "Local Up",
+    "Local New Folder",
+    "Local Rename",
+    "Local Delete",
+    "Local Filter",
+    "Local Recursive Search",
+    "Remote Refresh",
+    "Remote Up",
+    "Remote New Folder",
+    "Remote Rename",
+    "Remote Delete",
+    "Remote Permissions",
+    "Remote Edit",
+    "Remote Filter",
+    "Remote Recursive Search",
+    "Directory Compare",
+    "Upload",
+    "Download",
+    "Pause Queue",
+    "Resume Queue",
+    "Cancel Transfer",
+    "Retry Transfer",
+    "Clear Finished",
+    "Move Top",
+    "Move Up",
+    "Move Down",
+    "Move Bottom",
+}
 
 
 class MacOSWindowsParityContractTests(unittest.TestCase):
