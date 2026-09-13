@@ -71,9 +71,26 @@ class MacOSDistributionContractTests(unittest.TestCase):
             "bash macos/SIGN_AND_NOTARIZE.sh",
             "Ghost-FTP-*-macOS-notarized.app.zip",
             "MACOS_PRODUCTION_ARTIFACT_VERIFIED=PASS",
+            "cleanup_provisioning()",
+            "trap cleanup_provisioning EXIT",
+            "-passin env:DEVELOPER_ID_P12_PASSWORD",
+            "security import \"$import_p12\"",
+            "-P ''",
+            "-x",
+            "base64 -D",
             "if: always()",
         ):
             self.assertIn(marker, workflow)
+
+        # External credential values must not be expanded into security import
+        # process arguments. The protected P12 passphrase is consumed from the
+        # environment by OpenSSL, and only a disposable empty-passphrase copy
+        # reaches security import before immediate deletion.
+        self.assertNotIn('-P "$DEVELOPER_ID_P12_PASSWORD"', workflow)
+        self.assertLess(workflow.index('echo "work=$work"'), workflow.index("base64 -D"))
+        self.assertLess(workflow.index("trap cleanup_provisioning EXIT"), workflow.index("base64 -D"))
+        self.assertIn('rm -f "$import_p12"', workflow)
+        self.assertIn('rm -f "$protected_p12" "$import_p12" "$api_key"', workflow)
 
         # Signing/notarization can create a verified artifact but does not
         # silently mutate or publish an existing public GitHub release.
