@@ -19,13 +19,7 @@ CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 REMOTE_MEDIA_PREFIXES = ("http://", "https://", "data:", "//")
 RETIRED_ACTIVE_MARKERS = ("android/", "ios/", "macos/", "ghostftp web/", "web companion", "pwa")
-STALE_SIGNING_POLICY_MARKERS = (
-    "trusted authenticode requirement for stable windows publication",
-    "a stable windows release is blocked unless",
-    "stable release whose windows signing state is not trusted/configured",
-    "stable windows authenticode gate",
-    "stable windows signing gate",
-)
+
 ACTIVE_DOCS = (
     "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
     "docs/ROADMAP.md", "docs/GITHUB-RELEASES.md", "docs/PACKAGES.md",
@@ -34,6 +28,27 @@ ACTIVE_DOCS = (
     "docs/LOCALIZATION.md", "docs/DEPENDENCIES.md", "docs/SETTINGS.md", "docs/TESTING.md",
     "docs/SUPPORT.md", "docs/REFERENCE-UI.md", "linux/README.md", "scripts/README.md",
 )
+
+SIGNING_CONTRACT_DOCS = (
+    "docs/SIGNING.md",
+    "docs/GITHUB-RELEASES.md",
+    "docs/RELEASE-VERIFICATION.md",
+    "docs/PACKAGES.md",
+    "docs/SUPPORT.md",
+    "docs/PLATFORM-PARITY.md",
+    "docs/ARCHITECTURE.md",
+)
+
+STALE_OFFICIAL_SIGNING_MARKERS = (
+    "production authenticode is optional",
+    "windows_authenticode=unsigned",
+    "official file is explicitly `unsigned`",
+    "publication remains truthfully unsigned",
+    "explicit unsigned metadata when no production certificate is configured",
+    "supports windows authenticode signing as an optional production hardening layer",
+    "unsigned publication is never relabeled as signed",
+)
+
 VISUAL_ASSETS = (
     "build/icon.png",
     "docs/images/ghost-ftp-main-workspace.png",
@@ -123,6 +138,19 @@ def main() -> int:
         if not path.is_file() or path.stat().st_size <= 0:
             fail(f"missing maintained local documentation visual: {relative}")
 
+    for relative in ACTIVE_DOCS:
+        text = read(relative)
+        lowered = text.lower()
+        for marker in RETIRED_ACTIVE_MARKERS:
+            if marker in lowered:
+                fail(f"retired application surface appears in active guidance: {relative} -> {marker}")
+
+    for relative in SIGNING_CONTRACT_DOCS:
+        lowered = read(relative).lower()
+        for marker in STALE_OFFICIAL_SIGNING_MARKERS:
+            if marker in lowered:
+                fail(f"stale official unsigned-release policy appears in {relative}: {marker}")
+
     readme = read("README.md")
     index = read("docs/README.md")
     if not readme.startswith("# Ghost FTP\n"):
@@ -193,6 +221,7 @@ def main() -> int:
             "Remote Edit",
         ),
     )
+
     privacy = read("docs/PRIVACY.md")
     require_markers(
         "privacy documentation media contract",
@@ -202,6 +231,7 @@ def main() -> int:
             "remote badge images", "tracking pixels", "remote icon resources", "remote webfonts",
         ),
     )
+
     ui_workflow = read(".github/workflows/ui-screenshots.yml")
     require_markers(
         "authentic UI immutable evidence workflow",
@@ -216,25 +246,11 @@ def main() -> int:
         ),
     )
     for forbidden in (
-        "contents: write",
-        "git push",
-        "git commit",
-        "github-actions[bot]",
-        "AUTHENTIC_UI_SCREENSHOTS=PERSISTED",
-        "Persist authentic screenshots in repository",
+        "contents: write", "git push", "git commit", "github-actions[bot]",
+        "AUTHENTIC_UI_SCREENSHOTS=PERSISTED", "Persist authentic screenshots in repository",
     ):
         if forbidden in ui_workflow:
             fail(f"authentic UI workflow must not mutate the tested PR head: {forbidden}")
-
-    for relative in ACTIVE_DOCS:
-        text = read(relative)
-        lowered = text.lower()
-        for marker in RETIRED_ACTIVE_MARKERS:
-            if marker in lowered:
-                fail(f"retired application surface appears in active guidance: {relative} -> {marker}")
-        for marker in STALE_SIGNING_POLICY_MARKERS:
-            if marker in lowered:
-                fail(f"stale mandatory-signing policy appears in active guidance: {relative} -> {marker}")
 
     release_contract = (
         "14 platform artifacts / 17 public files",
@@ -289,10 +305,21 @@ def main() -> int:
         (
             "Windows and Linux platform parity", f"Ghost FTP **{version}**",
             "SFTP password", "SFTP key passphrase", "24-language",
-            "same typed `internal/api.Engine`", "Production Authenticode is optional.",
-            "WINDOWS_AUTHENTICODE=unsigned", "linux/BUILD-DISTROS.sh",
+            "same typed `internal/api.Engine`", "Official public Windows publication requires trusted Authenticode.",
+            "WINDOWS_AUTHENTICODE=signed", "linux/BUILD-DISTROS.sh",
             "Debian 13 amd64", "Ubuntu 26.04 LTS amd64", "Fedora 44 x86_64",
-            "x86-64 only", "14 platform artifacts / 17 public files",
+            "x86-64 only", "macOS source parity boundary", "14 platform artifacts / 17 public files",
+        ),
+    )
+
+    architecture = read("docs/ARCHITECTURE.md")
+    require_markers(
+        "architecture documentation",
+        architecture,
+        (
+            f"Ghost FTP **{version}**", "Android and macOS development/source clients",
+            "### macOS client", "WINDOWS_AUTHENTICODE=signed",
+            "14 platform artifacts / 17 public files", "publicly releases Windows and Linux",
         ),
     )
 
@@ -317,9 +344,11 @@ def main() -> int:
         (
             f"Ghost FTP **{version}** is the current published release",
             f"ghostftp-v{version}", f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-            "Prerelease: false", "14 platform artifacts", "17 public files",
+            "Prerelease: false", "14 platform artifacts / 17 public files",
             "release/ghostftp-vX.Y.Z", "workflow_dispatch",
             "only the latest public Ghost FTP version remains", "release-retention.yml",
+            "Official Windows publication requires a protected trusted Authenticode identity.",
+            "WINDOWS_AUTHENTICODE=signed", "no supported unsigned-publication fallback",
         ),
     )
 
@@ -331,9 +360,9 @@ def main() -> int:
             f"current maintained release is **{version}**",
             f"VERSION={version}", f"TAG=ghostftp-v{version}", f"PRERELEASE={prerelease}",
             f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-            "14 platform artifacts", "17 public files", "truthful supported publication state",
-            "does not create a self-signed production identity",
-            "explicit unsigned metadata when no production certificate is configured",
+            "14 platform artifacts / 17 public files", "Official Windows publication requires trusted Authenticode.",
+            "does not create a self-signed production identity", "WINDOWS_AUTHENTICODE=signed",
+            "Local development and ordinary CI Windows builds may be unsigned.",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
         ),
     )
@@ -345,9 +374,8 @@ def main() -> int:
         (
             f"Ghost FTP **{version}**", f"ghcr.io/bren-wp/ghost-ftp:{version}",
             "distribution bundle", "not a runtime container", "/ghostftp-release/", "SHA256.txt",
-            "14 platform artifacts / 17 public files",
-            "Authenticode verification **when a trusted production certificate is configured**",
-            "WINDOWS_AUTHENTICODE=unsigned", "latest",
+            "14 platform artifacts / 17 public files", "Official Windows publication requires trusted Authenticode.",
+            "WINDOWS_AUTHENTICODE=signed", "latest",
         ),
     )
 
@@ -356,10 +384,9 @@ def main() -> int:
         "support documentation",
         support,
         (
-            f"Ghost FTP **{version}**",
-            "inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`",
-            "official file is explicitly `unsigned`", "metadata says `signed`",
-            "Windows signature verification fails",
+            f"Ghost FTP **{version}**", "Official public Windows artifacts require trusted Authenticode",
+            "WINDOWS_AUTHENTICODE=signed", "release-integrity issue",
+            "Unsigned local/development or ordinary CI builds are allowed",
         ),
     )
 
@@ -368,8 +395,10 @@ def main() -> int:
         "signing documentation",
         signing,
         (
-            "supports Windows Authenticode signing as an optional production hardening layer",
-            "WINDOWS_AUTHENTICODE=signed", "WINDOWS_AUTHENTICODE=unsigned",
+            f"Ghost FTP **{version}**", "Official Windows publication is **signed-only**.",
+            "GHOSTFTP_SIGNING_PFX_BASE64", "GHOSTFTP_SIGNING_PASSWORD",
+            "WINDOWS_AUTHENTICODE=signed", "no supported `state=unsigned` continuation path",
+            "Local development builds and non-public CI packaging are allowed to remain unsigned.",
             "production workflow never creates its own long-lived publisher key",
         ),
     )
@@ -391,12 +420,14 @@ def main() -> int:
     print(f"DOCS_AUDIT=PASS ({version}; channel=current; {len(files)} Markdown files)")
     print("PUBLIC_BRAND=Ghost FTP")
     print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
-    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO")
-    print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
+    print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
+    print("DEVELOPMENT_WINDOWS_BUILDS_MAY_BE_UNSIGNED=YES")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("PUBLIC_PLATFORM_ARTIFACTS=14")
     print("PUBLIC_RELEASE_FILES=17")
