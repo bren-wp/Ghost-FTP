@@ -87,6 +87,13 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "docs/GITHUB-RELEASES.md",
             "docs/RELEASE-VERIFICATION.md",
             "docs/PACKAGES.md",
+            "docs/VERSIONING.md",
+            "docs/SUPPORT.md",
+            "docs/ROADMAP.md",
+            "docs/CONTRIBUTING.md",
+            "docs/REFERENCE-UI.md",
+            "docs/SECURITY.md",
+            "scripts/README.md",
         ):
             text = read(rel)
             for marker in markers:
@@ -100,6 +107,8 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "docs/INSTALLATION.md",
             "docs/GITHUB-RELEASES.md",
             "docs/RELEASE-VERIFICATION.md",
+            "docs/VERSIONING.md",
+            "docs/ROADMAP.md",
         ):
             self.assertIn("14 platform artifacts / 17 public files", read(rel))
 
