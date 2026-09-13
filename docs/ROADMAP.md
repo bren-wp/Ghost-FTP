@@ -26,9 +26,11 @@ The current release gate includes:
 - shared file sorting semantics on maintained desktop frontends, including server Permissions sorting where metadata exists;
 - local/remote navigation bookmarks and account-bound profile start directories;
 - Windows profile/file mutation and Remote Edit session re-entry guards;
+- Windows Add/Retry/Cancel transfer callbacks bound to the owning connection generation;
 - Android pending-connection lifecycle ownership across Activity destruction/recreation and authentication-error redaction;
 - optional privacy-minimal browser companion source for Chromium-family browsers and Firefox, with local target parsing only and no claimed desktop handoff;
-- two public universal Windows Setup/Portable executables backed by verified internal x64/x86 payloads;
+- two public universal Windows Setup/Portable executables backed by verified internal **x64, x86 and ARM64** payloads selected by `GetNativeSystemInfo`, with no runtime architecture download;
+- an explicit `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` boundary until maintained native Windows ARM64 runtime execution evidence exists;
 - canonical Debian/Ubuntu/Fedora/Portable Linux release packaging;
 - 24-language local catalog with English default/fallback;
 - production race/vet/security/privacy/dependency/documentation audits;
@@ -51,9 +53,10 @@ The immediate 0.0.x hardening lane includes:
 7. large-directory/list memory and UI responsiveness;
 8. further Remote Edit shutdown/disconnect/conflict edge cases;
 9. continued Windows/Linux production parity for keyboard/file workflows, file operations, queue state, settings and error handling;
-10. continued Android lifecycle/rotation/resume hardening without weakening SAF, strict FTPS or staged-transfer boundaries;
-11. continued macOS native regression quality and parity without overstating public signing/notarization status;
-12. documentation and authentic real-application evidence synchronized with exact maintained source.
+10. maintained Windows ARM64 native build/package integrity and future native ARM64 runtime evidence when an appropriate runner/device is available;
+11. continued Android lifecycle/rotation/resume hardening without weakening SAF, strict FTPS or staged-transfer boundaries;
+12. continued macOS native regression quality and parity without overstating public signing/notarization status;
+13. documentation and authentic real-application evidence synchronized with exact maintained source.
 
 ## 0.0.5 navigation work
 
@@ -232,7 +235,9 @@ Future work must preserve:
 - trusted Linux transport and AskPass provenance;
 - exact-object/ownership-aware Windows installer/uninstaller cleanup;
 - exact source/version binding for public releases;
+- exactly two public Windows executables while native x64/x86/ARM64 staging remains internal;
 - trusted Authenticode on both official public Windows executables with `WINDOWS_AUTHENTICODE=signed`;
+- honest `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` until actual maintained native ARM64 runtime proof exists;
 - local/development Windows builds may be unsigned but must never be represented as official public release artifacts;
 - no generated/self-signed production identity represented as a trusted publisher;
 - verified GitHub Release and GitHub Package publication;
