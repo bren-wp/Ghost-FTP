@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def read(path: str) -> str:
+    return (ROOT / path).read_text(encoding="utf-8")
+
+
+class WindowsArm64UniversalContractTests(unittest.TestCase):
+    def test_native_architecture_detection_includes_arm64(self) -> None:
+        source = read("internal/platform/windows_arch.go")
+        tests = read("internal/platform/windows_arch_test.go")
+        bootstrap = read("cmd/windowsbootstrap/main.go")
+        bootstrap_tests = read("cmd/windowsbootstrap/main_test.go")
+
+        self.assertIn("windowsProcessorArchitectureARM64 = 12", source)
+        self.assertIn('return "arm64", nil', source)
+        self.assertIn('{windowsProcessorArchitectureARM64, "arm64"}', tests)
+        self.assertIn('case "x86", "x64", "arm64":', bootstrap)
+        self.assertIn('"arm64": "payload/arm64/GhostFTP.exe"', bootstrap_tests)
+
+    def test_pe_tooling_verifies_native_arm64(self) -> None:
+        resources = read("scripts/pe_resources.py")
+        verifier = read("scripts/verify_release.py")
+
+        self.assertIn("ARM64 = 0xAA64", resources)
+        self.assertIn('processor_architecture not in {"amd64", "x86", "arm64"}', resources)
+        self.assertIn("machine == ARM64 and magic == 0x20B", resources)
+        self.assertIn("ARM64 = 0xAA64", verifier)
+        self.assertIn('"arm64": {"machine": ARM64', verifier)
+        self.assertIn('manifest_arch = {"x64": "amd64", "x86": "x86", "arm64": "arm64"}[arch]', verifier)
+
+    def test_native_builder_creates_three_internal_payload_families(self) -> None:
+        stage = read("BUILD-WINDOWS-ARCH-STAGE.ps1")
+        public = read("BUILD-WINDOWS.ps1")
+
+        for marker in (
+            "Build-GhostFTPArchitecture -GoArch 'amd64' -Label 'x64'",
+            "Build-GhostFTPArchitecture -GoArch '386' -Label 'x86'",
+            "Build-GhostFTPArchitecture -GoArch 'arm64' -Label 'arm64'",
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+        ):
+            self.assertIn(marker, stage)
+        for marker in (
+            "$Arm64",
+            "payload 'arm64\\GhostFTP.exe'",
+            "WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64_ARM64",
+            "WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64_ARM64",
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+            "WINDOWS_PUBLIC_EXECUTABLES=2",
+        ):
+            self.assertIn(marker, public)
+
+    def test_public_release_keeps_exactly_two_windows_executables(self) -> None:
+        ci = read(".github/workflows/ci.yml")
+        release = read(".github/workflows/release.yml")
+
+        self.assertIn("(?:x64|x86|x32|arm64)", ci)
+        self.assertIn("(?:x64|x86|x32|arm64)", release)
+        self.assertIn("WINDOWS_SETUP=universal-x86-x64-arm64", release)
+        self.assertIn("WINDOWS_PORTABLE=universal-x86-x64-arm64", release)
+        self.assertIn("WINDOWS_BOOTSTRAP_PE=x86", release)
+        self.assertIn("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64", release)
+        self.assertIn("WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci", release)
+        self.assertIn("test \"$(find release -maxdepth 1 -type f -name '*.exe' | wc -l | tr -d ' ')\" = '2'", release)
+        self.assertNotIn("Ghost-FTP-${VERSION}-Setup-arm64.exe", release)
+        self.assertNotIn("Ghost-FTP-${VERSION}-Portable-arm64.exe", release)
+
+    def test_active_docs_state_arm64_evidence_boundary(self) -> None:
+        markers = (
+            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
+            "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
+        )
+        for rel in (
+            "README.md",
+            "docs/README.md",
+            "docs/INSTALLATION.md",
+            "docs/ARCHITECTURE.md",
+            "docs/PLATFORM-PARITY.md",
+            "docs/TESTING.md",
+            "docs/SIGNING.md",
+            "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md",
+            "docs/PACKAGES.md",
+        ):
+            text = read(rel)
+            for marker in markers:
+                with self.subTest(document=rel, marker=marker):
+                    self.assertIn(marker, text)
+
+    def test_public_release_shape_is_unchanged(self) -> None:
+        for rel in (
+            "README.md",
+            "docs/README.md",
+            "docs/INSTALLATION.md",
+            "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md",
+        ):
+            self.assertIn("14 platform artifacts / 17 public files", read(rel))
+
+
+if __name__ == "__main__":
+    result = unittest.main(exit=False)
+    if not result.result.wasSuccessful():
+        raise SystemExit(1)
+    print("WINDOWS_ARM64_UNIVERSAL_CONTRACT=PASS")
