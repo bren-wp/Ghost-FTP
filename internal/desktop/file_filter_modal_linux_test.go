@@ -34,4 +34,22 @@ func TestLinuxModalBackgroundInputIsolation(t *testing.T) {
 			t.Fatalf("editable hit target remained active during modal workflow: %+v", rect)
 		}
 	}
+
+	u.restoreLinuxModalBackgroundInput()
+	if u.focus != linuxFieldHost {
+		t.Fatalf("restored focus = %d, want previous field %d", u.focus, linuxFieldHost)
+	}
+}
+
+func TestLinuxModalBackgroundInputRestoreDoesNotClobberNewFocus(t *testing.T) {
+	u := &linuxDesktop{}
+	u.focus = linuxFieldHost
+
+	u.isolateLinuxModalBackgroundInput()
+	u.focus = linuxFieldPort
+	u.restoreLinuxModalBackgroundInput()
+
+	if u.focus != linuxFieldPort {
+		t.Fatalf("restore clobbered newer focus: got %d, want %d", u.focus, linuxFieldPort)
+	}
 }
