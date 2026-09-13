@@ -54,28 +54,28 @@ ACTIVE_DOCS = (
     "scripts/README.md",
 )
 
-SIGNING_CONTRACT_DOCS = (
-    "README.md",
-    "docs/SIGNING.md",
-    "docs/GITHUB-RELEASES.md",
-    "docs/RELEASE-VERIFICATION.md",
-    "docs/PACKAGES.md",
-    "docs/SUPPORT.md",
-    "docs/PLATFORM-PARITY.md",
-    "docs/ARCHITECTURE.md",
-    "docs/INSTALLATION.md",
-    "docs/TESTING.md",
-)
-
 STALE_OFFICIAL_SIGNING_MARKERS = (
     "production authenticode is optional",
-    "windows_authenticode=unsigned",
     "official file is explicitly `unsigned`",
     "publication remains truthfully unsigned",
     "explicit unsigned metadata when no production certificate is configured",
     "supports windows authenticode signing as an optional production hardening layer",
     "unsigned publication is never relabeled as signed",
     "exercises optional authenticode policy",
+)
+
+UNSIGNED_NEGATION_MARKERS = (
+    "no supported",
+    "not supported",
+    "never",
+    "must not",
+    "reject",
+    "fails",
+    "failure",
+    "blocked",
+    "forbidden",
+    "stale",
+    "without publishing",
 )
 
 STALE_RELEASE_SHAPES = (
@@ -154,6 +154,20 @@ def check_active_version(relative: str, text: str, version: str) -> None:
             fail(f"stale public release shape in {relative}: {marker}")
 
 
+def check_signing_policy(relative: str, text: str) -> None:
+    lowered = text.lower()
+    for marker in STALE_OFFICIAL_SIGNING_MARKERS:
+        if marker in lowered:
+            fail(f"stale official unsigned-release policy appears in {relative}: {marker}")
+
+    for line in lowered.splitlines():
+        if "windows_authenticode=unsigned" not in line:
+            continue
+        if any(marker in line for marker in UNSIGNED_NEGATION_MARKERS):
+            continue
+        fail(f"active guidance permits an unsigned official Windows state in {relative}: {line.strip()}")
+
+
 def main() -> int:
     version = read("VERSION").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
@@ -189,15 +203,10 @@ def main() -> int:
         text = read(relative)
         lowered = text.lower()
         check_active_version(relative, text, version)
+        check_signing_policy(relative, text)
         for marker in RETIRED_ACTIVE_MARKERS:
             if marker in lowered:
                 fail(f"retired application surface appears in active guidance: {relative} -> {marker}")
-
-    for relative in SIGNING_CONTRACT_DOCS:
-        lowered = read(relative).lower()
-        for marker in STALE_OFFICIAL_SIGNING_MARKERS:
-            if marker in lowered:
-                fail(f"stale official unsigned-release policy appears in {relative}: {marker}")
 
     readme = read("README.md")
     index = read("docs/README.md")
@@ -476,7 +485,6 @@ def main() -> int:
             f"Ghost FTP **{version}**",
             "Documentation media is repository-local.",
             "remote badge images", "tracking pixels", "remote icon resources", "remote webfonts",
-            "browser connection helper",
         ),
     )
 
