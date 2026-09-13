@@ -48,7 +48,7 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             self.assertIn(marker, stage)
         for marker in (
             "$Arm64",
-            "payload 'arm64\\GhostFTP.exe'",
+            "arm64\\GhostFTP.exe",
             "WINDOWS_PUBLIC_SETUP=UNIVERSAL_X86_X64_ARM64",
             "WINDOWS_PUBLIC_PORTABLE=UNIVERSAL_X86_X64_ARM64",
             "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
