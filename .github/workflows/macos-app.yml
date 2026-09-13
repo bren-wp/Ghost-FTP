@@ -18,11 +18,15 @@ on:
       - 'scripts/audit_version.py'
       - 'scripts/test_macos_windows_parity_contract.py'
       - 'scripts/test_macos_engine_bridge_contract.py'
+      - 'scripts/test_macos_application_parity_contract.py'
+      - 'scripts/test_macos_distribution_contract.py'
       - '.github/workflows/macos-app.yml'
+      - '.github/workflows/macos-production.yml'
   push:
     branches:
       - main
       - 'feature/**'
+      - 'release/**'
     paths:
       - 'VERSION'
       - 'build/icon.png'
@@ -37,7 +41,10 @@ on:
       - 'scripts/audit_version.py'
       - 'scripts/test_macos_windows_parity_contract.py'
       - 'scripts/test_macos_engine_bridge_contract.py'
+      - 'scripts/test_macos_application_parity_contract.py'
+      - 'scripts/test_macos_distribution_contract.py'
       - '.github/workflows/macos-app.yml'
+      - '.github/workflows/macos-production.yml'
 
 permissions:
   contents: read
@@ -68,7 +75,7 @@ jobs:
           echo "MACOS_SOURCE_SHA=$SOURCE_SHA"
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.2.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.27.1'
           check-latest: false
@@ -85,15 +92,19 @@ jobs:
           xcrun swiftc --version
           xcrun --sdk macosx --show-sdk-path
 
-      - name: Validate macOS engine and parity contracts
+      - name: Validate macOS engine parity and distribution contracts
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/test_macos_windows_parity_contract.py
           python3 scripts/test_macos_engine_bridge_contract.py
+          python3 scripts/test_macos_application_parity_contract.py
+          python3 scripts/test_macos_distribution_contract.py
           python3 scripts/audit_platform_contract.py
           python3 scripts/audit_desktop_surface.py
           python3 scripts/audit_version.py
+          bash -n macos/BUILD.sh
+          bash -n macos/SIGN_AND_NOTARIZE.sh
 
       - name: Build universal native macOS app and shared engine
         shell: bash

@@ -102,7 +102,7 @@ IMPLEMENTED_MACOS_ACTIONS = {
 
 
 class MacOSWindowsParityContractTests(unittest.TestCase):
-    def test_macos_is_an_active_separate_development_surface(self) -> None:
+    def test_macos_is_an_active_separate_native_surface(self) -> None:
         platform_audit = read("scripts/audit_platform_contract.py")
         desktop_audit = read("scripts/audit_desktop_surface.py")
         for source in (platform_audit, desktop_audit):
@@ -111,12 +111,15 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
             self.assertNotIn("IOS,MACOS", source)
         self.assertNotIn("DARWIN_SOURCE=BLOCKED", platform_audit)
 
-    def test_macos_has_its_own_source_build_and_ci_surface(self) -> None:
+    def test_macos_has_source_development_and_production_distribution_surfaces(self) -> None:
         for relative in (
             "macos/README.md",
             "macos/PARITY.md",
             "macos/BUILD.sh",
+            "macos/SIGN_AND_NOTARIZE.sh",
             ".github/workflows/macos-app.yml",
+            ".github/workflows/macos-production.yml",
+            "scripts/test_macos_distribution_contract.py",
         ):
             self.assertTrue((ROOT / relative).is_file(), relative)
 
@@ -126,12 +129,18 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         self.assertIn("ghostftp-macos-development", workflow)
         self.assertIn("permissions:\n  contents: read", workflow)
 
+        production = read(".github/workflows/macos-production.yml")
+        self.assertIn("workflow_dispatch:", production)
+        self.assertIn("environment: macos-production", production)
+        self.assertIn("bash macos/SIGN_AND_NOTARIZE.sh", production)
+        self.assertIn("permissions:\n  contents: read", production)
+
     def test_windows_is_the_visual_and_behavior_reference(self) -> None:
         readme = read("macos/README.md")
         parity = read("macos/PARITY.md")
         combined = readme + "\n" + parity
         for marker in (
-            "Windows desktop is the canonical visual and behavior reference",
+            "Windows desktop remains the canonical visual and behavior reference",
             "same typed `internal/api.Engine`",
             "no decorative or dead controls",
             "Classic Light",
@@ -152,20 +161,21 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
 
     def test_complete_windows_action_inventory_is_recorded_truthfully(self) -> None:
         parity = read("macos/PARITY.md")
+        self.assertEqual(set(WINDOWS_PARITY_ACTIONS), IMPLEMENTED_MACOS_ACTIONS)
         for action in WINDOWS_PARITY_ACTIONS:
-            expected = "x" if action in IMPLEMENTED_MACOS_ACTIONS else " "
-            self.assertIn(f"- [{expected}] {action}", parity)
-            opposite = " " if expected == "x" else "x"
-            self.assertNotIn(f"- [{opposite}] {action}", parity)
+            self.assertIn(f"- [x] {action}", parity)
+            self.assertNotIn(f"- [ ] {action}", parity)
 
-    def test_macos_does_not_silently_expand_current_public_release(self) -> None:
+    def test_production_preparation_does_not_silently_publish_a_public_release(self) -> None:
         readme = read("macos/README.md")
-        self.assertIn("development surface", readme)
-        self.assertIn("not part of the current 0.0.5 public release allow-list", readme)
+        self.assertIn("Source/native functionality is complete", readme)
+        self.assertIn("Developer ID", readme)
+        self.assertIn("Apple notarization", readme)
+        self.assertIn("does **not** modify or upload to an existing public GitHub Release", readme)
 
         release = read(".github/workflows/release.yml")
-        self.assertNotIn("Ghost-FTP-${VERSION}-macOS", release)
-        self.assertNotIn("macos/BUILD.sh", release)
+        self.assertNotIn("macOS-notarized.app.zip", release)
+        self.assertNotIn("SIGN_AND_NOTARIZE.sh", release)
 
     def test_build_contract_binds_to_root_version_and_app_bundle(self) -> None:
         build = read("macos/BUILD.sh")
@@ -177,6 +187,16 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         self.assertIn("Ghost-FTP-${VERSION}-macOS.app.zip", build)
         self.assertNotIn("curl ", build)
         self.assertNotIn("wget ", build)
+
+    def test_distribution_contract_is_separate_and_fail_closed(self) -> None:
+        signer = read("macos/SIGN_AND_NOTARIZE.sh")
+        self.assertIn("MACOS_DEVELOPER_IDENTITY must be a Developer ID Application identity", signer)
+        self.assertIn("--options runtime", signer)
+        self.assertIn("--timestamp", signer)
+        self.assertIn("xcrun notarytool submit", signer)
+        self.assertIn("xcrun stapler staple", signer)
+        self.assertIn("spctl --assess", signer)
+        self.assertIn("accepted-stapled", signer)
 
 
 if __name__ == "__main__":
