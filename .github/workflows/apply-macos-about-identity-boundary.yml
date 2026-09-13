@@ -30,115 +30,41 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          def replace_once(path: str, old: str, new: str) -> None:
+          def replace_once(path, old, new):
               p = Path(path)
-              text = p.read_text(encoding='utf-8')
+              text = p.read_text(encoding="utf-8")
               if text.count(old) != 1:
-                  raise SystemExit(f'{path}: expected exactly one guarded anchor, found {text.count(old)}')
-              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+                  raise SystemExit(f"{path}: guarded anchor count={text.count(old)}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
 
-          about = Path('macos/Bridge/about_identity.go')
+          about = Path("macos/Bridge/about_identity.go")
           if about.exists():
-              raise SystemExit('macOS About identity source already exists unexpectedly')
-          about.write_text('''package main
+              raise SystemExit("macOS About identity source already exists")
+          about.write_text("package main\n\n// Author identity is intentionally isolated to the About surface. Public\n// product branding elsewhere remains Ghost FTP.\nconst (\n\tmacAboutPublisher     = \"BRENDIGO LTD\"\n\tmacAboutWebsite       = \"ghostftp.com\"\n\tmacAboutAuthorWebsite = \"brendigo.com\"\n\tmacAboutSupport       = \"brendigo.com/kontakt\"\n)\n", encoding="utf-8")
 
-// Author identity is intentionally isolated to the About surface. Public
-// product branding elsewhere remains Ghost FTP.
-const (
-\tmacAboutPublisher     = "BRENDIGO LTD"
-\tmacAboutWebsite       = "ghostftp.com"
-\tmacAboutAuthorWebsite = "brendigo.com"
-\tmacAboutSupport       = "brendigo.com/kontakt"
-)
-''', encoding='utf-8')
+          old = "//export GhostFTPAboutPublisher\nfunc GhostFTPAboutPublisher() *C.char { return C.CString(\"BRENDIGO LTD\") }\n\n//export GhostFTPAboutWebsite\nfunc GhostFTPAboutWebsite() *C.char { return C.CString(\"ghostftp.com\") }\n\n//export GhostFTPAboutAuthorWebsite\nfunc GhostFTPAboutAuthorWebsite() *C.char { return C.CString(\"brendigo.com\") }\n\n//export GhostFTPAboutSupport\nfunc GhostFTPAboutSupport() *C.char { return C.CString(\"brendigo.com/kontakt\") }\n"
+          new = "//export GhostFTPAboutPublisher\nfunc GhostFTPAboutPublisher() *C.char { return C.CString(macAboutPublisher) }\n\n//export GhostFTPAboutWebsite\nfunc GhostFTPAboutWebsite() *C.char { return C.CString(macAboutWebsite) }\n\n//export GhostFTPAboutAuthorWebsite\nfunc GhostFTPAboutAuthorWebsite() *C.char { return C.CString(macAboutAuthorWebsite) }\n\n//export GhostFTPAboutSupport\nfunc GhostFTPAboutSupport() *C.char { return C.CString(macAboutSupport) }\n"
+          replace_once("macos/Bridge/application.go", old, new)
 
-          replace_once(
-              'macos/Bridge/application.go',
-              '''//export GhostFTPAboutPublisher
-func GhostFTPAboutPublisher() *C.char { return C.CString("BRENDIGO LTD") }
+          old = "About is the only Mac application surface that exposes the publisher/author identity (`BRENDIGO LTD`, `brendigo.com`). Product version remains bound to root `VERSION` by the native build, while product/support identity remains explicit."
+          new = "About is the only Mac application surface that exposes publisher/author identity, sourced from the dedicated macOS About-only metadata file. Product version remains bound to root `VERSION` by the native build, while product/support identity remains explicit."
+          replace_once("macos/PARITY.md", old, new)
 
-//export GhostFTPAboutWebsite
-func GhostFTPAboutWebsite() *C.char { return C.CString("ghostftp.com") }
+          old = "            \"GhostFTPAboutPublisher\",\n            '\"BRENDIGO LTD\"',\n"
+          new = "            \"GhostFTPAboutPublisher\",\n            \"macAboutPublisher\",\n"
+          replace_once("scripts/test_macos_application_parity_contract.py", old, new)
 
-//export GhostFTPAboutAuthorWebsite
-func GhostFTPAboutAuthorWebsite() *C.char { return C.CString("brendigo.com") }
+          old = "        for forbidden in (\"json.Marshal\", \"json.Unmarshal\", \"PasswordBlob\", \"PassphraseBlob\"):\n            self.assertNotIn(forbidden, bridge)\n"
+          new = old + "\n        about_identity = read(\"macos/Bridge/about_identity.go\")\n        for marker in (\"macAboutPublisher\", \"macAboutWebsite\", \"macAboutAuthorWebsite\", \"macAboutSupport\"):\n            self.assertIn(marker, about_identity)\n"
+          replace_once("scripts/test_macos_application_parity_contract.py", old, new)
 
-//export GhostFTPAboutSupport
-func GhostFTPAboutSupport() *C.char { return C.CString("brendigo.com/kontakt") }
-''',
-              '''//export GhostFTPAboutPublisher
-func GhostFTPAboutPublisher() *C.char { return C.CString(macAboutPublisher) }
+          old = "    \"internal/desktop/about_identity_windows.go\",\n"
+          new = old + "    \"macos/Bridge/about_identity.go\",\n"
+          replace_once("scripts/audit_brand_hardcut.py", old, new)
 
-//export GhostFTPAboutWebsite
-func GhostFTPAboutWebsite() *C.char { return C.CString(macAboutWebsite) }
-
-//export GhostFTPAboutAuthorWebsite
-func GhostFTPAboutAuthorWebsite() *C.char { return C.CString(macAboutAuthorWebsite) }
-
-//export GhostFTPAboutSupport
-func GhostFTPAboutSupport() *C.char { return C.CString(macAboutSupport) }
-''',
-          )
-
-          replace_once(
-              'macos/PARITY.md',
-              'About is the only Mac application surface that exposes the publisher/author identity (`BRENDIGO LTD`, `brendigo.com`). Product version remains bound to root `VERSION` by the native build, while product/support identity remains explicit.',
-              'About is the only Mac application surface that exposes publisher/author identity, sourced from the dedicated macOS About-only metadata file. Product version remains bound to root `VERSION` by the native build, while product/support identity remains explicit.',
-          )
-
-          replace_once(
-              'scripts/test_macos_application_parity_contract.py',
-              '''            "GhostFTPAboutPublisher",
-            '"BRENDIGO LTD"',
-''',
-              '''            "GhostFTPAboutPublisher",
-            "macAboutPublisher",
-''',
-          )
-          replace_once(
-              'scripts/test_macos_application_parity_contract.py',
-              '''        for forbidden in ("json.Marshal", "json.Unmarshal", "PasswordBlob", "PassphraseBlob"):
-            self.assertNotIn(forbidden, bridge)
-''',
-              '''        for forbidden in ("json.Marshal", "json.Unmarshal", "PasswordBlob", "PassphraseBlob"):
-            self.assertNotIn(forbidden, bridge)
-
-        about_identity = read("macos/Bridge/about_identity.go")
-        for marker in ("macAboutPublisher", "macAboutWebsite", "macAboutAuthorWebsite", "macAboutSupport"):
-            self.assertIn(marker, about_identity)
-''',
-          )
-
-          replace_once(
-              'scripts/audit_brand_hardcut.py',
-              '''    "internal/desktop/about_identity_windows.go",
-''',
-              '''    "internal/desktop/about_identity_windows.go",
-    "macos/Bridge/about_identity.go",
-''',
-          )
-          replace_once(
-              'scripts/audit_brand_hardcut.py',
-              '''    if violations:
-        fail("branding contract violation: " + ", ".join(violations))
-''',
-              '''    mac_about = ROOT / "macos" / "Bridge" / "about_identity.go"
-    if not mac_about.is_file():
-        violations.append("missing-macos-about-identity-source")
-    else:
-        mac_about_text = mac_about.read_text(encoding="utf-8")
-        for marker in (
-            'macAboutPublisher     = "BRENDIGO LTD"',
-            'macAboutAuthorWebsite = "brendigo.com"',
-            'macAboutSupport       = "brendigo.com/kontakt"',
-        ):
-            if marker not in mac_about_text:
-                violations.append("macos-about-identity-contract:" + marker)
-
-    if violations:
-        fail("branding contract violation: " + ", ".join(violations))
-''',
-          )
+          old = "    if violations:\n        fail(\"branding contract violation: \" + \", \".join(violations))\n"
+          new = "    mac_about = ROOT / \"macos\" / \"Bridge\" / \"about_identity.go\"\n    if not mac_about.is_file():\n        violations.append(\"missing-macos-about-identity-source\")\n    else:\n        mac_about_text = mac_about.read_text(encoding=\"utf-8\")\n        for marker in (\n            'macAboutPublisher     = \"BRENDIGO LTD\"',\n            'macAboutAuthorWebsite = \"brendigo.com\"',\n            'macAboutSupport       = \"brendigo.com/kontakt\"',\n        ):\n            if marker not in mac_about_text:\n                violations.append(\"macos-about-identity-contract:\" + marker)\n\n" + old
+          replace_once("scripts/audit_brand_hardcut.py", old, new)
           PY
 
       - name: Validate identity and parity contracts
