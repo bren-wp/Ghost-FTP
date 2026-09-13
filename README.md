@@ -34,14 +34,14 @@
 | **🌍 Localized** | English-first local catalog with **24 selectable desktop languages**. |
 | **✅ Verifiable releases** | SHA-256 metadata, exact-source CI gates and signed-only official Windows publication. |
 
-Current Ghost FTP version: **0.0.5**  
-Development status: **Active**  
-Release channel: **Current**  
-Public release platforms: **Windows and Linux**  
-Active native source platforms: **Windows, Linux, Android and macOS**  
-Public release identity: `ghostftp-v0.0.5`, `prerelease=false`  
-Verified distribution bundle: `ghcr.io/bren-wp/ghost-ftp:0.0.5`  
-Public release shape: **14 platform artifacts / 17 public files**
+- Current Ghost FTP version: **0.0.5**
+- Development status: **Active**
+- Release channel: **Current**
+- Public release platforms: **Windows and Linux**
+- Active native source platforms: **Windows, Linux, Android and macOS**
+- Public release identity: `ghostftp-v0.0.5`, `prerelease=false`
+- Verified distribution bundle: `ghcr.io/bren-wp/ghost-ftp:0.0.5`
+- Public release shape: **14 platform artifacts / 17 public files**
 
 > Ghost FTP keeps release claims narrow on purpose. Android and macOS are active native development/source surfaces, while the current public GitHub Release contract remains Windows + Linux.
 
