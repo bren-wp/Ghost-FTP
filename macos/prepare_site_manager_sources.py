@@ -237,7 +237,7 @@ def integrate_main(text: str) -> str:
                     self.localPathLabel.stringValue = resolved
                     self.localTable.reloadData()
                 }
-                self.statusLabel.stringValue = remote ? "Remote bookmark opened: \(path)" : "Local bookmark opened: \(path)"
+                self.statusLabel.stringValue = remote ? "Remote bookmark opened: \\(path)" : "Local bookmark opened: \\(path)"
                 self.updateWorkspaceControls()
             }
         }
