@@ -42,7 +42,8 @@ class PublicReleaseSigningContractTest(unittest.TestCase):
         verifier = VERIFY_RELEASE.read_text(encoding="utf-8")
 
         self.assertIn('PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"', verifier)
-        self.assertIn("requires trusted Authenticode", verifier)
+        self.assertIn("public Windows release artifacts must be Authenticode signed", verifier)
+        self.assertIn("trusted production signing identity", verifier)
         self.assertIn("require_public_release_signatures", verifier)
 
 
