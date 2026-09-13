@@ -190,7 +190,7 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
 
     def test_distribution_contract_is_separate_and_fail_closed(self) -> None:
         signer = read("macos/SIGN_AND_NOTARIZE.sh")
-        self.assertIn("Developer ID Application:", signer)
+        self.assertIn("MACOS_DEVELOPER_IDENTITY must be a Developer ID Application identity", signer)
         self.assertIn("--options runtime", signer)
         self.assertIn("--timestamp", signer)
         self.assertIn("xcrun notarytool submit", signer)
