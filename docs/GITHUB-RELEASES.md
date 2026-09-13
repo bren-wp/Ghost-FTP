@@ -92,15 +92,24 @@ After the successor is successfully published and remotely verified, `.github/wo
 
 ## Windows universal artifact and signing gate
 
-The Windows release job builds only two public universal executables. Verified native x64/x86 Setup/Portable binaries remain internal staging inputs. No public `-x64.exe`, `-x86.exe` or `-x32.exe` release aliases are allowed.
+The Windows release job builds only two public universal executables. Verified native **x64, x86 and ARM64** Setup/Portable binaries remain internal staging inputs. No public `-x64.exe`, `-x86.exe`, `-x32.exe` or `-arm64.exe` release aliases are allowed.
+
+The public PE x86 bootstrap detects the native Windows processor through `GetNativeSystemInfo`, selects the matching embedded x64/x86/ARM64 payload, verifies the staged bytes and performs no runtime download. ARM64 therefore extends the internal payload set without increasing the two-file Windows public surface or the overall **14 platform artifacts / 17 public files** release shape.
 
 Official Windows publication requires a protected trusted Authenticode identity. `Publish Ghost FTP` fails when the production PFX or password is unavailable, and it verifies both public executables with `Get-AuthenticodeSignature` before staging them for publication.
 
 A successful public release records:
 
 ```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
+
+`WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` prevents an unsupported claim: CI cross-builds and validates ARM64 PE/resources/package routing/signing mechanics, but current maintained Windows Actions runtime evidence is not native ARM64 execution.
 
 There is no supported unsigned-publication fallback for the official release workflow. Local development and ordinary CI builds may be unsigned, but they are not official public release artifacts.
 
@@ -115,9 +124,11 @@ The production workflow never fabricates a self-signed publisher identity. The C
 `BUILD-METADATA.txt` records:
 
 ```text
-WINDOWS_SETUP=universal-x86-x64
-WINDOWS_PORTABLE=universal-x86-x64
-WINDOWS_NATIVE_PAYLOADS=x64,x86
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 LINUX_DEBIAN_DEB=amd64,arm64,i386
 LINUX_UBUNTU_DEB=amd64,arm64,i386
@@ -142,5 +153,7 @@ It is a distribution bundle, not a runtime container. The exact-version package 
 ## What counts as release evidence
 
 A local build, successful PR workflow or unsigned development executable is not proof of an official release. Release evidence requires the canonical publish workflow, exact source identity, successful signing verification, remote GitHub Release read-back, GHCR read-back and the documented retention chain.
+
+Likewise, a successful Windows x64 runtime/UI capture does not prove native ARM64 execution. Native ARM64 runtime evidence must come from a maintained ARM64 Windows runner/device and must be identified separately if that coverage is added later.
 
 See [Packages](PACKAGES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [Versioning](VERSIONING.md).
