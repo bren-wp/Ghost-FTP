@@ -6,11 +6,12 @@ Official product and support destination: **https://ghostftp.com**.
 
 ## Before reporting a problem
 
-1. Confirm public Windows/Linux builds report version `0.0.5`, or the maintained `0.0.5-dev` Android identity for the development APK.
-2. Confirm a public desktop package came from the current GitHub Release, or identify the exact Android CI artifact for development-APK reports.
+1. Confirm public Windows/Linux builds report version `0.0.5`, or identify the maintained development artifact/source SHA for Android or macOS reports.
+2. Confirm a public desktop package came from the current GitHub Release; development artifacts from CI are not public-release substitutes.
 3. Verify official desktop artifacts against `SHA256.txt`.
-4. Reproduce with the same protocol, architecture and operating-system/device class.
-5. Remove passwords, passphrases, private keys, server secrets and customer data from diagnostics.
+4. For official Windows Setup/Portable files, also verify Authenticode publisher status.
+5. Reproduce with the same protocol, architecture and operating-system/device class.
+6. Remove passwords, passphrases, private keys, server secrets and customer data from diagnostics.
 
 Because the project keeps only the latest public desktop release, support is provided against the current version rather than superseded binary/tag URLs.
 
@@ -28,11 +29,15 @@ The current public Windows files are `Ghost-FTP-0.0.5-Setup.exe` and `Ghost-FTP-
 
 ## Windows signing reports
 
-Always **inspect `WINDOWS_AUTHENTICODE` in `BUILD-METADATA.txt`**.
+Official public Windows artifacts require trusted Authenticode under the current release contract. `BUILD-METADATA.txt` for a successfully published current release must record:
 
-When metadata says `WINDOWS_AUTHENTICODE=unsigned`, the **official file is explicitly `unsigned`**; absence of a publisher signature alone is not corruption.
+```text
+WINDOWS_AUTHENTICODE=signed
+```
 
-When **metadata says `signed`** and **Windows signature verification fails**, treat it as a release-integrity issue and report the artifact name plus SHA-256.
+If an official Setup or Portable file is unsigned, has no signer certificate or fails Windows signature verification, treat that as a release-integrity issue. Report the artifact name, release tag and SHA-256 value, but do not attach signing material or credentials.
+
+Unsigned local/development or ordinary CI builds are allowed for engineering validation. They are not official public Windows release artifacts and should be identified explicitly as development outputs when reporting problems.
 
 ## Bandwidth and queue reports
 
@@ -56,12 +61,16 @@ For SFTP password/passphrase issues, state whether Ghost FTP is package-installe
 
 Report Android API level, physical device/emulator, exact source SHA/run when known, FTP/FTPS mode, SAF provider/folder behavior and whether the issue occurs during navigation, connection, listing, transfer/cancellation or Activity lifecycle changes. SFTP remains intentionally hidden until strict native host-key identity verification exists.
 
+## macOS development app reports
+
+Report the exact development artifact/source SHA, macOS version and CPU architecture. Development app validation is distinct from a public notarized macOS distribution claim; the current 17-file public release remains Windows/Linux only.
+
 ## Browser companion reports
 
-For optional extension source, identify browser family/version, the `ftp://`, `ftps://` or `sftp://` scheme used and whether the failure is link recognition or handoff behavior. Do not include live credentials in URLs or reports.
+The browser helper currently parses explicitly pasted `ftp://`, `ftps://` and `sftp://` targets locally. It does not launch the desktop client and there is no supported browser-to-desktop handoff contract yet. Report browser family/version, the scheme used and whether parsing, safe-target generation or explicit copy behavior failed. Do not include live credentials in URLs or reports.
 
 ## Supported release infrastructure
 
 The current release identity is `ghostftp-v0.0.5` with `prerelease=false`. The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.5`. After a newer release is verified, old release/tag/package identities are intentionally removed by latest-only retention. Git history remains engineering provenance, not a supported binary archive.
 
-See [Security](SECURITY.md), [Privacy](PRIVACY.md), [Testing](TESTING.md), [Release verification](RELEASE-VERIFICATION.md) and [Versioning](VERSIONING.md).
+See [Security](SECURITY.md), [Privacy](PRIVACY.md), [Testing](TESTING.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
