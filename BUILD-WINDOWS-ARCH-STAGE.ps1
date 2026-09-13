@@ -150,7 +150,6 @@ if ($version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Invalid Ghost FTP version in VERSION: $version"
 }
 
-# Production builds are offline and must not silently change toolchains/modules.
 $env:GOTOOLCHAIN = 'local'
 $env:GOPROXY = 'off'
 $env:GOSUMDB = 'off'
@@ -190,10 +189,7 @@ if ($moduleLines.Count -ne 1) {
     throw "Production build contract permits no external Go modules. Found $($moduleLines.Count) modules."
 }
 
-$telemetryMode = Invoke-NativeCapture `
-    -FilePath $go `
-    -ArgumentList @('telemetry') `
-    -FailureMessage 'Unable to verify Go telemetry mode'
+$telemetryMode = Invoke-NativeCapture -FilePath $go -ArgumentList @('telemetry') -FailureMessage 'Unable to verify Go telemetry mode'
 if ($telemetryMode -ne 'off') {
     throw "Go telemetry must be disabled before a production build. Run: go telemetry off (current: $telemetryMode)"
 }
@@ -237,19 +233,20 @@ $verificationFiles = [System.Collections.Generic.List[string]]::new()
 
 function Build-GhostFTPArchitecture {
     param(
-        [Parameter(Mandatory = $true)][ValidateSet('amd64','386')][string]$GoArch,
-        [Parameter(Mandatory = $true)][ValidateSet('x64','x86')][string]$Label
+        [Parameter(Mandatory = $true)][ValidateSet('amd64','386','arm64')][string]$GoArch,
+        [Parameter(Mandatory = $true)][ValidateSet('x64','x86','arm64')][string]$Label
     )
 
     $env:GOOS = 'windows'
     $env:GOARCH = $GoArch
+    Remove-Item -LiteralPath 'Env:GOAMD64' -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath 'Env:GO386' -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath 'Env:GOARM64' -ErrorAction SilentlyContinue
     if ($GoArch -eq 'amd64') {
         $env:GOAMD64 = 'v1'
-        Remove-Item -LiteralPath 'Env:GO386' -ErrorAction SilentlyContinue
     }
-    else {
+    elseif ($GoArch -eq '386') {
         $env:GO386 = 'sse2'
-        Remove-Item -LiteralPath 'Env:GOAMD64' -ErrorAction SilentlyContinue
     }
 
     $portable = Join-Path $dist "Ghost-FTP-$version-Portable-$Label.exe"
@@ -267,14 +264,10 @@ function Build-GhostFTPArchitecture {
         '--role','portable','--original-filename',"Ghost-FTP-$version-Portable-$Label.exe"
     ) -FailureMessage "Client $Label PE resource processing failed"
 
-    # Sign the Portable executable before creating payload.zip so Setup embeds
-    # the same signed client bytes that are published as the Portable artifact.
     Sign-WindowsTarget -Path $portable
 
     Write-Host "      [$Label] Verified installer payload"
     try {
-        # make_payload.py intentionally stores the inner executable as GhostFTP.exe:
-        # that filename is an installed-app compatibility boundary only.
         Invoke-Native -FilePath $python -ArgumentList @(
             'scripts/make_payload.py','--app',$portable,'--output',$payloadZip
         ) -FailureMessage "$Label installer payload compression failed"
@@ -305,16 +298,17 @@ function Build-GhostFTPArchitecture {
     $script:verificationFiles.Add($verification)
 }
 
-Write-Host '[5/8] Windows x64 and x86 builds'
+Write-Host '[5/8] Windows x64, x86 and ARM64 builds'
 Build-GhostFTPArchitecture -GoArch 'amd64' -Label 'x64'
 Build-GhostFTPArchitecture -GoArch '386' -Label 'x86'
-foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386')) {
+Build-GhostFTPArchitecture -GoArch 'arm64' -Label 'arm64'
+foreach ($name in @('GOOS','GOARCH','GOAMD64','GO386','GOARM64')) {
     Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
 }
 
 Write-Host '[6/8] SHA-256 manifest'
-if ($publicFiles.Count -ne 4) {
-    throw "Unexpected Windows binary count: $($publicFiles.Count); expected 4."
+if ($publicFiles.Count -ne 6) {
+    throw "Unexpected Windows binary count: $($publicFiles.Count); expected 6."
 }
 $hashLines = foreach ($file in ($publicFiles | Sort-Object)) {
     Assert-File -Path $file -Description 'Windows production binary'
@@ -352,12 +346,17 @@ $expectedNames = @(
     "Ghost-FTP-$version-Setup-x64.exe",
     "Ghost-FTP-$version-Portable-x86.exe",
     "Ghost-FTP-$version-Setup-x86.exe",
+    "Ghost-FTP-$version-Portable-arm64.exe",
+    "Ghost-FTP-$version-Setup-arm64.exe",
     'SHA256.txt'
 )
 $actualNames = @(Get-ChildItem -LiteralPath $dist -File | Select-Object -ExpandProperty Name | Sort-Object)
 $missingNames = @($expectedNames | Where-Object { $_ -notin $actualNames })
 if ($missingNames.Count -ne 0) {
     throw "Missing final output(s): $($missingNames -join ', ')"
+}
+if ($actualNames.Count -ne 7) {
+    throw "Unexpected native Windows staging output count: $($actualNames.Count); expected 7 including SHA256.txt."
 }
 if (Get-ChildItem -LiteralPath $dist -Recurse -File | Where-Object { $_.Name -match '(?i)uninstall' }) {
     throw 'Windows build unexpectedly produced an uninstaller binary.'
@@ -366,5 +365,6 @@ if (Test-Path -LiteralPath $payloadZip) {
     throw 'Temporary installer payload was not removed.'
 }
 
+Write-Host 'WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64'
 Write-Host 'UNINSTALLER_BINARY=ABSENT'
-Write-Host "Ghost FTP $version Windows x64+x86 build completed: $dist"
+Write-Host "Ghost FTP $version Windows x64+x86+ARM64 staging build completed: $dist"
