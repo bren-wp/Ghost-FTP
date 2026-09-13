@@ -36,11 +36,15 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             "GhostFTPDiagnosticsConnected",
             "bridgeState.engine.ActiveConnection()",
             "GhostFTPAboutPublisher",
-            '"BRENDIGO LTD"',
+            "macAboutPublisher",
         ):
             self.assertIn(marker, bridge)
         for forbidden in ("json.Marshal", "json.Unmarshal", "PasswordBlob", "PassphraseBlob"):
             self.assertNotIn(forbidden, bridge)
+
+        about_identity = read("macos/Bridge/about_identity.go")
+        for marker in ("macAboutPublisher", "macAboutWebsite", "macAboutAuthorWebsite", "macAboutSupport"):
+            self.assertIn(marker, about_identity)
 
     def test_bookmarks_window_has_real_navigation_and_mutation_actions(self) -> None:
         source = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")

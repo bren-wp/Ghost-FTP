@@ -19,6 +19,7 @@ ALLOWED_AUTHOR_IDENTITY = {
     "CHANGELOG.md",
     "docs/RELEASE-HISTORY.md",
     "internal/desktop/about_identity_windows.go",
+    "macos/Bridge/about_identity.go",
     "internal/brand/runtime_metadata_test.go",
     "scripts/audit_brand_hardcut.py",
     "scripts/test_about_card_release.py",
@@ -68,6 +69,19 @@ def main() -> int:
         ):
             if marker not in about_text:
                 violations.append("about-identity-contract:" + marker)
+
+    mac_about = ROOT / "macos" / "Bridge" / "about_identity.go"
+    if not mac_about.is_file():
+        violations.append("missing-macos-about-identity-source")
+    else:
+        mac_about_text = mac_about.read_text(encoding="utf-8")
+        for marker in (
+            'macAboutPublisher     = "BRENDIGO LTD"',
+            'macAboutAuthorWebsite = "brendigo.com"',
+            'macAboutSupport       = "brendigo.com/kontakt"',
+        ):
+            if marker not in mac_about_text:
+                violations.append("macos-about-identity-contract:" + marker)
 
     if violations:
         fail("branding contract violation: " + ", ".join(violations))

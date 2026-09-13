@@ -143,6 +143,7 @@ func validateBookmarkName(value string) (string, error) {
 
 // GhostFTPSaveLocalBookmark deliberately accepts only a name. The path comes
 // from the authoritative bridge snapshot that backs the visible local pane.
+//
 //export GhostFTPSaveLocalBookmark
 func GhostFTPSaveLocalBookmark(nameValue *C.char) C.int {
 	bridgeState.mu.Lock()
@@ -177,6 +178,7 @@ func GhostFTPSaveLocalBookmark(nameValue *C.char) C.int {
 
 // GhostFTPSaveRemoteBookmark deliberately accepts only a name. The shared
 // engine binds the authoritative visible path to the active server account.
+//
 //export GhostFTPSaveRemoteBookmark
 func GhostFTPSaveRemoteBookmark(nameValue *C.char) C.int {
 	bridgeState.mu.Lock()
@@ -247,6 +249,7 @@ func GhostFTPRemoveBookmark(idValue *C.char) C.int {
 // GhostFTPNavigateBookmark commits a visible bridge snapshot only after the
 // shared engine has proved the target. Remote navigation therefore retains the
 // account/connection-identity checks in Engine.NavigateBookmark.
+//
 //export GhostFTPNavigateBookmark
 func GhostFTPNavigateBookmark(idValue *C.char) C.int {
 	bridgeState.mu.Lock()
@@ -436,6 +439,7 @@ func GhostFTPSettingsConfirmDelete() C.int {
 
 // GhostFTPSaveSettings starts from the authoritative current shared settings so
 // future fields are preserved rather than zeroed by an older native frontend.
+//
 //export GhostFTPSaveSettings
 func GhostFTPSaveSettings(languageValue, appearanceValue *C.char, parallelism, uploadLimit, downloadLimit, connectionTimeout, autoRetryCount, retryDelay C.int, conflictPolicyValue *C.char, confirmDelete C.int) C.int {
 	bridgeState.mu.Lock()
@@ -542,13 +546,13 @@ func GhostFTPDiagnosticsRemotePath() *C.char {
 func GhostFTPAboutVersion() *C.char { return C.CString(productVersion) }
 
 //export GhostFTPAboutPublisher
-func GhostFTPAboutPublisher() *C.char { return C.CString("BRENDIGO LTD") }
+func GhostFTPAboutPublisher() *C.char { return C.CString(macAboutPublisher) }
 
 //export GhostFTPAboutWebsite
-func GhostFTPAboutWebsite() *C.char { return C.CString("ghostftp.com") }
+func GhostFTPAboutWebsite() *C.char { return C.CString(macAboutWebsite) }
 
 //export GhostFTPAboutAuthorWebsite
-func GhostFTPAboutAuthorWebsite() *C.char { return C.CString("brendigo.com") }
+func GhostFTPAboutAuthorWebsite() *C.char { return C.CString(macAboutAuthorWebsite) }
 
 //export GhostFTPAboutSupport
-func GhostFTPAboutSupport() *C.char { return C.CString("brendigo.com/kontakt") }
+func GhostFTPAboutSupport() *C.char { return C.CString(macAboutSupport) }
