@@ -232,8 +232,9 @@ def main() -> int:
             "packages: write",
             "Publish verified bundle to GitHub Packages",
             "test \"$remote_prerelease\" = 'false'",
-            "state=unsigned",
+            "Require protected Authenticode identity",
             "state=signed",
+            "test \"$WINDOWS_SIGNING_STATE\" = 'signed'",
             "LINUX_DEBIAN_DEB=amd64,arm64,i386",
             "LINUX_UBUNTU_DEB=amd64,arm64,i386",
             "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
@@ -243,6 +244,8 @@ def main() -> int:
         ),
         ".github/workflows/release.yml",
     )
+    if "state=unsigned" in release_workflow:
+        fail("official public release workflow must not permit unsigned Windows publication")
     if "--prerelease" in release_workflow:
         fail("current 0.0.x release workflow must not mark the GitHub Release as prerelease")
 
@@ -279,6 +282,7 @@ def main() -> int:
             "LINUX_PORTABLE=amd64,arm64,i386",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
             "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES",
+            "PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED",
             "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
         ),
         "scripts/audit_release.py",
@@ -306,6 +310,7 @@ def main() -> int:
     print("LATEST_ONLY_RELEASE_RETENTION=YES")
     print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
+    print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
     print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("CURRENT_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
