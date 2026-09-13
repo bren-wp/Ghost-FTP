@@ -91,7 +91,7 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or (go telemetry).Trim() -ne 'off') {
             throw 'Go telemetry is not disabled.'
           }
-      - name: Prepare optional protected Authenticode identity
+      - name: Require protected Authenticode identity
         id: signing
         shell: pwsh
         env:
@@ -100,16 +100,10 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           if ([string]::IsNullOrWhiteSpace($env:PFX_BASE64)) {
-            if (-not [string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
-              throw 'Signing password is configured without GHOSTFTP_SIGNING_PFX_BASE64.'
-            }
-            "state=unsigned" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            Write-Host 'WINDOWS_RELEASE_SIGNING=UNSIGNED'
-            Write-Host 'No production signing identity is configured; artifacts will remain explicitly unsigned.'
-            exit 0
+            throw 'Official Ghost FTP publication requires GHOSTFTP_SIGNING_PFX_BASE64.'
           }
           if ([string]::IsNullOrWhiteSpace($env:PFX_PASSWORD)) {
-            throw 'GHOSTFTP_SIGNING_PFX_BASE64 is configured but GHOSTFTP_SIGNING_PASSWORD is missing.'
+            throw 'Official Ghost FTP publication requires GHOSTFTP_SIGNING_PASSWORD.'
           }
           try {
             $bytes = [Convert]::FromBase64String($env:PFX_BASE64)
@@ -140,11 +134,9 @@ jobs:
             if (-not (Test-Path $path -PathType Leaf) -or (Get-Item $path).Length -le 0) {
               throw "Missing Windows artifact: $path"
             }
-            if ('${{ steps.signing.outputs.state }}' -eq 'signed') {
-              $signature = Get-AuthenticodeSignature -FilePath $path
-              if (-not $signature.SignerCertificate -or $signature.Status -ne 'Valid') {
-                throw "Production Authenticode verification failed for ${path}: $($signature.Status) $($signature.StatusMessage)"
-              }
+            $signature = Get-AuthenticodeSignature -FilePath $path
+            if (-not $signature.SignerCertificate -or $signature.Status -ne 'Valid') {
+              throw "Production Authenticode verification failed for ${path}: $($signature.Status) $($signature.StatusMessage)"
             }
           }
           if (Get-ChildItem -LiteralPath dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32)\.exe$' }) {
@@ -309,14 +301,10 @@ jobs:
           test "$version" = "$source_version"
           release_channel='current'
           release_title="Ghost FTP $version"
-          case "$WINDOWS_SIGNING_STATE" in
-            signed|unsigned) ;;
-            *) echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2; exit 1 ;;
-          esac
-          if [[ "$WINDOWS_SIGNING_STATE" = 'unsigned' ]]; then
-            echo '::warning::Publishing current release with explicitly unsigned Windows artifacts. BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned.'
-            printf '### Windows signing\nCurrent release is being published with **unsigned** Windows artifacts. Integrity remains bound to the exact release commit and SHA256.txt.\n' >> "$GITHUB_STEP_SUMMARY"
-          fi
+          test "$WINDOWS_SIGNING_STATE" = 'signed' || {
+            echo "Official Ghost FTP publication requires trusted Authenticode; got state: $WINDOWS_SIGNING_STATE" >&2
+            exit 1
+          }
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"
