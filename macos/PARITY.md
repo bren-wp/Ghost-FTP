@@ -22,13 +22,13 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 - [x] Connect
 - [x] Disconnect
 - [x] Site Manager
-- [ ] Bookmarks
+- [x] Bookmarks
 - [x] Private Key
 - [x] Save Profile
 - [x] Remove Profile
-- [ ] Settings
-- [ ] About
-- [ ] Diagnostics
+- [x] Settings
+- [x] About
+- [x] Diagnostics
 
 ### Local file pane
 
@@ -67,6 +67,14 @@ A checkbox moves to `[x]` only when the visible Mac action is wired to real shar
 - [x] Move Up
 - [x] Move Down
 - [x] Move Bottom
+
+## Implemented application boundary
+
+Bookmarks use the shared `Engine.Bookmarks`, `SaveLocalBookmark`, `SaveRemoteBookmark`, `RemoveBookmark` and `NavigateBookmark` APIs. Local and remote save actions take their path only from the authoritative bridge snapshot; Swift cannot submit an arbitrary bookmark path. Remote bookmarks retain the shared account binding and connection-identity checks, and a successful navigation publishes the already-verified shared-engine listing into the visible Mac snapshot before AppKit applies it.
+
+Settings use the shared `model.Settings` and `Engine.Settings` / `Engine.SetSettings` contract. The native window exposes the supported language, Classic Light/Dark appearance, parallelism, independent upload/download limits, connection timeout, automatic retry count and delay, conflict policy, and delete confirmation. Saving starts from the current authoritative settings value so fields unknown to a native frontend are preserved. The language selector is populated from the shared 24-language `i18n.Languages()` registry rather than a Mac-only list. Appearance changes use the documented Classic Light and Dark palette values and are applied through native AppKit appearance without creating a second settings store.
+
+About is the only Mac application surface that exposes the publisher/author identity (`BRENDIGO LTD`, `brendigo.com`). Product version remains bound to root `VERSION` by the native build, while product/support identity remains explicit. Diagnostics is intentionally compact and privacy-safe: it exposes only connected state, protocol and the visible remote path plus the no-telemetry/local-profile statement. It does not export raw logs, protected secrets or generic diagnostic payloads.
 
 ## Implemented file-workspace boundary
 
@@ -110,4 +118,4 @@ Native behavior does not permit removing Windows functionality, silently changin
 
 ## Promotion gate
 
-macOS remains a development source platform until all action boxes above are complete, universal Intel/Apple-Silicon builds pass from exact source, native runtime screenshots are captured from the tested SHA, privacy/security audits pass, signing/notarization policy is truthful and the public release workflow is explicitly expanded in a separate reviewed change.
+The native action inventory is complete only when every box above is `[x]` and the exact source passes universal Intel/Apple-Silicon build plus privacy/security CI. Public distribution is a separate release gate: native runtime evidence, Apple Developer signing/notarization and explicit public release-workflow expansion must remain truthful and reviewed rather than being inferred from source parity.
