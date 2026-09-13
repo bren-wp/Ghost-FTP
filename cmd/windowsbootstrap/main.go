@@ -15,8 +15,8 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
-// The production build temporarily stages one signed x86 and one signed x64
-// executable here before compiling each public bootstrap. The tracked .keep
+// The production build temporarily stages signed x86, x64 and ARM64
+// executables here before compiling each public bootstrap. The tracked .keep
 // file keeps ordinary source/test checkouts buildable without generated files.
 //
 //go:embed all:payload
@@ -40,7 +40,7 @@ func normalizedRole(value string) (string, error) {
 
 func payloadPath(arch string) (string, error) {
 	switch arch {
-	case "x86", "x64":
+	case "x86", "x64", "arm64":
 		return "payload/" + arch + "/GhostFTP.exe", nil
 	default:
 		return "", errors.New("unsupported Windows payload architecture")
