@@ -43,6 +43,10 @@ android {
     }
 }
 
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
+
 tasks.register('packageGhostFtpApk', Copy) {
     dependsOn 'assembleDebug'
     from(layout.buildDirectory.file('outputs/apk/debug/app-debug.apk'))

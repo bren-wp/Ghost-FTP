@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   android-apk:
-    name: Android lint and installable APK
+    name: Android tests, lint and installable APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -57,12 +57,12 @@ jobs:
           python scripts/test_android_contract.py
           python scripts/test_android_passive_data_contract.py
           python scripts/test_android_mobile_navigation_contract.py
-      - name: Lint and build APK
+      - name: Test, lint and build APK
         working-directory: android
         shell: bash
         run: |
           set -euo pipefail
-          gradle :app:lintDebug :app:packageGhostFtpApk --no-daemon --stacktrace
+          gradle :app:testDebugUnitTest :app:lintDebug :app:packageGhostFtpApk --no-daemon --stacktrace
       - name: Verify APK contract
         shell: bash
         run: |
