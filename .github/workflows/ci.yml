@@ -81,7 +81,7 @@ jobs:
           python -m unittest discover -s scripts -p 'test_*.py'
 
   windows:
-    name: Windows universal setup and portable production build
+    name: Windows universal x86 x64 ARM64 setup and portable production build
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -117,7 +117,7 @@ jobs:
               throw "Missing Windows artifact: $path"
             }
           }
-          if (Get-ChildItem -LiteralPath dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32)\.exe$' }) {
+          if (Get-ChildItem -LiteralPath dist -File | Where-Object { $_.Name -match '(?i)-(?:x64|x86|x32|arm64)\.exe$' }) {
             throw 'Architecture-specific Windows executables leaked into public CI artifacts.'
           }
       - name: Authenticode private-key pipeline smoke test
