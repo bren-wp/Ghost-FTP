@@ -12,8 +12,10 @@ fi
 
 SOURCE="$SCRIPT_DIR/Sources/GhostFTPApp/main.swift"
 SITE_MANAGER_SOURCE="$SCRIPT_DIR/Sources/GhostFTPApp/SiteManager.swift"
+APPLICATION_WINDOWS_SOURCE="$SCRIPT_DIR/Sources/GhostFTPApp/ApplicationWindows.swift"
 PREPARE_SITE_MANAGER_SOURCES="$SCRIPT_DIR/prepare_site_manager_sources.py"
 BRIDGE_SOURCE="$SCRIPT_DIR/Bridge/main.go"
+APPLICATION_BRIDGE_SOURCE="$SCRIPT_DIR/Bridge/application.go"
 ASKPASS_SOURCE="$SCRIPT_DIR/AskPass/main.go"
 ICON_SOURCE="$REPO_ROOT/build/icon.png"
 OUT="$SCRIPT_DIR/out"
@@ -32,7 +34,7 @@ SDK="$(xcrun --sdk macosx --show-sdk-path)"
 DEPLOYMENT_TARGET="13.0"
 BUNDLE_ID="app.ghostftp.client"
 
-for required in "$SOURCE" "$SITE_MANAGER_SOURCE" "$PREPARE_SITE_MANAGER_SOURCES" "$BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
+for required in "$SOURCE" "$SITE_MANAGER_SOURCE" "$APPLICATION_WINDOWS_SOURCE" "$PREPARE_SITE_MANAGER_SOURCES" "$BRIDGE_SOURCE" "$APPLICATION_BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
   if [[ ! -s "$required" ]]; then
     echo "Missing required macOS build input: $required" >&2
     exit 1
@@ -50,7 +52,14 @@ python3 "$PREPARE_SITE_MANAGER_SOURCES" \
 test -s "$GENERATED_SOURCE"
 test -s "$GENERATED_SITE_MANAGER_SOURCE"
 grep -F 'NSButton(title: "Site Manager"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'NSButton(title: "Bookmarks"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'NSButton(title: "Settings"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'NSButton(title: "About"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'NSButton(title: "Diagnostics"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'controller.onConnected' "$GENERATED_SOURCE" >/dev/null
+grep -F 'bookmarkNavigationApplied' "$GENERATED_SOURCE" >/dev/null
+grep -F 'settingsAppearanceChanged' "$GENERATED_SOURCE" >/dev/null
+grep -F 'GhostFTPSettingsConfirmDelete() == 0' "$GENERATED_SOURCE" >/dev/null
 grep -F 'var onConnected: ((String, String, String) -> Void)?' "$GENERATED_SITE_MANAGER_SOURCE" >/dev/null
 
 build_go_arch() {
@@ -63,6 +72,7 @@ build_go_arch() {
       CGO_CFLAGS="-mmacosx-version-min=${DEPLOYMENT_TARGET} -arch ${clang_arch}" \
       CGO_LDFLAGS="-mmacosx-version-min=${DEPLOYMENT_TARGET} -arch ${clang_arch}" \
       go build -trimpath -buildmode=c-shared \
+        -ldflags "-X main.productVersion=${VERSION}" \
         -o "$OUT/go-$arch/libGhostFTPEngine.dylib" ./macos/Bridge
     CGO_ENABLED=1 GOOS=darwin GOARCH="$arch" \
       CGO_CFLAGS="-mmacosx-version-min=${DEPLOYMENT_TARGET} -arch ${clang_arch}" \
@@ -107,7 +117,7 @@ build_swift_arch() {
     -Xlinker -rpath \
     -Xlinker '@executable_path/../Frameworks' \
     -framework AppKit \
-    "$GENERATED_SOURCE" "$GENERATED_SITE_MANAGER_SOURCE" \
+    "$GENERATED_SOURCE" "$GENERATED_SITE_MANAGER_SOURCE" "$APPLICATION_WINDOWS_SOURCE" \
     -o "$OUT/GhostFTP-$arch"
 }
 
