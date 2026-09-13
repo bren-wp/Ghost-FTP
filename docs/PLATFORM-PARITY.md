@@ -52,11 +52,15 @@ Windows uses native Win32 UI, DPI-aware layout and the current-user saved-secret
 
 Ghost FTP 0.0.5 adds re-entry/lifecycle guards around profile persistence, local/remote file mutations and Remote Edit sessions. Duplicate or stale commands cannot bypass in-flight mutation state, and nested application-owned modal loops preserve process-level shutdown semantics rather than swallowing `WM_QUIT`.
 
-**Production Authenticode is optional.** When a trusted protected signing identity is configured, artifacts must verify; when it is absent, official publication records:
+Official public Windows publication requires trusted Authenticode. The canonical `Publish Ghost FTP` workflow requires the protected production signing identity, verifies both public executables with the operating-system signature API and fails if the signing state is anything other than `signed`.
+
+A successful official release records:
 
 ```text
-WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_AUTHENTICODE=signed
 ```
+
+Local development and ordinary CI builds may be unsigned, but those artifacts are not official public Windows release files. The production workflow never creates a self-signed publisher identity as a substitute for a real trusted certificate.
 
 Public Windows distribution exposes only:
 
@@ -84,9 +88,13 @@ Android is an active native development surface tied to root `VERSION`, with Fil
 
 Android SFTP remains hidden until strict host-key identity verification has a maintained implementation. Android is not included in the Windows/Linux public release allow-list.
 
+## macOS source parity boundary
+
+macOS is an active native development source surface using the shared engine and maintained AppKit frontend. Its development workflow builds and validates a universal app, but current public 0.0.5 distribution remains the explicit Windows/Linux 17-file allow-list. A public macOS release requires its own production signing/notarization/publication evidence; development build success must not be described as that evidence.
+
 ## Release parity
 
-A successful Windows build cannot substitute for a failed Linux build and vice versa. Android has an independent exact-head APK/runtime gate but does not enlarge the public release asset set.
+A successful Windows build cannot substitute for a failed Linux build and vice versa. Android and macOS have independent development/exact-head gates but do not enlarge the current public release asset set.
 
 The current public 0.0.5 contract requires **14 platform artifacts / 17 public files** and publishes `ghcr.io/bren-wp/ghost-ftp:0.0.5` as a distribution bundle.
 
