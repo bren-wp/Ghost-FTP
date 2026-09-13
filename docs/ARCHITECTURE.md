@@ -62,6 +62,12 @@ The macOS source surface is an active native AppKit development frontend connect
 
 Windows per-user Setup/maintenance application. Installation is staged, validated and rollback-oriented. Integrated uninstall registration points back to the installed Ghost FTP maintenance path rather than a separate permanent uninstaller executable.
 
+### `cmd/windowsbootstrap`
+
+Public Windows architecture bootstrap. The tracked source contains no permanent architecture payload binaries; production packaging temporarily stages x64, x86 and ARM64 Setup or Portable payloads under the embedded payload tree, compiles the public bootstrap, then removes the temporary payload source directories.
+
+At runtime the bootstrap asks Windows for the native processor through `GetNativeSystemInfo`, maps that identity to `x64`, `x86` or `arm64`, reads the corresponding embedded executable, writes it to a temporary Local AppData path, verifies the staged bytes against the embedded content identity and starts only the selected payload. The bootstrap does not download an architecture-specific executable.
+
 ## Connection architecture
 
 A connection profile is normalized and validated before transport setup. Transport choice is explicit:
@@ -73,6 +79,8 @@ A connection profile is normalized and validated before transport setup. Transpo
 Failed secure transport is not silently converted to a weaker transport.
 
 The shared engine drives connection lifecycle on desktop surfaces. A successful connection exposes remote list/operation state only after the transport session is established. Connection generation/identity invalidates stale asynchronous callbacks and transfer work when the user cancels, disconnects or reconnects.
+
+Windows Add, Retry and Cancel-selected transfer completions are explicitly bound to the owning `connectionGeneration`; a callback from an obsolete session cannot update status or queue state belonging to a replacement session.
 
 Connection errors pass through privacy-safe diagnostic classification before presentation. User-facing copy must not expose passwords, passphrases or protected secret payloads. Android additionally owns its in-flight FTP/FTPS session at Activity lifetime and sanitizes authentication failures so server-controlled replies cannot echo credentials into UI errors.
 
@@ -128,7 +136,22 @@ Ghost-FTP-0.0.5-Setup.exe
 Ghost-FTP-0.0.5-Portable.exe
 ```
 
-Verified native x64/x86 Setup and Portable payloads remain internal staging/evidence inputs. The public x86-compatible bootstrap uses `GetNativeSystemInfo` to select the matching embedded native payload, verifies staged bytes and performs no runtime download.
+Internally, production packaging builds native Setup and Portable staging pairs for **x64, x86 and ARM64**. Each pair receives deterministic Ghost FTP VERSIONINFO, icon and manifest resources, is verified as the expected PE architecture, and passes through the same signing path when production signing is configured. The ARM64 PE contract uses machine `0xAA64`, PE32+ and `processorArchitecture="arm64"`.
+
+The public bootstrap remains PE x86 for startup compatibility and uses `GetNativeSystemInfo` to select the matching embedded native payload. Architecture-specific staging binaries never enter the public release directory, so adding ARM64 does not add public `*-arm64.exe` files or change the public release count.
+
+The canonical Windows metadata contract is:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+WINDOWS_AUTHENTICODE=signed
+```
+
+The ARM64 runtime-evidence marker is deliberately conservative. The maintained Windows CI runner cross-builds and structurally verifies ARM64 payloads, resources, bootstrap routing and signing mechanics, but it is not a native Windows ARM64 runner. Native ARM64 runtime execution must not be claimed until that separate evidence exists.
 
 Official public Windows publication requires trusted Authenticode. The canonical release workflow requires the protected production signing identity, verifies both public executables and accepts only `WINDOWS_AUTHENTICODE=signed`. Local development/ordinary CI builds may be unsigned, but the official public workflow has no unsigned fallback and never creates a self-signed production identity as a substitute for a trusted certificate.
 
@@ -146,6 +169,8 @@ Trusted SFTP password/private-key-passphrase delivery remains constrained to the
 
 The current Windows/Linux/Android evidence bundle verifies real runtime surfaces, exact source SHA, workflow-run identity, expected filenames, byte counts and SHA-256 values. Mockups, image-generation output and manually composed approximations are not accepted as production UI evidence.
 
+The Windows UI capture is runtime evidence for the architecture used by the maintained Windows runner. It is not native ARM64 runtime evidence merely because the tested package also embeds an ARM64 payload.
+
 macOS has its own native development build/validation workflow; do not reinterpret development build success as notarized public distribution evidence.
 
 ## Release architecture
@@ -155,7 +180,7 @@ The canonical public release workflow runs a complete quality gate before artifa
 1. formatting, race tests and vet;
 2. repository, platform, dependency, security, privacy, localization and documentation audits;
 3. complete Python regression suites;
-4. Windows and Linux production builds;
+4. Windows x64/x86/ARM64 native staging plus universal public packaging and Linux production builds;
 5. canonical Linux distro package and native lifecycle gates;
 6. independent Android/macOS development validation outside the public allow-list;
 7. exact-head maintained runtime evidence where defined;
