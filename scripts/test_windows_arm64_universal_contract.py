@@ -71,7 +71,7 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
         self.assertNotIn("Ghost-FTP-${VERSION}-Setup-arm64.exe", release)
         self.assertNotIn("Ghost-FTP-${VERSION}-Portable-arm64.exe", release)
 
-    def test_active_docs_state_arm64_evidence_boundary(self) -> None:
+    def test_release_docs_state_exact_arm64_metadata(self) -> None:
         markers = (
             "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
             "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
@@ -88,6 +88,14 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "docs/RELEASE-VERIFICATION.md",
             "docs/PACKAGES.md",
             "docs/VERSIONING.md",
+        ):
+            text = read(rel)
+            for marker in markers:
+                with self.subTest(document=rel, marker=marker):
+                    self.assertIn(marker, text)
+
+    def test_narrative_docs_state_arm64_support_without_overclaim(self) -> None:
+        for rel in (
             "docs/SUPPORT.md",
             "docs/ROADMAP.md",
             "docs/CONTRIBUTING.md",
@@ -96,9 +104,10 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "scripts/README.md",
         ):
             text = read(rel)
-            for marker in markers:
-                with self.subTest(document=rel, marker=marker):
-                    self.assertIn(marker, text)
+            with self.subTest(document=rel, marker="architectures"):
+                self.assertIn("x64, x86 and ARM64", text)
+            with self.subTest(document=rel, marker="evidence"):
+                self.assertIn("WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci", text)
 
     def test_public_release_shape_is_unchanged(self) -> None:
         for rel in (
