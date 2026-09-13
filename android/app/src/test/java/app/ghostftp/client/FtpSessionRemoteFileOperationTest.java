@@ -14,9 +14,13 @@ public final class FtpSessionRemoteFileOperationTest {
     }
 
     @Test
-    public void mutableRemotePathRejectsServerRoot() {
+    public void mutableRemotePathRejectsServerRootAndDotSegmentAliases() {
         assertThrows(IOException.class, () -> FtpSession.requireMutableRemotePath("/"));
         assertThrows(IOException.class, () -> FtpSession.requireMutableRemotePath(""));
+        assertThrows(IOException.class, () -> FtpSession.requireMutableRemotePath("/."));
+        assertThrows(IOException.class, () -> FtpSession.requireMutableRemotePath("/child/.."));
+        assertThrows(IOException.class, () -> FtpSession.requireMutableRemotePath("../outside"));
+        assertThrows(IOException.class, () -> FtpSession.requireMutableRemotePath("/safe/./item"));
     }
 
     @Test
