@@ -67,20 +67,20 @@ jobs:
           replace_once("scripts/audit_brand_hardcut.py", old, new)
           PY
 
-      - name: Validate identity and parity contracts
+      - name: Validate future production tree
         run: |
           gofmt -w macos/Bridge/about_identity.go macos/Bridge/application.go
+          rm .github/workflows/apply-macos-about-identity-boundary.yml
           python3 scripts/audit_brand_hardcut.py
           python3 scripts/test_macos_application_parity_contract.py
           python3 scripts/test_macos_windows_parity_contract.py
           go test ./macos/Bridge
           git diff --check
 
-      - name: Remove one-shot workflow and commit production changes
+      - name: Commit production changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          rm .github/workflows/apply-macos-about-identity-boundary.yml
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
