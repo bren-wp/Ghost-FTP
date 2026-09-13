@@ -1,0 +1,65 @@
+name: Apply final macOS settings semantics
+
+on:
+  push:
+    branches:
+      - feature/macos-application-parity
+    paths:
+      - .github/workflows/apply-macos-final-settings-semantics.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-macos-final-settings-semantics-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/macos-application-parity
+          fetch-depth: 0
+
+      - name: Apply guarded confirm-delete integration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('macos/prepare_site_manager_sources.py')
+          source = path.read_text(encoding='utf-8')
+          anchor = '''    return text\n\n\ndef integrate_site_manager(text: str) -> str:\n'''
+          if source.count(anchor) != 1:
+              raise SystemExit('confirm-delete integration anchor is not unique')
+          insertion = '''    text = replace_once(\n        text,\n        "    private func confirmDelete(_ items: [FileItem]) -> Bool {\\n"\n        "        let alert = NSAlert()\\n",\n        "    private func confirmDelete(_ items: [FileItem]) -> Bool {\\n"\n        "        if GhostFTPRefreshSettings() == 1 && GhostFTPSettingsConfirmDelete() == 0 {\\n"\n        "            return true\\n"\n        "        }\\n"\n        "        let alert = NSAlert()\\n",\n        "main-confirm-delete-setting",\n    )\n    return text\n\n\ndef integrate_site_manager(text: str) -> str:\n'''
+          path.write_text(source.replace(anchor, insertion, 1), encoding='utf-8')
+          PY
+
+      - name: Validate generated application contract
+        run: |
+          python3 scripts/test_macos_application_parity_contract.py
+          python3 scripts/test_macos_windows_parity_contract.py
+          tmp="$(mktemp -d)"
+          python3 macos/prepare_site_manager_sources.py \
+            macos/Sources/GhostFTPApp/main.swift \
+            macos/Sources/GhostFTPApp/SiteManager.swift \
+            "$tmp/main.swift" \
+            "$tmp/SiteManager.swift"
+          grep -F 'GhostFTPSettingsConfirmDelete() == 0' "$tmp/main.swift" >/dev/null
+          grep -F 'bookmarkNavigationApplied' "$tmp/main.swift" >/dev/null
+          git diff --check
+
+      - name: Remove one-shot workflow and commit production change
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm .github/workflows/apply-macos-final-settings-semantics.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: apply macOS delete confirmation setting'
+          git push origin HEAD:feature/macos-application-parity
