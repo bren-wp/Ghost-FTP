@@ -41,6 +41,13 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             self.assertIn(marker, bridge)
         for forbidden in ("json.Marshal", "json.Unmarshal", "PasswordBlob", "PassphraseBlob"):
             self.assertNotIn(forbidden, bridge)
+        for definition in (
+            "macAboutPublisher     =",
+            "macAboutWebsite       =",
+            "macAboutAuthorWebsite =",
+            "macAboutSupport       =",
+        ):
+            self.assertNotIn(definition, bridge)
 
         about_identity = read("macos/Bridge/about_identity.go")
         for marker in ("macAboutPublisher", "macAboutWebsite", "macAboutAuthorWebsite", "macAboutSupport"):
