@@ -19,13 +19,27 @@ Because the project keeps only the latest public desktop release, support is pro
 
 Include privacy-safe information such as OS/distribution or Android API/device/emulator, CPU architecture, Ghost FTP version, package/artifact name, protocol, transfer bandwidth/parallelism when relevant, and the exact action that failed (connect/list/upload/download/sort/filter/search/comparison/bookmark/queue/Remote Edit/profile/settings/appearance/Setup/Portable/uninstall).
 
-For 0.0.5 lifecycle issues, state whether the problem involved repeated commands, closing a dialog/application during an active mutation, Remote Edit save/reload, or Android Activity destruction/recreation during an in-flight connection.
+For 0.0.5 lifecycle issues, state whether the problem involved repeated commands, closing a dialog/application during an active mutation, Remote Edit save/reload, transfer Cancel followed by disconnect/reconnect, or Android Activity destruction/recreation during an in-flight connection.
 
 Never post real credentials, private-key contents, saved profile secrets, signing keys or production customer data.
 
 ## Windows universal-artifact reports
 
-The current public Windows files are `Ghost-FTP-0.0.5-Setup.exe` and `Ghost-FTP-0.0.5-Portable.exe`. There are no supported public `-x64.exe`, `-x86.exe` or `-x32.exe` downloads in the 0.0.5 release contract.
+The current public Windows files are `Ghost-FTP-0.0.5-Setup.exe` and `Ghost-FTP-0.0.5-Portable.exe`. There are no supported public `-x64.exe`, `-x86.exe`, `-x32.exe` or `-arm64.exe` downloads in the 0.0.5 release contract.
+
+Both public files contain internal native x64, x86 and ARM64 payloads. `GetNativeSystemInfo` selects the matching embedded payload and the bootstrap verifies staged bytes before execution; Ghost FTP does not download an architecture-specific runtime component.
+
+A successful current release records:
+
+```text
+WINDOWS_SETUP=universal-x86-x64-arm64
+WINDOWS_PORTABLE=universal-x86-x64-arm64
+WINDOWS_BOOTSTRAP_PE=x86
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+For an ARM64 report, state whether the machine is native Windows on ARM64, the Windows version/build, device model if useful, and whether Setup or Portable was used. `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` means project CI currently proves ARM64 cross-build/PE/package/signing mechanics but does not claim native ARM64 execution on the maintained Actions runner. A real ARM64 user report should therefore be clearly identified as device/runtime evidence rather than confused with x64 CI screenshot evidence.
 
 ## Windows signing reports
 
@@ -42,6 +56,8 @@ Unsigned local/development or ordinary CI builds are allowed for engineering val
 ## Bandwidth and queue reports
 
 Bandwidth ceilings are aggregate directional values in binary KiB/s; `0 = unlimited`. Report upload/download limits, parallelism, protocol, simultaneous transfer count and whether a transfer was already running when settings changed. Queue-order reports should identify the selected queued job and requested Top/Up/Down/Bottom action.
+
+If a Cancel problem follows a disconnect/reconnect, include that ordering. Windows intentionally rejects stale cancellation completion from an older `connectionGeneration` rather than allowing it to alter the replacement session's status/queue surface.
 
 ## Sorting/filter/search/comparison reports
 
