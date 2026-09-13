@@ -331,6 +331,17 @@ def integrate_main(text: str) -> str:
         "        transferQueueButton.isEnabled = engineReady && !connectionBusy\n",
         "main-control-state",
     )
+    text = replace_once(
+        text,
+        "    private func confirmDelete(_ items: [FileItem]) -> Bool {\n"
+        "        let alert = NSAlert()\n",
+        "    private func confirmDelete(_ items: [FileItem]) -> Bool {\n"
+        "        if GhostFTPRefreshSettings() == 1 && GhostFTPSettingsConfirmDelete() == 0 {\n"
+        "            return true\n"
+        "        }\n"
+        "        let alert = NSAlert()\n",
+        "main-confirm-delete-setting",
+    )
     return text
 
 
