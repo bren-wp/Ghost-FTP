@@ -82,6 +82,26 @@ func (u *linuxDesktop) fileFilterLabel(remote bool) string {
 	return fmt.Sprintf("%s  ·  %d/%d", words.Cue, visible, total)
 }
 
+func (u *linuxDesktop) isolateLinuxModalBackgroundInput() {
+	// Recursive search and directory comparison deliberately replace the normal
+	// directory rows with modal result snapshots. The ordinary workspace buttons
+	// are already swallowed by their modal mouse handlers, but editable fields are
+	// checked earlier by handleMouse. Clear only those hit targets after they have
+	// been rendered, and park keyboard focus outside the editable field range.
+	// buildLinuxDesktopLayout restores the real rectangles on the next render once
+	// the modal workflow closes.
+	u.focus = linuxFieldCount
+	u.layout.protocol = linuxRect{}
+	u.layout.host = linuxRect{}
+	u.layout.port = linuxRect{}
+	u.layout.user = linuxRect{}
+	u.layout.password = linuxRect{}
+	u.layout.key = linuxRect{}
+	u.layout.passphrase = linuxRect{}
+	u.layout.localPath = linuxRect{}
+	u.layout.remotePath = linuxRect{}
+}
+
 func (u *linuxDesktop) renderFileFilterControls() error {
 	// Bookmarks are application-level navigation, so keep their header entry
 	// visible even when recursive search or directory comparison temporarily owns
@@ -94,7 +114,12 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 	// goroutine before ordinary row-indexed controls are painted.
 	u.reconcileRecursiveSearchState()
 	u.reconcileDirectoryComparisonLinux()
-	if u.directoryComparisonActiveLinux() {
+	comparisonActive := u.directoryComparisonActiveLinux()
+	searchActive := u.recursiveSearchActive(false) || u.recursiveSearchActive(true)
+	if comparisonActive || searchActive {
+		u.isolateLinuxModalBackgroundInput()
+	}
+	if comparisonActive {
 		return u.renderDirectoryComparisonControlsLinux()
 	}
 	for _, remote := range []bool{false, true} {
