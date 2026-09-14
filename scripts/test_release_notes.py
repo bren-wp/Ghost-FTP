@@ -10,40 +10,40 @@ class ReleaseNotesTests(unittest.TestCase):
     def test_extracts_exact_version_section(self) -> None:
         changelog = """# Changelog
 
-## 0.0.7 — Current
+## 0.0.6 — Current
 
 - current change
 
-## 0.0.6 — Previous
+## 0.0.5 — Previous
 
 - previous change
 """
-        section = extract_section(changelog, "0.0.7")
+        section = extract_section(changelog, "0.0.6")
         self.assertIn("current change", section)
         self.assertNotIn("previous change", section)
 
-    def test_notes_match_next_cross_platform_release_contract(self) -> None:
-        notes = build_notes("0.0.7", "- Production stability improvement.")
+    def test_notes_match_current_cross_platform_release_contract(self) -> None:
+        notes = build_notes("0.0.6", "- Production stability improvement.")
         for marker in (
-            "Ghost FTP 0.0.7",
+            "Ghost FTP 0.0.6",
             "public Windows, Linux and Android applications",
             "Release channel: Current",
             "GitHub prerelease flag: false",
-            "ghostftp-v0.0.7",
-            "Ghost-FTP-0.0.7-Setup.exe",
-            "Ghost-FTP-0.0.7-Portable.exe",
-            "Ghost-FTP-0.0.7-Linux-Debian-Installer.run",
-            "Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz",
-            "Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run",
-            "Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz",
-            "Ghost-FTP-0.0.7-Linux-Fedora-Installer.run",
-            "Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz",
-            "Ghost-FTP-0.0.7-Android.apk",
-            "Ghost-FTP-0.0.7-Chrome-Extension.zip",
-            "Ghost-FTP-0.0.7-Edge-Extension.zip",
-            "Ghost-FTP-0.0.7-Firefox-Extension.zip",
-            "Ghost-FTP-0.0.7-Opera-Extension.zip",
-            "ghcr.io/bren-wp/ghost-ftp:0.0.7",
+            "ghostftp-v0.0.6",
+            "Ghost-FTP-0.0.6-Setup.exe",
+            "Ghost-FTP-0.0.6-Portable.exe",
+            "Ghost-FTP-0.0.6-Linux-Debian-Installer.run",
+            "Ghost-FTP-0.0.6-Linux-Debian-Portable.tar.gz",
+            "Ghost-FTP-0.0.6-Linux-Ubuntu-Installer.run",
+            "Ghost-FTP-0.0.6-Linux-Ubuntu-Portable.tar.gz",
+            "Ghost-FTP-0.0.6-Linux-Fedora-Installer.run",
+            "Ghost-FTP-0.0.6-Linux-Fedora-Portable.tar.gz",
+            "Ghost-FTP-0.0.6-Android.apk",
+            "Ghost-FTP-0.0.6-Chrome-Extension.zip",
+            "Ghost-FTP-0.0.6-Edge-Extension.zip",
+            "Ghost-FTP-0.0.6-Firefox-Extension.zip",
+            "Ghost-FTP-0.0.6-Opera-Extension.zip",
+            "ghcr.io/bren-wp/ghost-ftp:0.0.6",
             "verified OCI distribution bundle, not a runtime container",
             "Current aliases: 0, 0.0, latest",
             "13 platform artifacts",
@@ -59,12 +59,12 @@ class ReleaseNotesTests(unittest.TestCase):
             self.assertIn(marker, notes)
 
         for retired in (
-            "Ghost-FTP-0.0.7-Setup-x64.exe",
-            "Ghost-FTP-0.0.7-Setup-x32.exe",
-            "Ghost-FTP-0.0.7-Portable-x64.exe",
-            "Ghost-FTP-0.0.7-Linux-Debian-amd64.deb",
-            "Ghost-FTP-0.0.7-Linux-Fedora-x86_64.rpm",
-            "Ghost-FTP-0.0.7-Linux-Portable-amd64.tar.gz",
+            "Ghost-FTP-0.0.6-Setup-x64.exe",
+            "Ghost-FTP-0.0.6-Setup-x32.exe",
+            "Ghost-FTP-0.0.6-Portable-x64.exe",
+            "Ghost-FTP-0.0.6-Linux-Debian-amd64.deb",
+            "Ghost-FTP-0.0.6-Linux-Fedora-x86_64.rpm",
+            "Ghost-FTP-0.0.6-Linux-Portable-amd64.tar.gz",
             "18 platform artifacts",
             "21 public release files",
             "12 platform artifacts",
