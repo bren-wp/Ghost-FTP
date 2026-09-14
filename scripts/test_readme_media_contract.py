@@ -7,16 +7,23 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-
 class ReadmeMediaContractTests(unittest.TestCase):
     required_root_media = {
         "build/icon.png",
         "docs/images/0.0.6/ghost-ftp-main-workspace.png",
         "docs/images/0.0.6/ghost-ftp-site-manager.png",
         "docs/images/0.0.6/ghost-ftp-settings.png",
+        "docs/images/0.0.6/ghost-ftp-bookmarks.png",
         "docs/images/0.0.6/ghost-ftp-about.png",
         "docs/images/0.0.6/ghost-ftp-linux-main-workspace.png",
+        "docs/images/0.0.6/ghost-ftp-linux-bookmarks.png",
+        "docs/images/0.0.6/ghost-ftp-linux-settings.png",
         "docs/images/0.0.6/ghost-ftp-android-files.png",
+        "docs/images/0.0.6/ghost-ftp-android-sites.png",
+        "docs/images/0.0.6/ghost-ftp-android-transfers.png",
+        "docs/images/0.0.6/ghost-ftp-android-bookmarks.png",
+        "docs/images/0.0.6/ghost-ftp-android-settings.png",
+        "docs/images/0.0.6/ghost-ftp-android-about.png",
     }
 
     def _image_sources(self, text: str) -> set[str]:
@@ -31,10 +38,7 @@ class ReadmeMediaContractTests(unittest.TestCase):
         self.assertTrue(sources, f"{rel} must render at least one local Ghost FTP image")
         for source in sorted(sources):
             lowered = source.lower()
-            self.assertFalse(
-                lowered.startswith(("http://", "https://", "//", "data:")),
-                f"{rel} contains non-local image source {source!r}",
-            )
+            self.assertFalse(lowered.startswith(("http://", "https://", "//", "data:")), f"{rel} contains non-local image source {source!r}")
             self.assertNotIn("?", source, f"{rel} image source must be a stable repository path: {source!r}")
             resolved = (doc.parent / source).resolve()
             try:
@@ -44,42 +48,29 @@ class ReadmeMediaContractTests(unittest.TestCase):
             self.assertTrue(resolved.is_file(), f"{rel} references missing image {source!r}")
         return sources
 
-    def test_root_readme_uses_product_icon_and_authentic_screenshot_set(self) -> None:
+    def test_root_readme_uses_product_icon_and_full_authentic_cross_platform_set(self) -> None:
         sources = self._assert_local_existing_images("README.md")
         missing = sorted(self.required_root_media - sources)
         self.assertEqual(missing, [], "README is missing required maintained product media: " + ", ".join(missing))
-        for retired in (
-            "docs/images/ghost-ftp-main-workspace.png",
-            "docs/images/ghost-ftp-site-manager.png",
-            "docs/images/ghost-ftp-settings.png",
-            "docs/images/ghost-ftp-about.png",
-        ):
+        for retired in ("docs/images/ghost-ftp-main-workspace.png","docs/images/ghost-ftp-site-manager.png","docs/images/ghost-ftp-settings.png","docs/images/ghost-ftp-about.png"):
             self.assertNotIn(retired, sources, f"README must use immutable 0.0.6 evidence instead of {retired}")
 
-    def test_docs_index_uses_only_local_media(self) -> None:
+    def test_docs_index_uses_versioned_local_media(self) -> None:
         sources = self._assert_local_existing_images("docs/README.md")
-        expected = {
-            "../build/icon.png",
-            "images/ghost-ftp-main-workspace.png",
-            "images/ghost-ftp-site-manager.png",
-            "images/ghost-ftp-settings.png",
-            "images/ghost-ftp-about.png",
-        }
-        self.assertEqual(sorted(expected - sources), [], "docs index is missing maintained product media")
+        expected = {"../build/icon.png","images/0.0.6/ghost-ftp-main-workspace.png","images/0.0.6/ghost-ftp-site-manager.png","images/0.0.6/ghost-ftp-linux-main-workspace.png","images/0.0.6/ghost-ftp-linux-settings.png","images/0.0.6/ghost-ftp-android-files.png","images/0.0.6/ghost-ftp-android-transfers.png"}
+        self.assertEqual(sorted(expected - sources), [], "docs index is missing immutable 0.0.6 product media")
 
     def test_readme_copy_keeps_cross_platform_authentic_media_provenance_explicit(self) -> None:
         root = (ROOT / "README.md").read_text(encoding="utf-8")
         docs = (ROOT / "docs/README.md").read_text(encoding="utf-8")
         reference = (ROOT / "docs/REFERENCE-UI.md").read_text(encoding="utf-8")
         workflow = (ROOT / ".github/workflows/ui-screenshots.yml").read_text(encoding="utf-8")
-
         for text, label in ((root, "README.md"), (docs, "docs/README.md")):
             lowered = text.lower()
             self.assertIn("repository-local", lowered, f"{label} must state local media provenance")
             self.assertIn("exact-head", lowered, f"{label} must bind evidence to exact source identity")
             self.assertIn("windows, linux and android", lowered, f"{label} must describe cross-platform runtime evidence")
             self.assertIn("mockup", lowered, f"{label} must reject mockups as production evidence")
-
         workflow_lower = workflow.lower()
         self.assertIn('dist\\internal\\ghost-ftp-$version-portable-x64.exe', workflow_lower)
         self.assertIn("missing verified native production executable", workflow_lower)
@@ -91,6 +82,4 @@ class ReadmeMediaContractTests(unittest.TestCase):
         self.assertNotIn("git push", workflow_lower)
         self.assertNotIn("github-actions[bot]", workflow_lower)
 
-
-if __name__ == "__main__":
-    unittest.main()
+if __name__ == "__main__": unittest.main()

@@ -1,101 +1,69 @@
-# Windows and Linux platform parity
+# Ghost FTP platform parity
 
-Ghost FTP **0.0.6** keeps Windows and Linux as one desktop product. Both frontends use the **same typed `internal/api.Engine`** and shared protocol, transfer, profile, settings, localization, Remote Edit and security layers.
+Ghost FTP **0.0.6** treats parity as **equivalent real capability with honest platform-native UX**, not pixel-copying unsupported controls.
 
-Parity means equivalent supported behavior and protocol/security semantics with honest native-platform UX. A supported action must not exist as a decorative or dead control on either maintained desktop frontend.
+## Windows and Linux desktop parity
 
-## Shared protocol contract
+Windows and Linux use the same typed `internal/api.Engine` and shared protocol, transfer, profile, settings, localization, Remote Edit and security layers. Both expose FTP, explicit FTPS, SFTP password/private-key flows, strict host-key trust, navigation, transfers, remote file operations, filters/sorting/search/comparison, bookmarks/start directories and Remote Edit.
 
-Windows and Linux support FTP, explicit FTPS, SFTP password authentication, SFTP private-key authentication, key-passphrase handling, strict SFTP host-key fingerprint trust, local/remote navigation, transfer trees, remote file operations, connection timeouts and privacy-safe diagnostics.
+Both desktop frontends expose real queue lifecycle including pause/resume where supported, cancel, retry, clear and queued Top/Up/Down/Bottom ordering. Progress/speed/ETA are displayed only from actual transfer state.
 
-Fresh Quick Connect resolves to explicit FTPS on port 21. Plain FTP is an explicit compatibility choice. Secure-transport failure is never silently retried through a weaker protocol.
-
-Linux automatic SFTP password/private-key-passphrase delivery additionally requires the maintained root-controlled AskPass executable/helper/parent provenance; mutable Portable/per-user paths fail closed rather than weakening secret delivery.
-
-## Shared settings and localization
-
-Windows and Linux use the same typed profile/settings model. Saved credentials are opt-in and account-identity bound. Conflict policy, retry behavior, parallelism, timeout, appearance, language and independent upload/download bandwidth ceilings share one normalized contract.
-
-Classic Light is the fresh/fallback appearance and Dark remains a maintained explicit choice. Ghost FTP ships one local **24-language** desktop registry with English default/fallback; no remote theme/font/localization service is used.
-
-## Transfer and file-management parity
-
-Both desktop platforms expose:
-
-- local and remote panes with navigation/refresh;
-- create, rename, delete and remote permission operations where supported;
-- upload/download with pause, resume, cancel, retry and clear lifecycle;
-- queued **Top / Up / Down / Bottom** priority ordering;
-- truthful progress/speed/ETA and connection-generation ownership;
-- sorting and current-folder filtering;
-- bounded recursive search with cancellation;
-- conservative directory comparison and synchronized navigation;
-- bookmarks and profile start directories;
-- built-in Remote Edit.
-
-Bandwidth ceilings are aggregate directional budgets. FTP/FTPS map to curl rate enforcement and desktop SFTP to OpenSSH `sftp -l` with conservative unit conversion.
-
-## Remote Edit parity
-
-Windows and Linux use the same Remote Edit engine contract for FTP, FTPS and SFTP: bounded text size, strict UTF-8/binary validation, line-ending preservation, SHA-256 conflict detection, staged upload/read-back verification, trustworthy permission preservation and metadata refresh.
-
-0.0.6 retains the Windows editor-session lifecycle guards added before this release: async open/save/reload work remains serialized and stale sessions cannot publish over a replacement session.
-
-## Security parity
-
-Both desktop frontends preserve strict FTPS certificate/hostname validation, strict SFTP host-key trust, no silent secure-to-plain downgrade, validated path boundaries, staged commit/rollback behavior, protected credentials and privacy-safe diagnostics. Windows async mutation/transfer completions are connection-generation bound; Linux adds the trusted AskPass provenance boundary.
-
-## Windows-specific implementation
-
-Windows uses native Win32 UI and DPI-aware layout. Official public Windows publication requires trusted Authenticode.
+Windows public output is one universal Setup + one universal Portable, each containing **x64, x86 and ARM64** payloads. The release metadata preserves the evidence boundary explicitly:
 
 ```text
-WINDOWS_SETUP=universal-x86-x64-arm64
-WINDOWS_PORTABLE=universal-x86-x64-arm64
-WINDOWS_BOOTSTRAP_PE=x86
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
 ```
 
-Public Windows distribution exposes only:
+The ARM64 marker means the maintained CI proves cross-build/package/resource integrity without falsely claiming native Windows ARM64 runtime execution.
 
-```text
-Ghost-FTP-0.0.6-Setup.exe
-Ghost-FTP-0.0.6-Portable.exe
-```
+Linux public output is exactly six bundles: Installer + Portable for Debian/Ubuntu/Fedora, each carrying amd64/arm64/i386 payloads.
 
-Verified x64/x86/ARM64 payloads remain internal. The public bootstrap selects the native embedded payload with `GetNativeSystemInfo`, verifies staged bytes and performs no runtime architecture download. Maintained CI structurally verifies ARM64 but does not claim native Windows ARM64 runtime execution.
+## Android parity boundary
 
-## Linux-specific implementation
+Android is a public 0.0.6 application with Android-native Files, Sites, Bookmarks, Transfers, Settings and About surfaces. It uses Storage Access Framework local authority, FTP + strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
 
-The canonical 0.0.6 Linux path is `linux/BUILD-DISTROS.sh`:
+Android SFTP remains hidden until strict native host-key identity verification exists. A production signature does not weaken that boundary.
 
-- Debian DEB: `amd64`, `arm64`, `i386`;
-- Ubuntu DEB: `amd64`, `arm64`, `i386`;
-- Fedora RPM: `x86_64`, `aarch64`, `i686`;
-- Portable tar.gz: `amd64`, `arm64`, `i386`.
+## macOS parity boundary
 
-One production executable per Go architecture is reused across matching package families. Native install/remove/runtime/GUI evidence is **x86-64 only** on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64; other architectures retain exact-head build, metadata, extraction and byte-parity evidence.
-
-## Android public parity boundary
-
-Android is a public 0.0.6 application, but parity is expressed through Android-native storage/lifecycle primitives rather than fake desktop controls. It exposes Files/Sites/Bookmarks/Transfers/Settings/About, FTP + strict explicit FTPS, SAF-scoped local storage, local/remote file management, sort/filter, bounded recursive search, directory comparison/synchronized navigation and protected Remote Edit behavior.
-
-Android SFTP remains hidden until strict maintained host-key verification exists. The production-signed public APK does not change this security boundary.
-
-## macOS source parity boundary
-
-macOS is an active native development source surface using the shared engine and AppKit frontend. Universal development-app success is not Developer ID/notarization evidence. macOS remains outside the public 21-file release until the dedicated production signing/notarization/publication chain succeeds.
+macOS is an active native AppKit development frontend over the shared engine. Source/build parity does not imply public distribution parity. It remains outside the public release until real Developer ID Application signing and Apple notarization succeed.
 
 ## Browser helper boundary
 
-Chrome, Edge and Firefox helper ZIPs are public 0.0.6 companion packages built from one shared runtime. They remain local parser/copy helpers with no broad permissions and **no supported browser-to-desktop launch/handoff**. Browser packages are not a substitute for native application parity.
+Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from one shared local runtime. They remain parser/copy helpers with zero broad permissions and **no supported browser-to-desktop launch/handoff**. They are not substitutes for a native protocol client.
+
+## Web FTP parity boundary
+
+`web/ftp` intentionally resembles the Ghost FTP workspace but cannot be a native filesystem clone because browser sandboxes do not provide arbitrary local filesystem access or raw FTP-family sockets.
+
+The browser UI therefore provides:
+
+- explicit local file selection instead of fake local filesystem enumeration;
+- remote list/navigation;
+- upload/download;
+- mkdir, rename, delete and CHMOD where supported;
+- bounded Remote Edit;
+- in-tab operation activity.
+
+The server-assisted Web FTP transport is a distinct implementation with explicit SSRF/TLS/SFTP trust boundaries. It does not claim desktop queue scheduling, native local filesystem authority or browser-direct FTP.
+
+## Theme and visual direction
+
+Windows remains the canonical desktop visual reference. Dark uses the maintained deep navy palette; Classic Light uses the dirty/off-white gray palette rather than pure white. The website and Web FTP follow the same design language while remaining appropriate to browser controls/responsiveness.
 
 ## Release parity
 
-Every public platform stage is independently required: a successful Windows build cannot substitute for failed Linux or Android publication, and browser package failure blocks the canonical release.
+Every public release stage is independently required. A successful Windows build cannot substitute for failed Linux, Android or browser publication.
 
-The Ghost FTP 0.0.6 public contract is **18 platform artifacts / 21 public files** and publishes `ghcr.io/bren-wp/ghost-ftp:0.0.6` as a verified distribution bundle. macOS remains development/source only.
+The Ghost FTP 0.0.6 release contract is **13 platform artifacts / 16 public files**:
 
-See [Architecture](ARCHITECTURE.md), [Installation](INSTALLATION.md), [Settings](SETTINGS.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
+- Windows: 2;
+- Linux: 6;
+- Android: 1;
+- Browser helpers: 4;
+- release metadata: 3.
+
+`web/` and `web/ftp` are active deployment source but do not increase the GitHub Release asset count. macOS remains development/source only.
+
+See [Architecture](ARCHITECTURE.md), [Web](WEB.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).

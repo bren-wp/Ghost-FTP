@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 RETIRED_ROOTS = (
     "ios/",
     "GhostFTP WEB/",
-    "web/",
     "pwa/",
     "ghostftp-web/",
 )
@@ -41,6 +40,7 @@ def main() -> int:
     path_set = set(paths)
     retired: list[str] = []
     suspicious: list[str] = []
+
     for path in paths:
         normalized = path.replace("\\", "/")
         lowered = normalized.lower()
@@ -63,10 +63,6 @@ def main() -> int:
         "android/app/src/main/java/app/ghostftp/client/MainActivity.java",
         ".github/workflows/android-apk.yml",
     }
-    missing_android = sorted(android_required - path_set)
-    if missing_android:
-        fail("active Android source contract is incomplete: " + ", ".join(missing_android))
-
     macos_required = {
         "macos/README.md",
         "macos/PARITY.md",
@@ -74,16 +70,38 @@ def main() -> int:
         "macos/Sources/GhostFTPApp/main.swift",
         ".github/workflows/macos-app.yml",
     }
-    missing_macos = sorted(macos_required - path_set)
-    if missing_macos:
-        fail("active macOS source contract is incomplete: " + ", ".join(missing_macos))
+    web_required = {
+        "web/index.html",
+        "web/download.html",
+        "web/security.html",
+        "web/privacy.html",
+        "web/legal.html",
+        "web/ftp/index.php",
+        "web/ftp/api.php",
+        "web/ftp/lib/Security.php",
+        "web/ftp/lib/CurlFtpTransport.php",
+        "web/ftp/lib/SftpTransport.php",
+        "scripts/check_web_contract.py",
+        "scripts/test_web_contract.py",
+    }
+
+    for label, required in (
+        ("Android", android_required),
+        ("macOS", macos_required),
+        ("Web", web_required),
+    ):
+        missing = sorted(required - path_set)
+        if missing:
+            fail(f"active {label} source contract is incomplete: " + ", ".join(missing))
 
     print("DESKTOP_SURFACE_AUDIT=PASS")
     print("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES")
     print("ANDROID_DEVELOPMENT_SURFACE=ACTIVE")
     print("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE")
+    print("WEB_DEVELOPMENT_SURFACE=ACTIVE")
+    print("WEB_FTP_TRANSPORT=SERVER_ASSISTED_EPHEMERAL")
     print("RETIRED_APPLICATION_PLATFORMS=IOS")
-    print("RETIRED_APPLICATION_SURFACES=WEB,PWA")
+    print("RETIRED_APPLICATION_SURFACES=PWA")
     return 0
 
 
