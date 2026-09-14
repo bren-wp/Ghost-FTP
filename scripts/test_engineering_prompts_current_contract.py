@@ -53,7 +53,7 @@ class EngineeringPromptCurrentContractTests(unittest.TestCase):
 
         self.assertNotIn("maintained Windows/Linux Ghost FTP application", self.website)
         self.assertNotIn("Maintained desktop platforms: **Windows and Linux**", self.website)
-        self.assertNotIn("every Android version", self.website.lower())
+        self.assertNotIn("Windows/Linux availability", self.website)
 
 
 if __name__ == "__main__":
