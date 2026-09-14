@@ -162,7 +162,7 @@ The site should follow the product's privacy-first posture:
 - never proxy file-transfer sessions through the marketing website;
 - never put product credentials into URLs, analytics events or logs by design.
 
-If a contact form is maintained, collect only necessary contact/support fields, validate/encode input, implement CSRF/spam/rate/size protection without invasive tracking and clearly document where submissions go. Explicitly warn users not to send passwords or private keys.
+If a contact form is maintained, collect only necessary contact/support fields, validate/encode input, implement CSRF/spam/rate/size protection without invasive tracking and clearly document where submissions go. Explicitly warn users not to send passwords or private keys. **Do not repurpose names, email addresses, support messages or any other contact submission data for marketing, profiling or unrelated secondary use without separate explicit opt-in consent.**
 
 ## 9. Browser helper presentation
 
