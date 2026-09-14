@@ -73,9 +73,15 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
         )
         for rel in (
-            "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
-            "docs/PLATFORM-PARITY.md", "docs/TESTING.md", "docs/SIGNING.md",
-            "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md", "docs/PACKAGES.md",
+            "README.md",
+            "docs/INSTALLATION.md",
+            "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md",
+            "docs/ARCHITECTURE.md",
+            "docs/PLATFORM-PARITY.md",
+            "docs/TESTING.md",
+            "docs/SIGNING.md",
+            "docs/PACKAGES.md",
             "docs/VERSIONING.md",
         ):
             text = read(rel)
@@ -94,15 +100,21 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             with self.subTest(document=rel, marker="evidence"):
                 self.assertIn("WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci", text)
 
-    def test_expanded_public_release_keeps_windows_shape_constant(self) -> None:
+    def test_006_cross_platform_shape_does_not_change_windows_public_shape(self) -> None:
         for rel in (
-            "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md",
-            "docs/RELEASE-VERIFICATION.md", "docs/VERSIONING.md", "docs/ROADMAP.md",
+            "README.md",
+            "docs/README.md",
+            "docs/INSTALLATION.md",
+            "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md",
         ):
-            self.assertIn("18 platform artifacts / 21 public files", read(rel))
+            text = read(rel)
+            self.assertIn("13 platform artifacts / 16 public files", text, rel)
+            self.assertNotIn("18 platform artifacts / 21 public files", text, rel)
+            self.assertNotIn("0.0.7", text, rel)
         release = read(".github/workflows/release.yml")
-        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=18", release)
-        self.assertIn("PUBLIC_RELEASE_FILES=21", release)
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", release)
+        self.assertIn("PUBLIC_RELEASE_FILES=16", release)
         self.assertIn("WINDOWS_PUBLIC_EXECUTABLES=2", read("BUILD-WINDOWS.ps1"))
 
 

@@ -100,7 +100,7 @@ GHOSTFTP_ANDROID_KEYSTORE_BASE64
 GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
 GHOSTFTP_ANDROID_KEY_ALIAS
 GHOSTFTP_ANDROID_KEY_PASSWORD
-GHOSTFTP_ANDROID_SIGNER_SHA256
+GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
 The workflow builds the unsigned release APK, signs it using Android `apksigner`, verifies the APK and requires the signer certificate SHA-256 digest to match the protected expected fingerprint. The temporary keystore is removed after the job.

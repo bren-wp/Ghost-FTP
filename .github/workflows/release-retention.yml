@@ -36,10 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
-            echo "Invalid VERSION: $version" >&2
-            exit 1
-          }
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid VERSION: $version" >&2; exit 1; }
           test "$version" != '0.0.0'
           current_tag="ghostftp-v${version}"
           release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$current_tag")"
@@ -50,7 +47,7 @@ jobs:
           test "$release_tag" = "$current_tag"
           test "$release_draft" = 'false'
           test "$release_prerelease" = 'false'
-          test "$asset_count" -eq 21
+          test "$asset_count" -eq 16
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$current_tag" --jq .object.sha)"
           main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
           test -n "$tag_sha"
@@ -67,16 +64,10 @@ jobs:
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
           current_tag="ghostftp-v${version}"
-
           mapfile -t release_tags < <(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName')
           for tag in "${release_tags[@]}"; do
-            case "$tag" in
-              ghostftp-v*) ;;
-              *) continue ;;
-            esac
-            if [[ "$tag" = "$current_tag" ]]; then
-              continue
-            fi
+            case "$tag" in ghostftp-v*) ;; *) continue ;; esac
+            if [[ "$tag" = "$current_tag" ]]; then continue; fi
             echo "Deleting superseded Ghost FTP release/tag: $tag"
             gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           done
@@ -84,9 +75,7 @@ jobs:
           mapfile -t refs < <(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/ghostftp-v" --jq '.[].ref')
           for ref in "${refs[@]}"; do
             tag="${ref#refs/tags/}"
-            if [[ "$tag" = "$current_tag" ]]; then
-              continue
-            fi
+            if [[ "$tag" = "$current_tag" ]]; then continue; fi
             echo "Deleting orphan/superseded Ghost FTP tag: $tag"
             gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag"
           done
@@ -94,7 +83,6 @@ jobs:
           mapfile -t remaining_releases < <(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[] | select(.tagName | startswith("ghostftp-v")) | .tagName')
           test "${#remaining_releases[@]}" -eq 1
           test "${remaining_releases[0]}" = "$current_tag"
-
           mapfile -t remaining_refs < <(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/ghostftp-v" --jq '.[].ref')
           test "${#remaining_refs[@]}" -eq 1
           test "${remaining_refs[0]}" = "refs/tags/$current_tag"
@@ -109,10 +97,7 @@ jobs:
           version="$(tr -d '\r\n' < VERSION)"
           current="refs/heads/release/ghostftp-v${version}"
           if ! gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/release/ghostftp-v" > release-branches.json 2>release-branches.err; then
-            if grep -q 'HTTP 404' release-branches.err; then
-              echo 'No release branches to remove.'
-              exit 0
-            fi
+            if grep -q 'HTTP 404' release-branches.err; then echo 'No release branches to remove.'; exit 0; fi
             cat release-branches.err >&2
             exit 1
           fi
@@ -137,7 +122,6 @@ jobs:
           version="$(tr -d '\r\n' < VERSION)"
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           endpoint="users/$owner/packages/container/ghost-ftp/versions?per_page=100"
-
           if ! gh api "$endpoint" > package-versions.json 2>package-versions.err; then
             if grep -q 'HTTP 404' package-versions.err; then
               echo 'Current release requires its verified Ghost FTP package, but none exists.' >&2
@@ -152,10 +136,7 @@ jobs:
             keep='false'
             IFS=',' read -ra tag_list <<< "$tags"
             for tag in "${tag_list[@]}"; do
-              if [[ "$tag" = "$version" ]]; then
-                keep='true'
-                break
-              fi
+              if [[ "$tag" = "$version" ]]; then keep='true'; break; fi
             done
             if [[ "$keep" = 'true' ]]; then
               echo "Keeping current package version id=$id tags=$tags"

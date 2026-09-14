@@ -45,36 +45,29 @@ ghostftp-v{version}
 Public platform packages
 ------------------------
 Windows:
-- Ghost-FTP-{version}-Setup.exe — self-contained universal Windows Setup with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
-- Ghost-FTP-{version}-Portable.exe — self-contained universal Windows Portable with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
+- Ghost-FTP-{version}-Setup.exe — one self-contained universal Windows Setup with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
+- Ghost-FTP-{version}-Portable.exe — one self-contained universal Windows Portable with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
 
 Linux / Debian:
-- Ghost-FTP-{version}-Linux-Debian-amd64.deb
-- Ghost-FTP-{version}-Linux-Debian-arm64.deb
-- Ghost-FTP-{version}-Linux-Debian-i386.deb
+- Ghost-FTP-{version}-Linux-Debian-Installer.run — one architecture-selecting installer carrying amd64, arm64 and i386 payloads.
+- Ghost-FTP-{version}-Linux-Debian-Portable.tar.gz — one architecture-selecting portable bundle carrying amd64, arm64 and i386 payloads.
 
 Linux / Ubuntu:
-- Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb
-- Ghost-FTP-{version}-Linux-Ubuntu-arm64.deb
-- Ghost-FTP-{version}-Linux-Ubuntu-i386.deb
+- Ghost-FTP-{version}-Linux-Ubuntu-Installer.run — one architecture-selecting installer carrying amd64, arm64 and i386 payloads.
+- Ghost-FTP-{version}-Linux-Ubuntu-Portable.tar.gz — one architecture-selecting portable bundle carrying amd64, arm64 and i386 payloads.
 
 Linux / Fedora:
-- Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm
-- Ghost-FTP-{version}-Linux-Fedora-aarch64.rpm
-- Ghost-FTP-{version}-Linux-Fedora-i686.rpm
-
-Linux / Portable:
-- Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz
-- Ghost-FTP-{version}-Linux-Portable-arm64.tar.gz
-- Ghost-FTP-{version}-Linux-Portable-i386.tar.gz
+- Ghost-FTP-{version}-Linux-Fedora-Installer.run — one architecture-selecting installer carrying amd64, arm64 and i386 payloads.
+- Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz — one architecture-selecting portable bundle carrying amd64, arm64 and i386 payloads.
 
 Android:
-- Ghost-FTP-{version}-Android.apk — protected production-signed APK. Android SFTP remains hidden until strict maintained host-key verification exists.
+- Ghost-FTP-{version}-Android.apk — one protected production-signed APK. Android SFTP remains hidden until strict maintained host-key verification exists.
 
 Browser helper packages:
 - Ghost-FTP-{version}-Chrome-Extension.zip
 - Ghost-FTP-{version}-Edge-Extension.zip
 - Ghost-FTP-{version}-Firefox-Extension.zip
+- Ghost-FTP-{version}-Opera-Extension.zip
 - These are local parser/copy helpers and do not provide a supported browser-to-desktop launch/handoff.
 
 GitHub Packages
@@ -94,14 +87,14 @@ Verification files
 Release contract
 ----------------
 - Current Ghost FTP releases are not inferred to be prereleases from semantic-version major zero.
-- 18 platform artifacts.
-- 21 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
+- 13 platform artifacts.
+- 16 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
 - Public application platforms: Windows, Linux and Android.
-- Public browser-helper packages: Chrome, Edge and Firefox.
+- Public browser-helper packages: Chrome, Edge, Firefox and Opera.
 - macOS remains a separately validated development/source frontend until real Developer ID signing and Apple notarization succeed.
 - Local language catalog: 24 selectable desktop languages with English default/fallback.
 - Application telemetry: disabled.
-- Linux Debian/Ubuntu/Fedora/Portable packages reuse one verified production executable per matching architecture and are byte-parity checked before publication.
+- Each public Linux distro gets one Installer and one Portable archive. Both carry amd64, arm64 and i386 payloads and select the native payload locally; native CI runtime evidence is reported separately from build/package evidence.
 - Publication is bound to the exact verified main commit and followed by canonical latest-only retention verification.
 
 Signing and trust

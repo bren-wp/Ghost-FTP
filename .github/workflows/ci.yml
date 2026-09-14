@@ -2,7 +2,7 @@ name: Ghost FTP CI
 
 on:
   push:
-    branches: [main, 'work/**', 'release/**']
+    branches: [main, 'work/**', 'release/**', 'packaging/**']
   pull_request:
     branches: [main]
 
@@ -145,14 +145,11 @@ jobs:
             .\scripts\Sign-WindowsArtifacts.ps1 -PfxPath $pfx -Password $password -Paths $targets -AllowUntrustedSigner
             foreach ($target in $targets) {
               $signature = Get-AuthenticodeSignature -FilePath $target
-              if (-not $signature.SignerCertificate) {
-                throw "Signing smoke target has no signer: $target"
-              }
+              if (-not $signature.SignerCertificate) { throw "Signing smoke target has no signer: $target" }
               if ($signature.Status -eq 'HashMismatch' -or $signature.Status -eq 'NotSigned') {
                 throw "Signing smoke verification failed: $target ($($signature.Status))"
               }
             }
-
             Write-Host 'AUTHENTICODE_SIGNING_SMOKE=PASS'
           }
           finally {
@@ -172,9 +169,9 @@ jobs:
             dist/Ghost-FTP-*-Portable.exe
 
   linux:
-    name: Linux amd64 arm64 i386 production build
+    name: Linux universal distro bundles with amd64 arm64 i386 payloads
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -192,50 +189,48 @@ jobs:
           set -euo pipefail
           go telemetry off
           test "$(go telemetry)" = 'off'
-      - name: Linux tests and package build
+      - name: Linux tests and universal bundle build
         shell: bash
-        env:
-          GHOSTFTP_REQUIRE_DEB: '1'
         run: |
           set -euo pipefail
           go test ./...
           go vet ./...
-          bash linux/BUILD.sh
-      - name: Verify DEB and portable packages
+          python scripts/test_linux_distro_packaging_contract.py
+          bash linux/BUILD-DISTROS.sh
+      - name: Verify installer and portable bundles
         shell: bash
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
-          for arch in amd64 arm64 i386; do
-            pkg="dist/Ghost-FTP-${version}-Linux-${arch}.deb"
-            portable="dist/Ghost-FTP-${version}-Linux-${arch}.tar.gz"
-            test -s "$pkg"
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          for distro in Debian Ubuntu Fedora; do
+            installer="dist/Ghost-FTP-${version}-Linux-${distro}-Installer.run"
+            portable="dist/Ghost-FTP-${version}-Linux-${distro}-Portable.tar.gz"
+            test -x "$installer"
             test -s "$portable"
-            test "$(dpkg-deb -f "$pkg" Package)" = 'ghost-ftp'
-            test "$(dpkg-deb -f "$pkg" Version)" = "$version"
-            test "$(dpkg-deb -f "$pkg" Architecture)" = "$arch"
-
-            work="$(mktemp -d)"
-            trap 'rm -rf "$work"' EXIT
-            mkdir -p "$work/deb" "$work/portable"
-            dpkg-deb -x "$pkg" "$work/deb"
-            tar -xzf "$portable" -C "$work/portable"
-            root="$work/portable/Ghost-FTP-${version}-Linux-${arch}"
+            mkdir -p "$work/$distro"
+            tar -xzf "$portable" -C "$work/$distro"
+            root="$work/$distro/Ghost-FTP-${version}-Linux-${distro}-Portable"
             test -x "$root/ghostftp"
-            test -f "$root/ghost-ftp.desktop"
-            test -f "$root/ghost-ftp.png"
-            test -f "$root/LICENSE"
-            test -f "$root/README.md"
-            cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"
-            rm -rf "$work"
-            trap - EXIT
+            test -x "$root/bin/amd64/ghostftp"
+            test -x "$root/bin/arm64/ghostftp"
+            test -x "$root/bin/i386/ghostftp"
+            prefix="$work/${distro}-prefix"
+            GHOSTFTP_PREFIX="$prefix" "$installer"
+            cmp "$prefix/bin/ghostftp" "$root/bin/amd64/ghostftp"
           done
-      - name: Store Linux packages
+          test "$(find dist -maxdepth 1 -type f -name 'Ghost-FTP-*-Linux-*' | wc -l | tr -d ' ')" = '6'
+      - name: Store Linux bundles
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ghostftp-linux-stage
           if-no-files-found: error
           retention-days: 7
           path: |
-            dist/Ghost-FTP-*-Linux-*.deb
-            dist/Ghost-FTP-*-Linux-*.tar.gz
+            dist/Ghost-FTP-*-Linux-Debian-Installer.run
+            dist/Ghost-FTP-*-Linux-Debian-Portable.tar.gz
+            dist/Ghost-FTP-*-Linux-Ubuntu-Installer.run
+            dist/Ghost-FTP-*-Linux-Ubuntu-Portable.tar.gz
+            dist/Ghost-FTP-*-Linux-Fedora-Installer.run
+            dist/Ghost-FTP-*-Linux-Fedora-Portable.tar.gz

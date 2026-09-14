@@ -12,6 +12,8 @@ from verify_release_digest_readback import expected_release_names, verify_releas
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
 VERSION = "9.8.7"
 TAG = f"ghostftp-v{VERSION}"
+EXPECTED_FILES = 16
+EXPECTED_ARTIFACTS = 13
 
 
 class ReleaseDigestReadbackTests(unittest.TestCase):
@@ -27,7 +29,8 @@ class ReleaseDigestReadbackTests(unittest.TestCase):
                 f"VERSION={VERSION}",
                 f"RELEASE_TAG={TAG}",
                 f"COMMIT={COMMIT}",
-                "PUBLIC_RELEASE_FILES=21",
+                f"PUBLIC_PLATFORM_ARTIFACTS={EXPECTED_ARTIFACTS}",
+                f"PUBLIC_RELEASE_FILES={EXPECTED_FILES}",
                 "TELEMETRY=disabled",
                 "",
             ]
@@ -81,7 +84,7 @@ class ReleaseDigestReadbackTests(unittest.TestCase):
         result = verify_release(bundle, release_json, COMMIT)
         self.assertEqual(result["tag"], TAG)
         self.assertEqual(result["commit"], COMMIT)
-        self.assertEqual(result["files"], "21")
+        self.assertEqual(result["files"], str(EXPECTED_FILES))
         self.assertEqual(result["immutable"], "NO")
 
     def test_remote_digest_mismatch_fails(self) -> None:
@@ -130,7 +133,7 @@ class ReleaseDigestReadbackTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         source = bundle / f"Ghost-FTP-{VERSION}-Portable.exe"
         source.rename(bundle / "unexpected.bin")
-        with self.assertRaisesRegex(ValueError, "canonical 21-file release set"):
+        with self.assertRaisesRegex(ValueError, "canonical 16-file release set"):
             verify_release(bundle, release_json, COMMIT)
 
     def test_non_regular_bundle_entry_fails_closed(self) -> None:

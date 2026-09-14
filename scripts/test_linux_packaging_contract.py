@@ -10,86 +10,87 @@ def read(relative: str) -> str:
 
 
 class LinuxPackagingContractTests(unittest.TestCase):
-    def test_build_emits_portable_archives_without_forcing_deb_tooling(self) -> None:
-        build = read("linux/BUILD.sh")
-        self.assertIn('portable_name="Ghost-FTP-${VERSION}-Linux-${debarch}"', build)
-        self.assertIn('portable_out="dist/${portable_name}.tar.gz"', build)
-        self.assertIn("command -v dpkg-deb", build)
-        self.assertIn("GHOSTFTP_REQUIRE_DEB", build)
-        self.assertIn("tar --sort=name --owner=0 --group=0 --numeric-owner", build)
-        self.assertIn("gzip -n -9", build)
-        self.assertIn('cp "$binary" "$portable_root/ghostftp"', build)
-        self.assertIn('cp "$binary" "$deb_root/usr/bin/ghostftp"', build)
+    def test_universal_builder_emits_one_installer_and_portable_per_distro(self) -> None:
+        build = read("linux/BUILD-DISTROS.sh")
+        self.assertIn("for distro in Debian Ubuntu Fedora; do", build)
+        self.assertIn('Ghost-FTP-${VERSION}-Linux-${distro}-Installer.run', build)
+        self.assertIn('Ghost-FTP-${VERSION}-Linux-${distro}-Portable', build)
+        self.assertIn("build_arch amd64 amd64", build)
+        self.assertIn("build_arch arm64 arm64", build)
+        self.assertIn("build_arch 386 i386", build)
+        self.assertIn("__GHOSTFTP_PAYLOAD_BELOW__", build)
+        self.assertIn("ghostftp-uninstall", build)
+        self.assertIn("GHOSTFTP_PREFIX", build)
+        self.assertNotIn("dpkg-deb", build)
+        self.assertNotIn("rpmbuild", build)
 
-    def test_ci_proves_deb_and_portable_binary_parity(self) -> None:
+    def test_ci_proves_universal_bundle_architecture_and_installer_parity(self) -> None:
         workflow = read(".github/workflows/ci.yml")
-        self.assertIn("Verify DEB and portable packages", workflow)
-        self.assertIn("GHOSTFTP_REQUIRE_DEB: '1'", workflow)
-        self.assertIn("Ghost-FTP-${version}-Linux-${arch}.tar.gz", workflow)
-        self.assertIn('cmp "$work/deb/usr/bin/ghostftp" "$root/ghostftp"', workflow)
-        self.assertIn("dist/Ghost-FTP-*-Linux-*.tar.gz", workflow)
-
-    def test_release_workflow_publishes_verified_distro_and_portable_archives(self) -> None:
-        workflow = read(".github/workflows/release.yml")
-        self.assertIn("Verify distro package metadata and binary parity", workflow)
-        self.assertIn("GHOSTFTP_REQUIRE_DEB: '1'", workflow)
-        self.assertIn("GHOSTFTP_REQUIRE_RPM: '1'", workflow)
+        self.assertIn("Linux universal distro bundles with amd64 arm64 i386 payloads", workflow)
         self.assertIn("bash linux/BUILD-DISTROS.sh", workflow)
-        self.assertIn('cmp "$work/${distro,,}/usr/bin/ghostftp" "$portable_root/ghostftp"', workflow)
-        self.assertIn('cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"', workflow)
-        self.assertIn("dist/Ghost-FTP-*-Linux-Debian-*.deb", workflow)
-        self.assertIn("dist/Ghost-FTP-*-Linux-Ubuntu-*.deb", workflow)
-        self.assertIn("dist/Ghost-FTP-*-Linux-Fedora-*.rpm", workflow)
-        self.assertIn("dist/Ghost-FTP-*-Linux-Portable-*.tar.gz", workflow)
-        self.assertIn('cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Debian-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-Debian-${arch}.deb"', workflow)
-        self.assertIn('cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Ubuntu-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-Ubuntu-${arch}.deb"', workflow)
-        self.assertIn('cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Portable-${arch}.tar.gz" "release/Ghost-FTP-${VERSION}-Linux-Portable-${arch}.tar.gz"', workflow)
-        self.assertIn('cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm" "release/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"', workflow)
-        self.assertIn("LINUX_DEBIAN_DEB=amd64,arm64,i386", workflow)
-        self.assertIn("LINUX_UBUNTU_DEB=amd64,arm64,i386", workflow)
-        self.assertIn("LINUX_FEDORA_RPM=x86_64,aarch64,i686", workflow)
-        self.assertIn("LINUX_PORTABLE=amd64,arm64,i386", workflow)
-        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=18", workflow)
-        self.assertIn("PUBLIC_RELEASE_FILES=21", workflow)
-        self.assertIn('test "$count" = \'21\'', workflow)
+        self.assertIn("Ghost-FTP-${version}-Linux-${distro}-Installer.run", workflow)
+        self.assertIn("Ghost-FTP-${version}-Linux-${distro}-Portable.tar.gz", workflow)
+        self.assertIn("bin/amd64/ghostftp", workflow)
+        self.assertIn("bin/arm64/ghostftp", workflow)
+        self.assertIn("bin/i386/ghostftp", workflow)
+        self.assertIn("GHOSTFTP_PREFIX", workflow)
+        self.assertIn("find dist -maxdepth 1 -type f -name 'Ghost-FTP-*-Linux-*'", workflow)
+        self.assertIn("= '6'", workflow)
+
+    def test_dedicated_distro_matrix_proves_uninstall_lifecycle(self) -> None:
+        workflow = read(".github/workflows/linux-distro-install.yml")
+        verifier = read("scripts/verify_linux_distro_install.sh")
+        self.assertIn("Debian 13 native amd64 installer lifecycle", workflow)
+        self.assertIn("Ubuntu 26.04 LTS native amd64 installer lifecycle", workflow)
+        self.assertIn("Fedora 44 native x86_64 installer lifecycle", workflow)
+        self.assertIn('"$prefix/bin/ghostftp-uninstall"', verifier)
+        self.assertIn('test ! -e "$prefix/bin/ghostftp"', verifier)
+        self.assertIn('test ! -e "$prefix/bin/ghostftp-uninstall"', verifier)
+        self.assertIn("GHOSTFTP_INSTALLED_GUI_SMOKE=PASS", verifier)
+
+    def test_release_workflow_publishes_exact_universal_linux_set(self) -> None:
+        workflow = read(".github/workflows/release.yml")
+        self.assertIn("Build universal distro bundles", workflow)
+        self.assertIn("Verify universal distro bundle parity", workflow)
+        self.assertIn("bash linux/BUILD-DISTROS.sh", workflow)
+        for distro in ("Debian", "Ubuntu", "Fedora"):
+            self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-{distro}-Installer.run", workflow)
+            self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-{distro}-Portable.tar.gz", workflow)
+        self.assertIn("LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386", workflow)
+        self.assertIn("LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386", workflow)
+        self.assertIn("LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386", workflow)
+        self.assertIn("LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386", workflow)
+        self.assertIn("LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386", workflow)
+        self.assertIn("LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386", workflow)
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", workflow)
+        self.assertIn("PUBLIC_RELEASE_FILES=16", workflow)
+        self.assertIn('test "$count" = \'16\'', workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Android.apk", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Chrome-Extension.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Edge-Extension.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Firefox-Extension.zip", workflow)
-        for arch in ("amd64", "arm64", "i386"):
-            self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-Debian-{arch}.deb", workflow)
-            self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-Ubuntu-{arch}.deb", workflow)
-            self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-Portable-{arch}.tar.gz", workflow)
-        for arch in ("x86_64", "aarch64", "i686"):
-            self.assertIn(f"Ghost-FTP-${{VERSION}}-Linux-Fedora-{arch}.rpm", workflow)
+        self.assertIn("Ghost-FTP-${VERSION}-Opera-Extension.zip", workflow)
+        self.assertNotIn("Linux-Debian-amd64.deb", workflow)
+        self.assertNotIn("Linux-Fedora-x86_64.rpm", workflow)
 
-    def test_docs_describe_current_version_and_canonical_linux_contract(self) -> None:
+    def test_active_006_docs_match_release_candidate_contract(self) -> None:
         version = read("VERSION").strip()
-        linux_readme = read("linux/README.md")
-        parity = read("docs/PLATFORM-PARITY.md")
-        releases = read("docs/GITHUB-RELEASES.md")
-        verification = read("docs/RELEASE-VERIFICATION.md")
-        transition = read("docs/PACKAGING-TRANSITION.md")
-
-        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
-        self.assertNotEqual(version, "0.0.0")
-        self.assertIn(f"Ghost FTP **{version}** is the current public release line", linux_readme)
-        self.assertIn(f"Canonical {version} Linux artifacts", linux_readme)
-        self.assertIn("distro-specific artifacts are no longer supplemental", linux_readme)
-        self.assertIn(f"ghcr.io/bren-wp/ghost-ftp:{version}", linux_readme)
-
-        self.assertIn(f"Ghost FTP **{version}**", parity)
-        self.assertIn("18 platform artifacts / 21 public files", parity)
-        self.assertIn(f"ghostftp-v{version}", releases)
-        self.assertIn("18 platform artifacts", releases)
-        self.assertIn("21 public files", releases)
-        self.assertIn(f"VERSION={version}", verification)
-        self.assertIn("18 platform artifacts", verification)
-        self.assertIn("21 public files", verification)
-
-        self.assertIn("historical 0.0.2 tag/release is not rewritten", transition)
-        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=14", transition)
-        self.assertIn("PUBLIC_RELEASE_FILES=17", transition)
+        self.assertEqual(version, "0.0.6")
+        for rel in (
+            "docs/INSTALLATION.md",
+            "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md",
+        ):
+            text = read(rel)
+            self.assertIn("13 platform artifacts", text, rel)
+            self.assertIn("16 public files", text, rel)
+            self.assertIn(f"Ghost-FTP-{version}-Linux-Debian-Installer.run", text, rel)
+            self.assertIn(f"Ghost-FTP-{version}-Linux-Ubuntu-Portable.tar.gz", text, rel)
+            self.assertIn(f"Ghost-FTP-{version}-Linux-Fedora-Installer.run", text, rel)
+            self.assertNotIn(f"Ghost-FTP-{version}-Linux-Debian-amd64.deb", text, rel)
+            self.assertNotIn(f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm", text, rel)
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", read(".github/workflows/release.yml"))
+        self.assertIn("PUBLIC_RELEASE_FILES=16", read(".github/workflows/release.yml"))
 
 
 if __name__ == "__main__":

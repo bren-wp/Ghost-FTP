@@ -44,12 +44,21 @@ MACOS_REQUIRED = {
     "scripts/test_macos_windows_parity_contract.py",
 }
 BROWSER_REQUIRED = {
-    "ekstenzije/manifests/chrome.json",
-    "ekstenzije/manifests/edge.json",
-    "ekstenzije/manifests/firefox.json",
+    "extensions/BRAND.json",
+    "extensions/chrome/manifest.json",
+    "extensions/edge/manifest.json",
+    "extensions/firefox/manifest.json",
+    "extensions/opera/manifest.json",
+    "extensions/shared/core.js",
+    "extensions/shared/popup.js",
     "scripts/build_browser_extensions.py",
     "scripts/test_browser_extensions_contract.py",
     ".github/workflows/browser-extensions.yml",
+}
+LINUX_DISTRIBUTION_REQUIRED = {
+    "linux/BUILD-DISTROS.sh",
+    ".github/workflows/linux-distro-packages.yml",
+    "scripts/test_linux_distro_packaging_contract.py",
 }
 
 
@@ -78,11 +87,16 @@ def main() -> int:
             fail(f"retired application platform/surface is tracked: {path}")
         if normalized in RETIRED_SCRIPTS:
             fail(f"retired platform tooling is tracked: {path}")
+        if normalized.startswith("ekstenzije/"):
+            fail(f"retired non-English extension source root is tracked: {path}")
+        if normalized.startswith(("linux/debian/", "linux/rpm/")):
+            fail(f"retired architecture-specific Linux packaging source is tracked: {path}")
 
     for label, required in (
         ("Android", ANDROID_REQUIRED),
         ("macOS", MACOS_REQUIRED),
         ("browser helper", BROWSER_REQUIRED),
+        ("Linux distribution", LINUX_DISTRIBUTION_REQUIRED),
     ):
         missing = sorted(required - path_set)
         if missing:
@@ -107,6 +121,21 @@ def main() -> int:
         if marker not in ci:
             fail(f"Windows/Linux desktop CI contract is incomplete: missing {marker}")
 
+    linux_builder = read("linux/BUILD-DISTROS.sh")
+    for marker in (
+        "build_arch amd64 amd64",
+        "build_arch arm64 arm64",
+        "build_arch 386 i386",
+        "Ghost-FTP-${VERSION}-Linux-${distro}-Installer.run",
+        "Ghost-FTP-${VERSION}-Linux-${distro}-Portable",
+        "for distro in Debian Ubuntu Fedora; do",
+    ):
+        if marker not in linux_builder:
+            fail(f"Linux universal distribution contract is incomplete: missing {marker}")
+    for retired in ("dpkg-deb", "rpmbuild"):
+        if retired in linux_builder:
+            fail(f"Linux public builder still contains retired architecture-specific packager: {retired}")
+
     release = read(".github/workflows/release.yml")
     release_lower = release.lower()
     for marker in ("runs-on: macos", "ios/", "macos/", "ghostftp web/"):
@@ -118,11 +147,18 @@ def main() -> int:
         "android:",
         "browser:",
         "Production signed Android APK",
-        "Chrome Edge Firefox release packages",
+        "Chrome Edge Firefox Opera release packages",
         "Ghost-FTP-${VERSION}-Android.apk",
         "Ghost-FTP-${VERSION}-Chrome-Extension.zip",
-        "PUBLIC_PLATFORM_ARTIFACTS=18",
-        "PUBLIC_RELEASE_FILES=21",
+        "Ghost-FTP-${VERSION}-Opera-Extension.zip",
+        "Ghost-FTP-${VERSION}-Linux-Debian-Installer.run",
+        "Ghost-FTP-${VERSION}-Linux-Debian-Portable.tar.gz",
+        "Ghost-FTP-${VERSION}-Linux-Ubuntu-Installer.run",
+        "Ghost-FTP-${VERSION}-Linux-Ubuntu-Portable.tar.gz",
+        "Ghost-FTP-${VERSION}-Linux-Fedora-Installer.run",
+        "Ghost-FTP-${VERSION}-Linux-Fedora-Portable.tar.gz",
+        "PUBLIC_PLATFORM_ARTIFACTS=13",
+        "PUBLIC_RELEASE_FILES=16",
     ):
         if marker not in release:
             fail(f"cross-platform public release contract is incomplete: missing {marker}")
@@ -164,11 +200,14 @@ def main() -> int:
     print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
+    print("WINDOWS_PUBLIC_RELEASE_PACKAGES=SETUP,PORTABLE")
+    print("LINUX_PUBLIC_RELEASE_PACKAGES=DEBIAN_INSTALLER,DEBIAN_PORTABLE,UBUNTU_INSTALLER,UBUNTU_PORTABLE,FEDORA_INSTALLER,FEDORA_PORTABLE")
+    print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
     print("ANDROID_APK_DEVELOPMENT_SURFACE=ACTIVE")
     print("ANDROID_RELEASE_BUILD_AND_SIGNING_SMOKE=ACTIVE")
     print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
     print("ANDROID_SFTP_PUBLIC_SUPPORT=NO_STRICT_HOST_KEY_BOUNDARY")
-    print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX")
+    print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("BROWSER_DESKTOP_HANDOFF=UNSUPPORTED")
     print("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE")
     print("MACOS_PUBLIC_RELEASE_ARTIFACT=NO")
