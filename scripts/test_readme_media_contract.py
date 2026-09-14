@@ -11,10 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 class ReadmeMediaContractTests(unittest.TestCase):
     required_root_media = {
         "build/icon.png",
-        "docs/images/ghost-ftp-main-workspace.png",
-        "docs/images/ghost-ftp-site-manager.png",
-        "docs/images/ghost-ftp-settings.png",
-        "docs/images/ghost-ftp-about.png",
+        "docs/images/0.0.6/ghost-ftp-main-workspace.png",
+        "docs/images/0.0.6/ghost-ftp-site-manager.png",
+        "docs/images/0.0.6/ghost-ftp-settings.png",
+        "docs/images/0.0.6/ghost-ftp-about.png",
+        "docs/images/0.0.6/ghost-ftp-linux-main-workspace.png",
+        "docs/images/0.0.6/ghost-ftp-android-files.png",
     }
 
     def _image_sources(self, text: str) -> set[str]:
@@ -46,6 +48,13 @@ class ReadmeMediaContractTests(unittest.TestCase):
         sources = self._assert_local_existing_images("README.md")
         missing = sorted(self.required_root_media - sources)
         self.assertEqual(missing, [], "README is missing required maintained product media: " + ", ".join(missing))
+        for retired in (
+            "docs/images/ghost-ftp-main-workspace.png",
+            "docs/images/ghost-ftp-site-manager.png",
+            "docs/images/ghost-ftp-settings.png",
+            "docs/images/ghost-ftp-about.png",
+        ):
+            self.assertNotIn(retired, sources, f"README must use immutable 0.0.6 evidence instead of {retired}")
 
     def test_docs_index_uses_only_local_media(self) -> None:
         sources = self._assert_local_existing_images("docs/README.md")
