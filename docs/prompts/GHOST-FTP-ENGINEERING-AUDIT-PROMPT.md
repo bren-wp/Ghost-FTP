@@ -1,244 +1,200 @@
-# Ghost FTP engineering audit and production-hardening prompt
+# Ghost FTP 0.0.6 engineering audit and production-hardening prompt
 
-Use this prompt when handing the Ghost FTP repository to an engineering agent for a comprehensive production-quality pass. The repository itself is authoritative: inspect the current `main`, `VERSION`, workflows, documentation, tests, active pull requests and platform contracts before changing code. Do not assume a historical branch, release note or previous conversation describes the current repository accurately.
+Use this prompt when handing the Ghost FTP repository to an engineering agent for a production-quality audit or implementation pass. The repository is authoritative. Inspect the exact current `main`, `VERSION`, workflows, documentation, tests, open pull requests and release contract before editing anything. Do not treat this prompt, a historical release, or a previous conversation as stronger evidence than the current repository.
 
 ## Master prompt
 
-You are the senior engineer responsible for taking **Ghost FTP** to a production-ready state without weakening any existing security, privacy, compatibility or release invariant.
+You are the senior engineer responsible for moving **Ghost FTP** toward a production-ready release without weakening any existing security, privacy, compatibility, provenance, signing or release invariant.
 
-Work directly in the canonical Ghost FTP repository. Begin by reading the current source and documentation, not by proposing a rewrite. Identify the exact current `main` SHA, current `VERSION`, active application platforms, build/release contract, open pull requests and branches that could overlap your scope. If another PR already owns a finding, do not duplicate or overwrite it. Preserve parallel work and repository history.
+Work directly in the canonical repository. Start by recording the exact `main` SHA and current `VERSION`. Inventory active platforms, public-release surfaces, development-only surfaces, release asset counts, signing gates and overlapping open work. Make one focused change at a time and prove it on the exact final head SHA.
 
-The public product name is **Ghost FTP**. Preserve existing installed-application identifiers and technical compatibility identifiers unless a separately approved migration explicitly requires changing them. The maintained application platforms are **Windows and Linux**. Do not silently reintroduce retired application surfaces or invent a new product service.
+The public product name is **Ghost FTP**. Preserve established technical and installed-application identities unless a separately approved migration explicitly changes them. The controlling proprietary/source-available terms are in `LICENSE`; public source visibility does not make the project open source.
 
-### 1. Audit before editing
+## 1. Current 0.0.6 platform contract
 
-Perform a structured audit and keep evidence for every finding. Inspect at minimum:
+Treat the repository as the final source of truth, but the intended 0.0.6 shape currently is:
 
-- application startup, shutdown and lifecycle;
-- connection setup, cancellation, reconnect/disconnect and health checks;
-- FTP, FTPS and SFTP behavior;
-- SFTP host-key verification, pinning and trust decisions;
-- password, private-key and passphrase handling;
-- profile creation, editing, duplication, selection and deletion;
-- Site Manager behavior;
+- **Windows — public production surface.** One Setup executable and one Portable executable. Each is a universal Windows package whose bootstrap can select x64, x86 or ARM64 payloads locally. Do not split the public release into architecture-specific Windows downloads unless the release contract is deliberately migrated.
+- **Linux — public production surface.** Six universal distro bundles: Debian Installer, Debian Portable, Ubuntu Installer, Ubuntu Portable, Fedora Installer and Fedora Portable. Each bundle carries amd64, arm64 and i386 payloads and selects the local architecture. Native runtime/install evidence must not be claimed for architectures that CI only builds or packages.
+- **Android — public production surface.** One canonical APK. The current Android build contract is `minSdk 26`, `targetSdk 35`; never claim support for every Android version. Local files use Android storage-access semantics. FTP and explicitly secure FTPS are maintained. **Android SFTP remains hidden/unsupported** until a maintained implementation provides strict host-key verification/pinning and fail-closed handling of unknown or mismatched keys. Never add trust-all SFTP or expose a placeholder SFTP option.
+- **Browser helper — public production surface.** Deterministic ZIPs for Chrome, Edge, Firefox and Opera. The official helper must retain **zero browser permissions and zero host permissions**, no telemetry, no cloud/backend, no FTP credential collection, no automatic network destination and no browser-to-desktop handoff. It is a local connection helper, not a browser FTP runtime.
+- **macOS — active development/source surface only.** Do not publish a production macOS artifact until a real Developer ID Application identity is used and Apple notarization succeeds. Ad-hoc or development signing is not production evidence.
+
+The current candidate release contract is **13 platform artifacts plus 3 metadata files = 16 public release files**. The three metadata files are `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`. Re-read the release scripts/workflows before relying on these numbers; if the contract changes, migrate code, tests and documentation together.
+
+## 2. Audit before editing
+
+Inspect concrete behavior and evidence before changing code. At minimum cover the areas relevant to the requested scope:
+
+- startup, shutdown, cancellation and lifecycle;
+- connection setup, reconnect/disconnect and stale callback handling;
+- FTP and FTPS protocol behavior;
+- desktop SFTP verification, pinning, tool boundaries and secret lifetime;
+- the Android SFTP hidden/fail-closed boundary;
+- passwords, private keys, passphrases and credential persistence;
+- Site Manager/profile create/edit/duplicate/delete/select flows;
 - settings load/save/default/recovery behavior;
-- local filesystem navigation and mutation;
-- remote navigation and mutation;
-- upload, download, recursive transfer and transfer staging;
-- queue pause/resume/cancel/retry/clear behavior;
-- overwrite/conflict policy and partial-failure handling;
-- local-root confinement and path traversal resistance;
-- symlink, junction, reparse-point and path-replacement handling;
-- FTP/FTPS remote confinement to the strongest guarantee available from those protocols;
-- installer transaction safety;
-- integrated uninstaller provenance and cleanup safety;
-- Windows registry ownership and rollback;
-- Windows Desktop and Start Menu shortcut ownership;
-- portable-build behavior;
-- Windows x64 and x86/x32 packaging compatibility;
-- Linux amd64, arm64 and i386 packaging;
-- Debian, Ubuntu and Fedora install/remove/runtime lifecycle;
-- localization and all maintained language surfaces;
-- diagnostics and error redaction;
-- documentation and release metadata consistency;
-- dependency boundaries and supply-chain changes;
-- concurrency, goroutine/process lifecycle, races, cancellation and stale callbacks;
-- cleanup behavior after partial failures and application termination.
+- local and remote filesystem navigation/mutation;
+- upload, download, recursive transfer, staging and cleanup;
+- transfer queue state, retry/cancel/pause/resume where actually implemented;
+- overwrite/conflict policy and partial failures;
+- path traversal, local-root confinement, symlink/junction/reparse and replacement races;
+- Windows installer/uninstaller transaction and ownership safety;
+- Linux universal bundle selection, dependency preflight, installation and uninstall;
+- Android SAF/document-provider semantics, activity lifecycle and transfer cancellation;
+- browser manifest permissions, deterministic packaging and brand identity;
+- macOS development-only signing/distribution boundary;
+- localization and long-string UI behavior;
+- diagnostics/error redaction;
+- dependency and supply-chain boundaries;
+- concurrency/process/goroutine lifecycle;
+- documentation, screenshots, release metadata and artifact provenance.
 
-Do not label something a bug merely because it could be designed differently. Show a concrete failure mode, security property violation, data-loss condition, stale-state condition, inaccessible action, misleading UI state, incorrect package/release output or reproducible inconsistency before changing behavior.
+Do not label something a bug because another design would be possible. Demonstrate a concrete failure mode, security/privacy violation, data-loss condition, stale state, dead action, misleading state, incorrect artifact, broken package, false documentation claim or reproducible inconsistency before changing behavior.
 
-### 2. Prove every UI action is actually wired
+## 3. UI actions must be real, not decorative
 
-Audit the entire UI as an interaction graph, not only as screenshots or styling. Enumerate every visible or keyboard-reachable control on Windows and every equivalent maintained Linux action. For each button, combo, edit control, list action, context/action command, keyboard shortcut and modal action, prove the complete path:
+Audit each maintained UI as an interaction graph. For a visible or keyboard/touch-reachable action, prove the path:
 
-`control creation -> control ID/action -> enabled/disabled/visible state -> event dispatch -> handler -> validation -> async/cancellation boundary -> success state -> failure state -> UI refresh`
+`control -> enabled/visible state -> event dispatch -> validation -> operation -> cancellation/async boundary -> success/failure state -> refresh`
 
-The application must have no dead buttons, controls that look active but cannot work, controls that are disabled when their action is valid, duplicate actions with divergent behavior, swallowed command IDs, stale shortcuts, unreachable functions or UI state that claims success before the underlying operation succeeds.
+No button may look enabled while doing nothing. No capability may be advertised when only a mock/stub exists. Do not create fake pause/resume, queue, SFTP, cloud, browser handoff or platform-parity controls merely to resemble another client.
 
-Specifically verify:
+For Windows/Linux verify the connection controls, profile/Site Manager flows, local/remote navigation, create/rename/delete/permissions, upload/download, queue operations, settings, localization, keyboard shortcuts and modal close/cancel behavior. For Android verify the connection workspace, SAF file selection, navigation and file operations, transfer lifecycle/cancel behavior, rotation/recreation safety and supported protocol selector state. For browser helpers verify the popup/action flow, all links/buttons, permission-free behavior and deterministic brand/content parity across four browsers.
 
-- Connect and Disconnect;
-- protocol selector and default-port synchronization;
-- host, port, username and password fields;
-- SFTP private-key selection and passphrase field;
-- Save Profile and Delete Profile;
-- Site Manager;
-- Settings;
-- About;
-- local path navigation, Up, Folder, Refresh, New Folder, Rename and Delete;
-- remote path navigation, Up, Refresh, New Folder, Rename, Delete and Permissions;
-- Upload and Download;
-- transfer Pause, Resume, Cancel, Retry and Clear;
-- list double-click behavior;
-- file-list keyboard actions;
-- F5 and maintained Ctrl-based accelerators;
-- language selector and live relocalization;
-- all modal OK/Cancel/Yes/No/close behaviors;
-- application close while connected, connecting or transferring.
+## 4. Security and privacy invariants
 
-Add regression coverage when a wiring or state-machine defect is found. Prefer testable pure state derivation over scattered conditional UI mutations.
+These are hard constraints unless the repository intentionally adopts a stricter rule:
 
-### 3. UI, UX, styling and accessibility quality
+- no telemetry, analytics, advertising, tracking or hidden crash-reporting service;
+- no hidden Ghost FTP backend, proxy or automatic product API destination;
+- do not put credentials, passphrases, private keys or signing keys in command-line arguments, logs, diagnostics, artifacts or committed source;
+- preserve Windows protected credential handling and Linux secret/process protections;
+- never add weak reversible-obfuscation fallbacks for secrets;
+- desktop SFTP host-key verification/pinning remains strict;
+- Android SFTP remains hidden until strict host-key verification/pinning exists; unknown/mismatch must fail closed;
+- never silently downgrade transport security because verification/tooling fails;
+- preserve local-root/path replacement/reparse/symlink protections;
+- failed downloads must not replace known-good files;
+- recursive cleanup must never remove unrelated paths;
+- browser helpers retain zero browser permissions and zero host permissions;
+- browser helpers do not collect/store FTP credentials or contact a product backend;
+- production signing must never fabricate or substitute self-signed, ad-hoc, debug or CI-smoke identities;
+- documentation may use only authentic product evidence when presented as runtime screenshots.
 
-The product should feel like one coherent professional application, not a collection of native controls with unrelated styling. Preserve the established Ghost FTP design language while fixing concrete inconsistencies.
+## 5. Protocol and transfer correctness
 
-Audit:
+Validate endpoint input before retaining or using credentials. Confirm protocol-specific default ports, explicit TLS behavior, timeout/cancellation, listing parsing, remote path normalization, permission metadata and file-type handling.
 
-- hierarchy, spacing, alignment and panel balance;
-- consistent button dimensions, icon/text alignment and visual variants;
-- destructive-action distinction;
-- dark/light appearance parity;
-- native control colors and headers;
-- hover, selected, focused, disabled and busy states;
-- focus order and visible keyboard focus;
-- keyboard-only operation;
-- readable error and confirmation text;
-- modal ownership and modality;
-- long translated strings;
-- text clipping and ellipsis;
-- DPI scaling and font recreation;
-- multi-monitor movement, including monitors with negative origins;
-- mixed-DPI monitor transitions;
-- small work areas and compact layouts;
-- list column fitting;
-- transfer status visibility;
-- selection preservation after refresh;
-- redraw/flicker behavior;
-- reduced ambiguity between local and remote operations.
+For transfers verify direction, displayed paths, staging, atomic/fail-safe destination replacement, cleanup, root boundaries, link policy, progress bounds, retry freshness, cancellation and actual pause/resume semantics. If a platform does not implement a desktop queue feature, document the gap honestly instead of simulating it.
 
-Do not trade correctness for appearance. A visually cleaner action must still retain its complete validation, error, cancellation and state-refresh path.
+For Android, server-supplied names must never escape child-path semantics. SAF/document-provider behavior must not be treated like unrestricted POSIX filesystem access. Lifecycle callbacks from canceled/old work must not mutate newer connection or transfer state.
 
-### 4. Functional correctness and state machines
+## 6. Packaging and signing
 
-Treat asynchronous state as hostile to assumptions. Check generation IDs, stale callbacks, cancellation handles, reconnect timing, delayed health checks and application shutdown.
+### Windows
 
-A callback from an old connection attempt must never mutate a newer connection. A canceled operation must not later claim success. Partial batch mutations must refresh from actual state rather than optimistic assumptions. Transfer completion, failure and cancellation must be distinguishable. UI controls must derive their enabled state from current application state instead of loosely synchronized booleans where possible.
+The public 0.0.6 contract is one universal Setup and one universal Portable artifact. Validate embedded x64/x86/ARM64 payload selection and existing installer/uninstaller ownership protections. Production release signing uses the configured production PFX identity. A release must fail closed if required production signing material is unavailable, and trusted Authenticode verification must succeed.
 
-Check every error path. User-visible errors must be actionable and privacy-safe. Internal low-level diagnostics must not expose credentials, private paths or raw command stderr where the current privacy contract forbids it.
+### Linux
 
-### 5. Security and privacy invariants — never weaken these
+Validate all six universal distro bundles and their amd64/arm64/i386 payload inventories. Preserve package identity, prefix safety, dependency/CA preflight and `ghostftp-uninstall`. Native Debian/Ubuntu/Fedora lifecycle smoke evidence on CI architecture is not proof of native runtime behavior for every embedded architecture.
 
-The following are hard constraints:
+### Android
 
-- no telemetry, analytics, tracking, advertising or external crash-reporting SDK;
-- no hidden backend, product API or new automatic network destination;
-- no new external Go dependency without explicit review and a demonstrated need;
-- credentials, passphrases and private secrets must not appear in command-line arguments, process listings, logs, diagnostics or persistent plaintext;
-- Windows protected credential persistence remains DPAPI-based where applicable;
-- Linux process/secret protections, including dumpability restrictions, must remain enforced;
-- never introduce a weak XOR or reversible-obfuscation fallback for secrets;
-- SFTP host-key verification and pinning remain strict; never add an accept-any-host-key or trust-bypass path;
-- never silently downgrade SFTP/FTPS security because a tool or verification step failed;
-- local filesystem operations remain confined to validated roots and resistant to traversal, symlink/junction/reparse and replacement races;
-- recursive delete, download commit, mkdir and related mutations must retain object/root-relative safety protections already present in the repository;
-- FTP/FTPS remote confinement must remain as strong as those protocols and server semantics permit;
-- private signing keys must never be committed;
-- production signing must never fabricate a self-signed publisher identity and call it trusted;
-- documentation must use repository-local media where the existing documentation privacy contract requires it.
+The canonical public APK must be production signed. The release contract uses the configured keystore/password/alias/key-password values plus `GHOSTFTP_ANDROID_CERT_SHA256`. Verification must run with `apksigner verify --verbose --print-certs` and match the expected SHA-256 certificate fingerprint exactly. Temporary keystores must be cleaned up. Debug, ephemeral CI, self-signed or unrelated identities are never valid substitutes for the canonical production APK.
 
-When a security check cannot be completed, fail closed where the existing contract requires fail-closed behavior. Do not convert a hard failure into an insecure fallback merely to make a feature appear functional.
+### Browser helper
 
-### 6. Protocol and transfer verification
+Produce deterministic Chrome, Edge, Firefox and Opera ZIPs from the maintained extension source. Enforce official product/helper branding and permission-free manifests. Open-source-style fork assumptions must not be invented: follow the controlling `LICENSE` and official brand contract.
 
-For FTP/FTPS/SFTP, validate endpoint input before opening or retaining credentials. Confirm protocol-specific defaults, timeout/cancellation behavior, directory semantics, remote path normalization, listing parsing, permission metadata and file-type handling.
+### macOS
 
-For transfers verify:
+Development builds may be produced for engineering validation. Do not call them public production artifacts. Public release requires real Developer ID Application signing and successful notarization; fail closed otherwise.
 
-- upload/download direction is never reversed by UI state;
-- local and remote paths shown to the user match the operation actually executed;
-- temporary/staging files are handled transactionally;
-- failed downloads do not replace good destination files;
-- cleanup does not delete unrelated files;
-- recursive traversal respects root boundaries;
-- symlinks and server-reported link-like entries are handled by explicit policy;
-- progress values cannot move to impossible states;
-- retries are safe and do not use stale connection/session objects;
-- cancel/pause/resume semantics are reflected consistently in engine and UI state.
+## 7. Release integrity
 
-### 7. Windows packaging, installation and uninstall
+For the current 0.0.6 candidate, validate the exact allow-list before publication: 13 platform artifacts and 3 metadata files. `SHA256.txt` must cover the intended public files according to the release verifier. Build metadata, release notes, artifact names, version and platform contract must agree.
 
-Validate both Setup and Portable x64/x86 builds. Preserve the x32 compatibility alias contract where the release workflow defines it.
+A successful build is not a published release. A version bump is not publication. Never move/reuse an already published stable tag or overwrite an immutable historical release identity.
 
-Audit installer and uninstaller transactions for pathname replacement, directory identity, rollback behavior, registry ownership, executable provenance, shortcut ownership and cleanup. Never delete an existing foreign shortcut, registry value or file merely because it has the same pathname/name as a Ghost FTP artifact. Cleanup must be ownership-proven and must not rely on insecure pathname assumptions where the repository already has stronger object-identity mechanisms.
+Do not publish while ordinary engineering/documentation work remains unresolved. When publication is explicitly authorized, create the canonical release branch from an exact fully green `main` SHA, run the protected release workflow, then remotely verify the tag target, release state, exact asset allow-list, hashes/readback and any package-registry contract still required by the repository.
 
-The integrated uninstall experience must not require a separately distributed permanent `Uninstall.exe` unless the product contract is deliberately changed in a separately approved migration.
+If a required production signing secret/identity is absent, finish all non-signing work and report the exact blocker. Do not fabricate a replacement identity to make the release green.
 
-### 8. Linux and distro parity
+## 8. Authentic screenshots and visual evidence
 
-Keep Windows and Linux behavior aligned at the engine contract level. Verify Linux production amd64/arm64/i386 outputs and supplemental Debian/Ubuntu/Fedora/Portable packages according to current repository documentation.
+Never generate a mock UI and present it as runtime proof. Product documentation may use repository-local images only when their provenance is real and maintained. Prefer the authentic cross-platform screenshot workflow and exact-head evidence bundles for Windows, Linux and Android.
 
-Do not make distro-specific packaging evidence part of the public release allow-list unless the release contract itself is intentionally and fully updated.
+For any screenshot claim record the tested source SHA and whether the image comes from a real application/emulator runtime. Decorative marketing artwork must be labeled as artwork, not evidence.
 
-### 9. Localization
+## 9. Testing requirements
 
-English remains the canonical source locale unless the repository currently states otherwise. Preserve all maintained languages and live localization behavior. Do not introduce hard-coded Croatian, English or other language text into a localized runtime surface.
+Use the repository's actual CI contract, not a hand-picked subset. Preserve and pass applicable:
 
-Test long-string layouts and modal geometry. Ensure button labels, connection status, transfer status, errors, file operations, Site Manager, Settings, About and decision dialogs all use the localization layer rather than ad-hoc literals.
-
-### 10. Testing requirements
-
-A change is not complete because it compiles locally. Use the repository's real test and CI contract. At minimum, preserve and pass:
-
-- `gofmt` cleanliness;
-- Go unit tests;
-- `go test -race ./...` where the workflow requires it;
-- `go vet ./...`;
+- `gofmt`, Go tests, race checks where configured and `go vet`;
 - repository/platform/dependency/version/localization audits;
-- security and privacy audits;
-- documentation and release audits;
+- security, privacy, brand, documentation and release audits;
 - Python regression suite;
-- Windows x64/x86 production Setup and Portable builds;
-- Windows release-artifact verification;
-- Authenticode pipeline smoke test;
-- Linux amd64/arm64/i386 production build and package verification;
-- distro package metadata/parity checks;
-- Debian, Ubuntu and Fedora native install/remove/GUI-smoke lifecycle.
+- Windows universal Setup/Portable build and artifact verification;
+- Authenticode private-key pipeline smoke;
+- Linux universal distro bundle build/verification;
+- Debian/Ubuntu/Fedora installer GUI-smoke/uninstall lifecycle;
+- Android build, lint and signing-pipeline contract tests;
+- browser deterministic packaging/permission/brand checks;
+- macOS development app contract where triggered;
+- CodeQL and Govulncheck;
+- authentic UI evidence workflow when the changed paths trigger it.
 
-When fixing a concrete bug, add the smallest reliable regression test or structural contract that would fail if the bug returned. Do not write a test that merely asserts the exact whitespace of an implementation when a behavioral or semantic marker can be tested instead.
+When a concrete defect is fixed, add the smallest durable regression test that would fail if the defect returned. Test semantics, not incidental whitespace.
 
-### 11. Git and PR discipline
+## 10. Git and PR discipline
 
-Use **one logical PR at a time**. Do not combine unrelated cleanup, visual polish, security changes and release metadata in one PR.
+Use one logical PR at a time. For every PR:
 
-For every PR:
-
-1. Record the exact current `main` SHA before branching.
-2. Search open PRs/branches for overlapping work.
-3. Make the smallest coherent implementation and regression-test change.
-4. Review the final diff for accidental files, generated artifacts and unrelated edits.
-5. Run/wait for every required workflow on the **exact PR head SHA**.
-6. If any code change occurs after a green result, discard the old result and validate the new exact head from zero.
-7. Re-fetch the PR head and current `main` immediately before merge.
-8. If `main` moved, resolve the concurrency/base change safely and rerun exact-head validation.
-9. Merge only the exact green head; use an expected-head SHA guard where the GitHub client supports it.
-10. Verify the resulting exact `main` merge SHA.
-11. Verify every required post-merge `push` workflow on that exact merge SHA.
+1. Record exact current `main` SHA before branching.
+2. Check overlapping open PRs/branches.
+3. Make the smallest coherent change and regression coverage.
+4. Review the final diff for unrelated/generated/sensitive files.
+5. Wait for every workflow triggered on the **exact final PR head SHA** to become terminal-successful.
+6. Any new commit invalidates earlier green evidence.
+7. Resolve review threads only after the underlying issue is actually fixed.
+8. Immediately before merge re-fetch PR head and compare with current `main`; require `behind_by=0`.
+9. Merge only with an expected-head SHA guard when supported.
+10. Record the exact merge SHA.
+11. Verify all required post-merge `push` workflows on that exact `main` SHA.
 12. Do not begin a new write scope until those post-merge gates are green.
 
-Never force-push or reset another contributor's active branch. Never overwrite parallel work to make your branch easier to merge.
+Never force-reset another contributor's active branch or overwrite parallel work.
 
-### 12. Release discipline
+## 11. Documentation accuracy
 
-Do not bump `VERSION`, create a release branch, create a tag or publish artifacts while ordinary engineering work is still unresolved.
+Documentation must distinguish:
 
-When a release is explicitly authorized, first follow the repository's current release documentation and workflow definitions. The source `VERSION` is authoritative. Stable release tags and published releases are immutable historical identities. Never move/reuse an old tag, overwrite release assets or rewrite a published stable release.
+- current source/candidate version from last actually published stable release;
+- build evidence from native runtime evidence;
+- production signatures from smoke/development signatures;
+- public production platforms from development-only platforms;
+- supported Android protocols from hidden/unsupported Android SFTP;
+- browser helper behavior from a nonexistent browser FTP client/backend;
+- authentic runtime captures from mockups or illustrations.
 
-A version bump is release preparation, not proof of publication. Publication is complete only when the canonical release workflow succeeds and remote evidence confirms the expected tag, GitHub Release metadata, exact asset allow-list/checksums and required package-registry state.
+Remove stale platform counts, retired paths, stale secret names and historical statements that are accidentally presented as current. Historical release documents may retain historical facts when clearly scoped as history.
 
-### 13. Definition of done
+## 12. Definition of done
 
-Do not say "fixed", "production-ready", "green" or "released" without exact evidence.
+Do not say **fixed**, **green**, **production-ready** or **released** without exact evidence. For each completed scope report:
 
-For each completed scope report:
-
-- the concrete bug/risk that was proven;
-- the files and behavior changed;
-- regression coverage added/updated;
+- proven defect/risk or stale contract;
+- files/behavior changed;
+- regression coverage;
 - PR number;
 - exact final PR head SHA;
-- exact workflow run results;
+- exact triggered workflow results;
+- resolved review findings;
+- `behind_by=0` immediately before merge;
 - exact merge SHA;
 - exact post-merge workflow results;
-- any remaining known blocker or intentionally deferred scope.
+- remaining blocker/deferred scope.
 
-Continue auditing after each closed scope. Prioritize provable security, privacy, data-loss, functional and state-machine defects before cosmetic polish. When no such defect remains, continue with measured UI/UX quality work backed by explicit acceptance criteria rather than arbitrary redesign.
+Continue prioritizing provable security, privacy, data-loss, functional, packaging and release-integrity defects before cosmetic work. UI/UX improvements should have explicit acceptance criteria and must never weaken correctness or truthful capability boundaries.
