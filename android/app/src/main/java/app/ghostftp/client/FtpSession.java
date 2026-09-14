@@ -13,6 +13,10 @@ import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +34,7 @@ final class FtpSession implements Closeable {
     private static final int MAX_REPLY_CHARS = 256 * 1024;
     private static final int MAX_MLSD_LINE_CHARS = 16 * 1024;
     private static final int MAX_DIRECTORY_ENTRIES = 10000;
+    private static final DateTimeFormatter MLSD_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT);
 
     private final String host;
     private final int port;
@@ -140,6 +145,14 @@ final class FtpSession implements Closeable {
     }
 
     synchronized void upload(String remotePath, InputStream input, TransferCommitGate gate) throws IOException {
+        uploadInternal(remotePath, input, gate, "");
+    }
+
+    synchronized void uploadPreservingMode(String remotePath, InputStream input, TransferCommitGate gate, String mode) throws IOException {
+        uploadInternal(remotePath, input, gate, normalizeChmodMode(mode));
+    }
+
+    private void uploadInternal(String remotePath, InputStream input, TransferCommitGate gate, String preserveMode) throws IOException {
         ensureConnected();
         if (input == null) {
             throw new IOException("Missing upload source.");
@@ -183,6 +196,16 @@ final class FtpSession implements Closeable {
         } catch (IOException e) {
             hardClose();
             throw new IOException("Upload was not confirmed complete; final remote name was not committed and the connection was closed.", e);
+        }
+
+        if (!preserveMode.isEmpty()) {
+            try {
+                expect(mutationCommand("SITE CHMOD " + preserveMode + " " + sanitizeArgument(tempPath)), 200);
+                verifyRemoteMode(tempPath, preserveMode);
+            } catch (IOException e) {
+                deleteRemoteBestEffort(tempPath);
+                throw new IOException("Remote Edit staging permissions could not be applied and verified; final name was not committed.", e);
+            }
         }
 
         if (!gate.markReadyToCommit()) {
@@ -304,6 +327,34 @@ final class FtpSession implements Closeable {
         String path = requireMutableRemotePath(remotePath);
         String safeMode = normalizeChmodMode(mode);
         expect(mutationCommand("SITE CHMOD " + safeMode + " " + sanitizeArgument(path)), 200);
+    }
+
+    synchronized void requireRemoteModeUnchanged(String remotePath, String expectedMode) throws IOException {
+        String safeExpected = expectedMode == null ? "" : expectedMode.trim();
+        if (safeExpected.isEmpty()) return;
+        verifyRemoteMode(requireMutableRemotePath(remotePath), normalizeChmodMode(safeExpected));
+    }
+
+    private void verifyRemoteMode(String remotePath, String expectedMode) throws IOException {
+        String path = requireMutableRemotePath(remotePath);
+        String parent = parentRemote(path);
+        String name = path.substring(path.lastIndexOf('/') + 1);
+        for (RemoteEntry entry : list(parent)) {
+            if (!name.equals(entry.name)) continue;
+            if (entry.permissions.isEmpty() || !sameOctalMode(entry.permissions, expectedMode)) {
+                throw new IOException("Remote permissions changed or could not be verified.");
+            }
+            return;
+        }
+        throw new IOException("Remote file disappeared while verifying permissions.");
+    }
+
+    private static boolean sameOctalMode(String left, String right) {
+        try {
+            return Integer.parseInt(normalizeChmodMode(left), 8) == Integer.parseInt(normalizeChmodMode(right), 8);
+        } catch (IOException | NumberFormatException e) {
+            return false;
+        }
     }
 
     boolean isConnected() {
@@ -482,7 +533,7 @@ final class FtpSession implements Closeable {
         return new Reply(code, message.toString());
     }
 
-    private static RemoteEntry parseMlsd(String line) {
+    static RemoteEntry parseMlsd(String line) {
         int split = line.indexOf(' ');
         if (split <= 0 || split + 1 >= line.length()) {
             return null;
@@ -492,18 +543,41 @@ final class FtpSession implements Closeable {
         if (name.isEmpty() || ".".equals(name) || "..".equals(name) || facts.contains("type=cdir") || facts.contains("type=pdir")) {
             return null;
         }
-        boolean directory = facts.contains("type=dir");
+        String type = "";
         long size = 0L;
+        long modified = 0L;
+        String permissions = "";
         for (String fact : facts.split(";")) {
-            if (fact.startsWith("size=")) {
+            if (fact.startsWith("type=")) {
+                type = fact.substring(5).trim();
+            } else if (fact.startsWith("size=")) {
                 try {
                     size = Long.parseLong(fact.substring(5));
                 } catch (NumberFormatException ignored) {
                     size = 0L;
                 }
+            } else if (fact.startsWith("modify=")) {
+                modified = parseMlsdTimestamp(fact.substring(7));
+            } else if (fact.startsWith("unix.mode=")) {
+                permissions = fact.substring(10).trim();
             }
         }
-        return new RemoteEntry(name, directory, size);
+        boolean directory = "dir".equals(type);
+        return new RemoteEntry(name, directory, size, modified, permissions, type);
+    }
+
+    static long parseMlsdTimestamp(String value) {
+        String text = value == null ? "" : value.trim();
+        if (text.length() < 14) return 0L;
+        String seconds = text.substring(0, 14);
+        for (int i = 0; i < seconds.length(); i++) {
+            if (seconds.charAt(i) < '0' || seconds.charAt(i) > '9') return 0L;
+        }
+        try {
+            return LocalDateTime.parse(seconds, MLSD_TIMESTAMP).toInstant(ZoneOffset.UTC).toEpochMilli();
+        } catch (DateTimeParseException e) {
+            return 0L;
+        }
     }
 
     static int parseEpsvPort(String message) throws IOException {

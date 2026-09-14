@@ -13,7 +13,9 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -35,7 +37,9 @@ import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,6 +69,8 @@ public final class MainActivity extends Activity {
     private final Deque<String> localParents = new ArrayDeque<>();
     private final List<SiteProfile> profiles = new ArrayList<>();
     private final List<Button> navigationButtons = new ArrayList<>();
+    private final List<WorkspaceOps.Item> localVisibleItems = new ArrayList<>();
+    private final List<WorkspaceOps.Item> remoteVisibleItems = new ArrayList<>();
 
     private Spinner siteSpinner;
     private Spinner protocol;
@@ -96,6 +102,14 @@ public final class MainActivity extends Activity {
     private Button remoteRename;
     private Button remoteDelete;
     private Button remoteChmod;
+    private Button localFilter;
+    private Button localSort;
+    private Button localSearch;
+    private Button remoteFilter;
+    private Button remoteSort;
+    private Button remoteSearch;
+    private Button directoryCompare;
+    private Button remoteEdit;
     private Button saveSite;
     private Button deleteSite;
     private Button localSetStart;
@@ -138,6 +152,14 @@ public final class MainActivity extends Activity {
     private boolean busy;
     private boolean rememberEndpoint = true;
     private boolean showFileSizes = true;
+    private String localFilterQuery = "";
+    private String remoteFilterQuery = "";
+    private WorkspaceOps.SortKey localSortKey = WorkspaceOps.SortKey.NAME;
+    private WorkspaceOps.SortKey remoteSortKey = WorkspaceOps.SortKey.NAME;
+    private boolean localSortAscending = true;
+    private boolean remoteSortAscending = true;
+    private volatile long advancedOperationGeneration;
+    private RemoteEditorState remoteEditorState;
     private volatile boolean transferActive;
     private volatile boolean transferFinalizing;
     private volatile long transferGeneration;
@@ -168,6 +190,10 @@ public final class MainActivity extends Activity {
             pending.abort();
         }
         transferGeneration++;
+        advancedOperationGeneration++;
+        RemoteEditorState editorState = remoteEditorState;
+        remoteEditorState = null;
+        if (editorState != null && editorState.dialog != null) editorState.dialog.dismiss();
         transferActive = false;
         transferFinalizing = false;
         TransferCommitGate gate = activeTransferGate;
@@ -398,6 +424,19 @@ public final class MainActivity extends Activity {
         up.setOnClickListener(v -> localUp());
         refresh.setOnClickListener(v -> refreshLocal());
 
+        LinearLayout viewActions = row();
+        localFilter = button("Filter");
+        localSort = button("Sort: Name ↑");
+        localSearch = button("Search");
+        viewActions.addView(localFilter, weightedSpaced());
+        viewActions.addView(localSort, weightedSpaced());
+        viewActions.addView(localSearch, weightedSpaced());
+        card.addView(viewActions, matchWrap());
+        localFilter.setOnClickListener(v -> editLocalFilter());
+        localSort.setOnClickListener(v -> cycleLocalSort());
+        localSort.setOnLongClickListener(v -> { toggleLocalSortDirection(); return true; });
+        localSearch.setOnClickListener(v -> promptLocalRecursiveSearch());
+
         LinearLayout fileActions = row();
         localCreateDirectory = button("New folder");
         localRename = button("Rename");
@@ -415,10 +454,11 @@ public final class MainActivity extends Activity {
         card.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
         localList.setOnItemClickListener((parent, view, position, id) -> selectLocal(position));
         localList.setOnItemLongClickListener((parent, view, position, id) -> {
-            if (busy || position < 0 || position >= localEntries.size()) return true;
-            selectedLocal = position;
+            int sourceIndex = localSourceIndex(position);
+            if (busy || sourceIndex < 0 || sourceIndex >= localEntries.size()) return true;
+            selectedLocal = sourceIndex;
             renderLocal();
-            setStatus("Local item selected for file management: " + localEntries.get(position).name);
+            setStatus("Local item selected for file management: " + localEntries.get(sourceIndex).name);
             return true;
         });
         return card;
@@ -437,6 +477,19 @@ public final class MainActivity extends Activity {
         up.setOnClickListener(v -> remoteUp());
         refresh.setOnClickListener(v -> refreshRemote(currentRemotePath));
 
+        LinearLayout viewActions = row();
+        remoteFilter = button("Filter");
+        remoteSort = button("Sort: Name ↑");
+        remoteSearch = button("Search");
+        viewActions.addView(remoteFilter, weightedSpaced());
+        viewActions.addView(remoteSort, weightedSpaced());
+        viewActions.addView(remoteSearch, weightedSpaced());
+        card.addView(viewActions, matchWrap());
+        remoteFilter.setOnClickListener(v -> editRemoteFilter());
+        remoteSort.setOnClickListener(v -> cycleRemoteSort());
+        remoteSort.setOnLongClickListener(v -> { toggleRemoteSortDirection(); return true; });
+        remoteSearch.setOnClickListener(v -> promptRemoteRecursiveSearch());
+
         LinearLayout primaryActions = row();
         remoteCreateDirectory = button("New folder");
         remoteRename = button("Rename");
@@ -449,19 +502,28 @@ public final class MainActivity extends Activity {
         remoteRename.setOnClickListener(v -> renameRemoteSelected());
         remoteDelete.setOnClickListener(v -> deleteRemoteSelected());
 
+        LinearLayout advancedActions = row();
         remoteChmod = button("Permissions / CHMOD");
+        directoryCompare = button("Compare folders");
+        remoteEdit = primaryButton("Remote Edit");
+        advancedActions.addView(remoteChmod, weightedSpaced());
+        advancedActions.addView(directoryCompare, weightedSpaced());
+        advancedActions.addView(remoteEdit, weightedSpaced());
+        card.addView(advancedActions, matchWrap());
         remoteChmod.setOnClickListener(v -> chmodRemoteSelected());
-        card.addView(remoteChmod, matchWrapSpaced());
+        directoryCompare.setOnClickListener(v -> showDirectoryComparison());
+        remoteEdit.setOnClickListener(v -> openRemoteEditorSelected());
 
         remoteList = new ListView(this);
         GhostTheme.styleList(remoteList);
         card.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
         remoteList.setOnItemClickListener((parent, view, position, id) -> selectRemote(position));
         remoteList.setOnItemLongClickListener((parent, view, position, id) -> {
-            if (busy || position < 0 || position >= remoteEntries.size()) return true;
-            selectedRemote = position;
+            int sourceIndex = remoteSourceIndex(position);
+            if (busy || sourceIndex < 0 || sourceIndex >= remoteEntries.size()) return true;
+            selectedRemote = sourceIndex;
             renderRemote();
-            setStatus("Server item selected for file management: " + remoteEntries.get(position).name);
+            setStatus("Server item selected for file management: " + remoteEntries.get(sourceIndex).name);
             return true;
         });
         return card;
@@ -1082,8 +1144,9 @@ public final class MainActivity extends Activity {
     }
 
     private void selectRemote(int position) {
-        if (busy || position < 0 || position >= remoteEntries.size()) return;
-        RemoteEntry entry = remoteEntries.get(position);
+        int sourceIndex = remoteSourceIndex(position);
+        if (busy || sourceIndex < 0 || sourceIndex >= remoteEntries.size()) return;
+        RemoteEntry entry = remoteEntries.get(sourceIndex);
         if (entry.directory) {
             try {
                 refreshRemote(FtpSession.joinRemote(currentRemotePath, entry.name));
@@ -1091,7 +1154,7 @@ public final class MainActivity extends Activity {
                 setStatus(e.getMessage());
             }
         } else {
-            selectedRemote = position;
+            selectedRemote = sourceIndex;
             renderRemote();
         }
     }
@@ -1366,7 +1429,8 @@ public final class MainActivity extends Activity {
         List<LocalEntry> result = new ArrayList<>();
         Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(rootTreeUri, documentId);
         String[] projection = {DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE};
+                DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE,
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED};
         try (Cursor cursor = getContentResolver().query(children, projection, null, null, null)) {
             if (cursor == null) throw new IOException("Folder provider returned no directory listing.");
             while (cursor.moveToNext()) {
@@ -1374,7 +1438,8 @@ public final class MainActivity extends Activity {
                 String name = cursor.getString(1);
                 String mime = cursor.getString(2);
                 long size = cursor.isNull(3) ? 0L : cursor.getLong(3);
-                result.add(new LocalEntry(id, name, DocumentsContract.Document.MIME_TYPE_DIR.equals(mime), size));
+                long modified = cursor.isNull(4) ? 0L : cursor.getLong(4);
+                result.add(new LocalEntry(id, name, DocumentsContract.Document.MIME_TYPE_DIR.equals(mime), size, modified));
             }
         } catch (SecurityException e) {
             throw new IOException("Local folder permission is no longer available.", e);
@@ -1383,8 +1448,9 @@ public final class MainActivity extends Activity {
     }
 
     private void selectLocal(int position) {
-        if (busy || position < 0 || position >= localEntries.size()) return;
-        LocalEntry entry = localEntries.get(position);
+        int sourceIndex = localSourceIndex(position);
+        if (busy || sourceIndex < 0 || sourceIndex >= localEntries.size()) return;
+        LocalEntry entry = localEntries.get(sourceIndex);
         if (entry.directory) {
             try {
                 List<LocalEntry> next = queryChildren(treeUri, entry.documentId);
@@ -1398,7 +1464,7 @@ public final class MainActivity extends Activity {
                 setStatus("Local directory is unavailable; current path was not changed: " + safeMessage(e));
             }
         } else {
-            selectedLocal = position;
+            selectedLocal = sourceIndex;
             renderLocal();
         }
     }
@@ -1417,6 +1483,635 @@ public final class MainActivity extends Activity {
         } catch (IOException e) {
             setStatus("Parent folder is unavailable; current path was not changed: " + safeMessage(e));
         }
+    }
+
+
+    private void editLocalFilter() {
+        promptText("Local current-folder filter", localFilterQuery, "Name contains… (blank clears)", false, value -> {
+            localFilterQuery = value == null ? "" : value.trim();
+            selectedLocal = -1;
+            renderLocal();
+            setStatus(localFilterQuery.isEmpty() ? "Local filter cleared." : "Local filter applied: " + localFilterQuery);
+        });
+    }
+
+    private void editRemoteFilter() {
+        promptText("Server current-folder filter", remoteFilterQuery, "Name contains… (blank clears)", false, value -> {
+            remoteFilterQuery = value == null ? "" : value.trim();
+            selectedRemote = -1;
+            renderRemote();
+            setStatus(remoteFilterQuery.isEmpty() ? "Server filter cleared." : "Server filter applied: " + remoteFilterQuery);
+        });
+    }
+
+    private void cycleLocalSort() {
+        if (busy) return;
+        localSortKey = WorkspaceOps.nextLocalSortKey(localSortKey);
+        renderLocal();
+        setStatus("Local sort: " + WorkspaceOps.sortLabel(localSortKey, localSortAscending));
+    }
+
+    private void toggleLocalSortDirection() {
+        if (busy) return;
+        localSortAscending = !localSortAscending;
+        renderLocal();
+        setStatus("Local sort: " + WorkspaceOps.sortLabel(localSortKey, localSortAscending));
+    }
+
+    private void cycleRemoteSort() {
+        if (busy) return;
+        remoteSortKey = WorkspaceOps.nextRemoteSortKey(remoteSortKey);
+        renderRemote();
+        setStatus("Server sort: " + WorkspaceOps.sortLabel(remoteSortKey, remoteSortAscending));
+    }
+
+    private void toggleRemoteSortDirection() {
+        if (busy) return;
+        remoteSortAscending = !remoteSortAscending;
+        renderRemote();
+        setStatus("Server sort: " + WorkspaceOps.sortLabel(remoteSortKey, remoteSortAscending));
+    }
+
+    private int localSourceIndex(int visiblePosition) {
+        if (visiblePosition < 0 || visiblePosition >= localVisibleItems.size()) return -1;
+        return localVisibleItems.get(visiblePosition).sourceIndex;
+    }
+
+    private int remoteSourceIndex(int visiblePosition) {
+        if (visiblePosition < 0 || visiblePosition >= remoteVisibleItems.size()) return -1;
+        return remoteVisibleItems.get(visiblePosition).sourceIndex;
+    }
+
+    private List<WorkspaceOps.Item> localWorkspaceItems() {
+        List<WorkspaceOps.Item> result = new ArrayList<>();
+        for (int i = 0; i < localEntries.size(); i++) {
+            LocalEntry entry = localEntries.get(i);
+            result.add(new WorkspaceOps.Item(i, entry.name, entry.directory, entry.size, entry.modifiedEpochMillis, ""));
+        }
+        return result;
+    }
+
+    private List<WorkspaceOps.Item> remoteWorkspaceItems() {
+        List<WorkspaceOps.Item> result = new ArrayList<>();
+        for (int i = 0; i < remoteEntries.size(); i++) {
+            RemoteEntry entry = remoteEntries.get(i);
+            result.add(new WorkspaceOps.Item(i, entry.name, entry.directory, entry.size, entry.modifiedEpochMillis, entry.permissions));
+        }
+        return result;
+    }
+
+    private void promptLocalRecursiveSearch() {
+        if (busy || treeUri == null || rootDocumentId == null) return;
+        promptText("Search local folders", "", "Name contains…", false, value -> {
+            String query = value == null ? "" : value.trim();
+            if (query.isEmpty()) {
+                setStatus("Search text is required.");
+                return;
+            }
+            runLocalRecursiveSearch(query);
+        });
+    }
+
+    private void runLocalRecursiveSearch(String query) {
+        Uri searchTree = treeUri;
+        String searchRoot = rootDocumentId;
+        if (busy || searchTree == null || searchRoot == null) return;
+        long generation = ++advancedOperationGeneration;
+        setBusy(true, "Searching local folders within bounded safety limits…");
+        io.execute(() -> {
+            try {
+                List<LocalSearchResult> results = new ArrayList<>();
+                ArrayDeque<LocalSearchNode> queue = new ArrayDeque<>();
+                queue.add(new LocalSearchNode(searchRoot, "", new ArrayList<>(), 0));
+                int directories = 0;
+                while (!queue.isEmpty()
+                        && directories < WorkspaceOps.MAX_SEARCH_DIRECTORIES
+                        && results.size() < WorkspaceOps.MAX_SEARCH_RESULTS) {
+                    LocalSearchNode node = queue.removeFirst();
+                    directories++;
+                    List<LocalEntry> children = queryChildren(searchTree, node.documentId);
+                    for (LocalEntry entry : children) {
+                        String display = node.displayPath.isEmpty() ? entry.name : node.displayPath + "/" + entry.name;
+                        if (WorkspaceOps.matchesSearch(entry.name, query)) {
+                            results.add(new LocalSearchResult(node.documentId, node.ancestors, entry, display));
+                            if (results.size() >= WorkspaceOps.MAX_SEARCH_RESULTS) break;
+                        }
+                        if (entry.directory && node.depth < WorkspaceOps.MAX_SEARCH_DEPTH) {
+                            List<String> ancestors = new ArrayList<>(node.ancestors);
+                            ancestors.add(node.documentId);
+                            queue.addLast(new LocalSearchNode(entry.documentId, display, ancestors, node.depth + 1));
+                        }
+                    }
+                }
+                runOnUiThread(() -> {
+                    if (lifecycleDestroyed || generation != advancedOperationGeneration || treeUri == null || !treeUri.equals(searchTree)) return;
+                    busy = false;
+                    refreshButtons();
+                    showLocalSearchResults(query, results);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
+                    setBusy(false, "Local recursive search failed: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private void showLocalSearchResults(String query, List<LocalSearchResult> results) {
+        if (results.isEmpty()) {
+            setStatus("No local recursive-search results for: " + query);
+            return;
+        }
+        String[] labels = new String[results.size()];
+        for (int i = 0; i < results.size(); i++) {
+            LocalSearchResult result = results.get(i);
+            labels[i] = (result.entry.directory ? "DIR   " : "FILE  ") + result.displayPath;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Local search · " + results.size() + " result(s)")
+                .setItems(labels, (dialog, which) -> navigateLocalSearchResult(results.get(which)))
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void navigateLocalSearchResult(LocalSearchResult result) {
+        Uri targetTree = treeUri;
+        if (busy || targetTree == null) return;
+        long generation = ++advancedOperationGeneration;
+        setBusy(true, "Opening local search result…");
+        io.execute(() -> {
+            try {
+                List<LocalEntry> fresh = queryChildren(targetTree, result.parentDocumentId);
+                runOnUiThread(() -> {
+                    if (lifecycleDestroyed || generation != advancedOperationGeneration || treeUri == null || !treeUri.equals(targetTree)) return;
+                    currentDocumentId = result.parentDocumentId;
+                    localParents.clear();
+                    for (String ancestor : result.ancestors) localParents.push(ancestor);
+                    localEntries.clear();
+                    localEntries.addAll(fresh);
+                    selectedLocal = findLocalByDocumentId(result.entry.documentId);
+                    localFilterQuery = "";
+                    renderLocal();
+                    setBusy(false, "Opened local search result: " + result.displayPath);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
+                    setBusy(false, "Local search result is no longer available: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private int findLocalByDocumentId(String documentId) {
+        for (int i = 0; i < localEntries.size(); i++) {
+            if (localEntries.get(i).documentId.equals(documentId)) return i;
+        }
+        return -1;
+    }
+
+    private void promptRemoteRecursiveSearch() {
+        FtpSession current = session;
+        if (busy || current == null || !current.isConnected()) return;
+        promptText("Search server folders", "", "Name contains…", false, value -> {
+            String query = value == null ? "" : value.trim();
+            if (query.isEmpty()) {
+                setStatus("Search text is required.");
+                return;
+            }
+            runRemoteRecursiveSearch(current, query);
+        });
+    }
+
+    private void runRemoteRecursiveSearch(FtpSession owner, String query) {
+        if (busy || owner == null || session != owner || !owner.isConnected()) return;
+        String searchRoot = currentRemotePath;
+        long generation = ++advancedOperationGeneration;
+        long deadlineNanos = System.nanoTime() + WorkspaceOps.MAX_REMOTE_SEARCH_MILLIS * 1_000_000L;
+        setBusy(true, "Searching server folders within bounded safety limits…");
+        AlertDialog searchDialog = new AlertDialog.Builder(this)
+                .setTitle("Server recursive search")
+                .setMessage("Searching with directory, depth, result and 45-second safety bounds. Cancelling closes this FTP/FTPS session immediately.")
+                .setNegativeButton("Cancel search", null)
+                .setCancelable(false)
+                .create();
+        searchDialog.setOnShowListener(ignored -> searchDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
+            if (generation != advancedOperationGeneration || session != owner) return;
+            advancedOperationGeneration++;
+            owner.abort();
+            session = null;
+            connectedIdentityKey = null;
+            remoteEntries.clear();
+            selectedRemote = -1;
+            currentRemotePath = "/";
+            busy = false;
+            renderRemote();
+            setStatus("Server recursive search cancelled. Connection closed; reconnect before continuing.");
+            refreshButtons();
+            searchDialog.dismiss();
+        }));
+        searchDialog.show();
+        io.execute(() -> {
+            try {
+                List<RemoteSearchResult> results = new ArrayList<>();
+                ArrayDeque<RemoteSearchNode> queue = new ArrayDeque<>();
+                Set<String> visited = new HashSet<>();
+                queue.add(new RemoteSearchNode(searchRoot, 0));
+                int directories = 0;
+                while (!queue.isEmpty()
+                        && directories < WorkspaceOps.MAX_SEARCH_DIRECTORIES
+                        && results.size() < WorkspaceOps.MAX_SEARCH_RESULTS) {
+                    if (generation != advancedOperationGeneration) throw new IOException("Server recursive search was cancelled.");
+                    if (System.nanoTime() > deadlineNanos) throw new IOException("Server recursive search reached the 45-second safety deadline.");
+                    if (session != owner || !owner.isConnected()) throw new IOException("Server connection changed during recursive search.");
+                    RemoteSearchNode node = queue.removeFirst();
+                    if (!visited.add(node.path)) continue;
+                    directories++;
+                    List<RemoteEntry> children = owner.list(node.path);
+                    for (RemoteEntry entry : children) {
+                        String childPath = FtpSession.joinRemote(node.path, entry.name);
+                        if (WorkspaceOps.matchesSearch(entry.name, query)) {
+                            results.add(new RemoteSearchResult(node.path, entry, childPath));
+                            if (results.size() >= WorkspaceOps.MAX_SEARCH_RESULTS) break;
+                        }
+                        if (entry.directory && node.depth < WorkspaceOps.MAX_SEARCH_DEPTH) {
+                            queue.addLast(new RemoteSearchNode(childPath, node.depth + 1));
+                        }
+                    }
+                }
+                runOnUiThread(() -> {
+                    if (lifecycleDestroyed || generation != advancedOperationGeneration || session != owner || !owner.isConnected()) return;
+                    searchDialog.dismiss();
+                    busy = false;
+                    refreshButtons();
+                    showRemoteSearchResults(owner, query, results);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
+                    searchDialog.dismiss();
+                    if (session == owner && !owner.isConnected()) {
+                        session = null;
+                        connectedIdentityKey = null;
+                        remoteEntries.clear();
+                        selectedRemote = -1;
+                        currentRemotePath = "/";
+                        renderRemote();
+                    }
+                    setBusy(false, "Server recursive search failed: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private void showRemoteSearchResults(FtpSession owner, String query, List<RemoteSearchResult> results) {
+        if (results.isEmpty()) {
+            setStatus("No server recursive-search results for: " + query);
+            return;
+        }
+        String[] labels = new String[results.size()];
+        for (int i = 0; i < results.size(); i++) {
+            RemoteSearchResult result = results.get(i);
+            labels[i] = (result.entry.directory ? "DIR   " : "FILE  ") + result.displayPath;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Server search · " + results.size() + " result(s)")
+                .setItems(labels, (dialog, which) -> navigateRemoteSearchResult(owner, results.get(which)))
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void navigateRemoteSearchResult(FtpSession owner, RemoteSearchResult result) {
+        if (busy || session != owner || !owner.isConnected()) return;
+        long generation = ++advancedOperationGeneration;
+        setBusy(true, "Opening server search result…");
+        io.execute(() -> {
+            try {
+                List<RemoteEntry> fresh = owner.list(result.parentPath);
+                runOnUiThread(() -> {
+                    if (lifecycleDestroyed || generation != advancedOperationGeneration || session != owner || !owner.isConnected()) return;
+                    currentRemotePath = result.parentPath;
+                    remoteEntries.clear();
+                    remoteEntries.addAll(fresh);
+                    selectedRemote = findRemoteByName(result.entry.name);
+                    remoteFilterQuery = "";
+                    renderRemote();
+                    setBusy(false, "Opened server search result: " + result.displayPath);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
+                    setBusy(false, "Server search result is no longer available: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private int findRemoteByName(String name) {
+        for (int i = 0; i < remoteEntries.size(); i++) {
+            if (remoteEntries.get(i).name.equals(name)) return i;
+        }
+        return -1;
+    }
+
+    private void showDirectoryComparison() {
+        if (busy || treeUri == null || currentDocumentId == null || session == null || !session.isConnected()) return;
+        List<WorkspaceOps.Comparison> rows = WorkspaceOps.compareDirectories(localWorkspaceItems(), remoteWorkspaceItems());
+        if (rows.isEmpty()) {
+            setStatus("Both current folders are empty.");
+            return;
+        }
+        String[] labels = new String[rows.size()];
+        for (int i = 0; i < rows.size(); i++) {
+            WorkspaceOps.Comparison row = rows.get(i);
+            String marker;
+            switch (row.difference) {
+                case ONLY_LOCAL:
+                    marker = "LOCAL ONLY";
+                    break;
+                case ONLY_REMOTE:
+                    marker = "SERVER ONLY";
+                    break;
+                case DIFFERENT:
+                    marker = "DIFFERENT";
+                    break;
+                case SAME:
+                default:
+                    marker = "SAME";
+                    break;
+            }
+            labels[i] = marker + "   " + row.name + (row.canSynchronizeDirectoryNavigation() ? "   › open both" : "");
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Directory comparison")
+                .setItems(labels, (dialog, which) -> {
+                    WorkspaceOps.Comparison row = rows.get(which);
+                    if (row.canSynchronizeDirectoryNavigation()) {
+                        synchronizedNavigateInto(row.name);
+                    } else {
+                        setStatus("Comparison: " + row.difference.name().replace('_', ' ') + " · " + row.name);
+                    }
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void synchronizedNavigateInto(String name) {
+        FtpSession owner = session;
+        Uri ownerTree = treeUri;
+        if (busy || owner == null || ownerTree == null || !owner.isConnected()) return;
+        LocalEntry localDirectory = null;
+        RemoteEntry remoteDirectory = null;
+        for (LocalEntry entry : localEntries) if (entry.directory && entry.name.equals(name)) localDirectory = entry;
+        for (RemoteEntry entry : remoteEntries) if (entry.directory && entry.name.equals(name)) remoteDirectory = entry;
+        if (localDirectory == null || remoteDirectory == null) {
+            setStatus("Synchronized navigation is unavailable because the paired directories changed.");
+            return;
+        }
+        final LocalEntry localTarget = localDirectory;
+        final String localParent = currentDocumentId;
+        final String remoteParent = currentRemotePath;
+        final String remoteTarget;
+        try {
+            remoteTarget = FtpSession.joinRemote(remoteParent, name);
+        } catch (IOException e) {
+            setStatus(e.getMessage());
+            return;
+        }
+        long generation = ++advancedOperationGeneration;
+        setBusy(true, "Opening paired directories…");
+        io.execute(() -> {
+            try {
+                List<LocalEntry> localFresh = queryChildren(ownerTree, localTarget.documentId);
+                List<RemoteEntry> remoteFresh = owner.list(remoteTarget);
+                runOnUiThread(() -> {
+                    if (lifecycleDestroyed || generation != advancedOperationGeneration || session != owner || treeUri == null || !treeUri.equals(ownerTree)) return;
+                    if (!localParent.equals(currentDocumentId) || !remoteParent.equals(currentRemotePath)) return;
+                    localParents.push(localParent);
+                    currentDocumentId = localTarget.documentId;
+                    currentRemotePath = remoteTarget;
+                    localEntries.clear();
+                    localEntries.addAll(localFresh);
+                    remoteEntries.clear();
+                    remoteEntries.addAll(remoteFresh);
+                    selectedLocal = -1;
+                    selectedRemote = -1;
+                    localFilterQuery = "";
+                    remoteFilterQuery = "";
+                    renderLocal();
+                    renderRemote();
+                    setBusy(false, "Opened paired local/server directory: " + name);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
+                    setBusy(false, "Paired navigation was not committed: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private void openRemoteEditorSelected() {
+        FtpSession owner = session;
+        if (busy || owner == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size() || !owner.isConnected()) return;
+        RemoteEntry entry = remoteEntries.get(selectedRemote);
+        if (!entry.regularFile) {
+            setStatus("Remote Edit supports explicitly reported regular text files only; links and special entries are not editable.");
+            return;
+        }
+        if (entry.size > WorkspaceOps.MAX_REMOTE_EDIT_BYTES) {
+            setStatus("Remote Edit supports text files up to 1 MiB.");
+            return;
+        }
+        final String path;
+        try {
+            path = FtpSession.joinRemote(currentRemotePath, entry.name);
+        } catch (IOException e) {
+            setStatus(e.getMessage());
+            return;
+        }
+        long generation = ++advancedOperationGeneration;
+        setBusy(true, "Opening Remote Edit with conflict-safe snapshot…");
+        io.execute(() -> {
+            try {
+                RemoteTextDocument.Snapshot snapshot = RemoteEditIo.open(owner, path);
+                runOnUiThread(() -> {
+                    if (lifecycleDestroyed || generation != advancedOperationGeneration || session != owner || !owner.isConnected()) return;
+                    showRemoteEditor(owner, path, entry.name, entry.permissions, generation, snapshot);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
+                    setBusy(false, "Remote Edit could not open file: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private void showRemoteEditor(FtpSession owner, String path, String name, String originalMode, long generation, RemoteTextDocument.Snapshot snapshot) {
+        EditText editor = field("Remote UTF-8 text", false);
+        editor.setSingleLine(false);
+        editor.setGravity(Gravity.TOP | Gravity.START);
+        editor.setMinLines(16);
+        editor.setText(snapshot.text);
+
+        FrameLayout holder = new FrameLayout(this);
+        int pad = dp(16);
+        holder.setPadding(pad, dp(8), pad, 0);
+        holder.addView(editor, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(420)));
+
+        RemoteEditorState state = new RemoteEditorState(owner, path, name, originalMode, generation, snapshot, editor);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Remote Edit — " + name)
+                .setView(holder)
+                .setPositiveButton("Save", null)
+                .setNeutralButton("Reload", null)
+                .setNegativeButton("Close", null)
+                .create();
+        state.dialog = dialog;
+        remoteEditorState = state;
+
+        editor.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) {
+                if (state.applying || remoteEditorState != state) return;
+                state.dirty = true;
+                state.dialog.setTitle("Remote Edit • modified — " + state.name);
+            }
+        });
+
+        dialog.setOnShowListener(ignored -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> saveRemoteEditor(state));
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> reloadRemoteEditor(state));
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> closeRemoteEditor(state));
+            setStatus("Remote Edit opened with SHA-256 conflict detection and read-back verification.");
+            refreshButtons();
+        });
+        dialog.setOnDismissListener(ignored -> {
+            if (remoteEditorState != state) return;
+            remoteEditorState = null;
+            advancedOperationGeneration++;
+            busy = false;
+            setStatus("Remote Edit closed.");
+            refreshButtons();
+        });
+        dialog.show();
+    }
+
+    private void saveRemoteEditor(RemoteEditorState state) {
+        if (!remoteEditorUsable(state) || state.running) return;
+        state.running = true;
+        setRemoteEditorButtonsEnabled(state, false);
+        String text = state.editor.getText().toString();
+        setStatus("Remote Edit is checking for conflicts and saving…");
+        io.execute(() -> {
+            try {
+                RemoteTextDocument.Snapshot saved = RemoteEditIo.save(
+                        state.owner, state.path, state.snapshot.sha256, state.snapshot.lineEnding, state.originalMode, text);
+                runOnUiThread(() -> {
+                    if (!remoteEditorUsable(state)) return;
+                    applyRemoteEditorSnapshot(state, saved);
+                    state.running = false;
+                    setRemoteEditorButtonsEnabled(state, true);
+                    setStatus("Remote Edit saved and verified by read-back: " + state.name);
+                    refreshRemoteAfterEditor(state.owner);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (remoteEditorState != state || lifecycleDestroyed) return;
+                    state.running = false;
+                    setRemoteEditorButtonsEnabled(state, true);
+                    setStatus("Remote Edit save blocked: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private void reloadRemoteEditor(RemoteEditorState state) {
+        if (!remoteEditorUsable(state) || state.running) return;
+        state.running = true;
+        setRemoteEditorButtonsEnabled(state, false);
+        setStatus("Reloading Remote Edit from server…");
+        io.execute(() -> {
+            try {
+                RemoteTextDocument.Snapshot fresh = RemoteEditIo.reload(state.owner, state.path);
+                runOnUiThread(() -> {
+                    if (!remoteEditorUsable(state)) return;
+                    applyRemoteEditorSnapshot(state, fresh);
+                    state.running = false;
+                    setRemoteEditorButtonsEnabled(state, true);
+                    setStatus("Remote Edit reloaded from server: " + state.name);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (remoteEditorState != state || lifecycleDestroyed) return;
+                    state.running = false;
+                    setRemoteEditorButtonsEnabled(state, true);
+                    setStatus("Remote Edit reload failed: " + safeMessage(e));
+                });
+            }
+        });
+    }
+
+    private void closeRemoteEditor(RemoteEditorState state) {
+        if (remoteEditorState != state || state.dialog == null || state.running) return;
+        if (!state.dirty) {
+            state.dialog.dismiss();
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Discard Remote Edit changes?")
+                .setMessage("Unsaved changes to “" + state.name + "” will be discarded.")
+                .setNegativeButton("Keep editing", null)
+                .setPositiveButton("Discard", (dialog, which) -> state.dialog.dismiss())
+                .show();
+    }
+
+    private boolean remoteEditorUsable(RemoteEditorState state) {
+        return !lifecycleDestroyed
+                && remoteEditorState == state
+                && state.generation == advancedOperationGeneration
+                && session == state.owner
+                && state.owner.isConnected();
+    }
+
+    private void applyRemoteEditorSnapshot(RemoteEditorState state, RemoteTextDocument.Snapshot snapshot) {
+        state.applying = true;
+        state.snapshot = snapshot;
+        state.editor.setText(snapshot.text);
+        state.editor.setSelection(state.editor.length());
+        state.dirty = false;
+        state.dialog.setTitle("Remote Edit — " + state.name);
+        state.applying = false;
+    }
+
+    private void setRemoteEditorButtonsEnabled(RemoteEditorState state, boolean enabled) {
+        if (state.dialog == null) return;
+        if (state.dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) state.dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(enabled);
+        if (state.dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) state.dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(enabled);
+        if (state.dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) state.dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(enabled);
+    }
+
+    private void refreshRemoteAfterEditor(FtpSession owner) {
+        if (remoteEditorState == null || session != owner || !owner.isConnected()) return;
+        String directory = currentRemotePath;
+        io.execute(() -> {
+            try {
+                List<RemoteEntry> fresh = owner.list(directory);
+                runOnUiThread(() -> {
+                    if (session != owner || !owner.isConnected() || !directory.equals(currentRemotePath)) return;
+                    String selectedName = selectedRemote >= 0 && selectedRemote < remoteEntries.size() ? remoteEntries.get(selectedRemote).name : "";
+                    remoteEntries.clear();
+                    remoteEntries.addAll(fresh);
+                    selectedRemote = findRemoteByName(selectedName);
+                    renderRemote();
+                });
+            } catch (Exception ignored) {
+                // Save/read-back verification already succeeded; metadata refresh is best-effort.
+            }
+        });
     }
 
     private void createLocalDirectory() {
@@ -1844,30 +2539,39 @@ public final class MainActivity extends Activity {
     private void renderLocal() {
         if (localPath != null) localPath.setText(displayLocalPath());
         if (bookmarkLocalCurrent != null) bookmarkLocalCurrent.setText(displayLocalPath());
+        localVisibleItems.clear();
+        localVisibleItems.addAll(WorkspaceOps.filterAndSort(localWorkspaceItems(), localFilterQuery, localSortKey, localSortAscending));
         List<String> labels = new ArrayList<>();
-        for (int i = 0; i < localEntries.size(); i++) {
-            LocalEntry e = localEntries.get(i);
-            String marker = i == selectedLocal ? "●  " : "   ";
+        for (WorkspaceOps.Item visible : localVisibleItems) {
+            LocalEntry e = localEntries.get(visible.sourceIndex);
+            String marker = visible.sourceIndex == selectedLocal ? "●  " : "   ";
             String type = e.directory ? "DIR   " : "FILE  ";
             String size = !e.directory && showFileSizes ? "   " + TransferProgress.formatBytes(e.size) : "";
             labels.add(marker + type + e.name + size);
         }
         if (localList != null) localList.setAdapter(GhostTheme.listAdapter(this, labels));
+        if (localFilter != null) localFilter.setText(localFilterQuery.isEmpty() ? "Filter" : "Filter: " + localFilterQuery);
+        if (localSort != null) localSort.setText("Sort: " + WorkspaceOps.sortLabel(localSortKey, localSortAscending));
         refreshButtons();
     }
 
     private void renderRemote() {
         if (remotePath != null) remotePath.setText(currentRemotePath);
         if (bookmarkRemoteCurrent != null) bookmarkRemoteCurrent.setText(currentRemotePath);
+        remoteVisibleItems.clear();
+        remoteVisibleItems.addAll(WorkspaceOps.filterAndSort(remoteWorkspaceItems(), remoteFilterQuery, remoteSortKey, remoteSortAscending));
         List<String> labels = new ArrayList<>();
-        for (int i = 0; i < remoteEntries.size(); i++) {
-            RemoteEntry e = remoteEntries.get(i);
-            String marker = i == selectedRemote ? "●  " : "   ";
+        for (WorkspaceOps.Item visible : remoteVisibleItems) {
+            RemoteEntry e = remoteEntries.get(visible.sourceIndex);
+            String marker = visible.sourceIndex == selectedRemote ? "●  " : "   ";
             String type = e.directory ? "DIR   " : "FILE  ";
             String size = !e.directory && showFileSizes ? "   " + TransferProgress.formatBytes(e.size) : "";
-            labels.add(marker + type + e.name + size);
+            String permissions = e.permissions.isEmpty() ? "" : "   [" + e.permissions + "]";
+            labels.add(marker + type + e.name + size + permissions);
         }
         if (remoteList != null) remoteList.setAdapter(GhostTheme.listAdapter(this, labels));
+        if (remoteFilter != null) remoteFilter.setText(remoteFilterQuery.isEmpty() ? "Filter" : "Filter: " + remoteFilterQuery);
+        if (remoteSort != null) remoteSort.setText("Sort: " + WorkspaceOps.sortLabel(remoteSortKey, remoteSortAscending));
         refreshButtons();
     }
 
@@ -1899,6 +2603,15 @@ public final class MainActivity extends Activity {
         remoteRename.setEnabled(!busy && connected && selectedRemoteItem);
         remoteDelete.setEnabled(!busy && connected && selectedRemoteItem);
         remoteChmod.setEnabled(!busy && connected && selectedRemoteItem);
+        localFilter.setEnabled(!busy && treeUri != null);
+        localSort.setEnabled(!busy && !localEntries.isEmpty());
+        localSearch.setEnabled(!busy && treeUri != null && rootDocumentId != null);
+        remoteFilter.setEnabled(!busy && connected);
+        remoteSort.setEnabled(!busy && connected && !remoteEntries.isEmpty());
+        remoteSearch.setEnabled(!busy && connected);
+        directoryCompare.setEnabled(!busy && connected && treeUri != null && currentDocumentId != null);
+        remoteEdit.setEnabled(!busy && connected && selectedRemoteFile
+                && remoteEntries.get(selectedRemote).size <= WorkspaceOps.MAX_REMOTE_EDIT_BYTES);
         saveSite.setEnabled(!busy && !connected);
         deleteSite.setEnabled(!busy && !connected && activeSite);
         localSetStart.setEnabled(!busy && activeSite && !persistedCurrentTreeUri().isEmpty());
@@ -1918,7 +2631,8 @@ public final class MainActivity extends Activity {
         updateEnabledAlpha(connect, disconnect, upload, download,
                 localCreateDirectory, localRename, localDelete,
                 remoteCreateDirectory, remoteRename, remoteDelete, remoteChmod,
-                saveSite, deleteSite,
+                localFilter, localSort, localSearch, remoteFilter, remoteSort, remoteSearch,
+                directoryCompare, remoteEdit, saveSite, deleteSite,
                 localSetStart, localAddBookmark, localRemoveBookmark, localOpenBookmark,
                 remoteSetStart, remoteAddBookmark, remoteRemoveBookmark, remoteOpenBookmark);
     }
@@ -2162,6 +2876,81 @@ public final class MainActivity extends Activity {
         return GhostTheme.dp(this, value);
     }
 
+    private static final class LocalSearchNode {
+        final String documentId;
+        final String displayPath;
+        final List<String> ancestors;
+        final int depth;
+
+        LocalSearchNode(String documentId, String displayPath, List<String> ancestors, int depth) {
+            this.documentId = documentId;
+            this.displayPath = displayPath;
+            this.ancestors = new ArrayList<>(ancestors);
+            this.depth = depth;
+        }
+    }
+
+    private static final class LocalSearchResult {
+        final String parentDocumentId;
+        final List<String> ancestors;
+        final LocalEntry entry;
+        final String displayPath;
+
+        LocalSearchResult(String parentDocumentId, List<String> ancestors, LocalEntry entry, String displayPath) {
+            this.parentDocumentId = parentDocumentId;
+            this.ancestors = new ArrayList<>(ancestors);
+            this.entry = entry;
+            this.displayPath = displayPath;
+        }
+    }
+
+    private static final class RemoteSearchNode {
+        final String path;
+        final int depth;
+
+        RemoteSearchNode(String path, int depth) {
+            this.path = path;
+            this.depth = depth;
+        }
+    }
+
+    private static final class RemoteSearchResult {
+        final String parentPath;
+        final RemoteEntry entry;
+        final String displayPath;
+
+        RemoteSearchResult(String parentPath, RemoteEntry entry, String displayPath) {
+            this.parentPath = parentPath;
+            this.entry = entry;
+            this.displayPath = displayPath;
+        }
+    }
+
+    private static final class RemoteEditorState {
+        final FtpSession owner;
+        final String path;
+        final String name;
+        final String originalMode;
+        final long generation;
+        final EditText editor;
+        RemoteTextDocument.Snapshot snapshot;
+        AlertDialog dialog;
+        boolean applying;
+        boolean dirty;
+        boolean running;
+
+        RemoteEditorState(FtpSession owner, String path, String name, String originalMode, long generation,
+                          RemoteTextDocument.Snapshot snapshot, EditText editor) {
+            this.owner = owner;
+            this.path = path;
+            this.name = name;
+            this.originalMode = originalMode == null ? "" : originalMode.trim();
+            this.generation = generation;
+            this.snapshot = snapshot;
+            this.editor = editor;
+        }
+    }
+
     private static final class TransferAttempt {
         final long token;
         final TransferCommitGate gate;
@@ -2177,12 +2966,14 @@ public final class MainActivity extends Activity {
         final String name;
         final boolean directory;
         final long size;
+        final long modifiedEpochMillis;
 
-        LocalEntry(String documentId, String name, boolean directory, long size) {
+        LocalEntry(String documentId, String name, boolean directory, long size, long modifiedEpochMillis) {
             this.documentId = documentId;
             this.name = name;
             this.directory = directory;
             this.size = size;
+            this.modifiedEpochMillis = Math.max(0L, modifiedEpochMillis);
         }
     }
 }
