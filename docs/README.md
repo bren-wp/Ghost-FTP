@@ -105,6 +105,8 @@ Windows is the reference desktop application surface. Linux remains active devel
 </tr>
 </table>
 
+Authentic runtime evidence is maintained across **Windows, Linux and Android** and must remain bound to an exact-head source SHA. Repository-local images may describe the product, but generated mockups are never accepted as execution or release evidence.
+
 See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and exact-head evidence rules.
 
 ## Commercial proprietary license
