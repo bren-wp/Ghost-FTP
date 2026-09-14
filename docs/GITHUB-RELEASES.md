@@ -106,10 +106,10 @@ GHOSTFTP_ANDROID_KEYSTORE_BASE64
 GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
 GHOSTFTP_ANDROID_KEY_ALIAS
 GHOSTFTP_ANDROID_KEY_PASSWORD
-GHOSTFTP_ANDROID_SIGNER_SHA256
+GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-It signs `Ghost-FTP-0.0.6-Android.apk` with Android `apksigner`, verifies the APK, extracts the certificate SHA-256 fingerprint and requires it to equal `GHOSTFTP_ANDROID_SIGNER_SHA256`. The workflow does not generate a production Android publisher identity.
+It signs `Ghost-FTP-0.0.6-Android.apk` with Android `apksigner`, verifies the APK, extracts the certificate SHA-256 fingerprint and requires it to equal `GHOSTFTP_ANDROID_CERT_SHA256`. The workflow does not generate a production Android publisher identity.
 
 Android SFTP remains hidden until strict maintained host-key verification exists. A valid APK signature is not permission to weaken that protocol boundary.
 
