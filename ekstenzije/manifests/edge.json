@@ -1,8 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Ghost FTP Connection Helper",
+  "short_name": "Ghost FTP",
   "version": "0.0.5",
   "description": "Privately validate and sanitize FTP, FTPS and SFTP connection targets on your device.",
+  "homepage_url": "https://ghostftp.com",
+  "permissions": [],
   "icons": {
     "16": "icons/icon.png",
     "32": "icons/icon.png",

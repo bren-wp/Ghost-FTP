@@ -1,86 +1,57 @@
 # Ghost FTP browser extensions
 
-Ghost FTP Connection Helper is a small, privacy-first browser extension for preparing FTP connection targets without sending connection data anywhere.
+**Ghost FTP Connection Helper** is the official Ghost FTP browser companion for safely preparing FTP, FTPS and SFTP connection targets locally in the browser popup.
 
-## Browser packages
+## Official packages
 
-- `chromium/` — one shared Manifest V3 package for **Google Chrome**, **Microsoft Edge**, **Opera**, **Brave**, and **Vivaldi**.
-- `firefox/` — the equivalent Manifest V3 package for **Mozilla Firefox**.
+The source is deliberately split into one canonical runtime and three browser manifests:
 
-Both packages use the same local runtime source and the same Ghost FTP product version. The separate folders make each package directly loadable in its browser without a build step.
+- `shared/` — the only maintained HTML/CSS/JavaScript/icon runtime;
+- `manifests/chrome.json` — Google Chrome package metadata;
+- `manifests/edge.json` — Microsoft Edge package metadata;
+- `manifests/firefox.json` — Mozilla Firefox package metadata and stable Gecko signing identity.
 
-## What it does
+Run `python scripts/build_browser_extensions.py`. It produces exactly three deterministic ZIPs in `dist/browser/`:
 
-Paste an `ftp://`, `ftps://`, or `sftp://` address into the popup. The helper validates the scheme and host, then shows protocol, host, port, username, and path. The **Safe target** intentionally excludes all URL user information, including username and password, and also excludes query and fragment data. Individual displayed values can be copied only after an explicit user click.
+- `Ghost-FTP-<version>-Chrome-Extension.zip`
+- `Ghost-FTP-<version>-Edge-Extension.zip`
+- `Ghost-FTP-<version>-Firefox-Extension.zip`
 
-The extension does not launch the desktop client directly because Ghost FTP does not currently expose a supported browser-to-desktop URI or native-messaging contract. A future handoff must be implemented and reviewed separately instead of inventing an unsafe or unsupported `ghostftp://` protocol.
+The official product name is **Ghost FTP** and the official extension name is **Ghost FTP Connection Helper**. `BRAND.json`, the packaging script and the regression suite enforce those names for official Ghost FTP builds. An altered manifest or popup brand fails the maintained build contract. As with any source-available project, a third party can modify its own fork; such a fork is not an official Ghost FTP build and is not covered by the Ghost FTP release contract.
 
-## Privacy and security
+## What the extension does
+
+Paste an `ftp://`, `ftps://` or `sftp://` target into the popup. The helper validates the URL, rejects unsupported schemes, missing hosts, oversized input and literal or percent-decoded control characters, then displays protocol, host, port, username and remote path. A generated **Safe target** contains only scheme, host/port and encoded path: URL username/password, query and fragment data are never included.
+
+The extension **does not launch the desktop client directly** and does not launch the Android app. Ghost FTP does not currently expose a supported browser-to-desktop URI or native-messaging contract. The browser package therefore remains a local parser/copy companion instead of inventing a privileged bridge.
+
+## Privacy and security contract
 
 - **No telemetry.**
 - **No tracking.**
-- **No remote code.** All HTML, CSS, JavaScript, and the icon are packaged locally.
-- The extension **does not store** pasted targets, usernames, passwords, history, or parsed results.
-- The extension **does not read the active tab** and requests no tab, host, history, storage, clipboard, or scripting permissions.
-- The extension **does not connect to your FTP, FTPS, or SFTP server**. It only parses text locally in the popup.
-- It makes no HTTP requests, opens no WebSocket, and sends no analytics or crash reports.
-- Passwords are never rendered back to the page and never appear in the generated safe target.
-- The safe target omits username, password, query, and fragment data to reduce accidental credential/token disclosure when copying.
+- **No remote code.** HTML, CSS, JavaScript and the icon are packaged locally.
+- The extension **does not store** pasted targets, usernames, passwords, history or parsed results.
+- The extension **does not read the active tab**.
+- The extension requests **zero browser permissions and zero host permissions**.
+- The extension **does not connect to your FTP, FTPS, or SFTP server**.
+- No HTTP request, WebSocket, analytics SDK, crash reporter, browser storage or background/content script is present.
+- Passwords are detected only to warn the user and are never rendered into result fields or copied into the Safe target.
+- Firefox declares `data_collection_permissions.required = ["none"]` and uses the stable ID `ghostftp-connection-helper@ghostftp.com` for signed distribution.
 
-See `PRIVACY.md` for the concise data-handling contract.
+See `PRIVACY.md` for the concise data-handling statement.
 
-## Install for development / unpacked testing
+## Local validation
 
-### Google Chrome
+```bash
+python scripts/build_browser_extensions.py --check
+python scripts/test_browser_extensions_contract.py
+python scripts/build_browser_extensions.py
+```
 
-1. Open `chrome://extensions`.
-2. Enable **Developer mode**.
-3. Choose **Load unpacked**.
-4. Select `ekstenzije/chromium`.
+The dedicated GitHub Actions browser workflow repeats the contract test, builds all three ZIPs, verifies their contents and publishes them as CI artifacts.
 
-### Microsoft Edge
+## Unpacked development testing
 
-1. Open `edge://extensions`.
-2. Enable **Developer mode**.
-3. Choose **Load unpacked**.
-4. Select `ekstenzije/chromium`.
+Build the packages first, extract the browser ZIP you want to test, then load the extracted directory with the browser's extension-development UI. For Chrome use `chrome://extensions`; for Edge use `edge://extensions`; for Firefox use `about:debugging#/runtime/this-firefox` and select `manifest.json`.
 
-### Opera
-
-1. Open `opera://extensions`.
-2. Enable developer mode.
-3. Choose **Load unpacked**.
-4. Select `ekstenzije/chromium`.
-
-### Brave
-
-1. Open `brave://extensions`.
-2. Enable **Developer mode**.
-3. Choose **Load unpacked**.
-4. Select `ekstenzije/chromium`.
-
-### Vivaldi
-
-1. Open `vivaldi://extensions`.
-2. Enable **Developer mode**.
-3. Choose **Load unpacked**.
-4. Select `ekstenzije/chromium`.
-
-### Mozilla Firefox
-
-1. Open `about:debugging#/runtime/this-firefox`.
-2. Choose **Load Temporary Add-on**.
-3. Select `ekstenzije/firefox/manifest.json`.
-
-Temporary/unpacked installation is intended for development and validation. Store publication and signing are deliberately outside this change.
-
-## Usage
-
-1. Open the Ghost FTP toolbar popup.
-2. Paste a connection target, for example `sftp://user@example.invalid/home/user`.
-3. Select **Analyze locally**.
-4. Review the parsed fields and security note.
-5. Use **Copy safe target** or one of the field-level copy buttons when needed.
-6. Select **Clear** to remove the current popup contents immediately.
-
-No example includes a real server or credential.
+The generated packages are the canonical browser inputs. Do not maintain browser-specific copies of `core.js`, `popup.js`, `popup.css`, `popup.html` or the Ghost FTP icon; all three packages must be produced from `shared/`.

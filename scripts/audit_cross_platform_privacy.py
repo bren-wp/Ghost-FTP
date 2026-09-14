@@ -20,7 +20,9 @@ ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 ANDROID_ALLOWED_PERMISSIONS = {"android.permission.INTERNET"}
 
 BROWSER_ROOT = ROOT / "ekstenzije"
-BROWSER_TARGETS = ("chromium", "firefox")
+BROWSER_MANIFEST_ROOT = BROWSER_ROOT / "manifests"
+BROWSER_RUNTIME_ROOT = BROWSER_ROOT / "shared"
+BROWSER_TARGETS = ("chrome", "edge", "firefox")
 BROWSER_ZERO_PRIVILEGE_KEYS = (
     "permissions",
     "optional_permissions",
@@ -159,8 +161,7 @@ def audit_android() -> None:
 
 def audit_browser_extensions() -> None:
     for target in BROWSER_TARGETS:
-        root = BROWSER_ROOT / target
-        manifest_path = root / "manifest.json"
+        manifest_path = BROWSER_MANIFEST_ROOT / f"{target}.json"
         manifest_text = read_text(manifest_path)
         try:
             manifest = json.loads(manifest_text)
@@ -182,37 +183,37 @@ def audit_browser_extensions() -> None:
                 f"{manifest_path.relative_to(ROOT)} gained externally_connectable"
             )
 
-        source_files = sorted(
-            path
-            for pattern in ("*.js", "*.html", "*.css")
-            for path in root.rglob(pattern)
-            if path.is_file()
-        )
-        if not source_files:
-            fail(f"browser runtime source was not found for {target}")
+    source_files = sorted(
+        path
+        for pattern in ("*.js", "*.html", "*.css")
+        for path in BROWSER_RUNTIME_ROOT.rglob(pattern)
+        if path.is_file()
+    )
+    if not source_files:
+        fail("shared browser runtime source was not found")
 
-        for path in source_files:
-            text = read_text(path)
-            reject_vendor_markers(path, text)
-            urls = sorted(set(URL_RE.findall(text)))
-            if urls:
-                fail(
-                    f"fixed HTTP(S) URL found in browser runtime source "
-                    f"{path.relative_to(ROOT)}: {urls[0]}"
-                )
-            if path.suffix.lower() == ".js":
-                for name, pattern in BROWSER_FORBIDDEN_NETWORK_PATTERNS.items():
-                    if pattern.search(text):
-                        fail(
-                            f"browser network API {name!r} found in "
-                            f"{path.relative_to(ROOT)}"
-                        )
-                for name, pattern in BROWSER_FORBIDDEN_CODE_PATTERNS.items():
-                    if pattern.search(text):
-                        fail(
-                            f"dynamic code execution {name!r} found in "
-                            f"{path.relative_to(ROOT)}"
-                        )
+    for path in source_files:
+        text = read_text(path)
+        reject_vendor_markers(path, text)
+        urls = sorted(set(URL_RE.findall(text)))
+        if urls:
+            fail(
+                f"fixed HTTP(S) URL found in browser runtime source "
+                f"{path.relative_to(ROOT)}: {urls[0]}"
+            )
+        if path.suffix.lower() == ".js":
+            for name, pattern in BROWSER_FORBIDDEN_NETWORK_PATTERNS.items():
+                if pattern.search(text):
+                    fail(
+                        f"browser network API {name!r} found in "
+                        f"{path.relative_to(ROOT)}"
+                    )
+            for name, pattern in BROWSER_FORBIDDEN_CODE_PATTERNS.items():
+                if pattern.search(text):
+                    fail(
+                        f"dynamic code execution {name!r} found in "
+                        f"{path.relative_to(ROOT)}"
+                    )
 
 
 def main() -> None:
@@ -223,6 +224,8 @@ def main() -> None:
     print("ANDROID_EXTERNAL_APP_DEPENDENCIES=BLOCKED")
     print("ANDROID_FIXED_HTTP_URLS=BLOCKED")
     print("ANDROID_PROFILE_SECRET_PERSISTENCE=BLOCKED")
+    print("BROWSER_EXTENSION_TARGETS=CHROME,EDGE,FIREFOX")
+    print("BROWSER_EXTENSION_RUNTIME=SHARED")
     print("BROWSER_EXTENSION_PERMISSIONS=ZERO")
     print("BROWSER_EXTENSION_FIXED_HTTP_URLS=BLOCKED")
     print("BROWSER_EXTENSION_NETWORK_APIS=BLOCKED")

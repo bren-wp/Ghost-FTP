@@ -1,0 +1,9 @@
+{
+  "product": "Ghost FTP",
+  "extension": "Ghost FTP Connection Helper",
+  "short_name": "Ghost FTP",
+  "technical_id": "ghostftp-connection-helper",
+  "homepage": "https://ghostftp.com",
+  "firefox_id": "ghostftp-connection-helper@ghostftp.com",
+  "official_packages": ["chrome", "edge", "firefox"]
+}
