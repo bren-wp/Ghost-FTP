@@ -1,4 +1,4 @@
-name: Ghost FTP Linux Distro Install Matrix
+name: Ghost FTP Linux Universal Installer Matrix
 
 on:
   pull_request:
@@ -37,7 +37,7 @@ env:
 
 jobs:
   native-amd64-install:
-    name: Install remove and GUI smoke on Debian Ubuntu Fedora
+    name: Universal installer install GUI smoke and uninstall on Debian Ubuntu Fedora
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -50,17 +50,6 @@ jobs:
           go-version: '1.27.1'
           check-latest: false
           cache: false
-
-      - name: Install package build tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends rpm cpio
-          command -v dpkg-deb
-          command -v rpmbuild
-          command -v rpm
-          command -v docker
 
       - name: Disable Go telemetry
         shell: bash
@@ -77,16 +66,18 @@ jobs:
           python -m py_compile scripts/test_linux_distro_install_contract.py
           python scripts/test_linux_distro_install_contract.py
 
-      - name: Build exact-head distro packages
+      - name: Build exact-head universal distro bundles
         shell: bash
-        env:
-          GHOSTFTP_REQUIRE_DEB: '1'
-          GHOSTFTP_REQUIRE_RPM: '1'
         run: |
           set -euo pipefail
           bash linux/BUILD-DISTROS.sh
+          version="$(tr -d '\r\n' < VERSION)"
+          for distro in Debian Ubuntu Fedora; do
+            test -x "dist/Ghost-FTP-${version}-Linux-${distro}-Installer.run"
+            test -s "dist/Ghost-FTP-${version}-Linux-${distro}-Portable.tar.gz"
+          done
 
-      - name: Verify Debian 13 native amd64 install lifecycle
+      - name: Verify Debian 13 native amd64 installer lifecycle
         shell: bash
         run: |
           set -euo pipefail
@@ -96,9 +87,9 @@ jobs:
             -w /workspace \
             debian:13-slim \
             bash scripts/verify_linux_distro_install.sh debian "$version" 13 \
-              "/workspace/dist/Ghost-FTP-${version}-Linux-Debian-amd64.deb"
+              "/workspace/dist/Ghost-FTP-${version}-Linux-Debian-Installer.run"
 
-      - name: Verify Ubuntu 26.04 LTS native amd64 install lifecycle
+      - name: Verify Ubuntu 26.04 LTS native amd64 installer lifecycle
         shell: bash
         run: |
           set -euo pipefail
@@ -108,9 +99,9 @@ jobs:
             -w /workspace \
             ubuntu:26.04 \
             bash scripts/verify_linux_distro_install.sh ubuntu "$version" 26.04 \
-              "/workspace/dist/Ghost-FTP-${version}-Linux-Ubuntu-amd64.deb"
+              "/workspace/dist/Ghost-FTP-${version}-Linux-Ubuntu-Installer.run"
 
-      - name: Verify Fedora 44 native x86_64 install lifecycle
+      - name: Verify Fedora 44 native x86_64 installer lifecycle
         shell: bash
         run: |
           set -euo pipefail
@@ -120,12 +111,12 @@ jobs:
             -w /workspace \
             fedora:44 \
             bash scripts/verify_linux_distro_install.sh fedora "$version" 44 \
-              "/workspace/dist/Ghost-FTP-${version}-Linux-Fedora-x86_64.rpm"
+              "/workspace/dist/Ghost-FTP-${version}-Linux-Fedora-Installer.run"
 
       - name: Record install matrix scope
         shell: bash
         run: |
           set -euo pipefail
           echo 'LINUX_DISTRO_INSTALL_MATRIX=PASS'
-          echo 'Native install runtime coverage: Debian 13 amd64; Ubuntu 26.04 amd64; Fedora 44 x86_64.'
-          echo 'arm64 and 32-bit artifacts remain covered by exact-head build, metadata and byte-parity gates; this native runner does not emulate those kernels.'
+          echo 'Native installer runtime coverage: Debian 13 amd64; Ubuntu 26.04 amd64; Fedora 44 x86_64.'
+          echo 'arm64 and i386 payloads are build/package verified on exact head; this matrix does not claim native ARM64/i386 runtime execution.'
