@@ -32,6 +32,12 @@ for uname_case in (
     require(BUILD.count(uname_case) >= 2, f"launcher/installer architecture dispatch missing: {uname_case}")
 
 require("for distro in Debian Ubuntu Fedora; do" in BUILD, "Debian/Ubuntu/Fedora build loop missing")
+require('make_installer "$distro"' in BUILD, "data-driven installer build call missing")
+require('make_portable "$distro"' in BUILD, "data-driven portable build call missing")
+for distro in ("Debian", "Ubuntu", "Fedora"):
+    require(f'make_installer "{distro}"' not in BUILD, f"{distro} installer must not be hard-coded outside the distro loop")
+    require(f'make_portable "{distro}"' not in BUILD, f"{distro} portable bundle must not be hard-coded outside the distro loop")
+
 require('Ghost-FTP-${VERSION}-Linux-${distro}-Installer.run' in BUILD, "universal installer naming contract missing")
 require('Ghost-FTP-${VERSION}-Linux-${distro}-Portable' in BUILD, "universal portable naming contract missing")
 require("__GHOSTFTP_PAYLOAD_BELOW__" in BUILD, "self-extracting installer marker missing")
@@ -41,9 +47,6 @@ require("GHOSTFTP_PREFIX" in BUILD, "installer must support an explicit installa
 require("unsupported Linux CPU architecture" in BUILD, "unsupported architectures must fail closed")
 require('exec "$base_dir/bin/$arch/ghostftp" "$@"' in BUILD, "portable launcher must dispatch to selected native payload")
 require('install -m 0755 "$base_dir/bin/$arch/ghostftp" "$bin_dir/ghostftp"' in BUILD, "installer must install selected native payload")
-
-for distro in ("Debian", "Ubuntu", "Fedora"):
-    require(f'make_installer "$distro"' not in BUILD, "build loop must stay data-driven")
 
 for obsolete in ("dpkg-deb", "rpmbuild", ".deb\"", ".rpm\""):
     require(obsolete not in BUILD, f"obsolete architecture-specific package tooling remains in builder: {obsolete}")
