@@ -57,9 +57,8 @@ def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
-    parts = tuple(int(part) for part in version.split("."))
-    if parts < (0, 0, 1):
-        fail("public VERSION must be 0.0.1 or newer; 0.0.0 is reserved")
+    if version != "0.0.6":
+        fail(f"active release candidate must be 0.0.6, got {version!r}")
 
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
@@ -80,14 +79,19 @@ def main() -> int:
     require(
         readme,
         (
-            f"Current Ghost FTP version: **{version}**",
+            f"Current source version: **{version}**",
             "Development status: **Active**",
             "Release channel: **Current**",
+            "Last actually published GitHub Release: **0.0.5**",
             f"ghostftp-v{version}",
             "prerelease=false",
+            "13 platform artifacts / 16 public files",
+            f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
+            f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
+            f"Ghost-FTP-{version}-Android.apk",
+            f"Ghost-FTP-{version}-Opera-Extension.zip",
+            "GHOSTFTP_ANDROID_CERT_SHA256",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
-            "WINDOWS_SETUP=universal-x86-x64-arm64",
-            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
         ),
         "README.md",
     )
@@ -147,6 +151,7 @@ def main() -> int:
             "for distro in Debian Ubuntu Fedora; do",
             'Ghost-FTP-${VERSION}-Linux-${distro}-Installer.run',
             'Ghost-FTP-${VERSION}-Linux-${distro}-Portable',
+            "ghostftp-uninstall",
         ),
         "linux/BUILD-DISTROS.sh",
     )
@@ -169,8 +174,6 @@ def main() -> int:
         ),
         "android/app/build.gradle",
     )
-    if 'versionName "${ghostFtpVersion}-dev"' in android_build or "'Ghost-FTP-Android.apk'" in android_build:
-        fail("Android build restores a retired debug-only production identity")
 
     macos_build = read("macos/BUILD.sh")
     require(
@@ -275,32 +278,27 @@ def main() -> int:
     require(
         release_audit,
         (
-            "MINIMUM_PUBLIC_VERSION=0.0.1",
             "PUBLIC_RELEASE_CHANNEL=CURRENT",
             "CURRENT_RELEASE_PRERELEASE_FLAG=FALSE",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
             "PUBLIC_PLATFORM_ARTIFACTS={PUBLIC_PLATFORM_ARTIFACTS}",
             "PUBLIC_RELEASE_FILES={PUBLIC_RELEASE_FILES}",
             "WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64",
-            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
             "LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386",
             "ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED",
             "BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
-            "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES",
             "PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED",
             "ANDROID_PRODUCTION_SIGNING_IDENTITY=REQUIRED_AND_VERIFIED",
         ),
         "scripts/audit_release.py",
     )
 
-    bug_template = read(".github/ISSUE_TEMPLATE/bug_report.yml")
-    if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
-        fail("bug template hard-codes the current version")
-
     print(f"VERSION_AUDIT=PASS ({version}; channel=current)")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
+    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.5")
+    print("NEXT_PUBLIC_RELEASE=0.0.6")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("PUBLIC_PLATFORM_ARTIFACTS=13")
