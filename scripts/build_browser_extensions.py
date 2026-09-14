@@ -6,21 +6,19 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import shutil
 import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EXT_ROOT = ROOT / "ekstenzije"
+EXT_ROOT = ROOT / "extensions"
 SHARED = EXT_ROOT / "shared"
-MANIFESTS = EXT_ROOT / "manifests"
 
 OFFICIAL_PRODUCT = "Ghost FTP"
 OFFICIAL_EXTENSION = "Ghost FTP Connection Helper"
 OFFICIAL_SHORT_NAME = "Ghost FTP"
 OFFICIAL_HOMEPAGE = "https://ghostftp.com"
 OFFICIAL_FIREFOX_ID = "ghostftp-connection-helper@ghostftp.com"
-PACKAGES = ("chrome", "edge", "firefox")
+PACKAGES = ("chrome", "edge", "firefox", "opera")
 RUNTIME_FILES = ("core.js", "popup.js", "popup.css", "popup.html", "icons/icon.png")
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 FORBIDDEN_MANIFEST_KEYS = {
@@ -56,6 +54,10 @@ def load_json(path: Path) -> dict:
     return value
 
 
+def manifest_path(package: str) -> Path:
+    return EXT_ROOT / package / "manifest.json"
+
+
 def validate_brand() -> None:
     brand = load_json(EXT_ROOT / "BRAND.json")
     expected = {
@@ -68,7 +70,7 @@ def validate_brand() -> None:
         "official_packages": list(PACKAGES),
     }
     if brand != expected:
-        raise ValueError("ekstenzije/BRAND.json does not match the official Ghost FTP brand contract")
+        raise ValueError("extensions/BRAND.json does not match the official Ghost FTP brand contract")
 
 
 def validate_manifest(package: str, manifest: dict, version: str) -> None:
@@ -149,8 +151,7 @@ def zip_info(name: str) -> zipfile.ZipInfo:
 
 
 def write_package(package: str, output_dir: Path, version: str) -> Path:
-    manifest_path = MANIFESTS / f"{package}.json"
-    manifest = load_json(manifest_path)
+    manifest = load_json(manifest_path(package))
     validate_manifest(package, manifest, version)
 
     destination = output_dir / f"Ghost-FTP-{version}-{package.capitalize()}-Extension.zip"
@@ -178,7 +179,7 @@ def build(output_dir: Path) -> list[Path]:
     validate_brand()
     validate_runtime()
     for package in PACKAGES:
-        validate_manifest(package, load_json(MANIFESTS / f"{package}.json"), version)
+        validate_manifest(package, load_json(manifest_path(package)), version)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     for stale in output_dir.glob("Ghost-FTP-*-Extension.zip"):
@@ -198,7 +199,7 @@ def main() -> int:
             validate_brand()
             validate_runtime()
             for package in PACKAGES:
-                validate_manifest(package, load_json(MANIFESTS / f"{package}.json"), version)
+                validate_manifest(package, load_json(manifest_path(package)), version)
             outputs: list[Path] = []
         else:
             outputs = build(args.output)
@@ -208,7 +209,7 @@ def main() -> int:
 
     print("BROWSER_EXTENSION_BUILD=PASS")
     print(f"BROWSER_EXTENSION_BRAND={OFFICIAL_PRODUCT}")
-    print("BROWSER_EXTENSION_PACKAGES=chrome,edge,firefox")
+    print("BROWSER_EXTENSION_PACKAGES=chrome,edge,firefox,opera")
     for path in outputs:
         print(f"BROWSER_EXTENSION_ARTIFACT={path}")
     return 0
