@@ -264,7 +264,7 @@ def main() -> int:
     require("internal/security/remove_tree_root_windows_test.go", ("TestIsFilesystemRootRejectsWindowsVolumeRoots",))
 
     print("SECURITY_AUDIT=PASS")
-    print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("SECURITY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX")
     print("SFTP_PASSWORD_AUTH_LINUX_TRUSTED_INSTALL=ENABLED")
     print("SFTP_KEY_PASSPHRASE_LINUX_TRUSTED_INSTALL=ENABLED")
     print("SFTP_ASKPASS_USER_WRITABLE_HELPER=BLOCKED")
