@@ -17,7 +17,6 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
         tests = read("internal/platform/windows_arch_test.go")
         bootstrap = read("cmd/windowsbootstrap/main.go")
         bootstrap_tests = read("cmd/windowsbootstrap/main_test.go")
-
         self.assertIn("windowsProcessorArchitectureARM64 = 12", source)
         self.assertIn('return "arm64", nil', source)
         self.assertIn('{windowsProcessorArchitectureARM64, "arm64"}', tests)
@@ -27,7 +26,6 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
     def test_pe_tooling_verifies_native_arm64(self) -> None:
         resources = read("scripts/pe_resources.py")
         verifier = read("scripts/verify_release.py")
-
         self.assertIn("ARM64 = 0xAA64", resources)
         self.assertIn('processor_architecture not in {"amd64", "x86", "arm64"}', resources)
         self.assertIn("machine == ARM64 and magic == 0x20B", resources)
@@ -38,7 +36,6 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
     def test_native_builder_creates_three_internal_payload_families(self) -> None:
         stage = read("BUILD-WINDOWS-ARCH-STAGE.ps1")
         public = read("BUILD-WINDOWS.ps1")
-
         for marker in (
             "Build-GhostFTPArchitecture -GoArch 'amd64' -Label 'x64'",
             "Build-GhostFTPArchitecture -GoArch '386' -Label 'x86'",
@@ -59,7 +56,6 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
     def test_public_release_keeps_exactly_two_windows_executables(self) -> None:
         ci = read(".github/workflows/ci.yml")
         release = read(".github/workflows/release.yml")
-
         self.assertIn("(?:x64|x86|x32|arm64)", ci)
         self.assertIn("(?:x64|x86|x32|arm64)", release)
         self.assertIn("WINDOWS_SETUP=universal-x86-x64-arm64", release)
@@ -77,16 +73,9 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
         )
         for rel in (
-            "README.md",
-            "docs/README.md",
-            "docs/INSTALLATION.md",
-            "docs/ARCHITECTURE.md",
-            "docs/PLATFORM-PARITY.md",
-            "docs/TESTING.md",
-            "docs/SIGNING.md",
-            "docs/GITHUB-RELEASES.md",
-            "docs/RELEASE-VERIFICATION.md",
-            "docs/PACKAGES.md",
+            "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
+            "docs/PLATFORM-PARITY.md", "docs/TESTING.md", "docs/SIGNING.md",
+            "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md", "docs/PACKAGES.md",
             "docs/VERSIONING.md",
         ):
             text = read(rel)
@@ -96,12 +85,8 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
 
     def test_narrative_docs_state_arm64_support_without_overclaim(self) -> None:
         for rel in (
-            "docs/SUPPORT.md",
-            "docs/ROADMAP.md",
-            "docs/CONTRIBUTING.md",
-            "docs/REFERENCE-UI.md",
-            "docs/SECURITY.md",
-            "scripts/README.md",
+            "docs/SUPPORT.md", "docs/ROADMAP.md", "docs/CONTRIBUTING.md",
+            "docs/REFERENCE-UI.md", "docs/SECURITY.md", "scripts/README.md",
         ):
             text = read(rel)
             with self.subTest(document=rel, marker="architectures"):
@@ -109,17 +94,16 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             with self.subTest(document=rel, marker="evidence"):
                 self.assertIn("WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci", text)
 
-    def test_public_release_shape_is_unchanged(self) -> None:
+    def test_expanded_public_release_keeps_windows_shape_constant(self) -> None:
         for rel in (
-            "README.md",
-            "docs/README.md",
-            "docs/INSTALLATION.md",
-            "docs/GITHUB-RELEASES.md",
-            "docs/RELEASE-VERIFICATION.md",
-            "docs/VERSIONING.md",
-            "docs/ROADMAP.md",
+            "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md", "docs/VERSIONING.md", "docs/ROADMAP.md",
         ):
-            self.assertIn("14 platform artifacts / 17 public files", read(rel))
+            self.assertIn("18 platform artifacts / 21 public files", read(rel))
+        release = read(".github/workflows/release.yml")
+        self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=18", release)
+        self.assertIn("PUBLIC_RELEASE_FILES=21", release)
+        self.assertIn("WINDOWS_PUBLIC_EXECUTABLES=2", read("BUILD-WINDOWS.ps1"))
 
 
 if __name__ == "__main__":
