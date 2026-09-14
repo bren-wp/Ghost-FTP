@@ -76,7 +76,7 @@ def main() -> int:
         "GHOSTFTP_ANDROID_KEYSTORE_PASSWORD",
         "GHOSTFTP_ANDROID_KEY_ALIAS",
         "GHOSTFTP_ANDROID_KEY_PASSWORD",
-        "GHOSTFTP_ANDROID_SIGNER_SHA256",
+        "GHOSTFTP_ANDROID_CERT_SHA256",
         "apksigner\" sign",
         "apksigner\" verify --verbose --print-certs",
         "ANDROID_PRODUCTION_SIGNATURE=PASS",
