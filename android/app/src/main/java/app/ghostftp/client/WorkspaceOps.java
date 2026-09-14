@@ -12,6 +12,7 @@ final class WorkspaceOps {
     static final int MAX_SEARCH_RESULTS = 500;
     static final int MAX_SEARCH_DIRECTORIES = 2000;
     static final int MAX_SEARCH_DEPTH = 32;
+    static final long MAX_REMOTE_SEARCH_MILLIS = 45_000L;
     static final int MAX_REMOTE_EDIT_BYTES = 1024 * 1024;
 
     enum SortKey {
@@ -220,7 +221,12 @@ final class WorkspaceOps {
         if (left.directory) {
             return true;
         }
-        return left.size == right.size;
+        if (left.size != right.size) {
+            return false;
+        }
+        return left.modifiedEpochMillis > 0L
+                && right.modifiedEpochMillis > 0L
+                && left.modifiedEpochMillis == right.modifiedEpochMillis;
     }
 
     private static int compareType(Item left, Item right) {
