@@ -23,7 +23,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_android_review_hardening.py')
+          text = path.read_text(encoding='utf-8')
+          helper_marker = '    return text.replace(old, new, 1)\n\n\nftp = FTP.read_text(encoding="utf-8")\n'
+          helper_replacement = '''    return text.replace(old, new, 1)\n\n\ndef first(text: str, old: str, new: str, label: str) -> str:\n    if old not in text:\n        raise SystemExit(f"{label}: marker not found")\n    download = text.find("    synchronized void download(")\n    occurrence = text.find(old)\n    if occurrence < 0 or download < 0 or occurrence > download:\n        raise SystemExit(f"{label}: first marker is not in upload path")\n    return text.replace(old, new, 1)\n\n\nftp = FTP.read_text(encoding="utf-8")\n'''
+          if text.count(helper_marker) != 1:
+              raise SystemExit('helper insertion marker mismatch')
+          text = text.replace(helper_marker, helper_replacement, 1)
+          call_marker = 'ftp = once(\n    ftp,\n    "        if (!gate.markReadyToCommit()) {\\n",\n'
+          call_replacement = 'ftp = first(\n    ftp,\n    "        if (!gate.markReadyToCommit()) {\\n",\n'
+          if text.count(call_marker) != 1:
+              raise SystemExit('staged mode invocation marker mismatch')
+          path.write_text(text.replace(call_marker, call_replacement, 1), encoding='utf-8')
+          PY
           python scripts/apply_android_review_hardening.py
+          git checkout -- scripts/apply_android_review_hardening.py
           git diff --check
           changed="$(git diff --name-only | sort)"
           expected=$'android/app/src/main/java/app/ghostftp/client/FtpSession.java\nandroid/app/src/main/java/app/ghostftp/client/MainActivity.java'
