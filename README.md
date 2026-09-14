@@ -176,7 +176,7 @@ Ghost-FTP-0.0.6-Edge-Extension.zip
 Ghost-FTP-0.0.6-Firefox-Extension.zip
 ```
 
-These packages do not add a supported browser-to-desktop URI/native-messaging handoff. See [`ekstenzije/README.md`](ekstenzije/README.md).
+These packages have **no supported browser-to-desktop** URI/native-messaging handoff. See [`ekstenzije/README.md`](ekstenzije/README.md).
 
 ### macOS development
 
