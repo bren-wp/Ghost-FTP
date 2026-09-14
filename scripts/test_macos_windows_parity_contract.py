@@ -105,11 +105,16 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
     def test_macos_is_an_active_separate_native_surface(self) -> None:
         platform_audit = read("scripts/audit_platform_contract.py")
         desktop_audit = read("scripts/audit_desktop_surface.py")
-        for source in (platform_audit, desktop_audit):
-            self.assertIn("WINDOWS,LINUX,ANDROID,MACOS", source)
-            self.assertNotIn("macos", retired_roots_declaration(source).lower())
-            self.assertNotIn("IOS,MACOS", source)
+
+        self.assertIn("WINDOWS,LINUX,ANDROID,MACOS", platform_audit)
+        self.assertNotIn("macos", retired_roots_declaration(platform_audit).lower())
+        self.assertNotIn("IOS,MACOS", platform_audit)
         self.assertNotIn("DARWIN_SOURCE=BLOCKED", platform_audit)
+
+        self.assertIn("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES", desktop_audit)
+        self.assertIn("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE", desktop_audit)
+        self.assertNotIn("macos", retired_roots_declaration(desktop_audit).lower())
+        self.assertNotIn("PUBLIC_RELEASE_PLATFORMS=", desktop_audit)
 
     def test_macos_has_source_development_and_production_distribution_surfaces(self) -> None:
         for relative in (
