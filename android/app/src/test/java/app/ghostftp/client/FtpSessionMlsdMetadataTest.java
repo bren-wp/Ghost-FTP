@@ -2,6 +2,7 @@ package app.ghostftp.client;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -39,5 +40,27 @@ public final class FtpSessionMlsdMetadataTest {
         assertTrue(entry.directory);
         assertFalse(entry.regularFile);
         assertEquals("dir", entry.type);
+    }
+
+    @Test
+    public void unsafeChildPathSeparatorsAreRejected() {
+        assertNull(FtpSession.parseMlsd("type=file;size=1; sub/file.txt"));
+        assertNull(FtpSession.parseMlsd("type=file;size=1; sub\\file.txt"));
+        assertNull(FtpSession.parseMlsd("type=file;size=1; ../escape.txt"));
+    }
+
+    @Test
+    public void controlCharactersAreRejectedFromChildNames() {
+        assertNull(FtpSession.parseMlsd("type=file;size=1; bad\u0001name.txt"));
+        assertNull(FtpSession.parseMlsd("type=file;size=1; bad\u007fname.txt"));
+    }
+
+    @Test
+    public void safeUnicodeChildNameRemainsSupported() {
+        RemoteEntry entry = FtpSession.parseMlsd(
+                "type=file;size=2;modify=20260914030000; račun-✓.txt");
+
+        assertEquals("račun-✓.txt", entry.name);
+        assertTrue(entry.regularFile);
     }
 }
