@@ -48,7 +48,7 @@ The root [`VERSION`](../VERSION) file is authoritative. Ghost FTP 0.0.6 publishe
 | Build and test | [`TESTING.md`](TESTING.md) |
 | Support | [`SUPPORT.md`](SUPPORT.md) |
 | macOS development | [`../macos/README.md`](../macos/README.md) |
-| Browser helper | [`../ekstenzije/README.md`](../ekstenzije/README.md) |
+| Browser helper | [`../extensions/README.md`](../extensions/README.md) |
 
 ## Authentic visual reference
 
