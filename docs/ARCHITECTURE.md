@@ -28,6 +28,15 @@ Ghost-FTP-0.0.6-Portable.exe
 
 Each user-facing package embeds verified x64, x86 and ARM64 payloads. The bootstrap selects locally using native system architecture information and performs no architecture download. Official publication requires trusted Authenticode; CI smoke certificates never substitute for production signing.
 
+Canonical Windows evidence metadata remains explicit:
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 marker is intentionally conservative: cross-build, resource and package verification are not represented as native ARM64 runtime execution when maintained Windows CI does not run natively on ARM64.
+
 ## Linux
 
 `linux/BUILD-DISTROS.sh` builds three native payloads: amd64, arm64 and i386. Those payloads are bundled into exactly six user-facing 0.0.6 files: Installer + Portable for Debian, Ubuntu and Fedora. Each bundle selects the matching payload locally.
