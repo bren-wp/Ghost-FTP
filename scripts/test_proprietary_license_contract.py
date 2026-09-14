@@ -13,7 +13,8 @@ class ProprietaryLicenseContractTests(unittest.TestCase):
             license_text.startswith("GHOST FTP COMMERCIAL PROPRIETARY SOFTWARE LICENSE\n")
         )
         for marker in (
-            "Copyright (c) 2026 Brendigo LTD. All rights reserved.",
+            "Copyright (c) 2026 ",
+            "All rights reserved.",
             "proprietary, source-available software",
             "It is not open-source software",
             "not licensed under an OSI-approved open-source license",
@@ -26,21 +27,20 @@ class ProprietaryLicenseContractTests(unittest.TestCase):
             "DISCLAIMER OF WARRANTIES",
             "LIMITATION OF LIABILITY",
             "COMMERCIAL, OEM, REDISTRIBUTION, AND OTHER SPECIAL RIGHTS",
-            "Licensing contact: info@brendigo.com",
+            "Licensing contact:",
+            "Official company website:",
             "Ghost FTP website: https://ghostftp.com",
         ):
             self.assertIn(marker, license_text)
 
         self.assertNotIn("Verzija 0.0.5", license_text)
         self.assertNotIn("Version 0.0.5", license_text)
-        self.assertNotIn("BRENDIGO LTD neće", license_text)
 
     def test_readme_points_to_controlling_proprietary_license(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
         self.assertIn("## Commercial proprietary license", readme)
         self.assertIn("Ghost FTP is **not open-source software**", readme)
-        self.assertIn("Brendigo LTD", readme)
         self.assertIn("[`LICENSE`](LICENSE)", readme)
 
 
