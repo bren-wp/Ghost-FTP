@@ -4,15 +4,17 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'ekstenzije/**'
+      - 'extensions/**'
       - 'scripts/build_browser_extensions.py'
       - 'scripts/test_browser_extensions_contract.py'
       - '.github/workflows/browser-extensions.yml'
       - 'VERSION'
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'packaging/**'
     paths:
-      - 'ekstenzije/**'
+      - 'extensions/**'
       - 'scripts/build_browser_extensions.py'
       - 'scripts/test_browser_extensions_contract.py'
       - '.github/workflows/browser-extensions.yml'
@@ -28,7 +30,7 @@ concurrency:
 
 jobs:
   browser-extensions:
-    name: Build official Chrome Edge Firefox packages
+    name: Build official Chrome Edge Firefox Opera packages
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -50,11 +52,11 @@ jobs:
           set -euo pipefail
           python scripts/build_browser_extensions.py
           version="$(tr -d '\r\n' < VERSION)"
-          for browser in Chrome Edge Firefox; do
+          for browser in Chrome Edge Firefox Opera; do
             test -s "dist/browser/Ghost-FTP-${version}-${browser}-Extension.zip"
             unzip -t "dist/browser/Ghost-FTP-${version}-${browser}-Extension.zip" >/dev/null
           done
-          test "$(find dist/browser -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')" = '3'
+          test "$(find dist/browser -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')" = '4'
           sha256sum dist/browser/*.zip
       - name: Upload official browser packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
