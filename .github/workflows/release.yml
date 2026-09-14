@@ -204,13 +204,11 @@ jobs:
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
-
           for mapping in 'amd64:x86_64' 'arm64:aarch64' 'i386:i686'; do
             debarch="${mapping%%:*}"
             rpmarch="${mapping##*:}"
             portable="dist/Ghost-FTP-${version}-Linux-Portable-${debarch}.tar.gz"
             test -s "$portable"
-
             work="$(mktemp -d)"
             trap 'rm -rf "$work"' EXIT
             mkdir -p "$work/portable"
@@ -221,7 +219,6 @@ jobs:
             test -f "$portable_root/ghost-ftp.png"
             test -f "$portable_root/LICENSE"
             test -f "$portable_root/README.md"
-
             for distro in Debian Ubuntu; do
               deb="dist/Ghost-FTP-${version}-Linux-${distro}-${debarch}.deb"
               test -s "$deb"
@@ -235,7 +232,6 @@ jobs:
               dpkg-deb -x "$deb" "$work/${distro,,}"
               cmp "$work/${distro,,}/usr/bin/ghostftp" "$portable_root/ghostftp"
             done
-
             rpm_pkg="dist/Ghost-FTP-${version}-Linux-Fedora-${rpmarch}.rpm"
             test -s "$rpm_pkg"
             test "$(rpm -qp --qf '%{NAME}' "$rpm_pkg")" = 'ghost-ftp'
@@ -253,7 +249,6 @@ jobs:
               rpm2cpio "$OLDPWD/$rpm_pkg" | cpio -idmu --quiet
             )
             cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"
-
             rm -rf "$work"
             trap - EXIT
           done
@@ -269,9 +264,170 @@ jobs:
             dist/Ghost-FTP-*-Linux-Fedora-*.rpm
             dist/Ghost-FTP-*-Linux-Portable-*.tar.gz
 
+  android:
+    name: Production signed Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      signing_state: ${{ steps.signing.outputs.state }}
+      signer_sha256: ${{ steps.verify.outputs.signer_sha256 }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Java 17
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        with:
+          gradle-version: '8.9'
+      - name: Ensure Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Validate Android release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_android_contract.py
+          python scripts/test_android_passive_data_contract.py
+          python scripts/test_android_mobile_navigation_contract.py
+          python scripts/test_android_release_signing_contract.py
+      - name: Build unsigned Android release APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon --stacktrace
+      - name: Require protected Android production signing identity
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_BASE64 }}
+          GHOSTFTP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_PASSWORD }}
+          GHOSTFTP_ANDROID_KEY_ALIAS: ${{ secrets.GHOSTFTP_ANDROID_KEY_ALIAS }}
+          GHOSTFTP_ANDROID_KEY_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEY_PASSWORD }}
+          GHOSTFTP_ANDROID_SIGNER_SHA256: ${{ secrets.GHOSTFTP_ANDROID_SIGNER_SHA256 }}
+        run: |
+          set -euo pipefail
+          for pair in \
+            KEYSTORE_BASE64:GHOSTFTP_ANDROID_KEYSTORE_BASE64 \
+            GHOSTFTP_ANDROID_KEYSTORE_PASSWORD:GHOSTFTP_ANDROID_KEYSTORE_PASSWORD \
+            GHOSTFTP_ANDROID_KEY_ALIAS:GHOSTFTP_ANDROID_KEY_ALIAS \
+            GHOSTFTP_ANDROID_KEY_PASSWORD:GHOSTFTP_ANDROID_KEY_PASSWORD \
+            GHOSTFTP_ANDROID_SIGNER_SHA256:GHOSTFTP_ANDROID_SIGNER_SHA256; do
+            variable="${pair%%:*}"
+            label="${pair##*:}"
+            test -n "${!variable:-}" || { echo "Official Ghost FTP Android publication requires $label." >&2; exit 1; }
+          done
+          expected="$(printf '%s' "$GHOSTFTP_ANDROID_SIGNER_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || { echo 'GHOSTFTP_ANDROID_SIGNER_SHA256 must be a SHA-256 certificate fingerprint.' >&2; exit 1; }
+          keystore="$RUNNER_TEMP/ghostftp-android-release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          test "$(wc -c < "$keystore")" -ge 256 || { echo 'Decoded Android production keystore is unexpectedly small.' >&2; exit 1; }
+          chmod 600 "$keystore"
+          echo "GHOSTFTP_ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+          echo "state=signed" >> "$GITHUB_OUTPUT"
+          echo 'ANDROID_RELEASE_SIGNING=CONFIGURED'
+      - name: Sign Android release APK
+        shell: bash
+        env:
+          GHOSTFTP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_PASSWORD }}
+          GHOSTFTP_ANDROID_KEY_ALIAS: ${{ secrets.GHOSTFTP_ANDROID_KEY_ALIAS }}
+          GHOSTFTP_ANDROID_KEY_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          unsigned='android/app/build/outputs/apk/release/app-release-unsigned.apk'
+          signed="dist/Ghost-FTP-${version}-Android.apk"
+          test -s "$unsigned"
+          mkdir -p dist
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$GHOSTFTP_ANDROID_KEYSTORE_PATH" \
+            --ks-key-alias "$GHOSTFTP_ANDROID_KEY_ALIAS" \
+            --ks-pass env:GHOSTFTP_ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:GHOSTFTP_ANDROID_KEY_PASSWORD \
+            --out "$signed" \
+            "$unsigned"
+          test -s "$signed"
+      - name: Verify Android production signature
+        id: verify
+        shell: bash
+        env:
+          EXPECTED_SIGNER: ${{ secrets.GHOSTFTP_ANDROID_SIGNER_SHA256 }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          apk="dist/Ghost-FTP-${version}-Android.apk"
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee "$RUNNER_TEMP/android-signature.txt"
+          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/android-signature.txt" | head -n1 | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          expected="$(printf '%s' "$EXPECTED_SIGNER" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          [[ "$actual" =~ ^[0-9a-f]{64}$ ]] || { echo 'Unable to read Android signer SHA-256 fingerprint.' >&2; exit 1; }
+          test "$actual" = "$expected" || { echo 'Android production signer fingerprint mismatch.' >&2; exit 1; }
+          unzip -t "$apk" >/dev/null
+          echo "signer_sha256=$actual" >> "$GITHUB_OUTPUT"
+          echo 'ANDROID_PRODUCTION_SIGNATURE=PASS'
+      - name: Remove protected Android signing identity
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${GHOSTFTP_ANDROID_KEYSTORE_PATH:-}" ]]; then
+            rm -f -- "$GHOSTFTP_ANDROID_KEYSTORE_PATH"
+          fi
+      - name: Store Android release APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-android-release-stage
+          if-no-files-found: error
+          retention-days: 7
+          path: dist/Ghost-FTP-*-Android.apk
+
+  browser:
+    name: Chrome Edge Firefox release packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Validate browser helper contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_browser_extensions.py --check
+          python scripts/test_browser_extensions_contract.py
+      - name: Build deterministic browser packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_browser_extensions.py
+          version="$(tr -d '\r\n' < VERSION)"
+          for browser in Chrome Edge Firefox; do
+            archive="dist/browser/Ghost-FTP-${version}-${browser}-Extension.zip"
+            test -s "$archive"
+            unzip -t "$archive" >/dev/null
+          done
+          test "$(find dist/browser -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')" = '3'
+      - name: Store browser release packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-browser-release-stage
+          if-no-files-found: error
+          retention-days: 7
+          path: dist/browser/*.zip
+
   publish:
-    name: Assemble and publish Windows and Linux release
-    needs: [quality, windows, linux]
+    name: Assemble and publish verified cross-platform release
+    needs: [quality, windows, linux, android, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -279,6 +435,8 @@ jobs:
       packages: write
     env:
       WINDOWS_SIGNING_STATE: ${{ needs.windows.outputs.signing_state }}
+      ANDROID_SIGNING_STATE: ${{ needs.android.outputs.signing_state }}
+      ANDROID_SIGNER_SHA256: ${{ needs.android.outputs.signer_sha256 }}
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -301,10 +459,9 @@ jobs:
           test "$version" = "$source_version"
           release_channel='current'
           release_title="Ghost FTP $version"
-          test "$WINDOWS_SIGNING_STATE" = 'signed' || {
-            echo "Official Ghost FTP publication requires trusted Authenticode; got state: $WINDOWS_SIGNING_STATE" >&2
-            exit 1
-          }
+          test "$WINDOWS_SIGNING_STATE" = 'signed' || { echo 'Official Ghost FTP publication requires trusted Authenticode.' >&2; exit 1; }
+          test "$ANDROID_SIGNING_STATE" = 'signed' || { echo 'Official Ghost FTP publication requires a production-signed Android APK.' >&2; exit 1; }
+          [[ "$ANDROID_SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo 'Android signer fingerprint output is invalid.' >&2; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=ghostftp-v$version" >> "$GITHUB_ENV"
@@ -320,14 +477,23 @@ jobs:
         with:
           name: ghostftp-linux-distro-stage
           path: staging/linux
-      - name: Assemble public Windows and Linux release
+      - name: Download Android
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
+        with:
+          name: ghostftp-android-release-stage
+          path: staging/android
+      - name: Download browser packages
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # v8.0.0
+        with:
+          name: ghostftp-browser-release-stage
+          path: staging/browser
+      - name: Assemble public release
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
           cp "staging/windows/Ghost-FTP-${VERSION}-Setup.exe" "release/Ghost-FTP-${VERSION}-Setup.exe"
           cp "staging/windows/Ghost-FTP-${VERSION}-Portable.exe" "release/Ghost-FTP-${VERSION}-Portable.exe"
-
           for arch in amd64 arm64 i386; do
             cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Debian-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-Debian-${arch}.deb"
             cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Ubuntu-${arch}.deb" "release/Ghost-FTP-${VERSION}-Linux-Ubuntu-${arch}.deb"
@@ -335,6 +501,10 @@ jobs:
           done
           for rpmarch in x86_64 aarch64 i686; do
             cp "staging/linux/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm" "release/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"
+          done
+          cp "staging/android/Ghost-FTP-${VERSION}-Android.apk" "release/Ghost-FTP-${VERSION}-Android.apk"
+          for browser in Chrome Edge Firefox; do
+            cp "staging/browser/Ghost-FTP-${VERSION}-${browser}-Extension.zip" "release/Ghost-FTP-${VERSION}-${browser}-Extension.zip"
           done
 
           python scripts/release_notes.py --version "$VERSION" --output release/RELEASE-NOTES.txt
@@ -345,7 +515,7 @@ jobs:
           RELEASE_TAG=${RELEASE_TAG}
           RELEASE_CHANNEL=${RELEASE_CHANNEL}
           COMMIT=${GITHUB_SHA}
-          ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX
+          ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX,ANDROID
           WINDOWS_SETUP=universal-x86-x64-arm64
           WINDOWS_PORTABLE=universal-x86-x64-arm64
           WINDOWS_BOOTSTRAP_PE=x86
@@ -356,11 +526,16 @@ jobs:
           LINUX_UBUNTU_DEB=amd64,arm64,i386
           LINUX_FEDORA_RPM=x86_64,aarch64,i686
           LINUX_PORTABLE=amd64,arm64,i386
+          ANDROID_APK=production-signed
+          ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
+          ANDROID_SFTP=hidden-until-strict-host-key-verification
+          BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox
+          BROWSER_DESKTOP_HANDOFF=unsupported
           LANGUAGES=24
           DEFAULT_LANGUAGE=en
           TELEMETRY=disabled
-          PUBLIC_PLATFORM_ARTIFACTS=14
-          PUBLIC_RELEASE_FILES=17
+          PUBLIC_PLATFORM_ARTIFACTS=18
+          PUBLIC_RELEASE_FILES=21
           GITHUB_PACKAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ghost-ftp:${VERSION}
           EOF
           sed -i 's/^          //' release/BUILD-METADATA.txt
@@ -369,8 +544,10 @@ jobs:
             find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs sha256sum > SHA256.txt
           )
           count="$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')"
-          test "$count" = '17'
+          test "$count" = '21'
           test "$(find release -maxdepth 1 -type f -name '*.exe' | wc -l | tr -d ' ')" = '2'
+          test "$(find release -maxdepth 1 -type f -name '*.apk' | wc -l | tr -d ' ')" = '1'
+          test "$(find release -maxdepth 1 -type f -name '*-Extension.zip' | wc -l | tr -d ' ')" = '3'
           ! find release -maxdepth 1 -type f -name '*.exe' -print | grep -Eq -- '-(x64|x86|x32|arm64)\.exe$'
       - name: Publish verified bundle to GitHub Packages
         shell: bash
@@ -383,14 +560,13 @@ jobs:
           major="${VERSION%%.*}"
           remainder="${VERSION#*.}"
           minor="${remainder%%.*}"
-
           cat > Dockerfile.release-bundle <<'EOF'
           FROM scratch
           ARG VERSION
           ARG SOURCE
           ARG REVISION
           LABEL org.opencontainers.image.title="Ghost FTP verified release bundle"
-          LABEL org.opencontainers.image.description="Verified Ghost FTP desktop release files for Windows and Linux. Distribution bundle only; not a supported runtime container."
+          LABEL org.opencontainers.image.description="Verified Ghost FTP release files for Windows, Linux, Android and browser helpers. Distribution bundle only; not a supported runtime container."
           LABEL org.opencontainers.image.source="$SOURCE"
           LABEL org.opencontainers.image.version="$VERSION"
           LABEL org.opencontainers.image.revision="$REVISION"
@@ -398,7 +574,6 @@ jobs:
           COPY release/ /ghostftp-release/
           EOF
           sed -i 's/^          //' Dockerfile.release-bundle
-
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build --pull=false --network=none \
             --build-arg VERSION="$VERSION" \
@@ -415,7 +590,6 @@ jobs:
           docker push "$package_ref:latest"
           docker buildx imagetools inspect "$package_ref:$VERSION" >/dev/null
           echo "GITHUB_PACKAGE_PUBLISH=PASS ($package_ref:$VERSION)"
-          printf '### GitHub Package\n`%s:%s`\n' "$package_ref" "$VERSION" >> "$GITHUB_STEP_SUMMARY"
       - name: Publish verified GitHub Release
         shell: bash
         env:
@@ -425,19 +599,16 @@ jobs:
           repo="$GITHUB_REPOSITORY"
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
           test "$main_sha" = "$GITHUB_SHA" || { echo "main moved from release commit" >&2; exit 1; }
-
           git fetch --tags --force
           if git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null; then
             tag_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
             echo "$RELEASE_TAG already exists at $tag_sha; refusing to rewrite an existing release tag." >&2
             exit 1
           fi
-
           if gh release view "$RELEASE_TAG" --repo "$repo" >/dev/null 2>&1; then
             echo "$RELEASE_TAG release already exists; refusing to rewrite published assets." >&2
             exit 1
           fi
-
           gh release create "$RELEASE_TAG" release/* \
             --repo "$repo" \
             --target "$GITHUB_SHA" \
@@ -446,6 +617,10 @@ jobs:
 
           expected_assets="$(cat <<EOF
           BUILD-METADATA.txt
+          Ghost-FTP-${VERSION}-Android.apk
+          Ghost-FTP-${VERSION}-Chrome-Extension.zip
+          Ghost-FTP-${VERSION}-Edge-Extension.zip
+          Ghost-FTP-${VERSION}-Firefox-Extension.zip
           Ghost-FTP-${VERSION}-Linux-Debian-amd64.deb
           Ghost-FTP-${VERSION}-Linux-Debian-arm64.deb
           Ghost-FTP-${VERSION}-Linux-Debian-i386.deb
@@ -465,7 +640,6 @@ jobs:
           EOF
           )"
           expected_assets="$(sed 's/^          //' <<< "$expected_assets" | LC_ALL=C sort)"
-
           assert_release_asset_set() {
             phase="$1"
             remote_assets="$(gh release view "$RELEASE_TAG" --repo "$repo" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
@@ -476,9 +650,8 @@ jobs:
             }
             remote_prerelease="$(gh api "repos/$repo/releases/tags/$RELEASE_TAG" --jq .prerelease)"
             test "$remote_prerelease" = 'false'
-            echo "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL; windows_signing=$WINDOWS_SIGNING_STATE)"
+            echo "RELEASE_ASSET_READBACK=PASS ($phase; channel=$RELEASE_CHANNEL; windows_signing=$WINDOWS_SIGNING_STATE; android_signing=$ANDROID_SIGNING_STATE)"
           }
-
           assert_release_asset_set immediate
           sleep 5
           main_sha="$(gh api "repos/$repo/commits/main" --jq .sha)"
