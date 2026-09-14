@@ -1,184 +1,86 @@
 # Navigation bookmarks and profile start directories
 
-Ghost FTP **0.0.5** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux capabilities. The native macOS development frontend also wires bookmark navigation through the shared Engine, while public release scope remains Windows/Linux. The feature is intentionally narrow: it improves repeated navigation without turning path metadata into credentials, weakening connection identity boundaries or creating hidden Site Manager profiles.
+Ghost FTP **0.0.6** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux desktop capabilities. The native macOS development frontend also wires bookmark navigation through the shared Engine. Android has its own saved-site/bookmark model and is now a production-signed public application, but it does not replace or weaken the desktop bookmark/account-binding contract documented here.
 
 ## Scope
 
-Two related navigation mechanisms are maintained:
+Two related desktop navigation mechanisms are maintained:
 
-1. **Bookmarks** are reusable navigation entries independent of Site Manager profiles. A bookmark is either local or remote.
-2. **Profile start directories** are the explicit default local and remote directories saved with one Site Manager profile.
+1. **Bookmarks** are reusable local or remote navigation entries independent of Site Manager profiles.
+2. **Profile start directories** are explicit default local and remote directories saved with a Site Manager profile.
 
-Windows and Linux expose bookmark navigation in their public desktop frontends. The macOS development frontend uses the same shared bookmark Engine APIs and authoritative path/session rules. Windows/Linux profile start-directory behavior remains the public-release contract described in detail below; macOS source parity does not expand the current public release allow-list.
+Windows and Linux expose the complete desktop bookmark workflow. macOS uses the same shared bookmark Engine APIs under its native development frontend. This is **source/development parity** for macOS, not a public macOS distribution claim.
 
 ## Security model
 
-### Bookmarks are non-secret metadata
+Bookmarks are non-secret metadata. `internal/model/bookmark.go` stores stable ID, display name, kind, path and, for remote entries, protocol/host/port/username. Passwords, passphrases, private-key data and host-key trust material are never bookmark fields.
 
-`internal/model/bookmark.go` defines the persisted bookmark model. It contains only:
-
-- stable bookmark ID;
-- display name;
-- kind (`local` or `remote`);
-- path;
-- for remote bookmarks only: protocol, host, port and username.
-
-The bookmark model does **not** contain password, passphrase, private-key data, host-key fingerprint, profile ID, access token or other authentication/trust material. Username is treated as account identity, not as a credential.
-
-### Account identity is stricter than endpoint identity
-
-Remote bookmark and profile-start binding use `profilebinding.AccountMatches`. The identity boundary is:
+Remote bookmark and profile-start identity uses `profilebinding.AccountMatches`:
 
 ```text
 protocol + canonical host + port + exact username
 ```
 
-Changing only the username is enough to invalidate an inherited server path. Endpoint-only matching remains appropriate for server-scoped data such as host-key identity, but it is not sufficient authority for account-scoped navigation.
+Changing account identity invalidates inherited remote navigation authority.
 
 ## Bookmark persistence
 
-`internal/config/bookmarks.go` owns `bookmarks.json` under the normal local Ghost FTP state directory. The store enforces:
+`internal/config/bookmarks.go` owns bounded local `bookmarks.json` state and validates UTF-8 names, local/remote paths, remote identity, generated IDs, duplicates and corrupt-state behavior. A missing file means no bookmarks; a malformed existing store fails closed rather than silently becoming empty state.
 
-- maximum 256 bookmarks;
-- generated fixed-length random hexadecimal IDs;
-- bounded valid UTF-8 names with NUL/newline rejection;
-- absolute cleaned local paths;
-- shared remote-path validation;
-- shared protocol/host/port/username validation;
-- exact account binding for remote entries;
-- duplicate-ID and malformed-state rejection;
-- corrupt existing state failing closed rather than silently becoming an empty collection;
-- stable sorting by name, kind and ID.
+## Creating and opening bookmarks
 
-Persistence uses the existing durable state-store/recovery behavior. A missing bookmark file means an empty collection; an unreadable existing file is an error.
+`Engine.SaveLocalBookmark` stores validated local navigation metadata. `Engine.SaveRemoteBookmark` requires a real active connection and captures identity from the authoritative session; saving a bookmark never creates a hidden Site Manager profile.
 
-## Creating bookmarks
-
-### Local bookmark
-
-`Engine.SaveLocalBookmark(id, name, path)` persists only validated local navigation metadata. No profile or remote identity is created as a side effect.
-
-### Remote bookmark
-
-`Engine.SaveRemoteBookmark(id, name, path)` requires a real active remote connection. The Engine reads the active `remote.Config()` and binds the bookmark to that session's protocol, host, port and username.
-
-The UI cannot forge this identity from stale text fields. Saving a Quick Connect bookmark has no `SaveProfile` side effect and does **not** create a hidden persistent Site Manager profile.
-
-## Opening bookmarks
-
-All activation goes through `Engine.NavigateBookmark(ctx, id)`. Stored paths are never treated as already-proven navigation authority.
-
-### Local navigation
-
-A local bookmark performs a fresh bounded local listing. Only a successful listing returns a canonical local base and authoritative item snapshot for UI commit.
-
-### Remote navigation
-
-A remote bookmark requires all of the following before visible state can commit:
-
-1. an active remote connection;
-2. `RemoteBookmarkMatchesAccount` / `AccountMatches` against current connection configuration;
-3. capture of the current connection identity;
-4. a real `RemoteList` of the stored path;
-5. a second connection-identity read after the listing;
-6. rejection if identity changed during the operation;
-7. a fresh active-config/account match after the listing.
-
-This closes the reconnect race: work started on one session cannot commit navigation after the application reconnects to another account/server identity.
+`Engine.NavigateBookmark` never treats a stored path as pre-verified authority. Local navigation performs a fresh listing. Remote navigation requires active-account match, captures connection identity, performs a real fresh remote listing, rechecks connection identity/account after the listing and rejects stale reconnect races before visible state commits.
 
 ## Windows desktop behavior
 
-Windows exposes a native Bookmarks manager backed by `internal/desktop/bookmark_manager_windows.go` with:
-
-- **Open**;
-- **Add local**;
-- **Add remote** only while connected;
-- **Delete** with confirmation;
-- **Close**.
-
-Remote opening is protected both by the Engine account/session checks and by the desktop `connectionGeneration` guard so stale asynchronous completion cannot mutate visible state.
+Windows exposes a native Bookmarks manager with Open, Add local, Add remote, Delete and Close actions. Remote opening is guarded by Engine account/session validation and `connectionGeneration`, so stale asynchronous completion cannot update replacement-session state.
 
 ## Linux desktop behavior
 
-Linux exposes a native X11 Bookmarks control and modal overlay through `internal/desktop/bookmark_linux.go`. It provides the same functional Open/Add local/Add remote/Delete/Close contract as Windows.
-
-The Linux list has a bounded viewport, keyboard-visible selection, mouse-accessible scrolling and offset-aware hit testing. Child naming prompts return to the bookmark manager on cancellation instead of abandoning the whole flow. All save/open/delete operations route through the shared Engine methods rather than directly trusting persisted path state.
+Linux exposes an X11 Bookmarks overlay with the same functional actions, bounded viewport, keyboard/mouse navigation and shared Engine ownership. Save/open/delete operations do not bypass the authoritative Engine path.
 
 ## macOS development behavior
 
-The native AppKit development frontend exposes Bookmarks through the same shared `Engine.Bookmarks`, `SaveLocalBookmark`, `SaveRemoteBookmark`, `RemoveBookmark` and `NavigateBookmark` APIs. Local and remote save actions take their path from the authoritative bridge snapshot rather than arbitrary Swift text, and remote bookmark activation retains shared account/session validation before the verified listing is published back into visible AppKit state.
+The native AppKit development frontend exposes Bookmarks through the **same shared bookmark Engine APIs**: `Engine.Bookmarks`, `SaveLocalBookmark`, `SaveRemoteBookmark`, `RemoveBookmark` and `NavigateBookmark`. Local/remote save actions use authoritative bridge state and remote activation retains shared account/session revalidation before visible commit.
 
-This is **source/development parity**, not a public macOS release claim. A successful macOS development build or bookmark test does not imply Developer ID signing/notarization or inclusion in the current 17-file public release.
+This is **source/development parity**. macOS remains a separately validated native development/source frontend; a successful development build is not Developer ID signing/notarization evidence and does not add a macOS public artifact to Ghost FTP 0.0.6.
 
 ## Profile start directories
 
-Site Manager profiles contain `LocalPath` and `RemotePath`, but those values are requested starts rather than unconditional UI authority.
+Saved `LocalPath`/`RemotePath` values are requested starts, not unconditional UI authority. When protocol/host/port/username identity changes, inherited remote paths are reset rather than carried into a different account boundary.
 
-When profile account identity changes, an inherited server start is not carried across that boundary. Tests cover FTP/FTPS reset to `/`, SFTP reset to `.`, and preservation of an explicitly supplied new remote start for the new account identity.
-
-### Windows
-
-Windows applies a saved remote start only while the selected profile still matches the connection fields under the strict account-identity contract. Local starts are validated through actual local listing before they become authoritative pane state.
-
-### Linux
-
-`internal/desktop/profile_start_linux.go` treats copied profile paths as drafts until validation succeeds:
-
-- restores the previous verified local base before a fresh local listing;
-- commits the requested local start only after successful listing;
-- installs a selected profile's saved/default remote start once;
-- resets inherited or previously navigated server state once when protocol/host/port/username identity changes;
-- preserves a newly entered explicit Remote Path after that account-bound reset;
-- blocks profile switching while connected or while another Linux UI action is busy.
+Windows and Linux both require real listing/validation before requested starts become authoritative visible pane state. Linux additionally restores the previous verified local base when a requested local start cannot be validated and blocks conflicting profile switching while connected/busy.
 
 ## Failure behavior
 
-The feature fails closed around navigation authority:
-
-- corrupt bookmark state returns an error;
-- invalid bookmark input is rejected before persistence;
-- missing local paths fail during fresh listing;
-- unavailable server paths fail during `RemoteList`;
-- remote account mismatch is rejected;
-- disconnect/reconnect during remote navigation invalidates the operation;
-- stale Windows callbacks fail the sequence/generation gate;
-- profile identity changes discard old-account inherited/navigation state before a new explicit start is accepted.
-
-Failures must preserve the previously verified pane state wherever the surrounding navigation path supports that behavior; they must not manufacture a successful empty listing.
+The feature fails closed for corrupt state, invalid input, missing local paths, unavailable remote paths, account mismatch, disconnect/reconnect races and stale callbacks. Failure preserves previously verified pane state where the surrounding navigation lifecycle allows it; it never manufactures a successful empty listing.
 
 ## Privacy
 
-Bookmarks and start directories are local application state. The feature adds no telemetry, analytics, Ghost FTP synchronization service or credential store. Paths/usernames may be sensitive metadata, so they remain limited to explicit local navigation surfaces and privacy-safe diagnostics.
+Bookmarks/start directories remain local application state and add no telemetry, Ghost FTP synchronization service or credential store. Paths/usernames may be sensitive metadata and are treated accordingly in diagnostics.
 
 ## Cross-platform bookmark parity
 
 | Capability | Windows | Linux | macOS development |
 | --- | --- | --- | --- |
-| List bookmarks | Native manager | Native X11 overlay with bounded viewport | Native AppKit surface |
+| List bookmarks | Native manager | Native X11 overlay | Native AppKit surface |
 | Add local bookmark | Yes | Yes | Shared Engine API |
 | Add remote bookmark | Connected session only | Connected session only | Connected authoritative snapshot only |
-| Delete bookmark | Confirmed | Confirmed through destructive-action policy | Shared Engine removal path |
+| Delete bookmark | Confirmed | Confirmed | Shared Engine removal path |
 | Open via `NavigateBookmark` | Yes | Yes | Yes |
-| Remote account binding | Yes | Yes | Yes, shared Engine |
-| Stale-session protection | Engine + connection generation | Engine + serialized action/session behavior | Shared Engine + bridge snapshot/generation rules |
+| Remote account binding | Yes | Yes | Yes |
+| Stale-session protection | Engine + generation | Engine + serialized session behavior | Shared Engine + bridge generation rules |
 
-Windows/Linux remain the public release surfaces for this contract. macOS entries above describe the active native development/source frontend only.
+Windows/Linux remain the maintained desktop implementation surfaces for this feature. Public release scope for Ghost FTP 0.0.6 is broader: Windows/Linux desktop, a production-signed Android APK and Chrome/Edge/Firefox helper packages. The browser helper does not own bookmark state or desktop handoff.
 
 ## Regression coverage
 
-The 0.0.5 contract is protected by:
+The 0.0.6 contract is protected by bookmark/config/profile-binding Go tests, Linux desktop modal/viewport tests, `scripts/test_navigation_bookmarks_contract.py`, and the macOS development parity contract.
 
-- `internal/config/bookmarks_test.go` for CRUD, validation, non-secret schema, account binding and corrupt-state fail-closed behavior;
-- `internal/config/profile_start_directory_binding_test.go` for inherited start reset and explicit-new-path behavior;
-- `internal/profilebinding/*_test.go` for endpoint/account identity semantics;
-- `internal/desktop/profile_start_linux_test.go` and `profile_cycle_linux_test.go` for repaint/account/switching guards;
-- `internal/desktop/bookmark_prompt_linux_test.go` and `bookmark_viewport_linux_test.go` for Linux modal/viewport behavior;
-- desktop tests for shared bookmark wording and Site Manager navigation privacy;
-- `scripts/test_navigation_bookmarks_contract.py` for cross-layer Engine/config/Windows/Linux/documentation invariants;
-- `macos/PARITY.md` plus the macOS development workflow for the AppKit bookmark source-parity boundary.
+## 0.0.6 release boundary
 
-## 0.0.5 release boundary
+Root `VERSION` is **0.0.6**. Navigation bookmarks/profile starts remain part of the maintained desktop/source contract, but this document does not authorize publication by itself. Publication requires exact-head and post-merge verification plus canonical `ghostftp-v0.0.6` publication/readback/retention.
 
-Root `VERSION` is **0.0.5**. Navigation bookmarks and profile start directories are part of the 0.0.5 source/release contract, but this document never authorizes publication by itself. Publication still requires exact-head CI/native-build/authentic-runtime evidence, review/merge, exact post-merge verification, canonical `ghostftp-v0.0.5` publication/read-back and latest-only retention.
-
-The feature does not change the public platform allow-list: Windows/Linux remain the published release surfaces. Android remains a separately validated development APK and macOS remains a separately validated native development/source frontend until an explicit public-release expansion succeeds.
+The public release is **18 platform artifacts / 21 public files**. Android is public through the protected production-signing path, Android SFTP remains hidden until strict maintained host-key verification exists, browser packages remain local parser/copy helpers with no supported desktop handoff, and macOS remains a separately validated native development/source frontend.
