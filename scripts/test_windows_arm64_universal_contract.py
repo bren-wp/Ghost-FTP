@@ -73,9 +73,15 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
         )
         for rel in (
-            "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
-            "docs/PLATFORM-PARITY.md", "docs/TESTING.md", "docs/SIGNING.md",
-            "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md", "docs/PACKAGES.md",
+            "README.md",
+            "docs/INSTALLATION.md",
+            "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md",
+            "docs/ARCHITECTURE.md",
+            "docs/PLATFORM-PARITY.md",
+            "docs/TESTING.md",
+            "docs/SIGNING.md",
+            "docs/PACKAGES.md",
             "docs/VERSIONING.md",
         ):
             text = read(rel)
@@ -94,15 +100,18 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             with self.subTest(document=rel, marker="evidence"):
                 self.assertIn("WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci", text)
 
-    def test_next_release_changes_cross_platform_shape_without_changing_windows_shape(self) -> None:
-        # VERSION still describes the actually published release until the final
-        # 0.0.7 bump, so narrative documents may truthfully retain its 18/21 set.
-        # The release workflow itself already enforces the next 13/16 contract.
+    def test_006_cross_platform_shape_does_not_change_windows_public_shape(self) -> None:
         for rel in (
-            "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md",
-            "docs/RELEASE-VERIFICATION.md", "docs/VERSIONING.md", "docs/ROADMAP.md",
+            "README.md",
+            "docs/README.md",
+            "docs/INSTALLATION.md",
+            "docs/GITHUB-RELEASES.md",
+            "docs/RELEASE-VERIFICATION.md",
         ):
-            self.assertIn("18 platform artifacts / 21 public files", read(rel))
+            text = read(rel)
+            self.assertIn("13 platform artifacts / 16 public files", text, rel)
+            self.assertNotIn("18 platform artifacts / 21 public files", text, rel)
+            self.assertNotIn("0.0.7", text, rel)
         release = read(".github/workflows/release.yml")
         self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", release)
         self.assertIn("PUBLIC_RELEASE_FILES=16", release)
