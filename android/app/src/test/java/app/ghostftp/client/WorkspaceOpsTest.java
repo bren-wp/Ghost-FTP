@@ -59,14 +59,16 @@ public final class WorkspaceOpsTest {
     public void directoryComparisonIsConservativeAndSyncNavigationRequiresBothDirectories() {
         List<WorkspaceOps.Item> local = Arrays.asList(
                 item(0, "docs", true, 0, 0, ""),
-                item(1, "same.bin", false, 100, 0, ""),
-                item(2, "different.bin", false, 10, 0, ""),
-                item(3, "local-only.txt", false, 1, 0, ""));
+                item(1, "same.bin", false, 100, 1_000, ""),
+                item(2, "different.bin", false, 10, 2_000, ""),
+                item(3, "local-only.txt", false, 1, 3_000, ""),
+                item(4, "same-size-unknown.bin", false, 100, 0, ""));
         List<WorkspaceOps.Item> remote = Arrays.asList(
                 item(0, "docs", true, 0, 0, "755"),
-                item(1, "same.bin", false, 100, 0, "644"),
-                item(2, "different.bin", false, 11, 0, "644"),
-                item(3, "remote-only.txt", false, 1, 0, "644"));
+                item(1, "same.bin", false, 100, 1_000, "644"),
+                item(2, "different.bin", false, 10, 9_000, "644"),
+                item(3, "remote-only.txt", false, 1, 4_000, "644"),
+                item(4, "same-size-unknown.bin", false, 100, 0, "644"));
 
         List<WorkspaceOps.Comparison> rows = WorkspaceOps.compareDirectories(local, remote);
 
@@ -79,6 +81,7 @@ public final class WorkspaceOpsTest {
         assertFalse(same.canSynchronizeDirectoryNavigation());
 
         assertEquals(WorkspaceOps.Difference.DIFFERENT, find(rows, "different.bin").difference);
+        assertEquals(WorkspaceOps.Difference.DIFFERENT, find(rows, "same-size-unknown.bin").difference);
         assertEquals(WorkspaceOps.Difference.ONLY_LOCAL, find(rows, "local-only.txt").difference);
         assertEquals(WorkspaceOps.Difference.ONLY_REMOTE, find(rows, "remote-only.txt").difference);
     }
