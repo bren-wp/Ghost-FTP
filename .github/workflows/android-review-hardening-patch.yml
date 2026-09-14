@@ -1,0 +1,43 @@
+name: Apply Android review hardening patch
+
+on:
+  push:
+    branches: [parity/android-advanced-workspace]
+    paths:
+      - '.github/workflows/android-review-hardening-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: parity/android-advanced-workspace
+          fetch-depth: 0
+      - name: Apply deterministic review fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/apply_android_review_hardening.py
+          git diff --check
+          changed="$(git diff --name-only | sort)"
+          expected=$'android/app/src/main/java/app/ghostftp/client/FtpSession.java\nandroid/app/src/main/java/app/ghostftp/client/MainActivity.java'
+          if [[ "$changed" != "$expected" ]]; then
+            printf 'Unexpected changed files:\n%s\n' "$changed" >&2
+            exit 1
+          fi
+      - name: Commit production review fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo'
+          git config user.email 'info@brendigo.com'
+          git add android/app/src/main/java/app/ghostftp/client/FtpSession.java \
+                  android/app/src/main/java/app/ghostftp/client/MainActivity.java
+          git commit -m 'Harden Android Remote Edit and recursive search review paths'
+          git push origin HEAD:parity/android-advanced-workspace
