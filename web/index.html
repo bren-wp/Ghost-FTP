@@ -1,10 +1,145 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ghost FTP — Direct FTP, FTPS & SFTP without the cloud middleman</title><meta name="description" content="Ghost FTP is a privacy-first FTP, FTPS and SFTP client for Windows, Linux, Android and macOS development, with a secure browser client and no telemetry."><meta name="theme-color" content="#08101b"><link rel="icon" href="assets/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/css/site.css"><script defer src="assets/js/site.js"></script></head><body>
-<header class="topbar"><nav class="wrap nav"><a class="brand" href="./" aria-label="Ghost FTP home"><img src="assets/logo.svg" alt="Ghost FTP"></a><button class="btn menu" data-menu aria-expanded="false">Menu</button><div class="nav-links"><a href="#features">Features</a><a href="#platforms">Platforms</a><a href="#security">Security</a><a href="download.html">Downloads</a><a href="ftp/">Web FTP</a></div><button class="theme" data-theme-toggle aria-label="Switch theme">◐</button></nav></header>
-<main><section class="hero"><div class="wrap hero-grid"><div><span class="eyebrow">Ghost FTP 0.0.6</span><h1>Your servers. Your files. No cloud middleman.</h1><p class="lead">A fast, privacy-first workspace for FTP, explicit FTPS and SFTP. Native desktop workflows, Android file transfer, a hardened browser client, and release engineering that treats trust as a product feature.</p><div class="cta"><a class="btn primary" href="download.html">Download Ghost FTP</a><a class="btn" href="ftp/">Open Web FTP</a></div><div class="trust"><span>No telemetry</span><span>No ads</span><span>No mandatory account</span><span>Fail-closed trust boundaries</span></div></div><div class="product-shot"><img src="assets/images/ghost-ftp-main-workspace.png" alt="Ghost FTP 0.0.6 Windows workspace"></div></div></section>
-<section id="features" class="section"><div class="wrap"><span class="kicker">Built for real file work</span><h2>Everything important stays close to the transfer.</h2><p class="section-intro">Ghost FTP keeps navigation, queue control, editing, trust decisions and file actions in one restrained interface instead of turning basic server access into a cloud account.</p><div class="grid3"><article class="card"><span class="kicker">Workspace</span><h3>Two-pane file control</h3><p>Local and remote file panes, sorting, filters, bookmarks, Site Manager, directory compare, search and remote file operations.</p></article><article class="card"><span class="kicker">Transfers</span><h3>Queue you can control</h3><p>Cancellation, retry, pause/resume where supported, queue priority ordering and truthful progress rather than decorative controls.</p></article><article class="card"><span class="kicker">Remote Edit</span><h3>Edit without losing context</h3><p>Bounded text editing with UTF-8/binary checks, conflict-aware save behavior and explicit lifecycle ownership.</p></article><article class="card"><span class="kicker">Privacy</span><h3>No behavioral telemetry</h3><p>No analytics SDK, ad tracker, hidden sync service or automatic crash upload in the maintained product surfaces.</p></article><article class="card"><span class="kicker">Security</span><h3>Identity first</h3><p>Explicit FTPS validates TLS identity. Desktop SFTP uses strict host-key trust. The web client requires pinned SFTP SHA-256 fingerprints.</p></article><article class="card"><span class="kicker">Languages</span><h3>24 desktop languages</h3><p>English is the canonical fallback with 23 additional maintained desktop language catalogs.</p></article></div></div></section>
-<section id="platforms" class="section"><div class="wrap"><span class="kicker">Authentic runtime evidence</span><h2>One product, multiple native surfaces.</h2><p class="section-intro">These are repository-local, exact-head 0.0.6 runtime captures from the verified Windows, Linux and Android evidence bundle — not marketing mockups.</p><div class="shot-grid"><figure class="shot"><img src="assets/images/ghost-ftp-main-workspace.png" alt="Windows main workspace"><figcaption>Windows — main workspace</figcaption></figure><figure class="shot"><img src="assets/images/ghost-ftp-site-manager.png" alt="Windows Site Manager"><figcaption>Windows — Site Manager</figcaption></figure><figure class="shot"><img src="assets/images/ghost-ftp-settings.png" alt="Windows Settings"><figcaption>Windows — Settings</figcaption></figure><figure class="shot"><img src="assets/images/ghost-ftp-linux-main-workspace.png" alt="Linux main workspace"><figcaption>Linux — main workspace</figcaption></figure><figure class="shot"><img src="assets/images/ghost-ftp-linux-bookmarks.png" alt="Linux bookmarks"><figcaption>Linux — bookmarks</figcaption></figure><figure class="shot"><img src="assets/images/ghost-ftp-linux-settings.png" alt="Linux settings"><figcaption>Linux — Settings</figcaption></figure><figure class="shot mobile"><img src="assets/images/ghost-ftp-android-files.png" alt="Android Files"><figcaption>Android — Files</figcaption></figure><figure class="shot mobile"><img src="assets/images/ghost-ftp-android-sites.png" alt="Android Sites"><figcaption>Android — Sites</figcaption></figure><figure class="shot mobile"><img src="assets/images/ghost-ftp-android-transfers.png" alt="Android Transfers"><figcaption>Android — Transfers</figcaption></figure></div></div></section>
-<section class="section"><div class="wrap"><span class="kicker">Protocols</span><h2>Use the protocol your server actually provides.</h2><div class="protocols"><div class="protocol"><strong>FTP</strong><small>Unencrypted compatibility mode. Use only when you intentionally accept plaintext transport.</small></div><div class="protocol"><strong>Explicit FTPS</strong><small>TLS-protected FTP with certificate and hostname verification. No silent downgrade.</small></div><div class="protocol"><strong>SFTP</strong><small>SSH file transfer. Desktop uses strict host trust; Web FTP requires an explicit SHA-256 host-key fingerprint.</small></div></div></div></section>
-<section id="security" class="section"><div class="wrap"><span class="kicker">Security & privacy</span><h2>Guardrails are part of the interface.</h2><div class="grid3"><article class="card"><h3>Production signatures</h3><p>Public Windows releases require trusted Authenticode. Android publication requires the protected production certificate and exact fingerprint verification.</p></article><article class="card"><h3>Web SSRF protection</h3><p>Web FTP blocks private/reserved destinations by default, pins resolved addresses and never treats browser JavaScript as a raw FTP socket.</p></article><article class="card"><h3>Ephemeral web credentials</h3><p>The browser client keeps connection data in page memory and sends it only for the requested HTTPS operation. The supplied web app does not persist connection passwords.</p></article></div><div class="cta"><a class="btn" href="security.html">Read security model</a><a class="btn" href="privacy.html">Read privacy policy</a></div></div></section>
-<section class="section"><div class="wrap"><span class="kicker">0.0.6 distribution</span><h2>Clean public packages, not an architecture lottery.</h2><div class="downloads"><article class="card download-card"><span class="badge">Windows</span><h3>Universal Setup + Portable</h3><p>x64, x86 and ARM64 native payloads are carried inside each public package and selected locally.</p><a class="btn primary" href="download.html#windows">Windows downloads</a></article><article class="card download-card"><span class="badge">Linux</span><h3>Debian, Ubuntu & Fedora</h3><p>One installer and one portable bundle per distro, each containing amd64, arm64 and i386 payloads.</p><a class="btn" href="download.html#linux">Linux downloads</a></article><article class="card download-card"><span class="badge">Android</span><h3>One production APK</h3><p>A single public APK, production signed and verified. FTP + explicit FTPS are public; Android SFTP stays hidden until strict host-key verification exists.</p><a class="btn" href="download.html#android">Android download</a></article><article class="card download-card"><span class="badge">Browser helper</span><h3>Chrome, Edge, Firefox & Opera</h3><p>Four deterministic browser packages with zero broad browser permissions and no hidden desktop handoff.</p><a class="btn" href="download.html#browser">Extension downloads</a></article></div></div></section>
-<section class="section"><div class="wrap notice"><strong>Web FTP is a server-assisted client.</strong> Browsers cannot open raw FTP, FTPS or SFTP TCP sockets directly. The `/ftp` application therefore performs each requested transfer through the Ghost FTP web server. It is designed to be ephemeral and storage-free, but your hosting server necessarily sees connection credentials while executing a request. <a href="ftp/">Open Web FTP →</a></div></section></main>
-<footer class="footer"><div class="wrap footer-grid"><div><img src="assets/logo.svg" alt="Ghost FTP" width="180"><p>Your servers. Your files. No cloud middleman.</p></div><div><strong>Product</strong><a href="download.html">Downloads</a><a href="ftp/">Web FTP</a><a href="#platforms">Platforms</a></div><div><strong>Trust</strong><a href="security.html">Security</a><a href="privacy.html">Privacy</a><a href="legal.html">Legal</a></div><div><strong>Source</strong><a href="https://github.com/bren-wp/Ghost-FTP">GitHub</a><a href="https://ghostftp.com">ghostftp.com</a></div></div></footer></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ghost FTP — Private FTP, FTPS & SFTP client</title>
+  <meta name="description" content="Ghost FTP is a privacy-first file transfer client for Windows, Linux and Android, with browser tools and no telemetry.">
+  <meta name="theme-color" content="#0b0f17">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <script defer src="assets/js/site.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="wrap nav" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Ghost FTP home"><img src="assets/logo.svg" alt="Ghost FTP"></a>
+      <button class="btn menu" data-menu aria-expanded="false" aria-label="Open navigation">Menu</button>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#platforms">Platforms</a>
+        <a href="#security">Security</a>
+        <a href="download.html">Downloads</a>
+        <a href="ftp/">Web FTP</a>
+      </div>
+      <button class="theme" data-theme-toggle aria-label="Switch theme">◐</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <span class="eyebrow">Ghost FTP 0.0.6</span>
+          <h1>Your servers. Your files. No cloud middleman.</h1>
+          <p class="lead">A focused workspace for FTP, explicit FTPS and SFTP with local profiles, controlled transfers and privacy-first defaults.</p>
+          <div class="cta">
+            <a class="btn primary" href="download.html">Download Ghost FTP</a>
+            <a class="btn" href="ftp/">Open Web FTP</a>
+          </div>
+          <div class="trust">
+            <span>No telemetry</span>
+            <span>No ads</span>
+            <span>No mandatory account</span>
+            <span>Local-first settings</span>
+          </div>
+        </div>
+        <div class="product-shot">
+          <img src="assets/images/ghost-ftp-main-workspace.png" alt="Ghost FTP 0.0.6 Windows workspace">
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="wrap">
+        <span class="kicker">Built for file work</span>
+        <h2>Everything you need stays close to the transfer.</h2>
+        <p class="section-intro">Browse files, manage saved servers, control transfers and edit remote text files without turning basic server access into a cloud account.</p>
+        <div class="grid3">
+          <article class="card"><span class="kicker">Workspace</span><h3>Two-pane file control</h3><p>Local and remote panes, sorting, filters, bookmarks, server profiles, directory comparison, search and common file actions.</p></article>
+          <article class="card"><span class="kicker">Transfers</span><h3>Transfer control</h3><p>Live progress, cancellation, retry, pause or resume where supported, and clear transfer status.</p></article>
+          <article class="card"><span class="kicker">Remote Edit</span><h3>Edit without losing context</h3><p>Open supported text files, make focused changes and save them back to the active server.</p></article>
+          <article class="card"><span class="kicker">Privacy</span><h3>No behavioral telemetry</h3><p>No analytics SDK, advertising tracker, hidden sync account or automatic crash upload in the maintained apps.</p></article>
+          <article class="card"><span class="kicker">Security</span><h3>Verify secure connections</h3><p>FTPS verifies TLS identity. Supported SFTP clients verify server identity instead of silently trusting an unknown host.</p></article>
+          <article class="card"><span class="kicker">Languages</span><h3>24 desktop languages</h3><p>English plus 23 maintained desktop translations, with consistent navigation and settings terminology.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="platforms" class="section">
+      <div class="wrap">
+        <span class="kicker">Ghost FTP across devices</span>
+        <h2>One product, familiar workflows.</h2>
+        <p class="section-intro">Real Ghost FTP 0.0.6 screenshots from Windows, Linux and Android.</p>
+        <div class="shot-grid">
+          <figure class="shot"><img src="assets/images/ghost-ftp-main-workspace.png" alt="Windows main workspace"><figcaption>Windows — main workspace</figcaption></figure>
+          <figure class="shot"><img src="assets/images/ghost-ftp-site-manager.png" alt="Windows Site Manager"><figcaption>Windows — Site Manager</figcaption></figure>
+          <figure class="shot"><img src="assets/images/ghost-ftp-settings.png" alt="Windows Settings"><figcaption>Windows — Settings</figcaption></figure>
+          <figure class="shot"><img src="assets/images/ghost-ftp-linux-main-workspace.png" alt="Linux main workspace"><figcaption>Linux — main workspace</figcaption></figure>
+          <figure class="shot"><img src="assets/images/ghost-ftp-linux-bookmarks.png" alt="Linux bookmarks"><figcaption>Linux — Bookmarks</figcaption></figure>
+          <figure class="shot"><img src="assets/images/ghost-ftp-linux-settings.png" alt="Linux settings"><figcaption>Linux — Settings</figcaption></figure>
+          <figure class="shot mobile"><img src="assets/images/ghost-ftp-android-files.png" alt="Android Files"><figcaption>Android — Files</figcaption></figure>
+          <figure class="shot mobile"><img src="assets/images/ghost-ftp-android-sites.png" alt="Android Sites"><figcaption>Android — Sites</figcaption></figure>
+          <figure class="shot mobile"><img src="assets/images/ghost-ftp-android-transfers.png" alt="Android Transfers"><figcaption>Android — Transfers</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <span class="kicker">Protocols</span>
+        <h2>Use the protocol your server provides.</h2>
+        <div class="protocols">
+          <div class="protocol"><strong>FTP</strong><small>Unencrypted compatibility mode. Use it only when plaintext transport is acceptable.</small></div>
+          <div class="protocol"><strong>Explicit FTPS</strong><small>FTP protected with TLS certificate and hostname verification.</small></div>
+          <div class="protocol"><strong>SFTP</strong><small>SSH file transfer with server identity verification on supported Ghost FTP clients.</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="security" class="section">
+      <div class="wrap">
+        <span class="kicker">Security & privacy</span>
+        <h2>Protection should be visible, not complicated.</h2>
+        <div class="grid3">
+          <article class="card"><h3>Secure identity checks</h3><p>FTPS verifies the certificate and server name. SFTP requires trusted server identity where the platform supports it.</p></article>
+          <article class="card"><h3>Safer Web FTP destinations</h3><p>The supplied Web FTP deployment blocks unsafe local and reserved destination ranges by default.</p></article>
+          <article class="card"><h3>Passwords are not saved</h3><p>Ghost FTP Web keeps connection details only for the current tab and does not create a persistent password store.</p></article>
+        </div>
+        <div class="cta">
+          <a class="btn" href="security.html">Read security details</a>
+          <a class="btn" href="privacy.html">Read privacy details</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <span class="kicker">0.0.6 downloads</span>
+        <h2>Simple packages for each platform.</h2>
+        <div class="downloads">
+          <article class="card download-card"><span class="badge">Windows</span><h3>Setup + Portable</h3><p>One Setup and one Portable package, with automatic selection for x64, x86 and ARM64.</p><a class="btn primary" href="download.html#windows">Windows downloads</a></article>
+          <article class="card download-card"><span class="badge">Linux</span><h3>Debian, Ubuntu & Fedora</h3><p>Installer and Portable packages for each supported distribution with automatic architecture selection.</p><a class="btn" href="download.html#linux">Linux downloads</a></article>
+          <article class="card download-card"><span class="badge">Android</span><h3>One Android APK</h3><p>One APK for Android 8.0 and newer. FTP and explicit FTPS are available; Android SFTP remains unavailable until strict host verification is complete.</p><a class="btn" href="download.html#android">Android download</a></article>
+          <article class="card download-card"><span class="badge">Browser helper</span><h3>Chrome, Edge, Firefox & Opera</h3><p>A separate package for each browser with zero browser permissions and zero host permissions.</p><a class="btn" href="download.html#browser">Browser downloads</a></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap notice">
+        <strong>About Web FTP.</strong> Web browsers cannot connect directly to FTP, FTPS or SFTP servers. Ghost FTP Web therefore uses the web server to perform the operation you request. Connection details are not saved by Ghost FTP Web, although normal hosting or server access logs may still apply. <a href="privacy.html">Privacy details</a> · <a href="ftp/">Open Web FTP →</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-grid">
+      <div><img src="assets/logo.svg" alt="Ghost FTP" width="180"><p>Your servers. Your files. No cloud middleman.</p></div>
+      <div><strong>Product</strong><a href="download.html">Downloads</a><a href="ftp/">Web FTP</a><a href="#platforms">Platforms</a></div>
+      <div><strong>Trust</strong><a href="security.html">Security</a><a href="privacy.html">Privacy</a><a href="legal.html">Legal</a></div>
+      <div><strong>Links</strong><a href="https://github.com/bren-wp/Ghost-FTP">GitHub</a><a href="https://ghostftp.com">ghostftp.com</a></div>
+    </div>
+  </footer>
+</body>
+</html>
