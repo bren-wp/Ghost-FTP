@@ -118,7 +118,8 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             self.assertIn("SFTP", text)
             self.assertIn("host-key", text.lower())
         self.assertIn("no supported browser-to-desktop", readme.lower())
-        self.assertIn("GHOSTFTP_ANDROID_SIGNER_SHA256", verification)
+        self.assertIn("GHOSTFTP_ANDROID_CERT_SHA256", verification)
+        self.assertNotIn("GHOSTFTP_ANDROID_SIGNER_SHA256", verification)
 
     def test_current_docs_do_not_revert_to_old_channel_status(self):
         stale = (

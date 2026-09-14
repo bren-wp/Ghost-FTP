@@ -272,7 +272,7 @@ def main() -> int:
             "test \"$WINDOWS_SIGNING_STATE\" = 'signed'",
             "Require protected Android production signing identity",
             "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
-            "GHOSTFTP_ANDROID_SIGNER_SHA256",
+            "GHOSTFTP_ANDROID_CERT_SHA256",
             "ANDROID_APK=production-signed",
             "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox",
             "WINDOWS_SETUP=universal-x86-x64-arm64",

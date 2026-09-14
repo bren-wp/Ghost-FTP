@@ -312,7 +312,7 @@ jobs:
           GHOSTFTP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEYSTORE_PASSWORD }}
           GHOSTFTP_ANDROID_KEY_ALIAS: ${{ secrets.GHOSTFTP_ANDROID_KEY_ALIAS }}
           GHOSTFTP_ANDROID_KEY_PASSWORD: ${{ secrets.GHOSTFTP_ANDROID_KEY_PASSWORD }}
-          GHOSTFTP_ANDROID_SIGNER_SHA256: ${{ secrets.GHOSTFTP_ANDROID_SIGNER_SHA256 }}
+          GHOSTFTP_ANDROID_CERT_SHA256: ${{ secrets.GHOSTFTP_ANDROID_CERT_SHA256 }}
         run: |
           set -euo pipefail
           for pair in \
@@ -320,13 +320,13 @@ jobs:
             GHOSTFTP_ANDROID_KEYSTORE_PASSWORD:GHOSTFTP_ANDROID_KEYSTORE_PASSWORD \
             GHOSTFTP_ANDROID_KEY_ALIAS:GHOSTFTP_ANDROID_KEY_ALIAS \
             GHOSTFTP_ANDROID_KEY_PASSWORD:GHOSTFTP_ANDROID_KEY_PASSWORD \
-            GHOSTFTP_ANDROID_SIGNER_SHA256:GHOSTFTP_ANDROID_SIGNER_SHA256; do
+            GHOSTFTP_ANDROID_CERT_SHA256:GHOSTFTP_ANDROID_CERT_SHA256; do
             variable="${pair%%:*}"
             label="${pair##*:}"
             test -n "${!variable:-}" || { echo "Official Ghost FTP Android publication requires $label." >&2; exit 1; }
           done
-          expected="$(printf '%s' "$GHOSTFTP_ANDROID_SIGNER_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
-          [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || { echo 'GHOSTFTP_ANDROID_SIGNER_SHA256 must be a SHA-256 certificate fingerprint.' >&2; exit 1; }
+          expected="$(printf '%s' "$GHOSTFTP_ANDROID_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || { echo 'GHOSTFTP_ANDROID_CERT_SHA256 must be a SHA-256 certificate fingerprint.' >&2; exit 1; }
           keystore="$RUNNER_TEMP/ghostftp-android-release.jks"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
           test "$(wc -c < "$keystore")" -ge 256 || { echo 'Decoded Android production keystore is unexpectedly small.' >&2; exit 1; }
@@ -359,7 +359,7 @@ jobs:
         id: verify
         shell: bash
         env:
-          EXPECTED_SIGNER: ${{ secrets.GHOSTFTP_ANDROID_SIGNER_SHA256 }}
+          EXPECTED_SIGNER: ${{ secrets.GHOSTFTP_ANDROID_CERT_SHA256 }}
         run: |
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"

@@ -128,10 +128,10 @@ GHOSTFTP_ANDROID_KEYSTORE_BASE64
 GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
 GHOSTFTP_ANDROID_KEY_ALIAS
 GHOSTFTP_ANDROID_KEY_PASSWORD
-GHOSTFTP_ANDROID_SIGNER_SHA256
+GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-The workflow builds the unsigned release APK, signs it with the protected publisher keystore, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_SIGNER_SHA256`. The production workflow must not generate its own replacement publisher identity.
+The workflow builds the unsigned release APK, signs it with the protected publisher keystore, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The production workflow must not generate its own replacement publisher identity.
 
 The ordinary development artifact `Ghost-FTP-Android-dev.apk` is not accepted as the public APK. Its ephemeral CI signing identity proves only the mechanics of the signing pipeline.
 

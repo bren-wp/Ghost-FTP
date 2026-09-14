@@ -60,10 +60,10 @@ GHOSTFTP_ANDROID_KEYSTORE_BASE64
 GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
 GHOSTFTP_ANDROID_KEY_ALIAS
 GHOSTFTP_ANDROID_KEY_PASSWORD
-GHOSTFTP_ANDROID_SIGNER_SHA256
+GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-The keystore is decoded only into runner temporary storage with restricted file permissions. The workflow builds the unsigned release APK, signs it with Android `apksigner`, verifies it with `apksigner verify --verbose --print-certs`, reads the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_SIGNER_SHA256`. The temporary keystore is removed in an `always()` cleanup path.
+The keystore is decoded only into runner temporary storage with restricted file permissions. The workflow builds the unsigned release APK, signs it with Android `apksigner`, verifies it with `apksigner verify --verbose --print-certs`, reads the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The temporary keystore is removed in an `always()` cleanup path.
 
 Production Android publication fails closed if:
 

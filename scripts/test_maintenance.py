@@ -102,7 +102,8 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertNotIn("New-DevCodeSigningCertificate.ps1", workflow)
         self.assertIn("public Windows release artifacts must be Authenticode signed", verifier)
         self.assertIn("GHOSTFTP_ANDROID_KEYSTORE_BASE64", workflow)
-        self.assertIn("GHOSTFTP_ANDROID_SIGNER_SHA256", workflow)
+        self.assertIn("GHOSTFTP_ANDROID_CERT_SHA256", workflow)
+        self.assertNotIn("GHOSTFTP_ANDROID_SIGNER_SHA256", workflow)
         self.assertIn("apksigner", workflow)
 
     def test_version_history_and_current_release_contract(self) -> None:

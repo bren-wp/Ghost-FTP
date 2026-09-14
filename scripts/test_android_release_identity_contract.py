@@ -49,7 +49,8 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
 
         self.assertIn(f"Ghost-FTP-${{VERSION}}-Android.apk", release)
         self.assertIn("GHOSTFTP_ANDROID_KEYSTORE_BASE64", release)
-        self.assertIn("GHOSTFTP_ANDROID_SIGNER_SHA256", release)
+        self.assertIn("GHOSTFTP_ANDROID_CERT_SHA256", release)
+        self.assertNotIn("GHOSTFTP_ANDROID_SIGNER_SHA256", release)
         self.assertIn("apksigner", release)
         self.assertNotIn("ghostftp-ci-smoke", release)
 
