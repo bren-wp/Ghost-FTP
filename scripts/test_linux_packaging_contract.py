@@ -61,21 +61,22 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertNotIn("Linux-Debian-amd64.deb", workflow)
         self.assertNotIn("Linux-Fedora-x86_64.rpm", workflow)
 
-    def test_published_docs_and_next_release_contract_are_not_conflated(self) -> None:
+    def test_active_006_docs_match_release_candidate_contract(self) -> None:
         version = read("VERSION").strip()
-        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
-        self.assertNotEqual(version, "0.0.0")
-
-        # Until the explicit 0.0.7 version bump, public documentation continues
-        # to describe the actually published 0.0.6 asset set. The next release
-        # workflow is validated independently above.
+        self.assertEqual(version, "0.0.6")
         for rel in (
-            "README.md",
             "docs/INSTALLATION.md",
             "docs/GITHUB-RELEASES.md",
             "docs/RELEASE-VERIFICATION.md",
         ):
-            self.assertIn("18 platform artifacts", read(rel))
+            text = read(rel)
+            self.assertIn("13 platform artifacts", text, rel)
+            self.assertIn("16 public files", text, rel)
+            self.assertIn(f"Ghost-FTP-{version}-Linux-Debian-Installer.run", text, rel)
+            self.assertIn(f"Ghost-FTP-{version}-Linux-Ubuntu-Portable.tar.gz", text, rel)
+            self.assertIn(f"Ghost-FTP-{version}-Linux-Fedora-Installer.run", text, rel)
+            self.assertNotIn(f"Ghost-FTP-{version}-Linux-Debian-amd64.deb", text, rel)
+            self.assertNotIn(f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm", text, rel)
         self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=13", read(".github/workflows/release.yml"))
         self.assertIn("PUBLIC_RELEASE_FILES=16", read(".github/workflows/release.yml"))
 
