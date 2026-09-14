@@ -1,4 +1,4 @@
-# Browser extension privacy contract
+# Ghost FTP Connection Helper privacy contract
 
 Ghost FTP Connection Helper processes connection text only inside the extension popup on the user's device.
 
@@ -8,4 +8,4 @@ The popup keeps values only in its in-memory DOM while it is open. Closing or cl
 
 The extension **does not read the active tab** and **does not connect to your FTP, FTPS, or SFTP server**. Connections remain the responsibility of a Ghost FTP application or another client explicitly chosen by the user.
 
-The Firefox package declares `browser_specific_settings.gecko.data_collection_permissions.required = ["none"]`. All official Chrome, Edge and Firefox manifests request an empty `permissions` list and no host permissions.
+The Firefox package declares `browser_specific_settings.gecko.data_collection_permissions.required = ["none"]`. All official Chrome, Edge, Firefox and Opera manifests request an empty `permissions` list and no host permissions. The four packages share the same local runtime and differ only where browser package metadata requires it.
