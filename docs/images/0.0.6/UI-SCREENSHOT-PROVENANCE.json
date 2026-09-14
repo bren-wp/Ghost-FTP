@@ -1,0 +1,84 @@
+{
+  "capture_source_sha": "9adace20030a300c39eb320a97482eb50dfdb9d8",
+  "evidence": "authentic-runtime-capture",
+  "images": [
+    {
+      "bytes": 46927,
+      "path": "verified-evidence/images/ghost-ftp-main-workspace.png",
+      "sha256": "ca3a8198fe7ecee4548e60984d5038f1b04e8abd5058a669d1a2f0bf888e1fcc"
+    },
+    {
+      "bytes": 23597,
+      "path": "verified-evidence/images/ghost-ftp-site-manager.png",
+      "sha256": "63e9292530030afab7a95b21788d9ec1da80b6f7bca1ba0ce8a132fd665602a9"
+    },
+    {
+      "bytes": 6825,
+      "path": "verified-evidence/images/ghost-ftp-bookmarks.png",
+      "sha256": "61bcb64e2223f3bd4d3fea53ecbb95e8549d634deb77293fea87196ec2ea92bf"
+    },
+    {
+      "bytes": 23829,
+      "path": "verified-evidence/images/ghost-ftp-settings.png",
+      "sha256": "7f647633349e468ce1facf6ccd3ec3c5c1411a1366ca8ad98cb571ad730dac7b"
+    },
+    {
+      "bytes": 16733,
+      "path": "verified-evidence/images/ghost-ftp-about.png",
+      "sha256": "13d9bb3a43e2377e68511d68178427899c24f6e0dc725b59ab09d635ad9e01c6"
+    },
+    {
+      "bytes": 8609,
+      "path": "verified-evidence/images/ghost-ftp-linux-main-workspace.png",
+      "sha256": "e8a3fb22753c4311121cb0094dc1d9c1ac394539bb62ec07501e1c4bffbc5aa3"
+    },
+    {
+      "bytes": 7861,
+      "path": "verified-evidence/images/ghost-ftp-linux-bookmarks.png",
+      "sha256": "2317771f166ee28a8409f9c4851d6df03cb0bb22501a35ff7822ea6d53d8051f"
+    },
+    {
+      "bytes": 10515,
+      "path": "verified-evidence/images/ghost-ftp-linux-settings.png",
+      "sha256": "bb61f70c875c310720a81902ff29891d3a0c13c10b4540a5041d2afbc4334dfa"
+    },
+    {
+      "bytes": 129503,
+      "path": "verified-evidence/images/ghost-ftp-android-files.png",
+      "sha256": "2f992d3b5fd962d83512dfa1ffd771cc45e40d222ddbb8516c6158bec7a26370"
+    },
+    {
+      "bytes": 111345,
+      "path": "verified-evidence/images/ghost-ftp-android-navigation.png",
+      "sha256": "dbaaf4ae1bd6c7339c155faa3721847c4228ff32757e1feba11147d9f9292307"
+    },
+    {
+      "bytes": 177668,
+      "path": "verified-evidence/images/ghost-ftp-android-sites.png",
+      "sha256": "0603973326c6267bbe67b2d3b7d469cbb47b4c13a709ae8411d65f8be3123c59"
+    },
+    {
+      "bytes": 158603,
+      "path": "verified-evidence/images/ghost-ftp-android-bookmarks.png",
+      "sha256": "49d32116211e1a841031ab1d0d3b31a977f9141b181d0fe7fc3ef53bf6ebd20d"
+    },
+    {
+      "bytes": 105119,
+      "path": "verified-evidence/images/ghost-ftp-android-transfers.png",
+      "sha256": "8330a51abdc3e99139c639122c5f024bb26be800fd52e786dacb95f3cad35851"
+    },
+    {
+      "bytes": 225263,
+      "path": "verified-evidence/images/ghost-ftp-android-settings.png",
+      "sha256": "f3439059866d8e9fc68c389d5167bdbd404f5cf68a288e381ae275caa388560b"
+    },
+    {
+      "bytes": 137132,
+      "path": "verified-evidence/images/ghost-ftp-android-about.png",
+      "sha256": "6dac86bbadcad596579dd983a5da6df5464f45a68d40cd1ecbaf1690e63c98cd"
+    }
+  ],
+  "schema": 1,
+  "workflow": "Ghost FTP Authentic Cross-Platform UI Screenshots",
+  "workflow_run_id": 34863585111
+}
