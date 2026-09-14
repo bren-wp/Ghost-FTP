@@ -178,25 +178,36 @@ def main() -> int:
         android_build,
         (
             "rootProject.file('../VERSION').text.trim()",
-            'versionName "${ghostFtpVersion}-dev"',
+            "versionCode ghostFtpVersionCode",
+            "versionName ghostFtpVersion",
+            "versionNameSuffix '-dev'",
             "namespace 'app.ghostftp.client'",
             "applicationId 'app.ghostftp.client'",
             "tasks.register('packageGhostFtpApk', Copy)",
-            "'Ghost-FTP-Android.apk'",
+            "'Ghost-FTP-Android-dev.apk'",
         ),
         "android/app/build.gradle",
     )
+    if 'versionName "${ghostFtpVersion}-dev"' in android_build or "'Ghost-FTP-Android.apk'" in android_build:
+        fail("Android build restores a retired debug-only production identity")
+
     android_workflow = read(".github/workflows/android-apk.yml")
     require(
         android_workflow,
         (
             "Ghost FTP Android APK",
             "packageGhostFtpApk",
-            "android/dist/Ghost-FTP-Android.apk",
-            "name: ghostftp-android-apk",
+            "android/dist/Ghost-FTP-Android-dev.apk",
+            "name: ghostftp-android-dev-apk",
+            ":app:lintRelease",
+            ":app:assembleRelease",
+            "apksigner",
+            "EPHEMERAL_CI_ONLY",
         ),
         ".github/workflows/android-apk.yml",
     )
+    if "android/dist/Ghost-FTP-Android.apk" in android_workflow or "name: ghostftp-android-apk" in android_workflow:
+        fail("Android development workflow restores an ambiguous public-looking APK identity")
 
     macos_build = read("macos/BUILD.sh")
     require(
@@ -334,6 +345,8 @@ def main() -> int:
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ANDROID_VERSION_BOUND_TO_ROOT_VERSION=YES")
+    print("ANDROID_RELEASE_VERSION_EQUALS_ROOT_VERSION=YES")
+    print("ANDROID_DEVELOPMENT_VERSION_SUFFIX=-dev")
     print("MACOS_VERSION_BOUND_TO_ROOT_VERSION=YES")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
