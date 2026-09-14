@@ -28,6 +28,12 @@ public final class RemoteTextDocumentTest {
     }
 
     @Test
+    public void decodeRejectsMixedLineEndingsInsteadOfNormalizingThem() {
+        assertThrows(IOException.class, () -> RemoteTextDocument.decode(
+                "alpha\r\nbeta\ngamma\rdelta".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
     public void decodeRejectsBinaryMalformedAndOversizedContent() {
         assertThrows(IOException.class, () -> RemoteTextDocument.decode(new byte[]{'a', 0, 'b'}));
         assertThrows(IOException.class, () -> RemoteTextDocument.decode(new byte[]{(byte) 0xc3, (byte) 0x28}));
