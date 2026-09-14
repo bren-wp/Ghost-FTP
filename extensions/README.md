@@ -25,13 +25,13 @@ The official product name is **Ghost FTP** and the official extension name is **
 
 Paste an `ftp://`, `ftps://` or `sftp://` target into the popup. The helper validates the URL, rejects unsupported schemes, missing hosts, oversized input and literal or percent-decoded control characters, then displays the protocol, host, port, username and remote path. A generated **Safe target** contains only the scheme, host/port and encoded path. URL username/password, query and fragment data are never included.
 
-The extension **does not launch a desktop or mobile application directly**. There is no browser-to-desktop custom URI, native-messaging bridge or privileged background service in the official helper. It remains a local parser/copy companion rather than pretending to provide capabilities the browser sandbox does not grant.
+The official helper has **no supported browser-to-desktop** custom URI, native-messaging bridge or privileged background service. It also does not launch a mobile application. It remains a local parser/copy companion rather than pretending to provide capabilities the browser sandbox does not grant.
 
 ## Privacy and security contract
 
 - **No telemetry or tracking.**
 - **No remote code.** HTML, CSS, JavaScript and the icon are packaged locally.
-- **No browser or host permissions.** Official manifests use an empty `permissions` list.
+- **Zero browser permissions and zero host permissions.** Official manifests use an empty `permissions` list and define no host permissions.
 - The extension **does not store** targets, usernames, passwords, history or parsed results.
 - The extension **does not read the active tab**, browsing history, cookies or page content.
 - The extension **does not connect to your FTP, FTPS or SFTP server**.
