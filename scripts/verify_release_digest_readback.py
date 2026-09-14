@@ -9,7 +9,7 @@ from pathlib import Path
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 TAG_RE = re.compile(r"^ghostftp-v(\d+\.\d+\.\d+)$")
-EXPECTED_RELEASE_FILES = 17
+EXPECTED_RELEASE_FILES = 21
 
 
 def fail(message: str) -> None:
@@ -31,6 +31,10 @@ def expected_release_names(version: str) -> set[str]:
         "SHA256.txt",
         f"Ghost-FTP-{version}-Setup.exe",
         f"Ghost-FTP-{version}-Portable.exe",
+        f"Ghost-FTP-{version}-Android.apk",
+        f"Ghost-FTP-{version}-Chrome-Extension.zip",
+        f"Ghost-FTP-{version}-Edge-Extension.zip",
+        f"Ghost-FTP-{version}-Firefox-Extension.zip",
     }
     for distro in ("Debian", "Ubuntu"):
         for arch in ("amd64", "arm64", "i386"):
@@ -105,7 +109,7 @@ def verify_release(bundle_dir: Path, release_json_path: Path, expected_commit: s
     if not match or match.group(1) != version:
         fail(f"release tag/version mismatch: tag={tag!r} version={version!r}")
     if local_names != expected_release_names(version):
-        fail("source workflow bundle does not contain the canonical 17-file release set")
+        fail("source workflow bundle does not contain the canonical 21-file release set")
     if commit != expected_commit:
         fail(f"BUILD-METADATA commit {commit!r} does not match source run {expected_commit!r}")
     if public_files != str(EXPECTED_RELEASE_FILES):
