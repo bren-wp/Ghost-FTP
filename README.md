@@ -41,21 +41,25 @@ A privacy-first desktop and mobile file-transfer workspace for people who want d
 - **Native workflows.** Windows is the reference desktop experience; Linux, Android and macOS remain active maintained surfaces with capability claims tied to actual evidence.
 - **24 desktop languages.** English is the canonical default/fallback and the maintained desktop catalog exposes 24 selectable languages.
 
-## Product preview
+## Ghost FTP 0.0.6 product preview
 
-![Ghost FTP main workspace](docs/images/ghost-ftp-main-workspace.png)
+![Ghost FTP 0.0.6 Windows main workspace](docs/images/0.0.6/ghost-ftp-main-workspace.png)
 
 <table>
 <tr>
-<td width="50%" valign="top"><strong>Site Manager</strong><br><br><img src="docs/images/ghost-ftp-site-manager.png" alt="Ghost FTP Site Manager"></td>
-<td width="50%" valign="top"><strong>Settings</strong><br><br><img src="docs/images/ghost-ftp-settings.png" alt="Ghost FTP Settings"></td>
+<td width="50%" valign="top"><strong>Windows Site Manager</strong><br><br><img src="docs/images/0.0.6/ghost-ftp-site-manager.png" alt="Ghost FTP 0.0.6 Windows Site Manager"></td>
+<td width="50%" valign="top"><strong>Windows Settings</strong><br><br><img src="docs/images/0.0.6/ghost-ftp-settings.png" alt="Ghost FTP 0.0.6 Windows Settings"></td>
 </tr>
 <tr>
-<td colspan="2" align="center"><strong>Product identity</strong><br><br><img src="docs/images/ghost-ftp-about.png" alt="Ghost FTP About" width="620"></td>
+<td width="50%" valign="top"><strong>Linux workspace</strong><br><br><img src="docs/images/0.0.6/ghost-ftp-linux-main-workspace.png" alt="Ghost FTP 0.0.6 Linux main workspace"></td>
+<td width="50%" valign="top"><strong>Android Files</strong><br><br><img src="docs/images/0.0.6/ghost-ftp-android-files.png" alt="Ghost FTP 0.0.6 Android Files"></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><strong>Windows product identity</strong><br><br><img src="docs/images/0.0.6/ghost-ftp-about.png" alt="Ghost FTP 0.0.6 About" width="620"></td>
 </tr>
 </table>
 
-These are **repository-local** visuals. Release evidence for Windows, Linux and Android is accepted only from authentic runtime captures bound to an **exact-head** source SHA. Generated mockups or image-generation output are not accepted as proof that a platform actually runs. See [Reference UI](docs/REFERENCE-UI.md).
+These screenshots are **authentic runtime captures for the 0.0.6 source line**, imported byte-for-byte from the verified `ghostftp-authentic-ui-verified-bundle` produced by workflow run `34863585111` for source SHA `9adace20030a300c39eb320a97482eb50dfdb9d8`. The repository stores the original provenance manifest and SHA-256 allow-list under [`docs/images/0.0.6/`](docs/images/0.0.6/). Generated mockups, image-generation output and manually substituted screenshots are not accepted as runtime evidence. See [Reference UI](docs/REFERENCE-UI.md).
 
 ## Platform status
 
