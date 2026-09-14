@@ -67,7 +67,7 @@ jobs:
           path: dist/browser/*.zip
 
   release-prep-autofix:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/release-prep/ghostftp-v0.0.6'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'release-prep/ghostftp-v0.0.6'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
