@@ -9,7 +9,7 @@ from pathlib import Path
 
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 TAG_RE = re.compile(r"^ghostftp-v(\d+\.\d+\.\d+)$")
-EXPECTED_RELEASE_FILES = 21
+EXPECTED_RELEASE_FILES = 16
 
 
 def fail(message: str) -> None:
@@ -32,17 +32,12 @@ def expected_release_names(version: str) -> set[str]:
         f"Ghost-FTP-{version}-Setup.exe",
         f"Ghost-FTP-{version}-Portable.exe",
         f"Ghost-FTP-{version}-Android.apk",
-        f"Ghost-FTP-{version}-Chrome-Extension.zip",
-        f"Ghost-FTP-{version}-Edge-Extension.zip",
-        f"Ghost-FTP-{version}-Firefox-Extension.zip",
     }
-    for distro in ("Debian", "Ubuntu"):
-        for arch in ("amd64", "arm64", "i386"):
-            names.add(f"Ghost-FTP-{version}-Linux-{distro}-{arch}.deb")
-    for arch in ("x86_64", "aarch64", "i686"):
-        names.add(f"Ghost-FTP-{version}-Linux-Fedora-{arch}.rpm")
-    for arch in ("amd64", "arm64", "i386"):
-        names.add(f"Ghost-FTP-{version}-Linux-Portable-{arch}.tar.gz")
+    for distro in ("Debian", "Ubuntu", "Fedora"):
+        names.add(f"Ghost-FTP-{version}-Linux-{distro}-Installer.run")
+        names.add(f"Ghost-FTP-{version}-Linux-{distro}-Portable.tar.gz")
+    for browser in ("Chrome", "Edge", "Firefox", "Opera"):
+        names.add(f"Ghost-FTP-{version}-{browser}-Extension.zip")
     if len(names) != EXPECTED_RELEASE_FILES:
         fail("internal canonical release asset set is invalid")
     return names
@@ -105,15 +100,18 @@ def verify_release(bundle_dir: Path, release_json_path: Path, expected_commit: s
     tag = metadata.get("RELEASE_TAG", "")
     commit = metadata.get("COMMIT", "")
     public_files = metadata.get("PUBLIC_RELEASE_FILES", "")
+    public_artifacts = metadata.get("PUBLIC_PLATFORM_ARTIFACTS", "")
     match = TAG_RE.fullmatch(tag)
     if not match or match.group(1) != version:
         fail(f"release tag/version mismatch: tag={tag!r} version={version!r}")
     if local_names != expected_release_names(version):
-        fail("source workflow bundle does not contain the canonical 21-file release set")
+        fail("source workflow bundle does not contain the canonical 16-file release set")
     if commit != expected_commit:
         fail(f"BUILD-METADATA commit {commit!r} does not match source run {expected_commit!r}")
     if public_files != str(EXPECTED_RELEASE_FILES):
         fail(f"BUILD-METADATA PUBLIC_RELEASE_FILES={public_files!r}; expected {EXPECTED_RELEASE_FILES}")
+    if public_artifacts != "13":
+        fail(f"BUILD-METADATA PUBLIC_PLATFORM_ARTIFACTS={public_artifacts!r}; expected 13")
 
     local_digests = {path.name: sha256_file(path) for path in files}
     manifest = parse_manifest(bundle_dir / "SHA256.txt")
