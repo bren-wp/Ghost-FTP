@@ -23,7 +23,7 @@ The official product name is **Ghost FTP** and the official extension name is **
 
 Paste an `ftp://`, `ftps://` or `sftp://` target into the popup. The helper validates the URL, rejects unsupported schemes, missing hosts, oversized input and literal or percent-decoded control characters, then displays protocol, host, port, username and remote path. A generated **Safe target** contains only scheme, host/port and encoded path: URL username/password, query and fragment data are never included.
 
-The extension **does not launch the desktop client directly** and does not launch the Android app. Ghost FTP does not currently expose a supported browser-to-desktop URI or native-messaging contract. The browser package therefore remains a local parser/copy companion instead of inventing a privileged bridge.
+The extension **does not launch the desktop client directly** and does not launch the Android app. There is **no supported browser-to-desktop** URI or native-messaging contract. The browser package therefore remains a local parser/copy companion instead of inventing a privileged bridge.
 
 ## Privacy and security contract
 
