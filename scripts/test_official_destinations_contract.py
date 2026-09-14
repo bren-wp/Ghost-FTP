@@ -32,12 +32,21 @@ class OfficialDestinationsContractTests(unittest.TestCase):
         self.assertIn('aboutAuthorWebsite = "brendigo.com"', identity)
         self.assertIn('aboutSupport       = "brendigo.com/kontakt"', identity)
 
-    def test_linux_package_uses_product_only_identity(self) -> None:
-        control = self.read("linux/debian/control.in")
-        self.assertIn("Maintainer: Ghost FTP <https://ghostftp.com>", control)
-        self.assertIn("Homepage: https://ghostftp.com", control)
-        self.assertNotIn("brendigo", control.lower())
-        self.assertNotIn("Homepage: https://github.com/", control)
+    def test_linux_distribution_uses_product_only_identity(self) -> None:
+        desktop = self.read("linux/ghost-ftp.desktop")
+        build = self.read("linux/BUILD-DISTROS.sh")
+        linux_docs = self.read("linux/README.md")
+
+        self.assertIn("Name=Ghost FTP", desktop)
+        self.assertIn("GenericName=FTP, FTPS and SFTP Client", desktop)
+        self.assertNotIn("brendigo", desktop.lower())
+
+        self.assertIn("Ghost FTP", build)
+        self.assertIn("LICENSE", build)
+        self.assertNotIn("brendigo.com", build.lower())
+
+        self.assertIn("https://ghostftp.com", linux_docs)
+        self.assertNotIn("Homepage: https://github.com/", linux_docs)
 
 
 if __name__ == "__main__":
