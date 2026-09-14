@@ -40,11 +40,13 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("cfg.Password = password", src)
         self.assertIn("cfg.Passphrase = passphrase", src)
 
-    def test_active_android_macos_and_retired_release_surfaces(self) -> None:
-        self.assertTrue((ROOT / "android").is_dir(), "active Android source surface is missing")
-        self.assertTrue((ROOT / ".github/workflows/android-apk.yml").is_file(), "Android APK workflow is missing")
-        self.assertTrue((ROOT / "macos").is_dir(), "active macOS source surface is missing")
-        self.assertTrue((ROOT / ".github/workflows/macos-app.yml").is_file(), "macOS app workflow is missing")
+    def test_active_public_and_development_surfaces(self) -> None:
+        self.assertTrue((ROOT / "android").is_dir())
+        self.assertTrue((ROOT / ".github/workflows/android-apk.yml").is_file())
+        self.assertTrue((ROOT / "macos").is_dir())
+        self.assertTrue((ROOT / ".github/workflows/macos-app.yml").is_file())
+        self.assertTrue((ROOT / "ekstenzije").is_dir())
+        self.assertTrue((ROOT / ".github/workflows/browser-extensions.yml").is_file())
         for rel in (
             "ios",
             "GhostFTP WEB",
@@ -58,20 +60,23 @@ class MaintenanceRegressionTests(unittest.TestCase):
         release = read(".github/workflows/release.yml").lower()
         self.assertNotIn("macos/", release)
         self.assertNotIn("runs-on: macos", release)
-        self.assertNotIn("android/", release)
+        self.assertIn("android/", release)
+        self.assertIn("ekstenzije/", release)
 
     def test_platform_contract_rejects_only_retired_target_reintroduction(self) -> None:
         audit = read("scripts/audit_platform_contract.py")
         self.assertIn('RETIRED_ROOTS = ("ios/", "GhostFTP WEB/")', audit)
         self.assertIn("ANDROID_REQUIRED", audit)
         self.assertIn("MACOS_REQUIRED", audit)
-        self.assertIn("active Android source contract is incomplete", audit)
-        self.assertIn("active macOS source contract is incomplete", audit)
+        self.assertIn("BROWSER_REQUIRED", audit)
+        self.assertIn('fail(f"active {label} source contract is incomplete:', audit)
         self.assertIn("retired application platform/surface is tracked", audit)
-        self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX", audit)
+        self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER", audit)
         self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS", audit)
+        self.assertIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED", audit)
+        self.assertIn("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX", audit)
+        self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=NO", audit)
         self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS", audit)
-        self.assertIn("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE", audit)
 
     def test_release_workflow_refuses_stale_main_or_tag_rewrite(self) -> None:
         workflow = read(".github/workflows/release.yml")
@@ -84,7 +89,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("gh release create", workflow)
         self.assertLess(workflow.index("main moved from release commit"), workflow.index("gh release create"))
 
-    def test_current_release_requires_trusted_windows_signing(self) -> None:
+    def test_current_release_requires_protected_windows_and_android_signing(self) -> None:
         workflow = read(".github/workflows/release.yml")
         verifier = read("scripts/verify_release.py")
         self.assertNotIn("state=unsigned", workflow)
@@ -93,12 +98,13 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("Official Ghost FTP publication requires GHOSTFTP_SIGNING_PASSWORD.", workflow)
         self.assertIn("Get-AuthenticodeSignature -FilePath $path", workflow)
         self.assertIn("test \"$WINDOWS_SIGNING_STATE\" = 'signed'", workflow)
-        self.assertIn("WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}", workflow)
         self.assertNotIn("New-DevCodeSigningCertificate.ps1", workflow)
         self.assertIn("public Windows release artifacts must be Authenticode signed", verifier)
-        self.assertIn("require_public_release_signatures", verifier)
+        self.assertIn("GHOSTFTP_ANDROID_KEYSTORE_BASE64", workflow)
+        self.assertIn("GHOSTFTP_ANDROID_SIGNER_SHA256", workflow)
+        self.assertIn("apksigner", workflow)
 
-    def test_version_history_and_current_desktop_contract(self) -> None:
+    def test_version_history_and_current_release_contract(self) -> None:
         version = read("VERSION").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
         parts = tuple(int(part) for part in version.split("."))
@@ -117,7 +123,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn(f"**Current Ghost FTP release: {version}**", docs_index)
         self.assertIn("PRERELEASE=false", docs_index)
         self.assertIn(f"Tag: ghostftp-v{version}", releases)
-        self.assertIn("Immutable-current publication transaction", releases)
+        self.assertIn("Exact-head and immutable-current transaction", releases)
         self.assertIn(f"## {version}", changelog)
         self.assertIn(f"## {version}", history)
         self.assertIn("latest public Ghost FTP version", history)
@@ -125,16 +131,13 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertNotRegex(changelog, r"(?m)^##\s+1\.\d+\.\d+")
         self.assertNotRegex(history, r"(?m)^##\s+1\.\d+\.\d+")
 
-        sections = [
-            match.group(1)
-            for match in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)
-        ]
-        self.assertTrue(sections, "changelog must contain at least the current release section")
-        self.assertEqual(sections[0], version, "current VERSION must be the first versioned changelog section")
-        self.assertEqual(len(sections), len(set(sections)), "changelog version sections must be unique")
+        sections = [m.group(1) for m in re.finditer(r"^##\s+(\d+\.\d+\.\d+)(?:\s|$)", changelog, re.MULTILINE)]
+        self.assertTrue(sections)
+        self.assertEqual(sections[0], version)
+        self.assertEqual(len(sections), len(set(sections)))
         section_parts = [tuple(int(part) for part in value.split(".")) for value in sections]
-        self.assertEqual(section_parts, sorted(section_parts, reverse=True), "changelog versions must be newest-first")
-        self.assertTrue(all(value <= parts for value in section_parts), "changelog must not contain a future version")
+        self.assertEqual(section_parts, sorted(section_parts, reverse=True))
+        self.assertTrue(all(value <= parts for value in section_parts))
 
 
 if __name__ == "__main__":
