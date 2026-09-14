@@ -540,7 +540,7 @@ final class FtpSession implements Closeable {
         }
         String facts = line.substring(0, split).toLowerCase(Locale.ROOT);
         String name = line.substring(split + 1).trim();
-        if (name.isEmpty() || ".".equals(name) || "..".equals(name) || facts.contains("type=cdir") || facts.contains("type=pdir")) {
+        if (!isSafeMlsdChildName(name) || facts.contains("type=cdir") || facts.contains("type=pdir")) {
             return null;
         }
         String type = "";
@@ -564,6 +564,19 @@ final class FtpSession implements Closeable {
         }
         boolean directory = "dir".equals(type);
         return new RemoteEntry(name, directory, size, modified, permissions, type);
+    }
+
+    private static boolean isSafeMlsdChildName(String name) {
+        if (name == null || name.isEmpty() || ".".equals(name) || "..".equals(name)) {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            char ch = name.charAt(i);
+            if (ch == '/' || ch == '\\' || Character.isISOControl(ch)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static long parseMlsdTimestamp(String value) {
