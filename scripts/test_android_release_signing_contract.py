@@ -64,8 +64,17 @@ class AndroidReleaseSigningContractTests(unittest.TestCase):
             "GHOSTFTP_ANDROID_KEYSTORE_PASSWORD",
             "GHOSTFTP_ANDROID_KEY_ALIAS",
             "GHOSTFTP_ANDROID_KEY_PASSWORD",
+            "GHOSTFTP_ANDROID_CERT_SHA256",
         ):
             self.assertNotIn(secret, workflow)
+
+    def test_production_release_requires_canonical_certificate_fingerprint_secret(self) -> None:
+        workflow = read(".github/workflows/release.yml")
+        self.assertIn("secrets.GHOSTFTP_ANDROID_CERT_SHA256", workflow)
+        self.assertIn("GHOSTFTP_ANDROID_CERT_SHA256:GHOSTFTP_ANDROID_CERT_SHA256", workflow)
+        self.assertNotIn("GHOSTFTP_ANDROID_SIGNER_SHA256", workflow)
+        self.assertIn('"$build_tools/apksigner" verify --verbose --print-certs', workflow)
+        self.assertIn("Android production signer fingerprint mismatch.", workflow)
 
 
 if __name__ == "__main__":
