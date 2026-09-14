@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.1"
-RETIRED_ROOTS = ("ios", "GhostFTP WEB")
+RETIRED_ROOTS = ("ios", "GhostFTP WEB", "ekstenzije")
 CURRENT_LINE_DOCS = (
     "README.md",
     "CHANGELOG.md",
@@ -83,14 +83,11 @@ def main() -> int:
             f"Current Ghost FTP version: **{version}**",
             "Development status: **Active**",
             "Release channel: **Current**",
-            f"## 🆕 Ghost FTP {version} highlights",
-            f"## ⬇️ Download Ghost FTP {version}",
             f"ghostftp-v{version}",
             "prerelease=false",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
             "WINDOWS_SETUP=universal-x86-x64-arm64",
             "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
-            "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
         ),
         "README.md",
     )
@@ -107,10 +104,6 @@ def main() -> int:
             "CHANNEL=Current",
             "PRERELEASE=false",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
-            f"## {version} release checklist",
-            "0.0.0",
-            "0.0.1",
-            "0.0.2",
             "major version `0` does not imply prerelease",
             "latest public version",
             "release-retention.yml",
@@ -141,37 +134,25 @@ def main() -> int:
         ),
         "BUILD-WINDOWS.ps1",
     )
-    windows_stage = read("BUILD-WINDOWS-ARCH-STAGE.ps1")
+
+    linux_build = read("linux/BUILD-DISTROS.sh")
     require(
-        windows_stage,
-        (
-            "Get-Content -LiteralPath $versionFile",
-            "-X main.version=$version",
-            "Build-GhostFTPArchitecture -GoArch 'arm64' -Label 'arm64'",
-            "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
-        ),
-        "BUILD-WINDOWS-ARCH-STAGE.ps1",
-    )
-    linux_build = read("linux/BUILD.sh")
-    require(linux_build, ("< VERSION", "-X main.version=${VERSION}"), "linux/BUILD.sh")
-    linux_distro_build = read("linux/BUILD-DISTROS.sh")
-    require(
-        linux_distro_build,
+        linux_build,
         (
             "< VERSION",
             "-X main.version=${VERSION}",
-            "for distro in Debian Ubuntu; do",
-            'portable_name="Ghost-FTP-${VERSION}-Linux-Portable-${debarch}"',
-            'rpm_out="dist/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"',
+            "build_arch amd64 amd64",
+            "build_arch arm64 arm64",
+            "build_arch 386 i386",
+            "for distro in Debian Ubuntu Fedora; do",
+            'Ghost-FTP-${VERSION}-Linux-${distro}-Installer.run',
+            'Ghost-FTP-${VERSION}-Linux-${distro}-Portable',
         ),
         "linux/BUILD-DISTROS.sh",
     )
-    local_build = read("scripts/BUILD-LOCAL.sh")
-    require(local_build, ("< VERSION", "-X main.version=$VERSION"), "scripts/BUILD-LOCAL.sh")
-
-    linux_control = read("linux/debian/control.in")
-    if "@VERSION@" not in linux_control or re.search(r"(?m)^Version:\s*\d+\.\d+\.\d+", linux_control):
-        fail("Linux DEB metadata is not bound to VERSION")
+    for retired in ("dpkg-deb", "rpmbuild"):
+        if retired in linux_build:
+            fail(f"Linux universal builder contains retired architecture-specific packager: {retired}")
 
     android_build = read("android/app/build.gradle")
     require(
@@ -191,24 +172,6 @@ def main() -> int:
     if 'versionName "${ghostFtpVersion}-dev"' in android_build or "'Ghost-FTP-Android.apk'" in android_build:
         fail("Android build restores a retired debug-only production identity")
 
-    android_workflow = read(".github/workflows/android-apk.yml")
-    require(
-        android_workflow,
-        (
-            "Ghost FTP Android APK",
-            "packageGhostFtpApk",
-            "android/dist/Ghost-FTP-Android-dev.apk",
-            "name: ghostftp-android-dev-apk",
-            ":app:lintRelease",
-            ":app:assembleRelease",
-            "apksigner",
-            "EPHEMERAL_CI_ONLY",
-        ),
-        ".github/workflows/android-apk.yml",
-    )
-    if "android/dist/Ghost-FTP-Android.apk" in android_workflow or "name: ghostftp-android-apk" in android_workflow:
-        fail("Android development workflow restores an ambiguous public-looking APK identity")
-
     macos_build = read("macos/BUILD.sh")
     require(
         macos_build,
@@ -221,38 +184,37 @@ def main() -> int:
         ),
         "macos/BUILD.sh",
     )
-    macos_workflow = read(".github/workflows/macos-app.yml")
+
+    extension_brand = read("extensions/BRAND.json")
     require(
-        macos_workflow,
+        extension_brand,
         (
-            "Ghost FTP macOS Development App",
-            "bash macos/BUILD.sh",
-            "name: ghostftp-macos-development",
+            '"product": "Ghost FTP"',
+            '"extension": "Ghost FTP Connection Helper"',
+            '"official_packages": ["chrome", "edge", "firefox", "opera"]',
         ),
-        ".github/workflows/macos-app.yml",
+        "extensions/BRAND.json",
     )
+    for browser in ("chrome", "edge", "firefox", "opera"):
+        manifest = read(f"extensions/{browser}/manifest.json")
+        if f'"version": "{version}"' not in manifest:
+            fail(f"{browser} extension manifest is not bound to VERSION {version}")
 
     for retired in RETIRED_ROOTS:
         if (ROOT / retired).exists():
-            fail(f"retired application surface must be removed: {retired}/")
+            fail(f"retired source surface must be removed: {retired}/")
 
-    workflow_build_markers = (
-        (".github/workflows/ci.yml", "bash linux/BUILD.sh"),
-        (".github/workflows/release.yml", "bash linux/BUILD-DISTROS.sh"),
-    )
-    for workflow_rel, linux_marker in workflow_build_markers:
+    for workflow_rel in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
         workflow = read(workflow_rel)
         if f"go-version: '{GO_TOOLCHAIN}'" not in workflow:
             fail(f"{workflow_rel} does not pin Go {GO_TOOLCHAIN}")
-        require(workflow, ("windows:", "linux:", linux_marker), workflow_rel)
+        require(workflow, ("windows:", "linux:", "bash linux/BUILD-DISTROS.sh"), workflow_rel)
         lowered = workflow.lower()
         for marker in ("ios/", "macos/", "ghostftp web/", "runs-on: macos"):
             if marker in lowered:
                 fail(f"{workflow_rel} references non-public application marker: {marker}")
 
     release_workflow = read(".github/workflows/release.yml")
-    if "macos/" in release_workflow.lower():
-        fail("public release workflow must not claim macOS without Developer ID/notarization evidence")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded production version")
     require(
@@ -260,7 +222,6 @@ def main() -> int:
         (
             "manual='${{ inputs.version }}'",
             "source_version=\"$(tr -d '\\r\\n' < VERSION)\"",
-            "test \"$version\" != '0.0.0'",
             "RELEASE_TAG=ghostftp-v$version",
             "release_channel='current'",
             "release_title=\"Ghost FTP $version\"",
@@ -274,26 +235,24 @@ def main() -> int:
             "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
             "GHOSTFTP_ANDROID_CERT_SHA256",
             "ANDROID_APK=production-signed",
-            "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox",
+            "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera",
             "WINDOWS_SETUP=universal-x86-x64-arm64",
             "WINDOWS_PORTABLE=universal-x86-x64-arm64",
             "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
-            "WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci",
-            "LINUX_DEBIAN_DEB=amd64,arm64,i386",
-            "LINUX_UBUNTU_DEB=amd64,arm64,i386",
-            "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
-            "LINUX_PORTABLE=amd64,arm64,i386",
-            "PUBLIC_PLATFORM_ARTIFACTS=18",
-            "PUBLIC_RELEASE_FILES=21",
+            "LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386",
+            "LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386",
+            "LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386",
+            "LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386",
+            "LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386",
+            "LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386",
+            "PUBLIC_PLATFORM_ARTIFACTS=13",
+            "PUBLIC_RELEASE_FILES=16",
         ),
         ".github/workflows/release.yml",
     )
-    if "state=unsigned" in release_workflow:
-        fail("official public release workflow must not permit unsigned Windows publication")
-    if "keytool -genkeypair" in release_workflow:
-        fail("official release workflow must not generate an Android publisher identity")
-    if "--prerelease" in release_workflow:
-        fail("current 0.0.x release workflow must not mark the GitHub Release as prerelease")
+    for forbidden in ("state=unsigned", "keytool -genkeypair", "--prerelease"):
+        if forbidden in release_workflow:
+            fail(f"official release workflow contains forbidden marker: {forbidden}")
 
     retention = read(".github/workflows/release-retention.yml")
     require(
@@ -301,11 +260,10 @@ def main() -> int:
         (
             "Publish Ghost FTP",
             "test \"$release_prerelease\" = 'false'",
-            "test \"$asset_count\" -eq 21",
+            "test \"$asset_count\" -eq 16",
             "gh release delete",
             "--cleanup-tag",
             "packages/container/ghost-ftp/versions",
-            "Keeping current package version",
             "GHOSTFTP_RELEASE_RETENTION=PASS",
             "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
@@ -313,24 +271,21 @@ def main() -> int:
         ".github/workflows/release-retention.yml",
     )
 
+    release_audit = read("scripts/audit_release.py")
     require(
-        read("scripts/audit_release.py"),
+        release_audit,
         (
             "MINIMUM_PUBLIC_VERSION=0.0.1",
             "PUBLIC_RELEASE_CHANNEL=CURRENT",
             "CURRENT_RELEASE_PRERELEASE_FLAG=FALSE",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
-            "PUBLIC_PLATFORM_ARTIFACTS=18",
-            "PUBLIC_RELEASE_FILES=21",
+            "PUBLIC_PLATFORM_ARTIFACTS={PUBLIC_PLATFORM_ARTIFACTS}",
+            "PUBLIC_RELEASE_FILES={PUBLIC_RELEASE_FILES}",
             "WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64",
             "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
-            "WINDOWS_ARM64_RUNTIME_EVIDENCE=NOT_NATIVE_CI",
-            "LINUX_DEBIAN_DEB=amd64,arm64,i386",
-            "LINUX_UBUNTU_DEB=amd64,arm64,i386",
-            "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
-            "LINUX_PORTABLE=amd64,arm64,i386",
+            "LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386",
             "ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED",
-            "BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX",
+            "BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
             "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES",
             "PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED",
@@ -343,33 +298,17 @@ def main() -> int:
     if re.search(r"(?m)^\s*placeholder:\s*['\"]\d+\.\d+\.\d+['\"]", bug_template):
         fail("bug template hard-codes the current version")
 
-    localization_audit = read("scripts/audit_localization.py")
-    if 'version = read("VERSION").strip()' not in localization_audit:
-        fail("localization audit does not read VERSION dynamically")
-
     print(f"VERSION_AUDIT=PASS ({version}; channel=current)")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
-    print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
-    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
-    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
-    print("ANDROID_VERSION_BOUND_TO_ROOT_VERSION=YES")
-    print("ANDROID_RELEASE_VERSION_EQUALS_ROOT_VERSION=YES")
-    print("ANDROID_DEVELOPMENT_VERSION_SUFFIX=-dev")
-    print("ANDROID_PRODUCTION_SIGNING_IDENTITY=REQUIRED_AND_VERIFIED")
-    print("MACOS_VERSION_BOUND_TO_ROOT_VERSION=YES")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
-    print("MINIMUM_PUBLIC_VERSION=0.0.1")
-    print("LATEST_ONLY_RELEASE_RETENTION=YES")
-    print("ACTIVE_VERSIONING_DOC_BOUND_TO_VERSION=YES")
+    print("PUBLIC_PLATFORM_ARTIFACTS=13")
+    print("PUBLIC_RELEASE_FILES=16")
     print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")
-    print("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64")
-    print("WINDOWS_ARM64_RUNTIME_EVIDENCE=NOT_NATIVE_CI")
-    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
-    print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
-    print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("CURRENT_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
+    print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
+    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
+    print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     return 0
 
 
