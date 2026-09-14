@@ -1,0 +1,40 @@
+name: Ghost FTP Product Polish Runtime Audit
+
+on:
+  push:
+    branches:
+      - hardening/0.0.6-product-polish
+    paths:
+      - .github/workflows/product-polish-runtime-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Runtime wording audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== RUNTIME WORDING CANDIDATES ==='
+          roots=(cmd internal/desktop internal/platform android/app/src/main extensions/shared web)
+          pattern='TODO|FIXME|debug|diagnostic|developer|development|placeholder|authoritative|scoped storage|Storage Access Framework|desktop parity|implementation|internal|source commit|environment variable|stack trace|exception|dev build|release candidate'
+          grep -RInE "$pattern" "${roots[@]}" \
+            --exclude='*_test.go' --exclude='*Test.java' --exclude='README.md' \
+            --exclude='*.md' --exclude='*.map' || true
+          echo '=== PURE-WHITE/LIGHT SURFACE CANDIDATES ==='
+          grep -RInE '#fff([^0-9a-fA-F]|$)|#ffffff([^0-9a-fA-F]|$)|Color\.WHITE|255[[:space:]]*,[[:space:]]*255[[:space:]]*,[[:space:]]*255' \
+            internal/desktop internal/uipalette android/app/src/main extensions/shared web \
+            --exclude='*_test.go' --exclude='*Test.java' --exclude='*.md' || true
+          echo '=== ANDROID USER-FACING CARD/HEADING COPY ==='
+          grep -nE 'surfaceHeading\(|card\(' android/app/src/main/java/app/ghostftp/client/MainActivity.java || true
+          echo '=== WEB USER-FACING ARCHITECTURE COPY ==='
+          grep -RInE 'relay|backend|server-side|ephemeral|PHP|cURL|ssh2|SSRF|raw (FTP|socket)|browser sandbox|implementation|candidate' web \
+            --exclude='*.md' --exclude='*.php~' || true
+          echo '=== COMPLETE ==='
