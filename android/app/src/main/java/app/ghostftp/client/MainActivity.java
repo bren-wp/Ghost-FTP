@@ -1688,7 +1688,30 @@ public final class MainActivity extends Activity {
         if (busy || owner == null || session != owner || !owner.isConnected()) return;
         String searchRoot = currentRemotePath;
         long generation = ++advancedOperationGeneration;
+        long deadlineNanos = System.nanoTime() + WorkspaceOps.MAX_REMOTE_SEARCH_MILLIS * 1_000_000L;
         setBusy(true, "Searching server folders within bounded safety limits…");
+        AlertDialog searchDialog = new AlertDialog.Builder(this)
+                .setTitle("Server recursive search")
+                .setMessage("Searching with directory, depth, result and 45-second safety bounds. Cancelling closes this FTP/FTPS session immediately.")
+                .setNegativeButton("Cancel search", null)
+                .setCancelable(false)
+                .create();
+        searchDialog.setOnShowListener(ignored -> searchDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
+            if (generation != advancedOperationGeneration || session != owner) return;
+            advancedOperationGeneration++;
+            owner.abort();
+            session = null;
+            connectedIdentityKey = null;
+            remoteEntries.clear();
+            selectedRemote = -1;
+            currentRemotePath = "/";
+            busy = false;
+            renderRemote();
+            setStatus("Server recursive search cancelled. Connection closed; reconnect before continuing.");
+            refreshButtons();
+            searchDialog.dismiss();
+        }));
+        searchDialog.show();
         io.execute(() -> {
             try {
                 List<RemoteSearchResult> results = new ArrayList<>();
@@ -1699,6 +1722,8 @@ public final class MainActivity extends Activity {
                 while (!queue.isEmpty()
                         && directories < WorkspaceOps.MAX_SEARCH_DIRECTORIES
                         && results.size() < WorkspaceOps.MAX_SEARCH_RESULTS) {
+                    if (generation != advancedOperationGeneration) throw new IOException("Server recursive search was cancelled.");
+                    if (System.nanoTime() > deadlineNanos) throw new IOException("Server recursive search reached the 45-second safety deadline.");
                     if (session != owner || !owner.isConnected()) throw new IOException("Server connection changed during recursive search.");
                     RemoteSearchNode node = queue.removeFirst();
                     if (!visited.add(node.path)) continue;
@@ -1717,6 +1742,7 @@ public final class MainActivity extends Activity {
                 }
                 runOnUiThread(() -> {
                     if (lifecycleDestroyed || generation != advancedOperationGeneration || session != owner || !owner.isConnected()) return;
+                    searchDialog.dismiss();
                     busy = false;
                     refreshButtons();
                     showRemoteSearchResults(owner, query, results);
@@ -1724,6 +1750,7 @@ public final class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
+                    searchDialog.dismiss();
                     if (session == owner && !owner.isConnected()) {
                         session = null;
                         connectedIdentityKey = null;
@@ -1889,8 +1916,8 @@ public final class MainActivity extends Activity {
         FtpSession owner = session;
         if (busy || owner == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size() || !owner.isConnected()) return;
         RemoteEntry entry = remoteEntries.get(selectedRemote);
-        if (entry.directory) {
-            setStatus("Remote Edit supports regular text files only.");
+        if (!entry.regularFile) {
+            setStatus("Remote Edit supports explicitly reported regular text files only; links and special entries are not editable.");
             return;
         }
         if (entry.size > WorkspaceOps.MAX_REMOTE_EDIT_BYTES) {
@@ -1911,7 +1938,7 @@ public final class MainActivity extends Activity {
                 RemoteTextDocument.Snapshot snapshot = RemoteEditIo.open(owner, path);
                 runOnUiThread(() -> {
                     if (lifecycleDestroyed || generation != advancedOperationGeneration || session != owner || !owner.isConnected()) return;
-                    showRemoteEditor(owner, path, entry.name, generation, snapshot);
+                    showRemoteEditor(owner, path, entry.name, entry.permissions, generation, snapshot);
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -1922,7 +1949,7 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private void showRemoteEditor(FtpSession owner, String path, String name, long generation, RemoteTextDocument.Snapshot snapshot) {
+    private void showRemoteEditor(FtpSession owner, String path, String name, String originalMode, long generation, RemoteTextDocument.Snapshot snapshot) {
         EditText editor = field("Remote UTF-8 text", false);
         editor.setSingleLine(false);
         editor.setGravity(Gravity.TOP | Gravity.START);
@@ -1934,7 +1961,7 @@ public final class MainActivity extends Activity {
         holder.setPadding(pad, dp(8), pad, 0);
         holder.addView(editor, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(420)));
 
-        RemoteEditorState state = new RemoteEditorState(owner, path, name, generation, snapshot, editor);
+        RemoteEditorState state = new RemoteEditorState(owner, path, name, originalMode, generation, snapshot, editor);
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Remote Edit — " + name)
                 .setView(holder)
@@ -1982,7 +2009,7 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             try {
                 RemoteTextDocument.Snapshot saved = RemoteEditIo.save(
-                        state.owner, state.path, state.snapshot.sha256, state.snapshot.lineEnding, text);
+                        state.owner, state.path, state.snapshot.sha256, state.snapshot.lineEnding, state.originalMode, text);
                 runOnUiThread(() -> {
                     if (!remoteEditorUsable(state)) return;
                     applyRemoteEditorSnapshot(state, saved);
@@ -2903,6 +2930,7 @@ public final class MainActivity extends Activity {
         final FtpSession owner;
         final String path;
         final String name;
+        final String originalMode;
         final long generation;
         final EditText editor;
         RemoteTextDocument.Snapshot snapshot;
@@ -2911,11 +2939,12 @@ public final class MainActivity extends Activity {
         boolean dirty;
         boolean running;
 
-        RemoteEditorState(FtpSession owner, String path, String name, long generation,
+        RemoteEditorState(FtpSession owner, String path, String name, String originalMode, long generation,
                           RemoteTextDocument.Snapshot snapshot, EditText editor) {
             this.owner = owner;
             this.path = path;
             this.name = name;
+            this.originalMode = originalMode == null ? "" : originalMode.trim();
             this.generation = generation;
             this.snapshot = snapshot;
             this.editor = editor;
