@@ -48,6 +48,7 @@ class EngineeringPromptCurrentContractTests(unittest.TestCase):
             "Android SFTP is hidden/unsupported",
             "zero browser permissions and zero host permissions",
             "no browser-to-desktop handoff",
+            "without separate explicit opt-in consent",
         ):
             self.assertIn(marker, self.website)
 
