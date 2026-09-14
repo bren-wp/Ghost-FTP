@@ -101,13 +101,29 @@ final class RemoteTextDocument {
         }
     }
 
-    private static LineEnding detectLineEnding(String text) {
-        if (text.contains("\r\n")) {
-            return LineEnding.CRLF;
+    private static LineEnding detectLineEnding(String text) throws IOException {
+        boolean sawLf = false;
+        boolean sawCrLf = false;
+        boolean sawCr = false;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '\r') {
+                if (i + 1 < text.length() && text.charAt(i + 1) == '\n') {
+                    sawCrLf = true;
+                    i++;
+                } else {
+                    sawCr = true;
+                }
+            } else if (ch == '\n') {
+                sawLf = true;
+            }
         }
-        if (text.indexOf('\r') >= 0) {
-            return LineEnding.CR;
+        int styles = (sawLf ? 1 : 0) + (sawCrLf ? 1 : 0) + (sawCr ? 1 : 0);
+        if (styles > 1) {
+            throw new IOException("Remote Edit rejected mixed line endings to avoid rewriting unrelated lines.");
         }
+        if (sawCrLf) return LineEnding.CRLF;
+        if (sawCr) return LineEnding.CR;
         return LineEnding.LF;
     }
 
