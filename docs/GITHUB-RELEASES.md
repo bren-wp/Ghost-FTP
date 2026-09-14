@@ -1,71 +1,69 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **0.0.5** is the current published release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
+Ghost FTP **0.0.6** is the current published release contract. Official releases are created only by the canonical release workflow from the exact verified `main` commit.
 
 ## Release identity
 
 ```text
-Tag: ghostftp-v0.0.5
-Title: Ghost FTP 0.0.5
+Tag: ghostftp-v0.0.6
+Title: Ghost FTP 0.0.6
 Prerelease: false
 ```
 
-Root `VERSION` is authoritative. Major version zero is not automatically mapped to GitHub prerelease state for this project.
+Root `VERSION` is authoritative. Major version zero is not automatically mapped to GitHub prerelease state.
 
 ## Canonical release trigger
 
-A normal push to `main`, including a change to `VERSION`, does not publish a release directly. Canonical `release.yml` is **`workflow_dispatch`-only**. Canonical release branches use:
+A normal push to `main`, including a change to `VERSION`, **does not publish a release directly**. Canonical `release.yml` is `workflow_dispatch`-only. Canonical release branches use:
 
 ```text
 release/ghostftp-vX.Y.Z
 ```
 
-For the current candidate:
+For 0.0.6 the branch is `release/ghostftp-v0.0.6`. `.github/workflows/release-branch-trigger.yml` accepts the branch only when the semantic version matches root `VERSION` and the branch SHA equals exact current `main`.
 
-```text
-release/ghostftp-v0.0.5
-```
+The release-branch trigger snapshots existing release-run IDs, dispatches `release.yml`, identifies the new exact-main `Publish Ghost FTP` run, waits for terminal success, and only then dispatches and waits for `release-retention.yml`. A successful dispatch request alone is not publication evidence.
 
-`.github/workflows/release-branch-trigger.yml` accepts the branch only when its semantic version matches root `VERSION` and its SHA equals exact current `main`.
+## 0.0.6 public files
 
-The trigger lifecycle is deterministic:
-
-1. snapshot existing `release.yml` workflow-dispatch run IDs;
-2. dispatch canonical `release.yml` on `main` with the exact version guard;
-3. identify the newly created `Publish Ghost FTP` run whose head SHA equals validated `main`;
-4. wait for that exact run and require terminal success;
-5. only then dispatch canonical `release-retention.yml`;
-6. identify the new exact-main retention run;
-7. wait for and require terminal retention success.
-
-A successful workflow-dispatch request by itself is **not** successful publication.
-
-## 0.0.5 public files
-
-Ghost FTP 0.0.5 exposes **14 platform artifacts / 17 public files**.
+Ghost FTP 0.0.6 exposes **18 platform artifacts / 21 public files**.
 
 Windows:
 
 ```text
-Ghost-FTP-0.0.5-Setup.exe
-Ghost-FTP-0.0.5-Portable.exe
+Ghost-FTP-0.0.6-Setup.exe
+Ghost-FTP-0.0.6-Portable.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.5-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.5-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.5-Linux-Debian-i386.deb
-Ghost-FTP-0.0.5-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.5-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.5-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.5-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.5-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.5-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.5-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.5-Linux-Portable-i386.tar.gz
+Ghost-FTP-0.0.6-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.6-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.6-Linux-Debian-i386.deb
+Ghost-FTP-0.0.6-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.6-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.6-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.6-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.6-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.6-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.6-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.6-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.6-Linux-Portable-i386.tar.gz
+```
+
+Android:
+
+```text
+Ghost-FTP-0.0.6-Android.apk
+```
+
+Browser helper packages:
+
+```text
+Ghost-FTP-0.0.6-Chrome-Extension.zip
+Ghost-FTP-0.0.6-Edge-Extension.zip
+Ghost-FTP-0.0.6-Firefox-Extension.zip
 ```
 
 Verification/metadata:
@@ -76,29 +74,17 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-The Android development APK, macOS development app and browser companion source are independently maintained source/development surfaces and are not part of this public Windows/Linux release allow-list.
+macOS remains a development/source surface and is not included in this public allow-list.
 
-## Exact-head rule
+## Exact-head and immutable-current transaction
 
-Before publication the release workflow is bound to current `main`. The publish step checks `main` again immediately before release creation and before delayed remote asset verification. A moved `main` fails publication rather than claiming stale source.
+Before publication, `release.yml` checks that current `main` still equals the workflow source SHA. It repeats the check before delayed remote readback. A moved `main`, pre-existing tag or pre-existing release fails closed rather than rewriting an existing release identity.
 
-The canonical release branch itself must also equal exact current `main`; an older successful workflow cannot satisfy a new release transaction.
+After a successful release, retention verifies the 21-file asset count and exact tag/main identity, then removes superseded Ghost FTP Releases, tags, canonical release branches and obsolete GHCR package versions. `main` history is never rewritten.
 
-## Immutable-current publication transaction
+## Windows signing gate
 
-The requested `ghostftp-v0.0.5` tag/release must not already exist. The workflow refuses to clobber an existing release identity or rewrite published assets.
-
-After the successor is successfully published and remotely verified, `.github/workflows/release-retention.yml` enforces the policy that **only the latest public Ghost FTP version remains**. It removes superseded Ghost FTP Releases, tags, canonical release branches and obsolete GHCR package versions while retaining current identities. `main` history is not rewritten.
-
-## Windows universal artifact and signing gate
-
-The Windows release job builds only two public universal executables. Verified native **x64, x86 and ARM64** Setup/Portable binaries remain internal staging inputs. No public `-x64.exe`, `-x86.exe`, `-x32.exe` or `-arm64.exe` release aliases are allowed.
-
-The public PE x86 bootstrap detects the native Windows processor through `GetNativeSystemInfo`, selects the matching embedded x64/x86/ARM64 payload, verifies the staged bytes and performs no runtime download. ARM64 therefore extends the internal payload set without increasing the two-file Windows public surface or the overall **14 platform artifacts / 17 public files** release shape.
-
-Official Windows publication requires a protected trusted Authenticode identity. `Publish Ghost FTP` fails when the production PFX or password is unavailable, and it verifies both public executables with `Get-AuthenticodeSignature` before staging them for publication.
-
-A successful public release records:
+Official Windows publication requires the protected trusted Authenticode identity. `Publish Ghost FTP` fails when the production PFX or password is unavailable and verifies both public executables with `Get-AuthenticodeSignature` before publication.
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -109,19 +95,35 @@ WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
 
-`WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` prevents an unsupported claim: CI cross-builds and validates ARM64 PE/resources/package routing/signing mechanics, but current maintained Windows Actions runtime evidence is not native ARM64 execution.
+There is no supported unsigned official-publication continuation path. The workflow does not create a replacement self-signed production publisher identity.
 
-There is no supported unsigned-publication fallback for the official release workflow. Local development and ordinary CI builds may be unsigned, but they are not official public release artifacts.
+## Android production-signing gate
 
-The production workflow never fabricates a self-signed publisher identity. The CI signing smoke test may use a short-lived development certificate only to prove signing mechanics.
+The Android release job builds the unsigned release APK, then requires protected publisher credentials:
 
-## Linux distro and portable parity gate
+```text
+GHOSTFTP_ANDROID_KEYSTORE_BASE64
+GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
+GHOSTFTP_ANDROID_KEY_ALIAS
+GHOSTFTP_ANDROID_KEY_PASSWORD
+GHOSTFTP_ANDROID_SIGNER_SHA256
+```
 
-`linux/BUILD-DISTROS.sh` is the canonical Linux release builder. Architecture mapping is `amd64 ↔ x86_64`, `arm64 ↔ aarch64` and `i386 ↔ i686`. Package metadata and extracted executable bytes are verified before publication. Native install/remove/runtime/GUI coverage is separately maintained on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64.
+It signs `Ghost-FTP-0.0.6-Android.apk` with Android `apksigner`, verifies the APK, extracts the certificate SHA-256 fingerprint and requires it to equal `GHOSTFTP_ANDROID_SIGNER_SHA256`. The workflow does not generate a production Android publisher identity.
+
+Android SFTP remains hidden until strict maintained host-key verification exists. A valid APK signature is not permission to weaken that protocol boundary.
+
+## Browser helper gate
+
+Chrome, Edge and Firefox packages are rebuilt deterministically from the 0.0.6 source manifests. Their release status does not add a supported browser-to-desktop URI/native-messaging handoff, store approval or automatic update service.
+
+## Linux parity gate
+
+`linux/BUILD-DISTROS.sh` remains the canonical Linux release builder. Package metadata and extracted executable bytes are verified before publication. Native install/remove/runtime/GUI coverage is maintained on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64.
 
 ## Artifact allow-list
 
-`BUILD-METADATA.txt` records:
+`BUILD-METADATA.txt` records the canonical shape:
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -134,26 +136,24 @@ LINUX_DEBIAN_DEB=amd64,arm64,i386
 LINUX_UBUNTU_DEB=amd64,arm64,i386
 LINUX_FEDORA_RPM=x86_64,aarch64,i686
 LINUX_PORTABLE=amd64,arm64,i386
-PUBLIC_PLATFORM_ARTIFACTS=14
-PUBLIC_RELEASE_FILES=17
+ANDROID_APK=production-signed
+BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox
+PUBLIC_PLATFORM_ARTIFACTS=18
+PUBLIC_RELEASE_FILES=21
 ```
 
-## Read-back and package verification
+The remote sorted GitHub Release asset set must match the exact 21-file allow-list immediately and after a delay. `Prerelease: false` remains part of the current channel contract.
 
-The remote sorted GitHub Release asset set must match the exact 17-file allow-list immediately and after a delay. For 0.0.5 the workflow requires `prerelease=false`.
-
-The same verified release directory is published as a distribution bundle at:
+The same verified release directory is published as the distribution bundle:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.5
+ghcr.io/bren-wp/ghost-ftp:0.0.6
 ```
 
-It is a distribution bundle, not a runtime container. The exact-version package is verified after push and preserved by retention.
+It is not a supported runtime container.
 
 ## What counts as release evidence
 
-A local build, successful PR workflow or unsigned development executable is not proof of an official release. Release evidence requires the canonical publish workflow, exact source identity, successful signing verification, remote GitHub Release read-back, GHCR read-back and the documented retention chain.
-
-Likewise, a successful Windows x64 runtime/UI capture does not prove native ARM64 execution. Native ARM64 runtime evidence must come from a maintained ARM64 Windows runner/device and must be identified separately if that coverage is added later.
+A local build, PR CI run, debug APK, development certificate or ad-hoc macOS signature is not official publication evidence. Release evidence requires the canonical exact-main workflow, protected Windows/Android signing verification, exact GitHub Release readback, GHCR publication/readback and the successful retention chain.
 
 See [Packages](PACKAGES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [Versioning](VERSIONING.md).
