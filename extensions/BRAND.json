@@ -5,5 +5,5 @@
   "technical_id": "ghostftp-connection-helper",
   "homepage": "https://ghostftp.com",
   "firefox_id": "ghostftp-connection-helper@ghostftp.com",
-  "official_packages": ["chrome", "edge", "firefox"]
+  "official_packages": ["chrome", "edge", "firefox", "opera"]
 }
