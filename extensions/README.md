@@ -31,7 +31,7 @@ The official helper has **no supported browser-to-desktop** custom URI, native-m
 
 - **No telemetry or tracking.**
 - **No remote code.** HTML, CSS, JavaScript and the icon are packaged locally.
-- **Zero browser permissions and zero host permissions.** Official manifests use an empty `permissions` list and define no host permissions.
+- **zero browser permissions and zero host permissions.** Official manifests use an empty `permissions` list and define no host permissions.
 - The extension **does not store** targets, usernames, passwords, history or parsed results.
 - The extension **does not read the active tab**, browsing history, cookies or page content.
 - The extension **does not connect to your FTP, FTPS or SFTP server**.
