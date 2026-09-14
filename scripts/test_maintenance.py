@@ -45,7 +45,10 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertTrue((ROOT / ".github/workflows/android-apk.yml").is_file())
         self.assertTrue((ROOT / "macos").is_dir())
         self.assertTrue((ROOT / ".github/workflows/macos-app.yml").is_file())
-        self.assertTrue((ROOT / "ekstenzije").is_dir())
+        self.assertTrue((ROOT / "extensions").is_dir())
+        self.assertFalse((ROOT / "ekstenzije").exists())
+        for browser in ("chrome", "edge", "firefox", "opera"):
+            self.assertTrue((ROOT / "extensions" / browser / "manifest.json").is_file(), browser)
         self.assertTrue((ROOT / ".github/workflows/browser-extensions.yml").is_file())
         for rel in (
             "ios",
@@ -62,7 +65,12 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertNotIn("runs-on: macos", release)
         self.assertIn("android/", release)
         self.assertIn("build_browser_extensions.py", release)
-        self.assertIn("for browser in chrome edge firefox", release)
+        self.assertIn("for browser in chrome edge firefox opera", release)
+        self.assertIn("for distro in debian ubuntu fedora", release)
+        self.assertIn("public_platform_artifacts=13", release)
+        self.assertIn("public_release_files=16", release)
+        self.assertNotIn(".deb\"", release)
+        self.assertNotIn(".rpm\"", release)
 
     def test_platform_contract_rejects_only_retired_target_reintroduction(self) -> None:
         audit = read("scripts/audit_platform_contract.py")
@@ -70,12 +78,15 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("ANDROID_REQUIRED", audit)
         self.assertIn("MACOS_REQUIRED", audit)
         self.assertIn("BROWSER_REQUIRED", audit)
+        self.assertIn("LINUX_DISTRIBUTION_REQUIRED", audit)
         self.assertIn('fail(f"active {label} source contract is incomplete:', audit)
         self.assertIn("retired application platform/surface is tracked", audit)
+        self.assertIn("retired non-English extension source root is tracked", audit)
         self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER", audit)
         self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS", audit)
         self.assertIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED", audit)
-        self.assertIn("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX", audit)
+        self.assertIn("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA", audit)
+        self.assertIn("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386", audit)
         self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=NO", audit)
         self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS", audit)
 
