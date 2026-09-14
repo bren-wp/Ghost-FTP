@@ -5,7 +5,7 @@
 ### Public Android release
 
 - Promoted Android from development-only packaging to the canonical Ghost FTP 0.0.6 public release through a protected production-signing path.
-- The release workflow requires `GHOSTFTP_ANDROID_KEYSTORE_BASE64`, `GHOSTFTP_ANDROID_KEYSTORE_PASSWORD`, `GHOSTFTP_ANDROID_KEY_ALIAS`, `GHOSTFTP_ANDROID_KEY_PASSWORD` and `GHOSTFTP_ANDROID_SIGNER_SHA256`; publication fails closed if any required value is absent or invalid.
+- The release workflow requires `GHOSTFTP_ANDROID_KEYSTORE_BASE64`, `GHOSTFTP_ANDROID_KEYSTORE_PASSWORD`, `GHOSTFTP_ANDROID_KEY_ALIAS`, `GHOSTFTP_ANDROID_KEY_PASSWORD` and `GHOSTFTP_ANDROID_CERT_SHA256`; publication fails closed if any required value is absent or invalid.
 - The signed `Ghost-FTP-0.0.6-Android.apk` is verified with Android `apksigner` and the signing certificate SHA-256 fingerprint is matched against the protected expected fingerprint before publication.
 - Ordinary CI keeps the explicitly separate `Ghost-FTP-Android-dev.apk` identity and uses only an ephemeral signing identity to exercise the signing pipeline.
 - Android SFTP remains intentionally hidden until strict, maintained host-key verification exists. Public Android signing does not weaken this security boundary.
@@ -17,6 +17,7 @@
 - Navigation bookmarks and profile start directories remain bound to fresh validation, account identity and stale-session protection across maintained desktop surfaces.
 - Added local SAF create-directory, rename and delete controls plus remote FTP/FTPS create-directory, rename, delete and permission changes with fresh server-list readback and destructive confirmations.
 - Hardened remote mutation paths against root aliases, dot-segment traversal, command-control injection and ambiguous mutation completion.
+- Reject malformed MLSD child names containing path separators or ISO control characters before they can become actionable Android remote-entry paths, while preserving valid Unicode filenames.
 - Bound pending connection and transfer lifecycle to the owning Android Activity/session generation and prevented stale callbacks from publishing into replacement state.
 - Redacted authentication/server reply bodies from user-facing credential failure paths and hardened passive FTP response validation.
 - Preserved authentic Android emulator UI evidence in the exact-head cross-platform evidence bundle.
