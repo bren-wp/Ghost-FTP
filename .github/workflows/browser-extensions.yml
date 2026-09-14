@@ -63,34 +63,3 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           path: dist/browser/*.zip
-
-  release-prep-autofix:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'release-prep/ghostftp-v0.0.6'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout release-prep branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: release-prep/ghostftp-v0.0.6
-          fetch-depth: 0
-      - name: Apply and verify non-workflow fixes
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f scripts/release_prep_autofix_006.py
-          python scripts/release_prep_autofix_006.py
-          git diff --check
-          python -m unittest discover -s scripts -p 'test_*.py'
-          git config user.name 'Brendigo'
-          git config user.email 'info@brendigo.com'
-          git add -A
-          git diff --cached --check
-          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
-            echo 'Autofix attempted to mutate a workflow file.' >&2
-            exit 1
-          fi
-          git commit -m 'Fix final 0.0.6 application and documentation drift'
-          git push origin HEAD:release-prep/ghostftp-v0.0.6
