@@ -7,10 +7,16 @@ def ghostFtpVersionParts = ghostFtpVersion.tokenize('.')
 if (ghostFtpVersionParts.size() != 3 || !ghostFtpVersionParts.every { it ==~ /\d+/ }) {
     throw new GradleException("Ghost FTP VERSION must be numeric MAJOR.MINOR.PATCH, got '${ghostFtpVersion}'")
 }
+def ghostFtpVersionMajor = ghostFtpVersionParts[0].toInteger()
+def ghostFtpVersionMinor = ghostFtpVersionParts[1].toInteger()
+def ghostFtpVersionPatch = ghostFtpVersionParts[2].toInteger()
+if (ghostFtpVersionMinor > 999 || ghostFtpVersionPatch > 999) {
+    throw new GradleException("Ghost FTP Android VERSION minor and patch fields must be <= 999: ${ghostFtpVersion}")
+}
 def ghostFtpVersionCode =
-        ghostFtpVersionParts[0].toInteger() * 1000000 +
-        ghostFtpVersionParts[1].toInteger() * 1000 +
-        ghostFtpVersionParts[2].toInteger()
+        ghostFtpVersionMajor * 1000000 +
+        ghostFtpVersionMinor * 1000 +
+        ghostFtpVersionPatch
 if (ghostFtpVersionCode <= 0 || ghostFtpVersionCode > 2100000000) {
     throw new GradleException("Ghost FTP Android versionCode is out of range: ${ghostFtpVersionCode}")
 }
