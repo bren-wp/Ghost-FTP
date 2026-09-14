@@ -13,6 +13,7 @@ COMMIT = "0123456789abcdef0123456789abcdef01234567"
 VERSION = "9.8.7"
 TAG = f"ghostftp-v{VERSION}"
 EXPECTED_FILES = 16
+EXPECTED_ARTIFACTS = 13
 
 
 class ReleaseDigestReadbackTests(unittest.TestCase):
@@ -28,6 +29,7 @@ class ReleaseDigestReadbackTests(unittest.TestCase):
                 f"VERSION={VERSION}",
                 f"RELEASE_TAG={TAG}",
                 f"COMMIT={COMMIT}",
+                f"PUBLIC_PLATFORM_ARTIFACTS={EXPECTED_ARTIFACTS}",
                 f"PUBLIC_RELEASE_FILES={EXPECTED_FILES}",
                 "TELEMETRY=disabled",
                 "",
