@@ -157,8 +157,11 @@ payload_line=$(awk '/^__GHOSTFTP_PAYLOAD_BELOW__$/ { print NR + 1; exit }' "$sel
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 tail -n +"$payload_line" "$self" | gzip -dc | tar -xf - -C "$tmp"
-exec "$tmp/install.sh" "$@"
-exit 70
+set +e
+"$tmp/install.sh" "$@"
+status=$?
+set -e
+exit "$status"
 __GHOSTFTP_PAYLOAD_BELOW__
 SELFEXTRACT
   cat "$archive" >> "$output"
