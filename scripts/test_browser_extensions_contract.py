@@ -10,10 +10,9 @@ import unittest
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EXT_ROOT = ROOT / "ekstenzije"
-MANIFESTS = EXT_ROOT / "manifests"
+EXT_ROOT = ROOT / "extensions"
 SHARED = EXT_ROOT / "shared"
-PACKAGES = ("chrome", "edge", "firefox")
+PACKAGES = ("chrome", "edge", "firefox", "opera")
 OFFICIAL_EXTENSION = "Ghost FTP Connection Helper"
 OFFICIAL_SHORT_NAME = "Ghost FTP"
 OFFICIAL_HOMEPAGE = "https://ghostftp.com"
@@ -25,7 +24,7 @@ def read(path: Path) -> str:
 
 
 def load_manifest(package: str) -> dict:
-    return json.loads(read(MANIFESTS / f"{package}.json"))
+    return json.loads(read(EXT_ROOT / package / "manifest.json"))
 
 
 def load_builder():
@@ -52,6 +51,14 @@ class BrowserExtensionsContractTests(unittest.TestCase):
         for exact in ("OFFICIAL_PRODUCT = \"Ghost FTP\"", f'OFFICIAL_EXTENSION = "{OFFICIAL_EXTENSION}"'):
             self.assertIn(exact, builder)
 
+    def test_source_tree_is_english_and_browser_specific(self) -> None:
+        self.assertFalse((ROOT / "ekstenzije").exists())
+        self.assertFalse((EXT_ROOT / "manifests").exists())
+        for package in PACKAGES:
+            self.assertTrue((EXT_ROOT / package / "manifest.json").is_file(), package)
+        self.assertTrue((SHARED / "core.js").is_file())
+        self.assertTrue((SHARED / "popup.js").is_file())
+
     def test_all_official_manifests_match_root_version_and_brand(self) -> None:
         version = read(ROOT / "VERSION").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
@@ -77,8 +84,8 @@ class BrowserExtensionsContractTests(unittest.TestCase):
                 }
             },
         )
-        self.assertNotIn("browser_specific_settings", load_manifest("chrome"))
-        self.assertNotIn("browser_specific_settings", load_manifest("edge"))
+        for package in ("chrome", "edge", "opera"):
+            self.assertNotIn("browser_specific_settings", load_manifest(package))
 
     def test_manifests_are_permission_minimal(self) -> None:
         forbidden = {
@@ -136,7 +143,7 @@ class BrowserExtensionsContractTests(unittest.TestCase):
         self.assertNotIn("parsed.search", core)
         self.assertNotIn("parsed.hash", core)
 
-    def test_browser_builder_outputs_only_three_official_deterministic_packages(self) -> None:
+    def test_browser_builder_outputs_four_official_deterministic_packages(self) -> None:
         builder = load_builder()
         with tempfile.TemporaryDirectory() as first_tmp, tempfile.TemporaryDirectory() as second_tmp:
             first = Path(first_tmp)
@@ -144,7 +151,7 @@ class BrowserExtensionsContractTests(unittest.TestCase):
             first_paths = builder.build(first)
             second_paths = builder.build(second)
             self.assertEqual([path.name for path in first_paths], [path.name for path in second_paths])
-            self.assertEqual(len(first_paths), 3)
+            self.assertEqual(len(first_paths), 4)
 
             version = read(ROOT / "VERSION").strip()
             expected_names = [f"Ghost-FTP-{version}-{name.capitalize()}-Extension.zip" for name in PACKAGES]
