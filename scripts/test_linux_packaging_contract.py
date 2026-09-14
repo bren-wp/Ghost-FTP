@@ -33,8 +33,20 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertIn("bin/amd64/ghostftp", workflow)
         self.assertIn("bin/arm64/ghostftp", workflow)
         self.assertIn("bin/i386/ghostftp", workflow)
-        self.assertIn("ghostftp-uninstall", workflow)
-        self.assertIn('test "$count" = \'6\'', workflow)
+        self.assertIn("GHOSTFTP_PREFIX", workflow)
+        self.assertIn("find dist -maxdepth 1 -type f -name 'Ghost-FTP-*-Linux-*'", workflow)
+        self.assertIn("= '6'", workflow)
+
+    def test_dedicated_distro_matrix_proves_uninstall_lifecycle(self) -> None:
+        workflow = read(".github/workflows/linux-distro-install.yml")
+        verifier = read("scripts/verify_linux_distro_install.sh")
+        self.assertIn("Debian 13 native amd64 installer lifecycle", workflow)
+        self.assertIn("Ubuntu 26.04 LTS native amd64 installer lifecycle", workflow)
+        self.assertIn("Fedora 44 native x86_64 installer lifecycle", workflow)
+        self.assertIn('"$prefix/bin/ghostftp-uninstall"', verifier)
+        self.assertIn('test ! -e "$prefix/bin/ghostftp"', verifier)
+        self.assertIn('test ! -e "$prefix/bin/ghostftp-uninstall"', verifier)
+        self.assertIn("GHOSTFTP_INSTALLED_GUI_SMOKE=PASS", verifier)
 
     def test_release_workflow_publishes_exact_universal_linux_set(self) -> None:
         workflow = read(".github/workflows/release.yml")
