@@ -56,12 +56,37 @@ cat > "$PAYLOAD/install.sh" <<'INSTALLER'
 #!/usr/bin/env sh
 set -eu
 base_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+for tool in install mkdir dirname uname command; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "Ghost FTP installer: missing required system tool: $tool" >&2; exit 69; }
+done
 case "$(uname -m)" in
   x86_64|amd64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
   i386|i486|i586|i686|x86) arch=i386 ;;
   *) echo "Ghost FTP: unsupported Linux CPU architecture: $(uname -m)" >&2; exit 64 ;;
 esac
+
+missing_runtime=""
+for tool in curl ssh sftp; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    missing_runtime="$missing_runtime $tool"
+  fi
+done
+ca_bundle=""
+for candidate in \
+  /etc/ssl/certs/ca-certificates.crt \
+  /etc/pki/tls/certs/ca-bundle.crt \
+  /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem; do
+  if [ -s "$candidate" ]; then ca_bundle="$candidate"; break; fi
+done
+if [ -n "$missing_runtime" ] || [ -z "$ca_bundle" ]; then
+  echo "Ghost FTP installer: required runtime dependencies are missing." >&2
+  [ -z "$missing_runtime" ] || echo "Missing commands:$missing_runtime" >&2
+  [ -n "$ca_bundle" ] || echo "Missing CA certificate bundle." >&2
+  echo "Debian/Ubuntu: install ca-certificates curl openssh-client" >&2
+  echo "Fedora: install ca-certificates curl openssh-clients" >&2
+  exit 69
+fi
 
 prefix=${GHOSTFTP_PREFIX:-/usr/local}
 bin_dir="$prefix/bin"
@@ -78,7 +103,23 @@ install -m 0644 "$base_dir/ghost-ftp.desktop" "$share_dir/applications/ghost-ftp
 install -m 0644 "$base_dir/ghost-ftp.png" "$share_dir/icons/hicolor/512x512/apps/ghost-ftp.png"
 install -m 0644 "$base_dir/LICENSE" "$share_dir/doc/ghost-ftp/LICENSE"
 install -m 0644 "$base_dir/README.md" "$share_dir/doc/ghost-ftp/README.md"
-printf 'Ghost FTP installed for %s at %s\n' "$arch" "$prefix"
+cat > "$bin_dir/ghostftp-uninstall" <<'UNINSTALL'
+#!/usr/bin/env sh
+set -eu
+prefix=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+bin_dir="$prefix/bin"
+share_dir="$prefix/share"
+rm -f -- "$bin_dir/ghostftp"
+rm -f -- "$share_dir/applications/ghost-ftp.desktop"
+rm -f -- "$share_dir/icons/hicolor/512x512/apps/ghost-ftp.png"
+rm -f -- "$share_dir/doc/ghost-ftp/LICENSE" "$share_dir/doc/ghost-ftp/README.md"
+rmdir -- "$share_dir/doc/ghost-ftp" 2>/dev/null || true
+rm -f -- "$bin_dir/ghostftp-uninstall"
+printf 'Ghost FTP removed from %s. User configuration and server data were not touched.\n' "$prefix"
+UNINSTALL
+chmod 0755 "$bin_dir/ghostftp-uninstall"
+printf 'Ghost FTP installed for %s at %s (CA bundle: %s)\n' "$arch" "$prefix" "$ca_bundle"
+printf 'Uninstall with: %s\n' "$bin_dir/ghostftp-uninstall"
 INSTALLER
 chmod 0755 "$PAYLOAD/install.sh"
 
