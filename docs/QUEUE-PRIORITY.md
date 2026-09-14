@@ -34,7 +34,7 @@ Maintained guarantees:
 - an edge no-op emits no redundant queue event;
 - closed manager, unknown transfer or non-queued transfer is rejected.
 
-Directory-tree structural preparation occurs before file jobs become reorderable, so priority controls cannot move a file ahead of an unexecuted directory-creation queue dependency.
+Directory-tree structural preparation occurs before `reservation.Commit()` makes file jobs reorderable, so priority controls cannot move a file ahead of an unexecuted directory-creation queue dependency.
 
 ## Engine API
 

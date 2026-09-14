@@ -29,7 +29,7 @@ Changing account identity invalidates inherited remote navigation authority.
 
 ## Creating and opening bookmarks
 
-`Engine.SaveLocalBookmark` stores validated local navigation metadata. `Engine.SaveRemoteBookmark` requires a real active connection and captures identity from the authoritative session; saving a bookmark never creates a hidden Site Manager profile.
+`Engine.SaveLocalBookmark` stores validated local navigation metadata. `Engine.SaveRemoteBookmark` requires a real active connection and captures identity from the authoritative session; Saving a bookmark does **not** create a hidden persistent Site Manager profile.
 
 `Engine.NavigateBookmark` never treats a stored path as pre-verified authority. Local navigation performs a fresh listing. Remote navigation requires active-account match, captures connection identity, performs a real fresh remote listing, rechecks connection identity/account after the listing and rejects stale reconnect races before visible state commits.
 
@@ -77,7 +77,7 @@ Windows/Linux remain the maintained desktop implementation surfaces for this fea
 
 ## Regression coverage
 
-The 0.0.6 contract is protected by bookmark/config/profile-binding Go tests, Linux desktop modal/viewport tests, `scripts/test_navigation_bookmarks_contract.py`, and the macOS development parity contract.
+The 0.0.6 contract is protected by bookmark/config/profile-binding Go tests, Linux desktop modal/viewport tests, `scripts/test_navigation_bookmarks_contract.py`, and the macOS development parity contract. Publication additionally requires exact-head CI/native-build/authentic-runtime evidence.
 
 ## 0.0.6 release boundary
 

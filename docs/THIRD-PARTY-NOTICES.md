@@ -36,7 +36,7 @@ Android uses platform networking and Storage Access Framework capabilities. It e
 
 ## Browser connection helper
 
-`ekstenzije/` contains the official Manifest V3 Chrome, Edge and Firefox companion packages. They use browser-provided extension APIs and one local shared JavaScript runtime; they do not bundle an FTP/SFTP networking stack, connect to transfer servers, or provide a supported browser-to-desktop URI/native-messaging handoff today.
+`ekstenzije/` contains the official Manifest V3 Chrome, Edge and Firefox companion packages. They use browser-provided extension APIs and one local shared JavaScript runtime; they do not bundle an FTP/SFTP networking stack or connect to transfer servers. They do not provide a supported browser-to-desktop URI/native-messaging handoff today.
 
 The helper requests no broad host, tab/history, storage, scripting or network permissions. The three deterministic ZIPs are public 0.0.6 companion artifacts while remaining outside the native application protocol runtime.
 

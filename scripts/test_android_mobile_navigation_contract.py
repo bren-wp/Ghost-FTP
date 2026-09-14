@@ -134,8 +134,11 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         about = activity[about_start:about_end]
         self.assertNotIn('infoLine("Version", "0.0.3', about)
         self.assertIn('infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME', about)
-        self.assertIn("Android APK remains development-only", about)
-        self.assertIn("not a public Android release", about)
+        self.assertIn("BuildConfig.DEBUG", about)
+        self.assertIn("development package; not the production-signed public APK", about)
+        self.assertIn("release package; official publication requires verified publisher-signature evidence", about)
+        self.assertNotIn("Android APK remains development-only", about)
+        self.assertIn("not the production-signed public APK", about)
 
     def test_android_docs_describe_the_same_surface_contract(self) -> None:
         readme = self.read(ANDROID_README)

@@ -12,6 +12,9 @@
 
 ### Android parity, privacy and lifecycle hardening
 
+- Preserved the non-destructive current-folder filter over already-loaded entries with no hidden filesystem/network scan.
+- Preserved bounded recursive local/server search as a separate cancellable, deadline-limited workflow rather than conflating it with current-folder filtering.
+- Navigation bookmarks and profile start directories remain bound to fresh validation, account identity and stale-session protection across maintained desktop surfaces.
 - Added local SAF create-directory, rename and delete controls plus remote FTP/FTPS create-directory, rename, delete and permission changes with fresh server-list readback and destructive confirmations.
 - Hardened remote mutation paths against root aliases, dot-segment traversal, command-control injection and ambiguous mutation completion.
 - Bound pending connection and transfer lifecycle to the owning Android Activity/session generation and prevented stale callbacks from publishing into replacement state.

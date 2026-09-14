@@ -61,7 +61,8 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertNotIn("macos/", release)
         self.assertNotIn("runs-on: macos", release)
         self.assertIn("android/", release)
-        self.assertIn("ekstenzije/", release)
+        self.assertIn("build_browser_extensions.py", release)
+        self.assertIn("for browser in chrome edge firefox", release)
 
     def test_platform_contract_rejects_only_retired_target_reintroduction(self) -> None:
         audit = read("scripts/audit_platform_contract.py")

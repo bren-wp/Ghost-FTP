@@ -45,7 +45,7 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
         self.assertIn("BuildConfig.VERSION_NAME", uiux)
         self.assertIn("public Android release", uiux)
         self.assertIn("SFTP", readme)
-        self.assertIn("intentionally hidden", readme)
+        self.assertIn("intentionally not exposed", readme)
 
         self.assertIn(f"Ghost-FTP-${{VERSION}}-Android.apk", release)
         self.assertIn("GHOSTFTP_ANDROID_KEYSTORE_BASE64", release)

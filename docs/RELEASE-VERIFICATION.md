@@ -1,5 +1,7 @@
 # Ghost FTP release verification
 
+The canonical 0.0.6 publication contains **18 platform artifacts / 21 public files**.
+
 The current maintained release is **0.0.6**.
 
 ## Published 0.0.6 release identity
