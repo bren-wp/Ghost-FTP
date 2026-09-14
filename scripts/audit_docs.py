@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate active Ghost FTP documentation against the current published release contract."""
+"""Validate maintained Ghost FTP documentation against the active 0.0.6 contract."""
 
 from __future__ import annotations
 
@@ -9,13 +9,10 @@ from pathlib import Path
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
-INDEX = DOCS / "README.md"
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\n]+)\)")
 MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)\n]+)\)")
 HTML_LINK_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
 HTML_IMAGE_RE = re.compile(r"<img\b[^>]*\bsrc\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
-CURRENT_RELEASE_RE = re.compile(r"\*\*Current Ghost FTP release:\s*(\d+\.\d+\.\d+)\*\*")
 IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 REMOTE_MEDIA_PREFIXES = ("http://", "https://", "data:", "//")
 
@@ -54,6 +51,14 @@ ACTIVE_DOCS = (
     "scripts/README.md",
 )
 
+RELEASE_FACING_DOCS = (
+    "README.md",
+    "docs/README.md",
+    "docs/INSTALLATION.md",
+    "docs/GITHUB-RELEASES.md",
+    "docs/RELEASE-VERIFICATION.md",
+)
+
 CURRENT_VERSION_DOCS = (
     "README.md",
     "docs/README.md",
@@ -79,19 +84,6 @@ VISUAL_ASSETS = (
     "docs/images/ghost-ftp-about.png",
 )
 
-STALE_RELEASE_SHAPES = (
-    "12 platform artifacts / 15 public files",
-    "9 platform artifacts / 12 public files",
-    "6 platform artifacts / 9 public files",
-)
-
-STALE_SIGNING_MARKERS = (
-    "production authenticode is optional",
-    "official file is explicitly `unsigned`",
-    "publication remains truthfully unsigned",
-    "supports windows authenticode signing as an optional production hardening layer",
-)
-
 
 def fail(message: str) -> None:
     raise SystemExit("DOCS_AUDIT_FAILED: " + message)
@@ -104,7 +96,7 @@ def read(relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def require_markers(label: str, text: str, markers: tuple[str, ...]) -> None:
+def require(label: str, text: str, *markers: str) -> None:
     for marker in markers:
         if marker not in text:
             fail(f"{label} missing marker: {marker}")
@@ -143,13 +135,9 @@ def check_media(source: Path, raw: str) -> None:
 
 def main() -> int:
     version = read("VERSION").strip()
-    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-        fail(f"invalid VERSION: {version!r}")
-    if tuple(int(part) for part in version.split(".")) < (0, 0, 1):
-        fail("documentation public version must be 0.0.1 or newer")
+    if version != "0.0.6":
+        fail(f"active documentation contract expects VERSION 0.0.6, got {version!r}")
 
-    if not INDEX.is_file():
-        fail("documentation index is missing")
     for relative in ACTIVE_DOCS:
         read(relative)
 
@@ -163,219 +151,174 @@ def main() -> int:
             check_media(path, match.group(1))
         for match in HTML_IMAGE_RE.finditer(text):
             check_media(path, match.group(1))
-        for match in CURRENT_RELEASE_RE.finditer(text):
-            if match.group(1) != version:
-                fail(f"stale current-release marker in {path.relative_to(ROOT)}: {match.group(1)}")
 
     for relative in VISUAL_ASSETS:
         path = ROOT / relative
         if not path.is_file() or path.stat().st_size <= 0:
             fail(f"missing maintained local documentation visual: {relative}")
 
+    for relative in CURRENT_VERSION_DOCS:
+        if version not in read(relative):
+            fail(f"current-version document does not mention {version}: {relative}")
+
     for relative in ACTIVE_DOCS:
-        lowered = read(relative).lower()
-        for marker in STALE_RELEASE_SHAPES:
-            if marker in lowered:
-                fail(f"stale release shape in {relative}: {marker}")
-        for marker in STALE_SIGNING_MARKERS:
-            if marker in lowered:
-                fail(f"stale signing policy in {relative}: {marker}")
+        text = read(relative)
+        lowered = text.lower()
+        if "0.0.7" in text:
+            fail(f"future 0.0.7 identity leaked into active 0.0.6 documentation: {relative}")
         if "ghostftp web/" in lowered or "ios/" in lowered:
             fail(f"retired application surface appears in active guidance: {relative}")
+        if "ghostftp_android_signer_sha256" in lowered:
+            fail(f"legacy Android signer secret appears in active guidance: {relative}")
 
-    for relative in CURRENT_VERSION_DOCS:
+    for relative in RELEASE_FACING_DOCS:
         text = read(relative)
-        if version not in text:
-            fail(f"current release document does not mention VERSION {version}: {relative}")
+        for stale in (
+            "18 platform artifacts / 21 public files",
+            f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
+            f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
+            f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
+        ):
+            if stale in text:
+                fail(f"stale 0.0.6 release shape in {relative}: {stale}")
 
     readme = read("README.md")
-    index = read("docs/README.md")
     if not readme.startswith("# Ghost FTP\n"):
         fail("README public title must be Ghost FTP")
+    require(
+        "README 0.0.6 identity",
+        readme,
+        "Current source version: **0.0.6**",
+        "Last actually published GitHub Release: **0.0.5**",
+        "13 platform artifacts / 16 public files",
+        "Ghost-FTP-0.0.6-Linux-Debian-Installer.run",
+        "Ghost-FTP-0.0.6-Linux-Fedora-Portable.tar.gz",
+        "Ghost-FTP-0.0.6-Android.apk",
+        "Ghost-FTP-0.0.6-Opera-Extension.zip",
+        "GHOSTFTP_ANDROID_CERT_SHA256",
+        "no supported browser-to-desktop",
+        "Brendigo LTD",
+        "proprietary commercial",
+        "repository-local",
+        "exact final head SHA",
+    )
+
+    index = read("docs/README.md")
     if not index.startswith("# Ghost FTP documentation\n"):
         fail("documentation index title is invalid")
-
-    # Until VERSION is intentionally advanced, these markers describe the
-    # actually published current release. The future 0.0.7 packaging contract
-    # is validated separately by audit_release.py and audit_platform_contract.py.
-    common_release = (
-        "18 platform artifacts / 21 public files",
-        f"Ghost-FTP-{version}-Setup.exe",
-        f"Ghost-FTP-{version}-Portable.exe",
-        f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
-        f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
-        f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
-        f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-        f"Ghost-FTP-{version}-Android.apk",
-    )
-    require_markers("README published-release contract", readme, common_release)
-    require_markers(
-        "README browser contract",
-        readme,
-        (
-            f"Ghost-FTP-{version}-Chrome-Extension.zip",
-            f"Ghost-FTP-{version}-Edge-Extension.zip",
-            f"Ghost-FTP-{version}-Firefox-Extension.zip",
-            "no supported browser-to-desktop",
-        ),
-    )
-    require_markers(
-        "README identity",
-        readme,
-        (
-            f"Current Ghost FTP version: **{version}**",
-            "Development status: **Active**",
-            "Release channel: **Current**",
-            f"ghostftp-v{version}",
-            "prerelease=false",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
-            "Active native source platforms: **Windows, Linux, Android and macOS**",
-            "24 selectable desktop languages",
-            "repository-local",
-            "exact-head",
-        ),
-    )
-    require_markers(
+    require(
         "documentation index",
         index,
-        (
-            f"**Current Ghost FTP release: {version}**",
-            "Development status: **Active**",
-            "Release channel: **Current**",
-            "PRERELEASE=false",
-            "latest release only",
-            "18 platform artifacts / 21 public files",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
-            "repository-local",
-            "read-only verified cross-platform evidence bundle",
-        ),
+        "Current source version: **0.0.6**",
+        "Last actually published GitHub Release: **0.0.5**",
+        "13 platform artifacts / 16 public files",
+        "Chrome, Edge, Firefox and Opera",
+        "proprietary commercial software",
+        "../extensions/README.md",
     )
 
     installation = read("docs/INSTALLATION.md")
-    require_markers(
+    require(
         "installation",
         installation,
-        (
-            f"Ghost FTP **{version}** is the current published release",
-            "18 platform artifacts / 21 public files",
-            f"Ghost-FTP-{version}-Android.apk",
-            "Official Windows publication requires trusted Authenticode.",
-            "WINDOWS_AUTHENTICODE=signed",
-            "SFTP",
-            "macOS development app",
-        ),
+        "Ghost FTP **0.0.6** is the active release candidate",
+        "13 platform artifacts / 16 public files",
+        "Ghost-FTP-0.0.6-Linux-Debian-Installer.run",
+        "Ghost-FTP-0.0.6-Linux-Ubuntu-Portable.tar.gz",
+        "Ghost-FTP-0.0.6-Linux-Fedora-Installer.run",
+        "Ghost-FTP-0.0.6-Opera-Extension.zip",
+        "ghostftp-uninstall",
+        "GHOSTFTP_ANDROID_CERT_SHA256",
+        "SFTP remains intentionally hidden",
     )
 
     releases = read("docs/GITHUB-RELEASES.md")
-    require_markers(
+    require(
         "GitHub release documentation",
         releases,
-        (
-            f"Ghost FTP **{version}** is the current published release contract",
-            f"ghostftp-v{version}",
-            "18 platform artifacts",
-            "21 public files",
-            f"Ghost-FTP-{version}-Android.apk",
-            f"Ghost-FTP-{version}-Firefox-Extension.zip",
-            "Prerelease: false",
-            "release/ghostftp-vX.Y.Z",
-            "does not publish a release directly",
-        ),
+        "Ghost FTP **0.0.6** is the active release candidate",
+        "last actually published GitHub Release is **0.0.5**",
+        "ghostftp-v0.0.6",
+        "13 platform artifacts / 16 public files",
+        "Ghost-FTP-0.0.6-Opera-Extension.zip",
+        "PUBLIC_PLATFORM_ARTIFACTS=13",
+        "PUBLIC_RELEASE_FILES=16",
+        "release/ghostftp-vX.Y.Z",
+        "does not publish a release directly",
     )
 
     verification = read("docs/RELEASE-VERIFICATION.md")
-    require_markers(
+    require(
         "release verification",
         verification,
-        (
-            f"current maintained release is **{version}**",
-            f"## Published {version} release identity",
-            f"VERSION={version}",
-            f"TAG=ghostftp-v{version}",
-            f"TITLE=Ghost FTP {version}",
-            "CHANNEL=Current",
-            "PRERELEASE=false",
-            "PUBLIC_PLATFORM_ARTIFACTS=18",
-            "PUBLIC_RELEASE_FILES=21",
-            f"Ghost-FTP-{version}-Android.apk",
-            "GHOSTFTP_ANDROID_CERT_SHA256",
-            "release/ghostftp-vX.Y.Z",
-            "A push to `main`, including a change to `VERSION`, must never publish a release directly.",
-        ),
+        "Ghost FTP **0.0.6** is the active release candidate",
+        "VERSION=0.0.6",
+        "TAG=ghostftp-v0.0.6",
+        "PUBLIC_PLATFORM_ARTIFACTS=13",
+        "PUBLIC_RELEASE_FILES=16",
+        "Ghost-FTP-0.0.6-Opera-Extension.zip",
+        "GHOSTFTP_ANDROID_CERT_SHA256",
+        "release/ghostftp-vX.Y.Z",
+        "must never publish a release directly",
     )
 
     signing = read("docs/SIGNING.md")
-    require_markers(
+    require(
         "signing documentation",
         signing,
-        (
-            f"Ghost FTP **{version}**",
-            "Official Windows publication is **signed-only**.",
-            "GHOSTFTP_SIGNING_PFX_BASE64",
-            "WINDOWS_AUTHENTICODE=signed",
-            "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
-            "GHOSTFTP_ANDROID_CERT_SHA256",
-            "production workflow never creates its own long-lived publisher key",
-            "Developer ID Application",
-            "macos/SIGN_AND_NOTARIZE.sh",
-        ),
-    )
-
-    android = read("android/README.md")
-    require_markers(
-        "Android documentation",
-        android,
-        (
-            f"Ghost FTP **{version}**",
-            "production-signed public Android release",
-            f"Ghost-FTP-{version}-Android.apk",
-            "Ghost-FTP-Android-dev.apk",
-            "FTP and explicit FTPS",
-            "SFTP is intentionally not exposed",
-            "Storage Access Framework",
-        ),
+        "Ghost FTP **0.0.6**",
+        "Official Windows publication is **signed-only**.",
+        "GHOSTFTP_SIGNING_PFX_BASE64",
+        "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
+        "GHOSTFTP_ANDROID_CERT_SHA256",
+        "Developer ID Application",
     )
 
     browser = read("extensions/README.md")
-    require_markers(
+    require(
         "browser helper documentation",
         browser,
-        (
-            "Google Chrome", "Microsoft Edge", "Mozilla Firefox", "Opera",
-            "no supported browser-to-desktop",
-        ),
+        "Google Chrome",
+        "Microsoft Edge",
+        "Mozilla Firefox",
+        "Opera",
+        "no supported browser-to-desktop",
+        "zero browser permissions and zero host permissions",
+    )
+
+    android = read("android/README.md")
+    require(
+        "Android documentation",
+        android,
+        "Ghost FTP **0.0.6**",
+        "Ghost-FTP-0.0.6-Android.apk",
+        "FTP and explicit FTPS",
+        "SFTP is intentionally not exposed",
+        "Storage Access Framework",
     )
 
     macos = read("macos/README.md")
-    require_markers(
-        "macOS boundary",
-        macos,
-        (
-            "Developer ID Application",
-            "notarization",
-            "development",
-        ),
-    )
+    require("macOS boundary", macos, "Developer ID Application", "notarization", "development")
 
     reference = read("docs/REFERENCE-UI.md")
-    require_markers(
+    require(
         "authentic UI evidence",
         reference,
-        (
-            "Windows — 5 images",
-            "Linux — 3 images",
-            "Android — 7 images",
-            "exactly **15 runtime images**",
-            "Mockups, image-generation output and manually composed approximations are not accepted",
-        ),
+        "Windows — 5 images",
+        "Linux — 3 images",
+        "Android — 7 images",
+        "exactly **15 runtime images**",
+        "Mockups, image-generation output and manually composed approximations are not accepted",
     )
 
-    print(f"DOCS_AUDIT=PASS ({version}; published release 18 platform artifacts / 21 public files; next packaging separately validated)")
+    print(f"DOCS_AUDIT=PASS ({version}; 13 platform artifacts / 16 public files)")
+    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.5")
+    print("NEXT_PUBLIC_RELEASE=0.0.6")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
-    print("ANDROID_PUBLIC_RELEASE=PRODUCTION_SIGNED")
     print("ANDROID_SFTP=HIDDEN_UNTIL_STRICT_HOST_KEY_VERIFICATION")
-    print("BROWSER_DESKTOP_HANDOFF=UNSUPPORTED")
+    print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("MACOS_PUBLIC_RELEASE=NO")
     return 0
 
