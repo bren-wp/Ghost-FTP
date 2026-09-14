@@ -26,8 +26,12 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
             f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
             f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
+            f"Ghost-FTP-{version}-Android.apk",
+            f"Ghost-FTP-{version}-Chrome-Extension.zip",
+            f"Ghost-FTP-{version}-Edge-Extension.zip",
+            f"Ghost-FTP-{version}-Firefox-Extension.zip",
+            "PUBLIC_PLATFORM_ARTIFACTS=18",
+            "PUBLIC_RELEASE_FILES=21",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ]
         for marker in required:
@@ -45,7 +49,9 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
                 f"Ghost-FTP-{version}-Portable.exe",
                 f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
                 f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
-                "14 platform artifacts / 17 public files",
+                f"Ghost-FTP-{version}-Android.apk",
+                f"Ghost-FTP-{version}-Chrome-Extension.zip",
+                "18 platform artifacts / 21 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/README.md": [
@@ -54,7 +60,8 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
                 f"ghostftp-v{version}",
                 f"Ghost-FTP-{version}-Setup.exe",
                 f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
-                "14 platform artifacts / 17 public files",
+                f"Ghost-FTP-{version}-Android.apk",
+                "18 platform artifacts / 21 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/INSTALLATION.md": [
@@ -64,12 +71,13 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
                 f"Ghost-FTP-{version}-Linux-Debian-amd64.deb",
                 f"Ghost-FTP-{version}-Linux-Ubuntu-amd64.deb",
                 f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
-                "14 platform artifacts / 17 public files",
+                f"Ghost-FTP-{version}-Android.apk",
+                "18 platform artifacts / 21 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/PACKAGES.md": [
                 f"Ghost FTP **{version}** publishes a verified **distribution bundle**",
-                "14 platform artifacts / 17 public files",
+                "18 platform artifacts / 21 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
             ],
             "docs/SUPPORT.md": [
@@ -81,8 +89,10 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
                 f"ghostftp-v{version}",
                 f"Ghost-FTP-{version}-Setup.exe",
                 f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
-                "14 platform artifacts",
-                "17 public files",
+                f"Ghost-FTP-{version}-Android.apk",
+                f"Ghost-FTP-{version}-Firefox-Extension.zip",
+                "18 platform artifacts",
+                "21 public files",
                 f"ghcr.io/bren-wp/ghost-ftp:{version}",
                 "Prerelease: false",
             ],
@@ -97,6 +107,18 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             text = self.read(relative)
             self.assertNotIn(f"Ghost-FTP-{version}-Setup-x64.exe", text, relative)
             self.assertNotIn(f"Ghost-FTP-{version}-Setup-x86.exe", text, relative)
+
+    def test_android_and_browser_boundaries_remain_truthful(self):
+        version = self.read("VERSION").strip()
+        readme = self.read("README.md")
+        installation = self.read("docs/INSTALLATION.md")
+        verification = self.read("docs/RELEASE-VERIFICATION.md")
+        for text in (readme, installation, verification):
+            self.assertIn(f"Ghost-FTP-{version}-Android.apk", text)
+            self.assertIn("SFTP", text)
+            self.assertIn("host-key", text.lower())
+        self.assertIn("no supported browser-to-desktop", readme.lower())
+        self.assertIn("GHOSTFTP_ANDROID_SIGNER_SHA256", verification)
 
     def test_current_docs_do_not_revert_to_old_channel_status(self):
         stale = (
