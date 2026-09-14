@@ -7,7 +7,7 @@ cd "$ROOT"
 VERSION="$(tr -d '\r\n' < VERSION)"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid VERSION.' >&2; exit 1; }
 
-for tool in go tar gzip sed; do
+for tool in go tar gzip sed awk tail mktemp; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 
@@ -17,110 +17,151 @@ telemetry="$(go telemetry)"
   exit 1
 }
 
-have_dpkg=0
-if command -v dpkg-deb >/dev/null; then
-  have_dpkg=1
-elif [[ "${GHOSTFTP_REQUIRE_DEB:-0}" == "1" ]]; then
-  echo 'Missing required tool for Debian/Ubuntu package build: dpkg-deb' >&2
-  exit 1
-fi
-
-have_rpm=0
-if command -v rpmbuild >/dev/null && command -v rpm >/dev/null; then
-  have_rpm=1
-elif [[ "${GHOSTFTP_REQUIRE_RPM:-0}" == "1" ]]; then
-  echo 'Missing required tools for Fedora RPM build: rpmbuild and rpm' >&2
-  exit 1
-fi
-
 export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS=linux
 mkdir -p dist
 
-build_fedora_rpm() (
-  set -euo pipefail
-  local binary="$1" rpmarch="$2"
-  local rpm_top rpm_spec rpm_out rpm_built
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+PAYLOAD="$WORK/payload"
+mkdir -p "$PAYLOAD/bin/amd64" "$PAYLOAD/bin/arm64" "$PAYLOAD/bin/i386"
 
-  rpm_top="$(mktemp -d)"
-  trap 'rm -rf "$rpm_top"' EXIT
-
-  rpm_spec="$rpm_top/SPECS/ghost-ftp.spec"
-  mkdir -p "$rpm_top/BUILD" "$rpm_top/BUILDROOT" "$rpm_top/RPMS" "$rpm_top/SOURCES" "$rpm_top/SPECS" "$rpm_top/SRPMS"
-  cp "$binary" "$rpm_top/SOURCES/ghostftp"
-  cp linux/ghost-ftp.desktop "$rpm_top/SOURCES/ghost-ftp.desktop"
-  cp build/icon.png "$rpm_top/SOURCES/ghost-ftp.png"
-  cp LICENSE "$rpm_top/SOURCES/LICENSE"
-  cp linux/README.md "$rpm_top/SOURCES/README.md"
-  sed -e "s/@VERSION@/${VERSION}/g" linux/rpm/ghost-ftp.spec.in > "$rpm_spec"
-
-  rpmbuild --define "_topdir $rpm_top" --target "$rpmarch" -bb "$rpm_spec" >/dev/null
-  rpm_built="$(find "$rpm_top/RPMS" -type f -name '*.rpm' -print -quit)"
-  [[ -n "$rpm_built" && -s "$rpm_built" ]] || { echo "Fedora RPM was not produced for $rpmarch" >&2; exit 1; }
-
-  rpm_out="dist/Ghost-FTP-${VERSION}-Linux-Fedora-${rpmarch}.rpm"
-  rm -f "$rpm_out"
-  cp "$rpm_built" "$rpm_out"
-  test -s "$rpm_out"
-  echo "LINUX_FEDORA_RPM_OK=${rpmarch}:$rpm_out"
-)
-
-build_distro_arch() {
-  local goarch="$1" debarch="$2" rpmarch="$3"
-  local binary="dist/.ghostftp-distro-${debarch}"
-  local portable_name="Ghost-FTP-${VERSION}-Linux-Portable-${debarch}"
-  local portable_root="dist/${portable_name}"
-  local portable_out="dist/${portable_name}.tar.gz"
-
-  rm -rf "$binary" "$portable_root" "$portable_out"
-
-  echo "[Linux ${debarch}] Building shared Ghost FTP binary"
-  GOARCH="$goarch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$binary" ./cmd/ghostftp
-  chmod 0755 "$binary"
-
-  mkdir -p "$portable_root"
-  cp "$binary" "$portable_root/ghostftp"
-  cp linux/ghost-ftp.desktop "$portable_root/ghost-ftp.desktop"
-  cp build/icon.png "$portable_root/ghost-ftp.png"
-  cp LICENSE "$portable_root/LICENSE"
-  cp linux/README.md "$portable_root/README.md"
-  chmod 0755 "$portable_root/ghostftp"
-  chmod 0644 "$portable_root/ghost-ftp.desktop" "$portable_root/ghost-ftp.png" "$portable_root/LICENSE" "$portable_root/README.md"
-
-  tar --sort=name --owner=0 --group=0 --numeric-owner --mtime='UTC 2020-01-01' -C dist -cf - "$portable_name" | gzip -n -9 > "$portable_out"
-  test -s "$portable_out"
-  echo "LINUX_PORTABLE_OK=${debarch}:$portable_out"
-
-  if (( have_dpkg )); then
-    local distro slug deb_root deb_out
-    for distro in Debian Ubuntu; do
-      slug="${distro}"
-      deb_root="dist/linux-${distro,,}-${debarch}-root"
-      deb_out="dist/Ghost-FTP-${VERSION}-Linux-${slug}-${debarch}.deb"
-      rm -rf "$deb_root" "$deb_out"
-      mkdir -p "$deb_root/DEBIAN" "$deb_root/usr/bin" "$deb_root/usr/share/applications" "$deb_root/usr/share/icons/hicolor/512x512/apps"
-      cp "$binary" "$deb_root/usr/bin/ghostftp"
-      cp build/icon.png "$deb_root/usr/share/icons/hicolor/512x512/apps/ghost-ftp.png"
-      cp linux/ghost-ftp.desktop "$deb_root/usr/share/applications/ghost-ftp.desktop"
-      chmod 0755 "$deb_root/usr/bin/ghostftp"
-      chmod 0644 "$deb_root/usr/share/icons/hicolor/512x512/apps/ghost-ftp.png" "$deb_root/usr/share/applications/ghost-ftp.desktop"
-      sed -e "s/@VERSION@/${VERSION}/g" -e "s/@ARCH@/${debarch}/g" linux/debian/control.in > "$deb_root/DEBIAN/control"
-      printf 'X-GhostFTP-Distribution: %s\n' "$distro" >> "$deb_root/DEBIAN/control"
-      dpkg-deb --root-owner-group --build "$deb_root" "$deb_out" >/dev/null
-      test -s "$deb_out"
-      echo "LINUX_${distro^^}_DEB_OK=${debarch}:$deb_out"
-      rm -rf "$deb_root"
-    done
-  fi
-
-  if (( have_rpm )); then
-    build_fedora_rpm "$binary" "$rpmarch"
-  fi
-
-  rm -rf "$binary" "$portable_root"
+build_arch() {
+  local goarch="$1" public_arch="$2"
+  local output="$PAYLOAD/bin/$public_arch/ghostftp"
+  echo "[Linux ${public_arch}] Building Ghost FTP payload"
+  GOARCH="$goarch" go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=${VERSION}" -o "$output" ./cmd/ghostftp
+  chmod 0755 "$output"
+  test -s "$output"
 }
 
-build_distro_arch amd64 amd64 x86_64
-build_distro_arch arm64 arm64 aarch64
-build_distro_arch 386 i386 i686
+build_arch amd64 amd64
+build_arch arm64 arm64
+build_arch 386 i386
 
-echo "Ghost FTP ${VERSION} Linux distro packages built from one verified binary per architecture (telemetry=${telemetry}; deb=${have_dpkg}; rpm=${have_rpm})."
+cat > "$PAYLOAD/ghostftp" <<'LAUNCHER'
+#!/usr/bin/env sh
+set -eu
+base_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+case "$(uname -m)" in
+  x86_64|amd64) arch=amd64 ;;
+  aarch64|arm64) arch=arm64 ;;
+  i386|i486|i586|i686|x86) arch=i386 ;;
+  *) echo "Ghost FTP: unsupported Linux CPU architecture: $(uname -m)" >&2; exit 64 ;;
+esac
+exec "$base_dir/bin/$arch/ghostftp" "$@"
+LAUNCHER
+chmod 0755 "$PAYLOAD/ghostftp"
+
+cat > "$PAYLOAD/install.sh" <<'INSTALLER'
+#!/usr/bin/env sh
+set -eu
+base_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+case "$(uname -m)" in
+  x86_64|amd64) arch=amd64 ;;
+  aarch64|arm64) arch=arm64 ;;
+  i386|i486|i586|i686|x86) arch=i386 ;;
+  *) echo "Ghost FTP: unsupported Linux CPU architecture: $(uname -m)" >&2; exit 64 ;;
+esac
+
+prefix=${GHOSTFTP_PREFIX:-/usr/local}
+bin_dir="$prefix/bin"
+share_dir="$prefix/share"
+
+if [ ! -w "$prefix" ] && [ ! -w "$(dirname -- "$prefix")" ]; then
+  echo "Ghost FTP: $prefix is not writable. Re-run with sudo or set GHOSTFTP_PREFIX to a writable location." >&2
+  exit 77
+fi
+
+mkdir -p "$bin_dir" "$share_dir/applications" "$share_dir/icons/hicolor/512x512/apps" "$share_dir/doc/ghost-ftp"
+install -m 0755 "$base_dir/bin/$arch/ghostftp" "$bin_dir/ghostftp"
+install -m 0644 "$base_dir/ghost-ftp.desktop" "$share_dir/applications/ghost-ftp.desktop"
+install -m 0644 "$base_dir/ghost-ftp.png" "$share_dir/icons/hicolor/512x512/apps/ghost-ftp.png"
+install -m 0644 "$base_dir/LICENSE" "$share_dir/doc/ghost-ftp/LICENSE"
+install -m 0644 "$base_dir/README.md" "$share_dir/doc/ghost-ftp/README.md"
+printf 'Ghost FTP installed for %s at %s\n' "$arch" "$prefix"
+INSTALLER
+chmod 0755 "$PAYLOAD/install.sh"
+
+cp linux/ghost-ftp.desktop "$PAYLOAD/ghost-ftp.desktop"
+cp build/icon.png "$PAYLOAD/ghost-ftp.png"
+cp LICENSE "$PAYLOAD/LICENSE"
+cp linux/README.md "$PAYLOAD/README.md"
+chmod 0644 "$PAYLOAD/ghost-ftp.desktop" "$PAYLOAD/ghost-ftp.png" "$PAYLOAD/LICENSE" "$PAYLOAD/README.md"
+
+make_installer() {
+  local distro="$1"
+  local lower
+  lower="$(printf '%s' "$distro" | tr '[:upper:]' '[:lower:]')"
+  local stage="$WORK/${lower}-installer"
+  local archive="$WORK/${lower}-installer-payload.tar.gz"
+  local output="dist/Ghost-FTP-${VERSION}-Linux-${distro}-Installer.run"
+
+  rm -rf "$stage" "$archive" "$output"
+  mkdir -p "$stage"
+  cp -a "$PAYLOAD/." "$stage/"
+  printf '%s\n' "$distro" > "$stage/DISTRIBUTION"
+  chmod 0644 "$stage/DISTRIBUTION"
+
+  tar --sort=name --owner=0 --group=0 --numeric-owner --mtime='UTC 2020-01-01' -C "$stage" -cf - . | gzip -n -9 > "$archive"
+
+  cat > "$output" <<'SELFEXTRACT'
+#!/usr/bin/env sh
+set -eu
+for tool in awk tail gzip tar mktemp; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "Ghost FTP installer: missing required tool: $tool" >&2; exit 69; }
+done
+self=$0
+payload_line=$(awk '/^__GHOSTFTP_PAYLOAD_BELOW__$/ { print NR + 1; exit }' "$self")
+[ -n "$payload_line" ] || { echo 'Ghost FTP installer: embedded payload marker is missing.' >&2; exit 65; }
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+tail -n +"$payload_line" "$self" | gzip -dc | tar -xf - -C "$tmp"
+exec "$tmp/install.sh" "$@"
+exit 70
+__GHOSTFTP_PAYLOAD_BELOW__
+SELFEXTRACT
+  cat "$archive" >> "$output"
+  chmod 0755 "$output"
+  test -s "$output"
+  echo "LINUX_${distro^^}_UNIVERSAL_INSTALLER=$output"
+}
+
+make_portable() {
+  local distro="$1"
+  local lower
+  lower="$(printf '%s' "$distro" | tr '[:upper:]' '[:lower:]')"
+  local name="Ghost-FTP-${VERSION}-Linux-${distro}-Portable"
+  local stage="$WORK/${lower}-portable/$name"
+  local output="dist/${name}.tar.gz"
+
+  rm -rf "$WORK/${lower}-portable" "$output"
+  mkdir -p "$stage"
+  cp -a "$PAYLOAD/bin" "$stage/bin"
+  cp "$PAYLOAD/ghostftp" "$stage/ghostftp"
+  cp "$PAYLOAD/ghost-ftp.desktop" "$stage/ghost-ftp.desktop"
+  cp "$PAYLOAD/ghost-ftp.png" "$stage/ghost-ftp.png"
+  cp "$PAYLOAD/LICENSE" "$stage/LICENSE"
+  cp "$PAYLOAD/README.md" "$stage/README.md"
+  printf '%s\n' "$distro" > "$stage/DISTRIBUTION"
+  chmod 0755 "$stage/ghostftp" "$stage/bin/amd64/ghostftp" "$stage/bin/arm64/ghostftp" "$stage/bin/i386/ghostftp"
+  chmod 0644 "$stage/ghost-ftp.desktop" "$stage/ghost-ftp.png" "$stage/LICENSE" "$stage/README.md" "$stage/DISTRIBUTION"
+
+  tar --sort=name --owner=0 --group=0 --numeric-owner --mtime='UTC 2020-01-01' -C "$(dirname "$stage")" -cf - "$name" | gzip -n -9 > "$output"
+  test -s "$output"
+  echo "LINUX_${distro^^}_UNIVERSAL_PORTABLE=$output"
+}
+
+for distro in Debian Ubuntu Fedora; do
+  make_installer "$distro"
+  make_portable "$distro"
+done
+
+for forbidden in \
+  "dist/Ghost-FTP-${VERSION}-Linux-Debian-amd64.deb" \
+  "dist/Ghost-FTP-${VERSION}-Linux-Ubuntu-amd64.deb" \
+  "dist/Ghost-FTP-${VERSION}-Linux-Fedora-x86_64.rpm" \
+  "dist/Ghost-FTP-${VERSION}-Linux-Portable-amd64.tar.gz"; do
+  test ! -e "$forbidden"
+done
+
+echo "Ghost FTP ${VERSION} Linux universal distro bundles built with amd64, arm64 and i386 payloads (telemetry=${telemetry})."
