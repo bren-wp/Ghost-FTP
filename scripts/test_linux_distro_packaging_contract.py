@@ -48,8 +48,18 @@ require("unsupported Linux CPU architecture" in BUILD, "unsupported architecture
 require('exec "$base_dir/bin/$arch/ghostftp" "$@"' in BUILD, "portable launcher must dispatch to selected native payload")
 require('install -m 0755 "$base_dir/bin/$arch/ghostftp" "$bin_dir/ghostftp"' in BUILD, "installer must install selected native payload")
 
-for obsolete in ("dpkg-deb", "rpmbuild", ".deb\"", ".rpm\""):
-    require(obsolete not in BUILD, f"obsolete architecture-specific package tooling remains in builder: {obsolete}")
+# The new public builder must not invoke architecture-specific DEB/RPM package
+# tooling. Literal legacy filenames are intentionally retained only as negative
+# assertions proving those retired files are not emitted into dist/.
+for obsolete_tool in ("dpkg-deb", "rpmbuild"):
+    require(obsolete_tool not in BUILD, f"obsolete architecture-specific package tooling remains in builder: {obsolete_tool}")
+for retired_name in (
+    'Ghost-FTP-${VERSION}-Linux-Debian-amd64.deb',
+    'Ghost-FTP-${VERSION}-Linux-Ubuntu-amd64.deb',
+    'Ghost-FTP-${VERSION}-Linux-Fedora-x86_64.rpm',
+    'Ghost-FTP-${VERSION}-Linux-Portable-amd64.tar.gz',
+):
+    require(retired_name in BUILD, f"missing fail-closed retired-artifact assertion: {retired_name}")
 
 require("python scripts/test_linux_distro_packaging_contract.py" in WORKFLOW, "workflow must run contract regression test")
 require("Installer.run" in WORKFLOW, "workflow must verify installer artifacts")
