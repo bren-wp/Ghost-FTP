@@ -25,7 +25,7 @@ Ghost-FTP-0.0.6-Setup.exe
 Ghost-FTP-0.0.6-Portable.exe
 ```
 
-There are no supported public architecture-specific EXE aliases. Both files contain native x64/x86/ARM64 payloads and record:
+There are no supported public architecture-specific EXE aliases. Both files contain native **x64, x86 and ARM64** payloads and record:
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
