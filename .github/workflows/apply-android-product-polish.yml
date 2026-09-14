@@ -24,6 +24,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/tmp_apply_android_product_polish.py')
+          text = p.read_text(encoding='utf-8')
+          needle = "    ('Local folder permission is no longer available.', 'Local folder access is no longer available.'),\n]"
+          replacement = """    ('Local folder permission is no longer available.', 'Local folder access is no longer available.'),
+              ('Storage provider rejected the folder creation.', 'The folder could not be created.'),
+              ('Storage provider changed the requested folder name; creation was rolled back.', 'The folder name could not be verified, so no folder was kept.'),
+              ('Storage provider rejected the rename.', 'The item could not be renamed.'),
+              ('Storage provider changed the requested final name; rename verification failed.', 'The new item name could not be verified.'),
+              ('Storage provider rejected the delete operation.', 'The item could not be deleted.'),
+          ]"""
+          if needle not in text:
+              raise SystemExit('Temporary Android polish script insertion point not found')
+          p.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          PY
           python scripts/tmp_apply_android_product_polish.py
 
       - name: Set up Java 17
