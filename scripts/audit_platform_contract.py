@@ -33,6 +33,7 @@ ANDROID_REQUIRED = {
     "android/app/src/main/java/app/ghostftp/client/FtpSession.java",
     ".github/workflows/android-apk.yml",
     "scripts/test_android_contract.py",
+    "scripts/test_android_release_signing_contract.py",
 }
 MACOS_REQUIRED = {
     "macos/README.md",
@@ -102,13 +103,23 @@ def main() -> int:
     android_workflow = read(".github/workflows/android-apk.yml")
     for marker in (
         "Ghost FTP Android APK",
-        "android/dist/Ghost-FTP-Android.apk",
-        "name: ghostftp-android-apk",
+        "android/dist/Ghost-FTP-Android-dev.apk",
+        "name: ghostftp-android-dev-apk",
         "lintDebug",
+        "lintRelease",
         "packageGhostFtpApk",
+        "assembleRelease",
+        "apksigner",
+        "EPHEMERAL_CI_ONLY",
     ):
         if marker not in android_workflow:
             fail(f"Android development workflow is missing contract marker: {marker}")
+    for forbidden in (
+        "android/dist/Ghost-FTP-Android.apk",
+        "name: ghostftp-android-apk",
+    ):
+        if forbidden in android_workflow:
+            fail(f"Android development workflow contains retired ambiguous artifact marker: {forbidden}")
 
     macos_workflow = read(".github/workflows/macos-app.yml")
     for marker in (
@@ -131,6 +142,8 @@ def main() -> int:
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ANDROID_APK_DEVELOPMENT_SURFACE=ACTIVE")
+    print("ANDROID_RELEASE_BUILD_AND_SIGNING_SMOKE=ACTIVE")
+    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=NO")
     print("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE")
     print("RETIRED_APPLICATION_PLATFORMS=IOS")
     print("RETIRED_APPLICATION_SURFACES=WEB,PWA")
