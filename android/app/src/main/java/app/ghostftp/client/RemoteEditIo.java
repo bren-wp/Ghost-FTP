@@ -22,16 +22,23 @@ final class RemoteEditIo {
             String remotePath,
             String baselineSha256,
             RemoteTextDocument.LineEnding lineEnding,
+            String originalMode,
             String editorText) throws IOException {
         if (session == null || !session.isConnected()) {
             throw new IOException("Remote Edit requires the active server connection.");
         }
         byte[] latest = downloadBounded(session, remotePath);
         RemoteTextDocument.requireUnchanged(latest, baselineSha256);
+        session.requireRemoteModeUnchanged(remotePath, originalMode);
 
         byte[] replacement = RemoteTextDocument.encodeForSave(editorText, lineEnding);
         TransferCommitGate uploadGate = new TransferCommitGate();
-        session.upload(remotePath, new ByteArrayInputStream(replacement), uploadGate);
+        String mode = originalMode == null ? "" : originalMode.trim();
+        if (mode.isEmpty()) {
+            session.upload(remotePath, new ByteArrayInputStream(replacement), uploadGate);
+        } else {
+            session.uploadPreservingMode(remotePath, new ByteArrayInputStream(replacement), uploadGate, mode);
+        }
 
         byte[] readBack = downloadBounded(session, remotePath);
         String expected = RemoteTextDocument.sha256(replacement);
@@ -39,6 +46,7 @@ final class RemoteEditIo {
         if (!expected.equals(actual)) {
             throw new IOException("Remote Edit save could not be verified by read-back; reconnect and inspect the remote file before retrying.");
         }
+        session.requireRemoteModeUnchanged(remotePath, mode);
         return RemoteTextDocument.decode(readBack);
     }
 
