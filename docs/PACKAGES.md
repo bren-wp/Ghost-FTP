@@ -1,71 +1,78 @@
 # Ghost FTP GitHub Packages
 
-Ghost FTP **0.0.5** publishes a verified **distribution bundle** to GitHub Packages alongside the canonical GitHub Release.
+Ghost FTP **0.0.6** publishes a verified **distribution bundle** to GitHub Packages alongside the canonical GitHub Release.
 
 ## Current package reference
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.5
+ghcr.io/bren-wp/ghost-ftp:0.0.6
 ```
 
-The release workflow also maintains semantic-version aliases and `latest`, but the exact `0.0.5` tag is the verification identity for this release transaction.
+The workflow also maintains current semantic aliases and `latest`, while the exact `0.0.6` tag is the verification identity for this release transaction.
 
-The GHCR object is a verified **distribution bundle**, **not a runtime container**. Its payload mirrors the canonical release directory under:
+The GHCR object is a verified **distribution bundle**, **not a runtime container**. Its payload mirrors the canonical release directory under `/ghostftp-release/`.
 
-```text
-/ghostftp-release/
-```
-
-The canonical GitHub Release contains **14 platform artifacts / 17 public files**, including `SHA256.txt`, `BUILD-METADATA.txt` and `RELEASE-NOTES.txt`; the package is built from that same verified release directory.
-
-Android, macOS and browser companion source are independently maintained source/development surfaces and are intentionally not included in this public Windows/Linux release directory or GHCR bundle.
+The canonical GitHub Release contains **18 platform artifacts / 21 public files**: two Windows executables, twelve Linux packages/archives, one production-signed Android APK, three deterministic browser-helper ZIPs and three metadata/verification files.
 
 ## Publication contract
 
-Package publication occurs only after quality, universal Windows and canonical Linux release jobs succeed. The workflow:
+Package publication occurs only after release quality plus Windows, Linux, Android and browser jobs succeed. The workflow:
 
 - binds version/revision labels to root `VERSION` and exact `GITHUB_SHA`;
-- requires the official Windows Setup and Portable artifacts to pass trusted Authenticode verification;
-- requires the Windows bundle metadata to identify the same two public executables as universal x86/x64/ARM64 packages with `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64`;
-- keeps architecture-specific Windows staging executables, including `*-arm64.exe`, out of the public release directory and therefore out of GHCR;
-- publishes the exact semantic version plus current aliases and `latest`;
-- verifies `ghcr.io/bren-wp/ghost-ftp:0.0.5` after push;
-- builds from the same exact 17-file release directory used for GitHub Release publication;
+- requires trusted Authenticode for official Windows Setup/Portable;
+- requires the Android APK to be signed by the protected production publisher and match `GHOSTFTP_ANDROID_SIGNER_SHA256`;
+- verifies the Linux distro/Portable matrix and binary parity;
+- verifies deterministic Chrome/Edge/Firefox helper ZIPs;
+- keeps internal architecture-specific Windows staging executables out of the public directory;
+- publishes exact version plus current aliases and `latest`;
+- verifies `ghcr.io/bren-wp/ghost-ftp:0.0.6` after push;
+- builds only from the same exact 21-file release directory used by GitHub Release publication;
 - never uses the package as a hidden product backend or runtime service.
 
-## Latest-only package retention
+## Current metadata identity
 
-After successful release publication/read-back, `.github/workflows/release-retention.yml` removes obsolete Ghost FTP package versions while preserving the current exact `0.0.5` package identity.
-
-## Integrity
-
-Every public release includes `SHA256.txt`. `BUILD-METADATA.txt` records source commit, version, tag, platform set, universal/native Windows payload contract, Linux distro families and verified Windows signing state.
-
-The current Windows metadata carried inside the verified 17-file bundle includes:
+`BUILD-METADATA.txt` records at least:
 
 ```text
+VERSION=0.0.6
+RELEASE_TAG=ghostftp-v0.0.6
+RELEASE_CHANNEL=current
+ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX,ANDROID
 WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
-WINDOWS_BOOTSTRAP_PE=x86
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
+LINUX_DEBIAN_DEB=amd64,arm64,i386
+LINUX_UBUNTU_DEB=amd64,arm64,i386
+LINUX_FEDORA_RPM=x86_64,aarch64,i686
+LINUX_PORTABLE=amd64,arm64,i386
+ANDROID_APK=production-signed
+ANDROID_SIGNER_SHA256=<verified public certificate fingerprint>
+ANDROID_SFTP=hidden-until-strict-host-key-verification
+BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox
+BROWSER_DESKTOP_HANDOFF=unsupported
+PUBLIC_PLATFORM_ARTIFACTS=18
+PUBLIC_RELEASE_FILES=21
+GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.6
 ```
 
-The ARM64 evidence marker means the package contains release metadata for a cross-built/verified native ARM64 payload but does not pretend that the maintained Windows CI runtime itself executed on ARM64 hardware.
+Production private-key material is never part of this metadata or package payload.
 
-Official Windows publication requires trusted Authenticode. `Publish Ghost FTP` fails when the production signing identity is unavailable or either public Windows executable does not verify successfully. There is no supported unsigned official publication state under the current contract. Local development and ordinary CI Windows artifacts may be unsigned, but they are not copied into an official release/GHCR bundle unless the public signing gate has subsequently produced and verified the signed release artifacts.
+## Integrity
 
-The project never generates a self-signed production identity and presents it as a trusted publisher.
+`SHA256.txt` binds every public file except itself. Release digest readback compares the exact source-workflow bundle with GitHub Release per-asset SHA-256 digests before publication is considered verified.
 
-## Distribution-bundle immutability
+Windows trust and exact-byte integrity are independent: official Windows artifacts need both valid trusted Authenticode and matching SHA-256. Android similarly requires a matching SHA-256 plus the expected production signing-certificate fingerprint.
 
-The package is built only from the already assembled release directory. It does not rebuild Ghost FTP inside the container context, fetch runtime dependencies or mutate platform artifacts after release verification. Version and source-revision labels bind the package to the exact release transaction.
+## Latest-only retention
 
-## Publication boundary
+After successful release publication/readback, `.github/workflows/release-retention.yml` verifies the current release/tag/main identity and 21-file asset set, then removes obsolete Ghost FTP Releases, tags, release branches and obsolete package versions while retaining current `0.0.6` identities. `main` history is not rewritten.
 
-GitHub Packages is distribution infrastructure only. Ghost FTP has no hidden product backend, account service, telemetry endpoint or package-backed runtime dependency.
+## Platform boundaries
 
-The package and GitHub Release use the same current policy: `ghostftp-v0.0.5`, `prerelease=false`, exact 17-file release read-back, signed-only official Windows publication and latest-only retention after successful verification.
+Android public signing does not expose SFTP without strict maintained host-key verification. Browser packages do not add desktop launch/handoff. macOS remains outside the public bundle until real Developer ID signing and Apple notarization succeed.
+
+GitHub Packages remains distribution infrastructure only. Ghost FTP has no hidden product backend, account service, telemetry endpoint or package-backed runtime dependency.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
