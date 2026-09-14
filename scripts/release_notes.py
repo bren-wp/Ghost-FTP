@@ -30,7 +30,7 @@ def build_notes(version: str, section: str) -> str:
 
     return f"""Ghost FTP {version}
 
-Privacy-first FTP, FTPS and SFTP desktop client for Windows and Linux.
+Privacy-first FTP/FTPS/SFTP workspace with public Windows, Linux and Android applications plus privacy-minimal browser helper packages.
 Release channel: Current.
 GitHub prerelease flag: false.
 
@@ -45,8 +45,8 @@ ghostftp-v{version}
 Public platform packages
 ------------------------
 Windows:
-- Ghost-FTP-{version}-Setup.exe — self-contained universal Windows Setup launcher with verified native x64/x86 application payloads.
-- Ghost-FTP-{version}-Portable.exe — self-contained universal Windows Portable launcher with verified native x64/x86 application payloads.
+- Ghost-FTP-{version}-Setup.exe — self-contained universal Windows Setup with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
+- Ghost-FTP-{version}-Portable.exe — self-contained universal Windows Portable with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
 
 Linux / Debian:
 - Ghost-FTP-{version}-Linux-Debian-amd64.deb
@@ -68,6 +68,15 @@ Linux / Portable:
 - Ghost-FTP-{version}-Linux-Portable-arm64.tar.gz
 - Ghost-FTP-{version}-Linux-Portable-i386.tar.gz
 
+Android:
+- Ghost-FTP-{version}-Android.apk — protected production-signed APK. Android SFTP remains hidden until strict maintained host-key verification exists.
+
+Browser helper packages:
+- Ghost-FTP-{version}-Chrome-Extension.zip
+- Ghost-FTP-{version}-Edge-Extension.zip
+- Ghost-FTP-{version}-Firefox-Extension.zip
+- These are local parser/copy helpers and do not provide a supported browser-to-desktop launch/handoff.
+
 GitHub Packages
 ---------------
 - Package: ghcr.io/bren-wp/ghost-ftp:{version}
@@ -80,15 +89,16 @@ Verification files
 ------------------
 - SHA256.txt — SHA-256 checksums for every public release file except SHA256.txt itself.
 - RELEASE-NOTES.txt — these notes generated from CHANGELOG.md.
-- BUILD-METADATA.txt — version, release tag, exact source commit, signing state and distribution metadata.
+- BUILD-METADATA.txt — version, release tag, exact source commit, signing/evidence state and distribution metadata.
 
 Release contract
 ----------------
 - Current Ghost FTP releases are not inferred to be prereleases from semantic-version major zero.
-- 14 platform artifacts.
-- 17 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
-- Public release platforms: Windows and Linux.
-- The Android development APK is independently exact-head verified but remains outside the public Windows/Linux release allow-list.
+- 18 platform artifacts.
+- 21 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
+- Public application platforms: Windows, Linux and Android.
+- Public browser-helper packages: Chrome, Edge and Firefox.
+- macOS remains a separately validated development/source frontend until real Developer ID signing and Apple notarization succeed.
 - Local language catalog: 24 selectable desktop languages with English default/fallback.
 - Application telemetry: disabled.
 - Linux Debian/Ubuntu/Fedora/Portable packages reuse one verified production executable per matching architecture and are byte-parity checked before publication.
@@ -96,7 +106,11 @@ Release contract
 
 Signing and trust
 -----------------
-The workflow never fabricates publisher identities. Production Authenticode signing is optional: when a protected trusted certificate is configured, Windows artifacts are signed and verified; when it is not configured, the release remains explicitly unsigned and BUILD-METADATA.txt records WINDOWS_AUTHENTICODE=unsigned. Never treat a locally generated or self-signed certificate as a trusted public publisher identity. Always verify SHA256.txt and the official GitHub release location before installation or deployment.
+- Official Windows publication is signed-only and requires trusted Authenticode; there is no supported unsigned official-publication continuation.
+- Official Android publication requires the protected production publisher identity and an exact signer-certificate SHA-256 fingerprint match.
+- The production workflow never generates a replacement long-lived Windows or Android publisher identity.
+- Android production signing does not expose SFTP without strict maintained host-key verification.
+- Always verify SHA256.txt and the official GitHub release location before installation or deployment.
 
 Privacy
 -------
