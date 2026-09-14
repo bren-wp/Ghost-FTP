@@ -19,10 +19,9 @@ ANDROID_PROFILE_STORE = (
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 ANDROID_ALLOWED_PERMISSIONS = {"android.permission.INTERNET"}
 
-BROWSER_ROOT = ROOT / "ekstenzije"
-BROWSER_MANIFEST_ROOT = BROWSER_ROOT / "manifests"
+BROWSER_ROOT = ROOT / "extensions"
 BROWSER_RUNTIME_ROOT = BROWSER_ROOT / "shared"
-BROWSER_TARGETS = ("chrome", "edge", "firefox")
+BROWSER_TARGETS = ("chrome", "edge", "firefox", "opera")
 BROWSER_ZERO_PRIVILEGE_KEYS = (
     "permissions",
     "optional_permissions",
@@ -161,7 +160,7 @@ def audit_android() -> None:
 
 def audit_browser_extensions() -> None:
     for target in BROWSER_TARGETS:
-        manifest_path = BROWSER_MANIFEST_ROOT / f"{target}.json"
+        manifest_path = BROWSER_ROOT / target / "manifest.json"
         manifest_text = read_text(manifest_path)
         try:
             manifest = json.loads(manifest_text)
@@ -224,7 +223,7 @@ def main() -> None:
     print("ANDROID_EXTERNAL_APP_DEPENDENCIES=BLOCKED")
     print("ANDROID_FIXED_HTTP_URLS=BLOCKED")
     print("ANDROID_PROFILE_SECRET_PERSISTENCE=BLOCKED")
-    print("BROWSER_EXTENSION_TARGETS=CHROME,EDGE,FIREFOX")
+    print("BROWSER_EXTENSION_TARGETS=CHROME,EDGE,FIREFOX,OPERA")
     print("BROWSER_EXTENSION_RUNTIME=SHARED")
     print("BROWSER_EXTENSION_PERMISSIONS=ZERO")
     print("BROWSER_EXTENSION_FIXED_HTTP_URLS=BLOCKED")
