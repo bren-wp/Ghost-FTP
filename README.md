@@ -55,7 +55,7 @@ A privacy-first desktop and mobile file-transfer workspace for people who want d
 </tr>
 </table>
 
-These are **repository-local** visuals. Release evidence is accepted only from authentic runtime captures bound to an exact source SHA. Generated mockups or image-generation output are not accepted as proof that a platform actually runs. See [Reference UI](docs/REFERENCE-UI.md).
+These are **repository-local** visuals. Release evidence for Windows, Linux and Android is accepted only from authentic runtime captures bound to an **exact-head** source SHA. Generated mockups or image-generation output are not accepted as proof that a platform actually runs. See [Reference UI](docs/REFERENCE-UI.md).
 
 ## Platform status
 
@@ -129,6 +129,8 @@ CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 ```
 
 The verified release directory is additionally packaged as `ghcr.io/bren-wp/ghost-ftp:0.0.6`. That OCI object is a **distribution bundle**, not a supported runtime container.
