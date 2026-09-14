@@ -59,7 +59,7 @@ A privacy-first desktop and mobile file-transfer workspace for people who want d
 </tr>
 </table>
 
-These screenshots are **authentic runtime captures for the 0.0.6 source line**, imported byte-for-byte from the verified `ghostftp-authentic-ui-verified-bundle` produced by workflow run `34863585111` for source SHA `9adace20030a300c39eb320a97482eb50dfdb9d8`. The repository stores the original provenance manifest and SHA-256 allow-list under [`docs/images/0.0.6/`](docs/images/0.0.6/). Generated mockups, image-generation output and manually substituted screenshots are not accepted as runtime evidence. See [Reference UI](docs/REFERENCE-UI.md).
+These **repository-local** screenshots are authentic runtime captures for the 0.0.6 source line, imported byte-for-byte from the verified `ghostftp-authentic-ui-verified-bundle` produced by workflow run `34863585111` for source SHA `9adace20030a300c39eb320a97482eb50dfdb9d8`. The repository stores the original provenance manifest and SHA-256 allow-list under [`docs/images/0.0.6/`](docs/images/0.0.6/). Generated mockups, image-generation output and manually substituted screenshots are not accepted as runtime evidence. See [Reference UI](docs/REFERENCE-UI.md).
 
 ## Platform status
 
