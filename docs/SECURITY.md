@@ -54,7 +54,7 @@ Linux accepts `curl`, `ssh`, `sftp` and `ssh-keyscan` only through trusted root-
 
 ## Windows universal package security
 
-Public Windows output is exactly `Ghost-FTP-0.0.6-Setup.exe` and `Ghost-FTP-0.0.6-Portable.exe`. Each carries internal x64/x86/ARM64 payloads selected locally. Staged payload bytes are verified before execution and no architecture payload is fetched from the network.
+Public Windows output is exactly `Ghost-FTP-0.0.6-Setup.exe` and `Ghost-FTP-0.0.6-Portable.exe`. Each carries internal **x64, x86 and ARM64** payloads selected locally. Staged payload bytes are verified before execution and no architecture payload is fetched from the network.
 
 The release evidence metadata must retain these exact markers:
 
