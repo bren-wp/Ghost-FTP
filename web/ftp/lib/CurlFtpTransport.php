@@ -31,13 +31,29 @@ final class CurlFtpTransport implements Transport
     public function list(string $path): array
     {
         $path = Security::remotePath($path, $this->root);
-        $raw = $this->request($path, ['custom' => 'MLSD', 'return' => true]);
-        $items = $this->parseMlsd((string)$raw);
+        $items = [];
+
+        try {
+            $raw = $this->request($path, ['custom' => 'MLSD', 'return' => true]);
+            $items = $this->parseMlsd((string)$raw);
+        } catch (RuntimeException) {
+            // RFC 3659 MLSD is optional. Fall back to traditional LIST when a
+            // server rejects or does not implement MLSD; LIST errors still
+            // surface normally below.
+        }
+
         if (!$items) {
             $raw = $this->request($path, ['custom' => 'LIST', 'return' => true]);
             $items = $this->parseList((string)$raw);
         }
-        usort($items, static fn(array $a, array $b): int => $a['type'] !== $b['type'] ? ($a['type'] === 'dir' ? -1 : 1) : strnatcasecmp($a['name'], $b['name']));
+
+        usort(
+            $items,
+            static fn(array $a, array $b): int =>
+                $a['type'] !== $b['type']
+                    ? ($a['type'] === 'dir' ? -1 : 1)
+                    : strnatcasecmp($a['name'], $b['name'])
+        );
         return $items;
     }
 
@@ -124,6 +140,46 @@ final class CurlFtpTransport implements Transport
 
     private function parseList(string $raw): array
     {
-        $out=[];foreach(preg_split('/\r?\n/',$raw)?:[] as $line){if(!preg_match('/^([dl-])[rwxstST-]{9}\s+\d+\s+\S+\s+\S+\s+(\d+)\s+\w+\s+\d+\s+[\d:]+\s+(.+)$/',$line,$m))continue;$name=trim($m[3]);if($name===''||$name==='.'||$name==='..')continue;$out[]=['name'=>$name,'type'=>$m[1]==='d'?'dir':'file','size'=>(int)$m[2],'modified'=>null,'permissions'=>''];}return $out;
+        $out = [];
+        foreach (preg_split('/\r?\n/', $raw) ?: [] as $line) {
+            if (preg_match(
+                '/^([dl-])[rwxstST-]{9}\s+\d+\s+\S+\s+\S+\s+(\d+)\s+\w+\s+\d+\s+[\d:]+\s+(.+)$/',
+                $line,
+                $m
+            )) {
+                $name = trim($m[3]);
+                if ($name === '' || $name === '.' || $name === '..') {
+                    continue;
+                }
+                $out[] = [
+                    'name' => $name,
+                    'type' => $m[1] === 'd' ? 'dir' : 'file',
+                    'size' => (int)$m[2],
+                    'modified' => null,
+                    'permissions' => '',
+                ];
+                continue;
+            }
+
+            if (preg_match(
+                '/^(\d{2}-\d{2}-\d{2,4})\s+(\d{1,2}:\d{2})(AM|PM)\s+(<DIR>|\d+)\s+(.+)$/i',
+                trim($line),
+                $m
+            )) {
+                $name = trim($m[5]);
+                if ($name === '' || $name === '.' || $name === '..') {
+                    continue;
+                }
+                $isDir = strcasecmp($m[4], '<DIR>') === 0;
+                $out[] = [
+                    'name' => $name,
+                    'type' => $isDir ? 'dir' : 'file',
+                    'size' => $isDir ? null : (int)$m[4],
+                    'modified' => $m[1] . ' ' . $m[2] . strtoupper($m[3]),
+                    'permissions' => '',
+                ];
+            }
+        }
+        return $out;
     }
 }
