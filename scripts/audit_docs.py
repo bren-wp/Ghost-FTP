@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate active Ghost FTP documentation against the current release contract."""
+"""Validate active Ghost FTP documentation against the current published release contract."""
 
 from __future__ import annotations
 
@@ -49,8 +49,8 @@ ACTIVE_DOCS = (
     "android/TRANSFER-PROGRESS.md",
     "macos/README.md",
     "macos/PARITY.md",
-    "ekstenzije/README.md",
-    "ekstenzije/PRIVACY.md",
+    "extensions/README.md",
+    "extensions/PRIVACY.md",
     "scripts/README.md",
 )
 
@@ -195,6 +195,9 @@ def main() -> int:
     if not index.startswith("# Ghost FTP documentation\n"):
         fail("documentation index title is invalid")
 
+    # Until VERSION is intentionally advanced, these markers describe the
+    # actually published current release. The future 0.0.7 packaging contract
+    # is validated separately by audit_release.py and audit_platform_contract.py.
     common_release = (
         "18 platform artifacts / 21 public files",
         f"Ghost-FTP-{version}-Setup.exe",
@@ -205,7 +208,7 @@ def main() -> int:
         f"Ghost-FTP-{version}-Linux-Portable-amd64.tar.gz",
         f"Ghost-FTP-{version}-Android.apk",
     )
-    require_markers("README release contract", readme, common_release)
+    require_markers("README published-release contract", readme, common_release)
     require_markers(
         "README browser contract",
         readme,
@@ -333,12 +336,12 @@ def main() -> int:
         ),
     )
 
-    browser = read("ekstenzije/README.md")
+    browser = read("extensions/README.md")
     require_markers(
         "browser helper documentation",
         browser,
         (
-            "Chrome", "Microsoft Edge", "Firefox",
+            "Google Chrome", "Microsoft Edge", "Mozilla Firefox", "Opera",
             "no supported browser-to-desktop",
         ),
     )
@@ -367,7 +370,7 @@ def main() -> int:
         ),
     )
 
-    print(f"DOCS_AUDIT=PASS ({version}; 18 platform artifacts / 21 public files)")
+    print(f"DOCS_AUDIT=PASS ({version}; published release 18 platform artifacts / 21 public files; next packaging separately validated)")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ANDROID_PUBLIC_RELEASE=PRODUCTION_SIGNED")
