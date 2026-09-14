@@ -1,5 +1,16 @@
 # Ghost FTP release history
 
+## 0.0.6 — 2026-09-14
+
+Ghost FTP 0.0.6 expands the verified public release to Windows, Linux, Android and official Chrome/Edge/Firefox companion packages while preserving fail-closed transport and signing boundaries.
+
+- Completed Linux modal input/focus hardening and retained shared Windows/Linux Engine behavior.
+- Added Android file management, filtering/sorting, bounded recursive search, directory comparison, synchronized navigation and hardened Remote Edit workflows.
+- Added the protected production-signed Android release path while keeping Android SFTP hidden until strict maintained host-key verification exists.
+- Consolidated official browser helpers onto one shared runtime with enforced Ghost FTP branding, minimal permissions and no supported desktop launch/handoff.
+- Expanded publication to **18 platform artifacts / 21 public files** with exact SHA-256 readback and latest-only retention.
+- Preserved macOS as a separately validated development/source frontend until real Developer ID signing and Apple notarization succeed.
+
 ## 0.0.5 — 2026-09-12
 
 Ghost FTP 0.0.5 focuses on lifecycle reliability, re-entry safety, Android connection ownership, truthful release documentation and optional browser companion source while preserving the established 0.0.4 desktop feature/security baseline.

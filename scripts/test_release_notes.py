@@ -10,61 +10,68 @@ class ReleaseNotesTests(unittest.TestCase):
     def test_extracts_exact_version_section(self) -> None:
         changelog = """# Changelog
 
-## 0.0.5 — Current
+## 0.0.6 — Current
 
 - current change
 
-## 0.0.4 — Previous
+## 0.0.5 — Previous
 
 - previous change
 """
-        section = extract_section(changelog, "0.0.5")
+        section = extract_section(changelog, "0.0.6")
         self.assertIn("current change", section)
         self.assertNotIn("previous change", section)
 
-    def test_current_notes_match_windows_linux_release_contract(self) -> None:
-        notes = build_notes("0.0.5", "- Production stability improvement.")
+    def test_current_notes_match_cross_platform_release_contract(self) -> None:
+        notes = build_notes("0.0.6", "- Production stability improvement.")
         for marker in (
-            "Ghost FTP 0.0.5",
-            "Privacy-first FTP, FTPS and SFTP desktop client for Windows and Linux",
+            "Ghost FTP 0.0.6",
+            "public Windows, Linux and Android applications",
             "Release channel: Current",
             "GitHub prerelease flag: false",
-            "ghostftp-v0.0.5",
-            "Ghost-FTP-0.0.5-Setup.exe",
-            "Ghost-FTP-0.0.5-Portable.exe",
-            "Ghost-FTP-0.0.5-Linux-Debian-amd64.deb",
-            "Ghost-FTP-0.0.5-Linux-Debian-arm64.deb",
-            "Ghost-FTP-0.0.5-Linux-Debian-i386.deb",
-            "Ghost-FTP-0.0.5-Linux-Ubuntu-amd64.deb",
-            "Ghost-FTP-0.0.5-Linux-Fedora-x86_64.rpm",
-            "Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz",
-            "ghcr.io/bren-wp/ghost-ftp:0.0.5",
+            "ghostftp-v0.0.6",
+            "Ghost-FTP-0.0.6-Setup.exe",
+            "Ghost-FTP-0.0.6-Portable.exe",
+            "Ghost-FTP-0.0.6-Linux-Debian-amd64.deb",
+            "Ghost-FTP-0.0.6-Linux-Debian-arm64.deb",
+            "Ghost-FTP-0.0.6-Linux-Debian-i386.deb",
+            "Ghost-FTP-0.0.6-Linux-Ubuntu-amd64.deb",
+            "Ghost-FTP-0.0.6-Linux-Fedora-x86_64.rpm",
+            "Ghost-FTP-0.0.6-Linux-Portable-amd64.tar.gz",
+            "Ghost-FTP-0.0.6-Android.apk",
+            "Ghost-FTP-0.0.6-Chrome-Extension.zip",
+            "Ghost-FTP-0.0.6-Edge-Extension.zip",
+            "Ghost-FTP-0.0.6-Firefox-Extension.zip",
+            "ghcr.io/bren-wp/ghost-ftp:0.0.6",
             "verified OCI distribution bundle, not a runtime container",
             "Current aliases: 0, 0.0, latest",
-            "14 platform artifacts",
-            "17 public release files",
+            "18 platform artifacts",
+            "21 public release files",
             "SHA256.txt",
             "BUILD-METADATA.txt",
-            "Production Authenticode signing is optional",
-            "WINDOWS_AUTHENTICODE=unsigned",
-            "Never treat a locally generated or self-signed certificate as a trusted public publisher identity",
+            "Official Windows publication is signed-only",
+            "protected production publisher identity",
+            "SFTP remains hidden",
             "Application telemetry: disabled",
             "latest-only retention verification",
         ):
             self.assertIn(marker, notes)
 
         for retired in (
-            "Ghost-FTP-0.0.5-Setup-x64.exe",
-            "Ghost-FTP-0.0.5-Setup-x32.exe",
-            "Ghost-FTP-0.0.5-Portable-x64.exe",
-            "Ghost-FTP-0.0.5-Linux-amd64.deb",
-            "Ghost-FTP-0.0.5-Linux-multiarch.zip",
+            "Ghost-FTP-0.0.6-Setup-x64.exe",
+            "Ghost-FTP-0.0.6-Setup-x32.exe",
+            "Ghost-FTP-0.0.6-Portable-x64.exe",
+            "Ghost-FTP-0.0.6-Linux-amd64.deb",
+            "Ghost-FTP-0.0.6-Linux-multiarch.zip",
             "12 platform artifacts",
             "15 public release files",
+            "14 platform artifacts",
+            "17 public release files",
+            "Production Authenticode signing is optional",
+            "WINDOWS_AUTHENTICODE=unsigned",
             "Release channel: Beta prerelease",
             "Release channel: Stable",
             "Stable aliases",
-            "macOS",
             "iOS",
             "Web.zip",
             "NuGet",

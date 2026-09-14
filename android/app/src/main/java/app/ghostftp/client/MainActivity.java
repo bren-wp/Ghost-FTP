@@ -341,7 +341,7 @@ public final class MainActivity extends Activity {
         TextView product = label("Ghost FTP", 20, GhostTheme.TEXT);
         product.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         navigation.addView(product, matchWrap());
-        TextView platform = label("Android development client", 11, GhostTheme.MUTED);
+        TextView platform = label("Android app", 11, GhostTheme.MUTED);
         platform.setPadding(0, dp(2), 0, dp(18));
         navigation.addView(platform, matchWrap());
 
@@ -684,12 +684,12 @@ public final class MainActivity extends Activity {
 
     private View buildAboutSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("About", "Build identity and privacy/security status for this Android development client."));
+        content.addView(surfaceHeading("About", "Build identity and privacy/security status for this Android app."));
         LinearLayout card = card("GHOST FTP", "Private file transfer client for direct connections to servers you control.");
         card.addView(infoLine("Version", BuildConfig.VERSION_NAME), matchWrapSpaced());
         card.addView(infoLine("Package", BuildConfig.APPLICATION_ID), matchWrapSpaced());
         card.addView(infoLine("Protocols", "FTP + strict explicit FTPS on Android source line"), matchWrapSpaced());
-        card.addView(infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME + "; Android APK remains development-only and is not a public Android release"), matchWrapSpaced());
+        card.addView(infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME + (BuildConfig.DEBUG ? "; development package; not the production-signed public APK" : "; release package; official publication requires verified publisher-signature evidence")), matchWrapSpaced());
         card.addView(infoLine("Data collection", "None: no telemetry, analytics, ads or hidden backend"), matchWrapSpaced());
         content.addView(card, cardParams());
         return scrollSurface(content);

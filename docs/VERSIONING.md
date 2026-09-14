@@ -1,8 +1,8 @@
 # Ghost FTP versioning
 
-Ghost FTP uses semantic versioning with the root `VERSION` file as the authoritative production version source.
+Ghost FTP uses semantic versioning with root `VERSION` as the authoritative production version source.
 
-Current source candidate: **0.0.5**.
+Current source candidate: **0.0.6**.
 
 ## Version format
 
@@ -12,99 +12,92 @@ MAJOR.MINOR.PATCH
 
 Production tags use `ghostftp-vMAJOR.MINOR.PATCH`.
 
-The current release identity is:
+Current identity:
 
 ```text
-VERSION=0.0.5
-TAG=ghostftp-v0.0.5
+VERSION=0.0.6
+TAG=ghostftp-v0.0.6
 CHANNEL=Current
 PRERELEASE=false
 ```
 
 ## Public numbering line
 
-The current public numbering started at **0.0.1**. `0.0.0` is reserved and must never be published.
-
-```text
-0.0.1
-0.0.2
-0.0.3
-0.0.4
-0.0.5
-...
-```
-
-Each new release must be based on a fully verified current `main` revision. A release identity is never rewritten in place. For this project, **major version `0` does not imply prerelease**: the 0.0.x line is the current public release line and uses `prerelease=false` unless a future explicit policy change says otherwise.
+The public numbering starts at `0.0.1`; `0.0.0` is reserved and must never be published. The historical `0.0.2` line is retained only as a version-history reference and is not a current publication instruction. For Ghost FTP, **major version `0` does not imply prerelease**. The current 0.0.x line uses `prerelease=false` unless an explicit reviewed policy changes that rule.
 
 ## Platform and version boundaries
 
-The current public release platforms are:
+Current public application platforms:
 
 ```text
-WINDOWS,LINUX
+WINDOWS,LINUX,ANDROID
 ```
 
-The active native source platforms are:
+Public companion packages:
+
+```text
+BROWSER_HELPER=Chrome,Edge,Firefox
+```
+
+Active native source platforms:
 
 ```text
 WINDOWS,LINUX,ANDROID,MACOS
 ```
 
-All active source surfaces remain tied to root `VERSION`, but public-release inclusion is an independent contract. Android and macOS must not become public release artifacts merely because their source version matches 0.0.5; each requires the platform-specific production distribution evidence defined for that platform.
-
-Browser-helper source follows the current repository/product line but is not an application release platform and is not counted in the Windows/Linux public artifact allow-list.
+Android 0.0.6 is public only through the protected production-signing path. Android SFTP remains hidden until strict maintained host-key verification exists. Browser-helper publication does not make it an application platform and does not add desktop launch/handoff. macOS remains a development/source platform until real Developer ID signing + notarization succeeds.
 
 ## Latest-only public release retention
 
-Ghost FTP intentionally keeps only the **latest public version** visible in release infrastructure.
-
-After a newly published release passes immediate/delayed remote read-back verification, `.github/workflows/release-retention.yml` removes superseded Ghost FTP GitHub Releases, `ghostftp-v*` tags, superseded canonical release branches and obsolete container package versions. It retains current identities and never rewrites Git commit history on `main`.
+Ghost FTP intentionally keeps only the **latest public version** visible in release infrastructure. After a new release passes exact remote readback, `.github/workflows/release-retention.yml` removes superseded Ghost FTP Releases, `ghostftp-v*` tags, superseded canonical release branches and obsolete GHCR package versions while retaining current identities. It never rewrites `main` history.
 
 ## Release trigger
 
-A `VERSION` edit or ordinary push to `main` does not publish a release. The canonical release branch namespace is:
+A `VERSION` edit or ordinary push to `main` does not publish a release. Canonical release branches use:
 
 ```text
 release/ghostftp-v<version>
 ```
 
-For 0.0.5:
+For 0.0.6:
 
 ```text
-release/ghostftp-v0.0.5
+release/ghostftp-v0.0.6
 ```
 
-The release-branch trigger accepts that branch only when its semantic version equals root `VERSION` and the branch points to exact current `main`. It then dispatches canonical `release.yml`, waits for the exact publish run to succeed, dispatches retention and waits for exact retention success.
+The branch trigger accepts it only when branch version equals root `VERSION` and branch SHA equals exact current `main`. It dispatches `release.yml`, waits for the exact release run to succeed, then dispatches and waits for retention.
 
 ## Current GitHub Release rule
-
-Publication uses:
 
 ```text
 CHANNEL=Current
 PRERELEASE=false
 ```
 
-The canonical 0.0.5 release contains **14 platform artifacts / 17 public files**: two universal Windows executables, twelve Linux Debian/Ubuntu/Fedora/Portable artifacts and three metadata/verification files.
+The 0.0.6 release contains **18 platform artifacts / 21 public files**:
 
-The verified release directory is also published as:
+- 2 universal Windows executables;
+- 12 canonical Linux Debian/Ubuntu/Fedora/Portable artifacts;
+- 1 production-signed Android APK;
+- 3 deterministic browser-helper ZIPs;
+- 3 metadata/verification files.
 
-```text
-ghcr.io/bren-wp/ghost-ftp:0.0.5
-```
-
-The GHCR object is a distribution bundle, not a supported runtime container.
-
-## Windows packaging identity
+Verified bundle:
 
 ```text
-Ghost-FTP-0.0.5-Setup.exe
-Ghost-FTP-0.0.5-Portable.exe
+ghcr.io/bren-wp/ghost-ftp:0.0.6
 ```
 
-Verified native x64, x86 and ARM64 application/installer payloads remain internal staging artifacts embedded in the universal build. Architecture-specific Windows staging executables must not leak into the public directory, including `*-arm64.exe` aliases.
+The GHCR object is a distribution bundle, not a runtime container.
 
-The current release metadata contract is:
+## Windows packaging/signing identity
+
+```text
+Ghost-FTP-0.0.6-Setup.exe
+Ghost-FTP-0.0.6-Portable.exe
+```
+
+Native x64, x86 and ARM64 staging payloads are internal and embedded in those same two public files. The current metadata contract is:
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -115,84 +108,82 @@ WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
 
-The evidence marker is deliberate: ARM64 is cross-built and verified through PE/resource/package/signing gates, while native Windows ARM64 runtime execution is not claimed without a maintained ARM64 runner/device.
+Windows Authenticode is a **required public-release trust boundary**. **Absence of the production Authenticode identity is a release failure.** No architecture-specific public EXE aliases or unsigned official fallback are allowed.
 
 ## Linux packaging identity
 
-Canonical Linux packaging uses `linux/BUILD-DISTROS.sh` and publishes Debian DEBs for `amd64`, `arm64`, `i386`; Ubuntu DEBs for the same architectures; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and Portable tarballs for `amd64`, `arm64`, `i386`.
+`linux/BUILD-DISTROS.sh` publishes Debian DEBs for `amd64`, `arm64`, `i386`; Ubuntu DEBs for the same architectures; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and Portable tarballs for `amd64`, `arm64`, `i386`.
 
-## Android development identity
+## Android release and development identities
 
-Android source reads root `VERSION`, while the maintained installable APK carries the development identity defined by the Android build contract. The APK is independently verified by Android CI and is not silently included in the public Windows/Linux 17-file release allow-list.
+Public 0.0.6 Android artifact:
 
-A public Android release would require a separate reviewed production signing/publication contract. Development APK success is not proof of such publication.
+```text
+Ghost-FTP-0.0.6-Android.apk
+```
+
+The release `versionName` equals root `VERSION`. Publication requires the protected production keystore/alias/password credentials and an exact signer-certificate fingerprint match against `GHOSTFTP_ANDROID_SIGNER_SHA256`.
+
+Development artifact:
+
+```text
+Ghost-FTP-Android-dev.apk
+```
+
+Debug builds add `-dev` and use a separate development application ID. An ephemeral CI signing identity is only pipeline evidence; it is never the production publisher.
+
+## Browser-helper identity
+
+Public 0.0.6 packages:
+
+```text
+Ghost-FTP-0.0.6-Chrome-Extension.zip
+Ghost-FTP-0.0.6-Edge-Extension.zip
+Ghost-FTP-0.0.6-Firefox-Extension.zip
+```
+
+Browser packages remain local parser/copy helpers with no supported browser-to-desktop URI/native-messaging handoff.
 
 ## macOS development identity
 
-macOS source is likewise bound to root `VERSION`. The maintained macOS workflow builds a universal native development app and validates it against the shared-engine/platform contract.
-
-The development app is ad-hoc signed for native CI/regression use. A public macOS artifact may be described as production-distributable only after the dedicated Developer ID signing/notarization path succeeds with real protected credentials. macOS development build success does not enlarge the current 17-file public Windows/Linux release set.
-
-## Windows signing state
-
-Windows Authenticode is a **required public-release trust boundary**. Public Setup and Portable executables must be signed with the protected trusted production identity, and the signatures must verify successfully before publication can continue.
-
-The canonical public release state is:
-
-```text
-WINDOWS_AUTHENTICODE=signed
-```
-
-**Absence of the production Authenticode identity is a release failure.** Ghost FTP never creates a self-signed production certificate or publishes unsigned Windows binaries as the current public release. Ordinary CI, development and local builds may remain unsigned because they are not public release artifacts.
+macOS source is bound to root `VERSION`. Its universal development app may be ad-hoc signed for CI/regression use. Public macOS distribution can be claimed only after the real Developer ID signing/notarization path succeeds with protected credentials; development success does not enlarge the public 21-file release.
 
 ## Version source integrity
 
-Release/CI validation rejects malformed semantic versions, `0.0.0`, release-branch/source-version mismatch, non-exact-main release branches, conflicting current tags/releases, incomplete release assets, architecture-specific public Windows leakage, absent or failed public Windows signatures, source/main drift, incorrect prerelease flags, missing GHCR exact-version bundle, failed release read-back or failed latest-only retention cleanup.
+Release/CI validation rejects malformed versions, `0.0.0`, release-branch/source mismatch, non-exact-main release branches, conflicting tags/releases, incomplete asset sets, public Windows architecture leakage, absent/failed Windows signatures, absent/failed Android production signing or signer mismatch, source/main drift, incorrect prerelease flags, missing GHCR exact-version bundle, failed remote readback or failed retention cleanup.
 
-The same validation binds the Windows package identity to `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64` and `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`, so version/release documentation cannot silently return to the previous x64/x86-only packaging description while code ships ARM64.
-
-Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the 14/17 packaging contract, active source-platform boundaries and current package identity.
+Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the 18/21 packaging contract, public/source platform boundaries and package identity.
 
 ## Changelog and release notes
 
-`CHANGELOG.md` contains the maintained public release line and includes a `## <VERSION>` section. `scripts/release_notes.py` extracts that section and must describe the same public package names/counts as canonical `release.yml`.
+`CHANGELOG.md` contains a `## <VERSION>` section. `scripts/release_notes.py` extracts the current section and must describe the same release shape and security boundaries as canonical `release.yml`.
 
-Historical version references remain valid inside explicitly historical records. Active product/install/security/release guidance must not silently use an older version as its current contract.
+Historical versions remain valid only as historical records; they are not current publication instructions.
 
-## 0.0.5 release checklist
+## 0.0.6 release checklist
 
 The exact candidate must pass:
 
-- Go formatting, `go test -race ./...` and `go vet ./...`;
-- repository/platform/desktop/dependency/version/localization/security/privacy/documentation/release audits;
-- the complete Python regression suite, including the Windows ARM64 universal-package contract;
-- FTP/FTPS/SFTP trust/no-downgrade and local-path safeguards;
-- Remote Edit size/text/revision/conflict/permission/read-back/metadata and session-lifecycle safeguards;
-- profile persistence and local/remote mutation re-entry contracts;
-- filtering, sorting, recursive search, directory comparison and synchronized-navigation contracts;
-- queue Top/Up/Down/Bottom ordering and connection binding;
-- Windows Add/Retry/Cancel transfer-callback generation ownership;
-- navigation bookmark/profile-start account/session validation;
-- upload/download bandwidth settings, aggregate scheduling and transport enforcement;
-- Windows installer/uninstaller/shortcut ownership checks;
-- Windows native x64/x86/ARM64 staging builds, PE resources, verifier gates, universal bootstrap selection and public two-executable leakage checks;
-- an explicit `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` boundary until maintained native ARM64 execution evidence exists;
-- Linux trusted transport/AskPass provenance checks;
-- Android source contract, lifecycle connection ownership, authentication-error redaction, strict FTPS/parser bounds, JVM tests, lint, installable development APK and APK verification;
-- universal macOS development-app build/validation against the shared source contract;
-- universal Windows Setup and Portable production builds with verified native payloads;
-- trusted Authenticode signing and verification for both public Windows executables;
-- Linux Debian/Ubuntu/Fedora/Portable build, metadata, extraction and binary parity;
-- Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 install/remove/GUI smoke;
-- 24-language desktop localization and authentic Windows/Linux/Android UI evidence;
+- `gofmt`, `go test -race ./...` and `go vet ./...`;
+- repository/platform/desktop/dependency/version/localization/security/privacy/docs/release audits;
+- the full Python regression suite;
+- FTP/FTPS/SFTP trust/no-downgrade and filesystem/transfer safeguards;
+- Windows profile/file-mutation/Remote Edit/transfer-generation lifecycle contracts;
+- queue ordering, filtering/sorting/search/comparison/bookmark/start-directory contracts;
+- Windows x64/x86/ARM64 staging, PE/resources, universal bootstrap and two-public-EXE leakage checks;
+- `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` until maintained native ARM64 execution evidence exists;
+- Linux package metadata/extraction/binary parity plus maintained native distro lifecycle matrix;
+- Android source/security/lifecycle/JVM/lint/debug/release build checks and authentic emulator evidence;
+- protected Android production signing and exact signer SHA-256 verification;
+- deterministic Chrome/Edge/Firefox helper package checks;
+- universal macOS development-app validation without claiming public notarization;
+- 24-language desktop localization and exact-head cross-platform UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
-- exact-main `release/ghostftp-v0.0.5` validation;
-- GitHub Release `ghostftp-v0.0.5` with `prerelease=false` and exact 17-file read-back;
-- GHCR `ghcr.io/bren-wp/ghost-ftp:0.0.5` publication/read-back;
+- exact-main `release/ghostftp-v0.0.6` validation;
+- `ghostftp-v0.0.6`, `prerelease=false`, exact **21-file** GitHub Release readback;
+- `ghcr.io/bren-wp/ghost-ftp:0.0.6` publication/readback;
 - successful latest-only retention cleanup.
-
-macOS production signing/notarization is not silently implied by the current Windows/Linux public-release checklist. If macOS is later promoted into public distribution, that promotion requires explicit successful platform-specific evidence and an intentional release-contract change.
 
 ## Next release
 
-Only after 0.0.5 publication and retention are completely green should root `VERSION` advance again through a separate reviewed release-prep change.
+Only after 0.0.6 publication and retention are completely green may root `VERSION` advance again through a separate reviewed release-prep change.

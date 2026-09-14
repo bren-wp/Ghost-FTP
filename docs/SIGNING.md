@@ -1,25 +1,23 @@
 # Ghost FTP signing
 
-Ghost FTP **0.0.5** separates public-release signing from ordinary development builds. The current public GitHub Release is Windows/Linux only: official Windows publication is Authenticode **signed-only**, while Linux release integrity is enforced through exact-source/package verification and SHA-256 metadata. macOS has a separate fail-closed Developer ID + Apple notarization path for production distribution, but macOS is not part of the current 17-file public release allow-list.
+Ghost FTP **0.0.6** separates production publisher trust from development signing. Official Windows and Android publication both fail closed when their protected production identities are unavailable. Linux relies on exact-source/package/digest verification, and macOS remains outside the public release until its real Developer ID + Apple notarization path succeeds.
 
-Signing policy is deliberately platform-specific. Ghost FTP never fabricates a trusted production identity when a real platform signing credential is unavailable.
+The production workflow never creates its own long-lived publisher key.
 
 ## Windows production publication policy
 
 Official Windows publication is **signed-only**.
 
-The canonical `Publish Ghost FTP` workflow requires both protected production credentials:
+The canonical `Publish Ghost FTP` workflow requires:
 
 ```text
 GHOSTFTP_SIGNING_PFX_BASE64
 GHOSTFTP_SIGNING_PASSWORD
 ```
 
-`GHOSTFTP_SIGNING_TIMESTAMP_URL` is optional and is used only when a production timestamp service is intentionally configured.
+`GHOSTFTP_SIGNING_TIMESTAMP_URL` is used when a production timestamp endpoint is intentionally configured. There is **no supported `state=unsigned` continuation path** for official publication.
 
-If the production PFX or its password is missing, the official release job fails before Windows artifacts can be published. There is no supported `state=unsigned` continuation path for `Publish Ghost FTP`.
-
-A successful official release records:
+A successful release records:
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -30,160 +28,97 @@ WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
 
-in `BUILD-METADATA.txt`.
+The PFX is decoded only into runner temporary storage and removed in an `always()` cleanup path. Private-key material must never be committed, logged, uploaded as an artifact or included in release/GHCR payloads.
 
-## Windows development and ordinary CI builds
+Local/ordinary CI Windows builds may remain unsigned, but they are not official release evidence. The CI signing smoke can create an ephemeral development certificate solely to test signing mechanics; that identity is never accepted by the production workflow.
 
-Local development builds and non-public CI packaging are allowed to remain unsigned. This keeps the build/test path usable without distributing production private-key material to ordinary jobs.
+## Windows build/signing ordering
 
-An unsigned development artifact is **not** an official public Windows release artifact. It must not be represented as publisher-signed or as proof that the production signing identity is configured.
-
-## Windows protected-secret handling
-
-The production workflow reads signing material only from protected GitHub Actions secrets. The PFX is decoded into the runner temporary directory for the signing step and is removed in an `always()` cleanup step.
-
-Private-key material must never be:
-
-- committed to the repository;
-- written into release metadata;
-- uploaded as a workflow artifact;
-- copied into the GHCR distribution bundle;
-- printed to logs or error messages.
-
-The repository stores only the signing integration code and public verification policy, never the production private key.
-
-## Why Ghost FTP does not generate a Windows production key automatically
-
-A self-signed or locally generated certificate can exercise signing mechanics, but it does not establish a publicly trusted Windows publisher identity. Creating one automatically and treating it as production Authenticode would be misleading.
-
-The production workflow never creates its own long-lived publisher key. The separate CI signing smoke test may create a short-lived development certificate only to test the signing pipeline mechanically. That fixture is never a production identity and is never accepted by the public release workflow.
-
-## Windows build and signing ordering
-
-The canonical Windows build has two signing layers because the two public executables embed native application/installer payloads.
-
-First, `BUILD-WINDOWS-ARCH-STAGE.ps1` builds native Setup and Portable staging pairs for:
+`BUILD-WINDOWS-ARCH-STAGE.ps1` creates verified native x64, x86 and ARM64 Setup/Portable staging pairs. `BUILD-WINDOWS.ps1` embeds those payloads into the two public universal files:
 
 ```text
-x64
-x86
-arm64
+Ghost-FTP-0.0.6-Setup.exe
+Ghost-FTP-0.0.6-Portable.exe
 ```
 
-For each architecture, deterministic PE resources are applied before signing. The Portable executable is signed before `scripts/make_payload.py` creates the installer payload, so Setup embeds the same signed client bytes. The native Setup is then finalized, signed and verified. When production signing is configured, ARM64 follows the same protected signing path as x64 and x86.
+The outer executables are signed only after final byte mutation. `Get-AuthenticodeSignature` must report a signer certificate and `Valid` status before publication. `scripts/verify_release.py` independently rejects unsigned official public artifacts.
 
-Second, `BUILD-WINDOWS.ps1` embeds the already verified native x64/x86/ARM64 payloads into the public universal Setup and Portable bootstraps. PE resources are finalized on each public bootstrap and the **outer public executable is signed after its final byte mutation**.
+`WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` remains an explicit boundary: successful cross-build/signature verification is not native Windows ARM64 execution proof.
 
-Release hashes are generated only from final public artifact bytes.
+## Android production signing
 
-Architecture-specific staging executables remain internal. Their signing is part of embedded-payload integrity; they do not become extra public release files.
-
-## Windows verification before publication
-
-For each public Windows artifact, the release job calls the operating-system Authenticode verification API and requires:
-
-- a signer certificate to be present; and
-- signature status `Valid`.
-
-The two public Windows files for 0.0.5 are:
+Ghost FTP 0.0.6 adds a **production-signed public Android release**:
 
 ```text
-Ghost-FTP-0.0.5-Setup.exe
-Ghost-FTP-0.0.5-Portable.exe
+Ghost-FTP-0.0.6-Android.apk
 ```
 
-No public `-x64.exe`, `-x86.exe`, `-x32.exe` or `-arm64.exe` alias is part of the current release.
-
-The publish job also requires `WINDOWS_SIGNING_STATE=signed`. `scripts/verify_release.py` independently rejects unsigned public Setup/Portable artifacts when it runs inside `Publish Ghost FTP`.
-
-This gives the release path two independent signing checks: Windows signature verification during artifact production and fail-closed release verification before publication.
-
-## Windows ARM64 evidence boundary
-
-Signing support is not the same as native runtime evidence. Current CI cross-builds and structurally verifies the ARM64 PE32+ payloads and runs them through the same signing mechanics, but the maintained Windows runner is not ARM64. Therefore the release metadata records:
+The canonical release workflow requires protected secrets:
 
 ```text
-WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+GHOSTFTP_ANDROID_KEYSTORE_BASE64
+GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
+GHOSTFTP_ANDROID_KEY_ALIAS
+GHOSTFTP_ANDROID_KEY_PASSWORD
+GHOSTFTP_ANDROID_SIGNER_SHA256
 ```
 
-Do not reinterpret a successful ARM64 cross-build or valid signature as proof that the binary was executed natively on Windows ARM64 hardware. That claim requires separate maintained ARM64 runtime evidence.
+The keystore is decoded only into runner temporary storage with restricted file permissions. The workflow builds the unsigned release APK, signs it with Android `apksigner`, verifies it with `apksigner verify --verbose --print-certs`, reads the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_SIGNER_SHA256`. The temporary keystore is removed in an `always()` cleanup path.
 
-## Windows end-user verification
+Production Android publication fails closed if:
 
-A downloaded official Windows artifact can be inspected with:
+- any required protected signing value is missing;
+- the decoded keystore is invalid/unexpectedly small;
+- APK signing fails;
+- `apksigner` verification fails;
+- the signer certificate SHA-256 fingerprint cannot be read; or
+- the actual fingerprint does not equal the protected expected fingerprint.
 
-```powershell
-Get-AuthenticodeSignature .\Ghost-FTP-0.0.5-Setup.exe | Format-List
-Get-AuthenticodeSignature .\Ghost-FTP-0.0.5-Portable.exe | Format-List
+The release workflow must not run `keytool -genkeypair` or otherwise generate a replacement Android publisher identity.
+
+### Android development signing
+
+Ordinary exact-head Android CI still builds:
+
+```text
+Ghost-FTP-Android-dev.apk
 ```
 
-For the current public-release contract, an official Windows file is expected to have a valid trusted Authenticode signature. A missing or invalid signature is a release-integrity failure, not an accepted official unsigned state.
+It may use an ephemeral CI-only key to prove the signing pipeline mechanically. That artifact and identity are not the public production APK/publisher.
 
-Users should also verify the matching SHA-256 value from `SHA256.txt` in the same GitHub Release. Authenticode and SHA-256 serve different purposes: publisher trust and exact-byte integrity respectively.
-
-## Windows timestamping
-
-When `GHOSTFTP_SIGNING_TIMESTAMP_URL` is configured, the signing step uses that service according to the Windows build policy. A timestamp endpoint is release infrastructure used by the CI runner; it is not an application telemetry destination and the Ghost FTP client does not contact it at runtime.
-
-## macOS development signing
-
-The maintained macOS development build is a universal Intel + Apple Silicon AppKit application using the shared `internal/api.Engine`. `macos/BUILD.sh` deliberately produces an **ad-hoc signed development artifact** for native build/regression validation.
-
-An ad-hoc development signature is not a Developer ID signature and is not evidence of Apple notarization or public Gatekeeper distribution readiness. The macOS development artifact remains outside the current Windows/Linux **14 platform artifacts / 17 public files** release allow-list.
-
-## macOS production signing and notarization
-
-`macos/SIGN_AND_NOTARIZE.sh` is the fail-closed production-distribution path. It requires a real **Developer ID Application** identity, replaces ad-hoc signatures from nested code outward, enables Hardened Runtime and secure timestamping, validates the resulting signatures, submits the app through Apple notarization, requires acceptance, staples the ticket and performs Gatekeeper assessment before emitting the notarized ZIP.
-
-The reusable local production path accepts Keychain references rather than raw signing material:
-
-```bash
-export MACOS_DEVELOPER_IDENTITY='Developer ID Application: Example Company (TEAMID)'
-export MACOS_NOTARY_KEYCHAIN_PROFILE='ghostftp-notary'
-bash macos/SIGN_AND_NOTARIZE.sh
-```
-
-`.github/workflows/macos-production.yml` is the separate manual environment-gated CI path. Its protected `macos-production` environment supplies the production certificate/notary credentials to an ephemeral Keychain and cleans temporary signing material in an `always()` path.
-
-A missing Developer ID identity or Apple notarization credential is a production-macOS distribution failure. Ghost FTP does **not** generate a self-signed replacement, downgrade the requirement or relabel an ad-hoc development app as a notarized production artifact.
-
-A successful macOS development build alone must never be documented as proof that Developer ID signing or Apple notarization succeeded. Production distribution can be claimed only after the credentialed production path actually completes successfully.
-
-The production macOS workflow deliberately does not mutate the current public GitHub Release. Adding macOS to the public release requires a separate explicit release-contract change; it is not implied by source parity or by availability of the production signing workflow.
+Production signing does not change protocol support. Android SFTP remains intentionally hidden until strict maintained host-key verification exists.
 
 ## Linux release integrity
 
-Linux artifacts do not use Windows Authenticode or Apple Developer ID signing. Their current release integrity is enforced through exact-source build provenance, package metadata checks, binary parity checks, explicit release allow-list verification and `SHA256.txt`.
-
-Canonical Linux package families remain Debian, Ubuntu, Fedora and Portable. Linux is part of the current 17-file Windows/Linux public release contract.
-
-## Android development signing
-
-The Android APK produced by current CI is a development/debug-signed artifact for installation and validation. It is not a production-signed public Android release and is outside the 17-file public release allow-list.
-
-A future public Android release would require a protected production signing key, signature verification and an explicit release-contract expansion. Private Android signing material must never be committed to the repository.
+Linux artifacts do not use Authenticode, Android signing or Apple Developer ID. Integrity is enforced through exact-source build provenance, package metadata, extracted binary parity, the canonical release allow-list and `SHA256.txt`.
 
 ## Browser helper distribution boundary
 
-The browser connection helper is source/development material. Store signing/publication is not part of the current Ghost FTP release contract. Browser-helper source must not be described as a signed store release merely because the source packages can be loaded unpacked for validation.
+The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Their presence in the 0.0.6 GitHub Release does not claim Chrome Web Store/Edge Add-ons/Firefox AMO signing or approval. They remain privacy-minimal local parser/copy helpers with no supported browser-to-desktop handoff.
 
-## Failure policy
+## macOS development signing
 
-The official Windows release fails closed if:
+`macos/BUILD.sh` may produce an ad-hoc signed universal native development artifact. An ad-hoc signature is not a Developer ID signature and is not Apple notarization evidence.
 
-- either required protected signing credential is absent;
-- PFX decoding fails;
-- signing fails for any required native staging payload when production signing is configured;
-- Setup or Portable lacks a signer certificate;
-- Authenticode status is not `Valid`; or
-- the publish job receives any signing state other than `signed`.
+## macOS production signing and notarization
 
-The production macOS distribution path separately fails closed if Developer ID signing, Hardened Runtime verification, notarization, stapling or Gatekeeper verification cannot be completed.
+`macos/SIGN_AND_NOTARIZE.sh` is the separate fail-closed production-distribution path. It requires a real **Developer ID Application** identity, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. `.github/workflows/macos-production.yml` is the environment-gated CI path.
 
-Do not weaken either production policy by adding an unsigned-publication fallback, a self-signed production substitute or a metadata-only claim of signing.
+A successful development build does not prove production distribution readiness. Ghost FTP does not claim macOS publication until that credentialed path actually succeeds. macOS therefore remains outside the 0.0.6 21-file public release.
 
-## Packages
+## Release shape and metadata
 
-The GHCR distribution bundle contains already-built verified public release files. Signing credentials are never part of its build context or payload. Release metadata records the verified public Windows signing state and native payload set but never carries signing key material.
+The 0.0.6 release contains **18 platform artifacts / 21 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
+
+```text
+WINDOWS_AUTHENTICODE=signed
+ANDROID_APK=production-signed
+ANDROID_SIGNER_SHA256=<verified public certificate fingerprint>
+ANDROID_SFTP=hidden-until-strict-host-key-verification
+PUBLIC_PLATFORM_ARTIFACTS=18
+PUBLIC_RELEASE_FILES=21
+```
+
+The GHCR object contains already-built verified release files only. It never contains signing credentials and is a distribution bundle, not a runtime container.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Security](SECURITY.md), [GitHub Releases](GITHUB-RELEASES.md), [Packages](PACKAGES.md), [Versioning](VERSIONING.md) and the [macOS development/distribution contract](../macos/README.md).

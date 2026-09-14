@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed validation of the Ghost FTP Windows/Linux release contract."""
+"""Fail-closed validation of the Ghost FTP cross-platform release contract."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def main() -> int:
         "workflow_dispatch:",
         "contents: write",
         "packages: write",
-        "needs: [quality, windows, linux]",
+        "needs: [quality, windows, linux, android, browser]",
         "test \"$version\" != '0.0.0'",
         "RELEASE_TAG=ghostftp-v$version",
         "release_channel='current'",
@@ -69,14 +69,30 @@ def main() -> int:
         "Require protected Authenticode identity",
         "Official Ghost FTP publication requires GHOSTFTP_SIGNING_PFX_BASE64.",
         "Official Ghost FTP publication requires GHOSTFTP_SIGNING_PASSWORD.",
-        "state=signed",
-        "test \"$WINDOWS_SIGNING_STATE\" = 'signed'",
         "Get-AuthenticodeSignature -FilePath $path",
         "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
+        "Require protected Android production signing identity",
+        "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
+        "GHOSTFTP_ANDROID_KEYSTORE_PASSWORD",
+        "GHOSTFTP_ANDROID_KEY_ALIAS",
+        "GHOSTFTP_ANDROID_KEY_PASSWORD",
+        "GHOSTFTP_ANDROID_SIGNER_SHA256",
+        "apksigner\" sign",
+        "apksigner\" verify --verbose --print-certs",
+        "ANDROID_PRODUCTION_SIGNATURE=PASS",
+        "ANDROID_APK=production-signed",
+        "ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}",
+        "ANDROID_SFTP=hidden-until-strict-host-key-verification",
+        "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox",
+        "BROWSER_DESKTOP_HANDOFF=unsupported",
         "python scripts/audit_platform_contract.py",
         "python scripts/audit_desktop_surface.py",
         "Ghost-FTP-${VERSION}-Portable.exe",
         "Ghost-FTP-${VERSION}-Setup.exe",
+        "Ghost-FTP-${VERSION}-Android.apk",
+        "Ghost-FTP-${VERSION}-Chrome-Extension.zip",
+        "Ghost-FTP-${VERSION}-Edge-Extension.zip",
+        "Ghost-FTP-${VERSION}-Firefox-Extension.zip",
         "Ghost-FTP-${VERSION}-Linux-Debian-amd64.deb",
         "Ghost-FTP-${VERSION}-Linux-Debian-arm64.deb",
         "Ghost-FTP-${VERSION}-Linux-Debian-i386.deb",
@@ -96,6 +112,7 @@ def main() -> int:
         "bash linux/BUILD-DISTROS.sh",
         'cmp "$work/${distro,,}/usr/bin/ghostftp" "$portable_root/ghostftp"',
         'cmp "$work/fedora/usr/bin/ghostftp" "$portable_root/ghostftp"',
+        "python scripts/build_browser_extensions.py",
         "WINDOWS_SETUP=universal-x86-x64-arm64",
         "WINDOWS_PORTABLE=universal-x86-x64-arm64",
         "WINDOWS_BOOTSTRAP_PE=x86",
@@ -104,9 +121,9 @@ def main() -> int:
         "LINUX_UBUNTU_DEB=amd64,arm64,i386",
         "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
         "LINUX_PORTABLE=amd64,arm64,i386",
-        "PUBLIC_PLATFORM_ARTIFACTS=14",
-        "PUBLIC_RELEASE_FILES=17",
-        "test \"$count\" = '17'",
+        "PUBLIC_PLATFORM_ARTIFACTS=18",
+        "PUBLIC_RELEASE_FILES=21",
+        "test \"$count\" = '21'",
         "ghcr.io/${owner}/ghost-ftp",
         "Distribution bundle only; not a supported runtime container.",
         "Publish verified bundle to GitHub Packages",
@@ -118,7 +135,7 @@ def main() -> int:
     lowered = workflow.lower()
     for forbidden in (
         "package_nuget.py", "dotnet nuget", "nuget.pkg.github.com",
-        "package_web.py", "audit_web.py", "android/", "ios/", "macos/", "runs-on: macos",
+        "package_web.py", "audit_web.py", "ios/", "macos/", "runs-on: macos",
         "--prerelease",
         "linux-multiarch.zip",
         "linux-amd64.deb",
@@ -133,6 +150,8 @@ def main() -> int:
         "setup-arm64.exe",
         "state=unsigned",
         "publishing current release with explicitly unsigned windows artifacts",
+        "ghost-ftp-android-dev.apk",
+        "ghost-ftp-android-ci-smoke.apk",
     ):
         if forbidden in lowered:
             fail(f"release workflow contains retired/incompatible publication marker: {forbidden}")
@@ -141,6 +160,8 @@ def main() -> int:
             fail(f"release workflow may rewrite current release assets: {forbidden}")
     if "New-DevCodeSigningCertificate.ps1" in workflow:
         fail("production release workflow must not create a self-signed publisher identity")
+    if "keytool -genkeypair" in workflow:
+        fail("production release workflow must not generate its Android publisher identity")
 
     retention = require(
         ".github/workflows/release-retention.yml",
@@ -152,7 +173,7 @@ def main() -> int:
         "current_tag=\"ghostftp-v${version}\"",
         "test \"$release_draft\" = 'false'",
         "test \"$release_prerelease\" = 'false'",
-        "test \"$asset_count\" -eq 17",
+        "test \"$asset_count\" -eq 21",
         "test \"$tag_sha\" = \"$main_sha\"",
         "gh release delete",
         "--cleanup-tag",
@@ -203,6 +224,17 @@ def main() -> int:
         "GHOSTFTP_REQUIRE_DEB: '1'",
     )
     require(
+        ".github/workflows/android-apk.yml",
+        "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS",
+        "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY",
+        "Ghost-FTP-Android-dev.apk",
+    )
+    require(
+        ".github/workflows/browser-extensions.yml",
+        "Build official Chrome Edge Firefox packages",
+        "Ghost-FTP-${version}-${browser}-Extension.zip",
+    )
+    require(
         "BUILD-WINDOWS.ps1",
         "BUILD-WINDOWS-ARCH-STAGE.ps1",
         "function Build-UniversalBootstrap",
@@ -228,6 +260,14 @@ def main() -> int:
         "require_public_release_signatures(ssigned, psigned)",
         'print("WINDOWS_ARCH=universal-x86-x64-arm64")',
         'print("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64")',
+    )
+    require(
+        "scripts/verify_release_digest_readback.py",
+        "EXPECTED_RELEASE_FILES = 21",
+        'f"Ghost-FTP-{version}-Android.apk"',
+        'f"Ghost-FTP-{version}-Chrome-Extension.zip"',
+        'f"Ghost-FTP-{version}-Edge-Extension.zip"',
+        'f"Ghost-FTP-{version}-Firefox-Extension.zip"',
     )
     require(
         "scripts/pe_resources.py",
@@ -327,9 +367,12 @@ def main() -> int:
     print("PUBLIC_BRAND=Ghost FTP")
     print("TECHNICAL_IDENTITY=GhostFTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
-    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
-    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=NO")
+    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
+    print("ANDROID_SFTP_PUBLIC_SUPPORT=NO_STRICT_HOST_KEY_BOUNDARY")
+    print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX")
+    print("BROWSER_DESKTOP_HANDOFF=UNSUPPORTED")
     print("MACOS_PUBLIC_RELEASE_ARTIFACT=NO")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
@@ -339,10 +382,10 @@ def main() -> int:
     print("AUTHENTICODE_PRIVATE_KEY_IN_REPOSITORY=BLOCKED")
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
     print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
-    print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
+    print("ANDROID_PRODUCTION_SIGNING_IDENTITY=REQUIRED_AND_VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
-    print("PUBLIC_PLATFORM_ARTIFACTS=14")
-    print("PUBLIC_RELEASE_FILES=17")
+    print("PUBLIC_PLATFORM_ARTIFACTS=18")
+    print("PUBLIC_RELEASE_FILES=21")
     print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")
     print("WINDOWS_PORTABLE=UNIVERSAL_X86_X64_ARM64")
     print("WINDOWS_BOOTSTRAP_PE=x86")

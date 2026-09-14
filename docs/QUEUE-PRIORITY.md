@@ -1,23 +1,21 @@
 # Ghost FTP queue priority and reordering
 
-Ghost FTP **0.0.5** includes queue priority/reordering as a maintained Windows/Linux public-desktop capability and as part of the active native macOS development frontend. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or the lifecycle state of running/terminal work.
+Ghost FTP **0.0.6** includes queue priority/reordering as a maintained Windows/Linux desktop capability and as part of the active native macOS development frontend. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or lifecycle state of running/terminal work.
 
 ## User contract
 
-A single selected transfer whose status is `queued` can be moved through four explicit actions:
+A single selected queued transfer can be moved through four explicit actions:
 
-- **Top** — move to the first queued scheduler position;
-- **Move up** — move ahead of the nearest earlier queued transfer;
-- **Move down** — move behind the nearest later queued transfer;
-- **Bottom** — move to the final queued scheduler position.
+- **Top** — first queued scheduler position;
+- **Move up** — ahead of the nearest earlier queued transfer;
+- **Move down** — behind the nearest later queued transfer;
+- **Bottom** — final queued scheduler position.
 
-Running, completed, failed, cancelled and other non-queued jobs are not reorderable. At a queued boundary, Top/Up or Down/Bottom is an idempotent no-op rather than an error-producing state change.
+Running, completed, failed, cancelled and other non-queued jobs are not reorderable. Boundary moves are idempotent no-ops.
 
 ## Scheduler invariants
 
-`internal/transfer/queue_order.go` owns the scheduler mutation. The implementation builds the ordered list of slots currently occupied by `queued` jobs and rotates jobs only through those slots.
-
-For example:
+`internal/transfer/queue_order.go` owns scheduler mutation and rotates jobs only through slots already occupied by queued transfers.
 
 ```text
 before: Q1, RUNNING, Q2, DONE, Q3
@@ -25,28 +23,22 @@ action: Q3 -> Top
 after:  Q3, RUNNING, Q1, DONE, Q2
 ```
 
-The maintained fail-closed guarantees are:
+Maintained guarantees:
 
-- running/terminal jobs keep their exact history slots;
-- the selected queued job keeps the same transfer ID;
-- Top/Bottom preserves the relative order of all other queued jobs;
-- `jobConnections` is not rewritten, so connection-generation/session ownership remains attached to transfer identity;
-- reordering never creates, duplicates, retries, cancels or starts transfer work;
-- one real reorder emits one complete `state` snapshot with the existing paused state;
+- running/terminal jobs keep their history slots;
+- selected queued job keeps the same transfer ID;
+- Top/Bottom preserves relative order of other queued jobs;
+- `jobConnections` is not rewritten, preserving connection/session ownership;
+- reordering never creates, retries, cancels, duplicates or starts work;
+- one real reorder emits one complete state snapshot;
 - an edge no-op emits no redundant queue event;
-- a closed manager, unknown transfer or non-queued transfer is rejected.
+- closed manager, unknown transfer or non-queued transfer is rejected.
 
-Reordering changes scheduler order only. It does not mutate transfer paths, credentials, remote-session identity, conflict policy or transfer state.
-
-## Tree-transfer safety
-
-Directory-tree transfers prepare structural dependencies before their file jobs become runnable. Upload planning ensures required remote directories before the concrete `reservation.Commit()` boundary. Download planning prepares the safe local directory structure before the same queue-commit boundary.
-
-Queue priority operates only on the resulting queued file-transfer jobs. It cannot move a file ahead of an unexecuted directory-creation queue job because those directory preparations are not represented as reorderable transfer jobs in this scheduler.
+Directory-tree structural preparation occurs before `reservation.Commit()` makes file jobs reorderable, so priority controls cannot move a file ahead of an unexecuted directory-creation queue dependency.
 
 ## Engine API
 
-Native desktop frontends use four bounded engine calls:
+All maintained native desktop frontends use the **same typed `internal/api.Engine` operations**:
 
 ```text
 MoveTransferTop(id)
@@ -55,52 +47,42 @@ MoveTransferDown(id)
 MoveTransferBottom(id)
 ```
 
-Each delegates to the transfer manager's queued-only operation. No frontend edits the queue slice directly or implements a second scheduler.
+No frontend edits the queue slice directly or implements a second scheduler.
 
 ## Windows behavior
 
-Windows renders four real owner-drawn controls beside the existing queue toolbar. Enabled state comes from the shared single-selection/queued-only policy. Commands route through the Engine API, and refresh restores selection by transfer ID after the row moves.
-
-The controls use the maintained 24-language local catalog and introduce no network service, telemetry path or hidden persistence layer.
+Windows renders four real controls beside the transfer queue. Enabled state comes from the shared single-selection/queued-only policy. Commands route through the Engine API and refresh restores selection by stable transfer ID.
 
 ## Linux behavior
 
-Linux renders Top, Up, Down and Bottom through the same shared policy. Mouse actions call the same four Engine operations, refresh from `Engine.Transfers()` and restore selection by transfer ID rather than a stale row index.
-
-Running or otherwise non-queued selections expose no active priority action. Layout regression coverage keeps the priority controls clear of the existing queue toolbar/actions.
+Linux exposes Top, Up, Down and Bottom under the same policy. Actions use the same Engine methods and restore selection by transfer ID rather than a stale row index.
 
 ## macOS development behavior
 
-The native AppKit Transfer Queue renders the authoritative shared transfer-manager snapshot and calls the same typed `internal/api.Engine` operations for **Move Top / Move Up / Move Down / Move Bottom**. It preserves selection by stable transfer ID, enables reordering only for one queued job and does not create a Mac-only scheduler or protocol stack.
+The native AppKit Transfer Queue renders the authoritative shared manager snapshot and calls the **same typed `internal/api.Engine` operations** for Move Top / Move Up / Move Down / Move Bottom. It preserves selection by stable transfer ID, enables reordering only for one queued job and **does not create a Mac-only scheduler or protocol stack**.
 
-The macOS development frontend uses the shared transfer byte/progress/speed/ETA state without fabricating unsupported metrics. Retry remains connection-bound, and queue reordering retains the same identity/session invariants as Windows/Linux.
-
-This is source/development parity only. The macOS development app remains outside the current 17-file public Windows/Linux release allow-list and a successful development build is not Developer ID/notarization evidence.
+This is source/development parity. macOS remains a separately validated native development/source frontend and a successful development build is not Developer ID/notarization evidence.
 
 ## Interaction with pause, retry and connection lifecycle
 
-Queue priority does not call the transfer pump as a side effect. Existing pause/resume/cancel/retry behavior remains owned by the transfer manager and action-state layers.
-
-A reorder also does not rewrite `jobConnections`. Existing generation/connection-identity protections remain authoritative, so changing visual scheduler order cannot make stale queued work belong to a later session.
+Queue priority does not call the transfer pump as a side effect and does not rewrite `jobConnections`. Existing pause/resume/cancel/retry behavior and generation/connection-identity protections remain authoritative, so visual scheduler ordering cannot attach stale queued work to a later session.
 
 ## Regression coverage
 
-The 0.0.5 contract is protected by:
+The 0.0.6 queue contract is protected by:
 
-- `internal/transfer/queue_order_test.go` — four-way ordering, non-queued slot preservation, connection binding, edge idempotence, rejection and complete state snapshots;
-- `internal/desktop/queue_priority_test.go` — shared single-selection/queued-only policy and all 24 translations;
-- `internal/desktop/queue_priority_linux_test.go` — Linux layout, queued-only state and ID-based selection restoration;
-- `scripts/test_queue_priority_contract.py` — Engine/API/Windows/Linux wiring plus tree-transfer dependency ordering and current-release documentation binding;
-- `macos/PARITY.md` plus the macOS development-app workflow for AppKit queue source parity.
+- `internal/transfer/queue_order_test.go` for four-way ordering, non-queued slot preservation, connection binding, edge idempotence and state snapshots;
+- `internal/desktop/queue_priority_test.go` for shared queued-only policy and localization;
+- `internal/desktop/queue_priority_linux_test.go` for Linux layout and ID-based selection restoration;
+- `scripts/test_queue_priority_contract.py` for Engine/API/Windows/Linux wiring and tree-transfer dependency ordering;
+- macOS parity tests/workflow for AppKit source parity.
 
-Native Windows/Linux CI builds remain the compile/runtime gate for public desktop frontends. The macOS development workflow separately validates the universal native AppKit source surface. Authentic Windows/Linux/Android runtime evidence remains the current immutable 15-image evidence bundle; macOS development validation is not silently counted in that bundle.
+Authentic Windows/Linux/Android runtime evidence remains the immutable 15-image evidence bundle; macOS development validation is separate and is not silently counted as public notarization evidence.
 
-## 0.0.5 release boundary
+## 0.0.6 release boundary
 
-Root `VERSION` is **0.0.5**. Queue priority is part of the 0.0.5 source/release contract, but this document does not authorize publication by itself.
+Root `VERSION` is **0.0.6**. Queue priority is part of the maintained desktop/source contract; publication still requires exact-head tests/builds, exact post-merge main verification and canonical `ghostftp-v0.0.6` publication/readback/retention.
 
-Publication still requires exact-head tests/builds, Linux packaging/install gates, Android development APK validation, read-only authentic Windows/Linux/Android runtime evidence, review/merge, exact post-merge verification and the canonical `ghostftp-v0.0.5` publication/read-back/retention lifecycle.
-
-Queue priority does not change the public platform allow-list or artifact count: Windows/Linux remain the **14 platform artifacts / 17 public files** release surface. Android remains a separately validated development APK and macOS remains a separately validated native development/source frontend until an explicit public-release expansion succeeds.
+The current public release is **18 platform artifacts / 21 public files**: Windows/Linux desktop packages, a production-signed Android APK, Chrome/Edge/Firefox helper ZIPs and release metadata. Android SFTP remains hidden until strict maintained host-key verification exists; browser packages have no supported desktop launch/handoff; macOS remains a separately validated native development/source frontend.
 
 See [Roadmap](ROADMAP.md), [Testing](TESTING.md), [Architecture](ARCHITECTURE.md), [Platform parity](PLATFORM-PARITY.md) and [`../macos/PARITY.md`](../macos/PARITY.md).
