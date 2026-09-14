@@ -2,144 +2,107 @@
 
 Native Android client source lives entirely under this `android/` directory.
 
-## Current source capability
+## Ghost FTP 0.0.6 release status
 
-- Native Android Java UI with no AndroidX/runtime SDK dependency.
-- Phone layout uses a real left navigation drawer; tablet layouts at sufficient width use the same destinations as a persistent sidebar.
-- The active Android destinations are **Files**, **Sites**, **Bookmarks**, **Transfers**, **Settings** and **About**. Only one workspace is active at a time instead of compressing the desktop UI into one long page.
-- Navigation icons are local Android vector drawables. The runtime UI does not use emoji icons, externally hosted fonts or tracking assets.
-- **Remote Desktop is intentionally not shown on Android** because there is not yet a reviewed Android RDP runtime owner. There is no decorative Coming Soon RDP destination.
-- FTP and explicit FTPS Quick Connect.
-- FTPS uses the platform trust store and strict hostname verification on both control and protected passive data channels. There is no trust-all fallback.
-- FTP remains available for compatibility but is explicitly unencrypted.
-- Local navigation uses Android Storage Access Framework (`ACTION_OPEN_DOCUMENT_TREE`); the app does not request all-files storage access.
-- Remote directory listing uses MLSD over EPSV/PASV.
-- Passive data-channel setup is fail-closed: malformed EPSV/PASV replies, invalid passive ports, TCP data-connect failures and FTPS data-channel TLS failures close the FTP session and require reconnect.
-- Binary upload and download are implemented.
-- Uploads are staged under a random same-directory `.ghostftp-upload-<uuid>.part` name and are committed to the requested remote name only after the FTP server confirms transfer completion and accepts `RNFR`/`RNTO`.
-- Downloads are written to a temporary SAF `.ghostftp-download-<uuid>.part` document and receive the requested final local name only after the FTP transfer is confirmed complete and the storage provider accepts an exact-name commit.
-- An active upload/download can be cancelled from the connection action and from the **Transfers** surface while the transfer is still cancellable.
-- Cancellation and final-name commit are serialized by an explicit transfer commit gate. A cancel that wins before finalization prevents the final remote/local name from being committed; once irreversible finalization has atomically started, the UI changes to **Finalizing…** and no longer claims that cancellation is possible.
-- Cancelling during active data I/O hard-closes both the active data socket and FTP control socket and requires a fresh reconnect before any further server operation.
-- Host, username, protocol, port and the user-granted folder URI may be remembered. Passwords are memory-only and are cleared from the UI after connection.
-- The **Settings** surface only exposes options with a real runtime owner: non-secret Quick Connect metadata persistence and Files-list size display. Security rows are informational and cannot weaken runtime verification.
-- Explicit saved sites store only non-secret connection identity and navigation metadata; Quick Connect never creates a hidden site.
-- A saved site can own a local SAF start folder, a remote start directory, local SAF bookmarks and remote path bookmarks.
-- The **Bookmarks** surface exposes explicit add/remove/open actions for that state; it does not create hidden bookmarks.
-- Changing a saved site's protocol/host/port/username identity clears its remote start directory and remote bookmarks instead of silently carrying server paths to a different endpoint.
-- A saved remote start directory is freshly listed before the connection becomes visible as connected; a stale/unavailable start path fails with an actionable error instead of falling back silently.
-- Opening a remote bookmark performs a fresh server listing before the visible remote path is committed.
-- Local starts/bookmarks are usable only while their persisted SAF read permission still exists and the provider can return a fresh directory listing.
-- Site/bookmark persistence is bounded to 50 sites and 50 bookmarks of each type per site.
-- The **Transfers** surface shows only real transfer lifecycle state. It does not advertise retry/resume/history/queue controls that have no Android runtime owner.
-- No telemetry, analytics, ads, crash-reporting service or Ghost FTP backend is used.
+Ghost FTP **0.0.6** adds a **production-signed public Android release** to the canonical GitHub Release:
 
-See [`UI-UX.md`](UI-UX.md) for the phone navigation drawer, tablet persistent sidebar and per-surface runtime ownership contract.
+```text
+Ghost-FTP-0.0.6-Android.apk
+```
 
-## Android release status
+The repository root `VERSION` remains the canonical release identity. Android release `versionName` equals root `VERSION`; development builds add only the `-dev` suffix and keep the separate package/application-development identity.
 
-Android is an active source-development platform, but the APK produced by CI is **not a production-signed public Android release**. The repository root `VERSION` is the canonical repository release identity, and Android derives its `versionName` from that value with a development suffix so the APK tracks the current source line without implying Android publication.
+Ordinary exact-head CI continues to produce:
 
-The Android build currently produced by CI is a development/debug-signed APK. It is suitable for installation, runtime validation and authentic emulator screenshots, but it must not be described as a production-signed Android public release. A future public Android release requires a protected production signing key and a separate release contract.
+```text
+Ghost-FTP-Android-dev.apk
+```
 
-Published Windows/Linux release history is governed by the repository release workflow and is not retroactively rewritten to include Android. The root repository `VERSION` must not be changed solely to relabel Android development output; release-prep changes own repository release identity.
+That development APK may use an ephemeral CI-only signing identity for pipeline validation. It is not the public production APK and is not accepted as publisher evidence.
 
-## Upload commit safety
+The canonical release workflow requires protected Android signing credentials and verifies the signing certificate SHA-256 fingerprint before publication. Production signing material is never committed to the repository.
 
-Android upload never writes the incoming stream directly to the requested final remote path. Ghost FTP generates a random `.ghostftp-upload-<uuid>.part` object in the same remote directory and sends `STOR` only to that staging path. The requested final path is used only after the data transfer has finished and the server has returned an accepted `226` or `250` completion reply.
+## Current capability
 
-After confirmed transfer completion, Ghost FTP moves the transfer lifecycle into a staged-ready phase. Cancellation and final-name commit then race through one synchronized `TransferCommitGate`: if cancellation wins, `RNFR`/`RNTO` are never started; if finalization wins, later cancel requests are rejected as too late rather than closing the control channel mid-rename and pretending an irreversible operation was rolled back.
+- Native Android Java UI.
+- Phone navigation uses a real left navigation drawer; wide/tablet layouts use the same destinations as a persistent sidebar.
+- Active destinations: **Files**, **Sites**, **Bookmarks**, **Transfers**, **Settings** and **About**.
+- Local vector assets; no remote fonts, tracking assets or emoji-as-navigation icons.
+- **FTP and explicit FTPS Quick Connect**.
+- FTPS uses the platform trust store and strict hostname verification on control and protected passive data channels; there is no trust-all fallback.
+- FTP remains available only as an explicitly unencrypted compatibility choice.
+- Local navigation uses Android **Storage Access Framework** (`ACTION_OPEN_DOCUMENT_TREE`); the app does not request broad all-files storage access.
+- MLSD directory listing over EPSV/PASV with fail-closed passive-data validation.
+- Binary upload/download with staged same-directory/same-provider commit behavior and explicit cancellation ownership.
+- Local SAF create-directory, rename and delete operations.
+- Remote FTP/FTPS create-directory, rename, delete and `SITE CHMOD` operations with path/name validation, confirmation and fresh-list readback.
+- Saved sites/bookmarks persist only non-secret identity/navigation metadata; passwords remain memory-only.
+- No telemetry, analytics, ads, automatic crash-report upload or Ghost FTP relay/backend.
 
-Only after the commit gate grants finalization does Ghost FTP require `RNFR` for the staging object and `RNTO` for the requested final path. There is no silent fallback to direct, non-atomic `STOR` when a server does not support this safe commit sequence. A rejected final rename is reported as an upload failure rather than as success.
-
-If cancellation arrives after the server has cleanly confirmed the staged upload but before finalization starts, the worker keeps the synchronized control channel only long enough to make a best-effort `DELE` of the staging object and then hard-closes the session. If data I/O or a completion reply was interrupted, the control channel is treated as unknown and is hard-closed immediately; in that case a `.part` object can remain on the server and must be treated as an orphan staging file rather than a completed upload.
-
-The staging flow uses the same existing passive-data transport. For FTPS, the staging upload therefore retains platform-trusted certificate validation and strict hostname verification on the protected data channel; it does not introduce a trust downgrade.
-
-## Download commit safety
-
-Android download does not create the requested final local filename before the server has confirmed transfer completion. Before transfer starts, Ghost FTP performs a fresh SAF listing of the selected destination directory and rejects an exact-name conflict rather than asking the storage provider to overwrite or auto-rename an existing object.
-
-The incoming data is written only to a temporary `.ghostftp-download-<uuid>.part` SAF document. `FtpSession.download()` returns only after the remote data stream has finished and the FTP server has returned an accepted `226` or `250` completion reply, so the final local-name commit is not attempted before that protocol confirmation.
-
-Immediately before commit, Ghost FTP performs a second fresh SAF listing and again rejects an exact-name conflict. It then atomically claims the transfer commit gate before calling `DocumentsContract.renameDocument()`. A cancellation that already won causes the staging document to be best-effort deleted and prevents the rename call. Once the commit gate is owned by finalization, the UI disables cancellation and treats the rename/read-back sequence as an irreversible finalization phase.
-
-After rename Ghost FTP reads back `COLUMN_DISPLAY_NAME`. A provider result such as `file (1)` is not treated as a successful download when `file` was requested. If final-name verification fails, Ghost FTP best-effort deletes the unverified result and reports failure.
-
-Any failure before final commit best-effort deletes the staging document. The download is reported as completed only after exact-name read-back succeeds. Generation ownership is also checked before a worker can publish completion, so a stale worker from a cancelled/destroyed transfer cannot clear or overwrite the state of a newer transfer.
-
-All local download work remains inside the user-granted Storage Access Framework tree. No broad or all-files storage permission is introduced.
-
-## Active transfer cancellation
-
-Cancellation is deliberately fail-closed and phase-aware. The FTP data-transfer methods hold the session's protocol lock while transfer commands are active, so the UI does not wait on that monitor to send `ABOR` or graceful `QUIT`. During active data I/O, `cancelActiveTransfer()` remains non-synchronized and closes the passive-data and control sockets directly, interrupting blocked reads, writes, TLS data-channel setup, or completion-reply waits without freezing the UI.
-
-The final-name boundary is stricter. `TransferCommitGate` tracks `TRANSFERRING`, `READY_TO_COMMIT`, `COMMITTING`, `CANCELLED`, and `FINISHED` phases. A cancellation in `TRANSFERRING` wins immediately and interrupts I/O. A cancellation in `READY_TO_COMMIT` wins before any irreversible rename: the worker cleans the staged object/document where that cleanup can still be performed safely and then closes the session. A cancellation in `COMMITTING` is rejected as too late; Ghost FTP does not close the control connection in the middle of an already-started `RNFR`/`RNTO` confirmation or describe a potentially committed final name as cancelled.
-
-The same control connection is never reused after an accepted cancellation. A normal idle Disconnect still uses the regular graceful close path. Disconnect during a cancellable transfer routes through the same phase-aware cancellation lifecycle instead of a separate weaker path.
-
-The UI also uses a monotonically increasing transfer-generation token plus the exact gate instance that owns the transfer. Workers must still own both before changing transfer UI state. Cancel and Activity destruction invalidate that ownership. Failure/success callbacks from stale workers therefore return without clearing a newer transfer's `busy`, progress, connection, or completion state.
-
-Activity destruction requests the same cancellation lifecycle before shutting down the executor. If destruction wins before the final-name commit gate, staging is never committed. If the irreversible commit phase already won the gate first, it is not relabeled as a cancellation; the worker is allowed to finish that already-started finalization and then closes its detached session without publishing stale Activity state.
-
-Cancellation does not claim impossible rollback semantics. If transport interruption makes the FTP control state ambiguous, a remote staging `.part` may remain and is documented as an orphan staging possibility. The final requested name is not committed by a transfer whose cancellation won the gate. Resume/restart-from-offset remains a separate feature and must not reuse a cancelled FTP session.
-
-## Passive data-channel failure boundary
-
-Every listing, upload and download depends on a new passive data channel negotiated through EPSV with PASV fallback. Ghost FTP treats failure during that channel setup as a session-boundary failure rather than assuming the existing control stream remains safe for another operation.
-
-If EPSV/PASV negotiation cannot be completed, the passive reply is malformed, the passive port cannot be parsed or validated, the TCP data connection fails, or an FTPS data-channel TLS handshake fails, `openPassiveDataSocket()` closes the active data socket and hard-closes the FTP control session before returning the error. The Android UI then discards the dead session through the existing reconnect lifecycle.
-
-This policy is deliberately conservative. It can require reconnect even when a particular server might have kept its control channel usable, but it avoids reusing a session after an ambiguous transport setup failure. There is no fallback to an unprotected FTPS data channel, no disabled hostname verification, and no acceptance of an invalid passive port.
-
-The EPSV parser converts malformed/non-numeric ports into checked I/O failures rather than allowing a runtime parsing exception to escape outside the session cleanup path. The dedicated passive-data regression contract is executed by the Android APK workflow alongside the broader Android source contract.
-
-## Saved-site and bookmark security boundary
-
-Saved sites are deliberately non-secret. The persisted profile schema contains site ID/name, FTP/FTPS identity, optional SAF tree URI, optional remote start path, and bookmark lists. It contains no password, passphrase, private-key material or credential surrogate.
-
-Quick Connect remains transient application state. A Quick Connect endpoint becomes a saved site only after the user explicitly presses **Save / update**. Bookmarks likewise require an explicitly loaded/saved site; they are never created implicitly from Quick Connect.
-
-Remote navigation state is bound to `(protocol, host, port, username)`. If that identity changes, old remote navigation state is discarded fail-closed. Local navigation state is capability-based: the application revalidates Android's persisted SAF permission and performs a fresh directory query before committing a saved local start/bookmark.
+See [`UI-UX.md`](UI-UX.md) for navigation and per-surface ownership.
 
 ## SFTP security boundary
 
-SFTP is intentionally not exposed in the Android source line yet. Ghost FTP desktop requires strict host-key verification/pinning; Android will not present an SFTP option until equivalent host-key identity verification is implemented and tested. There is no silent fallback from SFTP to FTP/FTPS.
+**SFTP is intentionally not exposed** on Android. Ghost FTP desktop requires strict host-key verification/pinning; Android will not present SFTP until equivalent strict, maintained host-key identity verification exists and is tested. There is no silent SFTP-to-FTP/FTPS fallback.
 
-Informational UI may report that Android SFTP is hidden. The actual protocol picker remains restricted to `FTPS` and `FTP`; documentation text is not a runtime SFTP implementation.
+The public 0.0.6 APK does not change this boundary. Production signing proves publisher/package identity, not protocol safety.
 
-## Remote Desktop security boundary
+## Remote Desktop boundary
 
-Remote Desktop is not shown in the Android navigation because there is no reviewed Android RDP runtime owner yet. Ghost FTP does not expose a fake RDP destination or Coming Soon control in the main Android navigation.
+Remote Desktop is intentionally absent because there is no reviewed Android RDP runtime owner. Ghost FTP does not expose a decorative or non-functional RDP destination.
 
-If Android RDP is introduced later, its launcher/engine availability, credential handling and security contract must be implemented and reviewed before a navigation item is added.
+## Upload commit safety
+
+Uploads do not stream directly into the requested final remote name. A random `.ghostftp-upload-<uuid>.part` staging object is used first. The final `RNFR`/`RNTO` sequence is attempted only after successful transfer completion and the synchronized transfer commit gate grants finalization.
+
+A cancellation that wins before commit prevents final-name publication. If finalization already owns the irreversible commit phase, the UI stops claiming cancellation is possible. Ambiguous data/control failures hard-close the FTP session instead of reusing unknown protocol state.
+
+## Download commit safety
+
+Downloads use a temporary SAF `.ghostftp-download-<uuid>.part` document and only receive the requested final display name after protocol completion, a second fresh conflict check, commit-gate ownership and exact display-name readback. Failed/cancelled transfers best-effort remove staging documents and do not report success before exact-name verification.
+
+All local work remains inside the user-granted SAF tree.
+
+## Transfer lifecycle
+
+Transfer state is bound to the Activity/session generation and the exact transfer commit gate. Stale worker callbacks from a cancelled/destroyed/replaced lifecycle cannot publish completion into newer UI/session state.
+
+During active data I/O, cancellation closes the active data/control sockets without waiting on the synchronized protocol monitor. A cancelled session is not reused. `Finalizing…` is used when irreversible finalization has already begun.
+
+## Passive data-channel boundary
+
+Malformed EPSV/PASV replies, invalid passive ports, TCP data-connect failure or FTPS data-channel TLS failure close the FTP session and require reconnect. There is no fallback to an unprotected FTPS data channel and no disabled hostname verification.
+
+## Saved-site and bookmark boundary
+
+Saved sites remain non-secret. Persisted identity/navigation state is bounded and tied to `(protocol, host, port, username)`. Changing that remote identity clears server-specific starts/bookmarks rather than carrying them to a different endpoint. Local starts/bookmarks require persisted SAF permission and a fresh provider query before becoming authoritative.
 
 ## Authentic Android screenshots
 
-Project documentation must use screenshots captured from the real built APK running in an Android emulator or physical runtime. Mockups, Figma compositions and generated marketing renders must not be presented as application screenshots.
+Authentic UI evidence is captured from the exact-source built APK in an Android emulator. Mockups, generated images and manually composed approximations are not production evidence. The maintained cross-platform evidence bundle records exact source SHA and SHA-256 hashes.
 
-The screenshot evidence must be tied to a source/build SHA and should cover the real surfaces that exist: Files, Sites, Bookmarks, Transfers and Settings/About. RDP must not be named or captured unless Android has a real runtime RDP surface.
+## Development build
 
-## Build
+The canonical development workflow uses Gradle 8.9 and Android SDK 35 and exercises unit tests, debug/release lint, debug packaging, unsigned release construction and an ephemeral `apksigner` smoke test.
 
-The canonical CI build uses Gradle 8.9 and Android SDK 35:
-
-```text
-gradle :app:lintDebug :app:packageGhostFtpApk --no-daemon
-```
-
-A successful build must create the installable debug APK at:
+Canonical development artifact:
 
 ```text
-android/dist/Ghost-FTP-Android.apk
+android/dist/Ghost-FTP-Android-dev.apk
 ```
 
-The GitHub Actions workflow uploads that exact file as the `ghostftp-android-apk` artifact. The APK is generated by the Android toolchain; a placeholder or renamed non-APK file is not accepted.
+## Production release signing
 
-The current Android version name is derived from the repository `VERSION` plus the development suffix because Android development is not retroactively added to a published desktop release.
+The public 0.0.6 publication path requires:
 
-The Android source, passive-data and mobile-navigation regression contracts run before lint/build in the APK workflow.
+```text
+GHOSTFTP_ANDROID_KEYSTORE_BASE64
+GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
+GHOSTFTP_ANDROID_KEY_ALIAS
+GHOSTFTP_ANDROID_KEY_PASSWORD
+GHOSTFTP_ANDROID_SIGNER_SHA256
+```
 
-## Release signing
+The workflow builds the unsigned release APK, signs it using Android `apksigner`, verifies the APK and requires the signer certificate SHA-256 digest to match the protected expected fingerprint. The temporary keystore is removed after the job.
 
-The CI artifact is a development/debug-signed APK suitable for installation and functional validation. A future public Android release must use a protected production signing key and must verify the resulting APK signature before publication. The repository must never contain that private key or signing password.
+The production workflow must fail closed if credentials are absent/invalid and must never generate a replacement publisher identity.
