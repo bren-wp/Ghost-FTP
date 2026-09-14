@@ -79,16 +79,17 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=NO", audit)
         self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS", audit)
 
-    def test_auxiliary_audits_report_truthful_platform_scope(self) -> None:
+    def test_auxiliary_audits_report_only_validated_scope(self) -> None:
         desktop = read("scripts/audit_desktop_surface.py")
         security = read("scripts/audit_security.py")
         privacy = read("scripts/audit_privacy.py")
 
-        self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER", desktop)
-        self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS", desktop)
-        self.assertIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED", desktop)
-        self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=NO", desktop)
-        self.assertNotIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX\")", desktop)
+        self.assertIn("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES", desktop)
+        self.assertIn("ANDROID_DEVELOPMENT_SURFACE=ACTIVE", desktop)
+        self.assertIn("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE", desktop)
+        self.assertNotIn("PUBLIC_RELEASE_PLATFORMS=", desktop)
+        self.assertNotIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=", desktop)
+        self.assertNotIn("MACOS_PUBLIC_RELEASE_ARTIFACT=", desktop)
 
         self.assertIn("SECURITY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX", security)
         self.assertIn("PRIVACY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX", privacy)
