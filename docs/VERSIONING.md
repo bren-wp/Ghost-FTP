@@ -23,7 +23,7 @@ PRERELEASE=false
 
 ## Public numbering line
 
-The public numbering starts at `0.0.1`; `0.0.0` is reserved and must never be published. For Ghost FTP, **major version `0` does not imply prerelease**. The current 0.0.x line uses `prerelease=false` unless an explicit reviewed policy changes that rule.
+The public numbering starts at `0.0.1`; `0.0.0` is reserved and must never be published. The historical `0.0.2` line is retained only as a version-history reference and is not a current publication instruction. For Ghost FTP, **major version `0` does not imply prerelease**. The current 0.0.x line uses `prerelease=false` unless an explicit reviewed policy changes that rule.
 
 ## Platform and version boundaries
 
