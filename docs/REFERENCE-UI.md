@@ -26,13 +26,13 @@ Linux modal overlays own only their bounded lifecycle. macOS uses native AppKit 
 
 ## Site Manager and saved profiles
 
-![Ghost FTP Site Manager](images/ghost-ftp-site-manager.png)
+![Ghost FTP 0.0.6 Site Manager](images/0.0.6/ghost-ftp-site-manager.png)
 
 Site Manager/profile workflows preserve explicit credential-consent and trust semantics. Windows and Linux save non-secret profile state independently from newly entered credentials; protected durable secret paths remain platform-specific.
 
 ## Main Workspace
 
-![Ghost FTP Main Workspace](images/ghost-ftp-main-workspace.png)
+![Ghost FTP 0.0.6 Main Workspace](images/0.0.6/ghost-ftp-main-workspace.png)
 
 Actions are enabled from real state. Disabled operations remain disabled regardless of button, menu, list gesture or keyboard route. Stale async callbacks are rejected through connection/session identity.
 
@@ -69,9 +69,13 @@ Authentic Windows screenshots prove the UI on the maintained runner architecture
 
 ## Linux native workspace
 
+![Ghost FTP 0.0.6 Linux workspace](images/0.0.6/ghost-ftp-linux-main-workspace.png)
+
 Linux uses the same typed engine and security/transfer contracts as Windows, with native X11/XWayland-compatible presentation. Canonical Debian/Ubuntu/Fedora/Portable packages retain package metadata, extraction and binary-parity gates; maintained native lifecycle evidence is x86-64 only.
 
 ## Android native workspace
+
+![Ghost FTP 0.0.6 Android Files](images/0.0.6/ghost-ftp-android-files.png)
 
 Android 0.0.6 is a public native application exposing **Files**, **Sites**, **Bookmarks**, **Transfers**, **Settings** and **About** plus semantic navigation. Small screens use a drawer and wider layouts a visible sidebar; system-bar insets keep controls outside reserved system UI.
 
@@ -83,13 +87,13 @@ The AppKit frontend uses the shared `internal/api.Engine` and a universal develo
 
 ## Browser helper boundary
 
-Chrome, Edge and Firefox helper packages are public 0.0.6 companions. They use one canonical shared runtime, request no broad browser/network permissions and have no supported browser-to-desktop launch/handoff.
+Chrome, Edge, Firefox and Opera helper packages are public 0.0.6 companions. They use one canonical shared runtime, request no broad browser/network permissions and have no supported browser-to-desktop launch/handoff.
 
 ## Settings and About evidence
 
-![Ghost FTP Settings](images/ghost-ftp-settings.png)
+![Ghost FTP 0.0.6 Settings](images/0.0.6/ghost-ftp-settings.png)
 
-![Ghost FTP About](images/ghost-ftp-about.png)
+![Ghost FTP 0.0.6 About](images/0.0.6/ghost-ftp-about.png)
 
 About displays product/version identity generated from canonical build `VERSION`; the maintained current public identity is **Ghost FTP 0.0.6**.
 
@@ -97,19 +101,16 @@ About displays product/version identity generated from canonical build `VERSION`
 
 `.github/workflows/ui-screenshots.yml` captures real exact-head runtime UI. **Mockups, image-generation output and manually composed approximations are not accepted** as production UI evidence.
 
-The current immutable cross-platform evidence contract is:
+The immutable 0.0.6 evidence set stored in [`images/0.0.6/`](images/0.0.6/) contains exactly:
 
 - Windows — 5 images: Main Workspace, Site Manager, Bookmarks, Settings, About;
 - Linux — 3 images: Main Workspace, Bookmarks, Settings;
 - Android — 7 images: Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
 
-The final verifier requires exactly **15 runtime images**, verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The workflow does **not** commit or push screenshots back to the tested branch.
+The stored [`UI-SCREENSHOT-PROVENANCE.json`](images/0.0.6/UI-SCREENSHOT-PROVENANCE.json) records workflow run `34863585111`, capture source SHA `9adace20030a300c39eb320a97482eb50dfdb9d8`, image byte counts and SHA-256 digests. [`SHA256.txt`](images/0.0.6/SHA256.txt) provides a compact digest allow-list for repository verification.
 
-Repository-local documentation assets remain:
+The final verifier requires exactly **15 runtime images**, verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The repository copy is imported only after those checks pass and is not a substitute for the original workflow artifact.
 
-- `images/ghost-ftp-main-workspace.png`;
-- `images/ghost-ftp-site-manager.png`;
-- `images/ghost-ftp-settings.png`;
-- `images/ghost-ftp-about.png`.
+Legacy unversioned documentation images may remain for historical links, but the **0.0.6 README and reference documentation must use `images/0.0.6/`** so later releases cannot silently replace the evidence presented for 0.0.6.
 
 See [Settings](SETTINGS.md), [Platform parity](PLATFORM-PARITY.md), [Testing](TESTING.md), [Privacy](PRIVACY.md) and [`../macos/README.md`](../macos/README.md).
