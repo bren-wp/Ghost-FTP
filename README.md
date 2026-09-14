@@ -212,6 +212,12 @@ Web FTP necessarily differs: because browser JavaScript cannot speak raw FTP/FTP
 
 Read [`docs/PRIVACY.md`](docs/PRIVACY.md).
 
+## Localization
+
+Ghost FTP's maintained desktop catalog exposes **24 selectable desktop languages**, with **English as the canonical default and fallback**: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian, Swedish, Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
+
+Localization claims remain platform-scoped: a platform is described as fully localized only when its own maintained UI surface and catalog coverage pass the applicable audits. The product website and Web FTP use English as their current canonical source language until a complete maintained web-localization contract is added.
+
 ## Quality gates
 
 Release-candidate checks include:
