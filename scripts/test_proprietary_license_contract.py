@@ -1,8 +1,13 @@
 from pathlib import Path
+import re
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION_HEADER_RE = re.compile(
+    r"^(?:Version|Verzija)\s+\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\s*$",
+    re.MULTILINE,
+)
 
 
 class ProprietaryLicenseContractTests(unittest.TestCase):
@@ -33,8 +38,10 @@ class ProprietaryLicenseContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, license_text)
 
-        self.assertNotIn("Verzija 0.0.5", license_text)
-        self.assertNotIn("Version 0.0.5", license_text)
+        self.assertIsNone(
+            VERSION_HEADER_RE.search(license_text),
+            "The controlling proprietary license must remain version-independent.",
+        )
 
     def test_readme_points_to_controlling_proprietary_license(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
