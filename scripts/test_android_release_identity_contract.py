@@ -18,7 +18,10 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
 
         self.assertTrue(version)
         self.assertIn("rootProject.file('../VERSION').text.trim()", gradle)
-        self.assertIn('versionName "${ghostFtpVersion}-dev"', gradle)
+        self.assertIn("versionCode ghostFtpVersionCode", gradle)
+        self.assertIn("versionName ghostFtpVersion", gradle)
+        self.assertIn("versionNameSuffix '-dev'", gradle)
+        self.assertNotIn('versionName "${ghostFtpVersion}-dev"', gradle)
         self.assertIn(
             'infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME',
             activity,

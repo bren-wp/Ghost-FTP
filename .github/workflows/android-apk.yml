@@ -9,6 +9,8 @@ on:
       - 'scripts/test_android_contract.py'
       - 'scripts/test_android_passive_data_contract.py'
       - 'scripts/test_android_mobile_navigation_contract.py'
+      - 'scripts/test_android_release_signing_contract.py'
+      - 'VERSION'
   push:
     branches: [main]
     paths:
@@ -17,6 +19,8 @@ on:
       - 'scripts/test_android_contract.py'
       - 'scripts/test_android_passive_data_contract.py'
       - 'scripts/test_android_mobile_navigation_contract.py'
+      - 'scripts/test_android_release_signing_contract.py'
+      - 'VERSION'
   workflow_dispatch:
 
 permissions:
@@ -28,9 +32,9 @@ concurrency:
 
 jobs:
   android-apk:
-    name: Android tests, lint and installable APK
+    name: Android tests lint dev APK and release-signing smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,31 +54,60 @@ jobs:
         run: |
           set -euo pipefail
           sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
-      - name: Android source contract
+      - name: Android source and release contracts
         shell: bash
         run: |
           set -euo pipefail
           python scripts/test_android_contract.py
           python scripts/test_android_passive_data_contract.py
           python scripts/test_android_mobile_navigation_contract.py
-      - name: Test, lint and build APK
+          python scripts/test_android_release_signing_contract.py
+      - name: Test lint and build development plus unsigned release APKs
         working-directory: android
         shell: bash
         run: |
           set -euo pipefail
-          gradle :app:testDebugUnitTest :app:lintDebug :app:packageGhostFtpApk --no-daemon --stacktrace
-      - name: Verify APK contract
+          gradle :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:packageGhostFtpApk :app:assembleRelease --no-daemon --stacktrace
+      - name: Verify development APK identity
         shell: bash
         run: |
           set -euo pipefail
-          test -s android/dist/Ghost-FTP-Android.apk
-          file android/dist/Ghost-FTP-Android.apk | grep -Eq 'Android package|Zip archive data'
-          unzip -t android/dist/Ghost-FTP-Android.apk >/dev/null
-          printf 'ANDROID_APK_SHA256=%s\n' "$(sha256sum android/dist/Ghost-FTP-Android.apk | awk '{print $1}')"
-      - name: Upload Android APK
+          test -s android/dist/Ghost-FTP-Android-dev.apk
+          file android/dist/Ghost-FTP-Android-dev.apk | grep -Eq 'Android package|Zip archive data'
+          unzip -t android/dist/Ghost-FTP-Android-dev.apk >/dev/null
+          printf 'ANDROID_DEV_APK_SHA256=%s\n' "$(sha256sum android/dist/Ghost-FTP-Android-dev.apk | awk '{print $1}')"
+      - name: Exercise release APK signing pipeline with ephemeral CI identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          unsigned='android/app/build/outputs/apk/release/app-release-unsigned.apk'
+          test -s "$unsigned"
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          test -x "$build_tools/apksigner"
+          smoke_keystore="$RUNNER_TEMP/ghostftp-android-ci-smoke.jks"
+          smoke_signed="$RUNNER_TEMP/Ghost-FTP-Android-ci-smoke.apk"
+          keytool -genkeypair -noprompt \
+            -keystore "$smoke_keystore" \
+            -storepass 'ghostftp-ci-smoke' \
+            -keypass 'ghostftp-ci-smoke' \
+            -alias 'ghostftp-ci-smoke' \
+            -dname 'CN=Ghost FTP CI Smoke,O=Ghost FTP,C=HR' \
+            -keyalg RSA -keysize 3072 -validity 2
+          "$build_tools/apksigner" sign \
+            --ks "$smoke_keystore" \
+            --ks-key-alias 'ghostftp-ci-smoke' \
+            --ks-pass pass:ghostftp-ci-smoke \
+            --key-pass pass:ghostftp-ci-smoke \
+            --out "$smoke_signed" \
+            "$unsigned"
+          "$build_tools/apksigner" verify --verbose --print-certs "$smoke_signed"
+          rm -f "$smoke_signed" "$smoke_keystore"
+          echo 'ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS'
+          echo 'ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY'
+      - name: Upload Android development APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ghostftp-android-apk
+          name: ghostftp-android-dev-apk
           if-no-files-found: error
           retention-days: 14
-          path: android/dist/Ghost-FTP-Android.apk
+          path: android/dist/Ghost-FTP-Android-dev.apk
