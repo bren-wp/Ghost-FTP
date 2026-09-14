@@ -1,40 +1,41 @@
 # Ghost FTP browser extensions
 
-**Ghost FTP Connection Helper** is the official Ghost FTP browser companion for safely preparing FTP, FTPS and SFTP connection targets locally in the browser popup.
+**Ghost FTP Connection Helper** is the official Ghost FTP browser companion for safely preparing FTP, FTPS and SFTP connection targets locally in a browser popup.
 
-## Official packages
+## Official browser packages
 
-The source is deliberately split into one canonical runtime and three browser manifests:
+The maintained source is deliberately split into one shared runtime plus a browser-specific manifest directory for every supported package:
 
-- `shared/` — the only maintained HTML/CSS/JavaScript/icon runtime;
-- `manifests/chrome.json` — Google Chrome package metadata;
-- `manifests/edge.json` — Microsoft Edge package metadata;
-- `manifests/firefox.json` — Mozilla Firefox package metadata and stable Gecko signing identity.
+- `chrome/manifest.json` — Google Chrome package metadata;
+- `edge/manifest.json` — Microsoft Edge package metadata;
+- `firefox/manifest.json` — Mozilla Firefox metadata and stable Gecko signing identity;
+- `opera/manifest.json` — Opera Chromium package metadata;
+- `shared/` — the only maintained HTML, CSS, JavaScript and icon runtime.
 
-Run `python scripts/build_browser_extensions.py`. It produces exactly three deterministic ZIPs in `dist/browser/`:
+Run `python scripts/build_browser_extensions.py`. It produces exactly four deterministic ZIP archives in `dist/browser/`:
 
 - `Ghost-FTP-<version>-Chrome-Extension.zip`
 - `Ghost-FTP-<version>-Edge-Extension.zip`
 - `Ghost-FTP-<version>-Firefox-Extension.zip`
+- `Ghost-FTP-<version>-Opera-Extension.zip`
 
-The official product name is **Ghost FTP** and the official extension name is **Ghost FTP Connection Helper**. `BRAND.json`, the packaging script and the regression suite enforce those names for official Ghost FTP builds. An altered manifest or popup brand fails the maintained build contract. As with any source-available project, a third party can modify its own fork; such a fork is not an official Ghost FTP build and is not covered by the Ghost FTP release contract.
+The official product name is **Ghost FTP** and the official extension name is **Ghost FTP Connection Helper**. `BRAND.json`, the package builder and regression suite enforce those identities for official Ghost FTP builds. Brand drift, additional permissions or unsupported remote capabilities fail the maintained build contract.
 
-## What the extension does
+## What the helper does
 
-Paste an `ftp://`, `ftps://` or `sftp://` target into the popup. The helper validates the URL, rejects unsupported schemes, missing hosts, oversized input and literal or percent-decoded control characters, then displays protocol, host, port, username and remote path. A generated **Safe target** contains only scheme, host/port and encoded path: URL username/password, query and fragment data are never included.
+Paste an `ftp://`, `ftps://` or `sftp://` target into the popup. The helper validates the URL, rejects unsupported schemes, missing hosts, oversized input and literal or percent-decoded control characters, then displays the protocol, host, port, username and remote path. A generated **Safe target** contains only the scheme, host/port and encoded path. URL username/password, query and fragment data are never included.
 
-The extension **does not launch the desktop client directly** and does not launch the Android app. There is **no supported browser-to-desktop** URI or native-messaging contract. The browser package therefore remains a local parser/copy companion instead of inventing a privileged bridge.
+The extension **does not launch a desktop or mobile application directly**. There is no browser-to-desktop custom URI, native-messaging bridge or privileged background service in the official helper. It remains a local parser/copy companion rather than pretending to provide capabilities the browser sandbox does not grant.
 
 ## Privacy and security contract
 
-- **No telemetry.**
-- **No tracking.**
+- **No telemetry or tracking.**
 - **No remote code.** HTML, CSS, JavaScript and the icon are packaged locally.
-- The extension **does not store** pasted targets, usernames, passwords, history or parsed results.
-- The extension **does not read the active tab**.
-- The extension requests **zero browser permissions and zero host permissions**.
-- The extension **does not connect to your FTP, FTPS, or SFTP server**.
-- No HTTP request, WebSocket, analytics SDK, crash reporter, browser storage or background/content script is present.
+- **No browser or host permissions.** Official manifests use an empty `permissions` list.
+- The extension **does not store** targets, usernames, passwords, history or parsed results.
+- The extension **does not read the active tab**, browsing history, cookies or page content.
+- The extension **does not connect to your FTP, FTPS or SFTP server**.
+- There is no HTTP request, WebSocket, analytics SDK, crash reporter, browser storage, background script or content script.
 - Passwords are detected only to warn the user and are never rendered into result fields or copied into the Safe target.
 - Firefox declares `data_collection_permissions.required = ["none"]` and uses the stable ID `ghostftp-connection-helper@ghostftp.com` for signed distribution.
 
@@ -48,10 +49,10 @@ python scripts/test_browser_extensions_contract.py
 python scripts/build_browser_extensions.py
 ```
 
-The dedicated GitHub Actions browser workflow repeats the contract test, builds all three ZIPs, verifies their contents and publishes them as CI artifacts.
+The dedicated GitHub Actions workflow repeats the contract test, builds all four ZIPs, verifies their contents and publishes them as CI artifacts.
 
 ## Unpacked development testing
 
-Build the packages first, extract the browser ZIP you want to test, then load the extracted directory with the browser's extension-development UI. For Chrome use `chrome://extensions`; for Edge use `edge://extensions`; for Firefox use `about:debugging#/runtime/this-firefox` and select `manifest.json`.
+Build the packages first and extract the browser ZIP you want to test. Chrome and Opera use their Chromium extension-development pages, Edge uses `edge://extensions`, and Firefox uses `about:debugging#/runtime/this-firefox` with the generated `manifest.json`.
 
-The generated packages are the canonical browser inputs. Do not maintain browser-specific copies of `core.js`, `popup.js`, `popup.css`, `popup.html` or the Ghost FTP icon; all three packages must be produced from `shared/`.
+The generated packages are the canonical browser inputs. Do not maintain browser-specific copies of `core.js`, `popup.js`, `popup.css`, `popup.html` or the Ghost FTP icon. All four packages are produced from `shared/`, while only their manifests remain browser-specific.
