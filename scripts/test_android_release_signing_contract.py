@@ -27,8 +27,14 @@ class AndroidReleaseSigningContractTests(unittest.TestCase):
         build = read("android/app/build.gradle")
         for marker in (
             "ghostFtpVersion.tokenize('.')",
-            "* 1000000",
-            "* 1000",
+            "def ghostFtpVersionMajor = ghostFtpVersionParts[0].toInteger()",
+            "def ghostFtpVersionMinor = ghostFtpVersionParts[1].toInteger()",
+            "def ghostFtpVersionPatch = ghostFtpVersionParts[2].toInteger()",
+            "ghostFtpVersionMinor > 999",
+            "ghostFtpVersionPatch > 999",
+            "ghostFtpVersionMajor * 1000000",
+            "ghostFtpVersionMinor * 1000",
+            "ghostFtpVersionPatch",
             "ghostFtpVersionCode <= 0",
             "ghostFtpVersionCode > 2100000000",
         ):
