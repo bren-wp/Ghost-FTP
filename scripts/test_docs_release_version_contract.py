@@ -114,7 +114,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
     def test_published_history_is_not_misrepresented(self):
         for relative in ("docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md"):
             text = self.read(relative)
-            self.assertIn("last actually published GitHub", text.lower())
+            self.assertIn("last actually published github", text.lower())
             self.assertIn("0.0.5", text)
             self.assertIn("0.0.6", text)
 
