@@ -208,7 +208,7 @@ def main() -> None:
     audit_credentials_and_network_tools()
     audit_build_privacy()
     print("PRIVACY_AUDIT=PASS")
-    print("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX")
+    print("PRIVACY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX")
     print("FIXED_RUNTIME_HTTP_URLS=BLOCKED")
     print("TELEMETRY_VENDOR_MARKERS=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
