@@ -22,11 +22,13 @@ Authentication-error redaction is a maintained privacy contract: server-controll
 
 Upload/download ceilings are real runtime policy. Tests require bounded `0–1,048,576 KiB/s` values with `0 = unlimited`, conservative aggregate directional allocation, attempt-scoped snapshots, curl rate enforcement for FTP/FTPS and OpenSSH `sftp -l` enforcement for desktop SFTP.
 
-## Filtering, sorting, search and comparison
+## Current-folder filter and sorting regression contract
 
-Current-folder filtering operates only on the loaded snapshot and performs no hidden scan. Sorting is directories-first and actions remain bound to the visible authoritative slice.
+Current-folder filtering operates only on the loaded snapshot and performs no hidden filesystem/network scan. It is **deliberately separate from bounded recursive search**. Sorting is directories-first, **filtering and subsequent sorting** operate over copies of authoritative loaded snapshots, and row-indexed actions remain bound to the visible authoritative slice.
 
-Bounded recursive search is explicit I/O with cancellation and depth/item/result/batch/time ceilings. Directory comparison uses conservative `same/local_only/remote_only/newer_local/newer_remote/conflict/unknown` semantics and synchronized navigation only for safely proven paired ordinary directories.
+## Bounded recursive search regression contract
+
+Bounded recursive search is explicit I/O with cancellation and depth/item/result/batch/time ceilings. Search result activation requires a fresh parent listing before selection becomes authoritative. Directory comparison uses conservative `same/local_only/remote_only/newer_local/newer_remote/conflict/unknown` semantics and synchronized navigation only for safely proven paired ordinary directories.
 
 ## Desktop lifecycle and action wiring
 
@@ -58,14 +60,7 @@ The package contract rejects brand drift, manifest version drift, broad permissi
 
 ## Windows build and public signing gates
 
-Ordinary Windows CI builds and verifies the public names:
-
-```text
-Ghost-FTP-0.0.6-Setup.exe
-Ghost-FTP-0.0.6-Portable.exe
-```
-
-Internally, native x64/x86/ARM64 Setup/Portable staging pairs are PE/resource verified and embedded in the two universal public files. Architecture-specific executables are forbidden from leaking into public artifacts.
+Ordinary Windows CI builds and verifies `Ghost-FTP-0.0.6-Setup.exe` and `Ghost-FTP-0.0.6-Portable.exe`. Internally, native x64/x86/ARM64 staging pairs are PE/resource verified and embedded in those two universal public files; architecture-specific executables are forbidden from leaking publicly.
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -75,23 +70,17 @@ WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 ```
 
-Ordinary CI also exercises an Authenticode private-key pipeline smoke with development-only material. Official `Publish Ghost FTP` is stricter: protected production signing is mandatory, `Get-AuthenticodeSignature` must be valid, `scripts/verify_release.py` must accept both final files and `WINDOWS_SIGNING_STATE=signed` is required.
-
-The ARM64 marker remains conservative: cross-build and structural verification are not native ARM64 runtime execution.
+Ordinary CI exercises an Authenticode private-key pipeline smoke with development-only material. Official `Publish Ghost FTP` is stricter: protected production signing is mandatory, `Get-AuthenticodeSignature` must be valid and `WINDOWS_SIGNING_STATE=signed` is required. Cross-build and structural ARM64 verification are not native ARM64 runtime execution.
 
 ## Linux production and distro gates
 
 Canonical Linux packaging is `linux/BUILD-DISTROS.sh` and `.github/workflows/linux-distro-packages.yml`, producing twelve Debian/Ubuntu/Fedora/Portable artifacts with metadata, extraction and byte-parity checks.
 
-`.github/workflows/linux-distro-install.yml` verifies native installation/runtime/removal on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64. Native lifecycle evidence is deliberately x86-64 only; additional canonical architectures retain exact-head build/metadata/extraction/parity coverage.
+`.github/workflows/linux-distro-install.yml` verifies native installation/runtime/removal on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64. Native lifecycle evidence is deliberately x86-64 only; additional architectures retain exact-head build/metadata/extraction/parity coverage.
 
 ## Authentic runtime evidence
 
-`.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI:
-
-- Windows — Main Workspace, Site Manager, Bookmarks, Settings, About;
-- Linux — Main Workspace, Bookmarks, Settings;
-- Android — Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
+`.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI: Windows — Main Workspace, Site Manager, Bookmarks, Settings, About; Linux — Main Workspace, Bookmarks, Settings; Android — Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
 
 The final read-only verifier assembles exactly 15 images into the immutable evidence bundle and validates source SHA, file set, sizes and SHA-256 hashes. Generated mockups are not accepted as runtime evidence.
 
@@ -103,19 +92,7 @@ For 0.0.6, the broad gate set includes Ghost FTP CI, Android APK, Browser Extens
 
 ## Release publication gate
 
-0.0.6 publication requires:
-
-- exact current `main` release-branch validation;
-- canonical quality/build jobs;
-- trusted Authenticode on both public Windows executables;
-- production Android signing plus exact signer SHA-256 verification;
-- deterministic Chrome/Edge/Firefox packages;
-- exact **18 platform artifacts / 21 public files** allow-list;
-- `WINDOWS_SIGNING_STATE=signed` and verified release metadata;
-- `prerelease=false`;
-- immediate/delayed GitHub Release readback and SHA-256 digest readback;
-- verified `ghcr.io/bren-wp/ghost-ftp:0.0.6` distribution-bundle publication/readback;
-- successful release-integrity and latest-only retention chains.
+0.0.6 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox packages, exact **18 platform artifacts / 21 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.6` distribution bundle and successful release-integrity/latest-only retention chains.
 
 ## Deterministic release-to-retention gate
 
