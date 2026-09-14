@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **0.0.5** is validated through layered source, security, native build, packaging, Android APK, macOS development-app, UI-action, authentic runtime evidence and release-lifecycle gates.
+Ghost FTP **0.0.6** is validated through layered source, protocol/security, native build, packaging, signing, authentic runtime evidence, exact-release readback and retention gates.
 
 ## Core quality gate
 
@@ -10,85 +10,62 @@ go test -race ./...
 go vet ./...
 ```
 
-Canonical CI additionally runs repository, platform, desktop-surface, dependency, version, localization, security, privacy, documentation and release audits plus the complete Python regression suite.
+Canonical CI also runs repository, platform, desktop-surface, dependency, version, localization, security, privacy, documentation and release audits plus the complete Python regression suite.
 
 ## Protocol and transfer regressions
 
-Coverage protects explicit FTPS verification/no silent downgrade, strict SFTP host-key verification/pinning, rooted local path confinement, staged activation/rollback, connection-generation guards, privacy-safe diagnostics, retry policy, transfer queue lifecycle, queued Top/Up/Down/Bottom ordering, Remote Edit conflict/read-back behavior and navigation bookmark/profile-start revalidation.
+Coverage protects strict FTPS certificate/hostname verification, no silent secure-to-plain downgrade, strict desktop SFTP host-key verification/pinning, rooted local path confinement, staged activation/rollback, connection-generation guards, privacy-safe diagnostics, retry policy, transfer queue lifecycle, queued Top/Up/Down/Bottom ordering, Remote Edit conflict/read-back behavior and bookmark/start-directory revalidation.
 
-Windows transfer-generation tests require Add, Retry and Cancel-selected asynchronous callbacks to capture `connectionGeneration` and refuse to publish completion into a newer connection session.
+Authentication-error redaction is a maintained privacy contract: server-controlled authentication replies and external-tool diagnostics must not expose credentials or protected secret payloads in user-facing errors.
 
 ## Bandwidth regression contract
 
-The maintained source provides independent upload/download ceilings as real runtime policy. Tests require bounded `0–1,048,576 KiB/s` values with `0 = unlimited`, conservative aggregate directional allocation, attempt-scoped budget snapshots, curl `limit-rate` enforcement for FTP/FTPS and OpenSSH `sftp -l` enforcement for SFTP. Windows/Linux settings must expose the same shared values.
+Upload/download ceilings are real runtime policy. Tests require bounded `0–1,048,576 KiB/s` values with `0 = unlimited`, conservative aggregate directional allocation, attempt-scoped snapshots, curl rate enforcement for FTP/FTPS and OpenSSH `sftp -l` enforcement for desktop SFTP.
 
-## Filtering, sorting, recursive search and comparison
+## Filtering, sorting, search and comparison
 
-### Current-folder filter and sorting regression contract
+Current-folder filtering operates only on the loaded snapshot and performs no hidden scan. Sorting is directories-first and actions remain bound to the visible authoritative slice.
 
-Current-folder filtering is non-destructive over loaded snapshots and performs no hidden scan. The current-folder filter is deliberately separate from bounded recursive search: it operates only on entries already loaded in the pane and performs no additional filesystem or network scan. Regression coverage verifies filtering and subsequent sorting over copies of the authoritative snapshot, directories-first ordering, visible-slice action binding and selection restoration.
+Bounded recursive search is explicit I/O with cancellation and depth/item/result/batch/time ceilings. Directory comparison uses conservative `same/local_only/remote_only/newer_local/newer_remote/conflict/unknown` semantics and synchronized navigation only for safely proven paired ordinary directories.
 
-### Bounded recursive search regression contract
+## Desktop lifecycle and action wiring
 
-Bounded recursive search is an explicit I/O-producing action with cancellation, maintained depth/item/result/batch/time ceilings and fresh-list navigation from a result. It reuses matching semantics without turning the instant loaded-snapshot filter into a hidden recursive scan.
+Visible controls require matching command/click handlers and code-level state guards. Regression coverage includes profile-persistence ownership, Windows nested modal `WM_QUIT` preservation, local/remote mutation re-entry guards, serialized Remote Edit open/save/reload, transfer-generation ownership across reconnect, Linux modal input isolation and queue-priority state.
 
-Directory comparison uses conservative `same/local_only/remote_only/newer_local/newer_remote/conflict/unknown` semantics and synchronized navigation only for safely proven paired ordinary directories.
+## Android source, APK and release-signing gate
 
-## Settings regression contract
+`.github/workflows/android-apk.yml` runs Android source/security contracts, JVM tests, `lintDebug`, `lintRelease`, development APK construction and unsigned release construction. Ordinary CI uses an **ephemeral CI-only** signing identity solely to exercise `apksigner sign` + `verify`; it is never public publisher evidence.
 
-Tests cover parallelism, independent bandwidth ceilings, timeout/retry bounds, conflict-policy normalization, Light/Dark appearance and Linux credential-save confirmation while preserving safe legacy migration behavior.
+Android contracts protect strict explicit FTPS, no trust-all fallback, SAF-only storage, staged transfer commit, bounded parsing/search, lifecycle cancellation/generation ownership, authentication-error redaction, file-management path validation, comparison/search semantics and Remote Edit conflict/read-back safeguards.
 
-## Desktop action wiring and Windows lifecycle contracts
+The canonical public release additionally requires a protected production keystore and exact signer-certificate SHA-256 match before `Ghost-FTP-0.0.6-Android.apk` can enter the allow-list. Android SFTP remains hidden until strict maintained host-key verification exists.
 
-Visible main controls must have matching command/click handlers. 0.0.5 adds regression contracts for:
+## Browser package gate
 
-- encrypted Windows profile mutation ownership and close blocking while persistence is in flight;
-- shared/nested Windows modal preservation of `WM_QUIT`;
-- local/remote create-directory, rename, delete and remote permission mutation re-entry guards;
-- Remote Edit session serialization across async open/save/reload cycles;
-- transfer cancellation callback generation ownership across disconnect/reconnect;
-- code-level guards behind UI enablement so stale commands cannot bypass busy state.
+`.github/workflows/browser-extensions.yml` validates the canonical brand/privacy contract and deterministically builds exactly three packages:
 
-## Android native source and APK gate
+```text
+Ghost-FTP-0.0.6-Chrome-Extension.zip
+Ghost-FTP-0.0.6-Edge-Extension.zip
+Ghost-FTP-0.0.6-Firefox-Extension.zip
+```
 
-`.github/workflows/android-apk.yml` requires source/security contracts, Java/SDK/Gradle setup, JVM regression tests, Android lint, installable APK build, APK identity verification and artifact upload.
-
-Android contracts protect strict explicit FTPS certificate/hostname verification, no trust-all fallback, SAF-only local storage, non-secret saved-site metadata, staged transfer final-name commit, non-blocking cancellation, semantic navigation, bounded FTP parsing and authentication-error redaction.
-
-0.0.5 additionally tests that a pending FTP/FTPS connection is owned by the current Activity instance, `onDestroy()` aborts it non-blockingly, stale success/error callbacks cannot commit a session/UI state after destruction/recreation, and server-controlled authentication replies cannot expose credential text through user-facing exceptions.
+The package contract rejects brand drift, manifest version drift, broad permissions, credential persistence, remote executable code and any unsupported desktop launch/handoff behavior.
 
 ## macOS development-app gate
 
-`.github/workflows/macos-app.yml` builds and verifies the maintained universal native macOS development app from exact source. This gate validates the AppKit/shared-engine source surface and packaging mechanics, but it is not evidence of a public Developer ID-signed/notarized macOS release. macOS remains outside the current 17-file public Windows/Linux release allow-list.
+`.github/workflows/macos-app.yml` — **Ghost FTP macOS Development App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 21-file release.
 
-## Browser companion source contract
+## Windows build and public signing gates
 
-The optional browser companion source for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox is tested as a source/privacy contract: supported FTP-family targets are parsed locally without telemetry, remote executable code, credential persistence, tab scraping or broad host permissions. The current helper does not launch the desktop client and no supported browser-to-desktop handoff contract is claimed. These companions do not enlarge the 17-file desktop release allow-list.
-
-## Windows build and public-release signing gates
-
-The ordinary Windows CI job builds and verifies only the public names:
+Ordinary Windows CI builds and verifies the public names:
 
 ```text
-Ghost-FTP-0.0.5-Setup.exe
-Ghost-FTP-0.0.5-Portable.exe
+Ghost-FTP-0.0.6-Setup.exe
+Ghost-FTP-0.0.6-Portable.exe
 ```
 
-Internally, `BUILD-WINDOWS-ARCH-STAGE.ps1` builds native Setup and Portable payloads for:
-
-```text
-x64
-x86
-arm64
-```
-
-Each native staging pair is processed through PE resource generation and `scripts/verify_release.py`. ARM64 verification requires machine `0xAA64`, PE32+, `processorArchitecture="arm64"`, required PE mitigations, local resources, telemetry-marker absence and distinct Setup/Portable hashes. Architecture-specific binaries are moved into internal evidence and are forbidden from leaking into the public Windows artifact directory.
-
-`BUILD-WINDOWS.ps1` embeds those three native payload families into the same two public-shape x86 bootstrap executables. `GetNativeSystemInfo` selects `x64`, `x86` or `arm64`; the selected embedded bytes are staged under Local AppData and SHA-256 verified before execution. No runtime download is part of this architecture-selection path.
-
-Ordinary CI may exercise this packaging path without the protected production signing identity and separately runs an Authenticode private-key pipeline smoke test with development-only material.
-
-Current ARM64 evidence is deliberately scoped as:
+Internally, native x64/x86/ARM64 Setup/Portable staging pairs are PE/resource verified and embedded in the two universal public files. Architecture-specific executables are forbidden from leaking into public artifacts.
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -98,71 +75,54 @@ WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 ```
 
-`WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` means the repository proves cross-build, PE/resources, payload selection contract, embedded-byte integrity and signing mechanics, but does **not** claim native Windows ARM64 runtime execution because the maintained Windows Actions runner used here is not ARM64.
+Ordinary CI also exercises an Authenticode private-key pipeline smoke with development-only material. Official `Publish Ghost FTP` is stricter: protected production signing is mandatory, `Get-AuthenticodeSignature` must be valid, `scripts/verify_release.py` must accept both final files and `WINDOWS_SIGNING_STATE=signed` is required.
 
-The official `Publish Ghost FTP` workflow is stricter: it requires the protected production signing identity, verifies both final public executables with `Get-AuthenticodeSignature`, requires `WINDOWS_SIGNING_STATE=signed`, and is independently checked by `scripts/verify_release.py`. An unsigned ordinary CI build therefore validates engineering mechanics but cannot satisfy the official public-release gate.
+The ARM64 marker remains conservative: cross-build and structural verification are not native ARM64 runtime execution.
 
-## Linux production and distro package gates
+## Linux production and distro gates
 
-The regular Core CI retains generic Linux compatibility builds. Canonical release packaging is `linux/BUILD-DISTROS.sh` via `.github/workflows/linux-distro-packages.yml`, with Debian/Ubuntu/Fedora/Portable package metadata/extraction/binary-parity checks.
+Canonical Linux packaging is `linux/BUILD-DISTROS.sh` and `.github/workflows/linux-distro-packages.yml`, producing twelve Debian/Ubuntu/Fedora/Portable artifacts with metadata, extraction and byte-parity checks.
 
-The 0.0.5 canonical set remains **14 platform artifacts / 17 public files**.
+`.github/workflows/linux-distro-install.yml` verifies native installation/runtime/removal on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64. Native lifecycle evidence is deliberately x86-64 only; additional canonical architectures retain exact-head build/metadata/extraction/parity coverage.
 
-`.github/workflows/linux-distro-install.yml` verifies native installation lifecycle on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. **Native package-manager/runtime coverage is deliberately limited to x86-64.** Additional canonical architectures retain exact-head build/metadata/extraction/parity coverage.
+## Authentic runtime evidence
 
-## Authentic UI evidence
+`.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI:
 
-`.github/workflows/ui-screenshots.yml` captures real exact-head runtime UI:
+- Windows — Main Workspace, Site Manager, Bookmarks, Settings, About;
+- Linux — Main Workspace, Bookmarks, Settings;
+- Android — Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
 
-- Windows: Main Workspace, Site Manager, Bookmarks, Settings, About;
-- Linux: Main Workspace, Bookmarks, Settings;
-- Android: Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
-
-The final read-only evidence job verifies provenance, manifest and hashes and assembles the 15-image `ghostftp-authentic-ui-verified-bundle`. It never commits or pushes screenshots back to the tested branch.
-
-The Windows screenshot evidence is runtime evidence for the maintained Windows runner architecture. It must not be relabeled as native ARM64 runtime evidence merely because the same package contains an ARM64 payload.
-
-macOS uses its separate native development-app workflow rather than being silently represented by the current Windows/Linux/Android evidence bundle. Development build evidence must not be described as notarized public-distribution evidence.
+The final read-only verifier assembles exactly 15 images into the immutable evidence bundle and validates source SHA, file set, sizes and SHA-256 hashes. Generated mockups are not accepted as runtime evidence.
 
 ## Exact-head and post-merge rule
 
-**Exact-head and post-merge rule:** a PR is not merge-ready until every required workflow actually triggered for its exact final head is `completed/success`. After merge, required `push` workflows are identified by the exact merge SHA and must also be `completed/success` before release preparation continues.
+**Exact-head and post-merge rule:** a PR is not merge-ready until every workflow triggered for its exact final head is `completed/success`. After merge, required push workflows are identified by the exact merge SHA and must also finish `completed/success` before release preparation continues. A green older SHA never satisfies a newer candidate.
 
-For a 0.0.5 release-prep change, expected broad gates include:
-
-1. Ghost FTP CI;
-2. Ghost FTP Android APK when its path filters trigger;
-3. Ghost FTP macOS Development App when its path filters trigger;
-4. Ghost FTP Linux Distro Packages;
-5. Ghost FTP Linux Distro Install Matrix;
-6. Ghost FTP Authentic Cross-Platform UI Screenshots;
-7. any additional path-triggered Windows runtime gate.
-
-A green run for an older commit does not satisfy a newer candidate.
+For 0.0.6, the broad gate set includes Ghost FTP CI, Android APK, Browser Extensions, macOS Development App, Linux Distro Packages, Linux Distro Install Matrix, Windows Modal Keyboard Runtime, Govulncheck, CodeQL and Authentic Cross-Platform UI Screenshots whenever path filters trigger them.
 
 ## Release publication gate
 
-0.0.5 publication additionally requires:
+0.0.6 publication requires:
 
 - exact current `main` release-branch validation;
-- canonical release workflow quality/build jobs;
-- trusted Authenticode on both official public Windows executables;
-- `WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64` and `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` in verified release metadata;
-- `WINDOWS_AUTHENTICODE=signed` in verified release metadata;
-- exact **17-file** GitHub Release allow-list;
-- immediate and delayed remote release read-back;
+- canonical quality/build jobs;
+- trusted Authenticode on both public Windows executables;
+- production Android signing plus exact signer SHA-256 verification;
+- deterministic Chrome/Edge/Firefox packages;
+- exact **18 platform artifacts / 21 public files** allow-list;
+- `WINDOWS_SIGNING_STATE=signed` and verified release metadata;
 - `prerelease=false`;
-- verified `ghcr.io/bren-wp/ghost-ftp:0.0.5` distribution-bundle publication/read-back;
-- successful latest-only retention cleanup.
-
-The Android development APK, macOS development app and browser companion source remain outside the 17-file public desktop release allow-list.
+- immediate/delayed GitHub Release readback and SHA-256 digest readback;
+- verified `ghcr.io/bren-wp/ghost-ftp:0.0.6` distribution-bundle publication/readback;
+- successful release-integrity and latest-only retention chains.
 
 ## Deterministic release-to-retention gate
 
-The release branch trigger must record prior run IDs, dispatch canonical publication, identify the newly created exact-main run, wait for success, only then dispatch retention, identify the exact new retention run and require terminal success. Token-dispatch acknowledgement alone is not publication proof.
+The release-branch trigger records prior run IDs, dispatches canonical publication, identifies the newly created exact-main run, waits for terminal success, then dispatches retention and requires that exact retention run to succeed. Dispatch acknowledgement alone is not publication proof.
 
 ## Retention validation
 
-Retention must leave only the current `ghostftp-v0.0.5` public release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded release branches/package versions, and leave `main` history untouched.
+Retention must leave only the current `ghostftp-v0.0.6` public release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded Ghost FTP release/tag/branch/package identities, and leave `main` history untouched.
 
 See [Security](SECURITY.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [GitHub Releases](GITHUB-RELEASES.md) and [Versioning](VERSIONING.md).

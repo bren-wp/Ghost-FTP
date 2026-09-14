@@ -1,14 +1,14 @@
 # Ghost FTP for Linux
 
-Ghost FTP **0.0.5** is the current public release line. Linux uses the same connection, profile, local-filesystem, remote-operation, transfer, settings, Remote Edit, sorting and localization engine contracts as the Windows application.
+Ghost FTP **0.0.6** is the current public release line. Linux uses the same connection, profile, filesystem, remote-operation, transfer, settings, Remote Edit, sorting/search/comparison and localization engine contracts as the Windows desktop application.
 
-Linux and Windows are the current public release platforms. Android and macOS are active native development/source surfaces with independent validation; they are not counted in the current Windows/Linux 17-file public release allow-list.
+Linux remains a first-class public application platform in the expanded **18 platform artifacts / 21 public files** release. Android is now also public through protected production signing; Chrome/Edge/Firefox helper ZIPs are public companion packages; macOS remains development/source only.
 
-The canonical 0.0.5 Linux release workflow uses `linux/BUILD-DISTROS.sh`. The older `linux/BUILD.sh` remains independent CI compatibility coverage.
+The canonical 0.0.6 Linux release workflow uses `linux/BUILD-DISTROS.sh`. The older `linux/BUILD.sh` remains independent CI compatibility coverage.
 
 This document distinguishes:
 
-1. **Canonical 0.0.5 release artifacts** — produced by `linux/BUILD-DISTROS.sh`, verified by distro packaging and staged by the canonical release workflow.
+1. **Canonical 0.0.6 release artifacts** — produced by `linux/BUILD-DISTROS.sh`, verified by distro packaging and staged by the canonical release workflow.
 2. **Generic CI compatibility artifacts** — produced by `linux/BUILD.sh` for independent DEB/portable build and binary-parity coverage.
 
 ## Canonical distro-specific build
@@ -28,44 +28,42 @@ It compiles one Linux executable per Go architecture and reuses it across matchi
 | `arm64` | `aarch64` |
 | `i386` | `i686` |
 
-Canonical families use names `Linux-Debian-amd64.deb`, `Linux-Ubuntu-amd64.deb`, `Linux-Fedora-x86_64.rpm` and `Linux-Portable-amd64.tar.gz` with the current version prefix. `.github/workflows/linux-distro-packages.yml` verifies package metadata and byte-for-byte executable parity. These **distro-specific artifacts are no longer supplemental**; they are canonical release files.
+Canonical distro-specific artifacts are no longer supplemental; they are public release files. `.github/workflows/linux-distro-packages.yml` verifies package metadata, archive structure and byte-for-byte executable parity.
 
-## Canonical 0.0.5 release contract
-
-Twelve Linux files plus two universal Windows executables produce **14 platform artifacts / 17 public files** after metadata/verification files are added.
+## Canonical 0.0.6 Linux artifacts
 
 ```text
-Ghost-FTP-0.0.5-Linux-Debian-amd64.deb
-Ghost-FTP-0.0.5-Linux-Debian-arm64.deb
-Ghost-FTP-0.0.5-Linux-Debian-i386.deb
-Ghost-FTP-0.0.5-Linux-Ubuntu-amd64.deb
-Ghost-FTP-0.0.5-Linux-Ubuntu-arm64.deb
-Ghost-FTP-0.0.5-Linux-Ubuntu-i386.deb
-Ghost-FTP-0.0.5-Linux-Fedora-x86_64.rpm
-Ghost-FTP-0.0.5-Linux-Fedora-aarch64.rpm
-Ghost-FTP-0.0.5-Linux-Fedora-i686.rpm
-Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz
-Ghost-FTP-0.0.5-Linux-Portable-arm64.tar.gz
-Ghost-FTP-0.0.5-Linux-Portable-i386.tar.gz
+Ghost-FTP-0.0.6-Linux-Debian-amd64.deb
+Ghost-FTP-0.0.6-Linux-Debian-arm64.deb
+Ghost-FTP-0.0.6-Linux-Debian-i386.deb
+Ghost-FTP-0.0.6-Linux-Ubuntu-amd64.deb
+Ghost-FTP-0.0.6-Linux-Ubuntu-arm64.deb
+Ghost-FTP-0.0.6-Linux-Ubuntu-i386.deb
+Ghost-FTP-0.0.6-Linux-Fedora-x86_64.rpm
+Ghost-FTP-0.0.6-Linux-Fedora-aarch64.rpm
+Ghost-FTP-0.0.6-Linux-Fedora-i686.rpm
+Ghost-FTP-0.0.6-Linux-Portable-amd64.tar.gz
+Ghost-FTP-0.0.6-Linux-Portable-arm64.tar.gz
+Ghost-FTP-0.0.6-Linux-Portable-i386.tar.gz
 ```
 
-The verified release directory is also distributed at `ghcr.io/bren-wp/ghost-ftp:0.0.5` as a distribution bundle, not a runtime container.
+Those twelve Linux artifacts are part of the complete 18-product-artifact public set. The verified release directory is also distributed at `ghcr.io/bren-wp/ghost-ftp:0.0.6` as a distribution bundle, not a runtime container.
 
 ## Native distro installation verification
 
-`.github/workflows/linux-distro-install.yml` performs clean-container installation lifecycle on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. It verifies distro/package identity, dependencies, installed files, startup of `/usr/bin/ghostftp` under isolated local Xvfb, removal and absence of package-owned system residue.
+`.github/workflows/linux-distro-install.yml` performs clean-container installation lifecycle on **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. It verifies package identity, dependencies, installed files, startup of `/usr/bin/ghostftp` under isolated local Xvfb, removal and absence of package-owned system residue.
 
-Native install coverage above is **x86-64 only**. Other canonical architectures retain exact-head build, metadata, extraction and binary-parity verification.
+Native install/runtime/GUI evidence is **x86-64 only**. ARM64/i386/aarch64/i686 artifacts retain exact-head build, metadata, extraction and byte-parity verification; they are not falsely described as natively executed by the maintained matrix.
 
 ## Portable use
 
 ```bash
-tar -xzf Ghost-FTP-0.0.5-Linux-Portable-amd64.tar.gz
-cd Ghost-FTP-0.0.5-Linux-Portable-amd64
+tar -xzf Ghost-FTP-0.0.6-Linux-Portable-amd64.tar.gz
+cd Ghost-FTP-0.0.6-Linux-Portable-amd64
 ./ghostftp
 ```
 
-Portable includes `ghostftp`, desktop entry, icon, LICENSE and README. A user-writable Portable/per-user executable cannot provide the same root-controlled OpenSSH AskPass boundary as a package-installed binary, so automatic SFTP password/passphrase delivery fails closed where trusted provenance is unavailable.
+Portable includes `ghostftp`, desktop entry, icon, LICENSE and README. A user-writable Portable/per-user executable cannot provide the same root-controlled OpenSSH AskPass boundary as a package-installed binary, so automatic SFTP password/passphrase delivery fails closed when trusted provenance is unavailable.
 
 ## Installed identity and dependencies
 
@@ -78,11 +76,11 @@ Debian/Ubuntu declare `ca-certificates`, `curl`, `openssh-client`; Fedora declar
 
 ## Graphical desktop
 
-When local `DISPLAY` is available, `ghostftp` starts the native graphical frontend. It is implemented directly against X11/XWayland-compatible display transport without GTK, Qt, Electron, a webview or an external Go GUI module.
+With local `DISPLAY`, `ghostftp` starts the native graphical frontend directly against X11/XWayland-compatible display transport — no GTK, Qt, Electron, webview or external Go GUI module.
 
-The workspace includes Quick Connect, FTP/FTPS/SFTP selection, SFTP host-key trust, saved profiles, dual panes, shared sorting/filter/search/comparison, transfers, queue priority, file operations, Remote Edit, bookmarks/profile starts and validated settings/bandwidth behavior.
+The workspace includes Quick Connect, FTP/FTPS/SFTP, strict SFTP host-key trust, saved profiles, dual panes, create/rename/delete/permissions, upload/download, shared sorting/filtering, bounded recursive search, conservative directory comparison/synchronized navigation, transfer queue and Top/Up/Down/Bottom priority, Remote Edit, bookmarks/start directories, appearance and validated settings/bandwidth behavior.
 
-Classic Light is the fresh/fallback appearance; Dark is maintained. Persisted appearance is applied before first frame and no remote theme service/browser runtime is involved.
+Classic Light is the fresh/fallback appearance; Dark is maintained. Persisted appearance is applied before first paint with no remote theme/font runtime.
 
 For headless/terminal operation:
 
@@ -92,20 +90,23 @@ GHOSTFTP_UI=terminal ghostftp
 
 ## Authentication and protected credentials
 
-Linux supports FTP password, explicit FTPS with certificate validation, SFTP password and private-key authentication plus explicit host-key fingerprint confirmation. Automatic SFTP password/private-key-passphrase delivery requires trusted package/system installation provenance.
+Linux supports FTP password, explicit FTPS with strict certificate/hostname validation, SFTP password and private-key authentication plus explicit host-key fingerprint confirmation.
 
-Saving newly entered password/passphrase material is opt-in with bounded confirmation, protected local storage and plaintext UI clearing. Runtime AskPass provenance remains a separate fail-closed boundary.
+Automatic SFTP password/private-key-passphrase delivery requires trusted package/system installation provenance. Saving newly entered secrets is opt-in with protected local storage and plaintext UI clearing; mutable AskPass provenance never silently weakens this boundary.
 
-## Active-source context
+## Cross-platform release context
 
-The Linux public-release contract is intentionally separate from the other active source platforms:
+The complete 0.0.6 public release also includes:
 
-- Android CI validates its native development APK, strict FTPS/lifecycle/security contracts and authentic emulator UI without adding an APK to this release set.
-- macOS CI validates the native universal AppKit development app against the shared engine. Development app success is not a public Developer ID/notarization claim.
-- browser-helper source parses/copies supported FTP-family targets locally and is not a Linux runtime dependency or release artifact.
+- two trusted-Authenticode universal Windows executables;
+- one protected production-signed Android APK with exact signer SHA-256 verification;
+- three deterministic branded Chrome/Edge/Firefox helper ZIPs;
+- three metadata/verification files.
 
-## 0.0.5 compatibility note
+Android SFTP remains hidden until strict maintained host-key verification exists. Browser helpers are local parser/copy packages with no supported browser-to-desktop handoff. macOS CI validates the native universal AppKit development app but does not claim Developer ID/notarized publication.
 
-0.0.5 keeps the mature Linux desktop behavior under the current shared engine/security contract and rebuilds/revalidates it through all canonical distro gates. Release-quality changes elsewhere in the repository do not weaken Linux protocol trust, AskPass provenance, package parity or native lifecycle verification.
+## 0.0.6 compatibility and security note
+
+0.0.6 preserves the mature Linux protocol/security model while revalidating all canonical distro packages. Release work on Android/browser surfaces does not weaken Linux FTPS/SFTP trust, AskPass provenance, filesystem confinement, transfer staging, package parity or native lifecycle gates.
 
 See `docs/SECURITY.md`, `docs/PLATFORM-PARITY.md`, `docs/DEPENDENCIES.md`, `docs/INSTALLATION.md` and `docs/TESTING.md`.
