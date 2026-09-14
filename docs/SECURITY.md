@@ -56,6 +56,15 @@ Linux accepts `curl`, `ssh`, `sftp` and `ssh-keyscan` only through trusted root-
 
 Public Windows output is exactly `Ghost-FTP-0.0.6-Setup.exe` and `Ghost-FTP-0.0.6-Portable.exe`. Each carries internal x64/x86/ARM64 payloads selected locally. Staged payload bytes are verified before execution and no architecture payload is fetched from the network.
 
+The release evidence metadata must retain these exact markers:
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The second marker is a deliberate trust boundary: structural/cross-build verification is not relabeled as native ARM64 runtime evidence.
+
 Official publication is signed-only. `GHOSTFTP_SIGNING_PFX_BASE64` and `GHOSTFTP_SIGNING_PASSWORD` must be available to the protected release job and `Get-AuthenticodeSignature` must report `Valid` for both public EXEs.
 
 ## Android signing security
