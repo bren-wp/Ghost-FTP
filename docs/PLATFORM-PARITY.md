@@ -8,7 +8,16 @@ Windows and Linux use the same typed `internal/api.Engine` and shared protocol, 
 
 Both desktop frontends expose real queue lifecycle including pause/resume where supported, cancel, retry, clear and queued Top/Up/Down/Bottom ordering. Progress/speed/ETA are displayed only from actual transfer state.
 
-Windows public output is one universal Setup + one universal Portable, each containing x64/x86/ARM64 payloads. Linux public output is exactly six bundles: Installer + Portable for Debian/Ubuntu/Fedora, each carrying amd64/arm64/i386 payloads.
+Windows public output is one universal Setup + one universal Portable, each containing **x64, x86 and ARM64** payloads. The release metadata preserves the evidence boundary explicitly:
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 marker means the maintained CI proves cross-build/package/resource integrity without falsely claiming native Windows ARM64 runtime execution.
+
+Linux public output is exactly six bundles: Installer + Portable for Debian/Ubuntu/Fedora, each carrying amd64/arm64/i386 payloads.
 
 ## Android parity boundary
 
