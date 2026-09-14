@@ -79,6 +79,23 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=NO", audit)
         self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS", audit)
 
+    def test_auxiliary_audits_report_only_validated_scope(self) -> None:
+        desktop = read("scripts/audit_desktop_surface.py")
+        security = read("scripts/audit_security.py")
+        privacy = read("scripts/audit_privacy.py")
+
+        self.assertIn("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES", desktop)
+        self.assertIn("ANDROID_DEVELOPMENT_SURFACE=ACTIVE", desktop)
+        self.assertIn("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE", desktop)
+        self.assertNotIn("PUBLIC_RELEASE_PLATFORMS=", desktop)
+        self.assertNotIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=", desktop)
+        self.assertNotIn("MACOS_PUBLIC_RELEASE_ARTIFACT=", desktop)
+
+        self.assertIn("SECURITY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX", security)
+        self.assertIn("PRIVACY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX", privacy)
+        self.assertNotIn("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", security)
+        self.assertNotIn("ACTIVE_APPLICATION_PLATFORMS=WINDOWS,LINUX", privacy)
+
     def test_release_workflow_refuses_stale_main_or_tag_rewrite(self) -> None:
         workflow = read(".github/workflows/release.yml")
         self.assertIn("RELEASE_TAG=ghostftp-v$version", workflow)
