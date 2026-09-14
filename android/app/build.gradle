@@ -3,6 +3,17 @@ plugins {
 }
 
 def ghostFtpVersion = rootProject.file('../VERSION').text.trim()
+def ghostFtpVersionParts = ghostFtpVersion.tokenize('.')
+if (ghostFtpVersionParts.size() != 3 || !ghostFtpVersionParts.every { it ==~ /\d+/ }) {
+    throw new GradleException("Ghost FTP VERSION must be numeric MAJOR.MINOR.PATCH, got '${ghostFtpVersion}'")
+}
+def ghostFtpVersionCode =
+        ghostFtpVersionParts[0].toInteger() * 1000000 +
+        ghostFtpVersionParts[1].toInteger() * 1000 +
+        ghostFtpVersionParts[2].toInteger()
+if (ghostFtpVersionCode <= 0 || ghostFtpVersionCode > 2100000000) {
+    throw new GradleException("Ghost FTP Android versionCode is out of range: ${ghostFtpVersionCode}")
+}
 
 android {
     namespace 'app.ghostftp.client'
@@ -12,8 +23,8 @@ android {
         applicationId 'app.ghostftp.client'
         minSdk 26
         targetSdk 35
-        versionCode 3
-        versionName "${ghostFtpVersion}-dev"
+        versionCode ghostFtpVersionCode
+        versionName ghostFtpVersion
     }
 
     buildFeatures {
@@ -23,7 +34,7 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix '.debug'
-            versionNameSuffix '-debug'
+            versionNameSuffix '-dev'
         }
         release {
             minifyEnabled true
@@ -51,12 +62,12 @@ tasks.register('packageGhostFtpApk', Copy) {
     dependsOn 'assembleDebug'
     from(layout.buildDirectory.file('outputs/apk/debug/app-debug.apk'))
     into(rootProject.layout.projectDirectory.dir('dist'))
-    rename { 'Ghost-FTP-Android.apk' }
+    rename { 'Ghost-FTP-Android-dev.apk' }
     doLast {
-        def apk = rootProject.layout.projectDirectory.file('dist/Ghost-FTP-Android.apk').asFile
+        def apk = rootProject.layout.projectDirectory.file('dist/Ghost-FTP-Android-dev.apk').asFile
         if (!apk.isFile() || apk.length() <= 0) {
-            throw new GradleException("Android APK was not generated at ${apk}")
+            throw new GradleException("Android development APK was not generated at ${apk}")
         }
-        println "ANDROID_APK=${apk}"
+        println "ANDROID_DEV_APK=${apk}"
     }
 }
