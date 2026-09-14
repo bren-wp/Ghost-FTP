@@ -99,7 +99,7 @@ About displays product/version identity generated from canonical build `VERSION`
 
 ## Authentic screenshot evidence
 
-`.github/workflows/ui-screenshots.yml` captures real exact-head runtime UI. **Mockups, image-generation output and manually composed approximations are not accepted** as production UI evidence.
+`.github/workflows/ui-screenshots.yml` captures real exact-head runtime UI. **Mockups, image-generation output and manually composed approximations are not accepted** as production UI evidence. The capture workflow does **not** commit or push screenshots; repository media is imported only from a separately verified evidence bundle.
 
 The immutable 0.0.6 evidence set stored in [`images/0.0.6/`](images/0.0.6/) contains exactly:
 
