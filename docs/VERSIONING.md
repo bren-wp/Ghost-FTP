@@ -122,7 +122,7 @@ Public 0.0.6 Android artifact:
 Ghost-FTP-0.0.6-Android.apk
 ```
 
-The release `versionName` equals root `VERSION`. Publication requires the protected production keystore/alias/password credentials and an exact signer-certificate fingerprint match against `GHOSTFTP_ANDROID_SIGNER_SHA256`.
+The release `versionName` equals root `VERSION`. Publication requires the protected production keystore/alias/password credentials and an exact signer-certificate fingerprint match against `GHOSTFTP_ANDROID_CERT_SHA256`.
 
 Development artifact:
 
