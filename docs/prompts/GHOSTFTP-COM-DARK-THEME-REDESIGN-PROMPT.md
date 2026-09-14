@@ -1,32 +1,68 @@
-# ghostftp.com dark-theme production website prompt
+# ghostftp.com 0.0.6 dark-theme production website prompt
 
-Use this prompt to build a new `ghostftp.com` product website or to refactor the existing site in place. The website must visually belong to the same product as the Ghost FTP desktop application while preserving the product's privacy-first and dependency-minimal principles.
+Use this prompt to build or refactor the production website for **Ghost FTP** at `https://ghostftp.com`. The repository and the live site must be audited before implementation. Preserve valid URLs, legal information, redirects, SEO equity and working deployment behavior rather than replacing them blindly.
+
+The website must visually belong to the same product as the real Ghost FTP applications while remaining privacy-first, fast, accessible, responsive and technically honest. The repository is authoritative for platform support, release state, screenshots, downloads, security claims and licensing.
 
 ## Master prompt
 
-You are responsible for designing and implementing the production website for **Ghost FTP** at **https://ghostftp.com**.
+You are responsible for the production design and implementation of `ghostftp.com`.
 
-The repository and the current production site must be audited before implementation. Do not blindly replace working URLs, legal content, download links, redirects, search-engine metadata or useful information. If an existing site is present, inventory it first, identify what should be preserved, migrated, redirected or removed, and then implement the redesign without creating broken inbound links.
+Before changing public content, record the current repository `main` SHA, `VERSION`, last actually published stable release and the current candidate release contract. Inspect the live site and repository documentation. Do not present a candidate as already published, a development build as production, a CI artifact as an official release, or a mockup as an application screenshot.
 
-This website is the **official product, download, documentation, privacy/security and support website** for the maintained Windows/Linux Ghost FTP application. It is not authorization to create a browser-based FTP client, proxy user FTP traffic, collect FTP credentials or restore a retired application runtime in the browser.
+Ghost FTP is proprietary/source-available software; the controlling terms are in the repository `LICENSE`. Do not describe it as open source unless the controlling license is deliberately changed.
 
-### 1. Product identity
+## 1. Product and platform truth
 
-Use the public identity exactly:
+Use the product identity exactly:
 
 - Product: **Ghost FTP**
-- Official website: **https://ghostftp.com**
-- Maintained desktop platforms: **Windows and Linux**
-- Protocols: **FTP, FTPS and SFTP**
-- Product positioning: modern, privacy-first FTP client with local credential/data handling and strong secure-default behavior
+- Official website: `https://ghostftp.com`
+- Positioning: privacy-first file-transfer client/tooling with local credential/data handling and secure defaults
 
-The site must not invent a new company/product name, fake sub-brand, fake certification, fake award, user count, review score, customer logo, testimonial or usage metric.
+The intended 0.0.6 public distribution currently contains:
 
-Use the real repository-local Ghost FTP logo/icon and authentic application screenshots. Do not draw a fake application UI and present it as a screenshot. Do not use AI-generated application screenshots as product evidence.
+- **Windows:** one universal Setup and one universal Portable executable, each carrying/selecting x64, x86 and ARM64 payloads.
+- **Linux:** six universal distro bundles: Debian Installer + Portable, Ubuntu Installer + Portable, Fedora Installer + Portable. Each contains amd64, arm64 and i386 payloads and selects the local architecture.
+- **Android:** one canonical production-signed APK. Current compatibility boundary is **Android API 26+ (`minSdk 26`)** with `targetSdk 35`; never claim support for every Android version.
+- **Browser helper:** deterministic ZIPs for **Chrome, Edge, Firefox and Opera**. The official helper has **zero browser permissions and zero host permissions** and must not be represented as a browser FTP client.
+- **macOS:** active development/source surface only. Do not offer a public production download until real Developer ID Application signing and Apple notarization are verified.
 
-### 2. Visual direction — match the real Ghost FTP dark application theme
+The current candidate allow-list is **13 platform artifacts plus 3 metadata files = 16 public release files**. Re-read the release workflow/scripts before hard-coding these numbers in production site data. The site must follow the current repository contract if it changes.
 
-The primary website experience should use the canonical Ghost FTP dark palette from the application source. Treat these values as design tokens, not loose inspiration:
+## 2. Protocol claims must be platform-specific
+
+Do not flatten protocol support into one misleading global badge.
+
+Desktop Windows/Linux may expose the maintained FTP/FTPS/SFTP capabilities defined by current source and documentation. Android currently maintains FTP and explicit secure FTPS behavior, but **Android SFTP is hidden/unsupported** until strict maintained host-key verification/pinning exists. Never advertise Android SFTP, a trust-all path or a placeholder protocol option.
+
+The browser helper must not be described as performing FTP/FTPS/SFTP transfers itself. It has no host/network permissions, no product backend, no cloud relay and no browser-to-desktop connection handoff.
+
+## 3. Audit the existing website first
+
+Inventory the live site before implementation:
+
+- routes and localized routes;
+- canonical URLs and redirects;
+- download/release links;
+- privacy/security/legal/support pages;
+- sitemap and robots policy;
+- structured data;
+- Open Graph/social metadata;
+- current screenshots, icons, logos and fonts;
+- forms and their destinations/data flow;
+- cookies, storage, analytics, pixels and trackers;
+- external scripts/assets/services;
+- server configuration and HTTPS redirects;
+- legacy routes with inbound value;
+- broken links and redirect loops;
+- accessibility, responsive and performance defects.
+
+Preserve useful stable URLs where practical. When a route must change, use one deliberate permanent redirect and avoid redirect chains/loops.
+
+## 4. Visual direction
+
+Use the canonical Ghost FTP dark application palette as the primary reference unless current source has deliberately migrated it:
 
 ```text
 Window/background: #0B0F17
@@ -43,284 +79,279 @@ Danger:            #FF6878
 Selection:         #202F50
 ```
 
-The aesthetic should be premium, restrained and workstation-oriented: deep navy/charcoal backgrounds, layered panels, clean thin borders, Ghost FTP blue accents, strong typography, concise motion and authentic product imagery.
+Create a premium restrained workstation aesthetic: deep navy/charcoal surfaces, clear hierarchy, thin borders, Ghost FTP blue accents, high-quality typography and concise motion. Do not turn the site into a generic neon/cyberpunk/hacker theme. Avoid random purple/pink SaaS gradients, excessive glass, fake terminals and visual effects unrelated to the product.
 
-Do **not** turn it into a generic black/neon "hacker" site. Avoid glowing green terminals, excessive gradients, glass everywhere, cyberpunk clichés, random purple/pink SaaS gradients or oversized decorative effects that do not exist in the application.
+Use application panel hierarchy, selected states, spacing and control language as design-system references, but keep the result a responsive website rather than a desktop-window clone.
 
-Use the application as the design-system reference: its panel hierarchy, navigation rail ideas, list surfaces, subtle selected states, button variants and spacing rhythm should inform the website. The site should still be a modern responsive website rather than a literal desktop-window clone.
+## 5. Authentic media only
 
-### 3. Audit the existing site before changing it
+Use real repository-local product assets and authentic runtime screenshots. Current maintained documentation includes real product imagery under `docs/images/` and the authentic cross-platform screenshot workflow can provide exact-source evidence.
 
-If `ghostftp.com` already contains production files, first produce an inventory of:
+Never draw, AI-generate or manually fabricate a product UI and present it as a real screenshot. If decorative artwork is used, label/treat it as artwork. Do not use stock/watermarked UI imagery.
 
-- current routes and language routes;
-- canonical URLs;
-- downloads and release links;
-- legal/privacy/security pages;
-- support/contact routes;
-- existing redirects and `.htaccess`/server configuration where relevant;
-- sitemap and robots policy;
-- structured data;
-- Open Graph/Twitter metadata;
-- current images/icons/fonts;
-- forms and their data flow;
-- external dependencies;
-- cookies/storage/analytics/tracking;
-- legacy routes that still receive inbound traffic;
-- performance and accessibility problems;
-- broken links and redirect loops.
+Each screenshot used as product evidence should have known provenance: platform, source/release version and real runtime/emulator capture where relevant.
 
-Preserve useful stable URLs where possible. When a route must change, use a deliberate permanent redirect where appropriate. Do not create redirect chains or loops.
+## 6. Information architecture
 
-### 4. Information architecture
+Provide clear access to at least:
 
-Build a clear production information architecture. The final implementation may use separate pages or carefully designed sections, but it must provide obvious paths to at least:
-
-- Home;
-- Download;
-- Features;
-- Protocols;
-- Security;
-- Privacy;
-- Documentation / Help;
-- Support / Contact;
-- Release / version information;
-- legal information required by the actual operating entity and jurisdiction.
+- Home
+- Download
+- Features
+- Platforms
+- Protocols
+- Security
+- Privacy
+- Documentation / Help
+- Browser Helper
+- Support / Contact
+- Release / Version information
+- controlling license and required legal information
 
 Recommended homepage sequence:
 
-1. **Header/navigation** — Ghost FTP logo/wordmark, Features, Security, Download, Docs/Support, language control if localization is implemented.
-2. **Hero** — concise product statement, Windows/Linux availability, primary Download action, secondary View Features/Documentation action, authentic main-workspace screenshot.
-3. **Trust strip** — truthful facts only: FTP / FTPS / SFTP, Windows / Linux, local-first/privacy-first principles, maintained language count if sourced from the current product contract.
-4. **Product workflow** — connect, browse local/remote, transfer, manage queue, profiles/Site Manager.
-5. **Security section** — SFTP host-key verification/pinning, FTPS/TLS, protected credential handling, path/root protections, no hidden telemetry claim only where supported by current documentation.
-6. **Authentic UI showcase** — repository-local main workspace, Site Manager, Settings and About screenshots from real production builds where maintained by the repository.
-7. **Platform/download section** — architecture-appropriate Windows and Linux choices sourced from the current canonical release.
-8. **Privacy section** — concise explanation with link to full privacy policy.
-9. **FAQ / support** — practical install, portable, protocol, security and troubleshooting questions based on current documentation.
-10. **Footer** — product navigation, legal/privacy/security/support links, current truthful product/publisher attribution, no fake social links.
+1. **Header** — logo/wordmark, Features, Platforms, Security, Download, Docs/Support, language control if implemented.
+2. **Hero** — concise product statement, truthful current public platforms, primary download CTA and authentic main-workspace imagery.
+3. **Trust facts** — factual privacy/security/platform statements only; no fake ratings, user counts, awards or certifications.
+4. **Workflow** — connect, browse local/remote, transfer, manage profiles/queue where supported.
+5. **Platforms** — Windows, Linux and Android production surfaces; browser helper separated from native clients; macOS visibly marked development-only if mentioned.
+6. **Security** — desktop SFTP verification/pinning, FTPS/TLS, protected credential handling, local-path safety and release integrity; Android protocol limitations stated accurately.
+7. **Authentic UI** — real Windows/Linux/Android captures and maintained screenshots where available.
+8. **Downloads** — current stable release data from authoritative release metadata, with checksums/verification discoverable.
+9. **Browser Helper** — Chrome/Edge/Firefox/Opera, permission-free contract, no network/backend/handoff claims.
+10. **Privacy** — concise no-telemetry/no-hidden-backend explanation linked to full policy.
+11. **FAQ/Support** — practical install, architecture, protocol, Android compatibility, portable/installer and troubleshooting answers.
+12. **Footer** — product/docs/legal/privacy/security/support links and truthful publisher/legal attribution sourced from current legal docs.
 
-### 5. Download experience
+## 7. Download experience
 
-Do not hard-code stale binaries as if they are forever current. The download surface must be driven by, generated from or deliberately synchronized with the repository's authoritative release information.
+Never hard-code a candidate or stale binary as if it were the currently published stable release. The homepage and Download page must distinguish:
 
-The canonical release may expose Windows Setup and Portable variants plus Linux package/archive variants. Present architecture labels clearly. Never label x86 as x64, never hide the Portable/Setup distinction, and never imply supplemental CI-only distro packages are canonical public release artifacts unless the repository's current release contract actually says so.
+- current source/candidate version;
+- last actually published stable release;
+- public production artifacts;
+- development-only or CI artifacts.
 
-When linking to GitHub Releases, point to the canonical official repository/release destination. Do not mirror binaries to an unverified third-party host. Where checksums are available, make verification discoverable.
+Use authoritative GitHub Release data or a deployment process deliberately synchronized with it. Do not invent mirrors.
 
-The UI should make the primary recommended download obvious without removing access to other supported architectures. Detecting a browser platform may improve the suggested button, but the complete supported list must remain accessible and user-controlled.
+For the 0.0.6 contract, the production UI should understand:
 
-### 6. Security and privacy requirements for the website
+- Windows Setup vs Portable;
+- six Linux universal distro choices;
+- Android canonical APK with API 26+ compatibility statement;
+- four browser helper packages;
+- checksum/release metadata.
 
-The site itself must follow the same privacy-first philosophy as the application:
+Do not expose internal payloads as separate public downloads merely because a universal bundle contains multiple architectures. Do not claim native ARM64/i386 Linux runtime evidence when only packaging/build evidence exists.
 
-- no analytics or telemetry by default;
-- no advertising SDKs;
-- no tracking pixels;
-- no fingerprinting;
+macOS development artifacts must not appear among normal production downloads until the signing/notarization gate is truly satisfied.
+
+## 8. Website security and privacy
+
+The site should follow the product's privacy-first posture:
+
+- no analytics/telemetry by default;
+- no advertising SDKs, tracking pixels or fingerprinting;
 - no behavioral profiling;
-- no third-party chat widget that tracks visitors;
-- no external webfonts when system/local fonts are sufficient;
-- no remote icon CDN when repository-local SVG/icon assets can be used;
-- no remote decorative media dependency;
-- no hidden product API;
-- no unnecessary cookie/localStorage use;
-- no cookie-consent banner if the site genuinely does not set non-essential cookies;
-- never ask for FTP/SFTP hostname, username, password, private key or server credentials on the marketing website;
-- never proxy FTP/SFTP connections through the website;
-- never store product credentials in a form, query parameter, analytics event or server log by design.
+- no invasive third-party chat widgets;
+- no unnecessary third-party fonts/icon CDNs/decorative media;
+- no hidden product API or proxy;
+- no unnecessary cookies/localStorage;
+- no consent banner if the site genuinely sets no non-essential cookies;
+- never ask users to submit FTP/SFTP hostnames, usernames, passwords, private keys or server credentials to a marketing/support form;
+- never proxy file-transfer sessions through the marketing website;
+- never put product credentials into URLs, analytics events or logs by design.
 
-If a contact form is required, collect only the fields necessary for support/contact, document where the submission goes, use CSRF/spam protection that does not introduce invasive tracking, validate and encode all input, apply size/rate limits and never repurpose submissions for marketing without explicit consent.
+If a contact form is maintained, collect only necessary contact/support fields, validate/encode input, implement CSRF/spam/rate/size protection without invasive tracking and clearly document where submissions go. Explicitly warn users not to send passwords or private keys. **Do not repurpose names, email addresses, support messages or any other contact submission data for marketing, profiling or unrelated secondary use without separate explicit opt-in consent.**
 
-### 7. Front-end implementation constraints
+## 9. Browser helper presentation
 
-Prefer the existing production stack if it is maintainable and secure. Do not replace a simple working static site with a large framework merely for fashion.
+Treat the browser helper as its own product surface, not as a web FTP client.
 
-If building from scratch and no framework is genuinely required, prefer a minimal static implementation with semantic HTML, maintainable external CSS and modular JavaScript only where interaction requires it. Keep assets repository-local and make deployment straightforward on ordinary HTTPS hosting.
+Public copy must preserve these invariants:
+
+- Chrome, Edge, Firefox and Opera packages come from the official deterministic packaging contract;
+- zero browser permissions;
+- zero host permissions;
+- no telemetry/tracking;
+- no FTP/SFTP credential storage;
+- no cloud/backend relay;
+- no browser-to-desktop handoff;
+- no claim that the extension can browse or transfer server files itself.
+
+Do not add host permissions or external network behavior merely to make a demo appear more capable.
+
+## 10. Android presentation
+
+State the actual compatibility floor as API 26+ unless current build configuration changes after tested compatibility work. Do not say “all Android devices” or “all Android versions”.
+
+Use real Android screenshots/emulator evidence. Describe local storage in user-facing terms consistent with Android's Storage Access Framework/document-provider model.
+
+Do not expose or advertise Android SFTP until the implementation has strict maintained host-key verification/pinning and the repository changes its support contract. FTP and FTPS claims must reflect actual maintained behavior.
+
+## 11. Front-end implementation
+
+Prefer the existing maintainable production stack. Do not replace a simple static deployment with a large framework without a demonstrated need.
+
+If no framework is required, prefer semantic HTML, maintainable external CSS and modular JavaScript only where interaction requires it.
 
 Requirements:
 
-- no inline CSS or JavaScript unless the existing CSP/deployment architecture has a documented reason requiring a narrowly controlled exception;
-- no minified-one-line source files in the maintained source tree;
-- no duplicated CSS/JS components;
-- no unused libraries;
-- no runtime dependency on a JavaScript framework for content that works as HTML/CSS;
-- progressive enhancement for optional interactions;
-- server configuration that does not create redirect loops;
-- HTTPS-only canonical URLs;
-- stable cache headers for hashed/static assets;
-- correct MIME types;
-- compression where hosting supports it;
+- no inline CSS/JS unless a documented deployment/CSP reason requires a narrowly controlled exception;
+- no maintained source minified into one line;
+- no duplicate/unused CSS or JS;
+- no unnecessary runtime framework dependency;
+- progressive enhancement;
+- HTTPS canonicalization without loops;
+- stable caching for versioned/static assets;
+- correct MIME types and compression where available;
 - no mixed content;
-- no broken asset-relative paths on localized routes/subdirectories.
+- localized/subdirectory routes must resolve assets correctly.
 
-### 8. Responsive behavior
+## 12. Responsive and mobile behavior
 
-The design must be fully usable from small mobile screens through large desktop monitors. Test actual layout behavior; do not merely add one media query and call it responsive.
+Test real behavior at representative widths around 320, 360, 390, 412, 768, 1024, 1280, 1440 and wide desktop.
 
-Verify at representative widths including approximately 320, 360, 390, 412, 768, 1024, 1280, 1440 and wide desktop.
+Require:
 
-Required behavior:
+- no accidental horizontal overflow;
+- fully working touch/keyboard mobile navigation;
+- mobile menu open/close/Escape/focus restoration;
+- no hidden content on small screens;
+- non-overlapping hero/CTAs;
+- screenshots keep usable aspect ratios;
+- download/platform cards stack logically;
+- responsive tables preserve labels;
+- long translated copy wraps safely;
+- practical touch targets;
+- landscape mobile/tablet usability;
+- `prefers-reduced-motion` support.
 
-- no horizontal scrolling from layout overflow;
-- navigation converts to a fully working keyboard/touch-accessible mobile menu;
-- menu can open, close, escape and restore focus correctly;
-- hero copy and CTAs do not overlap;
-- screenshots keep usable aspect ratio and readable framing;
-- download cards stack in a sensible order;
-- tables become responsive without losing labels;
-- long translated text wraps safely;
-- buttons remain at least practical touch-target size;
-- no content is hidden merely because viewport width is small;
-- landscape mobile/tablet layouts remain usable;
-- reduced-motion preference is honored.
+## 13. Accessibility
 
-### 9. Accessibility and UX
+Target WCAG 2.2 AA-quality behavior where applicable:
 
-Target WCAG 2.2 AA-quality behavior where applicable.
-
-Use:
-
-- semantic landmarks;
-- one clear page-level heading hierarchy;
-- real buttons and links rather than clickable generic containers;
-- descriptive link labels;
-- keyboard-operable navigation and dialogs/menus;
-- visible focus indication compatible with the dark palette;
-- sufficient color contrast;
-- meaningful `alt` text for product imagery;
-- decorative imagery excluded from the accessibility tree where appropriate;
-- form labels, errors and status messages tied programmatically to fields;
+- semantic landmarks/headings;
+- real links/buttons;
+- keyboard operation;
+- visible focus;
+- sufficient contrast;
+- meaningful screenshot alt text;
+- decorative assets hidden from the accessibility tree;
+- programmatic form labels/errors/status;
 - skip navigation where useful;
-- `prefers-reduced-motion` support;
-- no autoplay video/audio;
-- no essential information that appears only on hover.
+- no autoplay audio/video;
+- no essential hover-only information.
 
-Animations should communicate hierarchy or state, not delay access to content.
+Animation may explain hierarchy/state but must not delay access to content.
 
-### 10. Localization
+## 14. Localization
 
-English is the primary canonical site language unless the current production site/repository specifies another source-locale contract. If the site supports multiple languages, translations must be complete and human-readable rather than partially translated navigation around English body copy.
+English is the canonical website source locale unless the deployed site defines another maintained contract. If multiple languages are offered, each public route must be completely and correctly translated rather than exposing translated navigation around English body copy.
 
-Use stable language-specific URLs where practical, correct `lang` attributes, `hreflang` relationships, localized metadata and self-consistent canonical tags. Do not auto-redirect users solely by IP or browser language in a way that prevents them from choosing another language.
+Use correct `lang`, stable language URLs, `hreflang`, localized metadata and coherent canonical tags. Do not force IP/browser-language redirects that prevent manual language choice.
 
-The product's maintained application language count may be stated only when sourced from the current application/release documentation. Do not assume the website must expose every application locale unless the implementation scope explicitly requires it; if all are exposed, they must all be properly maintained.
+Do not claim the application language count unless sourced from current repository documentation.
 
-### 11. SEO and discoverability
+## 15. SEO
 
 Implement technical SEO without keyword stuffing:
 
-- unique meaningful `<title>` and meta description per indexable route;
+- unique title/meta description per indexable page;
 - one canonical URL per page;
 - correct robots directives;
-- valid XML sitemap containing public canonical pages only;
-- Open Graph and social metadata using repository-local/public canonical media;
-- structured data only when factually supported (for example software application/product/organization data with real values);
-- meaningful headings and internal links;
-- descriptive download/link text;
-- clean URLs;
-- no duplicate language/canonical combinations;
-- redirects from migrated legacy URLs;
-- intentional 404 page with normal navigation;
-- no indexable staging/debug/admin/dev routes.
+- XML sitemap containing public canonical pages only;
+- Open Graph/social metadata using canonical authentic/local media;
+- factual structured data only;
+- meaningful headings/internal links;
+- clean URLs and descriptive download link text;
+- coherent localized canonicals/hreflang;
+- permanent redirects for deliberate migrations;
+- intentional 404 page;
+- no indexable staging/debug/dev/admin routes.
 
-Do not fabricate review stars, pricing, offers, download counts or software ratings in structured data.
+Never fabricate stars, reviews, download counts, pricing/offers, customers, awards or certifications in visible copy or structured data.
 
-### 12. Performance targets
+## 16. Performance
 
-Engineer for excellent real-world performance, not a synthetic score obtained by hiding content.
+Engineer for fast real-world performance rather than hiding content to chase a score:
 
-Goals:
-
-- fast LCP with a deliberately sized hero asset;
-- near-zero CLS through explicit image dimensions/aspect ratios and stable font strategy;
-- minimal main-thread JavaScript;
-- no render-blocking third-party tags;
-- local optimized WebP/AVIF/PNG/SVG assets as appropriate while retaining source-quality originals where the project needs them;
-- responsive `srcset`/sizes for photographic/raster UI screenshots where beneficial;
-- lazy-load below-the-fold imagery, not the critical hero image;
-- avoid enormous background videos;
+- deliberately sized critical hero image;
+- explicit dimensions/aspect ratios to control CLS;
+- local/system font strategy;
+- minimal main-thread JS;
+- no render-blocking tracking tags;
+- optimized local SVG/PNG/WebP/AVIF as appropriate;
+- responsive raster images where useful;
+- lazy-load below-the-fold media, not the critical hero;
 - remove unused CSS/JS;
-- cache immutable static assets;
-- keep DOM complexity reasonable.
+- immutable caching for fingerprinted assets;
+- reasonable DOM complexity.
 
-Run Lighthouse/PageSpeed-type checks for mobile and desktop, but also manually inspect layout and interaction because a score cannot prove a working menu or accurate download path.
+Use Lighthouse/PageSpeed-type checks as diagnostics, not proof that menus/downloads/content work correctly.
 
-### 13. Security headers and hosting
+## 17. Security headers and hosting
 
-Configure headers according to the actual hosting platform. Prefer a restrictive policy compatible with the implementation:
+Configure headers for the actual hosting environment and test them after deployment. Prefer a restrictive compatible policy:
 
-- `Content-Security-Policy` with no broad `unsafe-*` allowances unless specifically justified;
+- Content-Security-Policy without broad unsafe allowances;
 - `X-Content-Type-Options: nosniff`;
-- `Referrer-Policy` with privacy-conscious behavior;
-- `Permissions-Policy` disabling unneeded browser capabilities;
-- frame-ancestor protection via CSP;
-- HSTS only when HTTPS and all relevant subdomains are ready for the chosen scope;
-- no server version/debug leakage where configuration allows it.
+- privacy-conscious `Referrer-Policy`;
+- `Permissions-Policy` disabling unneeded capabilities;
+- CSP `frame-ancestors` protection;
+- HSTS only when HTTPS/subdomain readiness justifies the chosen scope;
+- no debug/server-version leakage where configurable.
 
-Do not copy a header template that breaks downloads, localized routes or required forms. Test the deployed policy.
+Do not copy a header template that breaks localized routes, downloads or forms.
 
-### 14. Content accuracy
+## 18. Content accuracy and legal boundaries
 
-Use the current Ghost FTP repository documentation as the source for supported platforms, protocols, security claims, release state, installation choices and privacy behavior.
+Every feature/security/platform statement must map to maintained repository behavior. Avoid vague claims such as “military-grade”, “unhackable”, “100% secure”, “anonymous” or “zero knowledge”.
 
-Every feature claim on the website must map to a real maintained capability. Avoid claims such as "military-grade", "zero knowledge", "unhackable", "100% secure" or "anonymous" unless there is an exact, defensible technical definition in the product contract.
+Do not expose internal development notes, stale `TODO` copy or fake “coming soon” labels for already implemented features. Do not describe source availability as open-source licensing. Link the controlling proprietary license and current privacy/security documentation where appropriate.
 
-Release/version text must be updated from an authoritative source rather than copied from an old mockup. Historical release pages may retain historical versions; current download/home metadata must agree with the current published stable release.
+Historical release pages may keep historical facts. Current homepage/download/platform metadata must describe the current published release, not merely the current source candidate.
 
-### 15. Required pages/content quality
+## 19. Acceptance testing
 
-Write production-ready content rather than placeholder copy. Remove lorem ipsum, `TODO`, "coming soon" for functionality that already exists, internal developer comments and implementation explanations from public copy.
+Before declaring the site complete, verify:
 
-Security and privacy pages should be detailed enough to explain the actual model without exposing secrets. Download/help pages should answer common architecture, Setup-vs-Portable and package-selection questions. Contact/support copy should explain what diagnostic information is safe to share and explicitly discourage sending passwords or private keys.
-
-### 16. Testing and acceptance criteria
-
-Before declaring the website complete, verify at minimum:
-
-- every header/footer/mobile-nav link;
+- all header/footer/mobile-nav links;
 - every CTA;
-- every download link and architecture label;
-- every language selector route;
-- every form and validation/error path if forms exist;
-- 404 handling;
-- redirect rules and absence of redirect loops;
-- canonical, robots and sitemap output;
-- page titles/descriptions;
-- structured data validity;
-- no console errors;
-- no missing assets;
-- no mixed content;
-- no horizontal overflow at representative viewport widths;
-- full keyboard navigation;
-- visible focus states;
-- mobile menu open/close/Escape/outside behavior;
-- reduced-motion behavior;
-- contrast and accessible names;
-- no external tracking/network requests beyond explicitly approved functional destinations;
-- no credential fields or hidden FTP proxy path;
-- CSP/security headers on the deployed environment;
-- production HTTPS canonicalization;
-- real product screenshots and logo render correctly;
-- current release/version/download data is correct.
+- every download target, platform and artifact label;
+- current stable vs candidate version state;
+- checksums/verification links;
+- Android API compatibility copy;
+- browser helper permission/no-network claims;
+- macOS development-only labeling;
+- every language route;
+- form success/error/validation paths where forms exist;
+- 404 and redirects/no loops;
+- canonical/robots/sitemap;
+- structured data;
+- no console errors/missing assets/mixed content;
+- representative responsive widths/no overflow;
+- keyboard/focus/reduced-motion/contrast behavior;
+- no unauthorized trackers or network destinations;
+- no FTP credential fields/proxy behavior;
+- production CSP/security headers;
+- real screenshots/logo render correctly;
+- release/download data matches the authoritative repository/GitHub Release.
 
-Where tooling exists, run HTML/CSS/JS validation, link checking, accessibility checks and performance audits. Manually verify the critical flows even when automation passes.
+## 20. Delivery requirements
 
-### 17. Delivery requirements
-
-Deliver production source, not only screenshots or a visual concept. Keep the code readable and documented where deployment behavior is non-obvious.
-
-Provide:
+Deliver production source, not only design screenshots. Provide:
 
 - final route map;
-- migration/redirect map for changed legacy URLs;
-- asset inventory and source provenance;
-- deployment instructions for the real hosting environment;
-- security-header/server configuration;
+- migration/redirect map;
+- asset inventory and provenance;
+- deployment instructions;
+- security-header configuration;
 - SEO/sitemap/robots configuration;
-- testing checklist/results;
-- list of external network destinations, ideally limited to canonical user-initiated destinations such as official download/documentation links;
-- explicit confirmation that analytics/tracking/ads were not introduced;
-- any intentionally preserved legacy compatibility behavior.
+- test checklist/results;
+- external network-destination inventory;
+- explicit confirmation of analytics/tracking/ads behavior;
+- current download-data source and update process;
+- intentionally preserved legacy compatibility behavior.
 
-The finished `ghostftp.com` should look unmistakably related to the Ghost FTP application's dark theme, remain fast and readable on mobile, provide trustworthy current downloads and documentation, and preserve the product's privacy-first behavior without turning the website into a credential-handling FTP service.
+The finished site should feel unmistakably like Ghost FTP, truthfully present Windows/Linux/Android and the permission-free browser helper, keep macOS development-only until its real distribution gate is met, remain fast and accessible on mobile, and never turn the marketing website into a credential-handling file-transfer service.
