@@ -251,8 +251,8 @@ def main() -> int:
                 fail(f"{workflow_rel} references non-public application marker: {marker}")
 
     release_workflow = read(".github/workflows/release.yml")
-    if "android/" in release_workflow.lower() or "macos/" in release_workflow.lower():
-        fail("published Windows/Linux release workflow must not retroactively include development-platform artifacts")
+    if "macos/" in release_workflow.lower():
+        fail("public release workflow must not claim macOS without Developer ID/notarization evidence")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
         fail("release workflow contains a hard-coded production version")
     require(
@@ -270,6 +270,11 @@ def main() -> int:
             "Require protected Authenticode identity",
             "state=signed",
             "test \"$WINDOWS_SIGNING_STATE\" = 'signed'",
+            "Require protected Android production signing identity",
+            "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
+            "GHOSTFTP_ANDROID_SIGNER_SHA256",
+            "ANDROID_APK=production-signed",
+            "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox",
             "WINDOWS_SETUP=universal-x86-x64-arm64",
             "WINDOWS_PORTABLE=universal-x86-x64-arm64",
             "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
@@ -278,13 +283,15 @@ def main() -> int:
             "LINUX_UBUNTU_DEB=amd64,arm64,i386",
             "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
             "LINUX_PORTABLE=amd64,arm64,i386",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
+            "PUBLIC_PLATFORM_ARTIFACTS=18",
+            "PUBLIC_RELEASE_FILES=21",
         ),
         ".github/workflows/release.yml",
     )
     if "state=unsigned" in release_workflow:
         fail("official public release workflow must not permit unsigned Windows publication")
+    if "keytool -genkeypair" in release_workflow:
+        fail("official release workflow must not generate an Android publisher identity")
     if "--prerelease" in release_workflow:
         fail("current 0.0.x release workflow must not mark the GitHub Release as prerelease")
 
@@ -294,7 +301,7 @@ def main() -> int:
         (
             "Publish Ghost FTP",
             "test \"$release_prerelease\" = 'false'",
-            "test \"$asset_count\" -eq 17",
+            "test \"$asset_count\" -eq 21",
             "gh release delete",
             "--cleanup-tag",
             "packages/container/ghost-ftp/versions",
@@ -313,8 +320,8 @@ def main() -> int:
             "PUBLIC_RELEASE_CHANNEL=CURRENT",
             "CURRENT_RELEASE_PRERELEASE_FLAG=FALSE",
             "LATEST_ONLY_RELEASE_RETENTION=YES",
-            "PUBLIC_PLATFORM_ARTIFACTS=14",
-            "PUBLIC_RELEASE_FILES=17",
+            "PUBLIC_PLATFORM_ARTIFACTS=18",
+            "PUBLIC_RELEASE_FILES=21",
             "WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64",
             "WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64",
             "WINDOWS_ARM64_RUNTIME_EVIDENCE=NOT_NATIVE_CI",
@@ -322,10 +329,12 @@ def main() -> int:
             "LINUX_UBUNTU_DEB=amd64,arm64,i386",
             "LINUX_FEDORA_RPM=x86_64,aarch64,i686",
             "LINUX_PORTABLE=amd64,arm64,i386",
+            "ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED",
+            "BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
             "CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES",
             "PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED",
-            "TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED",
+            "ANDROID_PRODUCTION_SIGNING_IDENTITY=REQUIRED_AND_VERIFIED",
         ),
         "scripts/audit_release.py",
     )
@@ -342,11 +351,12 @@ def main() -> int:
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("RELEASE_TAG_NAMESPACE=ghostftp-vX.Y.Z")
-    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ANDROID_VERSION_BOUND_TO_ROOT_VERSION=YES")
     print("ANDROID_RELEASE_VERSION_EQUALS_ROOT_VERSION=YES")
     print("ANDROID_DEVELOPMENT_VERSION_SUFFIX=-dev")
+    print("ANDROID_PRODUCTION_SIGNING_IDENTITY=REQUIRED_AND_VERIFIED")
     print("MACOS_VERSION_BOUND_TO_ROOT_VERSION=YES")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
@@ -358,7 +368,6 @@ def main() -> int:
     print("WINDOWS_ARM64_RUNTIME_EVIDENCE=NOT_NATIVE_CI")
     print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
     print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
-    print("TRUSTED_AUTHENTICODE_WHEN_CONFIGURED=VERIFIED")
     print("SELF_SIGNED_PRODUCTION_IDENTITY=BLOCKED")
     print("CURRENT_GITHUB_PACKAGE=GHCR_RELEASE_BUNDLE")
     return 0
