@@ -105,7 +105,7 @@ Windows is the reference desktop application surface. Linux remains active devel
 </tr>
 </table>
 
-Authentic runtime evidence is maintained across **Windows, Linux and Android** and must remain bound to an exact-head source SHA. Repository-local images may describe the product, but generated mockups are never accepted as execution or release evidence.
+Authentic runtime evidence is maintained across **Windows, Linux and Android** and must remain bound to an exact-head source SHA. The **read-only verified cross-platform evidence bundle** is the execution-evidence source for release review and records authentic platform captures with source/revision provenance. Repository-local images may describe the product, but generated mockups are never accepted as execution or release evidence.
 
 See [`REFERENCE-UI.md`](REFERENCE-UI.md) for provenance and exact-head evidence rules.
 
