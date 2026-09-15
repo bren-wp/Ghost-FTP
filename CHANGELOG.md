@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - 0.0.7 hardening
+
+### Reliability and user experience
+
+- Hardened the browser Native Messaging bridge with bounded pending-request lifetimes, duplicate-request rejection and single-flight transfer polling so an unresponsive local bridge cannot leave the extension permanently busy.
+- Android saved-site loading now isolates malformed stored entries instead of discarding every otherwise valid saved server when one profile is damaged.
+- Simplified Android Remote Edit errors so normal users receive actionable file, connection and conflict guidance instead of implementation terminology.
+- Kept strict UTF-8, binary-file, size, line-ending and remote-change protections for Remote Edit while reducing unnecessary SHA-256 hex-formatting allocations.
+- Added regression coverage for the optimized digest path and browser bridge lifecycle boundaries.
+
+### Maintenance
+
+- Production cleanup continues to remove obsolete implementation wording and stale documentation without weakening protocol, privacy, signing or release safety checks.
+- Release documentation is kept aligned with the immutable published 0.0.6 asset set rather than historical development targets.
+
 ## 0.0.6 - 2026-09-14
 
 ### Public Android release
@@ -24,26 +39,26 @@
 
 ### Browser helper public packages
 
-- Added deterministic public release ZIPs for Chrome, Microsoft Edge and Firefox:
+- Added deterministic public release ZIPs for Chrome, Microsoft Edge, Firefox and Opera:
   - `Ghost-FTP-0.0.6-Chrome-Extension.zip`
   - `Ghost-FTP-0.0.6-Edge-Extension.zip`
   - `Ghost-FTP-0.0.6-Firefox-Extension.zip`
-- Kept the browser helper privacy-minimal: no broad host, tab, history, storage, scripting or network permissions are added by the release contract.
-- The browser helper remains a local parser/copy companion. There is still no supported browser-to-desktop URI or native-messaging launch/handoff.
+  - `Ghost-FTP-0.0.6-Opera-Extension.zip`
+- Kept the browser helper privacy-minimal with zero browser permissions and zero host permissions in the published 0.0.6 packages.
 
 ### Windows and Linux
 
 - Preserved the two official universal Windows executables with embedded native x64, x86 and ARM64 application payloads and fail-closed trusted Authenticode publication.
 - Preserved `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci`; cross-build and structural verification are not represented as native ARM64 runtime execution.
-- Preserved the canonical twelve Linux Debian/Ubuntu/Fedora/Portable packages and metadata/extraction/binary-parity gates across amd64/arm64/i386 or equivalent RPM architectures.
+- Preserved the canonical six Linux Debian/Ubuntu/Fedora Installer + Portable release files across the supported public distribution targets.
 - Preserved native package-manager/runtime/GUI evidence for Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64 without inventing native execution claims for cross-built architectures.
 
 ### Release engineering and verification
 
 - Advanced root `VERSION` to **0.0.6** and retained the Current channel with `ghostftp-v0.0.6`, `prerelease=false`.
-- Expanded the canonical public release shape from 14 platform artifacts / 17 public files to **18 platform artifacts / 21 public files**.
+- Published **13 platform artifacts / 16 public files**: two Windows packages, six Linux packages, one Android APK, four browser extension ZIPs, plus `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
 - Added Android and browser stages to the canonical `Publish Ghost FTP` workflow and kept macOS outside public publication until real Developer ID signing and Apple notarization succeed.
-- Expanded `BUILD-METADATA.txt`, `SHA256.txt`, exact remote asset readback, digest readback and latest-only retention to the complete 21-file allow-list.
+- Expanded `BUILD-METADATA.txt`, `SHA256.txt`, exact remote asset readback, digest readback and latest-only retention to the complete 16-file public allow-list.
 - The verified GHCR object remains a distribution bundle rather than a supported runtime container.
 
 ### Security and privacy
