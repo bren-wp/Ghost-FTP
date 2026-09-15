@@ -95,6 +95,9 @@ jobs:
             test -x "$portable_root/bin/amd64/ghostftp"
             test -x "$portable_root/bin/arm64/ghostftp"
             test -x "$portable_root/bin/i386/ghostftp"
+            test -x "$portable_root/bin/amd64/ghostftp-native-host"
+            test -x "$portable_root/bin/arm64/ghostftp-native-host"
+            test -x "$portable_root/bin/i386/ghostftp-native-host"
             test "$(cat "$portable_root/DISTRIBUTION")" = "$distro"
             test -f "$portable_root/ghost-ftp.desktop"
             test -f "$portable_root/ghost-ftp.png"
@@ -104,21 +107,27 @@ jobs:
             file "$portable_root/bin/amd64/ghostftp" | grep -E 'x86-64|x86_64'
             file "$portable_root/bin/arm64/ghostftp" | grep -E 'ARM aarch64|aarch64'
             file "$portable_root/bin/i386/ghostftp" | grep -E 'Intel 80386|80386'
+            file "$portable_root/bin/amd64/ghostftp-native-host" | grep -E 'x86-64|x86_64'
+            file "$portable_root/bin/arm64/ghostftp-native-host" | grep -E 'ARM aarch64|aarch64'
+            file "$portable_root/bin/i386/ghostftp-native-host" | grep -E 'Intel 80386|80386'
 
             prefix="$work/${distro}-installed"
             GHOSTFTP_PREFIX="$prefix" "$installer"
             test -x "$prefix/bin/ghostftp"
+            test -x "$prefix/libexec/ghostftp/ghostftp-native-host"
             test -f "$prefix/share/applications/ghost-ftp.desktop"
             test -f "$prefix/share/icons/hicolor/512x512/apps/ghost-ftp.png"
             test -f "$prefix/share/doc/ghost-ftp/LICENSE"
             test -f "$prefix/share/doc/ghost-ftp/README.md"
             cmp "$prefix/bin/ghostftp" "$portable_root/bin/amd64/ghostftp"
+            cmp "$prefix/libexec/ghostftp/ghostftp-native-host" "$portable_root/bin/amd64/ghostftp-native-host"
           done
 
           test "$(find dist -maxdepth 1 -type f -name 'Ghost-FTP-*-Linux-*.deb' | wc -l)" -eq 0
           test "$(find dist -maxdepth 1 -type f -name 'Ghost-FTP-*-Linux-*.rpm' | wc -l)" -eq 0
           test "$(find dist -maxdepth 1 -type f -name 'Ghost-FTP-*-Linux-Portable-*.tar.gz' | wc -l)" -eq 0
           echo 'LINUX_UNIVERSAL_DISTRO_BUNDLE_PARITY=PASS'
+          echo 'LINUX_NATIVE_BROWSER_HOST_PAYLOADS=amd64,arm64,i386'
 
       - name: Store Linux universal distro bundles
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
