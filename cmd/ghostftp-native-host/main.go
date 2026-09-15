@@ -48,6 +48,10 @@ type host struct {
 	localRoot string
 }
 
+func hasControlCharacters(value string) bool {
+	return strings.ContainsAny(value, "\x00\r\n")
+}
+
 func decodeStrict[T any](raw json.RawMessage) (T, error) {
 	var value T
 	if len(raw) == 0 {
@@ -68,6 +72,11 @@ func decodeStrict[T any](raw json.RawMessage) (T, error) {
 	return value, nil
 }
 
+func requireEmptyParams(raw json.RawMessage) error {
+	_, err := decodeStrict[struct{}](raw)
+	return err
+}
+
 func decodeRequest(payload []byte) (request, error) {
 	var req request
 	dec := json.NewDecoder(bytes.NewReader(payload))
@@ -81,6 +90,9 @@ func decodeRequest(payload []byte) (request, error) {
 			return req, errors.New("multiple JSON values are not allowed")
 		}
 		return req, err
+	}
+	if hasControlCharacters(req.ID) || hasControlCharacters(req.Type) {
+		return req, errors.New("request id and type contain control characters")
 	}
 	req.ID = strings.TrimSpace(req.ID)
 	req.Type = strings.TrimSpace(req.Type)
@@ -138,12 +150,25 @@ func writeResponse(w io.Writer, resp response) error {
 }
 
 func safeFailure(id, code string, err error, fallback string) response {
-	message := usererror.Message(err, fallback)
-	return response{ID: id, OK: false, Error: &bridgeError{Code: code, Message: message}}
+	return response{
+		ID: id,
+		OK: false,
+		Error: &bridgeError{
+			Code:    code,
+			Message: usererror.Message(err, fallback),
+		},
+	}
 }
 
 func invalidRequest(id, message string) response {
-	return response{ID: id, OK: false, Error: &bridgeError{Code: "invalid_request", Message: message}}
+	return response{
+		ID: id,
+		OK: false,
+		Error: &bridgeError{
+			Code:    "invalid_request",
+			Message: message,
+		},
+	}
 }
 
 func pathWithin(root, target string) bool {
@@ -155,8 +180,11 @@ func pathWithin(root, target string) bool {
 }
 
 func canonicalDirectory(path string) (string, error) {
+	if hasControlCharacters(path) {
+		return "", errors.New("invalid local folder")
+	}
 	path = strings.TrimSpace(path)
-	if path == "" || len(path) > 32767 || strings.ContainsAny(path, "\x00\r\n") {
+	if path == "" || len(path) > 32767 {
 		return "", errors.New("invalid local folder")
 	}
 	abs, err := filepath.Abs(filepath.Clean(path))
@@ -190,8 +218,11 @@ func (h *host) existingLocalPath(path string) (string, error) {
 	if h.localRoot == "" {
 		return "", errors.New("choose a local folder first")
 	}
+	if hasControlCharacters(path) {
+		return "", errors.New("invalid local path")
+	}
 	path = strings.TrimSpace(path)
-	if path == "" || len(path) > 32767 || strings.ContainsAny(path, "\x00\r\n") {
+	if path == "" || len(path) > 32767 {
 		return "", errors.New("invalid local path")
 	}
 	abs, err := filepath.Abs(filepath.Clean(path))
@@ -210,8 +241,11 @@ func (h *host) existingLocalPath(path string) (string, error) {
 }
 
 func safeLeaf(name string) (string, error) {
+	if hasControlCharacters(name) {
+		return "", errors.New("invalid file or folder name")
+	}
 	name = strings.TrimSpace(name)
-	if name == "" || name == "." || name == ".." || len(name) > 255 || strings.ContainsAny(name, "\x00\r\n/\\") {
+	if name == "" || name == "." || name == ".." || len(name) > 255 || strings.ContainsAny(name, "/\\") {
 		return "", errors.New("invalid file or folder name")
 	}
 	return name, nil
@@ -223,19 +257,36 @@ func (h *host) handle(parent context.Context, req request) response {
 
 	switch req.Type {
 	case "hello":
-		if _, err := decodeStrict[struct{}](req.Params); err != nil {
+		if err := requireEmptyParams(req.Params); err != nil {
 			return invalidRequest(req.ID, "The bridge request is invalid.")
 		}
-		return response{ID: req.ID, OK: true, Result: map[string]any{
-			"brand": "Ghost FTP", "version": version, "protocolVersion": 1,
-			"capabilities": []string{
-				"profiles", "connect", "disconnect", "localNavigation", "remoteNavigation",
-				"upload", "download", "rename", "delete", "createDirectory", "transferProgress", "cancel", "retry",
+		return response{
+			ID: req.ID,
+			OK: true,
+			Result: map[string]any{
+				"brand":           "Ghost FTP",
+				"version":         version,
+				"protocolVersion": 1,
+				"capabilities": []string{
+					"profiles",
+					"connect",
+					"disconnect",
+					"localNavigation",
+					"remoteNavigation",
+					"upload",
+					"download",
+					"rename",
+					"delete",
+					"createDirectory",
+					"transferProgress",
+					"cancel",
+					"retry",
+				},
 			},
-		}}
+		}
 
 	case "profiles.list":
-		if _, err := decodeStrict[struct{}](req.Params); err != nil {
+		if err := requireEmptyParams(req.Params); err != nil {
 			return invalidRequest(req.ID, "The profile request is invalid.")
 		}
 		profiles, err := h.engine.Profiles()
@@ -261,7 +312,7 @@ func (h *host) handle(parent context.Context, req request) response {
 		params, err := decodeStrict[struct {
 			ID string `json:"id"`
 		}](req.Params)
-		if err != nil || strings.TrimSpace(params.ID) == "" {
+		if err != nil || hasControlCharacters(params.ID) || strings.TrimSpace(params.ID) == "" {
 			return invalidRequest(req.ID, "Select a saved connection to remove.")
 		}
 		if err := h.engine.RemoveProfile(strings.TrimSpace(params.ID)); err != nil {
@@ -276,21 +327,30 @@ func (h *host) handle(parent context.Context, req request) response {
 			TrustFingerprint    string                 `json:"trustFingerprint,omitempty"`
 			RememberFingerprint bool                   `json:"rememberFingerprint,omitempty"`
 		}](req.Params)
-		if err != nil {
+		if err != nil || hasControlCharacters(params.ProfileID) || hasControlCharacters(params.TrustFingerprint) {
 			return invalidRequest(req.ID, "The connection settings are invalid.")
 		}
-		result, err := h.engine.Connect(ctx, strings.TrimSpace(params.ProfileID), params.Config, strings.TrimSpace(params.TrustFingerprint), params.RememberFingerprint)
+		result, err := h.engine.Connect(
+			ctx,
+			strings.TrimSpace(params.ProfileID),
+			params.Config,
+			strings.TrimSpace(params.TrustFingerprint),
+			params.RememberFingerprint,
+		)
 		if err != nil {
 			return safeFailure(req.ID, "connect_failed", err, "Unable to connect. Check the server address, port, credentials and network connection.")
 		}
 		return response{ID: req.ID, OK: true, Result: result}
 
 	case "trust.cancel":
+		if err := requireEmptyParams(req.Params); err != nil {
+			return invalidRequest(req.ID, "The trust request is invalid.")
+		}
 		h.engine.CancelPendingTrust()
 		return response{ID: req.ID, OK: true, Result: map[string]bool{"cancelled": true}}
 
 	case "disconnect":
-		if _, err := decodeStrict[struct{}](req.Params); err != nil {
+		if err := requireEmptyParams(req.Params); err != nil {
 			return invalidRequest(req.ID, "The disconnect request is invalid.")
 		}
 		if err := h.engine.Disconnect(ctx); err != nil {
@@ -299,11 +359,14 @@ func (h *host) handle(parent context.Context, req request) response {
 		return response{ID: req.ID, OK: true, Result: map[string]bool{"connected": false}}
 
 	case "connection.active":
+		if err := requireEmptyParams(req.Params); err != nil {
+			return invalidRequest(req.ID, "The connection status request is invalid.")
+		}
 		cfg, connected := h.engine.ActiveConnection()
 		return response{ID: req.ID, OK: true, Result: map[string]any{"connected": connected, "connection": cfg}}
 
 	case "local.chooseRoot":
-		if _, err := decodeStrict[struct{}](req.Params); err != nil {
+		if err := requireEmptyParams(req.Params); err != nil {
 			return invalidRequest(req.ID, "The local folder request is invalid.")
 		}
 		selected, err := h.engine.ChooseDirectory()
@@ -321,7 +384,15 @@ func (h *host) handle(parent context.Context, req request) response {
 		if err != nil {
 			return safeFailure(req.ID, "local_list_failed", err, "Unable to read the selected local folder.")
 		}
-		return response{ID: req.ID, OK: true, Result: map[string]any{"root": root, "path": path, "items": items}}
+		return response{
+			ID: req.ID,
+			OK: true,
+			Result: map[string]any{
+				"root":  root,
+				"path":  path,
+				"items": items,
+			},
+		}
 
 	case "local.list":
 		params, err := decodeStrict[struct {
@@ -338,7 +409,15 @@ func (h *host) handle(parent context.Context, req request) response {
 		if err != nil {
 			return safeFailure(req.ID, "local_list_failed", err, "Unable to read this local folder.")
 		}
-		return response{ID: req.ID, OK: true, Result: map[string]any{"root": h.localRoot, "path": listedPath, "items": items}}
+		return response{
+			ID: req.ID,
+			OK: true,
+			Result: map[string]any{
+				"root":  h.localRoot,
+				"path":  listedPath,
+				"items": items,
+			},
+		}
 
 	case "local.mkdir", "local.rename", "local.delete":
 		params, err := decodeStrict[struct {
@@ -378,14 +457,15 @@ func (h *host) handle(parent context.Context, req request) response {
 		params, err := decodeStrict[struct {
 			Path string `json:"path"`
 		}](req.Params)
-		if err != nil {
+		if err != nil || hasControlCharacters(params.Path) {
 			return invalidRequest(req.ID, "The remote folder request is invalid.")
 		}
-		items, err := h.engine.RemoteList(ctx, strings.TrimSpace(params.Path))
+		path := strings.TrimSpace(params.Path)
+		items, err := h.engine.RemoteList(ctx, path)
 		if err != nil {
 			return safeFailure(req.ID, "remote_list_failed", err, "Unable to read this server folder.")
 		}
-		return response{ID: req.ID, OK: true, Result: map[string]any{"path": strings.TrimSpace(params.Path), "items": items}}
+		return response{ID: req.ID, OK: true, Result: map[string]any{"path": path, "items": items}}
 
 	case "remote.mkdir", "remote.rename", "remote.delete":
 		params, err := decodeStrict[struct {
@@ -394,7 +474,7 @@ func (h *host) handle(parent context.Context, req request) response {
 			NewName     string `json:"newName,omitempty"`
 			IsDirectory bool   `json:"isDirectory,omitempty"`
 		}](req.Params)
-		if err != nil {
+		if err != nil || hasControlCharacters(params.Base) {
 			return invalidRequest(req.ID, "The remote file operation is invalid.")
 		}
 		name, err := safeLeaf(params.Name)
@@ -424,7 +504,7 @@ func (h *host) handle(parent context.Context, req request) response {
 			LocalPath  string `json:"localPath"`
 			RemotePath string `json:"remotePath"`
 		}](req.Params)
-		if err != nil {
+		if err != nil || hasControlCharacters(params.RemotePath) {
 			return invalidRequest(req.ID, "The upload request is invalid.")
 		}
 		localPath, err := h.existingLocalPath(params.LocalPath)
@@ -447,7 +527,7 @@ func (h *host) handle(parent context.Context, req request) response {
 			RemotePath     string `json:"remotePath"`
 			FileName       string `json:"fileName"`
 		}](req.Params)
-		if err != nil {
+		if err != nil || hasControlCharacters(params.RemotePath) {
 			return invalidRequest(req.ID, "The download request is invalid.")
 		}
 		localDir, err := h.existingLocalPath(params.LocalDirectory)
@@ -486,13 +566,14 @@ func (h *host) handle(parent context.Context, req request) response {
 		params, err := decodeStrict[struct {
 			ID string `json:"id"`
 		}](req.Params)
-		if err != nil || strings.TrimSpace(params.ID) == "" {
+		if err != nil || hasControlCharacters(params.ID) || strings.TrimSpace(params.ID) == "" {
 			return invalidRequest(req.ID, "Select a transfer first.")
 		}
+		transferID := strings.TrimSpace(params.ID)
 		if req.Type == "transfer.cancel" {
-			err = h.engine.CancelTransfer(strings.TrimSpace(params.ID))
+			err = h.engine.CancelTransfer(transferID)
 		} else {
-			err = h.engine.RetryTransfer(strings.TrimSpace(params.ID))
+			err = h.engine.RetryTransfer(transferID)
 		}
 		if err != nil {
 			return safeFailure(req.ID, "transfer_operation_failed", err, "Unable to update this transfer.")
@@ -500,14 +581,23 @@ func (h *host) handle(parent context.Context, req request) response {
 		return response{ID: req.ID, OK: true, Result: map[string]bool{"completed": true}}
 
 	case "transfer.pause":
+		if err := requireEmptyParams(req.Params); err != nil {
+			return invalidRequest(req.ID, "The transfer pause request is invalid.")
+		}
 		h.engine.PauseTransfers()
 		return response{ID: req.ID, OK: true, Result: map[string]bool{"paused": true}}
 
 	case "transfer.resume":
+		if err := requireEmptyParams(req.Params); err != nil {
+			return invalidRequest(req.ID, "The transfer resume request is invalid.")
+		}
 		h.engine.ResumeTransfers()
 		return response{ID: req.ID, OK: true, Result: map[string]bool{"paused": false}}
 
 	case "transfer.clearFinished":
+		if err := requireEmptyParams(req.Params); err != nil {
+			return invalidRequest(req.ID, "The transfer cleanup request is invalid.")
+		}
 		h.engine.ClearFinishedTransfers()
 		return response{ID: req.ID, OK: true, Result: map[string]bool{"completed": true}}
 
