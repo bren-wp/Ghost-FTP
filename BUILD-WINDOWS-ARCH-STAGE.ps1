@@ -228,6 +228,7 @@ New-Item -ItemType Directory -Force -Path $payloadDir | Out-Null
 Remove-Item -LiteralPath $payloadZip -Force -ErrorAction SilentlyContinue
 
 $ldflags = "-s -w -H=windowsgui -X main.version=$version"
+$nativeHostLdflags = "-s -w -buildid= -X main.version=$version"
 $publicFiles = [System.Collections.Generic.List[string]]::new()
 $verificationFiles = [System.Collections.Generic.List[string]]::new()
 
@@ -251,6 +252,7 @@ function Build-GhostFTPArchitecture {
 
     $portable = Join-Path $dist "Ghost-FTP-$version-Portable-$Label.exe"
     $setup = Join-Path $dist "Ghost-FTP-$version-Setup-$Label.exe"
+    $nativeHost = Join-Path $internalDist "Ghost-FTP-$version-Native-Host-$Label.exe"
     $verification = Join-Path $internalDist "verification-$Label.txt"
 
     Write-Host "      [$Label] Ghost FTP client"
@@ -266,10 +268,18 @@ function Build-GhostFTPArchitecture {
 
     Sign-WindowsTarget -Path $portable
 
+    Write-Host "      [$Label] Native browser messaging host"
+    Invoke-Native -FilePath $go -ArgumentList @(
+        'build','-mod=readonly','-trimpath','-buildvcs=false','-ldflags',$nativeHostLdflags,
+        '-o',$nativeHost,'./cmd/ghostftp-native-host'
+    ) -FailureMessage "Native browser host $Label build failed"
+    Assert-File -Path $nativeHost -Description "$Label native browser host"
+    Sign-WindowsTarget -Path $nativeHost
+
     Write-Host "      [$Label] Verified installer payload"
     try {
         Invoke-Native -FilePath $python -ArgumentList @(
-            'scripts/make_payload.py','--app',$portable,'--output',$payloadZip
+            'scripts/make_payload.py','--app',$portable,'--native-host',$nativeHost,'--output',$payloadZip
         ) -FailureMessage "$Label installer payload compression failed"
         Assert-File -Path $payloadZip -Description "$Label installer payload"
 
@@ -361,10 +371,15 @@ if ($actualNames.Count -ne 7) {
 if (Get-ChildItem -LiteralPath $dist -Recurse -File | Where-Object { $_.Name -match '(?i)uninstall' }) {
     throw 'Windows build unexpectedly produced an uninstaller binary.'
 }
+foreach ($label in @('x64','x86','arm64')) {
+    $nativeHost = Join-Path $internalDist "Ghost-FTP-$version-Native-Host-$label.exe"
+    Assert-File -Path $nativeHost -Description "$label native browser host evidence"
+}
 if (Test-Path -LiteralPath $payloadZip) {
     throw 'Temporary installer payload was not removed.'
 }
 
 Write-Host 'WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64'
+Write-Host 'WINDOWS_NATIVE_BROWSER_HOSTS=x64,x86,arm64'
 Write-Host 'UNINSTALLER_BINARY=ABSENT'
 Write-Host "Ghost FTP $version Windows x64+x86+ARM64 staging build completed: $dist"
