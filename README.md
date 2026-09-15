@@ -23,7 +23,7 @@ Privacy-first FTP, FTPS and SFTP software for direct professional file transfer 
 
 Ghost FTP keeps protocol traffic on the user's device and the destination server selected by the user. The repository contains maintained native applications for Windows, Linux and Android, an active macOS native source surface, and browser extension packages.
 
-The product website and former browser-hosted FTP client are not part of this repository. Browser packages are maintained under [`extensions/`](extensions/README.md). On the 0.0.7 development branch they use a bounded local Native Messaging bridge backed by the existing Ghost FTP Engine; they do not pretend that browser JavaScript can open raw FTP/SFTP sockets and they do not route transfers through a Ghost FTP remote proxy.
+The product website and former browser-hosted FTP client are not part of this repository. Browser packages are maintained under [`extensions/`](extensions/README.md). Current next-release hardening uses a bounded local Native Messaging bridge backed by the existing Ghost FTP Engine; browser JavaScript does not open raw FTP/SFTP sockets and transfers are not routed through a Ghost FTP remote proxy.
 
 No application telemetry. No behavioral analytics. No advertising. No fingerprinting. No mandatory Ghost FTP account. No automatic third-party crash upload.
 
@@ -52,7 +52,7 @@ Security-sensitive features fail closed. Unsupported features stay hidden rather
 | **Linux** | Public release | Debian, Ubuntu and Fedora Installer + Portable bundles |
 | **Android** | Public release | Production-signed APK; FTP + strict explicit FTPS; SAF-scoped storage |
 | **macOS** | Active native source | Public distribution remains gated on Developer ID signing and notarization |
-| **Browser extensions** | Public release packages / 0.0.7 bridge development | Chrome, Edge, Firefox and Opera UI over the local Ghost FTP Native Messaging bridge; `nativeMessaging` is the only browser permission |
+| **Browser extensions** | Public release packages / next-release hardening | Chrome, Edge, Firefox and Opera UI over the local Ghost FTP Native Messaging bridge; `nativeMessaging` is the only browser permission in the next-release bridge source |
 
 ## Published release
 
@@ -63,7 +63,7 @@ Published: **14 September 2026**
 Channel: **Current**
 Prerelease: **false**
 
-The published 0.0.6 release is immutable release history. Work on `production/0.0.7-cleanup` prepares the source for the next development cycle and does not retag, rewrite or republish 0.0.6.
+The published 0.0.6 release is immutable release history. Current source hardening prepares the next release and does not retag, rewrite or republish 0.0.6.
 
 The 0.0.6 publication contract is **13 platform artifacts / 16 public files**:
 
