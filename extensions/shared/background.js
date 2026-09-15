@@ -5,6 +5,7 @@
   const HOST_NAME = 'com.ghostftp.bridge';
   const UI_PORT_NAME = 'ghostftp-ui';
   const POLL_INTERVAL_MS = 750;
+  const REQUEST_TIMEOUT_MS = 45000;
   const MAX_PENDING = 256;
 
   let nativePort = null;
@@ -12,6 +13,7 @@
   let transferSince = 0;
   let requestCounter = 0;
   let nativeDisconnectMessage = '';
+  let transferPollPending = false;
 
   const clients = new Set();
   const pending = new Map();
@@ -103,12 +105,55 @@
     }
   }
 
+  function finishPending(id) {
+    const entry = pending.get(id);
+    if (!entry) {
+      return null;
+    }
+    pending.delete(id);
+    if (entry.timer !== null) {
+      clearTimeout(entry.timer);
+      entry.timer = null;
+    }
+    if (entry.request.type === 'transfer.events') {
+      transferPollPending = false;
+    }
+    return entry;
+  }
+
+  function timeoutPending(id) {
+    const entry = finishPending(id);
+    if (!entry) {
+      return;
+    }
+    const error = {
+      code: 'operation_timeout',
+      message: 'Ghost FTP local bridge did not respond in time. Try the operation again.'
+    };
+    try {
+      entry.client.postMessage({kind: 'response', response: {id: entry.request.id, ok: false, error}});
+    } catch (_error) {
+      // The popup may have closed while the native operation was pending.
+    }
+    closeNativeIfIdle();
+  }
+
+  function trackPending(client, request) {
+    const entry = {client, request, timer: null};
+    entry.timer = setTimeout(() => timeoutPending(request.id), REQUEST_TIMEOUT_MS);
+    pending.set(request.id, entry);
+  }
+
   function rejectPending(message) {
     const error = {
       code: 'native_host_unavailable',
       message: message || 'Ghost FTP desktop components are not available. Install or repair Ghost FTP and try again.'
     };
     for (const entry of pending.values()) {
+      if (entry.timer !== null) {
+        clearTimeout(entry.timer);
+        entry.timer = null;
+      }
       try {
         entry.client.postMessage({kind: 'response', response: {id: entry.request.id, ok: false, error}});
       } catch (_error) {
@@ -116,6 +161,7 @@
       }
     }
     pending.clear();
+    transferPollPending = false;
   }
 
   function handleNativeDisconnect(port) {
@@ -144,11 +190,10 @@
     if (!message || typeof message !== 'object' || typeof message.id !== 'string') {
       return;
     }
-    const entry = pending.get(message.id);
+    const entry = finishPending(message.id);
     if (!entry) {
       return;
     }
-    pending.delete(message.id);
     updateTransfersFromResponse(entry.request, message);
 
     try {
@@ -189,6 +234,17 @@
       });
       return;
     }
+    if (pending.has(request.id)) {
+      client.postMessage({
+        kind: 'response',
+        response: {
+          id: request.id,
+          ok: false,
+          error: {code: 'duplicate_request', message: 'Ghost FTP is already processing this browser request.'}
+        }
+      });
+      return;
+    }
     if (pending.size >= MAX_PENDING) {
       client.postMessage({
         kind: 'response',
@@ -216,11 +272,11 @@
       return;
     }
 
-    pending.set(request.id, {client, request});
+    trackPending(client, request);
     try {
       port.postMessage(request);
     } catch (_error) {
-      pending.delete(request.id);
+      finishPending(request.id);
       client.postMessage({
         kind: 'response',
         response: {
@@ -229,11 +285,12 @@
           error: {code: 'native_host_unavailable', message: 'Ghost FTP local bridge could not accept the request.'}
         }
       });
+      closeNativeIfIdle();
     }
   }
 
   function sendBackgroundRequest(type, params = {}) {
-    if (!nativePort || pending.size >= MAX_PENDING) {
+    if (!nativePort || pending.size >= MAX_PENDING || transferPollPending) {
       return;
     }
     const id = nextRequestId('poll');
@@ -255,11 +312,12 @@
         }
       }
     };
-    pending.set(id, {client: syntheticClient, request});
+    transferPollPending = true;
+    trackPending(syntheticClient, request);
     try {
       nativePort.postMessage(request);
     } catch (_error) {
-      pending.delete(id);
+      finishPending(id);
       handleNativeDisconnect(nativePort);
     }
   }
