@@ -38,20 +38,30 @@ class NoRetiredPublicVersionsTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         versioning = (ROOT / "docs" / "VERSIONING.md").read_text(encoding="utf-8")
         release_workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+
         self.assertRegex(version, r"^0\.0\.[1-9]\d*$")
         self.assertIn(f"Current source version: **{version}**", readme)
-        self.assertIn("Last actually published GitHub Release: **0.0.5**", readme)
-        self.assertIn("Release channel: **Current**", readme)
+        self.assertIn(f"Latest published GitHub Release: **`ghostftp-v{version}`**", readme)
+        self.assertIn("Channel: **Current**", readme)
         self.assertIn("Development status: **Active**", readme)
-        self.assertIn("prerelease=false", readme)
+        self.assertIn("Prerelease: **false**", readme)
+        self.assertIn(f"VERSION={version}", readme)
+        self.assertIn(f"TAG=ghostftp-v{version}", readme)
+        self.assertIn("CHANNEL=Current", readme)
+        self.assertIn("PRERELEASE=false", readme)
+
         self.assertIn(f"Current source candidate: **{version}**", versioning)
         self.assertIn(f"VERSION={version}", versioning)
         self.assertIn(f"TAG=ghostftp-v{version}", versioning)
         self.assertIn("CHANNEL=Current", versioning)
         self.assertIn("PRERELEASE=false", versioning)
         self.assertIn("major version `0` does not imply prerelease", versioning)
+
         self.assertNotIn("--prerelease", release_workflow)
-        self.assertIn("LATEST_ONLY_RELEASE_RETENTION", (ROOT / "scripts" / "audit_release.py").read_text(encoding="utf-8"))
+        self.assertIn(
+            "LATEST_ONLY_RELEASE_RETENTION",
+            (ROOT / "scripts" / "audit_release.py").read_text(encoding="utf-8"),
+        )
 
 
 if __name__ == "__main__":
