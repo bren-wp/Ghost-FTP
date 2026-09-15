@@ -10,6 +10,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 final class RemoteTextDocument {
+    private static final char[] HEX = "0123456789abcdef".toCharArray();
+
     enum LineEnding {
         LF,
         CRLF,
@@ -33,14 +35,14 @@ final class RemoteTextDocument {
 
     static Snapshot decode(byte[] bytes) throws IOException {
         if (bytes == null) {
-            throw new IOException("Remote Edit received no file data.");
+            throw new IOException("The server returned no file data.");
         }
         if (bytes.length > WorkspaceOps.MAX_REMOTE_EDIT_BYTES) {
-            throw new IOException("Remote Edit supports text files up to 1 MiB.");
+            throw new IOException("This file is larger than the 1 MiB editing limit.");
         }
         for (byte value : bytes) {
             if (value == 0) {
-                throw new IOException("Remote Edit rejected a binary file containing NUL bytes.");
+                throw new IOException("This file appears to be binary and cannot be edited as text.");
             }
         }
 
@@ -52,7 +54,7 @@ final class RemoteTextDocument {
                     .decode(ByteBuffer.wrap(bytes));
             text = decoded.toString();
         } catch (CharacterCodingException e) {
-            throw new IOException("Remote Edit supports strict UTF-8 text only.", e);
+            throw new IOException("This file is not valid UTF-8 text and cannot be edited safely.", e);
         }
         return new Snapshot(text, sha256(bytes), detectLineEnding(text));
     }
@@ -75,7 +77,7 @@ final class RemoteTextDocument {
         }
         byte[] encoded = canonical.replace("\n", separator).getBytes(StandardCharsets.UTF_8);
         if (encoded.length > WorkspaceOps.MAX_REMOTE_EDIT_BYTES) {
-            throw new IOException("Edited text exceeds the 1 MiB Remote Edit safety limit.");
+            throw new IOException("The edited file is larger than the 1 MiB editing limit.");
         }
         return encoded;
     }
@@ -83,7 +85,7 @@ final class RemoteTextDocument {
     static void requireUnchanged(byte[] latest, String baselineSha256) throws IOException {
         String baseline = baselineSha256 == null ? "" : baselineSha256.trim();
         if (baseline.isEmpty() || !constantTimeEquals(sha256(latest), baseline)) {
-            throw new IOException("Remote file changed since it was opened. Reload before saving to avoid overwriting newer data.");
+            throw new IOException("The remote file changed after you opened it. Reload before saving so newer server changes are not overwritten.");
         }
     }
 
@@ -91,13 +93,15 @@ final class RemoteTextDocument {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashed = digest.digest(bytes == null ? new byte[0] : bytes);
-            StringBuilder hex = new StringBuilder(hashed.length * 2);
-            for (byte value : hashed) {
-                hex.append(String.format(java.util.Locale.ROOT, "%02x", value & 0xff));
+            char[] hex = new char[hashed.length * 2];
+            for (int i = 0; i < hashed.length; i++) {
+                int value = hashed[i] & 0xff;
+                hex[i * 2] = HEX[value >>> 4];
+                hex[i * 2 + 1] = HEX[value & 0x0f];
             }
-            return hex.toString();
+            return new String(hex);
         } catch (NoSuchAlgorithmException e) {
-            throw new IOException("SHA-256 is unavailable.", e);
+            throw new IOException("Secure change detection is unavailable on this device.", e);
         }
     }
 
@@ -120,7 +124,7 @@ final class RemoteTextDocument {
         }
         int styles = (sawLf ? 1 : 0) + (sawCrLf ? 1 : 0) + (sawCr ? 1 : 0);
         if (styles > 1) {
-            throw new IOException("Remote Edit rejected mixed line endings to avoid rewriting unrelated lines.");
+            throw new IOException("This file uses mixed line endings. Normalize it before editing to avoid unintended changes.");
         }
         if (sawCrLf) return LineEnding.CRLF;
         if (sawCr) return LineEnding.CR;
