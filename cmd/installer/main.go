@@ -159,7 +159,7 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 	}
 
 	allowed := map[string]bool{
-		"GhostFTP.exe":               true,
+		"GhostFTP.exe":              true,
 		browserNativeHostExecutable: true,
 	}
 	seen := make(map[string]bool, len(allowed))
