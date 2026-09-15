@@ -2,18 +2,21 @@
 
 ## 0.0.6 — 2026-09-14
 
-Ghost FTP 0.0.6 expands the verified public release to Windows, Linux, Android and official Chrome/Edge/Firefox companion packages while preserving fail-closed transport and signing boundaries.
+Ghost FTP 0.0.6 expanded the verified public release to Windows, Linux, Android and official Chrome/Edge/Firefox/Opera companion packages while preserving fail-closed transport and signing boundaries.
 
 - Completed Linux modal input/focus hardening and retained shared Windows/Linux Engine behavior.
 - Added Android file management, filtering/sorting, bounded recursive search, directory comparison, synchronized navigation and hardened Remote Edit workflows.
 - Added the protected production-signed Android release path while keeping Android SFTP hidden until strict maintained host-key verification exists.
-- Consolidated official browser helpers onto one shared runtime with enforced Ghost FTP branding, minimal permissions and no supported desktop launch/handoff.
-- Expanded publication to **18 platform artifacts / 21 public files** with exact SHA-256 readback and latest-only retention.
+- Consolidated official browser helpers onto one shared runtime with enforced Ghost FTP branding, minimal permissions and no Ghost FTP remote transfer relay.
+- Published **13 platform artifacts / 16 public files**: two Windows executables, six Linux universal bundles, one Android APK, four browser ZIPs and three release metadata files.
+- Preserved exact SHA-256 readback, protected signing requirements and latest-only retention.
 - Preserved macOS as a separately validated development/source frontend until real Developer ID signing and Apple notarization succeed.
+
+The published `ghostftp-v0.0.6` release is immutable history. Work on `production/0.0.7-cleanup` does not retag or rewrite it; that branch integrates the real local Native Messaging bridge into the existing desktop package architecture for the next development cycle without changing the historical 0.0.6 asset set.
 
 ## 0.0.5 — 2026-09-12
 
-Ghost FTP 0.0.5 focuses on lifecycle reliability, re-entry safety, Android connection ownership, truthful release documentation and optional browser companion source while preserving the established 0.0.4 desktop feature/security baseline.
+Ghost FTP 0.0.5 focused on lifecycle reliability, re-entry safety, Android connection ownership, truthful release documentation and optional browser companion source while preserving the established 0.0.4 desktop feature/security baseline.
 
 ### Windows reliability
 
@@ -32,20 +35,19 @@ Ghost FTP 0.0.5 focuses on lifecycle reliability, re-entry safety, Android conne
 ### Browser companion source
 
 - Added optional source packages for Chrome, Microsoft Edge, Opera, Brave, Vivaldi and Firefox.
-- Supported `ftp://`, `ftps://` and `sftp://` link handling remains local and narrow, without telemetry, remote code, credential persistence, tab scraping or broad host permissions.
-- Browser companion source is not part of the public Windows/Linux 17-file binary release.
+- Supported `ftp://`, `ftps://` and `sftp://` link handling remained local and narrow, without telemetry, remote code, credential persistence, tab scraping or broad host permissions.
+- Browser companion source was not part of the public Windows/Linux 17-file binary release.
 
 ### Documentation and release quality
 
 - Reworked the root README around practical user value, downloads, privacy, Remote Edit, transfer control and security while retaining verifiable technical claims.
 - Corrected generated release notes to the actual universal Windows + Debian/Ubuntu/Fedora/Portable Linux shape.
-- Added a regression contract that rejects old architecture-specific Windows filenames and obsolete **12 platform artifacts / 15 public files** counts from current release notes.
-- Maintains the canonical **14 platform artifacts / 17 public files** release shape, exact read-back, GHCR verification and latest-only retention.
+- Added regression contracts for obsolete architecture-specific Windows filenames and stale public-file counts.
 
 ### Security and privacy
 
-- Preserves strict FTPS certificate/hostname validation, strict desktop SFTP host-key verification/pinning, trusted Linux AskPass provenance, rooted local path/transfer safeguards and protected-secret lifetime rules.
-- Preserves no telemetry, analytics, advertising, fingerprinting, automatic crash upload, hidden backend or mandatory product account.
+- Preserved strict FTPS certificate/hostname validation, strict desktop SFTP host-key verification/pinning, trusted Linux AskPass provenance, rooted local path/transfer safeguards and protected-secret lifetime rules.
+- Preserved no telemetry, analytics, advertising, fingerprinting, automatic crash upload, hidden backend or mandatory product account.
 
 ## 0.0.4 — 2026-09-11
 
