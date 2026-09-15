@@ -47,14 +47,31 @@ The AppKit frontend remains active source over shared product logic. Public macO
 
 ## Browser extensions
 
-Chrome, Edge, Firefox and Opera share local packaged UI/runtime code with browser-specific manifests. A browser extension cannot directly open arbitrary raw FTP, FTPS or SFTP TCP sockets.
+Chrome, Edge, Firefox and Opera share packaged browser UI/runtime code with browser-specific Manifest V3 metadata. Browser JavaScript does not open arbitrary raw FTP, FTPS or SFTP sockets.
 
-The 0.0.7 architecture therefore must use one of two truthful states:
+The 0.0.7 development architecture implements this local path:
 
-1. a secure Ghost FTP native companion/native-messaging bridge that performs supported operations locally on the user's device; or
-2. a reduced browser-only feature set that clearly exposes only what the browser can actually perform.
+```text
+Browser popup
+    ↓ extension runtime messaging
+Background relay
+    ↓ Native Messaging: com.ghostftp.bridge
+Ghost FTP native host
+    ↓ typed internal/api Engine
+internal/remote + internal/transfer
+    ↓ direct FTP / FTPS / SFTP
+User-selected server
+```
 
-Fake, simulated or remote-proxy FTP/SFTP behavior is prohibited. Any native bridge must use explicit request schemas, bounded messages, local process identity, minimum browser permissions and platform-local secret handling. Credentials must never be relayed through Ghost FTP servers.
+The browser packages request exactly `nativeMessaging`. They do not request host permissions, tab access, extension storage, content scripts or externally-connectable web origins. Password and passphrase inputs are not persisted in browser storage; optional saved credentials remain in the native protected profile store.
+
+`cmd/ghostftp-native-host` accepts bounded length-prefixed messages, uses strict JSON schemas and maps a fixed operation set into the existing Engine. It does not expose a localhost HTTP/WebSocket service. Local file operations require a user-selected root and reject traversal or symlink escape outside that root. SFTP uses the existing fail-closed host-key verification path.
+
+The background relay keeps the native port open only while the popup is connected, a request is pending or a real transfer remains queued/running. Transfer state comes from the existing Engine event stream rather than a second browser-side queue.
+
+Native host manifests are generated with `scripts/build_native_host_manifests.py`. Firefox uses the fixed signed extension identity `ghostftp-connection-helper@ghostftp.com`. Chromium-family registration requires explicit 32-character extension IDs; wildcard origins and invented store IDs are prohibited and the generator can fail closed when an ID is required but unavailable.
+
+Fake, simulated or remote-proxy FTP/SFTP behavior remains prohibited. Credentials and transfer bytes never need a Ghost FTP-operated server.
 
 ## Transfer integrity
 
