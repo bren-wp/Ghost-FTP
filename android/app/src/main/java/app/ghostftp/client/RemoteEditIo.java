@@ -24,9 +24,7 @@ final class RemoteEditIo {
             RemoteTextDocument.LineEnding lineEnding,
             String originalMode,
             String editorText) throws IOException {
-        if (session == null || !session.isConnected()) {
-            throw new IOException("Remote Edit requires the active server connection.");
-        }
+        requireConnected(session);
         byte[] latest = downloadBounded(session, remotePath);
         RemoteTextDocument.requireUnchanged(latest, baselineSha256);
         session.requireRemoteModeUnchanged(remotePath, originalMode);
@@ -44,25 +42,29 @@ final class RemoteEditIo {
         String expected = RemoteTextDocument.sha256(replacement);
         String actual = RemoteTextDocument.sha256(readBack);
         if (!expected.equals(actual)) {
-            throw new IOException("Remote Edit save could not be verified by read-back; reconnect and inspect the remote file before retrying.");
+            throw new IOException("Ghost FTP could not verify the saved file. Reconnect and check the file before trying again.");
         }
         session.requireRemoteModeUnchanged(remotePath, mode);
         return RemoteTextDocument.decode(readBack);
     }
 
     static byte[] downloadBounded(FtpSession session, String remotePath) throws IOException {
-        if (session == null || !session.isConnected()) {
-            throw new IOException("Remote Edit requires the active server connection.");
-        }
+        requireConnected(session);
         BoundedOutputStream out = new BoundedOutputStream(WorkspaceOps.MAX_REMOTE_EDIT_BYTES);
         TransferCommitGate gate = new TransferCommitGate();
         session.download(remotePath, out, gate);
         if (!gate.beginCommit()) {
             session.closeCancelledTransferSession();
-            throw new IOException("Remote Edit read was cancelled before verification.");
+            throw new IOException("The file read was cancelled before it could be completed.");
         }
         gate.finish();
         return out.toByteArray();
+    }
+
+    private static void requireConnected(FtpSession session) throws IOException {
+        if (session == null || !session.isConnected()) {
+            throw new IOException("Connect to the server before using Remote Edit.");
+        }
     }
 
     private static final class BoundedOutputStream extends OutputStream {
@@ -97,7 +99,7 @@ final class RemoteEditIo {
 
         private void ensureCapacity(int additional) throws IOException {
             if (additional > maxBytes - delegate.size()) {
-                throw new IOException("Remote Edit file exceeded the 1 MiB safety limit while downloading.");
+                throw new IOException("This file is larger than the 1 MiB editing limit.");
             }
         }
     }
