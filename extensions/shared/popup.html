@@ -8,62 +8,227 @@
 </head>
 <body>
   <main class="shell">
-    <header class="brand">
-      <img src="icons/icon.png" width="42" height="42" alt="">
-      <div>
-        <p class="eyebrow">Ghost FTP</p>
-        <h1>Connection Helper</h1>
+    <header class="topbar">
+      <div class="brand">
+        <img src="icons/icon.png" width="42" height="42" alt="">
+        <div>
+          <p class="eyebrow">Ghost FTP</p>
+          <h1>Connection Helper</h1>
+        </div>
+      </div>
+      <div class="bridge-state" id="bridge-state" data-kind="neutral" role="status" aria-live="polite">
+        <span class="state-dot" aria-hidden="true"></span>
+        <span id="bridge-state-text">Checking local bridge…</span>
       </div>
     </header>
 
-    <p class="intro">Check an FTP, FTPS or SFTP address locally before you use it. Passwords are never saved or included in copied output.</p>
-
-    <form id="connection-form" novalidate>
-      <label for="connection-target">Connection address</label>
-      <textarea id="connection-target" rows="3" spellcheck="false" autocomplete="off" placeholder="sftp://user@example.invalid/home/user"></textarea>
-      <div class="actions">
-        <button type="submit" class="primary">Check address</button>
-        <button type="button" id="clear-button" class="secondary">Clear</button>
-      </div>
-    </form>
+    <nav class="tabs" aria-label="Ghost FTP workspace">
+      <button type="button" class="tab is-active" data-tab="connection" aria-selected="true">Connection</button>
+      <button type="button" class="tab" data-tab="files" aria-selected="false">Files</button>
+      <button type="button" class="tab" data-tab="transfers" aria-selected="false">Transfers <span id="transfer-count" class="count" hidden>0</span></button>
+    </nav>
 
     <p id="status" class="status" data-kind="neutral" role="status" aria-live="polite"></p>
 
-    <section id="result" class="result" hidden aria-label="Connection details">
-      <div id="password-notice" class="notice" hidden role="note">
-        A password was detected and removed from all displayed and copied output.
+    <section id="tab-connection" class="tab-panel is-active" data-panel="connection">
+      <div class="section-head">
+        <div>
+          <h2>Server connection</h2>
+          <p>Connect through the local Ghost FTP engine. Credentials are never stored by the browser extension.</p>
+        </div>
+        <span id="connection-badge" class="badge">Disconnected</span>
       </div>
 
-      <div class="field-grid">
-        <div class="field">
-          <label for="protocol">Protocol</label>
-          <div class="copy-row"><input id="protocol" readonly><button type="button" data-copy-target="protocol">Copy</button></div>
+      <div class="quick-address">
+        <label for="connection-target">Connection address</label>
+        <div class="inline-row">
+          <input id="connection-target" spellcheck="false" autocomplete="off" placeholder="sftp://user@example.com/home/user">
+          <button type="button" id="fill-address" class="secondary">Fill fields</button>
         </div>
-        <div class="field">
-          <label for="host">Host</label>
-          <div class="copy-row"><input id="host" readonly><button type="button" data-copy-target="host">Copy</button></div>
+        <p class="hint">Optional shortcut. Embedded URL passwords are discarded after filling the form.</p>
+      </div>
+
+      <div class="profile-row">
+        <div class="field grow">
+          <label for="profile-select">Saved connection</label>
+          <select id="profile-select">
+            <option value="">New connection</option>
+          </select>
         </div>
-        <div class="field">
-          <label for="port">Port</label>
-          <div class="copy-row"><input id="port" readonly><button type="button" data-copy-target="port">Copy</button></div>
+        <button type="button" id="new-profile" class="secondary align-end">New</button>
+      </div>
+
+      <form id="connection-form" novalidate>
+        <div class="form-grid">
+          <div class="field field-wide">
+            <label for="profile-name">Connection name</label>
+            <input id="profile-name" maxlength="120" autocomplete="off" placeholder="Production server">
+          </div>
+          <div class="field">
+            <label for="protocol">Protocol</label>
+            <select id="protocol">
+              <option value="ftp">FTP</option>
+              <option value="ftps">FTPS (explicit TLS)</option>
+              <option value="sftp">SFTP</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="port">Port</label>
+            <input id="port" type="number" min="1" max="65535" inputmode="numeric" value="21">
+          </div>
+          <div class="field field-wide">
+            <label for="host">Server</label>
+            <input id="host" maxlength="253" spellcheck="false" autocomplete="off" placeholder="ftp.example.com">
+          </div>
+          <div class="field">
+            <label for="username">Username</label>
+            <input id="username" maxlength="255" spellcheck="false" autocomplete="username">
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" type="password" maxlength="4096" autocomplete="current-password" placeholder="Not saved in browser">
+          </div>
+          <div id="sftp-fields" class="field-group field-wide" hidden>
+            <div class="field field-wide">
+              <label for="private-key">Private key path</label>
+              <input id="private-key" maxlength="32767" spellcheck="false" autocomplete="off" placeholder="Optional local private-key path">
+            </div>
+            <div class="field field-wide">
+              <label for="passphrase">Private key passphrase</label>
+              <input id="passphrase" type="password" maxlength="4096" autocomplete="off" placeholder="Not saved in browser">
+            </div>
+          </div>
+          <div class="field">
+            <label for="remote-start">Remote start path</label>
+            <input id="remote-start" maxlength="4096" spellcheck="false" autocomplete="off" value="/">
+          </div>
+          <div class="field">
+            <label for="local-start">Local start path</label>
+            <input id="local-start" maxlength="32767" spellcheck="false" autocomplete="off" placeholder="Optional profile preference">
+          </div>
         </div>
-        <div class="field">
-          <label for="username">Username</label>
-          <div class="copy-row"><input id="username" readonly><button type="button" data-copy-target="username">Copy</button></div>
+
+        <div class="credential-options">
+          <label class="check"><input id="save-password" type="checkbox"> Save entered password in the protected Ghost FTP profile store</label>
+          <label class="check"><input id="clear-password" type="checkbox"> Remove saved password from this profile</label>
+          <label id="save-passphrase-row" class="check" hidden><input id="save-passphrase" type="checkbox"> Save entered key passphrase in the protected Ghost FTP profile store</label>
+          <label id="clear-passphrase-row" class="check" hidden><input id="clear-passphrase" type="checkbox"> Remove saved key passphrase from this profile</label>
         </div>
-        <div class="field field-wide">
-          <label for="path">Remote path</label>
-          <div class="copy-row"><input id="path" readonly><button type="button" data-copy-target="path">Copy</button></div>
+
+        <div class="actions split-actions">
+          <div class="actions">
+            <button type="submit" id="connect-button" class="primary">Connect</button>
+            <button type="button" id="disconnect-button" class="secondary" disabled>Disconnect</button>
+          </div>
+          <div class="actions">
+            <button type="button" id="save-profile" class="secondary">Save connection</button>
+            <button type="button" id="delete-profile" class="danger" disabled>Delete</button>
+          </div>
         </div>
-        <div class="field field-wide safe-field">
-          <label for="safe-target">Safe address</label>
-          <div class="copy-row"><input id="safe-target" readonly><button type="button" data-copy-target="safe-target" class="copy-safe">Copy safe address</button></div>
-          <p>Username, password, query and fragment data are excluded.</p>
+      </form>
+
+      <section id="trust-panel" class="trust-panel" hidden aria-labelledby="trust-title">
+        <div>
+          <p class="eyebrow">SFTP host key verification</p>
+          <h3 id="trust-title">Verify this server fingerprint</h3>
+          <p>Compare this SHA-256 fingerprint with a trusted source before continuing. A changed saved fingerprint is blocked by the Ghost FTP engine.</p>
         </div>
+        <code id="trust-fingerprint"></code>
+        <label class="check"><input id="remember-fingerprint" type="checkbox"> Remember this fingerprint for the selected saved connection</label>
+        <div class="actions">
+          <button type="button" id="trust-accept" class="primary">Trust and connect</button>
+          <button type="button" id="trust-cancel" class="secondary">Cancel</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="tab-files" class="tab-panel" data-panel="files" hidden>
+      <div class="section-head">
+        <div>
+          <h2>File workspace</h2>
+          <p>Local access is confined to the folder you explicitly choose. Server actions use the active Ghost FTP connection.</p>
+        </div>
+        <button type="button" id="choose-local-root" class="secondary">Choose local folder</button>
+      </div>
+
+      <div class="pane-grid">
+        <section class="file-pane" aria-labelledby="local-title">
+          <div class="pane-head">
+            <div>
+              <p class="eyebrow">This device</p>
+              <h3 id="local-title">Local</h3>
+            </div>
+            <button type="button" id="local-up" class="icon-button" title="Parent folder" aria-label="Open parent local folder">↑</button>
+          </div>
+          <div class="path-row">
+            <input id="local-path" readonly aria-label="Current local path">
+            <button type="button" id="local-refresh" class="secondary compact">Refresh</button>
+          </div>
+          <div class="list-wrap">
+            <table class="file-table">
+              <thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead>
+              <tbody id="local-items"><tr><td colspan="3" class="empty">Choose a local folder.</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pane-actions">
+            <button type="button" id="local-mkdir" class="secondary compact">New folder</button>
+            <button type="button" id="local-rename" class="secondary compact" disabled>Rename</button>
+            <button type="button" id="local-delete" class="danger compact" disabled>Delete</button>
+            <button type="button" id="upload-selected" class="primary compact" disabled>Upload →</button>
+          </div>
+        </section>
+
+        <section class="file-pane" aria-labelledby="remote-title">
+          <div class="pane-head">
+            <div>
+              <p class="eyebrow">Server</p>
+              <h3 id="remote-title">Remote</h3>
+            </div>
+            <button type="button" id="remote-up" class="icon-button" title="Parent folder" aria-label="Open parent remote folder">↑</button>
+          </div>
+          <div class="path-row">
+            <input id="remote-path" spellcheck="false" autocomplete="off" aria-label="Current remote path" value="/">
+            <button type="button" id="remote-go" class="secondary compact">Go</button>
+            <button type="button" id="remote-refresh" class="secondary compact">Refresh</button>
+          </div>
+          <div class="list-wrap">
+            <table class="file-table">
+              <thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead>
+              <tbody id="remote-items"><tr><td colspan="3" class="empty">Connect to a server.</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pane-actions">
+            <button type="button" id="remote-mkdir" class="secondary compact" disabled>New folder</button>
+            <button type="button" id="remote-rename" class="secondary compact" disabled>Rename</button>
+            <button type="button" id="remote-delete" class="danger compact" disabled>Delete</button>
+            <button type="button" id="download-selected" class="primary compact" disabled>← Download</button>
+          </div>
+        </section>
       </div>
     </section>
 
-    <footer>Local only · No telemetry · No server connection</footer>
+    <section id="tab-transfers" class="tab-panel" data-panel="transfers" hidden>
+      <div class="section-head">
+        <div>
+          <h2>Transfer queue</h2>
+          <p>Progress comes from the native Ghost FTP transfer engine. Closing the popup does not interrupt active transfers.</p>
+        </div>
+        <div class="actions">
+          <button type="button" id="pause-transfers" class="secondary compact">Pause</button>
+          <button type="button" id="resume-transfers" class="secondary compact">Resume</button>
+          <button type="button" id="clear-transfers" class="secondary compact">Clear finished</button>
+        </div>
+      </div>
+
+      <div class="transfer-list" id="transfer-list">
+        <div class="empty-card">No transfers yet.</div>
+      </div>
+    </section>
+
+    <footer>
+      <span>Local bridge · No telemetry · No browser credential storage</span>
+      <span id="version-label"></span>
+    </footer>
   </main>
   <script src="core.js"></script>
   <script src="popup.js"></script>
