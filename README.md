@@ -86,7 +86,7 @@ Ghost FTP maintains 24 selectable desktop languages, with English as canonical f
 
 ## Ghost FTP 0.0.6
 
-**Current source version: **0.0.6****
+**Current source version:** `0.0.6`
 
 - Release channel: Current
 - Development status: Active
