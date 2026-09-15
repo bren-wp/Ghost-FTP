@@ -17,6 +17,14 @@ OFFICIAL_EXTENSION = "Ghost FTP Connection Helper"
 OFFICIAL_SHORT_NAME = "Ghost FTP"
 OFFICIAL_HOMEPAGE = "https://ghostftp.com"
 OFFICIAL_FIREFOX_ID = "ghostftp-connection-helper@ghostftp.com"
+EXPECTED_RUNTIME_FILES = [
+    "background.js",
+    "core.js",
+    "popup.js",
+    "popup.css",
+    "popup.html",
+    "icons/icon.png",
+]
 
 
 def read(path: Path) -> str:
@@ -56,10 +64,11 @@ class BrowserExtensionsContractTests(unittest.TestCase):
         self.assertFalse((EXT_ROOT / "manifests").exists())
         for package in PACKAGES:
             self.assertTrue((EXT_ROOT / package / "manifest.json").is_file(), package)
-        self.assertTrue((SHARED / "core.js").is_file())
-        self.assertTrue((SHARED / "popup.js").is_file())
+        for name in EXPECTED_RUNTIME_FILES[:-1]:
+            self.assertTrue((SHARED / name).is_file(), name)
+        self.assertTrue((ROOT / "cmd" / "ghostftp-native-host" / "main.go").is_file())
 
-    def test_all_official_manifests_match_root_version_and_brand(self) -> None:
+    def test_all_official_manifests_match_root_version_brand_and_minimum_permission(self) -> None:
         version = read(ROOT / "VERSION").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
         for package in PACKAGES:
@@ -69,9 +78,13 @@ class BrowserExtensionsContractTests(unittest.TestCase):
             self.assertEqual(manifest["short_name"], OFFICIAL_SHORT_NAME)
             self.assertEqual(manifest["version"], version)
             self.assertEqual(manifest["homepage_url"], OFFICIAL_HOMEPAGE)
-            self.assertEqual(manifest["permissions"], [])
+            self.assertEqual(manifest["permissions"], ["nativeMessaging"])
             self.assertEqual(manifest["action"]["default_title"], OFFICIAL_EXTENSION)
             self.assertEqual(manifest["action"]["default_popup"], "popup.html")
+
+        self.assertEqual(load_manifest("firefox")["background"], {"scripts": ["background.js"]})
+        for package in ("chrome", "edge", "opera"):
+            self.assertEqual(load_manifest(package)["background"], {"service_worker": "background.js"})
 
     def test_firefox_manifest_declares_signing_identity_and_no_collection(self) -> None:
         firefox = load_manifest("firefox")
@@ -87,9 +100,8 @@ class BrowserExtensionsContractTests(unittest.TestCase):
         for package in ("chrome", "edge", "opera"):
             self.assertNotIn("browser_specific_settings", load_manifest(package))
 
-    def test_manifests_are_permission_minimal(self) -> None:
+    def test_manifests_do_not_gain_web_or_tab_access(self) -> None:
         forbidden = {
-            "background",
             "content_scripts",
             "externally_connectable",
             "host_permissions",
@@ -100,11 +112,15 @@ class BrowserExtensionsContractTests(unittest.TestCase):
         for package in PACKAGES:
             manifest = load_manifest(package)
             self.assertTrue(forbidden.isdisjoint(manifest), package)
+            self.assertNotIn("storage", manifest["permissions"])
+            self.assertNotIn("tabs", manifest["permissions"])
 
-    def test_shared_runtime_is_local_only_and_fail_closed(self) -> None:
+    def test_shared_runtime_uses_only_local_native_bridge(self) -> None:
         html = read(SHARED / "popup.html")
         core = read(SHARED / "core.js")
         popup = read(SHARED / "popup.js")
+        background = read(SHARED / "background.js")
+        runtime = "\n".join((core, popup, background))
 
         self.assertIn("Ghost FTP", html)
         self.assertIn("Connection Helper", html)
@@ -113,8 +129,8 @@ class BrowserExtensionsContractTests(unittest.TestCase):
         self.assertNotRegex(html.lower(), r"<script(?![^>]*\bsrc=)")
         self.assertIn('src="core.js"', html)
         self.assertIn('src="popup.js"', html)
+        self.assertNotIn('src="background.js"', html)
 
-        runtime = core + popup
         for marker in (
             "fetch(",
             "XMLHttpRequest",
@@ -123,10 +139,16 @@ class BrowserExtensionsContractTests(unittest.TestCase):
             "localStorage",
             "sessionStorage",
             "indexedDB",
+            "browser.storage",
+            "chrome.storage",
             "analytics",
             "telemetry",
+            "eval(",
+            "new Function(",
+            ".innerHTML",
         ):
             self.assertNotIn(marker, runtime)
+
         for marker in (
             "MAX_INPUT_LENGTH",
             "CONTROL_CHARACTERS",
@@ -142,6 +164,69 @@ class BrowserExtensionsContractTests(unittest.TestCase):
             self.assertIn(scheme, core)
         self.assertNotIn("parsed.search", core)
         self.assertNotIn("parsed.hash", core)
+
+        for marker in (
+            "runtime.connectNative",
+            "runtime.onConnect",
+            "com.ghostftp.bridge",
+            "transfer.events",
+            "activeTransferCount",
+            "closeNativeIfIdle",
+        ):
+            self.assertIn(marker, background)
+        self.assertNotIn("setInterval(", background)
+
+    def test_popup_exposes_real_engine_workflows_without_html_injection(self) -> None:
+        popup = read(SHARED / "popup.js")
+        html = read(SHARED / "popup.html")
+        for operation in (
+            "profiles.list",
+            "profiles.save",
+            "profiles.delete",
+            "connect",
+            "disconnect",
+            "trust.cancel",
+            "local.chooseRoot",
+            "local.list",
+            "local.mkdir",
+            "local.rename",
+            "local.delete",
+            "remote.list",
+            "remote.mkdir",
+            "remote.rename",
+            "remote.delete",
+            "transfer.upload",
+            "transfer.download",
+            "transfer.events",
+            "transfer.cancel",
+            "transfer.retry",
+            "transfer.pause",
+            "transfer.resume",
+            "transfer.clearFinished",
+        ):
+            self.assertIn(operation, popup)
+        for surface in ("Connection", "Files", "Transfers", "SFTP host key verification"):
+            self.assertIn(surface, html)
+        self.assertIn("textContent", popup)
+        self.assertNotIn("innerHTML", popup)
+
+    def test_native_host_is_bounded_strict_and_uses_existing_engine(self) -> None:
+        host = read(ROOT / "cmd" / "ghostftp-native-host" / "main.go")
+        for marker in (
+            "maxInboundMessage",
+            "maxOutboundMessage",
+            "DisallowUnknownFields",
+            "hasControlCharacters",
+            "filepath.EvalSymlinks",
+            "pathWithin",
+            "api.New",
+            "engine.Connect",
+            "engine.TransferEvents",
+            "usererror.Message",
+        ):
+            self.assertIn(marker, host)
+        self.assertNotIn("http.ListenAndServe", host)
+        self.assertNotIn("log.Printf", host)
 
     def test_browser_builder_outputs_four_official_deterministic_packages(self) -> None:
         builder = load_builder()
@@ -160,23 +245,22 @@ class BrowserExtensionsContractTests(unittest.TestCase):
             for left, right in zip(first_paths, second_paths):
                 self.assertEqual(hashlib.sha256(left.read_bytes()).hexdigest(), hashlib.sha256(right.read_bytes()).hexdigest())
                 with zipfile.ZipFile(left, "r") as archive:
-                    self.assertEqual(
-                        archive.namelist(),
-                        ["manifest.json", "core.js", "popup.js", "popup.css", "popup.html", "icons/icon.png"],
-                    )
+                    self.assertEqual(archive.namelist(), ["manifest.json", *EXPECTED_RUNTIME_FILES])
                     manifest = json.loads(archive.read("manifest.json"))
                     self.assertEqual(manifest["name"], OFFICIAL_EXTENSION)
                     self.assertEqual(manifest["version"], version)
+                    self.assertEqual(manifest["permissions"], ["nativeMessaging"])
 
-    def test_privacy_documentation_is_explicit(self) -> None:
+    def test_privacy_documentation_describes_native_bridge_boundary(self) -> None:
         text = (read(EXT_ROOT / "README.md") + "\n" + read(EXT_ROOT / "PRIVACY.md")).lower()
         for statement in (
             "no telemetry",
             "no tracking",
             "no remote code",
-            "does not store",
+            "does not store credentials in browser storage",
             "does not read the active tab",
-            "does not connect to your ftp, ftps, or sftp server",
+            "native messaging",
+            "directly",
         ):
             self.assertIn(statement, text)
 
