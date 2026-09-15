@@ -8,7 +8,7 @@ Ghost FTP **0.0.6** uses explicit transport, identity, path, secret, process and
 - **Explicit FTPS** validates certificate trust and server hostname identity; secure failure is never silently retried as plain FTP.
 - **Desktop SFTP** requires strict SSH host-key trust/pinning.
 - **Android SFTP** remains hidden until strict host-key verification has a maintained Android implementation.
-- **Browser extensions** must not fake raw FTP/SFTP sockets. Native protocol capability requires a local trusted Ghost FTP companion/bridge.
+- **Browser extensions** do not fake raw FTP/SFTP sockets. The 0.0.7 development surface uses a local trusted Ghost FTP Native Messaging bridge backed by the existing Engine.
 
 ## Input and path boundaries
 
@@ -30,16 +30,26 @@ Endpoint/account/key identity changes must not silently carry a protected creden
 
 ## Browser extension security
 
-Browser packages must use the minimum permissions required by implemented functionality. Remote JavaScript, CDN JavaScript, `eval`, dynamic code execution, tracking, analytics, telemetry, advertising SDKs and fingerprinting are prohibited.
+Official Chrome, Edge, Firefox and Opera packages request exactly one browser permission: `nativeMessaging`. They do not request extension storage, tabs, host permissions, content scripts, externally-connectable web origins or remote code.
 
-If native messaging is used, the companion must:
+The browser runtime is required to remain free of remote network APIs such as `fetch`, `XMLHttpRequest`, WebSocket and `sendBeacon`. It also rejects dynamic code execution and server-controlled HTML insertion in the maintained contract.
 
-- accept requests only through the browser's native-messaging mechanism and registered Ghost FTP host identity;
-- validate message size, operation type, protocol, host, port and paths;
-- never expose an unauthenticated localhost HTTP control port;
-- never forward credentials or file data to a Ghost FTP remote service;
-- return privacy-safe errors while keeping technical diagnostics local;
-- close/cancel operations cleanly when the extension disconnects.
+The Native Messaging companion:
+
+- is registered as `com.ghostftp.bridge` and accepts requests only through the browser's native-messaging mechanism;
+- uses bounded little-endian length-prefixed messages and strict JSON decoding with unknown fields rejected;
+- routes only a fixed operation set into the existing typed Ghost FTP Engine;
+- validates request type, protocol, host, port, IDs, local paths, remote paths and file/folder names;
+- rejects local traversal and symlink escape outside the operating-system-selected local root;
+- never exposes an unauthenticated localhost HTTP or WebSocket control port;
+- never forwards credentials, directory listings or file data to a Ghost FTP remote service;
+- returns privacy-safe errors through the existing `internal/usererror` mapping rather than raw curl/OpenSSH/OS diagnostics;
+- preserves the existing SFTP first-contact fingerprint confirmation and changed-key blocking behavior;
+- keeps the native port open only while a UI client, pending request or active transfer requires it.
+
+The browser extension does not maintain a second transfer implementation. Upload/download lifecycle, retry, cancel, progress and queue state remain owned by `internal/transfer` and are observed through the Engine event stream.
+
+Native-host registration is fail-closed. Firefox uses the fixed signing identity `ghostftp-connection-helper@ghostftp.com`. Chromium-family manifests require explicit valid extension IDs and produce exact `chrome-extension://<id>/` origins. Wildcard origins and invented store IDs are prohibited.
 
 ## Linux external-tool trust
 
@@ -78,6 +88,8 @@ python scripts/audit_repository.py
 python scripts/audit_release.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
+
+The dedicated browser workflow additionally tests and vets `cmd/ghostftp-native-host`, validates exact browser permissions/runtime restrictions, builds deterministic extension ZIPs and tests fail-closed Native Messaging manifest generation.
 
 ## Reporting a vulnerability
 
