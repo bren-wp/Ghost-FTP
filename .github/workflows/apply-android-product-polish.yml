@@ -6,6 +6,7 @@ on:
       - hardening/0.0.6-product-polish
     paths:
       - .github/workflows/apply-android-product-polish.yml
+      - scripts/tmp_apply_android_product_polish.py
 
 permissions:
   contents: write
@@ -26,6 +27,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+
           p = Path('scripts/tmp_apply_android_product_polish.py')
           text = p.read_text(encoding='utf-8')
           needle = "    ('Local folder permission is no longer available.', 'Local folder access is no longer available.'),\n]"
@@ -35,10 +37,38 @@ jobs:
               ('Storage provider rejected the rename.', 'The item could not be renamed.'),
               ('Storage provider changed the requested final name; rename verification failed.', 'The new item name could not be verified.'),
               ('Storage provider rejected the delete operation.', 'The item could not be deleted.'),
+              ('Delete “" + entry.name + "” from the selected Android storage provider? This cannot be undone.', 'Delete “" + entry.name + "” from the selected folder? This cannot be undone.'),
+              ('Folder rename could not be committed by the local document provider.', 'The folder could not be renamed.'),
+              ('Folder rename was not committed safely. The source folder was left unchanged.', 'The folder could not be renamed safely. The original folder was left unchanged.'),
+              ('Folder rename was rejected by the local document provider.', 'The folder could not be renamed.'),
+              ('Folder rename could not be completed safely. Restored the original folder name.', 'The folder could not be renamed safely. The original name was restored.'),
+              ('Rename did not preserve the source folder identity. Restored the original name.', 'The folder could not be renamed safely. The original name was restored.'),
+              ('File rename failed. The source file was not replaced.', 'The file could not be renamed. The original file was left unchanged.'),
+              ('Rename did not preserve the source document identity. Restored the original name.', 'The file could not be renamed safely. The original name was restored.'),
+              ('Unable to stage the local rename safely.', 'The rename could not be completed safely.'),
+              ('Unable to create the destination file for staged rename.', 'The destination file could not be created.'),
+              ('Unable to start the rename copy transaction.', 'The rename could not be started safely.'),
+              ('Staged rename was not committed safely.', 'The rename could not be completed safely.'),
+              ('Folder delete did not complete safely.', 'The folder could not be deleted safely.'),
+              ('Folder delete failed. The folder was not fully removed.', 'The folder could not be deleted completely.'),
+              ('Delete was not accepted by the local document provider.', 'The item could not be deleted.'),
+              ('Local download folder is not available for this transfer.', 'The selected download folder is not available.'),
+              ('Unable to open the local download target.', 'The selected download file could not be opened.'),
+              ('Local upload source exposes no readable file descriptor.', 'The selected local file could not be opened.'),
           ]"""
           if needle not in text:
               raise SystemExit('Temporary Android polish script insertion point not found')
-          p.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          text = text.replace(needle, replacement, 1)
+
+          audit_needle = "forbidden = [\n"
+          audit_prefix = """forbidden = [
+              'document provider', 'file descriptor', 'copy transaction', 'staged rename',
+              'committed safely', 'source document identity', 'source folder identity',
+          """
+          if audit_needle not in text:
+              raise SystemExit('Temporary Android polish audit insertion point not found')
+          text = text.replace(audit_needle, audit_prefix, 1)
+          p.write_text(text, encoding='utf-8')
           PY
           python scripts/tmp_apply_android_product_polish.py
 
@@ -52,6 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${ANDROID_HOME:-}"
           test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
@@ -71,6 +102,20 @@ jobs:
           python scripts/test_android_release_signing_contract.py
           cd android
           gradle :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Validate repository product surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/audit_runtime_surface.py
+          python scripts/test_ui_theme_contract.py
+          python scripts/web_runtime_ui_audit.py
+          python scripts/check_web_contract.py
+          node --check extensions/shared/popup.js
+          node --check web/assets/js/site.js
+          node --check web/ftp/assets/app.js
+          find web -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          go test ./...
 
       - name: Remove one-time files and commit
         shell: bash
