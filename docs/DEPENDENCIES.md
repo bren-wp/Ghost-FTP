@@ -19,9 +19,9 @@ and explicitly disable Go telemetry before build/test.
 
 ## Desktop protocol prerequisites
 
-The maintained desktop transport uses controlled system protocol tools where documented. Environment/configuration is sanitized so ambient proxy, jump-host or credential state cannot silently redirect the selected connection.
+The maintained desktop transport uses controlled system protocol tools where documented. The required operating-system transport executables are `curl`, `ssh` and `sftp`; Ghost FTP does not silently substitute an unreviewed bundled transport implementation. Environment/configuration is sanitized so ambient proxy, jump-host or credential state cannot silently redirect the selected connection.
 
-FTP/FTPS requires strict certificate behavior for explicit FTPS and never silently downgrades to plain FTP. Desktop SFTP uses maintained OpenSSH integration with strict host-key trust/pinning and bounded protected credential delivery.
+FTP/FTPS requires strict certificate behavior for explicit FTPS and never silently downgrades to plain FTP. Desktop SFTP uses maintained OpenSSH integration through the documented `ssh` and `sftp` executables with strict host-key trust/pinning and bounded protected credential delivery.
 
 ## Windows
 
@@ -29,7 +29,7 @@ The Windows UI uses native Win32/DWM/common-control facilities and does not bund
 
 ## Linux
 
-Canonical packages require platform CA trust, `curl` and OpenSSH client tooling as documented by distro. Portable packages do not bundle replacement CA stores/network tools. Security-sensitive helper provenance fails closed when trust cannot be established.
+Canonical packages require platform CA trust plus the documented `curl`, `ssh` and `sftp` transport executables. Portable packages do not bundle replacement CA stores/network tools. Security-sensitive helper provenance fails closed when trust cannot be established.
 
 ## Android
 
