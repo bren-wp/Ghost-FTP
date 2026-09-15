@@ -1,8 +1,0 @@
-Options -Indexes
-<FilesMatch "^(config\.php|.*\.md)$">
-  Require all denied
-</FilesMatch>
-<IfModule mod_headers.c>
-  Header always set Cache-Control "no-store, max-age=0"
-  Header always set Pragma "no-cache"
-</IfModule>
