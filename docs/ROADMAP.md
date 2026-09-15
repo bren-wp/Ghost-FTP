@@ -8,7 +8,7 @@ The current release gate includes:
 
 - native Windows and Linux desktop applications backed by one typed Engine;
 - a production-signed public Android APK with FTP and strict explicit FTPS, while Android SFTP remains hidden until maintained strict host-key verification exists;
-- deterministic public Chrome, Edge and Firefox helper ZIPs built from one canonical shared runtime;
+- deterministic public Chrome, Edge, Firefox and Opera helper ZIPs built from one canonical shared runtime;
 - an active native macOS development/source frontend, without claiming Developer ID signing or notarization;
 - FTP, explicit FTPS and strict desktop SFTP workflows;
 - protected local profile/credential behavior and explicit credential-save consent;
@@ -16,7 +16,7 @@ The current release gate includes:
 - current-folder filtering, bounded recursive search, conservative directory comparison, synchronized navigation and bookmarks/start directories;
 - built-in Remote Edit with bounded UTF-8 handling, conflict checks and staged/read-back verification;
 - two public universal Windows executables containing native **x64, x86 and ARM64** payloads selected locally, with `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` until maintained native ARM64 execution evidence exists;
-- twelve canonical Debian/Ubuntu/Fedora/Portable Linux artifacts;
+- six canonical Linux distribution bundles: Installer + Portable for Debian, Ubuntu and Fedora, each carrying amd64/arm64/i386 payloads;
 - 24-language local desktop catalog with English default/fallback;
 - exact-head Android APK, browser package, macOS development-app, Windows/Linux build and authentic Windows/Linux/Android UI evidence;
 - signed-only official Windows publication and protected production-signed Android publication;
@@ -78,6 +78,8 @@ Non-secret profile exchange may be added. Secret export must remain separately o
 
 A visible control is not a feature definition. Every new control requires a real runtime owner, enabled-state policy, success/failure/cancellation behavior, user-safe diagnostics, localization, regression coverage, active documentation and authentic UI evidence when the maintained surface changes.
 
+Development labels, implementation jargon, placeholder controls and unsupported capability claims do not belong in normal user-facing application surfaces.
+
 ## Performance direction
 
 Optimization targets measured hotspots: avoid unnecessary full redraws/scans, keep UI work out of network critical paths, bound progress publication and search results, minimize allocations/copies, batch invalidation and reject goroutine/stale-callback leaks.
@@ -96,7 +98,7 @@ Future work must preserve local path containment and symlink/reparse safety, fai
 
 The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, `0.0.6`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place.
 
-The Ghost FTP 0.0.6 public contract is **18 platform artifacts / 21 public files**: Windows, Linux and production-signed Android application artifacts, three official browser helper packages and release metadata. macOS remains a separately validated development/source surface.
+The Ghost FTP 0.0.6 public contract is **13 platform artifacts / 16 public files**: two Windows packages, six Linux bundles, one production-signed Android APK, four browser helper packages and three release metadata files. macOS remains a separately validated development/source surface.
 
 ## Definition of roadmap completion
 
