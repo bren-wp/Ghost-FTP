@@ -19,10 +19,10 @@ OFFICIAL_SHORT_NAME = "Ghost FTP"
 OFFICIAL_HOMEPAGE = "https://ghostftp.com"
 OFFICIAL_FIREFOX_ID = "ghostftp-connection-helper@ghostftp.com"
 PACKAGES = ("chrome", "edge", "firefox", "opera")
-RUNTIME_FILES = ("core.js", "popup.js", "popup.css", "popup.html", "icons/icon.png")
+RUNTIME_FILES = ("background.js", "core.js", "popup.js", "popup.css", "popup.html", "icons/icon.png")
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+REQUIRED_PERMISSIONS = ["nativeMessaging"]
 FORBIDDEN_MANIFEST_KEYS = {
-    "background",
     "content_scripts",
     "externally_connectable",
     "host_permissions",
@@ -38,8 +38,13 @@ FORBIDDEN_RUNTIME_MARKERS = (
     "localStorage",
     "sessionStorage",
     "indexedDB",
+    "browser.storage",
+    "chrome.storage",
     "analytics",
     "telemetry",
+    "eval(",
+    "new Function(",
+    ".innerHTML",
 )
 
 
@@ -73,6 +78,16 @@ def validate_brand() -> None:
         raise ValueError("extensions/BRAND.json does not match the official Ghost FTP brand contract")
 
 
+def validate_background(package: str, manifest: dict) -> None:
+    background = manifest.get("background")
+    if package == "firefox":
+        if background != {"scripts": ["background.js"]}:
+            raise ValueError("firefox: background contract must use packaged background.js")
+        return
+    if background != {"service_worker": "background.js"}:
+        raise ValueError(f"{package}: background contract must use packaged MV3 service worker")
+
+
 def validate_manifest(package: str, manifest: dict, version: str) -> None:
     if manifest.get("manifest_version") != 3:
         raise ValueError(f"{package}: Manifest V3 is required")
@@ -84,11 +99,12 @@ def validate_manifest(package: str, manifest: dict, version: str) -> None:
         raise ValueError(f"{package}: manifest version does not match VERSION")
     if manifest.get("homepage_url") != OFFICIAL_HOMEPAGE:
         raise ValueError(f"{package}: official homepage changed")
-    if manifest.get("permissions", []) != []:
-        raise ValueError(f"{package}: extension must request zero browser permissions")
+    if manifest.get("permissions") != REQUIRED_PERMISSIONS:
+        raise ValueError(f"{package}: only the nativeMessaging permission is allowed")
     forbidden = FORBIDDEN_MANIFEST_KEYS.intersection(manifest)
     if forbidden:
         raise ValueError(f"{package}: forbidden manifest capabilities: {sorted(forbidden)}")
+    validate_background(package, manifest)
 
     action = manifest.get("action")
     if not isinstance(action, dict):
@@ -126,20 +142,53 @@ def validate_runtime() -> None:
     if "<style" in html.lower():
         raise ValueError("popup must not contain inline styles")
     if '<script src="core.js"></script>' not in html or '<script src="popup.js"></script>' not in html:
-        raise ValueError("popup must load only the packaged runtime scripts")
+        raise ValueError("popup must load only the packaged popup runtime scripts")
+    if "background.js" in html:
+        raise ValueError("background runtime must not be loaded into popup HTML")
     if "http://" in html or "https://" in html:
         raise ValueError("popup HTML must not reference remote resources")
 
-    runtime = read_text(SHARED / "core.js") + "\n" + read_text(SHARED / "popup.js")
+    core = read_text(SHARED / "core.js")
+    popup = read_text(SHARED / "popup.js")
+    background = read_text(SHARED / "background.js")
+    runtime = "\n".join((core, popup, background))
     for marker in FORBIDDEN_RUNTIME_MARKERS:
         if marker in runtime:
             raise ValueError(f"extension runtime contains forbidden capability marker: {marker}")
+
     for scheme in ("'ftp:'", "'ftps:'", "'sftp:'"):
-        if scheme not in runtime:
+        if scheme not in core:
             raise ValueError(f"connection parser is missing {scheme}")
     for required in ("MAX_INPUT_LENGTH", "CONTROL_CHARACTERS", "passwordDetected", "safeTarget", "new URL("):
-        if required not in runtime:
+        if required not in core:
             raise ValueError(f"connection parser is missing safety marker: {required}")
+
+    for required in (
+        "runtime.connectNative",
+        "runtime.onConnect",
+        "com.ghostftp.bridge",
+        "transfer.events",
+        "activeTransferCount",
+        "closeNativeIfIdle",
+    ):
+        if required not in background:
+            raise ValueError(f"native bridge relay is missing runtime marker: {required}")
+    if "setInterval(" in background:
+        raise ValueError("background relay must not use permanent interval polling")
+
+    for required in (
+        "profiles.list",
+        "profiles.save",
+        "connect",
+        "local.chooseRoot",
+        "remote.list",
+        "transfer.upload",
+        "transfer.download",
+        "transfer.cancel",
+        "transfer.retry",
+    ):
+        if required not in popup:
+            raise ValueError(f"popup workspace is missing native operation: {required}")
 
 
 def zip_info(name: str) -> zipfile.ZipInfo:
@@ -209,6 +258,7 @@ def main() -> int:
 
     print("BROWSER_EXTENSION_BUILD=PASS")
     print(f"BROWSER_EXTENSION_BRAND={OFFICIAL_PRODUCT}")
+    print("BROWSER_EXTENSION_PERMISSIONS=nativeMessaging")
     print("BROWSER_EXTENSION_PACKAGES=chrome,edge,firefox,opera")
     for path in outputs:
         print(f"BROWSER_EXTENSION_ARTIFACT={path}")
