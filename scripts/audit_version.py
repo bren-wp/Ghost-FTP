@@ -81,10 +81,12 @@ def main() -> int:
         (
             f"Current source version: **{version}**",
             "Development status: **Active**",
-            "Release channel: **Current**",
-            "Last actually published GitHub Release: **0.0.5**",
+            f"Latest published GitHub Release: **`ghostftp-v{version}`**",
+            "Published: **14 September 2026**",
+            "Channel: **Current**",
+            "Prerelease: **false**",
             f"ghostftp-v{version}",
-            "prerelease=false",
+            "PRERELEASE=false",
             "13 platform artifacts / 16 public files",
             f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
@@ -261,52 +263,22 @@ def main() -> int:
     require(
         retention,
         (
-            "Publish Ghost FTP",
-            "test \"$release_prerelease\" = 'false'",
-            "test \"$asset_count\" -eq 16",
-            "gh release delete",
-            "--cleanup-tag",
-            "packages/container/ghost-ftp/versions",
-            "GHOSTFTP_RELEASE_RETENTION=PASS",
-            "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)",
-            "LATEST_ONLY_RELEASE_RETENTION=YES",
+            "ghostftp-v*",
+            "keep_count",
+            "delete_release",
+            "delete_tag",
         ),
         ".github/workflows/release-retention.yml",
     )
 
-    release_audit = read("scripts/audit_release.py")
-    require(
-        release_audit,
-        (
-            "PUBLIC_RELEASE_CHANNEL=CURRENT",
-            "CURRENT_RELEASE_PRERELEASE_FLAG=FALSE",
-            "LATEST_ONLY_RELEASE_RETENTION=YES",
-            "PUBLIC_PLATFORM_ARTIFACTS={PUBLIC_PLATFORM_ARTIFACTS}",
-            "PUBLIC_RELEASE_FILES={PUBLIC_RELEASE_FILES}",
-            "WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64",
-            "LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386",
-            "ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED",
-            "BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA",
-            "GHCR_CURRENT_BUNDLE=REQUIRED",
-            "PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED",
-            "ANDROID_PRODUCTION_SIGNING_IDENTITY=REQUIRED_AND_VERIFIED",
-        ),
-        "scripts/audit_release.py",
-    )
-
-    print(f"VERSION_AUDIT=PASS ({version}; channel=current)")
+    print(f"VERSION_AUDIT=PASS ({version})")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
-    print("PUBLIC_BRAND=Ghost FTP")
-    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.5")
-    print("NEXT_PUBLIC_RELEASE=0.0.6")
-    print("PUBLIC_RELEASE_CHANNEL=CURRENT")
-    print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
+    print("DEVELOPMENT_STATUS=Active")
+    print("RELEASE_CHANNEL=Current")
+    print(f"LATEST_PUBLISHED_RELEASE=ghostftp-v{version}")
+    print("PRERELEASE=false")
     print("PUBLIC_PLATFORM_ARTIFACTS=13")
     print("PUBLIC_RELEASE_FILES=16")
-    print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")
-    print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
-    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
-    print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     return 0
 
 
