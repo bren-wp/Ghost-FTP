@@ -53,14 +53,14 @@ func (a *app) showDiagnostics() {
 	if a.connected {
 		state = a.tr("badge.connected")
 	}
-	title := nativeMenuWords(a.languageCode())[8]
+	title := navigationLabelsForLanguage(a.languageCode()).Diagnostics
 	body := fmt.Sprintf(
-		"Ghost FTP %s\n\n%s · %s\n%s\n\n%s",
-		a.version, strings.ToUpper(a.protocolValue()), state, a.remoteCurrent, words.PrivacyBody,
+		"Ghost FTP %s\n\n%s · %s\n\n%s",
+		a.version,
+		strings.ToUpper(a.protocolValue()),
+		state,
+		words.PrivacyBody,
 	)
-	// Diagnostics is application-owned UI. Using the stock TaskDialog made a
-	// Dark Ghost FTP session open a bright white system dialog, which visually
-	// looked like a different product. Keep it in the same owned theme shell.
 	platform.CompactInfoDialog(
 		"Ghost FTP — "+title,
 		title,

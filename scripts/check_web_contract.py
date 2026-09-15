@@ -20,7 +20,7 @@ def main():
    t=p.read_text(encoding='utf-8')
    if re.search(r'by[\s_-]?ftp',t,re.I): fail('retired product branding in '+rel)
  index=text('web/index.html'); app=text('web/ftp/assets/app.js'); api=text('web/ftp/api.php'); config=text('web/ftp/config.php'); sec=text('web/ftp/lib/Security.php'); ftp=text('web/ftp/lib/CurlFtpTransport.php'); sftp=text('web/ftp/lib/SftpTransport.php')
- for marker in ('Your servers. Your files. No cloud middleman.','Open Web FTP','No telemetry','Authentic runtime evidence'):
+ for marker in ('Your servers. Your files. No cloud middleman.','Open Web FTP','No telemetry','Real Ghost FTP 0.0.6 screenshots'):
   if marker not in index: fail('marketing site missing marker: '+marker)
  for marker in ('sessionStorage','localStorage','indexedDB','document.cookie'):
   if marker in app and marker!='sessionStorage': fail('web client contains persistent browser storage primitive: '+marker)

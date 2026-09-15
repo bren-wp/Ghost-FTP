@@ -1,7 +1,9 @@
 package app.ghostftp.client;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -19,24 +21,69 @@ import android.widget.TextView;
 import java.util.List;
 
 final class GhostTheme {
-    static final int WINDOW = Color.rgb(0x0B, 0x0F, 0x17);
-    static final int PANEL = Color.rgb(0x12, 0x18, 0x24);
-    static final int LIST = Color.rgb(0x16, 0x1D, 0x2A);
-    static final int BORDER = Color.rgb(0x2C, 0x36, 0x48);
-    static final int TEXT = Color.rgb(0xF2, 0xF5, 0xFA);
-    static final int MUTED = Color.rgb(0x97, 0xA3, 0xB8);
-    static final int ACCENT = Color.rgb(0x5B, 0x7C, 0xFA);
-    static final int ACCENT_STRONG = Color.rgb(0x7A, 0x98, 0xFF);
-    static final int SUCCESS = Color.rgb(0x4A, 0xD7, 0x9B);
-    static final int WARN = Color.rgb(0xF2, 0xBA, 0x55);
-    static final int DANGER = Color.rgb(0xFF, 0x68, 0x78);
-    static final int SELECTION = Color.rgb(0x20, 0x2F, 0x50);
+    static int WINDOW;
+    static int PANEL;
+    static int LIST;
+    static int BORDER;
+    static int TEXT;
+    static int MUTED;
+    static int ACCENT;
+    static int ACCENT_STRONG;
+    static int SUCCESS;
+    static int WARN;
+    static int DANGER;
+    static int SELECTION;
+
+    private static boolean light;
 
     private GhostTheme() {
     }
 
+    static void apply(Context context) {
+        int nightMode = context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        light = nightMode != Configuration.UI_MODE_NIGHT_YES;
+        if (light) {
+            WINDOW = Color.rgb(0xEE, 0xF1, 0xF5);
+            PANEL = Color.rgb(0xF6, 0xF8, 0xFB);
+            LIST = Color.rgb(0xFA, 0xFB, 0xFD);
+            BORDER = Color.rgb(0xD6, 0xDC, 0xE5);
+            TEXT = Color.rgb(0x17, 0x20, 0x33);
+            MUTED = Color.rgb(0x66, 0x70, 0x85);
+            ACCENT = Color.rgb(0x3F, 0x63, 0xDD);
+            ACCENT_STRONG = Color.rgb(0x25, 0x4B, 0xC7);
+            SUCCESS = Color.rgb(0x1B, 0x7F, 0x4B);
+            WARN = Color.rgb(0x9A, 0x67, 0x00);
+            DANGER = Color.rgb(0xB4, 0x23, 0x18);
+            SELECTION = Color.rgb(0xDC, 0xE8, 0xFF);
+            return;
+        }
+
+        WINDOW = Color.rgb(0x0B, 0x0F, 0x17);
+        PANEL = Color.rgb(0x12, 0x18, 0x24);
+        LIST = Color.rgb(0x16, 0x1D, 0x2A);
+        BORDER = Color.rgb(0x2C, 0x36, 0x48);
+        TEXT = Color.rgb(0xF2, 0xF5, 0xFA);
+        MUTED = Color.rgb(0x97, 0xA3, 0xB8);
+        ACCENT = Color.rgb(0x5B, 0x7C, 0xFA);
+        ACCENT_STRONG = Color.rgb(0x7A, 0x98, 0xFF);
+        SUCCESS = Color.rgb(0x4A, 0xD7, 0x9B);
+        WARN = Color.rgb(0xF2, 0xBA, 0x55);
+        DANGER = Color.rgb(0xFF, 0x68, 0x78);
+        SELECTION = Color.rgb(0x20, 0x2F, 0x50);
+    }
+
+    static void applySystemBars(Activity activity) {
+        activity.getWindow().setStatusBarColor(WINDOW);
+        activity.getWindow().setNavigationBarColor(WINDOW);
+        View decor = activity.getWindow().getDecorView();
+        int flags = decor.getSystemUiVisibility();
+        int lightFlags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        flags = light ? (flags | lightFlags) : (flags & ~lightFlags);
+        decor.setSystemUiVisibility(flags);
+    }
+
     static void stylePrimaryButton(Button button) {
-        styleButton(button, ACCENT, TEXT, ACCENT_STRONG);
+        styleButton(button, ACCENT, Color.rgb(0xF8, 0xFA, 0xFF), ACCENT_STRONG);
     }
 
     static void styleSecondaryButton(Button button) {
@@ -44,7 +91,9 @@ final class GhostTheme {
     }
 
     static void styleDangerButton(Button button) {
-        styleButton(button, Color.rgb(0x3A, 0x1D, 0x27), DANGER, Color.rgb(0x51, 0x25, 0x31));
+        int fill = light ? Color.rgb(0xFA, 0xEA, 0xE8) : Color.rgb(0x3A, 0x1D, 0x27);
+        int ripple = light ? Color.rgb(0xF4, 0xD5, 0xD1) : Color.rgb(0x51, 0x25, 0x31);
+        styleButton(button, fill, DANGER, ripple);
     }
 
     static void styleButton(Button button, int fill, int textColor, int rippleColor) {

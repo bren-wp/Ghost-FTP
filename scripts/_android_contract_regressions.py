@@ -125,7 +125,7 @@ class AndroidContractTests(unittest.TestCase):
             '".ghostftp-download-" + UUID.randomUUID() + ".part"',
             "ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,",
             "current.download(FtpSession.joinRemote(remoteBase, entry.name), out, attempt.gate);",
-            'beginFinalCommit(attempt, "Finalizing download name…");',
+            'beginFinalCommit(attempt, "Finalizing download…");',
             "DocumentsContract.renameDocument(getContentResolver(), staged, entry.name)",
             "queryDocumentDisplayName(committed)",
             "attempt.gate.finish();",
@@ -144,7 +144,7 @@ class AndroidContractTests(unittest.TestCase):
         rename = download.index("DocumentsContract.renameDocument")
         verify = download.index("queryDocumentDisplayName(committed)")
         finish_gate = download.index("attempt.gate.finish();")
-        success = download.index('setBusy(false, "Download completed and committed: "')
+        success = download.index('setBusy(false, "Download completed: "')
         self.assertLess(create, transfer)
         self.assertLess(transfer, second_conflict)
         self.assertLess(second_conflict, begin_commit)
@@ -361,7 +361,7 @@ class AndroidContractTests(unittest.TestCase):
         commit = activity.index("treeUri = selected;", listing)
         self.assertLess(permission, listing)
         self.assertLess(listing, commit)
-        self.assertIn("Local site start folder saved as a SAF capability URI", activity)
+        self.assertIn("Local start folder saved.", activity)
         self.assertIn("Local folder opened for this session only", activity)
 
     def test_stale_local_start_error_is_not_overwritten(self) -> None:

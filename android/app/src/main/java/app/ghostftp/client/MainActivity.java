@@ -168,6 +168,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        GhostTheme.apply(this);
+        GhostTheme.applySystemBars(this);
         SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
         profileStore = new SiteProfileStore(preferences);
         profiles.addAll(profileStore.load());
@@ -377,7 +379,7 @@ public final class MainActivity extends Activity {
 
     private View buildFilesSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Files", "Local SAF storage and the active FTP/FTPS server. File management mirrors the desktop create, rename, delete and remote-permission workflow while preserving Android scoped storage."));
+        content.addView(surfaceHeading("Files", "Browse local files and your connected server from one workspace."));
 
         LinearLayout panes = new LinearLayout(this);
         boolean wideFiles = getResources().getConfiguration().screenWidthDp >= 900;
@@ -395,7 +397,7 @@ public final class MainActivity extends Activity {
         }
         content.addView(panes, matchWrap());
 
-        LinearLayout transferCard = card("TRANSFER", "Transfer only the selected file. Staged upload/download and cancellation safety remain authoritative.");
+        LinearLayout transferCard = card("TRANSFER", "Move the selected file safely and follow its progress while the transfer is active.");
         LinearLayout actions = row();
         upload = primaryButton("Upload →");
         download = primaryButton("← Download");
@@ -409,7 +411,7 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildLocalFilesCard() {
-        LinearLayout card = card("LOCAL", "Android Storage Access Framework only; Ghost FTP never requests broad all-files access. Long-press a directory to select it without opening it.");
+        LinearLayout card = card("LOCAL", "Choose a folder, browse files and manage only the locations you allow Ghost FTP to use. Long-press a folder to select it without opening it.");
         localPath = pathLabel("No folder selected");
         card.addView(localPath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -465,7 +467,7 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildRemoteFilesCard() {
-        LinearLayout card = card("SERVER", "Fresh MLSD listings over the active FTP/FTPS session; FTPS keeps strict TLS and hostname verification. Long-press a directory to select it without opening it.");
+        LinearLayout card = card("SERVER", "Browse and manage files on the connected server. Secure connections are verified before use. Long-press a folder to select it without opening it.");
         remotePath = pathLabel(currentRemotePath);
         card.addView(remotePath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -531,9 +533,9 @@ public final class MainActivity extends Activity {
 
     private View buildSitesSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Sites", "Quick Connect stays transient. Saved sites contain non-secret connection and navigation metadata only."));
+        content.addView(surfaceHeading("Sites", "Connect quickly or save the server details you use often."));
 
-        LinearLayout connectionCard = card("QUICK CONNECT / CONNECTION", "Password is memory-only. Android currently exposes FTP and strict explicit FTPS; SFTP stays hidden until strict host-key verification exists.");
+        LinearLayout connectionCard = card("QUICK CONNECT / CONNECTION", "Passwords are never saved. FTP and secure explicit FTPS are available on Android.");
         protocol = new Spinner(this);
         GhostTheme.styleSpinner(protocol);
         protocol.setAdapter(GhostTheme.spinnerAdapter(this, java.util.Arrays.asList(new String[]{"FTPS", "FTP"})));
@@ -559,7 +561,7 @@ public final class MainActivity extends Activity {
         disconnect.setOnClickListener(v -> disconnect());
         content.addView(connectionCard, cardParams());
 
-        LinearLayout savedCard = card("SAVED SITES", "Load, create, update or delete an explicit saved site. Quick Connect never creates hidden profiles.");
+        LinearLayout savedCard = card("SAVED SITES", "Save only the connection details you choose. Passwords are never stored.");
         siteSpinner = new Spinner(this);
         GhostTheme.styleSpinner(siteSpinner);
         savedCard.addView(siteSpinner, matchWrapSpaced());
@@ -582,9 +584,9 @@ public final class MainActivity extends Activity {
 
     private View buildBookmarksSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Bookmarks", "Navigation state is explicit and account-bound. Quick Connect does not create hidden bookmarks."));
+        content.addView(surfaceHeading("Bookmarks", "Save frequently used local folders and remote paths for faster navigation."));
 
-        LinearLayout localCard = card("LOCAL SAF BOOKMARKS", "Local starts/bookmarks are SAF capability URIs and are freshly revalidated before navigation.");
+        LinearLayout localCard = card("LOCAL SAF BOOKMARKS", "Saved local folders remain limited to locations you selected.");
         bookmarkLocalCurrent = pathLabel("No folder selected");
         localCard.addView(bookmarkLocalCurrent, matchWrapSpaced());
         LinearLayout localActions = row();
@@ -606,7 +608,7 @@ public final class MainActivity extends Activity {
         localOpenBookmark.setOnClickListener(v -> openLocalBookmark());
         content.addView(localCard, cardParams());
 
-        LinearLayout remoteCard = card("SERVER BOOKMARKS", "Remote paths are bound to protocol, canonical host, port and exact username, and are freshly listed before visible commit.");
+        LinearLayout remoteCard = card("SERVER BOOKMARKS", "Saved remote paths stay linked to the matching server and account.");
         bookmarkRemoteCurrent = pathLabel(currentRemotePath);
         remoteCard.addView(bookmarkRemoteCurrent, matchWrapSpaced());
         LinearLayout remoteActions = row();
@@ -632,8 +634,8 @@ public final class MainActivity extends Activity {
 
     private View buildTransfersSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Transfers", "This surface shows the real active transfer lifecycle. No decorative queue or fake history is displayed."));
-        LinearLayout card = card("ACTIVE TRANSFER", "Progress comes from actual bytes read/written. Cancellation is available only before the irreversible final-name commit gate.");
+        content.addView(surfaceHeading("Transfers", "Follow the current transfer and cancel it while cancellation is still safe."));
+        LinearLayout card = card("ACTIVE TRANSFER", "Progress reflects the current file transfer.");
         transferStatus = label("No active transfer.", 14, GhostTheme.MUTED);
         transferStatus.setPadding(dp(10), dp(12), dp(10), dp(12));
         transferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
@@ -650,15 +652,15 @@ public final class MainActivity extends Activity {
 
     private View buildSettingsSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Settings", "Only settings with a real Android runtime owner are interactive."));
-        LinearLayout uiCard = card("UI / LOCAL PREFERENCES", "Ghost FTP Android uses the canonical dark brand palette. These options change actual local runtime behavior.");
+        content.addView(surfaceHeading("Settings", "Choose how Ghost FTP behaves on this device."));
+        LinearLayout uiCard = card("UI / LOCAL PREFERENCES", "Adjust local preferences for browsing and quick connections.");
         rememberEndpointToggle = checkBox("Remember Quick Connect host, username, protocol and port");
         rememberEndpointToggle.setOnClickListener(v -> {
             rememberEndpoint = rememberEndpointToggle.isChecked();
             savePreferences();
             setStatus(rememberEndpoint
-                    ? "Quick Connect metadata will be remembered. Passwords remain memory-only."
-                    : "Quick Connect metadata persistence disabled and stored endpoint metadata cleared.");
+                    ? "Quick Connect details will be remembered. Passwords are never saved."
+                    : "Saved Quick Connect details were cleared.");
         });
         uiCard.addView(rememberEndpointToggle, matchWrapSpaced());
         showFileSizesToggle = checkBox("Show file sizes in Files lists");
@@ -672,25 +674,23 @@ public final class MainActivity extends Activity {
         uiCard.addView(showFileSizesToggle, matchWrapSpaced());
         content.addView(uiCard, cardParams());
 
-        LinearLayout securityCard = card("SECURITY", "Runtime security policy is informational here and cannot be weakened from the UI.");
-        securityCard.addView(infoLine("FTPS", "Platform trust store + strict hostname verification"), matchWrapSpaced());
-        securityCard.addView(infoLine("Passwords", "Memory-only; never stored in site JSON/preferences"), matchWrapSpaced());
-        securityCard.addView(infoLine("Local storage", "Android SAF grants only; no all-files permission"), matchWrapSpaced());
-        securityCard.addView(infoLine("SFTP", "Hidden until strict Android host-key identity verification exists"), matchWrapSpaced());
-        securityCard.addView(infoLine("Privacy", "No telemetry, analytics, ads, fingerprinting or Ghost FTP cloud"), matchWrapSpaced());
+        LinearLayout securityCard = card("SECURITY", "Security protections stay enforced automatically.");
+        securityCard.addView(infoLine("FTPS", "Certificate and hostname verification enabled"), matchWrapSpaced());
+        securityCard.addView(infoLine("Passwords", "Kept in memory only and never saved"), matchWrapSpaced());
+        securityCard.addView(infoLine("Local storage", "Access limited to folders you select"), matchWrapSpaced());
+        securityCard.addView(infoLine("SFTP", "Unavailable until strict server identity verification is enabled"), matchWrapSpaced());
+        securityCard.addView(infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud"), matchWrapSpaced());
         content.addView(securityCard, cardParams());
         return scrollSurface(content);
     }
 
     private View buildAboutSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("About", "Build identity and privacy/security status for this Android app."));
+        content.addView(surfaceHeading("About", "Version, supported protocols and privacy information."));
         LinearLayout card = card("GHOST FTP", "Private file transfer client for direct connections to servers you control.");
         card.addView(infoLine("Version", BuildConfig.VERSION_NAME), matchWrapSpaced());
-        card.addView(infoLine("Package", BuildConfig.APPLICATION_ID), matchWrapSpaced());
-        card.addView(infoLine("Protocols", "FTP + strict explicit FTPS on Android source line"), matchWrapSpaced());
-        card.addView(infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME + (BuildConfig.DEBUG ? "; development package; not the production-signed public APK" : "; release package; official publication requires verified publisher-signature evidence")), matchWrapSpaced());
-        card.addView(infoLine("Data collection", "None: no telemetry, analytics, ads or hidden backend"), matchWrapSpaced());
+        card.addView(infoLine("Protocols", "FTP and explicit FTPS"), matchWrapSpaced());
+        card.addView(infoLine("Data collection", "No telemetry, analytics or ads"), matchWrapSpaced());
         content.addView(card, cardParams());
         return scrollSurface(content);
     }
@@ -843,7 +843,7 @@ public final class MainActivity extends Activity {
             selectedRemote = -1;
             renderRemote();
             renderBookmarks();
-            setStatus("Quick Connect mode. Connection details are not a saved site until you press Save / update.");
+            setStatus("Quick Connect ready. Use Save / update if you want to keep these server details.");
             return;
         }
         if (index >= profiles.size()) return;
@@ -873,7 +873,7 @@ public final class MainActivity extends Activity {
         if (localStartUnavailable) {
             setStatus("Site loaded, but its local start folder is unavailable. Choose it again and update the site.");
         } else {
-            setStatus("Site loaded. Password remains blank; connect to validate the saved server start directory.");
+            setStatus("Site loaded. Enter your password to connect.");
         }
     }
 
@@ -923,7 +923,7 @@ public final class MainActivity extends Activity {
             renderSites();
             renderBookmarks();
             if (previous != null && !next.sameServerIdentity(previous)) {
-                setStatus("Site identity updated. Server start path and server bookmarks were cleared to prevent cross-server inheritance.");
+                setStatus("Site updated. Saved server paths and bookmarks were cleared because the connection details changed.");
             } else {
                 setStatus(previous == null ? "Site saved. No password was stored." : "Site updated. No password was stored.");
             }
@@ -948,7 +948,7 @@ public final class MainActivity extends Activity {
         profileName.setText("");
         renderSites();
         renderBookmarks();
-        setStatus("Saved site deleted. Quick Connect settings were not converted into another profile.");
+        setStatus("Saved site deleted.");
     }
 
     private void replaceProfile(SiteProfile next) {
@@ -991,7 +991,7 @@ public final class MainActivity extends Activity {
         SiteProfile profile = activeProfile();
         String identity = identityKey(protocol.getSelectedItem().toString(), hostValue, portValue, userValue);
         if (profile != null && !profile.identityKey().equals(identity)) {
-            setStatus("Loaded site identity was edited. Save/update it first or switch to Quick Connect; saved server paths will not be reused across identities.");
+            setStatus("Connection details changed. Save the site or switch to Quick Connect before connecting.");
             return;
         }
         String requestedStart = profile == null ? null : profile.remoteStartPath;
@@ -1003,7 +1003,7 @@ public final class MainActivity extends Activity {
             return;
         }
         connectingSession = next;
-        setBusy(true, secure ? "Connecting with strict FTPS TLS verification…" : "Connecting with unencrypted FTP…");
+        setBusy(true, secure ? "Connecting securely…" : "Connecting with FTP…");
         io.execute(() -> {
             try {
                 if (!connectionAttemptCurrent(next)) {
@@ -1037,8 +1037,8 @@ public final class MainActivity extends Activity {
                     savePreferences();
                     renderRemote();
                     setBusy(false, secure
-                            ? "FTPS connected. Certificate/hostname verified and server start directory freshly listed."
-                            : "FTP connected. Warning: transport is unencrypted; server start directory freshly listed.");
+                            ? "FTPS connected. Secure server identity verified."
+                            : "FTP connected. Warning: this connection is not encrypted.");
                 });
             } catch (Exception e) {
                 next.abort();
@@ -1089,7 +1089,7 @@ public final class MainActivity extends Activity {
         TransferCommitGate.CancelDisposition disposition = current.cancelActiveTransfer(gate);
         if (disposition == TransferCommitGate.CancelDisposition.TOO_LATE) {
             transferFinalizing = true;
-            setStatus("Finalizing transfer. The final-name commit has started and cannot be cancelled safely.");
+            setStatus("Finalizing transfer. It can no longer be cancelled safely.");
             refreshButtons();
             return;
         }
@@ -1109,7 +1109,7 @@ public final class MainActivity extends Activity {
         busy = false;
         renderRemote();
         setStatus(disposition == TransferCommitGate.CancelDisposition.CLEANUP_STAGING
-                ? "Cancellation accepted. Cleaning staged data before closing the session."
+                ? "Cancellation accepted. Cleaning temporary data before closing the connection."
                 : "Transfer cancelled. Connection closed; reconnect before another transfer.");
         refreshButtons();
     }
@@ -1124,7 +1124,7 @@ public final class MainActivity extends Activity {
             setStatus(e.getMessage());
             return;
         }
-        setBusy(true, "Refreshing server directory…");
+        setBusy(true, "Refreshing server folder…");
         io.execute(() -> {
             try {
                 List<RemoteEntry> entries = current.list(requested);
@@ -1135,7 +1135,7 @@ public final class MainActivity extends Activity {
                     remoteEntries.addAll(entries);
                     selectedRemote = -1;
                     renderRemote();
-                    setBusy(false, "Server directory freshly listed.");
+                    setBusy(false, "Server folder refreshed.");
                 });
             } catch (Exception e) {
                 postError("Remote directory is unavailable; current path was not changed", e);
@@ -1272,7 +1272,7 @@ public final class MainActivity extends Activity {
         SiteProfile next = profile.withRemoteStartPath(currentRemotePath);
         replaceProfile(next);
         profileStore.save(profiles);
-        setStatus("Saved server start directory updated after a successful listing: " + currentRemotePath);
+        setStatus("Server start folder saved: " + currentRemotePath);
     }
 
     private void addRemoteBookmark() {
@@ -1282,7 +1282,7 @@ public final class MainActivity extends Activity {
         replaceProfile(next);
         profileStore.save(profiles);
         renderBookmarks();
-        setStatus("Server bookmark added for this site identity only.");
+        setStatus("Server bookmark added.");
     }
 
     private void removeRemoteBookmark() {
@@ -1320,7 +1320,7 @@ public final class MainActivity extends Activity {
     private SiteProfile requireConnectedActiveProfile() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load or save a site first. Quick Connect does not create hidden profiles or bookmarks.");
+            setStatus("Load or save a site first.");
             return null;
         }
         if (session == null || connectedIdentityKey == null || !profile.identityKey().equals(connectedIdentityKey)) {
@@ -1359,8 +1359,8 @@ public final class MainActivity extends Activity {
         if (tryActivateLocalTree(selected, "Selected folder could not be opened.", false)) {
             savePreferences();
             setStatus(persisted
-                    ? "Local folder selected with persistent SAF permission."
-                    : "Local folder opened for this session only; persistent permission was not granted, so it cannot become a saved site start/bookmark.");
+                    ? "Local folder selected."
+                    : "Local folder opened for this session only.");
         }
     }
 
@@ -1404,7 +1404,19 @@ public final class MainActivity extends Activity {
 
     private String displayLocalPath() {
         if (treeUri == null || currentDocumentId == null) return "No folder selected";
-        return currentDocumentId.equals(rootDocumentId) ? "Selected SAF folder" : currentDocumentId;
+        try {
+            Uri current = DocumentsContract.buildDocumentUriUsingTree(treeUri, currentDocumentId);
+            String[] projection = {DocumentsContract.Document.COLUMN_DISPLAY_NAME};
+            try (Cursor cursor = getContentResolver().query(current, projection, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    String name = cursor.getString(0);
+                    if (name != null && !name.trim().isEmpty()) return name;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Use a neutral label when the selected folder name cannot be read.
+        }
+        return "Selected folder";
     }
 
     private void refreshLocal() {
@@ -1421,7 +1433,7 @@ public final class MainActivity extends Activity {
         } catch (IOException e) {
             clearLocalRoot();
             renderLocal();
-            setStatus("Local folder permission or provider is no longer available. Choose the folder again.");
+            setStatus("Local folder is no longer available. Choose the folder again.");
         }
     }
 
@@ -1432,7 +1444,7 @@ public final class MainActivity extends Activity {
                 DocumentsContract.Document.COLUMN_MIME_TYPE, DocumentsContract.Document.COLUMN_SIZE,
                 DocumentsContract.Document.COLUMN_LAST_MODIFIED};
         try (Cursor cursor = getContentResolver().query(children, projection, null, null, null)) {
-            if (cursor == null) throw new IOException("Folder provider returned no directory listing.");
+            if (cursor == null) throw new IOException("This folder could not be opened.");
             while (cursor.moveToNext()) {
                 String id = cursor.getString(0);
                 String name = cursor.getString(1);
@@ -1442,7 +1454,7 @@ public final class MainActivity extends Activity {
                 result.add(new LocalEntry(id, name, DocumentsContract.Document.MIME_TYPE_DIR.equals(mime), size, modified));
             }
         } catch (SecurityException e) {
-            throw new IOException("Local folder permission is no longer available.", e);
+            throw new IOException("Local folder access is no longer available.", e);
         }
         return result;
     }
@@ -1487,7 +1499,7 @@ public final class MainActivity extends Activity {
 
 
     private void editLocalFilter() {
-        promptText("Local current-folder filter", localFilterQuery, "Name contains… (blank clears)", false, value -> {
+        promptText("Local filter", localFilterQuery, "Name contains… (blank clears)", false, value -> {
             localFilterQuery = value == null ? "" : value.trim();
             selectedLocal = -1;
             renderLocal();
@@ -1496,7 +1508,7 @@ public final class MainActivity extends Activity {
     }
 
     private void editRemoteFilter() {
-        promptText("Server current-folder filter", remoteFilterQuery, "Name contains… (blank clears)", false, value -> {
+        promptText("Server filter", remoteFilterQuery, "Name contains… (blank clears)", false, value -> {
             remoteFilterQuery = value == null ? "" : value.trim();
             selectedRemote = -1;
             renderRemote();
@@ -1906,7 +1918,7 @@ public final class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
-                    setBusy(false, "Paired navigation was not committed: " + safeMessage(e));
+                    setBusy(false, "Could not open the matching folders: " + safeMessage(e));
                 });
             }
         });
@@ -2128,11 +2140,11 @@ public final class MainActivity extends Activity {
                 ensureNoLocalNameConflict(treeUri, currentDocumentId, child, "A local item with this exact name already exists.");
                 Uri parent = DocumentsContract.buildDocumentUriUsingTree(treeUri, currentDocumentId);
                 Uri created = DocumentsContract.createDocument(getContentResolver(), parent, DocumentsContract.Document.MIME_TYPE_DIR, child);
-                if (created == null) throw new IOException("Storage provider rejected the folder creation.");
+                if (created == null) throw new IOException("The folder could not be created.");
                 String actual = queryDocumentDisplayName(created);
                 if (!child.equals(actual)) {
                     try { DocumentsContract.deleteDocument(getContentResolver(), created); } catch (Exception ignored) { }
-                    throw new IOException("Storage provider changed the requested folder name; creation was rolled back.");
+                    throw new IOException("The folder name could not be verified, so no folder was kept.");
                 }
                 refreshLocal();
                 setStatus("Local folder created: " + child);
@@ -2161,10 +2173,10 @@ public final class MainActivity extends Activity {
                 ensureNoLocalNameConflict(treeUri, currentDocumentId, child, "A local item with this exact name already exists.");
                 Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
                 Uri renamed = DocumentsContract.renameDocument(getContentResolver(), document, child);
-                if (renamed == null) throw new IOException("Storage provider rejected the rename.");
+                if (renamed == null) throw new IOException("The item could not be renamed.");
                 String actual = queryDocumentDisplayName(renamed);
                 if (!child.equals(actual)) {
-                    throw new IOException("Storage provider changed the requested final name; rename verification failed.");
+                    throw new IOException("The new item name could not be verified.");
                 }
                 refreshLocal();
                 setStatus("Local item renamed to: " + child);
@@ -2178,11 +2190,11 @@ public final class MainActivity extends Activity {
     private void deleteLocalSelected() {
         if (busy || treeUri == null || selectedLocal < 0 || selectedLocal >= localEntries.size()) return;
         LocalEntry entry = localEntries.get(selectedLocal);
-        confirmDestructive("Delete local item?", "Delete “" + entry.name + "” from the selected Android storage provider? This cannot be undone.", () -> {
+        confirmDestructive("Delete local item?", "Delete “" + entry.name + "” from the selected folder? This cannot be undone.", () -> {
             try {
                 Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
                 if (!DocumentsContract.deleteDocument(getContentResolver(), document)) {
-                    throw new IOException("Storage provider rejected the delete operation.");
+                    throw new IOException("The item could not be deleted.");
                 }
                 refreshLocal();
                 setStatus("Local item deleted: " + entry.name);
@@ -2208,7 +2220,7 @@ public final class MainActivity extends Activity {
         replaceProfile(next);
         profileStore.save(profiles);
         renderBookmarks();
-        setStatus("Local site start folder saved as a SAF capability URI; no filesystem-wide permission was added.");
+        setStatus("Local start folder saved.");
     }
 
     private void addLocalBookmark() {
@@ -2226,7 +2238,7 @@ public final class MainActivity extends Activity {
         replaceProfile(next);
         profileStore.save(profiles);
         renderBookmarks();
-        setStatus("Local SAF bookmark added. It contains no credentials.");
+        setStatus("Local bookmark added.");
     }
 
     private void removeLocalBookmark() {
@@ -2264,12 +2276,12 @@ public final class MainActivity extends Activity {
         Uri uri = Uri.parse(profile.localBookmarks.get(index));
         if (!tryActivateLocalTree(
                 uri,
-                "Local bookmark is stale or its persisted permission is unavailable. Re-select the folder to restore access.",
+                "Local bookmark is no longer available. Re-select the folder to restore access.",
                 true)) {
             return;
         }
         savePreferences();
-        setStatus("Local bookmark opened after persisted SAF permission and directory listing were revalidated.");
+        setStatus("Local bookmark opened.");
     }
 
     private void uploadSelected() {
@@ -2324,7 +2336,7 @@ public final class MainActivity extends Activity {
         String selectedDocumentId = currentDocumentId;
         Uri parent = DocumentsContract.buildDocumentUriUsingTree(selectedTree, selectedDocumentId);
         String remoteBase = currentRemotePath;
-        TransferAttempt attempt = beginTransfer("Downloading " + entry.name + " to a staged local document…");
+        TransferAttempt attempt = beginTransfer("Downloading " + entry.name + "…");
         TransferProgress progress = transferProgress(entry.size, "Downloading", current, attempt);
         io.execute(() -> {
             Uri staged = null;
@@ -2336,27 +2348,27 @@ public final class MainActivity extends Activity {
 
                 String stagedName = ".ghostftp-download-" + UUID.randomUUID() + ".part";
                 staged = DocumentsContract.createDocument(getContentResolver(), parent, "application/octet-stream", stagedName);
-                if (staged == null) throw new IOException("Could not create staged local download document.");
+                if (staged == null) throw new IOException("Could not prepare the local download.");
 
                 requireTransferCurrent(attempt);
                 OutputStream destination = getContentResolver().openOutputStream(staged, "w");
-                if (destination == null) throw new IOException("Could not open staged local download document.");
+                if (destination == null) throw new IOException("Could not open the local download destination.");
                 try (OutputStream out = ProgressStreams.output(destination, progress::onTransferred)) {
                     current.download(FtpSession.joinRemote(remoteBase, entry.name), out, attempt.gate);
                 }
                 requireTransferCurrent(attempt);
 
                 ensureNoLocalNameConflict(selectedTree, selectedDocumentId, entry.name,
-                        "A local item with the destination name appeared during download; staged data was not committed.");
+                        "A file with that name appeared during download. No existing file was replaced.");
                 requireTransferCurrent(attempt);
-                beginFinalCommit(attempt, "Finalizing download name…");
+                beginFinalCommit(attempt, "Finalizing download…");
 
                 Uri committed = DocumentsContract.renameDocument(getContentResolver(), staged, entry.name);
-                if (committed == null) throw new IOException("Storage provider rejected the final download name commit.");
+                if (committed == null) throw new IOException("The download could not be finalized.");
                 staged = committed;
                 String committedName = queryDocumentDisplayName(committed);
                 if (!entry.name.equals(committedName)) {
-                    throw new IOException("Storage provider changed the requested final download name; commit was rejected.");
+                    throw new IOException("The downloaded file name could not be verified.");
                 }
                 attempt.gate.finish();
                 staged = null;
@@ -2369,10 +2381,10 @@ public final class MainActivity extends Activity {
                     if (!finishTransferState(attempt)) return;
                     if (session != current || !current.isConnected()) {
                         refreshLocal();
-                        setBusy(false, "Download committed, but the connection was lost during finalization. Reconnect before another transfer.");
+                        setBusy(false, "Download completed, but the connection closed. Reconnect before another transfer.");
                         return;
                     }
-                    setBusy(false, "Download completed and committed: " + entry.name);
+                    setBusy(false, "Download completed: " + entry.name);
                     refreshLocal();
                 });
             } catch (Exception e) {
@@ -2423,7 +2435,7 @@ public final class MainActivity extends Activity {
     private void beginFinalCommit(TransferAttempt attempt, String message) throws IOException {
         requireTransferCurrent(attempt);
         if (!attempt.gate.beginCommit()) {
-            throw new IOException("Transfer cancelled before final-name commit.");
+            throw new IOException("Transfer cancelled.");
         }
         transferFinalizing = true;
         runOnUiThread(() -> {
@@ -2471,25 +2483,25 @@ public final class MainActivity extends Activity {
         String[] projection = {DocumentsContract.Document.COLUMN_DISPLAY_NAME};
         try (Cursor cursor = getContentResolver().query(document, projection, null, null, null)) {
             if (cursor == null || !cursor.moveToFirst()) {
-                throw new IOException("Storage provider could not verify the committed download name.");
+                throw new IOException("The downloaded file name could not be verified.");
             }
             String name = cursor.getString(0);
             if (name == null || name.isEmpty()) {
-                throw new IOException("Storage provider returned an empty committed download name.");
+                throw new IOException("The downloaded file name could not be verified.");
             }
             return name;
         } catch (SecurityException e) {
-            throw new IOException("Storage permission was lost while verifying the committed download.", e);
+            throw new IOException("Storage access was lost while finishing the download.", e);
         }
     }
 
     private static String validateItemName(String value) throws IOException {
         String name = value == null ? "" : value.trim();
         if (name.isEmpty()) throw new IOException("Name is required.");
-        if (".".equals(name) || "..".equals(name)) throw new IOException("Dot-segment names are not allowed.");
+        if (".".equals(name) || "..".equals(name)) throw new IOException("Choose a different name.");
         if (name.indexOf('/') >= 0 || name.indexOf('\\') >= 0
                 || name.indexOf('\0') >= 0 || name.indexOf('\r') >= 0 || name.indexOf('\n') >= 0) {
-            throw new IOException("Name must be a single safe item name without separators or control characters.");
+            throw new IOException("Names cannot contain slashes or control characters.");
         }
         return name;
     }
@@ -2716,8 +2728,20 @@ public final class MainActivity extends Activity {
     }
 
     private static String safeMessage(Exception e) {
-        String value = e.getMessage();
-        return value == null || value.trim().isEmpty() ? e.getClass().getSimpleName() : value.replace('\n', ' ').replace('\r', ' ');
+        String value = e == null ? null : e.getMessage();
+        if (value == null || value.trim().isEmpty()) return "The operation could not be completed.";
+        String safe = value.replace('\n', ' ').replace('\r', ' ').trim();
+        if (safe.length() > 180
+                || safe.contains("/home/")
+                || safe.contains("/data/user/")
+                || safe.contains("java.")
+                || safe.contains("javax.")
+                || safe.contains("android.")
+                || safe.contains("Exception")
+                || safe.contains("StackTrace")) {
+            return "The operation could not be completed. Check the connection and try again.";
+        }
+        return safe;
     }
 
     private LinearLayout surfaceContent() {

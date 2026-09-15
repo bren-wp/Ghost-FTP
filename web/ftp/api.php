@@ -28,7 +28,7 @@ function json_out(array $payload, int $status = 200): never
     );
     if ($json === false) {
         $status = 500;
-        $json = '{"ok":false,"error":"Response encoding failed."}';
+        $json = '{"ok":false,"error":"The response could not be completed."}';
     }
 
     http_response_code($status);
@@ -79,7 +79,45 @@ function json_success(?Transport &$transport, array $payload = ['ok' => true]): 
     json_out($payload);
 }
 
+function public_error(Throwable $error, string $action): string
+{
+    $safeValidation = [
+        'Invalid host.' => 'Enter a valid server address.',
+        'Invalid host name.' => 'Enter a valid server name.',
+        'Host could not be resolved.' => 'The server name could not be resolved.',
+        'Private, loopback, link-local and reserved destinations are blocked by default.' => 'That server address is not allowed by this Web FTP deployment.',
+        'Remote path contains forbidden control characters.' => 'The remote path is not valid.',
+        'Remote path escapes the configured root.' => 'That path is outside the allowed remote folder.',
+        'SFTP requires an expected SHA-256 host-key fingerprint.' => 'Enter the server SHA-256 host-key fingerprint for SFTP.',
+        'Permission mode must be octal.' => 'Enter permissions as an octal value such as 0644.',
+        'Connection profile is required.' => 'Enter your connection details.',
+        'Unsupported protocol.' => 'Choose FTP, FTPS or SFTP.',
+        'No valid upload was supplied.' => 'Choose a file to upload.',
+        'Upload exceeds the configured limit.' => 'The selected file is too large for this Web FTP deployment.',
+        'Unsupported action.' => 'That action is not available.',
+    ];
+
+    $message = $error->getMessage();
+    if (isset($safeValidation[$message])) {
+        return $safeValidation[$message];
+    }
+
+    return match ($action) {
+        'list' => 'Could not load this folder. Check the connection details and try again.',
+        'mkdir' => 'Could not create the folder.',
+        'rename' => 'Could not rename the selected item.',
+        'delete' => 'Could not delete the selected item.',
+        'chmod' => 'Could not change permissions for the selected item.',
+        'read' => 'Could not open this file for editing.',
+        'write' => 'Could not save this file.',
+        'upload' => 'Upload failed. Check the connection and try again.',
+        'download' => 'Download failed. Check the connection and try again.',
+        default => 'The request could not be completed. Check the connection and try again.',
+    };
+}
+
 $t = null;
+$action = '';
 
 try {
     $data = payload();
@@ -98,7 +136,6 @@ try {
                 'ok' => true,
                 'path' => $path,
                 'items' => $t->list($path),
-                'version' => GHOSTFTP_WEB_VERSION,
             ]);
 
         case 'mkdir':
@@ -183,12 +220,12 @@ try {
         default:
             throw new RuntimeException('Unsupported action.');
     }
-} catch (Throwable $e) {
+} catch (Throwable $error) {
     if ($t instanceof Transport) {
         $t->close();
         $t = null;
     }
-    json_out(['ok' => false, 'error' => $e->getMessage()], 400);
+    json_out(['ok' => false, 'error' => public_error($error, $action)], 400);
 } finally {
     if ($t instanceof Transport) {
         $t->close();
