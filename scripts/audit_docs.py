@@ -140,7 +140,7 @@ def main() -> int:
     if not root.startswith("# Ghost FTP\n"):
         fail("README public title must be Ghost FTP")
     for marker in (
-        "Latest published GitHub Release: `ghostftp-v0.0.6`",
+        "Latest published GitHub Release: **`ghostftp-v0.0.6`**",
         "13 platform artifacts / 16 public files",
         "Ghost-FTP-0.0.6-Android.apk",
         "Ghost-FTP-0.0.6-Opera-Extension.zip",
