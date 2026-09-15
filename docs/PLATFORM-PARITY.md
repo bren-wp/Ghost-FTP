@@ -1,29 +1,20 @@
 # Ghost FTP platform parity
 
-Ghost FTP **0.0.6** treats parity as **equivalent real capability with honest platform-native UX**, not pixel-copying unsupported controls.
+Ghost FTP **0.0.6** treats parity as equivalent real capability with honest platform-native UX, not as a promise that every control exists identically on every operating system.
 
 ## Windows and Linux desktop parity
 
-Windows and Linux use the same typed `internal/api.Engine` and shared protocol, transfer, profile, settings, localization, Remote Edit and security layers. Both expose FTP, explicit FTPS, SFTP password/private-key flows, strict host-key trust, navigation, transfers, remote file operations, filters/sorting/search/comparison, bookmarks/start directories and Remote Edit.
+Windows and Linux use the same typed `internal/api.Engine` and shared protocol, transfer, profile, settings, localization, Remote Edit and security layers. Both expose FTP, explicit FTPS, desktop SFTP, navigation, transfers, remote file operations, filtering/sorting/search/comparison, bookmarks/start directories and Remote Edit where the underlying platform contract supports them.
 
-Both desktop frontends expose real queue lifecycle including pause/resume where supported, cancel, retry, clear and queued Top/Up/Down/Bottom ordering. Progress/speed/ETA are displayed only from actual transfer state.
+Both desktop frontends expose actual queue lifecycle state rather than decorative progress. User-facing controls must remain wired to real engine behavior and guarded against stale/re-entrant operations.
 
-Windows public output is one universal Setup + one universal Portable, each containing **x64, x86 and ARM64** payloads. The release metadata preserves the evidence boundary explicitly:
-
-```text
-WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
-WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-```
-
-The ARM64 marker means the maintained CI proves cross-build/package/resource integrity without falsely claiming native Windows ARM64 runtime execution.
-
-Linux public output is exactly six bundles: Installer + Portable for Debian/Ubuntu/Fedora, each carrying amd64/arm64/i386 payloads.
+Windows public output is one universal Setup plus one universal Portable application, each containing x64, x86 and ARM64 payloads. Linux public output is Installer plus Portable bundles for Debian, Ubuntu and Fedora, each carrying amd64/arm64/i386 payloads.
 
 ## Android parity boundary
 
-Android is a public 0.0.6 application with Android-native Files, Sites, Bookmarks, Transfers, Settings and About surfaces. It uses Storage Access Framework local authority, FTP + strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
+Android is a public 0.0.6 application with Android-native Files, Sites, Bookmarks, Transfers, Settings and About surfaces. It uses Storage Access Framework authority, FTP plus strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
 
-Android SFTP remains hidden until strict native host-key identity verification exists. A production signature does not weaken that boundary.
+Android SFTP remains hidden until strict native host-key identity verification exists. The UI must not advertise unavailable protocol support.
 
 ## macOS parity boundary
 
@@ -31,26 +22,13 @@ macOS is an active native AppKit development frontend over the shared engine. So
 
 ## Browser helper boundary
 
-Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from one shared local runtime. They remain parser/copy helpers with zero broad permissions and **no supported browser-to-desktop launch/handoff**. They are not substitutes for a native protocol client.
+Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from a shared local runtime. They remain narrow parser/copy helpers with no credential store, no telemetry backend and **no supported browser-to-desktop** launch/handoff. They are not protocol engines and must not present themselves as full native-client replacements.
 
-## Web FTP parity boundary
+## Theme and user experience
 
-`web/ftp` intentionally resembles the Ghost FTP workspace but cannot be a native filesystem clone because browser sandboxes do not provide arbitrary local filesystem access or raw FTP-family sockets.
+Windows remains the canonical desktop visual reference. Each platform may use native controls and navigation patterns, but naming, product identity, connection semantics, security warnings and capability claims must remain consistent and user-oriented.
 
-The browser UI therefore provides:
-
-- explicit local file selection instead of fake local filesystem enumeration;
-- remote list/navigation;
-- upload/download;
-- mkdir, rename, delete and CHMOD where supported;
-- bounded Remote Edit;
-- in-tab operation activity.
-
-The server-assisted Web FTP transport is a distinct implementation with explicit SSRF/TLS/SFTP trust boundaries. It does not claim desktop queue scheduling, native local filesystem authority or browser-direct FTP.
-
-## Theme and visual direction
-
-Windows remains the canonical desktop visual reference. Dark uses the maintained deep navy palette; Classic Light uses the dirty/off-white gray palette rather than pure white. The website and Web FTP follow the same design language while remaining appropriate to browser controls/responsiveness.
+Development labels, placeholder controls, debug diagnostics and unsupported feature promises do not belong in normal user-facing surfaces.
 
 ## Release parity
 
@@ -58,12 +36,12 @@ Every public release stage is independently required. A successful Windows build
 
 The Ghost FTP 0.0.6 release contract is **13 platform artifacts / 16 public files**:
 
-- Windows: 2;
-- Linux: 6;
-- Android: 1;
-- Browser helpers: 4;
-- release metadata: 3.
+- Windows: 2 platform artifacts;
+- Linux: 6 platform artifacts;
+- Android: 1 platform artifact;
+- Browser helpers: 4 platform artifacts;
+- release metadata: 3 additional public files.
 
-`web/` and `web/ftp` are active deployment source but do not increase the GitHub Release asset count. macOS remains development/source only.
+macOS remains development/source only and does not enlarge the public release contract.
 
-See [Architecture](ARCHITECTURE.md), [Web](WEB.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
+See [Architecture](ARCHITECTURE.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
