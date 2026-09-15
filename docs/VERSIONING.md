@@ -2,7 +2,7 @@
 
 Ghost FTP uses semantic versioning with root `VERSION` as the authoritative production version source.
 
-Current source candidate: **0.0.6**.
+Current source candidate: **0.0.6**. The current published GitHub Release is **`ghostftp-v0.0.6`**; `production/0.0.7-cleanup` prepares the next development cycle without rewriting that release.
 
 ## Version format
 
@@ -23,7 +23,7 @@ PRERELEASE=false
 
 ## Public numbering line
 
-The public numbering starts at `0.0.1`; `0.0.0` is reserved and must never be published. The historical `0.0.2` line is retained only as a version-history reference and is not a current publication instruction. For Ghost FTP, **major version `0` does not imply prerelease**. The current 0.0.x line uses `prerelease=false` unless an explicit reviewed policy changes that rule.
+The public numbering starts at `0.0.1`; `0.0.0` is reserved and must never be published. Historical 0.0.x lines remain documentation only and are not current publication instructions. For Ghost FTP, **major version `0` does not imply prerelease**. The current line uses `prerelease=false` unless an explicit reviewed policy changes that rule.
 
 ## Platform and version boundaries
 
@@ -36,7 +36,7 @@ WINDOWS,LINUX,ANDROID
 Public companion packages:
 
 ```text
-BROWSER_HELPER=Chrome,Edge,Firefox
+BROWSER_HELPER=Chrome,Edge,Firefox,Opera
 ```
 
 Active native source platforms:
@@ -45,7 +45,7 @@ Active native source platforms:
 WINDOWS,LINUX,ANDROID,MACOS
 ```
 
-Android 0.0.6 is public only through the protected production-signing path. Android SFTP remains hidden until strict maintained host-key verification exists. Browser-helper publication does not make it an application platform and does not add desktop launch/handoff. macOS remains a development/source platform until real Developer ID signing + notarization succeeds.
+Android 0.0.6 is public only through the protected production-signing path. Android SFTP remains hidden until strict maintained host-key verification exists. Browser-helper publication does not make it an application platform and does not introduce a Ghost FTP relay. macOS remains a development/source platform until real Developer ID signing + notarization succeeds.
 
 ## Latest-only public release retention
 
@@ -59,13 +59,13 @@ A `VERSION` edit or ordinary push to `main` does not publish a release. Canonica
 release/ghostftp-v<version>
 ```
 
-For 0.0.6:
+For the published 0.0.6 line:
 
 ```text
 release/ghostftp-v0.0.6
 ```
 
-The branch trigger accepts it only when branch version equals root `VERSION` and branch SHA equals exact current `main`. It dispatches `release.yml`, waits for the exact release run to succeed, then dispatches and waits for retention.
+The release process accepts a release branch only when its semantic version equals root `VERSION` and its SHA equals the intended verified source. The canonical release workflow then performs signing, artifact verification, remote readback and retention checks.
 
 ## Current GitHub Release rule
 
@@ -74,12 +74,12 @@ CHANNEL=Current
 PRERELEASE=false
 ```
 
-The 0.0.6 release contains **18 platform artifacts / 21 public files**:
+The published 0.0.6 release contains **13 platform artifacts / 16 public files**:
 
 - 2 universal Windows executables;
-- 12 canonical Linux Debian/Ubuntu/Fedora/Portable artifacts;
+- 6 Linux universal bundles: Installer + Portable for Debian, Ubuntu and Fedora;
 - 1 production-signed Android APK;
-- 3 deterministic browser-helper ZIPs;
+- 4 deterministic browser-extension ZIPs: Chrome, Edge, Firefox and Opera;
 - 3 metadata/verification files.
 
 Verified bundle:
@@ -97,7 +97,9 @@ Ghost-FTP-0.0.6-Setup.exe
 Ghost-FTP-0.0.6-Portable.exe
 ```
 
-Native x64, x86 and ARM64 staging payloads are internal and embedded in those same two public files. The current metadata contract is:
+Native x64, x86 and ARM64 application staging payloads are internal and embedded in those same two public files. On the 0.0.7 development branch, Windows Setup also embeds the matching architecture-specific Native Messaging host inside the existing Setup artifact, so browser-bridge integration does not increase the public artifact count.
+
+The current metadata contract is:
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -112,7 +114,18 @@ Windows Authenticode is a **required public-release trust boundary**. **Absence 
 
 ## Linux packaging identity
 
-`linux/BUILD-DISTROS.sh` publishes Debian DEBs for `amd64`, `arm64`, `i386`; Ubuntu DEBs for the same architectures; Fedora RPMs for `x86_64`, `aarch64`, `i686`; and Portable tarballs for `amd64`, `arm64`, `i386`.
+`linux/BUILD-DISTROS.sh` produces exactly six public Linux bundles:
+
+```text
+Ghost-FTP-0.0.6-Linux-Debian-Installer.run
+Ghost-FTP-0.0.6-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.6-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.6-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.6-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.6-Linux-Fedora-Portable.tar.gz
+```
+
+Each contains amd64, arm64 and i386 application payloads. On the 0.0.7 development branch those same bundles also carry matching native-browser-host payloads; this does not create additional public files.
 
 ## Android release and development identities
 
@@ -140,19 +153,22 @@ Public 0.0.6 packages:
 Ghost-FTP-0.0.6-Chrome-Extension.zip
 Ghost-FTP-0.0.6-Edge-Extension.zip
 Ghost-FTP-0.0.6-Firefox-Extension.zip
+Ghost-FTP-0.0.6-Opera-Extension.zip
 ```
 
-Browser packages remain local parser/copy helpers with no supported browser-to-desktop URI/native-messaging handoff.
+On `production/0.0.7-cleanup`, these packages use the local `com.ghostftp.bridge` Native Messaging host backed by the existing Ghost FTP Engine. The browser extensions request only `nativeMessaging`; they do not open raw FTP/SFTP sockets in JavaScript, store credentials in browser storage or relay transfers through Ghost FTP infrastructure.
+
+Firefox has the stable identity `ghostftp-connection-helper@ghostftp.com`, so its local native-host registration can be generated exactly. Chrome, Edge and Opera registration stays disabled until exact official extension IDs exist; wildcard origins are not an acceptable fallback.
 
 ## macOS development identity
 
-macOS source is bound to root `VERSION`. Its universal development app may be ad-hoc signed for CI/regression use. Public macOS distribution can be claimed only after the real Developer ID signing/notarization path succeeds with protected credentials; development success does not enlarge the public 21-file release.
+macOS source is bound to root `VERSION`. Its universal development app may be ad-hoc signed for CI/regression use. Public macOS distribution can be claimed only after the real Developer ID signing/notarization path succeeds with protected credentials; development success does not enlarge the public 16-file release.
 
 ## Version source integrity
 
 Release/CI validation rejects malformed versions, `0.0.0`, release-branch/source mismatch, non-exact-main release branches, conflicting tags/releases, incomplete asset sets, public Windows architecture leakage, absent/failed Windows signatures, absent/failed Android production signing or signer mismatch, source/main drift, incorrect prerelease flags, missing GHCR exact-version bundle, failed remote readback or failed retention cleanup.
 
-Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the 18/21 packaging contract, public/source platform boundaries and package identity.
+Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Current`, `PRERELEASE=false`, the **13 platform artifacts / 16 public files** packaging contract, public/source platform boundaries and package identity.
 
 ## Changelog and release notes
 
@@ -162,7 +178,7 @@ Historical versions remain valid only as historical records; they are not curren
 
 ## 0.0.6 release checklist
 
-The exact candidate must pass:
+The release line requires:
 
 - `gofmt`, `go test -race ./...` and `go vet ./...`;
 - repository/platform/desktop/dependency/version/localization/security/privacy/docs/release audits;
@@ -172,18 +188,17 @@ The exact candidate must pass:
 - queue ordering, filtering/sorting/search/comparison/bookmark/start-directory contracts;
 - Windows x64/x86/ARM64 staging, PE/resources, universal bootstrap and two-public-EXE leakage checks;
 - `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` until maintained native ARM64 execution evidence exists;
-- Linux package metadata/extraction/binary parity plus maintained native distro lifecycle matrix;
+- Linux universal bundle metadata/extraction/binary parity plus maintained native distro lifecycle matrix;
 - Android source/security/lifecycle/JVM/lint/debug/release build checks and authentic emulator evidence;
 - protected Android production signing and exact signer SHA-256 verification;
-- deterministic Chrome/Edge/Firefox helper package checks;
+- deterministic Chrome/Edge/Firefox/Opera extension package checks;
 - universal macOS development-app validation without claiming public notarization;
 - 24-language desktop localization and exact-head cross-platform UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
-- exact-main `release/ghostftp-v0.0.6` validation;
-- `ghostftp-v0.0.6`, `prerelease=false`, exact **21-file** GitHub Release readback;
+- release/tag identity validation, `prerelease=false`, exact **16-file** GitHub Release readback;
 - `ghcr.io/bren-wp/ghost-ftp:0.0.6` publication/readback;
 - successful latest-only retention cleanup.
 
 ## Next release
 
-Only after 0.0.6 publication and retention are completely green may root `VERSION` advance again through a separate reviewed release-prep change.
+The published 0.0.6 release remains immutable. Future version advancement must occur through a separate reviewed release-preparation change after the 0.0.7 development work is complete.
