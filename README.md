@@ -23,7 +23,7 @@ Privacy-first FTP, FTPS and SFTP software for direct professional file transfer 
 
 Ghost FTP keeps protocol traffic on the user's device and the destination server selected by the user. The repository contains maintained native applications for Windows, Linux and Android, an active macOS native source surface, and browser extension packages.
 
-The repository no longer contains a product website or Web FTP application. Browser packages are maintained separately under [`extensions/`](extensions/README.md) and must not pretend to provide raw FTP/SFTP connectivity when the browser sandbox cannot provide it.
+The product website and former browser-hosted FTP client are not part of this repository. Browser packages are maintained under [`extensions/`](extensions/README.md) and must not pretend to provide raw FTP/SFTP connectivity when the browser sandbox cannot provide it.
 
 No application telemetry. No behavioral analytics. No advertising. No fingerprinting. No mandatory Ghost FTP account. No automatic third-party crash upload.
 
@@ -56,11 +56,11 @@ Security-sensitive features fail closed. Unsupported features stay hidden rather
 
 ## Published release
 
-**Current source version:** `0.0.6`  
-**Latest published GitHub Release:** `ghostftp-v0.0.6`  
-**Published:** 14 September 2026  
-**Channel:** Current  
-**Prerelease:** false
+Current source version: **0.0.6**
+Latest published GitHub Release: **`ghostftp-v0.0.6`**
+Published: **14 September 2026**
+Channel: **Current**
+Prerelease: **false**
 
 The published 0.0.6 release is immutable release history. Work on `production/0.0.7-cleanup` prepares the source for the next development cycle and does not retag, rewrite or republish 0.0.6.
 
