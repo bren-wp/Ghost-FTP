@@ -305,7 +305,7 @@ func HandleIntegratedUninstall(args []string) (handled bool, exitCode int) {
 	if !ConfirmDialog(
 		brand.ProductName+" Setup",
 		"Uninstall Ghost FTP?",
-		"Ghost FTP application files and shortcuts will be removed. Saved profiles and settings are kept on this computer so an accidental uninstall does not destroy connection configuration.",
+		"Ghost FTP application files, local browser bridge and shortcuts will be removed. Saved profiles and settings are kept on this computer so an accidental uninstall does not destroy connection configuration.",
 	) {
 		return true, 0
 	}
@@ -320,6 +320,9 @@ func HandleIntegratedUninstall(args []string) (handled bool, exitCode int) {
 	}
 
 	var warnings []string
+	if err := RemoveInstalledBrowserBridge(filepath.Dir(exe)); err != nil {
+		warnings = append(warnings, "The local browser bridge could not be fully removed; restart Windows and run Setup again before reinstalling browser integration.")
+	}
 	if err := RemoveShortcuts(); err != nil {
 		warnings = append(warnings, "Some shortcuts could not be removed.")
 	}
