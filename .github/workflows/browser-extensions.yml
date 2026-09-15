@@ -9,7 +9,9 @@ on:
       - 'internal/**'
       - 'go.mod'
       - 'scripts/build_browser_extensions.py'
+      - 'scripts/build_native_host_manifests.py'
       - 'scripts/test_browser_extensions_contract.py'
+      - 'scripts/test_native_host_manifests.py'
       - '.github/workflows/browser-extensions.yml'
       - 'VERSION'
   push:
@@ -22,7 +24,9 @@ on:
       - 'internal/**'
       - 'go.mod'
       - 'scripts/build_browser_extensions.py'
+      - 'scripts/build_native_host_manifests.py'
       - 'scripts/test_browser_extensions_contract.py'
+      - 'scripts/test_native_host_manifests.py'
       - '.github/workflows/browser-extensions.yml'
       - 'VERSION'
   workflow_dispatch:
@@ -75,6 +79,17 @@ jobs:
           set -euo pipefail
           python scripts/build_browser_extensions.py --check
           python scripts/test_browser_extensions_contract.py
+          python scripts/test_native_host_manifests.py
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          python scripts/build_native_host_manifests.py \
+            --host-path /opt/ghostftp/ghostftp-native-host \
+            --output-dir "$tmp" \
+            --chromium-id abcdefghijklmnopabcdefghijklmnop \
+            --require-chromium
+          test -s "$tmp/com.ghostftp.bridge.firefox.json"
+          test -s "$tmp/com.ghostftp.bridge.chromium.json"
+          ! grep -R '"\*"' "$tmp"
       - name: Build deterministic browser packages
         shell: bash
         run: |
