@@ -91,7 +91,7 @@ def main() -> int:
         fail("Windows Setup language list is not derived from the canonical registry")
 
     settings = read("internal/model/types.go")
-    if 'Language' not in settings or 'json:\"language,omitempty\"' not in settings:
+    if "Language" not in settings or 'json:\"language,omitempty\"' not in settings:
         fail("language must be persisted in Settings")
     settings_store = read("internal/config/settings.go")
     for marker in ("i18n.DefaultLanguage", "i18n.Normalize", "i18n.IsSupported"):
@@ -99,7 +99,10 @@ def main() -> int:
             fail(f"settings language migration/validation is missing: {marker}")
 
     windows = read("internal/desktop/localization_windows.go")
-    for marker in ("changeLanguageFromUI", "applyLanguage", "setButtonLabel", "reloadProtocolLabels", "applyColumnLanguage"):
+    for marker in (
+        "changeLanguageFromUI", "applyLanguage", "setButtonLabel",
+        "reloadProtocolLabels", "applyColumnLanguage",
+    ):
         if marker not in windows:
             fail(f"Windows live localization is missing: {marker}")
 
@@ -126,8 +129,8 @@ def main() -> int:
 
     readme = read("README.md")
     for marker in (
-        f"Current source version: **{version}**",
-        "## Localization",
+        f"**Current source version:** `{version}`",
+        "## 24 desktop languages",
         "English",
         "24 selectable desktop languages",
     ):
