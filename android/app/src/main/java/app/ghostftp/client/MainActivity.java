@@ -1497,7 +1497,6 @@ public final class MainActivity extends Activity {
         }
     }
 
-
     private void editLocalFilter() {
         promptText("Local filter", localFilterQuery, "Name contains… (blank clears)", false, value -> {
             localFilterQuery = value == null ? "" : value.trim();
@@ -2727,13 +2726,14 @@ public final class MainActivity extends Activity {
         updateTransferSurface();
     }
 
-    private static String safeMessage(Exception e) {
+    private String safeMessage(Exception e) {
         String value = e == null ? null : e.getMessage();
         if (value == null || value.trim().isEmpty()) return "The operation could not be completed.";
         String safe = value.replace('\n', ' ').replace('\r', ' ').trim();
+        String appDataPath = getDataDir().getAbsolutePath();
         if (safe.length() > 180
                 || safe.contains("/home/")
-                || safe.contains("/data/user/")
+                || (!appDataPath.isEmpty() && safe.contains(appDataPath))
                 || safe.contains("java.")
                 || safe.contains("javax.")
                 || safe.contains("android.")
