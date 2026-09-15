@@ -22,6 +22,13 @@ public final class RemoteTextDocumentTest {
     }
 
     @Test
+    public void sha256MatchesKnownDigest() throws Exception {
+        assertEquals(
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                RemoteTextDocument.sha256("abc".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
     public void encodeForSaveRestoresOriginalLineEnding() throws Exception {
         byte[] encoded = RemoteTextDocument.encodeForSave("alpha\nbeta\n", RemoteTextDocument.LineEnding.CRLF);
         assertArrayEquals("alpha\r\nbeta\r\n".getBytes(StandardCharsets.UTF_8), encoded);
