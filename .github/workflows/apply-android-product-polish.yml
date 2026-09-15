@@ -64,8 +64,8 @@ jobs:
           p = Path('scripts/_android_contract_regressions.py')
           text = p.read_text(encoding='utf-8')
           replacements = {
-              'beginFinalCommit(attempt, \\"Finalizing download name…\\");': 'beginFinalCommit(attempt, \\"Finalizing download…\\");',
-              'setBusy(false, \\"Download completed and committed: \\"': 'setBusy(false, \\"Download completed: \\"',
+              'Finalizing download name…': 'Finalizing download…',
+              'Download completed and committed: ': 'Download completed: ',
               'Local site start folder saved as a SAF capability URI': 'Local start folder saved.',
           }
           for old, new in replacements.items():
@@ -124,7 +124,6 @@ jobs:
           node --check web/ftp/assets/app.js
           find web -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           gofmt -w cmd internal
-          git diff --exit-code -- cmd internal
           go test ./...
           go vet ./...
 
@@ -137,7 +136,7 @@ jobs:
           rm -f scripts/tmp_apply_android_product_polish.py
           git config user.name 'Brendigo'
           git config user.email 'info@brendigo.com'
-          git add android/app/src/main/java/app/ghostftp/client/MainActivity.java scripts/_android_contract_regressions.py .github/workflows scripts
+          git add android/app/src/main/java/app/ghostftp/client/MainActivity.java scripts/_android_contract_regressions.py .github/workflows scripts cmd internal
           git diff --cached --check
           git diff --cached --quiet && { echo 'No changes to commit'; exit 1; }
           git commit -m 'Polish Android runtime UI and remove development copy'
