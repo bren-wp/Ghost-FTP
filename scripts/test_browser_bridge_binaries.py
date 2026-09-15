@@ -77,7 +77,7 @@ class BrowserBridgeBinaryTests(unittest.TestCase):
             '"CGO_ENABLED": "0"',
             '"-trimpath"',
             '"-buildvcs=false"',
-            '"-buildid=',
+            '-buildid=',
             'go_telemetry',
             'telemetry != "off"',
             'hashlib.sha256',
