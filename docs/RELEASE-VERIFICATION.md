@@ -1,6 +1,6 @@
 # Ghost FTP release verification
 
-Ghost FTP **0.0.6** is the active release candidate. The last actually published GitHub Release remains **0.0.5** until the protected 0.0.6 release transaction succeeds.
+Ghost FTP **0.0.6** is the current published release. The existing `ghostftp-v0.0.6` tag/release is immutable and must not be rewritten by cleanup work.
 
 The canonical 0.0.6 publication contains **13 platform artifacts / 16 public files**.
 
@@ -14,82 +14,34 @@ CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
-LATEST_ONLY_RELEASE_RETENTION=YES
 ```
 
-The release source must be the exact current `main` commit that passed every required gate.
-
 ## Canonical public files
-
-Windows:
 
 ```text
 Ghost-FTP-0.0.6-Setup.exe
 Ghost-FTP-0.0.6-Portable.exe
-```
-
-Linux:
-
-```text
 Ghost-FTP-0.0.6-Linux-Debian-Installer.run
 Ghost-FTP-0.0.6-Linux-Debian-Portable.tar.gz
 Ghost-FTP-0.0.6-Linux-Ubuntu-Installer.run
 Ghost-FTP-0.0.6-Linux-Ubuntu-Portable.tar.gz
 Ghost-FTP-0.0.6-Linux-Fedora-Installer.run
 Ghost-FTP-0.0.6-Linux-Fedora-Portable.tar.gz
-```
-
-Android and browser helpers:
-
-```text
 Ghost-FTP-0.0.6-Android.apk
 Ghost-FTP-0.0.6-Chrome-Extension.zip
 Ghost-FTP-0.0.6-Edge-Extension.zip
 Ghost-FTP-0.0.6-Firefox-Extension.zip
 Ghost-FTP-0.0.6-Opera-Extension.zip
-```
-
-Metadata/verification:
-
-```text
 BUILD-METADATA.txt
 RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS remains outside the public 16-file release until real Developer ID signing and Apple notarization succeed.
-
 ## Canonical release dispatch
 
-The canonical branch namespace is `release/ghostftp-vX.Y.Z`; the 0.0.6 release branch is `release/ghostftp-v0.0.6`. It must point to exact fully verified current `main`, and its version must match root `VERSION`.
+Release branches use `release/ghostftp-vX.Y.Z`. Canonical `.github/workflows/release.yml` is `workflow_dispatch`-only. A push to `main`, including a `VERSION` change, **must never publish a release directly**.
 
-Canonical `.github/workflows/release.yml` is `workflow_dispatch`-only. The branch trigger validates source/version equality, dispatches canonical `release.yml`, waits for the exact new release run to finish successfully, then dispatches and verifies retention.
-
-A push to `main`, including a `VERSION` change, must never publish a release directly.
-
-## Source verification
-
-Before publication:
-
-1. root `VERSION` equals `0.0.6`;
-2. `release/ghostftp-v0.0.6` equals exact current `main`;
-3. every exact-head release-prep workflow for the final candidate is successful;
-4. every required post-merge push workflow on the exact merge SHA is successful;
-5. authentic Windows/Linux/Android runtime evidence is bound to that exact source revision;
-6. release quality, Windows, Linux, Android and browser jobs succeed again from fresh source;
-7. official Windows Setup/Portable pass trusted Authenticode verification;
-8. the Android APK passes production signing verification and exact signer-fingerprint validation;
-9. the release contains exactly the canonical **16-file** set.
-
-## SHA-256 verification
-
-`SHA256.txt` contains a checksum for every public file except itself. A downloaded artifact is accepted for exact-byte integrity only when its local hash matches the manifest entry.
-
-```bash
-sha256sum -c SHA256.txt
-```
-
-The release workflow additionally performs remote digest readback against the exact locally assembled bundle.
+A future release source must equal the intended verified commit and pass all required exact-head and post-merge gates. Existing release tags/assets must fail closed on collision rather than be replaced.
 
 ## Windows verification
 
@@ -101,35 +53,15 @@ WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 ```
 
-Architecture-specific staging executables are internal verified inputs and must never appear among public assets. `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` means current CI cross-builds and structurally verifies ARM64 but does not claim native Windows ARM64 execution.
-
-Official publication has no unsigned fallback. The protected production PFX/password must be available and both public EXEs must report a valid trusted Authenticode signature.
+Official publication has no unsigned fallback. Production signing material remains outside repository source.
 
 ## Linux verification
 
-Each distro publishes one installer and one portable archive. Every bundle carries amd64, arm64 and i386 payloads and selects the native payload locally.
+The six Linux public bundles cover Debian, Ubuntu and Fedora, each with Installer + Portable form and embedded amd64/arm64/i386 payloads. Native runtime execution is claimed only where maintained evidence actually executes the package.
 
-The verifier checks:
+## Android verification
 
-- exactly six Linux public artifacts;
-- deterministic archive construction;
-- valid amd64/arm64/i386 executable payloads;
-- installer and portable payload parity for the host architecture;
-- runtime dependency preflight and CA-trust availability;
-- actual install, GUI startup and uninstall on Debian 13 amd64, Ubuntu 26.04 LTS amd64 and Fedora 44 x86_64;
-- no stale `.deb`, `.rpm` or architecture-suffixed public Portable artifacts.
-
-ARM64 and i386 are build/package verified unless maintained native execution evidence is separately available.
-
-## Android production-signing verification
-
-The public APK is:
-
-```text
-Ghost-FTP-0.0.6-Android.apk
-```
-
-The release job requires:
+The public APK is `Ghost-FTP-0.0.6-Android.apk`. Production publication requires:
 
 ```text
 GHOSTFTP_ANDROID_KEYSTORE_BASE64
@@ -139,19 +71,15 @@ GHOSTFTP_ANDROID_KEY_PASSWORD
 GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-The workflow builds the unsigned release APK, signs it with the protected publisher keystore, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The production workflow must not generate its own replacement publisher identity.
+`apksigner verify --verbose --print-certs` must succeed and the signer certificate SHA-256 must match `GHOSTFTP_ANDROID_CERT_SHA256` exactly. CI-only identities are not production evidence. Android SFTP remains hidden until strict maintained host-key verification/pinning exists.
 
-The ordinary `Ghost-FTP-Android-dev.apk` and ephemeral CI signing identity prove only development/signing mechanics and are not accepted as the public APK.
+## Browser verification
 
-Android SFTP remains hidden until strict maintained host-key verification/pinning exists and fails closed for unknown or mismatched hosts.
-
-## Browser-helper verification
-
-The browser job validates zero-permission manifests and builds deterministic ZIPs for **Chrome, Edge, Firefox and Opera**. Each archive must be non-empty and pass ZIP integrity verification. Browser publication does not add a supported browser-to-desktop handoff, network relay, telemetry backend or automatic update service.
+Published 0.0.6 packages exist for Chrome, Edge, Firefox and Opera. Any 0.0.7 native-messaging architecture must add explicit tests for least privilege, manifest/host registration, bounded message validation, local-only credential handling and absence of remote code/telemetry.
 
 ## Build metadata
 
-`BUILD-METADATA.txt` binds release identity to source and records at least:
+At minimum, published metadata identifies:
 
 ```text
 BRAND=Ghost FTP
@@ -160,49 +88,21 @@ RELEASE_TAG=ghostftp-v0.0.6
 RELEASE_CHANNEL=current
 PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
 ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
-WINDOWS_SETUP=universal-x86-x64-arm64
-WINDOWS_PORTABLE=universal-x86-x64-arm64
-WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
-WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
-LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386
-LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386
-LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
-LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
-LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
-LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
 ANDROID_APK=production-signed
-ANDROID_SIGNER_SHA256=<verified signer SHA-256>
-ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-BROWSER_DESKTOP_HANDOFF=unsupported
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
 GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.6
 ```
 
-## Authentic runtime evidence
+## Integrity and readback
 
-Exact-head UI evidence is source-bound. Maintained workflows capture real Windows, Linux and Android runtime surfaces and assemble a verified evidence bundle containing source SHA, filenames, byte counts and SHA-256 hashes. Mockups, image-generation output and manually composed approximations are not release evidence.
-
-The Windows evidence does not claim native ARM64 execution. macOS development CI is separate from public release publication and is not notarization evidence.
-
-## Remote release readback
-
-The publish workflow requires the remote GitHub Release asset set to match the exact **16-file** allow-list immediately and after a delay. It requires `prerelease=false` and refuses to rewrite an existing tag/release.
-
-The digest-readback verifier compares GitHub's per-asset SHA-256 digests with the exact source-workflow bundle and checks that `BUILD-METADATA.txt` binds `COMMIT` to the expected source SHA.
-
-## GitHub Packages readback
+`SHA256.txt` binds downloaded files to release bytes. Release automation validates the exact public allow-list and remote digest/readback state. Authentic Windows/Linux/Android runtime evidence remains exact-head bound; mockups are not execution evidence.
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:0.0.6
 ```
 
-The exact-version package is verified after push. It is a distribution bundle, not a supported runtime container.
-
-## Latest-only retention verification
-
-Only after the 0.0.6 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.6` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. `main` history is never rewritten.
+The GHCR object is a distribution bundle, not a runtime backend.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).
