@@ -25,7 +25,7 @@ var payload embed.FS
 const (
 	maxPayloadFileSize     = 128 << 20
 	maxPayloadManifestSize = 64 << 10
-	payloadSchema          = 2
+	payloadSchema          = 3
 
 	// These registry/application-path identifiers are retained for upgrade
 	// compatibility with installations created before the Ghost FTP rebrand.
@@ -46,65 +46,71 @@ type payloadManifest struct {
 	Files  []payloadManifestFile `json:"files"`
 }
 
-func readPayloadFile() ([]byte, error) {
+type installerPayload struct {
+	App        []byte
+	NativeHost []byte
+}
+
+func readPayloadFile() (installerPayload, error) {
 	data, err := payload.ReadFile("payload/payload.zip")
 	if err != nil {
-		return nil, errors.New("compressed installer payload is unavailable")
+		return installerPayload{}, errors.New("compressed installer payload is unavailable")
 	}
 	return parsePayload(data)
 }
 
-func parsePayload(data []byte) ([]byte, error) {
+func parsePayload(data []byte) (installerPayload, error) {
 	if len(data) == 0 {
-		return nil, errors.New("installer payload is empty")
+		return installerPayload{}, errors.New("installer payload is empty")
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		return nil, errors.New("installer payload is not a valid ZIP archive")
+		return installerPayload{}, errors.New("installer payload is not a valid ZIP archive")
 	}
 
-	files := make(map[string][]byte, 1)
+	files := make(map[string][]byte, 2)
 	var manifestData []byte
 
 	for _, f := range zr.File {
 		switch f.Name {
-		case "GhostFTP.exe":
+		case "GhostFTP.exe", browserNativeHostExecutable:
 			if _, exists := files[f.Name]; exists {
-				return nil, errors.New("installer payload contains a duplicate file")
+				return installerPayload{}, errors.New("installer payload contains a duplicate file")
 			}
 
 			b, err := readZipEntry(f, maxPayloadFileSize)
 			if err != nil {
-				return nil, err
+				return installerPayload{}, err
 			}
 			files[f.Name] = b
 
 		case "manifest.json":
 			if manifestData != nil {
-				return nil, errors.New("installer payload contains a duplicate manifest")
+				return installerPayload{}, errors.New("installer payload contains a duplicate manifest")
 			}
 
 			manifestData, err = readZipEntry(f, maxPayloadManifestSize)
 			if err != nil {
-				return nil, err
+				return installerPayload{}, err
 			}
 
 		default:
-			return nil, errors.New("installer payload contains an unexpected file")
+			return installerPayload{}, errors.New("installer payload contains an unexpected file")
 		}
 	}
 
 	app, appOK := files["GhostFTP.exe"]
-	if !appOK || manifestData == nil {
-		return nil, errors.New("installer payload is missing required files")
+	nativeHost, nativeHostOK := files[browserNativeHostExecutable]
+	if !appOK || !nativeHostOK || manifestData == nil {
+		return installerPayload{}, errors.New("installer payload is missing required files")
 	}
 
 	if err := validatePayloadManifest(manifestData, files); err != nil {
-		return nil, err
+		return installerPayload{}, err
 	}
 
-	return app, nil
+	return installerPayload{App: app, NativeHost: nativeHost}, nil
 }
 
 // readZipEntry always reads through EOF. Besides enforcing the size limit,
@@ -148,14 +154,18 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
 		return errors.New("installer manifest contains trailing data")
 	}
-	if manifest.Schema != payloadSchema || len(manifest.Files) != 1 {
+	if manifest.Schema != payloadSchema || len(manifest.Files) != 2 {
 		return errors.New("installer manifest is unsupported")
 	}
 
-	seen := make(map[string]bool, 1)
+	allowed := map[string]bool{
+		"GhostFTP.exe":               true,
+		browserNativeHostExecutable: true,
+	}
+	seen := make(map[string]bool, len(allowed))
 	for _, item := range manifest.Files {
 		content, ok := files[item.Name]
-		if !ok || seen[item.Name] || item.Name != "GhostFTP.exe" {
+		if !ok || !allowed[item.Name] || seen[item.Name] {
 			return errors.New("installer manifest does not match the package")
 		}
 		seen[item.Name] = true
@@ -171,10 +181,11 @@ func validatePayloadManifest(data []byte, files map[string][]byte) error {
 		}
 	}
 
-	if !seen["GhostFTP.exe"] {
-		return errors.New("installer manifest is incomplete")
+	for name := range allowed {
+		if !seen[name] {
+			return errors.New("installer manifest is incomplete")
+		}
 	}
-
 	return nil
 }
 
@@ -332,7 +343,7 @@ func runInstaller() (exitCode int) {
 		return 0
 	}
 
-	app, err := readPayloadFile()
+	bundle, err := readPayloadFile()
 	if err != nil {
 		showInstallError(
 			"Installer package is invalid",
@@ -377,6 +388,14 @@ func runInstaller() (exitCode int) {
 	// Keep the legacy executable filename for in-place upgrades and existing
 	// shortcuts/App Paths registrations. All user-visible branding is Ghost FTP.
 	appPath := filepath.Join(dir, "GhostFTP.exe")
+	nativeHostPath := filepath.Join(dir, browserNativeHostExecutable)
+	firefoxManifestPath := filepath.Join(dir, browserFirefoxManifestName)
+	firefoxManifest, err := firefoxNativeHostManifest(nativeHostPath)
+	if err != nil {
+		showInstallError("Setup cannot continue", "The local browser bridge could not be prepared safely.")
+		return 1
+	}
+
 	appBackup, err := backupExisting(appPath)
 	if err != nil {
 		showInstallError(
@@ -385,13 +404,28 @@ func runInstaller() (exitCode int) {
 		)
 		return 1
 	}
+	nativeHostBackup, err := backupExisting(nativeHostPath)
+	if err != nil {
+		appBackup.cleanup()
+		showInstallError("Upgrade was not started", "The existing browser bridge could not be prepared safely. Close Ghost FTP and try again.")
+		return 1
+	}
+	manifestBackup, err := backupExisting(firefoxManifestPath)
+	if err != nil {
+		nativeHostBackup.cleanup()
+		appBackup.cleanup()
+		showInstallError("Upgrade was not started", "The existing browser registration manifest could not be prepared safely. Try again.")
+		return 1
+	}
 
 	registryBackup, err := captureRegistrySnapshot()
 	if err != nil {
+		manifestBackup.cleanup()
+		nativeHostBackup.cleanup()
 		appBackup.cleanup()
 		showInstallError(
 			"Upgrade was not started",
-			"Existing application-path settings could not be prepared safely. Try again.",
+			"Existing application and browser settings could not be prepared safely. Try again.",
 		)
 		return 1
 	}
@@ -408,6 +442,12 @@ func runInstaller() (exitCode int) {
 		rolledBack = true
 
 		var errs []error
+		if err := manifestBackup.rollback(); err != nil {
+			errs = append(errs, err)
+		}
+		if err := nativeHostBackup.rollback(); err != nil {
+			errs = append(errs, err)
+		}
 		if err := appBackup.rollback(); err != nil {
 			errs = append(errs, err)
 		}
@@ -430,6 +470,8 @@ func runInstaller() (exitCode int) {
 		if !transactionCommitted && !rolledBack {
 			_ = rollback()
 		}
+		manifestBackup.cleanup()
+		nativeHostBackup.cleanup()
 		appBackup.cleanup()
 	}()
 
@@ -440,12 +482,22 @@ func runInstaller() (exitCode int) {
 		return ""
 	}
 
-	if err := installFile(appPath, app, &appBackup); err != nil {
+	if err := installFile(appPath, bundle.App, &appBackup); err != nil {
 		extra := rollbackMessage()
 		showInstallError(
 			brand.ProductName+" could not be installed",
 			"Close Ghost FTP if it is running and try again."+extra,
 		)
+		return 1
+	}
+	if err := installFile(nativeHostPath, bundle.NativeHost, &nativeHostBackup); err != nil {
+		extra := rollbackMessage()
+		showInstallError("Browser integration could not be installed", "Close browsers using Ghost FTP and try again."+extra)
+		return 1
+	}
+	if err := installFile(firefoxManifestPath, firefoxManifest, &manifestBackup); err != nil {
+		extra := rollbackMessage()
+		showInstallError("Browser integration could not be installed", "The native messaging manifest could not be activated safely."+extra)
 		return 1
 	}
 
@@ -457,8 +509,13 @@ func runInstaller() (exitCode int) {
 		)
 		return 1
 	}
+	if err := registerBrowserBridge(firefoxManifestPath); err != nil {
+		extra := rollbackMessage()
+		showInstallError("Setup did not finish", "Windows could not register the Firefox native messaging bridge. Try again."+extra)
+		return 1
+	}
 
-	if err := registerIntegratedUninstall(appPath, version); err != nil {
+	if err := registerIntegratedUninstall(appPath, nativeHostPath, firefoxManifestPath, version); err != nil {
 		extra := rollbackMessage()
 		showInstallError(
 			"Setup did not finish",
