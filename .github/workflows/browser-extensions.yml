@@ -9,8 +9,10 @@ on:
       - 'internal/**'
       - 'go.mod'
       - 'scripts/build_browser_extensions.py'
+      - 'scripts/build_browser_bridge_binaries.py'
       - 'scripts/build_native_host_manifests.py'
       - 'scripts/test_browser_extensions_contract.py'
+      - 'scripts/test_browser_bridge_binaries.py'
       - 'scripts/test_native_host_manifests.py'
       - '.github/workflows/browser-extensions.yml'
       - 'VERSION'
@@ -24,8 +26,10 @@ on:
       - 'internal/**'
       - 'go.mod'
       - 'scripts/build_browser_extensions.py'
+      - 'scripts/build_browser_bridge_binaries.py'
       - 'scripts/build_native_host_manifests.py'
       - 'scripts/test_browser_extensions_contract.py'
+      - 'scripts/test_browser_bridge_binaries.py'
       - 'scripts/test_native_host_manifests.py'
       - '.github/workflows/browser-extensions.yml'
       - 'VERSION'
@@ -45,9 +49,9 @@ env:
 
 jobs:
   browser-extensions:
-    name: Build official Chrome Edge Firefox Opera packages
+    name: Build official browser packages and native bridge
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,12 +77,13 @@ jobs:
           set -euo pipefail
           go test -count=1 ./cmd/ghostftp-native-host
           go vet ./cmd/ghostftp-native-host
-      - name: Validate brand privacy and browser contract
+      - name: Validate brand privacy bridge and registration contracts
         shell: bash
         run: |
           set -euo pipefail
           python scripts/build_browser_extensions.py --check
           python scripts/test_browser_extensions_contract.py
+          python scripts/test_browser_bridge_binaries.py
           python scripts/test_native_host_manifests.py
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
@@ -102,6 +107,20 @@ jobs:
           done
           test "$(find dist/browser -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')" = '4'
           sha256sum dist/browser/*.zip
+      - name: Build verified native bridge binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_browser_bridge_binaries.py
+          version="$(tr -d '\r\n' < VERSION)"
+          test -s "dist/browser-bridge/Ghost-FTP-${version}-Native-Host-Windows-x64.exe"
+          test -s "dist/browser-bridge/Ghost-FTP-${version}-Native-Host-Windows-x86.exe"
+          test -s "dist/browser-bridge/Ghost-FTP-${version}-Native-Host-Windows-arm64.exe"
+          test -s "dist/browser-bridge/Ghost-FTP-${version}-Native-Host-Linux-amd64"
+          test -s "dist/browser-bridge/Ghost-FTP-${version}-Native-Host-Linux-i386"
+          test -s "dist/browser-bridge/Ghost-FTP-${version}-Native-Host-Linux-arm64"
+          test -s "dist/browser-bridge/SHA256.txt"
+          sha256sum -c dist/browser-bridge/SHA256.txt
       - name: Upload official browser packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -109,3 +128,10 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           path: dist/browser/*.zip
+      - name: Upload verified native bridge binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghostftp-browser-native-hosts
+          if-no-files-found: error
+          retention-days: 14
+          path: dist/browser-bridge/*
