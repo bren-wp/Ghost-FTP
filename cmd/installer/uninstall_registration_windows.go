@@ -10,10 +10,18 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
-func registerIntegratedUninstall(appPath, currentVersion string) error {
-	digest, err := platform.VerifiedRegularFileSHA256(appPath)
+func registerIntegratedUninstall(appPath, nativeHostPath, firefoxManifestPath, currentVersion string) error {
+	appDigest, err := platform.VerifiedRegularFileSHA256(appPath)
 	if err != nil {
 		return fmt.Errorf("installed executable ownership digest could not be verified: %w", err)
+	}
+	nativeHostDigest, err := platform.VerifiedRegularFileSHA256(nativeHostPath)
+	if err != nil {
+		return fmt.Errorf("installed native host ownership digest could not be verified: %w", err)
+	}
+	firefoxManifestDigest, err := platform.VerifiedRegularFileSHA256(firefoxManifestPath)
+	if err != nil {
+		return fmt.Errorf("installed Firefox manifest ownership digest could not be verified: %w", err)
 	}
 
 	quoted := fmt.Sprintf("\"%s\" --uninstall", appPath)
@@ -27,7 +35,11 @@ func registerIntegratedUninstall(appPath, currentVersion string) error {
 		{"InstallLocation", filepath.Dir(appPath)},
 		{"DisplayIcon", appPath + ",0"},
 		{"UninstallString", quoted},
-		{installedExecutableDigestValue, digest},
+		{installedExecutableDigestValue, appDigest},
+		{installedNativeHostPathValue, nativeHostPath},
+		{installedNativeHostDigestValue, nativeHostDigest},
+		{installedFirefoxManifestPathValue, firefoxManifestPath},
+		{installedFirefoxManifestDigestValue, firefoxManifestDigest},
 		{"URLInfoAbout", brand.Website},
 	}
 	for _, item := range values {
