@@ -22,9 +22,9 @@ Expected network/server errors must remain application errors rather than crash 
 
 `.github/workflows/android-apk.yml` validates Android source/security contracts, JVM tests, lint and APK construction/signing mechanics. Public 0.0.6 publication used the protected production keystore and exact `GHOSTFTP_ANDROID_CERT_SHA256` signer match. Android SFTP remains hidden until strict host-key verification exists.
 
-## Browser package gate
+## Browser and native-bridge gate
 
-`.github/workflows/browser-extensions.yml` validates and deterministically builds four packages:
+`.github/workflows/browser-extensions.yml` validates and deterministically builds four browser packages:
 
 ```text
 Ghost-FTP-0.0.6-Chrome-Extension.zip
@@ -33,7 +33,28 @@ Ghost-FTP-0.0.6-Firefox-Extension.zip
 Ghost-FTP-0.0.6-Opera-Extension.zip
 ```
 
-The 0.0.7 extension work must add tests for any local native-messaging protocol before enabling privileged behavior. Tests must verify manifest least privilege, strict message validation, no remote executable code, no telemetry/tracking, no credential persistence in browser storage and no unauthenticated localhost bridge.
+For the 0.0.7 development branch, the same workflow also tests/vets `cmd/ghostftp-native-host`, validates Native Messaging registration manifests, and builds/architecture-verifies six local bridge binaries:
+
+```text
+Windows x64 / x86 / ARM64
+Linux amd64 / i386 / arm64
+```
+
+The browser contract verifies all of the following:
+
+- `nativeMessaging` is the only browser permission;
+- no host permissions, tabs, extension storage, content scripts or externally-connectable web origins;
+- no remote executable code, `fetch`, XHR, WebSocket, telemetry or tracking runtime;
+- no `eval`/dynamic-function execution or server-controlled `innerHTML` insertion;
+- bounded Native Messaging frames and strict JSON request decoding;
+- local root confinement including symlink/traversal rejection;
+- real connection/file/transfer actions route to the existing Ghost FTP Engine;
+- SFTP first-contact fingerprint confirmation remains fail-closed;
+- Chromium native-host manifests require exact valid extension IDs and never wildcard origins;
+- bridge cross-builds use offline Go settings, disabled telemetry and verified PE/ELF machine types;
+- bridge SHA-256 output validates successfully before CI artifact upload.
+
+This development build evidence does not retroactively alter the already-published 0.0.6 installers. Production installer integration remains separately gated by signing, rollback, uninstall and exact extension-identity requirements.
 
 ## Windows gate
 
