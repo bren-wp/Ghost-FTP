@@ -57,6 +57,7 @@ Security-sensitive features fail closed. Unsupported features stay hidden rather
 ## Published release
 
 Current source version: **0.0.6**
+Development status: **Active**
 Latest published GitHub Release: **`ghostftp-v0.0.6`**
 Published: **14 September 2026**
 Channel: **Current**
