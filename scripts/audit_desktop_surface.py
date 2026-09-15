@@ -13,7 +13,14 @@ RETIRED_ROOTS = (
     "GhostFTP WEB/",
     "pwa/",
     "ghostftp-web/",
+    "web/",
 )
+RETIRED_PATHS = {
+    "scripts/check_web_contract.py",
+    "scripts/test_web_contract.py",
+    ".github/workflows/web.yml",
+    "docs/WEB.md",
+}
 RETIRED_APP_MARKERS = (
     "manifest.webmanifest",
     "service-worker.js",
@@ -44,7 +51,7 @@ def main() -> int:
     for path in paths:
         normalized = path.replace("\\", "/")
         lowered = normalized.lower()
-        if normalized.startswith(RETIRED_ROOTS):
+        if normalized.startswith(RETIRED_ROOTS) or normalized in RETIRED_PATHS:
             retired.append(path)
             continue
         if lowered.startswith(("client-web/", "app-web/")) and any(
@@ -70,25 +77,10 @@ def main() -> int:
         "macos/Sources/GhostFTPApp/main.swift",
         ".github/workflows/macos-app.yml",
     }
-    web_required = {
-        "web/index.html",
-        "web/download.html",
-        "web/security.html",
-        "web/privacy.html",
-        "web/legal.html",
-        "web/ftp/index.php",
-        "web/ftp/api.php",
-        "web/ftp/lib/Security.php",
-        "web/ftp/lib/CurlFtpTransport.php",
-        "web/ftp/lib/SftpTransport.php",
-        "scripts/check_web_contract.py",
-        "scripts/test_web_contract.py",
-    }
 
     for label, required in (
         ("Android", android_required),
         ("macOS", macos_required),
-        ("Web", web_required),
     ):
         missing = sorted(required - path_set)
         if missing:
@@ -98,10 +90,9 @@ def main() -> int:
     print("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES")
     print("ANDROID_DEVELOPMENT_SURFACE=ACTIVE")
     print("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE")
-    print("WEB_DEVELOPMENT_SURFACE=ACTIVE")
-    print("WEB_FTP_TRANSPORT=SERVER_ASSISTED_EPHEMERAL")
+    print("RETIRED_WEB_PROJECT=ABSENT")
     print("RETIRED_APPLICATION_PLATFORMS=IOS")
-    print("RETIRED_APPLICATION_SURFACES=PWA")
+    print("RETIRED_APPLICATION_SURFACES=PWA,WEB,WEB_FTP")
     return 0
 
 
