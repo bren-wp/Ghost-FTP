@@ -20,11 +20,21 @@ macOS is an active native AppKit source surface over shared product logic. Sourc
 
 ## Browser extensions
 
-Chrome, Edge, Firefox and Opera share one product identity and a shared local UI/runtime where practical. Browsers cannot directly provide the same raw FTP/FTPS/SFTP socket capabilities as native desktop applications.
+Chrome, Edge, Firefox and Opera share one product identity and a shared local UI/runtime. Browsers do not directly provide the same raw FTP/FTPS/SFTP socket capabilities as native desktop applications, so the 0.0.7 development surface reaches parity through a local Ghost FTP Native Messaging host backed by the existing typed Engine.
 
-For the 0.0.7 line, parity means the extension must either use a secure local Ghost FTP native-messaging companion or expose only browser-safe functionality. Fake connections, simulated transfers and remote Ghost FTP credential relays are not parity.
+The browser workspace now exposes real connection management, saved native profiles, SFTP host-key confirmation, local/remote navigation, create/rename/delete, upload/download, transfer progress, cancellation, retry, pause/resume and disconnect. Those actions are routed into the same Engine and transfer queue rather than simulated in JavaScript.
 
-Where a local companion is present, the extension UX should cover connection management, remote listing/navigation, upload/download, file mutations, progress, cancellation, retry, disconnect/reconnect and privacy-safe errors to the extent supported by the bridge. Platform limitations must remain visible and truthful.
+Browser authority remains intentionally narrower than desktop authority:
+
+- the only browser permission is `nativeMessaging`;
+- local file access is rooted to the operating-system-selected folder;
+- saved credentials stay in the native protected profile store, not extension storage;
+- server traffic goes directly from the local native Engine to the selected server;
+- native host registration is bound to explicit extension identities and never wildcard origins.
+
+The bridge binaries are built and architecture-verified for Windows x64/x86/ARM64 and Linux amd64/i386/arm64 by the browser CI. This development build evidence does not retroactively alter the already-published 0.0.6 installer or release artifacts. Production installation/registration must remain gated until its platform installer transaction and official Chromium extension identities are available.
+
+Fake connections, simulated transfers and remote Ghost FTP credential relays are not parity.
 
 ## Product language
 
