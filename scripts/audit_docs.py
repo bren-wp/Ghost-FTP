@@ -138,7 +138,7 @@ def main() -> int:
     if not readme.startswith("# Ghost FTP\n"):
         fail("README public title must be Ghost FTP")
     require(
-        "README", readme, "**Current source version:** `0.0.6`", "13 platform artifacts / 16 public files",
+        "README", readme, "Current source version: **0.0.6**", "13 platform artifacts / 16 public files",
         "Ghost-FTP-0.0.6-Android.apk", "Ghost-FTP-0.0.6-Opera-Extension.zip",
         "GHOSTFTP_ANDROID_CERT_SHA256", "no supported browser-to-desktop", "Brendigo LTD",
         "proprietary commercial",
