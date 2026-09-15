@@ -41,9 +41,26 @@ The native AppKit source uses Apple platform facilities. Public distribution add
 
 ## Browser extensions and native companion
 
-The published 0.0.6 browser packages contain local extension code. For the 0.0.7 architecture, direct FTP/SFTP parity may require a local Ghost FTP native-messaging companion because browser sandboxes do not expose arbitrary raw protocol sockets.
+The published 0.0.6 browser ZIPs remain immutable release artifacts. On the 0.0.7 development branch, direct FTP/FTPS/SFTP browser parity is implemented through `cmd/ghostftp-native-host`, a local Native Messaging companion backed by the existing standard-library-only Ghost FTP Engine.
 
-A native companion is an explicit product dependency, not a hidden localhost service. It must be versioned, installed locally, registered through browser-supported native messaging, use least privilege and never relay credentials or file data through Ghost FTP servers.
+The browser runtime adds no analytics SDK, browser-storage database, remote JavaScript runtime, HTTP proxy or WebSocket service. Its only browser permission is `nativeMessaging`.
+
+The companion is an explicit local dependency. Browser CI cross-builds and machine-type verifies these development bridge targets:
+
+```text
+Windows x64
+Windows x86
+Windows ARM64
+Linux amd64
+Linux i386
+Linux arm64
+```
+
+The bridge binary itself does not require a third-party Go module graph; it is compiled from the same root module with `GOPROXY=off`, `GOSUMDB=off`, `CGO_ENABLED=0`, trimmed paths and disabled Go telemetry.
+
+Native Messaging registration is a separate platform configuration dependency. `scripts/build_native_host_manifests.py` generates manifests bound to exact extension identities. Firefox uses the maintained fixed Gecko ID. Chrome/Edge/Opera registration requires official Chromium extension IDs and fails closed rather than inventing IDs or allowing wildcard origins.
+
+The 0.0.7 bridge build evidence does not mean the already-published 0.0.6 desktop installers contain or register the companion. Installer integration must preserve existing rollback, ownership, signing and uninstall guarantees before it can be claimed as production distribution behavior.
 
 Do not add analytics SDKs, advertising libraries, fingerprinting, remote executable code or dependencies whose only purpose is telemetry/crash upload.
 
