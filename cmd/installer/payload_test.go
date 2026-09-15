@@ -126,7 +126,7 @@ func TestParsePayloadRejectsLegacySchemaTwo(t *testing.T) {
 
 func TestValidatePayloadManifestRejectsTamperedHash(t *testing.T) {
 	files := map[string][]byte{
-		"GhostFTP.exe":               []byte("app"),
+		"GhostFTP.exe":              []byte("app"),
 		browserNativeHostExecutable: []byte("bridge"),
 	}
 	bridgeDigest := fmt.Sprintf("%x", sha256.Sum256(files[browserNativeHostExecutable]))
@@ -141,7 +141,7 @@ func TestValidatePayloadManifestRejectsTamperedHash(t *testing.T) {
 
 func TestValidatePayloadManifestRejectsTamperedNativeHost(t *testing.T) {
 	files := map[string][]byte{
-		"GhostFTP.exe":               []byte("app"),
+		"GhostFTP.exe":              []byte("app"),
 		browserNativeHostExecutable: []byte("bridge"),
 	}
 	appDigest := fmt.Sprintf("%x", sha256.Sum256(files["GhostFTP.exe"]))
