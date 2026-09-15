@@ -1,6 +1,6 @@
 # Ghost FTP GitHub Packages
 
-Ghost FTP **0.0.6** is the active release candidate. After the protected publication transaction succeeds, the exact verified release directory is also published to GitHub Packages as a **distribution bundle**.
+Ghost FTP **0.0.6** is the current published release. After the protected publication transaction succeeded, the exact verified release directory was also published to GitHub Packages as a **distribution bundle**.
 
 ## Package reference
 
@@ -22,7 +22,7 @@ The canonical 0.0.6 release contains **13 platform artifacts / 16 public files**
 - browser helpers: one deterministic ZIP each for Chrome, Edge, Firefox and Opera;
 - metadata: `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
 
-The GitHub Package is built from exactly that same verified 16-file release directory. Architecture-specific Windows staging executables and retired architecture-specific Linux `.deb`, `.rpm` and Portable archives are not part of the public bundle.
+The GitHub Package is built from exactly that same verified 16-file release directory. Architecture-specific Windows staging executables and retired architecture-specific Linux `.deb`, `.rpm` and per-architecture Portable archives are not part of the public bundle.
 
 ## Publication contract
 
@@ -60,19 +60,22 @@ LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
 LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
-LINUX_ARM64_RUNTIME_EVIDENCE=build-and-package-ci
-LINUX_I386_RUNTIME_EVIDENCE=build-and-package-ci
 ANDROID_APK=production-signed
 ANDROID_SIGNER_SHA256=<verified signer certificate SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-BROWSER_DESKTOP_HANDOFF=unsupported
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
 GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.6
 ```
 
 `ANDROID_SIGNER_SHA256` above is release **output metadata** containing the verified public certificate fingerprint. The protected GitHub Actions input secret that the workflow compares against is named **`GHOSTFTP_ANDROID_CERT_SHA256`**. Production private-key material and passwords are never written to metadata or included in the package payload.
+
+## 0.0.7 development bridge packaging
+
+The `production/0.0.7-cleanup` branch keeps the public artifact count unchanged while integrating the browser Native Messaging host into existing desktop packages. Windows Setup embeds the architecture-matched host inside the existing Setup executable; Linux universal bundles carry architecture-matched hosts inside the existing Installer/Portable files. No additional public release artifact is introduced by this integration.
+
+Firefox can be registered automatically because its extension identity is fixed. Chrome, Edge and Opera native-host registration stays fail-closed until exact official store IDs exist. Wildcard `allowed_origins` are not accepted as a substitute.
 
 ## Integrity
 
@@ -82,12 +85,10 @@ Windows trust and exact-byte integrity are independent: official Windows artifac
 
 ## Latest-only retention
 
-After successful 0.0.6 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
-
-Until that protected transaction succeeds, **0.0.5 remains the last actually published GitHub Release** and 0.0.6 remains a release candidate rather than a falsely advertised published build.
+The published `ghostftp-v0.0.6` release is the retained current release. `.github/workflows/release-retention.yml` independently verifies current release/tag/main identity and the exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
 
 ## Platform boundaries
 
-Android production signing does not expose SFTP without strict maintained host-key verification. Browser packages do not add desktop launch/handoff, browser networking permissions or a Ghost FTP relay. macOS remains outside the public bundle until real Developer ID Application signing and Apple notarization succeed.
+Android production signing does not expose SFTP without strict maintained host-key verification. Browser packages do not add a Ghost FTP relay or browser-side raw socket implementation. macOS remains outside the public bundle until real Developer ID Application signing and Apple notarization succeed.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
