@@ -24,18 +24,25 @@ final class SiteProfileStore {
     List<SiteProfile> load() {
         String raw = preferences.getString(KEY, "");
         if (raw == null || raw.trim().isEmpty()) return Collections.emptyList();
+
+        final JSONArray array;
         try {
-            JSONArray array = new JSONArray(raw);
-            List<SiteProfile> result = new ArrayList<>();
-            int count = Math.min(array.length(), MAX_PROFILES);
-            for (int i = 0; i < count; i++) {
-                JSONObject object = array.getJSONObject(i);
-                result.add(fromJson(object));
-            }
-            return result;
-        } catch (JSONException | IllegalArgumentException e) {
+            array = new JSONArray(raw);
+        } catch (JSONException e) {
             return Collections.emptyList();
         }
+
+        List<SiteProfile> result = new ArrayList<>();
+        int count = Math.min(array.length(), MAX_PROFILES);
+        for (int i = 0; i < count; i++) {
+            try {
+                result.add(fromJson(array.getJSONObject(i)));
+            } catch (JSONException | IllegalArgumentException ignored) {
+                // Keep the remaining valid saved sites instead of discarding all user data
+                // because a single stored entry is malformed or no longer valid.
+            }
+        }
+        return result;
     }
 
     void save(List<SiteProfile> profiles) {
