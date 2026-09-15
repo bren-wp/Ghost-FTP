@@ -23,7 +23,7 @@ Privacy-first FTP, FTPS and SFTP software for direct professional file transfer 
 
 Ghost FTP keeps protocol traffic on the user's device and the destination server selected by the user. The repository contains maintained native applications for Windows, Linux and Android, an active macOS native source surface, and browser extension packages.
 
-The product website and former browser-hosted FTP client are not part of this repository. Browser packages are maintained under [`extensions/`](extensions/README.md) and must not pretend to provide raw FTP/SFTP connectivity when the browser sandbox cannot provide it.
+The product website and former browser-hosted FTP client are not part of this repository. Browser packages are maintained under [`extensions/`](extensions/README.md). On the 0.0.7 development branch they use a bounded local Native Messaging bridge backed by the existing Ghost FTP Engine; they do not pretend that browser JavaScript can open raw FTP/SFTP sockets and they do not route transfers through a Ghost FTP remote proxy.
 
 No application telemetry. No behavioral analytics. No advertising. No fingerprinting. No mandatory Ghost FTP account. No automatic third-party crash upload.
 
@@ -52,7 +52,7 @@ Security-sensitive features fail closed. Unsupported features stay hidden rather
 | **Linux** | Public release | Debian, Ubuntu and Fedora Installer + Portable bundles |
 | **Android** | Public release | Production-signed APK; FTP + strict explicit FTPS; SAF-scoped storage |
 | **macOS** | Active native source | Public distribution remains gated on Developer ID signing and notarization |
-| **Browser extensions** | Public release packages | Browser-safe companion surface; 0.0.7 work is moving toward a secure local native bridge rather than fake socket access |
+| **Browser extensions** | Public release packages / 0.0.7 bridge development | Chrome, Edge, Firefox and Opera UI over the local Ghost FTP Native Messaging bridge; `nativeMessaging` is the only browser permission |
 
 ## Published release
 
@@ -146,6 +146,10 @@ The maintained documentation uses repository-local, exact-head runtime captures.
 </table>
 
 See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence contract.
+
+## Localization
+
+English is the canonical default and first language. Ghost FTP provides **24 selectable desktop languages** through the shared localization registry, with live Windows localization and the maintained Linux terminal localization surface. Windows Setup derives its language list from the same registry so installer and runtime language support cannot silently drift apart.
 
 ## Quality and security gates
 
