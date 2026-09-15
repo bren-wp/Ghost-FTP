@@ -25,12 +25,24 @@ type firefoxNativeHostDocument struct {
 	AllowedExtensions []string `json:"allowed_extensions"`
 }
 
-func firefoxNativeHostManifest(hostPath string) ([]byte, error) {
-	if strings.TrimSpace(hostPath) == "" || strings.ContainsAny(hostPath, "\x00\r\n") {
-		return nil, errors.New("native host path is invalid")
+func canonicalAbsoluteRegistrationPath(value string) (string, error) {
+	if strings.TrimSpace(value) == "" || strings.ContainsAny(value, "\x00\r\n") {
+		return "", errors.New("native messaging path is invalid")
 	}
-	absolute, err := filepath.Abs(filepath.Clean(hostPath))
+	clean := filepath.Clean(value)
+	if !filepath.IsAbs(clean) {
+		return "", errors.New("native messaging path must be absolute")
+	}
+	absolute, err := filepath.Abs(clean)
 	if err != nil || !filepath.IsAbs(absolute) {
+		return "", errors.New("native messaging path is invalid")
+	}
+	return absolute, nil
+}
+
+func firefoxNativeHostManifest(hostPath string) ([]byte, error) {
+	absolute, err := canonicalAbsoluteRegistrationPath(hostPath)
+	if err != nil {
 		return nil, errors.New("native host path is invalid")
 	}
 
@@ -49,11 +61,8 @@ func firefoxNativeHostManifest(hostPath string) ([]byte, error) {
 }
 
 func registerBrowserBridge(manifestPath string) error {
-	if strings.TrimSpace(manifestPath) == "" || strings.ContainsAny(manifestPath, "\x00\r\n") {
-		return errors.New("native host manifest path is invalid")
-	}
-	absolute, err := filepath.Abs(filepath.Clean(manifestPath))
-	if err != nil || !filepath.IsAbs(absolute) {
+	absolute, err := canonicalAbsoluteRegistrationPath(manifestPath)
+	if err != nil {
 		return errors.New("native host manifest path is invalid")
 	}
 	return platform.SetRegistryString(firefoxNativeMessagingKey, "", absolute)
