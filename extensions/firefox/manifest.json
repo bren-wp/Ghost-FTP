@@ -3,9 +3,16 @@
   "name": "Ghost FTP Connection Helper",
   "short_name": "Ghost FTP",
   "version": "0.0.6",
-  "description": "Privately validate and sanitize FTP, FTPS and SFTP connection targets on your device.",
+  "description": "Manage FTP, FTPS and SFTP connections through the local Ghost FTP bridge without browser credential storage.",
   "homepage_url": "https://ghostftp.com",
-  "permissions": [],
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
   "icons": {
     "16": "icons/icon.png",
     "32": "icons/icon.png",
@@ -26,7 +33,9 @@
     "gecko": {
       "id": "ghostftp-connection-helper@ghostftp.com",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       }
     }
   }
