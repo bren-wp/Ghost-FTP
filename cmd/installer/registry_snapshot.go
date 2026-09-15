@@ -27,6 +27,7 @@ type registrySnapshot struct {
 
 var installerStringRegistryValues = []struct{ key, name string }{
 	{appPathsKey, ""},
+	{firefoxNativeMessagingKey, ""},
 	{uninstallKey, "DisplayName"},
 	{uninstallKey, "DisplayVersion"},
 	{uninstallKey, "Publisher"},
@@ -34,6 +35,10 @@ var installerStringRegistryValues = []struct{ key, name string }{
 	{uninstallKey, "DisplayIcon"},
 	{uninstallKey, "UninstallString"},
 	{uninstallKey, installedExecutableDigestValue},
+	{uninstallKey, installedNativeHostPathValue},
+	{uninstallKey, installedNativeHostDigestValue},
+	{uninstallKey, installedFirefoxManifestPathValue},
+	{uninstallKey, installedFirefoxManifestDigestValue},
 	{uninstallKey, "QuietUninstallString"},
 	{uninstallKey, "URLInfoAbout"},
 }
