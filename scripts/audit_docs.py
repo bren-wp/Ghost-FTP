@@ -16,64 +16,27 @@ IGNORED_PREFIXES = ("http://", "https://", "mailto:", "data:", "//", "#")
 REMOTE_MEDIA_PREFIXES = ("http://", "https://", "data:", "//")
 
 ACTIVE_DOCS = (
-    "README.md",
-    "docs/README.md",
-    "docs/INSTALLATION.md",
-    "docs/ARCHITECTURE.md",
-    "docs/ROADMAP.md",
-    "docs/GITHUB-RELEASES.md",
-    "docs/PACKAGES.md",
-    "docs/RELEASE-VERIFICATION.md",
-    "docs/CONTRIBUTING.md",
-    "docs/PLATFORM-PARITY.md",
-    "docs/VERSIONING.md",
-    "docs/SECURITY.md",
-    "docs/PRIVACY.md",
-    "docs/SIGNING.md",
-    "docs/LOCALIZATION.md",
-    "docs/DEPENDENCIES.md",
-    "docs/SETTINGS.md",
-    "docs/TESTING.md",
-    "docs/SUPPORT.md",
-    "docs/REFERENCE-UI.md",
-    "docs/NAVIGATION-BOOKMARKS.md",
-    "docs/QUEUE-PRIORITY.md",
-    "docs/THIRD-PARTY-NOTICES.md",
-    "linux/README.md",
-    "android/README.md",
-    "android/UI-UX.md",
-    "android/TRANSFER-PROGRESS.md",
-    "macos/README.md",
-    "macos/PARITY.md",
-    "extensions/README.md",
-    "extensions/PRIVACY.md",
+    "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
+    "docs/ROADMAP.md", "docs/GITHUB-RELEASES.md", "docs/PACKAGES.md",
+    "docs/RELEASE-VERIFICATION.md", "docs/CONTRIBUTING.md", "docs/PLATFORM-PARITY.md",
+    "docs/VERSIONING.md", "docs/SECURITY.md", "docs/PRIVACY.md", "docs/SIGNING.md",
+    "docs/LOCALIZATION.md", "docs/DEPENDENCIES.md", "docs/SETTINGS.md", "docs/TESTING.md",
+    "docs/SUPPORT.md", "docs/REFERENCE-UI.md", "docs/NAVIGATION-BOOKMARKS.md",
+    "docs/QUEUE-PRIORITY.md", "docs/THIRD-PARTY-NOTICES.md", "linux/README.md",
+    "android/README.md", "android/UI-UX.md", "android/TRANSFER-PROGRESS.md",
+    "macos/README.md", "macos/PARITY.md", "extensions/README.md", "extensions/PRIVACY.md",
     "scripts/README.md",
 )
-
 CURRENT_VERSION_DOCS = (
-    "README.md",
-    "docs/README.md",
-    "docs/INSTALLATION.md",
-    "docs/ARCHITECTURE.md",
-    "docs/GITHUB-RELEASES.md",
-    "docs/PACKAGES.md",
-    "docs/RELEASE-VERIFICATION.md",
-    "docs/VERSIONING.md",
-    "docs/SUPPORT.md",
-    "docs/PLATFORM-PARITY.md",
-    "docs/SIGNING.md",
-    "docs/TESTING.md",
-    "linux/README.md",
-    "android/README.md",
+    "README.md", "docs/README.md", "docs/INSTALLATION.md", "docs/ARCHITECTURE.md",
+    "docs/GITHUB-RELEASES.md", "docs/PACKAGES.md", "docs/RELEASE-VERIFICATION.md",
+    "docs/VERSIONING.md", "docs/SUPPORT.md", "docs/PLATFORM-PARITY.md", "docs/SIGNING.md",
+    "docs/TESTING.md", "linux/README.md", "android/README.md",
 )
-
 VISUAL_ASSETS = (
-    "build/icon.png",
-    "docs/images/0.0.6/ghost-ftp-main-workspace.png",
-    "docs/images/0.0.6/ghost-ftp-site-manager.png",
-    "docs/images/0.0.6/ghost-ftp-settings.png",
-    "docs/images/0.0.6/ghost-ftp-about.png",
-    "docs/images/0.0.6/ghost-ftp-linux-main-workspace.png",
+    "build/icon.png", "docs/images/0.0.6/ghost-ftp-main-workspace.png",
+    "docs/images/0.0.6/ghost-ftp-site-manager.png", "docs/images/0.0.6/ghost-ftp-settings.png",
+    "docs/images/0.0.6/ghost-ftp-about.png", "docs/images/0.0.6/ghost-ftp-linux-main-workspace.png",
     "docs/images/0.0.6/ghost-ftp-android-files.png",
 )
 
@@ -131,15 +94,10 @@ def main() -> int:
     if version != "0.0.6":
         fail(f"active documentation contract expects VERSION 0.0.6, got {version!r}")
 
-    # The retired website and browser FTP implementation must stay removed.
     for retired in (
-        "web",
-        "docs/WEB.md",
-        "docs/prompts/GHOST-FTP-WEB-APP-PROMPT.md",
-        "docs/prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md",
-        ".github/workflows/web.yml",
-        "scripts/check_web_contract.py",
-        "scripts/test_web_contract.py",
+        "web", "docs/WEB.md", "docs/prompts/GHOST-FTP-WEB-APP-PROMPT.md",
+        "docs/prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md", ".github/workflows/web.yml",
+        "scripts/check_web_contract.py", "scripts/test_web_contract.py",
     ):
         if (ROOT / retired).exists():
             fail(f"retired web surface still exists: {retired}")
@@ -167,14 +125,7 @@ def main() -> int:
         if version not in read(rel):
             fail(f"current-version document does not mention {version}: {rel}")
 
-    retired_markers = (
-        "web/ftp",
-        "docs/WEB.md",
-        "WEB.md",
-        "GHOSTFTP_WEB_ALLOW_PRIVATE",
-        "Web FTP",
-        "web ftp",
-    )
+    retired_markers = ("web/ftp", "docs/WEB.md", "WEB.md", "GHOSTFTP_WEB_ALLOW_PRIVATE", "Web FTP", "web ftp")
     for rel in ACTIVE_DOCS:
         text = read(rel)
         if "0.0.7" in text:
@@ -187,35 +138,23 @@ def main() -> int:
     if not readme.startswith("# Ghost FTP\n"):
         fail("README public title must be Ghost FTP")
     require(
-        "README",
-        readme,
-        "Current source version: **0.0.6**",
-        "13 platform artifacts / 16 public files",
-        "Ghost-FTP-0.0.6-Android.apk",
-        "Ghost-FTP-0.0.6-Opera-Extension.zip",
-        "GHOSTFTP_ANDROID_CERT_SHA256",
-        "no supported browser-to-desktop",
-        "Brendigo LTD",
+        "README", readme, "**Current source version:** `0.0.6`", "13 platform artifacts / 16 public files",
+        "Ghost-FTP-0.0.6-Android.apk", "Ghost-FTP-0.0.6-Opera-Extension.zip",
+        "GHOSTFTP_ANDROID_CERT_SHA256", "no supported browser-to-desktop", "Brendigo LTD",
         "proprietary commercial",
     )
 
     index = read("docs/README.md")
     require(
-        "documentation index",
-        index,
-        "Current source version: **0.0.6**",
-        "13 platform artifacts / 16 public files",
-        "Chrome, Edge, Firefox and Opera",
+        "documentation index", index, "Current source version: **0.0.6**",
+        "13 platform artifacts / 16 public files", "Chrome, Edge, Firefox and Opera",
         "../extensions/README.md",
     )
 
     testing = read("docs/TESTING.md")
     require(
-        "testing documentation",
-        testing,
-        "Ghost FTP **0.0.6**",
-        "Ghost-FTP-0.0.6-Opera-Extension.zip",
-        "13 platform artifacts / 16 public files",
+        "testing documentation", testing, "Ghost FTP **0.0.6**",
+        "Ghost-FTP-0.0.6-Opera-Extension.zip", "13 platform artifacts / 16 public files",
     )
 
     print(f"DOCS_AUDIT=PASS ({version}; 13 platform artifacts / 16 public files)")
