@@ -136,6 +136,17 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         )
         self.assertIn("Site loaded. Enter your password to connect.", activity)
 
+    def test_profile_store_scrubs_noncanonical_persisted_state(self) -> None:
+        store = self.read(f"{_regressions.ANDROID_JAVA}/SiteProfileStore.java")
+
+        self.assertIn("preferences.edit().remove(KEY).apply();", store)
+        self.assertIn("String sanitized = encode(result);", store)
+        self.assertIn("if (!raw.equals(sanitized))", store)
+        self.assertIn("preferences.edit().putString(KEY, sanitized).apply();", store)
+        self.assertNotIn('object.put("password"', store)
+        self.assertNotIn('object.put("secret"', store)
+        self.assertNotIn('object.put("token"', store)
+
     def test_sftp_is_fail_closed_until_host_key_verification_exists(self) -> None:
         readme = self.read("android/README.md")
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
