@@ -120,6 +120,12 @@ func SetStartupTarget(target StartupTarget) {
 	startupTargetState.target = &copyTarget
 }
 
+func hasStartupTarget() bool {
+	startupTargetState.Lock()
+	defer startupTargetState.Unlock()
+	return startupTargetState.target != nil
+}
+
 func takeStartupTarget() (StartupTarget, bool) {
 	startupTargetState.Lock()
 	defer startupTargetState.Unlock()
