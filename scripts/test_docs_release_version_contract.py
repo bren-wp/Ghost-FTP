@@ -107,7 +107,6 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         self.assertIn("credentials remain empty", extension_lower)
         self.assertIn("without automatically connecting", extension_lower)
         self.assertIn("no compatible desktop handler", extension_lower)
-        self.assertNotIn("passwords, private-key passphrases, private keys, source query data and source fragments are never copied", "")
         self.assertIn("passwords, private-key passphrases, private keys, source query data and source fragments are never copied", extension_lower)
 
     def test_release_docs_describe_canonical_branch_dispatch(self):
