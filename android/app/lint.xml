@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!--
+      MainActivity.safeMessage() intentionally matches private Android data paths
+      only to redact them from user-facing error text. It never opens, reads, writes,
+      or otherwise treats these literals as filesystem locations. Keep SdCardPath
+      enabled everywhere else in the Android application.
+    -->
+    <issue id="SdCardPath">
+        <ignore path="src/main/java/app/ghostftp/client/MainActivity.java" />
+    </issue>
+</lint>
