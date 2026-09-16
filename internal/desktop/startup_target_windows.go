@@ -5,6 +5,12 @@ package desktop
 import "strconv"
 
 func (a *app) applyStartupTarget() bool {
+	if a == nil || a.protocol == 0 || a.host == 0 || a.port == 0 || a.user == 0 || a.pass == 0 || a.remotePath == 0 {
+		return false
+	}
+	if a.connected || a.connectionBusy {
+		return false
+	}
 	target, ok := takeStartupTarget()
 	if !ok {
 		return false
