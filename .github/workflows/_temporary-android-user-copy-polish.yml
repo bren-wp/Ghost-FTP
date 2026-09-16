@@ -1,0 +1,35 @@
+name: Temporary Android user copy polish
+
+on:
+  push:
+    branches:
+      - fix/0.0.6-android-user-copy-polish
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/0.0.6-android-user-copy-polish
+          fetch-depth: 0
+
+      - name: Apply validated copy cleanup
+        run: python3 scripts/_temporary_polish_android_user_copy.py
+
+      - name: Run Android contract regression suite
+        run: python3 scripts/test_android_contract.py
+
+      - name: Commit production copy changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/app/src/main/java/app/ghostftp/client/MainActivity.java scripts/test_android_contract.py
+          git diff --cached --check
+          git commit -m "fix(android): polish user-facing copy"
+          git push origin HEAD:fix/0.0.6-android-user-copy-polish
