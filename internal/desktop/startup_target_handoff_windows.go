@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -22,6 +23,7 @@ var (
 	sendMessageTimeoutW          = user32.NewProc("SendMessageTimeoutW")
 	setForegroundWindow          = user32.NewProc("SetForegroundWindow")
 	startupTargetReceiverProcPtr = syscall.NewCallback(startupTargetReceiverProc)
+	startupTargetRetrying        sync.Map
 )
 
 type copyDataStruct struct {
@@ -178,20 +180,62 @@ func receiveStartupTargetCopyData(lParam uintptr) uintptr {
 	return 1
 }
 
+func dispatchStartupTargetToApp(a *app) {
+	if a == nil || a.hwnd == 0 {
+		return
+	}
+	a.dispatch(func() {
+		// Site Manager runs its own modal message loop and may restore a saved
+		// profile after credential-consent or save operations. Keep the handoff
+		// pending until that modal has fully returned to the main window.
+		if siteManagerOpenForApp(a) {
+			retryStartupTargetAfterSiteManager(a)
+			return
+		}
+		showWindow.Call(a.hwnd, startupTargetSWRestore)
+		setForegroundWindow.Call(a.hwnd)
+		if a.applyStartupTarget() {
+			a.updateProtocolControls()
+			a.refineWorkspaceLayout()
+		}
+	})
+}
+
+func retryStartupTargetAfterSiteManager(a *app) {
+	if a == nil || !hasStartupTarget() {
+		return
+	}
+	if _, loaded := startupTargetRetrying.LoadOrStore(a, struct{}{}); loaded {
+		return
+	}
+	go func() {
+		defer startupTargetRetrying.Delete(a)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			if !hasStartupTarget() {
+				return
+			}
+			if !siteManagerOpenForApp(a) {
+				dispatchStartupTargetToApp(a)
+				return
+			}
+			<-ticker.C
+		}
+	}()
+}
+
 func dispatchStartupTargetToOpenWindow() {
 	apps.Range(func(_, value any) bool {
 		a, ok := value.(*app)
 		if !ok || a == nil || a.hwnd == 0 {
 			return true
 		}
-		a.dispatch(func() {
-			showWindow.Call(a.hwnd, startupTargetSWRestore)
-			setForegroundWindow.Call(a.hwnd)
-			if a.applyStartupTarget() {
-				a.updateProtocolControls()
-				a.refineWorkspaceLayout()
-			}
-		})
+		if siteManagerOpenForApp(a) {
+			retryStartupTargetAfterSiteManager(a)
+			return false
+		}
+		dispatchStartupTargetToApp(a)
 		return false
 	})
 }
