@@ -7,23 +7,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
 class ReadmeMediaContractTests(unittest.TestCase):
     required_root_media = {
         "build/icon.png",
         "docs/images/0.0.6/ghost-ftp-main-workspace.png",
-        "docs/images/0.0.6/ghost-ftp-site-manager.png",
-        "docs/images/0.0.6/ghost-ftp-settings.png",
-        "docs/images/0.0.6/ghost-ftp-bookmarks.png",
-        "docs/images/0.0.6/ghost-ftp-about.png",
         "docs/images/0.0.6/ghost-ftp-linux-main-workspace.png",
-        "docs/images/0.0.6/ghost-ftp-linux-bookmarks.png",
-        "docs/images/0.0.6/ghost-ftp-linux-settings.png",
         "docs/images/0.0.6/ghost-ftp-android-files.png",
-        "docs/images/0.0.6/ghost-ftp-android-sites.png",
-        "docs/images/0.0.6/ghost-ftp-android-transfers.png",
-        "docs/images/0.0.6/ghost-ftp-android-bookmarks.png",
-        "docs/images/0.0.6/ghost-ftp-android-settings.png",
-        "docs/images/0.0.6/ghost-ftp-android-about.png",
+    }
+    required_reference_media = {
+        "images/0.0.6/ghost-ftp-main-workspace.png",
+        "images/0.0.6/ghost-ftp-site-manager.png",
+        "images/0.0.6/ghost-ftp-settings.png",
+        "images/0.0.6/ghost-ftp-bookmarks.png",
+        "images/0.0.6/ghost-ftp-about.png",
+        "images/0.0.6/ghost-ftp-linux-main-workspace.png",
+        "images/0.0.6/ghost-ftp-linux-bookmarks.png",
+        "images/0.0.6/ghost-ftp-linux-settings.png",
+        "images/0.0.6/ghost-ftp-android-files.png",
+        "images/0.0.6/ghost-ftp-android-navigation.png",
+        "images/0.0.6/ghost-ftp-android-sites.png",
+        "images/0.0.6/ghost-ftp-android-transfers.png",
+        "images/0.0.6/ghost-ftp-android-bookmarks.png",
+        "images/0.0.6/ghost-ftp-android-settings.png",
+        "images/0.0.6/ghost-ftp-android-about.png",
     }
 
     def _image_sources(self, text: str) -> set[str]:
@@ -48,16 +55,23 @@ class ReadmeMediaContractTests(unittest.TestCase):
             self.assertTrue(resolved.is_file(), f"{rel} references missing image {source!r}")
         return sources
 
-    def test_root_readme_uses_product_icon_and_full_authentic_cross_platform_set(self) -> None:
+    def test_root_readme_uses_product_icon_and_representative_cross_platform_set(self) -> None:
         sources = self._assert_local_existing_images("README.md")
         missing = sorted(self.required_root_media - sources)
-        self.assertEqual(missing, [], "README is missing required maintained product media: " + ", ".join(missing))
-        for retired in ("docs/images/ghost-ftp-main-workspace.png","docs/images/ghost-ftp-site-manager.png","docs/images/ghost-ftp-settings.png","docs/images/ghost-ftp-about.png"):
+        self.assertEqual(missing, [], "README is missing required representative product media: " + ", ".join(missing))
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence contract.", readme)
+        for retired in ("docs/images/ghost-ftp-main-workspace.png", "docs/images/ghost-ftp-site-manager.png", "docs/images/ghost-ftp-settings.png", "docs/images/ghost-ftp-about.png"):
             self.assertNotIn(retired, sources, f"README must use immutable 0.0.6 evidence instead of {retired}")
+
+    def test_reference_ui_owns_full_authentic_cross_platform_set(self) -> None:
+        sources = self._assert_local_existing_images("docs/REFERENCE-UI.md")
+        missing = sorted(self.required_reference_media - sources)
+        self.assertEqual(missing, [], "Reference UI is missing required maintained product media: " + ", ".join(missing))
 
     def test_docs_index_uses_versioned_local_media(self) -> None:
         sources = self._assert_local_existing_images("docs/README.md")
-        expected = {"../build/icon.png","images/0.0.6/ghost-ftp-main-workspace.png","images/0.0.6/ghost-ftp-site-manager.png","images/0.0.6/ghost-ftp-linux-main-workspace.png","images/0.0.6/ghost-ftp-linux-settings.png","images/0.0.6/ghost-ftp-android-files.png","images/0.0.6/ghost-ftp-android-transfers.png"}
+        expected = {"../build/icon.png", "images/0.0.6/ghost-ftp-main-workspace.png", "images/0.0.6/ghost-ftp-site-manager.png", "images/0.0.6/ghost-ftp-linux-main-workspace.png", "images/0.0.6/ghost-ftp-linux-settings.png", "images/0.0.6/ghost-ftp-android-files.png", "images/0.0.6/ghost-ftp-android-transfers.png"}
         self.assertEqual(sorted(expected - sources), [], "docs index is missing immutable 0.0.6 product media")
 
     def test_readme_copy_keeps_cross_platform_authentic_media_provenance_explicit(self) -> None:
@@ -78,8 +92,10 @@ class ReadmeMediaContractTests(unittest.TestCase):
         self.assertIn("linux — 3 images", reference.lower())
         self.assertIn("android — 7 images", reference.lower())
         self.assertIn("exactly **15 runtime images**", reference.lower())
-        self.assertIn("read-only verified cross-platform evidence bundle", docs.lower())
+        self.assertIn("authentic runtime evidence is maintained across windows, linux and android", docs.lower())
         self.assertNotIn("git push", workflow_lower)
         self.assertNotIn("github-actions[bot]", workflow_lower)
 
-if __name__ == "__main__": unittest.main()
+
+if __name__ == "__main__":
+    unittest.main()
