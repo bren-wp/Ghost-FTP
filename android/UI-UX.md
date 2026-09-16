@@ -78,9 +78,9 @@ Security rows are informational and cannot weaken TLS verification, storage conf
 
 ### About
 
-About presents the Ghost FTP product identity, Android package/build identity, currently implemented Android protocol status and privacy information.
+About presents the Ghost FTP product identity, current version, implemented Android protocols and privacy information.
 
-The Android version shown in About comes from `BuildConfig.VERSION_NAME`. Production release builds use the repository root `VERSION` exactly; development builds append `-dev`. The ordinary CI development APK remains explicitly separate from the production-signed public Android release, and official publication is accepted only after the protected release workflow verifies the configured publisher certificate fingerprint.
+The Android version shown in About comes from `BuildConfig.VERSION_NAME` and equals the repository root `VERSION`. Pull-request and branch CI may build a debug validation variant under the separate `.debug` application ID, but validation outputs keep the canonical visible version and are not public release artifacts. Official publication is accepted only after the protected release workflow verifies the configured publisher certificate fingerprint.
 
 ## Remote Desktop / RDP
 
