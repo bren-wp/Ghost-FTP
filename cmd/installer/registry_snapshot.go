@@ -112,6 +112,17 @@ func (s registrySnapshot) keyExisted(key string) bool {
 	return true
 }
 
+func (s registrySnapshot) protocolKeysToRemove() []string {
+	ordered := []string{browserProtocolCommandKey, browserProtocolIconKey, browserProtocolKey}
+	out := make([]string, 0, len(ordered))
+	for _, key := range ordered {
+		if !s.keyExisted(key) {
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
 func (s registrySnapshot) restore() error {
 	var errs []error
 	for _, item := range s.strings {
@@ -140,10 +151,7 @@ func (s registrySnapshot) restore() error {
 	// Remove only protocol keys that did not exist before this transaction, and
 	// do so leaf-to-root. Pre-existing keys — including keys with unrelated named
 	// values that Ghost FTP never snapshots — are never deleted.
-	for _, key := range []string{browserProtocolCommandKey, browserProtocolIconKey, browserProtocolKey} {
-		if s.keyExisted(key) {
-			continue
-		}
+	for _, key := range s.protocolKeysToRemove() {
 		if err := platform.DeleteRegistryKey(key); err != nil {
 			errs = append(errs, err)
 		}
