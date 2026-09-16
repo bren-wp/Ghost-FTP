@@ -108,4 +108,4 @@ jobs:
           "$build_tools/apksigner" verify --verbose --print-certs "$smoke_signed"
           rm -f "$smoke_signed" "$smoke_keystore"
           echo 'ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS'
-          echo 'ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=ISOLATED_CI_ONLY'
+          echo 'ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY'
