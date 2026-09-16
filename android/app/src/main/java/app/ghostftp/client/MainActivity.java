@@ -505,7 +505,7 @@ public final class MainActivity extends Activity {
         remoteDelete.setOnClickListener(v -> deleteRemoteSelected());
 
         LinearLayout advancedActions = row();
-        remoteChmod = button("Permissions / CHMOD");
+        remoteChmod = button("Permissions");
         directoryCompare = button("Compare folders");
         remoteEdit = primaryButton("Remote Edit");
         advancedActions.addView(remoteChmod, weightedSpaced());
@@ -535,7 +535,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Sites", "Connect quickly or save the server details you use often."));
 
-        LinearLayout connectionCard = card("QUICK CONNECT / CONNECTION", "Passwords are never saved. FTP and secure explicit FTPS are available on Android.");
+        LinearLayout connectionCard = card("QUICK CONNECT", "Passwords are never saved. FTP and secure explicit FTPS are available on Android.");
         protocol = new Spinner(this);
         GhostTheme.styleSpinner(protocol);
         protocol.setAdapter(GhostTheme.spinnerAdapter(this, java.util.Arrays.asList(new String[]{"FTPS", "FTP"})));
@@ -544,7 +544,7 @@ public final class MainActivity extends Activity {
         port = field("Port", false);
         port.setInputType(InputType.TYPE_CLASS_NUMBER);
         username = field("Username", false);
-        password = field("Password (memory only)", true);
+        password = field("Password (never saved)", true);
         connectionCard.addView(host, matchWrapSpaced());
         LinearLayout credentials = row();
         credentials.addView(port, fixedWidthSpaced(96));
@@ -586,7 +586,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Bookmarks", "Save frequently used local folders and remote paths for faster navigation."));
 
-        LinearLayout localCard = card("LOCAL SAF BOOKMARKS", "Saved local folders remain limited to locations you selected.");
+        LinearLayout localCard = card("LOCAL BOOKMARKS", "Saved local folders remain limited to locations you selected.");
         bookmarkLocalCurrent = pathLabel("No folder selected");
         localCard.addView(bookmarkLocalCurrent, matchWrapSpaced());
         LinearLayout localActions = row();
@@ -653,7 +653,7 @@ public final class MainActivity extends Activity {
     private View buildSettingsSurface() {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Settings", "Choose how Ghost FTP behaves on this device."));
-        LinearLayout uiCard = card("UI / LOCAL PREFERENCES", "Adjust local preferences for browsing and quick connections.");
+        LinearLayout uiCard = card("APP PREFERENCES", "Adjust local preferences for browsing and quick connections.");
         rememberEndpointToggle = checkBox("Remember Quick Connect host, username, protocol and port");
         rememberEndpointToggle.setOnClickListener(v -> {
             rememberEndpoint = rememberEndpointToggle.isChecked();
@@ -675,10 +675,10 @@ public final class MainActivity extends Activity {
         content.addView(uiCard, cardParams());
 
         LinearLayout securityCard = card("SECURITY", "Security protections stay enforced automatically.");
-        securityCard.addView(infoLine("FTPS", "Certificate and hostname verification enabled"), matchWrapSpaced());
-        securityCard.addView(infoLine("Passwords", "Kept in memory only and never saved"), matchWrapSpaced());
+        securityCard.addView(infoLine("FTPS", "Secure certificate checks are enabled"), matchWrapSpaced());
+        securityCard.addView(infoLine("Passwords", "Never saved"), matchWrapSpaced());
         securityCard.addView(infoLine("Local storage", "Access limited to folders you select"), matchWrapSpaced());
-        securityCard.addView(infoLine("SFTP", "Unavailable until strict server identity verification is enabled"), matchWrapSpaced());
+        securityCard.addView(infoLine("SFTP", "Not available in the Android app"), matchWrapSpaced());
         securityCard.addView(infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud"), matchWrapSpaced());
         content.addView(securityCard, cardParams());
         return scrollSurface(content);
@@ -1589,7 +1589,7 @@ public final class MainActivity extends Activity {
         String searchRoot = rootDocumentId;
         if (busy || searchTree == null || searchRoot == null) return;
         long generation = ++advancedOperationGeneration;
-        setBusy(true, "Searching local folders within bounded safety limits…");
+        setBusy(true, "Searching local folders…");
         io.execute(() -> {
             try {
                 List<LocalSearchResult> results = new ArrayList<>();
@@ -1624,7 +1624,7 @@ public final class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     if (generation != advancedOperationGeneration || lifecycleDestroyed) return;
-                    setBusy(false, "Local recursive search failed: " + safeMessage(e));
+                    setBusy(false, "Local search failed: " + safeMessage(e));
                 });
             }
         });
@@ -1632,13 +1632,13 @@ public final class MainActivity extends Activity {
 
     private void showLocalSearchResults(String query, List<LocalSearchResult> results) {
         if (results.isEmpty()) {
-            setStatus("No local recursive-search results for: " + query);
+            setStatus("No local search results for: " + query);
             return;
         }
         String[] labels = new String[results.size()];
         for (int i = 0; i < results.size(); i++) {
             LocalSearchResult result = results.get(i);
-            labels[i] = (result.entry.directory ? "DIR   " : "FILE  ") + result.displayPath;
+            labels[i] = (result.entry.directory ? "Folder · " : "File · ") + result.displayPath;
         }
         new AlertDialog.Builder(this)
                 .setTitle("Local search · " + results.size() + " result(s)")
@@ -1701,10 +1701,10 @@ public final class MainActivity extends Activity {
         String searchRoot = currentRemotePath;
         long generation = ++advancedOperationGeneration;
         long deadlineNanos = System.nanoTime() + WorkspaceOps.MAX_REMOTE_SEARCH_MILLIS * 1_000_000L;
-        setBusy(true, "Searching server folders within bounded safety limits…");
+        setBusy(true, "Searching server folders…");
         AlertDialog searchDialog = new AlertDialog.Builder(this)
-                .setTitle("Server recursive search")
-                .setMessage("Searching with directory, depth, result and 45-second safety bounds. Cancelling closes this FTP/FTPS session immediately.")
+                .setTitle("Search server folders")
+                .setMessage("Searching server folders. Cancelling the search will close the current connection.")
                 .setNegativeButton("Cancel search", null)
                 .setCancelable(false)
                 .create();
@@ -1719,7 +1719,7 @@ public final class MainActivity extends Activity {
             currentRemotePath = "/";
             busy = false;
             renderRemote();
-            setStatus("Server recursive search cancelled. Connection closed; reconnect before continuing.");
+            setStatus("Search cancelled. Connection closed; reconnect before continuing.");
             refreshButtons();
             searchDialog.dismiss();
         }));
@@ -1734,9 +1734,9 @@ public final class MainActivity extends Activity {
                 while (!queue.isEmpty()
                         && directories < WorkspaceOps.MAX_SEARCH_DIRECTORIES
                         && results.size() < WorkspaceOps.MAX_SEARCH_RESULTS) {
-                    if (generation != advancedOperationGeneration) throw new IOException("Server recursive search was cancelled.");
-                    if (System.nanoTime() > deadlineNanos) throw new IOException("Server recursive search reached the 45-second safety deadline.");
-                    if (session != owner || !owner.isConnected()) throw new IOException("Server connection changed during recursive search.");
+                    if (generation != advancedOperationGeneration) throw new IOException("Search was cancelled.");
+                    if (System.nanoTime() > deadlineNanos) throw new IOException("Search took too long and was stopped.");
+                    if (session != owner || !owner.isConnected()) throw new IOException("The server connection changed during search.");
                     RemoteSearchNode node = queue.removeFirst();
                     if (!visited.add(node.path)) continue;
                     directories++;
@@ -1771,7 +1771,7 @@ public final class MainActivity extends Activity {
                         currentRemotePath = "/";
                         renderRemote();
                     }
-                    setBusy(false, "Server recursive search failed: " + safeMessage(e));
+                    setBusy(false, "Server search failed: " + safeMessage(e));
                 });
             }
         });
@@ -1779,13 +1779,13 @@ public final class MainActivity extends Activity {
 
     private void showRemoteSearchResults(FtpSession owner, String query, List<RemoteSearchResult> results) {
         if (results.isEmpty()) {
-            setStatus("No server recursive-search results for: " + query);
+            setStatus("No server search results for: " + query);
             return;
         }
         String[] labels = new String[results.size()];
         for (int i = 0; i < results.size(); i++) {
             RemoteSearchResult result = results.get(i);
-            labels[i] = (result.entry.directory ? "DIR   " : "FILE  ") + result.displayPath;
+            labels[i] = (result.entry.directory ? "Folder · " : "File · ") + result.displayPath;
         }
         new AlertDialog.Builder(this)
                 .setTitle("Server search · " + results.size() + " result(s)")
@@ -1840,17 +1840,17 @@ public final class MainActivity extends Activity {
             String marker;
             switch (row.difference) {
                 case ONLY_LOCAL:
-                    marker = "LOCAL ONLY";
+                    marker = "Only on this device";
                     break;
                 case ONLY_REMOTE:
-                    marker = "SERVER ONLY";
+                    marker = "Only on server";
                     break;
                 case DIFFERENT:
-                    marker = "DIFFERENT";
+                    marker = "Different";
                     break;
                 case SAME:
                 default:
-                    marker = "SAME";
+                    marker = "Same";
                     break;
             }
             labels[i] = marker + "   " + row.name + (row.canSynchronizeDirectoryNavigation() ? "   › open both" : "");
@@ -1862,7 +1862,7 @@ public final class MainActivity extends Activity {
                     if (row.canSynchronizeDirectoryNavigation()) {
                         synchronizedNavigateInto(row.name);
                     } else {
-                        setStatus("Comparison: " + row.difference.name().replace('_', ' ') + " · " + row.name);
+                        setStatus("Comparison selected: " + row.name);
                     }
                 })
                 .setNegativeButton("Close", null)
@@ -1878,7 +1878,7 @@ public final class MainActivity extends Activity {
         for (LocalEntry entry : localEntries) if (entry.directory && entry.name.equals(name)) localDirectory = entry;
         for (RemoteEntry entry : remoteEntries) if (entry.directory && entry.name.equals(name)) remoteDirectory = entry;
         if (localDirectory == null || remoteDirectory == null) {
-            setStatus("Synchronized navigation is unavailable because the paired directories changed.");
+            setStatus("The matching folders changed. Refresh and try again.");
             return;
         }
         final LocalEntry localTarget = localDirectory;
@@ -1892,7 +1892,7 @@ public final class MainActivity extends Activity {
             return;
         }
         long generation = ++advancedOperationGeneration;
-        setBusy(true, "Opening paired directories…");
+        setBusy(true, "Opening matching folders…");
         io.execute(() -> {
             try {
                 List<LocalEntry> localFresh = queryChildren(ownerTree, localTarget.documentId);
@@ -1913,7 +1913,7 @@ public final class MainActivity extends Activity {
                     remoteFilterQuery = "";
                     renderLocal();
                     renderRemote();
-                    setBusy(false, "Opened paired local/server directory: " + name);
+                    setBusy(false, "Opened matching folders: " + name);
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
@@ -1929,7 +1929,7 @@ public final class MainActivity extends Activity {
         if (busy || owner == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size() || !owner.isConnected()) return;
         RemoteEntry entry = remoteEntries.get(selectedRemote);
         if (!entry.regularFile) {
-            setStatus("Remote Edit supports explicitly reported regular text files only; links and special entries are not editable.");
+            setStatus("Select a regular text file to edit. Links and special entries cannot be edited.");
             return;
         }
         if (entry.size > WorkspaceOps.MAX_REMOTE_EDIT_BYTES) {
@@ -1944,7 +1944,7 @@ public final class MainActivity extends Activity {
             return;
         }
         long generation = ++advancedOperationGeneration;
-        setBusy(true, "Opening Remote Edit with conflict-safe snapshot…");
+        setBusy(true, "Opening file for editing…");
         io.execute(() -> {
             try {
                 RemoteTextDocument.Snapshot snapshot = RemoteEditIo.open(owner, path);
@@ -1962,7 +1962,7 @@ public final class MainActivity extends Activity {
     }
 
     private void showRemoteEditor(FtpSession owner, String path, String name, String originalMode, long generation, RemoteTextDocument.Snapshot snapshot) {
-        EditText editor = field("Remote UTF-8 text", false);
+        EditText editor = field("File contents", false);
         editor.setSingleLine(false);
         editor.setGravity(Gravity.TOP | Gravity.START);
         editor.setMinLines(16);
@@ -1998,7 +1998,7 @@ public final class MainActivity extends Activity {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> saveRemoteEditor(state));
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> reloadRemoteEditor(state));
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> closeRemoteEditor(state));
-            setStatus("Remote Edit opened with SHA-256 conflict detection and read-back verification.");
+            setStatus("Remote file opened for editing.");
             refreshButtons();
         });
         dialog.setOnDismissListener(ignored -> {
@@ -2017,7 +2017,7 @@ public final class MainActivity extends Activity {
         state.running = true;
         setRemoteEditorButtonsEnabled(state, false);
         String text = state.editor.getText().toString();
-        setStatus("Remote Edit is checking for conflicts and saving…");
+        setStatus("Checking for changes and saving…");
         io.execute(() -> {
             try {
                 RemoteTextDocument.Snapshot saved = RemoteEditIo.save(
@@ -2027,7 +2027,7 @@ public final class MainActivity extends Activity {
                     applyRemoteEditorSnapshot(state, saved);
                     state.running = false;
                     setRemoteEditorButtonsEnabled(state, true);
-                    setStatus("Remote Edit saved and verified by read-back: " + state.name);
+                    setStatus("Remote file saved: " + state.name);
                     refreshRemoteAfterEditor(state.owner);
                 });
             } catch (Exception e) {
@@ -2208,12 +2208,12 @@ public final class MainActivity extends Activity {
     private void setLocalStart() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load or save a site first. Quick Connect does not create hidden site state.");
+            setStatus("Save or load a site before setting a start folder.");
             return;
         }
         String uri = persistedCurrentTreeUri();
         if (uri.isEmpty()) {
-            setStatus("Choose a folder with persistent Android permission before setting the site start folder.");
+            setStatus("Choose a folder that Ghost FTP can reopen before setting it as the start folder.");
             return;
         }
         SiteProfile next = profile.withLocalStartTreeUri(uri);
@@ -2226,12 +2226,12 @@ public final class MainActivity extends Activity {
     private void addLocalBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load or save a site first. Quick Connect does not create hidden bookmarks.");
+            setStatus("Save or load a site before adding a local bookmark.");
             return;
         }
         String uri = persistedCurrentTreeUri();
         if (uri.isEmpty()) {
-            setStatus("Choose a folder with persistent Android permission before bookmarking it.");
+            setStatus("Choose a folder that Ghost FTP can reopen before adding it as a bookmark.");
             return;
         }
         SiteProfile next = profile.withLocalBookmark(uri);
@@ -2557,7 +2557,7 @@ public final class MainActivity extends Activity {
         for (WorkspaceOps.Item visible : localVisibleItems) {
             LocalEntry e = localEntries.get(visible.sourceIndex);
             String marker = visible.sourceIndex == selectedLocal ? "●  " : "   ";
-            String type = e.directory ? "DIR   " : "FILE  ";
+            String type = e.directory ? "Folder · " : "File · ";
             String size = !e.directory && showFileSizes ? "   " + TransferProgress.formatBytes(e.size) : "";
             labels.add(marker + type + e.name + size);
         }
@@ -2576,7 +2576,7 @@ public final class MainActivity extends Activity {
         for (WorkspaceOps.Item visible : remoteVisibleItems) {
             RemoteEntry e = remoteEntries.get(visible.sourceIndex);
             String marker = visible.sourceIndex == selectedRemote ? "●  " : "   ";
-            String type = e.directory ? "DIR   " : "FILE  ";
+            String type = e.directory ? "Folder · " : "File · ";
             String size = !e.directory && showFileSizes ? "   " + TransferProgress.formatBytes(e.size) : "";
             String permissions = e.permissions.isEmpty() ? "" : "   [" + e.permissions + "]";
             labels.add(marker + type + e.name + size + permissions);
