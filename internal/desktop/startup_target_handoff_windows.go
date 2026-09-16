@@ -156,12 +156,19 @@ func receiveStartupTargetCopyData(lParam uintptr) uintptr {
 	if lParam == 0 {
 		return 0
 	}
-	packet := (*copyDataStruct)(unsafe.Pointer(lParam))
+
+	// Match the existing Win32 message-decoding pattern used elsewhere in the
+	// desktop package: copy Windows-owned memory into Go-owned values instead of
+	// turning an arbitrary uintptr back into a Go pointer. This keeps go vet's
+	// unsafe-pointer checks clean while preserving the COPYDATASTRUCT ABI.
+	var packet copyDataStruct
+	rtlMoveMemory.Call(uintptr(unsafe.Pointer(&packet)), lParam, unsafe.Sizeof(packet))
 	if packet.Data != ghostFTPStartupTargetMagic || packet.Size == 0 || packet.Size > maxStartupTargetLength || packet.Payload == 0 {
 		return 0
 	}
 
-	payload := unsafe.Slice((*byte)(unsafe.Pointer(packet.Payload)), int(packet.Size))
+	payload := make([]byte, int(packet.Size))
+	rtlMoveMemory.Call(uintptr(unsafe.Pointer(&payload[0])), packet.Payload, uintptr(packet.Size))
 	target, err := ParseStartupTarget(string(payload))
 	if err != nil {
 		return 0
