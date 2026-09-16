@@ -9,7 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
-RETIRED_ROOTS = ("ios/", "GhostFTP WEB/", "web/", "pwa/", "ghostftp-web/")
+RETIRED_ROOTS = ("ios/", "GhostFTP WEB/")
+RETIRED_WEB_ROOTS = ("web/", "pwa/", "ghostftp-web/")
 RETIRED_SCRIPTS = {
     "scripts/audit_android.py",
     "scripts/audit_android_localization.py",
@@ -93,7 +94,7 @@ def main() -> int:
 
     for path in paths:
         normalized = path.replace("\\", "/")
-        if normalized.startswith(RETIRED_ROOTS):
+        if normalized.startswith(RETIRED_ROOTS + RETIRED_WEB_ROOTS):
             fail(f"retired application platform/surface is tracked: {path}")
         if normalized in RETIRED_SCRIPTS or normalized in RETIRED_EXACT:
             fail(f"retired platform tooling/surface is tracked: {path}")
