@@ -32,6 +32,8 @@ class ProductSurfaceContractTests(unittest.TestCase):
         )
         for phrase in forbidden:
             self.assertNotIn(phrase, source, f"Android public surface leaked implementation wording: {phrase}")
+        self.assertNotIn('putString("password"', source)
+        self.assertNotIn('putString("passphrase"', source)
         self.assertNotIn('infoLine("Package", BuildConfig.APPLICATION_ID)', source)
         self.assertIn("GhostTheme.apply(this);", source)
         self.assertIn("GhostTheme.applySystemBars(this);", source)
@@ -43,8 +45,8 @@ class ProductSurfaceContractTests(unittest.TestCase):
         android = self.read("android/app/src/main/java/app/ghostftp/client/GhostTheme.java")
         browser = self.read("extensions/shared/popup.css")
 
-        self.assertIn("Window: RGB{0xEE, 0xF1, 0xF5}", desktop)
-        self.assertIn("Panel:  RGB{0xF6, 0xF8, 0xFB}", desktop)
+        self.assertRegex(desktop, r"Window:\s+RGB\{0xEE, 0xF1, 0xF5\}")
+        self.assertRegex(desktop, r"Panel:\s+RGB\{0xF6, 0xF8, 0xFB\}")
         self.assertIn("WINDOW = Color.rgb(0xEE, 0xF1, 0xF5);", android)
         self.assertIn("PANEL = Color.rgb(0xF6, 0xF8, 0xFB);", android)
         self.assertIn("--bg: #eef1f5;", browser)
