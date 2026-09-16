@@ -112,11 +112,11 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         self.assertNotIn("DARWIN_SOURCE=BLOCKED", platform_audit)
 
         self.assertIn("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES", desktop_audit)
-        self.assertIn("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE", desktop_audit)
+        self.assertIn("MACOS_SOURCE_SURFACE=ACTIVE", desktop_audit)
         self.assertNotIn("macos", retired_roots_declaration(desktop_audit).lower())
         self.assertNotIn("PUBLIC_RELEASE_PLATFORMS=", desktop_audit)
 
-    def test_macos_has_source_development_and_production_distribution_surfaces(self) -> None:
+    def test_macos_has_source_validation_and_production_distribution_surfaces(self) -> None:
         for relative in (
             "macos/README.md",
             "macos/PARITY.md",
@@ -131,7 +131,8 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         workflow = read(".github/workflows/macos-app.yml")
         self.assertIn("runs-on: macos-", workflow)
         self.assertIn("bash macos/BUILD.sh", workflow)
-        self.assertIn("ghostftp-macos-development", workflow)
+        self.assertIn("ghostftp-macos-validation", workflow)
+        self.assertNotIn("ghostftp-macos-development", workflow)
         self.assertIn("permissions:\n  contents: read", workflow)
 
         production = read(".github/workflows/macos-production.yml")
