@@ -17,6 +17,5 @@ func (a *app) applyInitialLaunchTarget() bool {
 	setText(a.remotePath, target.Path)
 	a.remoteCurrent = target.Path
 	a.updateProtocolControls()
-	a.updateActionControls()
 	return true
 }
