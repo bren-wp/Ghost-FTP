@@ -19,18 +19,9 @@ class ReadmeMediaContractTests(unittest.TestCase):
         "images/0.0.6/ghost-ftp-main-workspace.png",
         "images/0.0.6/ghost-ftp-site-manager.png",
         "images/0.0.6/ghost-ftp-settings.png",
-        "images/0.0.6/ghost-ftp-bookmarks.png",
         "images/0.0.6/ghost-ftp-about.png",
         "images/0.0.6/ghost-ftp-linux-main-workspace.png",
-        "images/0.0.6/ghost-ftp-linux-bookmarks.png",
-        "images/0.0.6/ghost-ftp-linux-settings.png",
         "images/0.0.6/ghost-ftp-android-files.png",
-        "images/0.0.6/ghost-ftp-android-navigation.png",
-        "images/0.0.6/ghost-ftp-android-sites.png",
-        "images/0.0.6/ghost-ftp-android-transfers.png",
-        "images/0.0.6/ghost-ftp-android-bookmarks.png",
-        "images/0.0.6/ghost-ftp-android-settings.png",
-        "images/0.0.6/ghost-ftp-android-about.png",
     }
 
     def _image_sources(self, text: str) -> set[str]:
@@ -64,10 +55,15 @@ class ReadmeMediaContractTests(unittest.TestCase):
         for retired in ("docs/images/ghost-ftp-main-workspace.png", "docs/images/ghost-ftp-site-manager.png", "docs/images/ghost-ftp-settings.png", "docs/images/ghost-ftp-about.png"):
             self.assertNotIn(retired, sources, f"README must use immutable 0.0.6 evidence instead of {retired}")
 
-    def test_reference_ui_owns_full_authentic_cross_platform_set(self) -> None:
+    def test_reference_ui_embeds_representative_authentic_cross_platform_media(self) -> None:
         sources = self._assert_local_existing_images("docs/REFERENCE-UI.md")
         missing = sorted(self.required_reference_media - sources)
-        self.assertEqual(missing, [], "Reference UI is missing required maintained product media: " + ", ".join(missing))
+        self.assertEqual(missing, [], "Reference UI is missing required representative product media: " + ", ".join(missing))
+        reference = (ROOT / "docs/REFERENCE-UI.md").read_text(encoding="utf-8").lower()
+        self.assertIn("windows — 5 images", reference)
+        self.assertIn("linux — 3 images", reference)
+        self.assertIn("android — 7 images", reference)
+        self.assertIn("exactly **15 runtime images**", reference)
 
     def test_docs_index_uses_versioned_local_media(self) -> None:
         sources = self._assert_local_existing_images("docs/README.md")
