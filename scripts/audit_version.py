@@ -69,17 +69,23 @@ def main() -> int:
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
 
-    # Release builds inject VERSION with -X; source entry points must never hard-code
-    # a numeric release that can drift from the canonical root VERSION file.
+    # Release builds still inject VERSION with -X. Source entry points also carry
+    # the same current release identity so locally built user interfaces never
+    # expose a development-channel label when linker metadata is absent.
     for rel in ("cmd/ghostftp/main.go", "cmd/installer/main.go", "cmd/windowsbootstrap/main.go"):
         text = read(rel)
-        if "var version =" not in text:
+        match = re.search(r'var\s+version\s*=\s*"([^"]+)"', text)
+        if match is None:
             fail(f"{rel} is missing the build-time version binding")
-        if re.search(r'var\s+version\s*=\s*"\d+\.\d+\.\d+"', text):
-            fail(f"{rel} hard-codes a production version")
+        if match.group(1) != version:
+            fail(f"{rel} fallback version {match.group(1)!r} does not match VERSION {version!r}")
+        if '"dev"' in text:
+            fail(f"{rel} exposes a development version marker")
 
     brand_version = read("internal/brand/version.go")
     require(brand_version, ('strings.TrimSpace(version)', 'return version'), "internal/brand/version.go")
+    if 'return "dev"' in brand_version:
+        fail("product display version must not expose a development fallback")
     if 'return version + " Beta"' in brand_version or 'strings.HasPrefix(version, "0.")' in brand_version:
         fail("product display version must not infer prerelease status from major version 0")
 
