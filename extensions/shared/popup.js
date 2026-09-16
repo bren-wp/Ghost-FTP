@@ -7,6 +7,7 @@
   const status = document.getElementById('status');
   const passwordNotice = document.getElementById('password-notice');
   const clearButton = document.getElementById('clear-button');
+  const desktopLaunch = document.getElementById('desktop-launch');
 
   const outputs = {
     protocol: document.getElementById('protocol'),
@@ -28,9 +29,15 @@
     element.dataset.copyValue = value || '';
   }
 
+  function resetDesktopLaunch() {
+    desktopLaunch.removeAttribute('href');
+    desktopLaunch.setAttribute('aria-disabled', 'true');
+  }
+
   function resetResult() {
     result.hidden = true;
     passwordNotice.hidden = true;
+    resetDesktopLaunch();
     setStatus('Nothing leaves this popup.', 'neutral');
     Object.values(outputs).forEach((element) => {
       element.value = '';
@@ -39,15 +46,11 @@
   }
 
   async function copyText(value) {
-    if (!value) {
-      throw new Error('There is nothing to copy.');
-    }
-
+    if (!value) throw new Error('There is nothing to copy.');
     if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
       await navigator.clipboard.writeText(value);
       return;
     }
-
     const fallback = document.createElement('textarea');
     fallback.value = value;
     fallback.setAttribute('readonly', '');
@@ -56,9 +59,7 @@
     fallback.select();
     const copied = document.execCommand('copy');
     fallback.remove();
-    if (!copied) {
-      throw new Error('The browser blocked clipboard access.');
-    }
+    if (!copied) throw new Error('The browser blocked clipboard access.');
   }
 
   form.addEventListener('submit', (event) => {
@@ -67,6 +68,7 @@
     if (!parsed.ok) {
       result.hidden = true;
       passwordNotice.hidden = true;
+      resetDesktopLaunch();
       setStatus(parsed.error, 'error');
       input.focus();
       return;
@@ -79,26 +81,30 @@
     setOutput(outputs.path, parsed.path, '/');
     setOutput(outputs.safeTarget, parsed.safeTarget, '—');
 
+    desktopLaunch.href = parsed.desktopLaunchTarget;
+    desktopLaunch.setAttribute('aria-disabled', 'false');
     passwordNotice.hidden = !parsed.passwordDetected;
     result.hidden = false;
-    setStatus('Parsed locally. Safe target excludes URL credentials, query and fragment data.', 'success');
+    setStatus('Parsed locally. Desktop launch data contains no password, passphrase, query or fragment.', 'success');
   });
 
   document.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-copy-target]');
-    if (!button) {
-      return;
-    }
+    if (!button) return;
     const target = document.getElementById(button.dataset.copyTarget);
-    if (!target) {
-      return;
-    }
-
+    if (!target) return;
     try {
       await copyText(target.dataset.copyValue || target.value);
       setStatus('Copied after your explicit click.', 'success');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to copy.', 'error');
+    }
+  });
+
+  desktopLaunch.addEventListener('click', (event) => {
+    if (!desktopLaunch.href || desktopLaunch.getAttribute('aria-disabled') === 'true') {
+      event.preventDefault();
+      setStatus('Check an address before opening Ghost FTP.', 'error');
     }
   });
 
