@@ -23,7 +23,7 @@ Linux public output is exactly six bundles: Installer + Portable for Debian/Ubun
 
 Android is a public 0.0.6 application with Android-native Files, Sites, Bookmarks, Transfers, Settings and About surfaces. It uses Storage Access Framework local authority, FTP + strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
 
-Android SFTP remains hidden until strict native host-key identity verification exists. A production signature does not weaken that boundary.
+Android SFTP remains hidden until strict native host-key identity verification exists. Production release packaging remains fail-closed on signing and does not weaken that protocol boundary.
 
 ## macOS parity boundary
 
@@ -33,24 +33,13 @@ macOS is an active native AppKit development frontend over the shared engine. So
 
 Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from one shared local runtime. They remain parser/copy helpers with zero broad permissions and **no supported browser-to-desktop launch/handoff**. They are not substitutes for a native protocol client.
 
-## Web FTP parity boundary
+## Retired application surfaces
 
-`web/ftp` intentionally resembles the Ghost FTP workspace but cannot be a native filesystem clone because browser sandboxes do not provide arbitrary local filesystem access or raw FTP-family sockets.
-
-The browser UI therefore provides:
-
-- explicit local file selection instead of fake local filesystem enumeration;
-- remote list/navigation;
-- upload/download;
-- mkdir, rename, delete and CHMOD where supported;
-- bounded Remote Edit;
-- in-tab operation activity.
-
-The server-assisted Web FTP transport is a distinct implementation with explicit SSRF/TLS/SFTP trust boundaries. It does not claim desktop queue scheduling, native local filesystem authority or browser-direct FTP.
+The repository website, Web FTP runtime and PWA application surface are retired and intentionally absent from the maintained product tree. They are not part of the Ghost FTP 0.0.6 runtime, release or platform-parity contract.
 
 ## Theme and visual direction
 
-Windows remains the canonical desktop visual reference. Dark uses the maintained deep navy palette; Classic Light uses the dirty/off-white gray palette rather than pure white. The website and Web FTP follow the same design language while remaining appropriate to browser controls/responsiveness.
+Windows remains the canonical desktop visual reference. Dark uses the maintained deep navy palette; Classic Light uses the dirty/off-white gray palette rather than pure white. Native platform frontends follow the same Ghost FTP visual language while preserving platform-appropriate controls and interaction patterns.
 
 ## Release parity
 
@@ -64,6 +53,6 @@ The Ghost FTP 0.0.6 release contract is **13 platform artifacts / 16 public file
 - Browser helpers: 4;
 - release metadata: 3.
 
-`web/` and `web/ftp` are active deployment source but do not increase the GitHub Release asset count. macOS remains development/source only.
+macOS remains active source/build validation only and is not a public release artifact for 0.0.6. Retired web surfaces do not contribute release artifacts.
 
-See [Architecture](ARCHITECTURE.md), [Web](WEB.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
+See [Architecture](ARCHITECTURE.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
