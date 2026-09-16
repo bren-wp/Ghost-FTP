@@ -53,12 +53,14 @@ var installerDWORDRegistryValues = []struct{ key, name string }{
 	{uninstallKey, "NoRepair"},
 }
 
-// Track protocol key existence separately from the values Ghost FTP owns.
-// A key may predate this installer and contain unrelated named values even when
-// all tracked defaults are absent. Rollback must preserve such keys verbatim.
+// Track every protocol key whose creation can be caused by SetRegistryString.
+// RegCreateKeyExW creates missing intermediate keys as well, so shell/open must
+// be tracked independently even though Ghost FTP stores no direct values there.
 var installerProtocolRegistryKeys = []string{
 	browserProtocolKey,
 	browserProtocolIconKey,
+	browserProtocolShellKey,
+	browserProtocolOpenKey,
 	browserProtocolCommandKey,
 }
 
@@ -113,7 +115,13 @@ func (s registrySnapshot) keyExisted(key string) bool {
 }
 
 func (s registrySnapshot) protocolKeysToRemove() []string {
-	ordered := []string{browserProtocolCommandKey, browserProtocolIconKey, browserProtocolKey}
+	ordered := []string{
+		browserProtocolCommandKey,
+		browserProtocolOpenKey,
+		browserProtocolShellKey,
+		browserProtocolIconKey,
+		browserProtocolKey,
+	}
 	out := make([]string, 0, len(ordered))
 	for _, key := range ordered {
 		if !s.keyExisted(key) {
@@ -149,8 +157,8 @@ func (s registrySnapshot) restore() error {
 	}
 
 	// Remove only protocol keys that did not exist before this transaction, and
-	// do so leaf-to-root. Pre-existing keys — including keys with unrelated named
-	// values that Ghost FTP never snapshots — are never deleted.
+	// do so leaf-to-root. Pre-existing keys — including intermediate keys or keys
+	// with unrelated named values — are never deleted.
 	for _, key := range s.protocolKeysToRemove() {
 		if err := platform.DeleteRegistryKey(key); err != nil {
 			errs = append(errs, err)
