@@ -2,6 +2,7 @@
   'use strict';
 
   const OFFICIAL_BRAND = 'Ghost FTP';
+  const DESKTOP_SCHEME = 'ghostftp:';
   const ALLOWED_PROTOCOLS = new Set(['ftp:', 'ftps:', 'sftp:']);
   const MAX_INPUT_LENGTH = 4096;
   const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
@@ -78,8 +79,30 @@
     });
   }
 
+  function buildDesktopLaunchURL(connection) {
+    if (!connection || connection.ok !== true) {
+      throw new Error('A validated connection target is required.');
+    }
+
+    const params = new URLSearchParams();
+    params.set('protocol', String(connection.protocol || '').toLowerCase());
+    params.set('host', connection.host || '');
+    if (connection.port) {
+      params.set('port', connection.port);
+    }
+    if (connection.username) {
+      params.set('username', connection.username);
+    }
+    if (connection.path && connection.path !== '/') {
+      params.set('path', connection.path);
+    }
+
+    return `${DESKTOP_SCHEME}//connect?${params.toString()}`;
+  }
+
   root.GhostFTPConnection = Object.freeze({
     brand: OFFICIAL_BRAND,
-    parseConnectionTarget
+    parseConnectionTarget,
+    buildDesktopLaunchURL
   });
 })(globalThis);
