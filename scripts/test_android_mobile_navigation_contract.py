@@ -121,10 +121,10 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("renderRemote();", settings)
         for marker in (
             'LinearLayout securityCard = card("SECURITY", "Security protections stay enforced automatically.")',
-            'infoLine("FTPS", "Certificate and hostname verification enabled")',
-            'infoLine("Passwords", "Kept in memory only and never saved")',
+            'infoLine("FTPS", "Secure certificate checks are enabled")',
+            'infoLine("Passwords", "Never saved")',
             'infoLine("Local storage", "Access limited to folders you select")',
-            'infoLine("SFTP", "Unavailable until strict server identity verification is enabled")',
+            'infoLine("SFTP", "Not available in the Android app")',
             'infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud")',
         ):
             self.assertIn(marker, settings)
