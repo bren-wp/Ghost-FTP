@@ -14,7 +14,7 @@ const (
 	ghostFTPStartupTargetMagic   = 0x47544650
 	wmCopyData                   = 0x004A
 	smtoAbortIfHung              = 0x0002
-	swRestore                    = 9
+	startupTargetSWRestore       = 9
 )
 
 var (
@@ -178,7 +178,7 @@ func dispatchStartupTargetToOpenWindow() {
 			return true
 		}
 		a.dispatch(func() {
-			showWindow.Call(a.hwnd, swRestore)
+			showWindow.Call(a.hwnd, startupTargetSWRestore)
 			setForegroundWindow.Call(a.hwnd)
 			if a.applyStartupTarget() {
 				a.updateProtocolControls()
