@@ -93,73 +93,42 @@ jobs:
           for old, new, label in replacements:
               activity = replace_once(activity, old, new, label)
 
-          old_safe = '''    private static String safeMessage(Exception e) {
-              String value = e == null ? null : e.getMessage();
-              if (value == null || value.trim().isEmpty()) return "The operation could not be completed.";
-              String safe = value.replace('\\n', ' ').replace('\\r', ' ').trim();
-              if (safe.length() > 180
-                      || safe.contains("/home/")
-                      || safe.contains("/data/user/")
-                      || safe.contains("java.")
-                      || safe.contains("javax.")
-                      || safe.contains("android.")
-                      || safe.contains("Exception")
-                      || safe.contains("StackTrace")) {
-                  return "The operation could not be completed. Check the connection and try again.";
-              }
-              return safe;
-          }
-          '''
-          new_safe = '''    private static String safeMessage(Exception e) {
-              String value = e == null ? null : e.getMessage();
-              if (value == null || value.trim().isEmpty()) return "The operation could not be completed.";
-              String safe = value.replace('\\n', ' ').replace('\\r', ' ').trim();
-              String lower = safe.toLowerCase(java.util.Locale.ROOT);
-              if (safe.length() > 180
-                      || safe.contains("/home/")
-                      || safe.contains("/data/user/")
-                      || safe.contains("/data/data/")
-                      || safe.contains("java.")
-                      || safe.contains("javax.")
-                      || safe.contains("android.")
-                      || safe.contains("app.ghostftp.")
-                      || safe.contains(".java:")
-                      || safe.contains("Exception")
-                      || safe.contains("StackTrace")
-                      || lower.contains("staging")
-                      || lower.contains("final commit")
-                      || lower.contains("server response code")
-                      || lower.contains("control connection")
-                      || lower.contains("cancellation lifecycle")
-                      || lower.contains("data channel")) {
-                  return "The operation could not be completed. Check the connection and try again.";
-              }
-              return safe;
-          }
-          '''
-          activity = replace_once(activity, old_safe, new_safe, "safeMessage hardening")
+          activity = replace_once(
+              activity,
+              "        String safe = value.replace('\\n', ' ').replace('\\r', ' ').trim();\n        if (safe.length() > 180",
+              "        String safe = value.replace('\\n', ' ').replace('\\r', ' ').trim();\n        String lower = safe.toLowerCase(java.util.Locale.ROOT);\n        if (safe.length() > 180",
+              "safeMessage lowercase normalization",
+          )
+          activity = replace_once(
+              activity,
+              '                || safe.contains("/data/user/")\n',
+              '                || safe.contains("/data/user/")\n                || safe.contains("/data/data/")\n',
+              "Android private-data path redaction",
+          )
+          activity = replace_once(
+              activity,
+              '                || safe.contains("android.")\n',
+              '                || safe.contains("android.")\n                || safe.contains("app.ghostftp.")\n                || safe.contains(".java:")\n',
+              "Android implementation-name redaction",
+          )
+          activity = replace_once(
+              activity,
+              '                || safe.contains("StackTrace")) {',
+              '                || safe.contains("StackTrace")\n                || lower.contains("staging")\n                || lower.contains("final commit")\n                || lower.contains("server response code")\n                || lower.contains("control connection")\n                || lower.contains("cancellation lifecycle")\n                || lower.contains("data channel")) {',
+              "protocol implementation wording redaction",
+          )
           activity_path.write_text(activity, encoding="utf-8")
 
           test_path = Path("scripts/test_android_contract.py")
           tests = test_path.read_text(encoding="utf-8")
-          old_markers = '''            "strict server identity verification",
-                  ):
-                      self.assertNotIn(marker, shipping_copy)
-          '''
-          new_markers = '''            "strict server identity verification",
-                      "sites / connections",
-                      "saved server start directory",
-                      "remote directory is unavailable",
-                      "upload finalization",
-                      "directory comparison",
-                      "ftp and secure explicit ftps are available on android",
-                  ):
-                      self.assertNotIn(marker, shipping_copy)
-          '''
-          tests = replace_once(tests, old_markers, new_markers, "shipping-copy markers")
+          tests = replace_once(
+              tests,
+              '            "strict server identity verification",\n',
+              '            "strict server identity verification",\n            "sites / connections",\n            "saved server start directory",\n            "remote directory is unavailable",\n            "upload finalization",\n            "directory comparison",\n            "ftp and secure explicit ftps are available on android",\n',
+              "shipping-copy markers",
+          )
 
-          anchor = '''    def test_server_identity_change_clears_server_paths(self) -> None:
-          '''
+          anchor = '    def test_server_identity_change_clears_server_paths(self) -> None:\n'
           regression = '''    def test_android_user_facing_errors_hide_internal_details(self) -> None:
               activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
               safe_start = activity.index("private static String safeMessage(Exception e)")
