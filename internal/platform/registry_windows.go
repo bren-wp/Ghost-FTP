@@ -58,6 +58,18 @@ func openRegistryKey(subkey string, access uintptr) (uintptr, bool, error) {
 	return h, true, nil
 }
 
+// RegistryKeyExists reports whether the exact HKCU subkey existed before a
+// transaction. Callers use this separately from value snapshots so rollback
+// never deletes a pre-existing key merely because the values they own were
+// absent.
+func RegistryKeyExists(subkey string) (bool, error) {
+	h, exists, err := openRegistryKey(subkey, keyRead)
+	if h != 0 {
+		regCloseKey.Call(h)
+	}
+	return exists, err
+}
+
 func SetRegistryString(subkey, name, value string) error {
 	h, err := createRegistryKey(subkey)
 	if err != nil {
