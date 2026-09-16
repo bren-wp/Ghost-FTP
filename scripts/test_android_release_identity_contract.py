@@ -24,10 +24,9 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
         self.assertIn("applicationIdSuffix '.debug'", gradle)
         self.assertNotIn("versionNameSuffix '-dev'", gradle)
         self.assertNotIn('versionName "${ghostFtpVersion}-dev"', gradle)
-        self.assertIn(
-            'infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME',
-            activity,
-        )
+        self.assertIn('infoLine("Version", BuildConfig.VERSION_NAME)', activity)
+        self.assertNotIn('infoLine("Release status", "Repository build "', activity)
+        self.assertNotIn("Repository build", activity)
 
         combined = "\n".join((activity, readme, uiux)).lower()
         for marker in (
