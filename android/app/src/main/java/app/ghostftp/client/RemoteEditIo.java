@@ -44,7 +44,7 @@ final class RemoteEditIo {
         String expected = RemoteTextDocument.sha256(replacement);
         String actual = RemoteTextDocument.sha256(readBack);
         if (!expected.equals(actual)) {
-            throw new IOException("Remote Edit save could not be verified by read-back; reconnect and inspect the remote file before retrying.");
+            throw new IOException("Ghost FTP could not verify the saved file. Reconnect and check the file before trying again.");
         }
         session.requireRemoteModeUnchanged(remotePath, mode);
         return RemoteTextDocument.decode(readBack);
@@ -59,7 +59,7 @@ final class RemoteEditIo {
         session.download(remotePath, out, gate);
         if (!gate.beginCommit()) {
             session.closeCancelledTransferSession();
-            throw new IOException("Remote Edit read was cancelled before verification.");
+            throw new IOException("The file read was cancelled before it could be completed.");
         }
         gate.finish();
         return out.toByteArray();
@@ -97,7 +97,7 @@ final class RemoteEditIo {
 
         private void ensureCapacity(int additional) throws IOException {
             if (additional > maxBytes - delegate.size()) {
-                throw new IOException("Remote Edit file exceeded the 1 MiB safety limit while downloading.");
+                throw new IOException("This file is larger than the 1 MiB editing limit.");
             }
         }
     }
