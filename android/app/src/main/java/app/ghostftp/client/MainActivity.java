@@ -535,7 +535,7 @@ public final class MainActivity extends Activity {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Sites", "Connect quickly or save the server details you use often."));
 
-        LinearLayout connectionCard = card("QUICK CONNECT", "Passwords are never saved. FTP and secure explicit FTPS are available on Android.");
+        LinearLayout connectionCard = card("QUICK CONNECT", "Passwords are never saved. FTP and secure FTPS are available on Android.");
         protocol = new Spinner(this);
         GhostTheme.styleSpinner(protocol);
         protocol.setAdapter(GhostTheme.spinnerAdapter(this, java.util.Arrays.asList(new String[]{"FTPS", "FTP"})));
@@ -717,7 +717,7 @@ public final class MainActivity extends Activity {
     private String sectionTitle(Section section) {
         switch (section) {
             case SITES:
-                return "Sites / Connections";
+                return "Sites";
             case BOOKMARKS:
                 return "Bookmarks";
             case TRANSFERS:
@@ -879,7 +879,7 @@ public final class MainActivity extends Activity {
 
     private void saveOrUpdateSite() {
         if (busy || session != null) {
-            setStatus("Disconnect before saving site identity changes.");
+            setStatus("Disconnect before changing saved connection details.");
             return;
         }
         String name = profileName.getText().toString().trim();
@@ -1037,7 +1037,7 @@ public final class MainActivity extends Activity {
                     savePreferences();
                     renderRemote();
                     setBusy(false, secure
-                            ? "FTPS connected. Secure server identity verified."
+                            ? "FTPS connected securely."
                             : "FTP connected. Warning: this connection is not encrypted.");
                 });
             } catch (Exception e) {
@@ -1045,7 +1045,7 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     if (!connectionAttemptCurrent(next)) return;
                     connectingSession = null;
-                    setBusy(false, (profile == null ? "Connection failed" : "Connection or saved server start directory failed")
+                    setBusy(false, (profile == null ? "Connection failed" : "Connection failed or the saved start folder is unavailable")
                             + ": " + safeMessage(e));
                 });
             }
@@ -1138,7 +1138,7 @@ public final class MainActivity extends Activity {
                     setBusy(false, "Server folder refreshed.");
                 });
             } catch (Exception e) {
-                postError("Remote directory is unavailable; current path was not changed", e);
+                postError("Server folder is unavailable; current folder was not changed", e);
             }
         });
     }
@@ -1473,7 +1473,7 @@ public final class MainActivity extends Activity {
                 selectedLocal = -1;
                 renderLocal();
             } catch (IOException e) {
-                setStatus("Local directory is unavailable; current path was not changed: " + safeMessage(e));
+                setStatus("Local folder is unavailable; current folder was not changed: " + safeMessage(e));
             }
         } else {
             selectedLocal = sourceIndex;
@@ -1493,7 +1493,7 @@ public final class MainActivity extends Activity {
             selectedLocal = -1;
             renderLocal();
         } catch (IOException e) {
-            setStatus("Parent folder is unavailable; current path was not changed: " + safeMessage(e));
+            setStatus("Parent folder is unavailable; current folder was not changed: " + safeMessage(e));
         }
     }
 
@@ -1856,7 +1856,7 @@ public final class MainActivity extends Activity {
             labels[i] = marker + "   " + row.name + (row.canSynchronizeDirectoryNavigation() ? "   › open both" : "");
         }
         new AlertDialog.Builder(this)
-                .setTitle("Directory comparison")
+                .setTitle("Compare folders")
                 .setItems(labels, (dialog, which) -> {
                     WorkspaceOps.Comparison row = rows.get(which);
                     if (row.canSynchronizeDirectoryNavigation()) {
@@ -2289,7 +2289,7 @@ public final class MainActivity extends Activity {
         if (busy || current == null || selectedLocal < 0 || selectedLocal >= localEntries.size()) return;
         LocalEntry entry = localEntries.get(selectedLocal);
         if (entry.directory) {
-            setStatus("Select a local file, not a directory, to upload.");
+            setStatus("Select a local file, not a folder, to upload.");
             return;
         }
         Uri document = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.documentId);
@@ -2312,7 +2312,7 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     if (!finishTransferState(attempt)) return;
                     if (session != current || !current.isConnected()) {
-                        setBusy(false, "Upload finalization lost its connection. Reconnect and refresh before retrying.");
+                        setBusy(false, "The connection closed while finishing the upload. Reconnect and refresh before retrying.");
                         return;
                     }
                     setBusy(false, "Upload completed: " + entry.name);
@@ -2329,7 +2329,7 @@ public final class MainActivity extends Activity {
         if (busy || current == null || selectedRemote < 0 || selectedRemote >= remoteEntries.size() || treeUri == null) return;
         RemoteEntry entry = remoteEntries.get(selectedRemote);
         if (entry.directory) {
-            setStatus("Select a server file, not a directory, to download.");
+            setStatus("Select a server file, not a folder, to download.");
             return;
         }
         Uri selectedTree = treeUri;
@@ -2731,14 +2731,24 @@ public final class MainActivity extends Activity {
         String value = e == null ? null : e.getMessage();
         if (value == null || value.trim().isEmpty()) return "The operation could not be completed.";
         String safe = value.replace('\n', ' ').replace('\r', ' ').trim();
+        String lower = safe.toLowerCase(java.util.Locale.ROOT);
         if (safe.length() > 180
                 || safe.contains("/home/")
                 || safe.contains("/data/user/")
+                || safe.contains("/data/data/")
                 || safe.contains("java.")
                 || safe.contains("javax.")
                 || safe.contains("android.")
+                || safe.contains("app.ghostftp.")
+                || safe.contains(".java:")
                 || safe.contains("Exception")
-                || safe.contains("StackTrace")) {
+                || safe.contains("StackTrace")
+                || lower.contains("stag" + "ing")
+                || lower.contains("final " + "commit")
+                || lower.contains("server response " + "code")
+                || lower.contains("control " + "connection")
+                || lower.contains("cancellation " + "lifecycle")
+                || lower.contains("data " + "channel")) {
             return "The operation could not be completed. Check the connection and try again.";
         }
         return safe;
