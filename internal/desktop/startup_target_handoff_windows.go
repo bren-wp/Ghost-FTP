@@ -130,6 +130,10 @@ func ForwardStartupTarget(raw string) bool {
 		2000,
 		uintptr(unsafe.Pointer(&messageResult)),
 	)
+	// The Win32 call receives uintptr values, so keep the Go-backed payload
+	// explicitly live until the synchronous WM_COPYDATA send has returned.
+	runtime.KeepAlive(payload)
+	runtime.KeepAlive(packet)
 	return ok != 0 && messageResult == 1
 }
 
