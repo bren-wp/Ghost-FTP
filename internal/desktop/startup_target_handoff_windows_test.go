@@ -51,3 +51,25 @@ func TestCanApplyStartupTargetDefersUnsafeStateTransitions(t *testing.T) {
 		})
 	}
 }
+
+func TestSiteManagerBlocksStartupTargetUntilStateIsUnmapped(t *testing.T) {
+	a := &app{}
+	state := &siteManagerState{parent: a, closed: true}
+	const testWindow = uintptr(0x7f02)
+	siteManagerStates.Store(testWindow, state)
+
+	if !siteManagerBlocksStartupTarget(a) {
+		t.Fatal("mapped Site Manager must block startup target even after WM_DESTROY marks it closed")
+	}
+	if a.canApplyStartupTarget() {
+		t.Fatal("startup target must remain pending through post-close profile restoration")
+	}
+
+	siteManagerStates.Delete(testWindow)
+	if siteManagerBlocksStartupTarget(a) {
+		t.Fatal("unmapped Site Manager must no longer block startup target")
+	}
+	if !a.canApplyStartupTarget() {
+		t.Fatal("startup target should become applicable after Site Manager teardown completes")
+	}
+}
