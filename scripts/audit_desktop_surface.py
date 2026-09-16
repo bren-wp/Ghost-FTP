@@ -14,6 +14,8 @@ RETIRED_ROOTS = (
     "pwa/",
     "ghostftp-web/",
     "web/",
+    "web-ftp/",
+    "webftp/",
 )
 RETIRED_APP_MARKERS = (
     "manifest.webmanifest",
