@@ -43,7 +43,8 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
         self.assertIn("production-signed", readme.lower())
         self.assertNotIn("Ghost-FTP-Android-dev.apk", readme)
         self.assertIn("BuildConfig.VERSION_NAME", uiux)
-        self.assertIn("public Android release", uiux)
+        self.assertIn("are not public release artifacts", uiux)
+        self.assertIn("Official publication is accepted only after the protected release workflow verifies the configured publisher certificate fingerprint.", uiux)
         self.assertIn("SFTP", readme)
         self.assertIn("intentionally not exposed", readme)
 
