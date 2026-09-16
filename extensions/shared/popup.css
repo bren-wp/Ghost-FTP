@@ -23,11 +23,18 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  min-width: 420px;
+  min-width: 0;
+  width: 400px;
+  max-width: 100vw;
+}
+
+body {
+  overflow-x: hidden;
   background:
-    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 42%),
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 42%),
     var(--bg);
 }
 
@@ -38,6 +45,7 @@ input {
 }
 
 .shell {
+  width: 100%;
   padding: 20px;
 }
 
@@ -48,6 +56,7 @@ input {
 }
 
 .brand img {
+  flex: 0 0 auto;
   border-radius: 10px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.24);
 }
@@ -106,7 +115,8 @@ input {
 
 textarea:focus,
 input:focus,
-button:focus-visible {
+button:focus-visible,
+.desktop-launch:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
   outline: none;
@@ -118,7 +128,8 @@ button:focus-visible {
   margin-top: 10px;
 }
 
-button {
+button,
+.desktop-launch {
   min-height: 38px;
   border: 1px solid transparent;
   border-radius: 9px;
@@ -128,7 +139,8 @@ button {
 }
 
 .primary,
-.copy-safe {
+.copy-safe,
+.desktop-launch {
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #f8faff;
 }
@@ -140,7 +152,8 @@ button {
   color: var(--text);
 }
 
-button:hover {
+button:hover,
+.desktop-launch:hover {
   filter: brightness(1.06);
 }
 
@@ -179,7 +192,7 @@ button:hover {
 
 .field-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 11px;
 }
 
@@ -191,6 +204,11 @@ button:hover {
   display: flex;
   align-items: stretch;
   gap: 6px;
+  min-width: 0;
+}
+
+.copy-row input {
+  flex: 1 1 auto;
 }
 
 .copy-row button {
@@ -207,11 +225,32 @@ button:hover {
   background: color-mix(in srgb, var(--accent) 8%, var(--panel));
 }
 
-.safe-field p {
+.safe-field p,
+.desktop-action p {
   margin: 7px 1px 0;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.4;
+}
+
+.desktop-action {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.desktop-launch {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.desktop-launch[aria-disabled="true"] {
+  cursor: default;
+  filter: grayscale(1);
+  opacity: 0.55;
 }
 
 footer {
@@ -235,26 +274,62 @@ footer {
   display: none !important;
 }
 
+@media (max-width: 360px) {
+  html,
+  body {
+    width: 320px;
+  }
+
+  .shell {
+    padding: 14px;
+  }
+
+  .field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .field-wide {
+    grid-column: auto;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #eef1f5;
-    --panel: #f6f8fb;
-    --field: #fafbfd;
-    --line: #d6dce5;
-    --text: #172033;
-    --muted: #667085;
-    --accent: #3f63dd;
-    --accent-strong: #254bc7;
-    --selection: #dce8ff;
-    --success: #1b7f4b;
+    --bg: #f3f4f6;
+    --panel: #ffffff;
+    --field: #f9fafb;
+    --line: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --accent: #374151;
+    --accent-strong: #111827;
+    --selection: #e5e7eb;
+    --success: #166534;
     --danger: #b42318;
-    --notice-bg: #f8f0df;
-    --notice-line: #dccaa7;
+    --notice-bg: #fffbeb;
+    --notice-line: #e5d3a0;
     --notice-text: #6f4b00;
   }
 
+  body {
+    background: var(--bg);
+  }
+
+  .brand img {
+    box-shadow: 0 5px 20px rgba(17, 24, 39, 0.12);
+  }
+
   .primary,
-  .copy-safe {
-    color: #f8faff;
+  .copy-safe,
+  .desktop-launch {
+    color: #ffffff;
   }
 }
