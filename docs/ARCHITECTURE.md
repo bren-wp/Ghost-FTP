@@ -49,6 +49,8 @@ WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 
 The ARM64 marker is intentionally conservative: cross-build, resource and package verification are not represented as native ARM64 runtime execution when maintained Windows CI does not run natively on ARM64.
 
+Installed Windows builds also own the `ghostftp:` custom protocol registration used by the official browser helpers. Setup registers an exact quoted command for the installed executable and uninstall removes the handler only when ownership can still be proven. Browser launch metadata is parsed through an allowlist before it reaches native connection controls; credentials and private-key material are outside this contract.
+
 ## Linux
 
 `linux/BUILD-DISTROS.sh` builds amd64, arm64 and i386 payloads. Those payloads are bundled into exactly six user-facing 0.0.6 files: Installer and Portable for Debian, Ubuntu and Fedora. Each bundle selects the matching payload locally.
@@ -69,7 +71,7 @@ CI validation artifacts are engineering evidence only and are never presented as
 
 ## Browser helpers
 
-Chrome, Edge, Firefox and Opera packages are built from one shared local runtime plus browser-specific manifests. They request no broad browser or host permissions, perform local parsing/copying only and have no supported browser-to-desktop launch or hidden network relay.
+Chrome, Edge, Firefox and Opera packages are built from one shared local runtime plus browser-specific manifests. They request zero browser permissions and zero host permissions and perform local parsing only. On supported installed Windows builds, **Open in Ghost FTP** creates a sanitized `ghostftp://connect` launch request containing only protocol, host, optional port, optional username and optional remote path. Passwords, passphrases, private keys, source query values and fragments are never included, and the handoff does not auto-connect or introduce a hidden network relay.
 
 The helpers are release packages, not a replacement website and not a Web FTP client.
 
