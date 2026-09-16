@@ -228,17 +228,20 @@ jobs:
           sudo apt-get install -y --no-install-recommends imagemagick
           sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'emulator' 'system-images;android-35;google_apis;x86_64'
 
-      - name: Build exact-source Android development APK
+      - name: Build exact-source Android validation APK
         working-directory: android
         shell: bash
         run: |
           set -euo pipefail
-          gradle :app:lintDebug :app:packageGhostFtpApk --no-daemon --stacktrace
-          test -s dist/Ghost-FTP-Android-dev.apk
+          gradle :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/Ghost-FTP-Android-validation.apk
+          test -s dist/Ghost-FTP-Android-validation.apk
 
       - name: Capture and verify real Android emulator UI
         shell: bash
-        run: bash scripts/capture_android_screenshots.sh android/dist/Ghost-FTP-Android-dev.apk ui-screenshots/android
+        run: bash scripts/capture_android_screenshots.sh android/dist/Ghost-FTP-Android-validation.apk ui-screenshots/android
 
       - name: Publish authentic Android UI screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
