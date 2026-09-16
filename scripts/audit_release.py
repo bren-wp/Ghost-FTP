@@ -212,7 +212,6 @@ def main() -> int:
         ".github/workflows/android-apk.yml",
         "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS",
         "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY",
-        "Ghost-FTP-Android-dev.apk",
     )
     require(
         ".github/workflows/browser-extensions.yml",
