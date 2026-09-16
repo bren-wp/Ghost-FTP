@@ -102,6 +102,26 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         for marker in ("developer", "development", "debug", "demo", "mock", "staging"):
             self.assertNotIn(marker, shipping_copy)
 
+        for marker in (
+            "permissions / chmod",
+            "quick connect / connection",
+            "password (memory only)",
+            "local saf bookmarks",
+            "ui / local preferences",
+            "bounded safety limits",
+            "safety bounds",
+            "recursive-search",
+            "server recursive search",
+            "local recursive search",
+            "sha-256 conflict detection",
+            "read-back verification",
+            "hidden site state",
+            "hidden bookmarks",
+            "persistent android permission",
+            "strict server identity verification",
+        ):
+            self.assertNotIn(marker, shipping_copy)
+
     def test_server_identity_change_clears_server_paths(self) -> None:
         model = self.read(f"{_regressions.ANDROID_JAVA}/SiteProfile.java")
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
@@ -126,8 +146,8 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertNotIn("profileStore.save", connect)
         self.assertIn("profile == null ? null : profile.remoteStartPath", connect)
         self.assertIn("Quick Connect (not saved)", activity)
-        self.assertIn("Quick Connect does not create hidden site state.", activity)
-        self.assertIn("Quick Connect does not create hidden bookmarks.", activity)
+        self.assertIn("Save or load a site before setting a start folder.", activity)
+        self.assertIn("Save or load a site before adding a local bookmark.", activity)
 
     def test_local_profile_paths_revalidate_persisted_saf_capability(self) -> None:
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
@@ -186,7 +206,7 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertNotIn('"SFTP".equals', connect)
         self.assertNotIn("JSch", connect)
         self.assertIn(
-            'infoLine("SFTP", "Unavailable until strict server identity verification is enabled")',
+            'infoLine("SFTP", "Not available in the Android app")',
             activity,
         )
 
