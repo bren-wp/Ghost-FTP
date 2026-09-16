@@ -5,8 +5,16 @@ on:
     branches: [main]
     paths:
       - 'extensions/**'
+      - 'internal/desktop/launch_target*.go'
+      - 'cmd/ghostftp/launch_init.go'
+      - 'cmd/ghostftp/uninstall_mode_windows.go'
+      - 'cmd/installer/protocol_registration.go'
+      - 'cmd/installer/registry_snapshot.go'
+      - 'cmd/installer/uninstall_registration_windows.go'
+      - 'internal/platform/browser_protocol_windows.go'
       - 'scripts/build_browser_extensions.py'
       - 'scripts/test_browser_extensions_contract.py'
+      - 'scripts/test_browser_desktop_launch_contract.py'
       - '.github/workflows/browser-extensions.yml'
       - 'VERSION'
   push:
@@ -15,8 +23,16 @@ on:
       - 'packaging/**'
     paths:
       - 'extensions/**'
+      - 'internal/desktop/launch_target*.go'
+      - 'cmd/ghostftp/launch_init.go'
+      - 'cmd/ghostftp/uninstall_mode_windows.go'
+      - 'cmd/installer/protocol_registration.go'
+      - 'cmd/installer/registry_snapshot.go'
+      - 'cmd/installer/uninstall_registration_windows.go'
+      - 'internal/platform/browser_protocol_windows.go'
       - 'scripts/build_browser_extensions.py'
       - 'scripts/test_browser_extensions_contract.py'
+      - 'scripts/test_browser_desktop_launch_contract.py'
       - '.github/workflows/browser-extensions.yml'
       - 'VERSION'
   workflow_dispatch:
@@ -46,6 +62,7 @@ jobs:
           set -euo pipefail
           python scripts/build_browser_extensions.py --check
           python scripts/test_browser_extensions_contract.py
+          python scripts/test_browser_desktop_launch_contract.py
       - name: Build deterministic browser packages
         shell: bash
         run: |
