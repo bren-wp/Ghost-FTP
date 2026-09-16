@@ -68,7 +68,7 @@ Browser helpers have zero browser permissions and zero host permissions. There i
 
 ## Runtime evidence
 
-Repository-local screenshots document maintained Windows, Linux and Android application surfaces. They are exact-head runtime evidence, not generated product mockups.
+These repository-local screenshots document maintained Windows, Linux and Android application surfaces. They are exact-head runtime evidence, not generated product mockups.
 
 ### Windows
 
