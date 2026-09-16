@@ -49,11 +49,11 @@ class AndroidReleaseSigningContractTests(unittest.TestCase):
             '"$build_tools/apksigner" sign',
             '"$build_tools/apksigner" verify --verbose --print-certs',
             "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS",
-            "ISOLATED_CI_ONLY",
+            "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY",
         ):
             self.assertIn(marker, workflow)
         for retired in (
-            "EPHEMERAL_CI_ONLY",
+            "ISOLATED_CI_ONLY",
             "ghostftp-android-dev-apk",
             "Ghost-FTP-Android-dev.apk",
             "Upload Android development APK",
