@@ -46,8 +46,9 @@ class ProprietaryLicenseContractTests(unittest.TestCase):
     def test_readme_points_to_controlling_proprietary_license(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-        self.assertIn("## Commercial proprietary license", readme)
-        self.assertIn("Ghost FTP is **not open-source software**", readme)
+        self.assertIn("## Commercial proprietary software", readme)
+        self.assertIn("Ghost FTP is proprietary commercial software.", readme)
+        self.assertIn("It is not open-source software", readme)
         self.assertIn("[`LICENSE`](LICENSE)", readme)
 
 
