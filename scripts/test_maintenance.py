@@ -40,7 +40,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("cfg.Password = password", src)
         self.assertIn("cfg.Passphrase = passphrase", src)
 
-    def test_active_public_and_development_surfaces(self) -> None:
+    def test_active_product_surfaces(self) -> None:
         self.assertTrue((ROOT / "android").is_dir())
         self.assertTrue((ROOT / ".github/workflows/android-apk.yml").is_file())
         self.assertTrue((ROOT / "macos").is_dir())
@@ -53,10 +53,17 @@ class MaintenanceRegressionTests(unittest.TestCase):
         for rel in (
             "ios",
             "GhostFTP WEB",
+            "web",
+            ".github/workflows/web.yml",
+            "docs/WEB.md",
+            "scripts/check_web_contract.py",
+            "scripts/test_web_contract.py",
             "scripts/package_web.py",
             "scripts/test_package_web.py",
             "scripts/package_nuget.py",
             "scripts/audit_web.py",
+            "docs/prompts/GHOST-FTP-WEB-APP-PROMPT.md",
+            "docs/prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md",
         ):
             self.assertFalse((ROOT / rel).exists(), f"retired application/release surface exists: {rel}")
 
@@ -96,8 +103,12 @@ class MaintenanceRegressionTests(unittest.TestCase):
         privacy = read("scripts/audit_privacy.py")
 
         self.assertIn("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES", desktop)
-        self.assertIn("ANDROID_DEVELOPMENT_SURFACE=ACTIVE", desktop)
-        self.assertIn("MACOS_APP_DEVELOPMENT_SURFACE=ACTIVE", desktop)
+        self.assertIn("ANDROID_SOURCE_SURFACE=ACTIVE", desktop)
+        self.assertIn("MACOS_SOURCE_SURFACE=ACTIVE", desktop)
+        self.assertIn("WEB_SURFACE=RETIRED", desktop)
+        self.assertIn("WEB_FTP_SURFACE=RETIRED", desktop)
+        self.assertNotIn("WEB_DEVELOPMENT_SURFACE=ACTIVE", desktop)
+        self.assertNotIn("WEB_FTP_TRANSPORT=SERVER_ASSISTED_EPHEMERAL", desktop)
         self.assertNotIn("PUBLIC_RELEASE_PLATFORMS=", desktop)
         self.assertNotIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=", desktop)
         self.assertNotIn("MACOS_PUBLIC_RELEASE_ARTIFACT=", desktop)
@@ -145,7 +156,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         releases = read("docs/GITHUB-RELEASES.md")
 
         self.assertIn(f"Current source version: **{version}**", readme)
-        self.assertIn("Development status: **Active**", readme)
+        self.assertIn("Product status: **Current**", readme)
         self.assertIn("Release channel: **Current**", readme)
         self.assertIn("Last actually published GitHub Release: **0.0.5**", readme)
         self.assertIn("13 platform artifacts / 16 public files", readme)
