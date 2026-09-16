@@ -293,7 +293,7 @@ def main() -> int:
         "Opera",
         "ghostftp://connect",
         "Open in Ghost FTP",
-        "zero browser permissions and zero host permissions",
+        "Zero browser permissions and zero host permissions",
     )
 
     android = read("android/README.md")
