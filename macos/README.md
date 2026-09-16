@@ -49,9 +49,9 @@ The Mac workspace follows the maintained Windows hierarchy while using native ma
 - English is the canonical default/fallback and the shared registry exposes the same 24 languages.
 - FTP, explicit FTPS and SFTP remain the desktop protocol set.
 
-## Development build
+## CI validation build
 
-Build the universal Intel + Apple Silicon development app on macOS with:
+Build the universal Intel + Apple Silicon validation app on macOS with:
 
 ```bash
 bash macos/BUILD.sh
@@ -63,7 +63,7 @@ The output is:
 macos/dist/Ghost-FTP-<VERSION>-macOS.app.zip
 ```
 
-The development artifact is deliberately ad-hoc signed. It is suitable for CI/native regression validation, not for public Gatekeeper distribution.
+The validation artifact is deliberately ad-hoc signed. It is suitable for CI/native regression verification, not for public Gatekeeper distribution and not as production signing evidence.
 
 ## Developer ID signing and notarization
 
