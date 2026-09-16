@@ -4,11 +4,18 @@ package desktop
 
 import "strconv"
 
+func (a *app) canApplyStartupTarget() bool {
+	return a != nil && !a.connected && !a.connectionBusy && !a.profileMutationBusy
+}
+
 func (a *app) applyStartupTarget() bool {
 	if a == nil || a.profilesCombo == 0 || a.protocol == 0 || a.host == 0 || a.port == 0 || a.user == 0 || a.pass == 0 || a.keyPath == 0 || a.passphrase == 0 || a.remotePath == 0 {
 		return false
 	}
-	if a.connected || a.connectionBusy {
+	// Leave the one-shot target pending while any state transition could later
+	// restore a saved profile. updateActionControls is called when the mutation
+	// finishes, at which point it is safe to detach the profile and consume it.
+	if !a.canApplyStartupTarget() {
 		return false
 	}
 	target, ok := takeStartupTarget()
