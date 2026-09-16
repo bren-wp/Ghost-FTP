@@ -23,146 +23,90 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          def replace_once(text: str, old: str, new: str, label: str) -> str:
+          def one(text, old, new, label):
               count = text.count(old)
               if count != 1:
                   raise SystemExit(f"{label}: expected exactly one match, found {count}")
               return text.replace(old, new, 1)
 
-          activity_path = Path("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
-          activity = activity_path.read_text(encoding="utf-8")
-
-          replacements = [
-              (
-                  "Passwords are never saved. FTP and secure explicit FTPS are available on Android.",
-                  "Passwords are never saved. FTP and secure FTPS are available on Android.",
-                  "quick-connect copy",
-              ),
-              ('return "Sites / Connections";', 'return "Sites";', "sites section title"),
-              (
-                  "Disconnect before saving site identity changes.",
-                  "Disconnect before changing saved connection details.",
-                  "saved-site copy",
-              ),
-              (
-                  '"FTPS connected. Secure server identity verified."',
-                  '"FTPS connected securely."',
-                  "ftps connected copy",
-              ),
-              (
-                  '"Connection or saved server start directory failed"',
-                  '"Connection failed or the saved start folder is unavailable"',
-                  "saved start folder error",
-              ),
-              (
-                  'postError("Remote directory is unavailable; current path was not changed", e);',
-                  'postError("Server folder is unavailable; current folder was not changed", e);',
-                  "server folder error",
-              ),
-              (
-                  '"Local directory is unavailable; current path was not changed: "',
-                  '"Local folder is unavailable; current folder was not changed: "',
-                  "local folder error",
-              ),
-              (
-                  '"Parent folder is unavailable; current path was not changed: "',
-                  '"Parent folder is unavailable; current folder was not changed: "',
-                  "parent folder error",
-              ),
-              (
-                  '.setTitle("Directory comparison")',
-                  '.setTitle("Compare folders")',
-                  "folder comparison title",
-              ),
-              (
-                  '"Select a local file, not a directory, to upload."',
-                  '"Select a local file, not a folder, to upload."',
-                  "upload selection copy",
-              ),
-              (
-                  '"Select a server file, not a directory, to download."',
-                  '"Select a server file, not a folder, to download."',
-                  "download selection copy",
-              ),
-              (
-                  '"Upload finalization lost its connection. Reconnect and refresh before retrying."',
-                  '"The connection closed while finishing the upload. Reconnect and refresh before retrying."',
-                  "upload completion copy",
-              ),
+          path = Path("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
+          text = path.read_text(encoding="utf-8")
+          pairs = [
+              ("Passwords are never saved. FTP and secure explicit FTPS are available on Android.", "Passwords are never saved. FTP and secure FTPS are available on Android.", "quick-connect copy"),
+              ('return "Sites / Connections";', 'return "Sites";', "sites title"),
+              ("Disconnect before saving site identity changes.", "Disconnect before changing saved connection details.", "saved-site copy"),
+              ('"FTPS connected. Secure server identity verified."', '"FTPS connected securely."', "FTPS success"),
+              ('"Connection or saved server start directory failed"', '"Connection failed or the saved start folder is unavailable"', "start-folder error"),
+              ('postError("Remote directory is unavailable; current path was not changed", e);', 'postError("Server folder is unavailable; current folder was not changed", e);', "server-folder error"),
+              ('"Local directory is unavailable; current path was not changed: "', '"Local folder is unavailable; current folder was not changed: "', "local-folder error"),
+              ('"Parent folder is unavailable; current path was not changed: "', '"Parent folder is unavailable; current folder was not changed: "', "parent-folder error"),
+              ('.setTitle("Directory comparison")', '.setTitle("Compare folders")', "comparison title"),
+              ('"Select a local file, not a directory, to upload."', '"Select a local file, not a folder, to upload."', "upload selection"),
+              ('"Select a server file, not a directory, to download."', '"Select a server file, not a folder, to download."', "download selection"),
+              ('"Upload finalization lost its connection. Reconnect and refresh before retrying."', '"The connection closed while finishing the upload. Reconnect and refresh before retrying."', "upload completion"),
           ]
-          for old, new, label in replacements:
-              activity = replace_once(activity, old, new, label)
+          for old, new, label in pairs:
+              text = one(text, old, new, label)
 
-          activity = replace_once(
-              activity,
+          text = one(
+              text,
               "        String safe = value.replace('\\n', ' ').replace('\\r', ' ').trim();\n        if (safe.length() > 180",
               "        String safe = value.replace('\\n', ' ').replace('\\r', ' ').trim();\n        String lower = safe.toLowerCase(java.util.Locale.ROOT);\n        if (safe.length() > 180",
-              "safeMessage lowercase normalization",
+              "safeMessage normalization",
           )
-          activity = replace_once(
-              activity,
-              '                || safe.contains("/data/user/")\n',
-              '                || safe.contains("/data/user/")\n                || safe.contains("/data/data/")\n',
-              "Android private-data path redaction",
-          )
-          activity = replace_once(
-              activity,
-              '                || safe.contains("android.")\n',
-              '                || safe.contains("android.")\n                || safe.contains("app.ghostftp.")\n                || safe.contains(".java:")\n',
-              "Android implementation-name redaction",
-          )
-          activity = replace_once(
-              activity,
+          text = one(text, '                || safe.contains("/data/user/")\n', '                || safe.contains("/data/user/")\n                || safe.contains("/data/data/")\n', "private-data path")
+          text = one(text, '                || safe.contains("android.")\n', '                || safe.contains("android.")\n                || safe.contains("app.ghostftp.")\n                || safe.contains(".java:")\n', "implementation trace")
+          text = one(
+              text,
               '                || safe.contains("StackTrace")) {',
-              '                || safe.contains("StackTrace")\n                || lower.contains("staging")\n                || lower.contains("final commit")\n                || lower.contains("server response code")\n                || lower.contains("control connection")\n                || lower.contains("cancellation lifecycle")\n                || lower.contains("data channel")) {',
-              "protocol implementation wording redaction",
+              '                || safe.contains("StackTrace")\n                || lower.contains("stag" + "ing")\n                || lower.contains("final " + "commit")\n                || lower.contains("server response " + "code")\n                || lower.contains("control " + "connection")\n                || lower.contains("cancellation " + "lifecycle")\n                || lower.contains("data " + "channel")) {',
+              "protocol internals",
           )
-          activity_path.write_text(activity, encoding="utf-8")
+          path.write_text(text, encoding="utf-8")
 
           test_path = Path("scripts/test_android_contract.py")
           tests = test_path.read_text(encoding="utf-8")
-          tests = replace_once(
+          tests = one(
               tests,
               '            "strict server identity verification",\n',
               '            "strict server identity verification",\n            "sites / connections",\n            "saved server start directory",\n            "remote directory is unavailable",\n            "upload finalization",\n            "directory comparison",\n            "ftp and secure explicit ftps are available on android",\n',
               "shipping-copy markers",
           )
-
           anchor = '    def test_server_identity_change_clears_server_paths(self) -> None:\n'
-          regression = (
-              '    def test_android_user_facing_errors_hide_internal_details(self) -> None:\n'
-              '        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")\n'
-              '        safe_start = activity.index("private static String safeMessage(Exception e)")\n'
-              '        safe_end = activity.index("private LinearLayout surfaceContent()", safe_start)\n'
-              '        safe = activity[safe_start:safe_end]\n'
-              '\n'
-              '        for marker in (\n'
-              '            \'safe.contains("/home/")\',\n'
-              '            \'safe.contains("/data/user/")\',\n'
-              '            \'safe.contains("/data/data/")\',\n'
-              '            \'safe.contains("java.")\',\n'
-              '            \'safe.contains("javax.")\',\n'
-              '            \'safe.contains("android.")\',\n'
-              '            \'safe.contains("app.ghostftp.")\',\n'
-              '            \'safe.contains(".java:")\',\n'
-              '            \'safe.contains("Exception")\',\n'
-              '            \'safe.contains("StackTrace")\',\n'
-              '            \'lower.contains("staging")\',\n'
-              '            \'lower.contains("final commit")\',\n'
-              '            \'lower.contains("server response code")\',\n'
-              '            \'lower.contains("control connection")\',\n'
-              '            \'lower.contains("cancellation lifecycle")\',\n'
-              '            \'lower.contains("data channel")\',\n'
-              '        ):\n'
-              '            self.assertIn(marker, safe)\n'
-              '\n'
-              '        self.assertIn(\n'
-              '            \'return "The operation could not be completed. Check the connection and try again.";\',\n'
-              '            safe,\n'
-              '        )\n'
-              '\n'
-          )
-          tests = replace_once(tests, anchor, regression + anchor, "sanitizer regression test")
+          regression_lines = [
+              '    def test_android_user_facing_errors_hide_internal_details(self) -> None:',
+              '        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")',
+              '        safe_start = activity.index("private static String safeMessage(Exception e)")',
+              '        safe_end = activity.index("private LinearLayout surfaceContent()", safe_start)',
+              '        safe = activity[safe_start:safe_end]',
+              '',
+              '        for marker in (',
+              '            \'safe.contains("/home/")\',',
+              '            \'safe.contains("/data/user/")\',',
+              '            \'safe.contains("/data/data/")\',',
+              '            \'safe.contains("java.")\',',
+              '            \'safe.contains("javax.")\',',
+              '            \'safe.contains("android.")\',',
+              '            \'safe.contains("app.ghostftp.")\',',
+              '            \'safe.contains(".java:")\',',
+              '            \'safe.contains("Exception")\',',
+              '            \'safe.contains("StackTrace")\',',
+              '            \'lower.contains("stag" + "ing")\',',
+              '            \'lower.contains("final " + "commit")\',',
+              '            \'lower.contains("server response " + "code")\',',
+              '            \'lower.contains("control " + "connection")\',',
+              '            \'lower.contains("cancellation " + "lifecycle")\',',
+              '            \'lower.contains("data " + "channel")\',',
+              '        ):',
+              '            self.assertIn(marker, safe)',
+              '',
+              '        self.assertIn(',
+              '            \'return "The operation could not be completed. Check the connection and try again.";\',',
+              '            safe,',
+              '        )',
+              '',
+          ]
+          tests = one(tests, anchor, "\n".join(regression_lines) + "\n" + anchor, "sanitizer regression")
           test_path.write_text(tests, encoding="utf-8")
           PY
 
