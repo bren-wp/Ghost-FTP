@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/bren-wp/Ghost-FTP/internal/security"
 )
 
 var errInvalidDesktopLaunch = errors.New("invalid Ghost FTP launch target")
@@ -48,7 +50,7 @@ func parseDesktopLaunchTarget(raw string) (desktopLaunchTarget, error) {
 	}
 
 	host := q.Get("host")
-	if host == "" || strings.ContainsAny(host, "\r\n\t\x00") {
+	if err := security.ValidateHost(host); err != nil {
 		return desktopLaunchTarget{}, errInvalidDesktopLaunch
 	}
 
@@ -61,12 +63,15 @@ func parseDesktopLaunchTarget(raw string) (desktopLaunchTarget, error) {
 	}
 
 	username := q.Get("username")
-	path := q.Get("path")
-	if strings.ContainsAny(username, "\r\n\x00") || strings.ContainsAny(path, "\r\n\x00") {
+	if len(username) > 1024 || strings.ContainsAny(username, "\r\n\x00") {
 		return desktopLaunchTarget{}, errInvalidDesktopLaunch
 	}
+	path := q.Get("path")
 	if path == "" {
 		path = "/"
+	}
+	if !strings.HasPrefix(path, "/") || security.ValidateRemotePath(path) != nil {
+		return desktopLaunchTarget{}, errInvalidDesktopLaunch
 	}
 
 	return desktopLaunchTarget{
