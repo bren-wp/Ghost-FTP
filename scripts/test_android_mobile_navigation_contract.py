@@ -119,7 +119,15 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("savePreferences();", settings)
         self.assertIn("renderLocal();", settings)
         self.assertIn("renderRemote();", settings)
-        self.assertIn("Runtime security policy is informational here and cannot be weakened from the UI.", settings)
+        for marker in (
+            'LinearLayout securityCard = card("SECURITY", "Security protections stay enforced automatically.")',
+            'infoLine("FTPS", "Certificate and hostname verification enabled")',
+            'infoLine("Passwords", "Kept in memory only and never saved")',
+            'infoLine("Local storage", "Access limited to folders you select")',
+            'infoLine("SFTP", "Unavailable until strict server identity verification is enabled")',
+            'infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud")',
+        ):
+            self.assertIn(marker, settings)
 
     def test_about_uses_canonical_release_identity_without_dev_surface(self) -> None:
         activity = self.read(ACTIVITY)
