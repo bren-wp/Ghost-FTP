@@ -4,17 +4,33 @@ package desktop
 
 import "strconv"
 
+func siteManagerOpenForApp(a *app) bool {
+	if a == nil {
+		return false
+	}
+	open := false
+	siteManagerStates.Range(func(_, value any) bool {
+		state, ok := value.(*siteManagerState)
+		if ok && state != nil && state.parent == a {
+			open = true
+			return false
+		}
+		return true
+	})
+	return open
+}
+
 func (a *app) canApplyStartupTarget() bool {
-	return a != nil && !a.connected && !a.connectionBusy && !a.profileMutationBusy
+	return a != nil && !a.connected && !a.connectionBusy && !a.profileMutationBusy && !siteManagerOpenForApp(a)
 }
 
 func (a *app) applyStartupTarget() bool {
 	if a == nil || a.profilesCombo == 0 || a.protocol == 0 || a.host == 0 || a.port == 0 || a.user == 0 || a.pass == 0 || a.keyPath == 0 || a.passphrase == 0 || a.remotePath == 0 {
 		return false
 	}
-	// Leave the one-shot target pending while any state transition could later
-	// restore a saved profile. updateActionControls is called when the mutation
-	// finishes, at which point it is safe to detach the profile and consume it.
+	// Leave the one-shot target pending while any state transition or Site
+	// Manager modal could later restore a saved profile. It is retried after the
+	// modal closes or the mutation/connection transition becomes safe.
 	if !a.canApplyStartupTarget() {
 		return false
 	}
