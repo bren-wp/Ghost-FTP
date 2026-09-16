@@ -34,7 +34,8 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             self.assertIn(marker, reference)
 
         self.assertIn("deliberately avoids pure white as the dominant application surface", reference)
-        self.assertIn("Light deliberately avoids pure white as the dominant application surface", theme)
+        self.assertIn("Light is intentionally off-white", theme)
+        self.assertIn("without turning panels into bright white blocks", theme)
         self.assertNotIn("Panel | `255, 255, 255` (`#FFFFFF`)", reference)
         self.assertNotIn("List | `255, 255, 255` (`#FFFFFF`)", reference)
 
