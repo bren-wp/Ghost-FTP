@@ -29,6 +29,7 @@ final class SiteProfileStore {
         try {
             array = new JSONArray(raw);
         } catch (JSONException e) {
+            preferences.edit().remove(KEY).apply();
             return Collections.emptyList();
         }
 
@@ -41,10 +42,22 @@ final class SiteProfileStore {
                 // Keep remaining valid profiles instead of discarding the entire list.
             }
         }
+
+        // Rewrite parsed state through the canonical encoder. Besides removing malformed
+        // entries, this strips unknown/legacy fields so credentials or other retired
+        // properties cannot remain in SharedPreferences after an upgrade.
+        String sanitized = encode(result);
+        if (!raw.equals(sanitized)) {
+            preferences.edit().putString(KEY, sanitized).apply();
+        }
         return result;
     }
 
     void save(List<SiteProfile> profiles) {
+        preferences.edit().putString(KEY, encode(profiles)).apply();
+    }
+
+    private static String encode(List<SiteProfile> profiles) {
         JSONArray array = new JSONArray();
         int count = Math.min(profiles == null ? 0 : profiles.size(), MAX_PROFILES);
         try {
@@ -54,7 +67,7 @@ final class SiteProfileStore {
         } catch (JSONException e) {
             throw new IllegalStateException("Could not encode site profiles.", e);
         }
-        preferences.edit().putString(KEY, array.toString()).apply();
+        return array.toString();
     }
 
     private static JSONObject toJson(SiteProfile profile) throws JSONException {
