@@ -282,24 +282,24 @@ footer {
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f3f4f6;
-    --panel: #ffffff;
-    --field: #f9fafb;
-    --line: #d1d5db;
-    --text: #1f2937;
-    --muted: #6b7280;
-    --accent: #4b5563;
-    --accent-strong: #374151;
-    --success: #137a4b;
+    --bg: #eef1f5;
+    --panel: #f6f8fb;
+    --field: #fafbfd;
+    --line: #d6dce5;
+    --text: #172033;
+    --muted: #667085;
+    --accent: #3f63dd;
+    --accent-strong: #254bc7;
+    --success: #1b7f4b;
     --danger: #b42318;
-    --notice-bg: #f8f3e8;
-    --notice-line: #d8c7a6;
+    --notice-bg: #f8f0df;
+    --notice-line: #dccaa7;
     --notice-text: #6f4b00;
   }
 
   .primary,
   .copy-safe,
   .desktop-action {
-    color: #ffffff;
+    color: #f8faff;
   }
 }
