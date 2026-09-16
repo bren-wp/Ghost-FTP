@@ -11,9 +11,6 @@ class EngineeringPromptCurrentContractTests(unittest.TestCase):
         self.engineering = (PROMPTS / "GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md").read_text(
             encoding="utf-8"
         )
-        self.website = (PROMPTS / "GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md").read_text(
-            encoding="utf-8"
-        )
 
     def test_engineering_prompt_tracks_current_platform_and_release_boundaries(self) -> None:
         for marker in (
@@ -36,25 +33,9 @@ class EngineeringPromptCurrentContractTests(unittest.TestCase):
         self.assertNotIn("18 platform artifacts", self.engineering)
         self.assertNotIn("21 public release files", self.engineering)
 
-    def test_website_prompt_tracks_current_public_surfaces(self) -> None:
-        for marker in (
-            "Windows:** one universal Setup and one universal Portable",
-            "Linux:** six universal distro bundles",
-            "Android:** one canonical production-signed APK",
-            "Browser helper:** deterministic ZIPs for **Chrome, Edge, Firefox and Opera**",
-            "macOS:** active development/source surface only",
-            "Android API 26+ (`minSdk 26`)",
-            "13 platform artifacts plus 3 metadata files = 16 public release files",
-            "Android SFTP is hidden/unsupported",
-            "zero browser permissions and zero host permissions",
-            "no browser-to-desktop handoff",
-            "without separate explicit opt-in consent",
-        ):
-            self.assertIn(marker, self.website)
-
-        self.assertNotIn("maintained Windows/Linux Ghost FTP application", self.website)
-        self.assertNotIn("Maintained desktop platforms: **Windows and Linux**", self.website)
-        self.assertNotIn("Windows/Linux availability", self.website)
+    def test_retired_web_prompts_are_absent(self) -> None:
+        self.assertFalse((PROMPTS / "GHOST-FTP-WEB-APP-PROMPT.md").exists())
+        self.assertFalse((PROMPTS / "GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md").exists())
 
 
 if __name__ == "__main__":
