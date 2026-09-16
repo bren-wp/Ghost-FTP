@@ -74,7 +74,8 @@ class AndroidTransferProgressContractTests(unittest.TestCase):
         self.assertLess(upload.index("current.upload("), upload.index('"Upload completed: "'))
         self.assertLess(download.index("current.download("), download.index("beginFinalCommit(attempt"))
         self.assertLess(download.index("beginFinalCommit(attempt"), download.index("DocumentsContract.renameDocument"))
-        self.assertLess(download.index("queryDocumentDisplayName(committed)"), download.index('"Download completed and committed: "'))
+        self.assertLess(download.index("queryDocumentDisplayName(committed)"), download.index("attempt.gate.finish();"))
+        self.assertLess(download.index("attempt.gate.finish();"), download.index('"Download completed: "'))
 
     def test_progress_has_no_network_or_telemetry_side_channel(self) -> None:
         combined = (self.read("TransferProgress.java") + self.read("ProgressStreams.java")).lower()

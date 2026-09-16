@@ -1,4 +1,4 @@
-name: Ghost FTP macOS Development App
+name: Ghost FTP macOS Validation App
 
 on:
   workflow_dispatch:
@@ -50,12 +50,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ghostftp-macos-development-${{ github.workflow }}-${{ github.ref }}
+  group: ghostftp-macos-validation-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   macos:
-    name: Universal native macOS development app
+    name: Universal native macOS validation app
     runs-on: macos-15
     timeout-minutes: 25
     steps:
@@ -144,12 +144,12 @@ jobs:
           otool -L "$executable" | grep -F '@rpath/libGhostFTPEngine.dylib'
           codesign --verify --deep --strict "$app"
           echo "MACOS_APP_ENGINE_BRIDGE=PASS"
-          echo "MACOS_APP_SIGNING=adhoc-development"
+          echo "MACOS_APP_SIGNING=adhoc-validation"
 
-      - name: Store macOS development artifact
+      - name: Store macOS validation artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ghostftp-macos-development
+          name: ghostftp-macos-validation
           if-no-files-found: error
           retention-days: 14
           path: macos/dist/Ghost-FTP-*-macOS.app.zip

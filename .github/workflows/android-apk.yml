@@ -7,6 +7,7 @@ on:
       - 'android/**'
       - '.github/workflows/android-apk.yml'
       - 'scripts/test_android_contract.py'
+      - 'scripts/_android_contract_regressions.py'
       - 'scripts/test_android_passive_data_contract.py'
       - 'scripts/test_android_mobile_navigation_contract.py'
       - 'scripts/test_android_release_signing_contract.py'
@@ -17,6 +18,7 @@ on:
       - 'android/**'
       - '.github/workflows/android-apk.yml'
       - 'scripts/test_android_contract.py'
+      - 'scripts/_android_contract_regressions.py'
       - 'scripts/test_android_passive_data_contract.py'
       - 'scripts/test_android_mobile_navigation_contract.py'
       - 'scripts/test_android_release_signing_contract.py'
@@ -32,7 +34,7 @@ concurrency:
 
 jobs:
   android-apk:
-    name: Android tests lint dev APK and release-signing smoke
+    name: Android tests lint and release-signing verification
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -46,7 +48,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
-          # The legacy SDK `tools` package is retired; install only maintained platform tools here.
           packages: platform-tools
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
@@ -65,21 +66,22 @@ jobs:
           python scripts/test_android_passive_data_contract.py
           python scripts/test_android_mobile_navigation_contract.py
           python scripts/test_android_release_signing_contract.py
-      - name: Test lint and build development plus unsigned release APKs
+      - name: Test lint and build verification plus unsigned release APKs
         working-directory: android
         shell: bash
         run: |
           set -euo pipefail
-          gradle :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:packageGhostFtpApk :app:assembleRelease --no-daemon --stacktrace
-      - name: Verify development APK identity
+          gradle :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
+      - name: Verify test APK structure
         shell: bash
         run: |
           set -euo pipefail
-          test -s android/dist/Ghost-FTP-Android-dev.apk
-          file android/dist/Ghost-FTP-Android-dev.apk | grep -Eq 'Android package|Zip archive data'
-          unzip -t android/dist/Ghost-FTP-Android-dev.apk >/dev/null
-          printf 'ANDROID_DEV_APK_SHA256=%s\n' "$(sha256sum android/dist/Ghost-FTP-Android-dev.apk | awk '{print $1}')"
-      - name: Exercise release APK signing pipeline with ephemeral CI identity
+          test_apk='android/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$test_apk"
+          file "$test_apk" | grep -Eq 'Android package|Zip archive data'
+          unzip -t "$test_apk" >/dev/null
+          printf 'ANDROID_TEST_APK_SHA256=%s\n' "$(sha256sum "$test_apk" | awk '{print $1}')"
+      - name: Exercise release APK signing pipeline with isolated CI identity
         shell: bash
         run: |
           set -euo pipefail
@@ -94,7 +96,7 @@ jobs:
             -storepass 'ghostftp-ci-smoke' \
             -keypass 'ghostftp-ci-smoke' \
             -alias 'ghostftp-ci-smoke' \
-            -dname 'CN=Ghost FTP CI Smoke,O=Ghost FTP,C=HR' \
+            -dname 'CN=Ghost FTP CI Verification,O=Ghost FTP,C=HR' \
             -keyalg RSA -keysize 3072 -validity 2
           "$build_tools/apksigner" sign \
             --ks "$smoke_keystore" \
@@ -107,10 +109,3 @@ jobs:
           rm -f "$smoke_signed" "$smoke_keystore"
           echo 'ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS'
           echo 'ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY'
-      - name: Upload Android development APK
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ghostftp-android-dev-apk
-          if-no-files-found: error
-          retention-days: 14
-          path: android/dist/Ghost-FTP-Android-dev.apk

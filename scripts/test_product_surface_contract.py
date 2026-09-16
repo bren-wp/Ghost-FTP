@@ -32,6 +32,8 @@ class ProductSurfaceContractTests(unittest.TestCase):
         )
         for phrase in forbidden:
             self.assertNotIn(phrase, source, f"Android public surface leaked implementation wording: {phrase}")
+        self.assertNotIn('putString("password"', source)
+        self.assertNotIn('putString("passphrase"', source)
         self.assertNotIn('infoLine("Package", BuildConfig.APPLICATION_ID)', source)
         self.assertIn("GhostTheme.apply(this);", source)
         self.assertIn("GhostTheme.applySystemBars(this);", source)
@@ -42,18 +44,15 @@ class ProductSurfaceContractTests(unittest.TestCase):
         desktop = self.read("internal/uipalette/palette.go")
         android = self.read("android/app/src/main/java/app/ghostftp/client/GhostTheme.java")
         browser = self.read("extensions/shared/popup.css")
-        site = self.read("web/assets/css/site.css")
-        web_app = self.read("web/ftp/assets/app.css")
 
-        self.assertIn("Window: RGB{0xEE, 0xF1, 0xF5}", desktop)
-        self.assertIn("Panel:  RGB{0xF6, 0xF8, 0xFB}", desktop)
+        self.assertRegex(desktop, r"Window:\s+RGB\{0xEE, 0xF1, 0xF5\}")
+        self.assertRegex(desktop, r"Panel:\s+RGB\{0xF6, 0xF8, 0xFB\}")
         self.assertIn("WINDOW = Color.rgb(0xEE, 0xF1, 0xF5);", android)
         self.assertIn("PANEL = Color.rgb(0xF6, 0xF8, 0xFB);", android)
-        for css in (browser, site, web_app):
-            self.assertIn("--bg: #eef1f5;", css)
-            self.assertIn("--panel: #f6f8fb;", css)
-            self.assertNotIn("--bg: #ffffff;", css.lower())
-            self.assertNotIn("--panel: #ffffff;", css.lower())
+        self.assertIn("--bg: #eef1f5;", browser)
+        self.assertIn("--panel: #f6f8fb;", browser)
+        self.assertNotIn("--bg: #ffffff;", browser.lower())
+        self.assertNotIn("--panel: #ffffff;", browser.lower())
 
     def test_browser_helper_remains_local_and_permissionless(self) -> None:
         popup = self.read("extensions/shared/popup.html")
@@ -65,25 +64,18 @@ class ProductSurfaceContractTests(unittest.TestCase):
             self.assertEqual([], manifest.get("permissions", []), f"{browser} requested browser permissions")
             self.assertEqual([], manifest.get("host_permissions", []), f"{browser} requested host permissions")
 
-    def test_web_public_pages_do_not_expose_build_scaffolding(self) -> None:
-        public_files = (
-            "web/index.html",
-            "web/download.html",
-            "web/ftp/index.php",
-            "web/ftp/assets/app.js",
+    def test_retired_web_surfaces_are_absent(self) -> None:
+        retired = (
+            "web",
+            ".github/workflows/web.yml",
+            "docs/WEB.md",
+            "scripts/check_web_contract.py",
+            "scripts/test_web_contract.py",
+            "docs/prompts/GHOST-FTP-WEB-APP-PROMPT.md",
+            "docs/prompts/GHOSTFTP-COM-DARK-THEME-REDESIGN-PROMPT.md",
         )
-        forbidden = (
-            "TODO",
-            "FIXME",
-            "development package",
-            "repository build",
-            "source commit",
-            "stack trace",
-        )
-        for relative in public_files:
-            source = self.read(relative)
-            for phrase in forbidden:
-                self.assertNotIn(phrase.lower(), source.lower(), f"{relative} leaked development wording: {phrase}")
+        for relative in retired:
+            self.assertFalse((ROOT / relative).exists(), f"retired web surface is still tracked: {relative}")
 
     def test_desktop_navigation_uses_product_language(self) -> None:
         labels = self.read("internal/desktop/navigation_labels.go")

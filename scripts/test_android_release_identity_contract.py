@@ -21,12 +21,12 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
         self.assertIn("rootProject.file('../VERSION').text.trim()", gradle)
         self.assertIn("versionCode ghostFtpVersionCode", gradle)
         self.assertIn("versionName ghostFtpVersion", gradle)
-        self.assertIn("versionNameSuffix '-dev'", gradle)
+        self.assertIn("applicationIdSuffix '.debug'", gradle)
+        self.assertNotIn("versionNameSuffix '-dev'", gradle)
         self.assertNotIn('versionName "${ghostFtpVersion}-dev"', gradle)
-        self.assertIn(
-            'infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME',
-            activity,
-        )
+        self.assertIn('infoLine("Version", BuildConfig.VERSION_NAME)', activity)
+        self.assertNotIn('infoLine("Release status", "Repository build "', activity)
+        self.assertNotIn("Repository build", activity)
 
         combined = "\n".join((activity, readme, uiux)).lower()
         for marker in (
@@ -41,9 +41,10 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
         self.assertIn("repository root `VERSION`", readme)
         self.assertIn(f"Ghost-FTP-{version}-Android.apk", readme)
         self.assertIn("production-signed", readme.lower())
-        self.assertIn("Ghost-FTP-Android-dev.apk", readme)
+        self.assertNotIn("Ghost-FTP-Android-dev.apk", readme)
         self.assertIn("BuildConfig.VERSION_NAME", uiux)
-        self.assertIn("public Android release", uiux)
+        self.assertIn("are not public release artifacts", uiux)
+        self.assertIn("Official publication is accepted only after the protected release workflow verifies the configured publisher certificate fingerprint.", uiux)
         self.assertIn("SFTP", readme)
         self.assertIn("intentionally not exposed", readme)
 

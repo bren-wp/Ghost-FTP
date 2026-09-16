@@ -18,10 +18,9 @@ class AndroidReleaseSigningContractTests(unittest.TestCase):
         self.assertIn("def ghostFtpVersion = rootProject.file('../VERSION').text.trim()", build)
         self.assertIn("versionName ghostFtpVersion", build)
         self.assertIn("versionCode ghostFtpVersionCode", build)
-        self.assertIn("versionNameSuffix '-dev'", build)
-        self.assertNotIn('versionName "${ghostFtpVersion}-dev"', build)
-        self.assertIn("Ghost-FTP-Android-dev.apk", build)
-        self.assertNotIn("rename { 'Ghost-FTP-Android.apk' }", build)
+        self.assertNotIn("versionNameSuffix '-dev'", build)
+        self.assertNotIn("Ghost-FTP-Android-dev.apk", build)
+        self.assertNotIn("packageGhostFtpApk", build)
 
     def test_android_version_code_is_semver_derived_and_bounded(self) -> None:
         build = read("android/app/build.gradle")
@@ -50,14 +49,19 @@ class AndroidReleaseSigningContractTests(unittest.TestCase):
             '"$build_tools/apksigner" sign',
             '"$build_tools/apksigner" verify --verbose --print-certs',
             "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS",
-            "EPHEMERAL_CI_ONLY",
-            "ghostftp-android-dev-apk",
-            "Ghost-FTP-Android-dev.apk",
+            "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY",
         ):
             self.assertIn(marker, workflow)
-        self.assertNotIn("Ghost-FTP-Android.apk", workflow)
+        for retired in (
+            "ISOLATED_CI_ONLY",
+            "ghostftp-android-dev-apk",
+            "Ghost-FTP-Android-dev.apk",
+            "Upload Android development APK",
+            "Verify development APK identity",
+        ):
+            self.assertNotIn(retired, workflow)
 
-    def test_production_signing_secrets_never_enter_development_workflow(self) -> None:
+    def test_production_signing_secrets_never_enter_validation_workflow(self) -> None:
         workflow = read(".github/workflows/android-apk.yml")
         for secret in (
             "GHOSTFTP_ANDROID_KEYSTORE_BASE64",

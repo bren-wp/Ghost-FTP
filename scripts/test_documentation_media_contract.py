@@ -60,17 +60,13 @@ class DocumentationMediaContractTest(unittest.TestCase):
         )
         self.assertEqual(sorted(digest_lines), expected_lines)
 
-    def test_readme_uses_version_bound_runtime_media(self) -> None:
+    def test_readme_uses_representative_version_bound_runtime_media(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         for marker in (
             "docs/images/0.0.6/ghost-ftp-main-workspace.png",
-            "docs/images/0.0.6/ghost-ftp-site-manager.png",
-            "docs/images/0.0.6/ghost-ftp-settings.png",
             "docs/images/0.0.6/ghost-ftp-linux-main-workspace.png",
             "docs/images/0.0.6/ghost-ftp-android-files.png",
-            "docs/images/0.0.6/ghost-ftp-about.png",
-            EXPECTED_CAPTURE_SHA,
-            str(EXPECTED_RUN_ID),
+            "See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence contract.",
         ):
             self.assertIn(marker, readme)
 
@@ -86,6 +82,9 @@ class DocumentationMediaContractTest(unittest.TestCase):
         reference = (ROOT / "docs" / "REFERENCE-UI.md").read_text(encoding="utf-8")
         for marker in (
             "images/0.0.6/ghost-ftp-main-workspace.png",
+            "images/0.0.6/ghost-ftp-site-manager.png",
+            "images/0.0.6/ghost-ftp-settings.png",
+            "images/0.0.6/ghost-ftp-about.png",
             "images/0.0.6/ghost-ftp-linux-main-workspace.png",
             "images/0.0.6/ghost-ftp-android-files.png",
             "Chrome, Edge, Firefox and Opera",

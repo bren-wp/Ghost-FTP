@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Android regression suite with the current development/release packaging contract."""
+"""Android regression suite for the maintained test and production release contract."""
 
 import unittest
 
@@ -8,6 +8,7 @@ import _android_contract_regressions as _regressions
 
 class AndroidContractTests(_regressions.AndroidContractTests):
     def test_android_project_generates_named_apk_under_android(self) -> None:
+        """Override the retired development-APK contract with the maintained validation contract."""
         build = self.read("android/app/build.gradle")
         workflow = self.read(".github/workflows/android-apk.yml")
 
@@ -15,28 +16,146 @@ class AndroidContractTests(_regressions.AndroidContractTests):
             "rootProject.file('../VERSION').text.trim()",
             "versionCode ghostFtpVersionCode",
             "versionName ghostFtpVersion",
-            "versionNameSuffix '-dev'",
-            "tasks.register('packageGhostFtpApk', Copy)",
-            "'Ghost-FTP-Android-dev.apk'",
-            "dist/Ghost-FTP-Android-dev.apk",
-            "dependsOn 'assembleDebug'",
+            "applicationIdSuffix '.debug'",
         ):
             self.assertIn(marker, build)
 
-        self.assertNotIn('versionName "${ghostFtpVersion}-dev"', build)
-        self.assertNotIn("rename { 'Ghost-FTP-Android.apk' }", build)
+        for retired in (
+            "versionNameSuffix '-dev'",
+            "Ghost-FTP-Android-dev.apk",
+            "Ghost-FTP-Android.apk",
+            "packageGhostFtpApk",
+            "android/dist/Ghost-FTP-Android.apk",
+            "ghostftp-android-apk",
+        ):
+            self.assertNotIn(retired, build)
+            self.assertNotIn(retired, workflow)
 
         for marker in (
-            "android/dist/Ghost-FTP-Android-dev.apk",
-            "unzip -t android/dist/Ghost-FTP-Android-dev.apk",
-            "name: ghostftp-android-dev-apk",
+            ":app:testDebugUnitTest",
+            ":app:lintDebug",
             ":app:lintRelease",
+            ":app:assembleDebug",
             ":app:assembleRelease",
+            "android/app/build/outputs/apk/debug/app-debug.apk",
+            "android/app/build/outputs/apk/release/app-release-unsigned.apk",
             '"$build_tools/apksigner" sign',
             '"$build_tools/apksigner" verify --verbose --print-certs',
         ):
             self.assertIn(marker, workflow)
-        self.assertNotIn("android/dist/Ghost-FTP-Android.apk", workflow)
+
+    def test_android_project_uses_root_release_identity_without_dev_suffix(self) -> None:
+        build = self.read("android/app/build.gradle")
+        workflow = self.read(".github/workflows/android-apk.yml")
+
+        for marker in (
+            "rootProject.file('../VERSION').text.trim()",
+            "versionCode ghostFtpVersionCode",
+            "versionName ghostFtpVersion",
+            "applicationIdSuffix '.debug'",
+        ):
+            self.assertIn(marker, build)
+
+        for retired in (
+            "versionNameSuffix '-dev'",
+            "Ghost-FTP-Android-dev.apk",
+            "ANDROID_DEV_APK",
+            "packageGhostFtpApk",
+        ):
+            self.assertNotIn(retired, build)
+            self.assertNotIn(retired, workflow)
+
+        for marker in (
+            ":app:testDebugUnitTest",
+            ":app:lintDebug",
+            ":app:lintRelease",
+            ":app:assembleDebug",
+            ":app:assembleRelease",
+            "android/app/build/outputs/apk/debug/app-debug.apk",
+            '"$build_tools/apksigner" sign',
+            '"$build_tools/apksigner" verify --verbose --print-certs',
+        ):
+            self.assertIn(marker, workflow)
+
+        self.assertNotIn("ghostftp-android-dev-apk", workflow)
+        self.assertNotIn("Upload Android development APK", workflow)
+
+    def test_server_identity_change_clears_server_paths(self) -> None:
+        model = self.read(f"{_regressions.ANDROID_JAVA}/SiteProfile.java")
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+
+        self.assertIn("withRemoteStateResetForIdentityChange", model)
+        self.assertIn('localStartTreeUri,\n                "/",', model)
+        self.assertIn("Collections.emptyList()", model)
+        self.assertIn(".withRemoteStateResetForIdentityChange(previous)", activity)
+        self.assertIn("if (previous != null && !next.sameServerIdentity(previous))", activity)
+        self.assertIn(
+            "Site updated. Saved server paths and bookmarks were cleared because the connection details changed.",
+            activity,
+        )
+
+    def test_quick_connect_never_auto_creates_profile(self) -> None:
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+        connect_start = activity.index("private void connect()")
+        connect_end = activity.index("private void disconnect()", connect_start)
+        connect = activity[connect_start:connect_end]
+
+        self.assertNotIn("UUID.randomUUID", connect)
+        self.assertNotIn("profileStore.save", connect)
+        self.assertIn("profile == null ? null : profile.remoteStartPath", connect)
+        self.assertIn("Quick Connect (not saved)", activity)
+        self.assertIn("Quick Connect does not create hidden site state.", activity)
+        self.assertIn("Quick Connect does not create hidden bookmarks.", activity)
+
+    def test_local_profile_paths_revalidate_persisted_saf_capability(self) -> None:
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+
+        self.assertIn("tryActivateLocalTree(Uri selected, String failureMessage, boolean requirePersisted)", activity)
+        self.assertIn("(requirePersisted && !hasPersistedReadPermission(selected))", activity)
+        self.assertIn('tryActivateLocalTree(Uri.parse(savedTree), "Saved local folder is no longer available.", true)', activity)
+        self.assertIn(
+            '"Local bookmark is no longer available. Re-select the folder to restore access.",\n                true',
+            activity,
+        )
+        self.assertIn('tryActivateLocalTree(selected, "Selected folder could not be opened.", false)', activity)
+
+        permission = activity.index("(requirePersisted && !hasPersistedReadPermission(selected))")
+        listing = activity.index("List<LocalEntry> next = queryChildren(selected, documentId);", permission)
+        commit = activity.index("treeUri = selected;", listing)
+        self.assertLess(permission, listing)
+        self.assertLess(listing, commit)
+
+    def test_stale_local_start_error_is_not_overwritten(self) -> None:
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+
+        self.assertIn("boolean localStartUnavailable = false;", activity)
+        self.assertIn("if (localStartUnavailable) {", activity)
+        self.assertIn(
+            "Site loaded, but its local start folder is unavailable. Choose it again and update the site.",
+            activity,
+        )
+        self.assertIn("Site loaded. Enter your password to connect.", activity)
+
+    def test_sftp_is_fail_closed_until_host_key_verification_exists(self) -> None:
+        readme = self.read("android/README.md")
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+
+        self.assertIn("SFTP is intentionally not exposed", readme)
+        protocol_start = activity.index("protocol = new Spinner(this);")
+        protocol_end = activity.index('host = field("Server host"', protocol_start)
+        protocol_picker = activity[protocol_start:protocol_end]
+        self.assertIn('new String[]{"FTPS", "FTP"}', protocol_picker)
+        self.assertNotIn("SFTP", protocol_picker)
+
+        connect_start = activity.index("private void connect()")
+        connect_end = activity.index("private void disconnect()", connect_start)
+        connect = activity[connect_start:connect_end]
+        self.assertNotIn('"SFTP".equals', connect)
+        self.assertNotIn("JSch", connect)
+        self.assertIn(
+            'infoLine("SFTP", "Unavailable until strict server identity verification is enabled")',
+            activity,
+        )
 
 
 if __name__ == "__main__":

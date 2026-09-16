@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify canonical Ghost FTP versioning across public release and active source surfaces."""
+"""Verify canonical Ghost FTP 0.0.6 production identity across maintained source surfaces."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 GO_TOOLCHAIN = "1.27.1"
-RETIRED_ROOTS = ("ios", "GhostFTP WEB", "ekstenzije")
+RETIRED_ROOTS = ("ios", "GhostFTP WEB", "ekstenzije", "web", "web-ftp")
 CURRENT_LINE_DOCS = (
     "README.md",
     "CHANGELOG.md",
@@ -53,25 +53,33 @@ def require(text: str, markers: tuple[str, ...], where: str) -> None:
             fail(f"{where} is missing version/platform binding: {marker}")
 
 
+def forbid(text: str, markers: tuple[str, ...], where: str) -> None:
+    for marker in markers:
+        if marker in text:
+            fail(f"{where} contains retired production marker: {marker}")
+
+
 def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
     if version != "0.0.6":
-        fail(f"active release candidate must be 0.0.6, got {version!r}")
+        fail(f"active release candidate must remain 0.0.6, got {version!r}")
 
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
 
+    # Release builds inject VERSION with -X; source entry points must never hard-code
+    # a numeric release that can drift from the canonical root VERSION file.
     for rel in ("cmd/ghostftp/main.go", "cmd/installer/main.go", "cmd/windowsbootstrap/main.go"):
         text = read(rel)
-        if 'var version = "dev"' not in text:
-            fail(f"{rel} must retain the development version fallback")
+        if "var version =" not in text:
+            fail(f"{rel} is missing the build-time version binding")
         if re.search(r'var\s+version\s*=\s*"\d+\.\d+\.\d+"', text):
             fail(f"{rel} hard-codes a production version")
 
     brand_version = read("internal/brand/version.go")
-    require(brand_version, ('strings.TrimSpace(version)', 'return "dev"', 'return version'), "internal/brand/version.go")
+    require(brand_version, ('strings.TrimSpace(version)', 'return version'), "internal/brand/version.go")
     if 'return version + " Beta"' in brand_version or 'strings.HasPrefix(version, "0.")' in brand_version:
         fail("product display version must not infer prerelease status from major version 0")
 
@@ -80,11 +88,11 @@ def main() -> int:
         readme,
         (
             f"Current source version: **{version}**",
-            "Development status: **Active**",
             "Release channel: **Current**",
+            "Product status: **Current**",
             "Last actually published GitHub Release: **0.0.5**",
             f"ghostftp-v{version}",
-            "prerelease=false",
+            "Prerelease: **false**",
             "13 platform artifacts / 16 public files",
             f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
@@ -92,9 +100,11 @@ def main() -> int:
             f"Ghost-FTP-{version}-Opera-Extension.zip",
             "GHOSTFTP_ANDROID_CERT_SHA256",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            "The retired website and Web FTP implementation are intentionally not part of this repository or product runtime.",
         ),
         "README.md",
     )
+
     if f"## {version}" not in read("CHANGELOG.md"):
         fail("CHANGELOG does not contain a section for VERSION")
 
@@ -155,9 +165,7 @@ def main() -> int:
         ),
         "linux/BUILD-DISTROS.sh",
     )
-    for retired in ("dpkg-deb", "rpmbuild"):
-        if retired in linux_build:
-            fail(f"Linux universal builder contains retired architecture-specific packager: {retired}")
+    forbid(linux_build, ("dpkg-deb", "rpmbuild"), "linux/BUILD-DISTROS.sh")
 
     android_build = read("android/app/build.gradle")
     require(
@@ -166,13 +174,45 @@ def main() -> int:
             "rootProject.file('../VERSION').text.trim()",
             "versionCode ghostFtpVersionCode",
             "versionName ghostFtpVersion",
-            "versionNameSuffix '-dev'",
             "namespace 'app.ghostftp.client'",
             "applicationId 'app.ghostftp.client'",
-            "tasks.register('packageGhostFtpApk', Copy)",
-            "'Ghost-FTP-Android-dev.apk'",
+            "applicationIdSuffix '.debug'",
         ),
         "android/app/build.gradle",
+    )
+    forbid(
+        android_build,
+        (
+            "versionNameSuffix '-dev'",
+            "packageGhostFtpApk",
+            "Ghost-FTP-Android-dev.apk",
+        ),
+        "android/app/build.gradle",
+    )
+
+    android_workflow = read(".github/workflows/android-apk.yml")
+    require(
+        android_workflow,
+        (
+            ":app:testDebugUnitTest",
+            ":app:lintRelease",
+            ":app:assembleRelease",
+            "app-release-unsigned.apk",
+            '"$build_tools/apksigner" sign',
+            '"$build_tools/apksigner" verify --verbose --print-certs',
+            "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY",
+        ),
+        ".github/workflows/android-apk.yml",
+    )
+    forbid(
+        android_workflow,
+        (
+            "ISOLATED_CI_ONLY",
+            "Ghost-FTP-Android-dev.apk",
+            "ghostftp-android-dev-apk",
+            "Upload Android development APK",
+        ),
+        ".github/workflows/android-apk.yml",
     )
 
     macos_build = read("macos/BUILD.sh")
@@ -184,9 +224,11 @@ def main() -> int:
             "CFBundleVersion",
             "app.ghostftp.client",
             'Ghost-FTP-${VERSION}-macOS.app.zip',
+            "MACOS_SIGNING=adhoc-validation",
         ),
         "macos/BUILD.sh",
     )
+    forbid(macos_build, ("adhoc-development", "MACOS_DEVELOPMENT_ARTIFACT"), "macos/BUILD.sh")
 
     extension_brand = read("extensions/BRAND.json")
     require(
@@ -206,6 +248,10 @@ def main() -> int:
     for retired in RETIRED_ROOTS:
         if (ROOT / retired).exists():
             fail(f"retired source surface must be removed: {retired}/")
+    if (ROOT / ".github/workflows/web.yml").exists():
+        fail("retired website workflow must be removed")
+    if (ROOT / "docs/WEB.md").exists():
+        fail("retired Web FTP documentation must be removed")
 
     for workflow_rel in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
         workflow = read(workflow_rel)
@@ -213,7 +259,7 @@ def main() -> int:
             fail(f"{workflow_rel} does not pin Go {GO_TOOLCHAIN}")
         require(workflow, ("windows:", "linux:", "bash linux/BUILD-DISTROS.sh"), workflow_rel)
         lowered = workflow.lower()
-        for marker in ("ios/", "macos/", "ghostftp web/", "runs-on: macos"):
+        for marker in ("ios/", "ghostftp web/", "runs-on: macos"):
             if marker in lowered:
                 fail(f"{workflow_rel} references non-public application marker: {marker}")
 
@@ -253,9 +299,7 @@ def main() -> int:
         ),
         ".github/workflows/release.yml",
     )
-    for forbidden in ("state=unsigned", "keytool -genkeypair", "--prerelease"):
-        if forbidden in release_workflow:
-            fail(f"official release workflow contains forbidden marker: {forbidden}")
+    forbid(release_workflow, ("state=unsigned", "keytool -genkeypair", "--prerelease"), ".github/workflows/release.yml")
 
     retention = read(".github/workflows/release-retention.yml")
     require(
@@ -294,7 +338,7 @@ def main() -> int:
         "scripts/audit_release.py",
     )
 
-    print(f"VERSION_AUDIT=PASS ({version}; channel=current)")
+    print(f"VERSION_AUDIT=PASS ({version}; channel=current; product=current)")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
     print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.5")
@@ -307,6 +351,7 @@ def main() -> int:
     print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
     print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
+    print("RETIRED_WEB_SURFACES=ABSENT")
     return 0
 
 

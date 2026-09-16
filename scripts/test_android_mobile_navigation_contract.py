@@ -99,7 +99,9 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertNotIn("Retry", surface)
         self.assertNotIn("Resume", surface)
         self.assertNotIn("Clear history", surface)
-        self.assertIn("No decorative queue or fake history is displayed.", surface)
+        self.assertNotIn("fake history", surface.lower())
+        self.assertIn('Button openFiles = button("Open Files")', surface)
+        self.assertIn("openFiles.setOnClickListener(v -> showSection(Section.FILES));", surface)
 
         buttons_start = activity.index("private void refreshButtons()")
         buttons_end = activity.index("private void updateConnectionBadge(", buttons_start)
@@ -117,28 +119,37 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("savePreferences();", settings)
         self.assertIn("renderLocal();", settings)
         self.assertIn("renderRemote();", settings)
-        self.assertIn("Runtime security policy is informational here and cannot be weakened from the UI.", settings)
+        for marker in (
+            'LinearLayout securityCard = card("SECURITY", "Security protections stay enforced automatically.")',
+            'infoLine("FTPS", "Certificate and hostname verification enabled")',
+            'infoLine("Passwords", "Kept in memory only and never saved")',
+            'infoLine("Local storage", "Access limited to folders you select")',
+            'infoLine("SFTP", "Unavailable until strict server identity verification is enabled")',
+            'infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud")',
+        ):
+            self.assertIn(marker, settings)
 
-    def test_about_uses_generated_build_identity_not_hardcoded_version(self) -> None:
+    def test_about_uses_canonical_release_identity_without_dev_surface(self) -> None:
         activity = self.read(ACTIVITY)
         build = self.read(ANDROID_BUILD)
         self.assertIn("buildFeatures {", build)
         self.assertIn("buildConfig true", build)
         self.assertIn("versionName ghostFtpVersion", build)
-        self.assertIn("versionNameSuffix '-dev'", build)
+        self.assertIn("applicationIdSuffix '.debug'", build)
+        self.assertNotIn("versionNameSuffix '-dev'", build)
         self.assertNotIn('versionName "${ghostFtpVersion}-dev"', build)
-        self.assertIn('infoLine("Version", BuildConfig.VERSION_NAME)', activity)
-        self.assertIn('infoLine("Package", BuildConfig.APPLICATION_ID)', activity)
+
         about_start = activity.index("private View buildAboutSurface()")
         about_end = activity.index("private void addSurface(", about_start)
         about = activity[about_start:about_end]
+        self.assertIn('infoLine("Version", BuildConfig.VERSION_NAME)', about)
+        self.assertIn('infoLine("Protocols", "FTP and explicit FTPS")', about)
+        self.assertIn('infoLine("Data collection", "No telemetry, analytics or ads")', about)
         self.assertNotIn('infoLine("Version", "0.0.3', about)
-        self.assertIn('infoLine("Release status", "Repository build " + BuildConfig.VERSION_NAME', about)
-        self.assertIn("BuildConfig.DEBUG", about)
-        self.assertIn("development package; not the production-signed public APK", about)
-        self.assertIn("release package; official publication requires verified publisher-signature evidence", about)
-        self.assertNotIn("Android APK remains development-only", about)
-        self.assertIn("not the production-signed public APK", about)
+        self.assertNotIn("BuildConfig.DEBUG", about)
+        self.assertNotIn("development package", about.lower())
+        self.assertNotIn("development-only", about.lower())
+        self.assertNotIn("not the production-signed public APK", about)
 
     def test_android_docs_describe_the_same_surface_contract(self) -> None:
         readme = self.read(ANDROID_README)
@@ -150,7 +161,9 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("persistent sidebar", readme.lower())
         self.assertIn("Remote Desktop", ui_doc)
         self.assertIn("not shown", ui_doc.lower())
-        self.assertIn("development", readme.lower())
+        self.assertIn("production-signed Android artifact", readme)
+        self.assertIn("validation outputs keep the canonical visible version", ui_doc)
+        self.assertNotIn("development builds append `-dev`", ui_doc)
 
 
 if __name__ == "__main__":

@@ -174,7 +174,7 @@ iconutil -c icns "$ICONSET" -o "$RESOURCES/GhostFTP.icns"
 /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$CONTENTS/Info.plist" | grep -Fx "$BUNDLE_ID" >/dev/null
 /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$CONTENTS/Info.plist" | grep -Fx "$VERSION" >/dev/null
 
-# Sign nested executable code before the outer development bundle.
+# Sign nested executable code before the outer validation bundle.
 codesign --force --sign - "$FRAMEWORKS/libGhostFTPEngine.dylib"
 codesign --force --sign - "$MACOS/GhostFTPAskPass"
 codesign --force --sign - "$MACOS/GhostFTP"
@@ -185,9 +185,9 @@ ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 test -s "$ZIP"
 
 printf 'MACOS_APP=%s\n' "$APP"
-printf 'MACOS_DEVELOPMENT_ARTIFACT=%s\n' "$ZIP"
+printf 'MACOS_VALIDATION_ARTIFACT=%s\n' "$ZIP"
 printf 'MACOS_VERSION=%s\n' "$VERSION"
 printf 'MACOS_ARCHS=%s\n' "$(xcrun lipo -archs "$MACOS/GhostFTP")"
 printf 'MACOS_ENGINE_ARCHS=%s\n' "$(xcrun lipo -archs "$FRAMEWORKS/libGhostFTPEngine.dylib")"
 printf 'MACOS_ASKPASS_ARCHS=%s\n' "$(xcrun lipo -archs "$MACOS/GhostFTPAskPass")"
-printf 'MACOS_SIGNING=adhoc-development\n'
+printf 'MACOS_SIGNING=adhoc-validation\n'
