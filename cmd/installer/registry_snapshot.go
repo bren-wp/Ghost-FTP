@@ -20,9 +20,15 @@ type registryDWORDSnapshot struct {
 	existed bool
 }
 
+type registryKeySnapshot struct {
+	key     string
+	existed bool
+}
+
 type registrySnapshot struct {
 	strings []registryStringSnapshot
 	dwords  []registryDWORDSnapshot
+	keys    []registryKeySnapshot
 }
 
 var installerStringRegistryValues = []struct{ key, name string }{
@@ -47,8 +53,26 @@ var installerDWORDRegistryValues = []struct{ key, name string }{
 	{uninstallKey, "NoRepair"},
 }
 
+// Track every protocol key whose creation can be caused by SetRegistryString.
+// RegCreateKeyExW creates missing intermediate keys as well, so shell/open must
+// be tracked independently even though Ghost FTP stores no direct values there.
+var installerProtocolRegistryKeys = []string{
+	browserProtocolKey,
+	browserProtocolIconKey,
+	browserProtocolShellKey,
+	browserProtocolOpenKey,
+	browserProtocolCommandKey,
+}
+
 func captureRegistrySnapshot() (registrySnapshot, error) {
 	var out registrySnapshot
+	for _, key := range installerProtocolRegistryKeys {
+		existed, err := platform.RegistryKeyExists(key)
+		if err != nil {
+			return registrySnapshot{}, err
+		}
+		out.keys = append(out.keys, registryKeySnapshot{key: key, existed: existed})
+	}
 	for _, item := range installerStringRegistryValues {
 		value, existed, err := platform.GetRegistryString(item.key, item.name)
 		if err != nil {
@@ -79,13 +103,32 @@ func (s registrySnapshot) stringValue(key, name string) (string, bool) {
 	return "", false
 }
 
-func (s registrySnapshot) browserProtocolOriginallyAbsent() bool {
-	for _, item := range s.strings {
-		if (item.key == browserProtocolKey || item.key == browserProtocolIconKey || item.key == browserProtocolCommandKey) && item.existed {
-			return false
+func (s registrySnapshot) keyExisted(key string) bool {
+	for _, item := range s.keys {
+		if item.key == key {
+			return item.existed
 		}
 	}
+	// Fail closed: an untracked key is treated as pre-existing so rollback never
+	// deletes registry structure without an explicit pre-transaction snapshot.
 	return true
+}
+
+func (s registrySnapshot) protocolKeysToRemove() []string {
+	ordered := []string{
+		browserProtocolCommandKey,
+		browserProtocolOpenKey,
+		browserProtocolShellKey,
+		browserProtocolIconKey,
+		browserProtocolKey,
+	}
+	out := make([]string, 0, len(ordered))
+	for _, key := range ordered {
+		if !s.keyExisted(key) {
+			out = append(out, key)
+		}
+	}
+	return out
 }
 
 func (s registrySnapshot) restore() error {
@@ -112,8 +155,12 @@ func (s registrySnapshot) restore() error {
 			errs = append(errs, err)
 		}
 	}
-	if s.browserProtocolOriginallyAbsent() {
-		if err := removeBrowserProtocolRegistrationKeys(); err != nil {
+
+	// Remove only protocol keys that did not exist before this transaction, and
+	// do so leaf-to-root. Pre-existing keys — including intermediate keys or keys
+	// with unrelated named values — are never deleted.
+	for _, key := range s.protocolKeysToRemove() {
+		if err := platform.DeleteRegistryKey(key); err != nil {
 			errs = append(errs, err)
 		}
 	}

@@ -32,6 +32,19 @@ var kernel32IntegratedUninstall = syscall.NewLazyDLL("kernel32.dll")
 var openProcessIntegratedUninstall = kernel32IntegratedUninstall.NewProc("OpenProcess")
 var waitForSingleObjectIntegratedUninstall = kernel32IntegratedUninstall.NewProc("WaitForSingleObject")
 
+// integratedUninstallCleanupAuthorized is set only after the user has confirmed
+// uninstall and the verified finalizer helper has started successfully. A
+// cancelled uninstall intentionally returns exit code 0, so callers must not
+// infer cleanup authorization from the exit code or from pre-existing registry
+// state.
+var integratedUninstallCleanupAuthorized bool
+
+// IntegratedUninstallCleanupAuthorized reports whether this process has
+// actually begun a verified uninstall after explicit user confirmation.
+func IntegratedUninstallCleanupAuthorized() bool {
+	return integratedUninstallCleanupAuthorized
+}
+
 func canonicalWindowsPath(path string) (string, error) {
 	if strings.TrimSpace(path) == "" {
 		return "", errors.New("path is unavailable")
@@ -281,6 +294,7 @@ func handleIntegratedUninstallFinalizer(args []string) (bool, int) {
 // and launches a verified short-lived copy of itself to delete the exact
 // installed file object after the interactive parent process exits.
 func HandleIntegratedUninstall(args []string) (handled bool, exitCode int) {
+	integratedUninstallCleanupAuthorized = false
 	if handled, exitCode := handleIntegratedUninstallFinalizer(args); handled {
 		return true, exitCode
 	}
@@ -318,6 +332,7 @@ func HandleIntegratedUninstall(args []string) (handled bool, exitCode int) {
 		)
 		return true, 1
 	}
+	integratedUninstallCleanupAuthorized = true
 
 	var warnings []string
 	if err := RemoveShortcuts(); err != nil {
