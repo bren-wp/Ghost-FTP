@@ -312,7 +312,6 @@ for section in Sites Bookmarks Transfers Settings About; do
     open_navigation
   fi
   expected_title="$section"
-  [[ "$section" == 'Sites' ]] && expected_title='Sites / Connections'
   tap_nav_section "$section" "$expected_title"
   first_section=0
   lower="$(printf '%s' "$section" | tr '[:upper:]' '[:lower:]')"
