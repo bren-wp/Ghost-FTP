@@ -208,11 +208,20 @@ def main() -> int:
         "Verify installer and portable bundles",
         "GHOSTFTP_PREFIX",
     )
-    require(
+    android_validation = require(
         ".github/workflows/android-apk.yml",
         "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE=PASS",
         "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY",
+        ":app:assembleRelease",
+        "android/app/build/outputs/apk/release/app-release-unsigned.apk",
     )
+    for retired in (
+        "Ghost-FTP-Android-dev.apk",
+        "packageGhostFtpApk",
+        "versionNameSuffix '-dev'",
+    ):
+        if retired in android_validation:
+            fail(f"Android validation workflow contains retired development artifact marker: {retired}")
     require(
         ".github/workflows/browser-extensions.yml",
         "Build official Chrome Edge Firefox Opera packages",
