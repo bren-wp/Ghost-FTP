@@ -42,7 +42,7 @@ class NoRetiredPublicVersionsTests(unittest.TestCase):
         self.assertIn(f"Current source version: **{version}**", readme)
         self.assertIn("Last actually published GitHub Release: **0.0.5**", readme)
         self.assertIn("Release channel: **Current**", readme)
-        self.assertIn("Development status: **Active**", readme)
+        self.assertIn("Product status: **Current**", readme)
         self.assertIn("prerelease=false", readme)
         self.assertIn(f"Current source candidate: **{version}**", versioning)
         self.assertIn(f"VERSION={version}", versioning)
