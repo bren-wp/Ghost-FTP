@@ -190,6 +190,10 @@ func dispatchStartupTargetToOpenWindow() {
 			if a.applyStartupTarget() {
 				a.updateProtocolControls()
 				a.refineWorkspaceLayout()
+				return
+			}
+			if siteManagerBlocksStartupTarget(a) {
+				scheduleStartupTargetRetry(a)
 			}
 		})
 		return false
