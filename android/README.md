@@ -10,7 +10,7 @@ Ghost FTP **0.0.6** publishes one production-signed Android artifact in the cano
 Ghost-FTP-0.0.6-Android.apk
 ```
 
-The repository root `VERSION` is the canonical release identity. Android `versionName` equals that root version exactly; validation builds do not alter the visible product version with development suffixes.
+The repository root `VERSION` is the canonical release identity. Android `versionName` equals that root version exactly; validation builds keep the same visible product version while using an isolated debug application ID where required for CI testing.
 
 Pull-request and branch CI build the standard Android test variant and an unsigned release APK for verification. These CI outputs are validation inputs only and are not public release artifacts. The public 0.0.6 APK is produced exclusively by the protected release workflow after publisher signing and certificate-fingerprint verification.
 
