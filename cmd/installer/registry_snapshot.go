@@ -36,6 +36,10 @@ var installerStringRegistryValues = []struct{ key, name string }{
 	{uninstallKey, installedExecutableDigestValue},
 	{uninstallKey, "QuietUninstallString"},
 	{uninstallKey, "URLInfoAbout"},
+	{browserProtocolKey, ""},
+	{browserProtocolKey, "URL Protocol"},
+	{browserProtocolIconKey, ""},
+	{browserProtocolCommandKey, ""},
 }
 
 var installerDWORDRegistryValues = []struct{ key, name string }{
@@ -75,6 +79,15 @@ func (s registrySnapshot) stringValue(key, name string) (string, bool) {
 	return "", false
 }
 
+func (s registrySnapshot) browserProtocolOriginallyAbsent() bool {
+	for _, item := range s.strings {
+		if (item.key == browserProtocolKey || item.key == browserProtocolIconKey || item.key == browserProtocolCommandKey) && item.existed {
+			return false
+		}
+	}
+	return true
+}
+
 func (s registrySnapshot) restore() error {
 	var errs []error
 	for _, item := range s.strings {
@@ -96,6 +109,11 @@ func (s registrySnapshot) restore() error {
 			err = platform.DeleteRegistryValue(item.key, item.name)
 		}
 		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if s.browserProtocolOriginallyAbsent() {
+		if err := removeBrowserProtocolRegistrationKeys(); err != nil {
 			errs = append(errs, err)
 		}
 	}

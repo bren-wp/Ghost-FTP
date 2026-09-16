@@ -9,7 +9,6 @@
   --muted: #97a3b8;
   --accent: #5b7cfa;
   --accent-strong: #7a98ff;
-  --selection: #202f50;
   --success: #4ad79b;
   --danger: #ff6878;
   --notice-bg: #20180d;
@@ -23,9 +22,15 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 460px;
+}
+
 body {
   margin: 0;
-  min-width: 420px;
+  min-width: 320px;
   background:
     radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 42%),
     var(--bg);
@@ -114,6 +119,7 @@ button:focus-visible {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 9px;
   margin-top: 10px;
 }
@@ -128,7 +134,8 @@ button {
 }
 
 .primary,
-.copy-safe {
+.copy-safe,
+.desktop-action {
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #f8faff;
 }
@@ -138,6 +145,18 @@ button {
   border-color: var(--line);
   background: var(--panel);
   color: var(--text);
+}
+
+.desktop-action {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.desktop-help {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 button:hover {
@@ -179,7 +198,7 @@ button:hover {
 
 .field-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 11px;
 }
 
@@ -235,6 +254,32 @@ footer {
   display: none !important;
 }
 
+@media (max-width: 360px) {
+  body {
+    min-width: 280px;
+  }
+
+  .shell {
+    padding: 14px;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-wide {
+    grid-column: auto;
+  }
+
+  .copy-row {
+    flex-direction: column;
+  }
+
+  .copy-row button {
+    width: 100%;
+  }
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     --bg: #eef1f5;
@@ -245,7 +290,6 @@ footer {
     --muted: #667085;
     --accent: #3f63dd;
     --accent-strong: #254bc7;
-    --selection: #dce8ff;
     --success: #1b7f4b;
     --danger: #b42318;
     --notice-bg: #f8f0df;
@@ -254,7 +298,8 @@ footer {
   }
 
   .primary,
-  .copy-safe {
+  .copy-safe,
+  .desktop-action {
     color: #f8faff;
   }
 }

@@ -62,7 +62,7 @@ Ghost FTP provides real file-management and transfer operations rather than simu
 | **macOS** | Maintained native source | Public package is withheld until Developer ID Application signing and Apple notarization are verified |
 | **Browser helpers** | Current release target | Chrome, Edge, Firefox and Opera local helper packages |
 
-Browser helpers have zero browser permissions and zero host permissions. There is **no supported browser-to-desktop** handoff and they do not implement FTP/FTPS/SFTP transport themselves.
+Browser helpers have zero browser permissions and zero host permissions. Windows installed builds support a **sanitized browser-to-desktop handoff** through the registered `ghostftp:` protocol. Only protocol, host, optional port, optional username and remote path are handed to the desktop app; passwords, private-key passphrases, private keys, query data and fragments are excluded. The helper never performs FTP/FTPS/SFTP transport itself and never auto-connects.
 
 ---
 
@@ -136,7 +136,7 @@ Ghost-FTP-0.0.6-Firefox-Extension.zip
 Ghost-FTP-0.0.6-Opera-Extension.zip
 ```
 
-The four packages use a shared local runtime with browser-specific manifests and no supported browser-to-desktop protocol handoff.
+The four packages use one shared local runtime with browser-specific manifests. On supported Windows installs, the explicit **Open in Ghost FTP** action uses the sanitized `ghostftp://connect` handoff described above; credentials never enter that launch URL.
 
 ---
 

@@ -207,7 +207,7 @@ def main() -> int:
         "Ghost-FTP-0.0.6-Android.apk",
         "Ghost-FTP-0.0.6-Opera-Extension.zip",
         "GHOSTFTP_ANDROID_CERT_SHA256",
-        "no supported browser-to-desktop",
+        "sanitized browser-to-desktop handoff",
         "Brendigo LTD",
         "proprietary commercial",
         "repository-local",
@@ -291,8 +291,9 @@ def main() -> int:
         "Microsoft Edge",
         "Mozilla Firefox",
         "Opera",
-        "no supported browser-to-desktop",
-        "zero browser permissions and zero host permissions",
+        "ghostftp://connect",
+        "Open in Ghost FTP",
+        "Zero browser permissions and zero host permissions",
     )
 
     android = read("android/README.md")
@@ -325,6 +326,7 @@ def main() -> int:
     print("ACTIVE_WEB_SURFACE=NONE")
     print("ANDROID_SFTP=HIDDEN_UNTIL_STRICT_HOST_KEY_VERIFICATION")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
+    print("BROWSER_DESKTOP_HANDOFF=WINDOWS_SANITIZED_PROTOCOL")
     print("MACOS_PUBLIC_RELEASE=NO")
     return 0
 

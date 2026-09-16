@@ -96,10 +96,18 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             self.assertIn("host-key", text.lower())
         self.assertIn("GHOSTFTP_ANDROID_CERT_SHA256", verification)
         self.assertNotIn("GHOSTFTP_ANDROID_SIGNER_SHA256", verification)
+
         extension_docs = self.read("extensions/README.md")
         for browser in ("Chrome", "Edge", "Firefox", "Opera"):
             self.assertIn(browser, extension_docs)
-        self.assertIn("no supported browser-to-desktop", extension_docs.lower())
+        extension_lower = extension_docs.lower()
+        self.assertIn("ghostftp://connect", extension_lower)
+        self.assertIn("open in ghost ftp", extension_lower)
+        self.assertIn("zero browser permissions and zero host permissions", extension_lower)
+        self.assertIn("credentials remain empty", extension_lower)
+        self.assertIn("without automatically connecting", extension_lower)
+        self.assertIn("no compatible desktop handler", extension_lower)
+        self.assertIn("passwords, private-key passphrases, private keys, source query data and source fragments are never copied", extension_lower)
 
     def test_release_docs_describe_canonical_branch_dispatch(self):
         verification = self.read("docs/RELEASE-VERIFICATION.md")

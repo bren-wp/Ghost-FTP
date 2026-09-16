@@ -28,6 +28,11 @@ func (a *app) updateActionControls() {
 		return
 	}
 
+	// A browser handoff contains only validated non-sensitive metadata and is
+	// consumed once after the native controls exist. Credentials remain empty
+	// and must be entered explicitly in Ghost FTP.
+	a.applyStartupTarget()
+
 	profileEditable := !a.connected && !a.connectionBusy && !a.profileMutationBusy
 	setControlEnabled(a.siteManagerBtn, profileEditable)
 	setControlEnabled(a.saveProfile, profileEditable)

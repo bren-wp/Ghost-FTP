@@ -16,7 +16,7 @@
       </div>
     </header>
 
-    <p class="intro">Check an FTP, FTPS or SFTP address locally before you use it. Passwords are never saved or included in copied output.</p>
+    <p class="intro">Check an FTP, FTPS or SFTP address locally, then open the sanitized connection details in the Ghost FTP desktop app.</p>
 
     <form id="connection-form" novalidate>
       <label for="connection-target">Connection address</label>
@@ -31,8 +31,11 @@
 
     <section id="result" class="result" hidden aria-label="Connection details">
       <div id="password-notice" class="notice" hidden role="note">
-        A password was detected and removed from all displayed and copied output.
+        A password was detected and removed from all displayed, copied and desktop-launch output.
       </div>
+
+      <button type="button" id="open-desktop" class="desktop-action">Open in Ghost FTP</button>
+      <p class="desktop-help">Only non-sensitive connection fields are passed to the desktop app. Credentials must be entered there.</p>
 
       <div class="field-grid">
         <div class="field">

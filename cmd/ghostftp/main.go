@@ -228,10 +228,16 @@ func runApplication() (exitCode int) {
 
 	release, ok := platform.AcquireSingleInstance(brand.Company + "." + brand.ProductName + ".Client")
 	if !ok {
+		if desktopLaunchURI != "" && desktop.ForwardStartupTarget(desktopLaunchURI) {
+			return 0
+		}
 		platform.MessageBox(brand.ProductFull, brand.ProductName+" is already running.", messageBoxInformation)
 		return 0
 	}
 	defer release()
+
+	stopStartupTargetReceiver := desktop.StartStartupTargetReceiver()
+	defer stopStartupTargetReceiver()
 
 	exe, err := os.Executable()
 	if err != nil {

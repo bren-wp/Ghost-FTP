@@ -2,6 +2,7 @@
   'use strict';
 
   const OFFICIAL_BRAND = 'Ghost FTP';
+  const DESKTOP_SCHEME = 'ghostftp:';
   const ALLOWED_PROTOCOLS = new Set(['ftp:', 'ftps:', 'sftp:']);
   const MAX_INPUT_LENGTH = 4096;
   const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
@@ -27,15 +28,17 @@
   }
 
   function parseConnectionTarget(rawValue) {
-    const input = String(rawValue || '').trim();
-    if (!input) {
-      return fail('Enter an FTP, FTPS or SFTP address.');
-    }
-    if (input.length > MAX_INPUT_LENGTH) {
+    const raw = String(rawValue || '');
+    if (raw.length > MAX_INPUT_LENGTH) {
       return fail('The connection address is too long.');
     }
-    if (CONTROL_CHARACTERS.test(input)) {
+    if (CONTROL_CHARACTERS.test(raw)) {
       return fail('The connection address contains control characters.');
+    }
+
+    const input = raw.trim();
+    if (!input) {
+      return fail('Enter an FTP, FTPS or SFTP address.');
     }
 
     let parsed;
@@ -78,8 +81,30 @@
     });
   }
 
+  function buildDesktopLaunchURL(connection) {
+    if (!connection || connection.ok !== true) {
+      throw new Error('A validated connection target is required.');
+    }
+
+    const params = new URLSearchParams();
+    params.set('protocol', String(connection.protocol || '').toLowerCase());
+    params.set('host', connection.host || '');
+    if (connection.port) {
+      params.set('port', connection.port);
+    }
+    if (connection.username) {
+      params.set('username', connection.username);
+    }
+    if (connection.path && connection.path !== '/') {
+      params.set('path', connection.path);
+    }
+
+    return `${DESKTOP_SCHEME}//connect?${params.toString()}`;
+  }
+
   root.GhostFTPConnection = Object.freeze({
     brand: OFFICIAL_BRAND,
-    parseConnectionTarget
+    parseConnectionTarget,
+    buildDesktopLaunchURL
   });
 })(globalThis);

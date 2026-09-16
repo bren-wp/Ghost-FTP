@@ -58,9 +58,25 @@ BROWSER_REQUIRED = {
     "extensions/firefox/manifest.json",
     "extensions/opera/manifest.json",
     "extensions/shared/core.js",
+    "extensions/shared/core.test.mjs",
     "extensions/shared/popup.js",
+    "cmd/ghostftp/launch_init.go",
+    "cmd/ghostftp/launch_target.go",
+    "cmd/ghostftp/launch_target_test.go",
+    "cmd/ghostftp/uninstall_mode_windows.go",
+    "cmd/installer/protocol_registration.go",
+    "cmd/installer/protocol_registration_test.go",
+    "cmd/installer/registry_snapshot.go",
+    "cmd/installer/uninstall_registration_windows.go",
+    "internal/desktop/startup_target.go",
+    "internal/desktop/startup_target_test.go",
+    "internal/desktop/startup_target_windows.go",
+    "internal/desktop/startup_target_handoff_windows.go",
+    "internal/desktop/startup_target_handoff_other.go",
+    "internal/platform/browser_protocol_windows.go",
     "scripts/build_browser_extensions.py",
     "scripts/test_browser_extensions_contract.py",
+    "scripts/test_browser_desktop_launch_contract.py",
     ".github/workflows/browser-extensions.yml",
 }
 LINUX_DISTRIBUTION_REQUIRED = {
@@ -192,7 +208,7 @@ def main() -> int:
     print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
     print("ANDROID_SFTP_PUBLIC_SUPPORT=NO_STRICT_HOST_KEY_BOUNDARY")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
-    print("BROWSER_DESKTOP_HANDOFF=UNSUPPORTED")
+    print("BROWSER_DESKTOP_HANDOFF=WINDOWS_SANITIZED_PROTOCOL")
     print("MACOS_SOURCE_SURFACE=ACTIVE")
     print("MACOS_PUBLIC_RELEASE_ARTIFACT=NO")
     print("RETIRED_APPLICATION_PLATFORMS=IOS")

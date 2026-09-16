@@ -10,9 +10,11 @@ The application does not intentionally collect usage analytics, advertising iden
 
 ## Browser helper
 
-The official Chrome, Edge, Firefox and Opera helpers parse/copy explicitly entered FTP-family targets locally. They request zero broad browser/host permissions, contain no analytics or remote code, do not persist credentials and have no supported browser-to-desktop launch/handoff.
+The official Chrome, Edge, Firefox and Opera helpers parse explicitly entered FTP-family targets locally. They request zero broad browser/host permissions, contain no analytics or remote code, do not persist targets or credentials, and do not read the active tab, browsing history, cookies or page content.
 
-Browser helpers are not protocol engines and do not proxy FTP, FTPS or SFTP traffic.
+On supported installed Windows builds, the explicit **Open in Ghost FTP** action hands a sanitized `ghostftp://connect` payload to the desktop client. The payload is allowlisted to protocol, host, optional port, optional username and optional remote path. Passwords, passphrases, private keys, source query data and source fragments are never included. If Ghost FTP is already running, the handoff stays inside the local Windows session and is forwarded to the primary process without a network relay or persistent handoff file.
+
+Browser helpers are not protocol engines and do not proxy FTP, FTPS or SFTP traffic. Credentials are entered in the native Ghost FTP application after the handoff.
 
 ## Saved credentials
 
