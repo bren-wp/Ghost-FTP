@@ -11,9 +11,7 @@
   }
 
   function decodeForDisplay(value) {
-    if (!value) {
-      return '';
-    }
+    if (!value) return '';
     let decoded;
     try {
       decoded = decodeURIComponent(value);
@@ -26,17 +24,21 @@
     return decoded;
   }
 
+  function buildDesktopLaunchTarget(parsed, username, path) {
+    const params = new URLSearchParams();
+    params.set('protocol', parsed.protocol.slice(0, -1));
+    params.set('host', parsed.hostname);
+    if (parsed.port) params.set('port', parsed.port);
+    if (username) params.set('username', username);
+    if (path && path !== '/') params.set('path', path);
+    return `ghostftp://open?${params.toString()}`;
+  }
+
   function parseConnectionTarget(rawValue) {
     const input = String(rawValue || '').trim();
-    if (!input) {
-      return fail('Enter an FTP, FTPS or SFTP address.');
-    }
-    if (input.length > MAX_INPUT_LENGTH) {
-      return fail('The connection address is too long.');
-    }
-    if (CONTROL_CHARACTERS.test(input)) {
-      return fail('The connection address contains control characters.');
-    }
+    if (!input) return fail('Enter an FTP, FTPS or SFTP address.');
+    if (input.length > MAX_INPUT_LENGTH) return fail('The connection address is too long.');
+    if (CONTROL_CHARACTERS.test(input)) return fail('The connection address contains control characters.');
 
     let parsed;
     try {
@@ -48,9 +50,7 @@
     if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
       return fail('Only FTP, FTPS and SFTP addresses are supported.');
     }
-    if (!parsed.hostname) {
-      return fail('The connection address must contain a host.');
-    }
+    if (!parsed.hostname) return fail('The connection address must contain a host.');
 
     let username;
     let path;
@@ -64,6 +64,7 @@
     const passwordDetected = parsed.password.length > 0;
     const safePath = parsed.pathname || '/';
     const safeTarget = `${parsed.protocol}//${parsed.host}${safePath}`;
+    const desktopLaunchTarget = buildDesktopLaunchTarget(parsed, username, path);
 
     return Object.freeze({
       ok: true,
@@ -74,7 +75,8 @@
       username,
       path,
       passwordDetected,
-      safeTarget
+      safeTarget,
+      desktopLaunchTarget
     });
   }
 
