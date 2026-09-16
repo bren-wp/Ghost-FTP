@@ -119,8 +119,45 @@ class AndroidContractTests(_regressions.AndroidContractTests):
             "hidden bookmarks",
             "persistent android permission",
             "strict server identity verification",
+            "sites / connections",
+            "saved server start directory",
+            "remote directory is unavailable",
+            "upload finalization",
+            "directory comparison",
+            "ftp and secure explicit ftps are available on android",
         ):
             self.assertNotIn(marker, shipping_copy)
+
+    def test_android_user_facing_errors_hide_internal_details(self) -> None:
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+        safe_start = activity.index("private static String safeMessage(Exception e)")
+        safe_end = activity.index("private LinearLayout surfaceContent()", safe_start)
+        safe = activity[safe_start:safe_end]
+
+        for marker in (
+            'safe.contains("/home/")',
+            'safe.contains("/data/user/")',
+            'safe.contains("/data/data/")',
+            'safe.contains("java.")',
+            'safe.contains("javax.")',
+            'safe.contains("android.")',
+            'safe.contains("app.ghostftp.")',
+            'safe.contains(".java:")',
+            'safe.contains("Exception")',
+            'safe.contains("StackTrace")',
+            'lower.contains("stag" + "ing")',
+            'lower.contains("final " + "commit")',
+            'lower.contains("server response " + "code")',
+            'lower.contains("control " + "connection")',
+            'lower.contains("cancellation " + "lifecycle")',
+            'lower.contains("data " + "channel")',
+        ):
+            self.assertIn(marker, safe)
+
+        self.assertIn(
+            'return "The operation could not be completed. Check the connection and try again.";',
+            safe,
+        )
 
     def test_server_identity_change_clears_server_paths(self) -> None:
         model = self.read(f"{_regressions.ANDROID_JAVA}/SiteProfile.java")
