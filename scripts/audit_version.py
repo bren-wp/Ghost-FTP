@@ -200,13 +200,14 @@ def main() -> int:
             "app-release-unsigned.apk",
             '"$build_tools/apksigner" sign',
             '"$build_tools/apksigner" verify --verbose --print-certs',
-            "ISOLATED_CI_ONLY",
+            "ANDROID_RELEASE_SIGNING_PIPELINE_SMOKE_IDENTITY=EPHEMERAL_CI_ONLY",
         ),
         ".github/workflows/android-apk.yml",
     )
     forbid(
         android_workflow,
         (
+            "ISOLATED_CI_ONLY",
             "Ghost-FTP-Android-dev.apk",
             "ghostftp-android-dev-apk",
             "Upload Android development APK",
