@@ -129,38 +129,39 @@ jobs:
           )
 
           anchor = '    def test_server_identity_change_clears_server_paths(self) -> None:\n'
-          regression = '''    def test_android_user_facing_errors_hide_internal_details(self) -> None:
-              activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
-              safe_start = activity.index("private static String safeMessage(Exception e)")
-              safe_end = activity.index("private LinearLayout surfaceContent()", safe_start)
-              safe = activity[safe_start:safe_end]
-
-              for marker in (
-                  'safe.contains("/home/")',
-                  'safe.contains("/data/user/")',
-                  'safe.contains("/data/data/")',
-                  'safe.contains("java.")',
-                  'safe.contains("javax.")',
-                  'safe.contains("android.")',
-                  'safe.contains("app.ghostftp.")',
-                  'safe.contains(".java:")',
-                  'safe.contains("Exception")',
-                  'safe.contains("StackTrace")',
-                  'lower.contains("staging")',
-                  'lower.contains("final commit")',
-                  'lower.contains("server response code")',
-                  'lower.contains("control connection")',
-                  'lower.contains("cancellation lifecycle")',
-                  'lower.contains("data channel")',
-              ):
-                  self.assertIn(marker, safe)
-
-              self.assertIn(
-                  'return "The operation could not be completed. Check the connection and try again.";',
-                  safe,
-              )
-
-          '''
+          regression = (
+              '    def test_android_user_facing_errors_hide_internal_details(self) -> None:\n'
+              '        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")\n'
+              '        safe_start = activity.index("private static String safeMessage(Exception e)")\n'
+              '        safe_end = activity.index("private LinearLayout surfaceContent()", safe_start)\n'
+              '        safe = activity[safe_start:safe_end]\n'
+              '\n'
+              '        for marker in (\n'
+              '            \'safe.contains("/home/")\',\n'
+              '            \'safe.contains("/data/user/")\',\n'
+              '            \'safe.contains("/data/data/")\',\n'
+              '            \'safe.contains("java.")\',\n'
+              '            \'safe.contains("javax.")\',\n'
+              '            \'safe.contains("android.")\',\n'
+              '            \'safe.contains("app.ghostftp.")\',\n'
+              '            \'safe.contains(".java:")\',\n'
+              '            \'safe.contains("Exception")\',\n'
+              '            \'safe.contains("StackTrace")\',\n'
+              '            \'lower.contains("staging")\',\n'
+              '            \'lower.contains("final commit")\',\n'
+              '            \'lower.contains("server response code")\',\n'
+              '            \'lower.contains("control connection")\',\n'
+              '            \'lower.contains("cancellation lifecycle")\',\n'
+              '            \'lower.contains("data channel")\',\n'
+              '        ):\n'
+              '            self.assertIn(marker, safe)\n'
+              '\n'
+              '        self.assertIn(\n'
+              '            \'return "The operation could not be completed. Check the connection and try again.";\',\n'
+              '            safe,\n'
+              '        )\n'
+              '\n'
+          )
           tests = replace_once(tests, anchor, regression + anchor, "sanitizer regression test")
           test_path.write_text(tests, encoding="utf-8")
           PY
