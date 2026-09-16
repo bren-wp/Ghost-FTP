@@ -76,12 +76,14 @@ class BrowserDesktopLaunchContractTests(unittest.TestCase):
         self.assertIn('strings.EqualFold(u.Host, "open")', parser)
         self.assertIn('u.User != nil', parser)
         self.assertIn('u.Fragment != ""', parser)
+        self.assertIn("security.ValidateHost(host)", parser)
+        self.assertIn("security.ValidateRemotePath(path)", parser)
         for forbidden in ('case "password"', 'case "passphrase"', 'case "token"'):
             self.assertNotIn(forbidden, parser)
 
         self.assertIn("desktop.SetStartupTarget", startup)
         self.assertIn("Passwords, passphrases and private-key material are deliberately absent", desktop)
-        self.assertIn(r"Software\Classes\ghostftp", installer)
+        self.assertIn(r"Software\Classes\ghostftp".replace("\\\\", "\\"), installer)
         self.assertIn('"URL Protocol"', installer)
         self.assertIn('`" "%1"`', installer)
         self.assertIn("RemoveOwnedGhostFTPProtocolRegistration", uninstall)
