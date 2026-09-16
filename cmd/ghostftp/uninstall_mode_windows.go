@@ -4,30 +4,23 @@ package main
 
 import (
 	"os"
-	"strings"
 
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
-const (
-	ghostFTPUninstallRegistryKey = `Software\Microsoft\Windows\CurrentVersion\Uninstall\GhostFTP`
-	ghostFTPAppPathsRegistryKey  = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
-)
-
-func integratedUninstallRegistrationRemoved() bool {
-	_, appPathExists, appPathErr := platform.GetRegistryString(ghostFTPAppPathsRegistryKey, "")
-	_, uninstallExists, uninstallErr := platform.GetRegistryString(ghostFTPUninstallRegistryKey, "UninstallString")
-	if appPathErr != nil || uninstallErr != nil {
-		return false
-	}
-	return !appPathExists || !uninstallExists
+func shouldRemoveOwnedProtocolHandler(exitCode int, cleanupAuthorized bool) bool {
+	return exitCode == 0 && cleanupAuthorized
 }
 
 // init handles the Windows Installed Apps maintenance invocation before the
 // normal GUI, AskPass helper or transfer engine is initialized.
 func init() {
 	if handled, exitCode := platform.HandleIntegratedUninstall(os.Args); handled {
-		if exitCode == 0 && len(os.Args) == 2 && strings.EqualFold(strings.TrimSpace(os.Args[1]), "--uninstall") && integratedUninstallRegistrationRemoved() {
+		// Exit code 0 is also used when the user cancels the confirmation dialog.
+		// Remove the owned protocol handler only after the verified uninstall
+		// helper has actually started, never by inferring success from registry
+		// values that may already have been absent before this invocation.
+		if shouldRemoveOwnedProtocolHandler(exitCode, platform.IntegratedUninstallCleanupAuthorized()) {
 			if exe, err := os.Executable(); err == nil {
 				_ = platform.RemoveOwnedGhostFTPProtocolRegistration(exe)
 			}
