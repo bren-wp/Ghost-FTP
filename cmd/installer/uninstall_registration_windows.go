@@ -50,5 +50,8 @@ func registerIntegratedUninstall(appPath, currentVersion string) error {
 	if err := platform.SetRegistryDWORD(uninstallKey, "NoRepair", 1); err != nil {
 		return err
 	}
+	if err := registerBrowserProtocol(appPath); err != nil {
+		return fmt.Errorf("browser launch protocol registration failed: %w", err)
+	}
 	return nil
 }
