@@ -13,8 +13,8 @@ func TestDisplayVersion(t *testing.T) {
 		{name: "one-major release", in: "1.0.0", want: "1.0.0"},
 		{name: "later release", in: "1.4.2", want: "1.4.2"},
 		{name: "trim whitespace", in: " 0.0.2\n", want: "0.0.2"},
-		{name: "development fallback", in: "", want: "dev"},
-		{name: "whitespace development fallback", in: " \t\n", want: "dev"},
+		{name: "missing metadata stays blank", in: "", want: ""},
+		{name: "whitespace metadata stays blank", in: " \t\n", want: ""},
 	}
 
 	for _, test := range tests {

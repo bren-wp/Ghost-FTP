@@ -80,6 +80,21 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertNotIn("ghostftp-android-dev-apk", workflow)
         self.assertNotIn("Upload Android development APK", workflow)
 
+    def test_android_shipping_copy_is_user_facing(self) -> None:
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+        manifest = self.read("android/app/src/main/AndroidManifest.xml")
+        strings = self.read("android/app/src/main/res/values/strings.xml")
+
+        self.assertIn('android:description="@string/app_description"', manifest)
+        self.assertIn(
+            '<string name="app_description">Private FTP and FTPS file transfers with no telemetry or ads.</string>',
+            strings,
+        )
+
+        shipping_copy = (activity + "\n" + strings).lower()
+        for marker in ("developer", "development", "debug", "demo", "mock", "staging"):
+            self.assertNotIn(marker, shipping_copy)
+
     def test_server_identity_change_clears_server_paths(self) -> None:
         model = self.read(f"{_regressions.ANDROID_JAVA}/SiteProfile.java")
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")

@@ -24,7 +24,7 @@ var payload embed.FS
 
 const maxEmbeddedExecutableSize = 256 << 20
 
-var version = "dev"
+var version = "0.0.6"
 var role = "portable"
 
 func normalizedRole(value string) (string, error) {
@@ -172,8 +172,8 @@ func main() {
 	platform.HardenProcessPrivacy()
 	if err := runSelected(); err != nil {
 		name := brand.ProductName
-		if version != "dev" {
-			name += " " + version
+		if displayVersion := brand.DisplayVersion(version); displayVersion != "" {
+			name += " " + displayVersion
 		}
 		platform.ErrorDialog(
 			name,
