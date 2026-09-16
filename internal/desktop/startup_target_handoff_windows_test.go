@@ -30,3 +30,24 @@ func TestStartupTargetHandoffRejectsSensitivePayload(t *testing.T) {
 		t.Fatal("sensitive startup target must be rejected before Windows handoff")
 	}
 }
+
+func TestCanApplyStartupTargetDefersUnsafeStateTransitions(t *testing.T) {
+	cases := []struct {
+		name string
+		app  *app
+		want bool
+	}{
+		{name: "ready", app: &app{}, want: true},
+		{name: "connected", app: &app{connected: true}, want: false},
+		{name: "connection busy", app: &app{connectionBusy: true}, want: false},
+		{name: "profile mutation busy", app: &app{profileMutationBusy: true}, want: false},
+		{name: "nil app", app: nil, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.app.canApplyStartupTarget(); got != tc.want {
+				t.Fatalf("canApplyStartupTarget() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
