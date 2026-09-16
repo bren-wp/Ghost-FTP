@@ -34,8 +34,6 @@ class MacOSDistributionContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, script)
 
-        # Raw signing/notary credential material belongs outside the reusable
-        # production signer. It receives only Keychain references.
         for forbidden in (
             "APPLE_ID_PASSWORD",
             "APP_SPECIFIC_PASSWORD",
@@ -46,8 +44,6 @@ class MacOSDistributionContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, script)
 
-        # Explicit inside-out signing remains reviewable; never hide nested
-        # code discovery behind codesign --deep during signing.
         sign_section = script.split("sign_one()", 1)[1].split("codesign --verify", 1)[0]
         for target in ('sign_one "$ENGINE"', 'sign_one "$ASKPASS"', 'sign_one "$EXECUTABLE"', 'sign_one "$APP"'):
             self.assertIn(target, sign_section)
@@ -82,18 +78,12 @@ class MacOSDistributionContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, workflow)
 
-        # External credential values must not be expanded into security import
-        # process arguments. The protected P12 passphrase is consumed from the
-        # environment by OpenSSL, and only a disposable empty-passphrase copy
-        # reaches security import before immediate deletion.
         self.assertNotIn('-P "$DEVELOPER_ID_P12_PASSWORD"', workflow)
         self.assertLess(workflow.index('echo "work=$work"'), workflow.index("base64 -D"))
         self.assertLess(workflow.index("trap cleanup_provisioning EXIT"), workflow.index("base64 -D"))
         self.assertIn('rm -f "$import_p12"', workflow)
         self.assertIn('rm -f "$protected_p12" "$import_p12" "$api_key"', workflow)
 
-        # Signing/notarization can create a verified artifact but does not
-        # silently mutate or publish an existing public GitHub release.
         for forbidden in (
             "gh release",
             "softprops/action-gh-release",
@@ -102,16 +92,22 @@ class MacOSDistributionContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, workflow)
 
-    def test_development_build_stays_distinct_from_production_distribution(self) -> None:
+    def test_validation_build_stays_distinct_from_production_distribution(self) -> None:
         build = read("macos/BUILD.sh")
-        self.assertIn("MACOS_SIGNING=adhoc-development", build)
+        self.assertIn("MACOS_SIGNING=adhoc-validation", build)
+        self.assertIn("MACOS_VALIDATION_ARTIFACT", build)
+        self.assertNotIn("adhoc-development", build)
+        self.assertNotIn("MACOS_DEVELOPMENT_ARTIFACT", build)
         self.assertNotIn("notarytool", build)
         self.assertNotIn("Developer ID Application", build)
 
-        dev_workflow = read(".github/workflows/macos-app.yml")
-        self.assertIn("Ghost FTP macOS Development App", dev_workflow)
-        self.assertIn("MACOS_APP_SIGNING=adhoc-development", dev_workflow)
-        self.assertNotIn("MACOS_DEVELOPER_ID_P12_BASE64", dev_workflow)
+        validation_workflow = read(".github/workflows/macos-app.yml")
+        self.assertIn("Ghost FTP macOS Validation App", validation_workflow)
+        self.assertIn("MACOS_APP_SIGNING=adhoc-validation", validation_workflow)
+        self.assertIn("ghostftp-macos-validation", validation_workflow)
+        self.assertNotIn("Development App", validation_workflow)
+        self.assertNotIn("ghostftp-macos-development", validation_workflow)
+        self.assertNotIn("MACOS_DEVELOPER_ID_P12_BASE64", validation_workflow)
 
     def test_public_release_remains_separate_until_credentialed_artifact_is_explicitly_promoted(self) -> None:
         release = read(".github/workflows/release.yml")
