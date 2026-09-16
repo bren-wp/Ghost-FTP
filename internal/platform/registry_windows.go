@@ -58,6 +58,14 @@ func openRegistryKey(subkey string, access uintptr) (uintptr, bool, error) {
 	return h, true, nil
 }
 
+func RegistryKeyExists(subkey string) (bool, error) {
+	h, exists, err := openRegistryKey(subkey, keyRead)
+	if h != 0 {
+		regCloseKey.Call(h)
+	}
+	return exists, err
+}
+
 func SetRegistryString(subkey, name, value string) error {
 	h, err := createRegistryKey(subkey)
 	if err != nil {
