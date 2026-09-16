@@ -31,7 +31,7 @@ macOS is an active native AppKit development frontend over the shared engine. So
 
 ## Browser helper boundary
 
-Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from one shared local runtime. They remain parser/copy helpers with zero broad permissions and **no supported browser-to-desktop launch/handoff**. They are not substitutes for a native protocol client.
+Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from one shared local runtime. They retain zero broad browser/host permissions and do not implement FTP/FTPS/SFTP transport. On supported installed Windows builds, an explicit **Open in Ghost FTP** action performs a sanitized browser-to-desktop handoff through `ghostftp://connect`. Only protocol, host, optional port, optional username and remote path are transferred; credentials, private-key material, source query data and fragments are excluded, and the desktop does not auto-connect.
 
 ## Retired application surfaces
 
