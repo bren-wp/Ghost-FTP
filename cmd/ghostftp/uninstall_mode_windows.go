@@ -8,6 +8,10 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/platform"
 )
 
+func shouldRemoveOwnedProtocolHandler(exitCode int, cleanupAuthorized bool) bool {
+	return exitCode == 0 && cleanupAuthorized
+}
+
 // init handles the Windows Installed Apps maintenance invocation before the
 // normal GUI, AskPass helper or transfer engine is initialized.
 func init() {
@@ -16,7 +20,7 @@ func init() {
 		// Remove the owned protocol handler only after the verified uninstall
 		// helper has actually started, never by inferring success from registry
 		// values that may already have been absent before this invocation.
-		if exitCode == 0 && platform.IntegratedUninstallCleanupAuthorized() {
+		if shouldRemoveOwnedProtocolHandler(exitCode, platform.IntegratedUninstallCleanupAuthorized()) {
 			if exe, err := os.Executable(); err == nil {
 				_ = platform.RemoveOwnedGhostFTPProtocolRegistration(exe)
 			}
