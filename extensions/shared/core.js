@@ -28,15 +28,17 @@
   }
 
   function parseConnectionTarget(rawValue) {
-    const input = String(rawValue || '').trim();
-    if (!input) {
-      return fail('Enter an FTP, FTPS or SFTP address.');
-    }
-    if (input.length > MAX_INPUT_LENGTH) {
+    const raw = String(rawValue || '');
+    if (raw.length > MAX_INPUT_LENGTH) {
       return fail('The connection address is too long.');
     }
-    if (CONTROL_CHARACTERS.test(input)) {
+    if (CONTROL_CHARACTERS.test(raw)) {
       return fail('The connection address contains control characters.');
+    }
+
+    const input = raw.trim();
+    if (!input) {
+      return fail('Enter an FTP, FTPS or SFTP address.');
     }
 
     let parsed;
