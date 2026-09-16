@@ -28,6 +28,10 @@ func (a *app) updateActionControls() {
 		return
 	}
 
+	// Browser launch metadata is consumed only once, after the native controls
+	// exist. The payload cannot contain passwords or passphrases.
+	a.applyInitialLaunchTarget()
+
 	profileEditable := !a.connected && !a.connectionBusy && !a.profileMutationBusy
 	setControlEnabled(a.siteManagerBtn, profileEditable)
 	setControlEnabled(a.saveProfile, profileEditable)
