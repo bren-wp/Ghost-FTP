@@ -55,7 +55,11 @@ The public APK is built from exact release source and must be signed with the pr
 
 ## Browser helper security
 
-Chrome, Edge, Firefox and Opera helpers have zero browser permissions and zero host permissions, no remote code, no telemetry backend and no supported browser-to-desktop handoff. They parse/copy explicitly entered targets locally and do not become a protocol engine.
+Chrome, Edge, Firefox and Opera helpers have zero browser permissions and zero host permissions, no remote code and no telemetry backend. They parse explicitly entered targets locally and never become a protocol engine.
+
+The explicit Windows desktop handoff uses only `ghostftp://connect` with an allowlist of protocol, host, optional port, optional username and optional remote path. The desktop parser rejects unknown or duplicated fields, URL userinfo, fragments, invalid schemes/ports, unsafe host/path data and control characters. Passwords, passphrases, private keys and arbitrary command arguments are not represented in the handoff contract.
+
+When Ghost FTP is already running, the secondary process forwards the same validated payload to the primary process through local Windows `WM_COPYDATA`. The receiver re-validates the payload before use, does not open a socket or write a handoff file, does not auto-connect, and leaves credentials empty for explicit entry in the native client.
 
 ## Retired web surface
 
