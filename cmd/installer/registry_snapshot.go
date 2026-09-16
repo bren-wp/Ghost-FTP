@@ -20,9 +20,15 @@ type registryDWORDSnapshot struct {
 	existed bool
 }
 
+type registryKeySnapshot struct {
+	key     string
+	existed bool
+}
+
 type registrySnapshot struct {
 	strings []registryStringSnapshot
 	dwords  []registryDWORDSnapshot
+	keys    []registryKeySnapshot
 }
 
 var installerStringRegistryValues = []struct{ key, name string }{
@@ -47,6 +53,14 @@ var installerDWORDRegistryValues = []struct{ key, name string }{
 	{uninstallKey, "NoRepair"},
 }
 
+var installerProtocolRegistryKeys = []string{
+	browserProtocolKey,
+	browserProtocolIconKey,
+	browserProtocolShellKey,
+	browserProtocolOpenKey,
+	browserProtocolCommandKey,
+}
+
 func captureRegistrySnapshot() (registrySnapshot, error) {
 	var out registrySnapshot
 	for _, item := range installerStringRegistryValues {
@@ -67,6 +81,13 @@ func captureRegistrySnapshot() (registrySnapshot, error) {
 			key: item.key, name: item.name, value: value, existed: existed,
 		})
 	}
+	for _, key := range installerProtocolRegistryKeys {
+		existed, err := platform.RegistryKeyExists(key)
+		if err != nil {
+			return registrySnapshot{}, err
+		}
+		out.keys = append(out.keys, registryKeySnapshot{key: key, existed: existed})
+	}
 	return out, nil
 }
 
@@ -79,13 +100,13 @@ func (s registrySnapshot) stringValue(key, name string) (string, bool) {
 	return "", false
 }
 
-func (s registrySnapshot) browserProtocolOriginallyAbsent() bool {
-	for _, item := range s.strings {
-		if (item.key == browserProtocolKey || item.key == browserProtocolIconKey || item.key == browserProtocolCommandKey) && item.existed {
-			return false
+func (s registrySnapshot) protocolKeyOriginallyExisted(key string) bool {
+	for _, item := range s.keys {
+		if item.key == key {
+			return item.existed
 		}
 	}
-	return true
+	return false
 }
 
 func (s registrySnapshot) restore() error {
@@ -112,8 +133,21 @@ func (s registrySnapshot) restore() error {
 			errs = append(errs, err)
 		}
 	}
-	if s.browserProtocolOriginallyAbsent() {
-		if err := removeBrowserProtocolRegistrationKeys(); err != nil {
+
+	// Remove only protocol keys that this install transaction created. Existing
+	// keys may contain named metadata that is outside Ghost FTP's tracked values;
+	// deleting those keys wholesale during rollback would destroy that metadata.
+	for _, key := range []string{
+		browserProtocolCommandKey,
+		browserProtocolOpenKey,
+		browserProtocolShellKey,
+		browserProtocolIconKey,
+		browserProtocolKey,
+	} {
+		if s.protocolKeyOriginallyExisted(key) {
+			continue
+		}
+		if err := platform.DeleteRegistryKey(key); err != nil {
 			errs = append(errs, err)
 		}
 	}
