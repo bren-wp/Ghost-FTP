@@ -99,7 +99,9 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertNotIn("Retry", surface)
         self.assertNotIn("Resume", surface)
         self.assertNotIn("Clear history", surface)
-        self.assertIn("No decorative queue or fake history is displayed.", surface)
+        self.assertNotIn("fake history", surface.lower())
+        self.assertIn('Button openFiles = button("Open Files")', surface)
+        self.assertIn("openFiles.setOnClickListener(v -> showSection(Section.FILES));", surface)
 
         buttons_start = activity.index("private void refreshButtons()")
         buttons_end = activity.index("private void updateConnectionBadge(", buttons_start)
