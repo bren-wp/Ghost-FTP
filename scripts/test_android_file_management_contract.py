@@ -32,7 +32,7 @@ class AndroidFileManagementContractTests(unittest.TestCase):
             'remoteCreateDirectory = button("New folder")',
             'remoteRename = button("Rename")',
             'remoteDelete = dangerButton("Delete")',
-            'remoteChmod = button("Permissions / CHMOD")',
+            'remoteChmod = button("Permissions")',
             "current.createDirectory(",
             "current.rename(",
             "current.delete(",
