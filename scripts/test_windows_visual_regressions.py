@@ -63,7 +63,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("applicationContentLeft", sidebar)
         self.assertIn("setSidebarButtonVisual", sidebar)
         self.assertIn("navigationLabelsForLanguage", navigation)
-        self.assertIn('"ko": {"서버 관리자", "진단"}', navigation)
+        self.assertIn('"ko": {"서버 관리자", "연결 정보"}', navigation)
         self.assertFalse((ROOT / "internal/desktop/menu_draw_windows.go").exists())
         self.assertFalse((ROOT / "internal/desktop/menu_windows.go").exists())
         self.assertNotIn("a.measureMenuItem(lParam)", wnd)
