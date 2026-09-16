@@ -88,11 +88,11 @@ See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence cont
 
 ## Ghost FTP 0.0.6
 
-Current source version: **0.0.6**  
-Release channel: **Current**  
-Product status: **Current**  
-Last actually published GitHub Release: **0.0.5**  
-Next public release target: **ghostftp-v0.0.6**  
+Current source version: **0.0.6**
+Release channel: **Current**
+Product status: **Current**
+Last actually published GitHub Release: **0.0.5**
+Next public release target: **ghostftp-v0.0.6**
 Prerelease: **false**
 
 The 0.0.6 publication contract contains **13 platform artifacts / 16 public files**.
@@ -194,7 +194,7 @@ A pull request is merge-ready only when workflows for its exact final head SHA r
 
 ---
 
-## 24 desktop languages
+## Localization
 
 Ghost FTP maintains 24 selectable desktop languages with English as the canonical default and fallback: English, Croatian, German, French, Spanish, Turkish, Greek, Portuguese, Chinese, Russian, Hindi, Japanese, Italian, Polish, Dutch, Czech, Ukrainian, Swedish, Romanian, Hungarian, Danish, Finnish, Norwegian and Korean.
 
