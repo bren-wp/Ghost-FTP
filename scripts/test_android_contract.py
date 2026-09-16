@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Android regression suite for the maintained test and production release contract."""
 
+import re
 import unittest
 
 import _android_contract_regressions as _regressions
@@ -91,7 +92,13 @@ class AndroidContractTests(_regressions.AndroidContractTests):
             strings,
         )
 
-        shipping_copy = (activity + "\n" + strings).lower()
+        # Scan literal copy that can reach UI surfaces, not implementation
+        # identifiers such as CLEANUP_STAGING which users never see.
+        user_literals = "\n".join(
+            match.group(0).lower()
+            for match in re.finditer(r'"(?:\\.|[^"\\])*"', activity)
+        )
+        shipping_copy = user_literals + "\n" + strings.lower()
         for marker in ("developer", "development", "debug", "demo", "mock", "staging"):
             self.assertNotIn(marker, shipping_copy)
 
