@@ -5,7 +5,7 @@ package desktop
 import "strconv"
 
 func (a *app) canApplyStartupTarget() bool {
-	return a != nil && !a.connected && !a.connectionBusy && !a.profileMutationBusy
+	return a != nil && !a.connected && !a.connectionBusy && !a.profileMutationBusy && !siteManagerBlocksStartupTarget(a)
 }
 
 func (a *app) applyStartupTarget() bool {
@@ -13,8 +13,9 @@ func (a *app) applyStartupTarget() bool {
 		return false
 	}
 	// Leave the one-shot target pending while any state transition could later
-	// restore a saved profile. updateActionControls is called when the mutation
-	// finishes, at which point it is safe to detach the profile and consume it.
+	// restore a saved profile. This includes the whole Site Manager modal
+	// lifetime because synchronous SaveProfile/credential-consent paths can pump
+	// messages and restore selectedProfileID before the dialog closes.
 	if !a.canApplyStartupTarget() {
 		return false
 	}
