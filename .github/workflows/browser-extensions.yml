@@ -46,6 +46,7 @@ jobs:
           set -euo pipefail
           python scripts/build_browser_extensions.py --check
           python scripts/test_browser_extensions_contract.py
+          node extensions/shared/core.test.mjs
       - name: Build deterministic browser packages
         shell: bash
         run: |
