@@ -7,6 +7,8 @@
   const status = document.getElementById('status');
   const passwordNotice = document.getElementById('password-notice');
   const clearButton = document.getElementById('clear-button');
+  const openDesktopButton = document.getElementById('open-desktop');
+  let parsedConnection = null;
 
   const outputs = {
     protocol: document.getElementById('protocol'),
@@ -29,6 +31,7 @@
   }
 
   function resetResult() {
+    parsedConnection = null;
     result.hidden = true;
     passwordNotice.hidden = true;
     setStatus('Nothing leaves this popup.', 'neutral');
@@ -65,6 +68,7 @@
     event.preventDefault();
     const parsed = globalThis.GhostFTPConnection.parseConnectionTarget(input.value);
     if (!parsed.ok) {
+      parsedConnection = null;
       result.hidden = true;
       passwordNotice.hidden = true;
       setStatus(parsed.error, 'error');
@@ -72,6 +76,7 @@
       return;
     }
 
+    parsedConnection = parsed;
     setOutput(outputs.protocol, parsed.protocol, '—');
     setOutput(outputs.host, parsed.host, '—');
     setOutput(outputs.port, parsed.port, 'Default / server-defined');
@@ -81,7 +86,22 @@
 
     passwordNotice.hidden = !parsed.passwordDetected;
     result.hidden = false;
-    setStatus('Parsed locally. Safe target excludes URL credentials, query and fragment data.', 'success');
+    setStatus('Parsed locally. Sensitive URL data is excluded from desktop launch.', 'success');
+  });
+
+  openDesktopButton.addEventListener('click', () => {
+    if (!parsedConnection) {
+      setStatus('Check a connection address first.', 'error');
+      return;
+    }
+
+    try {
+      const launchURL = globalThis.GhostFTPConnection.buildDesktopLaunchURL(parsedConnection);
+      window.location.href = launchURL;
+      setStatus('Opening Ghost FTP desktop app…', 'success');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Unable to open Ghost FTP.', 'error');
+    }
   });
 
   document.addEventListener('click', async (event) => {
