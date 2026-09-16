@@ -71,6 +71,8 @@ BROWSER_REQUIRED = {
     "internal/desktop/startup_target.go",
     "internal/desktop/startup_target_test.go",
     "internal/desktop/startup_target_windows.go",
+    "internal/desktop/startup_target_handoff_windows.go",
+    "internal/desktop/startup_target_handoff_other.go",
     "internal/platform/browser_protocol_windows.go",
     "scripts/build_browser_extensions.py",
     "scripts/test_browser_extensions_contract.py",
