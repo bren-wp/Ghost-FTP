@@ -4,21 +4,15 @@ Native Android client source lives entirely under this `android/` directory.
 
 ## Ghost FTP 0.0.6 release status
 
-Ghost FTP **0.0.6** adds a **production-signed public Android release** to the canonical GitHub Release:
+Ghost FTP **0.0.6** publishes one production-signed Android artifact in the canonical GitHub Release:
 
 ```text
 Ghost-FTP-0.0.6-Android.apk
 ```
 
-The repository root `VERSION` remains the canonical release identity. Android release `versionName` equals root `VERSION`; development builds add only the `-dev` suffix and keep the separate package/application-development identity.
+The repository root `VERSION` is the canonical release identity. Android `versionName` equals that root version exactly; validation builds do not alter the visible product version with development suffixes.
 
-Ordinary exact-head CI continues to produce:
-
-```text
-Ghost-FTP-Android-dev.apk
-```
-
-That development APK may use an ephemeral CI-only signing identity for pipeline validation. It is not the public production APK and is not accepted as publisher evidence.
+Pull-request and branch CI build the standard Android test variant and an unsigned release APK for verification. These CI outputs are validation inputs only and are not public release artifacts. The public 0.0.6 APK is produced exclusively by the protected release workflow after publisher signing and certificate-fingerprint verification.
 
 The canonical release workflow requires protected Android signing credentials and verifies the signing certificate SHA-256 fingerprint before publication. Production signing material is never committed to the repository.
 
@@ -81,15 +75,11 @@ Saved sites remain non-secret. Persisted identity/navigation state is bounded an
 
 Authentic UI evidence is captured from the exact-source built APK in an Android emulator. Mockups, generated images and manually composed approximations are not production evidence. The maintained cross-platform evidence bundle records exact source SHA and SHA-256 hashes.
 
-## Development build
+## CI validation build
 
-The canonical development workflow uses Gradle 8.9 and Android SDK 35 and exercises unit tests, debug/release lint, debug packaging, unsigned release construction and an ephemeral `apksigner` smoke test.
+The maintained Android CI uses Gradle 8.9 and Android SDK 35. It runs unit tests, debug/release lint, a standard Android test build, unsigned release construction and an isolated `apksigner` verification pass.
 
-Canonical development artifact:
-
-```text
-android/dist/Ghost-FTP-Android-dev.apk
-```
+No CI validation APK is presented as a public Ghost FTP release artifact or publisher-signed package.
 
 ## Production release signing
 
@@ -105,4 +95,4 @@ GHOSTFTP_ANDROID_CERT_SHA256
 
 The workflow builds the unsigned release APK, signs it using Android `apksigner`, verifies the APK and requires the signer certificate SHA-256 digest to match the protected expected fingerprint. The temporary keystore is removed after the job.
 
-The production workflow must fail closed if credentials are absent/invalid and must never generate a replacement publisher identity.
+The production workflow fails closed if credentials are absent or invalid and never generates a replacement publisher identity.
