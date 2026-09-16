@@ -51,3 +51,34 @@ func TestCanApplyStartupTargetDefersUnsafeStateTransitions(t *testing.T) {
 		})
 	}
 }
+
+func TestCanApplyStartupTargetDefersWhileSiteManagerIsOpen(t *testing.T) {
+	a := &app{}
+	state := &siteManagerState{parent: a}
+	const testWindow = uintptr(0x7f01)
+	siteManagerStates.Store(testWindow, state)
+	defer siteManagerStates.Delete(testWindow)
+
+	if !siteManagerOpenForApp(a) {
+		t.Fatal("expected Site Manager state to be detected for the parent app")
+	}
+	if a.canApplyStartupTarget() {
+		t.Fatal("startup target must stay pending while Site Manager is open")
+	}
+}
+
+func TestHasStartupTargetDoesNotConsumeOneShotTarget(t *testing.T) {
+	_, _ = takeStartupTarget()
+	want := StartupTarget{Protocol: "sftp", Host: "example.com", Port: 22, Username: "alice", Path: "/home/alice"}
+	SetStartupTarget(want)
+	if !hasStartupTarget() {
+		t.Fatal("expected pending startup target")
+	}
+	got, ok := takeStartupTarget()
+	if !ok {
+		t.Fatal("presence check must not consume startup target")
+	}
+	if got != want {
+		t.Fatalf("unexpected target after presence check: %#v", got)
+	}
+}
