@@ -23,15 +23,21 @@ func parseDesktopLaunchTarget(raw string) (desktopLaunchTarget, error) {
 	}
 
 	u, err := url.Parse(raw)
-	if err != nil || !strings.EqualFold(u.Scheme, "ghostftp") || !strings.EqualFold(u.Host, "connect") || u.User != nil || u.Fragment != "" {
+	if err != nil || !strings.EqualFold(u.Scheme, "ghostftp") || u.User != nil || u.Fragment != "" {
+		return desktopLaunchTarget{}, errInvalidDesktopLaunch
+	}
+	if !strings.EqualFold(u.Host, "connect") && !strings.EqualFold(u.Host, "open") {
 		return desktopLaunchTarget{}, errInvalidDesktopLaunch
 	}
 
 	q := u.Query()
-	for key := range q {
+	for key, values := range q {
 		switch key {
 		case "protocol", "host", "port", "username", "path":
 		default:
+			return desktopLaunchTarget{}, errInvalidDesktopLaunch
+		}
+		if len(values) != 1 {
 			return desktopLaunchTarget{}, errInvalidDesktopLaunch
 		}
 	}
@@ -42,7 +48,7 @@ func parseDesktopLaunchTarget(raw string) (desktopLaunchTarget, error) {
 	}
 
 	host := q.Get("host")
-	if host == "" || strings.ContainsAny(host, "\r\n\t") {
+	if host == "" || strings.ContainsAny(host, "\r\n\t\x00") {
 		return desktopLaunchTarget{}, errInvalidDesktopLaunch
 	}
 
