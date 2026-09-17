@@ -83,16 +83,21 @@ func TestLinuxAboutInfoUsesPublicProductMetadata(t *testing.T) {
 }
 
 func TestLinuxWrapForUIKeepsUTF8AndBoundedLines(t *testing.T) {
-	lines := linuxWrapForUI("Čuvanje sigurnih postavki bez telemetrije", 14)
-	if len(lines) < 2 {
-		t.Fatalf("expected wrapped lines, got %#v", lines)
-	}
-	for _, line := range lines {
-		if !utf8.ValidString(line) {
-			t.Fatalf("invalid UTF-8 wrapped line: %q", line)
+	for _, input := range []string{
+		"Čuvanje sigurnih postavki bez telemetrije",
+		"连接信息和隐私保护不应溢出固定宽度信息面板",
+	} {
+		lines := linuxWrapForUI(input, 14)
+		if len(lines) < 2 {
+			t.Fatalf("expected wrapped lines for %q, got %#v", input, lines)
 		}
-		if utf8.RuneCountInString(line) > 14 {
-			t.Fatalf("wrapped line exceeds limit: %q", line)
+		for _, line := range lines {
+			if !utf8.ValidString(line) {
+				t.Fatalf("invalid UTF-8 wrapped line: %q", line)
+			}
+			if utf8.RuneCountInString(line) > 14 {
+				t.Fatalf("wrapped line exceeds limit: %q", line)
+			}
 		}
 	}
 }
