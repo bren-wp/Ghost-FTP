@@ -2,6 +2,8 @@
 
 package desktop
 
+import "github.com/bren-wp/Ghost-FTP/internal/model"
+
 const (
 	linuxMasterRailX           = 14
 	linuxMasterRailWidth       = 166
