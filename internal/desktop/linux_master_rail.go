@@ -97,10 +97,17 @@ func linuxAffineRect(r linuxRect, oldLeft, oldRight, newLeft, newRight int) linu
 
 // applyLinuxMasterLayoutTransform keeps the proven X11 workspace behavior and
 // remaps only its horizontal geometry into the content column beside the new
-// application rail. render() rebuilds the baseline layout before every frame,
-// so this operation is intentionally applied once from the header hook.
+// application rail. Several established render hooks can reach this helper in
+// one frame, so it must detect the already-remapped layout and never compound
+// the affine transform.
 func (u *linuxDesktop) applyLinuxMasterLayoutTransform() {
 	if u == nil {
+		return
+	}
+	if u.layout.localPath.left >= linuxMasterContentLeft && u.layout.remotePath.left >= linuxMasterContentLeft {
+		// Settings is application navigation rather than workspace content. Keep
+		// its hit target canonical even when a second hook reaches this helper.
+		u.layout.settings = buildLinuxMasterRailLayout(u.width, u.height).settings
 		return
 	}
 	oldLeft := premiumOuterGap
@@ -132,8 +139,7 @@ func (u *linuxDesktop) applyLinuxMasterLayoutTransform() {
 	// Settings is application navigation rather than workspace content in the
 	// master design. Keeping its real hit target in the rail also prevents a
 	// duplicate top-right Settings button from surviving the transition.
-	rail := buildLinuxMasterRailLayout(u.width, u.height)
-	u.layout.settings = rail.settings
+	u.layout.settings = buildLinuxMasterRailLayout(u.width, u.height).settings
 }
 
 func linuxTransferBadgeLabel(count int) string {
