@@ -1,0 +1,256 @@
+name: Patch Ghost FTP 0.0.7 Android Compatibility APK
+
+on:
+  push:
+    branches:
+      - release-compat/ghostftp-v0.0.7
+    paths:
+      - .github/workflows/patch-0.0.7-android-compat.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ghostftp-0.0.7-android-compat-patch
+  cancel-in-progress: false
+
+jobs:
+  patch-release:
+    name: Add verified installable Android compatibility APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      SOURCE_SHA: f7dc8a6947279dc773fe58e9ff264c1aa25bf477
+      VERSION: 0.0.7
+      RELEASE_TAG: ghostftp-v0.0.7
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact published source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: f7dc8a6947279dc773fe58e9ff264c1aa25bf477
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(tr -d '\r\n' < VERSION)" = "$VERSION"
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")"
+          test "$(jq -r .draft <<<"$release_json")" = 'false'
+          test "$(jq -r .prerelease <<<"$release_json")" = 'false'
+          remote_tag_sha="$(git ls-remote origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}')"
+          test "$remote_tag_sha" = "$SOURCE_SHA"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq "Ghost-FTP-${VERSION}-Android.apk"; then
+            echo "Android APK is already present; refusing an implicit replacement." >&2
+            exit 1
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: platform-tools
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          gradle-version: '8.9'
+
+      - name: Ensure Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Run Android contracts tests lint and compatibility build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_android_contract.py
+          python scripts/test_android_passive_data_contract.py
+          python scripts/test_android_mobile_navigation_contract.py
+          python scripts/test_android_release_signing_contract.py
+          (
+            cd android
+            gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug \
+              -PghostftpVersion="$VERSION" \
+              --no-daemon --stacktrace
+          )
+
+      - name: Verify installable compatibility APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk='android/app/build/outputs/apk/debug/app-debug.apk'
+          test -s "$apk"
+          unzip -t "$apk" >/dev/null
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          test -x "$build_tools/apksigner"
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee "$RUNNER_TEMP/apksigner.txt"
+          grep -Fq 'Verifies' "$RUNNER_TEMP/apksigner.txt"
+          badging="$(aapt dump badging "$apk")"
+          grep -Fq "package: name='app.ghostftp.client.debug'" <<<"$badging"
+          grep -Fq "versionName='${VERSION}-debug'" <<<"$badging"
+          printf 'ANDROID_COMPAT_APK_SHA256=%s\n' "$(sha256sum "$apk" | awk '{print $1}')"
+
+      - name: Download current 0.0.7 release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir release
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir release
+          test "$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')" = '15'
+          test ! -e "release/Ghost-FTP-${VERSION}-Android.apk"
+
+      - name: Assemble Android-complete compatibility release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release/Ghost-FTP-${VERSION}-Android.apk"
+          rm -f release/BUILD-METADATA.txt release/RELEASE-NOTES.txt release/SHA256.txt
+
+          cat > release/RELEASE-NOTES.txt <<EOF
+          Ghost FTP ${VERSION}
+
+          Public compatibility release
+          ============================
+
+          Ghost FTP ${VERSION} is published from verified source commit ${SOURCE_SHA}. This compatibility channel keeps the unsigned Windows publication model used by 0.0.6 and now also includes an installable Android compatibility APK.
+
+          Windows
+          -------
+          - Universal Setup and Portable packages contain x64, x86 and ARM64 payloads.
+          - Windows executables are explicitly UNSIGNED. Integrity is covered by SHA256.txt and the exact source commit in BUILD-METADATA.txt.
+
+          Linux
+          -----
+          - Debian, Ubuntu and Fedora Installer + Portable universal bundles.
+          - Each bundle carries amd64, arm64 and i386 payloads.
+
+          Android
+          -------
+          - Ghost-FTP-${VERSION}-Android.apk is an installable DEBUG-SIGNED compatibility APK built from the exact ${SOURCE_SHA} source.
+          - Package id: app.ghostftp.client.debug.
+          - Android version name: ${VERSION}-debug.
+          - The APK is verified with apksigner, but it is NOT signed with the protected Ghost FTP production identity.
+          - This separate debug application id intentionally avoids blocking a future production-signed app. It is not an update path for the future production Android package.
+
+          Browser helpers
+          ---------------
+          - Chrome, Edge, Firefox and Opera local helper packages are included.
+          - They have zero browser permissions and zero host permissions.
+
+          macOS
+          -----
+          - macOS remains maintained source/development-only until Developer ID Application signing and Apple notarization are available.
+
+          Integrity
+          ---------
+          - Source commit: ${SOURCE_SHA}
+          - Tag: ${RELEASE_TAG}
+          - Platform artifacts: 13
+          - Metadata files: 3
+          - Total public files: 16
+          - SHA256.txt covers every public file except itself.
+          EOF
+
+          cat > release/BUILD-METADATA.txt <<EOF
+          PRODUCT=Ghost FTP
+          VERSION=${VERSION}
+          RELEASE_TAG=${RELEASE_TAG}
+          SOURCE_COMMIT=${SOURCE_SHA}
+          RELEASE_MODE=0.0.6-compatible-unsigned-plus-android-debug
+          WINDOWS_SETUP=universal-x64-x86-arm64
+          WINDOWS_PORTABLE=universal-x64-x86-arm64
+          WINDOWS_AUTHENTICODE=unsigned
+          LINUX_DISTROS=Debian,Ubuntu,Fedora
+          LINUX_PAYLOAD_ARCHITECTURES=amd64,arm64,i386
+          BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
+          BROWSER_PERMISSIONS=zero
+          BROWSER_HOST_PERMISSIONS=zero
+          ANDROID_PUBLIC_APK=development-debug-signed-compatibility
+          ANDROID_APPLICATION_ID=app.ghostftp.client.debug
+          ANDROID_VERSION_NAME=${VERSION}-debug
+          ANDROID_APKSIGNER_VERIFIED=true
+          ANDROID_PRODUCTION_SIGNING=false
+          ANDROID_UPDATE_COMPATIBILITY=separate-debug-application
+          MACOS_PUBLIC_ARTIFACT=excluded-development-only
+          TELEMETRY=disabled
+          PUBLIC_PLATFORM_ARTIFACTS=13
+          PUBLIC_METADATA_FILES=3
+          PUBLIC_FILES_TOTAL=16
+          EOF
+
+          (
+            cd release
+            find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' \
+              | LC_ALL=C sort \
+              | xargs sha256sum > SHA256.txt
+            sha256sum -c SHA256.txt
+          )
+
+          cat > "$RUNNER_TEMP/expected-assets.txt" <<EOF
+          BUILD-METADATA.txt
+          Ghost-FTP-${VERSION}-Android.apk
+          Ghost-FTP-${VERSION}-Chrome-Extension.zip
+          Ghost-FTP-${VERSION}-Edge-Extension.zip
+          Ghost-FTP-${VERSION}-Firefox-Extension.zip
+          Ghost-FTP-${VERSION}-Linux-Debian-Installer.run
+          Ghost-FTP-${VERSION}-Linux-Debian-Portable.tar.gz
+          Ghost-FTP-${VERSION}-Linux-Fedora-Installer.run
+          Ghost-FTP-${VERSION}-Linux-Fedora-Portable.tar.gz
+          Ghost-FTP-${VERSION}-Linux-Ubuntu-Installer.run
+          Ghost-FTP-${VERSION}-Linux-Ubuntu-Portable.tar.gz
+          Ghost-FTP-${VERSION}-Opera-Extension.zip
+          Ghost-FTP-${VERSION}-Portable.exe
+          Ghost-FTP-${VERSION}-Setup.exe
+          RELEASE-NOTES.txt
+          SHA256.txt
+          EOF
+          LC_ALL=C sort -o "$RUNNER_TEMP/expected-assets.txt" "$RUNNER_TEMP/expected-assets.txt"
+          find release -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort > "$RUNNER_TEMP/actual-assets.txt"
+          diff -u "$RUNNER_TEMP/expected-assets.txt" "$RUNNER_TEMP/actual-assets.txt"
+          test "$(wc -l < "$RUNNER_TEMP/actual-assets.txt" | tr -d ' ')" = '16'
+
+      - name: Patch existing GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" \
+            "release/Ghost-FTP-${VERSION}-Android.apk" \
+            release/BUILD-METADATA.txt \
+            release/RELEASE-NOTES.txt \
+            release/SHA256.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+          gh release edit "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --notes-file release/RELEASE-NOTES.txt
+
+      - name: Verify remote 16-file release and digest readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_tag_sha="$(git ls-remote origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}')"
+          test "$remote_tag_sha" = "$SOURCE_SHA"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' \
+            | LC_ALL=C sort > "$RUNNER_TEMP/remote-assets.txt"
+          diff -u "$RUNNER_TEMP/expected-assets.txt" "$RUNNER_TEMP/remote-assets.txt"
+          test "$(wc -l < "$RUNNER_TEMP/remote-assets.txt" | tr -d ' ')" = '16'
+          rm -rf readback
+          mkdir readback
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir readback
+          (cd readback && sha256sum -c SHA256.txt)
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$build_tools/apksigner" verify --verbose --print-certs "readback/Ghost-FTP-${VERSION}-Android.apk"
+          latest_tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
+          test "$latest_tag" = "$RELEASE_TAG"
+          echo "GHOSTFTP_RELEASE_0_0_7_ANDROID_COMPAT=PASS"
