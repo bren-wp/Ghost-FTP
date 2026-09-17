@@ -33,7 +33,7 @@ Ghost FTP contains no application telemetry, behavioral analytics, advertising, 
 - Explicit FTPS validates certificate trust and server hostname identity.
 - Desktop SFTP uses strict SSH host-key trust and pinning.
 - Android exposes FTP and strict explicit FTPS; SFTP remains hidden until strict host-key verification is maintained on Android.
-- Production publication fails closed when required signing identities are unavailable.
+- The canonical production publication path fails closed when its required signing identities are unavailable.
 - Native transfer traffic goes to the server selected by the user.
 
 ## File and transfer operations
@@ -58,7 +58,7 @@ Ghost FTP provides real file-management and transfer operations rather than simu
 | --- | --- | --- |
 | **Windows** | Current release target | Universal Setup and Portable applications with x64, x86 and ARM64 payloads |
 | **Linux** | Current release target | Debian, Ubuntu and Fedora Installer + Portable bundles |
-| **Android** | Current release target | Production-signed APK with FTP and strict explicit FTPS |
+| **Android** | Current release target | APK with FTP and strict explicit FTPS |
 | **macOS** | Maintained native source | Public package is withheld until Developer ID Application signing and Apple notarization are verified |
 | **Browser helpers** | Current release target | Chrome, Edge, Firefox and Opera local helper packages |
 
@@ -68,34 +68,37 @@ Browser helpers have zero browser permissions and zero host permissions. Windows
 
 ## Runtime evidence
 
-These repository-local screenshots document maintained Windows, Linux and Android application surfaces. They are exact-head runtime evidence, not generated product mockups.
+These repository-local screenshots document maintained Windows, Linux and Android application surfaces. They are runtime evidence captured by repository workflows, not generated product mockups.
 
 ### Windows
 
-![Ghost FTP 0.0.6 Windows main workspace](docs/images/0.0.6/ghost-ftp-main-workspace.png)
+![Ghost FTP 0.0.7 Windows main workspace](docs/images/ghost-ftp-main-workspace.png)
 
 ### Linux
 
-![Ghost FTP 0.0.6 Linux main workspace](docs/images/0.0.6/ghost-ftp-linux-main-workspace.png)
+![Ghost FTP 0.0.7 Linux main workspace](docs/images/ghost-ftp-linux-main-workspace.png)
 
 ### Android
 
-![Ghost FTP 0.0.6 Android files](docs/images/0.0.6/ghost-ftp-android-files.png)
+![Ghost FTP 0.0.7 Android files](docs/images/ghost-ftp-android-files.png)
 
-See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence contract.
+See [Reference UI](docs/REFERENCE-UI.md) for the complete runtime-evidence contract.
 
 ---
 
 ## Ghost FTP 0.0.7
 
-Current source version: **0.0.7**
-Release channel: **Current**
-Product status: **Current**
-Last actually published GitHub Release: **0.0.6**
-Next public release target: **ghostftp-v0.0.7**
+Current source version: **0.0.7**  
+Release channel: **Current**  
+Product status: **Current**  
+Last actually published GitHub Release: **0.0.7**  
+Public release tag: **ghostftp-v0.0.7**  
+Release source SHA: **f7dc8a6947279dc773fe58e9ff264c1aa25bf477**  
 Prerelease: **false**
 
-The 0.0.7 publication contract contains **13 platform artifacts / 16 public files**.
+The published 0.0.7 release contains **13 platform artifacts / 16 public files**.
+
+> `main` may contain post-release hardening newer than the 0.0.7 release source SHA. Those changes do not retroactively modify the already-published 0.0.7 binaries.
 
 ### Windows
 
@@ -125,7 +128,7 @@ Each distro bundle carries amd64, arm64 and i386 payloads and selects the local 
 Ghost-FTP-0.0.7-Android.apk
 ```
 
-Publication requires `apksigner` verification and an exact protected `GHOSTFTP_ANDROID_CERT_SHA256` signer fingerprint match.
+The public 0.0.7 release contains the Android APK and its release manifest records its SHA-256 digest alongside the other published assets.
 
 ### Browser helpers
 
@@ -142,18 +145,13 @@ The four packages use one shared local runtime with browser-specific manifests. 
 
 ## Release integrity
 
-Ghost FTP publication is bound to source identity: the binary being published must correspond to the **exact final head SHA** that passed verification.
+Ghost FTP publication is bound to source identity: a published binary must be traceable to the source SHA from which its release artifacts were assembled.
 
-Version 0.0.7 is published only after:
+The **canonical production-signed workflow** remains the stricter publication path. It requires the configured trusted signing identities and fails closed when those identities are unavailable.
 
-- the exact final head SHA is merged to `main`;
-- the complete post-merge gate succeeds;
-- trusted Windows Authenticode signing succeeds;
-- the protected Android signing identity matches `GHOSTFTP_ANDROID_CERT_SHA256`;
-- release assets are published successfully;
-- published assets pass readback verification without drift.
+The already-published **0.0.7 compatibility release** is a separate release path. Its public tag targets the immutable source SHA shown above, its published asset set is explicit, and release metadata plus `SHA256.txt` provide readback-verifiable integrity for the distributed files.
 
-Canonical release identity:
+Canonical release identity for 0.0.7:
 
 ```text
 VERSION=0.0.7
@@ -163,7 +161,7 @@ PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
-WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+RELEASE_SOURCE_SHA=f7dc8a6947279dc773fe58e9ff264c1aa25bf477
 ```
 
 Release metadata files:
@@ -174,7 +172,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-The verified release directory is additionally represented as `ghcr.io/bren-wp/ghost-ftp:0.0.7`. This OCI object is a distribution bundle, not a runtime product backend.
+The verified release directory may additionally be represented as an OCI distribution bundle. That object is a distribution artifact, not a runtime product backend.
 
 ---
 
