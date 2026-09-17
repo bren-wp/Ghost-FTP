@@ -237,6 +237,7 @@ type linuxDesktop struct {
 	settingsOpen       bool
 	settingsDraft      model.Settings
 	settingsRects      linuxSettingsRects
+	infoOverlay        linuxInfoOverlayKind
 
 	resultCh chan linuxUIResult
 }
@@ -1150,6 +1151,9 @@ func linuxKeysymText(sym uint32) (string, bool) {
 
 func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 	sym := u.x.keysym(keycode, state)
+	if u.handleLinuxInfoOverlayKey(sym) {
+		return true
+	}
 	if u.handleRemoteEditKey(sym, state) {
 		return true
 	}
@@ -1259,6 +1263,9 @@ func (u *linuxDesktop) renderAll() error {
 	if err := u.render(); err != nil {
 		return err
 	}
+	if u.linuxInfoOverlayOpen() {
+		return u.renderLinuxInfoOverlay()
+	}
 	if u.remoteEditorOpen() {
 		return u.renderRemoteEditorOverlay()
 	}
@@ -1272,6 +1279,9 @@ func (u *linuxDesktop) renderAll() error {
 }
 
 func (u *linuxDesktop) handleOverlayMouse(x, y int) bool {
+	if u.handleLinuxInfoOverlayMouse(x, y) {
+		return true
+	}
 	if u.handleRemoteEditorMouse(x, y) {
 		return true
 	}
