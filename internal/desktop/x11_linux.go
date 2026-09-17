@@ -692,6 +692,12 @@ func x11TextBytes(text string) []byte {
 			replacement = ">"
 		case '←':
 			replacement = "<"
+		case '✓', '✔', '☑':
+			replacement = "[x]"
+		case '○', '◯', '☐':
+			replacement = "[ ]"
+		case '✕', '✖', '✗', '×':
+			replacement = "x"
 		default:
 			if r >= 32 && r <= 126 {
 				replacement = string(r)
