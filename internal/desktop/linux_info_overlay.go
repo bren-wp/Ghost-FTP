@@ -119,9 +119,6 @@ func linuxConnectionInfoLines(u *linuxDesktop) []string {
 	lines := []string{
 		protocol + " | " + state,
 	}
-	if u.connected && strings.TrimSpace(u.remoteCurrent) != "" {
-		lines = append(lines, u.tr("column.remote")+": "+u.remoteCurrent)
-	}
 	lines = append(
 		lines,
 		navigationLabelsForLanguage(u.language).TransferQueue+": "+fmt.Sprintf("%d", linuxMasterTransferBadge(u.transferJobs)),
