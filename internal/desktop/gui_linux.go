@@ -273,10 +273,18 @@ func newLinuxDesktop(x *x11Client, engine *api.Engine, version string) *linuxDes
 
 func linuxTrimForUI(value string, max int) string {
 	value = strings.ReplaceAll(strings.ReplaceAll(value, "\r", " "), "\n", " ")
-	if max < 4 || len(value) <= max {
+	if max < 4 {
 		return value
 	}
-	return value[:max-3] + "..."
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	return string(runes[:max-3]) + "..."
+}
+
+func linuxButtonLabelLimit(r linuxRect) int {
+	return max(4, (r.right-r.left-12)/6)
 }
 
 func linuxHumanSize(size int64) string {
@@ -373,7 +381,7 @@ func (u *linuxDesktop) drawPanel(r linuxRect) error {
 	return u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, premiumTheme.Border)
 }
 
-func (u *linuxDesktop) drawButton(r linuxRect, label string, enabled bool, accent bool) error {
+func (u *linuxDesktop) drawButtonWithLimit(r linuxRect, label string, enabled bool, accent bool, labelLimit int) error {
 	fill := premiumTheme.List
 	text := premiumTheme.Text
 	border := premiumTheme.Border
@@ -390,7 +398,11 @@ func (u *linuxDesktop) drawButton(r linuxRect, label string, enabled bool, accen
 	if err := u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, border); err != nil {
 		return err
 	}
-	return u.x.text(r.left+9, r.top+19, linuxTrimForUI(label, 24), text, fill)
+	return u.x.text(r.left+9, r.top+19, linuxTrimForUI(label, max(4, labelLimit)), text, fill)
+}
+
+func (u *linuxDesktop) drawButton(r linuxRect, label string, enabled bool, accent bool) error {
+	return u.drawButtonWithLimit(r, label, enabled, accent, 24)
 }
 
 func (u *linuxDesktop) drawField(index int, hint string) error {
