@@ -6,6 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WINDOWS = (ROOT / "internal" / "desktop" / "windows.go").read_text(encoding="utf-8")
 ACTIONS = (ROOT / "internal" / "desktop" / "action_state_windows.go").read_text(encoding="utf-8")
 PROFILES = (ROOT / "internal" / "desktop" / "connection_profiles_windows.go").read_text(encoding="utf-8")
+CLOSE_POLICY = (ROOT / "internal" / "desktop" / "window_close_policy.go").read_text(encoding="utf-8")
+CLOSE_POLICY_TEST = (ROOT / "internal" / "desktop" / "window_close_policy_test.go").read_text(encoding="utf-8")
 
 
 def function_body(source: str, name: str) -> str:
@@ -53,11 +55,21 @@ class WindowsProfileMutationContractTests(unittest.TestCase):
             re.S,
         )
         self.assertIsNotNone(close_case, "missing WM_CLOSE lifecycle")
-        self.assertIn("if a.profileMutationBusy", close_case.group(1))
+        body = close_case.group(1)
+        derive_call = "deriveWindowCloseAction(a.profileMutationBusy, a.connected, a.connectionBusy, a.hasActiveTransfers())"
+        self.assertIn(derive_call, body)
+        self.assertIn("case windowCloseWaitForProfileMutation:", body)
         self.assertLess(
-            close_case.group(1).find("if a.profileMutationBusy"),
-            close_case.group(1).find("destroyWindow.Call(hwnd)"),
+            body.find("case windowCloseWaitForProfileMutation:"),
+            body.find("destroyWindow.Call(hwnd)"),
         )
+
+        # The extracted policy is production code, not a test-only shim. Keep the
+        # original fail-closed contract explicit and independently table-tested.
+        self.assertIn("if profileMutationBusy", CLOSE_POLICY)
+        self.assertIn("return windowCloseWaitForProfileMutation", CLOSE_POLICY)
+        self.assertIn('name: "profile mutation defers"', CLOSE_POLICY_TEST)
+        self.assertIn('name:                "profile mutation wins over active work"', CLOSE_POLICY_TEST)
 
 
 if __name__ == "__main__":
