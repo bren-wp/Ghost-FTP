@@ -70,13 +70,19 @@ public static class GhostFtpKeyboardNative
 
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }
 "@
 
 $wmCommand = 0x0111
+$wmSysCommand = 0x0112
 $wmKeyDown = 0x0100
 $wmKeyUp = 0x0101
-$wmClose = 0x0010
+$scMinimize = 0xF020
+$scClose = 0xF060
+$swRestore = 9
 $vkTab = 0x09
 $vkReturn = 0x0D
 $vkEscape = 0x1B
@@ -221,6 +227,35 @@ function Assert-MainRestored {
     throw "Main window was not restored and enabled after $Context."
 }
 
+function Verify-SystemCommandLifecycle {
+    param(
+        [Parameter(Mandatory = $true)][IntPtr]$Main,
+        [Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process
+    )
+
+    if (-not [GhostFtpKeyboardNative]::PostMessage($Main, $wmSysCommand, [IntPtr]$scMinimize, [IntPtr]::Zero)) {
+        throw 'Could not send SC_MINIMIZE to the Ghost FTP main window.'
+    }
+    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+    do {
+        if ($Process.HasExited) {
+            throw 'SC_MINIMIZE exited Ghost FTP instead of minimizing it.'
+        }
+        if ([GhostFtpKeyboardNative]::IsIconic($Main)) {
+            break
+        }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    if (-not [GhostFtpKeyboardNative]::IsIconic($Main)) {
+        throw 'SC_MINIMIZE did not minimize the Ghost FTP main window.'
+    }
+
+    [GhostFtpKeyboardNative]::ShowWindow($Main, $swRestore) | Out-Null
+    [GhostFtpKeyboardNative]::SetForegroundWindow($Main) | Out-Null
+    Assert-MainRestored -Main $Main -Process $Process -Context 'SC_MINIMIZE restore'
+    Write-Host 'WINDOWS_SC_MINIMIZE_RUNTIME=PASS'
+}
+
 function Open-ModalWindow {
     param(
         [Parameter(Mandatory = $true)][IntPtr]$Main,
@@ -302,15 +337,20 @@ try {
     [GhostFtpKeyboardNative]::SetForegroundWindow($main) | Out-Null
     Start-Sleep -Milliseconds 500
 
+    Verify-SystemCommandLifecycle -Main $main -Process $process
     Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -CloseControlId $siteManagerCloseControlId -Title 'Site Manager'
     Verify-ModalKeyboardContract -Main $main -Process $process -Command $bookmarksCommand -CloseControlId $bookmarksCloseControlId -Title 'Bookmarks'
 
-    if (-not [GhostFtpKeyboardNative]::PostMessage($main, $wmClose, [IntPtr]::Zero, [IntPtr]::Zero)) {
-        throw 'Could not close the Ghost FTP main window.'
+    # SC_CLOSE is the system command emitted by the native titlebar X. Exercise
+    # that exact route rather than posting WM_CLOSE directly so regressions that
+    # alias X to minimize are caught by an authentic built executable.
+    if (-not [GhostFtpKeyboardNative]::PostMessage($main, $wmSysCommand, [IntPtr]$scClose, [IntPtr]::Zero)) {
+        throw 'Could not send SC_CLOSE to the Ghost FTP main window.'
     }
     if (-not $process.WaitForExit(5000)) {
-        throw 'Ghost FTP did not exit after the runtime keyboard test.'
+        throw 'SC_CLOSE did not exit Ghost FTP.'
     }
+    Write-Host 'WINDOWS_SC_CLOSE_RUNTIME=PASS'
 }
 finally {
     if (-not $process.HasExited) {
