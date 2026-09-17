@@ -1,0 +1,116 @@
+name: Align Ghost FTP 0.0.7 Documentation
+
+on:
+  push:
+    branches:
+      - release-prep/0.0.7
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    if: ${{ !contains(github.event.head_commit.message, '[docs-007-aligned]') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: release-prep/0.0.7
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Align active 0.0.7 documentation contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          def read(rel):
+              return (root / rel).read_text(encoding='utf-8')
+
+          def write(rel, text):
+              (root / rel).write_text(text, encoding='utf-8')
+
+          audit_rel = 'scripts/audit_docs.py'
+          audit = read(audit_rel)
+          replacements = (
+              ('active 0.0.6 contract', 'active 0.0.7 contract'),
+              ('version != "0.0.6"', 'version != "0.0.7"'),
+              ('active documentation contract expects VERSION 0.0.6', 'active documentation contract expects VERSION 0.0.7'),
+              ('if "0.0.7" in text:', 'if "0.0.8" in text:'),
+              ('future 0.0.7 identity leaked into active 0.0.6 documentation', 'future 0.0.8 identity leaked into active 0.0.7 documentation'),
+              ('stale 0.0.6 release shape', 'stale release shape'),
+              ('README 0.0.6 identity', 'README 0.0.7 identity'),
+              ('Current source version: **0.0.6**', 'Current source version: **0.0.7**'),
+              ('Last actually published GitHub Release: **0.0.5**', 'Last actually published GitHub Release: **0.0.6**'),
+              ('Ghost FTP **0.0.6** is the active release candidate', 'Ghost FTP **0.0.7** is the active release candidate'),
+              ('last actually published GitHub Release is **0.0.5**', 'last actually published GitHub Release is **0.0.6**'),
+              ('Ghost FTP **0.0.6**', 'Ghost FTP **0.0.7**'),
+              ('Ghost-FTP-0.0.6-', 'Ghost-FTP-0.0.7-'),
+              ('ghostftp-v0.0.6', 'ghostftp-v0.0.7'),
+              ('VERSION=0.0.6', 'VERSION=0.0.7'),
+              ('TAG=ghostftp-v0.0.6', 'TAG=ghostftp-v0.0.7'),
+              ('LAST_PUBLISHED_GITHUB_RELEASE=0.0.5', 'LAST_PUBLISHED_GITHUB_RELEASE=0.0.6'),
+              ('NEXT_PUBLIC_RELEASE=0.0.6', 'NEXT_PUBLIC_RELEASE=0.0.7'),
+          )
+          for old, new in replacements:
+              audit = audit.replace(old, new)
+          write(audit_rel, audit)
+
+          current_docs = (
+              'docs/README.md',
+              'docs/PACKAGES.md',
+              'docs/SUPPORT.md',
+              'docs/ARCHITECTURE.md',
+              'docs/PLATFORM-PARITY.md',
+              'docs/SIGNING.md',
+              'docs/TESTING.md',
+              'linux/README.md',
+              'android/README.md',
+          )
+          active_replacements = (
+              ('Current source version: **0.0.6**', 'Current source version: **0.0.7**'),
+              ('Current source candidate: **0.0.6**', 'Current source candidate: **0.0.7**'),
+              ('Ghost FTP **0.0.6**', 'Ghost FTP **0.0.7**'),
+              ('Ghost FTP 0.0.6', 'Ghost FTP 0.0.7'),
+              ('VERSION=0.0.6', 'VERSION=0.0.7'),
+              ('TAG=ghostftp-v0.0.6', 'TAG=ghostftp-v0.0.7'),
+              ('ghostftp-v0.0.6', 'ghostftp-v0.0.7'),
+              ('Ghost-FTP-0.0.6-', 'Ghost-FTP-0.0.7-'),
+              ('ghcr.io/bren-wp/ghost-ftp:0.0.6', 'ghcr.io/bren-wp/ghost-ftp:0.0.7'),
+              ('Last actually published GitHub Release: **0.0.5**', 'Last actually published GitHub Release: **0.0.6**'),
+              ('last actually published GitHub Release is **0.0.5**', 'last actually published GitHub Release is **0.0.6**'),
+          )
+          for rel in current_docs:
+              text = read(rel)
+              for old, new in active_replacements:
+                  text = text.replace(old, new)
+              # Authentic screenshot evidence currently lives under the 0.0.6 evidence directory.
+              # Never relabel or break those paths during the release identity advance.
+              text = text.replace('docs/images/0.0.7/', 'docs/images/0.0.6/')
+              text = text.replace('images/0.0.7/', 'images/0.0.6/')
+              write(rel, text)
+
+          # Keep published-history language truthful after 0.0.6 publication.
+          for rel in ('docs/README.md', 'docs/PACKAGES.md', 'docs/SUPPORT.md'):
+              text = read(rel)
+              text = text.replace('last actually published GitHub Release remains **0.0.5**', 'last actually published GitHub Release remains **0.0.6**')
+              text = text.replace('last actually published GitHub release remains **0.0.5**', 'last actually published GitHub release remains **0.0.6**')
+              write(rel, text)
+
+          Path('.github/workflows/release-prep-007-docs.yml').unlink()
+          PY
+
+      - name: Commit aligned documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo Release Prep'
+          git config user.email 'info@brendigo.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'docs: align active contracts with 0.0.7 [docs-007-aligned]'
+          git push origin HEAD:release-prep/0.0.7
