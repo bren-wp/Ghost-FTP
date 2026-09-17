@@ -46,7 +46,7 @@ var Dark = Theme{
 	Selection:    RGB{0x2B, 0x25, 0x15},
 }
 
-// Light is intentionally soft gray rather than sterile white. It keeps the same
+// Light is intentionally off-white rather than sterile white. It keeps the same
 // Ghost Gold identity while using a darker amber tone so filled controls retain
 // sufficient contrast with their light foreground.
 var Light = Theme{
@@ -58,7 +58,7 @@ var Light = Theme{
 	Muted:        RGB{0x66, 0x70, 0x85},
 	Accent:       RGB{0xA6, 0x65, 0x00},
 	AccentStrong: RGB{0x87, 0x51, 0x00},
-	OnAccent:     RGB{0xFF, 0xFF, 0xFF},
+	OnAccent:     RGB{0xFA, 0xFB, 0xFD},
 	Success:      RGB{0x1B, 0x7F, 0x4B},
 	Warn:         RGB{0x9A, 0x67, 0x00},
 	Danger:       RGB{0xB4, 0x23, 0x18},
