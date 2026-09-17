@@ -3,6 +3,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+# The active release-candidate identity is intentionally pinned by VERSION and the 13/16 public contract below.
 
 
 def read(relative: str) -> str:
