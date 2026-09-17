@@ -117,7 +117,6 @@ func linuxConnectionInfoLines(u *linuxDesktop) []string {
 		protocol = "FTP / FTPS / SFTP"
 	}
 	lines := []string{
-		brand.ProductName + " " + u.version,
 		protocol + " | " + state,
 	}
 	if u.connected && strings.TrimSpace(u.remoteCurrent) != "" {
@@ -167,7 +166,7 @@ func (u *linuxDesktop) linuxInfoOverlayTitleAndHeading() (string, string) {
 	switch u.infoOverlay {
 	case linuxInfoOverlayConnection:
 		title := navigationLabelsForLanguage(u.language).Diagnostics
-		return title, title
+		return title, brand.ProductName + " " + u.version
 	case linuxInfoOverlayAbout:
 		return u.tr("about.title"), u.tr("about.heading")
 	default:
