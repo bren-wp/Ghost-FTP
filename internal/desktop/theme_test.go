@@ -13,14 +13,14 @@ func TestThemeForAppearanceUsesCanonicalPalettes(t *testing.T) {
 	if got := themeForAppearance(model.AppearanceLight); got != lightTheme {
 		t.Fatal("light appearance did not resolve to the canonical light palette")
 	}
-	if got := themeForAppearance("unknown"); got != lightTheme {
-		t.Fatal("unknown appearance did not fall back to the primary light palette")
+	if got := themeForAppearance("unknown"); got != darkTheme {
+		t.Fatal("unknown appearance did not fall back to the primary dark palette")
 	}
 }
 
-func TestInitialDesktopThemeIsClassicLight(t *testing.T) {
-	if premiumTheme != lightTheme {
-		t.Fatal("initial desktop palette is not Classic Light")
+func TestInitialDesktopThemeIsDark(t *testing.T) {
+	if premiumTheme != darkTheme {
+		t.Fatal("initial desktop palette is not Dark")
 	}
 }
 
