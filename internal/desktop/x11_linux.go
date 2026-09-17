@@ -669,65 +669,306 @@ func (x *x11Client) strokeRect(left, top, width, height int, color RGB) error {
 	return x.request(buf)
 }
 
-var x11CoreASCIIFallbacks = map[rune]string{
+func x11CoreTextReplacement(r rune) string {
+	switch r {
 	// Latin-script locales supported by Ghost FTP.
-	'À': "A", 'Á': "A", 'Â': "A", 'Ã': "A", 'Ä': "A", 'Å': "A", 'Ā': "A", 'Ă': "A", 'Ą': "A",
-	'à': "a", 'á': "a", 'â': "a", 'ã': "a", 'ä': "a", 'å': "a", 'ā': "a", 'ă': "a", 'ą': "a",
-	'Æ': "AE", 'æ': "ae",
-	'Ç': "C", 'Ć': "C", 'Č': "C", 'ç': "c", 'ć': "c", 'č': "c",
-	'Ď': "D", 'Đ': "D", 'ď': "d", 'đ': "d",
-	'È': "E", 'É': "E", 'Ê': "E", 'Ë': "E", 'Ē': "E", 'Ė': "E", 'Ę': "E", 'Ě': "E",
-	'è': "e", 'é': "e", 'ê': "e", 'ë': "e", 'ē': "e", 'ė': "e", 'ę': "e", 'ě': "e",
-	'Ğ': "G", 'ğ': "g",
-	'Ì': "I", 'Í': "I", 'Î': "I", 'Ï': "I", 'İ': "I", 'Ī': "I",
-	'ì': "i", 'í': "i", 'î': "i", 'ï': "i", 'ı': "i", 'ī': "i",
-	'Ł': "L", 'ł': "l",
-	'Ñ': "N", 'Ń': "N", 'Ň': "N", 'ñ': "n", 'ń': "n", 'ň': "n",
-	'Ò': "O", 'Ó': "O", 'Ô': "O", 'Õ': "O", 'Ö': "O", 'Ø': "O", 'Ő': "O",
-	'ò': "o", 'ó': "o", 'ô': "o", 'õ': "o", 'ö': "o", 'ø': "o", 'ő': "o",
-	'Œ': "OE", 'œ': "oe",
-	'Ř': "R", 'ř': "r",
-	'Ś': "S", 'Š': "S", 'Ş': "S", 'Ș': "S",
-	'ś': "s", 'š': "s", 'ş': "s", 'ș': "s",
-	'ß': "ss",
-	'Ť': "T", 'Ț': "T", 'Ţ': "T", 'ť': "t", 'ț': "t", 'ţ': "t",
-	'Ù': "U", 'Ú': "U", 'Û': "U", 'Ü': "U", 'Ů': "U", 'Ű': "U",
-	'ù': "u", 'ú': "u", 'û': "u", 'ü': "u", 'ů': "u", 'ű': "u",
-	'Ý': "Y", 'Ÿ': "Y", 'ý': "y", 'ÿ': "y",
-	'Ź': "Z", 'Ż': "Z", 'Ž': "Z", 'ź': "z", 'ż': "z", 'ž': "z",
-	'¿': "?", '¡': "!",
+	case 'À', 'Á', 'Â', 'Ã', 'Ä', 'Å', 'Ā', 'Ă', 'Ą':
+		return "A"
+	case 'à', 'á', 'â', 'ã', 'ä', 'å', 'ā', 'ă', 'ą':
+		return "a"
+	case 'Æ':
+		return "AE"
+	case 'æ':
+		return "ae"
+	case 'Ç', 'Ć', 'Č':
+		return "C"
+	case 'ç', 'ć', 'č':
+		return "c"
+	case 'Ď', 'Đ':
+		return "D"
+	case 'ď', 'đ':
+		return "d"
+	case 'È', 'É', 'Ê', 'Ë', 'Ē', 'Ė', 'Ę', 'Ě':
+		return "E"
+	case 'è', 'é', 'ê', 'ë', 'ē', 'ė', 'ę', 'ě':
+		return "e"
+	case 'Ğ':
+		return "G"
+	case 'ğ':
+		return "g"
+	case 'Ì', 'Í', 'Î', 'Ï', 'İ', 'Ī':
+		return "I"
+	case 'ì', 'í', 'î', 'ï', 'ı', 'ī':
+		return "i"
+	case 'Ł':
+		return "L"
+	case 'ł':
+		return "l"
+	case 'Ñ', 'Ń', 'Ň':
+		return "N"
+	case 'ñ', 'ń', 'ň':
+		return "n"
+	case 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ø', 'Ő':
+		return "O"
+	case 'ò', 'ó', 'ô', 'õ', 'ö', 'ø', 'ő':
+		return "o"
+	case 'Œ':
+		return "OE"
+	case 'œ':
+		return "oe"
+	case 'Ř':
+		return "R"
+	case 'ř':
+		return "r"
+	case 'Ś', 'Š', 'Ş', 'Ș':
+		return "S"
+	case 'ś', 'š', 'ş', 'ș':
+		return "s"
+	case 'ß':
+		return "ss"
+	case 'Ť', 'Ț', 'Ţ':
+		return "T"
+	case 'ť', 'ț', 'ţ':
+		return "t"
+	case 'Ù', 'Ú', 'Û', 'Ü', 'Ů', 'Ű':
+		return "U"
+	case 'ù', 'ú', 'û', 'ü', 'ů', 'ű':
+		return "u"
+	case 'Ý', 'Ÿ':
+		return "Y"
+	case 'ý', 'ÿ':
+		return "y"
+	case 'Ź', 'Ż', 'Ž':
+		return "Z"
+	case 'ź', 'ż', 'ž':
+		return "z"
+	case '¿':
+		return "?"
+	case '¡':
+		return "!"
 
 	// Greek transliteration for readable core-font fallback.
-	'Α': "A", 'Ά': "A", 'α': "a", 'ά': "a",
-	'Β': "V", 'β': "v", 'Γ': "G", 'γ': "g", 'Δ': "D", 'δ': "d",
-	'Ε': "E", 'Έ': "E", 'ε': "e", 'έ': "e", 'Ζ': "Z", 'ζ': "z",
-	'Η': "I", 'Ή': "I", 'η': "i", 'ή': "i", 'Θ': "Th", 'θ': "th",
-	'Ι': "I", 'Ί': "I", 'Ϊ': "I", 'ι': "i", 'ί': "i", 'ϊ': "i", 'ΐ': "i",
-	'Κ': "K", 'κ': "k", 'Λ': "L", 'λ': "l", 'Μ': "M", 'μ': "m",
-	'Ν': "N", 'ν': "n", 'Ξ': "X", 'ξ': "x", 'Ο': "O", 'Ό': "O", 'ο': "o", 'ό': "o",
-	'Π': "P", 'π': "p", 'Ρ': "R", 'ρ': "r", 'Σ': "S", 'σ': "s", 'ς': "s",
-	'Τ': "T", 'τ': "t", 'Υ': "Y", 'Ύ': "Y", 'Ϋ': "Y", 'υ': "y", 'ύ': "y", 'ϋ': "y", 'ΰ': "y",
-	'Φ': "F", 'φ': "f", 'Χ': "Ch", 'χ': "ch", 'Ψ': "Ps", 'ψ': "ps",
-	'Ω': "O", 'Ώ': "O", 'ω': "o", 'ώ': "o",
+	case 'Α', 'Ά':
+		return "A"
+	case 'α', 'ά':
+		return "a"
+	case 'Β':
+		return "V"
+	case 'β':
+		return "v"
+	case 'Γ':
+		return "G"
+	case 'γ':
+		return "g"
+	case 'Δ':
+		return "D"
+	case 'δ':
+		return "d"
+	case 'Ε', 'Έ':
+		return "E"
+	case 'ε', 'έ':
+		return "e"
+	case 'Ζ':
+		return "Z"
+	case 'ζ':
+		return "z"
+	case 'Η', 'Ή', 'Ι', 'Ί', 'Ϊ':
+		return "I"
+	case 'η', 'ή', 'ι', 'ί', 'ϊ', 'ΐ':
+		return "i"
+	case 'Θ':
+		return "Th"
+	case 'θ':
+		return "th"
+	case 'Κ':
+		return "K"
+	case 'κ':
+		return "k"
+	case 'Λ':
+		return "L"
+	case 'λ':
+		return "l"
+	case 'Μ':
+		return "M"
+	case 'μ':
+		return "m"
+	case 'Ν':
+		return "N"
+	case 'ν':
+		return "n"
+	case 'Ξ':
+		return "X"
+	case 'ξ':
+		return "x"
+	case 'Ο', 'Ό', 'Ω', 'Ώ':
+		return "O"
+	case 'ο', 'ό', 'ω', 'ώ':
+		return "o"
+	case 'Π':
+		return "P"
+	case 'π':
+		return "p"
+	case 'Ρ':
+		return "R"
+	case 'ρ':
+		return "r"
+	case 'Σ':
+		return "S"
+	case 'σ', 'ς':
+		return "s"
+	case 'Τ':
+		return "T"
+	case 'τ':
+		return "t"
+	case 'Υ', 'Ύ', 'Ϋ':
+		return "Y"
+	case 'υ', 'ύ', 'ϋ', 'ΰ':
+		return "y"
+	case 'Φ':
+		return "F"
+	case 'φ':
+		return "f"
+	case 'Χ':
+		return "Ch"
+	case 'χ':
+		return "ch"
+	case 'Ψ':
+		return "Ps"
+	case 'ψ':
+		return "ps"
 
 	// Cyrillic transliteration for Russian/Ukrainian localization.
-	'А': "A", 'а': "a", 'Б': "B", 'б': "b", 'В': "V", 'в': "v", 'Г': "G", 'г': "g",
-	'Ґ': "G", 'ґ': "g", 'Д': "D", 'д': "d", 'Е': "E", 'е': "e", 'Ё': "Yo", 'ё': "yo",
-	'Є': "Ye", 'є': "ye", 'Ж': "Zh", 'ж': "zh", 'З': "Z", 'з': "z", 'И': "I", 'и': "i",
-	'І': "I", 'і': "i", 'Ї': "Yi", 'ї': "yi", 'Й': "Y", 'й': "y", 'К': "K", 'к': "k",
-	'Л': "L", 'л': "l", 'М': "M", 'м': "m", 'Н': "N", 'н': "n", 'О': "O", 'о': "o",
-	'П': "P", 'п': "p", 'Р': "R", 'р': "r", 'С': "S", 'с': "s", 'Т': "T", 'т': "t",
-	'У': "U", 'у': "u", 'Ф': "F", 'ф': "f", 'Х': "Kh", 'х': "kh", 'Ц': "Ts", 'ц': "ts",
-	'Ч': "Ch", 'ч': "ch", 'Ш': "Sh", 'ш': "sh", 'Щ': "Shch", 'щ': "shch",
-	'Ъ': "", 'ъ': "", 'Ы': "Y", 'ы': "y", 'Ь': "", 'ь': "", 'Э': "E", 'э': "e",
-	'Ю': "Yu", 'ю': "yu", 'Я': "Ya", 'я': "ya",
-}
-
-func x11CoreTextReplacement(r rune) string {
-	if replacement, ok := x11CoreASCIIFallbacks[r]; ok {
-		return replacement
+	case 'А':
+		return "A"
+	case 'а':
+		return "a"
+	case 'Б':
+		return "B"
+	case 'б':
+		return "b"
+	case 'В':
+		return "V"
+	case 'в':
+		return "v"
+	case 'Г', 'Ґ':
+		return "G"
+	case 'г', 'ґ':
+		return "g"
+	case 'Д':
+		return "D"
+	case 'д':
+		return "d"
+	case 'Е', 'Э':
+		return "E"
+	case 'е', 'э':
+		return "e"
+	case 'Ё':
+		return "Yo"
+	case 'ё':
+		return "yo"
+	case 'Є':
+		return "Ye"
+	case 'є':
+		return "ye"
+	case 'Ж':
+		return "Zh"
+	case 'ж':
+		return "zh"
+	case 'З':
+		return "Z"
+	case 'з':
+		return "z"
+	case 'И', 'І':
+		return "I"
+	case 'и', 'і':
+		return "i"
+	case 'Ї':
+		return "Yi"
+	case 'ї':
+		return "yi"
+	case 'Й', 'Ы':
+		return "Y"
+	case 'й', 'ы':
+		return "y"
+	case 'К':
+		return "K"
+	case 'к':
+		return "k"
+	case 'Л':
+		return "L"
+	case 'л':
+		return "l"
+	case 'М':
+		return "M"
+	case 'м':
+		return "m"
+	case 'Н':
+		return "N"
+	case 'н':
+		return "n"
+	case 'О':
+		return "O"
+	case 'о':
+		return "o"
+	case 'П':
+		return "P"
+	case 'п':
+		return "p"
+	case 'Р':
+		return "R"
+	case 'р':
+		return "r"
+	case 'С':
+		return "S"
+	case 'с':
+		return "s"
+	case 'Т':
+		return "T"
+	case 'т':
+		return "t"
+	case 'У':
+		return "U"
+	case 'у':
+		return "u"
+	case 'Ф':
+		return "F"
+	case 'ф':
+		return "f"
+	case 'Х':
+		return "Kh"
+	case 'х':
+		return "kh"
+	case 'Ц':
+		return "Ts"
+	case 'ц':
+		return "ts"
+	case 'Ч':
+		return "Ch"
+	case 'ч':
+		return "ch"
+	case 'Ш':
+		return "Sh"
+	case 'ш':
+		return "sh"
+	case 'Щ':
+		return "Shch"
+	case 'щ':
+		return "shch"
+	case 'Ъ', 'Ь':
+		return ""
+	case 'ъ', 'ь':
+		return ""
+	case 'Ю':
+		return "Yu"
+	case 'ю':
+		return "yu"
+	case 'Я':
+		return "Ya"
+	case 'я':
+		return "ya"
+	default:
+		return "?"
 	}
-	return "?"
 }
 
 func x11TextBytes(text string) []byte {
