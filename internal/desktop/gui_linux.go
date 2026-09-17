@@ -284,7 +284,7 @@ func linuxTrimForUI(value string, max int) string {
 }
 
 func linuxButtonLabelLimit(r linuxRect) int {
-	return max(4, (r.right-r.left-18)/7)
+	return max(4, (r.right-r.left-12)/6)
 }
 
 func linuxHumanSize(size int64) string {
