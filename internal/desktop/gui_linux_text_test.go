@@ -40,18 +40,19 @@ func TestLinuxButtonLabelLimitTracksControlWidth(t *testing.T) {
 }
 
 func TestLinuxKeysymTextAcceptsLatin1AndUnicodeKeysyms(t *testing.T) {
-	cases := map[uint32]string{
-		'a':        "a",
-		0x00e9:     "é",
-		0x0100010d: "č",
-		0x01000416: "Ж",
-	}
-	for sym, want := range cases {
+	assertKeysym := func(sym uint32, want string) {
+		t.Helper()
 		got, ok := linuxKeysymText(sym)
 		if !ok || got != want {
 			t.Errorf("linuxKeysymText(%#x) = %q, %v; want %q, true", sym, got, ok, want)
 		}
 	}
+
+	assertKeysym('a', "a")
+	assertKeysym(0x00e9, "é")
+	assertKeysym(0x0100010d, "č")
+	assertKeysym(0x01000416, "Ж")
+
 	for _, sym := range []uint32{x11KeyLeft, x11KeyEscape, 0x0100000a, 0x01110000} {
 		if got, ok := linuxKeysymText(sym); ok {
 			t.Errorf("linuxKeysymText(%#x) unexpectedly accepted %q", sym, got)
