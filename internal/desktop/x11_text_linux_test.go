@@ -52,7 +52,7 @@ func TestX11TextBytesUsesReadableEuropeanLocaleFallbacks(t *testing.T) {
 	assertFallback("Bağlantı ölçümü", "Baglanti olcumu")
 	assertFallback("Σύνδεση ασφαλείας", "Syndesi asfaleias")
 	assertFallback("Подключение безопасно", "Podklyuchenie bezopasno")
-	assertFallback("Підключення захищене", "Pidklyuchennya zakhyshchene")
+	assertFallback("Підключення захищене", "Pidklyuchennya zakhishchene")
 }
 
 func TestX11TextBytesKeepsExplicitFallbackForUnsupportedScripts(t *testing.T) {
