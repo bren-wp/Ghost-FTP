@@ -85,6 +85,8 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
             "ghost-ftp-linux-main-workspace.png",
             "ghost-ftp-linux-bookmarks.png",
             "ghost-ftp-linux-settings.png",
+            "ghost-ftp-linux-connection-info.png",
+            "ghost-ftp-linux-about.png",
         ):
             self.assertIn(name, linux)
         self.assertIn("capture 'ghost-ftp-android-files.png'", android)
@@ -166,8 +168,11 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("u.handleBookmarksHeaderMouse(x, y)", gui)
         self.assertIn("open_distinct_overlay 'Bookmarks'", capture)
         self.assertIn("open_distinct_overlay 'Settings'", capture)
+        self.assertIn("open_distinct_overlay 'Connection info'", capture)
+        self.assertIn("open_distinct_overlay 'About'", capture)
         self.assertIn('! cmp -s "$main_png" "$output"', capture)
-        self.assertIn('cmp -s "$bookmarks_png" "$settings_png"', capture)
+        self.assertIn('overlay_pngs=("$bookmarks_png" "$settings_png" "$connection_info_png" "$about_png")', capture)
+        self.assertIn('cmp -s "${overlay_pngs[$i]}" "${overlay_pngs[$j]}"', capture)
 
     def test_workflow_avoids_yaml_sensitive_embedded_heredocs(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")
