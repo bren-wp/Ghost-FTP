@@ -38,3 +38,39 @@ func TestLinuxButtonLabelLimitTracksControlWidth(t *testing.T) {
 		t.Fatal("wide button did not receive a larger label budget")
 	}
 }
+
+func TestLinuxKeysymTextAcceptsLatin1AndUnicodeKeysyms(t *testing.T) {
+	cases := map[uint32]string{
+		'a':        "a",
+		0x00e9:     "é",
+		0x0100010d: "č",
+		0x01000416: "Ж",
+	}
+	for sym, want := range cases {
+		got, ok := linuxKeysymText(sym)
+		if !ok || got != want {
+			t.Errorf("linuxKeysymText(%#x) = %q, %v; want %q, true", sym, got, ok, want)
+		}
+	}
+	for _, sym := range []uint32{x11KeyLeft, x11KeyEscape, 0x0100000a, 0x01110000} {
+		if got, ok := linuxKeysymText(sym); ok {
+			t.Errorf("linuxKeysymText(%#x) unexpectedly accepted %q", sym, got)
+		}
+	}
+}
+
+func TestLinuxFieldTextEditingPreservesUTF8Boundaries(t *testing.T) {
+	if got := linuxDeleteLastRune("server-č"); got != "server-" {
+		t.Fatalf("delete last Croatian rune = %q", got)
+	}
+	if got := linuxDeleteLastRune("路径"); got != "路" {
+		t.Fatalf("delete last CJK rune = %q", got)
+	}
+	if got := linuxTruncateUTF8Bytes("abcč", 4); got != "abc" {
+		t.Fatalf("UTF-8 truncation = %q, want abc", got)
+	}
+	if got := linuxTruncateUTF8Bytes("čč", 3); got != "č" {
+		t.Fatalf("UTF-8 truncation = %q, want č", got)
+	}
+}
+
