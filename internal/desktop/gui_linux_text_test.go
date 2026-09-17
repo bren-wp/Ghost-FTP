@@ -74,4 +74,3 @@ func TestLinuxFieldTextEditingPreservesUTF8Boundaries(t *testing.T) {
 		t.Fatalf("UTF-8 truncation = %q, want č", got)
 	}
 }
-
