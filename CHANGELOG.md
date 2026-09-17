@@ -25,6 +25,7 @@
 
 - Advances root `VERSION` to **0.0.7** and publishes on the Current channel with `ghostftp-v0.0.7`, `prerelease=false`.
 - Canonical public release remains **13 platform artifacts / 16 public files**: 2 Windows, 6 Linux, 1 Android, 4 browser helper packages and 3 metadata/verification files.
+- Aligned active documentation, version audits and release verification contracts with 0.0.7 while preserving historical 0.0.6 runtime evidence and release history.
 - macOS remains maintained source and CI coverage only until real Developer ID Application signing and Apple notarization are verified.
 
 ## 0.0.6 - 2026-09-14
