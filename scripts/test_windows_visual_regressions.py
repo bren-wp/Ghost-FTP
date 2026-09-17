@@ -25,6 +25,15 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("a.move(a.brandTitle, 54, headerY, 126, 35)", ui)
         self.assertIn("subtitleX := 188", ui)
 
+    def test_sidebar_brand_and_connection_status_cannot_overlap_profile_actions(self):
+        sidebar = self.read("internal/desktop/sidebar_windows.go")
+        self.assertIn("sendMessageW.Call(a.brandTitle, wmSetFont, a.font, 1)", sidebar)
+        self.assertIn("badgeW, buttonW, gap := 118, 116, 8", sidebar)
+        self.assertIn("a.move(a.connectionBadge, badgeX, 18, badgeW, 21)", sidebar)
+        self.assertIn("saveX := badgeX + badgeW + gap", sidebar)
+        self.assertIn("a.move(a.saveProfile, saveX, 13, buttonW, 31)", sidebar)
+        self.assertIn("a.move(a.removeProfile, saveX+buttonW+gap, 13, buttonW, 31)", sidebar)
+
     def test_native_dark_chrome_and_site_manager_use_premium_controls(self):
         dark = self.read("internal/desktop/dark_mode_windows.go")
         ui = self.read("internal/desktop/ui_windows.go")
