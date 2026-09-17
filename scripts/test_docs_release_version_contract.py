@@ -11,7 +11,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
 
     def test_release_verification_tracks_version_file(self):
         version = self.read("VERSION").strip()
-        self.assertEqual(version, "0.0.6")
+        self.assertEqual(version, "0.0.7")
         text = self.read("docs/RELEASE-VERIFICATION.md")
         required = [
             f"Ghost FTP **{version}** is the active release candidate",
@@ -51,7 +51,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         ):
             self.assertNotIn(stale, text)
 
-    def test_release_facing_docs_match_006_shape(self):
+    def test_release_facing_docs_match_007_shape(self):
         version = self.read("VERSION").strip()
         for relative in (
             "docs/INSTALLATION.md",
@@ -123,8 +123,8 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         for relative in ("docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md"):
             text = self.read(relative)
             self.assertIn("last actually published github", text.lower())
-            self.assertIn("0.0.5", text)
             self.assertIn("0.0.6", text)
+            self.assertIn("0.0.7", text)
 
 
 if __name__ == "__main__":

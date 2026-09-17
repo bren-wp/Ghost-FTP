@@ -1,15 +1,15 @@
 # Ghost FTP release verification
 
-Ghost FTP **0.0.6** is the active release candidate. The last actually published GitHub Release remains **0.0.5** until the protected 0.0.6 release transaction succeeds.
+Ghost FTP **0.0.7** is the active release candidate. The last actually published GitHub Release remains **0.0.6** until the protected 0.0.7 release transaction succeeds.
 
-The canonical 0.0.6 publication contains **13 platform artifacts / 16 public files**.
+The canonical 0.0.7 publication contains **13 platform artifacts / 16 public files**.
 
-## 0.0.6 release identity
+## 0.0.7 release identity
 
 ```text
-VERSION=0.0.6
-TAG=ghostftp-v0.0.6
-TITLE=Ghost FTP 0.0.6
+VERSION=0.0.7
+TAG=ghostftp-v0.0.7
+TITLE=Ghost FTP 0.0.7
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13
@@ -24,29 +24,29 @@ The release source must be the exact current `main` commit that passed every req
 Windows:
 
 ```text
-Ghost-FTP-0.0.6-Setup.exe
-Ghost-FTP-0.0.6-Portable.exe
+Ghost-FTP-0.0.7-Setup.exe
+Ghost-FTP-0.0.7-Portable.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.6-Linux-Debian-Installer.run
-Ghost-FTP-0.0.6-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.6-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.6-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.6-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.6-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Debian-Installer.run
+Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
 ```
 
 Android and browser helpers:
 
 ```text
-Ghost-FTP-0.0.6-Android.apk
-Ghost-FTP-0.0.6-Chrome-Extension.zip
-Ghost-FTP-0.0.6-Edge-Extension.zip
-Ghost-FTP-0.0.6-Firefox-Extension.zip
-Ghost-FTP-0.0.6-Opera-Extension.zip
+Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.7-Chrome-Extension.zip
+Ghost-FTP-0.0.7-Edge-Extension.zip
+Ghost-FTP-0.0.7-Firefox-Extension.zip
+Ghost-FTP-0.0.7-Opera-Extension.zip
 ```
 
 Metadata/verification:
@@ -61,7 +61,7 @@ macOS remains outside the public 16-file release until real Developer ID signing
 
 ## Canonical release dispatch
 
-The canonical branch namespace is `release/ghostftp-vX.Y.Z`; the 0.0.6 release branch is `release/ghostftp-v0.0.6`. It must point to exact fully verified current `main`, and its version must match root `VERSION`.
+The canonical branch namespace is `release/ghostftp-vX.Y.Z`; the 0.0.7 release branch is `release/ghostftp-v0.0.7`. It must point to exact fully verified current `main`, and its version must match root `VERSION`.
 
 Canonical `.github/workflows/release.yml` is `workflow_dispatch`-only. The branch trigger validates source/version equality, dispatches canonical `release.yml`, waits for the exact new release run to finish successfully, then dispatches and verifies retention.
 
@@ -71,8 +71,8 @@ A push to `main`, including a `VERSION` change, must never publish a release dir
 
 Before publication:
 
-1. root `VERSION` equals `0.0.6`;
-2. `release/ghostftp-v0.0.6` equals exact current `main`;
+1. root `VERSION` equals `0.0.7`;
+2. `release/ghostftp-v0.0.7` equals exact current `main`;
 3. every exact-head release-prep workflow for the final candidate is successful;
 4. every required post-merge push workflow on the exact merge SHA is successful;
 5. authentic Windows/Linux/Android runtime evidence is bound to that exact source revision;
@@ -126,7 +126,7 @@ ARM64 and i386 are build/package verified unless maintained native execution evi
 The public APK is:
 
 ```text
-Ghost-FTP-0.0.6-Android.apk
+Ghost-FTP-0.0.7-Android.apk
 ```
 
 The release job requires:
@@ -147,7 +147,7 @@ Android SFTP remains hidden until strict maintained host-key verification/pinnin
 
 ## Browser-helper verification
 
-The browser job validates zero-permission manifests and builds deterministic ZIPs for **Chrome, Edge, Firefox and Opera**. Each archive must be non-empty and pass ZIP integrity verification. Browser publication does not add a supported browser-to-desktop handoff, network relay, telemetry backend or automatic update service.
+The browser job validates zero-permission manifests and builds deterministic ZIPs for **Chrome, Edge, Firefox and Opera**. Each archive must be non-empty and pass ZIP integrity verification. Browser publication preserves the sanitized local `ghostftp://connect` handoff on supported Windows installs and does not add a network relay, telemetry backend or automatic update service.
 
 ## Build metadata
 
@@ -155,8 +155,8 @@ The browser job validates zero-permission manifests and builds deterministic ZIP
 
 ```text
 BRAND=Ghost FTP
-VERSION=0.0.6
-RELEASE_TAG=ghostftp-v0.0.6
+VERSION=0.0.7
+RELEASE_TAG=ghostftp-v0.0.7
 RELEASE_CHANNEL=current
 PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
 ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
@@ -175,10 +175,10 @@ ANDROID_APK=production-signed
 ANDROID_SIGNER_SHA256=<verified signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-BROWSER_DESKTOP_HANDOFF=unsupported
+BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-uri-windows
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
-GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.6
+GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.7
 ```
 
 ## Authentic runtime evidence
@@ -196,13 +196,13 @@ The digest-readback verifier compares GitHub's per-asset SHA-256 digests with th
 ## GitHub Packages readback
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.6
+ghcr.io/bren-wp/ghost-ftp:0.0.7
 ```
 
 The exact-version package is verified after push. It is a distribution bundle, not a supported runtime container.
 
 ## Latest-only retention verification
 
-Only after the 0.0.6 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.6` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. `main` history is never rewritten.
+Only after the 0.0.7 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.7` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. `main` history is never rewritten.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).

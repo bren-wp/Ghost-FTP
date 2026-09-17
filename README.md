@@ -86,22 +86,22 @@ See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence cont
 
 ---
 
-## Ghost FTP 0.0.6
+## Ghost FTP 0.0.7
 
-Current source version: **0.0.6**
+Current source version: **0.0.7**
 Release channel: **Current**
 Product status: **Current**
-Last actually published GitHub Release: **0.0.5**
-Next public release target: **ghostftp-v0.0.6**
+Last actually published GitHub Release: **0.0.6**
+Next public release target: **ghostftp-v0.0.7**
 Prerelease: **false**
 
-The 0.0.6 publication contract contains **13 platform artifacts / 16 public files**.
+The 0.0.7 publication contract contains **13 platform artifacts / 16 public files**.
 
 ### Windows
 
 ```text
-Ghost-FTP-0.0.6-Setup.exe
-Ghost-FTP-0.0.6-Portable.exe
+Ghost-FTP-0.0.7-Setup.exe
+Ghost-FTP-0.0.7-Portable.exe
 ```
 
 Both public Windows executables carry x64, x86 and ARM64 payloads internally.
@@ -109,12 +109,12 @@ Both public Windows executables carry x64, x86 and ARM64 payloads internally.
 ### Linux
 
 ```text
-Ghost-FTP-0.0.6-Linux-Debian-Installer.run
-Ghost-FTP-0.0.6-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.6-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.6-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.6-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.6-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Debian-Installer.run
+Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
 ```
 
 Each distro bundle carries amd64, arm64 and i386 payloads and selects the local architecture at runtime.
@@ -122,7 +122,7 @@ Each distro bundle carries amd64, arm64 and i386 payloads and selects the local 
 ### Android
 
 ```text
-Ghost-FTP-0.0.6-Android.apk
+Ghost-FTP-0.0.7-Android.apk
 ```
 
 Publication requires `apksigner` verification and an exact protected `GHOSTFTP_ANDROID_CERT_SHA256` signer fingerprint match.
@@ -130,10 +130,10 @@ Publication requires `apksigner` verification and an exact protected `GHOSTFTP_A
 ### Browser helpers
 
 ```text
-Ghost-FTP-0.0.6-Chrome-Extension.zip
-Ghost-FTP-0.0.6-Edge-Extension.zip
-Ghost-FTP-0.0.6-Firefox-Extension.zip
-Ghost-FTP-0.0.6-Opera-Extension.zip
+Ghost-FTP-0.0.7-Chrome-Extension.zip
+Ghost-FTP-0.0.7-Edge-Extension.zip
+Ghost-FTP-0.0.7-Firefox-Extension.zip
+Ghost-FTP-0.0.7-Opera-Extension.zip
 ```
 
 The four packages use one shared local runtime with browser-specific manifests. On supported Windows installs, the explicit **Open in Ghost FTP** action uses the sanitized `ghostftp://connect` handoff described above; credentials never enter that launch URL.
@@ -144,7 +144,7 @@ The four packages use one shared local runtime with browser-specific manifests. 
 
 Ghost FTP publication is bound to source identity: the binary being published must correspond to the **exact final head SHA** that passed verification.
 
-Version 0.0.6 is published only after:
+Version 0.0.7 is published only after:
 
 - the exact final head SHA is merged to `main`;
 - the complete post-merge gate succeeds;
@@ -156,8 +156,8 @@ Version 0.0.6 is published only after:
 Canonical release identity:
 
 ```text
-VERSION=0.0.6
-TAG=ghostftp-v0.0.6
+VERSION=0.0.7
+TAG=ghostftp-v0.0.7
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13
@@ -174,7 +174,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-The verified release directory is additionally represented as `ghcr.io/bren-wp/ghost-ftp:0.0.6`. This OCI object is a distribution bundle, not a runtime product backend.
+The verified release directory is additionally represented as `ghcr.io/bren-wp/ghost-ftp:0.0.7`. This OCI object is a distribution bundle, not a runtime product backend.
 
 ---
 
