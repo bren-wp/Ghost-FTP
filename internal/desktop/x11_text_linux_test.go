@@ -38,21 +38,21 @@ func TestX11TextBytesUsesReadableFallbacksForProductPunctuation(t *testing.T) {
 }
 
 func TestX11TextBytesUsesReadableEuropeanLocaleFallbacks(t *testing.T) {
-	cases := map[string]string{
-		"Čuvanje žarišta":            "Cuvanje zarista",
-		"Übergrößenträger":           "Ubergrossentrager",
-		"Połączenie i żądanie":       "Polaczenie i zadanie",
-		"Ștergere și înlocuire":      "Stergere si inlocuire",
-		"Bağlantı ölçümü":            "Baglanti olcumu",
-		"Σύνδεση ασφαλείας":          "Syndesi asfaleias",
-		"Подключение безопасно":      "Podklyuchenie bezopasno",
-		"Підключення захищене":       "Pidklyuchennya zakhyshchene",
-	}
-	for input, want := range cases {
+	assertFallback := func(input, want string) {
+		t.Helper()
 		if got := string(x11TextBytes(input)); got != want {
 			t.Errorf("x11TextBytes(%q) = %q, want %q", input, got, want)
 		}
 	}
+
+	assertFallback("Čuvanje žarišta", "Cuvanje zarista")
+	assertFallback("Übergrößenträger", "Ubergrossentrager")
+	assertFallback("Połączenie i żądanie", "Polaczenie i zadanie")
+	assertFallback("Ștergere și înlocuire", "Stergere si inlocuire")
+	assertFallback("Bağlantı ölçümü", "Baglanti olcumu")
+	assertFallback("Σύνδεση ασφαλείας", "Syndesi asfaleias")
+	assertFallback("Подключение безопасно", "Podklyuchenie bezopasno")
+	assertFallback("Підключення захищене", "Pidklyuchennya zakhyshchene")
 }
 
 func TestX11TextBytesKeepsExplicitFallbackForUnsupportedScripts(t *testing.T) {
