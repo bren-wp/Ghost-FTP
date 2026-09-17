@@ -322,7 +322,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	choiceWidth := linuxSettingsChoiceWidth(width)
 	u.settingsRects.language = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
 	languageLabel := language.NativeName + " (" + language.Code + ")"
-	if err := u.drawButton(u.settingsRects.language, languageLabel, true, false); err != nil {
+	if err := u.drawButtonWithLimit(u.settingsRects.language, languageLabel, true, false, linuxButtonLabelLimit(u.settingsRects.language)); err != nil {
 		return err
 	}
 	row += 45
@@ -335,7 +335,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	if u.settingsDraft.Appearance == model.AppearanceDark {
 		appearanceLabel = appearance.Dark
 	}
-	if err := u.drawButton(u.settingsRects.appearance, linuxTrimForUI(appearanceLabel, 30), true, false); err != nil {
+	if err := u.drawButtonWithLimit(u.settingsRects.appearance, appearanceLabel, true, false, linuxButtonLabelLimit(u.settingsRects.appearance)); err != nil {
 		return err
 	}
 	row += 45
@@ -368,7 +368,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return err
 	}
 	u.settingsRects.conflict = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
-	if err := u.drawButton(u.settingsRects.conflict, u.conflictPolicyLabel(u.settingsDraft.ConflictPolicy), true, false); err != nil {
+	if err := u.drawButtonWithLimit(u.settingsRects.conflict, u.conflictPolicyLabel(u.settingsDraft.ConflictPolicy), true, false, linuxButtonLabelLimit(u.settingsRects.conflict)); err != nil {
 		return err
 	}
 	row += 44
