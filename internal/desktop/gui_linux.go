@@ -1262,6 +1262,14 @@ func linuxLegacyKeysymRune(sym uint32) (rune, bool) {
 		return 'ű', true
 	case 0x01fe:
 		return 'ţ', true
+	case 0x02a9:
+		return 'İ', true
+	case 0x02ab:
+		return 'Ğ', true
+	case 0x02b9:
+		return 'ı', true
+	case 0x02bb:
+		return 'ğ', true
 	}
 
 	// Russian/Ukrainian legacy keysyms. The standard Cyrillic letter blocks
