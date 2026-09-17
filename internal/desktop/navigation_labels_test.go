@@ -19,9 +19,20 @@ func TestApplicationNavigationLabelsCoverLanguageRegistry(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s is missing application navigation labels", language.Code)
 		}
-		if labels.SiteManager == "" || labels.Diagnostics == "" {
+		if labels.Files == "" || labels.Connections == "" || labels.TransferQueue == "" || labels.SiteManager == "" || labels.Diagnostics == "" {
 			t.Fatalf("%s has empty application navigation labels: %#v", language.Code, labels)
 		}
+	}
+}
+
+func TestApplicationNavigationLabelsMatchMasterRail(t *testing.T) {
+	en := navigationLabelsForLanguage("en")
+	if en.Files != "Files" || en.Connections != "Connections" || en.TransferQueue != "Transfer Queue" {
+		t.Fatalf("English master navigation = %#v", en)
+	}
+	hr := navigationLabelsForLanguage("hr")
+	if hr.Files != "Datoteke" || hr.Connections != "Veze" || hr.TransferQueue != "Red prijenosa" {
+		t.Fatalf("Croatian master navigation = %#v", hr)
 	}
 }
 
