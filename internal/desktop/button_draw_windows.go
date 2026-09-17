@@ -8,58 +8,37 @@ import (
 )
 
 func buttonColors(v buttonVariant, pressed, disabled bool) (bg, border, fg uintptr) {
-	if !activeThemeIsDark() {
-		if disabled {
-			return rgb(241, 243, 245), rgb(213, 217, 224), rgb(152, 162, 179)
-		}
-		switch v {
-		case buttonAccent:
-			if pressed {
-				return accentStrongColor(), rgb(31, 66, 158), rgb(255, 255, 255)
-			}
-			return accentColor(), rgb(52, 85, 191), rgb(255, 255, 255)
-		case buttonDanger:
-			if pressed {
-				return rgb(245, 194, 199), rgb(166, 27, 27), rgb(127, 29, 29)
-			}
-			return rgb(253, 236, 238), rgb(214, 96, 96), rgb(153, 27, 27)
-		case buttonSubtle:
-			if pressed {
-				return selectionColor(), accentColor(), textColor()
-			}
-			return panelColor(), borderColor(), mutedColor()
-		default:
-			if pressed {
-				return selectionColor(), accentColor(), textColor()
-			}
-			return panelColor(), borderColor(), textColor()
-		}
+	if disabled {
+		return panelColor(), borderColor(), mutedColor()
 	}
 
-	if disabled {
-		return rgb(7, 24, 38), rgb(24, 48, 67), rgb(82, 111, 146)
-	}
 	switch v {
 	case buttonAccent:
 		if pressed {
-			return accentStrongColor(), rgb(145, 132, 255), rgb(248, 250, 255)
+			return accentStrongColor(), accentStrongColor(), onAccentColor()
 		}
-		return accentColor(), rgb(132, 155, 255), rgb(248, 250, 255)
+		return accentColor(), accentStrongColor(), onAccentColor()
 	case buttonDanger:
-		if pressed {
-			return rgb(112, 31, 49), rgb(245, 111, 132), rgb(255, 246, 248)
+		if activeThemeIsDark() {
+			if pressed {
+				return rgb(112, 31, 49), dangerColor(), rgb(255, 246, 248)
+			}
+			return rgb(73, 28, 43), dangerColor(), rgb(255, 236, 241)
 		}
-		return rgb(73, 28, 43), rgb(190, 73, 99), rgb(255, 236, 241)
+		if pressed {
+			return rgb(245, 194, 199), dangerColor(), rgb(127, 29, 29)
+		}
+		return rgb(253, 236, 238), dangerColor(), rgb(153, 27, 27)
 	case buttonSubtle:
 		if pressed {
-			return rgb(12, 36, 54), rgb(47, 91, 120), textColor()
+			return selectionColor(), accentColor(), textColor()
 		}
-		return panelColor(), borderColor(), rgb(173, 202, 236)
+		return panelColor(), borderColor(), mutedColor()
 	default:
 		if pressed {
-			return rgb(15, 43, 63), rgb(67, 111, 143), textColor()
+			return selectionColor(), accentColor(), textColor()
 		}
-		return rgb(9, 31, 47), rgb(38, 75, 101), textColor()
+		return listColor(), borderColor(), textColor()
 	}
 }
 
