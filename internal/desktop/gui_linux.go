@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/bren-wp/Ghost-FTP/internal/api"
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
@@ -326,10 +328,33 @@ func (u *linuxDesktop) fieldValue(index int) string {
 	}
 }
 
-func (u *linuxDesktop) setFieldValue(index int, value string) {
-	if len(value) > 4096 {
-		value = value[:4096]
+func linuxTruncateUTF8Bytes(value string, maxBytes int) string {
+	if maxBytes < 0 {
+		maxBytes = 0
 	}
+	if len(value) <= maxBytes {
+		return value
+	}
+	end := maxBytes
+	for end > 0 && !utf8.ValidString(value[:end]) {
+		end--
+	}
+	return value[:end]
+}
+
+func linuxDeleteLastRune(value string) string {
+	if value == "" {
+		return ""
+	}
+	_, size := utf8.DecodeLastRuneInString(value)
+	if size <= 0 {
+		return ""
+	}
+	return value[:len(value)-size]
+}
+
+func (u *linuxDesktop) setFieldValue(index int, value string) {
+	value = linuxTruncateUTF8Bytes(value, 4096)
 	switch index {
 	case linuxFieldHost:
 		u.host = value
@@ -1143,10 +1168,23 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 }
 
 func linuxKeysymText(sym uint32) (string, bool) {
-	if sym >= 0x20 && sym <= 0x7e {
-		return string(rune(sym)), true
+	var r rune
+	switch {
+	case sym >= 0x20 && sym <= 0x7e:
+		r = rune(sym)
+	case sym >= 0x00a0 && sym <= 0x00ff:
+		// Legacy X11 Latin-1 keysyms are their Unicode code points.
+		r = rune(sym)
+	case sym >= 0x01000100 && sym <= 0x0110ffff:
+		// Modern X11 Unicode keysyms use 0x01000000 | codepoint.
+		r = rune(sym & 0x00ffffff)
+	default:
+		return "", false
 	}
-	return "", false
+	if !utf8.ValidRune(r) || !unicode.IsGraphic(r) {
+		return "", false
+	}
+	return string(r), true
 }
 
 func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
@@ -1210,8 +1248,8 @@ func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 			return true
 		}
 		value := u.fieldValue(u.focus)
-		if len(value) > 0 {
-			u.setFieldValue(u.focus, value[:len(value)-1])
+		if value != "" {
+			u.setFieldValue(u.focus, linuxDeleteLastRune(value))
 		}
 		return true
 	}
@@ -1219,7 +1257,7 @@ func (u *linuxDesktop) handleKey(keycode byte, state uint16) bool {
 		return true
 	}
 	if text, ok := linuxKeysymText(sym); ok {
-		if u.focus == linuxFieldPort && (text[0] < '0' || text[0] > '9') {
+		if u.focus == linuxFieldPort && (len(text) != 1 || text[0] < '0' || text[0] > '9') {
 			return true
 		}
 		value := u.fieldValue(u.focus)
