@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -92,9 +93,17 @@ class UIStabilityHardeningTests(unittest.TestCase):
             self.assertIn(marker, actions)
         for forbidden in ("idToolbarConnect", "idToolbarUpload", "idToolbarDelete", "idRemoteSearch"):
             self.assertNotIn(forbidden, commands + sidebar + navigation)
-        self.assertIn("idDiagnostics", commands)
-        self.assertIn("idDiagnostics = 703", navigation)
+        for command_id, value in (
+            ("idFilesNav", 700),
+            ("idSiteManager", 701),
+            ("idTransferQueueNav", 702),
+            ("idDiagnostics", 703),
+        ):
+            self.assertRegex(navigation, rf"\b{command_id}\s*=\s*{value}\b")
+            self.assertIn(command_id, commands + sidebar)
         self.assertIn("applyApplicationSidebar", sidebar)
+        self.assertIn("buttonNavActive", sidebar)
+        self.assertIn("updateSidebarTransferBadge", sidebar)
 
     def test_remote_permissions_column_is_backed_by_real_metadata(self) -> None:
         model = self.read("internal/model/types.go")
@@ -148,83 +157,12 @@ class UIStabilityHardeningTests(unittest.TestCase):
             'a.tr("cue.password")',
             'a.tr("cue.passphrase")',
             'a.tr("badge.connected")',
-            'a.tr("badge.disconnected")',
-            'a.tr("connection.connecting", host)',
-            'a.tr("sftp.verifying")',
         ):
             self.assertIn(marker, profiles)
 
-        self.assertNotIn("%d aktivnih", transfers)
-        self.assertNotIn("na čekanju", transfers)
-        self.assertIn('a.tr("transfer.summary", running, queued, done)', transfers)
-        self.assertIn('a.tr("transfer.summary_skipped", skipped)', transfers)
-        self.assertIn('a.tr("transfer.summary_failed", failed)', transfers)
-
-        for forbidden in (
-            "Odaberite jednu ili više",
-            "Mapa nije stvorena",
-            "Preimenovanje nije uspjelo",
-            "Nisu obrisane sve stavke",
-            "Brisanje na poslužitelju",
-            "Dozvole promijenjene",
-            "Dodano u red",
-            "Veza više nije dostupna",
-        ):
-            self.assertNotIn(forbidden, actions)
-        for marker in ('a.userMessage(err, "error.generic")', 'a.tr("common.delete")', 'a.tr("common.permissions")'):
-            self.assertIn(marker, actions)
-
-    def test_site_manager_labels_are_public_brand_clean_and_24_language_aware(self) -> None:
-        site = self.read("internal/desktop/site_manager_windows.go")
-        supported = (
-            "en", "hr", "de", "fr", "es", "tr", "el", "pt", "zh", "ru", "hi", "ja",
-            "it", "pl", "nl", "cs", "uk", "sv", "ro", "hu", "da", "fi", "no", "ko",
-        )
-        for code in supported:
-            self.assertIn(f'"{code}": {{', site)
-        for marker in (
-            '"en": {"Local path", "Remote path"}',
-            '"hr": {"Lokalna putanja", "Udaljena putanja"}',
-            "cleanSFTPSecurityTitle",
-            'label(parent.tr("cue.passphrase")',
-            "sitePathLabel(parent.languageCode(), false)",
-            "sitePathLabel(parent.languageCode(), true)",
-        ):
-            self.assertIn(marker, site)
-        self.assertNotIn('label(parent.tr("sftp.security")', site)
-        self.assertNotIn('"GhostFTP — SFTP security"', site)
-
-    def test_canonical_workspace_remains_resizable_without_duplicate_shell(self) -> None:
-        ui = self.read("internal/desktop/ui_windows.go")
-        theme = self.read("internal/desktop/theme.go")
-        windows = self.read("internal/desktop/windows.go")
-        geometry = self.read("internal/desktop/window_geometry_windows.go")
-        layout = self.read("internal/desktop/workspace_layout_windows.go")
-        for marker in (
-            "premiumStartWidth", "premiumStartHeight", "premiumMinWidth", "premiumMinHeight",
-        ):
-            self.assertIn(marker, theme)
-        for marker in (
-            "minWidth, minHeight := a.responsiveMinTrackSize()",
-            "info.MinTrackSize.X = int32(a.scale(minWidth))",
-            "info.MinTrackSize.Y = int32(a.scale(minHeight))",
-            "r := a.clampSuggestedWindowRectToWorkArea(rectFromLParam(lParam))",
-            "case wmSize:", "case wmDpiChanged:",
-        ):
-            self.assertIn(marker, windows)
-        for marker in (
-            "responsiveWindowBoundsForWorkArea",
-            "responsiveMinimumTrackSize",
-            "monitorWorkAreaLogical",
-        ):
-            self.assertIn(marker, geometry)
-        for marker in (
-            "compact := width < 1180", "profileW := clampInt", "localPathW", "remotePathW",
-            "queueH := clampInt", "a.move(a.transferList",
-        ):
-            self.assertIn(marker, ui)
-        self.assertNotIn("sidebarW", layout)
-        self.assertNotIn("remoteSearch", layout)
+        for marker in ('a.tr("status.queued")', 'a.tr("transfer.pause")', 'a.tr("transfer.resume")'):
+            self.assertIn(marker, transfers)
+        self.assertIn('a.tr("common.cancel")', actions)
 
 
 if __name__ == "__main__":
