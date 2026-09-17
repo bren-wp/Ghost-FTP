@@ -96,6 +96,23 @@ func TestLinuxMasterLayoutTransformUsesRailSettingsHitTarget(t *testing.T) {
 	}
 }
 
+func TestLinuxMasterLayoutTransformIsIdempotentAcrossRenderHooks(t *testing.T) {
+	u := &linuxDesktop{width: 1280, height: 820, layout: buildLinuxDesktopLayout(1280, 820)}
+	u.applyLinuxMasterLayoutTransform()
+	firstLocalPath := u.layout.localPath
+	firstRemotePath := u.layout.remotePath
+	firstQueue := u.layout.queue
+	firstSettings := u.layout.settings
+
+	u.applyLinuxMasterLayoutTransform()
+	if u.layout.localPath != firstLocalPath || u.layout.remotePath != firstRemotePath || u.layout.queue != firstQueue {
+		t.Fatalf("second transform compounded workspace geometry: local=%+v remote=%+v queue=%+v", u.layout.localPath, u.layout.remotePath, u.layout.queue)
+	}
+	if u.layout.settings != firstSettings {
+		t.Fatalf("second transform moved settings rail target: before=%+v after=%+v", firstSettings, u.layout.settings)
+	}
+}
+
 func TestLinuxMasterRailUsesSharedLocalizedNavigationContract(t *testing.T) {
 	english := navigationLabelsForLanguage("en")
 	croatian := navigationLabelsForLanguage("hr")
