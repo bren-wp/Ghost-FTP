@@ -18,6 +18,8 @@ MAPPING = (
     ("linux/ghost-ftp-linux-main-workspace.png", "ghost-ftp-linux-main-workspace.png"),
     ("linux/ghost-ftp-linux-bookmarks.png", "ghost-ftp-linux-bookmarks.png"),
     ("linux/ghost-ftp-linux-settings.png", "ghost-ftp-linux-settings.png"),
+    ("linux/ghost-ftp-linux-connection-info.png", "ghost-ftp-linux-connection-info.png"),
+    ("linux/ghost-ftp-linux-about.png", "ghost-ftp-linux-about.png"),
     ("android/ghost-ftp-android-files.png", "ghost-ftp-android-files.png"),
     ("android/ghost-ftp-android-navigation.png", "ghost-ftp-android-navigation.png"),
     ("android/ghost-ftp-android-sites.png", "ghost-ftp-android-sites.png"),
