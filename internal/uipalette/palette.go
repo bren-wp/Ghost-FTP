@@ -46,9 +46,9 @@ var Dark = Theme{
 	Selection:    RGB{0x2B, 0x25, 0x15},
 }
 
-// Light is intentionally off-white rather than sterile white. It keeps the same
-// Ghost Gold identity while using a darker amber tone so filled controls retain
-// sufficient contrast with their light foreground.
+// Light is intentionally off-white: it keeps long file-management sessions
+// comfortable without turning panels into bright white blocks. The darker
+// Ghost Gold tone keeps filled controls readable with their light foreground.
 var Light = Theme{
 	Window:       RGB{0xEE, 0xF1, 0xF5},
 	Panel:        RGB{0xF6, 0xF8, 0xFB},
