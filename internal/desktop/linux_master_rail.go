@@ -251,13 +251,13 @@ func (u *linuxDesktop) handleLinuxMasterRailMouse(x, y int) bool {
 			u.openLinuxBookmarks("")
 		}
 	case rail.diagnostics.contains(x, y):
-		state := u.tr("badge.disconnected")
-		if u.connected {
-			state = u.tr("badge.connected")
+		if !u.busy {
+			u.openLinuxInfoOverlay(linuxInfoOverlayConnection)
 		}
-		u.setStatus(navigationLabelsForLanguage(u.language).Diagnostics + " · " + state)
 	case rail.about.contains(x, y):
-		u.setStatus(brand.ProductName + " " + u.version + " · FTP / FTPS / SFTP")
+		if !u.busy {
+			u.openLinuxInfoOverlay(linuxInfoOverlayAbout)
+		}
 	case rail.language.contains(x, y):
 		if !u.busy {
 			u.openSettings()
