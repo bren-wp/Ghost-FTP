@@ -2,6 +2,9 @@ name: Trigger Ghost FTP Release
 
 on:
   create:
+  push:
+    branches:
+      - 'release/ghostftp-v*'
 
 permissions:
   contents: read
@@ -13,7 +16,7 @@ concurrency:
 
 jobs:
   dispatch:
-    if: ${{ github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/ghostftp-v') }}
+    if: ${{ (github.event_name == 'create' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/ghostftp-v')) || (github.event_name == 'push' && startsWith(github.ref_name, 'release/ghostftp-v')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -28,16 +31,16 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          CREATED_REF: ${{ github.event.ref }}
+          RELEASE_REF: ${{ github.event_name == 'create' && github.event.ref || github.ref_name }}
         run: |
           set -euo pipefail
           prefix='release/ghostftp-v'
-          case "$CREATED_REF" in
+          case "$RELEASE_REF" in
             "$prefix"*) ;;
-            *) echo "Unexpected release ref: $CREATED_REF" >&2; exit 1 ;;
+            *) echo "Unexpected release ref: $RELEASE_REF" >&2; exit 1 ;;
           esac
 
-          version="${CREATED_REF#${prefix}}"
+          version="${RELEASE_REF#${prefix}}"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
             echo "Invalid release branch version: $version" >&2
             exit 1
