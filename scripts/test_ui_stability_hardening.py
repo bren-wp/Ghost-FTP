@@ -92,9 +92,17 @@ class UIStabilityHardeningTests(unittest.TestCase):
             self.assertIn(marker, actions)
         for forbidden in ("idToolbarConnect", "idToolbarUpload", "idToolbarDelete", "idRemoteSearch"):
             self.assertNotIn(forbidden, commands + sidebar + navigation)
-        self.assertIn("idDiagnostics", commands)
-        self.assertIn("idDiagnostics = 703", navigation)
+        for command_id, value in (
+            ("idFilesNav", 700),
+            ("idSiteManager", 701),
+            ("idTransferQueueNav", 702),
+            ("idDiagnostics", 703),
+        ):
+            self.assertRegex(navigation, rf"\b{command_id}\s*=\s*{value}\b")
+            self.assertIn(command_id, commands + sidebar)
         self.assertIn("applyApplicationSidebar", sidebar)
+        self.assertIn("buttonNavActive", sidebar)
+        self.assertIn("updateSidebarTransferBadge", sidebar)
 
     def test_remote_permissions_column_is_backed_by_real_metadata(self) -> None:
         model = self.read("internal/model/types.go")

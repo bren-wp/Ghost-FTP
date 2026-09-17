@@ -59,3 +59,17 @@ func TestApplyTransferEventsToJobsLargeBatch(t *testing.T) {
 		}
 	}
 }
+
+func TestRelevantTransferCountOnlyIncludesActionableJobs(t *testing.T) {
+	jobs := []model.TransferJob{
+		{ID: "queued", Status: "queued"},
+		{ID: "running", Status: "running"},
+		{ID: "failed", Status: "failed"},
+		{ID: "cancelled", Status: "cancelled"},
+		{ID: "done", Status: "done"},
+		{ID: "skipped", Status: "skipped"},
+	}
+	if got := relevantTransferCount(jobs); got != 4 {
+		t.Fatalf("relevant transfer count = %d, want 4", got)
+	}
+}

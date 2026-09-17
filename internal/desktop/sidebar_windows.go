@@ -8,38 +8,47 @@ import (
 )
 
 const (
-	applicationSidebarX       = 14
-	applicationSidebarWidth   = 132
-	applicationContentLeft    = 160
-	applicationSidebarCardH   = 54
-	applicationSidebarCardGap = 8
+	applicationSidebarX           = 14
+	applicationSidebarWidth       = 166
+	applicationContentLeft        = 204
+	applicationSidebarCardH       = 46
+	applicationSidebarCardGap     = 8
+	applicationSidebarUtilityH    = 38
+	applicationSidebarUtilityGap  = 7
+	applicationSidebarLanguageH   = 29
+	applicationSidebarPrimaryTop  = 64
+	applicationSidebarBrandIcon   = 32
+	applicationSidebarBrandGap    = 8
+	applicationSidebarBottomInset = 14
 )
 
 var (
+	sidebarFiles           sync.Map
+	sidebarTransfers       sync.Map
 	sidebarDiagnostics     sync.Map
 	sidebarBookmarks       sync.Map
 	sidebarGetWindowRect   = user32.NewProc("GetWindowRect")
 	sidebarMapWindowPoints = user32.NewProc("MapWindowPoints")
+	sidebarSetFocus        = user32.NewProc("SetFocus")
 )
 
-func (a *app) ensureSidebarDiagnostics() uintptr {
-	if a == nil || a.hwnd == 0 {
+func (a *app) ensureSidebarButton(store *sync.Map, id int, label, icon string) uintptr {
+	if a == nil || a.hwnd == 0 || store == nil {
 		return 0
 	}
-	if value, ok := sidebarDiagnostics.Load(a.hwnd); ok {
+	if value, ok := store.Load(a.hwnd); ok {
 		if hwnd, ok := value.(uintptr); ok && hwnd != 0 {
 			return hwnd
 		}
 	}
 	hinst, _, _ := getModuleHandleW.Call(0)
-	label := navigationLabelsForLanguage(a.languageCode()).Diagnostics
 	hwnd, _, _ := createWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(wstr("BUTTON"))),
 		uintptr(unsafe.Pointer(wstr(label))),
 		uintptr(wsChild|wsVisible|wsTabStop|bsOwnerDraw),
 		0, 0, 1, 1,
-		a.hwnd, idDiagnostics, hinst, 0,
+		a.hwnd, uintptr(id), hinst, 0,
 	)
 	if hwnd == 0 {
 		return 0
@@ -48,64 +57,69 @@ func (a *app) ensureSidebarDiagnostics() uintptr {
 		sendMessageW.Call(hwnd, wmSetFont, a.font, 1)
 	}
 	applyDarkControl(hwnd, "BUTTON")
-	a.registerToolbarButton(hwnd, iconDiagnostics, label, buttonSubtle)
-	sidebarDiagnostics.Store(a.hwnd, hwnd)
+	a.registerButton(hwnd, icon, label, buttonSubtle)
+	store.Store(a.hwnd, hwnd)
 	return hwnd
 }
 
+func (a *app) ensureSidebarFiles() uintptr {
+	labels := navigationLabelsForLanguage(a.languageCode())
+	return a.ensureSidebarButton(&sidebarFiles, idFilesNav, labels.Files, iconOpenLocal)
+}
+
+func (a *app) ensureSidebarTransfers() uintptr {
+	labels := navigationLabelsForLanguage(a.languageCode())
+	return a.ensureSidebarButton(&sidebarTransfers, idTransferQueueNav, labels.TransferQueue, iconSync)
+}
+
+func (a *app) ensureSidebarDiagnostics() uintptr {
+	labels := navigationLabelsForLanguage(a.languageCode())
+	return a.ensureSidebarButton(&sidebarDiagnostics, idDiagnostics, labels.Diagnostics, iconDiagnostics)
+}
+
 func (a *app) ensureSidebarBookmarks() uintptr {
-	if a == nil || a.hwnd == 0 {
-		return 0
-	}
-	if value, ok := sidebarBookmarks.Load(a.hwnd); ok {
-		if hwnd, ok := value.(uintptr); ok && hwnd != 0 {
-			return hwnd
-		}
-	}
-	hinst, _, _ := getModuleHandleW.Call(0)
 	label := bookmarkWordsForLanguage(a.languageCode()).Title
-	hwnd, _, _ := createWindowExW.Call(
-		0,
-		uintptr(unsafe.Pointer(wstr("BUTTON"))),
-		uintptr(unsafe.Pointer(wstr(label))),
-		uintptr(wsChild|wsVisible|wsTabStop|bsOwnerDraw),
-		0, 0, 1, 1,
-		a.hwnd, idBookmarks, hinst, 0,
-	)
-	if hwnd == 0 {
+	return a.ensureSidebarButton(&sidebarBookmarks, idBookmarks, label, iconOpenLocal)
+}
+
+func sidebarControl(store *sync.Map, owner uintptr) uintptr {
+	if store == nil || owner == 0 {
 		return 0
 	}
-	if a.font != 0 {
-		sendMessageW.Call(hwnd, wmSetFont, a.font, 1)
+	value, ok := store.Load(owner)
+	if !ok {
+		return 0
 	}
-	applyDarkControl(hwnd, "BUTTON")
-	a.registerToolbarButton(hwnd, iconOpenLocal, label, buttonSubtle)
-	sidebarBookmarks.Store(a.hwnd, hwnd)
+	hwnd, _ := value.(uintptr)
 	return hwnd
+}
+
+func (a *app) sidebarFilesButton() uintptr {
+	if a == nil {
+		return 0
+	}
+	return sidebarControl(&sidebarFiles, a.hwnd)
+}
+
+func (a *app) sidebarTransferButton() uintptr {
+	if a == nil {
+		return 0
+	}
+	return sidebarControl(&sidebarTransfers, a.hwnd)
 }
 
 func (a *app) sidebarDiagnosticsButton() uintptr {
 	if a == nil {
 		return 0
 	}
-	value, ok := sidebarDiagnostics.Load(a.hwnd)
-	if !ok {
-		return 0
-	}
-	hwnd, _ := value.(uintptr)
-	return hwnd
+	return sidebarControl(&sidebarDiagnostics, a.hwnd)
 }
 
 func (a *app) sidebarBookmarksButton() uintptr {
 	if a == nil {
 		return 0
 	}
-	value, ok := sidebarBookmarks.Load(a.hwnd)
-	if !ok {
-		return 0
-	}
-	hwnd, _ := value.(uintptr)
-	return hwnd
+	return sidebarControl(&sidebarBookmarks, a.hwnd)
 }
 
 func (a *app) setSidebarButtonVisual(hwnd uintptr, icon, label string, variant buttonVariant) {
@@ -113,11 +127,47 @@ func (a *app) setSidebarButtonVisual(hwnd uintptr, icon, label string, variant b
 		return
 	}
 	setText(hwnd, label)
-	if a.buttons == nil {
-		a.buttons = make(map[uintptr]buttonVisual)
+	a.registerButtonVisual(hwnd, icon, label, variant, false)
+	invalidateRect.Call(hwnd, 0, 0)
+}
+
+func (a *app) updateSidebarTransferBadge() {
+	if a == nil {
+		return
 	}
-	a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant, Vertical: true}
-	invalidateRect.Call(hwnd, 0, 1)
+	a.setButtonBadge(a.sidebarTransferButton(), relevantTransferCount(a.transferJobs))
+}
+
+func (a *app) focusFilesWorkspace() {
+	if a == nil {
+		return
+	}
+	target := a.localList
+	if target == 0 {
+		target = a.localPath
+	}
+	if target != 0 {
+		sidebarSetFocus.Call(target)
+	}
+}
+
+func (a *app) focusTransferQueue() {
+	if a == nil || a.transferList == 0 {
+		return
+	}
+	sidebarSetFocus.Call(a.transferList)
+}
+
+func (a *app) cleanupSidebarControls() {
+	if a == nil || a.hwnd == 0 {
+		return
+	}
+	for _, store := range []*sync.Map{&sidebarFiles, &sidebarTransfers, &sidebarBookmarks, &sidebarDiagnostics} {
+		if hwnd := sidebarControl(store, a.hwnd); hwnd != 0 {
+			delete(a.buttons, hwnd)
+		}
+		store.Delete(a.hwnd)
+	}
 }
 
 func (a *app) sidebarLogicalRect(hwnd uintptr) (rect, bool) {
@@ -161,10 +211,9 @@ func (a *app) transformSidebarContent(hwnd uintptr, oldLeft, oldRight, newLeft, 
 
 func (a *app) resizeSidebarColumns() {
 	// File panes have one canonical width policy. The old sidebar-specific
-	// percentages (35/16/14/22/13 for Remote) overrode resizeListColumns and made
-	// Permissions only ~45 px wide in the standard captured workspace. Fit from
-	// each ListView's actual client width instead so sidebar and non-sidebar passes
-	// cannot disagree about the same columns.
+	// percentages overrode resizeListColumns and made Permissions too narrow.
+	// Fit from each ListView's actual client width so sidebar and non-sidebar
+	// passes cannot disagree about the same columns.
 	a.fitFileColumnsToWorkspace()
 
 	if a.transferList != 0 {
@@ -181,33 +230,74 @@ func (a *app) resizeSidebarColumns() {
 	}
 }
 
-// applyApplicationSidebar turns the application-level navigation into one
-// canonical left rail without rewriting the proven two-pane layout engine.
-// The normal layout first computes a complete baseline. If the language combo
-// is still in that baseline header position, this function applies one affine
-// horizontal transform to the operational workspace and then anchors the rail.
-// State-only refreshes see the already-left language selector and therefore do
-// not compound the transform.
+func (a *app) layoutSidebarRail(height int) {
+	files := a.ensureSidebarFiles()
+	transfers := a.ensureSidebarTransfers()
+	diagnostics := a.ensureSidebarDiagnostics()
+	bookmarks := a.ensureSidebarBookmarks()
+	labels := navigationLabelsForLanguage(a.languageCode())
+
+	a.setSidebarButtonVisual(files, iconOpenLocal, labels.Files, buttonNavActive)
+	a.setSidebarButtonVisual(a.siteManagerBtn, iconConnect, labels.Connections, buttonDefault)
+	a.setSidebarButtonVisual(transfers, iconSync, labels.TransferQueue, buttonDefault)
+	a.setSidebarButtonVisual(a.settingsBtn, iconSettings, a.tr("common.settings"), buttonDefault)
+	a.setSidebarButtonVisual(bookmarks, iconOpenLocal, bookmarkWordsForLanguage(a.languageCode()).Title, buttonSubtle)
+	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, labels.Diagnostics, buttonSubtle)
+	a.setSidebarButtonVisual(a.aboutBtn, iconInfo, a.tr("common.about"), buttonSubtle)
+	a.updateSidebarTransferBadge()
+
+	logo := a.ensureBrandLogo()
+	if logo != 0 {
+		a.move(logo, applicationSidebarX+2, 14, applicationSidebarBrandIcon, applicationSidebarBrandIcon)
+	}
+	titleX := applicationSidebarX + applicationSidebarBrandIcon + applicationSidebarBrandGap + 2
+	// The full product name must remain visible in the compact rail. Reuse the
+	// native UI font here instead of the large workspace wordmark font, which
+	// clipped "FTP" at runner-sized and high-DPI windows.
+	if a.font != 0 {
+		sendMessageW.Call(a.brandTitle, wmSetFont, a.font, 1)
+	}
+	a.move(a.brandTitle, titleX, 13, applicationSidebarWidth-(titleX-applicationSidebarX), 34)
+	// The master desktop references keep the rail brand intentionally compact.
+	// The descriptive subtitle remains in About rather than competing with
+	// operational navigation and file content.
+	showControls(false, a.brandSubtitle)
+
+	y := applicationSidebarPrimaryTop
+	for _, control := range []uintptr{files, a.siteManagerBtn, transfers, a.settingsBtn} {
+		a.move(control, applicationSidebarX, y, applicationSidebarWidth, applicationSidebarCardH)
+		y += applicationSidebarCardH + applicationSidebarCardGap
+	}
+
+	utilityBlockH := 3*applicationSidebarUtilityH + 2*applicationSidebarUtilityGap + applicationSidebarLanguageH + applicationSidebarUtilityGap
+	utilityY := height - applicationSidebarBottomInset - utilityBlockH
+	if utilityY < y+18 {
+		utilityY = y + 18
+	}
+	for _, control := range []uintptr{bookmarks, diagnostics, a.aboutBtn} {
+		a.move(control, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarUtilityH)
+		utilityY += applicationSidebarUtilityH + applicationSidebarUtilityGap
+	}
+	a.move(a.languageCombo, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarLanguageH)
+}
+
+// applyApplicationSidebar turns application-level navigation into one canonical
+// left rail without rewriting the proven two-pane layout engine. The baseline
+// layout computes the operational workspace first, then this function applies
+// one affine horizontal transform and anchors the rail. State-only refreshes
+// detect an already-transformed profile control and never compound the transform.
 func (a *app) applyApplicationSidebar() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
-	diagnostics := a.ensureSidebarDiagnostics()
-	bookmarks := a.ensureSidebarBookmarks()
-	labels := navigationLabelsForLanguage(a.languageCode())
-	a.setSidebarButtonVisual(a.siteManagerBtn, iconOpenLocal, labels.SiteManager, buttonDefault)
-	a.setSidebarButtonVisual(bookmarks, iconOpenLocal, bookmarkWordsForLanguage(a.languageCode()).Title, buttonSubtle)
-	a.setSidebarButtonVisual(a.settingsBtn, iconSettings, a.tr("common.settings"), buttonSubtle)
-	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, labels.Diagnostics, buttonSubtle)
-	a.setSidebarButtonVisual(a.aboutBtn, iconInfo, a.tr("common.about"), buttonSubtle)
 
-	// Rail controls are always anchored explicitly, including state-only passes.
-	a.move(a.languageCombo, applicationSidebarX, 54, applicationSidebarWidth, 29)
-	y := 96
-	for _, control := range []uintptr{a.siteManagerBtn, bookmarks, a.settingsBtn, diagnostics, a.aboutBtn} {
-		a.move(control, applicationSidebarX, y, applicationSidebarWidth, applicationSidebarCardH)
-		y += applicationSidebarCardH + applicationSidebarCardGap
+	var client rect
+	if ok, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
+		return
 	}
+	width := a.unscale(int(client.Right - client.Left))
+	height := a.unscale(int(client.Bottom - client.Top))
+	a.layoutSidebarRail(height)
 
 	// If the profile combo is already to the right of the rail then this layout
 	// pass was transformed previously. Do not scale a transformed workspace twice.
@@ -217,11 +307,6 @@ func (a *app) applyApplicationSidebar() {
 		return
 	}
 
-	var client rect
-	if ok, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
-		return
-	}
-	width := a.unscale(int(client.Right - client.Left))
 	oldLeft := premiumOuterGap
 	oldRight := width - premiumOuterGap
 	newLeft := applicationContentLeft
@@ -243,14 +328,21 @@ func (a *app) applyApplicationSidebar() {
 		a.transformSidebarContent(control, oldLeft, oldRight, newLeft, newRight)
 	}
 
+	// The saved-connection picker becomes the first content-row control. Keep the
+	// live connection state visible in the same row and reserve independent bounds
+	// for profile persistence actions; the previous layout left connectionBadge in
+	// its legacy header position where it overlapped Delete profile.
 	availableProfile := newRight - newLeft
-	buttonW, gap := 128, 8
-	profileW := availableProfile - 2*buttonW - 2*gap
+	badgeW, buttonW, gap := 118, 116, 8
+	profileW := availableProfile - badgeW - 2*buttonW - 3*gap
 	if profileW < 220 {
 		profileW = 220
 	}
-	a.move(a.profilesCombo, newLeft, 51, profileW, 29)
-	a.move(a.saveProfile, newLeft+profileW+gap, 51, buttonW, 29)
-	a.move(a.removeProfile, newLeft+profileW+gap+buttonW+gap, 51, buttonW, 29)
+	a.move(a.profilesCombo, newLeft, 13, profileW, 31)
+	badgeX := newLeft + profileW + gap
+	a.move(a.connectionBadge, badgeX, 18, badgeW, 21)
+	saveX := badgeX + badgeW + gap
+	a.move(a.saveProfile, saveX, 13, buttonW, 31)
+	a.move(a.removeProfile, saveX+buttonW+gap, 13, buttonW, 31)
 	a.resizeSidebarColumns()
 }

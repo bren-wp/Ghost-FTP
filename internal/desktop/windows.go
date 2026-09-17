@@ -356,13 +356,13 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 		a.runDispatch()
 		return 0
 	case wmClose:
-		// Profile persistence is intentionally short and cannot be cancelled safely.
-		// Keep the process alive until the in-flight save/delete has committed so a
-		// close click cannot leave the encrypted profile store partially updated.
-		if a.profileMutationBusy {
+		switch deriveWindowCloseAction(a.profileMutationBusy, a.connected, a.connectionBusy, a.hasActiveTransfers()) {
+		case windowCloseWaitForProfileMutation:
+			// Profile persistence is intentionally short and cannot be cancelled
+			// safely. Keep the process alive until the in-flight save/delete has
+			// committed so close cannot leave the encrypted store partially updated.
 			return 0
-		}
-		if a.connected || a.connectionBusy || a.hasActiveTransfers() {
+		case windowCloseConfirmActiveWork:
 			if !platform.ConfirmDialog("Ghost FTP", closeQuestion(a.languageCode()), closeBody(a.languageCode())) {
 				return 0
 			}
@@ -380,10 +380,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.remoteNavCancel()
 			a.remoteNavCancel = nil
 		}
-		if diagnostics := a.sidebarDiagnosticsButton(); diagnostics != 0 {
-			delete(a.buttons, diagnostics)
-		}
-		sidebarDiagnostics.Delete(a.hwnd)
+		// The master rail creates native child controls lazily. Clear every
+		// per-window rail handle here so a future Run in the same process cannot
+		// inherit stale HWNDs or button metadata from a destroyed window.
+		a.cleanupSidebarControls()
 		a.mu.Lock()
 		a.closing = true
 		a.mu.Unlock()

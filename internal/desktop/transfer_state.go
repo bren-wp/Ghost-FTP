@@ -43,3 +43,17 @@ func applyTransferEventsToJobs(jobs []model.TransferJob, events []transfer.Event
 	}
 	return jobs, changed
 }
+
+// relevantTransferCount is the navigation-badge contract shared by native
+// surfaces. Completed/skipped jobs are historical information, while queued,
+// running, failed and cancelled jobs still require attention or an action.
+func relevantTransferCount(jobs []model.TransferJob) int {
+	count := 0
+	for _, job := range jobs {
+		switch job.Status {
+		case "queued", "running", "failed", "cancelled":
+			count++
+		}
+	}
+	return count
+}

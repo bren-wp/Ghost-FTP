@@ -33,6 +33,7 @@ func (a *app) updateTransferSummary() {
 		text += a.tr("transfer.summary_failed", failed)
 	}
 	setText(a.transferSummary, text)
+	a.updateSidebarTransferBadge()
 }
 
 func (a *app) addTransfer(direction, local, remotePath, localRoot string) {

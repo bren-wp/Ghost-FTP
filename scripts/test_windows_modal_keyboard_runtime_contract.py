@@ -21,11 +21,27 @@ class WindowsModalKeyboardRuntimeContractTests(unittest.TestCase):
             'IsIconic',
             'PostMessage',
             'SetForegroundWindow',
+            'ShowWindow',
         ):
             self.assertIn(marker, source)
+        self.assertIn("$wmSysCommand = 0x0112", source)
+        self.assertIn("$scMinimize = 0xF020", source)
+        self.assertIn("$scClose = 0xF060", source)
         self.assertIn("$vkTab = 0x09", source)
         self.assertIn("$vkReturn = 0x0D", source)
         self.assertIn("$vkEscape = 0x1B", source)
+
+    def test_titlebar_close_and_minimize_are_distinct_runtime_paths(self) -> None:
+        source = read("scripts/test_windows_modal_keyboard_runtime.ps1")
+
+        self.assertIn("Verify-SystemCommandLifecycle -Main $main -Process $process", source)
+        self.assertIn("SC_MINIMIZE exited Ghost FTP instead of minimizing it.", source)
+        self.assertIn("SC_MINIMIZE did not minimize the Ghost FTP main window.", source)
+        self.assertIn("WINDOWS_SC_MINIMIZE_RUNTIME=PASS", source)
+        self.assertIn("PostMessage($main, $wmSysCommand, [IntPtr]$scClose", source)
+        self.assertIn("SC_CLOSE did not exit Ghost FTP.", source)
+        self.assertIn("WINDOWS_SC_CLOSE_RUNTIME=PASS", source)
+        self.assertNotIn("PostMessage($main, $wmClose", source)
 
     def test_site_manager_and_bookmarks_run_tab_enter_escape_cycles(self) -> None:
         source = read("scripts/test_windows_modal_keyboard_runtime.ps1")
