@@ -23,12 +23,15 @@ class ReleaseTriggerContractTests(unittest.TestCase):
     def test_release_branch_trigger_verifies_exact_main_before_dispatch(self):
         trigger = (ROOT / ".github/workflows/release-branch-trigger.yml").read_text(encoding="utf-8")
         required = [
-            "on:\n  create:",
+            "on:\n  create:\n  push:\n    branches:\n      - 'release/ghostftp-v*'",
+            "github.event_name == 'create'",
             "github.event.ref_type == 'branch'",
             "startsWith(github.event.ref, 'release/ghostftp-v')",
-            "CREATED_REF: ${{ github.event.ref }}",
+            "github.event_name == 'push'",
+            "startsWith(github.ref_name, 'release/ghostftp-v')",
+            "RELEASE_REF: ${{ github.event_name == 'create' && github.event.ref || github.ref_name }}",
             "prefix='release/ghostftp-v'",
-            'version="${CREATED_REF#${prefix}}"',
+            'version="${RELEASE_REF#${prefix}}"',
             'source_version="$(tr -d \'\\r\\n\' < VERSION)"',
             'test "$version" = "$source_version"',
             'main_sha="$(git rev-parse HEAD)"',
