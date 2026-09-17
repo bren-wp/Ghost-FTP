@@ -1,0 +1,140 @@
+name: Prepare Ghost FTP 0.0.7
+
+on:
+  push:
+    branches:
+      - release-prep/0.0.7
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: ${{ !contains(github.event.head_commit.message, '[release-prep-007]') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: release-prep/0.0.7
+          fetch-depth: 0
+
+      - name: Apply 0.0.7 release identity and cumulative notes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          def read(rel):
+              return (root / rel).read_text(encoding='utf-8')
+
+          def write(rel, text):
+              (root / rel).write_text(text, encoding='utf-8')
+
+          def replace(rel, old, new, count=-1):
+              text = read(rel)
+              if old not in text:
+                  raise SystemExit(f'missing expected marker in {rel}: {old!r}')
+              write(rel, text.replace(old, new, count))
+
+          write('VERSION', '0.0.7\n')
+
+          for rel in ('cmd/ghostftp/main.go', 'cmd/installer/main.go', 'cmd/windowsbootstrap/main.go'):
+              replace(rel, 'var version = "0.0.6"', 'var version = "0.0.7"')
+
+          for browser in ('chrome', 'edge', 'firefox', 'opera'):
+              rel = f'extensions/{browser}/manifest.json'
+              replace(rel, '"version": "0.0.6"', '"version": "0.0.7"')
+
+          # Current release-facing docs: these files describe the active candidate,
+          # so version references intentionally advance together.
+          for rel in ('docs/INSTALLATION.md', 'docs/GITHUB-RELEASES.md', 'docs/RELEASE-VERIFICATION.md'):
+              text = read(rel).replace('0.0.6', '0.0.7').replace('0.0.5', '0.0.6')
+              text = text.replace(
+                  'do not provide a browser-to-desktop URI/native-messaging handoff or hidden Ghost FTP relay.',
+                  'support a sanitized browser-to-desktop handoff through the registered `ghostftp:` protocol on supported Windows installs; they never carry passwords, private-key passphrases, private keys, source query data or fragments, and they never auto-connect.'
+              )
+              text = text.replace(
+                  'publication does not add a supported browser-to-desktop handoff, remote service or automatic update mechanism.',
+                  'publication preserves the sanitized `ghostftp://connect` browser-to-desktop handoff on supported Windows installs without adding a remote service or automatic update mechanism.'
+              )
+              text = text.replace(
+                  'Browser publication does not add a supported browser-to-desktop handoff, network relay, telemetry backend or automatic update service.',
+                  'Browser publication preserves the sanitized local `ghostftp://connect` handoff on supported Windows installs and does not add a network relay, telemetry backend or automatic update service.'
+              )
+              text = text.replace('BROWSER_DESKTOP_HANDOFF=unsupported', 'BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-uri-windows')
+              write(rel, text)
+
+          versioning = read('docs/VERSIONING.md').replace('0.0.6', '0.0.7')
+          versioning = versioning.replace('BROWSER_HELPER=Chrome,Edge,Firefox', 'BROWSER_HELPER=Chrome,Edge,Firefox,Opera')
+          versioning = versioning.replace('18 platform artifacts / 21 public files', '13 platform artifacts / 16 public files')
+          versioning = versioning.replace('12 canonical Linux Debian/Ubuntu/Fedora/Portable artifacts', '6 canonical Linux Debian/Ubuntu/Fedora Installer/Portable bundles')
+          versioning = versioning.replace('3 deterministic browser-helper ZIPs', '4 deterministic browser-helper ZIPs')
+          versioning = versioning.replace('21-file release', '16-file release')
+          versioning = versioning.replace('exact **21-file** GitHub Release readback', 'exact **16-file** GitHub Release readback')
+          versioning = versioning.replace('the 18/21 packaging contract', 'the 13/16 packaging contract')
+          versioning = versioning.replace(
+              'Browser-helper publication does not make it an application platform and does not add desktop launch/handoff.',
+              'Browser-helper publication does not make it an application platform. Supported Windows installs expose only a sanitized `ghostftp:` launch handoff that never transports secrets and never auto-connects.'
+          )
+          versioning = versioning.replace(
+              'Browser packages remain local parser/copy helpers with no supported browser-to-desktop URI/native-messaging handoff.',
+              'Browser packages remain local parser/copy helpers and may hand a sanitized `ghostftp://connect` target to supported Windows installs without secrets or automatic connection.'
+          )
+          write('docs/VERSIONING.md', versioning)
+
+          readme = read('README.md')
+          readme = readme.replace('## Ghost FTP 0.0.6', '## Ghost FTP 0.0.7')
+          readme = readme.replace('Current source version: **0.0.6**', 'Current source version: **0.0.7**')
+          readme = readme.replace('Last actually published GitHub Release: **0.0.5**', 'Last actually published GitHub Release: **0.0.6**')
+          readme = readme.replace('Next public release target: **ghostftp-v0.0.6**', 'Next public release target: **ghostftp-v0.0.7**')
+          readme = readme.replace('The 0.0.6 publication contract', 'The 0.0.7 publication contract')
+          readme = readme.replace('Ghost-FTP-0.0.6-', 'Ghost-FTP-0.0.7-')
+          readme = readme.replace('Version 0.0.6 is published only after:', 'Version 0.0.7 is published only after:')
+          readme = readme.replace('VERSION=0.0.6', 'VERSION=0.0.7')
+          readme = readme.replace('TAG=ghostftp-v0.0.6', 'TAG=ghostftp-v0.0.7')
+          readme = readme.replace('ghcr.io/bren-wp/ghost-ftp:0.0.6', 'ghcr.io/bren-wp/ghost-ftp:0.0.7')
+          write('README.md', readme)
+
+          audit = read('scripts/audit_version.py')
+          audit = audit.replace('"""Verify canonical Ghost FTP 0.0.6 production identity across maintained source surfaces."""', '"""Verify canonical Ghost FTP 0.0.7 production identity across maintained source surfaces."""')
+          audit = audit.replace('version != "0.0.6"', 'version != "0.0.7"')
+          audit = audit.replace('active release candidate must remain 0.0.6', 'active release candidate must remain 0.0.7')
+          audit = audit.replace('"Last actually published GitHub Release: **0.0.5**"', '"Last actually published GitHub Release: **0.0.6**"')
+          audit = audit.replace('print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.5")', 'print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.6")')
+          audit = audit.replace('print("NEXT_PUBLIC_RELEASE=0.0.6")', 'print("NEXT_PUBLIC_RELEASE=0.0.7")')
+          write('scripts/audit_version.py', audit)
+
+          docs_test = read('scripts/test_docs_release_version_contract.py')
+          docs_test = docs_test.replace('self.assertEqual(version, "0.0.6")', 'self.assertEqual(version, "0.0.7")')
+          docs_test = docs_test.replace('test_release_facing_docs_match_006_shape', 'test_release_facing_docs_match_007_shape')
+          docs_test = docs_test.replace('self.assertIn("0.0.5", text)\n            self.assertIn("0.0.6", text)', 'self.assertIn("0.0.6", text)\n            self.assertIn("0.0.7", text)')
+          write('scripts/test_docs_release_version_contract.py', docs_test)
+
+          retired_test = read('scripts/test_no_retired_public_versions.py')
+          retired_test = retired_test.replace('Last actually published GitHub Release: **0.0.5**', 'Last actually published GitHub Release: **0.0.6**')
+          write('scripts/test_no_retired_public_versions.py', retired_test)
+
+          changelog = read('CHANGELOG.md')
+          if '## 0.0.7 - 2026-09-17' not in changelog:
+              entry = '''# Changelog\n\n## 0.0.7 - 2026-09-17\n\n### Cumulative polish, cleanup and product hardening\n\n- Includes the complete maintained codebase accumulated after 0.0.6, including repository cleanup, removal of retired website/Web FTP surfaces, documentation cleanup and release-contract corrections.\n- Polished maintained Windows, Linux, Android and browser-helper product surfaces while preserving the no-telemetry, no-advertising, no-mandatory-account and direct-to-user-server privacy model.\n- Hardened exact-head release audits, platform contracts, documentation contracts, UI evidence checks and regression coverage so release identity follows root `VERSION` consistently.\n\n### Windows and browser-to-desktop handoff\n\n- Added sanitized `ghostftp:` protocol registration for installed Windows builds with transactional registry snapshot/rollback behavior.\n- Added browser helper **Open in Ghost FTP** handoff using sanitized FTP/FTPS/SFTP target data only; passwords, private-key passphrases, private keys, query data and fragments are excluded and the desktop app never auto-connects.\n- Hardened startup target forwarding, single-instance handoff, Site Manager teardown guards, retry behavior and post-close lifecycle handling.\n- Improved integrated uninstall and upgrade compatibility while retaining universal x64, x86 and ARM64 payloads in the two public Windows executables.\n\n### Android and cross-platform maintenance\n\n- Refined Android theme behavior, navigation, profile storage, remote-edit handling and lifecycle safety while keeping SFTP hidden until strict host-key verification is maintained.\n- Preserved strict FTPS certificate/hostname verification, desktop SFTP host-key trust/pinning, staged transfer safety and fail-closed credential handling.\n- Expanded browser helper tests and product-surface contracts and kept the four official Chrome, Edge, Firefox and Opera packages at zero browser permissions and zero host permissions.\n\n### Release engineering\n\n- Advances root `VERSION` to **0.0.7** and publishes on the Current channel with `ghostftp-v0.0.7`, `prerelease=false`.\n- Canonical public release remains **13 platform artifacts / 16 public files**: 2 Windows, 6 Linux, 1 Android, 4 browser helper packages and 3 metadata/verification files.\n- macOS remains maintained source and CI coverage only until real Developer ID Application signing and Apple notarization are verified.\n\n'''
+              if not changelog.startswith('# Changelog\n'):
+                  raise SystemExit('unexpected CHANGELOG header')
+              changelog = entry + changelog[len('# Changelog\n\n'):]
+              write('CHANGELOG.md', changelog)
+
+          # Self-remove: the release-prep workflow must not remain in the product tree.
+          Path('.github/workflows/release-prep-007.yml').unlink()
+          PY
+
+      - name: Commit prepared release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo Release Prep'
+          git config user.email 'info@brendigo.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'chore(release): prepare Ghost FTP 0.0.7 [release-prep-007]'
+          git push origin HEAD:release-prep/0.0.7
