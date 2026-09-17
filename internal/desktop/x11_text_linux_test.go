@@ -37,6 +37,30 @@ func TestX11TextBytesUsesReadableFallbacksForProductPunctuation(t *testing.T) {
 	}
 }
 
+func TestX11TextBytesUsesReadableEuropeanLocaleFallbacks(t *testing.T) {
+	cases := map[string]string{
+		"Čuvanje žarišta":            "Cuvanje zarista",
+		"Übergrößenträger":           "Ubergrossentrager",
+		"Połączenie i żądanie":       "Polaczenie i zadanie",
+		"Ștergere și înlocuire":      "Stergere si inlocuire",
+		"Bağlantı ölçümü":            "Baglanti olcumu",
+		"Σύνδεση ασφαλείας":          "Syndesi asfaleias",
+		"Подключение безопасно":      "Podklyuchenie bezopasno",
+		"Підключення захищене":       "Pidklyuchennya zakhyshchene",
+	}
+	for input, want := range cases {
+		if got := string(x11TextBytes(input)); got != want {
+			t.Errorf("x11TextBytes(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestX11TextBytesKeepsExplicitFallbackForUnsupportedScripts(t *testing.T) {
+	if got := string(x11TextBytes("中文")); got != "??" {
+		t.Fatalf("unsupported core-font fallback = %q, want ??", got)
+	}
+}
+
 func TestX11TextBytesPreservesProtocolLengthLimit(t *testing.T) {
 	got := x11TextBytes(strings.Repeat("a", 300))
 	if len(got) > 240 {
