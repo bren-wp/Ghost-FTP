@@ -16,12 +16,16 @@ func (a *app) command(id int) {
 	platform.SetDialogActionLabels(okLabel(a.languageCode()), a.tr("common.cancel"))
 
 	switch id {
+	case idFilesNav:
+		a.focusFilesWorkspace()
 	case idConnect:
 		a.connectNow()
 	case idDisconnect:
 		a.disconnectNow()
 	case idSiteManager:
 		a.openSiteManager()
+	case idTransferQueueNav:
+		a.focusTransferQueue()
 	case idBookmarks:
 		a.openBookmarkManager()
 	case idChooseKey:
