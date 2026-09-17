@@ -45,7 +45,6 @@ func TestLinuxConnectionInfoIsUsefulAndPrivacySafe(t *testing.T) {
 	joined := strings.Join(linuxConnectionInfoLines(u), "\n")
 	for _, want := range []string{
 		"FTPS",
-		"/public_html",
 		"Transfer Queue: 1",
 		"No telemetry or tracking",
 	} {
@@ -65,6 +64,7 @@ func TestLinuxConnectionInfoIsUsefulAndPrivacySafe(t *testing.T) {
 		u.password,
 		u.keyPath,
 		u.passphrase,
+		u.remoteCurrent,
 	} {
 		if strings.Contains(joined, secret) {
 			t.Fatalf("connection info leaked secret/private connection detail %q:\n%s", secret, joined)
