@@ -174,12 +174,19 @@ settings_client_x=$rail_center_x
 settings_client_y=$((primary_top + 3 * (primary_height + primary_gap) + primary_height / 2))
 rail_bottom_inset=42
 utility_height=$((3 * 38 + 3 * 7 + 30))
+utility_top=$((window_height - rail_bottom_inset - utility_height))
 bookmarks_client_x=$rail_center_x
-bookmarks_client_y=$((window_height - rail_bottom_inset - utility_height + 38 / 2))
+bookmarks_client_y=$((utility_top + 38 / 2))
+connection_info_client_x=$rail_center_x
+connection_info_client_y=$((utility_top + 38 + 7 + 38 / 2))
+about_client_x=$rail_center_x
+about_client_y=$((utility_top + 2 * (38 + 7) + 38 / 2))
 
 main_png="$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 bookmarks_png="$OUTPUT_DIR/ghost-ftp-linux-bookmarks.png"
 settings_png="$OUTPUT_DIR/ghost-ftp-linux-settings.png"
+connection_info_png="$OUTPUT_DIR/ghost-ftp-linux-connection-info.png"
+about_png="$OUTPUT_DIR/ghost-ftp-linux-about.png"
 
 open_distinct_overlay() {
   local label="$1"
@@ -217,10 +224,23 @@ open_distinct_overlay 'Settings' "$settings_client_x" "$settings_client_y" "$set
 xdotool key --window "$win" Escape
 sleep 0.3
 
-if cmp -s "$bookmarks_png" "$settings_png"; then
-  echo 'Bookmarks and Settings evidence are identical; distinct real overlays were not captured.' >&2
-  exit 1
-fi
+open_distinct_overlay 'Connection info' "$connection_info_client_x" "$connection_info_client_y" "$connection_info_png"
+xdotool key --window "$win" Escape
+sleep 0.3
+
+open_distinct_overlay 'About' "$about_client_x" "$about_client_y" "$about_png"
+xdotool key --window "$win" Escape
+sleep 0.3
+
+overlay_pngs=("$bookmarks_png" "$settings_png" "$connection_info_png" "$about_png")
+for ((i = 0; i < ${#overlay_pngs[@]}; i++)); do
+  for ((j = i + 1; j < ${#overlay_pngs[@]}; j++)); do
+    if cmp -s "${overlay_pngs[$i]}" "${overlay_pngs[$j]}"; then
+      echo "Linux UI overlays are unexpectedly identical: ${overlay_pngs[$i]} and ${overlay_pngs[$j]}" >&2
+      exit 1
+    fi
+  done
+done
 
 for png in "$OUTPUT_DIR"/*.png; do
   dims="$(identify -format '%w %h %k' "$png")"
