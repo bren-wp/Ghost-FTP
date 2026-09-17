@@ -1,0 +1,144 @@
+name: Migrate Remaining Ghost FTP 0.0.7 Contracts
+
+on:
+  push:
+    branches:
+      - release-prep/0.0.7
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[contracts-007-migrated]') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: release-prep/0.0.7
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Migrate active feature docs and regression contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          def read(rel):
+              return (root / rel).read_text(encoding='utf-8')
+
+          def write(rel, text):
+              (root / rel).write_text(text, encoding='utf-8')
+
+          # These documents describe the current maintained product contract, not history.
+          for rel in (
+              'docs/SETTINGS.md',
+              'docs/REFERENCE-UI.md',
+              'docs/NAVIGATION-BOOKMARKS.md',
+              'docs/QUEUE-PRIORITY.md',
+              'docs/ROADMAP.md',
+              'docs/THIRD-PARTY-NOTICES.md',
+          ):
+              text = read(rel)
+              text = text.replace('Ghost FTP **0.0.6**', 'Ghost FTP **0.0.7**')
+              text = text.replace('Ghost FTP 0.0.6', 'Ghost FTP 0.0.7')
+              text = text.replace('Android 0.0.6', 'Android 0.0.7')
+              text = text.replace('current 0.0.6', 'current 0.0.7')
+              text = text.replace('Current 0.0.6', 'Current 0.0.7')
+              text = text.replace('## 0.0.6', '## 0.0.7')
+              text = text.replace('The 0.0.6', 'The 0.0.7')
+              text = text.replace('the 0.0.6', 'the 0.0.7')
+              text = text.replace('Root `VERSION` is **0.0.6**', 'Root `VERSION` is **0.0.7**')
+              text = text.replace('ghostftp-v0.0.6', 'ghostftp-v0.0.7')
+              text = text.replace('public 0.0.6', 'public 0.0.7')
+              text = text.replace('active 0.0.6', 'active 0.0.7')
+              text = text.replace('18 platform artifacts / 21 public files', '13 platform artifacts / 16 public files')
+              text = text.replace('public 21-file release', 'public 16-file release')
+              text = text.replace('twelve canonical Debian/Ubuntu/Fedora/Portable Linux artifacts', 'six canonical Debian/Ubuntu/Fedora Installer/Portable Linux bundles')
+              text = text.replace('Chrome, Edge and Firefox helper ZIPs', 'Chrome, Edge, Firefox and Opera helper ZIPs')
+              text = text.replace('Chrome, Edge and Firefox companion packages', 'Chrome, Edge, Firefox and Opera companion packages')
+              text = text.replace('Chrome/Edge/Firefox helper ZIPs', 'Chrome/Edge/Firefox/Opera helper ZIPs')
+              text = text.replace('three official browser helper packages', 'four official browser helper packages')
+              text = text.replace('three deterministic ZIPs', 'four deterministic ZIPs')
+              text = text.replace('`ekstenzije/`', '`extensions/`')
+              text = text.replace(
+                  'They do not provide a supported browser-to-desktop URI/native-messaging handoff today.',
+                  'On supported Windows installs they provide only the sanitized `ghostftp:` browser-to-desktop handoff; secrets are excluded and no automatic connection is performed.'
+              )
+              text = text.replace(
+                  'browser packages have no supported desktop launch/handoff',
+                  'browser packages expose only the sanitized Windows `ghostftp:` launch handoff with no secrets or automatic connection'
+              )
+              text = text.replace(
+                  'browser packages remain local parser/copy helpers with no supported desktop handoff',
+                  'browser packages remain local parser/copy helpers with only the sanitized Windows `ghostftp:` handoff and no secrets or automatic connection'
+              )
+              text = text.replace(
+                  'Browser helpers remain local parsers/copy helpers with **no supported browser-to-desktop** handoff.',
+                  'Browser helpers remain local parsers/copy helpers with only a **sanitized Windows `ghostftp:` browser-to-desktop** handoff that excludes secrets and never auto-connects.'
+              )
+              # Preserve the exact historical screenshot source directory.
+              text = text.replace('docs/images/0.0.7/', 'docs/images/0.0.6/')
+              text = text.replace('images/0.0.7/', 'images/0.0.6/')
+              write(rel, text)
+
+          # Repair the public sequence after advancing current roadmap references.
+          roadmap = read('docs/ROADMAP.md')
+          roadmap = roadmap.replace(
+              '`0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, `0.0.7`, and so on',
+              '`0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, `0.0.6`, `0.0.7`, and so on'
+          )
+          write('docs/ROADMAP.md', roadmap)
+
+          # Add 0.0.7 to release history while preserving all historical sections verbatim.
+          history = read('docs/RELEASE-HISTORY.md')
+          if '## 0.0.7 — 2026-09-17' not in history:
+              section = '''# Ghost FTP release history\n\n## 0.0.7 — 2026-09-17\n\nGhost FTP 0.0.7 is the cumulative cleanup, polish and hardening release built from all maintained changes after 0.0.6.\n\n- Consolidated the current public shape to **13 platform artifacts / 16 public files**: two universal Windows executables, six universal Linux bundles, one production-signed Android APK, four browser-helper ZIPs and three verification/metadata files.\n- Added the sanitized Windows `ghostftp:` browser-to-desktop handoff with transactional protocol registration/rollback and no secret transport or automatic connection.\n- Hardened Windows startup forwarding, Site Manager teardown/retry behavior, integrated uninstall/upgrade paths and exact-head regression coverage.\n- Refined Android theme, navigation, profile, Remote Edit and lifecycle behavior while retaining strict FTPS and the Android SFTP host-key boundary.\n- Removed retired Web/Web FTP runtime surfaces from the maintained repository and aligned active documentation/audits with the current 0.0.7 contract.\n- Preserved macOS as a separately validated development/source frontend until real Developer ID Application signing and Apple notarization succeed.\n\n'''
+              if not history.startswith('# Ghost FTP release history\n\n'):
+                  raise SystemExit('unexpected release history header')
+              history = section + history[len('# Ghost FTP release history\n\n'):]
+              write('docs/RELEASE-HISTORY.md', history)
+
+          # Regression tests that deliberately pin the current release candidate.
+          rel = 'scripts/test_linux_packaging_contract.py'
+          text = read(rel).replace('test_active_006_docs_match_release_candidate_contract', 'test_active_007_docs_match_release_candidate_contract')
+          text = text.replace('self.assertEqual(version, "0.0.6")', 'self.assertEqual(version, "0.0.7")')
+          write(rel, text)
+
+          rel = 'scripts/test_maintenance.py'
+          text = read(rel).replace('self.assertEqual(version, "0.0.6")', 'self.assertEqual(version, "0.0.7")')
+          text = text.replace('Last actually published GitHub Release: **0.0.5**', 'Last actually published GitHub Release: **0.0.6**')
+          text = text.replace('all(value <= (0, 0, 6) for value in section_parts)', 'all(value <= (0, 0, 7) for value in section_parts)')
+          write(rel, text)
+
+          rel = 'scripts/test_windows_arm64_universal_contract.py'
+          text = read(rel).replace('test_006_cross_platform_shape_does_not_change_windows_public_shape', 'test_007_cross_platform_shape_does_not_change_windows_public_shape')
+          text = text.replace('self.assertNotIn("0.0.7", text, rel)', 'self.assertIn("0.0.7", text, rel)')
+          write(rel, text)
+
+          rel = 'scripts/test_extended_active_docs_contract.py'
+          text = read(rel).replace('18 platform artifacts / 21 public files', '13 platform artifacts / 16 public files')
+          text = text.replace(
+              '"do not provide a supported browser-to-desktop URI/native-messaging handoff today",',
+              '"sanitized `ghostftp:` browser-to-desktop handoff",'
+          )
+          write(rel, text)
+
+          # Remove the temporary migration workflow from the product tree.
+          Path('.github/workflows/release-prep-007-contracts.yml').unlink()
+          PY
+
+      - name: Commit migrated current contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo Release Prep'
+          git config user.email 'info@brendigo.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'test: migrate remaining current contracts to 0.0.7 [contracts-007-migrated]'
+          git push origin HEAD:release-prep/0.0.7
