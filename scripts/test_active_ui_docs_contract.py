@@ -61,7 +61,8 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             "Windows — 5 images",
             "Linux — 3 images",
             "Android — 7 images",
-            "exactly **15 runtime images**",
+            "current exact-head capture contract adds Linux **Connection info** and **About**",
+            "exactly **17 runtime images**",
             "ghostftp-authentic-ui-verified-bundle",
             "does **not** commit or push screenshots",
             "Mockups, image-generation output and manually composed approximations are not accepted",
@@ -94,6 +95,8 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             '"windows/Ghost-FTP-bookmarks.png"',
             '"linux/ghost-ftp-linux-main-workspace.png"',
             '"linux/ghost-ftp-linux-settings.png"',
+            '"linux/ghost-ftp-linux-connection-info.png"',
+            '"linux/ghost-ftp-linux-about.png"',
             '"android/ghost-ftp-android-files.png"',
             '"android/ghost-ftp-android-navigation.png"',
             '"android/ghost-ftp-android-about.png"',
@@ -104,7 +107,7 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, assembly)
         self.assertEqual(assembly.count('("windows/'), 5)
-        self.assertEqual(assembly.count('("linux/'), 3)
+        self.assertEqual(assembly.count('("linux/'), 5)
         self.assertEqual(assembly.count('("android/'), 7)
 
         for forbidden in (
