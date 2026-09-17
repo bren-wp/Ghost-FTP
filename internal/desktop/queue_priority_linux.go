@@ -44,7 +44,13 @@ func (u *linuxDesktop) renderQueuePriorityControls() error {
 	if err := u.drawButton(down, words.MoveDown, state.MoveDown && !u.busy, false); err != nil {
 		return err
 	}
-	return u.drawButton(bottom, words.MoveBottom, state.MoveBottom && !u.busy, false)
+	if err := u.drawButton(bottom, words.MoveBottom, state.MoveBottom && !u.busy, false); err != nil {
+		return err
+	}
+	// renderQueue calls this hook after the queue toolbar/title but before the
+	// queue list. At that point all baseline workspace panels have been painted,
+	// making it the stable late layer for the reserved application rail.
+	return u.renderLinuxMasterRail()
 }
 
 func (u *linuxDesktop) restoreQueuePrioritySelection(id string) {
@@ -112,6 +118,9 @@ func (u *linuxDesktop) moveSelectedQueueTransfer(action queuePriorityAction) {
 }
 
 func (u *linuxDesktop) handleQueuePriorityMouse(x, y int) bool {
+	if u.handleLinuxMasterRailMouse(x, y) {
+		return true
+	}
 	top, up, down, bottom := u.queuePriorityRects()
 	switch {
 	case top.contains(x, y):
