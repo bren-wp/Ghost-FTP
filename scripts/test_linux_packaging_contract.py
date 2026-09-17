@@ -73,9 +73,9 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertNotIn("Linux-Debian-amd64.deb", workflow)
         self.assertNotIn("Linux-Fedora-x86_64.rpm", workflow)
 
-    def test_active_006_docs_match_release_candidate_contract(self) -> None:
+    def test_active_007_docs_match_release_candidate_contract(self) -> None:
         version = read("VERSION").strip()
-        self.assertEqual(version, "0.0.6")
+        self.assertEqual(version, "0.0.7")
         for rel in (
             "docs/INSTALLATION.md",
             "docs/GITHUB-RELEASES.md",

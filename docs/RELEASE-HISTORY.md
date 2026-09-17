@@ -1,5 +1,16 @@
 # Ghost FTP release history
 
+## 0.0.7 — 2026-09-17
+
+Ghost FTP 0.0.7 is the cumulative cleanup, polish and hardening release built from all maintained changes after 0.0.6.
+
+- Consolidated the current public shape to **13 platform artifacts / 16 public files**: two universal Windows executables, six universal Linux bundles, one production-signed Android APK, four browser-helper ZIPs and three verification/metadata files.
+- Added the sanitized Windows `ghostftp:` browser-to-desktop handoff with transactional protocol registration/rollback and no secret transport or automatic connection.
+- Hardened Windows startup forwarding, Site Manager teardown/retry behavior, integrated uninstall/upgrade paths and exact-head regression coverage.
+- Refined Android theme, navigation, profile, Remote Edit and lifecycle behavior while retaining strict FTPS and the Android SFTP host-key boundary.
+- Removed retired Web/Web FTP runtime surfaces from the maintained repository and aligned active documentation/audits with the current 0.0.7 contract.
+- Preserved macOS as a separately validated development/source frontend until real Developer ID Application signing and Apple notarization succeed.
+
 ## 0.0.6 — 2026-09-14
 
 Ghost FTP 0.0.6 expands the verified public release to Windows, Linux, Android and official Chrome/Edge/Firefox companion packages while preserving fail-closed transport and signing boundaries.

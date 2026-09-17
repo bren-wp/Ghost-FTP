@@ -38,7 +38,7 @@ class ExtendedActiveDocumentationContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, text)
         self.assertIn("Android", text)
-        self.assertIn("18 platform artifacts / 21 public files", text)
+        self.assertIn("13 platform artifacts / 16 public files", text)
 
     def test_queue_docs_preserve_shared_engine_and_release_boundaries(self) -> None:
         text = read("docs/QUEUE-PRIORITY.md")
@@ -46,7 +46,7 @@ class ExtendedActiveDocumentationContractTests(unittest.TestCase):
             "## macOS development behavior",
             "same typed `internal/api.Engine` operations",
             "does not create a Mac-only scheduler or protocol stack",
-            "18 platform artifacts / 21 public files",
+            "13 platform artifacts / 16 public files",
             "macOS remains a separately validated native development/source frontend",
         ):
             self.assertIn(marker, text)
@@ -58,7 +58,7 @@ class ExtendedActiveDocumentationContractTests(unittest.TestCase):
             "macOS is an active native development/source frontend",
             "## Android public dependency boundary",
             "## Browser connection helper",
-            "do not provide a supported browser-to-desktop URI/native-messaging handoff today",
+            "sanitized `ghostftp:` browser-to-desktop handoff",
             "protected trusted production Authenticode identity",
             "WINDOWS_AUTHENTICODE=signed",
             "There is no supported unsigned continuation",
