@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bren-wp/Ghost-FTP/internal/brand"
+	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 )
 
 type linuxInfoOverlayKind int
@@ -59,6 +60,21 @@ func linuxWrapForUI(value string, maxRunes int) []string {
 	lines := make([]string, 0, 4)
 	current := ""
 	for _, word := range words {
+		wordRunes := []rune(word)
+		if len(wordRunes) > maxRunes {
+			if current != "" {
+				lines = append(lines, current)
+				current = ""
+			}
+			for len(wordRunes) > maxRunes {
+				lines = append(lines, string(wordRunes[:maxRunes]))
+				wordRunes = wordRunes[maxRunes:]
+			}
+			if len(wordRunes) == 0 {
+				continue
+			}
+			word = string(wordRunes)
+		}
 		candidate := word
 		if current != "" {
 			candidate = current + " " + word
@@ -69,10 +85,8 @@ func linuxWrapForUI(value string, maxRunes int) []string {
 		}
 		if current != "" {
 			lines = append(lines, current)
-			current = word
-			continue
 		}
-		lines = append(lines, word)
+		current = word
 	}
 	if current != "" {
 		lines = append(lines, current)
@@ -81,6 +95,7 @@ func linuxWrapForUI(value string, maxRunes int) []string {
 }
 
 func diagnosticsWordsForLanguage(language string) diagnosticsWordsSet {
+	language = i18n.Normalize(language)
 	words, ok := diagnosticsWords[language]
 	if !ok {
 		words = diagnosticsWords["en"]
