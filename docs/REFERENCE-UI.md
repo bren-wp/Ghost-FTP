@@ -109,7 +109,7 @@ The immutable 0.0.6 evidence set stored in [`images/0.0.6/`](images/0.0.6/) cont
 
 The stored [`UI-SCREENSHOT-PROVENANCE.json`](images/0.0.6/UI-SCREENSHOT-PROVENANCE.json) records workflow run `34863585111`, capture source SHA `9adace20030a300c39eb320a97482eb50dfdb9d8`, image byte counts and SHA-256 digests. [`SHA256.txt`](images/0.0.6/SHA256.txt) provides a compact digest allow-list for repository verification.
 
-The immutable 0.0.6 repository set above remains a **15-image historical evidence snapshot**. The current exact-head capture contract adds Linux **Connection info** and **About**, so the live verifier now requires exactly **17 runtime images**: Windows 5, Linux 5 and Android 7. It verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The repository copy is imported only after those checks pass and is not a substitute for the original workflow artifact.
+The immutable 0.0.6 repository set above remains a historical evidence snapshot with exactly **15 runtime images**. The current exact-head capture contract adds Linux **Connection info** and **About**, so the live verifier now requires exactly **17 runtime images**: Windows 5, Linux 5 and Android 7. It verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The repository copy is imported only after those checks pass and is not a substitute for the original workflow artifact.
 
 Legacy unversioned documentation images may remain for historical links, but the **0.0.6 README and reference documentation must use `images/0.0.6/`** so later releases cannot silently replace the evidence presented for 0.0.6.
 
