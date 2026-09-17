@@ -33,7 +33,7 @@ func TestLinuxMasterRailPrimaryActionsAreOrderedAndSeparated(t *testing.T) {
 	}
 }
 
-func TestLinuxMasterRailUtilitiesStayInsideWindow(t *testing.T) {
+func TestLinuxMasterRailUtilitiesStayInsideWindowAndAboveStatusBand(t *testing.T) {
 	layout := buildLinuxMasterRailLayout(premiumMinWidth, premiumMinHeight)
 	for name, r := range map[string]linuxRect{
 		"bookmarks": layout.bookmarks,
@@ -44,6 +44,9 @@ func TestLinuxMasterRailUtilitiesStayInsideWindow(t *testing.T) {
 		if r.left < 0 || r.top < 0 || r.right > premiumMinWidth || r.bottom > premiumMinHeight {
 			t.Fatalf("%s outside minimum window: %+v", name, r)
 		}
+	}
+	if layout.language.bottom > premiumMinHeight-linuxMasterRailBottomInset {
+		t.Fatalf("language control overlaps reserved status band: %+v", layout.language)
 	}
 }
 
@@ -58,6 +61,38 @@ func TestLinuxMasterTransferBadgeUsesActionableQueueState(t *testing.T) {
 	}
 	if got := linuxMasterTransferBadge(jobs); got != 4 {
 		t.Fatalf("badge count = %d, want 4", got)
+	}
+	if got := linuxTransferBadgeLabel(100); got != "99+" {
+		t.Fatalf("badge label = %q, want 99+", got)
+	}
+}
+
+func TestLinuxMasterAffineTransformMovesWorkspaceOutOfRail(t *testing.T) {
+	original := linuxRectWH(premiumOuterGap, 100, 300, 30)
+	transformed := linuxAffineRect(original, premiumOuterGap, 1280-premiumOuterGap, linuxMasterContentLeft, 1280-premiumOuterGap)
+	if transformed.left != linuxMasterContentLeft {
+		t.Fatalf("transformed left = %d, want %d", transformed.left, linuxMasterContentLeft)
+	}
+	if transformed.right <= transformed.left {
+		t.Fatalf("invalid transformed rect: %+v", transformed)
+	}
+	if transformed.top != original.top || transformed.bottom != original.bottom {
+		t.Fatalf("horizontal transform changed vertical geometry: before=%+v after=%+v", original, transformed)
+	}
+}
+
+func TestLinuxMasterLayoutTransformUsesRailSettingsHitTarget(t *testing.T) {
+	u := &linuxDesktop{width: 1280, height: 820, layout: buildLinuxDesktopLayout(1280, 820)}
+	u.applyLinuxMasterLayoutTransform()
+	rail := buildLinuxMasterRailLayout(1280, 820)
+	if u.layout.settings != rail.settings {
+		t.Fatalf("settings hit target = %+v, want %+v", u.layout.settings, rail.settings)
+	}
+	if u.layout.localPath.left < linuxMasterContentLeft {
+		t.Fatalf("local workspace overlaps rail after transform: %+v", u.layout.localPath)
+	}
+	if u.layout.queue.left < linuxMasterContentLeft {
+		t.Fatalf("queue overlaps rail after transform: %+v", u.layout.queue)
 	}
 }
 
