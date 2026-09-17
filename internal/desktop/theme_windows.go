@@ -16,6 +16,7 @@ func textColor() uintptr         { return themeColor(premiumTheme.Text) }
 func mutedColor() uintptr        { return themeColor(premiumTheme.Muted) }
 func accentColor() uintptr       { return themeColor(premiumTheme.Accent) }
 func accentStrongColor() uintptr { return themeColor(premiumTheme.AccentStrong) }
+func onAccentColor() uintptr     { return themeColor(premiumTheme.OnAccent) }
 func successColor() uintptr      { return themeColor(premiumTheme.Success) }
 func warnColor() uintptr         { return themeColor(premiumTheme.Warn) }
 func dangerColor() uintptr       { return themeColor(premiumTheme.Danger) }
