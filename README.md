@@ -149,9 +149,9 @@ The four packages use one shared local runtime with browser-specific manifests. 
 
 Ghost FTP publication is bound to source identity: a published binary must be traceable to the source SHA from which its release artifacts were assembled.
 
-The **canonical production-signed workflow** remains the stricter publication path. It requires the configured trusted signing identities and fails closed when those identities are unavailable.
+The **canonical production-signed workflow** remains the stricter publication path. It requires trusted Windows Authenticode credentials and the protected Android signer fingerprint input `GHOSTFTP_ANDROID_CERT_SHA256`, and it fails closed when those required production identities are unavailable.
 
-The already-published **0.0.7 compatibility release** is a separate release path. Its public tag targets the immutable source SHA shown above, its published asset set is explicit, and release metadata plus `SHA256.txt` provide readback-verifiable integrity for the distributed files.
+The already-published **0.0.7 compatibility release** is a separate release path. Its public tag targets the immutable source SHA shown above, its published asset set is explicit, and release metadata plus `SHA256.txt` provide readback-verifiable integrity for the distributed files. The compatibility Android APK is not represented here as production-signed.
 
 Canonical release identity for 0.0.7:
 
@@ -174,7 +174,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-The verified release directory may additionally be represented as an OCI distribution bundle. That object is a distribution artifact, not a runtime product backend.
+The canonical verified production distribution bundle identity is `ghcr.io/bren-wp/ghost-ftp:0.0.7`. That OCI object is distribution infrastructure, not a runtime product backend; it is distinct from the compatibility GitHub Release path when the canonical signing workflow has not completed.
 
 ---
 
