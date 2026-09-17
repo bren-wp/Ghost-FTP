@@ -16,16 +16,16 @@ func TestX11TextBytesKeepsPlainASCIIUnchanged(t *testing.T) {
 
 func TestX11TextBytesUsesReadableFallbacksForProductPunctuation(t *testing.T) {
 	cases := map[string]string{
-		"● DISCONNECTED":     "* DISCONNECTED",
+		"● DISCONNECTED":       "* DISCONNECTED",
 		"Ghost FTP — Settings": "Ghost FTP - Settings",
 		"Parallel (1–8)":       "Parallel (1-8)",
-		"Upload ↑":              "Upload ^",
-		"↓ Download":            "v Download",
-		"ready · idle":           "ready | idle",
-		"Wait…":                  "Wait...",
-		"10 • 20":                "10 * 20",
-		"−1":                     "-1",
-		"A → B ← C":              "A > B < C",
+		"Upload ↑":             "Upload ^",
+		"↓ Download":           "v Download",
+		"ready · idle":         "ready | idle",
+		"Wait…":                "Wait...",
+		"10 • 20":              "10 * 20",
+		"−1":                   "-1",
+		"A → B ← C":            "A > B < C",
 	}
 	for input, want := range cases {
 		if got := string(x11TextBytes(input)); got != want {
