@@ -251,6 +251,12 @@ func (a *app) layoutSidebarRail(height int) {
 		a.move(logo, applicationSidebarX+2, 14, applicationSidebarBrandIcon, applicationSidebarBrandIcon)
 	}
 	titleX := applicationSidebarX + applicationSidebarBrandIcon + applicationSidebarBrandGap + 2
+	// The full product name must remain visible in the compact rail. Reuse the
+	// native UI font here instead of the large workspace wordmark font, which
+	// clipped "FTP" at runner-sized and high-DPI windows.
+	if a.font != 0 {
+		sendMessageW.Call(a.brandTitle, wmSetFont, a.font, 1)
+	}
 	a.move(a.brandTitle, titleX, 13, applicationSidebarWidth-(titleX-applicationSidebarX), 34)
 	// The master desktop references keep the rail brand intentionally compact.
 	// The descriptive subtitle remains in About rather than competing with
@@ -322,17 +328,21 @@ func (a *app) applyApplicationSidebar() {
 		a.transformSidebarContent(control, oldLeft, oldRight, newLeft, newRight)
 	}
 
-	// The saved-connection picker becomes the first content-row control, matching
-	// the master reference's connection bar while save/delete remain real profile
-	// operations rather than decorative buttons.
+	// The saved-connection picker becomes the first content-row control. Keep the
+	// live connection state visible in the same row and reserve independent bounds
+	// for profile persistence actions; the previous layout left connectionBadge in
+	// its legacy header position where it overlapped Delete profile.
 	availableProfile := newRight - newLeft
-	buttonW, gap := 126, 8
-	profileW := availableProfile - 2*buttonW - 2*gap
+	badgeW, buttonW, gap := 118, 116, 8
+	profileW := availableProfile - badgeW - 2*buttonW - 3*gap
 	if profileW < 220 {
 		profileW = 220
 	}
 	a.move(a.profilesCombo, newLeft, 13, profileW, 31)
-	a.move(a.saveProfile, newLeft+profileW+gap, 13, buttonW, 31)
-	a.move(a.removeProfile, newLeft+profileW+gap+buttonW+gap, 13, buttonW, 31)
+	badgeX := newLeft + profileW + gap
+	a.move(a.connectionBadge, badgeX, 18, badgeW, 21)
+	saveX := badgeX + badgeW + gap
+	a.move(a.saveProfile, saveX, 13, buttonW, 31)
+	a.move(a.removeProfile, saveX+buttonW+gap, 13, buttonW, 31)
 	a.resizeSidebarColumns()
 }
