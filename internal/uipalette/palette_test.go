@@ -32,3 +32,20 @@ func TestMaintainedModalRolesMatchDesktopContract(t *testing.T) {
 		t.Fatal("canonical Light panel/text contract changed unexpectedly")
 	}
 }
+
+func TestGhostGoldAccentContract(t *testing.T) {
+	if Dark.Accent != (RGB{0xF6, 0xC4, 0x45}) || Dark.AccentStrong != (RGB{0xFF, 0xD7, 0x68}) {
+		t.Fatal("dark Ghost Gold accent contract changed unexpectedly")
+	}
+	if Light.Accent != (RGB{0xA6, 0x65, 0x00}) || Light.AccentStrong != (RGB{0x87, 0x51, 0x00}) {
+		t.Fatal("light Ghost Gold accent contract changed unexpectedly")
+	}
+	if Dark.OnAccent == Dark.Accent || Light.OnAccent == Light.Accent {
+		t.Fatal("filled accent controls lost their dedicated foreground role")
+	}
+	for name, accent := range map[string]RGB{"dark": Dark.Accent, "light": Light.Accent} {
+		if !(accent.R > accent.G && accent.G > accent.B) {
+			t.Fatalf("%s accent no longer belongs to the warm Ghost Gold family: %#v", name, accent)
+		}
+	}
+}
