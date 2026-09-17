@@ -161,9 +161,21 @@ cmp -s "$stable_a" "$stable_b" || {
 cp "$stable_b" "$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 
 read_window_geometry
-bookmarks_client_x=$((window_width - 173))
-settings_client_x=$((window_width - 68))
-header_client_y=35
+# The master Linux workspace moved application-level actions into the same
+# fixed left rail contract used by the Windows redesign. Keep evidence clicks
+# derived from that public geometry instead of stale top-right header offsets.
+rail_x=14
+rail_width=166
+rail_center_x=$((rail_x + rail_width / 2))
+primary_top=64
+primary_height=46
+primary_gap=8
+settings_client_x=$rail_center_x
+settings_client_y=$((primary_top + 3 * (primary_height + primary_gap) + primary_height / 2))
+rail_bottom_inset=42
+utility_height=$((3 * 38 + 3 * 7 + 30))
+bookmarks_client_x=$rail_center_x
+bookmarks_client_y=$((window_height - rail_bottom_inset - utility_height + 38 / 2))
 
 main_png="$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 bookmarks_png="$OUTPUT_DIR/ghost-ftp-linux-bookmarks.png"
@@ -197,11 +209,11 @@ open_distinct_overlay() {
   return 1
 }
 
-open_distinct_overlay 'Bookmarks' "$bookmarks_client_x" "$header_client_y" "$bookmarks_png"
+open_distinct_overlay 'Bookmarks' "$bookmarks_client_x" "$bookmarks_client_y" "$bookmarks_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
-open_distinct_overlay 'Settings' "$settings_client_x" "$header_client_y" "$settings_png"
+open_distinct_overlay 'Settings' "$settings_client_x" "$settings_client_y" "$settings_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
