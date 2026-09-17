@@ -39,14 +39,14 @@ func NewSettings(s *Store) *SettingsStore { return &SettingsStore{store: s} }
 
 // DefaultSettings is the single safe runtime fallback for settings. Runtime
 // callers use the same values as settings migration instead of carrying their
-// own copies of timeout, retry and parallelism defaults. Classic Light is the
-// primary appearance for fresh installs; an explicitly persisted Dark choice
-// remains canonical and is never overwritten by normalization. Bandwidth limits
-// default to zero, which deliberately means unlimited in both directions.
+// own copies of timeout, retry and parallelism defaults. Dark is the primary
+// appearance for fresh installs; an explicitly persisted Light choice remains
+// canonical and is never overwritten by normalization. Bandwidth limits default
+// to zero, which deliberately means unlimited in both directions.
 func DefaultSettings() model.Settings {
 	return model.Settings{
 		Language:                  i18n.DefaultLanguage,
-		Appearance:                model.AppearanceLight,
+		Appearance:                model.AppearanceDark,
 		Parallelism:               DefaultParallelism,
 		UploadLimitKiBPerSecond:   DefaultUploadLimitKiBPerSecond,
 		DownloadLimitKiBPerSecond: DefaultDownloadLimitKiBPerSecond,
@@ -121,7 +121,7 @@ func migrateConflictPolicy(v model.Settings, persisted bool) model.Settings {
 func normalizeSettings(v model.Settings) model.Settings {
 	v.Language = i18n.Normalize(v.Language)
 	if !validAppearance(v.Appearance) {
-		v.Appearance = model.AppearanceLight
+		v.Appearance = model.AppearanceDark
 	}
 	if v.Parallelism < MinParallelism || v.Parallelism > MaxParallelism {
 		v.Parallelism = DefaultParallelism
@@ -218,7 +218,7 @@ func (s *SettingsStore) Set(v model.Settings) (model.Settings, error) {
 		v.Language = i18n.DefaultLanguage
 	}
 	if v.Appearance == "" {
-		v.Appearance = model.AppearanceLight
+		v.Appearance = model.AppearanceDark
 	}
 	if v.Parallelism == 0 {
 		v.Parallelism = DefaultParallelism
