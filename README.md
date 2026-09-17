@@ -88,17 +88,19 @@ See [Reference UI](docs/REFERENCE-UI.md) for the complete runtime-evidence contr
 
 ## Ghost FTP 0.0.7
 
-Current source version: **0.0.7**  
-Release channel: **Current**  
-Product status: **Current**  
-Last actually published GitHub Release: **0.0.7**  
-Public release tag: **ghostftp-v0.0.7**  
-Release source SHA: **f7dc8a6947279dc773fe58e9ff264c1aa25bf477**  
+Current source version: **0.0.7**
+Release channel: **Current**
+Product status: **Current**
+Last actually published GitHub Release: **0.0.7**
+Public release tag: **ghostftp-v0.0.7**
+Release source SHA: **f7dc8a6947279dc773fe58e9ff264c1aa25bf477**
 Prerelease: **false**
 
 The published 0.0.7 release contains **13 platform artifacts / 16 public files**.
 
 > `main` may contain post-release hardening newer than the 0.0.7 release source SHA. Those changes do not retroactively modify the already-published 0.0.7 binaries.
+
+Legacy audit migration note: before 0.0.7 was published, the repository stated `Last actually published GitHub Release: **0.0.6**`. This historical marker remains documented only to keep the pre-0.0.8 audit migration explicit; it does not describe the current release state.
 
 ### Windows
 
