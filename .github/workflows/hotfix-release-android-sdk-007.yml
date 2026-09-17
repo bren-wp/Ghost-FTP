@@ -1,0 +1,47 @@
+name: Hotfix Ghost FTP 0.0.7 Android Release SDK
+
+on:
+  push:
+    branches:
+      - fix/release-android-sdk-tools-007
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[android-sdk-007-fixed]') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/release-android-sdk-tools-007
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Align production Android SDK setup with validated CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/release.yml')
+          text = path.read_text(encoding='utf-8')
+          old = """      - name: Set up Android SDK\n        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3\n      - name: Set up Gradle 8.9\n"""
+          new = """      - name: Set up Android SDK\n        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3\n        with:\n          packages: platform-tools\n      - name: Set up Gradle 8.9\n"""
+          if old not in text:
+              raise SystemExit('Expected production Android SDK setup block was not found')
+          if text.count(old) != 1:
+              raise SystemExit('Expected exactly one production Android SDK setup block')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          Path('.github/workflows/hotfix-release-android-sdk-007.yml').unlink()
+          PY
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Brendigo Release Hotfix'
+          git config user.email 'info@brendigo.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix(release): use supported Android SDK package [android-sdk-007-fixed]'
+          git push origin HEAD:fix/release-android-sdk-tools-007
