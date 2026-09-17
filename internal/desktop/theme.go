@@ -27,16 +27,16 @@ type RGB = uipalette.RGB
 var darkTheme = uipalette.Dark
 var lightTheme = uipalette.Light
 
-// Classic Light is the product-default desktop surface. Windows startup then
-// applies the user's persisted appearance before controls are created, so an
-// explicit Dark preference remains stable without a light-to-dark flash.
-var premiumTheme = lightTheme
+// Dark is the product-default desktop surface. Windows/Linux startup applies
+// the user's persisted appearance before controls are created, so an explicit
+// Light preference remains stable without a dark-to-light flash.
+var premiumTheme = darkTheme
 
 func themeForAppearance(appearance string) PremiumTheme {
-	if appearance == model.AppearanceDark {
-		return darkTheme
+	if appearance == model.AppearanceLight {
+		return lightTheme
 	}
-	return lightTheme
+	return darkTheme
 }
 
 func setActiveTheme(appearance string) {
