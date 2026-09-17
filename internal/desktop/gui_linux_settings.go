@@ -24,6 +24,27 @@ type linuxSettingsRects struct {
 	save, close                 linuxRect
 }
 
+func linuxSettingsPanelWidth(windowWidth int) int {
+	if windowWidth <= 100 {
+		return max(1, windowWidth)
+	}
+	return min(860, windowWidth-100)
+}
+
+func linuxSettingsLabelLimit(panelWidth int) int {
+	if panelWidth >= 820 {
+		return 64
+	}
+	return 48
+}
+
+func linuxSettingsChoiceWidth(panelWidth int) int {
+	if panelWidth >= 820 {
+		return 280
+	}
+	return 230
+}
+
 func (u *linuxDesktop) tr(key string, args ...any) string {
 	return i18n.T(u.language, key, args...)
 }
@@ -251,9 +272,9 @@ func (u *linuxDesktop) handleSettingsKey(sym uint32) bool {
 }
 
 func (u *linuxDesktop) drawSettingStepper(label string, value int, top int, minus *linuxRect, plus *linuxRect) error {
-	left := (u.width - min(700, u.width-100)) / 2
-	width := min(700, u.width-100)
-	if err := u.x.text(left+24, top+20, linuxTrimForUI(label, 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
+	width := linuxSettingsPanelWidth(u.width)
+	left := (u.width - width) / 2
+	if err := u.x.text(left+24, top+20, linuxTrimForUI(label, linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	valueRect := linuxRectWH(left+width-210, top, 84, 30)
@@ -278,7 +299,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	if !u.settingsOpen {
 		return nil
 	}
-	width := min(700, u.width-100)
+	width := linuxSettingsPanelWidth(u.width)
 	height := 621
 	left := (u.width - width) / 2
 	top := (u.height - height) / 2
@@ -298,17 +319,18 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	if err := u.x.text(left+24, row+20, "Aa", premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	u.settingsRects.language = linuxRectWH(left+width-246, row, 230, 30)
+	choiceWidth := linuxSettingsChoiceWidth(width)
+	u.settingsRects.language = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
 	languageLabel := language.NativeName + " (" + language.Code + ")"
 	if err := u.drawButton(u.settingsRects.language, linuxTrimForUI(languageLabel, 30), true, false); err != nil {
 		return err
 	}
 	row += 45
 	appearance := appearanceText(u.settingsDraft.Language)
-	if err := u.x.text(left+24, row+20, linuxTrimForUI(appearance.Title, 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(appearance.Title, linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	u.settingsRects.appearance = linuxRectWH(left+width-246, row, 230, 30)
+	u.settingsRects.appearance = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
 	appearanceLabel := appearance.Light
 	if u.settingsDraft.Appearance == model.AppearanceDark {
 		appearanceLabel = appearance.Dark
@@ -342,15 +364,15 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return err
 	}
 	row += 48
-	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.skip_title"), 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.skip_title"), linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	u.settingsRects.conflict = linuxRectWH(left+width-246, row, 230, 30)
-	if err := u.drawButton(u.settingsRects.conflict, linuxTrimForUI(u.conflictPolicyLabel(u.settingsDraft.ConflictPolicy), 31), true, false); err != nil {
+	u.settingsRects.conflict = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
+	if err := u.drawButton(u.settingsRects.conflict, u.conflictPolicyLabel(u.settingsDraft.ConflictPolicy), true, false); err != nil {
 		return err
 	}
 	row += 44
-	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.confirm_delete_title"), 48), premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.confirm_delete_title"), linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	u.settingsRects.confirmDelete = linuxRectWH(left+width-156, row, 140, 30)
