@@ -122,18 +122,19 @@ func (u *linuxDesktop) bookmarksHeaderRect() linuxRect {
 
 func (u *linuxDesktop) renderBookmarksHeaderButton() error {
 	u.enforceLinuxProfileStartDirectories()
-	words := bookmarkWordsForLanguage(u.language)
-	return u.drawButton(u.bookmarksHeaderRect(), words.Title, !u.busy, false)
+	// renderHeader is the earliest stable point after buildLinuxDesktopLayout.
+	// Remap the real controls into the master-workspace content column here;
+	// the actual application rail is painted later after the workspace/queue
+	// surfaces so no baseline panel can cover it again.
+	u.applyLinuxMasterLayoutTransform()
+	return nil
 }
 
 func (u *linuxDesktop) handleBookmarksHeaderMouse(x, y int) bool {
-	if !u.bookmarksHeaderRect().contains(x, y) {
-		return false
-	}
-	if !u.busy {
-		u.openLinuxBookmarks("")
-	}
-	return true
+	// The legacy top-right bookmark button is intentionally retired by the
+	// master application rail. Rail hit testing is performed from the queue
+	// action hook before ordinary workspace actions.
+	return false
 }
 
 func (u *linuxDesktop) openLinuxBookmarks(selectID string) {
