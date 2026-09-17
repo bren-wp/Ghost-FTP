@@ -33,7 +33,7 @@ const (
 	appPathsKey  = `Software\Microsoft\Windows\CurrentVersion\App Paths\GhostFTP.exe`
 )
 
-var version = "0.0.6"
+var version = "0.0.7"
 
 type payloadManifestFile struct {
 	Name   string `json:"name"`

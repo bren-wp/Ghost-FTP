@@ -1,6 +1,6 @@
 # Ghost FTP queue priority and reordering
 
-Ghost FTP **0.0.6** includes queue priority/reordering as a maintained Windows/Linux desktop capability and as part of the active native macOS development frontend. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or lifecycle state of running/terminal work.
+Ghost FTP **0.0.7** includes queue priority/reordering as a maintained Windows/Linux desktop capability and as part of the active native macOS development frontend. Reordering is deliberately limited to jobs whose current status is `queued`; it never rewrites transfer identity, connection ownership or lifecycle state of running/terminal work.
 
 ## User contract
 
@@ -69,7 +69,7 @@ Queue priority does not call the transfer pump as a side effect and does not rew
 
 ## Regression coverage
 
-The 0.0.6 queue contract is protected by:
+The 0.0.7 queue contract is protected by:
 
 - `internal/transfer/queue_order_test.go` for four-way ordering, non-queued slot preservation, connection binding, edge idempotence and state snapshots;
 - `internal/desktop/queue_priority_test.go` for shared queued-only policy and localization;
@@ -79,10 +79,10 @@ The 0.0.6 queue contract is protected by:
 
 Authentic Windows/Linux/Android runtime evidence remains the immutable 15-image evidence bundle; macOS development validation is separate and is not silently counted as public notarization evidence.
 
-## 0.0.6 release boundary
+## 0.0.7 release boundary
 
-Root `VERSION` is **0.0.6**. Queue priority is part of the maintained desktop/source contract; publication still requires exact-head tests/builds, exact post-merge main verification and canonical `ghostftp-v0.0.6` publication/readback/retention.
+Root `VERSION` is **0.0.7**. Queue priority is part of the maintained desktop/source contract; publication still requires exact-head tests/builds, exact post-merge main verification and canonical `ghostftp-v0.0.7` publication/readback/retention.
 
-The current public release is **18 platform artifacts / 21 public files**: Windows/Linux desktop packages, a production-signed Android APK, Chrome/Edge/Firefox helper ZIPs and release metadata. Android SFTP remains hidden until strict maintained host-key verification exists; browser packages have no supported desktop launch/handoff; macOS remains a separately validated native development/source frontend.
+The current public release is **13 platform artifacts / 16 public files**: Windows/Linux desktop packages, a production-signed Android APK, Chrome/Edge/Firefox/Opera helper ZIPs and release metadata. Android SFTP remains hidden until strict maintained host-key verification exists; browser packages expose only the sanitized Windows `ghostftp:` launch handoff with no secrets or automatic connection; macOS remains a separately validated native development/source frontend.
 
 See [Roadmap](ROADMAP.md), [Testing](TESTING.md), [Architecture](ARCHITECTURE.md), [Platform parity](PLATFORM-PARITY.md) and [`../macos/PARITY.md`](../macos/PARITY.md).

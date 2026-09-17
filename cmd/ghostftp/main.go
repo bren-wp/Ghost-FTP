@@ -16,7 +16,7 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/usererror"
 )
 
-var version = "0.0.6"
+var version = "0.0.7"
 
 const (
 	messageBoxError       = 0x10

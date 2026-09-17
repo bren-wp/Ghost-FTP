@@ -3,6 +3,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+# The active release-candidate identity is intentionally pinned by VERSION and the 13/16 public contract below.
 
 
 def read(relative: str) -> str:
@@ -73,9 +74,9 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertNotIn("Linux-Debian-amd64.deb", workflow)
         self.assertNotIn("Linux-Fedora-x86_64.rpm", workflow)
 
-    def test_active_006_docs_match_release_candidate_contract(self) -> None:
+    def test_active_007_docs_match_release_candidate_contract(self) -> None:
         version = read("VERSION").strip()
-        self.assertEqual(version, "0.0.6")
+        self.assertEqual(version, "0.0.7")
         for rel in (
             "docs/INSTALLATION.md",
             "docs/GITHUB-RELEASES.md",

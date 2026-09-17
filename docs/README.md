@@ -5,11 +5,11 @@
 
 ## Current status
 
-- Current source version: **0.0.6**
+- Current source version: **0.0.7**
 - Release channel: **Current**
 - Product status: **Current**
-- Last actually published GitHub Release: **0.0.5**
-- 0.0.6 release target: `ghostftp-v0.0.6`, `PRERELEASE=false`
+- Last actually published GitHub Release: **0.0.6**
+- 0.0.6 release target: `ghostftp-v0.0.7`, `PRERELEASE=false`
 - 0.0.6 shape: **13 platform artifacts / 16 public files**
 - Public release targets: **Windows, Linux, Android and browser helper packages**
 - Maintained native source platforms: **Windows, Linux, Android and macOS**
@@ -56,19 +56,19 @@ Version 0.0.6 is not treated as published until the exact verified `main` SHA su
 ## 0.0.6 public artifact contract
 
 ```text
-Ghost-FTP-0.0.6-Setup.exe
-Ghost-FTP-0.0.6-Portable.exe
-Ghost-FTP-0.0.6-Linux-Debian-Installer.run
-Ghost-FTP-0.0.6-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.6-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.6-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.6-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.6-Linux-Fedora-Portable.tar.gz
-Ghost-FTP-0.0.6-Android.apk
-Ghost-FTP-0.0.6-Chrome-Extension.zip
-Ghost-FTP-0.0.6-Edge-Extension.zip
-Ghost-FTP-0.0.6-Firefox-Extension.zip
-Ghost-FTP-0.0.6-Opera-Extension.zip
+Ghost-FTP-0.0.7-Setup.exe
+Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.7-Linux-Debian-Installer.run
+Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.7-Chrome-Extension.zip
+Ghost-FTP-0.0.7-Edge-Extension.zip
+Ghost-FTP-0.0.7-Firefox-Extension.zip
+Ghost-FTP-0.0.7-Opera-Extension.zip
 BUILD-METADATA.txt
 RELEASE-NOTES.txt
 SHA256.txt
@@ -77,8 +77,8 @@ SHA256.txt
 Canonical identity:
 
 ```text
-VERSION=0.0.6
-TAG=ghostftp-v0.0.6
+VERSION=0.0.7
+TAG=ghostftp-v0.0.7
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13

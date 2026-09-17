@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.0.7 - 2026-09-17
+
+### Cumulative polish, cleanup and product hardening
+
+- Includes the complete maintained codebase accumulated after 0.0.6, including repository cleanup, removal of retired website/Web FTP surfaces, documentation cleanup and release-contract corrections.
+- Polished maintained Windows, Linux, Android and browser-helper product surfaces while preserving the no-telemetry, no-advertising, no-mandatory-account and direct-to-user-server privacy model.
+- Hardened exact-head release audits, platform contracts, documentation contracts, UI evidence checks and regression coverage so release identity follows root `VERSION` consistently.
+
+### Windows and browser-to-desktop handoff
+
+- Added sanitized `ghostftp:` protocol registration for installed Windows builds with transactional registry snapshot/rollback behavior.
+- Added browser helper **Open in Ghost FTP** handoff using sanitized FTP/FTPS/SFTP target data only; passwords, private-key passphrases, private keys, query data and fragments are excluded and the desktop app never auto-connects.
+- Hardened startup target forwarding, single-instance handoff, Site Manager teardown guards, retry behavior and post-close lifecycle handling.
+- Improved integrated uninstall and upgrade compatibility while retaining universal x64, x86 and ARM64 payloads in the two public Windows executables.
+
+### Android and cross-platform maintenance
+
+- Refined Android theme behavior, navigation, profile storage, remote-edit handling and lifecycle safety while keeping SFTP hidden until strict host-key verification is maintained.
+- Preserved strict FTPS certificate/hostname verification, desktop SFTP host-key trust/pinning, staged transfer safety and fail-closed credential handling.
+- Expanded browser helper tests and product-surface contracts and kept the four official Chrome, Edge, Firefox and Opera packages at zero browser permissions and zero host permissions.
+
+### Release engineering
+
+- Advances root `VERSION` to **0.0.7** and publishes on the Current channel with `ghostftp-v0.0.7`, `prerelease=false`.
+- Canonical public release remains **13 platform artifacts / 16 public files**: 2 Windows, 6 Linux, 1 Android, 4 browser helper packages and 3 metadata/verification files.
+- Aligned active documentation, version audits and release verification contracts with 0.0.7 while preserving historical 0.0.6 runtime evidence and release history.
+- macOS remains maintained source and CI coverage only until real Developer ID Application signing and Apple notarization are verified.
+
 ## 0.0.6 - 2026-09-14
 
 ### Public Android release
