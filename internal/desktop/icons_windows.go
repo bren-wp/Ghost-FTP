@@ -40,6 +40,7 @@ const (
 	buttonSubtle
 	buttonAccent
 	buttonDanger
+	buttonNavActive
 )
 
 type buttonVisual struct {
@@ -47,6 +48,7 @@ type buttonVisual struct {
 	Label    string
 	Variant  buttonVariant
 	Vertical bool
+	Badge    int
 }
 
 func (a *app) registerButtonVisual(hwnd uintptr, icon, label string, variant buttonVariant, vertical bool) uintptr {
@@ -56,7 +58,11 @@ func (a *app) registerButtonVisual(hwnd uintptr, icon, label string, variant but
 	if a.buttons == nil {
 		a.buttons = make(map[uintptr]buttonVisual)
 	}
-	a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant, Vertical: vertical}
+	badge := 0
+	if previous, ok := a.buttons[hwnd]; ok {
+		badge = previous.Badge
+	}
+	a.buttons[hwnd] = buttonVisual{Icon: icon, Label: label, Variant: variant, Vertical: vertical, Badge: badge}
 	return hwnd
 }
 
@@ -66,6 +72,22 @@ func (a *app) registerButton(hwnd uintptr, icon, label string, variant buttonVar
 
 func (a *app) registerToolbarButton(hwnd uintptr, icon, label string, variant buttonVariant) uintptr {
 	return a.registerButtonVisual(hwnd, icon, label, variant, true)
+}
+
+func (a *app) setButtonBadge(hwnd uintptr, count int) {
+	if a == nil || hwnd == 0 {
+		return
+	}
+	if count < 0 {
+		count = 0
+	}
+	visual, ok := a.buttons[hwnd]
+	if !ok || visual.Badge == count {
+		return
+	}
+	visual.Badge = count
+	a.buttons[hwnd] = visual
+	invalidateRect.Call(hwnd, 0, 0)
 }
 
 func createIconFont(height int32) uintptr {
