@@ -100,7 +100,7 @@ The published 0.0.7 release contains **13 platform artifacts / 16 public files**
 
 > `main` may contain post-release hardening newer than the 0.0.7 release source SHA. Those changes do not retroactively modify the already-published 0.0.7 binaries.
 
-Legacy audit migration note: before 0.0.7 was published, the repository stated `Last actually published GitHub Release: **0.0.6**`. This historical marker remains documented only to keep the pre-0.0.8 audit migration explicit; it does not describe the current release state.
+Legacy audit migration note: before 0.0.7 was published, the repository stated `Last actually published GitHub Release: **0.0.6**`. This historical marker remains documented only to keep the post-publication audit migration explicit; it does not describe the current release state.
 
 ### Windows
 
