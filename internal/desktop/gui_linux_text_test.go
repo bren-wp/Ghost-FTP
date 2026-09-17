@@ -28,11 +28,11 @@ func TestLinuxTrimForUIIsRuneAware(t *testing.T) {
 func TestLinuxButtonLabelLimitTracksControlWidth(t *testing.T) {
 	rail := linuxRectWH(0, 0, 166, 30)
 	wide := linuxRectWH(0, 0, 280, 30)
-	if got := linuxButtonLabelLimit(rail); got != 21 {
-		t.Fatalf("rail button label limit = %d, want 21", got)
+	if got := linuxButtonLabelLimit(rail); got != 25 {
+		t.Fatalf("rail button label limit = %d, want 25", got)
 	}
-	if got := linuxButtonLabelLimit(wide); got != 37 {
-		t.Fatalf("wide button label limit = %d, want 37", got)
+	if got := linuxButtonLabelLimit(wide); got != 44 {
+		t.Fatalf("wide button label limit = %d, want 44", got)
 	}
 	if linuxButtonLabelLimit(wide) <= linuxButtonLabelLimit(rail) {
 		t.Fatal("wide button did not receive a larger label budget")
