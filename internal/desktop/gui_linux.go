@@ -381,7 +381,7 @@ func (u *linuxDesktop) drawPanel(r linuxRect) error {
 	return u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, premiumTheme.Border)
 }
 
-func (u *linuxDesktop) drawButton(r linuxRect, label string, enabled bool, accent bool) error {
+func (u *linuxDesktop) drawButtonWithLimit(r linuxRect, label string, enabled bool, accent bool, labelLimit int) error {
 	fill := premiumTheme.List
 	text := premiumTheme.Text
 	border := premiumTheme.Border
@@ -398,7 +398,11 @@ func (u *linuxDesktop) drawButton(r linuxRect, label string, enabled bool, accen
 	if err := u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, border); err != nil {
 		return err
 	}
-	return u.x.text(r.left+9, r.top+19, linuxTrimForUI(label, linuxButtonLabelLimit(r)), text, fill)
+	return u.x.text(r.left+9, r.top+19, linuxTrimForUI(label, max(4, labelLimit)), text, fill)
+}
+
+func (u *linuxDesktop) drawButton(r linuxRect, label string, enabled bool, accent bool) error {
+	return u.drawButtonWithLimit(r, label, enabled, accent, 24)
 }
 
 func (u *linuxDesktop) drawField(index int, hint string) error {
