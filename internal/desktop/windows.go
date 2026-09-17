@@ -380,10 +380,10 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 			a.remoteNavCancel()
 			a.remoteNavCancel = nil
 		}
-		if diagnostics := a.sidebarDiagnosticsButton(); diagnostics != 0 {
-			delete(a.buttons, diagnostics)
-		}
-		sidebarDiagnostics.Delete(a.hwnd)
+		// The master rail creates native child controls lazily. Clear every
+		// per-window rail handle here so a future Run in the same process cannot
+		// inherit stale HWNDs or button metadata from a destroyed window.
+		a.cleanupSidebarControls()
 		a.mu.Lock()
 		a.closing = true
 		a.mu.Unlock()
