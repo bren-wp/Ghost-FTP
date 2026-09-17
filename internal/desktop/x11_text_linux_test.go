@@ -26,6 +26,9 @@ func TestX11TextBytesUsesReadableFallbacksForProductPunctuation(t *testing.T) {
 		"10 • 20":              "10 * 20",
 		"−1":                   "-1",
 		"A → B ← C":            "A > B < C",
+		"Confirm ✓":             "Confirm [x]",
+		"Confirm ○":             "Confirm [ ]",
+		"Disabled ✕":            "Disabled x",
 	}
 	for input, want := range cases {
 		if got := string(x11TextBytes(input)); got != want {
