@@ -6,33 +6,35 @@ import (
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
 
-func TestDefaultSettingsUseLightAppearance(t *testing.T) {
-	if got := DefaultSettings().Appearance; got != model.AppearanceLight {
-		t.Fatalf("default appearance=%q, want %q", got, model.AppearanceLight)
+func TestDefaultSettingsUseDarkAppearance(t *testing.T) {
+	if got := DefaultSettings().Appearance; got != model.AppearanceDark {
+		t.Fatalf("default appearance=%q, want %q", got, model.AppearanceDark)
 	}
 }
 
-func TestNormalizeSettingsMigratesMissingAppearanceToLight(t *testing.T) {
+func TestNormalizeSettingsMigratesMissingAppearanceToDark(t *testing.T) {
 	settings := DefaultSettings()
 	settings.Appearance = ""
-	if got := normalizeSettings(settings).Appearance; got != model.AppearanceLight {
-		t.Fatalf("normalized missing appearance=%q, want %q", got, model.AppearanceLight)
+	if got := normalizeSettings(settings).Appearance; got != model.AppearanceDark {
+		t.Fatalf("normalized missing appearance=%q, want %q", got, model.AppearanceDark)
 	}
 }
 
-func TestNormalizeSettingsRepairsUnknownPersistedAppearanceToLight(t *testing.T) {
+func TestNormalizeSettingsRepairsUnknownPersistedAppearanceToDark(t *testing.T) {
 	settings := DefaultSettings()
 	settings.Appearance = "unexpected-theme"
-	if got := normalizeSettings(settings).Appearance; got != model.AppearanceLight {
-		t.Fatalf("normalized unknown appearance=%q, want %q", got, model.AppearanceLight)
+	if got := normalizeSettings(settings).Appearance; got != model.AppearanceDark {
+		t.Fatalf("normalized unknown appearance=%q, want %q", got, model.AppearanceDark)
 	}
 }
 
-func TestNormalizeSettingsPreservesExplicitDarkAppearance(t *testing.T) {
-	settings := DefaultSettings()
-	settings.Appearance = model.AppearanceDark
-	if got := normalizeSettings(settings).Appearance; got != model.AppearanceDark {
-		t.Fatalf("normalized explicit dark appearance=%q, want %q", got, model.AppearanceDark)
+func TestNormalizeSettingsPreservesExplicitAppearance(t *testing.T) {
+	for _, appearance := range []string{model.AppearanceDark, model.AppearanceLight} {
+		settings := DefaultSettings()
+		settings.Appearance = appearance
+		if got := normalizeSettings(settings).Appearance; got != appearance {
+			t.Fatalf("normalized explicit appearance=%q, want %q", got, appearance)
+		}
 	}
 }
 
