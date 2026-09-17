@@ -322,7 +322,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	choiceWidth := linuxSettingsChoiceWidth(width)
 	u.settingsRects.language = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
 	languageLabel := language.NativeName + " (" + language.Code + ")"
-	if err := u.drawButton(u.settingsRects.language, linuxTrimForUI(languageLabel, 30), true, false); err != nil {
+	if err := u.drawButton(u.settingsRects.language, languageLabel, true, false); err != nil {
 		return err
 	}
 	row += 45
