@@ -36,10 +36,10 @@ func TestLinuxMasterRailPrimaryActionsAreOrderedAndSeparated(t *testing.T) {
 func TestLinuxMasterRailUtilitiesStayInsideWindowAndAboveStatusBand(t *testing.T) {
 	layout := buildLinuxMasterRailLayout(premiumMinWidth, premiumMinHeight)
 	for name, r := range map[string]linuxRect{
-		"bookmarks": layout.bookmarks,
+		"bookmarks":   layout.bookmarks,
 		"diagnostics": layout.diagnostics,
-		"about": layout.about,
-		"language": layout.language,
+		"about":       layout.about,
+		"language":    layout.language,
 	} {
 		if r.left < 0 || r.top < 0 || r.right > premiumMinWidth || r.bottom > premiumMinHeight {
 			t.Fatalf("%s outside minimum window: %+v", name, r)
