@@ -672,16 +672,37 @@ func (x *x11Client) strokeRect(left, top, width, height int, color RGB) error {
 func x11TextBytes(text string) []byte {
 	var b strings.Builder
 	for _, r := range text {
-		if r >= 32 && r <= 126 {
-			b.WriteRune(r)
-		} else if r == '\t' {
-			b.WriteByte(' ')
-		} else {
-			b.WriteByte('?')
+		replacement := ""
+		switch r {
+		case '\t':
+			replacement = " "
+		case '●', '•':
+			replacement = "*"
+		case '·':
+			replacement = "|"
+		case '–', '—', '−':
+			replacement = "-"
+		case '…':
+			replacement = "..."
+		case '↑':
+			replacement = "^"
+		case '↓':
+			replacement = "v"
+		case '→':
+			replacement = ">"
+		case '←':
+			replacement = "<"
+		default:
+			if r >= 32 && r <= 126 {
+				replacement = string(r)
+			} else {
+				replacement = "?"
+			}
 		}
-		if b.Len() >= 240 {
+		if b.Len()+len(replacement) > 240 {
 			break
 		}
+		b.WriteString(replacement)
 	}
 	return []byte(b.String())
 }
