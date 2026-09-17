@@ -94,9 +94,10 @@ jobs:
           unzip -t "$apk" >/dev/null
           build_tools="$ANDROID_HOME/build-tools/35.0.0"
           test -x "$build_tools/apksigner"
+          test -x "$build_tools/aapt"
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee "$RUNNER_TEMP/apksigner.txt"
           grep -Fq 'Verifies' "$RUNNER_TEMP/apksigner.txt"
-          badging="$(aapt dump badging "$apk")"
+          badging="$("$build_tools/aapt" dump badging "$apk")"
           grep -Fq "package: name='app.ghostftp.client.debug'" <<<"$badging"
           grep -Fq "versionName='${VERSION}-debug'" <<<"$badging"
           printf 'ANDROID_COMPAT_APK_SHA256=%s\n' "$(sha256sum "$apk" | awk '{print $1}')"
