@@ -44,7 +44,6 @@ func TestLinuxConnectionInfoIsUsefulAndPrivacySafe(t *testing.T) {
 	}
 	joined := strings.Join(linuxConnectionInfoLines(u), "\n")
 	for _, want := range []string{
-		brand.ProductName + " 9.9.9",
 		"FTPS",
 		"/public_html",
 		"Transfer Queue: 1",
@@ -54,6 +53,12 @@ func TestLinuxConnectionInfoIsUsefulAndPrivacySafe(t *testing.T) {
 			t.Fatalf("connection info missing %q:\n%s", want, joined)
 		}
 	}
+	u.infoOverlay = linuxInfoOverlayConnection
+	_, heading := u.linuxInfoOverlayTitleAndHeading()
+	if heading != brand.ProductName+" 9.9.9" {
+		t.Fatalf("connection info heading = %q", heading)
+	}
+
 	for _, secret := range []string{
 		u.host,
 		u.username,
