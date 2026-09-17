@@ -1,0 +1,228 @@
+name: Publish Ghost FTP 0.0.7 Compatibility Release
+
+on:
+  push:
+    branches:
+      - release-compat/ghostftp-v0.0.7
+    paths:
+      - .github/workflows/publish-0.0.7-compat.yml
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: ghostftp-0.0.7-compat-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish verified unsigned-compatible 0.0.7 release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: f7dc8a6947279dc773fe58e9ff264c1aa25bf477
+      VERSION: 0.0.7
+      RELEASE_TAG: ghostftp-v0.0.7
+      WINDOWS_RUN_ID: '35223980390'
+      LINUX_BROWSER_RUN_ID: '35223995938'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact verified source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: f7dc8a6947279dc773fe58e9ff264c1aa25bf477
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable source and empty release target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(tr -d '\r\n' < VERSION)" = "$VERSION"
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          test "$main_sha" = "$SOURCE_SHA" || {
+            echo "main moved from compatibility release source: $main_sha" >&2
+            exit 1
+          }
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists; refusing to move it." >&2
+            exit 1
+          fi
+
+      - name: Download exact-head verified stages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging/windows staging/linux staging/browser
+          gh run download "$WINDOWS_RUN_ID" --repo "$GITHUB_REPOSITORY" --name ghostftp-windows-stage --dir staging/windows
+          gh run download "$LINUX_BROWSER_RUN_ID" --repo "$GITHUB_REPOSITORY" --name ghostftp-linux-universal-distro-stage --dir staging/linux
+          gh run download "$LINUX_BROWSER_RUN_ID" --repo "$GITHUB_REPOSITORY" --name ghostftp-browser-release-stage --dir staging/browser
+
+      - name: Assemble compatibility release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+
+          copy_one() {
+            local name="$1"
+            mapfile -t matches < <(find staging -type f -name "$name" -print)
+            test "${#matches[@]}" -eq 1 || {
+              echo "Expected exactly one staged file named $name; found ${#matches[@]}." >&2
+              printf '%s\n' "${matches[@]:-}" >&2
+              exit 1
+            }
+            cp "${matches[0]}" "release/$name"
+          }
+
+          copy_one "Ghost-FTP-${VERSION}-Setup.exe"
+          copy_one "Ghost-FTP-${VERSION}-Portable.exe"
+          for distro in Debian Ubuntu Fedora; do
+            copy_one "Ghost-FTP-${VERSION}-Linux-${distro}-Installer.run"
+            copy_one "Ghost-FTP-${VERSION}-Linux-${distro}-Portable.tar.gz"
+          done
+          for browser in Chrome Edge Firefox Opera; do
+            copy_one "Ghost-FTP-${VERSION}-${browser}-Extension.zip"
+          done
+
+          cat > release/RELEASE-NOTES.txt <<EOF
+          Ghost FTP ${VERSION}
+
+          Public compatibility release
+          ============================
+
+          Ghost FTP ${VERSION} is published from verified source commit ${SOURCE_SHA} using the same unsigned-Windows compatibility publication model used for Ghost FTP 0.0.6.
+
+          Windows
+          -------
+          - One universal Setup package for x64, x86 and ARM64 payloads.
+          - One universal Portable package for x64, x86 and ARM64 payloads.
+          - These two Windows executables are explicitly UNSIGNED. Their integrity is covered by SHA256.txt and the exact source commit recorded in BUILD-METADATA.txt.
+
+          Linux
+          -----
+          - Debian Installer + Portable universal bundles.
+          - Ubuntu Installer + Portable universal bundles.
+          - Fedora Installer + Portable universal bundles.
+          - Each universal distro bundle carries amd64, arm64 and i386 payloads and selects the local architecture at runtime.
+
+          Browser helpers
+          ---------------
+          - Chrome, Edge, Firefox and Opera packages are included.
+          - They remain zero-browser-permission / zero-host-permission helpers and are not browser FTP runtimes.
+
+          Android and macOS
+          -----------------
+          - Android source/build remains available in the repository, but no Android APK is published in this compatibility release because a stable production signing identity is not configured. This matches the public-release boundary used by Ghost FTP 0.0.6 rather than shipping an unsigned or temporary-key APK.
+          - macOS remains development/source-only until Developer ID Application signing and Apple notarization are available.
+
+          Integrity
+          ---------
+          - Source commit: ${SOURCE_SHA}
+          - Tag: ${RELEASE_TAG}
+          - Platform artifacts: 12
+          - Metadata files: 3
+          - Total public files: 15
+          - SHA256.txt covers every public file except itself.
+          EOF
+
+          cat > release/BUILD-METADATA.txt <<EOF
+          PRODUCT=Ghost FTP
+          VERSION=${VERSION}
+          RELEASE_TAG=${RELEASE_TAG}
+          SOURCE_COMMIT=${SOURCE_SHA}
+          RELEASE_MODE=0.0.6-compatible-unsigned
+          WINDOWS_SETUP=universal-x64-x86-arm64
+          WINDOWS_PORTABLE=universal-x64-x86-arm64
+          WINDOWS_AUTHENTICODE=unsigned
+          LINUX_DISTROS=Debian,Ubuntu,Fedora
+          LINUX_PAYLOAD_ARCHITECTURES=amd64,arm64,i386
+          BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
+          BROWSER_PERMISSIONS=zero
+          BROWSER_HOST_PERMISSIONS=zero
+          ANDROID_PUBLIC_APK=excluded-no-stable-production-signing-identity
+          MACOS_PUBLIC_ARTIFACT=excluded-development-only
+          TELEMETRY=disabled
+          PUBLIC_PLATFORM_ARTIFACTS=12
+          PUBLIC_METADATA_FILES=3
+          PUBLIC_FILES_TOTAL=15
+          EOF
+
+          (
+            cd release
+            find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' \
+              | LC_ALL=C sort \
+              | xargs sha256sum > SHA256.txt
+          )
+
+          cat > "$RUNNER_TEMP/expected-assets.txt" <<EOF
+          BUILD-METADATA.txt
+          Ghost-FTP-${VERSION}-Chrome-Extension.zip
+          Ghost-FTP-${VERSION}-Edge-Extension.zip
+          Ghost-FTP-${VERSION}-Firefox-Extension.zip
+          Ghost-FTP-${VERSION}-Linux-Debian-Installer.run
+          Ghost-FTP-${VERSION}-Linux-Debian-Portable.tar.gz
+          Ghost-FTP-${VERSION}-Linux-Fedora-Installer.run
+          Ghost-FTP-${VERSION}-Linux-Fedora-Portable.tar.gz
+          Ghost-FTP-${VERSION}-Linux-Ubuntu-Installer.run
+          Ghost-FTP-${VERSION}-Linux-Ubuntu-Portable.tar.gz
+          Ghost-FTP-${VERSION}-Opera-Extension.zip
+          Ghost-FTP-${VERSION}-Portable.exe
+          Ghost-FTP-${VERSION}-Setup.exe
+          RELEASE-NOTES.txt
+          SHA256.txt
+          EOF
+          find release -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort > "$RUNNER_TEMP/actual-assets.txt"
+          LC_ALL=C sort -o "$RUNNER_TEMP/expected-assets.txt" "$RUNNER_TEMP/expected-assets.txt"
+          diff -u "$RUNNER_TEMP/expected-assets.txt" "$RUNNER_TEMP/actual-assets.txt"
+          test "$(wc -l < "$RUNNER_TEMP/actual-assets.txt" | tr -d ' ')" = '15'
+          (cd release && sha256sum -c SHA256.txt)
+
+      - name: Publish GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          test "$main_sha" = "$SOURCE_SHA" || {
+            echo "main moved before compatibility publication: $main_sha" >&2
+            exit 1
+          }
+          gh release create "$RELEASE_TAG" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "Ghost FTP ${VERSION}" \
+            --notes-file release/RELEASE-NOTES.txt
+
+      - name: Verify remote tag, assets and digest readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")"
+          test "$(jq -r .draft <<<"$release_json")" = 'false'
+          test "$(jq -r .prerelease <<<"$release_json")" = 'false'
+
+          remote_tag_sha="$(git ls-remote origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}')"
+          test "$remote_tag_sha" = "$SOURCE_SHA" || {
+            echo "Remote tag points to $remote_tag_sha instead of $SOURCE_SHA" >&2
+            exit 1
+          }
+
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' \
+            | LC_ALL=C sort > "$RUNNER_TEMP/remote-assets.txt"
+          diff -u "$RUNNER_TEMP/expected-assets.txt" "$RUNNER_TEMP/remote-assets.txt"
+          test "$(wc -l < "$RUNNER_TEMP/remote-assets.txt" | tr -d ' ')" = '15'
+
+          rm -rf readback
+          mkdir readback
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir readback
+          (cd readback && sha256sum -c SHA256.txt)
+
+          latest_tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
+          test "$latest_tag" = "$RELEASE_TAG"
+          echo "GHOSTFTP_RELEASE_0_0_7_COMPAT=PASS"
