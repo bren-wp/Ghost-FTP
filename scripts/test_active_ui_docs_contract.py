@@ -61,7 +61,7 @@ class ActiveUIDocumentationContractTests(unittest.TestCase):
             "Windows — 5 images",
             "Linux — 3 images",
             "Android — 7 images",
-            "current exact-head capture contract adds Linux **Connection info** and **About**",
+            "The current exact-head capture contract adds Linux **Connection info** and **About**",
             "exactly **17 runtime images**",
             "ghostftp-authentic-ui-verified-bundle",
             "does **not** commit or push screenshots",
