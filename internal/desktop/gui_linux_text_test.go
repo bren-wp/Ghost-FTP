@@ -50,6 +50,12 @@ func TestLinuxKeysymTextAcceptsLatin1AndUnicodeKeysyms(t *testing.T) {
 
 	assertKeysym('a', "a")
 	assertKeysym(0x00e9, "é")
+	assertKeysym(0x01e8, "č")
+	assertKeysym(0x01f0, "đ")
+	assertKeysym(0x06f6, "Ж")
+	assertKeysym(0x06bd, "Ґ")
+	assertKeysym(0x07a1, "Ά")
+	assertKeysym(0x07e1, "α")
 	assertKeysym(0x0100010d, "č")
 	assertKeysym(0x01000416, "Ж")
 
