@@ -8,22 +8,23 @@ import (
 )
 
 const (
-	applicationSidebarX           = 14
-	applicationSidebarWidth       = 166
-	applicationContentLeft        = 204
-	applicationSidebarCardH       = 46
+	applicationSidebarX           = 16
+	applicationSidebarWidth       = 236
+	applicationContentLeft        = 276
+	applicationSidebarCardH       = 48
 	applicationSidebarCardGap     = 8
 	applicationSidebarUtilityH    = 38
 	applicationSidebarUtilityGap  = 7
-	applicationSidebarPrimaryTop  = 64
-	applicationSidebarBrandIcon   = 32
-	applicationSidebarBrandGap    = 8
-	applicationSidebarBottomInset = 14
+	applicationSidebarPrimaryTop  = 78
+	applicationSidebarBrandIcon   = 42
+	applicationSidebarBrandGap    = 10
+	applicationSidebarBottomInset = 18
 )
 
 var (
 	sidebarFiles           sync.Map
 	sidebarTransfers       sync.Map
+	sidebarSync            sync.Map
 	sidebarDiagnostics     sync.Map
 	sidebarBookmarks       sync.Map
 	sidebarGetWindowRect   = user32.NewProc("GetWindowRect")
@@ -71,6 +72,14 @@ func (a *app) ensureSidebarTransfers() uintptr {
 	return a.ensureSidebarButton(&sidebarTransfers, idTransferQueueNav, labels.TransferQueue, iconSync)
 }
 
+func (a *app) ensureSidebarSync() uintptr {
+	label := "Sync"
+	if a.languageCode() == "hr" {
+		label = "Sinkronizacija"
+	}
+	return a.ensureSidebarButton(&sidebarSync, idDirectoryCompare, label, iconSync)
+}
+
 func (a *app) ensureSidebarDiagnostics() uintptr {
 	labels := navigationLabelsForLanguage(a.languageCode())
 	return a.ensureSidebarButton(&sidebarDiagnostics, idDiagnostics, labels.Diagnostics, iconDiagnostics)
@@ -105,6 +114,13 @@ func (a *app) sidebarTransferButton() uintptr {
 		return 0
 	}
 	return sidebarControl(&sidebarTransfers, a.hwnd)
+}
+
+func (a *app) sidebarSyncButton() uintptr {
+	if a == nil {
+		return 0
+	}
+	return sidebarControl(&sidebarSync, a.hwnd)
 }
 
 func (a *app) sidebarDiagnosticsButton() uintptr {
@@ -161,7 +177,7 @@ func (a *app) cleanupSidebarControls() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
-	for _, store := range []*sync.Map{&sidebarFiles, &sidebarTransfers, &sidebarBookmarks, &sidebarDiagnostics} {
+	for _, store := range []*sync.Map{&sidebarFiles, &sidebarTransfers, &sidebarSync, &sidebarBookmarks, &sidebarDiagnostics} {
 		if hwnd := sidebarControl(store, a.hwnd); hwnd != 0 {
 			delete(a.buttons, hwnd)
 		}
@@ -232,13 +248,19 @@ func (a *app) resizeSidebarColumns() {
 func (a *app) layoutSidebarRail(height int) {
 	files := a.ensureSidebarFiles()
 	transfers := a.ensureSidebarTransfers()
+	syncButton := a.ensureSidebarSync()
 	diagnostics := a.ensureSidebarDiagnostics()
 	bookmarks := a.ensureSidebarBookmarks()
 	labels := navigationLabelsForLanguage(a.languageCode())
 
-	a.setSidebarButtonVisual(files, iconOpenLocal, labels.Files, buttonNavActive)
 	a.setSidebarButtonVisual(a.siteManagerBtn, iconConnect, labels.Connections, buttonDefault)
+	a.setSidebarButtonVisual(files, iconOpenLocal, labels.Files, buttonNavActive)
 	a.setSidebarButtonVisual(transfers, iconSync, labels.TransferQueue, buttonDefault)
+	syncLabel := "Sync"
+	if a.languageCode() == "hr" {
+		syncLabel = "Sinkronizacija"
+	}
+	a.setSidebarButtonVisual(syncButton, iconSync, syncLabel, buttonDefault)
 	a.setSidebarButtonVisual(a.settingsBtn, iconSettings, a.tr("common.settings"), buttonDefault)
 	a.setSidebarButtonVisual(bookmarks, iconOpenLocal, bookmarkWordsForLanguage(a.languageCode()).Title, buttonSubtle)
 	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, labels.Diagnostics, buttonSubtle)
@@ -247,7 +269,7 @@ func (a *app) layoutSidebarRail(height int) {
 
 	logo := a.ensureBrandLogo()
 	if logo != 0 {
-		a.move(logo, applicationSidebarX+2, 14, applicationSidebarBrandIcon, applicationSidebarBrandIcon)
+		a.move(logo, applicationSidebarX+2, 16, applicationSidebarBrandIcon, applicationSidebarBrandIcon)
 	}
 	titleX := applicationSidebarX + applicationSidebarBrandIcon + applicationSidebarBrandGap + 2
 	// The full product name must remain visible in the compact rail. Reuse the
@@ -256,14 +278,14 @@ func (a *app) layoutSidebarRail(height int) {
 	if a.font != 0 {
 		sendMessageW.Call(a.brandTitle, wmSetFont, a.font, 1)
 	}
-	a.move(a.brandTitle, titleX, 13, applicationSidebarWidth-(titleX-applicationSidebarX), 34)
+	a.move(a.brandTitle, titleX, 18, applicationSidebarWidth-(titleX-applicationSidebarX), 34)
 	// The master desktop references keep the rail brand intentionally compact.
 	// The descriptive subtitle remains in About rather than competing with
 	// operational navigation and file content.
 	showControls(false, a.brandSubtitle)
 
 	y := applicationSidebarPrimaryTop
-	for _, control := range []uintptr{files, a.siteManagerBtn, transfers, a.settingsBtn} {
+	for _, control := range []uintptr{a.siteManagerBtn, files, transfers, syncButton, a.settingsBtn} {
 		a.move(control, applicationSidebarX, y, applicationSidebarWidth, applicationSidebarCardH)
 		y += applicationSidebarCardH + applicationSidebarCardGap
 	}
