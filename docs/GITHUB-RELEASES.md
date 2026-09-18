@@ -75,7 +75,7 @@ macOS remains an active development/source surface and is not in the public 0.0.
 
 Before publication, `release.yml` requires its source SHA to remain exact current `main`. A moved `main`, pre-existing tag or pre-existing release fails closed rather than rewriting release identity.
 
-After successful publication, retention independently verifies the **16-file** asset count and exact tag/main identity before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete GHCR versions. `main` history is never rewritten.
+After successful publication, retention independently verifies the **16-file** asset count and exact tag/main identity. It must preserve the immutable published `ghostftp-v0.0.7` release/tag plus the current release/tag, while removing only other superseded Ghost FTP releases/tags, obsolete canonical release branches and obsolete GHCR versions. An existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
 
 ## Windows signing gate
 
@@ -135,6 +135,7 @@ LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
 ANDROID_APK=production-signed
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
+BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
 ```
