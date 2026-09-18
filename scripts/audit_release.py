@@ -74,6 +74,7 @@ def main() -> int:
         "RELEASE_TAG=ghostftp-v$version",
         "release_channel='current'",
         "release_title=\"Ghost FTP $version\"",
+        "No-key compatibility publication is authorized only for Ghost FTP 0.0.8",
         "test \"$remote_prerelease\" = 'false'",
         "Resolve Windows signing identity",
         "WINDOWS_RELEASE_SIGNING=UNSIGNED_COMPATIBILITY",
