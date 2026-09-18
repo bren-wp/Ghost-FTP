@@ -7,12 +7,15 @@ import "C"
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/bren-wp/Ghost-FTP/internal/external"
 	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
+	"github.com/bren-wp/Ghost-FTP/internal/updatecheck"
 )
 
 var (
@@ -541,6 +544,62 @@ func GhostFTPDiagnosticsRemotePath() *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	return C.CString(bridgeState.remotePath)
+}
+
+//export GhostFTPCheckForUpdates
+func GhostFTPCheckForUpdates() *C.char {
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	result, err := updatecheck.New().Check(ctx, productVersion)
+	if err != nil {
+		bridgeState.mu.Lock()
+		setBridgeError(err, "Ghost FTP could not securely check the public release channel.")
+		bridgeState.mu.Unlock()
+		return C.CString("")
+	}
+	payload, err := json.Marshal(struct {
+		CurrentVersion string `json:"current_version"`
+		LatestVersion  string `json:"latest_version"`
+		ReleaseURL     string `json:"release_url"`
+		Available      bool   `json:"available"`
+	}{
+		CurrentVersion: result.CurrentVersion,
+		LatestVersion:  result.LatestVersion,
+		ReleaseURL:     result.ReleaseURL,
+		Available:      result.Available,
+	})
+	if err != nil {
+		bridgeState.mu.Lock()
+		setBridgeError(err, "Ghost FTP could not prepare the update result.")
+		bridgeState.mu.Unlock()
+		return C.CString("")
+	}
+	bridgeState.mu.Lock()
+	bridgeState.lastError = ""
+	bridgeState.mu.Unlock()
+	return C.CString(string(payload))
+}
+
+//export GhostFTPOpenReleasePage
+func GhostFTPOpenReleasePage(value *C.char) C.int {
+	if err := external.OpenReleasePage(goString(value)); err != nil {
+		bridgeState.mu.Lock()
+		setBridgeError(err, "Ghost FTP could not open the verified release page.")
+		bridgeState.mu.Unlock()
+		return 0
+	}
+	return 1
+}
+
+//export GhostFTPOpenPremiumPage
+func GhostFTPOpenPremiumPage() C.int {
+	if err := external.OpenPremiumPage(); err != nil {
+		bridgeState.mu.Lock()
+		setBridgeError(err, "Ghost FTP could not open the Premium download page.")
+		bridgeState.mu.Unlock()
+		return 0
+	}
+	return 1
 }
 
 //export GhostFTPAboutVersion
