@@ -20,8 +20,8 @@ The canonical release workflow requires protected Android signing credentials an
 
 - Native Android Java UI.
 - Canonical **Dark** appearance is the fresh-install default with charcoal/blue-black surfaces and gold/amber actions; a neutral gray **Light** appearance remains available in Settings.
-- Phone navigation uses a real left navigation drawer; wide/tablet layouts use the same destinations as a persistent sidebar.
-- Active destinations: **Files**, **Connections**, **Transfer Queue**, **Settings**, **Bookmarks**, **Connection info** and **About**.
+- Phone navigation uses a persistent five-destination **bottom navigation** for Files, Connections, Bookmarks, Transfer Queue and Settings, plus a right-side utility drawer for Connection info and About; wide/tablet layouts use the same product destinations in a persistent sidebar.
+- Active destinations: **Files**, **Connections**, **Bookmarks**, **Transfer Queue**, **Settings**, **Connection info** and **About**. Primary phone destinations remain continuously reachable from the bottom bar.
 - Local vector assets; no remote fonts, tracking assets or emoji-as-navigation icons.
 - **FTP and explicit FTPS Quick Connect**.
 - FTPS uses the platform trust store and strict hostname verification on control and protected passive data channels; there is no trust-all fallback.
