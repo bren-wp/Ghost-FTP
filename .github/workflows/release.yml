@@ -504,6 +504,10 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
           test "$version" != '0.0.0' || { echo '0.0.0 is reserved' >&2; exit 1; }
           test "$version" = "$source_version"
+          test "$version" = '0.0.8' || {
+            echo "No-key compatibility publication is authorized only for Ghost FTP 0.0.8; version $version must use the normal production-signing policy." >&2
+            exit 1
+          }
           release_channel='current'
           release_title="Ghost FTP $version"
           [[ "$WINDOWS_SIGNING_STATE" = 'signed' || "$WINDOWS_SIGNING_STATE" = 'unsigned' ]] || { echo "Invalid Windows signing state: $WINDOWS_SIGNING_STATE" >&2; exit 1; }
