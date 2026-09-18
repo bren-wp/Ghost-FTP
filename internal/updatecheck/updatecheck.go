@@ -52,6 +52,11 @@ func parseVersion(value string) (version, error) {
 		if part == "" || (len(part) > 1 && part[0] == '0' && part != "0") {
 			return version{}, errors.New("invalid numeric version part")
 		}
+		for _, ch := range part {
+			if ch < '0' || ch > '9' {
+				return version{}, errors.New("invalid numeric version part")
+			}
+		}
 		n, err := strconv.Atoi(part)
 		if err != nil || n < 0 || n > 999999 {
 			return version{}, errors.New("invalid numeric version part")
