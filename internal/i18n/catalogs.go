@@ -3,14 +3,14 @@ package i18n
 var catalogs = map[string]map[string]string{
 	"en": {
 		"app.subtitle":    "FTP • FTPS • SFTP  ·  Direct, private file transfer",
-		"badge.connected": "● CONNECTED", "badge.disconnected": "● DISCONNECTED",
+		"badge.connected": "● Connected", "badge.disconnected": "● Disconnected",
 		"profile.quick": "Quick Connect", "profile.save": "Save profile", "profile.delete": "Delete profile",
 		"common.settings": "Settings", "common.about": "About", "common.connect": "Connect", "common.disconnect": "Disconnect",
-		"common.up": "Up", "common.folder": "Folder…", "common.refresh": "Refresh", "common.new_folder": "New folder",
+		"common.up": "Up", "common.folder": "Folder…", "common.refresh": "Refresh", "common.new_folder": "New Folder",
 		"common.rename": "Rename", "common.delete": "Delete", "common.permissions": "Permissions", "common.cancel": "Cancel",
 		"auth.private_key": "Private key…", "section.local": "Local Files", "section.remote": "Remote Files", "section.transfers": "Transfer Queue",
 		"transfer.upload": "Upload", "transfer.download": "Download", "transfer.pause": "Pause", "transfer.resume": "Resume",
-		"transfer.retry": "Retry", "transfer.clear": "Clear finished",
+		"transfer.retry": "Retry", "transfer.clear": "Clear Completed",
 		"status.ready":       "Ready. Select a saved profile or enter server details.",
 		"status.refresh_all": "Refreshing local and remote views…",
 		"cue.host":           "FTP/SFTP server, e.g. ftp.example.com", "cue.user": "Username, may be user@example.com",
@@ -83,7 +83,7 @@ var catalogs = map[string]map[string]string{
 	},
 	"hr": {
 		"app.subtitle":    "FTP • FTPS • SFTP  ·  Izravan i privatan prijenos datoteka",
-		"badge.connected": "● POVEZANO", "badge.disconnected": "● NIJE POVEZANO", "profile.quick": "Brzo povezivanje", "profile.save": "Spremi profil", "profile.delete": "Obriši profil",
+		"badge.connected": "● Povezano", "badge.disconnected": "● Nije povezano", "profile.quick": "Brzo povezivanje", "profile.save": "Spremi profil", "profile.delete": "Obriši profil",
 		"common.settings": "Postavke", "common.about": "O programu", "common.connect": "Poveži", "common.disconnect": "Prekini", "common.up": "Gore", "common.folder": "Mapa…", "common.refresh": "Osvježi", "common.new_folder": "Nova mapa", "common.rename": "Preimenuj", "common.delete": "Obriši", "common.permissions": "Dozvole", "common.cancel": "Otkaži",
 		"auth.private_key": "Privatni ključ…", "section.local": "Lokalne datoteke", "section.remote": "Udaljene datoteke", "section.transfers": "Red prijenosa", "transfer.upload": "Pošalji", "transfer.download": "Preuzmi", "transfer.pause": "Pauziraj", "transfer.resume": "Nastavi", "transfer.retry": "Ponovi", "transfer.clear": "Očisti završene",
 		"status.ready": "Spremno. Odaberite spremljeni profil ili unesite podatke poslužitelja.", "status.refresh_all": "Osvježavanje lokalnog i udaljenog prikaza…",
