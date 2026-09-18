@@ -8,13 +8,13 @@ Ghost FTP **0.0.8** is the active release candidate. After the protected publica
 ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
-The exact `0.0.6` package tag is the verification identity for the release transaction. Current semantic aliases and `latest` are maintained only after the exact-version package has been published and verified.
+The exact `0.0.8` package tag is the verification identity for the release transaction. Current semantic aliases and `latest` are maintained only after the exact-version package has been published and verified.
 
 The GHCR object is a **distribution bundle**, **not a runtime container**. Its payload mirrors the canonical release directory under `/ghostftp-release/`. Ghost FTP does not use GHCR as a hidden application backend, relay, account service or transfer service.
 
-## 0.0.6 bundle shape
+## 0.0.8 bundle shape
 
-The canonical 0.0.6 release contains **13 platform artifacts / 16 public files**:
+The canonical 0.0.8 release contains **13 platform artifacts / 16 public files**:
 
 - Windows: one universal Setup and one universal Portable executable;
 - Linux: one Installer and one Portable archive each for Debian, Ubuntu and Fedora;
@@ -82,9 +82,9 @@ Windows trust and exact-byte integrity are independent: official Windows artifac
 
 ## Latest-only retention
 
-After successful 0.0.6 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
+After successful 0.0.8 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
 
-Until that protected transaction succeeds, **0.0.5 remains the last actually published GitHub Release** and 0.0.6 remains a release candidate rather than a falsely advertised published build.
+Until that protected transaction succeeds, **0.0.7 remains the last actually published GitHub Release** and 0.0.8 remains a release candidate rather than a falsely advertised published build.
 
 ## Platform boundaries
 
