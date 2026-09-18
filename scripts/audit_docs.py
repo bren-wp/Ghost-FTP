@@ -248,7 +248,7 @@ def main() -> int:
         "Ghost-FTP-0.0.8-Linux-Fedora-Installer.run",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
         "ghostftp-uninstall",
-        "CI debug-signed",
+        "temporary compatibility-signed",
         "SFTP remains intentionally hidden",
     )
 
@@ -294,7 +294,7 @@ def main() -> int:
         "Developer ID Application",
         "no-secret distribution",
         "WINDOWS_AUTHENTICODE=unsigned",
-        "ANDROID_APK=debug-signed-no-secret",
+        "ANDROID_APK=temporary-compatibility-certificate",
     )
 
     browser = read("extensions/README.md")

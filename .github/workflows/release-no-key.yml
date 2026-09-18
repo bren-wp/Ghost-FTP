@@ -140,23 +140,28 @@ jobs:
           version="$(tr -d '\r\n' < VERSION)"
           test "$(find dist -maxdepth 1 -type f -name 'Ghost-FTP-*-Linux-*' | wc -l | tr -d ' ')" = '6'
           for browser in Chrome Edge Firefox Opera; do test -s "dist/browser/Ghost-FTP-${version}-${browser}-Extension.zip"; done
-      - name: Build installable Android debug-signed APK
+      - name: Build installable Android compatibility-signed release APK
         id: android-build
         shell: bash
         run: |
           set -euo pipefail
           sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
-          (cd android && gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace)
+          (cd android && gradle :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon --stacktrace)
           version="$(tr -d '\r\n' < VERSION)"
-          source='android/app/build/outputs/apk/debug/app-debug.apk'
+          source='android/app/build/outputs/apk/release/app-release-unsigned.apk'
           target="dist/Ghost-FTP-${version}-Android.apk"
+          keystore="$RUNNER_TEMP/ghostftp-compatibility.jks"
+          password="$(openssl rand -hex 24)"
           test -s "$source"
-          cp "$source" "$target"
+          keytool -genkeypair             -keystore "$keystore"             -storepass "$password"             -keypass "$password"             -alias ghostftp-compatibility             -keyalg RSA             -keysize 3072             -validity 3650             -dname 'CN=Ghost FTP Compatibility Release,O=Ghost FTP,C=HR'             -noprompt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign             --ks "$keystore"             --ks-key-alias ghostftp-compatibility             --ks-pass "pass:$password"             --key-pass "pass:$password"             --out "$target"             "$source"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$target" | tee "$RUNNER_TEMP/android-no-key-signature.txt"
           signer="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/android-no-key-signature.txt" | head -n1 | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
           [[ "$signer" =~ ^[0-9a-f]{64}$ ]]
+          unzip -t "$target" >/dev/null
+          rm -f "$keystore"
           echo "signer_sha256=$signer" >> "$GITHUB_OUTPUT"
-          echo 'ANDROID_APK=debug-signed-no-secret'
+          echo 'ANDROID_APK=temporary-compatibility-certificate'
       - name: Store Linux Android and browser artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -257,60 +262,60 @@ jobs:
           mkdir -p release
           find staging -type f -print0 | while IFS= read -r -d '' file; do cp "$file" release/; done
           cat > release/BUILD-METADATA.txt <<EOF
-BRAND=Ghost FTP
-VERSION=${version}
-RELEASE_TAG=${tag}
-RELEASE_CHANNEL=current
-COMMIT=${GITHUB_SHA}
-DISTRIBUTION_MODE=no-secret-public-release
-WINDOWS_SETUP=universal-x86-x64-arm64
-WINDOWS_PORTABLE=universal-x86-x64-arm64
-WINDOWS_AUTHENTICODE=unsigned
-ANDROID_APK=debug-signed-no-secret
-ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
-ANDROID_SFTP=hidden-until-strict-host-key-verification
-MACOS_APP=universal-arm64-x86_64
-MACOS_SIGNING=adhoc-validation
-MACOS_NOTARIZATION=not-performed
-LINUX_PAYLOADS=amd64,arm64,i386
-BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-PUBLIC_PLATFORM_ARTIFACTS=14
-PUBLIC_RELEASE_FILES=17
-EOF
+          BRAND=Ghost FTP
+          VERSION=${version}
+          RELEASE_TAG=${tag}
+          RELEASE_CHANNEL=current
+          COMMIT=${GITHUB_SHA}
+          DISTRIBUTION_MODE=no-secret-public-release
+          WINDOWS_SETUP=universal-x86-x64-arm64
+          WINDOWS_PORTABLE=universal-x86-x64-arm64
+          WINDOWS_AUTHENTICODE=unsigned
+          ANDROID_APK=temporary-compatibility-certificate
+          ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
+          ANDROID_SFTP=hidden-until-strict-host-key-verification
+          MACOS_APP=universal-arm64-x86_64
+          MACOS_SIGNING=adhoc-validation
+          MACOS_NOTARIZATION=not-performed
+          LINUX_PAYLOADS=amd64,arm64,i386
+          BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
+          PUBLIC_PLATFORM_ARTIFACTS=14
+          PUBLIC_RELEASE_FILES=17
+          EOF
           cat > release/RELEASE-NOTES.txt <<EOF
-Ghost FTP 0.0.8
+          Ghost FTP 0.0.8
 
-This is the requested no-secret distribution build from exact source ${GITHUB_SHA}.
+          This is the requested no-secret distribution build from exact source ${GITHUB_SHA}.
 
-Trust/signing boundary:
-- Windows Setup and Portable are intentionally unsigned and may trigger Windows SmartScreen/Unknown Publisher warnings.
-- Android is an installable debug-signed APK built in CI without a protected publisher secret.
-- macOS is an ad-hoc signed universal validation app. It is not Developer ID signed or Apple notarized.
-- Linux and browser helper artifacts are verified by exact-source build and SHA-256 checksums.
+          Trust/signing boundary:
+          - Windows Setup and Portable are intentionally unsigned and may trigger Windows SmartScreen/Unknown Publisher warnings.
+          - Android is an installable release APK signed with a temporary one-run compatibility certificate generated in CI without a protected publisher secret. A future permanent publisher identity may require reinstalling instead of an in-place update.
+          - macOS is an ad-hoc signed universal validation app. It is not Developer ID signed or Apple notarized.
+          - Linux and browser helper artifacts are verified by exact-source build and SHA-256 checksums.
 
-Security/privacy behavior is unchanged: no telemetry, no ads, strict FTPS verification, desktop SFTP host-key trust, and Android SFTP remains hidden until strict host-key verification is maintained.
-EOF
+          Security/privacy behavior is unchanged: no telemetry, no ads, strict FTPS verification, desktop SFTP host-key trust, and Android SFTP remains hidden until strict host-key verification is maintained.
+          EOF
           (cd release && find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs -r sha256sum > SHA256.txt)
           expected=$(cat <<EOF
-BUILD-METADATA.txt
-Ghost-FTP-${version}-Android.apk
-Ghost-FTP-${version}-Chrome-Extension.zip
-Ghost-FTP-${version}-Edge-Extension.zip
-Ghost-FTP-${version}-Firefox-Extension.zip
-Ghost-FTP-${version}-Linux-Debian-Installer.run
-Ghost-FTP-${version}-Linux-Debian-Portable.tar.gz
-Ghost-FTP-${version}-Linux-Fedora-Installer.run
-Ghost-FTP-${version}-Linux-Fedora-Portable.tar.gz
-Ghost-FTP-${version}-Linux-Ubuntu-Installer.run
-Ghost-FTP-${version}-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-${version}-Opera-Extension.zip
-Ghost-FTP-${version}-Portable.exe
-Ghost-FTP-${version}-Setup.exe
-Ghost-FTP-${version}-macOS.app.zip
-RELEASE-NOTES.txt
-SHA256.txt
-EOF
-)
+          BUILD-METADATA.txt
+          Ghost-FTP-${version}-Android.apk
+          Ghost-FTP-${version}-Chrome-Extension.zip
+          Ghost-FTP-${version}-Edge-Extension.zip
+          Ghost-FTP-${version}-Firefox-Extension.zip
+          Ghost-FTP-${version}-Linux-Debian-Installer.run
+          Ghost-FTP-${version}-Linux-Debian-Portable.tar.gz
+          Ghost-FTP-${version}-Linux-Fedora-Installer.run
+          Ghost-FTP-${version}-Linux-Fedora-Portable.tar.gz
+          Ghost-FTP-${version}-Linux-Ubuntu-Installer.run
+          Ghost-FTP-${version}-Linux-Ubuntu-Portable.tar.gz
+          Ghost-FTP-${version}-Opera-Extension.zip
+          Ghost-FTP-${version}-Portable.exe
+          Ghost-FTP-${version}-Setup.exe
+          Ghost-FTP-${version}-macOS.app.zip
+          RELEASE-NOTES.txt
+          SHA256.txt
+          EOF
+          )
           actual="$(find release -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
           test "$actual" = "$expected" || { diff -u <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true; exit 1; }
           test "$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')" = '17'

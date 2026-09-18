@@ -26,8 +26,8 @@
 ### Release engineering and security
 
 - Advances root `VERSION` to **0.0.8** and keeps the Current channel with `ghostftp-v0.0.8`, `prerelease=false`.
-- Publishes the requested no-secret 0.0.8 distribution as **14 platform artifacts / 17 public files**: 2 unsigned universal Windows executables, 6 universal Linux bundles, 1 installable CI debug-signed Android APK, 1 ad-hoc signed universal macOS validation archive, 4 browser-helper ZIPs and 3 verification/metadata files.
-- Preserves the separate trusted production-signing workflow while the requested no-secret distribution records Windows as unsigned, Android as CI debug-signed and macOS as ad-hoc/not-notarized. Protocol security remains unchanged: strict FTPS verification, strict desktop SFTP host-key trust/pinning, fail-closed local/transfer boundaries and no application telemetry.
+- Publishes the requested no-secret 0.0.8 distribution as **14 platform artifacts / 17 public files**: 2 unsigned universal Windows executables, 6 universal Linux bundles, 1 installable temporary compatibility-signed Android APK, 1 ad-hoc signed universal macOS validation archive, 4 browser-helper ZIPs and 3 verification/metadata files.
+- Preserves the separate trusted production-signing workflow while the requested no-secret distribution records Windows as unsigned, Android as temporary compatibility-signed and macOS as ad-hoc/not-notarized. Protocol security remains unchanged: strict FTPS verification, strict desktop SFTP host-key trust/pinning, fail-closed local/transfer boundaries and no application telemetry.
 - Browser helpers retain zero browser/host permissions and the explicit sanitized Windows `ghostftp://connect` handoff; secrets, URL query data and fragments are excluded and the desktop never auto-connects.
 
 ## 0.0.7 - 2026-09-17

@@ -335,7 +335,7 @@ def main() -> int:
             "release/ghostftp-v0.0.8-no-key",
             "DISTRIBUTION_MODE=no-secret-public-release",
             "WINDOWS_AUTHENTICODE=unsigned",
-            "ANDROID_APK=debug-signed-no-secret",
+            "ANDROID_APK=temporary-compatibility-certificate",
             "MACOS_SIGNING=adhoc-validation",
             "MACOS_NOTARIZATION=not-performed",
             "PUBLIC_PLATFORM_ARTIFACTS=14",

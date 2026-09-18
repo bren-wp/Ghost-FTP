@@ -15,7 +15,10 @@ class NoKeyReleaseContractTests(unittest.TestCase):
         self.assertIn("release/ghostftp-v0.0.8-no-key", workflow)
         self.assertNotIn("secrets.", workflow)
         self.assertIn("WINDOWS_AUTHENTICODE=unsigned-no-key-distribution", workflow)
-        self.assertIn("ANDROID_APK=debug-signed-no-secret", workflow)
+        self.assertIn("ANDROID_APK=temporary-compatibility-certificate", workflow)
+        self.assertIn("app-release-unsigned.apk", workflow)
+        self.assertIn("ghostftp-compatibility.jks", workflow)
+        self.assertIn("apksigner\" sign", workflow)
         self.assertIn("MACOS_SIGNING=adhoc-validation-no-notarization", workflow)
         self.assertIn("DISTRIBUTION_MODE=no-secret-public-release", workflow)
 
@@ -38,6 +41,22 @@ class NoKeyReleaseContractTests(unittest.TestCase):
         self.assertIn("tag already exists; refusing to move release identity", workflow)
         self.assertIn("test \"$(jq '.assets | length' <<< \"$json\")\" = '17'", workflow)
         self.assertIn('test "$tag_sha" = "$GITHUB_SHA"', workflow)
+
+    def test_workflow_heredocs_remain_inside_yaml_block_scalar(self):
+        lines = self.read(".github/workflows/release-no-key.yml").splitlines()
+        for marker in (
+            "BRAND=Ghost FTP",
+            "Ghost FTP 0.0.8",
+            "BUILD-METADATA.txt",
+            "SHA256.txt",
+        ):
+            matches = [line for line in lines if line.strip() == marker]
+            self.assertTrue(matches, marker)
+            for line in matches:
+                self.assertTrue(line.startswith("          "), repr(line))
+        for line in lines:
+            if line.strip() in {"EOF", ")"}:
+                self.assertTrue(line.startswith("          "), repr(line))
 
     def test_public_shape_is_all_supported_platforms(self):
         workflow = self.read(".github/workflows/release-no-key.yml")

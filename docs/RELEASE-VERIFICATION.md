@@ -135,7 +135,7 @@ The public APK is:
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-The no-secret workflow builds the installable Gradle debug APK, copies it to the canonical `Ghost-FTP-0.0.8-Android.apk` filename, verifies it with `apksigner verify --verbose --print-certs`, and records the observed certificate SHA-256 digest in `BUILD-METADATA.txt`. No protected Android publisher secret is read or claimed. A future APK signed with a different key may require uninstall/reinstall.
+The no-secret workflow builds the unsigned release APK, generates a temporary one-run compatibility certificate, signs the release APK with Android `apksigner`, verifies it with `apksigner verify --verbose --print-certs`, and records the observed certificate SHA-256 digest in `BUILD-METADATA.txt`. No protected Android publisher secret is read or claimed. A future APK signed with a different key may require uninstall/reinstall.
 
 Android SFTP remains hidden until strict maintained host-key verification/pinning exists and fails closed for unknown or mismatched hosts.
 
@@ -165,7 +165,7 @@ LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
 LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
-ANDROID_APK=debug-signed-no-secret
+ANDROID_APK=temporary-compatibility-certificate
 ANDROID_SIGNER_SHA256=<verified CI debug signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera

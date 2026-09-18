@@ -4,7 +4,7 @@ Ghost FTP **0.0.8** is the current release target. The requested distribution is
 
 ## Canonical 0.0.8 release packages
 
-The 0.0.8 no-secret publication contains **14 platform artifacts / 17 public files**: two unsigned Windows executables, six Linux bundles, one installable CI debug-signed Android APK, one ad-hoc signed universal macOS validation app, four browser-helper ZIPs and three metadata/verification files.
+The 0.0.8 no-secret publication contains **14 platform artifacts / 17 public files**: two unsigned Windows executables, six Linux bundles, one installable temporary compatibility-signed Android APK, one ad-hoc signed universal macOS validation app, four browser-helper ZIPs and three metadata/verification files.
 
 ### Windows
 
@@ -65,7 +65,7 @@ cd Ghost-FTP-0.0.8-Linux-Debian-Portable
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-There is exactly one public Android APK. In the no-secret 0.0.8 distribution it is the installable CI debug-signed build. `apksigner` verifies its signature and `BUILD-METADATA.txt` records the observed certificate SHA-256 fingerprint; no protected Android publisher identity is claimed.
+There is exactly one public Android APK. In the no-secret 0.0.8 distribution it is the installable temporary compatibility-signed build. `apksigner` verifies its signature and `BUILD-METADATA.txt` records the observed certificate SHA-256 fingerprint; no protected Android publisher identity is claimed.
 
 Android compatibility is defined by the application's maintained `minSdk`/target SDK and tested devices; no APK can truthfully support literally every historical Android version. Ghost FTP aims for the broadest safe compatibility supported by its Android APIs and dependencies.
 
