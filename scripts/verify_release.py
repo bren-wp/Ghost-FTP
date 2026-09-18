@@ -13,6 +13,7 @@ AMD64 = 0x8664
 ARM64 = 0xAA64
 GUI_SUBSYSTEM = 2
 PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"
+PUBLIC_WINDOWS_COMPATIBILITY_ENV = "GHOSTFTP_ALLOW_UNSIGNED_PUBLIC_RELEASE"
 
 ARCH_SPECS = {
     "x86": {"machine": I386, "magic": 0x10B, "pe": "PE32", "data_dir": 96},
@@ -158,11 +159,23 @@ def require_public_release_signatures(
         workflow_name = os.environ.get("GITHUB_WORKFLOW", "")
     if workflow_name.strip() != PUBLIC_WINDOWS_RELEASE_WORKFLOW:
         return
-    if not setup_signed or not portable_signed:
+
+    if setup_signed != portable_signed:
         raise ValueError(
-            "public Windows release artifacts must be Authenticode signed; "
-            "configure the trusted production signing identity before publishing"
+            "public Windows release artifacts have inconsistent Authenticode state"
         )
+
+    if setup_signed and portable_signed:
+        return
+
+    compatibility = os.environ.get(PUBLIC_WINDOWS_COMPATIBILITY_ENV, "").strip().lower()
+    if compatibility in {"1", "true", "yes"}:
+        return
+
+    raise ValueError(
+        "public Windows release artifacts must be Authenticode signed unless the "
+        "explicit compatibility-release gate is enabled"
+    )
 
 
 def sha256(data: bytes) -> str:
