@@ -94,7 +94,7 @@ Linux artifacts do not use Authenticode, Android signing or Apple Developer ID. 
 
 ## Browser helper distribution boundary
 
-The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Their presence in the 0.0.6 GitHub Release does not claim Chrome Web Store/Edge Add-ons/Firefox AMO signing or approval. They remain privacy-minimal local parser/copy helpers with no supported browser-to-desktop handoff.
+The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Their presence in the 0.0.8 GitHub Release does not claim Chrome Web Store/Edge Add-ons/Firefox AMO signing or approval. They remain privacy-minimal local parser/copy helpers with no supported browser-to-desktop handoff.
 
 ## macOS development signing
 
@@ -104,11 +104,11 @@ The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Thei
 
 `macos/SIGN_AND_NOTARIZE.sh` is the separate fail-closed production-distribution path. It requires a real **Developer ID Application** identity, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. `.github/workflows/macos-production.yml` is the environment-gated CI path.
 
-A successful development build does not prove production distribution readiness. Ghost FTP does not claim macOS publication until that credentialed path actually succeeds. macOS therefore remains outside the 0.0.6 21-file public release.
+A successful development build does not prove production distribution readiness. Ghost FTP does not claim macOS publication until that credentialed path actually succeeds. macOS therefore remains outside the 0.0.8 16-file public release.
 
 ## Release shape and metadata
 
-The 0.0.6 release contains **18 platform artifacts / 21 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
+The 0.0.8 release contains **13 platform artifacts / 16 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
 
 ```text
 WINDOWS_AUTHENTICODE=signed
