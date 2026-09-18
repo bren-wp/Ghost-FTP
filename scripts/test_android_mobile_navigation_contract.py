@@ -65,10 +65,10 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         files = activity[start:end]
 
         for marker in (
-            'card("CURRENT CONNECTION"',
-            'currentConnectionSummary = pathLabel("Not connected")',
+            'connectionCard.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14))',
+            'currentConnectionSummary = label("Not connected", 14, GhostTheme.TEXT)',
             'connectionCard.setOnClickListener(v -> showSection(Section.SITES));',
-            'card("ACTIONS"',
+            'quickActionsCard.setOrientation(LinearLayout.VERTICAL)',
             'Button refreshAll = button("Refresh")',
             'Button newFolder = button("New Folder")',
             'Button bookmarks = button("Bookmarks")',
@@ -88,6 +88,10 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertNotIn("demo", files.lower())
         self.assertIn('card("LOCAL FILES", tabletLayout', activity)
         self.assertIn('card("REMOTE FILES", tabletLayout', activity)
+        self.assertIn("screenWidthDp >= 400", files)
+        self.assertIn("brandIcon.setImageResource(R.drawable.ic_ghost_brand);", activity)
+        self.assertIn("button.setSingleLine(true);", activity)
+        self.assertIn("button.setTextSize(8);", activity)
         self.assertIn("if (tabletLayout) card.addView(navigationActions, matchWrap());", activity)
         self.assertIn("private void showFilesMoreActions()", activity)
         self.assertIn("private void showNewFolderTarget()", activity)
@@ -190,6 +194,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
     def test_navigation_uses_local_vector_assets_and_no_emoji_controls(self) -> None:
         for name in (
             "ic_menu.xml",
+            "ic_ghost_brand.xml",
             "ic_files.xml",
             "ic_sites.xml",
             "ic_bookmarks.xml",
