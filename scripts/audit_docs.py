@@ -215,10 +215,9 @@ def main() -> int:
         "Ghost-FTP-0.0.8-Linux-Debian-Installer.run",
         "Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz",
         "Ghost-FTP-0.0.8-Android.apk",
-        "Ghost-FTP-0.0.8-macOS-notarized.app.zip",
-        "Ghost-FTP-0.0.8-macOS-notarized.app.zip",
+        "Ghost-FTP-0.0.8-macOS.app.zip",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
-        "GHOSTFTP_ANDROID_CERT_SHA256",
+        "Distribution mode: **no-secret public release**",
         "sanitized browser-to-desktop handoff",
         "Brendigo LTD",
         "proprietary commercial",
@@ -242,14 +241,14 @@ def main() -> int:
     require(
         "installation",
         installation,
-        "Ghost FTP **0.0.8** is the active release candidate",
+        "Ghost FTP **0.0.8** is the current release target",
         "14 platform artifacts / 17 public files",
         "Ghost-FTP-0.0.8-Linux-Debian-Installer.run",
         "Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz",
         "Ghost-FTP-0.0.8-Linux-Fedora-Installer.run",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
         "ghostftp-uninstall",
-        "GHOSTFTP_ANDROID_CERT_SHA256",
+        "CI debug-signed",
         "SFTP remains intentionally hidden",
     )
 
@@ -257,8 +256,8 @@ def main() -> int:
     require(
         "GitHub release documentation",
         releases,
-        "Ghost FTP **0.0.8** is the active release candidate",
-        "last actually published GitHub Release is **0.0.7**",
+        "Ghost FTP **0.0.8** is the current release target",
+        "no-secret distribution",
         "ghostftp-v0.0.8",
         "14 platform artifacts / 17 public files",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
@@ -272,13 +271,13 @@ def main() -> int:
     require(
         "release verification",
         verification,
-        "Ghost FTP **0.0.8** is the active release candidate",
+        "Ghost FTP **0.0.8** is the current release target",
         "VERSION=0.0.8",
         "TAG=ghostftp-v0.0.8",
         "PUBLIC_PLATFORM_ARTIFACTS=14",
         "PUBLIC_RELEASE_FILES=17",
         "Ghost-FTP-0.0.8-Opera-Extension.zip",
-        "GHOSTFTP_ANDROID_CERT_SHA256",
+        "ANDROID_SIGNER_SHA256",
         "release/ghostftp-vX.Y.Z",
         "must never publish a release directly",
     )
@@ -293,6 +292,9 @@ def main() -> int:
         "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
         "GHOSTFTP_ANDROID_CERT_SHA256",
         "Developer ID Application",
+        "no-secret distribution",
+        "WINDOWS_AUTHENTICODE=unsigned",
+        "ANDROID_APK=debug-signed-no-secret",
     )
 
     browser = read("extensions/README.md")
@@ -339,7 +341,7 @@ def main() -> int:
     print("ANDROID_SFTP=HIDDEN_UNTIL_STRICT_HOST_KEY_VERIFICATION")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("BROWSER_DESKTOP_HANDOFF=SANITIZED_GHOSTFTP_CONNECT_NO_AUTOCONNECT")
-    print("MACOS_PUBLIC_RELEASE=YES_DEVELOPER_ID_NOTARIZED")
+    print("MACOS_PUBLIC_RELEASE=YES_ADHOC_NOT_NOTARIZED")
     return 0
 
 
