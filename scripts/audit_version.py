@@ -96,7 +96,7 @@ def main() -> int:
             f"Current source version: **{version}**",
             "Release channel: **Current**",
             "Product status: **Current**",
-            "Last actually published GitHub Release: **0.0.7**",
+            "Last actually published GitHub Release: **0.0.8**",
             f"ghostftp-v{version}",
             "Prerelease: **false**",
             "14 platform artifacts / 17 public files",
@@ -395,8 +395,8 @@ def main() -> int:
     print(f"VERSION_AUDIT=PASS ({version}; channel=current; product=current)")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
-    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.7")
-    print("NEXT_PUBLIC_RELEASE=0.0.8")
+    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.8")
+    print("NEXT_PUBLIC_RELEASE=0.0.9")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("PUBLIC_PLATFORM_ARTIFACTS=14")
