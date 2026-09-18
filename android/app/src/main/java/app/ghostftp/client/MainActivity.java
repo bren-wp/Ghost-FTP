@@ -162,7 +162,7 @@ public final class MainActivity extends Activity {
     private volatile FtpSession connectingSession;
     private volatile boolean lifecycleDestroyed;
     private boolean busy;
-    private boolean rememberEndpoint = true;
+    private boolean rememberEndpoint = false;
     private boolean showFileSizes = true;
     private boolean confirmDelete = true;
     private String appearanceMode = GhostTheme.APPEARANCE_DARK;
@@ -895,7 +895,7 @@ public final class MainActivity extends Activity {
 
     private void restorePreferences() {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        rememberEndpoint = prefs.getBoolean("rememberEndpoint", true);
+        rememberEndpoint = prefs.getBoolean("rememberEndpoint", false);
         showFileSizes = prefs.getBoolean("showFileSizes", true);
         confirmDelete = prefs.getBoolean("confirmDelete", true);
         appearanceMode = GhostTheme.normalizeAppearance(
