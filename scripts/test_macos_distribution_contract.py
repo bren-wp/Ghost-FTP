@@ -109,10 +109,23 @@ class MacOSDistributionContractTests(unittest.TestCase):
         self.assertNotIn("ghostftp-macos-development", validation_workflow)
         self.assertNotIn("MACOS_DEVELOPER_ID_P12_BASE64", validation_workflow)
 
-    def test_public_release_remains_separate_until_credentialed_artifact_is_explicitly_promoted(self) -> None:
+    def test_public_release_requires_credentialed_notarized_macos_artifact(self) -> None:
         release = read(".github/workflows/release.yml")
-        self.assertNotIn("macOS-notarized.app.zip", release)
-        self.assertNotIn("SIGN_AND_NOTARIZE.sh", release)
+        for marker in (
+            "environment: macos-production",
+            "MACOS_DEVELOPER_ID_P12_BASE64",
+            "MACOS_DEVELOPER_ID_P12_PASSWORD",
+            "MACOS_DEVELOPER_IDENTITY",
+            "APPLE_NOTARY_API_KEY_P8",
+            "APPLE_NOTARY_API_KEY_ID",
+            "APPLE_NOTARY_ISSUER_ID",
+            "bash macos/SIGN_AND_NOTARIZE.sh",
+            "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
+            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+            "ghostftp-macos-release-stage",
+        ):
+            self.assertIn(marker, release)
+        self.assertNotIn("MACOS_SIGNING=adhoc-validation", release)
 
 
 if __name__ == "__main__":

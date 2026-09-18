@@ -76,6 +76,15 @@ func (a *app) refineWorkspaceLayout() {
 
 	a.stabilizeWorkspaceChrome()
 	a.applyApplicationSidebar()
+
+	// The supplied 0.0.8 desktop references use one compact connection row and
+	// a dedicated Back/Forward/Refresh/New Folder/Upload/Download/Bookmarks/More
+	// toolbar. Apply that canonical composition after the sidebar has established
+	// the application rail; all filter/search/comparison helpers below then derive
+	// their positions from the final pane rectangles instead of the legacy
+	// credential-heavy workspace.
+	a.layoutMasterWorkspaceChrome()
+
 	a.ensureFileFilterControls()
 	a.layoutFileFilterControls()
 	a.updateFileFilterControls()

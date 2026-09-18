@@ -50,6 +50,9 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_TREE = 1001;
     private static final String PREFS = "ghostftp_android";
     private static final int TABLET_SIDEBAR_MIN_DP = 700;
+    private static final String WEBSITE_URL = "https://ghostftp.com/";
+    private static final String UPDATE_URL = "https://ghostftp.com/#download";
+    private static final String PREMIUM_URL = "https://ghostftp.com/premium/";
 
     private enum Section {
         FILES,
@@ -69,6 +72,10 @@ public final class MainActivity extends Activity {
     private final List<LocalEntry> localEntries = new ArrayList<>();
     private final List<RemoteEntry> remoteEntries = new ArrayList<>();
     private final Deque<String> localParents = new ArrayDeque<>();
+    private final Deque<LocalNavigationState> localBackHistory = new ArrayDeque<>();
+    private final Deque<LocalNavigationState> localForwardHistory = new ArrayDeque<>();
+    private final Deque<String> remoteBackHistory = new ArrayDeque<>();
+    private final Deque<String> remoteForwardHistory = new ArrayDeque<>();
     private final List<SiteProfile> profiles = new ArrayList<>();
     private final List<Button> navigationButtons = new ArrayList<>();
     private final List<WorkspaceOps.Item> localVisibleItems = new ArrayList<>();
@@ -131,6 +138,8 @@ public final class MainActivity extends Activity {
     private Button remoteRemoveBookmark;
     private Button remoteOpenBookmark;
     private Button transferCancel;
+    private Button filesBack;
+    private Button filesForward;
     private Button applyAppearance;
     private CheckBox rememberEndpointToggle;
     private CheckBox showFileSizesToggle;
@@ -169,6 +178,7 @@ public final class MainActivity extends Activity {
     private boolean rememberEndpoint = false;
     private boolean showFileSizes = true;
     private boolean confirmDelete = true;
+    private boolean lastFilesNavigationRemote;
     private String appearanceMode = GhostTheme.APPEARANCE_DARK;
     private String localFilterQuery = "";
     private String remoteFilterQuery = "";
@@ -182,6 +192,7 @@ public final class MainActivity extends Activity {
     private volatile boolean transferFinalizing;
     private volatile long transferGeneration;
     private volatile TransferCommitGate activeTransferGate;
+    private volatile boolean updateCheckActive;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -499,31 +510,41 @@ public final class MainActivity extends Activity {
         quickActionsCard.setOrientation(LinearLayout.VERTICAL);
         quickActionsCard.setPadding(0, 0, 0, dp(4));
         LinearLayout actionRowOne = row();
+        filesBack = button("Back");
+        filesForward = button("Forward");
         Button refreshAll = button("Refresh");
         Button newFolder = button("New Folder");
-        Button bookmarks = button("Bookmarks");
+        Button uploadQuick = primaryButton("Upload");
+        for (Button compact : new Button[]{filesBack, filesForward, refreshAll, newFolder, uploadQuick}) {
+            compact.setTextSize(10f);
+            compact.setSingleLine(true);
+        }
+        actionRowOne.addView(filesBack, weightedSpaced());
+        actionRowOne.addView(filesForward, weightedSpaced());
         actionRowOne.addView(refreshAll, weightedSpaced());
         actionRowOne.addView(newFolder, weightedSpaced());
-        actionRowOne.addView(bookmarks, weightedSpaced());
+        actionRowOne.addView(uploadQuick, weightedSpaced());
         quickActionsCard.addView(actionRowOne, matchWrap());
 
         LinearLayout actionRowTwo = row();
-        Button uploadQuick = primaryButton("Upload");
         Button downloadQuick = primaryButton("Download");
+        Button bookmarks = button("Bookmarks");
         Button more = button("More");
-        actionRowTwo.addView(uploadQuick, weightedSpaced());
         actionRowTwo.addView(downloadQuick, weightedSpaced());
+        actionRowTwo.addView(bookmarks, weightedSpaced());
         actionRowTwo.addView(more, weightedSpaced());
         quickActionsCard.addView(actionRowTwo, matchWrap());
 
+        filesBack.setOnClickListener(v -> navigateFilesHistory(true));
+        filesForward.setOnClickListener(v -> navigateFilesHistory(false));
         refreshAll.setOnClickListener(v -> {
             refreshLocal();
             if (session != null && session.isConnected()) refreshRemote(currentRemotePath);
         });
         newFolder.setOnClickListener(v -> showNewFolderTarget());
-        bookmarks.setOnClickListener(v -> showSection(Section.BOOKMARKS));
         uploadQuick.setOnClickListener(v -> uploadSelected());
         downloadQuick.setOnClickListener(v -> downloadSelected());
+        bookmarks.setOnClickListener(v -> showSection(Section.BOOKMARKS));
         more.setOnClickListener(v -> showFilesMoreActions());
         content.addView(quickActionsCard, cardParams());
 
@@ -982,6 +1003,23 @@ public final class MainActivity extends Activity {
         securityCard.addView(infoLine("SFTP", "Not available in the Android app"), matchWrapSpaced());
         securityCard.addView(infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud"), matchWrapSpaced());
         content.addView(securityCard, cardParams());
+
+        LinearLayout updateCard = card(
+                "UPDATES & PREMIUM",
+                "Update simulation runs locally. External download actions open only the official ghostftp.com website; credentials, paths and transfer data are never sent.");
+        Button update = primaryButton("Update");
+        update.setOnClickListener(v -> simulateUpdate());
+        updateCard.addView(update, matchWrapSpaced());
+        Button download = button("Download latest");
+        download.setOnClickListener(v -> openTrustedWebPage(UPDATE_URL));
+        updateCard.addView(download, matchWrapSpaced());
+        Button premium = button("Download Premium");
+        premium.setOnClickListener(v -> openTrustedWebPage(PREMIUM_URL));
+        updateCard.addView(premium, matchWrapSpaced());
+        Button website = button("Official website");
+        website.setOnClickListener(v -> openTrustedWebPage(WEBSITE_URL));
+        updateCard.addView(website, matchWrapSpaced());
+        content.addView(updateCard, cardParams());
         return scrollSurface(content);
     }
 
@@ -1550,6 +1588,9 @@ public final class MainActivity extends Activity {
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
+        remoteBackHistory.clear();
+        remoteForwardHistory.clear();
+        lastFilesNavigationRemote = false;
         renderRemote();
         if (current != null) io.execute(current::close);
         setStatus("Disconnected.");
@@ -1593,6 +1634,9 @@ public final class MainActivity extends Activity {
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
+        remoteBackHistory.clear();
+        remoteForwardHistory.clear();
+        lastFilesNavigationRemote = false;
         busy = false;
         renderRemote();
         setStatus(disposition == TransferCommitGate.CancelDisposition.CLEANUP_STAGING
@@ -1602,6 +1646,10 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshRemote(String target) {
+        refreshRemoteInternal(target, true, null);
+    }
+
+    private void refreshRemoteInternal(String target, boolean recordHistory, Runnable onSuccess) {
         FtpSession current = session;
         if (busy || current == null || !current.isConnected()) return;
         final String requested;
@@ -1611,16 +1659,24 @@ public final class MainActivity extends Activity {
             setStatus(e.getMessage());
             return;
         }
+        final String previous = currentRemotePath;
+        final boolean navigationChanged = !requested.equals(previous);
         setBusy(true, "Refreshing server folder…");
         io.execute(() -> {
             try {
                 List<RemoteEntry> entries = current.list(requested);
                 runOnUiThread(() -> {
                     if (session != current) return;
+                    if (recordHistory && navigationChanged) {
+                        pushRemoteHistory(remoteBackHistory, previous);
+                        remoteForwardHistory.clear();
+                        lastFilesNavigationRemote = true;
+                    }
                     currentRemotePath = requested;
                     remoteEntries.clear();
                     remoteEntries.addAll(entries);
                     selectedRemote = -1;
+                    if (onSuccess != null) onSuccess.run();
                     renderRemote();
                     setBusy(false, "Server folder refreshed.");
                 });
@@ -1865,6 +1921,9 @@ public final class MainActivity extends Activity {
             rootDocumentId = documentId;
             currentDocumentId = documentId;
             localParents.clear();
+            localBackHistory.clear();
+            localForwardHistory.clear();
+            lastFilesNavigationRemote = false;
             localEntries.clear();
             localEntries.addAll(next);
             selectedLocal = -1;
@@ -1953,6 +2012,9 @@ public final class MainActivity extends Activity {
         if (entry.directory) {
             try {
                 List<LocalEntry> next = queryChildren(treeUri, entry.documentId);
+                pushLocalHistory(localBackHistory, captureLocalNavigation());
+                localForwardHistory.clear();
+                lastFilesNavigationRemote = false;
                 localParents.push(currentDocumentId);
                 currentDocumentId = entry.documentId;
                 localEntries.clear();
@@ -1973,6 +2035,9 @@ public final class MainActivity extends Activity {
         String target = localParents.peek();
         try {
             List<LocalEntry> next = queryChildren(treeUri, target);
+            pushLocalHistory(localBackHistory, captureLocalNavigation());
+            localForwardHistory.clear();
+            lastFilesNavigationRemote = false;
             localParents.pop();
             currentDocumentId = target;
             localEntries.clear();
@@ -1981,6 +2046,84 @@ public final class MainActivity extends Activity {
             renderLocal();
         } catch (IOException e) {
             setStatus("Parent folder is unavailable; current folder was not changed: " + safeMessage(e));
+        }
+    }
+
+
+    private LocalNavigationState captureLocalNavigation() {
+        if (currentDocumentId == null) return null;
+        return new LocalNavigationState(currentDocumentId, new ArrayList<>(localParents));
+    }
+
+    private void pushLocalHistory(Deque<LocalNavigationState> history, LocalNavigationState state) {
+        if (history == null || state == null) return;
+        if (history.size() >= 64) history.removeLast();
+        history.push(state);
+    }
+
+    private void pushRemoteHistory(Deque<String> history, String path) {
+        if (history == null || path == null || path.trim().isEmpty()) return;
+        if (history.size() >= 64) history.removeLast();
+        history.push(path);
+    }
+
+    private boolean restoreLocalNavigation(LocalNavigationState state) {
+        if (busy || state == null || treeUri == null) return false;
+        try {
+            List<LocalEntry> next = queryChildren(treeUri, state.documentId);
+            currentDocumentId = state.documentId;
+            localParents.clear();
+            localParents.addAll(state.parents);
+            localEntries.clear();
+            localEntries.addAll(next);
+            selectedLocal = -1;
+            lastFilesNavigationRemote = false;
+            renderLocal();
+            return true;
+        } catch (IOException e) {
+            setStatus("Folder history entry is no longer available: " + safeMessage(e));
+            return false;
+        }
+    }
+
+    private boolean canFilesHistory(boolean back) {
+        Deque<LocalNavigationState> local = back ? localBackHistory : localForwardHistory;
+        Deque<String> remote = back ? remoteBackHistory : remoteForwardHistory;
+        boolean remoteReady = session != null && session.isConnected() && !remote.isEmpty();
+        boolean localReady = treeUri != null && currentDocumentId != null && !local.isEmpty();
+        return lastFilesNavigationRemote ? (remoteReady || localReady) : (localReady || remoteReady);
+    }
+
+    private void navigateFilesHistory(boolean back) {
+        if (busy) return;
+        Deque<LocalNavigationState> localSource = back ? localBackHistory : localForwardHistory;
+        Deque<LocalNavigationState> localDestination = back ? localForwardHistory : localBackHistory;
+        Deque<String> remoteSource = back ? remoteBackHistory : remoteForwardHistory;
+        Deque<String> remoteDestination = back ? remoteForwardHistory : remoteBackHistory;
+
+        boolean remoteAvailable = session != null && session.isConnected() && !remoteSource.isEmpty();
+        boolean localAvailable = treeUri != null && currentDocumentId != null && !localSource.isEmpty();
+        boolean useRemote = lastFilesNavigationRemote ? remoteAvailable : !localAvailable && remoteAvailable;
+
+        if (useRemote) {
+            String target = remoteSource.peek();
+            String current = currentRemotePath;
+            refreshRemoteInternal(target, false, () -> {
+                remoteSource.pop();
+                pushRemoteHistory(remoteDestination, current);
+                lastFilesNavigationRemote = true;
+            });
+            return;
+        }
+
+        if (localAvailable) {
+            LocalNavigationState target = localSource.peek();
+            LocalNavigationState current = captureLocalNavigation();
+            if (restoreLocalNavigation(target)) {
+                localSource.pop();
+                pushLocalHistory(localDestination, current);
+                refreshButtons();
+            }
         }
     }
 
@@ -3038,6 +3181,8 @@ public final class MainActivity extends Activity {
         rootDocumentId = null;
         currentDocumentId = null;
         localParents.clear();
+        localBackHistory.clear();
+        localForwardHistory.clear();
         localEntries.clear();
         selectedLocal = -1;
     }
@@ -3161,6 +3306,8 @@ public final class MainActivity extends Activity {
             applyAppearance.setEnabled(appearanceReady);
             applyAppearance.setAlpha(appearanceReady ? 1f : 0.45f);
         }
+        if (filesBack != null) filesBack.setEnabled(!busy && canFilesHistory(true));
+        if (filesForward != null) filesForward.setEnabled(!busy && canFilesHistory(false));
 
         updateConnectionBadge(connected);
         updateTransferSurface();
@@ -3172,7 +3319,8 @@ public final class MainActivity extends Activity {
                 localFilter, localSort, localSearch, remoteFilter, remoteSort, remoteSearch,
                 directoryCompare, remoteEdit, saveSite, deleteSite,
                 localSetStart, localAddBookmark, localRemoveBookmark, localOpenBookmark,
-                remoteSetStart, remoteAddBookmark, remoteRemoveBookmark, remoteOpenBookmark);
+                remoteSetStart, remoteAddBookmark, remoteRemoveBookmark, remoteOpenBookmark,
+                filesBack, filesForward);
     }
 
     private void updateConnectionBadge(boolean connected) {
@@ -3258,6 +3406,54 @@ public final class MainActivity extends Activity {
         boolean idle = safe.isEmpty() || "Ready.".equals(safe);
         status.setVisibility(!tabletLayout && idle ? View.GONE : View.VISIBLE);
         updateTransferSurface();
+    }
+
+    private void simulateUpdate() {
+        if (updateCheckActive || lifecycleDestroyed) return;
+        updateCheckActive = true;
+        setStatus("Updating Ghost FTP…");
+        io.execute(() -> {
+            try {
+                Thread.sleep(700L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            runOnUiThread(() -> {
+                updateCheckActive = false;
+                if (lifecycleDestroyed) return;
+                setStatus("Ghost FTP " + BuildConfig.VERSION_NAME + " is updated.");
+                new AlertDialog.Builder(this)
+                        .setTitle("Update complete")
+                        .setMessage(
+                                "Ghost FTP " + BuildConfig.VERSION_NAME
+                                        + " update simulation completed locally. "
+                                        + "The installed signed build stays on version "
+                                        + BuildConfig.VERSION_NAME
+                                        + " until you install a newer package from ghostftp.com.")
+                        .setPositiveButton("OK", null)
+                        .show();
+            });
+        });
+    }
+
+    private void openTrustedWebPage(String value) {
+        Uri uri = Uri.parse(value == null ? "" : value.trim());
+        String hostName = uri.getHost();
+        boolean officialHost = "ghostftp.com".equalsIgnoreCase(hostName)
+                || "www.ghostftp.com".equalsIgnoreCase(hostName);
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || !officialHost
+                || uri.getUserInfo() != null) {
+            setStatus("Blocked an untrusted external link.");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+            intent.addCategory(Intent.CATEGORY_BROWSABLE);
+            startActivity(intent);
+        } catch (Exception e) {
+            setStatus("No browser is available to open this page.");
+        }
     }
 
     private static String safeMessage(Exception e) {
@@ -3459,6 +3655,16 @@ public final class MainActivity extends Activity {
 
     private int dp(int value) {
         return GhostTheme.dp(this, value);
+    }
+
+    private static final class LocalNavigationState {
+        final String documentId;
+        final List<String> parents;
+
+        LocalNavigationState(String documentId, List<String> parents) {
+            this.documentId = documentId;
+            this.parents = new ArrayList<>(parents);
+        }
     }
 
     private static final class LocalSearchNode {

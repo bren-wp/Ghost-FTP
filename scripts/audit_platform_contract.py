@@ -47,9 +47,12 @@ MACOS_REQUIRED = {
     "macos/README.md",
     "macos/PARITY.md",
     "macos/BUILD.sh",
+    "macos/SIGN_AND_NOTARIZE.sh",
     "macos/Sources/GhostFTPApp/main.swift",
     ".github/workflows/macos-app.yml",
+    ".github/workflows/macos-production.yml",
     "scripts/test_macos_windows_parity_contract.py",
+    "scripts/test_macos_distribution_contract.py",
 }
 BROWSER_REQUIRED = {
     "extensions/BRAND.json",
@@ -165,17 +168,20 @@ def main() -> int:
 
     release = read(".github/workflows/release.yml")
     release_lower = release.lower()
-    for marker in ("runs-on: macos", "ios/", "macos/", "ghostftp web/", "web/"):
+    for marker in ("ios/", "ghostftp web/", "web/"):
         if marker in release_lower:
             fail(f"release.yml public contract unexpectedly references unsupported public surface: {marker}")
     for marker in (
         "windows:",
         "linux:",
         "android:",
+        "macos:",
         "browser:",
         "Production signed Android APK",
+        "Developer ID signed notarized universal macOS app",
         "Chrome Edge Firefox Opera release packages",
         "Ghost-FTP-${VERSION}-Android.apk",
+        "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
         "Ghost-FTP-${VERSION}-Chrome-Extension.zip",
         "Ghost-FTP-${VERSION}-Opera-Extension.zip",
         "Ghost-FTP-${VERSION}-Linux-Debian-Installer.run",
@@ -184,8 +190,9 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Linux-Ubuntu-Portable.tar.gz",
         "Ghost-FTP-${VERSION}-Linux-Fedora-Installer.run",
         "Ghost-FTP-${VERSION}-Linux-Fedora-Portable.tar.gz",
-        "PUBLIC_PLATFORM_ARTIFACTS=13",
-        "PUBLIC_RELEASE_FILES=16",
+        "PUBLIC_PLATFORM_ARTIFACTS=14",
+        "PUBLIC_RELEASE_FILES=17",
+        "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
     ):
         if marker not in release:
             fail(f"cross-platform public release contract is incomplete: missing {marker}")
@@ -197,7 +204,7 @@ def main() -> int:
         fail("active product baseline must not precede 0.0.1")
 
     print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
-    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ACTIVE_WEB_SURFACE=NONE")
     print("WINDOWS_PUBLIC_RELEASE_PACKAGES=SETUP,PORTABLE")
@@ -210,7 +217,7 @@ def main() -> int:
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("BROWSER_DESKTOP_HANDOFF=WINDOWS_SANITIZED_PROTOCOL")
     print("MACOS_SOURCE_SURFACE=ACTIVE")
-    print("MACOS_PUBLIC_RELEASE_ARTIFACT=NO")
+    print("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_DEVELOPER_ID_NOTARIZED")
     print("RETIRED_APPLICATION_PLATFORMS=IOS")
     print("RETIRED_APPLICATION_SURFACES=PWA,WEB,WEB_FTP")
     print("LINUX_PLATFORM_STUBS=EXPLICIT")

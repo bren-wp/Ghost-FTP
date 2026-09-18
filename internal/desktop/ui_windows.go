@@ -54,8 +54,9 @@ func (a *app) createControls(hinst uintptr) error {
 	setFont(a.brandSubtitle, a.smallFont)
 	setFont(a.connectionBadge, a.smallFont)
 
-	// Language is placed in the header so long translated toolbar labels never
-	// compete with the profile/action row on smaller laptops.
+	// Language is intentionally owned by Settings in the canonical 0.0.8 UI.
+	// Keep the native selector alive for the existing settings/localization
+	// binding, but the main workspace rail hides it on every layout pass.
 	a.languageCombo = mk("COMBOBOX", "", cbsDropDownList|wsTabStop|wsVScroll, idLanguage)
 	a.populateLanguageCombo()
 

@@ -172,7 +172,7 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
             self.assertIn(f"- [x] {action}", parity)
             self.assertNotIn(f"- [ ] {action}", parity)
 
-    def test_production_preparation_does_not_silently_publish_a_public_release(self) -> None:
+    def test_production_preparation_stays_separate_while_canonical_release_promotes_verified_macos(self) -> None:
         readme = read("macos/README.md")
         self.assertIn("Source/native functionality is complete", readme)
         self.assertIn("Developer ID", readme)
@@ -180,8 +180,13 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
         self.assertIn("does **not** modify or upload to an existing public GitHub Release", readme)
 
         release = read(".github/workflows/release.yml")
-        self.assertNotIn("macOS-notarized.app.zip", release)
-        self.assertNotIn("SIGN_AND_NOTARIZE.sh", release)
+        for marker in (
+            "environment: macos-production",
+            "bash macos/SIGN_AND_NOTARIZE.sh",
+            "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
+            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+        ):
+            self.assertIn(marker, release)
 
     def test_build_contract_binds_to_root_version_and_app_bundle(self) -> None:
         build = read("macos/BUILD.sh")

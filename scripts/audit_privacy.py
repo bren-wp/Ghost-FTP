@@ -9,6 +9,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_ROOTS = (ROOT / "cmd", ROOT / "internal")
 FORBIDDEN_IMPORTS = {"net/http", "net/rpc", "net/smtp"}
+TRUSTED_FIXED_URL_FILE = "internal/brand/brand.go"
+TRUSTED_FIXED_URLS = {
+    "https://ghostftp.com/",
+    "https://ghostftp.com/premium/",
+    "https://ghostftp.com/#download",
+}
 FORBIDDEN_VENDOR_MARKERS = {
     "sentry.io",
     "google-analytics",
@@ -66,18 +72,56 @@ def audit_runtime_sources() -> None:
     for path in sorted(runtime_files):
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(ROOT)
+        rel_text = rel.as_posix()
         for imp in FORBIDDEN_IMPORTS:
-            if re.search(rf'["`]{re.escape(imp)}["`]', text):
-                fail(f"forbidden network import {imp!r} in {rel}")
+            if not re.search(rf'["`]{re.escape(imp)}["`]', text):
+                continue
+            fail(f"forbidden network import {imp!r} in {rel}")
         urls = sorted(set(URL_RE.findall(text)))
         if urls:
-            fail(f"fixed HTTP(S) URL found in runtime source {rel}: {urls[0]}")
+            if rel_text != TRUSTED_FIXED_URL_FILE:
+                fail(f"fixed HTTP(S) URL found in runtime source {rel}: {urls[0]}")
+            unexpected = set(urls) - TRUSTED_FIXED_URLS
+            missing = TRUSTED_FIXED_URLS - set(urls)
+            if unexpected or missing:
+                fail(
+                    "trusted public endpoint set drifted: "
+                    f"unexpected={sorted(unexpected)} missing={sorted(missing)}"
+                )
         lower = text.lower()
         for marker in FORBIDDEN_VENDOR_MARKERS:
             if marker in lower:
                 fail(f"telemetry/vendor marker {marker!r} found in {rel}")
         if rel.as_posix() != "internal/remote/util.go" and "toolError{" in text:
             fail(f"runtime toolError must be constructed through newToolError: {rel}")
+
+
+def audit_manual_update_boundary() -> None:
+    checker = require(
+        "internal/updatecheck/updatecheck.go",
+        (
+            "func Simulate(currentVersion string)",
+            "Simulated:      true",
+            "UpdateURL:      brand.UpdateURL",
+        ),
+    )
+    for forbidden in ("net/http", "https://api.github.com", "https://github.com", "ReleaseAPIURL", "Password", "Passphrase", "LocalPath", "RemotePath"):
+        if forbidden in checker:
+            fail(f"local update simulator contains forbidden marker: {forbidden}")
+
+    external = require(
+        "internal/external/open.go",
+        (
+            'parsed.Scheme != "https"',
+            "parsed.User != nil",
+            "OpenUpdatePage",
+            "OpenPremiumPage",
+            "OpenWebsite",
+            'officialHosts = []string{"ghostftp.com", "www.ghostftp.com"}',
+        ),
+    )
+    if "http://" in external or "https://github.com" in external or "https://api.github.com" in external:
+        fail("external browser launcher must use official Ghost FTP HTTPS destinations only")
 
 
 def audit_credentials_and_network_tools() -> None:
@@ -205,11 +249,13 @@ def audit_build_privacy() -> None:
 
 def main() -> None:
     audit_runtime_sources()
+    audit_manual_update_boundary()
     audit_credentials_and_network_tools()
     audit_build_privacy()
     print("PRIVACY_AUDIT=PASS")
     print("PRIVACY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX")
-    print("FIXED_RUNTIME_HTTP_URLS=BLOCKED")
+    print("FIXED_RUNTIME_HTTP_URLS=OFFICIAL_GHOSTFTP_WEBSITE_ONLY")
+    print("UPDATE_SIMULATION=LOCAL_ONLY_NO_NETWORK")
     print("TELEMETRY_VENDOR_MARKERS=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("RAW_TOOL_DIAGNOSTICS_USER_SURFACE=BLOCKED")

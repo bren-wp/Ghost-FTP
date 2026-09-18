@@ -130,6 +130,22 @@ func (a *app) openSettings() {
 
 	settings := normalizeSettingsForPrompt(a.settings)
 	language := a.languageCode()
+	languages := i18n.Languages()
+	languageOptions := make([]string, 0, len(languages))
+	languageCodes := make([]string, 0, len(languages))
+	languageIndex := 0
+	for index, item := range languages {
+		label := item.NativeName
+		if item.EnglishName != "" && item.EnglishName != item.NativeName {
+			label += " — " + item.EnglishName
+		}
+		languageOptions = append(languageOptions, label)
+		languageCodes = append(languageCodes, item.Code)
+		if i18n.Normalize(item.Code) == i18n.Normalize(language) {
+			languageIndex = index
+		}
+	}
+	defaultLanguageIndex := 0
 	appearance := appearanceText(language)
 	conflict := conflictPolicyText(language)
 	bandwidth := bandwidthWordsForLanguage(language)
@@ -139,6 +155,12 @@ func (a *app) openSettings() {
 		conflict.ReplaceBackup,
 	}
 	defaults := config.DefaultSettings()
+	for index, code := range languageCodes {
+		if i18n.Normalize(code) == i18n.Normalize(defaults.Language) {
+			defaultLanguageIndex = index
+			break
+		}
+	}
 	defaultNumbers := []int{
 		defaults.Parallelism,
 		defaults.UploadLimitKiBPerSecond,
@@ -156,6 +178,9 @@ func (a *app) openSettings() {
 		Title:             a.tr("settings.title"),
 		Heading:           brand.ProductName,
 		Intro:             a.tr("settings.title") + " · FTP • FTPS • SFTP",
+		LanguageLabel:     "Language",
+		LanguageOptions:   languageOptions,
+		LanguageIndex:     languageIndex,
 		AppearanceLabel:   appearance.Title,
 		AppearanceOptions: []string{appearance.Dark, appearance.Light},
 		AppearanceIndex:   appearanceIndex(settings.Appearance),
@@ -176,15 +201,35 @@ func (a *app) openSettings() {
 		ApplyLabel:             okLabel(language),
 		CancelLabel:            a.tr("common.cancel"),
 		ResetLabel:             settingsResetLabel(language),
+		UpdateLabel:            "Update",
+		DownloadLabel:          "Download latest",
+		PremiumLabel:           "Premium",
+		WebsiteLabel:           "Official website",
+		DefaultLanguageIndex:   defaultLanguageIndex,
 		DefaultAppearanceIndex: appearanceIndex(defaults.Appearance),
 		DefaultNumbers:         defaultNumbers,
 		DefaultConflictIndex:   conflictPolicyIndex(defaults),
 		DefaultConfirmDelete:   defaults.ConfirmDelete,
 	})
+	if result.Action != "" {
+		switch result.Action {
+		case "update":
+			a.checkForUpdates()
+		case "download":
+			a.openUpdateDownload()
+		case "premium":
+			a.openPremiumDownload()
+		case "website":
+			a.openOfficialWebsite()
+		}
+		return
+	}
 	if !ok || len(result.Numbers) != 6 {
 		return
 	}
-
+	if result.LanguageIndex >= 0 && result.LanguageIndex < len(languageCodes) {
+		settings.Language = languageCodes[result.LanguageIndex]
+	}
 	applyAppearanceSelection(&settings, result.AppearanceIndex)
 	settings.Parallelism = result.Numbers[0]
 	settings.UploadLimitKiBPerSecond = result.Numbers[1]

@@ -3,6 +3,9 @@ Set-StrictMode -Version 3.0
 
 Set-Location -LiteralPath $PSScriptRoot
 
+python .\scripts\generate_brand_assets.py --materialize
+if ($LASTEXITCODE -ne 0) { throw 'Ghost FTP brand asset materialization failed.' }
+
 $versionFile = Join-Path $PSScriptRoot 'VERSION'
 $dist = Join-Path $PSScriptRoot 'dist'
 $internalDist = Join-Path $dist 'internal'

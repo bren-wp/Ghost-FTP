@@ -69,12 +69,16 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             'currentConnectionSummary = label("Not connected", 14, GhostTheme.TEXT)',
             'connectionCard.setOnClickListener(v -> showSection(Section.SITES));',
             'quickActionsCard.setOrientation(LinearLayout.VERTICAL)',
+            'filesBack = button("Back")',
+            'filesForward = button("Forward")',
             'Button refreshAll = button("Refresh")',
             'Button newFolder = button("New Folder")',
             'Button bookmarks = button("Bookmarks")',
             'Button uploadQuick = primaryButton("Upload")',
             'Button downloadQuick = primaryButton("Download")',
             'Button more = button("More")',
+            'filesBack.setOnClickListener(v -> navigateFilesHistory(true));',
+            'filesForward.setOnClickListener(v -> navigateFilesHistory(false));',
             'more.setOnClickListener(v -> showFilesMoreActions());',
             'card("TRANSFER QUEUE"',
             'filesTransferStatus = label("No active transfer."',
@@ -94,6 +98,10 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("button.setTextSize(8);", activity)
         self.assertIn("if (tabletLayout) card.addView(navigationActions, matchWrap());", activity)
         self.assertIn("private void showFilesMoreActions()", activity)
+        self.assertIn("private void navigateFilesHistory(boolean back)", activity)
+        self.assertIn("private void refreshRemoteInternal(String target, boolean recordHistory, Runnable onSuccess)", activity)
+        self.assertIn("localBackHistory", activity)
+        self.assertIn("remoteBackHistory", activity)
         self.assertIn("private void showNewFolderTarget()", activity)
         self.assertIn('labels.add("Choose local folder")', activity)
         self.assertIn('labels.add("Connection info")', activity)

@@ -99,10 +99,11 @@ def main() -> int:
             "Last actually published GitHub Release: **0.0.7**",
             f"ghostftp-v{version}",
             "Prerelease: **false**",
-            "13 platform artifacts / 16 public files",
+            "14 platform artifacts / 17 public files",
             f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
             f"Ghost-FTP-{version}-Android.apk",
+            f"Ghost-FTP-{version}-macOS-notarized.app.zip",
             f"Ghost-FTP-{version}-Opera-Extension.zip",
             "GHOSTFTP_ANDROID_CERT_SHA256",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
@@ -259,15 +260,27 @@ def main() -> int:
     if (ROOT / "docs/WEB.md").exists():
         fail("retired Web FTP documentation must be removed")
 
-    for workflow_rel in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
-        workflow = read(workflow_rel)
-        if f"go-version: '{GO_TOOLCHAIN}'" not in workflow:
-            fail(f"{workflow_rel} does not pin Go {GO_TOOLCHAIN}")
-        require(workflow, ("windows:", "linux:", "bash linux/BUILD-DISTROS.sh"), workflow_rel)
-        lowered = workflow.lower()
-        for marker in ("ios/", "ghostftp web/", "runs-on: macos"):
-            if marker in lowered:
-                fail(f"{workflow_rel} references non-public application marker: {marker}")
+    ci_workflow = read(".github/workflows/ci.yml")
+    if f"go-version: '{GO_TOOLCHAIN}'" not in ci_workflow:
+        fail(f".github/workflows/ci.yml does not pin Go {GO_TOOLCHAIN}")
+    require(ci_workflow, ("windows:", "linux:", "bash linux/BUILD-DISTROS.sh"), ".github/workflows/ci.yml")
+    ci_lower = ci_workflow.lower()
+    for marker in ("ios/", "ghostftp web/", "runs-on: macos"):
+        if marker in ci_lower:
+            fail(f".github/workflows/ci.yml references non-public application marker: {marker}")
+
+    release_platform_workflow = read(".github/workflows/release.yml")
+    if f"go-version: '{GO_TOOLCHAIN}'" not in release_platform_workflow:
+        fail(f".github/workflows/release.yml does not pin Go {GO_TOOLCHAIN}")
+    require(
+        release_platform_workflow,
+        ("windows:", "linux:", "macos:", "bash linux/BUILD-DISTROS.sh", "bash macos/SIGN_AND_NOTARIZE.sh"),
+        ".github/workflows/release.yml",
+    )
+    release_platform_lower = release_platform_workflow.lower()
+    for marker in ("ios/", "ghostftp web/"):
+        if marker in release_platform_lower:
+            fail(f".github/workflows/release.yml references retired application marker: {marker}")
 
     release_workflow = read(".github/workflows/release.yml")
     if re.search(r"(?m)^\s*default:\s*['\"]?\d+\.\d+\.\d+", release_workflow):
@@ -290,6 +303,9 @@ def main() -> int:
             "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
             "GHOSTFTP_ANDROID_CERT_SHA256",
             "ANDROID_APK=production-signed",
+            "Developer ID signed notarized universal macOS app",
+            "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
+            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
             "BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera",
             "BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect",
             "WINDOWS_SETUP=universal-x86-x64-arm64",
@@ -301,8 +317,8 @@ def main() -> int:
             "LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386",
             "LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386",
             "LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386",
-            "PUBLIC_PLATFORM_ARTIFACTS=13",
-            "PUBLIC_RELEASE_FILES=16",
+            "PUBLIC_PLATFORM_ARTIFACTS=14",
+            "PUBLIC_RELEASE_FILES=17",
         ),
         ".github/workflows/release.yml",
     )
@@ -314,7 +330,7 @@ def main() -> int:
         (
             "Publish Ghost FTP",
             "test \"$release_prerelease\" = 'false'",
-            "test \"$asset_count\" -eq 16",
+            "test \"$asset_count\" -eq 17",
             "gh release delete",
             "--cleanup-tag",
             "packages/container/ghost-ftp/versions",
@@ -340,6 +356,7 @@ def main() -> int:
             "WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64",
             "LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386",
             "ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED",
+            "MACOS_PUBLIC_RELEASE_ARTIFACT=YES_DEVELOPER_ID_NOTARIZED",
             "BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA",
             "GHCR_CURRENT_BUNDLE=REQUIRED",
             "PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED",
@@ -355,11 +372,12 @@ def main() -> int:
     print("NEXT_PUBLIC_RELEASE=0.0.8")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
-    print("PUBLIC_PLATFORM_ARTIFACTS=13")
-    print("PUBLIC_RELEASE_FILES=16")
+    print("PUBLIC_PLATFORM_ARTIFACTS=14")
+    print("PUBLIC_RELEASE_FILES=17")
     print("WINDOWS_SETUP=UNIVERSAL_X86_X64_ARM64")
     print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
     print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
+    print("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_DEVELOPER_ID_NOTARIZED")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("RETIRED_WEB_SURFACES=ABSENT")
     return 0

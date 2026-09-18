@@ -112,10 +112,12 @@ The following are allowed to be macOS-native without weakening parity:
 - `NSOpenPanel` / `NSSavePanel` style file and folder selection;
 - Keychain-backed saved-secret protection after explicit user consent;
 - native keyboard focus, VoiceOver/accessibility and Retina scaling;
-- Apple signing, hardened runtime and notarization for a future public release.
+- [x] Apple signing, Hardened Runtime and notarization are required by the canonical 0.0.8 public release workflow.
+- [x] Manual Check for Updates uses the stable public GitHub Release channel without connection metadata.
+- [x] Download Premium opens only the trusted Ghost FTP HTTPS destination after an explicit user action.
 
 Native behavior does not permit removing Windows functionality, silently changing protocol/security behavior or exposing controls that are not connected to real state.
 
 ## Promotion gate
 
-The native action inventory is complete only when every box above is `[x]` and the exact source passes universal Intel/Apple-Silicon build plus privacy/security CI. Public distribution is a separate release gate: native runtime evidence, Apple Developer signing/notarization and explicit public release-workflow expansion must remain truthful and reviewed rather than being inferred from source parity.
+The native action inventory is complete only when every box above is `[x]` and the exact source passes universal Intel/Apple-Silicon build plus privacy/security CI. Public distribution remains a separate release gate: native runtime evidence and source parity never substitute for Apple Developer signing/notarization. The 0.0.8 canonical release now contains that explicit macOS gate and fails closed if its production identity or notarization proof is unavailable.

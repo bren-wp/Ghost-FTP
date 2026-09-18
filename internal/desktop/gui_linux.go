@@ -43,6 +43,7 @@ const (
 	linuxActionLocalRefresh
 	linuxActionRemoteRefresh
 	linuxActionTransfer
+	linuxActionUpdateCheck
 )
 
 type linuxRect struct {
@@ -183,14 +184,17 @@ func buildLinuxDesktopLayout(width, height int) linuxDesktopLayout {
 }
 
 type linuxUIResult struct {
-	action        int
-	err           error
-	connectResult bool
-	requiresTrust bool
-	fingerprint   string
-	localBase     string
-	localItems    []model.Item
-	remoteItems   []model.Item
+	action          int
+	err             error
+	connectResult   bool
+	requiresTrust   bool
+	fingerprint     string
+	localBase       string
+	localItems      []model.Item
+	remoteItems     []model.Item
+	updateLatest    string
+	updateURL       string
+	updateAvailable bool
 }
 
 type linuxDesktop struct {
@@ -218,28 +222,38 @@ type linuxDesktop struct {
 	profileIndex      int
 	selectedProfileID string
 
-	connected          bool
-	pendingFingerprint string
-	lastConnectConfig  model.ConnectionConfig
-	localCurrent       string
-	remoteCurrent      string
-	localItems         []model.Item
-	remoteItems        []model.Item
-	selectedLocal      int
-	selectedRemote     int
-	transferJobs       []model.TransferJob
-	selectedTransfer   int
-	queuePaused        bool
-	status             string
-	confirmKind        string
-	confirmUntil       time.Time
-	promptKind         int
-	promptTitle        string
-	promptValue        string
-	settingsOpen       bool
-	settingsDraft      model.Settings
-	settingsRects      linuxSettingsRects
-	infoOverlay        linuxInfoOverlayKind
+	connected            bool
+	pendingFingerprint   string
+	lastConnectConfig    model.ConnectionConfig
+	localCurrent         string
+	remoteCurrent        string
+	localItems           []model.Item
+	remoteItems          []model.Item
+	selectedLocal        int
+	selectedRemote       int
+	transferJobs         []model.TransferJob
+	selectedTransfer     int
+	queuePaused          bool
+	status               string
+	confirmKind          string
+	confirmUntil         time.Time
+	promptKind           int
+	promptTitle          string
+	promptValue          string
+	settingsOpen         bool
+	settingsDraft        model.Settings
+	settingsRects        linuxSettingsRects
+	infoOverlay          linuxInfoOverlayKind
+	pendingUpdateURL     string
+	pendingUpdateVersion string
+
+	masterConnectionsVisible bool
+	lastFilePaneRemote       bool
+	workspaceBackHistory     []linuxWorkspaceHistoryEntry
+	workspaceForwardHistory  []linuxWorkspaceHistoryEntry
+	workspaceReplayActive    bool
+	workspaceReplayBack      bool
+	workspaceReplayTarget    linuxWorkspaceHistoryEntry
 
 	resultCh chan linuxUIResult
 }
@@ -1043,7 +1057,11 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 	if u.handleRemoteEditResult(result) {
 		return
 	}
+	if u.handleLinuxUpdateResult(result) {
+		return
+	}
 	if result.err != nil {
+		u.failLinuxWorkspaceReplay()
 		u.setStatus(usererror.MessageFor(u.language, result.err, i18n.T(u.language, "error.generic")))
 		return
 	}
@@ -1066,13 +1084,19 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 		u.connected = false
 		u.pendingFingerprint = ""
 		u.clearLinuxRemoteFilterSource()
+		u.workspaceBackHistory = nil
+		u.workspaceForwardHistory = nil
+		u.workspaceReplayActive = false
+		u.lastFilePaneRemote = false
 		u.setStatus(u.tr("disconnect.done"))
 	case linuxActionLocalRefresh:
+		u.completeLinuxWorkspaceNavigation(false, result.localBase)
 		u.localCurrent = result.localBase
 		u.acceptLinuxFileFilterSnapshot(false, result.localItems)
 		u.selectedLocal = -1
 		u.setStatus(fmt.Sprintf("Local files refreshed: %d items.", len(result.localItems)))
 	case linuxActionRemoteRefresh:
+		u.completeLinuxWorkspaceNavigation(true, result.localBase)
 		u.remoteCurrent = result.localBase
 		u.acceptLinuxFileFilterSnapshot(true, result.remoteItems)
 		u.selectedRemote = -1
@@ -1092,6 +1116,9 @@ func (u *linuxDesktop) selectRow(r linuxRect, y int, count int) int {
 }
 
 func (u *linuxDesktop) handleMouse(x, y int) {
+	if u.handleLinuxMasterToolbarMouse(x, y) {
+		return
+	}
 	for i := 0; i < linuxFieldCount; i++ {
 		if u.fieldRect(i).contains(x, y) {
 			if i == linuxFieldProtocol {
@@ -1127,12 +1154,16 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 	case l.removeProfile.contains(x, y):
 		u.removeProfile()
 	case l.localUp.contains(x, y):
+		u.lastFilePaneRemote = false
 		u.refreshLocal(filepath.Dir(u.localCurrent))
 	case l.localRefresh.contains(x, y):
+		u.lastFilePaneRemote = false
 		u.refreshLocal(u.localCurrent)
 	case l.remoteUp.contains(x, y):
+		u.lastFilePaneRemote = true
 		u.refreshRemote(terminalRemotePath(u.remoteCurrent, ".."))
 	case l.remoteRefresh.contains(x, y):
+		u.lastFilePaneRemote = true
 		u.refreshRemote(u.remoteCurrent)
 	case l.localNew.contains(x, y):
 		u.openPrompt(linuxPromptLocalMkdir, u.tr("common.new_folder")+" · "+u.tr("section.local"), u.tr("common.new_folder"))
@@ -1151,8 +1182,10 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 	case u.remoteEditButtonRect().contains(x, y):
 		u.openSelectedRemoteEditor()
 	case u.fileFilterListRect(false).contains(x, y):
+		u.lastFilePaneRemote = false
 		u.selectedLocal = u.selectRow(u.fileFilterListRect(false), y, len(u.localItems))
 	case u.fileFilterListRect(true).contains(x, y):
+		u.lastFilePaneRemote = true
 		u.selectedRemote = u.selectRow(u.fileFilterListRect(true), y, len(u.remoteItems))
 	case l.upload.contains(x, y):
 		u.queueTransfer("upload")

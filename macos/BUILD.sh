@@ -34,6 +34,8 @@ SDK="$(xcrun --sdk macosx --show-sdk-path)"
 DEPLOYMENT_TARGET="13.0"
 BUNDLE_ID="app.ghostftp.client"
 
+python3 "$REPO_ROOT/scripts/generate_brand_assets.py" --materialize
+
 for required in "$SOURCE" "$SITE_MANAGER_SOURCE" "$APPLICATION_WINDOWS_SOURCE" "$PREPARE_SITE_MANAGER_SOURCES" "$BRIDGE_SOURCE" "$APPLICATION_BRIDGE_SOURCE" "$ASKPASS_SOURCE" "$ICON_SOURCE"; do
   if [[ ! -s "$required" ]]; then
     echo "Missing required macOS build input: $required" >&2

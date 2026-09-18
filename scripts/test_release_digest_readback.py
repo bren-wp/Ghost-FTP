@@ -12,8 +12,8 @@ from verify_release_digest_readback import expected_release_names, verify_releas
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
 VERSION = "9.8.7"
 TAG = f"ghostftp-v{VERSION}"
-EXPECTED_FILES = 16
-EXPECTED_ARTIFACTS = 13
+EXPECTED_FILES = 17
+EXPECTED_ARTIFACTS = 14
 
 
 class ReleaseDigestReadbackTests(unittest.TestCase):
@@ -133,7 +133,7 @@ class ReleaseDigestReadbackTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         source = bundle / f"Ghost-FTP-{VERSION}-Portable.exe"
         source.rename(bundle / "unexpected.bin")
-        with self.assertRaisesRegex(ValueError, "canonical 16-file release set"):
+        with self.assertRaisesRegex(ValueError, "canonical 17-file release set"):
             verify_release(bundle, release_json, COMMIT)
 
     def test_non_regular_bundle_entry_fails_closed(self) -> None:

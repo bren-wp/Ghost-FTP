@@ -105,10 +105,12 @@ Raw certificate/private-key/notary credentials must never be committed to the re
 - `APPLE_NOTARY_API_KEY_ID`
 - `APPLE_NOTARY_ISSUER_ID`
 
-The workflow destroys the temporary signing Keychain/files in an `always()` cleanup step. It deliberately does **not** modify or upload to an existing public GitHub Release. Promotion of a notarized artifact into a public release remains an explicit release decision rather than an automatic side effect of configuring credentials.
+The standalone `macos-production.yml` workflow destroys the temporary signing Keychain/files in an `always()` cleanup step and deliberately does **not** modify or upload to an existing public GitHub Release. The canonical 0.0.8 `release.yml` now performs the equivalent protected signing/notarization gate and promotes only its exact-run verified notarized ZIP into the release bundle.
 
 ## Release truthfulness
 
-Source/native functionality is complete and continuously validated on universal macOS builds. A public macOS binary can only be called production-distributable after a real Developer ID certificate and Apple notarization credentials have been supplied and `macos-production.yml` (or the equivalent local `SIGN_AND_NOTARIZE.sh` path) has succeeded. Those private Apple credentials are external security material and are intentionally not stored in this repository.
+Source/native functionality is complete and continuously validated on universal macOS builds. Ghost FTP 0.0.8 treats macOS as a public release target, but the canonical release fails closed unless a real Developer ID certificate and Apple notarization credentials are supplied and the exact release run completes signing, notarization, stapling and Gatekeeper verification. Those private Apple credentials are external security material and are intentionally not stored in this repository.
+
+Language selection and product utility actions are owned by **Settings**, not the main master rail or About window. **Update** is a local-only simulation. **Download latest**, **Premium** and **Official website** open only fixed HTTPS destinations on `ghostftp.com`; no user-facing GitHub release URL or release-API request is used by the application.
 
 See `PARITY.md` for the completed Windows ↔ macOS action/security contract.

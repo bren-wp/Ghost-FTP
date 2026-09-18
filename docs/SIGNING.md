@@ -1,6 +1,6 @@
 # Ghost FTP signing
 
-Ghost FTP **0.0.8** separates production publisher trust from development signing. Official Windows and Android publication both fail closed when their protected production identities are unavailable. Linux relies on exact-source/package/digest verification, and macOS remains outside the public release until its real Developer ID + Apple notarization path succeeds.
+Ghost FTP **0.0.8** separates production publisher trust from development signing. Official Windows, Android and macOS publication fail closed when their protected production identities are unavailable. Linux relies on exact-source/package/digest verification; macOS additionally requires the real Developer ID + Apple notarization path.
 
 The production workflow never creates its own long-lived publisher key.
 
@@ -104,19 +104,19 @@ The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Thei
 
 `macos/SIGN_AND_NOTARIZE.sh` is the separate fail-closed production-distribution path. It requires a real **Developer ID Application** identity, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. `.github/workflows/macos-production.yml` is the environment-gated CI path.
 
-A successful development build does not prove production distribution readiness. Ghost FTP does not claim macOS publication until that credentialed path actually succeeds. macOS therefore remains outside the 0.0.8 16-file public release.
+A successful validation build does not prove production distribution readiness. The 0.0.8 public macOS artifact is admitted only when the credentialed Developer ID + Apple notarization path succeeds; otherwise the whole canonical release fails closed.
 
 ## Release shape and metadata
 
-The 0.0.8 release contains **13 platform artifacts / 16 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
+The 0.0.8 release contains **14 platform artifacts / 17 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
 
 ```text
 WINDOWS_AUTHENTICODE=signed
 ANDROID_APK=production-signed
 ANDROID_SIGNER_SHA256=<verified public certificate fingerprint>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
-PUBLIC_PLATFORM_ARTIFACTS=18
-PUBLIC_RELEASE_FILES=21
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
 ```
 
 The GHCR object contains already-built verified release files only. It never contains signing credentials and is a distribution bundle, not a runtime container.

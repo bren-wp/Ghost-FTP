@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bren-wp/Ghost-FTP/internal/external"
 	"github.com/bren-wp/Ghost-FTP/internal/i18n"
 	"github.com/bren-wp/Ghost-FTP/internal/model"
 )
@@ -541,6 +542,39 @@ func GhostFTPDiagnosticsRemotePath() *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	return C.CString(bridgeState.remotePath)
+}
+
+//export GhostFTPOpenUpdatePage
+func GhostFTPOpenUpdatePage() C.int {
+	if err := external.OpenUpdatePage(); err != nil {
+		bridgeState.mu.Lock()
+		setBridgeError(err, "Ghost FTP could not open the official download page.")
+		bridgeState.mu.Unlock()
+		return 0
+	}
+	return 1
+}
+
+//export GhostFTPOpenPremiumPage
+func GhostFTPOpenPremiumPage() C.int {
+	if err := external.OpenPremiumPage(); err != nil {
+		bridgeState.mu.Lock()
+		setBridgeError(err, "Ghost FTP could not open the Premium download page.")
+		bridgeState.mu.Unlock()
+		return 0
+	}
+	return 1
+}
+
+//export GhostFTPOpenWebsite
+func GhostFTPOpenWebsite() C.int {
+	if err := external.OpenWebsite(); err != nil {
+		bridgeState.mu.Lock()
+		setBridgeError(err, "Ghost FTP could not open the official website.")
+		bridgeState.mu.Unlock()
+		return 0
+	}
+	return 1
 }
 
 //export GhostFTPAboutVersion

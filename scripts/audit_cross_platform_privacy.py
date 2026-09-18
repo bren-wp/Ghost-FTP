@@ -18,6 +18,14 @@ ANDROID_PROFILE_STORE = (
 )
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 ANDROID_ALLOWED_PERMISSIONS = {"android.permission.INTERNET"}
+ANDROID_TRUSTED_URL_FILE = (
+    ROOT / "android/app/src/main/java/app/ghostftp/client/MainActivity.java"
+)
+ANDROID_TRUSTED_FIXED_URLS = {
+    "https://ghostftp.com/",
+    "https://ghostftp.com/#download",
+    "https://ghostftp.com/premium/",
+}
 
 BROWSER_ROOT = ROOT / "extensions"
 BROWSER_RUNTIME_ROOT = BROWSER_ROOT / "shared"
@@ -137,10 +145,18 @@ def audit_android() -> None:
         reject_vendor_markers(path, text)
         urls = sorted(set(URL_RE.findall(text)))
         if urls:
-            fail(
-                f"fixed HTTP(S) URL found in Android runtime source "
-                f"{path.relative_to(ROOT)}: {urls[0]}"
-            )
+            if path != ANDROID_TRUSTED_URL_FILE:
+                fail(
+                    f"fixed HTTP(S) URL found in Android runtime source "
+                    f"{path.relative_to(ROOT)}: {urls[0]}"
+                )
+            unexpected = set(urls) - ANDROID_TRUSTED_FIXED_URLS
+            missing = ANDROID_TRUSTED_FIXED_URLS - set(urls)
+            if unexpected or missing:
+                fail(
+                    "Android official-site endpoint set drifted: "
+                    f"unexpected={sorted(unexpected)} missing={sorted(missing)}"
+                )
 
     profile_store = read_text(ANDROID_PROFILE_STORE)
     for secret_key in (
@@ -221,7 +237,7 @@ def main() -> None:
     print("CROSS_PLATFORM_PRIVACY_AUDIT=PASS")
     print("ANDROID_PERMISSION_SURFACE=INTERNET_ONLY")
     print("ANDROID_EXTERNAL_APP_DEPENDENCIES=BLOCKED")
-    print("ANDROID_FIXED_HTTP_URLS=BLOCKED")
+    print("ANDROID_FIXED_HTTP_URLS=OFFICIAL_GHOSTFTP_WEBSITE_ONLY")
     print("ANDROID_PROFILE_SECRET_PERSISTENCE=BLOCKED")
     print("BROWSER_EXTENSION_TARGETS=CHROME,EDGE,FIREFOX,OPERA")
     print("BROWSER_EXTENSION_RUNTIME=SHARED")

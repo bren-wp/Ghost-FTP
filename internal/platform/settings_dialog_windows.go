@@ -16,11 +16,16 @@ const (
 	settingsIDApply      = 1 // IDOK
 	settingsIDCancel     = 2 // IDCANCEL
 	settingsIDReset      = 3
+	settingsIDLanguage   = 4100
 	settingsIDAppearance = 4101
 	settingsIDNumberBase = 4110
 	settingsIDConflict   = 4120
 	settingsIDConfirm    = 4121
 	settingsIDError      = 4124
+	settingsIDUpdate     = 4125
+	settingsIDDownload   = 4126
+	settingsIDPremium    = 4127
+	settingsIDWebsite    = 4128
 
 	settingsCBAdd       = 0x0143
 	settingsCBGet       = 0x0147
@@ -59,6 +64,9 @@ type SettingsDialogConfig struct {
 	Title                  string
 	Heading                string
 	Intro                  string
+	LanguageLabel          string
+	LanguageOptions        []string
+	LanguageIndex          int
 	AppearanceLabel        string
 	AppearanceOptions      []string
 	AppearanceIndex        int
@@ -72,6 +80,11 @@ type SettingsDialogConfig struct {
 	ApplyLabel             string
 	CancelLabel            string
 	ResetLabel             string
+	UpdateLabel            string
+	DownloadLabel          string
+	PremiumLabel           string
+	WebsiteLabel           string
+	DefaultLanguageIndex   int
 	DefaultAppearanceIndex int
 	DefaultNumbers         []int
 	DefaultConflictIndex   int
@@ -79,13 +92,16 @@ type SettingsDialogConfig struct {
 }
 
 type SettingsDialogResult struct {
+	LanguageIndex   int
 	AppearanceIndex int
+	Action          string
 	Numbers         []int
 	ConflictIndex   int
 	ConfirmDelete   bool
 }
 
 type settingsDialogState struct {
+	language   uintptr
 	appearance uintptr
 	numbers    []uintptr
 	conflict   uintptr
@@ -130,6 +146,22 @@ func settingsWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 		case promptWMCommand:
 			id := int(wParam & 0xffff)
 			switch id {
+			case settingsIDUpdate:
+				state.result.Action = "update"
+				promptDestroyWindow.Call(hwnd)
+				return 0
+			case settingsIDDownload:
+				state.result.Action = "download"
+				promptDestroyWindow.Call(hwnd)
+				return 0
+			case settingsIDPremium:
+				state.result.Action = "premium"
+				promptDestroyWindow.Call(hwnd)
+				return 0
+			case settingsIDWebsite:
+				state.result.Action = "website"
+				promptDestroyWindow.Call(hwnd)
+				return 0
 			case settingsIDApply:
 				values := make([]int, len(state.numbers))
 				for index, edit := range state.numbers {
@@ -148,6 +180,7 @@ func settingsWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 					values[index] = value
 				}
 
+				state.result.LanguageIndex = settingsComboIndex(state.language, state.config.LanguageIndex)
 				state.result.AppearanceIndex = settingsComboIndex(state.appearance, state.config.AppearanceIndex)
 				state.result.Numbers = values
 				state.result.ConflictIndex = settingsComboIndex(state.conflict, state.config.ConflictIndex)
@@ -160,6 +193,12 @@ func settingsWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 				if len(state.config.DefaultNumbers) != len(state.numbers) {
 					return 0
 				}
+				promptSendMessageW.Call(
+					state.language,
+					settingsCBSet,
+					uintptr(normalizedSettingsIndex(state.config.DefaultLanguageIndex, len(state.config.LanguageOptions))),
+					0,
+				)
 				promptSendMessageW.Call(
 					state.appearance,
 					settingsCBSet,
@@ -228,6 +267,7 @@ func settingsNumberInputLength(field SettingsDialogNumber) uintptr {
 // prompts. It is DPI-aware, owner-modal and follows the active Ghost FTP theme.
 func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	fallback := SettingsDialogResult{
+		LanguageIndex:   normalizedSettingsIndex(config.LanguageIndex, len(config.LanguageOptions)),
 		AppearanceIndex: normalizedSettingsIndex(config.AppearanceIndex, len(config.AppearanceOptions)),
 		ConflictIndex:   normalizedSettingsIndex(config.ConflictIndex, len(config.ConflictOptions)),
 		ConfirmDelete:   config.ConfirmDeleteOn,
@@ -236,7 +276,7 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	for index, field := range config.Numbers {
 		fallback.Numbers[index] = field.Value
 	}
-	if len(config.AppearanceOptions) == 0 || len(config.ConflictOptions) == 0 || len(config.Numbers) == 0 || len(config.Numbers) > 6 {
+	if len(config.LanguageOptions) == 0 || len(config.AppearanceOptions) == 0 || len(config.ConflictOptions) == 0 || len(config.Numbers) == 0 || len(config.Numbers) > 6 {
 		return fallback, false
 	}
 	if config.ApplyLabel == "" {
@@ -245,12 +285,14 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	if config.CancelLabel == "" {
 		config.CancelLabel = "Cancel"
 	}
+	config.LanguageIndex = fallback.LanguageIndex
 	config.AppearanceIndex = fallback.AppearanceIndex
 	config.ConflictIndex = fallback.ConflictIndex
 	if len(config.DefaultNumbers) != len(config.Numbers) {
 		config.ResetLabel = ""
 		config.DefaultNumbers = nil
 	} else {
+		config.DefaultLanguageIndex = normalizedSettingsIndex(config.DefaultLanguageIndex, len(config.LanguageOptions))
 		config.DefaultAppearanceIndex = normalizedSettingsIndex(config.DefaultAppearanceIndex, len(config.AppearanceOptions))
 		config.DefaultConflictIndex = normalizedSettingsIndex(config.DefaultConflictIndex, len(config.ConflictOptions))
 	}
@@ -276,9 +318,10 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	confirmY := conflictLabelY + 70
 	footerSeparatorY := confirmY + 52
 	footerY := footerSeparatorY + 14
-	buttonY := footerSeparatorY + 30
-	errorY := footerSeparatorY + 52
-	clientHeight := footerSeparatorY + 100
+	utilityY := footerSeparatorY + 54
+	buttonY := footerSeparatorY + 100
+	errorY := footerSeparatorY + 146
+	clientHeight := footerSeparatorY + 190
 
 	hinst, _, _ := promptGetModuleHandleW.Call(0)
 	settingsOnce.Do(func() {
@@ -351,8 +394,15 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 
 	makeControl("STATIC", config.Heading, 0, 36, 22, 688, 38, 0, headingFont)
 	makeControl("STATIC", config.Intro, 0, 36, 66, 688, 34, 0, font)
-	makeControl("STATIC", config.AppearanceLabel, 0, 36, 112, 688, 22, 0, captionFont)
-	state.appearance = makeControl("COMBOBOX", "", settingsWSTabStop|settingsWSVScroll|settingsCBSDropList, 36, 137, 688, 240, settingsIDAppearance, font)
+	makeControl("STATIC", config.LanguageLabel, 0, 36, 112, 334, 22, 0, captionFont)
+	state.language = makeControl("COMBOBOX", "", settingsWSTabStop|settingsWSVScroll|settingsCBSDropList, 36, 137, 334, 240, settingsIDLanguage, font)
+	for _, option := range config.LanguageOptions {
+		promptSendMessageW.Call(state.language, settingsCBAdd, 0, uintptr(unsafe.Pointer(promptWstr(option))))
+	}
+	promptSendMessageW.Call(state.language, settingsCBSet, uintptr(config.LanguageIndex), 0)
+
+	makeControl("STATIC", config.AppearanceLabel, 0, 390, 112, 334, 22, 0, captionFont)
+	state.appearance = makeControl("COMBOBOX", "", settingsWSTabStop|settingsWSVScroll|settingsCBSDropList, 390, 137, 334, 240, settingsIDAppearance, font)
 	for _, option := range config.AppearanceOptions {
 		promptSendMessageW.Call(state.appearance, settingsCBAdd, 0, uintptr(unsafe.Pointer(promptWstr(option))))
 	}
@@ -398,7 +448,24 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	}
 
 	makeControl("STATIC", "", settingsEtchedHorz, 36, footerSeparatorY, 688, 2, 0, font)
-	makeControl("STATIC", config.Footer, 0, 36, footerY, 334, 38, 0, captionFont)
+	makeControl("STATIC", config.Footer, 0, 36, footerY, 688, 32, 0, captionFont)
+	utilityLabels := []struct {
+		text string
+		id   int
+	}{
+		{config.UpdateLabel, settingsIDUpdate},
+		{config.DownloadLabel, settingsIDDownload},
+		{config.PremiumLabel, settingsIDPremium},
+		{config.WebsiteLabel, settingsIDWebsite},
+	}
+	utilityX := 36
+	for _, item := range utilityLabels {
+		if item.text == "" {
+			continue
+		}
+		makeControl("BUTTON", item.text, settingsWSTabStop, utilityX, utilityY, 163, 36, item.id, font)
+		utilityX += 171
+	}
 	state.errorLabel = makeControl("STATIC", "", 0, 36, errorY, 334, 24, settingsIDError, captionFont)
 	if config.ResetLabel != "" {
 		makeControl("BUTTON", config.ResetLabel, settingsWSTabStop, 286, buttonY, 220, 38, settingsIDReset, font)
@@ -406,7 +473,9 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	applyButton := makeControl("BUTTON", config.ApplyLabel, settingsWSTabStop|settingsDefButton, 516, buttonY, 98, 38, settingsIDApply, font)
 	makeControl("BUTTON", config.CancelLabel, settingsWSTabStop, 624, buttonY, 100, 38, settingsIDCancel, font)
 
-	if state.appearance != 0 {
+	if state.language != 0 {
+		promptSetFocus.Call(state.language)
+	} else if state.appearance != 0 {
 		promptSetFocus.Call(state.appearance)
 	} else if applyButton != 0 {
 		promptSetFocus.Call(applyButton)

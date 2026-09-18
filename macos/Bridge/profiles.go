@@ -70,7 +70,9 @@ func GhostFTPProfileID(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.ID)
 }
 
@@ -79,7 +81,9 @@ func GhostFTPProfileName(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.Name)
 }
 
@@ -88,7 +92,9 @@ func GhostFTPProfileProtocol(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.Protocol)
 }
 
@@ -97,7 +103,9 @@ func GhostFTPProfileHost(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.Host)
 }
 
@@ -106,7 +114,9 @@ func GhostFTPProfilePort(index C.int) C.int {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return 0 }
+	if !ok {
+		return 0
+	}
 	return C.int(p.Port)
 }
 
@@ -115,7 +125,9 @@ func GhostFTPProfileUsername(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.Username)
 }
 
@@ -124,7 +136,9 @@ func GhostFTPProfileHasPassword(index C.int) C.int {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if ok && p.HasPassword { return 1 }
+	if ok && p.HasPassword {
+		return 1
+	}
 	return 0
 }
 
@@ -133,7 +147,9 @@ func GhostFTPProfilePrivateKeyPath(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.PrivateKeyPath)
 }
 
@@ -142,7 +158,9 @@ func GhostFTPProfileHasPassphrase(index C.int) C.int {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if ok && p.HasPassphrase { return 1 }
+	if ok && p.HasPassphrase {
+		return 1
+	}
 	return 0
 }
 
@@ -151,7 +169,9 @@ func GhostFTPProfileFingerprint(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.Fingerprint)
 }
 
@@ -160,7 +180,9 @@ func GhostFTPProfileRemotePath(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.RemotePath)
 }
 
@@ -169,13 +191,16 @@ func GhostFTPProfileLocalPath(index C.int) *C.char {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
 	p, ok := profileAt(index)
-	if !ok { return C.CString("") }
+	if !ok {
+		return C.CString("")
+	}
 	return C.CString(p.LocalPath)
 }
 
 // GhostFTPSaveProfile never accepts or returns protected secret blobs. Plaintext
 // credential fields exist only for this typed call and are either persisted via
 // the platform profile protector or discarded according to saveCredentials.
+//
 //export GhostFTPSaveProfile
 func GhostFTPSaveProfile(idValue, nameValue, protocolValue, hostValue *C.char, portValue C.int, usernameValue, passwordValue *C.char, saveCredentials C.int, privateKeyValue, passphraseValue, fingerprintValue, remotePathValue, localPathValue *C.char) C.int {
 	bridgeState.mu.Lock()
@@ -242,6 +267,7 @@ func GhostFTPRemoveProfile(idValue *C.char) C.int {
 
 // GhostFTPConnectProfile returns the same state codes as GhostFTPConnect:
 // 1 connected, 2 SFTP host-key trust required, 0 failure.
+//
 //export GhostFTPConnectProfile
 func GhostFTPConnectProfile(idValue, passwordValue, passphraseValue, trustFingerprint *C.char, rememberFingerprint C.int) C.int {
 	bridgeState.mu.Lock()
@@ -292,7 +318,9 @@ func GhostFTPConnectProfile(idValue, passwordValue, passphraseValue, trustFinger
 	bridgeState.pendingFingerprint = ""
 	bridgeState.remotePath = ""
 	bridgeState.remoteItems = nil
-	if result.Connected { return 1 }
+	if result.Connected {
+		return 1
+	}
 	setBridgeError(errors.New("connection was not established"), "Connection failed. Please try again.")
 	return 0
 }

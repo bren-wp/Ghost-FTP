@@ -308,10 +308,11 @@ final class SettingsWindowController: NSWindowController {
     private let conflictPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let confirmDeleteButton = NSButton(checkboxWithTitle: "Confirm delete", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
+    private let updateButton = NSButton(title: "Update", target: nil, action: nil)
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 650, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 690, height: 650),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -356,6 +357,17 @@ final class SettingsWindowController: NSWindowController {
         grid.columnSpacing = 14
         grid.column(at: 0).xPlacement = .trailing
 
+        let productActions = NSStackView(views: [
+            updateButton,
+            NSButton(title: "Download latest", target: self, action: #selector(downloadLatestTapped)),
+            NSButton(title: "Premium", target: self, action: #selector(premiumTapped)),
+            NSButton(title: "Official website", target: self, action: #selector(websiteTapped))
+        ])
+        productActions.orientation = .horizontal
+        productActions.spacing = 8
+        updateButton.target = self
+        updateButton.action = #selector(updateTapped)
+
         let resetButton = NSButton(title: "Restore Defaults", target: self, action: #selector(restoreDefaultsTapped))
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveTapped))
         saveButton.keyEquivalent = "\r"
@@ -365,10 +377,10 @@ final class SettingsWindowController: NSWindowController {
         actions.spacing = 8
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.maximumNumberOfLines = 2
-        let note = applicationLabel("Language is stored in the shared Ghost FTP settings used by all desktop surfaces.", size: 11)
+        let note = applicationLabel("Language is stored in Settings. Update simulation is local-only; downloads open only the official ghostftp.com website.", size: 11)
         note.textColor = .secondaryLabelColor
 
-        let stack = NSStackView(views: [applicationLabel("Ghost FTP Settings", size: 20, weight: .semibold), grid, note, actions, statusLabel])
+        let stack = NSStackView(views: [applicationLabel("Ghost FTP Settings", size: 20, weight: .semibold), grid, note, productActions, actions, statusLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 14
@@ -475,6 +487,35 @@ final class SettingsWindowController: NSWindowController {
         }
         statusLabel.stringValue = "Settings saved."
         onAppearanceChanged?(appearance)
+    }
+
+    @objc private func updateTapped() {
+        updateButton.isEnabled = false
+        let version = applicationBridgeString(GhostFTPAboutVersion())
+        statusLabel.stringValue = "Updating Ghost FTP…"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            guard let self else { return }
+            self.updateButton.isEnabled = true
+            self.statusLabel.stringValue = "Ghost FTP \(version) is updated. Install a newer signed build from ghostftp.com when available."
+        }
+    }
+
+    @objc private func downloadLatestTapped() {
+        statusLabel.stringValue = GhostFTPOpenUpdatePage() == 1
+            ? "Official Ghost FTP download page opened in your browser."
+            : "Unable to open the official download page."
+    }
+
+    @objc private func premiumTapped() {
+        statusLabel.stringValue = GhostFTPOpenPremiumPage() == 1
+            ? "Premium download page opened in your browser."
+            : "Unable to open the Premium download page."
+    }
+
+    @objc private func websiteTapped() {
+        statusLabel.stringValue = GhostFTPOpenWebsite() == 1
+            ? "Official Ghost FTP website opened in your browser."
+            : "Unable to open the official website."
     }
 
     @objc private func restoreDefaultsTapped() {

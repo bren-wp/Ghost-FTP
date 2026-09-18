@@ -2,7 +2,7 @@
 
 Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release remains **0.0.7** until the protected 0.0.8 release transaction succeeds.
 
-The canonical 0.0.8 publication contains **13 platform artifacts / 16 public files**.
+The canonical 0.0.8 publication contains **14 platform artifacts / 17 public files**.
 
 ## 0.0.8 release identity
 
@@ -12,8 +12,8 @@ TAG=ghostftp-v0.0.8
 TITLE=Ghost FTP 0.0.8
 CHANNEL=Current
 PRERELEASE=false
-PUBLIC_PLATFORM_ARTIFACTS=13
-PUBLIC_RELEASE_FILES=16
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
 PROTECTED_RELEASE_TAG=ghostftp-v0.0.7
 PROTECTED_RELEASE_POLICY=PRESERVE_TAG_RELEASE_AND_EXISTING_PACKAGE
 ```
@@ -58,7 +58,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS remains outside the public 16-file release until real Developer ID signing and Apple notarization succeed.
+macOS is accepted into the public 17-file release only after real Developer ID signing, Apple notarization, stapling and Gatekeeper verification succeed.
 
 ## Canonical release dispatch
 
@@ -159,7 +159,7 @@ BRAND=Ghost FTP
 VERSION=0.0.8
 RELEASE_TAG=ghostftp-v0.0.8
 RELEASE_CHANNEL=current
-PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
+PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER
 ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
 WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
@@ -177,8 +177,8 @@ ANDROID_SIGNER_SHA256=<verified signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
 BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
-PUBLIC_PLATFORM_ARTIFACTS=13
-PUBLIC_RELEASE_FILES=16
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
 GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
@@ -186,7 +186,7 @@ GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 
 Exact-head UI evidence is source-bound. Maintained workflows capture real Windows, Linux and Android runtime surfaces and assemble a verified evidence bundle containing source SHA, filenames, byte counts and SHA-256 hashes. Mockups, image-generation output and manually composed approximations are not release evidence.
 
-The Windows evidence does not claim native ARM64 execution. macOS development CI is separate from public release publication and is not notarization evidence.
+The Windows evidence does not claim native ARM64 execution. macOS validation CI remains separate from production evidence; only the credentialed Developer ID + notarization release job is publication evidence.
 
 ## Remote release readback
 
@@ -207,3 +207,6 @@ The exact-version package is verified after push. It is a distribution bundle, n
 Only after the 0.0.8 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.8` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. The published `ghostftp-v0.0.7` release/tag is a protected immutable baseline and must remain present and unchanged; an existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).
+
+
+Verified macOS asset: `Ghost-FTP-0.0.8-macOS-notarized.app.zip`.

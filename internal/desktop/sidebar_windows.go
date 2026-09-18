@@ -15,7 +15,6 @@ const (
 	applicationSidebarCardGap     = 8
 	applicationSidebarUtilityH    = 38
 	applicationSidebarUtilityGap  = 7
-	applicationSidebarLanguageH   = 29
 	applicationSidebarPrimaryTop  = 64
 	applicationSidebarBrandIcon   = 32
 	applicationSidebarBrandGap    = 8
@@ -269,7 +268,7 @@ func (a *app) layoutSidebarRail(height int) {
 		y += applicationSidebarCardH + applicationSidebarCardGap
 	}
 
-	utilityBlockH := 3*applicationSidebarUtilityH + 2*applicationSidebarUtilityGap + applicationSidebarLanguageH + applicationSidebarUtilityGap
+	utilityBlockH := 3*applicationSidebarUtilityH + 2*applicationSidebarUtilityGap
 	utilityY := height - applicationSidebarBottomInset - utilityBlockH
 	if utilityY < y+18 {
 		utilityY = y + 18
@@ -278,7 +277,7 @@ func (a *app) layoutSidebarRail(height int) {
 		a.move(control, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarUtilityH)
 		utilityY += applicationSidebarUtilityH + applicationSidebarUtilityGap
 	}
-	a.move(a.languageCombo, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarLanguageH)
+	showControls(false, a.languageCombo)
 }
 
 // applyApplicationSidebar turns application-level navigation into one canonical
