@@ -91,6 +91,14 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)", source)
         self.assertNotIn("listY := actionY + 29 + 44", source)
 
+    def test_queue_priority_controls_never_clip_past_master_row(self):
+        source = self.read("internal/desktop/queue_priority_windows.go")
+        self.assertIn("left := int(retryBottomRight.X) + gap", source)
+        self.assertIn("right := int(clearTopLeft.X) - gap", source)
+        self.assertIn("showControls(false, controls...)", source)
+        self.assertIn("showControls(true, controls...)", source)
+        self.assertIn("minButtonWidth := a.scale(44)", source)
+
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
         self.assertIn("setControlEnabled(a.remoteList, true)", source)
