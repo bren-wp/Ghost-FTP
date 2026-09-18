@@ -121,6 +121,21 @@ class WindowsVisualRegressionTests(unittest.TestCase):
             self.assertIn(marker, source)
         self.assertNotIn("Coming Soon", source)
 
+    def test_master_files_surface_hides_duplicate_inline_action_chrome(self):
+        master = self.read("internal/desktop/master_workspace_windows.go")
+        filters = self.read("internal/desktop/file_filter_windows.go")
+        search = self.read("internal/desktop/recursive_search_windows.go")
+        compare = self.read("internal/desktop/directory_compare_windows.go")
+        self.assertIn("showControls(false,", master)
+        self.assertIn("a.localUp, a.localChoose, a.localRefresh", master)
+        self.assertIn("a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod", master)
+        self.assertIn("a.move(a.localPath, leftX, pathY, paneW, 29)", master)
+        self.assertIn("a.move(a.remotePath, rightX, pathY, paneW, 29)", master)
+        self.assertIn("showControls(false, button)", filters)
+        self.assertNotIn("a.move(list, left, listTop, width, bottom-listTop)", filters)
+        self.assertIn("showControls(false, filterButton, pane.searchButton, pane.navigateButton, pane.list)", search)
+        self.assertIn("showControls(false, state.compareButton, state.openBothButton, state.localList, state.remoteList)", compare)
+
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
         self.assertIn("setControlEnabled(a.remoteList, true)", source)
