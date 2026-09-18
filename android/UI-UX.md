@@ -42,13 +42,13 @@ Connections owns Quick Connect and explicitly saved connection profiles.
 
 Quick Connect exposes only Android protocols that have complete runtime security ownership: FTP and explicit FTPS. FTPS keeps strict certificate and hostname verification. FTP remains visibly unencrypted by its runtime status messaging.
 
-Passwords remain memory-only. Saving a connection never persists a password. Quick Connect never creates a hidden profile.
+Passwords remain memory-only. Saving a connection never persists a password. Quick Connect never creates a hidden saved connection.
 
 Saved connection identity continues to bind remote navigation state to protocol, canonical host, port and exact username. Changing that identity clears remote start-directory/bookmark state rather than silently carrying it to another endpoint.
 
 ### Bookmarks
 
-Bookmarks owns local SAF navigation bookmarks, local site start folders, remote bookmarks and remote site start directories.
+Bookmarks owns local SAF navigation bookmarks, local saved-connection start folders, remote bookmarks and remote saved-connection start directories.
 
 Local bookmarks are persisted SAF capability URIs. They must still have a persisted permission and produce a fresh directory query before the visible local state is changed.
 
