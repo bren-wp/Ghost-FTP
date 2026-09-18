@@ -248,7 +248,7 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         palette = self.read("internal/uipalette/palette.go")
 
         def go_palette(name: str) -> dict[str, tuple[int, int, int]]:
-            match = re.search(rf"var {name} = Theme\{(?P<body>.*?)\n\}", palette, re.S)
+            match = re.search(r"var " + re.escape(name) + r" = Theme\{(?P<body>.*?)\n\}", palette, re.S)
             self.assertIsNotNone(match, f"missing canonical {name} palette")
             return {
                 field: tuple(int(channel, 16) for channel in (red, green, blue))
