@@ -315,19 +315,19 @@ public final class MainActivity extends Activity {
         LinearLayout appBar = new LinearLayout(this);
         appBar.setOrientation(LinearLayout.HORIZONTAL);
         appBar.setGravity(Gravity.CENTER_VERTICAL);
-        appBar.setPadding(dp(12), dp(10), dp(12), dp(10));
+        appBar.setPadding(dp(14), dp(10), dp(12), dp(10));
         appBar.setBackgroundColor(GhostTheme.PANEL);
 
         ImageView brandIcon = new ImageView(this);
         brandIcon.setImageResource(R.drawable.ic_ghost_brand);
         brandIcon.setContentDescription("Ghost FTP");
         brandIcon.setPadding(dp(3), dp(3), dp(3), dp(3));
-        appBar.addView(brandIcon, new LinearLayout.LayoutParams(dp(46), dp(46)));
+        appBar.addView(brandIcon, new LinearLayout.LayoutParams(dp(50), dp(50)));
 
         LinearLayout titleStack = new LinearLayout(this);
         titleStack.setOrientation(LinearLayout.VERTICAL);
         titleStack.setPadding(dp(10), 0, dp(8), 0);
-        TextView brand = label("Ghost FTP", 18, GhostTheme.TEXT);
+        TextView brand = label("Ghost FTP", 20, GhostTheme.TEXT);
         brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         sectionTitle = label("Files", 11, GhostTheme.MUTED);
         sectionTitle.setVisibility(tabletLayout ? View.VISIBLE : View.GONE);
@@ -337,12 +337,13 @@ public final class MainActivity extends Activity {
 
         connectionBadge = label("DISCONNECTED", 10, GhostTheme.MUTED);
         GhostTheme.styleBadge(connectionBadge, GhostTheme.MUTED);
+        connectionBadge.setMinHeight(dp(40));
         appBar.addView(connectionBadge, wrapWrap());
 
         menuToggle = new ImageButton(this);
-        menuToggle.setImageResource(R.drawable.ic_menu);
+        menuToggle.setImageResource(R.drawable.ic_overflow_vertical);
         menuToggle.setImageTintList(ColorStateList.valueOf(GhostTheme.TEXT));
-        menuToggle.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 12));
+        menuToggle.setBackgroundColor(Color.TRANSPARENT);
         menuToggle.setContentDescription("Open utility menu");
         menuToggle.setPadding(dp(10), dp(10), dp(10), dp(10));
         menuToggle.setOnClickListener(v -> openNavigationDrawer());
