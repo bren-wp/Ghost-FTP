@@ -35,3 +35,15 @@ macOS artifacts are retired and must not appear in current release assembly or m
 - Linux packages are verified by exact-source build/lifecycle checks and release checksums.
 
 See [Signing](SIGNING.md) and [Release verification](RELEASE-VERIFICATION.md).
+
+
+## Windows architecture evidence
+
+Ghost FTP Windows Setup and Portable are universal launchers with native **x64, x86 and ARM64** application payloads.
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 payload is built and structurally verified in CI. The metadata value above is intentionally explicit: current hosted CI does not claim native Windows-on-ARM runtime execution evidence.
