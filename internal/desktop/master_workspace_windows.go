@@ -8,6 +8,39 @@ import (
 	"unsafe"
 )
 
+const (
+	masterMoreLocalChoose = 9001 + iota
+	masterMoreLocalUp
+	masterMoreLocalFilter
+	masterMoreLocalSearch
+	masterMoreLocalRename
+	masterMoreLocalDelete
+	masterMoreRemoteUp
+	masterMoreRemoteFilter
+	masterMoreRemoteSearch
+	masterMoreRemoteRename
+	masterMoreRemoteDelete
+	masterMoreRemotePermissions
+	masterMoreRemoteEdit
+	masterMoreCompare
+	masterMoreConnectionInfo
+)
+
+const (
+	masterMFString    = 0x0000
+	masterMFSeparator = 0x0800
+	masterTPMReturn   = 0x0100
+	masterTPMRight    = 0x0002
+)
+
+var (
+	masterCreatePopupMenu = user32.NewProc("CreatePopupMenu")
+	masterAppendMenuW      = user32.NewProc("AppendMenuW")
+	masterTrackPopupMenu   = user32.NewProc("TrackPopupMenu")
+	masterDestroyMenu      = user32.NewProc("DestroyMenu")
+	masterGetWindowRect    = user32.NewProc("GetWindowRect")
+)
+
 type workspaceHistoryEntry struct {
 	Remote bool
 	Path   string
@@ -146,13 +179,87 @@ func (a *app) masterNewFolderAction() {
 }
 
 func (a *app) masterMoreAction() {
-	if a == nil {
+	if a == nil || a.hwnd == 0 || a.masterMore == 0 {
 		return
 	}
-	// Connection info is the canonical secondary utility surface. More never
-	// fabricates operations or hidden state; advanced per-pane controls remain
-	// available below the master toolbar.
-	a.showDiagnostics()
+	menu, _, _ := masterCreatePopupMenu.Call()
+	if menu == 0 {
+		a.showDiagnostics()
+		return
+	}
+	defer masterDestroyMenu.Call(menu)
+
+	appendItem := func(id int, label string) {
+		masterAppendMenuW.Call(menu, masterMFString, uintptr(id), uintptr(unsafe.Pointer(wstr(label))))
+	}
+	appendSeparator := func() {
+		masterAppendMenuW.Call(menu, masterMFSeparator, 0, 0)
+	}
+
+	appendItem(masterMoreLocalChoose, "Local: Choose folder")
+	appendItem(masterMoreLocalUp, "Local: Up")
+	appendItem(masterMoreLocalFilter, "Local: Filter")
+	appendItem(masterMoreLocalSearch, "Local: Recursive search")
+	appendItem(masterMoreLocalRename, "Local: Rename selected")
+	appendItem(masterMoreLocalDelete, "Local: Delete selected")
+	appendSeparator()
+	appendItem(masterMoreRemoteUp, "Remote: Up")
+	appendItem(masterMoreRemoteFilter, "Remote: Filter")
+	appendItem(masterMoreRemoteSearch, "Remote: Recursive search")
+	appendItem(masterMoreRemoteRename, "Remote: Rename selected")
+	appendItem(masterMoreRemoteDelete, "Remote: Delete selected")
+	appendItem(masterMoreRemotePermissions, "Remote: Permissions")
+	appendItem(masterMoreRemoteEdit, "Remote Edit")
+	appendSeparator()
+	appendItem(masterMoreCompare, "Compare local and remote folders")
+	appendItem(masterMoreConnectionInfo, "Connection info")
+
+	var bounds rect
+	if ok, _, _ := masterGetWindowRect.Call(a.masterMore, uintptr(unsafe.Pointer(&bounds))); ok == 0 {
+		a.showDiagnostics()
+		return
+	}
+	command, _, _ := masterTrackPopupMenu.Call(
+		menu,
+		masterTPMReturn|masterTPMRight,
+		uintptr(bounds.Left),
+		uintptr(bounds.Bottom),
+		0,
+		a.hwnd,
+		0,
+	)
+	switch int(command) {
+	case masterMoreLocalChoose:
+		a.chooseLocalDirectory()
+	case masterMoreLocalUp:
+		a.refreshLocal(filepath.Dir(getText(a.localPath)))
+	case masterMoreLocalFilter:
+		a.localFilterAction()
+	case masterMoreLocalSearch:
+		a.recursiveSearchCommand(false)
+	case masterMoreLocalRename:
+		a.localRenameAction()
+	case masterMoreLocalDelete:
+		a.localDeleteAction()
+	case masterMoreRemoteUp:
+		a.remoteUpOne()
+	case masterMoreRemoteFilter:
+		a.remoteFilterAction()
+	case masterMoreRemoteSearch:
+		a.recursiveSearchCommand(true)
+	case masterMoreRemoteRename:
+		a.remoteRenameAction()
+	case masterMoreRemoteDelete:
+		a.remoteDeleteAction()
+	case masterMoreRemotePermissions:
+		a.remoteChmodAction()
+	case masterMoreRemoteEdit:
+		a.remoteEditAction()
+	case masterMoreCompare:
+		a.directoryComparisonCommand()
+	case masterMoreConnectionInfo:
+		a.showDiagnostics()
+	}
 }
 
 func (a *app) masterConnectAction() {
