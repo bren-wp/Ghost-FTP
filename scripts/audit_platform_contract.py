@@ -177,11 +177,11 @@ def main() -> int:
         "android:",
         "macos:",
         "browser:",
-        "Production signed Android APK",
-        "Developer ID signed notarized universal macOS app",
+        "Android release APK with production or compatibility signing",
+        "Ad-hoc signed universal macOS compatibility app",
         "Chrome Edge Firefox Opera release packages",
         "Ghost-FTP-${VERSION}-Android.apk",
-        "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
+        "Ghost-FTP-${VERSION}-macOS.app.zip",
         "Ghost-FTP-${VERSION}-Chrome-Extension.zip",
         "Ghost-FTP-${VERSION}-Opera-Extension.zip",
         "Ghost-FTP-${VERSION}-Linux-Debian-Installer.run",
@@ -192,7 +192,7 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Linux-Fedora-Portable.tar.gz",
         "PUBLIC_PLATFORM_ARTIFACTS=14",
         "PUBLIC_RELEASE_FILES=17",
-        "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+        "MACOS_COMPATIBILITY_ARTIFACT_VERIFIED=PASS",
     ):
         if marker not in release:
             fail(f"cross-platform public release contract is incomplete: missing {marker}")
