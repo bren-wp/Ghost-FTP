@@ -107,7 +107,7 @@ The immutable 0.0.8 evidence set stored in [`images/0.0.8/`](images/0.0.8/) cont
 - Linux — 5 images: Main Workspace, Bookmarks, Settings, Connection info, About;
 - Android — 8 images: Files, Navigation, Connections, Bookmarks, Transfer Queue, Settings, Connection info, About.
 
-The stored [`UI-SCREENSHOT-PROVENANCE.json`](images/0.0.8/UI-SCREENSHOT-PROVENANCE.json) binds the repository copy to the capture workflow/source identity and records image byte counts plus SHA-256 digests. [`SHA256.txt`](images/0.0.8/SHA256.txt) provides the compact digest allow-list used for verification.
+The workflow publishes the verified read-only `ghostftp-authentic-ui-verified-bundle`; the stored [`UI-SCREENSHOT-PROVENANCE.json`](images/0.0.8/UI-SCREENSHOT-PROVENANCE.json) binds the repository copy to the capture workflow/source identity and records image byte counts plus SHA-256 digests. [`SHA256.txt`](images/0.0.8/SHA256.txt) provides the compact digest allow-list used for verification.
 
 The current evidence contract deliberately does **not** claim a macOS runtime screenshot. macOS remains an AppKit source/build validation surface until maintained macOS runtime capture infrastructure can produce an authentic screenshot bundle tied to an exact commit SHA. The supplied master reference image must never be substituted for product evidence.
 
