@@ -19,6 +19,7 @@ const (
 	linuxInfoOverlayConnection
 	linuxInfoOverlayAbout
 	linuxInfoOverlayMore
+	linuxInfoOverlayTransferActions
 )
 
 type linuxInfoOverlayLayout struct {
@@ -28,7 +29,13 @@ type linuxInfoOverlayLayout struct {
 
 type linuxMoreMenuLayout struct {
 	panel   linuxRect
-	actions [15]linuxRect
+	actions [16]linuxRect
+	close   linuxRect
+}
+
+type linuxTransferActionsLayout struct {
+	panel   linuxRect
+	actions [9]linuxRect
 	close   linuxRect
 }
 
@@ -45,6 +52,35 @@ func buildLinuxMoreMenuLayout(width, height int) linuxMoreMenuLayout {
 	top := (height - panelHeight) / 2
 	panel := linuxRectWH(left, top, panelWidth, panelHeight)
 	layout := linuxMoreMenuLayout{panel: panel}
+	gap := 8
+	columnGap := 10
+	buttonH := 34
+	buttonW := (panelWidth - 40 - columnGap) / 2
+	startY := top + 66
+	for index := range layout.actions {
+		row := index / 2
+		column := index % 2
+		x := left + 20 + column*(buttonW+columnGap)
+		y := startY + row*(buttonH+gap)
+		layout.actions[index] = linuxRectWH(x, y, buttonW, buttonH)
+	}
+	layout.close = linuxRectWH(panel.right-124, panel.bottom-48, 104, 30)
+	return layout
+}
+
+func buildLinuxTransferActionsLayout(width, height int) linuxTransferActionsLayout {
+	panelWidth := min(720, width-80)
+	if panelWidth < 600 {
+		panelWidth = 600
+	}
+	panelHeight := min(390, height-80)
+	if panelHeight < 350 {
+		panelHeight = 350
+	}
+	left := (width - panelWidth) / 2
+	top := (height - panelHeight) / 2
+	panel := linuxRectWH(left, top, panelWidth, panelHeight)
+	layout := linuxTransferActionsLayout{panel: panel}
 	gap := 8
 	columnGap := 10
 	buttonH := 34
@@ -205,6 +241,8 @@ func (u *linuxDesktop) linuxInfoOverlayTitleAndHeading() (string, string) {
 		return u.tr("about.title"), u.tr("about.heading")
 	case linuxInfoOverlayMore:
 		return "More", "File and connection tools"
+	case linuxInfoOverlayTransferActions:
+		return "Transfer actions", "Queue controls and priority"
 	default:
 		return "", ""
 	}
@@ -241,6 +279,7 @@ func (u *linuxDesktop) linuxMoreMenuLabels() []string {
 		directoryCompareWordsForLanguage(u.language).Compare,
 		navigationLabelsForLanguage(u.language).Diagnostics,
 		u.tr("common.about"),
+		"Transfer actions…",
 	}
 }
 
@@ -275,12 +314,63 @@ func (u *linuxDesktop) renderLinuxMoreMenu() error {
 	return u.drawButton(layout.close, bookmarkWordsForLanguage(u.language).Close, true, false)
 }
 
+func (u *linuxDesktop) linuxTransferActionLabels() []string {
+	priority := queuePriorityWords(u.language)
+	return []string{
+		u.tr("transfer.pause"),
+		u.tr("transfer.resume"),
+		u.tr("common.cancel"),
+		u.tr("transfer.retry"),
+		priority.MoveTop,
+		priority.MoveUp,
+		priority.MoveDown,
+		priority.MoveBottom,
+		u.tr("transfer.clear"),
+	}
+}
+
+func (u *linuxDesktop) renderLinuxTransferActionsMenu() error {
+	layout := buildLinuxTransferActionsLayout(u.width, u.height)
+	if err := u.drawPanel(layout.panel); err != nil {
+		return err
+	}
+	if err := u.x.text(layout.panel.left+20, layout.panel.top+30, "TRANSFER ACTIONS", premiumTheme.Text, premiumTheme.Panel); err != nil {
+		return err
+	}
+	if err := u.x.text(layout.panel.left+20, layout.panel.top+52, "Queue controls and priority", premiumTheme.Muted, premiumTheme.Panel); err != nil {
+		return err
+	}
+	actions := u.linuxTransferActionState()
+	priority := u.selectedQueuePriorityState()
+	enabled := []bool{
+		actions.Pause && !u.busy,
+		actions.Resume && !u.busy,
+		actions.Cancel && !u.busy,
+		actions.Retry && !u.busy,
+		priority.MoveTop && !u.busy,
+		priority.MoveUp && !u.busy,
+		priority.MoveDown && !u.busy,
+		priority.MoveBottom && !u.busy,
+		actions.Clear && !u.busy,
+	}
+	labels := u.linuxTransferActionLabels()
+	for index, rect := range layout.actions {
+		if err := u.drawButtonWithLimit(rect, labels[index], enabled[index], false, linuxButtonLabelLimit(rect)); err != nil {
+			return err
+		}
+	}
+	return u.drawButton(layout.close, bookmarkWordsForLanguage(u.language).Close, true, false)
+}
+
 func (u *linuxDesktop) renderLinuxInfoOverlay() error {
 	if !u.linuxInfoOverlayOpen() {
 		return nil
 	}
 	if u.infoOverlay == linuxInfoOverlayMore {
 		return u.renderLinuxMoreMenu()
+	}
+	if u.infoOverlay == linuxInfoOverlayTransferActions {
+		return u.renderLinuxTransferActionsMenu()
 	}
 	layout := buildLinuxInfoOverlayLayout(u.width, u.height, u.infoOverlay)
 	if err := u.drawPanel(layout.panel); err != nil {
@@ -381,6 +471,48 @@ func (u *linuxDesktop) handleLinuxMoreMenuMouse(x, y int) bool {
 		u.openLinuxInfoOverlay(linuxInfoOverlayConnection)
 	case 14:
 		u.openLinuxInfoOverlay(linuxInfoOverlayAbout)
+	case 15:
+		u.openLinuxInfoOverlay(linuxInfoOverlayTransferActions)
+	}
+	return true
+}
+
+func (u *linuxDesktop) handleLinuxTransferActionsMouse(x, y int) bool {
+	layout := buildLinuxTransferActionsLayout(u.width, u.height)
+	if layout.close.contains(x, y) {
+		u.closeLinuxInfoOverlay()
+		return true
+	}
+	selected := -1
+	for index, rect := range layout.actions {
+		if rect.contains(x, y) {
+			selected = index
+			break
+		}
+	}
+	if selected < 0 {
+		return true
+	}
+	u.closeLinuxInfoOverlay()
+	switch selected {
+	case 0:
+		u.pauseTransfersLinux()
+	case 1:
+		u.resumeTransfersLinux()
+	case 2:
+		u.cancelSelectedTransferLinux()
+	case 3:
+		u.retrySelectedTransferLinux()
+	case 4:
+		u.moveSelectedQueueTransfer(queuePriorityTop)
+	case 5:
+		u.moveSelectedQueueTransfer(queuePriorityUp)
+	case 6:
+		u.moveSelectedQueueTransfer(queuePriorityDown)
+	case 7:
+		u.moveSelectedQueueTransfer(queuePriorityBottom)
+	case 8:
+		u.clearFinishedTransfersLinux()
 	}
 	return true
 }
@@ -391,6 +523,9 @@ func (u *linuxDesktop) handleLinuxInfoOverlayMouse(x, y int) bool {
 	}
 	if u.infoOverlay == linuxInfoOverlayMore {
 		return u.handleLinuxMoreMenuMouse(x, y)
+	}
+	if u.infoOverlay == linuxInfoOverlayTransferActions {
+		return u.handleLinuxTransferActionsMouse(x, y)
 	}
 	layout := buildLinuxInfoOverlayLayout(u.width, u.height, u.infoOverlay)
 	if layout.close.contains(x, y) {
