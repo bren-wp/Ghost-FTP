@@ -120,6 +120,7 @@ Release channel: **Current**
 Product status: **Current**
 Public release: **ghostftp-v0.0.8**
 Distribution mode: **no-secret public release**
+Last actually published GitHub Release: **0.0.7**
 Prerelease: **false**
 
 The 0.0.8 no-secret publication contract contains **14 platform artifacts / 17 public files**. Windows is unsigned, Android is installable CI debug-signed, and macOS is ad-hoc signed without Apple notarization. These states are recorded in release metadata rather than presented as production signing.
