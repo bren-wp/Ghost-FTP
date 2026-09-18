@@ -496,9 +496,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         let done = transferQueueEntries.filter { $0.status == "done" }.count
         let failed = transferQueueEntries.filter { $0.status == "failed" || $0.status == "cancelled" }.count
         let paused = transferQueuePaused ? " • paused" : ""
-        embeddedTransferSummary.stringValue = "\(running) running • \(queued) queued • \(done) done • \(failed) failed/cancelled\(paused)"
+        if transferQueueEntries.isEmpty {
+            embeddedTransferSummary.stringValue = "No transfers yet."
+        } else {
+            embeddedTransferSummary.stringValue = "\(running) running • \(queued) queued • \(done) done • \(failed) failed/cancelled\(paused)"
+        }
         embeddedPauseResumeButton.title = transferQueuePaused ? "Resume" : "Pause"
-        embeddedPauseResumeButton.isEnabled = engineReady && !transferQueueBusy
+        let hasPausableTransfers = transferQueueEntries.contains { entry in
+            entry.status == "queued" || entry.status == "running"
+        }
+        embeddedPauseResumeButton.isEnabled = engineReady && !transferQueueBusy && hasPausableTransfers
         embeddedOpenQueueButton.isEnabled = engineReady && !connectionBusy
         embeddedTransferTable.isEnabled = !transferQueueBusy
         embeddedTransferTable.reloadData()

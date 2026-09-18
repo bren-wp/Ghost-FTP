@@ -164,6 +164,10 @@ func (state *bookmarkManagerState) loadItems(selectID string) error {
 	state.items = items
 	sendMessageW.Call(state.list, siteLBResetContent, 0, 0)
 	selected := -1
+	if len(items) == 0 {
+		words := bookmarkWordsForLanguage(state.parent.languageCode())
+		sendMessageW.Call(state.list, siteLBAddString, 0, uintptr(unsafe.Pointer(wstr(words.Empty))))
+	}
 	for index, item := range items {
 		label := state.displayLabel(item)
 		sendMessageW.Call(state.list, siteLBAddString, 0, uintptr(unsafe.Pointer(wstr(label))))
