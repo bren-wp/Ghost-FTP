@@ -22,10 +22,11 @@ MAPPING = (
     ("linux/ghost-ftp-linux-about.png", "ghost-ftp-linux-about.png"),
     ("android/ghost-ftp-android-files.png", "ghost-ftp-android-files.png"),
     ("android/ghost-ftp-android-navigation.png", "ghost-ftp-android-navigation.png"),
-    ("android/ghost-ftp-android-sites.png", "ghost-ftp-android-sites.png"),
+    ("android/ghost-ftp-android-connections.png", "ghost-ftp-android-connections.png"),
     ("android/ghost-ftp-android-bookmarks.png", "ghost-ftp-android-bookmarks.png"),
-    ("android/ghost-ftp-android-transfers.png", "ghost-ftp-android-transfers.png"),
+    ("android/ghost-ftp-android-transfer-queue.png", "ghost-ftp-android-transfer-queue.png"),
     ("android/ghost-ftp-android-settings.png", "ghost-ftp-android-settings.png"),
+    ("android/ghost-ftp-android-connection-info.png", "ghost-ftp-android-connection-info.png"),
     ("android/ghost-ftp-android-about.png", "ghost-ftp-android-about.png"),
 )
 
