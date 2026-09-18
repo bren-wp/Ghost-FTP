@@ -170,15 +170,16 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
         self.assertNotIn("Check for Updates", about)
         self.assertNotIn("Download Premium", about)
 
-    def test_android_brand_mark_matches_master_transfer_logo_family(self) -> None:
+    def test_android_brand_mark_matches_reference_gold_ghost(self) -> None:
         for relative in (
             "android/app/src/main/res/drawable/ic_ghost_brand.xml",
             "android/app/src/main/res/drawable/ic_ghostftp.xml",
         ):
             icon = read(relative)
-            for marker in ("#102038", "#1B2B43", "#46D6C8", "#5A86F7", "#E8F1FF"):
+            for marker in ("#0B0F17", "#F6C445", "#10131A"):
                 self.assertIn(marker, icon)
-            self.assertNotIn("#F6C445", icon)
+            for retired in ("#46D6C8", "#5A86F7", "opposing transfer arrows"):
+                self.assertNotIn(retired, icon)
 
     def test_public_release_requires_notarized_macos_and_17_files(self) -> None:
         release = read(".github/workflows/release.yml")
