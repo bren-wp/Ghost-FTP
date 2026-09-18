@@ -401,7 +401,7 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	makeControl("STATIC", config.Footer, 0, 36, footerY, 334, 38, 0, captionFont)
 	state.errorLabel = makeControl("STATIC", "", 0, 36, errorY, 334, 24, settingsIDError, captionFont)
 	if config.ResetLabel != "" {
-		makeControl("BUTTON", config.ResetLabel, settingsWSTabStop, 386, buttonY, 120, 38, settingsIDReset, font)
+		makeControl("BUTTON", config.ResetLabel, settingsWSTabStop, 286, buttonY, 220, 38, settingsIDReset, font)
 	}
 	applyButton := makeControl("BUTTON", config.ApplyLabel, settingsWSTabStop|settingsDefButton, 516, buttonY, 98, 38, settingsIDApply, font)
 	makeControl("BUTTON", config.CancelLabel, settingsWSTabStop, 624, buttonY, 100, 38, settingsIDCancel, font)
