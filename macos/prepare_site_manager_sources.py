@@ -165,6 +165,78 @@ def integrate_main(text: str) -> str:
         "\n\n    private func startTransferQueuePolling() {\n",
         '''
 
+    private func styleMasterRailButton(_ button: NSButton, active: Bool) {
+        button.isBordered = false
+        button.font = .systemFont(ofSize: 13, weight: active ? .semibold : .medium)
+        button.alignment = .left
+        button.contentTintColor = active ? Palette.accentStrong : Palette.text
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 8
+        button.layer?.borderWidth = active ? 1 : 0
+        button.layer?.borderColor = active ? Palette.accent.cgColor : NSColor.clear.cgColor
+        button.layer?.backgroundColor = active ? Palette.selection.cgColor : NSColor.clear.cgColor
+        button.heightAnchor.constraint(equalToConstant: 38).isActive = true
+    }
+
+    private func makeMasterNavigationRail() -> NSView {
+        let brand = NSTextField(labelWithString: "Ghost FTP")
+        brand.font = .systemFont(ofSize: 20, weight: .bold)
+        brand.textColor = Palette.text
+
+        let platform = NSTextField(labelWithString: "macOS")
+        platform.font = .systemFont(ofSize: 11, weight: .medium)
+        platform.textColor = Palette.muted
+
+        for button in [filesNavButton, siteManagerButton, transferQueueButton, settingsButton, bookmarksButton, diagnosticsButton, aboutButton] {
+            styleMasterRailButton(button, active: button === filesNavButton)
+        }
+
+        let primary = NSStackView(views: [filesNavButton, siteManagerButton, transferQueueButton, settingsButton])
+        primary.orientation = .vertical
+        primary.alignment = .leading
+        primary.spacing = 6
+
+        let utility = NSStackView(views: [bookmarksButton, diagnosticsButton, aboutButton])
+        utility.orientation = .vertical
+        utility.alignment = .leading
+        utility.spacing = 6
+
+        for stack in [primary, utility] {
+            for view in stack.views {
+                view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            }
+        }
+
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
+        let railStack = NSStackView(views: [brand, platform, primary, spacer, utility])
+        railStack.orientation = .vertical
+        railStack.alignment = .leading
+        railStack.spacing = 10
+        railStack.edgeInsets = NSEdgeInsets(top: 18, left: 14, bottom: 14, right: 14)
+        railStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let rail = NSView()
+        rail.wantsLayer = true
+        rail.layer?.backgroundColor = Palette.panel.cgColor
+        rail.layer?.cornerRadius = 12
+        rail.layer?.borderWidth = 1
+        rail.layer?.borderColor = Palette.border.cgColor
+        rail.addSubview(railStack)
+        NSLayoutConstraint.activate([
+            railStack.leadingAnchor.constraint(equalTo: rail.leadingAnchor),
+            railStack.trailingAnchor.constraint(equalTo: rail.trailingAnchor),
+            railStack.topAnchor.constraint(equalTo: rail.topAnchor),
+            railStack.bottomAnchor.constraint(equalTo: rail.bottomAnchor)
+        ])
+        return rail
+    }
+
+    @objc private func filesNavigationTapped() {
+        window?.makeKeyAndOrderFront(nil)
+        window?.makeFirstResponder(localTable)
+    }
+
     @objc private func siteManagerTapped() {
         guard engineReady, !connectionBusy else { return }
         if let controller = siteManagerController {
