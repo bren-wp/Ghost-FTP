@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
-RETIRED_ROOTS = ("ios/", "GhostFTP WEB/")
+RETIRED_ROOTS = ("ios/", "macos/", "GhostFTP WEB/")
 RETIRED_WEB_ROOTS = ("web/", "web-ftp/", "webftp/", "pwa/", "ghostftp-web/")
 RETIRED_SCRIPTS = {
     "scripts/audit_android.py",
@@ -42,17 +42,6 @@ ANDROID_REQUIRED = {
     ".github/workflows/android-apk.yml",
     "scripts/test_android_contract.py",
     "scripts/test_android_release_signing_contract.py",
-}
-MACOS_REQUIRED = {
-    "macos/README.md",
-    "macos/PARITY.md",
-    "macos/BUILD.sh",
-    "macos/SIGN_AND_NOTARIZE.sh",
-    "macos/Sources/GhostFTPApp/main.swift",
-    ".github/workflows/macos-app.yml",
-    ".github/workflows/macos-production.yml",
-    "scripts/test_macos_windows_parity_contract.py",
-    "scripts/test_macos_distribution_contract.py",
 }
 BROWSER_REQUIRED = {
     "extensions/BRAND.json",
@@ -113,6 +102,10 @@ def main() -> int:
 
     for path in paths:
         normalized = path.replace("\\", "/")
+        if normalized.endswith("_darwin.go"):
+            fail(f"retired macOS/Darwin platform source is tracked: {path}")
+        if normalized in {".github/workflows/macos-app.yml", ".github/workflows/macos-production.yml"}:
+            fail(f"retired macOS workflow is tracked: {path}")
         if normalized.startswith(RETIRED_ROOTS + RETIRED_WEB_ROOTS):
             fail(f"retired application platform/surface is tracked: {path}")
         if normalized in RETIRED_SCRIPTS or normalized in RETIRED_EXACT:
@@ -124,7 +117,6 @@ def main() -> int:
 
     for label, required in (
         ("Android", ANDROID_REQUIRED),
-        ("macOS", MACOS_REQUIRED),
         ("browser helper", BROWSER_REQUIRED),
         ("Linux distribution", LINUX_DISTRIBUTION_REQUIRED),
     ):
@@ -175,13 +167,10 @@ def main() -> int:
         "windows:",
         "linux:",
         "android:",
-        "macos:",
         "browser:",
         "Production signed Android APK",
-        "Developer ID signed notarized universal macOS app",
         "Chrome Edge Firefox Opera release packages",
         "Ghost-FTP-${VERSION}-Android.apk",
-        "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
         "Ghost-FTP-${VERSION}-Chrome-Extension.zip",
         "Ghost-FTP-${VERSION}-Opera-Extension.zip",
         "Ghost-FTP-${VERSION}-Linux-Debian-Installer.run",
@@ -190,9 +179,8 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Linux-Ubuntu-Portable.tar.gz",
         "Ghost-FTP-${VERSION}-Linux-Fedora-Installer.run",
         "Ghost-FTP-${VERSION}-Linux-Fedora-Portable.tar.gz",
-        "PUBLIC_PLATFORM_ARTIFACTS=14",
-        "PUBLIC_RELEASE_FILES=17",
-        "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+        "PUBLIC_PLATFORM_ARTIFACTS=13",
+        "PUBLIC_RELEASE_FILES=16",
     ):
         if marker not in release:
             fail(f"cross-platform public release contract is incomplete: missing {marker}")
@@ -204,8 +192,8 @@ def main() -> int:
         fail("active product baseline must not precede 0.0.1")
 
     print(f"PLATFORM_CONTRACT_AUDIT=PASS ({version})")
-    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER")
-    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
+    print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
+    print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID")
     print("ACTIVE_WEB_SURFACE=NONE")
     print("WINDOWS_PUBLIC_RELEASE_PACKAGES=SETUP,PORTABLE")
     print("LINUX_PUBLIC_RELEASE_PACKAGES=DEBIAN_INSTALLER,DEBIAN_PORTABLE,UBUNTU_INSTALLER,UBUNTU_PORTABLE,FEDORA_INSTALLER,FEDORA_PORTABLE")
@@ -216,9 +204,9 @@ def main() -> int:
     print("ANDROID_SFTP_PUBLIC_SUPPORT=NO_STRICT_HOST_KEY_BOUNDARY")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("BROWSER_DESKTOP_HANDOFF=WINDOWS_SANITIZED_PROTOCOL")
-    print("MACOS_SOURCE_SURFACE=ACTIVE")
-    print("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_ADHOC_NOT_NOTARIZED")
-    print("RETIRED_APPLICATION_PLATFORMS=IOS")
+    print("MACOS_SOURCE_SURFACE=RETIRED")
+    print("MACOS_PUBLIC_RELEASE_ARTIFACT=NO")
+    print("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS")
     print("RETIRED_APPLICATION_SURFACES=PWA,WEB,WEB_FTP")
     print("LINUX_PLATFORM_STUBS=EXPLICIT")
     print("MINIMUM_PUBLIC_VERSION=0.0.1")
