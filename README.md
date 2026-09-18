@@ -1,7 +1,7 @@
 # Ghost FTP
 
 <p align="center">
-  <img src="build/icon.png" alt="Ghost FTP canonical transfer logo" width="96">
+  <img src="build/icon.png" alt="Ghost FTP gold ghost logo" width="96">
 </p>
 
 <h3 align="center">Your servers. Your files. Your control.</h3>
@@ -40,9 +40,9 @@ A privacy-first FTP, FTPS and SFTP workspace for direct professional file transf
 
 ### What 0.0.8 changes
 
-Ghost FTP 0.0.8 consolidates the supplied master workspace across Windows, Linux, Android and macOS: **Files, Connections, Transfer Queue and Settings**, with **Bookmarks, Connection info and About** as supporting surfaces. Language selection now lives in **Settings** rather than the main workspace. Settings also owns a local-only **Update** simulation plus **Download latest**, **Premium** and **Official website** actions; every external action is restricted to HTTPS on **ghostftp.com** and never sends FTP credentials, server paths or transfer data.
+Ghost FTP 0.0.8 consolidates the supplied master workspace across Windows, Linux, Android and macOS: **Files, Connections, Transfer Queue and Settings**, with **Bookmarks, Connection info and About** as supporting surfaces. Language selection now lives in **Settings** rather than the main workspace. Settings also owns a local-only **Update** simulation plus **Download latest**, **Premium** and **Official website** actions. The simulated update finishes locally and reports the installed 0.0.8 build as updated; real download actions open only HTTPS pages on **ghostftp.com** and never send FTP credentials, server paths or transfer data.
 
-The canonical transfer-mark logo shown above is the same product mark used by the desktop packaging and the Android app/launcher treatment. The Android-only Ghost Gold placeholder mark has been retired so the visible application identity matches the supplied 0.0.8 reference screenshots.
+The canonical **gold ghost** logo shown above is the product mark used by Windows, Linux, Android and macOS. Application chrome, launcher icons and README branding follow the same mark shown in the supplied reference screenshots.
 
 ---
 
