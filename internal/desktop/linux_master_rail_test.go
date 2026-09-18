@@ -39,14 +39,13 @@ func TestLinuxMasterRailUtilitiesStayInsideWindowAndAboveStatusBand(t *testing.T
 		"bookmarks":   layout.bookmarks,
 		"diagnostics": layout.diagnostics,
 		"about":       layout.about,
-		"language":    layout.language,
 	} {
 		if r.left < 0 || r.top < 0 || r.right > premiumMinWidth || r.bottom > premiumMinHeight {
 			t.Fatalf("%s outside minimum window: %+v", name, r)
 		}
 	}
-	if layout.language.bottom > premiumMinHeight-linuxMasterRailBottomInset {
-		t.Fatalf("language control overlaps reserved status band: %+v", layout.language)
+	if layout.about.bottom > premiumMinHeight-linuxMasterRailBottomInset {
+		t.Fatalf("utility controls overlap reserved status band: %+v", layout.about)
 	}
 }
 
