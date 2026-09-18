@@ -29,12 +29,13 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
             f"Ghost-FTP-{version}-Android.apk",
+            f"Ghost-FTP-{version}-macOS-notarized.app.zip",
             f"Ghost-FTP-{version}-Chrome-Extension.zip",
             f"Ghost-FTP-{version}-Edge-Extension.zip",
             f"Ghost-FTP-{version}-Firefox-Extension.zip",
             f"Ghost-FTP-{version}-Opera-Extension.zip",
-            "PUBLIC_PLATFORM_ARTIFACTS=13",
-            "PUBLIC_RELEASE_FILES=16",
+            "PUBLIC_PLATFORM_ARTIFACTS=14",
+            "PUBLIC_RELEASE_FILES=17",
             "GHOSTFTP_ANDROID_CERT_SHA256",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ]
@@ -69,12 +70,13 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
                 f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
                 f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
                 f"Ghost-FTP-{version}-Android.apk",
+                f"Ghost-FTP-{version}-macOS-notarized.app.zip",
                 f"Ghost-FTP-{version}-Chrome-Extension.zip",
                 f"Ghost-FTP-{version}-Edge-Extension.zip",
                 f"Ghost-FTP-{version}-Firefox-Extension.zip",
                 f"Ghost-FTP-{version}-Opera-Extension.zip",
-                "13 platform artifacts",
-                "16 public files",
+                "14 platform artifacts",
+                "17 public files",
             ):
                 self.assertIn(marker, text, f"{relative} is missing {marker!r}")
             for stale in (
@@ -118,7 +120,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         self.assertNotIn("LATEST_ONLY_RELEASE_RETENTION=YES", verification)
         self.assertIn("exactly four packages", testing)
         self.assertIn("Ghost-FTP-0.0.8-Opera-Extension.zip", testing)
-        self.assertIn("16-file public release", testing)
+        self.assertIn("17-file public release", testing)
 
     def test_android_and_browser_boundaries_remain_truthful(self):
         version = self.read("VERSION").strip()
