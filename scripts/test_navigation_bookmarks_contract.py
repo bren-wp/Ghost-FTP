@@ -136,7 +136,7 @@ class NavigationBookmarksContractTests(unittest.TestCase):
     def test_linux_bookmark_manager_is_rendered_and_fully_dispatched(self) -> None:
         bookmark = self.read("internal/desktop/bookmark_linux.go")
         actions = self.read("internal/desktop/gui_linux_actions.go")
-        filters = self.read("internal/desktop/file_filter_linux.go")
+        master = self.read("internal/desktop/linux_master_rail.go")
         prompt_test = self.read("internal/desktop/bookmark_prompt_linux_test.go")
         viewport_test = self.read("internal/desktop/bookmark_viewport_linux_test.go")
         for marker in (
@@ -179,8 +179,9 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         self.assertIn("TestLinuxBookmarkViewportKeepsKeyboardSelectionVisible", viewport_test)
         self.assertIn("TestLinuxBookmarkViewportMouseScrollReachesLaterRows", viewport_test)
         self.assertIn("TestLinuxBookmarkRowHitTestRejectsPaddingAndUsesViewportOffset", viewport_test)
-        self.assertIn("u.renderBookmarksHeaderButton()", filters)
-        self.assertIn("u.handleBookmarksHeaderMouse(x, y)", filters)
+        self.assertIn("layout.bookmarks", master)
+        self.assertIn('case layout.bookmarks.contains(x, y):', master)
+        self.assertIn('u.openLinuxBookmarks("")', master)
 
     def test_docs_bind_bookmarks_to_current_release_without_weakening_security(self) -> None:
         version = self.read("VERSION").strip()
