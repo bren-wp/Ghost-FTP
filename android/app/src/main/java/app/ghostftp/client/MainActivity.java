@@ -3178,10 +3178,10 @@ public final class MainActivity extends Activity {
             color = GhostTheme.WARN;
         } else if (connected) {
             boolean secure = "FTPS".equals(connectedProtocol);
-            text = secure ? "FTPS CONNECTED" : "FTP CONNECTED";
+            text = tabletLayout ? (secure ? "FTPS CONNECTED" : "FTP CONNECTED") : "Connected";
             color = secure ? GhostTheme.SUCCESS : GhostTheme.WARN;
         } else {
-            text = "DISCONNECTED";
+            text = tabletLayout ? "DISCONNECTED" : "Disconnected";
             color = GhostTheme.MUTED;
         }
         connectionBadge.setText(text);
