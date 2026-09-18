@@ -321,11 +321,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	if err := u.x.text(left+24, top+32, linuxTrimForUI(u.draftTr("settings.title"), 54), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(left+24, top+54, linuxTrimForUI(u.draftTr("settings.confirm_delete_body"), 82), premiumTheme.Muted, premiumTheme.Panel); err != nil {
-		return err
-	}
-
-	row := top + 76
+	row := top + 60
 	language := i18n.LanguageByCode(u.settingsDraft.Language)
 	if err := u.x.text(left+24, row+20, "Aa", premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
