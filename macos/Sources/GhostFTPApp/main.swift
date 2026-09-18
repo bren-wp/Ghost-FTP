@@ -4,13 +4,21 @@ import Foundation
 import GhostFTPEngine
 
 private enum Palette {
-    static let workspace = NSColor(rgb: 0xEEF1F5)
-    static let panel = NSColor(rgb: 0xF6F8FB)
-    static let list = NSColor(rgb: 0xFAFBFD)
-    static let text = NSColor(rgb: 0x111827)
-    static let muted = NSColor(rgb: 0x667085)
-    static let accent = NSColor(rgb: 0x2563EB)
-    static let border = NSColor(rgb: 0xD7DDE6)
+    static var isDark: Bool {
+        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+
+    static var workspace: NSColor { NSColor(rgb: isDark ? 0x0A0D12 : 0xF0F2F5) }
+    static var panel: NSColor { NSColor(rgb: isDark ? 0x11161F : 0xF7F8FA) }
+    static var list: NSColor { NSColor(rgb: isDark ? 0x171D27 : 0xFCFCFD) }
+    static var text: NSColor { NSColor(rgb: isDark ? 0xF5F6F8 : 0x161920) }
+    static var muted: NSColor { NSColor(rgb: isDark ? 0x99A2AF : 0x666D78) }
+    static var accent: NSColor { NSColor(rgb: isDark ? 0xDFAF3E : 0xC58D22) }
+    static var accentStrong: NSColor { NSColor(rgb: isDark ? 0xF6C84F : 0xA87212) }
+    static var border: NSColor { NSColor(rgb: isDark ? 0x2A313D : 0xD5D9E0) }
+    static var selection: NSColor { NSColor(rgb: isDark ? 0x2A2416 : 0xFFF2CF) }
+    static var success: NSColor { NSColor(rgb: isDark ? 0x43D17D : 0x1E824D) }
+    static var danger: NSColor { NSColor(rgb: isDark ? 0xFF6B73 : 0xB82E38) }
 }
 
 private extension NSColor {
