@@ -354,6 +354,32 @@ func (a *app) transferStatusText(status string) string {
 	return a.tr(key)
 }
 
+type masterTransferColumnLabels struct {
+	File      string
+	Direction string
+	Progress  string
+	Status    string
+	Speed     string
+	ETA       string
+}
+
+func (a *app) masterTransferColumns() masterTransferColumnLabels {
+	labels := masterTransferColumnLabels{
+		File:      "File",
+		Direction: a.tr("column.direction"),
+		Progress:  a.tr("column.progress"),
+		Status:    a.tr("column.status"),
+		Speed:     "Speed",
+		ETA:       "ETA",
+	}
+	if a.languageCode() == "hr" {
+		labels.File = "Datoteka"
+		labels.Speed = "Brzina"
+		labels.ETA = "Preostalo"
+	}
+	return labels
+}
+
 func transferDisplayFile(job model.TransferJob) string {
 	value := job.LocalPath
 	if job.Direction == "download" && strings.TrimSpace(job.RemotePath) != "" {
