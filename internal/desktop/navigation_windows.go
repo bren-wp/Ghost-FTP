@@ -7,6 +7,8 @@ const (
 	idSiteManager      = 701
 	idTransferQueueNav = 702
 	idDiagnostics      = 703
+	idCheckUpdates     = 704
+	idPremiumDownload  = 705
 )
 
 // nativeMenuWords remains as a narrow compatibility shim for one localization
