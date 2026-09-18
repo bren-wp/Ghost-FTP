@@ -140,8 +140,9 @@ def integrate_main(text: str) -> str:
         "            connectionStack.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -36)\n"
         "        ])\n",
         "        let workspace = makeWorkspace()\n"
+        "        let embeddedQueue = makeEmbeddedTransferQueue()\n"
         "        let navigationRail = makeMasterNavigationRail()\n"
-        "        let mainColumn = NSStackView(views: [connectionStack, workspace])\n"
+        "        let mainColumn = NSStackView(views: [connectionStack, workspace, embeddedQueue])\n"
         "        mainColumn.orientation = .vertical\n"
         "        mainColumn.spacing = 12\n"
         "        mainColumn.alignment = .leading\n"
@@ -163,7 +164,9 @@ def integrate_main(text: str) -> str:
         "            mainColumn.heightAnchor.constraint(equalTo: root.heightAnchor, constant: -28),\n"
         "            connectionStack.widthAnchor.constraint(equalTo: mainColumn.widthAnchor),\n"
         "            workspace.widthAnchor.constraint(equalTo: mainColumn.widthAnchor),\n"
-        "            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 380)\n"
+        "            embeddedQueue.widthAnchor.constraint(equalTo: mainColumn.widthAnchor),\n"
+        "            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 300),\n"
+        "            embeddedQueue.heightAnchor.constraint(greaterThanOrEqualToConstant: 180)\n"
         "        ])\n",
         "main-master-rail-layout",
     )
@@ -429,6 +432,7 @@ def integrate_main(text: str) -> str:
         text,
         "        transferQueueEntries = entries\n"
         "        transferQueuePaused = paused\n"
+        "        updateEmbeddedTransferQueue()\n"
         "        transferQueueController?.apply(\n",
         "        transferQueueEntries = entries\n"
         "        let actionableCount = entries.filter { entry in\n"
@@ -436,6 +440,7 @@ def integrate_main(text: str) -> str:
         "        }.count\n"
         "        transferQueueButton.title = actionableCount > 0 ? \"Transfer Queue (\\(min(actionableCount, 99)))\" : \"Transfer Queue\"\n"
         "        transferQueuePaused = paused\n"
+        "        updateEmbeddedTransferQueue()\n"
         "        transferQueueController?.apply(\n",
         "main-transfer-queue-badge",
     )
