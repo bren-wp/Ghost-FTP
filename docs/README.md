@@ -1,105 +1,40 @@
 # Ghost FTP documentation
 
-<p align="center"><img src="../build/icon.png" alt="Ghost FTP" width="118"></p>
-<p align="center"><strong>Product behavior, platform boundaries, privacy, security and release engineering for Ghost FTP.</strong></p>
+This directory documents the active Ghost FTP product line: **Windows, Linux and Android**, plus optional local browser-helper packages.
 
-## Current status
-
-- Current source version: **0.0.8**
-- Release channel: **Current**
-- Product status: **Current**
-- Last actually published GitHub Release: **0.0.8**
-- 0.0.8 release target: `ghostftp-v0.0.8`, `PRERELEASE=false`
-- 0.0.8 shape: **14 platform artifacts / 17 public files**
-- Public release targets: **Windows, Linux, Android, macOS and browser helper packages**
-- Maintained native source platforms: **Windows, Linux, Android and macOS**
-- Browser packages: **Chrome, Edge, Firefox and Opera**
-- Desktop languages: **24 selectable local languages**, English default/fallback
-- Retired repository surfaces: **website and Web FTP**
-- License: **proprietary commercial software, Brendigo LTD**
-
-Version 0.0.8 is already published through the exact-main **no-secret distribution** path. Its public trust state is explicit: Windows is unsigned, Android uses a temporary compatibility signing certificate, and macOS is ad-hoc signed without notarization. The stricter protected production-signing workflow remains separate and fail-closed when real Windows, Android or Apple publisher identities are unavailable.
-
-## Documentation principles
-
-1. Describe what actually exists and what is actually published.
-2. Security-sensitive boundaries fail closed.
-3. CI/test identities never substitute for production signing identities.
-4. Repository-local runtime screenshots are evidence only when bound to exact-head execution.
-5. Privacy claims are scoped to each maintained product surface.
-6. Retired website and Web FTP source, workflows, tests and documentation must remain absent.
+The immutable published release is **0.0.8**. Current `main` may contain next-version development work; published tags and release assets are never rewritten.
 
 ## Start here
 
-| Goal | Document |
+- [Architecture](ARCHITECTURE.md)
+- [Installation](INSTALLATION.md)
+- [Reference UI](REFERENCE-UI.md)
+- [Platform parity](PLATFORM-PARITY.md)
+- [Settings](SETTINGS.md)
+- [Navigation and bookmarks](NAVIGATION-BOOKMARKS.md)
+- [Queue priority](QUEUE-PRIORITY.md)
+- [Testing](TESTING.md)
+- [Release verification](RELEASE-VERIFICATION.md)
+- [Versioning](VERSIONING.md)
+- [Security](SECURITY.md)
+- [Privacy](PRIVACY.md)
+- [Signing](SIGNING.md)
+- [Support](SUPPORT.md)
+
+## Active native applications
+
+| Platform | Status |
 | --- | --- |
-| Install or run Ghost FTP | [`INSTALLATION.md`](INSTALLATION.md) |
-| Product architecture | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
-| Platform capability boundaries | [`PLATFORM-PARITY.md`](PLATFORM-PARITY.md) |
-| Security model | [`SECURITY.md`](SECURITY.md) |
-| Privacy model | [`PRIVACY.md`](PRIVACY.md) |
-| Signing identities | [`SIGNING.md`](SIGNING.md) |
-| Release verification | [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md) |
-| GitHub publication flow | [`GITHUB-RELEASES.md`](GITHUB-RELEASES.md) |
-| Packages / GHCR | [`PACKAGES.md`](PACKAGES.md) |
-| Version lifecycle | [`VERSIONING.md`](VERSIONING.md) |
-| Localization | [`LOCALIZATION.md`](LOCALIZATION.md) |
-| Testing and quality gates | [`TESTING.md`](TESTING.md) |
-| UI screenshots/evidence | [`REFERENCE-UI.md`](REFERENCE-UI.md) |
-| Support | [`SUPPORT.md`](SUPPORT.md) |
-| Linux | [`../linux/README.md`](../linux/README.md) |
-| Android | [`../android/README.md`](../android/README.md) |
-| macOS source | [`../macos/README.md`](../macos/README.md) |
-| Browser helpers | [`../extensions/README.md`](../extensions/README.md) |
-| Engineering audit prompt | [`prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md`](prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md) |
+| Windows | Active native desktop app |
+| Linux | Active native desktop app |
+| Android | Active native mobile app |
 
-## 0.0.8 public artifact contract
+macOS is retired from the active product line. Its application source, Darwin-only implementation files, dedicated workflows and platform-specific tests are intentionally removed.
 
-```text
-Ghost-FTP-0.0.8-Setup.exe
-Ghost-FTP-0.0.8-Portable.exe
-Ghost-FTP-0.0.8-Linux-Debian-Installer.run
-Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.8-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.8-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz
-Ghost-FTP-0.0.8-Android.apk
-Ghost-FTP-0.0.8-Chrome-Extension.zip
-Ghost-FTP-0.0.8-Edge-Extension.zip
-Ghost-FTP-0.0.8-Firefox-Extension.zip
-Ghost-FTP-0.0.8-Opera-Extension.zip
-BUILD-METADATA.txt
-RELEASE-NOTES.txt
-SHA256.txt
-```
+## UI evidence
 
-Canonical identity:
+Authentic runtime screenshots live under [`images/`](images/). Windows, Linux and Android runtime captures are bound to source/workflow provenance and are the only acceptable product UI evidence. Generated mockups or reference artwork must not be presented as execution evidence.
 
-```text
-VERSION=0.0.8
-TAG=ghostftp-v0.0.8
-CHANNEL=Current
-PRERELEASE=false
-PUBLIC_PLATFORM_ARTIFACTS=14
-PUBLIC_RELEASE_FILES=17
-```
+## Documentation rule
 
-Windows publishes exactly two architecture-independent user-facing EXEs containing x64/x86/ARM64 payloads. Linux publishes one Installer and one Portable bundle per Debian/Ubuntu/Fedora, each carrying amd64/arm64/i386 payloads. Android publishes one production-signed APK. Browser helpers publish one deterministic ZIP each for Chrome, Edge, Firefox and Opera.
-
-## Authentic visual reference
-
-<table>
-<tr><td width="50%"><strong>Windows workspace</strong><br><img src="images/0.0.8/ghost-ftp-main-workspace.png" alt="Windows workspace"></td><td width="50%"><strong>Windows Connections</strong><br><img src="images/0.0.8/ghost-ftp-site-manager.png" alt="Windows Connections"></td></tr>
-<tr><td width="50%"><strong>Linux workspace</strong><br><img src="images/0.0.8/ghost-ftp-linux-main-workspace.png" alt="Linux workspace"></td><td width="50%"><strong>Linux Settings</strong><br><img src="images/0.0.8/ghost-ftp-linux-settings.png" alt="Linux Settings"></td></tr>
-<tr><td width="50%"><strong>Android Files</strong><br><img src="images/0.0.8/ghost-ftp-android-files.png" alt="Android Files"></td><td width="50%"><strong>Android Transfer Queue</strong><br><img src="images/0.0.8/ghost-ftp-android-transfer-queue.png" alt="Android Transfer Queue"></td></tr>
-</table>
-
-Authentic runtime evidence is maintained across Windows, Linux and Android and must remain bound to an exact-head source SHA. The current 0.0.8 bundle contains 18 verified images (Windows 5, Linux 5, Android 8). macOS remains source/build validation until an authentic AppKit runtime capture is available; master references are never used as release evidence. Generated mockups are never accepted as execution or release evidence.
-
-## Commercial proprietary license
-
-Ghost FTP is not open-source software. Source visibility does not grant a general right to modify, redistribute, sublicense, rebrand or white-label the project. Ghost FTP is a copyrighted work of **Brendigo LTD** and is distributed under the repository's custom proprietary commercial [`LICENSE`](../LICENSE).
-
-
-macOS public release artifact: `Ghost-FTP-0.0.8-macOS-notarized.app.zip`.
+Current-product documentation must describe only shipping or maintained source behavior. Historical documents may mention older macOS work only when clearly describing historical releases rather than current support.
