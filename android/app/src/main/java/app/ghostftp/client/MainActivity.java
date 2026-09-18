@@ -516,7 +516,11 @@ public final class MainActivity extends Activity {
         connectionText.setPadding(dp(12), 0, dp(8), 0);
         currentConnectionTitle = label("No active connection", 15, GhostTheme.TEXT);
         currentConnectionTitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        currentConnectionTitle.setSingleLine(true);
+        currentConnectionTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         currentConnectionSummary = label("Open Connections", 12, GhostTheme.MUTED);
+        currentConnectionSummary.setSingleLine(true);
+        currentConnectionSummary.setEllipsize(android.text.TextUtils.TruncateAt.END);
         currentConnectionSummary.setPadding(0, dp(2), 0, 0);
         connectionText.addView(currentConnectionTitle, matchWrap());
         connectionText.addView(currentConnectionSummary, matchWrap());
@@ -545,6 +549,8 @@ public final class MainActivity extends Activity {
         for (Button compact : new Button[]{filesBack, filesForward, refreshAll, newFolder, uploadQuick}) {
             compact.setTextSize(10f);
             compact.setSingleLine(true);
+            compact.setCompoundDrawablePadding(dp(3));
+            compact.setPadding(dp(5), 0, dp(5), 0);
         }
         actionRowOne.addView(filesBack, weightedSpaced());
         actionRowOne.addView(filesForward, weightedSpaced());
@@ -3584,6 +3590,7 @@ public final class MainActivity extends Activity {
     private TextView workspacePathLabel(String value) {
         TextView view = label(value, 11, GhostTheme.MUTED);
         view.setSingleLine(true);
+        view.setEllipsize(android.text.TextUtils.TruncateAt.END);
         view.setPadding(dp(48), 0, dp(4), dp(3));
         return view;
     }
