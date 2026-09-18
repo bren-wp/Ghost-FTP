@@ -177,6 +177,9 @@ final class GhostTheme {
                 || value.contains("reconnect") || value.contains("session only")) {
             return WARN;
         }
+        if (value.contains("disconnected") || value.contains("not connected")) {
+            return MUTED;
+        }
         if (value.contains("completed") || value.contains("connected") || value.contains("saved")
                 || value.contains("updated") || value.contains("added") || value.contains("opened")
                 || value.contains("created") || value.contains("renamed") || value.contains("deleted")) {
