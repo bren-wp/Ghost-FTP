@@ -6,17 +6,15 @@ Ghost FTP Android is a mobile client, not a compressed copy of the desktop windo
 
 ### Phone
 
-Phones use a real left navigation drawer opened by the local hamburger vector icon. The drawer contains only runtime-owned surfaces:
+Phones use the supplied master hierarchy rather than hiding primary navigation in a drawer. A persistent five-destination bottom bar owns:
 
 - **Files**
 - **Connections**
+- **Bookmarks**
 - **Transfer Queue**
 - **Settings**
-- **Bookmarks**
-- **Connection info**
-- **About**
 
-Selecting a destination hides all other surfaces and commits exactly one active workspace. The Back action closes an open drawer before leaving the Activity.
+The app bar keeps the local Ghost FTP icon/brand, live connection badge and a right-side utility menu. That utility drawer owns only **Connection info** and **About**, so the primary destinations are not duplicated in two competing navigation systems. The Back action closes the utility drawer before leaving the Activity.
 
 ### Tablet
 
@@ -32,7 +30,9 @@ Files owns the active local and server directory views.
 
 On phones, the Files surface favors useful state over permanent blank list boxes. A local list is shown only when the selected folder has visible entries; otherwise a compact truthful empty state explains whether the user must choose a folder, the folder is empty, or the current filter has no matches. The server side follows the same rule and distinguishes disconnected, empty-folder and no-filter-match states. This keeps both LOCAL and SERVER workspaces reachable without scrolling through hundreds of pixels of empty chrome.
 
-The compact phone app bar shows the Ghost FTP brand once; the active section remains the semantic page heading in the content. Tablet layouts keep the secondary app-bar section label because the persistent navigation rail changes the information hierarchy.
+The compact phone app bar shows the local Ghost FTP icon and brand once. Files then follows the master information order: privacy-safe **Current connection**, real workspace **Actions**, Local/Remote files, and the live **Transfer Queue** state. The five primary destinations remain reachable in the fixed bottom navigation. Tablet layouts keep the secondary app-bar section label because the persistent navigation rail changes the information hierarchy.
+
+The Current connection card is derived from the active live session/profile and protocol state. The transfer card is derived from the actual transfer lifecycle; neither surface may inject demo servers, fake queue entries or decorative state.
 
 Local storage is restricted to Android Storage Access Framework capabilities granted by the user. The surface provides the local current path, folder picker, Up, Refresh, a real directory listing and local file selection.
 
@@ -120,7 +120,7 @@ The runtime values intentionally match `internal/uipalette` **1:1**: Dark uses w
 
 **Light** remains a real secondary appearance in Settings. It uses a neutral gray surface hierarchy with the same gold action language rather than reverting to a generic blue Android palette. Appearance changes rebuild the Activity-owned view hierarchy in place, retain the active FTP/FTPS session and navigation state, and keep the password memory-only instead of persisting it as part of the preference change.
 
-Navigation uses local vector drawables for hamburger, Files, Connections, Transfer Queue, Settings, Bookmarks, Connection info and About. Startup window/status/navigation-bar resources use the dark palette as well, preventing a light-theme flash before the Java UI owns the first frame.
+Navigation uses local vector drawables for Files, Connections, Bookmarks, Transfer Queue, Settings, Connection info, About and the utility-menu control. The phone bottom navigation uses those local assets and the active destination receives the Ghost Gold selected treatment. Startup window/status/navigation-bar resources use the dark palette as well, preventing a light-theme flash before the Java UI owns the first frame.
 
 The runtime UI must not depend on emoji icons, externally hosted fonts, tracking resources or decorative controls that look actionable but have no owner.
 
