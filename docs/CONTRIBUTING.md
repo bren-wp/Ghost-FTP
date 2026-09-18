@@ -25,3 +25,15 @@ macOS is retired; do not reintroduce AppKit/Darwin-only source or macOS release 
 Run affected unit/contract tests, security/privacy audits and required platform workflows. UI changes require authentic exact-head runtime evidence where the repository provides it.
 
 Never merge because a different commit was green.
+
+
+## Windows architecture evidence
+
+Ghost FTP Windows Setup and Portable are universal launchers with native **x64, x86 and ARM64** application payloads.
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 payload is built and structurally verified in CI. Current hosted CI does not claim native Windows-on-ARM runtime execution evidence.
