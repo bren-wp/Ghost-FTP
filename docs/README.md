@@ -8,7 +8,7 @@
 - Current source version: **0.0.8**
 - Release channel: **Current**
 - Product status: **Current**
-- Last actually published GitHub Release: **0.0.7**
+- Protected baseline release: **0.0.7**
 - 0.0.8 release target: `ghostftp-v0.0.8`, `PRERELEASE=false`
 - 0.0.8 shape: **14 platform artifacts / 17 public files**
 - Public release targets: **Windows, Linux, Android, macOS and browser helper packages**
@@ -18,7 +18,7 @@
 - Retired repository surfaces: **website and Web FTP**
 - License: **proprietary commercial software, Brendigo LTD**
 
-Version 0.0.8 is not treated as published until the exact verified `main` SHA succeeds through protected signing, publication and readback verification. The public macOS artifact is part of that same fail-closed pipeline and must pass real Developer ID Application signing, Apple notarization, stapling and Gatekeeper verification.
+Version 0.0.8 is published only from exact verified `main` after the compatibility signing states, package set, checksums and remote readback all pass. Windows may be explicitly unsigned, Android may use a one-run compatibility certificate, and the macOS archive is ad-hoc signed; none of those states are presented as production publisher trust.
 
 ## Documentation principles
 
@@ -85,7 +85,7 @@ PUBLIC_PLATFORM_ARTIFACTS=14
 PUBLIC_RELEASE_FILES=17
 ```
 
-Windows publishes exactly two architecture-independent user-facing EXEs containing x64/x86/ARM64 payloads. Linux publishes one Installer and one Portable bundle per Debian/Ubuntu/Fedora, each carrying amd64/arm64/i386 payloads. Android publishes one production-signed APK. Browser helpers publish one deterministic ZIP each for Chrome, Edge, Firefox and Opera.
+Windows publishes exactly two architecture-independent user-facing EXEs containing x64/x86/ARM64 payloads. Linux publishes one Installer and one Portable bundle per Debian/Ubuntu/Fedora, each carrying amd64/arm64/i386 payloads. Android publishes one installable APK signed by the protected publisher identity when configured, otherwise by an ephemeral compatibility certificate. Browser helpers publish one deterministic ZIP each for Chrome, Edge, Firefox and Opera.
 
 ## Authentic visual reference
 
@@ -102,4 +102,4 @@ Authentic runtime evidence is maintained across Windows, Linux and Android and m
 Ghost FTP is not open-source software. Source visibility does not grant a general right to modify, redistribute, sublicense, rebrand or white-label the project. Ghost FTP is a copyrighted work of **Brendigo LTD** and is distributed under the repository's custom proprietary commercial [`LICENSE`](../LICENSE).
 
 
-macOS public release artifact: `Ghost-FTP-0.0.8-macOS-notarized.app.zip`.
+macOS public release artifact: `Ghost-FTP-0.0.8-macOS.app.zip`.
