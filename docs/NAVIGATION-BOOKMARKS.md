@@ -4,15 +4,7 @@ Ghost FTP maintains bounded navigation and bookmarks across its active product s
 
 ## Desktop navigation
 
-Windows and Linux expose:
-
-- Back;
-- Forward;
-- current local/remote paths;
-- refresh;
-- bookmarks.
-
-Navigation history must not grow without bound or cross connection/profile ownership incorrectly.
+Windows and Linux expose Back, Forward, current local/remote paths, Refresh and Bookmarks. Navigation history must not grow without bound or cross connection/profile ownership incorrectly.
 
 ## Bookmarks
 
