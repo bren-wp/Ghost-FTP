@@ -31,6 +31,7 @@ class RemoteEditUIParityContract(unittest.TestCase):
     def test_linux_uses_built_in_overlay_and_shared_engine(self):
         workflow = self.read("internal/desktop/remote_edit_linux.go")
         ui = self.read("internal/desktop/gui_linux.go")
+        more = self.read("internal/desktop/linux_info_overlay.go")
 
         self.assertIn("RemoteEditOpen", workflow)
         self.assertIn("RemoteEditSave", workflow)
@@ -38,7 +39,8 @@ class RemoteEditUIParityContract(unittest.TestCase):
         self.assertIn("renderRemoteEditorOverlay", workflow)
         self.assertIn("handleRemoteEditKey", ui)
         self.assertIn("handleRemoteEditorMouse", ui)
-        self.assertIn("renderRemoteEditButton", ui)
+        self.assertIn('"Remote Edit"', more)
+        self.assertIn("u.openSelectedRemoteEditor()", more)
         self.assertIn("handleRemoteEditResult", ui)
         self.assertNotIn("exec.Command", workflow)
         self.assertNotIn("os.StartProcess", workflow)
