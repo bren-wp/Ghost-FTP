@@ -5,7 +5,7 @@
 ### Native UI/UX redesign and parity
 
 - Reworked the maintained Windows and Linux desktop shells around one consistent Ghost FTP master navigation hierarchy: **Files**, **Connections**, **Transfer Queue** and **Settings**, with Bookmarks, Connection info and About kept as real application-owned utility surfaces.
-- Added the matching AppKit master rail and embedded engine-backed transfer queue on macOS while preserving the existing typed shared-engine boundary and keeping public macOS distribution gated on real Developer ID signing and Apple notarization.
+- Added the matching AppKit master rail and embedded engine-backed transfer queue on macOS while preserving the existing typed shared-engine boundary; 0.0.8 publishes a universal ad-hoc signed compatibility archive without claiming Developer ID signing or Apple notarization.
 - Reworked Android navigation and Files workspace for phone/tablet use, aligned Dark/Light palettes with the desktop product, added a privacy-safe live Connection info surface and kept Android SFTP hidden until strict maintained host-key verification exists.
 - Standardized visible terminology across platforms so legacy internal Site Manager/Diagnostics compatibility names no longer leak into the primary navigation.
 
@@ -26,8 +26,8 @@
 ### Release engineering and security
 
 - Advances root `VERSION` to **0.0.8** and keeps the Current channel with `ghostftp-v0.0.8`, `prerelease=false`.
-- Keeps the canonical public release at **13 platform artifacts / 16 public files**: 2 universal Windows executables, 6 universal Linux bundles, 1 production-signed Android APK, 4 browser-helper ZIPs and 3 verification/metadata files.
-- Preserves trusted Windows Authenticode as a required publication gate, protected Android signing plus exact certificate-fingerprint verification, strict FTPS verification, strict desktop SFTP host-key trust/pinning, fail-closed local/transfer boundaries and no application telemetry.
+- Expands the canonical public release to **14 platform artifacts / 17 public files**: 2 universal Windows executables, 6 universal Linux bundles, 1 installable Android APK, 1 universal macOS compatibility archive, 4 browser-helper ZIPs and 3 verification/metadata files.
+- Adds an explicit no-production-key compatibility path matching 0.0.7: Windows may publish as clearly marked unsigned, Android uses the protected signer when configured or a one-run compatibility certificate otherwise, and macOS uses verified ad-hoc signing. Strict FTPS verification, desktop SFTP host-key trust/pinning, fail-closed local/transfer boundaries and no application telemetry remain unchanged.
 - Browser helpers retain zero browser/host permissions and the explicit sanitized Windows `ghostftp://connect` handoff; secrets, URL query data and fragments are excluded and the desktop never auto-connects.
 
 ## 0.0.7 - 2026-09-17
