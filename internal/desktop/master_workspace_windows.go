@@ -36,10 +36,10 @@ const (
 
 var (
 	masterCreatePopupMenu = user32.NewProc("CreatePopupMenu")
-	masterAppendMenuW     = user32.NewProc("AppendMenuW")
-	masterTrackPopupMenu  = user32.NewProc("TrackPopupMenu")
-	masterDestroyMenu     = user32.NewProc("DestroyMenu")
-	masterGetWindowRect   = user32.NewProc("GetWindowRect")
+	masterAppendMenuW      = user32.NewProc("AppendMenuW")
+	masterTrackPopupMenu   = user32.NewProc("TrackPopupMenu")
+	masterDestroyMenu      = user32.NewProc("DestroyMenu")
+	masterGetWindowRect    = user32.NewProc("GetWindowRect")
 )
 
 type workspaceHistoryEntry struct {
