@@ -13,33 +13,6 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 def integrate_main(text: str) -> str:
     text = replace_once(
         text,
-        '''private enum Palette {
-    static let workspace = NSColor(rgb: 0xEEF1F5)
-    static let panel = NSColor(rgb: 0xF6F8FB)
-    static let list = NSColor(rgb: 0xFAFBFD)
-    static let text = NSColor(rgb: 0x111827)
-    static let muted = NSColor(rgb: 0x667085)
-    static let accent = NSColor(rgb: 0x2563EB)
-    static let border = NSColor(rgb: 0xD7DDE6)
-}
-''',
-        '''private enum Palette {
-    static var isDark: Bool {
-        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    }
-    static var workspace: NSColor { NSColor(rgb: isDark ? 0x0B0F17 : 0xEEF1F5) }
-    static var panel: NSColor { NSColor(rgb: isDark ? 0x121824 : 0xF6F8FB) }
-    static var list: NSColor { NSColor(rgb: isDark ? 0x161D2A : 0xFAFBFD) }
-    static let text = NSColor.labelColor
-    static let muted = NSColor.secondaryLabelColor
-    static let accent = NSColor.controlAccentColor
-    static var border: NSColor { NSColor(rgb: isDark ? 0x273244 : 0xD7DDE6) }
-}
-''',
-        "dynamic-palette",
-    )
-    text = replace_once(
-        text,
         "    private var transferQueueController: TransferQueueWindowController?\n",
         "    private var transferQueueController: TransferQueueWindowController?\n"
         "    private var siteManagerController: SiteManagerWindowController?\n"
