@@ -94,7 +94,7 @@ Future work must preserve local path containment and symlink/reparse safety, fai
 
 ## Release direction
 
-The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, `0.0.6`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place.
+The public sequence is `0.0.1`, `0.0.2`, `0.0.3`, `0.0.4`, `0.0.5`, `0.0.6`, `0.0.7`, `0.0.8`, and so on. `0.0.0` is reserved. A current release identity is never rewritten in place.
 
 The Ghost FTP 0.0.8 public contract is **13 platform artifacts / 16 public files**: Windows, Linux and production-signed Android application artifacts, four official browser helper packages and release metadata. macOS remains a separately validated development/source surface.
 
