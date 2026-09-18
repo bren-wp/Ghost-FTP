@@ -30,7 +30,7 @@ def build_notes(version: str, section: str) -> str:
 
     return f"""Ghost FTP {version}
 
-Privacy-first FTP/FTPS/SFTP workspace with public Windows, Linux and Android applications plus privacy-minimal browser helper packages.
+Privacy-first FTP/FTPS/SFTP workspace with public Windows, Linux, Android and macOS applications plus privacy-minimal browser helper packages.
 Release channel: Current.
 GitHub prerelease flag: false.
 
@@ -45,8 +45,8 @@ ghostftp-v{version}
 Public platform packages
 ------------------------
 Windows:
-- Ghost-FTP-{version}-Setup.exe — one self-contained universal Windows Setup with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
-- Ghost-FTP-{version}-Portable.exe — one self-contained universal Windows Portable with verified native x64/x86/ARM64 payloads and required trusted Authenticode.
+- Ghost-FTP-{version}-Setup.exe — one self-contained universal Windows Setup with verified native x64/x86/ARM64 payloads. Authenticode state is recorded explicitly; compatibility publication may be unsigned.
+- Ghost-FTP-{version}-Portable.exe — one self-contained universal Windows Portable with verified native x64/x86/ARM64 payloads. Authenticode state is recorded explicitly; compatibility publication may be unsigned.
 
 Linux / Debian:
 - Ghost-FTP-{version}-Linux-Debian-Installer.run — one architecture-selecting installer carrying amd64, arm64 and i386 payloads.
@@ -61,7 +61,10 @@ Linux / Fedora:
 - Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz — one architecture-selecting portable bundle carrying amd64, arm64 and i386 payloads.
 
 Android:
-- Ghost-FTP-{version}-Android.apk — one protected production-signed APK. Android SFTP remains hidden until strict maintained host-key verification exists.
+- Ghost-FTP-{version}-Android.apk — one installable APK signed by the protected production identity when available, otherwise by an ephemeral compatibility certificate. Android SFTP remains hidden until strict maintained host-key verification exists.
+
+macOS:
+- Ghost-FTP-{version}-macOS.app.zip — universal arm64 + x86_64 AppKit compatibility archive using an ad-hoc code signature. It is not Developer ID signed or Apple notarized.
 
 Browser helper packages:
 - Ghost-FTP-{version}-Chrome-Extension.zip
@@ -87,11 +90,11 @@ Verification files
 Release contract
 ----------------
 - Current Ghost FTP releases are not inferred to be prereleases from semantic-version major zero.
-- 13 platform artifacts.
-- 16 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
-- Public application platforms: Windows, Linux and Android.
+- 14 platform artifacts.
+- 17 public release files total, including BUILD-METADATA.txt, RELEASE-NOTES.txt and SHA256.txt.
+- Public application platforms: Windows, Linux, Android and macOS.
 - Public browser-helper packages: Chrome, Edge, Firefox and Opera.
-- macOS remains a separately validated development/source frontend until real Developer ID signing and Apple notarization succeed.
+- The public macOS compatibility archive is ad-hoc signed only; Developer ID signing and notarization remain a separate future production-distribution path.
 - Local language catalog: 24 selectable desktop languages with English default/fallback.
 - Application telemetry: disabled.
 - Each public Linux distro gets one Installer and one Portable archive. Both carry amd64, arm64 and i386 payloads and select the native payload locally; native CI runtime evidence is reported separately from build/package evidence.
@@ -99,9 +102,9 @@ Release contract
 
 Signing and trust
 -----------------
-- Official Windows publication is signed-only and requires trusted Authenticode; there is no supported unsigned official-publication continuation.
-- Official Android publication requires the protected production publisher identity and an exact signer-certificate SHA-256 fingerprint match.
-- The production workflow never generates a replacement long-lived Windows or Android publisher identity.
+- Windows compatibility publication may be explicitly unsigned when no protected Authenticode identity is configured; the state is recorded in BUILD-METADATA.txt.
+- Android uses the protected production publisher identity when fully configured; otherwise the release creates a one-run compatibility certificate and records its SHA-256 signer fingerprint.
+- Compatibility signing never claims a long-lived production identity and does not weaken protocol security or privacy checks.
 - Android production signing does not expose SFTP without strict maintained host-key verification.
 - Always verify SHA256.txt and the official GitHub release location before installation or deployment.
 
