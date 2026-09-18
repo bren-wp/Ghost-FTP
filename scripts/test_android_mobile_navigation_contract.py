@@ -226,7 +226,6 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
     def test_navigation_uses_local_vector_assets_and_no_emoji_controls(self) -> None:
         for name in (
-            "ic_menu.xml",
             "ic_ghost_brand.xml",
             "ic_files.xml",
             "ic_sites.xml",
@@ -253,6 +252,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             self.assertIn("<path", content)
 
         activity = self.read(ACTIVITY)
+        self.assertNotIn("R.drawable.ic_menu", activity)
+        self.assertFalse((DRAWABLES / "ic_menu.xml").exists())
         for emoji in ("📁", "🔖", "⚙", "ℹ", "💻", "⬆", "⬇"):
             self.assertNotIn(emoji, activity)
 
