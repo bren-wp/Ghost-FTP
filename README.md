@@ -77,6 +77,10 @@ Additional authentic surfaces are available under [`docs/images/`](docs/images/)
 
 Android intentionally hides SFTP until the maintained Android implementation can provide the required strict host-key verification boundary.
 
+## Product terminology
+
+English is the canonical product language and fallback. Shipping surfaces use the same core labels across platforms: **Files**, **Connections/Sites**, **Transfer Queue/Transfers**, **Settings**, **Local Files**, **Remote Files**, **Quick Connect**, **Bookmarks** and **More**. Localized UI must not expose developer placeholders or clip essential action labels.
+
 ## Downloads and release identity
 
 The repository root [`VERSION`](VERSION) is the only product version source. Release tags use:
