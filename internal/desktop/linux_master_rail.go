@@ -154,18 +154,36 @@ func (u *linuxDesktop) renderLinuxBrandMark(r linuxRect) error {
 	cyan := RGB{R: 70, G: 214, B: 200}
 	blue := RGB{R: 90, G: 134, B: 247}
 	for _, sx := range []int{x + 5, x + 21} {
-		if err := u.x.fillRect(sx, y+8, 7, 7, server); err != nil { return err }
-		if err := u.x.fillRect(sx, y+18, 7, 7, server); err != nil { return err }
-		if err := u.x.fillRect(sx+1, y+11, 5, 1, slot); err != nil { return err }
-		if err := u.x.fillRect(sx+1, y+21, 5, 1, slot); err != nil { return err }
+		if err := u.x.fillRect(sx, y+8, 7, 7, server); err != nil {
+			return err
+		}
+		if err := u.x.fillRect(sx, y+18, 7, 7, server); err != nil {
+			return err
+		}
+		if err := u.x.fillRect(sx+1, y+11, 5, 1, slot); err != nil {
+			return err
+		}
+		if err := u.x.fillRect(sx+1, y+21, 5, 1, slot); err != nil {
+			return err
+		}
 	}
 	// Cyan arrow moves right across the upper half; blue arrow mirrors it left
 	// across the lower half, matching the canonical 0.0.8 transfer mark.
-	if err := u.x.fillRect(x+10, y+10, 10, 4, cyan); err != nil { return err }
-	if err := u.x.fillRect(x+17, y+7, 4, 10, cyan); err != nil { return err }
-	if err := u.x.fillRect(x+20, y+12, 4, 4, cyan); err != nil { return err }
-	if err := u.x.fillRect(x+12, y+19, 10, 4, blue); err != nil { return err }
-	if err := u.x.fillRect(x+11, y+16, 4, 10, blue); err != nil { return err }
+	if err := u.x.fillRect(x+10, y+10, 10, 4, cyan); err != nil {
+		return err
+	}
+	if err := u.x.fillRect(x+17, y+7, 4, 10, cyan); err != nil {
+		return err
+	}
+	if err := u.x.fillRect(x+20, y+12, 4, 4, cyan); err != nil {
+		return err
+	}
+	if err := u.x.fillRect(x+12, y+19, 10, 4, blue); err != nil {
+		return err
+	}
+	if err := u.x.fillRect(x+11, y+16, 4, 10, blue); err != nil {
+		return err
+	}
 	return u.x.fillRect(x+8, y+18, 4, 4, blue)
 }
 

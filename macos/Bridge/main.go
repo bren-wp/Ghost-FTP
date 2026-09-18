@@ -138,6 +138,7 @@ func GhostFTPCreateEngine() C.int {
 
 // GhostFTPConnect returns 1 for connected, 2 when SFTP host-key trust is
 // required, and 0 for a user-safe failure exposed through GhostFTPLastError.
+//
 //export GhostFTPConnect
 func GhostFTPConnect(protocol, host *C.char, port C.int, username, password, privateKeyPath, passphrase, trustFingerprint *C.char, rememberFingerprint C.int) C.int {
 	bridgeState.mu.Lock()

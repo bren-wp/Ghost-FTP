@@ -12,17 +12,17 @@ import (
 )
 
 type linuxSettingsRects struct {
-	language                    linuxRect
-	appearance                  linuxRect
-	parallelMinus, parallelPlus linuxRect
-	uploadMinus, uploadPlus     linuxRect
-	downloadMinus, downloadPlus linuxRect
-	retriesMinus, retriesPlus   linuxRect
-	delayMinus, delayPlus       linuxRect
-	timeoutMinus, timeoutPlus   linuxRect
-	conflict, confirmDelete     linuxRect
+	language                           linuxRect
+	appearance                         linuxRect
+	parallelMinus, parallelPlus        linuxRect
+	uploadMinus, uploadPlus            linuxRect
+	downloadMinus, downloadPlus        linuxRect
+	retriesMinus, retriesPlus          linuxRect
+	delayMinus, delayPlus              linuxRect
+	timeoutMinus, timeoutPlus          linuxRect
+	conflict, confirmDelete            linuxRect
 	update, download, premium, website linuxRect
-	reset, save, close          linuxRect
+	reset, save, close                 linuxRect
 }
 
 func linuxSettingsPanelWidth(windowWidth int) int {

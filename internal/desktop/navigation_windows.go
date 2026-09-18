@@ -3,10 +3,10 @@
 package desktop
 
 const (
-	idFilesNav         = 700
-	idSiteManager      = 701
-	idTransferQueueNav = 702
-	idDiagnostics      = 703
+	idFilesNav           = 700
+	idSiteManager        = 701
+	idTransferQueueNav   = 702
+	idDiagnostics        = 703
 	idCheckUpdates       = 704
 	idPremiumDownload    = 705
 	idWorkspaceBack      = 706

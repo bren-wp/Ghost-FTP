@@ -110,6 +110,7 @@ func setDirectoryCompareError(err error, fallback string) {
 // GhostFTPPrepareDirectoryCompare arms cancellation before the compare is
 // queued on the serialized engine worker. A Cancel/Close/Disconnect that
 // happens while the worker is still busy is therefore latched instead of lost.
+//
 //export GhostFTPPrepareDirectoryCompare
 func GhostFTPPrepareDirectoryCompare() C.ulonglong {
 	return C.ulonglong(prepareDirectoryCompareOperation(true))
@@ -290,6 +291,7 @@ func GhostFTPDirectoryCompareCanOpenBoth(index C.int) C.int {
 
 // GhostFTPPrepareDirectoryCompareOpen retains the completed comparison result
 // while arming cancellation for the queued atomic Open Both operation.
+//
 //export GhostFTPPrepareDirectoryCompareOpen
 func GhostFTPPrepareDirectoryCompareOpen() C.ulonglong {
 	return C.ulonglong(prepareDirectoryCompareOperation(false))
@@ -325,6 +327,7 @@ func commitComparedDirectories(seq uint64, engine *api.Engine, localBase, remote
 
 // GhostFTPOpenComparedDirectoryBoth stages both listings and commits neither
 // visible snapshot unless both reads and the final stale-snapshot check pass.
+//
 //export GhostFTPOpenComparedDirectoryBoth
 func GhostFTPOpenComparedDirectoryBoth(operationToken C.ulonglong, index C.int) C.int {
 	seq := uint64(operationToken)

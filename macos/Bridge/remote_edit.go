@@ -99,6 +99,7 @@ func GhostFTPRemoteEditMaxBytes() C.longlong {
 
 // GhostFTPRemoteEditSave returns 1 after a verified save, 2 for a revision
 // conflict that requires an explicit reload decision, and 0 for other errors.
+//
 //export GhostFTPRemoteEditSave
 func GhostFTPRemoteEditSave(base, name, expectedRevision *C.char, text unsafe.Pointer, textLen C.longlong) C.int {
 	bridgeState.mu.Lock()

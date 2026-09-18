@@ -74,11 +74,11 @@ type app struct {
 	localSortDescending  bool
 	remoteSortDescending bool
 
-	workspaceBackHistory       []workspaceHistoryEntry
-	workspaceForwardHistory    []workspaceHistoryEntry
-	workspaceReplayActive      bool
-	workspaceReplayTarget      workspaceHistoryEntry
-	lastFilePaneRemote         bool
+	workspaceBackHistory    []workspaceHistoryEntry
+	workspaceForwardHistory []workspaceHistoryEntry
+	workspaceReplayActive   bool
+	workspaceReplayTarget   workspaceHistoryEntry
+	lastFilePaneRemote      bool
 }
 
 var apps sync.Map

@@ -184,16 +184,16 @@ func buildLinuxDesktopLayout(width, height int) linuxDesktopLayout {
 }
 
 type linuxUIResult struct {
-	action        int
-	err           error
-	connectResult bool
-	requiresTrust bool
-	fingerprint   string
-	localBase     string
-	localItems    []model.Item
-	remoteItems   []model.Item
-	updateLatest  string
-	updateURL     string
+	action          int
+	err             error
+	connectResult   bool
+	requiresTrust   bool
+	fingerprint     string
+	localBase       string
+	localItems      []model.Item
+	remoteItems     []model.Item
+	updateLatest    string
+	updateURL       string
 	updateAvailable bool
 }
 
@@ -222,29 +222,29 @@ type linuxDesktop struct {
 	profileIndex      int
 	selectedProfileID string
 
-	connected          bool
-	pendingFingerprint string
-	lastConnectConfig  model.ConnectionConfig
-	localCurrent       string
-	remoteCurrent      string
-	localItems         []model.Item
-	remoteItems        []model.Item
-	selectedLocal      int
-	selectedRemote     int
-	transferJobs       []model.TransferJob
-	selectedTransfer   int
-	queuePaused        bool
-	status             string
-	confirmKind        string
-	confirmUntil       time.Time
-	promptKind         int
-	promptTitle        string
-	promptValue        string
-	settingsOpen       bool
-	settingsDraft      model.Settings
-	settingsRects      linuxSettingsRects
-	infoOverlay        linuxInfoOverlayKind
-	pendingUpdateURL   string
+	connected            bool
+	pendingFingerprint   string
+	lastConnectConfig    model.ConnectionConfig
+	localCurrent         string
+	remoteCurrent        string
+	localItems           []model.Item
+	remoteItems          []model.Item
+	selectedLocal        int
+	selectedRemote       int
+	transferJobs         []model.TransferJob
+	selectedTransfer     int
+	queuePaused          bool
+	status               string
+	confirmKind          string
+	confirmUntil         time.Time
+	promptKind           int
+	promptTitle          string
+	promptValue          string
+	settingsOpen         bool
+	settingsDraft        model.Settings
+	settingsRects        linuxSettingsRects
+	infoOverlay          linuxInfoOverlayKind
+	pendingUpdateURL     string
 	pendingUpdateVersion string
 
 	resultCh chan linuxUIResult
