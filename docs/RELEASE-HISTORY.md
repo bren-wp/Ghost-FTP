@@ -1,3 +1,5 @@
+> **Current platform note:** macOS is retired from the active Ghost FTP product line. Historical entries below are preserved to describe earlier development/release states.
+
 # Ghost FTP release history
 
 ## 0.0.8 — 2026-09-18
