@@ -33,18 +33,43 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         self.assertIn("if len(u.transferJobs) == 0 {", queue)
         self.assertIn('u.tr("transfer.summary", 0, 0, 0)', queue)
 
-    def test_linux_workspace_titles_stay_out_of_master_rail(self) -> None:
+    def test_linux_workspace_matches_master_dual_pane_and_queue_hierarchy(self) -> None:
         source = read("internal/desktop/gui_linux.go")
         workspace_start = source.index("func (u *linuxDesktop) renderWorkspace() error")
-        queue_start = source.index("func (u *linuxDesktop) renderQueue() error", workspace_start)
+        queue_start = source.index("func linuxTransferFileName", workspace_start)
         render_start = source.index("func (u *linuxDesktop) render() error", queue_start)
         workspace = source[workspace_start:queue_start]
         queue = source[queue_start:render_start]
-        self.assertIn("left: u.layout.localPath.left - 6", workspace)
-        self.assertIn("u.x.text(u.layout.localPath.left+8, leftPanel.top+20", workspace)
-        self.assertIn("u.x.text(u.layout.queue.left+8, u.layout.pause.top+19", queue)
-        self.assertNotIn("u.x.text(premiumOuterGap, leftPanel.top+20", workspace)
-        self.assertNotIn("u.x.text(premiumOuterGap, u.layout.pause.top+19", queue)
+        self.assertIn('localTitle := u.tr("section.local")', workspace)
+        self.assertIn('remoteTitle := u.tr("section.remote")', workspace)
+        self.assertIn("u.renderItemRows(u.fileFilterListRect(false)", workspace)
+        self.assertNotIn("u.layout.localUp", workspace)
+        self.assertNotIn("u.layout.localNew", workspace)
+        self.assertNotIn("u.layout.remoteChmod", workspace)
+        for marker in (
+            '{fileX, "File"}',
+            'u.tr("column.direction")',
+            '{progressX, "Progress"}',
+            'u.tr("column.status")',
+            '{speedX, "Speed"}',
+            '{etaX, "ETA"}',
+        ):
+            self.assertIn(marker, queue)
+
+    def test_linux_master_rail_and_more_menu_match_reference_navigation(self) -> None:
+        rail = read("internal/desktop/linux_master_rail.go")
+        info = read("internal/desktop/linux_info_overlay.go")
+        self.assertIn('"One client.", "Five platforms.", "Zero friction."', rail)
+        self.assertIn('"v"+u.version+" (Linux)"', rail)
+        self.assertNotIn("u.drawButton(rail.bookmarks", rail)
+        self.assertNotIn("u.drawButton(rail.diagnostics", rail)
+        self.assertNotIn("u.drawButton(rail.about", rail)
+        self.assertIn("linuxInfoOverlayMore", rail)
+        self.assertIn("u.openFileFilterPrompt(false)", info)
+        self.assertIn("u.openRecursiveSearchPrompt(true)", info)
+        self.assertIn("u.openSelectedRemoteChmod()", info)
+        self.assertIn("u.openSelectedRemoteEditor()", info)
+        self.assertIn("u.startDirectoryComparisonLinux()", info)
 
     def test_linux_quick_connect_label_avoids_known_parenthetical_clipping(self) -> None:
         source = read("internal/desktop/gui_linux.go")
