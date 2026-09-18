@@ -128,17 +128,19 @@ function Find-ChildWindowByText {
         [IntPtr]$Parent,
         [Parameter(Mandatory = $true)]
         [string]$Text,
-        [int]$TimeoutSeconds = 10
+        [int]$TimeoutSeconds = 10,
+        [switch]$IncludeHidden
     )
 
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     do {
         $script:ghostFtpFoundChild = [IntPtr]::Zero
         $script:ghostFtpChildText = $Text
+        $script:ghostFtpIncludeHiddenChild = [bool]$IncludeHidden
         $callback = [GhostFtpCaptureNative+EnumWindowsProc]{
             param([IntPtr]$hWnd, [IntPtr]$lParam)
 
-            if (-not [GhostFtpCaptureNative]::IsWindowVisible($hWnd)) {
+            if (-not $script:ghostFtpIncludeHiddenChild -and -not [GhostFtpCaptureNative]::IsWindowVisible($hWnd)) {
                 return $true
             }
             $buffer = New-Object System.Text.StringBuilder 512
@@ -268,9 +270,11 @@ try {
     [GhostFtpCaptureNative]::PostMessage($settingsWindow, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
     Start-Sleep -Milliseconds 350
 
-    # About now uses its own native theme-aware information card rather than a
-    # stock TaskDialog. Capture it from the real runtime surface as release proof.
-    $aboutButton = Find-ChildWindowByText -Parent $main -Text "About"
+    # About now lives in the master More utility surface rather than the visible
+    # sidebar. Its existing native command button remains hidden as the stable
+    # owner-routed command target, so release evidence can still open and capture
+    # the real About window without reintroducing duplicate visible navigation.
+    $aboutButton = Find-ChildWindowByText -Parent $main -Text "About" -IncludeHidden
     if (-not [GhostFtpCaptureNative]::PostMessage($aboutButton, $bmClick, [IntPtr]::Zero, [IntPtr]::Zero)) {
         throw "Could not click the Ghost FTP About card."
     }
