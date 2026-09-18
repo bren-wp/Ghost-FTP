@@ -510,6 +510,9 @@ func (u *linuxDesktop) renderQuickConnect() error {
 	}
 
 	profileLabel := u.tr("profile.quick")
+	if i := strings.Index(profileLabel, " ("); i > 0 {
+		profileLabel = strings.TrimSpace(profileLabel[:i])
+	}
 	if u.profileIndex >= 0 && u.profileIndex < len(u.profiles) {
 		profileLabel = u.profiles[u.profileIndex].Name
 	}
@@ -588,7 +591,7 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.drawPanel(rightPanel); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.localPath.left, leftPanel.top+20, strings.ToUpper(u.tr("section.local")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(u.layout.localPath.left+8, leftPanel.top+20, strings.ToUpper(u.tr("section.local")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
 		return err
 	}
 	if err := u.x.text(u.layout.remotePath.left, leftPanel.top+20, strings.ToUpper(u.tr("section.remote")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
@@ -653,7 +656,7 @@ func (u *linuxDesktop) renderWorkspace() error {
 
 func (u *linuxDesktop) renderQueue() error {
 	actions := u.linuxTransferActionState()
-	if err := u.x.text(u.layout.queue.left, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
+	if err := u.x.text(u.layout.queue.left+8, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
 		return err
 	}
 	if err := u.drawButton(u.layout.pause, u.tr("transfer.pause"), actions.Pause && !u.busy, false); err != nil {
