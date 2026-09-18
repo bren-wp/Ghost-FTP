@@ -257,60 +257,60 @@ jobs:
           mkdir -p release
           find staging -type f -print0 | while IFS= read -r -d '' file; do cp "$file" release/; done
           cat > release/BUILD-METADATA.txt <<EOF
-BRAND=Ghost FTP
-VERSION=${version}
-RELEASE_TAG=${tag}
-RELEASE_CHANNEL=current
-COMMIT=${GITHUB_SHA}
-DISTRIBUTION_MODE=no-secret-public-release
-WINDOWS_SETUP=universal-x86-x64-arm64
-WINDOWS_PORTABLE=universal-x86-x64-arm64
-WINDOWS_AUTHENTICODE=unsigned
-ANDROID_APK=debug-signed-no-secret
-ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
-ANDROID_SFTP=hidden-until-strict-host-key-verification
-MACOS_APP=universal-arm64-x86_64
-MACOS_SIGNING=adhoc-validation
-MACOS_NOTARIZATION=not-performed
-LINUX_PAYLOADS=amd64,arm64,i386
-BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-PUBLIC_PLATFORM_ARTIFACTS=14
-PUBLIC_RELEASE_FILES=17
-EOF
+          BRAND=Ghost FTP
+          VERSION=${version}
+          RELEASE_TAG=${tag}
+          RELEASE_CHANNEL=current
+          COMMIT=${GITHUB_SHA}
+          DISTRIBUTION_MODE=no-secret-public-release
+          WINDOWS_SETUP=universal-x86-x64-arm64
+          WINDOWS_PORTABLE=universal-x86-x64-arm64
+          WINDOWS_AUTHENTICODE=unsigned
+          ANDROID_APK=debug-signed-no-secret
+          ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
+          ANDROID_SFTP=hidden-until-strict-host-key-verification
+          MACOS_APP=universal-arm64-x86_64
+          MACOS_SIGNING=adhoc-validation
+          MACOS_NOTARIZATION=not-performed
+          LINUX_PAYLOADS=amd64,arm64,i386
+          BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
+          PUBLIC_PLATFORM_ARTIFACTS=14
+          PUBLIC_RELEASE_FILES=17
+          EOF
           cat > release/RELEASE-NOTES.txt <<EOF
-Ghost FTP 0.0.8
-
-This is the requested no-secret distribution build from exact source ${GITHUB_SHA}.
-
-Trust/signing boundary:
-- Windows Setup and Portable are intentionally unsigned and may trigger Windows SmartScreen/Unknown Publisher warnings.
-- Android is an installable debug-signed APK built in CI without a protected publisher secret.
-- macOS is an ad-hoc signed universal validation app. It is not Developer ID signed or Apple notarized.
-- Linux and browser helper artifacts are verified by exact-source build and SHA-256 checksums.
-
-Security/privacy behavior is unchanged: no telemetry, no ads, strict FTPS verification, desktop SFTP host-key trust, and Android SFTP remains hidden until strict host-key verification is maintained.
-EOF
+          Ghost FTP 0.0.8
+          
+          This is the requested no-secret distribution build from exact source ${GITHUB_SHA}.
+          
+          Trust/signing boundary:
+          - Windows Setup and Portable are intentionally unsigned and may trigger Windows SmartScreen/Unknown Publisher warnings.
+          - Android is an installable debug-signed APK built in CI without a protected publisher secret.
+          - macOS is an ad-hoc signed universal validation app. It is not Developer ID signed or Apple notarized.
+          - Linux and browser helper artifacts are verified by exact-source build and SHA-256 checksums.
+          
+          Security/privacy behavior is unchanged: no telemetry, no ads, strict FTPS verification, desktop SFTP host-key trust, and Android SFTP remains hidden until strict host-key verification is maintained.
+          EOF
           (cd release && find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs -r sha256sum > SHA256.txt)
           expected=$(cat <<EOF
-BUILD-METADATA.txt
-Ghost-FTP-${version}-Android.apk
-Ghost-FTP-${version}-Chrome-Extension.zip
-Ghost-FTP-${version}-Edge-Extension.zip
-Ghost-FTP-${version}-Firefox-Extension.zip
-Ghost-FTP-${version}-Linux-Debian-Installer.run
-Ghost-FTP-${version}-Linux-Debian-Portable.tar.gz
-Ghost-FTP-${version}-Linux-Fedora-Installer.run
-Ghost-FTP-${version}-Linux-Fedora-Portable.tar.gz
-Ghost-FTP-${version}-Linux-Ubuntu-Installer.run
-Ghost-FTP-${version}-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-${version}-Opera-Extension.zip
-Ghost-FTP-${version}-Portable.exe
-Ghost-FTP-${version}-Setup.exe
-Ghost-FTP-${version}-macOS.app.zip
-RELEASE-NOTES.txt
-SHA256.txt
-EOF
-)
+          BUILD-METADATA.txt
+          Ghost-FTP-${version}-Android.apk
+          Ghost-FTP-${version}-Chrome-Extension.zip
+          Ghost-FTP-${version}-Edge-Extension.zip
+          Ghost-FTP-${version}-Firefox-Extension.zip
+          Ghost-FTP-${version}-Linux-Debian-Installer.run
+          Ghost-FTP-${version}-Linux-Debian-Portable.tar.gz
+          Ghost-FTP-${version}-Linux-Fedora-Installer.run
+          Ghost-FTP-${version}-Linux-Fedora-Portable.tar.gz
+          Ghost-FTP-${version}-Linux-Ubuntu-Installer.run
+          Ghost-FTP-${version}-Linux-Ubuntu-Portable.tar.gz
+          Ghost-FTP-${version}-Opera-Extension.zip
+          Ghost-FTP-${version}-Portable.exe
+          Ghost-FTP-${version}-Setup.exe
+          Ghost-FTP-${version}-macOS.app.zip
+          RELEASE-NOTES.txt
+          SHA256.txt
+          EOF
+          )
           actual="$(find release -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)"
           test "$actual" = "$expected" || { diff -u <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") || true; exit 1; }
           test "$(find release -maxdepth 1 -type f | wc -l | tr -d ' ')" = '17'
