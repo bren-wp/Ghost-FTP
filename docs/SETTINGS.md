@@ -7,7 +7,7 @@ Windows and Linux share the desktop settings model. Android 0.0.7 is a public na
 ## Current shared desktop settings
 
 - `language` — local UI language; invalid state normalizes to English.
-- `appearance` — `light` or `dark`; fresh/invalid state resolves to Classic Light.
+- `appearance` — `dark` or `light`; fresh/invalid state resolves to Dark.
 - `parallelism` — concurrent transfers, **1–8**, default **2**.
 - `uploadLimitKiBPerSecond` — aggregate upload ceiling, **0–1,048,576 KiB/s**, default **0 = unlimited**.
 - `downloadLimitKiBPerSecond` — aggregate download ceiling, same range/default.
@@ -21,17 +21,17 @@ Windows and Linux share the desktop settings model. Android 0.0.7 is a public na
 
 A non-zero bandwidth value is the aggregate ceiling for that direction. The scheduler divides budgets conservatively across configured worker slots; running attempts snapshot their effective budget at start. FTP/FTPS use curl `limit-rate`; desktop SFTP uses OpenSSH `sftp -l` with conservative conversion.
 
-Windows exposes **one application-owned native Settings dialog** for appearance, concurrency, independent upload/download bandwidth, timeout, retries, conflict policy and delete confirmation. **Invalid input keeps the dialog open**; Cancel/X discards the pending candidate.
+Windows exposes **one application-owned native Settings dialog** for appearance, concurrency, independent upload/download bandwidth, timeout, retries, conflict policy and delete confirmation. **Restore defaults** loads the canonical safe values into the dialog without saving them; Apply is still the persistence boundary. **Invalid input keeps the dialog open**; Cancel/X discards the pending candidate.
 
-Linux exposes the same validated policy through the maintained native X11/XWayland-compatible overlay. macOS development uses native AppKit controls backed by the same typed settings model where parity is maintained.
+Linux exposes the same validated policy through the maintained native X11/XWayland-compatible overlay and has the same draft-only Restore defaults action. macOS development uses native AppKit controls backed by the same typed settings model, including draft-only Restore Defaults and fail-closed delete confirmation when settings cannot be read.
 
 ## Android settings boundary
 
-Android 0.0.7 keeps native settings appropriate to its current public client. Connection/storage choices preserve strict FTPS verification, Storage Access Framework authority, transfer/lifecycle ownership and local-only non-secret saved-site state. **SFTP remains hidden** until strict maintained native host-key verification exists.
+Android 0.0.7 keeps native settings appropriate to its current public client: Dark/Light appearance, opt-in Quick Connect metadata persistence, file-size display, delete confirmation and Restore app defaults. Restore defaults clears remembered Quick Connect metadata while keeping saved connections and the user-selected SAF folder authority. Connection/storage choices preserve strict FTPS verification, Storage Access Framework authority, transfer/lifecycle ownership and local-only non-secret saved-site state. **SFTP remains hidden** until strict maintained native host-key verification exists.
 
 ## Appearance and localization
 
-Classic Light is the fresh/fallback desktop appearance and Dark is a maintained explicit choice. Both are local source-defined palettes with no remote theme/font/style dependency. English is the default/fallback and the shared desktop registry contains **24 languages**.
+Dark is the fresh/fallback desktop appearance and Light is a maintained secondary choice. Both are local source-defined palettes with no remote theme/font/style dependency. English is the default/fallback and the shared desktop registry contains **24 languages**.
 
 ## Fresh connection and retry policy
 
