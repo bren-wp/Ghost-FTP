@@ -7,6 +7,11 @@ on:
         description: 'Optional version guard; must equal VERSION'
         required: false
         type: string
+  push:
+    branches:
+      - main
+    paths:
+      - '.release/ghostftp-v0.0.8'
 
 permissions:
   contents: read
