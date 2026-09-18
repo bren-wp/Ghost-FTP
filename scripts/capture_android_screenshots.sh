@@ -307,16 +307,22 @@ open_navigation
 capture 'ghost-ftp-android-navigation.png'
 
 first_section=1
-for section in Sites Bookmarks Transfers Settings About; do
+while IFS='|' read -r section expected_title file_slug; do
+  [[ -n "$section" ]] || continue
   if (( first_section == 0 )); then
     open_navigation
   fi
-  expected_title="$section"
   tap_nav_section "$section" "$expected_title"
   first_section=0
-  lower="$(printf '%s' "$section" | tr '[:upper:]' '[:lower:]')"
-  capture "ghost-ftp-android-${lower}.png"
-done
+  capture "ghost-ftp-android-${file_slug}.png"
+done <<'SURFACES'
+Connections|Connections|connections
+Bookmarks|Bookmarks|bookmarks
+Transfer Queue|Transfer Queue|transfer-queue
+Settings|Settings|settings
+Connection info|Connection info|connection-info
+About|About|about
+SURFACES
 
 for png in "$OUTPUT_DIR"/*.png; do
   dims="$(identify -format '%w %h %k' "$png")"
