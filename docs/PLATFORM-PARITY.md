@@ -1,6 +1,6 @@
 # Ghost FTP platform parity
 
-Ghost FTP **0.0.7** treats parity as **equivalent real capability with honest platform-native UX**, not pixel-copying unsupported controls.
+Ghost FTP **0.0.8** treats parity as **equivalent real capability with honest platform-native UX**, not pixel-copying unsupported controls.
 
 ## Windows and Linux desktop parity
 
@@ -35,7 +35,7 @@ Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from one
 
 ## Retired application surfaces
 
-The repository website, Web FTP runtime and PWA application surface are retired and intentionally absent from the maintained product tree. They are not part of the Ghost FTP 0.0.7 runtime, release or platform-parity contract.
+The repository website, Web FTP runtime and PWA application surface are retired and intentionally absent from the maintained product tree. They are not part of the Ghost FTP 0.0.8 runtime, release or platform-parity contract.
 
 ## Theme and visual direction
 
@@ -45,7 +45,7 @@ Windows remains the canonical desktop visual reference. Dark uses the maintained
 
 Every public release stage is independently required. A successful Windows build cannot substitute for failed Linux, Android or browser publication.
 
-The Ghost FTP 0.0.7 release contract is **13 platform artifacts / 16 public files**:
+The Ghost FTP 0.0.8 release contract is **13 platform artifacts / 16 public files**:
 
 - Windows: 2;
 - Linux: 6;
