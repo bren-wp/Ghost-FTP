@@ -27,7 +27,7 @@ Android SFTP remains hidden until strict native host-key identity verification e
 
 ## macOS parity boundary
 
-macOS is an active native AppKit development frontend over the shared engine. Source/build parity does not imply public distribution parity. It remains outside the public release until real Developer ID Application signing and Apple notarization succeed.
+macOS is an active native AppKit frontend over the shared engine and a 0.0.8 public release target. Public distribution still fails closed unless real Developer ID Application signing, Apple notarization, stapling and Gatekeeper verification succeed.
 
 ## Browser helper boundary
 
@@ -45,7 +45,7 @@ Windows remains the canonical desktop visual reference. Dark uses the maintained
 
 Every public release stage is independently required. A successful Windows build cannot substitute for failed Linux, Android or browser publication.
 
-The Ghost FTP 0.0.8 release contract is **13 platform artifacts / 16 public files**:
+The Ghost FTP 0.0.8 release contract is **14 platform artifacts / 17 public files**:
 
 - Windows: 2;
 - Linux: 6;
@@ -53,6 +53,6 @@ The Ghost FTP 0.0.8 release contract is **13 platform artifacts / 16 public file
 - Browser helpers: 4;
 - release metadata: 3.
 
-macOS remains active source/build validation only and is not a public release artifact for 0.0.8. Retired web surfaces do not contribute release artifacts.
+macOS contributes one verified universal notarized AppKit archive to 0.0.8. Retired web surfaces do not contribute release artifacts.
 
 See [Architecture](ARCHITECTURE.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).
