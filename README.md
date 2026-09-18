@@ -120,7 +120,7 @@ Release channel: **Current**
 Product status: **Current**
 Public release: **ghostftp-v0.0.8**
 Distribution mode: **no-secret public release**
-Last actually published GitHub Release: **0.0.7**
+Last actually published GitHub Release: **0.0.8**
 Prerelease: **false**
 
 The 0.0.8 no-secret publication contract contains **14 platform artifacts / 17 public files**. Windows is unsigned, Android is installable temporary compatibility-signed, and macOS is ad-hoc signed without Apple notarization. These states are recorded in release metadata rather than presented as production signing.
@@ -153,7 +153,7 @@ Each distro bundle carries amd64, arm64 and i386 payloads and selects the local 
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-The published APK is installable and its CI debug-signing certificate fingerprint is recorded in `BUILD-METADATA.txt`. It does not claim a protected production publisher identity.
+The published APK is installable and its temporary compatibility-signing certificate fingerprint is recorded in `BUILD-METADATA.txt`. It does not claim a protected production publisher identity.
 
 ### macOS
 

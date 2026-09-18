@@ -40,7 +40,7 @@ class NoRetiredPublicVersionsTests(unittest.TestCase):
         release_workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         self.assertRegex(version, r"^0\.0\.[1-9]\d*$")
         self.assertIn(f"Current source version: **{version}**", readme)
-        self.assertIn("Last actually published GitHub Release: **0.0.7**", readme)
+        self.assertIn(f"Last actually published GitHub Release: **{version}**", readme)
         self.assertIn("Release channel: **Current**", readme)
         self.assertIn("Product status: **Current**", readme)
         self.assertIn("Prerelease: **false**", readme)

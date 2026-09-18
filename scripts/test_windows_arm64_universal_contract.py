@@ -100,7 +100,7 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             with self.subTest(document=rel, marker="evidence"):
                 self.assertIn("WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci", text)
 
-    def test_007_cross_platform_shape_does_not_change_windows_public_shape(self) -> None:
+    def test_008_cross_platform_shape_does_not_change_windows_public_shape(self) -> None:
         for rel in (
             "README.md",
             "docs/README.md",
@@ -111,7 +111,7 @@ class WindowsArm64UniversalContractTests(unittest.TestCase):
             text = read(rel)
             self.assertIn("14 platform artifacts / 17 public files", text, rel)
             self.assertNotIn("18 platform artifacts / 21 public files", text, rel)
-            self.assertIn("0.0.7", text, rel)
+            self.assertIn("0.0.8", text, rel)
         release = read(".github/workflows/release.yml")
         self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=14", release)
         self.assertIn("PUBLIC_RELEASE_FILES=17", release)
