@@ -19,7 +19,7 @@ func TestSimulateKeepsInstalledVersionTruthful(t *testing.T) {
 }
 
 func TestSimulateRejectsMalformedVersion(t *testing.T) {
-	for _, value := range []string{"", "0.8", "v0.0.8", "00.0.8", "0.00.8", "0.0.-1", "0.0.8.1"} {
+	for _, value := range []string{"", "0.8", "v0.0.8", "00.0.8", "0.00.8", "0.0.-1", "+0.0.8", "0.+0.8", "0.0.+8", "0.０.8", "0.0.8.1"} {
 		if _, err := Simulate(value); err == nil {
 			t.Fatalf("expected invalid version: %q", value)
 		}
