@@ -1,6 +1,6 @@
 # Third-party notices
 
-Ghost FTP **0.0.7** keeps the maintained desktop/core Go module intentionally free of external Go module requirements. The shared desktop engine uses operating-system networking tools for protocol execution rather than bundling an untracked third-party FTP/SSH stack.
+Ghost FTP **0.0.8** keeps the maintained desktop/core Go module intentionally free of external Go module requirements. The shared desktop engine uses operating-system networking tools for protocol execution rather than bundling an untracked third-party FTP/SSH stack.
 
 The current public release applications are **Windows, Linux and Android**. Chrome, Edge, Firefox and Opera helper ZIPs are public companion packages. macOS is an active native development/source frontend and remains outside the public 16-file release until real Developer ID signing and Apple notarization succeed.
 
@@ -30,7 +30,7 @@ The development artifact may be ad-hoc signed for validation. Public macOS distr
 
 ## Android public dependency boundary
 
-Android 0.0.7 is a public native application through the protected production-signing path. Its Java/Android SDK and Gradle ecosystem are build/platform dependencies and do not alter the root Go module's zero-external-module contract.
+Android 0.0.8 is a public native application through the protected production-signing path. Its Java/Android SDK and Gradle ecosystem are build/platform dependencies and do not alter the root Go module's zero-external-module contract.
 
 Android uses platform networking and Storage Access Framework capabilities. It exposes FTP and strict explicit FTPS; **SFTP remains hidden** until strict maintained host-key identity support exists. JUnit and CI-only signing identities remain test/build dependencies rather than production telemetry/network services.
 
@@ -38,7 +38,7 @@ Android uses platform networking and Storage Access Framework capabilities. It e
 
 `extensions/` contains the official Manifest V3 Chrome, Edge, Firefox and Opera companion packages. They use browser-provided extension APIs and one local shared JavaScript runtime; they do not bundle an FTP/SFTP networking stack or connect to transfer servers. On supported Windows installs they provide only the sanitized `ghostftp:` browser-to-desktop handoff; secrets are excluded and no automatic connection is performed.
 
-The helper requests no broad host, tab/history, storage, scripting or network permissions. The four deterministic ZIPs are public 0.0.7 companion artifacts while remaining outside the native application protocol runtime.
+The helper requests no broad host, tab/history, storage, scripting or network permissions. The four deterministic ZIPs are public 0.0.8 companion artifacts while remaining outside the native application protocol runtime.
 
 ## GitHub Actions
 
@@ -62,7 +62,7 @@ macOS production distribution has a separate fail-closed Developer ID + notariza
 
 ## Identity and historical provenance
 
-Historical Git content may describe older release surfaces. Historical provenance is not the active 0.0.7 dependency/release contract.
+Historical Git content may describe older release surfaces. Historical provenance is not the active 0.0.8 dependency/release contract.
 
 Current public product identity is **Ghost FTP**. Internal compatibility identifiers containing `GhostFTP` remain only where changing them could break installed identity or upgrade behavior.
 
