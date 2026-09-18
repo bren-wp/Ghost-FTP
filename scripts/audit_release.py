@@ -9,8 +9,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_PLATFORM_ARTIFACTS = 14
-PUBLIC_RELEASE_FILES = 17
+PUBLIC_PLATFORM_ARTIFACTS = 13
+PUBLIC_RELEASE_FILES = 16
 BROWSERS = ("Chrome", "Edge", "Firefox", "Opera")
 LINUX_DISTROS = ("Debian", "Ubuntu", "Fedora")
 
@@ -70,7 +70,7 @@ def main() -> int:
         "workflow_dispatch:",
         "contents: write",
         "packages: write",
-        "needs: [quality, windows, linux, android, macos, browser]",
+        "needs: [quality, windows, linux, android, browser]",
         "RELEASE_TAG=ghostftp-v$version",
         "release_channel='current'",
         "release_title=\"Ghost FTP $version\"",
@@ -95,17 +95,6 @@ def main() -> int:
         "ANDROID_SFTP=hidden-until-strict-host-key-verification",
         "Windows universal x86 x64 ARM64 setup and portable",
         "Debian Ubuntu Fedora universal installer and portable bundles",
-        "Developer ID signed notarized universal macOS app",
-        "MACOS_DEVELOPER_ID_P12_BASE64",
-        "MACOS_DEVELOPER_ID_P12_PASSWORD",
-        "MACOS_DEVELOPER_IDENTITY",
-        "APPLE_NOTARY_API_KEY_P8",
-        "APPLE_NOTARY_API_KEY_ID",
-        "APPLE_NOTARY_ISSUER_ID",
-        "bash macos/SIGN_AND_NOTARIZE.sh",
-        "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
-        "MACOS_APP=developer-id-signed-notarized-universal-arm64-x86_64",
-        "MACOS_SIGNING=developer-id-hardened-runtime-notarized-stapled",
         "Chrome Edge Firefox Opera release packages",
         "WINDOWS_SETUP=universal-x86-x64-arm64",
         "WINDOWS_PORTABLE=universal-x86-x64-arm64",
@@ -133,7 +122,6 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Setup.exe",
         "Ghost-FTP-${VERSION}-Portable.exe",
         "Ghost-FTP-${VERSION}-Android.apk",
-        "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
     ):
         if artifact not in workflow:
             fail(f"release workflow missing public artifact: {artifact}")
@@ -164,6 +152,9 @@ def main() -> int:
         if forbidden in workflow:
             fail(f"release workflow contains retired/incompatible publication marker: {forbidden}")
     lowered = workflow.lower()
+    for forbidden in ("macos", "darwin", "developer id", "apple notar"):
+        if forbidden in lowered:
+            fail(f"release workflow contains retired macOS publication marker: {forbidden}")
     for forbidden in ("ios/", "package_nuget.py", "nuget.pkg.github.com"):
         if forbidden in lowered:
             fail(f"release workflow contains unsupported public surface: {forbidden}")
@@ -309,7 +300,7 @@ def main() -> int:
     print("LINUX_FEDORA_PORTABLE=UNIVERSAL_AMD64_ARM64_I386")
     print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
     print("PROTECTED_RELEASE_ANDROID_ARTIFACT=PRODUCTION_SIGNED")
-    print("PROTECTED_RELEASE_MACOS_ARTIFACT=DEVELOPER_ID_NOTARIZED")
+    print("MACOS_RELEASE_ARTIFACT=RETIRED")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("GHCR_CURRENT_BUNDLE=REQUIRED")
     print("PROTECTED_RELEASE_WINDOWS_AUTHENTICODE=REQUIRED")
