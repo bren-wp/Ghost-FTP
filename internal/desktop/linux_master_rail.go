@@ -13,13 +13,13 @@ import (
 
 const (
 	linuxMasterRailX           = 14
-	linuxMasterRailWidth       = 166
-	linuxMasterContentLeft     = 204
-	linuxMasterRailCardH       = 46
+	linuxMasterRailWidth       = 208
+	linuxMasterContentLeft     = 232
+	linuxMasterRailCardH       = 50
 	linuxMasterRailCardGap     = 8
 	linuxMasterRailUtilityH    = 38
 	linuxMasterRailUtilityGap  = 7
-	linuxMasterRailPrimaryTop  = 64
+	linuxMasterRailPrimaryTop  = 72
 	linuxMasterRailBottomInset = 42
 	linuxWorkspaceHistoryLimit = 64
 )
