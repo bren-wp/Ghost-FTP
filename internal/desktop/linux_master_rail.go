@@ -36,7 +36,6 @@ type linuxMasterRailLayout struct {
 	content     linuxRect
 }
 
-
 type linuxWorkspaceHistoryEntry struct {
 	Remote bool
 	Path   string
