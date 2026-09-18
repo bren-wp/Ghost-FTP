@@ -87,7 +87,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn('setText(a.sectionRemote, "Remote Files")', source)
         self.assertIn('setText(a.sectionTransfers, "Transfer Queue")', source)
         self.assertIn("sendMessageW.Call(a.sectionLocal, wmSetFont, a.font, 1)", source)
-        self.assertIn("listY := actionY + 29 + 12", source)
+        self.assertIn("listY := pathY + 29 + 10", source)
         self.assertIn("a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)", source)
         self.assertNotIn("listY := actionY + 29 + 44", source)
 
