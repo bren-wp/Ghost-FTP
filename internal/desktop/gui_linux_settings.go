@@ -21,6 +21,7 @@ type linuxSettingsRects struct {
 	delayMinus, delayPlus       linuxRect
 	timeoutMinus, timeoutPlus   linuxRect
 	conflict, confirmDelete     linuxRect
+	update, download, premium, website linuxRect
 	reset, save, close          linuxRect
 }
 
@@ -252,6 +253,26 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 		u.settingsDraft.ConfirmDelete = !u.settingsDraft.ConfirmDelete
 		return true
 	}
+	if r.update.contains(x, y) {
+		u.closeSettings()
+		u.checkForUpdates()
+		return true
+	}
+	if r.download.contains(x, y) {
+		u.closeSettings()
+		u.openUpdateDownload()
+		return true
+	}
+	if r.premium.contains(x, y) {
+		u.closeSettings()
+		u.openPremiumDownload()
+		return true
+	}
+	if r.website.contains(x, y) {
+		u.closeSettings()
+		u.openOfficialWebsite()
+		return true
+	}
 	if r.reset.contains(x, y) {
 		u.settingsDraft = linuxDefaultSettingsDraft(u.settingsDraft)
 		return true
@@ -311,7 +332,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return nil
 	}
 	width := linuxSettingsPanelWidth(u.width)
-	height := 621
+	height := 675
 	left := (u.width - width) / 2
 	top := (u.height - height) / 2
 	panel := linuxRectWH(left, top, width, height)
@@ -388,6 +409,26 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		confirm = "✓"
 	}
 	if err := u.drawButton(u.settingsRects.confirmDelete, confirm, true, u.settingsDraft.ConfirmDelete); err != nil {
+		return err
+	}
+
+	utilityGap := 8
+	utilityW := (width - 48 - 3*utilityGap) / 4
+	utilityY := top + height - 92
+	u.settingsRects.update = linuxRectWH(left+24, utilityY, utilityW, 30)
+	u.settingsRects.download = linuxRectWH(u.settingsRects.update.right+utilityGap, utilityY, utilityW, 30)
+	u.settingsRects.premium = linuxRectWH(u.settingsRects.download.right+utilityGap, utilityY, utilityW, 30)
+	u.settingsRects.website = linuxRectWH(u.settingsRects.premium.right+utilityGap, utilityY, utilityW, 30)
+	if err := u.drawButtonWithLimit(u.settingsRects.update, "Update", true, true, linuxButtonLabelLimit(u.settingsRects.update)); err != nil {
+		return err
+	}
+	if err := u.drawButtonWithLimit(u.settingsRects.download, "Download latest", true, false, linuxButtonLabelLimit(u.settingsRects.download)); err != nil {
+		return err
+	}
+	if err := u.drawButtonWithLimit(u.settingsRects.premium, "Premium", true, false, linuxButtonLabelLimit(u.settingsRects.premium)); err != nil {
+		return err
+	}
+	if err := u.drawButtonWithLimit(u.settingsRects.website, "Official website", true, false, linuxButtonLabelLimit(u.settingsRects.website)); err != nil {
 		return err
 	}
 
