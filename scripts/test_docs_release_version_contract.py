@@ -86,6 +86,40 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             ):
                 self.assertNotIn(stale, text, relative)
 
+    def test_active_ui_docs_use_008_authentic_evidence(self):
+        readme = self.read("README.md")
+        docs_index = self.read("docs/README.md")
+        reference = self.read("docs/REFERENCE-UI.md")
+        testing = self.read("docs/TESTING.md")
+
+        for text in (readme, docs_index, reference):
+            self.assertIn("images/0.0.8/", text)
+            self.assertNotIn("images/0.0.6/ghost-ftp-main-workspace.png", text)
+
+        self.assertIn("18-image 0.0.8 evidence contract", readme)
+        self.assertIn("18 authentic runtime images", reference)
+        self.assertIn("Windows 5, Linux 5 and Android 8", testing)
+        self.assertIn("ghost-ftp-android-transfer-queue.png", docs_index)
+        self.assertNotIn("Windows Site Manager", docs_index)
+        self.assertNotIn("Android Transfers", docs_index)
+
+    def test_release_docs_preserve_007_and_report_real_browser_handoff(self):
+        verification = self.read("docs/RELEASE-VERIFICATION.md")
+        releases = self.read("docs/GITHUB-RELEASES.md")
+        history = self.read("docs/RELEASE-HISTORY.md")
+        testing = self.read("docs/TESTING.md")
+
+        for text in (verification, releases, history, testing):
+            self.assertIn("0.0.7", text)
+
+        self.assertIn("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7", verification)
+        self.assertIn("BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect", verification)
+        self.assertIn("BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect", releases)
+        self.assertNotIn("LATEST_ONLY_RELEASE_RETENTION=YES", verification)
+        self.assertIn("exactly four packages", testing)
+        self.assertIn("Ghost-FTP-0.0.8-Opera-Extension.zip", testing)
+        self.assertIn("16-file public release", testing)
+
     def test_android_and_browser_boundaries_remain_truthful(self):
         version = self.read("VERSION").strip()
         installation = self.read("docs/INSTALLATION.md")
