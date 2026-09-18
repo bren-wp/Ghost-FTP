@@ -10,6 +10,10 @@ Ghost FTP is a privacy-first FTP/FTPS/SFTP client built around a focused dual-pa
 > Current source version: **0.0.8** · Last actually published GitHub Release: **0.0.8**
 >
 > **Development status:** the immutable published release remains **0.0.8**. Current `main` contains post-release work for the next version. Existing 0.0.8 tags and release assets are never rewritten.
+>
+> Release channel: **Current** · Product status: **Current** · Prerelease: **false**
+>
+> Next-line distribution contract: **13 platform artifacts / 16 public files** · Distribution mode: **no-secret public release**
 
 ## Product experience
 
@@ -90,6 +94,15 @@ The repository root [`VERSION`](VERSION) is the only product version source. Rel
 Published tags are immutable. If source changes after a release, the next release uses a higher version.
 
 The official release workflow publishes the supported Windows, Linux and Android application artifacts plus optional browser-helper packages. Release metadata and SHA-256 checksums are generated from exact release source.
+
+Representative artifact names for the current source identity:
+
+- `Ghost-FTP-${version}-Linux-Debian-Installer.run`
+- `Ghost-FTP-${version}-Linux-Fedora-Portable.tar.gz`
+- `Ghost-FTP-${version}-Android.apk`
+- `Ghost-FTP-${version}-Opera-Extension.zip`
+
+For the current source version these resolve to `Ghost-FTP-0.0.8-...`. The published tag identity is `ghostftp-v0.0.8`. The historical 0.0.8 release may still contain its previously published macOS asset; published assets are immutable, but macOS is not part of future active release assembly.
 
 ## Security and privacy
 
