@@ -62,3 +62,15 @@ No shipping label may be unintentionally clipped. Narrow surfaces may wrap label
 ## Evidence rule
 
 Only authentic runtime screenshots are product evidence. Generated images and visual references are design targets, not proof of execution.
+
+
+## Windows architecture evidence
+
+Ghost FTP Windows Setup and Portable are universal launchers with native **x64, x86 and ARM64** application payloads.
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 payload is built and structurally verified in CI. Current hosted CI does not claim native Windows-on-ARM runtime execution evidence.
