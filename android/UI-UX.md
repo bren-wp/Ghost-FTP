@@ -30,7 +30,7 @@ Files owns the active local and server directory views.
 
 On phones, the Files surface favors useful state over permanent blank list boxes. A local list is shown only when the selected folder has visible entries; otherwise a compact truthful empty state explains whether the user must choose a folder, the folder is empty, or the current filter has no matches. The server side follows the same rule and distinguishes disconnected, empty-folder and no-filter-match states. This keeps both LOCAL and SERVER workspaces reachable without scrolling through hundreds of pixels of empty chrome.
 
-The compact phone app bar shows the local Ghost Gold vector mark and brand once. Files then follows the master information order: privacy-safe **Current connection**, real workspace **Actions**, Local/Remote files, and the live **Transfer Queue** state. At phone widths where two usable file panes fit, Local Files and Remote Files render side-by-side like the master reference; narrower devices fall back without horizontal clipping. The five primary destinations remain reachable in the fixed bottom navigation, whose public labels stay on one line. Tablet layouts keep the secondary app-bar section label because the persistent navigation rail changes the information hierarchy.
+The compact phone app bar shows the canonical Ghost FTP transfer-mark logo from the supplied 0.0.8 reference and brand once. Files then follows the master information order: privacy-safe **Current connection**, real workspace **Actions**, Local/Remote files, and the live **Transfer Queue** state. At phone widths where two usable file panes fit, Local Files and Remote Files render side-by-side like the master reference; narrower devices fall back without horizontal clipping. The five primary destinations remain reachable in the fixed bottom navigation, whose public labels stay on one line. Tablet layouts keep the secondary app-bar section label because the persistent navigation rail changes the information hierarchy.
 
 The Current connection card is derived from the active live session/profile and protocol state. The transfer card is derived from the actual transfer lifecycle; neither surface may inject demo servers, fake queue entries or decorative state.
 
@@ -80,7 +80,9 @@ Current interactive settings are:
 - whether non-secret Quick Connect endpoint metadata is remembered;
 - whether file sizes are shown in Files lists;
 - whether file/folder deletion requires confirmation;
-- Restore app defaults.
+- Restore app defaults;
+- local-only **Update** simulation;
+- **Download latest**, **Premium** and **Official website** actions restricted to HTTPS on `ghostftp.com`.
 
 Quick Connect metadata persistence is **opt-in on fresh installs**. Disabling it removes stored host, username, protocol and port metadata. Passwords remain memory-only regardless of this preference.
 
@@ -88,7 +90,7 @@ Delete confirmation defaults to enabled. Turning it off affects only the two rea
 
 Restore app defaults returns appearance to Dark, enables file sizes and delete confirmation, and clears remembered Quick Connect metadata. It intentionally keeps saved connections and the user-selected local SAF folder authority.
 
-Security rows are informational and cannot weaken TLS verification, storage confinement, transfer staging or privacy behavior.
+The Update simulation does not contact a release API and does not alter the signed APK version. Official-site actions never include host, username, password, current path or transfer data. Security rows are informational and cannot weaken TLS verification, storage confinement, transfer staging or privacy behavior.
 
 ### Connection info
 
@@ -116,7 +118,7 @@ Documentation may state that SFTP is intentionally hidden. That informational te
 
 ## Visual system
 
-Ghost FTP Android uses the same charcoal/blue-black product shell as the desktop applications, with warm gold/amber as the primary action and active-navigation accent. Green is reserved for positive connection/operation state and red for destructive or failed state. The default appearance is **Dark**, independent of the device's system light/dark preference, so a fresh install opens in the canonical Ghost FTP visual identity.
+Ghost FTP Android uses the same charcoal/blue-black product shell as the desktop applications, with warm gold/amber as the primary action and active-navigation accent. The product logo itself uses the canonical deep-navy server/transfer mark with cyan and blue opposing arrows from the supplied reference rather than the retired gold-ghost placeholder. Green is reserved for positive connection/operation state and red for destructive or failed state. The default appearance is **Dark**, independent of the device's system light/dark preference, so a fresh install opens in the canonical Ghost FTP visual identity.
 
 The runtime values intentionally match `internal/uipalette` **1:1**: Dark uses workspace `#0B0F17`, panel `#121824`, list `#161D2A`, border `#2C3648`, text `#F2F5FA`, muted `#97A3B8`, Ghost Gold `#F6C445` / `#FFD768`, success `#4AD79B`, warning `#F2BA55`, danger `#FF6878` and selection `#2B2515`. Light uses the same canonical secondary palette as Windows/Linux/macOS rather than a separate mobile color system.
 
