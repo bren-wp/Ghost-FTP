@@ -9,8 +9,8 @@ Ghost FTP 0.0.8 is the native UI/UX parity and release-quality update built on t
 - Expanded authentic cross-platform evidence to **18 runtime images** (Windows 5, Linux 5, Android 8), each bound to source/workflow provenance and SHA-256.
 - Polished empty states, queue affordances, mobile density, desktop modal lifecycle, X11 text fallback behavior and master Dark/Light palette parity.
 - Refreshed root README and active product/release documentation for the 0.0.8 design and package contract.
-- Keeps the public shape at **13 platform artifacts / 16 public files** and preserves required Windows Authenticode, protected Android signing, strict FTPS/desktop-SFTP trust and the no-telemetry/no-hidden-cloud privacy model.
-- macOS remains a separately validated native source surface until real Developer ID Application signing and Apple notarization are verified.
+- Expands the public shape to **14 platform artifacts / 17 public files** and uses a transparent compatibility-signing policy: Windows may be explicitly unsigned, Android may use a one-run compatibility certificate, and macOS is ad-hoc signed.
+- macOS joins the public 0.0.8 compatibility bundle as `Ghost-FTP-0.0.8-macOS.app.zip`; it is not Developer ID signed or Apple notarized.
 
 ## 0.0.7 — 2026-09-17
 
