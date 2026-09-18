@@ -54,6 +54,8 @@ test -s "$GENERATED_SITE_MANAGER_SOURCE"
 grep -F 'NSButton(title: "Files"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'NSButton(title: "Connections"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'makeMasterNavigationRail()' "$GENERATED_SOURCE" >/dev/null
+grep -F 'makeEmbeddedTransferQueue()' "$GENERATED_SOURCE" >/dev/null
+grep -F 'queue_progress' "$GENERATED_SOURCE" >/dev/null
 grep -F 'NSButton(title: "Bookmarks"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'NSButton(title: "Settings"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'NSButton(title: "About"' "$GENERATED_SOURCE" >/dev/null

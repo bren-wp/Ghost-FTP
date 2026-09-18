@@ -173,6 +173,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private let directoryCompareButton = NSButton(title: "Compare", target: nil, action: nil)
     private let transferQueueButton = NSButton(title: "Transfers", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "Not connected")
+    private let embeddedTransferTable = NSTableView(frame: .zero)
+    private let embeddedTransferSummary = NSTextField(labelWithString: "0 running • 0 queued • 0 done • 0 failed/cancelled")
+    private let embeddedPauseResumeButton = NSButton(title: "Pause", target: nil, action: nil)
+    private let embeddedOpenQueueButton = NSButton(title: "Open Queue", target: nil, action: nil)
 
     private let localTable = NSTableView(frame: .zero)
     private let remoteTable = NSTableView(frame: .zero)
@@ -265,13 +269,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
     private func buildWindow() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1440, height: 840),
+            contentRect: NSRect(x: 0, y: 0, width: 1440, height: 920),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Ghost FTP"
-        window.minSize = NSSize(width: 1120, height: 700)
+        window.minSize = NSSize(width: 1120, height: 780)
         window.center()
         window.delegate = self
         window.contentView?.wantsLayer = true
@@ -294,6 +298,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         directoryCompareButton.action = #selector(directoryCompareTapped)
         transferQueueButton.target = self
         transferQueueButton.action = #selector(transferQueueTapped)
+        embeddedPauseResumeButton.target = self
+        embeddedPauseResumeButton.action = #selector(embeddedPauseResumeTapped)
+        embeddedOpenQueueButton.target = self
+        embeddedOpenQueueButton.action = #selector(transferQueueTapped)
 
         configureWorkspaceActions()
         uploadButton.bezelColor = Palette.accent
@@ -411,6 +419,161 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             split.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10)
         ])
         return container
+    }
+
+    private func makeEmbeddedTransferQueue() -> NSView {
+        let heading = NSTextField(labelWithString: "Transfer Queue")
+        heading.font = .systemFont(ofSize: 15, weight: .semibold)
+        heading.textColor = Palette.text
+
+        embeddedTransferSummary.textColor = Palette.muted
+        embeddedTransferSummary.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        embeddedPauseResumeButton.bezelStyle = .rounded
+        embeddedOpenQueueButton.bezelStyle = .rounded
+
+        let header = NSStackView(views: [heading, embeddedTransferSummary, embeddedPauseResumeButton, embeddedOpenQueueButton])
+        header.orientation = .horizontal
+        header.alignment = .centerY
+        header.spacing = 8
+
+        embeddedTransferTable.dataSource = self
+        embeddedTransferTable.delegate = self
+        embeddedTransferTable.allowsMultipleSelection = true
+        embeddedTransferTable.allowsEmptySelection = true
+        embeddedTransferTable.usesAlternatingRowBackgroundColors = false
+        embeddedTransferTable.backgroundColor = Palette.list
+        embeddedTransferTable.rowSizeStyle = .small
+        embeddedTransferTable.intercellSpacing = NSSize(width: 8, height: 1)
+        embeddedTransferTable.headerView = NSTableHeaderView()
+        if embeddedTransferTable.tableColumns.isEmpty {
+            addColumn(embeddedTransferTable, id: "queue_file", title: "File", width: 250)
+            addColumn(embeddedTransferTable, id: "queue_direction", title: "Direction", width: 90)
+            addColumn(embeddedTransferTable, id: "queue_progress", title: "Progress", width: 180)
+            addColumn(embeddedTransferTable, id: "queue_status", title: "Status", width: 130)
+            addColumn(embeddedTransferTable, id: "queue_speed", title: "Speed", width: 110)
+            addColumn(embeddedTransferTable, id: "queue_eta", title: "ETA", width: 90)
+        }
+
+        let scroll = NSScrollView()
+        scroll.documentView = embeddedTransferTable
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.borderType = .bezelBorder
+        scroll.drawsBackground = true
+        scroll.backgroundColor = Palette.list
+
+        let stack = NSStackView(views: [header, scroll])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 7
+        stack.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let panel = NSView()
+        panel.wantsLayer = true
+        panel.layer?.backgroundColor = Palette.panel.cgColor
+        panel.layer?.cornerRadius = 10
+        panel.layer?.borderWidth = 1
+        panel.layer?.borderColor = Palette.border.cgColor
+        panel.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: panel.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: panel.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: panel.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: panel.bottomAnchor),
+            header.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -20),
+            scroll.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -20),
+            scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 118)
+        ])
+        updateEmbeddedTransferQueue()
+        return panel
+    }
+
+    private func updateEmbeddedTransferQueue() {
+        let running = transferQueueEntries.filter { $0.status == "running" }.count
+        let queued = transferQueueEntries.filter { $0.status == "queued" }.count
+        let done = transferQueueEntries.filter { $0.status == "done" }.count
+        let failed = transferQueueEntries.filter { $0.status == "failed" || $0.status == "cancelled" }.count
+        let paused = transferQueuePaused ? " • paused" : ""
+        embeddedTransferSummary.stringValue = "\(running) running • \(queued) queued • \(done) done • \(failed) failed/cancelled\(paused)"
+        embeddedPauseResumeButton.title = transferQueuePaused ? "Resume" : "Pause"
+        embeddedPauseResumeButton.isEnabled = engineReady && !transferQueueBusy
+        embeddedOpenQueueButton.isEnabled = engineReady && !connectionBusy
+        embeddedTransferTable.isEnabled = !transferQueueBusy
+        embeddedTransferTable.reloadData()
+    }
+
+    @objc private func embeddedPauseResumeTapped() {
+        if transferQueuePaused {
+            resumeTransferQueue()
+        } else {
+            pauseTransferQueue()
+        }
+    }
+
+    private func embeddedQueueProgressText(_ entry: TransferQueueEntry) -> String {
+        if entry.bytesTotal > 0 {
+            let percent = max(0, min(100, entry.progress))
+            let transferred = byteFormatter.string(fromByteCount: entry.bytesTransferred)
+            let total = byteFormatter.string(fromByteCount: entry.bytesTotal)
+            return String(format: "%.1f%% • %@ / %@", percent, transferred, total)
+        }
+        if entry.bytesTransferred > 0 {
+            return byteFormatter.string(fromByteCount: entry.bytesTransferred)
+        }
+        return entry.status == "done" ? "100%" : "—"
+    }
+
+    private func embeddedQueueETA(_ seconds: Int64) -> String {
+        guard seconds > 0 else { return "—" }
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        return minutes > 0 ? "\(minutes)m \(remainder)s" : "\(seconds)s"
+    }
+
+    private func embeddedQueueFileName(_ entry: TransferQueueEntry) -> String {
+        let path = entry.remotePath.isEmpty ? entry.localPath : entry.remotePath
+        let pieces = path.split(separator: "/")
+        return pieces.last.map(String.init) ?? path
+    }
+
+    private func embeddedTransferCell(column: NSTableColumn, row: Int) -> NSView? {
+        guard row >= 0, row < transferQueueEntries.count else { return nil }
+        let entry = transferQueueEntries[row]
+        let value: String
+        switch column.identifier.rawValue {
+        case "queue_file":
+            value = embeddedQueueFileName(entry)
+        case "queue_direction":
+            value = entry.direction.capitalized
+        case "queue_progress":
+            value = embeddedQueueProgressText(entry)
+        case "queue_status":
+            value = entry.error.isEmpty ? entry.status : "\(entry.status) • \(entry.error)"
+        case "queue_speed":
+            value = entry.bytesPerSecond > 0
+                ? ByteCountFormatter.string(fromByteCount: Int64(entry.bytesPerSecond), countStyle: .file) + "/s"
+                : "—"
+        case "queue_eta":
+            value = embeddedQueueETA(entry.etaSeconds)
+        default:
+            value = ""
+        }
+
+        let cell = NSTableCellView()
+        let text = NSTextField(labelWithString: value)
+        text.textColor = Palette.text
+        text.toolTip = value
+        text.lineBreakMode = column.identifier.rawValue == "queue_file" ? .byTruncatingMiddle : .byTruncatingTail
+        text.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(text)
+        NSLayoutConstraint.activate([
+            text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 5),
+            text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -5),
+            text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+        return cell
     }
 
     private func makeFilePane(title: String, table: NSTableView, pathLabel: NSTextField, buttons: [NSButton]) -> NSView {
@@ -2076,6 +2239,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
         transferQueueEntries = entries
         transferQueuePaused = paused
+        updateEmbeddedTransferQueue()
         transferQueueController?.apply(
             entries: entries,
             paused: paused,
@@ -2328,10 +2492,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        tableView === localTable ? localItems.count : remoteItems.count
+        if tableView === embeddedTransferTable {
+            return transferQueueEntries.count
+        }
+        return tableView === localTable ? localItems.count : remoteItems.count
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        if tableView === embeddedTransferTable {
+            guard let column = tableColumn else { return nil }
+            return embeddedTransferCell(column: column, row: row)
+        }
         let items = tableView === localTable ? localItems : remoteItems
         guard row >= 0, row < items.count, let column = tableColumn else { return nil }
         let item = items[row]

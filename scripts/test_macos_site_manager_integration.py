@@ -84,6 +84,37 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
             self.assertIn(marker, main)
         self.assertNotIn("NSColor.controlAccentColor", main)
 
+    def test_master_workspace_embeds_real_transfer_queue(self) -> None:
+        main = (ROOT / "macos" / "Sources" / "GhostFTPApp" / "main.swift").read_text(encoding="utf-8")
+        preparer = (ROOT / "macos" / "prepare_site_manager_sources.py").read_text(encoding="utf-8")
+        build = (ROOT / "macos" / "BUILD.sh").read_text(encoding="utf-8")
+
+        for marker in (
+            "private let embeddedTransferTable = NSTableView(frame: .zero)",
+            "private func makeEmbeddedTransferQueue() -> NSView",
+            'id: "queue_file", title: "File"',
+            'id: "queue_direction", title: "Direction"',
+            'id: "queue_progress", title: "Progress"',
+            'id: "queue_status", title: "Status"',
+            'id: "queue_speed", title: "Speed"',
+            'id: "queue_eta", title: "ETA"',
+            "updateEmbeddedTransferQueue()",
+            "embeddedPauseResumeTapped()",
+            "if tableView === embeddedTransferTable",
+        ):
+            self.assertIn(marker, main)
+
+        for marker in (
+            "let embeddedQueue = makeEmbeddedTransferQueue()",
+            "NSStackView(views: [connectionStack, workspace, embeddedQueue])",
+            "embeddedQueue.widthAnchor.constraint(equalTo: mainColumn.widthAnchor)",
+            "embeddedQueue.heightAnchor.constraint(greaterThanOrEqualToConstant: 180)",
+        ):
+            self.assertIn(marker, preparer)
+
+        self.assertIn("grep -F 'makeEmbeddedTransferQueue()'", build)
+        self.assertIn("grep -F 'queue_progress'", build)
+
     def test_macos_settings_present_dark_before_light(self) -> None:
         windows = (ROOT / "macos" / "Sources" / "GhostFTPApp" / "ApplicationWindows.swift").read_text(encoding="utf-8")
         self.assertIn('appearancePopup.addItems(withTitles: ["Dark", "Light"])', windows)

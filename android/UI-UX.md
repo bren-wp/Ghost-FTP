@@ -30,6 +30,10 @@ The Files surface may place local and remote panes side-by-side only when there 
 
 Files owns the active local and server directory views.
 
+On phones, the Files surface favors useful state over permanent blank list boxes. A local list is shown only when the selected folder has visible entries; otherwise a compact truthful empty state explains whether the user must choose a folder, the folder is empty, or the current filter has no matches. The server side follows the same rule and distinguishes disconnected, empty-folder and no-filter-match states. This keeps both LOCAL and SERVER workspaces reachable without scrolling through hundreds of pixels of empty chrome.
+
+The compact phone app bar shows the Ghost FTP brand once; the active section remains the semantic page heading in the content. Tablet layouts keep the secondary app-bar section label because the persistent navigation rail changes the information hierarchy.
+
 Local storage is restricted to Android Storage Access Framework capabilities granted by the user. The surface provides the local current path, folder picker, Up, Refresh, a real directory listing and local file selection.
 
 The server pane displays the active remote path, Up, Refresh and the freshly listed remote entries for the active FTP/FTPS session. Upload and download actions are enabled only for actual file selections. Directory transfer is not implied by file buttons.

@@ -47,6 +47,7 @@ The Mac workspace follows the maintained Windows/Linux master hierarchy while us
 - Dark is the product default: workspace `#0B0F17`, panel `#121824`, list `#161D2A`, border `#2C3648`, text `#F2F5FA`, muted `#97A3B8`, Ghost Gold `#F6C445` / `#FFD768`, selection `#2B2515`.
 - Light is the secondary appearance: workspace `#EEF1F5`, panel `#F6F8FB`, list `#FAFBFD`, border `#D6DCE5`, text `#172033`, muted `#667085`, Ghost Gold `#A66500` / `#875100`, selection `#F5E7C7`.
 - Files is the selected master-rail destination; Connections, Transfer Queue, Settings, Bookmarks, Connection info and About route to their existing real engine-backed surfaces.
+- The main workspace also embeds the real transfer queue below the Local/Remote panes with File, Direction, Progress, Status, Speed and ETA columns. Pause/Resume acts on the same engine queue; Open Queue keeps the full native queue-management window for cancel/retry/reorder/clear actions.
 - English is the canonical default/fallback and the shared registry exposes the same 24 languages.
 - FTP, explicit FTPS and SFTP remain the desktop protocol set.
 
