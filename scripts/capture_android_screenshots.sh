@@ -249,13 +249,14 @@ wait_ui() {
   return 1
 }
 
-# Opening the drawer is itself part of the evidence contract. Do not proceed
-# from the hamburger tap until the Files navigation control is semantically
-# visible in the live accessibility hierarchy.
-open_navigation() {
-  tap_ui 'Open navigation'
-  wait_ui 'Navigate to Files'
-  printf 'ANDROID_NAV_DRAWER=VISIBLE\n'
+# The phone master layout keeps primary destinations in the bottom bar.
+# The app-bar menu is a utility drawer only; prove that distinction through
+# the live accessibility tree instead of assuming the old primary drawer.
+open_utility_navigation() {
+  tap_ui 'Open utility menu'
+  wait_ui 'Navigate to Connection info'
+  wait_ui 'Navigate to About'
+  printf 'ANDROID_UTILITY_DRAWER=VISIBLE\n'
 }
 
 # Navigation uses the explicit accessibility descriptions published by the app.
@@ -303,30 +304,37 @@ capture() {
 }
 
 capture 'ghost-ftp-android-files.png'
-open_navigation
-capture 'ghost-ftp-android-navigation.png'
+wait_ui 'Navigate to Files'
+wait_ui 'Navigate to Connections'
+wait_ui 'Navigate to Bookmarks'
+wait_ui 'Navigate to Transfer Queue'
+wait_ui 'Navigate to Settings'
 
-first_section=1
-capture_nav_surface() {
+# Navigation evidence shows the real utility drawer layered over the fixed
+# bottom navigation. It must not be confused with the retired primary drawer.
+open_utility_navigation
+capture 'ghost-ftp-android-navigation.png'
+tap_nav_section 'Connection info' 'Connection info'
+capture 'ghost-ftp-android-connection-info.png'
+
+capture_primary_surface() {
   local section="$1"
   local expected_title="$2"
   local file_slug="$3"
-  if (( first_section == 0 )); then
-    open_navigation
-  fi
   tap_nav_section "$section" "$expected_title"
-  first_section=0
   capture "ghost-ftp-android-${file_slug}.png"
 }
 
-# Keep the route list out of stdin: adb/uiautomator may read inherited stdin,
-# which can silently consume a heredoc-driven loop and truncate evidence.
-capture_nav_surface 'Connections' 'Connections' 'connections'
-capture_nav_surface 'Bookmarks' 'Bookmarks' 'bookmarks'
-capture_nav_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'
-capture_nav_surface 'Settings' 'Settings' 'settings'
-capture_nav_surface 'Connection info' 'Connection info' 'connection-info'
-capture_nav_surface 'About' 'About' 'about'
+# Primary destinations are reached directly from the persistent bottom bar.
+capture_primary_surface 'Connections' 'Connections' 'connections'
+capture_primary_surface 'Bookmarks' 'Bookmarks' 'bookmarks'
+capture_primary_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'
+capture_primary_surface 'Settings' 'Settings' 'settings'
+
+# About is a secondary utility destination, so exercise the actual utility menu.
+open_utility_navigation
+tap_nav_section 'About' 'About'
+capture 'ghost-ftp-android-about.png'
 
 expected_pngs=(
   'ghost-ftp-android-files.png'
