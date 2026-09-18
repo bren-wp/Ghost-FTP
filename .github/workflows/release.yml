@@ -475,7 +475,7 @@ jobs:
           ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}
           ANDROID_SFTP=hidden-until-strict-host-key-verification
           BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-          BROWSER_DESKTOP_HANDOFF=unsupported
+          BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
           LANGUAGES=24
           DEFAULT_LANGUAGE=en
           TELEMETRY=disabled
