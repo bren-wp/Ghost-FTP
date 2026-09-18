@@ -14,7 +14,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         self.assertEqual(version, "0.0.8")
         text = self.read("docs/RELEASE-VERIFICATION.md")
         required = [
-            f"Ghost FTP **{version}** is the active release candidate",
+            f"Ghost FTP **{version}** is the current release target",
             f"VERSION={version}",
             f"TAG=ghostftp-v{version}",
             f"TITLE=Ghost FTP {version}",
@@ -29,15 +29,14 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
             f"Ghost-FTP-{version}-Android.apk",
-            f"Ghost-FTP-{version}-macOS-notarized.app.zip",
+            f"Ghost-FTP-{version}-macOS.app.zip",
             f"Ghost-FTP-{version}-Chrome-Extension.zip",
             f"Ghost-FTP-{version}-Edge-Extension.zip",
             f"Ghost-FTP-{version}-Firefox-Extension.zip",
             f"Ghost-FTP-{version}-Opera-Extension.zip",
             "PUBLIC_PLATFORM_ARTIFACTS=14",
             "PUBLIC_RELEASE_FILES=17",
-            "GHOSTFTP_ANDROID_CERT_SHA256",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            "ANDROID_SIGNER_SHA256",
         ]
         for marker in required:
             self.assertIn(marker, text)
@@ -48,7 +47,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             f"Ghost-FTP-{version}-Linux-Fedora-x86_64.rpm",
             "PUBLIC_PLATFORM_ARTIFACTS=18",
             "PUBLIC_RELEASE_FILES=21",
-            "GHOSTFTP_ANDROID_SIGNER_SHA256",
+            "GHOSTFTP_ANDROID_CERT_SHA256",
         ):
             self.assertNotIn(stale, text)
 
@@ -70,7 +69,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
                 f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
                 f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
                 f"Ghost-FTP-{version}-Android.apk",
-                f"Ghost-FTP-{version}-macOS-notarized.app.zip",
+                f"Ghost-FTP-{version}-macOS.app.zip",
                 f"Ghost-FTP-{version}-Chrome-Extension.zip",
                 f"Ghost-FTP-{version}-Edge-Extension.zip",
                 f"Ghost-FTP-{version}-Firefox-Extension.zip",
@@ -130,8 +129,8 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             self.assertIn(f"Ghost-FTP-{version}-Android.apk", text)
             self.assertIn("SFTP", text)
             self.assertIn("host-key", text.lower())
-        self.assertIn("GHOSTFTP_ANDROID_CERT_SHA256", verification)
-        self.assertNotIn("GHOSTFTP_ANDROID_SIGNER_SHA256", verification)
+        self.assertIn("ANDROID_SIGNER_SHA256", verification)
+        self.assertNotIn("GHOSTFTP_ANDROID_CERT_SHA256", verification)
 
         extension_docs = self.read("extensions/README.md")
         for browser in ("Chrome", "Edge", "Firefox", "Opera"):
@@ -158,9 +157,10 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
     def test_published_history_is_not_misrepresented(self):
         for relative in ("docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md"):
             text = self.read(relative)
-            self.assertIn("last actually published github", text.lower())
-            self.assertIn("0.0.7", text)
             self.assertIn("0.0.8", text)
+        verification = self.read("docs/RELEASE-VERIFICATION.md")
+        self.assertIn("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7", verification)
+        self.assertIn("no-secret", verification.lower())
 
 
 if __name__ == "__main__":

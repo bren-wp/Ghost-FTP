@@ -1,10 +1,10 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub release remains **0.0.7** until the protected 0.0.8 release workflow completes successfully. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.8** is the current release target. The requested distribution is the no-secret 0.0.8 build; root `VERSION` remains authoritative. The existing **0.0.7** release remains the protected prior public baseline and is not rewritten. Root `VERSION` is the authoritative build/version source.
 
 ## Canonical 0.0.8 release packages
 
-The 0.0.8 publication contract contains **14 platform artifacts / 17 public files**: two Windows executables, six Linux bundles, one production-signed Android APK, one Developer ID signed and Apple-notarized universal macOS app, four browser-helper ZIPs and three metadata/verification files.
+The 0.0.8 no-secret publication contains **14 platform artifacts / 17 public files**: two unsigned Windows executables, six Linux bundles, one installable CI debug-signed Android APK, one ad-hoc signed universal macOS validation app, four browser-helper ZIPs and three metadata/verification files.
 
 ### Windows
 
@@ -15,14 +15,14 @@ Ghost-FTP-0.0.8-Portable.exe
 
 Both are self-contained universal launchers carrying native **x64, x86 and ARM64** Ghost FTP payloads. The launcher selects the appropriate embedded payload locally; no architecture-specific runtime download is required.
 
-Official Windows publication requires trusted Authenticode and records:
+The no-secret Windows distribution records:
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned
 ```
 
 `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` is an evidence boundary: ARM64 is cross-built and structurally verified, but the maintained Windows CI runner does not claim native ARM64 execution.
@@ -65,7 +65,7 @@ cd Ghost-FTP-0.0.8-Linux-Debian-Portable
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-There is exactly one public Android APK. It is a **production-signed** release artifact. Publication requires the protected keystore/password/alias credentials and an exact signer-certificate SHA-256 match against `GHOSTFTP_ANDROID_CERT_SHA256`. The ordinary development artifact remains separately named `Ghost-FTP-Android-dev.apk` and is never substituted for production.
+There is exactly one public Android APK. In the no-secret 0.0.8 distribution it is the installable CI debug-signed build. `apksigner` verifies its signature and `BUILD-METADATA.txt` records the observed certificate SHA-256 fingerprint; no protected Android publisher identity is claimed.
 
 Android compatibility is defined by the application's maintained `minSdk`/target SDK and tested devices; no APK can truthfully support literally every historical Android version. Ghost FTP aims for the broadest safe compatibility supported by its Android APIs and dependencies.
 
@@ -84,13 +84,13 @@ Each package is built from the shared local-only helper runtime and a browser-sp
 
 ### macOS
 
-The public macOS artifact is `Ghost-FTP-0.0.8-macOS-notarized.app.zip`. It is admitted to the 17-file release only after Developer ID Application signing, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. The ad-hoc validation build is not a public substitute.
+The public no-secret macOS artifact is `Ghost-FTP-0.0.8-macOS.app.zip`. It is ad-hoc signed and verified as a universal arm64+x86_64 validation app. It is **not Developer ID signed** and **not Apple notarized**, so macOS may require an explicit user override.
 
 ## Windows Setup
 
 1. Download `Ghost-FTP-0.0.8-Setup.exe`.
 2. Verify SHA-256 against `SHA256.txt`.
-3. Require `WINDOWS_AUTHENTICODE=signed` in `BUILD-METADATA.txt` and a valid trusted Authenticode signature.
+3. Confirm `WINDOWS_AUTHENTICODE=unsigned` in `BUILD-METADATA.txt`; Windows may show an Unknown Publisher/SmartScreen warning.
 4. Run Setup as the intended user.
 5. Uninstall through the integrated installed-application path.
 
@@ -104,7 +104,7 @@ Run `Ghost-FTP-0.0.8-Portable.exe` directly. It performs no installer registrati
 
 1. Download `Ghost-FTP-0.0.8-Android.apk` from the canonical GitHub Release.
 2. Verify SHA-256 against `SHA256.txt`.
-3. Verify the APK signing certificate fingerprint as described in [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md).
+3. Verify the APK signature and compare its certificate fingerprint with the value recorded in `BUILD-METADATA.txt`.
 4. Install through Android's normal package installer after explicitly allowing the chosen download source if device policy requires it.
 
 Ghost FTP does not request broad all-files access; local access remains SAF-scoped.
@@ -118,13 +118,11 @@ Use the package for the target browser. Publication of the ZIPs does not imply C
 Before accepting an official 0.0.8 artifact:
 
 1. confirm `VERSION=0.0.8`, `TAG=ghostftp-v0.0.8`, `CHANNEL=Current` and `PRERELEASE=false`;
-2. verify the filename belongs to the canonical **16-file** set;
+2. verify the filename belongs to the canonical **17-file** set;
 3. verify SHA-256 against `SHA256.txt`;
 4. verify `BUILD-METADATA.txt` binds the bundle to the exact release-source commit;
-5. for Windows, require trusted Authenticode and `WINDOWS_AUTHENTICODE=signed`;
-6. for Android, require the protected production certificate fingerprint;
-7. preserve documented evidence boundaries for Windows ARM64, Linux ARM64/i386, Android SFTP and macOS production signing.
-
-The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.8`; it is distribution infrastructure, not a runtime container.
+5. for Windows, confirm the intentionally unsigned state rather than assuming trusted Authenticode;
+6. for Android, verify the APK signature and recorded CI signer fingerprint without treating it as a persistent publisher identity;
+7. preserve documented evidence boundaries for Windows ARM64, Linux ARM64/i386, Android SFTP and macOS ad-hoc/not-notarized distribution.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [GitHub Releases](GITHUB-RELEASES.md).

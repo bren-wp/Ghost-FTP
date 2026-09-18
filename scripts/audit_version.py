@@ -103,10 +103,9 @@ def main() -> int:
             f"Ghost-FTP-{version}-Linux-Debian-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
             f"Ghost-FTP-{version}-Android.apk",
-            f"Ghost-FTP-{version}-macOS-notarized.app.zip",
+            f"Ghost-FTP-{version}-macOS.app.zip",
             f"Ghost-FTP-{version}-Opera-Extension.zip",
-            "GHOSTFTP_ANDROID_CERT_SHA256",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
+            "Distribution mode: **no-secret public release**",
             "The retired website and Web FTP implementation are intentionally not part of this repository or product runtime.",
         ),
         "README.md",
@@ -323,6 +322,34 @@ def main() -> int:
         ".github/workflows/release.yml",
     )
     forbid(release_workflow, ("state=unsigned", "keytool -genkeypair", "--prerelease"), ".github/workflows/release.yml")
+
+    # The protected production workflow above remains fail-closed. 0.0.8 also
+    # has an explicitly separate no-secret distribution path requested by the
+    # product owner. It must disclose its weaker publisher-trust state instead
+    # of pretending to be Authenticode/production-Android/notarized macOS.
+    no_key_workflow = read(".github/workflows/release-no-key.yml")
+    require(
+        no_key_workflow,
+        (
+            "Publish Ghost FTP No-Key Distribution",
+            "release/ghostftp-v0.0.8-no-key",
+            "DISTRIBUTION_MODE=no-secret-public-release",
+            "WINDOWS_AUTHENTICODE=unsigned",
+            "ANDROID_APK=debug-signed-no-secret",
+            "MACOS_SIGNING=adhoc-validation",
+            "MACOS_NOTARIZATION=not-performed",
+            "PUBLIC_PLATFORM_ARTIFACTS=14",
+            "PUBLIC_RELEASE_FILES=17",
+            "release already exists; refusing to rewrite published assets",
+            "tag already exists; refusing to move release identity",
+        ),
+        ".github/workflows/release-no-key.yml",
+    )
+    forbid(
+        no_key_workflow,
+        ("secrets.", "WINDOWS_AUTHENTICODE=signed", "ANDROID_APK=production-signed", "MACOS_NOTARIZATION=performed"),
+        ".github/workflows/release-no-key.yml",
+    )
 
     retention = read(".github/workflows/release-retention.yml")
     require(
