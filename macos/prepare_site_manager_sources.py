@@ -25,12 +25,13 @@ def integrate_main(text: str) -> str:
     text = replace_once(
         text,
         '    private let transferQueueButton = NSButton(title: "Transfers", target: nil, action: nil)\n',
-        '    private let transferQueueButton = NSButton(title: "Transfers", target: nil, action: nil)\n'
-        '    private let siteManagerButton = NSButton(title: "Site Manager", target: nil, action: nil)\n'
+        '    private let filesNavButton = NSButton(title: "Files", target: nil, action: nil)\n'
+        '    private let transferQueueButton = NSButton(title: "Transfer Queue", target: nil, action: nil)\n'
+        '    private let siteManagerButton = NSButton(title: "Connections", target: nil, action: nil)\n'
         '    private let bookmarksButton = NSButton(title: "Bookmarks", target: nil, action: nil)\n'
         '    private let settingsButton = NSButton(title: "Settings", target: nil, action: nil)\n'
         '    private let aboutButton = NSButton(title: "About", target: nil, action: nil)\n'
-        '    private let diagnosticsButton = NSButton(title: "Diagnostics", target: nil, action: nil)\n',
+        '    private let diagnosticsButton = NSButton(title: "Connection info", target: nil, action: nil)\n',
         "main-button-properties",
     )
     text = replace_once(
@@ -86,6 +87,8 @@ def integrate_main(text: str) -> str:
         text,
         "        transferQueueButton.target = self\n"
         "        transferQueueButton.action = #selector(transferQueueTapped)\n",
+        "        filesNavButton.target = self\n"
+        "        filesNavButton.action = #selector(filesNavigationTapped)\n"
         "        transferQueueButton.target = self\n"
         "        transferQueueButton.action = #selector(transferQueueTapped)\n"
         "        siteManagerButton.target = self\n"
@@ -102,25 +105,60 @@ def integrate_main(text: str) -> str:
     )
     text = replace_once(
         text,
-        "        let buttonRow = NSStackView(views: [connectButton, disconnectButton, directoryCompareButton, transferQueueButton, statusLabel])\n"
+        "        let buttonRow = NSStackView(views: [connectButton, disconnectButton, directoryCompareButton, statusLabel])\n"
         "        buttonRow.orientation = .horizontal\n"
         "        buttonRow.alignment = .centerY\n"
         "        buttonRow.spacing = 10\n"
         "        statusLabel.textColor = Palette.muted\n"
         "        statusLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\n\n"
         "        let connectionStack = NSStackView(views: [heading, form, rememberFingerprint, buttonRow])\n",
-        "        let buttonRow = NSStackView(views: [connectButton, disconnectButton, siteManagerButton, bookmarksButton, settingsButton, statusLabel])\n"
-        "        buttonRow.orientation = .horizontal\n"
-        "        buttonRow.alignment = .centerY\n"
-        "        buttonRow.spacing = 10\n"
-        "        let toolsRow = NSStackView(views: [directoryCompareButton, transferQueueButton, diagnosticsButton, aboutButton])\n"
-        "        toolsRow.orientation = .horizontal\n"
-        "        toolsRow.alignment = .centerY\n"
-        "        toolsRow.spacing = 10\n"
-        "        statusLabel.textColor = Palette.muted\n"
-        "        statusLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\n\n"
-        "        let connectionStack = NSStackView(views: [heading, form, rememberFingerprint, buttonRow, toolsRow])\n",
         "main-button-rows",
+    )
+    text = replace_once(
+        text,
+        "        let workspace = makeWorkspace()\n"
+        "        let root = NSStackView(views: [connectionStack, workspace])\n"
+        "        root.orientation = .vertical\n"
+        "        root.spacing = 14\n"
+        "        root.edgeInsets = NSEdgeInsets(top: 18, left: 18, bottom: 18, right: 18)\n"
+        "        root.translatesAutoresizingMaskIntoConstraints = false\n"
+        "        window.contentView?.addSubview(root)\n"
+        "        guard let content = window.contentView else { return }\n"
+        "        NSLayoutConstraint.activate([\n"
+        "            root.leadingAnchor.constraint(equalTo: content.leadingAnchor),\n"
+        "            root.trailingAnchor.constraint(equalTo: content.trailingAnchor),\n"
+        "            root.topAnchor.constraint(equalTo: content.topAnchor),\n"
+        "            root.bottomAnchor.constraint(equalTo: content.bottomAnchor),\n"
+        "            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 380),\n"
+        "            connectionStack.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -36)\n"
+        "        ])\n",
+        "        let workspace = makeWorkspace()\n"
+        "        let navigationRail = makeMasterNavigationRail()\n"
+        "        let mainColumn = NSStackView(views: [connectionStack, workspace])\n"
+        "        mainColumn.orientation = .vertical\n"
+        "        mainColumn.spacing = 12\n"
+        "        mainColumn.alignment = .leading\n"
+        "        let root = NSStackView(views: [navigationRail, mainColumn])\n"
+        "        root.orientation = .horizontal\n"
+        "        root.alignment = .top\n"
+        "        root.spacing = 14\n"
+        "        root.edgeInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)\n"
+        "        root.translatesAutoresizingMaskIntoConstraints = false\n"
+        "        window.contentView?.addSubview(root)\n"
+        "        guard let content = window.contentView else { return }\n"
+        "        NSLayoutConstraint.activate([\n"
+        "            root.leadingAnchor.constraint(equalTo: content.leadingAnchor),\n"
+        "            root.trailingAnchor.constraint(equalTo: content.trailingAnchor),\n"
+        "            root.topAnchor.constraint(equalTo: content.topAnchor),\n"
+        "            root.bottomAnchor.constraint(equalTo: content.bottomAnchor),\n"
+        "            navigationRail.widthAnchor.constraint(equalToConstant: 188),\n"
+        "            navigationRail.heightAnchor.constraint(equalTo: root.heightAnchor, constant: -28),\n"
+        "            mainColumn.heightAnchor.constraint(equalTo: root.heightAnchor, constant: -28),\n"
+        "            connectionStack.widthAnchor.constraint(equalTo: mainColumn.widthAnchor),\n"
+        "            workspace.widthAnchor.constraint(equalTo: mainColumn.widthAnchor),\n"
+        "            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 380)\n"
+        "        ])\n",
+        "main-master-rail-layout",
     )
     text = replace_once(
         text,
