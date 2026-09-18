@@ -15,7 +15,6 @@ const (
 	applicationSidebarCardGap     = 8
 	applicationSidebarUtilityH    = 38
 	applicationSidebarUtilityGap  = 7
-	applicationSidebarLanguageH   = 29
 	applicationSidebarPrimaryTop  = 64
 	applicationSidebarBrandIcon   = 32
 	applicationSidebarBrandGap    = 8
@@ -27,8 +26,6 @@ var (
 	sidebarTransfers       sync.Map
 	sidebarDiagnostics     sync.Map
 	sidebarBookmarks       sync.Map
-	sidebarUpdates         sync.Map
-	sidebarPremium         sync.Map
 	sidebarGetWindowRect   = user32.NewProc("GetWindowRect")
 	sidebarMapWindowPoints = user32.NewProc("MapWindowPoints")
 	sidebarSetFocus        = user32.NewProc("SetFocus")
@@ -84,14 +81,6 @@ func (a *app) ensureSidebarBookmarks() uintptr {
 	return a.ensureSidebarButton(&sidebarBookmarks, idBookmarks, label, iconOpenLocal)
 }
 
-func (a *app) ensureSidebarUpdates() uintptr {
-	return a.ensureSidebarButton(&sidebarUpdates, idCheckUpdates, "Check for updates", iconSync)
-}
-
-func (a *app) ensureSidebarPremium() uintptr {
-	return a.ensureSidebarButton(&sidebarPremium, idPremiumDownload, "Premium", iconDownload)
-}
-
 func sidebarControl(store *sync.Map, owner uintptr) uintptr {
 	if store == nil || owner == 0 {
 		return 0
@@ -130,20 +119,6 @@ func (a *app) sidebarBookmarksButton() uintptr {
 		return 0
 	}
 	return sidebarControl(&sidebarBookmarks, a.hwnd)
-}
-
-func (a *app) sidebarUpdatesButton() uintptr {
-	if a == nil {
-		return 0
-	}
-	return sidebarControl(&sidebarUpdates, a.hwnd)
-}
-
-func (a *app) sidebarPremiumButton() uintptr {
-	if a == nil {
-		return 0
-	}
-	return sidebarControl(&sidebarPremium, a.hwnd)
 }
 
 func (a *app) setSidebarButtonVisual(hwnd uintptr, icon, label string, variant buttonVariant) {
@@ -186,7 +161,7 @@ func (a *app) cleanupSidebarControls() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
-	for _, store := range []*sync.Map{&sidebarFiles, &sidebarTransfers, &sidebarBookmarks, &sidebarDiagnostics, &sidebarUpdates, &sidebarPremium} {
+	for _, store := range []*sync.Map{&sidebarFiles, &sidebarTransfers, &sidebarBookmarks, &sidebarDiagnostics} {
 		if hwnd := sidebarControl(store, a.hwnd); hwnd != 0 {
 			delete(a.buttons, hwnd)
 		}
@@ -259,8 +234,6 @@ func (a *app) layoutSidebarRail(height int) {
 	transfers := a.ensureSidebarTransfers()
 	diagnostics := a.ensureSidebarDiagnostics()
 	bookmarks := a.ensureSidebarBookmarks()
-	updates := a.ensureSidebarUpdates()
-	premium := a.ensureSidebarPremium()
 	labels := navigationLabelsForLanguage(a.languageCode())
 
 	a.setSidebarButtonVisual(files, iconOpenLocal, labels.Files, buttonNavActive)
@@ -269,8 +242,6 @@ func (a *app) layoutSidebarRail(height int) {
 	a.setSidebarButtonVisual(a.settingsBtn, iconSettings, a.tr("common.settings"), buttonDefault)
 	a.setSidebarButtonVisual(bookmarks, iconOpenLocal, bookmarkWordsForLanguage(a.languageCode()).Title, buttonSubtle)
 	a.setSidebarButtonVisual(diagnostics, iconDiagnostics, labels.Diagnostics, buttonSubtle)
-	a.setSidebarButtonVisual(updates, iconSync, "Check for updates", buttonSubtle)
-	a.setSidebarButtonVisual(premium, iconDownload, "Premium", buttonSubtle)
 	a.setSidebarButtonVisual(a.aboutBtn, iconInfo, a.tr("common.about"), buttonSubtle)
 	a.updateSidebarTransferBadge()
 
@@ -297,16 +268,16 @@ func (a *app) layoutSidebarRail(height int) {
 		y += applicationSidebarCardH + applicationSidebarCardGap
 	}
 
-	utilityBlockH := 5*applicationSidebarUtilityH + 4*applicationSidebarUtilityGap + applicationSidebarLanguageH + applicationSidebarUtilityGap
+	utilityBlockH := 3*applicationSidebarUtilityH + 2*applicationSidebarUtilityGap
 	utilityY := height - applicationSidebarBottomInset - utilityBlockH
 	if utilityY < y+18 {
 		utilityY = y + 18
 	}
-	for _, control := range []uintptr{bookmarks, diagnostics, updates, premium, a.aboutBtn} {
+	for _, control := range []uintptr{bookmarks, diagnostics, a.aboutBtn} {
 		a.move(control, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarUtilityH)
 		utilityY += applicationSidebarUtilityH + applicationSidebarUtilityGap
 	}
-	a.move(a.languageCombo, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarLanguageH)
+	showControls(false, a.languageCombo)
 }
 
 // applyApplicationSidebar turns application-level navigation into one canonical
