@@ -37,6 +37,7 @@ type app struct {
 	upload, download                                                                          uintptr
 	transferList, pauseQueue, resumeQueue, cancelJob, retryJob, clearQueue                    uintptr
 	status, statusVersion, transferSummary                                                    uintptr
+	masterBack, masterForward, masterRefresh, masterNewFolder, masterBookmarks, masterMore    uintptr
 	buttons                                                                                   map[uintptr]buttonVisual
 
 	siteManagerBtn uintptr
@@ -72,6 +73,12 @@ type app struct {
 	remoteSortColumn     int
 	localSortDescending  bool
 	remoteSortDescending bool
+
+	workspaceBackHistory       []workspaceHistoryEntry
+	workspaceForwardHistory    []workspaceHistoryEntry
+	workspaceReplayActive      bool
+	workspaceReplayTarget      workspaceHistoryEntry
+	lastFilePaneRemote         bool
 }
 
 var apps sync.Map
@@ -314,14 +321,22 @@ func wndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
 				}
 			}
 			if h.Code == lvnItemChanged && (h.HwndFrom == a.localList || h.HwndFrom == a.remoteList || h.HwndFrom == a.transferList) {
+				if h.HwndFrom == a.localList {
+					a.lastFilePaneRemote = false
+				} else if h.HwndFrom == a.remoteList {
+					a.lastFilePaneRemote = true
+				}
 				a.updateActionControls()
+				a.updateMasterToolbarState()
 				return 0
 			}
 			if h.Code == nmDblClk {
 				if h.HwndFrom == a.localList {
+					a.lastFilePaneRemote = false
 					a.openSelectedLocal()
 				}
 				if h.HwndFrom == a.remoteList {
+					a.lastFilePaneRemote = true
 					a.openSelectedRemote()
 				}
 				return 0
