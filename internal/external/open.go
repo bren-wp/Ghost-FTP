@@ -25,10 +25,10 @@ func OpenWebsite() error {
 	return open(brand.WebsiteURL, []string{"ghostftp.com", "www.ghostftp.com"})
 }
 
-func open(value string, allowedHosts []string) error {
+func trustedURL(value string, allowedHosts []string) (*url.URL, error) {
 	parsed, err := url.Parse(strings.TrimSpace(value))
 	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
-		return ErrUntrustedURL
+		return nil, ErrUntrustedURL
 	}
 	host := strings.ToLower(parsed.Hostname())
 	trusted := false
@@ -38,11 +38,16 @@ func open(value string, allowedHosts []string) error {
 			break
 		}
 	}
-	if !trusted {
-		return ErrUntrustedURL
+	if !trusted || parsed.User != nil {
+		return nil, ErrUntrustedURL
 	}
-	if parsed.User != nil {
-		return ErrUntrustedURL
+	return parsed, nil
+}
+
+func open(value string, allowedHosts []string) error {
+	parsed, err := trustedURL(value, allowedHosts)
+	if err != nil {
+		return err
 	}
 
 	var command *exec.Cmd
