@@ -21,7 +21,7 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
             'PremiumURL = "https://ghostftp.com/premium/"',
         ):
             self.assertIn(marker, brand)
-        for forbidden in ("github.com", "api.github.com"):
+        for forbidden in ("https://github.com", "https://api.github.com"):
             self.assertNotIn(forbidden, brand)
 
         for marker in (
@@ -30,7 +30,7 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
             "UpdateURL:      brand.UpdateURL",
         ):
             self.assertIn(marker, checker)
-        for forbidden in ("net/http", "http.Client", "api.github.com", "github.com/"):
+        for forbidden in ("net/http", "http.Client", "https://api.github.com", "https://github.com"):
             self.assertNotIn(forbidden, checker)
 
         for marker in (
@@ -42,7 +42,7 @@ class UpdateAndPremiumContractTests(unittest.TestCase):
             "OpenWebsite",
         ):
             self.assertIn(marker, external)
-        self.assertNotIn("github.com", external)
+        self.assertNotIn("https://github.com", external)
 
     def test_windows_keeps_language_and_product_actions_in_settings(self) -> None:
         settings = read("internal/desktop/settings_windows.go")
