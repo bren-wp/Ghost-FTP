@@ -4,7 +4,7 @@ Native Android client source lives entirely under this `android/` directory.
 
 ## Ghost FTP 0.0.8 release status
 
-Ghost FTP **0.0.8** publishes one production-signed Android artifact in the canonical GitHub Release:
+Ghost FTP **0.0.8** publishes one installable **temporary compatibility-signed** Android artifact in the no-secret GitHub Release:
 
 ```text
 Ghost-FTP-0.0.8-Android.apk
@@ -12,9 +12,9 @@ Ghost-FTP-0.0.8-Android.apk
 
 The repository root `VERSION` is the canonical release identity. Android `versionName` equals that root version exactly; validation builds keep the same visible product version while using an isolated debug application ID where required for CI testing.
 
-Pull-request and branch CI build the standard Android test variant and an unsigned release APK for verification. These CI outputs are validation inputs only and are not public release artifacts. The public 0.0.8 APK is produced exclusively by the protected release workflow after publisher signing and certificate-fingerprint verification.
+Pull-request and branch CI build validation variants and an unsigned release APK for verification. These CI outputs are validation inputs only and are not public release artifacts. The published 0.0.8 no-secret APK is the release APK signed with a temporary one-run compatibility certificate; its observed certificate SHA-256 fingerprint is recorded in release metadata without claiming a long-lived publisher identity.
 
-The canonical release workflow requires protected Android signing credentials and verifies the signing certificate SHA-256 fingerprint before publication. Production signing material is never committed to the repository.
+A separate protected production-signing workflow remains available and fail-closed. It requires protected Android signing credentials and verifies the expected signing-certificate SHA-256 fingerprint before any production-publisher claim can be made. Production signing material is never committed to the repository.
 
 ## Current capability
 
@@ -44,7 +44,7 @@ See [`UI-UX.md`](UI-UX.md) for navigation and per-surface ownership.
 
 **SFTP is intentionally not exposed** on Android. Ghost FTP desktop requires strict host-key verification/pinning; Android will not present SFTP until equivalent strict, maintained host-key identity verification exists and is tested. There is no silent SFTP-to-FTP/FTPS fallback.
 
-The public 0.0.8 APK does not change this boundary. Production signing proves publisher/package identity, not protocol safety.
+The public 0.0.8 APK does not change this boundary. Its temporary compatibility signature makes the package installable but is not a production-publisher identity; package signing and protocol safety remain separate concerns.
 
 ## Remote Desktop boundary
 
@@ -86,9 +86,9 @@ The maintained Android CI uses Gradle 8.9 and Android SDK 35. It runs unit tests
 
 No CI validation APK is presented as a public Ghost FTP release artifact or publisher-signed package.
 
-## Production release signing
+## Protected production release signing
 
-The public 0.0.8 publication path requires:
+The separate protected production-signing path requires:
 
 ```text
 GHOSTFTP_ANDROID_KEYSTORE_BASE64
@@ -100,4 +100,4 @@ GHOSTFTP_ANDROID_CERT_SHA256
 
 The workflow builds the unsigned release APK, signs it using Android `apksigner`, verifies the APK and requires the signer certificate SHA-256 digest to match the protected expected fingerprint. The temporary keystore is removed after the job.
 
-The production workflow fails closed if credentials are absent or invalid and never generates a replacement publisher identity.
+The protected production workflow fails closed if credentials are absent or invalid and never generates a replacement publisher identity. This protected path is separate from the already-published 0.0.8 no-secret compatibility distribution.
