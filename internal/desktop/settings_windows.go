@@ -138,6 +138,15 @@ func (a *app) openSettings() {
 		conflict.Replace,
 		conflict.ReplaceBackup,
 	}
+	defaults := config.DefaultSettings()
+	defaultNumbers := []int{
+		defaults.Parallelism,
+		defaults.UploadLimitKiBPerSecond,
+		defaults.DownloadLimitKiBPerSecond,
+		defaults.ConnectionTimeoutSeconds,
+		defaults.AutoRetryCount,
+		defaults.RetryDelaySeconds,
+	}
 
 	parallelLabel := a.tr("settings.parallel")
 	timeoutLabel := a.tr("settings.timeout")
@@ -163,9 +172,14 @@ func (a *app) openSettings() {
 		ConflictIndex:   conflictPolicyIndex(settings),
 		ConfirmDelete:   a.tr("settings.confirm_delete_title"),
 		ConfirmDeleteOn: settings.ConfirmDelete,
-		Footer:          appearance.Hint,
-		ApplyLabel:      okLabel(language),
-		CancelLabel:     a.tr("common.cancel"),
+		Footer:                 appearance.Hint,
+		ApplyLabel:             okLabel(language),
+		CancelLabel:            a.tr("common.cancel"),
+		ResetLabel:             settingsResetLabel(language),
+		DefaultAppearanceIndex: appearanceIndex(defaults.Appearance),
+		DefaultNumbers:         defaultNumbers,
+		DefaultConflictIndex:   conflictPolicyIndex(defaults),
+		DefaultConfirmDelete:   defaults.ConfirmDelete,
 	})
 	if !ok || len(result.Numbers) != 6 {
 		return
