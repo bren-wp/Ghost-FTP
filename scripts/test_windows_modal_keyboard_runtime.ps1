@@ -338,7 +338,7 @@ try {
     Start-Sleep -Milliseconds 500
 
     Verify-SystemCommandLifecycle -Main $main -Process $process
-    Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -CloseControlId $siteManagerCloseControlId -Title 'Site Manager'
+    Verify-ModalKeyboardContract -Main $main -Process $process -Command $siteManagerCommand -CloseControlId $siteManagerCloseControlId -Title 'Connections'
     Verify-ModalKeyboardContract -Main $main -Process $process -Command $bookmarksCommand -CloseControlId $bookmarksCloseControlId -Title 'Bookmarks'
 
     # SC_CLOSE is the system command emitted by the native titlebar X. Exercise
