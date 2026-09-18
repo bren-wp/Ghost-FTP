@@ -116,26 +116,23 @@ func (a *app) layoutFileFilterControls() {
 	if state == nil || state.localButton == 0 || state.remoteButton == 0 {
 		return
 	}
-	layoutPane := func(button, action, list uintptr) {
-		actionRect, actionOK := a.sidebarLogicalRect(action)
-		listRect, listOK := a.sidebarLogicalRect(list)
-		if !actionOK || !listOK {
-			return
-		}
-		filterTop := int(actionRect.Bottom) + 6
-		filterHeight := 28
-		listTop := filterTop + filterHeight + 6
-		bottom := int(listRect.Bottom)
-		if bottom-listTop < 72 {
+	// Filtering remains fully engine-backed and is launched from the master
+	// More menu. Keep deterministic hidden button bounds at the top of each
+	// pane so active recursive-search mode can reuse the row, but do not shrink
+	// the normal file lists or expose a permanent technical filter bar.
+	layoutPane := func(button, list uintptr) {
+		listRect, ok := a.sidebarLogicalRect(list)
+		if !ok {
 			return
 		}
 		left := int(listRect.Left)
+		top := int(listRect.Top)
 		width := int(listRect.Right - listRect.Left)
-		a.move(button, left, filterTop, width, filterHeight)
-		a.move(list, left, listTop, width, bottom-listTop)
+		a.move(button, left, top, width, 28)
+		showControls(false, button)
 	}
-	layoutPane(state.localButton, a.localDelete, a.localList)
-	layoutPane(state.remoteButton, a.remoteChmod, a.remoteList)
+	layoutPane(state.localButton, a.localList)
+	layoutPane(state.remoteButton, a.remoteList)
 }
 
 // acceptFileFilterSnapshot records an authoritative directory result and returns
