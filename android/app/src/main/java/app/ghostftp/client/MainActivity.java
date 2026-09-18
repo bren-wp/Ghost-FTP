@@ -481,15 +481,14 @@ public final class MainActivity extends Activity {
             content.addView(surfaceHeading("Files", "Browse local files and your connected server from one workspace."));
         }
 
-        LinearLayout connectionCard = card("CURRENT CONNECTION", "Connection details are privacy-safe; credentials are never shown here.");
+        LinearLayout connectionCard = card("CURRENT CONNECTION", "");
         currentConnectionSummary = pathLabel("Not connected");
+        currentConnectionSummary.setContentDescription("Current connection. Open Connections.");
         connectionCard.addView(currentConnectionSummary, matchWrapSpaced());
-        Button openConnections = primaryButton("Open Connections");
-        openConnections.setOnClickListener(v -> showSection(Section.SITES));
-        connectionCard.addView(openConnections, matchWrapSpaced());
+        connectionCard.setOnClickListener(v -> showSection(Section.SITES));
         content.addView(connectionCard, cardParams());
 
-        LinearLayout quickActionsCard = card("ACTIONS", "Real file and transfer actions for the current workspace.");
+        LinearLayout quickActionsCard = card("ACTIONS", "");
         LinearLayout actionRowOne = row();
         Button refreshAll = button("Refresh");
         Button newFolder = button("New Folder");
@@ -512,14 +511,11 @@ public final class MainActivity extends Activity {
             refreshLocal();
             if (session != null && session.isConnected()) refreshRemote(currentRemotePath);
         });
-        newFolder.setOnClickListener(v -> {
-            if (selectedRemote >= 0 && session != null && session.isConnected()) createRemoteDirectory();
-            else createLocalDirectory();
-        });
+        newFolder.setOnClickListener(v -> showNewFolderTarget());
         bookmarks.setOnClickListener(v -> showSection(Section.BOOKMARKS));
         uploadQuick.setOnClickListener(v -> uploadSelected());
         downloadQuick.setOnClickListener(v -> downloadSelected());
-        more.setOnClickListener(v -> openNavigationDrawer());
+        more.setOnClickListener(v -> showFilesMoreActions());
         content.addView(quickActionsCard, cardParams());
 
         LinearLayout panes = new LinearLayout(this);
@@ -538,14 +534,13 @@ public final class MainActivity extends Activity {
         }
         content.addView(panes, matchWrap());
 
-        LinearLayout transferCard = card("TRANSFER QUEUE", "Live state from the current Android transfer engine.");
+        LinearLayout transferCard = card("TRANSFER QUEUE", "");
         filesTransferStatus = label("No active transfer.", 13, GhostTheme.MUTED);
         filesTransferStatus.setPadding(dp(10), dp(10), dp(10), dp(10));
         filesTransferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
+        filesTransferStatus.setContentDescription("Transfer Queue. Open transfer details.");
         transferCard.addView(filesTransferStatus, matchWrapSpaced());
-        Button openQueue = button("Open Transfer Queue");
-        openQueue.setOnClickListener(v -> showSection(Section.TRANSFERS));
-        transferCard.addView(openQueue, matchWrapSpaced());
+        transferCard.setOnClickListener(v -> showSection(Section.TRANSFERS));
         content.addView(transferCard, cardParams());
 
         // Preserve the canonical Upload/Download controls used by refreshButtons
@@ -557,7 +552,9 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildLocalFilesCard() {
-        LinearLayout card = card("LOCAL", "Browse and manage files only in folders you allow Ghost FTP to use. Long-press a folder to select it.");
+        LinearLayout card = card("LOCAL FILES", tabletLayout
+                ? "Browse and manage files only in folders you allow Ghost FTP to use. Long-press a folder to select it."
+                : "");
         localPath = pathLabel("No folder selected");
         card.addView(localPath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -567,7 +564,7 @@ public final class MainActivity extends Activity {
         navigationActions.addView(choose, weightedSpaced());
         navigationActions.addView(up, weightedSpaced());
         navigationActions.addView(refresh, weightedSpaced());
-        card.addView(navigationActions, matchWrap());
+        if (tabletLayout) card.addView(navigationActions, matchWrap());
         choose.setOnClickListener(v -> chooseFolder());
         up.setOnClickListener(v -> localUp());
         refresh.setOnClickListener(v -> refreshLocal());
@@ -579,7 +576,7 @@ public final class MainActivity extends Activity {
         viewActions.addView(localFilter, weightedSpaced());
         viewActions.addView(localSort, weightedSpaced());
         viewActions.addView(localSearch, weightedSpaced());
-        card.addView(viewActions, matchWrap());
+        if (tabletLayout) card.addView(viewActions, matchWrap());
         localFilter.setOnClickListener(v -> editLocalFilter());
         localSort.setOnClickListener(v -> cycleLocalSort());
         localSort.setOnLongClickListener(v -> { toggleLocalSortDirection(); return true; });
@@ -592,7 +589,7 @@ public final class MainActivity extends Activity {
         fileActions.addView(localCreateDirectory, weightedSpaced());
         fileActions.addView(localRename, weightedSpaced());
         fileActions.addView(localDelete, weightedSpaced());
-        card.addView(fileActions, matchWrap());
+        if (tabletLayout) card.addView(fileActions, matchWrap());
         localCreateDirectory.setOnClickListener(v -> createLocalDirectory());
         localRename.setOnClickListener(v -> renameLocalSelected());
         localDelete.setOnClickListener(v -> deleteLocalSelected());
@@ -616,7 +613,9 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildRemoteFilesCard() {
-        LinearLayout card = card("SERVER", "Browse and manage files on the connected server. Long-press a folder to select it.");
+        LinearLayout card = card("REMOTE FILES", tabletLayout
+                ? "Browse and manage files on the connected server. Long-press a folder to select it."
+                : "");
         remotePath = pathLabel(currentRemotePath);
         card.addView(remotePath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -624,7 +623,7 @@ public final class MainActivity extends Activity {
         Button refresh = button("Refresh");
         navigationActions.addView(up, weightedSpaced());
         navigationActions.addView(refresh, weightedSpaced());
-        card.addView(navigationActions, matchWrap());
+        if (tabletLayout) card.addView(navigationActions, matchWrap());
         up.setOnClickListener(v -> remoteUp());
         refresh.setOnClickListener(v -> refreshRemote(currentRemotePath));
 
@@ -635,7 +634,7 @@ public final class MainActivity extends Activity {
         viewActions.addView(remoteFilter, weightedSpaced());
         viewActions.addView(remoteSort, weightedSpaced());
         viewActions.addView(remoteSearch, weightedSpaced());
-        card.addView(viewActions, matchWrap());
+        if (tabletLayout) card.addView(viewActions, matchWrap());
         remoteFilter.setOnClickListener(v -> editRemoteFilter());
         remoteSort.setOnClickListener(v -> cycleRemoteSort());
         remoteSort.setOnLongClickListener(v -> { toggleRemoteSortDirection(); return true; });
@@ -648,7 +647,7 @@ public final class MainActivity extends Activity {
         primaryActions.addView(remoteCreateDirectory, weightedSpaced());
         primaryActions.addView(remoteRename, weightedSpaced());
         primaryActions.addView(remoteDelete, weightedSpaced());
-        card.addView(primaryActions, matchWrap());
+        if (tabletLayout) card.addView(primaryActions, matchWrap());
         remoteCreateDirectory.setOnClickListener(v -> createRemoteDirectory());
         remoteRename.setOnClickListener(v -> renameRemoteSelected());
         remoteDelete.setOnClickListener(v -> deleteRemoteSelected());
@@ -660,7 +659,7 @@ public final class MainActivity extends Activity {
         advancedActions.addView(remoteChmod, weightedSpaced());
         advancedActions.addView(directoryCompare, weightedSpaced());
         advancedActions.addView(remoteEdit, weightedSpaced());
-        card.addView(advancedActions, matchWrap());
+        if (tabletLayout) card.addView(advancedActions, matchWrap());
         remoteChmod.setOnClickListener(v -> chmodRemoteSelected());
         directoryCompare.setOnClickListener(v -> showDirectoryComparison());
         remoteEdit.setOnClickListener(v -> openRemoteEditorSelected());
@@ -681,6 +680,107 @@ public final class MainActivity extends Activity {
             return true;
         });
         return card;
+    }
+
+    private void showNewFolderTarget() {
+        boolean localAvailable = !busy && treeUri != null && currentDocumentId != null;
+        boolean remoteAvailable = !busy && session != null && session.isConnected();
+
+        if (localAvailable && remoteAvailable) {
+            new AlertDialog.Builder(this)
+                    .setTitle("New Folder")
+                    .setItems(new String[]{"Local Files", "Remote Files"}, (dialog, which) -> {
+                        if (which == 0) createLocalDirectory();
+                        else createRemoteDirectory();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return;
+        }
+        if (localAvailable) {
+            createLocalDirectory();
+            return;
+        }
+        if (remoteAvailable) {
+            createRemoteDirectory();
+            return;
+        }
+        setStatus("Choose a local folder or connect to a server before creating a folder.");
+    }
+
+    private void showFilesMoreActions() {
+        if (busy || lifecycleDestroyed) return;
+
+        List<String> labels = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+
+        labels.add("Choose local folder");
+        actions.add(this::chooseFolder);
+
+        if (treeUri != null && currentDocumentId != null) {
+            labels.add("Local: Up");
+            actions.add(this::localUp);
+            labels.add(localFilterQuery.isEmpty() ? "Local: Filter" : "Local: Edit filter");
+            actions.add(this::editLocalFilter);
+            if (!localEntries.isEmpty()) {
+                labels.add("Local: " + WorkspaceOps.sortLabel(localSortKey, localSortAscending));
+                actions.add(this::cycleLocalSort);
+            }
+            if (rootDocumentId != null) {
+                labels.add("Local: Recursive search");
+                actions.add(this::promptLocalRecursiveSearch);
+            }
+            if (selectedLocal >= 0 && selectedLocal < localEntries.size()) {
+                labels.add("Local: Rename selected");
+                actions.add(this::renameLocalSelected);
+                labels.add("Local: Delete selected");
+                actions.add(this::deleteLocalSelected);
+            }
+        }
+
+        boolean connected = session != null && session.isConnected();
+        if (connected) {
+            labels.add("Remote: Up");
+            actions.add(this::remoteUp);
+            labels.add(remoteFilterQuery.isEmpty() ? "Remote: Filter" : "Remote: Edit filter");
+            actions.add(this::editRemoteFilter);
+            if (!remoteEntries.isEmpty()) {
+                labels.add("Remote: " + WorkspaceOps.sortLabel(remoteSortKey, remoteSortAscending));
+                actions.add(this::cycleRemoteSort);
+            }
+            labels.add("Remote: Recursive search");
+            actions.add(this::promptRemoteRecursiveSearch);
+
+            if (treeUri != null && currentDocumentId != null) {
+                labels.add("Compare local and remote folders");
+                actions.add(this::showDirectoryComparison);
+            }
+
+            if (selectedRemote >= 0 && selectedRemote < remoteEntries.size()) {
+                RemoteEntry selected = remoteEntries.get(selectedRemote);
+                labels.add("Remote: Rename selected");
+                actions.add(this::renameRemoteSelected);
+                labels.add("Remote: Delete selected");
+                actions.add(this::deleteRemoteSelected);
+                labels.add("Remote: Permissions");
+                actions.add(this::chmodRemoteSelected);
+                if (!selected.directory && selected.size <= WorkspaceOps.MAX_REMOTE_EDIT_BYTES) {
+                    labels.add("Remote Edit");
+                    actions.add(this::openRemoteEditorSelected);
+                }
+            }
+        }
+
+        labels.add("Connection info");
+        actions.add(() -> showSection(Section.CONNECTION_INFO));
+
+        new AlertDialog.Builder(this)
+                .setTitle("More")
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> {
+                    if (which >= 0 && which < actions.size()) actions.get(which).run();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private View buildSitesSurface() {
