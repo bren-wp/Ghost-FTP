@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RETIRED_ROOTS = (
     "ios/",
+    "macos/",
     "GhostFTP WEB/",
     "pwa/",
     "ghostftp-web/",
@@ -68,36 +69,50 @@ def main() -> int:
     if suspicious:
         fail("retired web application surface is tracked: " + ", ".join(sorted(suspicious)))
 
-    android_required = {
-        "android/app/build.gradle",
-        "android/app/src/main/AndroidManifest.xml",
-        "android/app/src/main/java/app/ghostftp/client/MainActivity.java",
-        ".github/workflows/android-apk.yml",
+    required_surfaces = {
+        "Windows": {
+            "cmd/ghostftp/main.go",
+            "BUILD-WINDOWS.ps1",
+            ".github/workflows/ci.yml",
+        },
+        "Linux": {
+            "linux/BUILD-DISTROS.sh",
+            "internal/desktop/gui_linux.go",
+            ".github/workflows/linux-universal-distros.yml",
+        },
+        "Android": {
+            "android/app/build.gradle",
+            "android/app/src/main/AndroidManifest.xml",
+            "android/app/src/main/java/app/ghostftp/client/MainActivity.java",
+            ".github/workflows/android-apk.yml",
+        },
     }
-    macos_required = {
-        "macos/README.md",
-        "macos/PARITY.md",
-        "macos/BUILD.sh",
-        "macos/Sources/GhostFTPApp/main.swift",
-        ".github/workflows/macos-app.yml",
-    }
-
-    for label, required in (
-        ("Android", android_required),
-        ("macOS", macos_required),
-    ):
+    for label, required in required_surfaces.items():
         missing = sorted(required - path_set)
         if missing:
             fail(f"active {label} source contract is incomplete: " + ", ".join(missing))
 
+    retired_macos_paths = sorted(
+        path for path in paths
+        if path.replace("\\", "/").startswith("macos/")
+        or path in {".github/workflows/macos-app.yml", ".github/workflows/macos-production.yml"}
+        or path.replace("\\", "/").endswith("_darwin.go")
+        or "/darwin_" in path.replace("\\", "/")
+        or Path(path).name.startswith("test_macos_")
+    )
+    if retired_macos_paths:
+        fail("retired macOS source/workflow/test surface is tracked: " + ", ".join(retired_macos_paths[:30]))
+
     print("DESKTOP_SURFACE_AUDIT=PASS")
-    print("DESKTOP_SURFACE_AUDIT_SCOPE=ANDROID,MACOS,RETIRED_SURFACES")
+    print("DESKTOP_SURFACE_AUDIT_SCOPE=WINDOWS,LINUX,ANDROID,RETIRED_SURFACES")
+    print("WINDOWS_SOURCE_SURFACE=ACTIVE")
+    print("LINUX_SOURCE_SURFACE=ACTIVE")
     print("ANDROID_SOURCE_SURFACE=ACTIVE")
-    print("MACOS_SOURCE_SURFACE=ACTIVE")
+    print("MACOS_SOURCE_SURFACE=RETIRED")
     print("WEB_SURFACE=RETIRED")
     print("WEB_FTP_SURFACE=RETIRED")
-    print("RETIRED_APPLICATION_PLATFORMS=IOS")
-    print("RETIRED_APPLICATION_SURFACES=PWA,WEB,WEB_FTP")
+    print("RETIRED_APPLICATION_PLATFORMS=IOS,MACOS")
+    print("RETIRED_APPLICATION_SURFACES=PWA,WEB,WEB_FTP,MACOS")
     return 0
 
 
