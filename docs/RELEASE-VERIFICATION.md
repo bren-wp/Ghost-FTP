@@ -1,5 +1,20 @@
 # Ghost FTP release verification
 
+Ghost FTP **0.0.8** is being published as a clearly labeled **compatibility release without protected signing keys**, following the public 0.0.7 compatibility model. The canonical protected-signing workflow remains in the repository and still fails closed; the separate compatibility workflow does not weaken runtime FTP/FTPS/SFTP security checks.
+
+Compatibility signing states for 0.0.8:
+
+```text
+WINDOWS_AUTHENTICODE=UNSIGNED_COMPATIBILITY_RELEASE
+ANDROID_APK=TEMPORARY_COMPATIBILITY_CERTIFICATE
+MACOS_SIGNING=ADHOC_VALIDATION_NOT_NOTARIZED
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
+```
+
+The Android compatibility certificate is generated only for the publication run and its SHA-256 fingerprint is recorded in release metadata. It is not the permanent publisher identity, so a future production-signed Android APK may require reinstalling instead of an in-place update. The macOS archive is the real universal AppKit validation app, but it is not Developer ID signed or Apple-notarized.
+
+
 Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release remains **0.0.7** until the protected 0.0.8 release transaction succeeds.
 
 The canonical 0.0.8 publication contains **14 platform artifacts / 17 public files**.
@@ -58,7 +73,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS is accepted into the public 17-file release only after real Developer ID signing, Apple notarization, stapling and Gatekeeper verification succeed.
+macOS compatibility publication uses the real universal validation app with ad-hoc signing only. It is explicitly not Developer ID signed or Apple notarized.
 
 ## Canonical release dispatch
 
@@ -78,9 +93,10 @@ Before publication:
 4. every required post-merge push workflow on the exact merge SHA is successful;
 5. authentic Windows/Linux/Android runtime evidence is bound to that exact source revision;
 6. release quality, Windows, Linux, Android and browser jobs succeed again from fresh source;
-7. official Windows Setup/Portable pass trusted Authenticode verification;
-8. the Android APK passes production signing verification and exact signer-fingerprint validation;
-9. the release contains exactly the canonical **16-file** set.
+7. Windows Setup/Portable are rebuilt from exact source and explicitly verified as unsigned compatibility artifacts;
+8. the Android APK passes `apksigner` verification and its temporary compatibility signer fingerprint is recorded;
+9. the macOS validation archive passes universal-binary and ad-hoc signature validation without claiming notarization;
+10. the compatibility release contains exactly **17 public files**.
 
 ## SHA-256 verification
 
@@ -99,7 +115,7 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=UNSIGNED_COMPATIBILITY_RELEASE
 ```
 
 Architecture-specific staging executables are internal verified inputs and must never appear among public assets. `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` means current CI cross-builds and structurally verifies ARM64 but does not claim native Windows ARM64 execution.
@@ -124,23 +140,13 @@ ARM64 and i386 are build/package verified unless maintained native execution evi
 
 ## Android production-signing verification
 
-The public APK is:
+The compatibility APK is:
 
 ```text
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-The release job requires:
-
-```text
-GHOSTFTP_ANDROID_KEYSTORE_BASE64
-GHOSTFTP_ANDROID_KEYSTORE_PASSWORD
-GHOSTFTP_ANDROID_KEY_ALIAS
-GHOSTFTP_ANDROID_KEY_PASSWORD
-GHOSTFTP_ANDROID_CERT_SHA256
-```
-
-The workflow builds the unsigned release APK, signs it with the protected publisher keystore, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The production workflow must not generate its own replacement publisher identity.
+The compatibility workflow builds the unsigned release APK, generates a temporary one-run compatibility certificate, signs the APK with Android `apksigner`, verifies it with `apksigner verify --verbose --print-certs`, and records that certificate's SHA-256 digest in `BUILD-METADATA.txt` and the release notes. The canonical production workflow remains separate and still requires the protected publisher keystore.
 
 The ordinary `Ghost-FTP-Android-dev.apk` and ephemeral CI signing identity prove only development/signing mechanics and are not accepted as the public APK.
 
@@ -172,7 +178,7 @@ LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
 LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
-ANDROID_APK=production-signed
+ANDROID_APK=TEMPORARY_COMPATIBILITY_CERTIFICATE
 ANDROID_SIGNER_SHA256=<verified signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
@@ -209,4 +215,4 @@ Only after the 0.0.8 transaction succeeds may retention delete superseded public
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).
 
 
-Verified macOS asset: `Ghost-FTP-0.0.8-macOS-notarized.app.zip`.
+Verified macOS asset: `Ghost-FTP-0.0.8-macOS-Unsigned-Validation.app.zip`.
