@@ -1,3 +1,5 @@
+> **Current platform note (post-0.0.8):** macOS support has been retired and removed from active source, workflows and release assembly. Older entries below are retained as historical release record.
+
 # Changelog
 
 ## 0.0.8 - 2026-09-18
