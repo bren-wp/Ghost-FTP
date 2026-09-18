@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate maintained Ghost FTP documentation against the active 0.0.7 contract."""
+"""Validate maintained Ghost FTP documentation against the active 0.0.8 contract."""
 from __future__ import annotations
 
 import re
@@ -141,8 +141,8 @@ def check_media(source: Path, raw: str) -> None:
 
 def main() -> int:
     version = read("VERSION").strip()
-    if version != "0.0.7":
-        fail(f"active documentation contract expects VERSION 0.0.7, got {version!r}")
+    if version != "0.0.8":
+        fail(f"active documentation contract expects VERSION 0.0.8, got {version!r}")
 
     for retired in RETIRED_WEB_PATHS:
         if (ROOT / retired).exists():
@@ -174,8 +174,8 @@ def main() -> int:
     for rel in ACTIVE_DOCS:
         text = read(rel)
         lower = text.lower()
-        if "0.0.8" in text:
-            fail(f"future 0.0.8 identity leaked into active 0.0.7 documentation: {rel}")
+        if "0.0.9" in text:
+            fail(f"future 0.0.9 identity leaked into active 0.0.8 documentation: {rel}")
         if "ghostftp web/" in lower or "ios/" in lower:
             fail(f"retired application surface appears in active guidance: {rel}")
         if "ghostftp_android_signer_sha256" in lower:
@@ -197,15 +197,15 @@ def main() -> int:
     if not readme.startswith("# Ghost FTP\n"):
         fail("README public title must be Ghost FTP")
     require(
-        "README 0.0.7 identity",
+        "README 0.0.8 identity",
         readme,
-        "Current source version: **0.0.7**",
-        "Last actually published GitHub Release: **0.0.6**",
+        "Current source version: **0.0.8**",
+        "Last actually published GitHub Release: **0.0.7**",
         "13 platform artifacts / 16 public files",
-        "Ghost-FTP-0.0.7-Linux-Debian-Installer.run",
-        "Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz",
-        "Ghost-FTP-0.0.7-Android.apk",
-        "Ghost-FTP-0.0.7-Opera-Extension.zip",
+        "Ghost-FTP-0.0.8-Linux-Debian-Installer.run",
+        "Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz",
+        "Ghost-FTP-0.0.8-Android.apk",
+        "Ghost-FTP-0.0.8-Opera-Extension.zip",
         "GHOSTFTP_ANDROID_CERT_SHA256",
         "sanitized browser-to-desktop handoff",
         "Brendigo LTD",
@@ -230,11 +230,11 @@ def main() -> int:
     require(
         "installation",
         installation,
-        "Ghost FTP **0.0.7** is the active release candidate",
+        "Ghost FTP **0.0.8** is the active release candidate",
         "13 platform artifacts / 16 public files",
         "Ghost-FTP-0.0.7-Linux-Debian-Installer.run",
-        "Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz",
-        "Ghost-FTP-0.0.7-Linux-Fedora-Installer.run",
+        "Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz",
+        "Ghost-FTP-0.0.8-Linux-Fedora-Installer.run",
         "Ghost-FTP-0.0.7-Opera-Extension.zip",
         "ghostftp-uninstall",
         "GHOSTFTP_ANDROID_CERT_SHA256",
@@ -246,8 +246,8 @@ def main() -> int:
         "GitHub release documentation",
         releases,
         "Ghost FTP **0.0.7** is the active release candidate",
-        "last actually published GitHub Release is **0.0.6**",
-        "ghostftp-v0.0.7",
+        "last actually published GitHub Release is **0.0.7**",
+        "ghostftp-v0.0.8",
         "13 platform artifacts / 16 public files",
         "Ghost-FTP-0.0.7-Opera-Extension.zip",
         "PUBLIC_PLATFORM_ARTIFACTS=13",
@@ -261,8 +261,8 @@ def main() -> int:
         "release verification",
         verification,
         "Ghost FTP **0.0.7** is the active release candidate",
-        "VERSION=0.0.7",
-        "TAG=ghostftp-v0.0.7",
+        "VERSION=0.0.8",
+        "TAG=ghostftp-v0.0.8",
         "PUBLIC_PLATFORM_ARTIFACTS=13",
         "PUBLIC_RELEASE_FILES=16",
         "Ghost-FTP-0.0.7-Opera-Extension.zip",
@@ -275,7 +275,7 @@ def main() -> int:
     require(
         "signing documentation",
         signing,
-        "Ghost FTP **0.0.7**",
+        "Ghost FTP **0.0.8**",
         "Official Windows publication is **signed-only**.",
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
@@ -312,15 +312,15 @@ def main() -> int:
         "authentic UI evidence",
         reference,
         "Windows — 5 images",
-        "Linux — 3 images",
-        "Android — 7 images",
-        "exactly **15 runtime images**",
+        "Linux — 5 images",
+        "Android — 8 images",
+        "exactly **18 runtime images**",
         "Mockups, image-generation output and manually composed approximations are not accepted",
     )
 
     print(f"DOCS_AUDIT=PASS ({version}; 13 platform artifacts / 16 public files)")
-    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.6")
-    print("NEXT_PUBLIC_RELEASE=0.0.7")
+    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.7")
+    print("NEXT_PUBLIC_RELEASE=0.0.8")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ACTIVE_WEB_SURFACE=NONE")
