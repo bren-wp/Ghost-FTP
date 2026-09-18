@@ -102,6 +102,17 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertNotIn("button.setTextSize(8);", activity)
         self.assertIn("if (tabletLayout) card.addView(navigationActions, matchWrap());", activity)
         self.assertIn("private void showFilesMoreActions()", activity)
+        self.assertIn('filesBack = iconButton("Back", R.drawable.ic_back);', activity)
+        self.assertIn('filesForward = iconButton("Forward", R.drawable.ic_forward);', activity)
+        self.assertIn('Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh);', activity)
+        self.assertIn('Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder);', activity)
+        self.assertIn('Button uploadQuick = primaryIconButton("Upload", R.drawable.ic_upload);', activity)
+        self.assertIn('Button downloadQuick = primaryIconButton("Download", R.drawable.ic_download);', activity)
+        self.assertIn('workspaceCard("LOCAL FILES", R.drawable.ic_local_files', activity)
+        self.assertIn('workspaceCard("REMOTE FILES", R.drawable.ic_remote_files', activity)
+        self.assertIn('workspaceTableHeader(false)', activity)
+        self.assertIn('workspaceTableHeader(true)', activity)
+        self.assertIn('connectionIcon.setImageResource(R.drawable.ic_link);', activity)
         self.assertIn("private void navigateFilesHistory(boolean back)", activity)
         self.assertIn("private void refreshRemoteInternal(String target, boolean recordHistory, Runnable onSuccess)", activity)
         self.assertIn("localBackHistory", activity)
@@ -214,6 +225,16 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "ic_settings.xml",
             "ic_connection_info.xml",
             "ic_about.xml",
+            "ic_back.xml",
+            "ic_forward.xml",
+            "ic_refresh.xml",
+            "ic_new_folder.xml",
+            "ic_upload.xml",
+            "ic_download.xml",
+            "ic_more.xml",
+            "ic_link.xml",
+            "ic_local_files.xml",
+            "ic_remote_files.xml",
         ):
             content = self.read(DRAWABLES / name)
             self.assertIn("<vector", content)
