@@ -101,7 +101,7 @@ About displays product/version identity generated from canonical build `VERSION`
 
 `.github/workflows/ui-screenshots.yml` captures real exact-head runtime UI. **Mockups, image-generation output and manually composed approximations are not accepted** as production UI evidence. The capture workflow does **not** commit or push screenshots; repository media is imported only from a separately verified evidence bundle.
 
-The immutable 0.0.8 evidence set stored in [`images/0.0.8/`](images/0.0.8/) contains exactly **18 authentic runtime images**:
+The immutable 0.0.8 evidence set stored in [`images/0.0.8/`](images/0.0.8/) contains exactly **18 runtime images** captured from authentic application execution:
 
 - Windows — 5 images: Main Workspace, Connections, Bookmarks, Settings, About;
 - Linux — 5 images: Main Workspace, Bookmarks, Settings, Connection info, About;
