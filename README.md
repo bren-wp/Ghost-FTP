@@ -65,6 +65,8 @@ Additional authentic surfaces are available under [`docs/images/`](docs/images/)
 
 **macOS is retired from active source and release support.** The AppKit application, Darwin-only implementation files, macOS workflows and macOS-specific tests are intentionally removed from the current product line.
 
+The retired website and Web FTP implementation are intentionally not part of this repository or product runtime.
+
 ## Core features
 
 - FTP, FTPS and desktop SFTP workflows;
