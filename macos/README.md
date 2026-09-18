@@ -22,7 +22,7 @@ The macOS action inventory in `PARITY.md` is complete. The native AppKit applica
 - Upload and Download through the shared transfer engine;
 - native Transfer Queue with Pause, Resume, Cancel, Retry, Clear Finished and four-way queued reordering;
 - Settings backed by shared `model.Settings`, including the shared 24-language registry, Dark/Light appearance, parallelism, independent bandwidth limits, timeout, retries, conflict policy and delete confirmation;
-- privacy-safe About and Diagnostics surfaces.
+- privacy-safe About and Connection info surfaces.
 
 Every visible parity action is backed by real shared-engine/platform behavior and regression coverage. There are no intentional decorative parity controls.
 
