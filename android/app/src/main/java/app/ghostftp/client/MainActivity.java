@@ -551,7 +551,7 @@ public final class MainActivity extends Activity {
         filesForward = iconButton("Forward", R.drawable.ic_forward);
         Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh);
         Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder);
-        Button uploadQuick = primaryIconButton("Upload", R.drawable.ic_upload);
+        Button uploadQuick = iconButton("Upload", R.drawable.ic_upload);
         for (Button compact : new Button[]{filesBack, filesForward, refreshAll, newFolder, uploadQuick}) {
             compact.setTextSize(10f);
             compact.setSingleLine(true);
@@ -566,7 +566,7 @@ public final class MainActivity extends Activity {
         quickActionsCard.addView(actionRowOne, matchWrap());
 
         LinearLayout actionRowTwo = row();
-        Button downloadQuick = primaryIconButton("Download", R.drawable.ic_download);
+        Button downloadQuick = iconButton("Download", R.drawable.ic_download);
         Button bookmarks = iconButton("Bookmarks", R.drawable.ic_bookmarks);
         Button more = iconButton("More", R.drawable.ic_more);
         actionRowTwo.addView(downloadQuick, weightedSpaced());
