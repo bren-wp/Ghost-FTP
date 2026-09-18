@@ -114,7 +114,7 @@ final class GhostTheme {
         button.setAllCaps(false);
         button.setTextColor(textColor);
         button.setTextSize(13f);
-        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
         button.setGravity(Gravity.CENTER);
         button.setMinHeight(dp(button.getContext(), 44));
         button.setPadding(dp(button.getContext(), 10), 0, dp(button.getContext(), 10), 0);
