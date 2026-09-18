@@ -18,8 +18,6 @@ Update-related UI must be explicit about whether it is simulation, download navi
 
 Ordinary settings persistence is separate from secret persistence. Failure to load or protect secret state must fail closed.
 
-## Languages
-
 English is the canonical default/fallback. Localized strings should remain complete and must not be mixed with developer placeholders in the shipping UI.
 
 macOS settings are retired with the removed macOS application.
