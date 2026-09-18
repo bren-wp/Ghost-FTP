@@ -125,7 +125,7 @@ func Run(engine *api.Engine, version string) error {
 	hwnd, _, err := createWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(wstr(brand.ProductName+" "+version+" — "+brand.Company))),
+		uintptr(unsafe.Pointer(wstr(brand.ProductName+" "+version))),
 		wsOverlappedWindow,
 		40, 30, 1200, 780,
 		0, 0, hinst, 0,
