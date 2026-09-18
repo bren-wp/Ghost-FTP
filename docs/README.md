@@ -18,7 +18,7 @@
 - Retired repository surfaces: **website and Web FTP**
 - License: **proprietary commercial software, Brendigo LTD**
 
-Version 0.0.8 is not treated as published until the exact verified `main` SHA succeeds through protected signing, publication and readback verification. The public macOS artifact is part of that same fail-closed pipeline and must pass real Developer ID Application signing, Apple notarization, stapling and Gatekeeper verification.
+Version 0.0.8 is already published through the exact-main **no-secret distribution** path. Its public trust state is explicit: Windows is unsigned, Android uses a temporary compatibility signing certificate, and macOS is ad-hoc signed without notarization. The stricter protected production-signing workflow remains separate and fail-closed when real Windows, Android or Apple publisher identities are unavailable.
 
 ## Documentation principles
 
