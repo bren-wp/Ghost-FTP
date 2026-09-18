@@ -7,6 +7,8 @@
 
 Ghost FTP is a privacy-first FTP/FTPS/SFTP client built around a focused dual-pane workflow. The product keeps connection management, file operations, bookmarks and transfer state in one consistent Ghost FTP interface while preserving platform-native lifecycle and security behavior.
 
+> Current source version: **0.0.8** · Last actually published GitHub Release: **0.0.8**
+>
 > **Development status:** the immutable published release remains **0.0.8**. Current `main` contains post-release work for the next version. Existing 0.0.8 tags and release assets are never rewritten.
 
 ## Product experience
