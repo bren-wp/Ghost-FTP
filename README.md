@@ -97,10 +97,10 @@ The official release workflow publishes the supported Windows, Linux and Android
 
 Representative artifact names for the current source identity:
 
-- `Ghost-FTP-${version}-Linux-Debian-Installer.run`
-- `Ghost-FTP-${version}-Linux-Fedora-Portable.tar.gz`
-- `Ghost-FTP-${version}-Android.apk`
-- `Ghost-FTP-${version}-Opera-Extension.zip`
+- `Ghost-FTP-0.0.8-Linux-Debian-Installer.run`
+- `Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz`
+- `Ghost-FTP-0.0.8-Android.apk`
+- `Ghost-FTP-0.0.8-Opera-Extension.zip`
 
 For the current source version these resolve to `Ghost-FTP-0.0.8-...`. The published tag identity is `ghostftp-v0.0.8`. The historical 0.0.8 release may still contain its previously published macOS asset; published assets are immutable, but macOS is not part of future active release assembly.
 
