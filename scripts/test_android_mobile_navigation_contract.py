@@ -81,6 +81,38 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, surface)
 
+    def test_live_connection_protocol_identity_cannot_drift_with_form_edits(self) -> None:
+        activity = self.read(ACTIVITY)
+
+        self.assertIn("private String connectedProtocol;", activity)
+        connect_start = activity.index("private void connect()")
+        connect_end = activity.index("private void disconnect()", connect_start)
+        connect = activity[connect_start:connect_end]
+        self.assertIn("String protocolValue = protocol.getSelectedItem().toString();", connect)
+        self.assertIn('boolean secure = "FTPS".equals(protocolValue);', connect)
+        self.assertIn("String identity = identityKey(protocolValue, hostValue, portValue, userValue);", connect)
+        self.assertIn("connectedProtocol = protocolValue;", connect)
+
+        info_start = activity.index("private void refreshConnectionInfoSurface()")
+        info_end = activity.index("private View buildAboutSurface()", info_start)
+        info = activity[info_start:info_end]
+        self.assertIn(
+            'String selectedProtocol = connected && connectedProtocol != null ? connectedProtocol : "—";',
+            info,
+        )
+        self.assertNotIn("protocol.getSelectedItem()", info)
+
+        badge_start = activity.index("private void updateConnectionBadge(boolean connected)")
+        badge_end = activity.index("private void updateTransferSurface()", badge_start)
+        badge = activity[badge_start:badge_end]
+        self.assertIn('boolean secure = "FTPS".equals(connectedProtocol);', badge)
+        self.assertNotIn("protocol.getSelectedItem()", badge)
+
+        self.assertEqual(
+            activity.count("connectedIdentityKey = null;"),
+            activity.count("connectedProtocol = null;"),
+        )
+
     def test_navigation_uses_local_vector_assets_and_no_emoji_controls(self) -> None:
         for name in (
             "ic_menu.xml",
