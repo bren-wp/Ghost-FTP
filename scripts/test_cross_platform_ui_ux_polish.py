@@ -106,6 +106,14 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         self.assertIn("private void restoreDefaultPreferences()", android)
         self.assertIn("confirmDelete = true;", android)
 
+    def test_linux_settings_header_does_not_mislabel_the_whole_panel_as_delete_safety(self) -> None:
+        source = read("internal/desktop/gui_linux_settings.go")
+        start = source.index("func (u *linuxDesktop) renderSettingsOverlay() error")
+        overlay = source[start:]
+        self.assertNotIn('u.draftTr("settings.confirm_delete_body")', overlay)
+        self.assertIn("row := top + 60", overlay)
+        self.assertIn("conflictPolicyText(u.settingsDraft.Language).Title", overlay)
+
     def test_android_quick_connect_persistence_is_opt_in_and_delete_safety_is_configurable(self) -> None:
         activity = read("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
         self.assertIn("private boolean rememberEndpoint = false;", activity)
