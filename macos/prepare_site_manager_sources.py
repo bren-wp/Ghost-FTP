@@ -375,6 +375,10 @@ def integrate_main(text: str) -> str:
             for child in view.subviews { visit(child) }
         }
         visit(content)
+        styleMasterRailButton(filesNavButton, active: true)
+        for button in [siteManagerButton, transferQueueButton, settingsButton, bookmarksButton, diagnosticsButton, aboutButton] {
+            styleMasterRailButton(button, active: false)
+        }
         content.needsDisplay = true
     }
 
@@ -413,6 +417,20 @@ def integrate_main(text: str) -> str:
         "        diagnosticsButton.isEnabled = engineReady\n"
         "        transferQueueButton.isEnabled = engineReady && !connectionBusy\n",
         "main-control-state",
+    )
+    text = replace_once(
+        text,
+        "        transferQueueEntries = entries\n"
+        "        transferQueuePaused = paused\n"
+        "        transferQueueController?.apply(\n",
+        "        transferQueueEntries = entries\n"
+        "        let actionableCount = entries.filter { entry in\n"
+        "            entry.status == \"queued\" || entry.status == \"running\" || entry.status == \"failed\" || entry.status == \"cancelled\"\n"
+        "        }.count\n"
+        "        transferQueueButton.title = actionableCount > 0 ? \"Transfer Queue (\\(min(actionableCount, 99)))\" : \"Transfer Queue\"\n"
+        "        transferQueuePaused = paused\n"
+        "        transferQueueController?.apply(\n",
+        "main-transfer-queue-badge",
     )
     text = replace_once(
         text,
