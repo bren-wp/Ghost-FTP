@@ -1887,7 +1887,6 @@ public final class MainActivity extends Activity {
             session = null;
             connectedIdentityKey = null;
             connectedProtocol = null;
-        connectedProtocol = null;
             remoteEntries.clear();
             selectedRemote = -1;
             currentRemotePath = "/";
@@ -1940,10 +1939,7 @@ public final class MainActivity extends Activity {
                     if (session == owner && !owner.isConnected()) {
                         session = null;
                         connectedIdentityKey = null;
-                connectedProtocol = null;
                         connectedProtocol = null;
-            connectedProtocol = null;
-        connectedProtocol = null;
                         remoteEntries.clear();
                         selectedRemote = -1;
                         currentRemotePath = "/";
@@ -2639,8 +2635,6 @@ public final class MainActivity extends Activity {
                 session = null;
                 connectedIdentityKey = null;
                 connectedProtocol = null;
-            connectedProtocol = null;
-        connectedProtocol = null;
                 remoteEntries.clear();
                 selectedRemote = -1;
                 currentRemotePath = "/";
@@ -2899,8 +2893,6 @@ public final class MainActivity extends Activity {
                 session = null;
                 connectedIdentityKey = null;
                 connectedProtocol = null;
-            connectedProtocol = null;
-        connectedProtocol = null;
                 remoteEntries.clear();
                 selectedRemote = -1;
                 currentRemotePath = "/";
