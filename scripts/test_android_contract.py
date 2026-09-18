@@ -248,12 +248,12 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         palette = self.read("internal/uipalette/palette.go")
 
         def go_palette(name: str) -> dict[str, tuple[int, int, int]]:
-            match = re.search(rf"var {name} = Theme\\{{(?P<body>.*?)\\n\\}}", palette, re.S)
+            match = re.search(rf"var {name} = Theme\{(?P<body>.*?)\n\}", palette, re.S)
             self.assertIsNotNone(match, f"missing canonical {name} palette")
             return {
                 field: tuple(int(channel, 16) for channel in (red, green, blue))
                 for field, red, green, blue in re.findall(
-                    r"(\\w+):\\s+RGB\\{0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2})\\}",
+                    r"(\w+):\s+RGB\{0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2})\}",
                     match.group("body"),
                 )
             }
@@ -270,7 +270,7 @@ class AndroidContractTests(_regressions.AndroidContractTests):
             return {
                 field: tuple(int(channel, 16) for channel in (red, green, blue))
                 for field, red, green, blue in re.findall(
-                    r"([A-Z_]+) = Color\\.rgb\\(0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2})\\);",
+                    r"([A-Z_]+) = Color\.rgb\(0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2})\);",
                     body,
                 )
             }
