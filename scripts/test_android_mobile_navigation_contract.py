@@ -171,6 +171,22 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             activity.count("connectedProtocol = null;"),
         )
 
+    def test_authentic_capture_follows_bottom_nav_and_utility_drawer(self) -> None:
+        capture = self.read(ROOT / "scripts/capture_android_screenshots.sh")
+        self.assertIn("open_utility_navigation()", capture)
+        self.assertIn("tap_ui 'Open utility menu'", capture)
+        self.assertIn("wait_ui 'Navigate to Connection info'", capture)
+        self.assertIn("wait_ui 'Navigate to About'", capture)
+        self.assertIn("wait_ui 'Navigate to Files'", capture)
+        self.assertIn("wait_ui 'Navigate to Connections'", capture)
+        self.assertIn("wait_ui 'Navigate to Bookmarks'", capture)
+        self.assertIn("wait_ui 'Navigate to Transfer Queue'", capture)
+        self.assertIn("wait_ui 'Navigate to Settings'", capture)
+        self.assertIn("capture_primary_surface 'Connections'", capture)
+        self.assertIn("capture_primary_surface 'Transfer Queue'", capture)
+        self.assertNotIn("tap_ui 'Open navigation'", capture)
+        self.assertNotIn("ANDROID_NAV_DRAWER=VISIBLE", capture)
+
     def test_navigation_uses_local_vector_assets_and_no_emoji_controls(self) -> None:
         for name in (
             "ic_menu.xml",
