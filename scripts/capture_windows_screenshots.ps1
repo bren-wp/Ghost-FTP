@@ -225,15 +225,15 @@ try {
 
     Save-WindowScreenshot -Window $main -Path (Join-Path $OutputDirectory "Ghost-FTP-main-workspace.png")
 
-    # Site Manager is modal, so use the stable WM_COMMAND route and PostMessage
+    # Connections is modal, so use the stable Site Manager WM_COMMAND route and PostMessage
     # rather than blocking this capture process with a synchronous message.
     $wmCommand = 0x0111
     $siteManagerCommand = 701
     if (-not [GhostFtpCaptureNative]::PostMessage($main, $wmCommand, [IntPtr]$siteManagerCommand, [IntPtr]::Zero)) {
-        throw "Could not request the Ghost FTP Site Manager."
+        throw "Could not request the Ghost FTP Connections window."
     }
 
-    $siteManager = Find-ProcessWindow -ProcessId $process.Id -TitleContains "Site Manager"
+    $siteManager = Find-ProcessWindow -ProcessId $process.Id -TitleContains "Connections"
     [GhostFtpCaptureNative]::SetForegroundWindow($siteManager) | Out-Null
     Start-Sleep -Milliseconds 700
     Save-WindowScreenshot -Window $siteManager -Path (Join-Path $OutputDirectory "Ghost-FTP-site-manager.png")
