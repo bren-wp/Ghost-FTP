@@ -126,10 +126,9 @@ def main() -> int:
 
     readme = read("README.md")
     for marker in (
-        f"Current source version: **{version}**",
-        "## Localization",
+        "Windows · Linux · Android",
         "English",
-        "24 selectable desktop languages",
+        "Product terminology",
     ):
         if marker not in readme:
             fail(f"README is missing English-first marker: {marker}")
