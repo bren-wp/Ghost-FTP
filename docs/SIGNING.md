@@ -1,6 +1,6 @@
 # Ghost FTP signing
 
-Ghost FTP **0.0.8** separates two distribution modes. The protected production workflow still fails closed when Windows/Android/macOS publisher identities are unavailable. The user-requested 0.0.8 **no-secret distribution** is a separate workflow that reads no repository secrets and truthfully records Windows as unsigned, Android as CI debug-signed and macOS as ad-hoc/not-notarized. Protocol security is unchanged.
+Ghost FTP **0.0.8** separates two distribution modes. The protected production workflow still fails closed when Windows/Android/macOS publisher identities are unavailable. The user-requested 0.0.8 **no-secret distribution** is a separate workflow that reads no repository secrets and truthfully records Windows as unsigned, Android as temporary compatibility-signed and macOS as ad-hoc/not-notarized. Protocol security is unchanged.
 
 ## Windows production publication policy
 
@@ -45,7 +45,7 @@ The outer executables are signed only after final byte mutation. `Get-Authentico
 
 ## Android production signing
 
-Ghost FTP 0.0.8 no-secret distribution publishes an **installable CI debug-signed Android APK**:
+Ghost FTP 0.0.8 no-secret distribution publishes an **installable temporary compatibility-signed Android APK**:
 
 ```text
 Ghost-FTP-0.0.8-Android.apk
@@ -110,7 +110,7 @@ The 0.0.8 release contains **14 platform artifacts / 17 public files**. `BUILD-M
 
 ```text
 WINDOWS_AUTHENTICODE=signed
-ANDROID_APK=debug-signed-no-secret
+ANDROID_APK=temporary-compatibility-certificate
 ANDROID_SIGNER_SHA256=<verified CI debug certificate fingerprint>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 PUBLIC_PLATFORM_ARTIFACTS=14
