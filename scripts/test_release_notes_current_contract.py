@@ -33,16 +33,17 @@ class ReleaseNotesCurrentContractTests(unittest.TestCase):
             f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
             f"Ghost-FTP-{version}-Android.apk",
+            f"Ghost-FTP-{version}-macOS.app.zip",
             f"Ghost-FTP-{version}-Chrome-Extension.zip",
             f"Ghost-FTP-{version}-Edge-Extension.zip",
             f"Ghost-FTP-{version}-Firefox-Extension.zip",
             f"Ghost-FTP-{version}-Opera-Extension.zip",
-            "13 platform artifacts",
-            "16 public release files",
+            "14 platform artifacts",
+            "17 public release files",
             f"ghcr.io/bren-wp/ghost-ftp:{version}",
             "prerelease flag: false",
-            "Official Windows publication is signed-only",
-            "protected production publisher identity",
+            "Windows compatibility publication may be explicitly unsigned",
+            "ephemeral compatibility certificate",
             "SFTP remains hidden",
         )
         for marker in required:
@@ -63,7 +64,6 @@ class ReleaseNotesCurrentContractTests(unittest.TestCase):
             "12 platform artifacts",
             "15 public release files",
             "Production Authenticode signing is optional",
-            "WINDOWS_AUTHENTICODE=unsigned",
         )
         for marker in stale:
             self.assertNotIn(marker, notes)
