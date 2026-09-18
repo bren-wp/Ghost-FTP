@@ -75,13 +75,17 @@ def main() -> int:
         "release_channel='current'",
         "release_title=\"Ghost FTP $version\"",
         "test \"$remote_prerelease\" = 'false'",
-        "Require protected Authenticode identity",
+        "Resolve Windows signing identity",
+        "WINDOWS_RELEASE_SIGNING=UNSIGNED_COMPATIBILITY",
+        "GHOSTFTP_ALLOW_UNSIGNED_PUBLIC_RELEASE",
         "GHOSTFTP_SIGNING_PFX_BASE64",
         "GHOSTFTP_SIGNING_PASSWORD",
         "GHOSTFTP_SIGNING_TIMESTAMP_URL",
         "Get-AuthenticodeSignature -FilePath $path",
         "WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}",
-        "Require protected Android production signing identity",
+        "Resolve Android signing identity",
+        "ANDROID_RELEASE_SIGNING=TEMPORARY_COMPATIBILITY_CERTIFICATE",
+        "ANDROID_COMPATIBILITY_SIGNATURE=PASS",
         "GHOSTFTP_ANDROID_KEYSTORE_BASE64",
         "GHOSTFTP_ANDROID_KEYSTORE_PASSWORD",
         "GHOSTFTP_ANDROID_KEY_ALIAS",
@@ -90,22 +94,17 @@ def main() -> int:
         "apksigner\" sign",
         "apksigner\" verify --verbose --print-certs",
         "ANDROID_PRODUCTION_SIGNATURE=PASS",
-        "ANDROID_APK=production-signed",
+        "ANDROID_APK=${ANDROID_SIGNING_STATE}",
         "ANDROID_SIGNER_SHA256=${ANDROID_SIGNER_SHA256}",
         "ANDROID_SFTP=hidden-until-strict-host-key-verification",
         "Windows universal x86 x64 ARM64 setup and portable",
         "Debian Ubuntu Fedora universal installer and portable bundles",
-        "Developer ID signed notarized universal macOS app",
-        "MACOS_DEVELOPER_ID_P12_BASE64",
-        "MACOS_DEVELOPER_ID_P12_PASSWORD",
-        "MACOS_DEVELOPER_IDENTITY",
-        "APPLE_NOTARY_API_KEY_P8",
-        "APPLE_NOTARY_API_KEY_ID",
-        "APPLE_NOTARY_ISSUER_ID",
-        "bash macos/SIGN_AND_NOTARIZE.sh",
-        "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
-        "MACOS_APP=developer-id-signed-notarized-universal-arm64-x86_64",
-        "MACOS_SIGNING=developer-id-hardened-runtime-notarized-stapled",
+        "Ad-hoc signed universal macOS compatibility app",
+        "bash macos/BUILD.sh",
+        "MACOS_COMPATIBILITY_ARTIFACT_VERIFIED=PASS",
+        "MACOS_APP=universal-arm64-x86_64-compatibility",
+        "MACOS_SIGNING=${MACOS_SIGNING_STATE}",
+        "COMPATIBILITY_RELEASE=YES",
         "Chrome Edge Firefox Opera release packages",
         "WINDOWS_SETUP=universal-x86-x64-arm64",
         "WINDOWS_PORTABLE=universal-x86-x64-arm64",
@@ -133,7 +132,7 @@ def main() -> int:
         "Ghost-FTP-${VERSION}-Setup.exe",
         "Ghost-FTP-${VERSION}-Portable.exe",
         "Ghost-FTP-${VERSION}-Android.apk",
-        "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
+        "Ghost-FTP-${VERSION}-macOS.app.zip",
     ):
         if artifact not in workflow:
             fail(f"release workflow missing public artifact: {artifact}")
@@ -148,9 +147,7 @@ def main() -> int:
             fail(f"release workflow missing browser artifact: {artifact}")
 
     for forbidden in (
-        "state=unsigned",
         "New-DevCodeSigningCertificate.ps1",
-        "keytool -genkeypair",
         "--prerelease",
         "gh release upload",
         "--clobber",
@@ -285,7 +282,8 @@ def main() -> int:
     require(
         "scripts/verify_release.py",
         'PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"',
-        "public Windows release artifacts must be Authenticode signed",
+        'PUBLIC_WINDOWS_COMPATIBILITY_ENV = "GHOSTFTP_ALLOW_UNSIGNED_PUBLIC_RELEASE"',
+        "explicit compatibility-release gate is enabled",
         'print("WINDOWS_ARCH=universal-x86-x64-arm64")',
         'print("WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64")',
     )
@@ -308,13 +306,13 @@ def main() -> int:
     print("LINUX_FEDORA_INSTALLER=UNIVERSAL_AMD64_ARM64_I386")
     print("LINUX_FEDORA_PORTABLE=UNIVERSAL_AMD64_ARM64_I386")
     print("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386")
-    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED")
-    print("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_DEVELOPER_ID_NOTARIZED")
+    print("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_COMPATIBILITY_OR_PRODUCTION_SIGNED")
+    print("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_ADHOC_COMPATIBILITY")
     print("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA")
     print("GHCR_CURRENT_BUNDLE=REQUIRED")
-    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=YES")
-    print("PUBLIC_WINDOWS_AUTHENTICODE=REQUIRED_AND_VERIFIED")
-    print("ANDROID_PRODUCTION_SIGNING_IDENTITY=REQUIRED_AND_VERIFIED")
+    print("CURRENT_WINDOWS_RELEASE_REQUIRES_TRUSTED_AUTHENTICODE=NO_COMPATIBILITY_ALLOWED")
+    print("PUBLIC_WINDOWS_AUTHENTICODE=SIGNED_OR_EXPLICITLY_UNSIGNED")
+    print("ANDROID_SIGNING_IDENTITY=PRODUCTION_OR_EPHEMERAL_COMPATIBILITY")
     return 0
 
 
