@@ -175,7 +175,6 @@ def integrate_main(text: str) -> str:
         button.layer?.borderWidth = active ? 1 : 0
         button.layer?.borderColor = active ? Palette.accent.cgColor : NSColor.clear.cgColor
         button.layer?.backgroundColor = active ? Palette.selection.cgColor : NSColor.clear.cgColor
-        button.heightAnchor.constraint(equalToConstant: 38).isActive = true
     }
 
     private func makeMasterNavigationRail() -> NSView {
@@ -189,6 +188,7 @@ def integrate_main(text: str) -> str:
 
         for button in [filesNavButton, siteManagerButton, transferQueueButton, settingsButton, bookmarksButton, diagnosticsButton, aboutButton] {
             styleMasterRailButton(button, active: button === filesNavButton)
+            button.heightAnchor.constraint(equalToConstant: 38).isActive = true
         }
 
         let primary = NSStackView(views: [filesNavButton, siteManagerButton, transferQueueButton, settingsButton])
