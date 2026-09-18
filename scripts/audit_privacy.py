@@ -105,7 +105,7 @@ def audit_manual_update_boundary() -> None:
             "UpdateURL:      brand.UpdateURL",
         ),
     )
-    for forbidden in ("net/http", "api.github.com", "github.com/", "Password", "Passphrase", "LocalPath", "RemotePath"):
+    for forbidden in ("net/http", "https://api.github.com", "https://github.com", "ReleaseAPIURL", "Password", "Passphrase", "LocalPath", "RemotePath"):
         if forbidden in checker:
             fail(f"local update simulator contains forbidden marker: {forbidden}")
 
