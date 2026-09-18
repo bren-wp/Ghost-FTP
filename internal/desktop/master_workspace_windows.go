@@ -396,6 +396,17 @@ func (a *app) layoutMasterWorkspaceChrome() {
 		a.saveProfile, a.removeProfile, a.disconnect,
 	)
 	showControls(true, a.profilesCombo, a.connectionBadge, a.connect)
+	// The master Files reference keeps per-pane mutation/navigation operations
+	// out of permanent rows. They remain fully available through the real More
+	// menu and master toolbar, so hiding these duplicate controls removes visual
+	// clutter without removing functionality.
+	showControls(false,
+		a.localUp, a.localChoose, a.localRefresh,
+		a.localMkdir, a.localRename, a.localDelete,
+		a.remoteUp, a.remoteRefresh,
+		a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod,
+		remoteEditButton(a),
+	)
 
 	topY, rowH, gap := 13, 34, 8
 	badgeW, connectW := 122, 134
@@ -430,47 +441,22 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	leftX := contentLeft
 	rightX := contentLeft + paneW + paneGap
 	sectionY, pathY, actionY := 108, 136, 174
-	pathButtonGap := 6
-	pathButtonW := 78
-	localPathW := paneW - 3*pathButtonW - 3*pathButtonGap
-	if localPathW < 120 {
-		localPathW = 120
-	}
-	remotePathW := paneW - 2*pathButtonW - 2*pathButtonGap
-	if remotePathW < 120 {
-		remotePathW = 120
-	}
-
 	a.move(a.sectionLocal, leftX, sectionY, paneW, 24)
 	a.move(a.sectionRemote, rightX, sectionY, paneW, 24)
 
-	a.move(a.localPath, leftX, pathY, localPathW, 29)
-	lx := leftX + localPathW + pathButtonGap
-	for _, control := range []uintptr{a.localUp, a.localChoose, a.localRefresh} {
-		a.move(control, lx, pathY, pathButtonW, 29)
-		lx += pathButtonW + pathButtonGap
-	}
+	a.move(a.localPath, leftX, pathY, paneW, 29)
+	a.move(a.remotePath, rightX, pathY, paneW, 29)
 
-	a.move(a.remotePath, rightX, pathY, remotePathW, 29)
-	rx := rightX + remotePathW + pathButtonGap
-	for _, control := range []uintptr{a.remoteUp, a.remoteRefresh} {
-		a.move(control, rx, pathY, pathButtonW, 29)
-		rx += pathButtonW + pathButtonGap
-	}
-
-	actionGap := 6
-	localActionW := (paneW - 2*actionGap) / 3
-	lx = leftX
-	for _, control := range []uintptr{a.localMkdir, a.localRename, a.localDelete} {
-		a.move(control, lx, actionY, localActionW, 29)
-		lx += localActionW + actionGap
-	}
-	remoteControls := []uintptr{a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod}
-	remoteActionW := (paneW - actionGap*(len(remoteControls)-1)) / len(remoteControls)
-	rx = rightX
-	for _, control := range remoteControls {
-		a.move(control, rx, actionY, remoteActionW, 29)
-		rx += remoteActionW + actionGap
+	// Preserve deterministic hidden-control bounds for command ownership and
+	// accessibility bookkeeping; these controls are not part of the visible
+	// master Files composition.
+	for _, control := range []uintptr{
+		a.localUp, a.localChoose, a.localRefresh,
+		a.localMkdir, a.localRename, a.localDelete,
+		a.remoteUp, a.remoteRefresh,
+		a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod,
+	} {
+		a.move(control, contentRight-1, actionY, 1, 1)
 	}
 
 	statusY, _ := statusBandGeometry(height)
@@ -478,7 +464,7 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	queueY := statusY - queueH - 9
 	queueButtonsY := queueY - 38
 	queueLabelY := queueButtonsY - 23
-	listY := actionY + 29 + 12
+	listY := pathY + 29 + 10
 	listBottom := queueLabelY - 10
 	listH := listBottom - listY
 	if listH < 120 {
