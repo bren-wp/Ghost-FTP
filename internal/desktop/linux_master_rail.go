@@ -21,6 +21,7 @@ const (
 	linuxMasterRailUtilityGap  = 7
 	linuxMasterRailPrimaryTop  = 64
 	linuxMasterRailBottomInset = 42
+	linuxWorkspaceHistoryLimit = 64
 )
 
 type linuxMasterRailLayout struct {
@@ -124,8 +125,8 @@ func appendLinuxWorkspaceHistory(history []linuxWorkspaceHistoryEntry, entry lin
 		return history
 	}
 	history = append(history, entry)
-	if len(history) > workspaceHistoryLimit {
-		history = append([]linuxWorkspaceHistoryEntry(nil), history[len(history)-workspaceHistoryLimit:]...)
+	if len(history) > linuxWorkspaceHistoryLimit {
+		history = append([]linuxWorkspaceHistoryEntry(nil), history[len(history)-linuxWorkspaceHistoryLimit:]...)
 	}
 	return history
 }
