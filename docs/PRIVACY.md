@@ -1,6 +1,6 @@
 # Ghost FTP privacy
 
-Ghost FTP **0.0.6** is designed without application telemetry, advertising, behavioral analytics, fingerprinting, hidden crash upload or a mandatory Ghost FTP account.
+Ghost FTP **0.0.8** is designed without application telemetry, advertising, behavioral analytics, fingerprinting, hidden crash upload or a mandatory Ghost FTP account.
 
 ## Native application model
 
@@ -34,13 +34,13 @@ User-facing errors are designed to avoid reproducing passwords/passphrases, inte
 
 ## Release infrastructure
 
-Official artifacts are built in GitHub Actions from repository source. The canonical 0.0.6 public allow-list is **13 platform artifacts / 16 public files**. The GHCR object `ghcr.io/bren-wp/ghost-ftp:0.0.6` is a verified distribution bundle, not a runtime product backend.
+Official artifacts are built in GitHub Actions from repository source. The canonical 0.0.8 public allow-list is **13 platform artifacts / 16 public files**. The GHCR object `ghcr.io/bren-wp/ghost-ftp:0.0.8` is a verified distribution bundle, not a runtime product backend.
 
 Production signing keys, PFX files, Android keystores and Apple notarization credentials are external protected release secrets and must never be committed to repository source or embedded in public artifacts.
 
 ## Documentation and screenshots
 
-Authentic UI evidence comes from the read-only exact-head Windows/Linux/Android screenshot workflow. The verified 0.0.6 evidence set contains 15 runtime images and records source SHA, workflow run, byte count and SHA-256 values. Mockups or generated approximations are not substitutes for runtime evidence.
+Authentic UI evidence comes from the read-only exact-head Windows/Linux/Android screenshot workflow. The verified 0.0.8 evidence set contains 18 runtime images and records source SHA, workflow run, byte count and SHA-256 values. Mockups or generated approximations are not substitutes for runtime evidence.
 
 ## Third parties
 
