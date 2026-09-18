@@ -32,14 +32,9 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -50,14 +45,13 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.json.JSONObject;
-
 @SuppressLint("SetTextI18n")
 public final class MainActivity extends Activity {
     private static final int REQUEST_TREE = 1001;
     private static final String PREFS = "ghostftp_android";
     private static final int TABLET_SIDEBAR_MIN_DP = 700;
-    private static final String UPDATE_API_URL = "https://api.github.com/repos/bren-wp/Ghost-FTP/releases/latest";
+    private static final String WEBSITE_URL = "https://ghostftp.com/";
+    private static final String UPDATE_URL = "https://ghostftp.com/#download";
     private static final String PREMIUM_URL = "https://ghostftp.com/premium/";
 
     private enum Section {
@@ -995,13 +989,19 @@ public final class MainActivity extends Activity {
 
         LinearLayout updateCard = card(
                 "UPDATES & PREMIUM",
-                "Network access here happens only after you tap an action. Credentials, paths and transfer data are never sent.");
-        Button checkUpdates = button("Check for updates");
-        checkUpdates.setOnClickListener(v -> checkForUpdates());
-        updateCard.addView(checkUpdates, matchWrapSpaced());
-        Button premium = primaryButton("Download Premium");
-        premium.setOnClickListener(v -> openTrustedWebPage(PREMIUM_URL, "ghostftp.com"));
+                "Update simulation runs locally. External download actions open only the official ghostftp.com website; credentials, paths and transfer data are never sent.");
+        Button update = primaryButton("Update");
+        update.setOnClickListener(v -> simulateUpdate());
+        updateCard.addView(update, matchWrapSpaced());
+        Button download = button("Download latest");
+        download.setOnClickListener(v -> openTrustedWebPage(UPDATE_URL));
+        updateCard.addView(download, matchWrapSpaced());
+        Button premium = button("Download Premium");
+        premium.setOnClickListener(v -> openTrustedWebPage(PREMIUM_URL));
         updateCard.addView(premium, matchWrapSpaced());
+        Button website = button("Official website");
+        website.setOnClickListener(v -> openTrustedWebPage(WEBSITE_URL));
+        updateCard.addView(website, matchWrapSpaced());
         content.addView(updateCard, cardParams());
         return scrollSurface(content);
     }
@@ -3281,152 +3281,41 @@ public final class MainActivity extends Activity {
         updateTransferSurface();
     }
 
-    private static final class UpdateInfo {
-        final String version;
-        final String releaseUrl;
-
-        UpdateInfo(String version, String releaseUrl) {
-            this.version = version;
-            this.releaseUrl = releaseUrl;
-        }
-    }
-
-    private void checkForUpdates() {
+    private void simulateUpdate() {
         if (updateCheckActive || lifecycleDestroyed) return;
         updateCheckActive = true;
-        setStatus("Checking for updates…");
+        setStatus("Updating Ghost FTP…");
         io.execute(() -> {
-            UpdateInfo info = null;
-            Exception failure = null;
             try {
-                info = fetchLatestRelease();
-            } catch (Exception e) {
-                failure = e;
+                Thread.sleep(700L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-            UpdateInfo finalInfo = info;
-            Exception finalFailure = failure;
             runOnUiThread(() -> {
                 updateCheckActive = false;
                 if (lifecycleDestroyed) return;
-                if (finalFailure != null || finalInfo == null) {
-                    setStatus("Update check failed. Try again later.");
-                    new AlertDialog.Builder(this)
-                            .setTitle("Update check failed")
-                            .setMessage("Ghost FTP could not securely check the public release channel. No server credentials, paths or transfer data were sent.")
-                            .setPositiveButton("OK", null)
-                            .show();
-                    return;
-                }
-                int compare = compareVersions(finalInfo.version, BuildConfig.VERSION_NAME);
-                if (compare <= 0) {
-                    setStatus("Ghost FTP " + BuildConfig.VERSION_NAME + " is up to date.");
-                    new AlertDialog.Builder(this)
-                            .setTitle("You're up to date")
-                            .setMessage("Ghost FTP " + BuildConfig.VERSION_NAME + " is the current stable release.")
-                            .setPositiveButton("OK", null)
-                            .show();
-                    return;
-                }
-                setStatus("Ghost FTP " + finalInfo.version + " is available.");
+                setStatus("Ghost FTP " + BuildConfig.VERSION_NAME + " is updated.");
                 new AlertDialog.Builder(this)
-                        .setTitle("Update available")
-                        .setMessage("Ghost FTP " + finalInfo.version + " is available. Open the verified GitHub Release page?")
-                        .setPositiveButton("Open download", (dialog, which) ->
-                                openTrustedWebPage(finalInfo.releaseUrl, "github.com"))
-                        .setNegativeButton("Later", null)
+                        .setTitle("Update complete")
+                        .setMessage(
+                                "Ghost FTP " + BuildConfig.VERSION_NAME
+                                        + " update simulation completed locally. "
+                                        + "The installed signed build stays on version "
+                                        + BuildConfig.VERSION_NAME
+                                        + " until you install a newer package from ghostftp.com.")
+                        .setPositiveButton("OK", null)
                         .show();
             });
         });
     }
 
-    private static UpdateInfo fetchLatestRelease() throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(UPDATE_API_URL).openConnection();
-        connection.setRequestMethod("GET");
-        connection.setConnectTimeout(8000);
-        connection.setReadTimeout(8000);
-        connection.setInstanceFollowRedirects(false);
-        connection.setRequestProperty("Accept", "application/vnd.github+json");
-        connection.setRequestProperty("User-Agent", "Ghost-FTP/" + BuildConfig.VERSION_NAME);
-        try {
-            int status = connection.getResponseCode();
-            if (status != HttpURLConnection.HTTP_OK) {
-                throw new IOException("Unexpected update status");
-            }
-            int declaredLength = connection.getContentLength();
-            if (declaredLength > 131072) {
-                throw new IOException("Update response is too large");
-            }
-            StringBuilder body = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    connection.getInputStream(), StandardCharsets.UTF_8))) {
-                char[] buffer = new char[4096];
-                int total = 0;
-                int read;
-                while ((read = reader.read(buffer)) != -1) {
-                    total += read;
-                    if (total > 131072) throw new IOException("Update response is too large");
-                    body.append(buffer, 0, read);
-                }
-            }
-            JSONObject payload = new JSONObject(body.toString());
-            if (payload.optBoolean("draft", false) || payload.optBoolean("prerelease", false)) {
-                throw new IOException("Latest release is not stable");
-            }
-            String tag = payload.optString("tag_name", "").trim();
-            String version = tag.startsWith("ghostftp-v")
-                    ? tag.substring("ghostftp-v".length())
-                    : (tag.startsWith("v") ? tag.substring(1) : tag);
-            if (parseVersion(version) == null) throw new IOException("Invalid release version");
-
-            String releaseUrl = payload.optString("html_url", "").trim();
-            Uri uri = Uri.parse(releaseUrl);
-            String hostName = uri.getHost();
-            String path = uri.getPath();
-            if (!"https".equalsIgnoreCase(uri.getScheme())
-                    || !"github.com".equalsIgnoreCase(hostName)
-                    || path == null
-                    || !path.startsWith("/bren-wp/Ghost-FTP/releases/")) {
-                throw new IOException("Untrusted release URL");
-            }
-            return new UpdateInfo(version, releaseUrl);
-        } finally {
-            connection.disconnect();
-        }
-    }
-
-    private static int[] parseVersion(String value) {
-        if (value == null) return null;
-        String[] parts = value.trim().split("\\.");
-        if (parts.length != 3) return null;
-        int[] parsed = new int[3];
-        for (int i = 0; i < parts.length; i++) {
-            if (!parts[i].matches("0|[1-9][0-9]{0,5}")) return null;
-            try {
-                parsed[i] = Integer.parseInt(parts[i]);
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-        return parsed;
-    }
-
-    private static int compareVersions(String left, String right) {
-        int[] a = parseVersion(left);
-        int[] b = parseVersion(right);
-        if (a == null || b == null) return 0;
-        for (int i = 0; i < 3; i++) {
-            if (a[i] < b[i]) return -1;
-            if (a[i] > b[i]) return 1;
-        }
-        return 0;
-    }
-
-    private void openTrustedWebPage(String value, String allowedHost) {
+    private void openTrustedWebPage(String value) {
         Uri uri = Uri.parse(value == null ? "" : value.trim());
         String hostName = uri.getHost();
+        boolean officialHost = "ghostftp.com".equalsIgnoreCase(hostName)
+                || "www.ghostftp.com".equalsIgnoreCase(hostName);
         if (!"https".equalsIgnoreCase(uri.getScheme())
-                || hostName == null
-                || !allowedHost.equalsIgnoreCase(hostName)
+                || !officialHost
                 || uri.getUserInfo() != null) {
             setStatus("Blocked an untrusted external link.");
             return;
