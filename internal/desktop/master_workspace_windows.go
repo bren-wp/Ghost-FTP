@@ -149,10 +149,14 @@ func (a *app) masterMoreAction() {
 	if a == nil {
 		return
 	}
-	// Connection info is the canonical secondary utility surface. More never
-	// fabricates operations or hidden state; advanced per-pane controls remain
-	// available below the master toolbar.
-	a.showDiagnostics()
+	// The approved master workspace exposes search directly in the action bar.
+	// Reuse Ghost FTP's real per-pane filter rather than introducing a decorative
+	// search field that cannot affect the file model.
+	if a.lastFilePaneRemote && a.connected && !a.connectionBusy {
+		a.openFileFilter(a.remoteList)
+		return
+	}
+	a.openFileFilter(a.localList)
 }
 
 func (a *app) masterConnectAction() {
@@ -196,7 +200,7 @@ func (a *app) ensureMasterWorkspaceControls() {
 		a.masterRefresh = a.ensureMasterWorkspaceButton(hinst, idRefreshAll, a.tr("common.refresh"), iconRefresh, buttonSubtle)
 		a.masterNewFolder = a.ensureMasterWorkspaceButton(hinst, idWorkspaceNewFolder, a.tr("common.new_folder"), iconNewFolder, buttonDefault)
 		a.masterBookmarks = a.ensureMasterWorkspaceButton(hinst, idBookmarks, bookmarkWordsForLanguage(a.languageCode()).Title, iconOpenLocal, buttonDefault)
-		a.masterMore = a.ensureMasterWorkspaceButton(hinst, idWorkspaceMore, "More", iconMore, buttonSubtle)
+		a.masterMore = a.ensureMasterWorkspaceButton(hinst, idWorkspaceMore, "Search", iconSearch, buttonSubtle)
 	}
 	a.setButtonLabel(a.masterRefresh, a.tr("common.refresh"))
 	a.setButtonLabel(a.masterNewFolder, a.tr("common.new_folder"))
@@ -208,21 +212,24 @@ func (a *app) updateMasterConnectVisual() {
 	if a == nil || a.connect == 0 {
 		return
 	}
-	label := "Quick Connect"
+	label := a.tr("common.connect")
 	icon := iconConnect
 	variant := buttonAccent
 	if a.connectionBusy {
 		label = a.tr("common.cancel")
 		icon = iconCancel
 		variant = buttonDanger
-	} else if a.connected {
-		label = a.tr("common.disconnect")
-		icon = iconDisconnect
-		variant = buttonDanger
 	}
 	a.setButtonLabel(a.connect, label)
 	a.registerButtonVisual(a.connect, icon, label, variant, false)
-	setControlEnabled(a.connect, !a.profileMutationBusy)
+	setControlEnabled(a.connect, !a.profileMutationBusy && !a.connected)
+	if a.disconnect != 0 {
+		disconnectLabel := a.tr("common.disconnect")
+		a.setButtonLabel(a.disconnect, disconnectLabel)
+		a.registerButtonVisual(a.disconnect, iconDisconnect, disconnectLabel, buttonSubtle, false)
+		setControlEnabled(a.disconnect, a.connected || a.connectionBusy)
+		invalidateRect.Call(a.disconnect, 0, 0)
+	}
 	invalidateRect.Call(a.connect, 0, 0)
 }
 
@@ -255,121 +262,150 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	contentLeft := applicationContentLeft
 	contentRight := width - premiumOuterGap
 	contentWidth := contentRight - contentLeft
-	if contentWidth < 520 {
+	if contentWidth < 720 {
 		return
 	}
 
-	// Connection credentials are owned by the Connections window. Keeping their
-	// hidden native controls preserves the existing engine/profile binding while
-	// the Files workspace follows the supplied master composition.
+	// Credentials are edited in Connections. The main workspace follows the
+	// approved reference: one compact site/status strip, a dedicated action bar,
+	// two equal file panes and a persistent transfer queue.
 	showControls(false,
 		a.protocol, a.host, a.port, a.user, a.pass,
 		a.keyPath, a.chooseKey, a.passphrase,
-		a.saveProfile, a.removeProfile, a.disconnect,
+		a.saveProfile, a.removeProfile,
 	)
-	showControls(true, a.profilesCombo, a.connectionBadge, a.connect)
+	showControls(true, a.profilesCombo, a.connectionBadge, a.connect, a.disconnect)
 
-	topY, rowH, gap := 13, 34, 8
-	badgeW, connectW := 122, 134
-	profileW := contentWidth - badgeW - connectW - 2*gap
-	if profileW < 240 {
-		profileW = 240
+	// Top site/status strip.
+	topY, topH := 14, 36
+	badgeW := 176
+	profileW := contentWidth - badgeW - 12
+	if profileW > 720 {
+		profileW = 720
 	}
-	a.move(a.profilesCombo, contentLeft, topY, profileW, rowH)
-	badgeX := contentLeft + profileW + gap
-	a.move(a.connectionBadge, badgeX, topY+6, badgeW, 22)
-	a.move(a.connect, badgeX+badgeW+gap, topY, connectW, rowH)
+	if profileW < 300 {
+		profileW = 300
+	}
+	a.move(a.profilesCombo, contentLeft, topY, profileW, topH)
+	a.move(a.connectionBadge, contentRight-badgeW, topY+7, badgeW, 22)
 
-	toolbarY, toolbarH := 56, 38
-	controls := []uintptr{
-		a.masterBack, a.masterForward, a.masterRefresh, a.masterNewFolder,
-		a.upload, a.download, a.masterBookmarks, a.masterMore,
-	}
-	toolbarGap := 7
-	buttonW := (contentWidth - toolbarGap*(len(controls)-1)) / len(controls)
-	if buttonW < 76 {
-		buttonW = 76
+	// Primary action bar mirrors the approved mockup: Connect, Disconnect,
+	// New Folder, Upload, Download, Refresh and Search.
+	toolbarY, toolbarH, gap := 62, 40, 8
+	fixed := []struct {
+		control uintptr
+		width   int
+	}{
+		{a.connect, 118},
+		{a.disconnect, 118},
+		{a.masterNewFolder, 126},
+		{a.upload, 108},
+		{a.download, 108},
+		{a.masterRefresh, 104},
 	}
 	x := contentLeft
-	for _, control := range controls {
-		a.move(control, x, toolbarY, buttonW, toolbarH)
-		x += buttonW + toolbarGap
+	for _, item := range fixed {
+		a.move(item.control, x, toolbarY, item.width, toolbarH)
+		x += item.width + gap
 	}
+	searchW := contentRight - x
+	if searchW < 150 {
+		searchW = 150
+	}
+	a.move(a.masterMore, x, toolbarY, searchW, toolbarH)
 
-	// Remove the legacy center transfer column and use two equal master panes.
-	paneGap := 12
+	// Main file area.
+	paneGap := 14
 	paneW := (contentWidth - paneGap) / 2
 	leftX := contentLeft
-	rightX := contentLeft + paneW + paneGap
-	sectionY, pathY, actionY := 108, 132, 169
-	pathButtonGap := 6
-	pathButtonW := 78
-	localPathW := paneW - 3*pathButtonW - 3*pathButtonGap
+	rightX := leftX + paneW + paneGap
+	sectionY, pathY, actionY := 120, 148, 190
+	a.move(a.sectionLocal, leftX, sectionY, paneW, 22)
+	a.move(a.sectionRemote, rightX, sectionY, paneW, 22)
+
+	// Local breadcrumb controls: back / forward / up / path / choose.
+	miniW, miniGap := 36, 6
+	lx := leftX
+	for _, control := range []uintptr{a.masterBack, a.masterForward, a.localUp} {
+		a.move(control, lx, pathY, miniW, 34)
+		lx += miniW + miniGap
+	}
+	chooseW := 76
+	localPathW := leftX + paneW - lx - chooseW - miniGap
 	if localPathW < 120 {
 		localPathW = 120
 	}
-	remotePathW := paneW - 2*pathButtonW - 2*pathButtonGap
-	if remotePathW < 120 {
-		remotePathW = 120
+	a.move(a.localPath, lx, pathY, localPathW, 34)
+	a.move(a.localChoose, lx+localPathW+miniGap, pathY, chooseW, 34)
+	showControls(false, a.localRefresh)
+
+	// Remote breadcrumb controls: up / path / refresh.
+	rx := rightX
+	a.move(a.remoteUp, rx, pathY, miniW, 34)
+	rx += miniW + miniGap
+	remoteRefreshW := 78
+	remotePathW := rightX + paneW - rx - remoteRefreshW - miniGap
+	if remotePathW < 140 {
+		remotePathW = 140
 	}
+	a.move(a.remotePath, rx, pathY, remotePathW, 34)
+	a.move(a.remoteRefresh, rx+remotePathW+miniGap, pathY, remoteRefreshW, 34)
 
-	a.move(a.sectionLocal, leftX, sectionY, paneW, 20)
-	a.move(a.sectionRemote, rightX, sectionY, paneW, 20)
-
-	a.move(a.localPath, leftX, pathY, localPathW, 29)
-	lx := leftX + localPathW + pathButtonGap
-	for _, control := range []uintptr{a.localUp, a.localChoose, a.localRefresh} {
-		a.move(control, lx, pathY, pathButtonW, 29)
-		lx += pathButtonW + pathButtonGap
-	}
-
-	a.move(a.remotePath, rightX, pathY, remotePathW, 29)
-	rx := rightX + remotePathW + pathButtonGap
-	for _, control := range []uintptr{a.remoteUp, a.remoteRefresh} {
-		a.move(control, rx, pathY, pathButtonW, 29)
-		rx += pathButtonW + pathButtonGap
-	}
-
+	// Keep advanced real file operations visible in a compact utility row.
 	actionGap := 6
-	localActionW := (paneW - 2*actionGap) / 3
+	localActions := []uintptr{a.localMkdir, a.localRename, a.localDelete}
+	localActionW := (paneW - actionGap*(len(localActions)-1)) / len(localActions)
 	lx = leftX
-	for _, control := range []uintptr{a.localMkdir, a.localRename, a.localDelete} {
-		a.move(control, lx, actionY, localActionW, 29)
+	for _, control := range localActions {
+		a.move(control, lx, actionY, localActionW, 30)
 		lx += localActionW + actionGap
 	}
-	remoteControls := []uintptr{a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod}
-	remoteActionW := (paneW - actionGap*(len(remoteControls)-1)) / len(remoteControls)
+	remoteActions := []uintptr{a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod}
+	remoteActionW := (paneW - actionGap*(len(remoteActions)-1)) / len(remoteActions)
 	rx = rightX
-	for _, control := range remoteControls {
-		a.move(control, rx, actionY, remoteActionW, 29)
+	for _, control := range remoteActions {
+		a.move(control, rx, actionY, remoteActionW, 30)
 		rx += remoteActionW + actionGap
 	}
 
 	statusY, _ := statusBandGeometry(height)
-	queueH := clampInt(height/6, 105, 165)
-	queueY := statusY - queueH - 9
+	queueH := clampInt(height/5, 128, 184)
+	queueY := statusY - queueH - 10
 	queueButtonsY := queueY - 38
-	queueLabelY := queueButtonsY - 23
-	listY := actionY + 29 + 44
-	listBottom := queueLabelY - 10
+	queueLabelY := queueButtonsY - 25
+	listY := actionY + 36
+	listBottom := queueLabelY - 12
 	listH := listBottom - listY
-	if listH < 120 {
-		listH = 120
+	if listH < 150 {
+		listH = 150
 	}
 	a.move(a.localList, leftX, listY, paneW, listH)
 	a.move(a.remoteList, rightX, listY, paneW, listH)
 
-	a.move(a.sectionTransfers, contentLeft, queueLabelY, 180, 18)
-	a.move(a.transferSummary, contentLeft+180, queueLabelY, clampInt(contentWidth-180, 260, 640), 18)
-	qx := contentLeft
-	queueWidths := []int{112, 112, 104, 104, 150}
-	for i, control := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob, a.clearQueue} {
-		a.move(control, qx, queueButtonsY, queueWidths[i], 31)
-		qx += queueWidths[i] + 7
+	// Persistent transfer queue with real lifecycle actions.
+	a.move(a.sectionTransfers, contentLeft, queueLabelY, 190, 20)
+	a.move(a.transferSummary, contentLeft+190, queueLabelY, clampInt(contentWidth-190, 260, 620), 20)
+	queueControls := []struct {
+		control uintptr
+		width   int
+	}{
+		{a.pauseQueue, 104},
+		{a.resumeQueue, 104},
+		{a.cancelJob, 98},
+		{a.retryJob, 98},
+		{a.clearQueue, 142},
+	}
+	qx := contentRight
+	for i := len(queueControls) - 1; i >= 0; i-- {
+		qx -= queueControls[i].width
+		a.move(queueControls[i].control, qx, queueButtonsY, queueControls[i].width, 31)
+		qx -= 7
 	}
 	a.move(a.transferList, contentLeft, queueY, contentWidth, queueH)
-	a.move(a.status, contentLeft, statusY, contentWidth-250, statusBandHeight)
-	a.move(a.statusVersion, contentRight-238, statusY, 238, statusBandHeight)
+	a.move(a.status, contentLeft, statusY, contentWidth-265, statusBandHeight)
+	a.move(a.statusVersion, contentRight-250, statusY, 250, statusBandHeight)
+
+	a.updateMasterToolbarState()
 }
 
 func (a *app) cleanupMasterWorkspaceControls() {
