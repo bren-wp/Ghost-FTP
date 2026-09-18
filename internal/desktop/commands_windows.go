@@ -26,6 +26,14 @@ func (a *app) command(id int) {
 		a.openSiteManager()
 	case idTransferQueueNav:
 		a.focusTransferQueue()
+	case idWorkspaceBack:
+		a.navigateWorkspaceHistory(true)
+	case idWorkspaceForward:
+		a.navigateWorkspaceHistory(false)
+	case idWorkspaceNewFolder:
+		a.masterNewFolderAction()
+	case idWorkspaceMore:
+		a.masterMoreAction()
 	case idBookmarks:
 		a.openBookmarkManager()
 	case idChooseKey:
