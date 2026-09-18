@@ -87,7 +87,7 @@ The protected production workflow still requires trusted Authenticode. The reque
 
 ## Android trust state
 
-`Ghost-FTP-0.0.8-Android.apk` in the no-secret distribution is the installable Gradle debug-signed build produced by CI without a protected publisher secret. The workflow verifies the APK signature and records its certificate SHA-256 fingerprint, but does **not** claim that fingerprint is a long-lived production publisher identity. Android SFTP remains hidden until strict maintained host-key verification exists.
+`Ghost-FTP-0.0.8-Android.apk` in the no-secret distribution is the installable **release APK signed with a temporary one-run compatibility certificate** produced without a protected publisher secret. The workflow verifies the APK signature and records its certificate SHA-256 fingerprint, but does **not** claim that fingerprint is a long-lived production publisher identity. Android SFTP remains hidden until strict maintained host-key verification exists.
 
 ## Browser helper gate
 
