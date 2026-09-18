@@ -88,6 +88,8 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             "Retry delay",
             "Conflict policy",
             "Confirm delete",
+            'NSButton(title: "Restore Defaults"',
+            "Defaults loaded. Select Save to apply.",
             "Dark",
             "Light",
         ):
@@ -95,6 +97,14 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
 
         preparer = read("macos/prepare_site_manager_sources.py")
         self.assertIn("GhostFTPSettingsConfirmDelete() == 0", preparer)
+
+        bridge = read("macos/Bridge/application.go")
+        confirm_start = bridge.index("//export GhostFTPSettingsConfirmDelete")
+        confirm_end = bridge.index("// GhostFTPSaveSettings", confirm_start)
+        confirm = bridge[confirm_start:confirm_end]
+        self.assertIn("if ensureSettingsLocked() != nil {", confirm)
+        self.assertIn("return 1", confirm)
+        self.assertIn("Settings read failure must not silently weaken delete safety.", confirm)
 
     def test_about_and_diagnostics_are_privacy_safe(self) -> None:
         source = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
