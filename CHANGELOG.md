@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.0.8 - 2026-09-18
+
+### Native UI/UX redesign and parity
+
+- Reworked the maintained Windows and Linux desktop shells around one consistent Ghost FTP master navigation hierarchy: **Files**, **Connections**, **Transfer Queue** and **Settings**, with Bookmarks, Connection info and About kept as real application-owned utility surfaces.
+- Added the matching AppKit master rail and embedded engine-backed transfer queue on macOS while preserving the existing typed shared-engine boundary and keeping public macOS distribution gated on real Developer ID signing and Apple notarization.
+- Reworked Android navigation and Files workspace for phone/tablet use, aligned Dark/Light palettes with the desktop product, added a privacy-safe live Connection info surface and kept Android SFTP hidden until strict maintained host-key verification exists.
+- Standardized visible terminology across platforms so legacy internal Site Manager/Diagnostics compatibility names no longer leak into the primary navigation.
+
+### UI/UX correctness and polish
+
+- Fixed Windows title duplication, empty Bookmarks presentation, rail hierarchy, connection-state/profile-action spacing and native close/minimize/modal keyboard lifecycle behavior.
+- Fixed Linux rail/content separation, idempotent layout transforms, user-reachable Settings/Bookmarks/Connection info/About overlays and X11 core-font fallback rendering for product punctuation and state glyphs.
+- Improved macOS empty queue feedback, disabled no-op Pause/Resume actions when no actionable transfer exists and tightened Connection info so it exposes only connected state/protocol rather than server identity or saved paths.
+- Improved Android small-screen density by reclaiming idle status-strip space while keeping real operation/error state immediately visible.
+- Added cross-platform regression contracts for the new navigation hierarchy, empty states, terminology, privacy boundaries and master palette behavior.
+
+### Authentic runtime evidence and documentation
+
+- Expanded immutable exact-head UI verification to **18 authentic runtime images**: Windows 5, Linux 5 and Android 8.
+- Updated screenshot capture to the current **Connections**, **Transfer Queue** and **Connection info** surfaces and kept all evidence tied to source SHA, workflow-run identity, byte counts and SHA-256 digests.
+- Refreshes the root README, active documentation, release verification guidance and 0.0.8 repository-local visual evidence around the final native designs rather than generated mockups.
+
+### Release engineering and security
+
+- Advances root `VERSION` to **0.0.8** and keeps the Current channel with `ghostftp-v0.0.8`, `prerelease=false`.
+- Keeps the canonical public release at **13 platform artifacts / 16 public files**: 2 universal Windows executables, 6 universal Linux bundles, 1 production-signed Android APK, 4 browser-helper ZIPs and 3 verification/metadata files.
+- Preserves trusted Windows Authenticode as a required publication gate, protected Android signing plus exact certificate-fingerprint verification, strict FTPS verification, strict desktop SFTP host-key trust/pinning, fail-closed local/transfer boundaries and no application telemetry.
+- Browser helpers retain zero browser/host permissions and the explicit sanitized Windows `ghostftp://connect` handoff; secrets, URL query data and fragments are excluded and the desktop never auto-connects.
+
 ## 0.0.7 - 2026-09-17
 
 ### Cumulative polish, cleanup and product hardening
