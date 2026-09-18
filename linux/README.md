@@ -88,7 +88,7 @@ ARM64 and i386 payloads are exact-head build/package/binary-format verified. The
 
 With a local `DISPLAY`, `ghostftp` launches the native Linux graphical frontend using the maintained X11/XWayland-compatible path. It does not require Electron, a webview, GTK/Qt or an external Go GUI module.
 
-The maintained workspace includes Quick Connect, Connections/saved-profile workflows, FTP/FTPS/SFTP, local and remote panes, create/rename/delete/permissions, upload/download, sorting/filtering, bounded recursive search, directory comparison, synchronized navigation, transfer queue controls, Top/Up/Down/Bottom priority, Remote Edit, bookmarks/start directories, appearance and validated settings/bandwidth behavior where supported by the shared engine.
+The maintained workspace includes Quick Connect, Connections/saved-profile workflows, FTP/FTPS/SFTP, local and remote panes, create/rename/delete/permissions, upload/download, sorting/filtering, bounded recursive search, directory comparison, synchronized navigation, transfer queue controls, Top/Up/Down/Bottom priority, Remote Edit, bookmarks/start directories, appearance and validated settings/bandwidth behavior where supported by the shared engine. The master rail stays aligned with the supplied reference: language, Update, download, Premium and website actions live in **Settings**, not as extra rail items.
 
 For headless/terminal operation:
 
@@ -134,3 +134,8 @@ The verified 0.0.8 release directory is also distributed as `ghcr.io/bren-wp/gho
 Ghost FTP is proprietary commercial software and is not licensed as open source. Copyright © 2026 Brendigo LTD. See the repository [`LICENSE`](../LICENSE) and [`docs/THIRD-PARTY-NOTICES.md`](../docs/THIRD-PARTY-NOTICES.md).
 
 See [`../docs/SECURITY.md`](../docs/SECURITY.md), [`../docs/PLATFORM-PARITY.md`](../docs/PLATFORM-PARITY.md), [`../docs/DEPENDENCIES.md`](../docs/DEPENDENCIES.md), [`../docs/INSTALLATION.md`](../docs/INSTALLATION.md) and [`../docs/TESTING.md`](../docs/TESTING.md).
+
+
+## Update and product links
+
+Linux 0.0.8 provides a local-only **Update** simulation in Settings. **Download latest**, **Premium** and **Official website** open only HTTPS destinations on `ghostftp.com`; no GitHub release link or release-API request is exposed by the application UI.
