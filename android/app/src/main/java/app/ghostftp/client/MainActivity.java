@@ -89,6 +89,8 @@ public final class MainActivity extends Activity {
     private TextView transferStatus;
     private TextView sectionTitle;
     private TextView connectionBadge;
+    private TextView localEmptyState;
+    private TextView remoteEmptyState;
     private ListView localList;
     private ListView remoteList;
     private Button connect;
@@ -302,6 +304,7 @@ public final class MainActivity extends Activity {
         TextView brand = label("GHOST FTP", 16, GhostTheme.TEXT);
         brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         sectionTitle = label("Files", 12, GhostTheme.MUTED);
+        sectionTitle.setVisibility(tabletLayout ? View.VISIBLE : View.GONE);
         titleStack.addView(brand, matchWrap());
         titleStack.addView(sectionTitle, matchWrap());
         appBar.addView(titleStack, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -416,7 +419,7 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildLocalFilesCard() {
-        LinearLayout card = card("LOCAL", "Choose a folder, browse files and manage only the locations you allow Ghost FTP to use. Long-press a folder to select it without opening it.");
+        LinearLayout card = card("LOCAL", "Browse and manage files only in folders you allow Ghost FTP to use. Long-press a folder to select it.");
         localPath = pathLabel("No folder selected");
         card.addView(localPath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -456,9 +459,12 @@ public final class MainActivity extends Activity {
         localRename.setOnClickListener(v -> renameLocalSelected());
         localDelete.setOnClickListener(v -> deleteLocalSelected());
 
+        localEmptyState = workspaceEmptyState("Choose a folder to browse local files.");
+        card.addView(localEmptyState, matchWrapSpaced());
         localList = new ListView(this);
         GhostTheme.styleList(localList);
-        card.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
+        localList.setVisibility(View.GONE);
+        card.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
         localList.setOnItemClickListener((parent, view, position, id) -> selectLocal(position));
         localList.setOnItemLongClickListener((parent, view, position, id) -> {
             int sourceIndex = localSourceIndex(position);
@@ -472,7 +478,7 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildRemoteFilesCard() {
-        LinearLayout card = card("SERVER", "Browse and manage files on the connected server. Secure connections are verified before use. Long-press a folder to select it without opening it.");
+        LinearLayout card = card("SERVER", "Browse and manage files on the connected server. Long-press a folder to select it.");
         remotePath = pathLabel(currentRemotePath);
         card.addView(remotePath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -521,9 +527,12 @@ public final class MainActivity extends Activity {
         directoryCompare.setOnClickListener(v -> showDirectoryComparison());
         remoteEdit.setOnClickListener(v -> openRemoteEditorSelected());
 
+        remoteEmptyState = workspaceEmptyState("Connect from Sites to browse server files.");
+        card.addView(remoteEmptyState, matchWrapSpaced());
         remoteList = new ListView(this);
         GhostTheme.styleList(remoteList);
-        card.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
+        remoteList.setVisibility(View.GONE);
+        card.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
         remoteList.setOnItemClickListener((parent, view, position, id) -> selectRemote(position));
         remoteList.setOnItemLongClickListener((parent, view, position, id) -> {
             int sourceIndex = remoteSourceIndex(position);
@@ -2655,6 +2664,18 @@ public final class MainActivity extends Activity {
             labels.add(marker + type + e.name + size);
         }
         if (localList != null) localList.setAdapter(GhostTheme.listAdapter(this, labels));
+        if (localList != null && localEmptyState != null) {
+            boolean hasVisibleItems = !localVisibleItems.isEmpty();
+            String emptyMessage;
+            if (treeUri == null || currentDocumentId == null) {
+                emptyMessage = "Choose a folder to browse local files.";
+            } else if (!localFilterQuery.isEmpty() && !localEntries.isEmpty()) {
+                emptyMessage = "No local files match this filter.";
+            } else {
+                emptyMessage = "This local folder is empty.";
+            }
+            updateWorkspaceListState(localList, localEmptyState, hasVisibleItems, emptyMessage);
+        }
         if (localFilter != null) localFilter.setText(localFilterQuery.isEmpty() ? "Filter" : "Filter: " + localFilterQuery);
         if (localSort != null) localSort.setText("Sort: " + WorkspaceOps.sortLabel(localSortKey, localSortAscending));
         refreshButtons();
@@ -2675,6 +2696,19 @@ public final class MainActivity extends Activity {
             labels.add(marker + type + e.name + size + permissions);
         }
         if (remoteList != null) remoteList.setAdapter(GhostTheme.listAdapter(this, labels));
+        if (remoteList != null && remoteEmptyState != null) {
+            boolean connected = session != null && session.isConnected();
+            boolean hasVisibleItems = connected && !remoteVisibleItems.isEmpty();
+            String emptyMessage;
+            if (!connected) {
+                emptyMessage = "Connect from Sites to browse server files.";
+            } else if (!remoteFilterQuery.isEmpty() && !remoteEntries.isEmpty()) {
+                emptyMessage = "No server files match this filter.";
+            } else {
+                emptyMessage = "This server folder is empty.";
+            }
+            updateWorkspaceListState(remoteList, remoteEmptyState, hasVisibleItems, emptyMessage);
+        }
         if (remoteFilter != null) remoteFilter.setText(remoteFilterQuery.isEmpty() ? "Filter" : "Filter: " + remoteFilterQuery);
         if (remoteSort != null) remoteSort.setText("Sort: " + WorkspaceOps.sortLabel(remoteSortKey, remoteSortAscending));
         refreshButtons();
@@ -2895,6 +2929,21 @@ public final class MainActivity extends Activity {
             card.addView(help, matchWrap());
         }
         return card;
+    }
+
+    private TextView workspaceEmptyState(String value) {
+        TextView view = label(value, 12, GhostTheme.MUTED);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        view.setMinHeight(dp(78));
+        view.setPadding(dp(12), dp(12), dp(12), dp(12));
+        view.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
+        return view;
+    }
+
+    private void updateWorkspaceListState(ListView list, TextView emptyState, boolean hasItems, String emptyMessage) {
+        emptyState.setText(emptyMessage);
+        emptyState.setVisibility(hasItems ? View.GONE : View.VISIBLE);
+        list.setVisibility(hasItems ? View.VISIBLE : View.GONE);
     }
 
     private TextView pathLabel(String value) {

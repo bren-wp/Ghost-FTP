@@ -226,6 +226,43 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertNotIn('object.put("secret"', store)
         self.assertNotIn('object.put("token"', store)
 
+    def test_android_files_workspace_uses_truthful_compact_empty_states(self) -> None:
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+        ui_contract = self.read("android/UI-UX.md")
+
+        for expected in (
+            'sectionTitle.setVisibility(tabletLayout ? View.VISIBLE : View.GONE);',
+            'localEmptyState = workspaceEmptyState("Choose a folder to browse local files.");',
+            'remoteEmptyState = workspaceEmptyState("Connect from Sites to browse server files.");',
+            'new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220))',
+            '"No local files match this filter."',
+            '"This local folder is empty."',
+            '"No server files match this filter."',
+            '"This server folder is empty."',
+            "updateWorkspaceListState(localList, localEmptyState, hasVisibleItems, emptyMessage);",
+            "updateWorkspaceListState(remoteList, remoteEmptyState, hasVisibleItems, emptyMessage);",
+            "boolean hasVisibleItems = connected && !remoteVisibleItems.isEmpty();",
+        ):
+            self.assertIn(expected, activity)
+
+        self.assertNotIn(
+            'card.addView(localList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));',
+            activity,
+        )
+        self.assertNotIn(
+            'card.addView(remoteList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));',
+            activity,
+        )
+
+        helper_start = activity.index("private void updateWorkspaceListState(")
+        helper_end = activity.index("private TextView pathLabel(", helper_start)
+        helper = activity[helper_start:helper_end]
+        self.assertIn("emptyState.setVisibility(hasItems ? View.GONE : View.VISIBLE);", helper)
+        self.assertIn("list.setVisibility(hasItems ? View.VISIBLE : View.GONE);", helper)
+
+        self.assertIn("favors useful state over permanent blank list boxes", ui_contract)
+        self.assertIn("distinguishes disconnected, empty-folder and no-filter-match states", ui_contract)
+
     def test_android_dark_master_palette_is_default_with_real_light_secondary(self) -> None:
         theme = self.read(f"{_regressions.ANDROID_JAVA}/GhostTheme.java")
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
