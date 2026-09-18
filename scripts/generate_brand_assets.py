@@ -3,7 +3,7 @@
 
 The source of truth is the same gold-ghost mark used by the supplied 0.0.8
 reference screens. Production builds materialize PNG/ICO assets locally from
-this dependency-free renderer so Windows, Linux and macOS cannot drift to a
+this dependency-free renderer so Windows, Linux and Android cannot drift to a
 different logo or depend on a network image tool.
 """
 
@@ -223,7 +223,7 @@ def main() -> int:
     print("BRAND_ASSET_AUDIT=PASS")
     print("PUBLIC_BRAND=Ghost FTP")
     print("CANONICAL_LOGO=GOLD_GHOST_REFERENCE")
-    print("ACTIVE_BRAND_ASSETS=WINDOWS,LINUX,MACOS,ANDROID")
+    print("ACTIVE_BRAND_ASSETS=WINDOWS,LINUX,ANDROID")
     print("RETIRED_WEB_PWA_ASSETS=BLOCKED")
     return 0
 
