@@ -19,7 +19,7 @@ class BrowserDesktopLaunchContractTests(unittest.TestCase):
     def test_release_version_is_current_008(self) -> None:
         self.assertEqual(read(ROOT / "VERSION").strip(), "0.0.8")
         self.assertIn('var version = "0.0.8"', read(ROOT / "cmd" / "ghostftp" / "main.go"))
-        self.assertIn('var version = "0.0.7"', read(ROOT / "cmd" / "installer" / "main.go"))
+        self.assertIn('var version = "0.0.8"', read(ROOT / "cmd" / "installer" / "main.go"))
 
     def test_extension_payload_is_explicit_and_non_secret(self) -> None:
         core = read(SHARED / "core.js")
