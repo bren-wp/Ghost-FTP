@@ -370,7 +370,7 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
-        navigation.addView(navButton("Connection info", R.drawable.ic_sites, Section.CONNECTION_INFO), navParams());
+        navigation.addView(navButton("Connection info", R.drawable.ic_connection_info, Section.CONNECTION_INFO), navParams());
         navigation.addView(navButton("About", R.drawable.ic_about, Section.ABOUT), navParams());
 
         TextView privacy = label("No telemetry · no ads · no Ghost FTP cloud", 10, GhostTheme.MUTED);
