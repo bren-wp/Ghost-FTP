@@ -30,9 +30,8 @@ type linuxMasterRailLayout struct {
 	connections linuxRect
 	transfers   linuxRect
 	settings    linuxRect
-	bookmarks   linuxRect
-	diagnostics linuxRect
-	about       linuxRect
+	promo       linuxRect
+	version     linuxRect
 	content     linuxRect
 }
 
@@ -362,16 +361,19 @@ func buildLinuxMasterRailLayout(width, height int) linuxMasterRailLayout {
 	layout.settings = linuxRectWH(linuxMasterRailX, y, linuxMasterRailWidth, linuxMasterRailCardH)
 	y += linuxMasterRailCardH
 
-	utilityHeight := 3*linuxMasterRailUtilityH + 2*linuxMasterRailUtilityGap
-	utilityY := height - linuxMasterRailBottomInset - utilityHeight
-	if minimum := y + 18; utilityY < minimum {
-		utilityY = minimum
+	// Match the supplied desktop master: the rail has only the four primary
+	// destinations. Bookmarks lives in the Files toolbar; Connection info and
+	// About live in More. The lower rail is reserved for the product promise
+	// and version instead of duplicate navigation.
+	promoH := 112
+	versionH := 20
+	versionTop := height - linuxMasterRailBottomInset - versionH
+	promoTop := versionTop - 12 - promoH
+	if minimum := y + 18; promoTop < minimum {
+		promoTop = minimum
 	}
-	layout.bookmarks = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailUtilityH)
-	utilityY += linuxMasterRailUtilityH + linuxMasterRailUtilityGap
-	layout.diagnostics = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailUtilityH)
-	utilityY += linuxMasterRailUtilityH + linuxMasterRailUtilityGap
-	layout.about = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailUtilityH)
+	layout.promo = linuxRectWH(linuxMasterRailX, promoTop, linuxMasterRailWidth, promoH)
+	layout.version = linuxRectWH(linuxMasterRailX, versionTop, linuxMasterRailWidth, versionH)
 	return layout
 }
 
@@ -527,13 +529,22 @@ func (u *linuxDesktop) renderLinuxMasterRail() error {
 	if err := u.drawButton(rail.settings, u.tr("common.settings"), !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(rail.bookmarks, bookmarkWordsForLanguage(u.language).Title, !u.busy, false); err != nil {
+
+	if err := u.drawPanel(rail.promo); err != nil {
 		return err
 	}
-	if err := u.drawButton(rail.diagnostics, labels.Diagnostics, !u.busy, false); err != nil {
+	promoX := rail.promo.left + 14
+	promoY := rail.promo.top + 25
+	if err := u.x.text(promoX, promoY, brand.ProductName, premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.drawButton(rail.about, u.tr("common.about"), !u.busy, false); err != nil {
+	for _, line := range []string{"One client.", "Five platforms.", "Zero friction."} {
+		promoY += 22
+		if err := u.x.text(promoX, promoY, line, premiumTheme.Muted, premiumTheme.Panel); err != nil {
+			return err
+		}
+	}
+	if err := u.x.text(rail.version.left+2, rail.version.top+15, "v"+u.version+" (Linux)", premiumTheme.Muted, premiumTheme.Panel); err != nil {
 		return err
 	}
 
@@ -589,18 +600,6 @@ func (u *linuxDesktop) handleLinuxMasterRailMouse(x, y int) bool {
 	case rail.settings.contains(x, y):
 		if !u.busy {
 			u.openSettings()
-		}
-	case rail.bookmarks.contains(x, y):
-		if !u.busy {
-			u.openLinuxBookmarks("")
-		}
-	case rail.diagnostics.contains(x, y):
-		if !u.busy {
-			u.openLinuxInfoOverlay(linuxInfoOverlayConnection)
-		}
-	case rail.about.contains(x, y):
-		if !u.busy {
-			u.openLinuxInfoOverlay(linuxInfoOverlayAbout)
 		}
 	default:
 		return false
