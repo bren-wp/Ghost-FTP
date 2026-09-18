@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Generate and validate deterministic Ghost FTP desktop brand assets.
 
-The source of truth is the same gold-ghost mark used by the supplied 0.0.8
-reference screens. Production builds materialize PNG/ICO assets locally from
-this dependency-free renderer so Windows, Linux and macOS cannot drift to a
-different logo or depend on a network image tool.
+The canonical Ghost FTP mark follows the approved dark reference UI: a compact
+ghost silhouette carrying two transfer arrows, rendered with a cyan -> electric
+blue -> violet gradient on a transparent/dark rounded-square application tile.
+The renderer is dependency-free so Windows builds can reproduce PNG/ICO assets
+without network access or bundled font/image tooling.
 """
 
 from __future__ import annotations
@@ -26,10 +27,24 @@ ICO_SIGNATURE = b"\x00\x00\x01\x00"
 CANVAS = 256
 SUPERSAMPLE = 4
 
-DARK = (11, 15, 23, 255)
-GOLD = (246, 196, 69, 255)
-GOLD_LIGHT = (255, 222, 111, 255)
 TRANSPARENT = (0, 0, 0, 0)
+CHARCOAL = (8, 14, 20, 255)
+CYAN = (0, 229, 255, 255)
+BLUE = (59, 130, 246, 255)
+VIOLET = (139, 92, 246, 255)
+MIST = (229, 231, 235, 255)
+
+
+def _mix(a: tuple[int, int, int, int], b: tuple[int, int, int, int], t: float) -> tuple[int, int, int, int]:
+    t = min(1.0, max(0.0, t))
+    return tuple(round(a[i] * (1.0 - t) + b[i] * t) for i in range(4))
+
+
+def _gradient(x: float, y: float) -> tuple[int, int, int, int]:
+    t = min(1.0, max(0.0, (0.62 * x + 0.38 * y - 42.0) / 205.0))
+    if t < 0.52:
+        return _mix(CYAN, BLUE, t / 0.52)
+    return _mix(BLUE, VIOLET, (t - 0.52) / 0.48)
 
 
 def _inside_rounded_rect(x: float, y: float, left: float, top: float, right: float, bottom: float, radius: float) -> bool:
@@ -42,59 +57,93 @@ def _inside_rounded_rect(x: float, y: float, left: float, top: float, right: flo
     return dx * dx + dy * dy <= radius * radius
 
 
-def _inside_circle(x: float, y: float, cx: float, cy: float, radius: float) -> bool:
-    dx = x - cx
-    dy = y - cy
-    return dx * dx + dy * dy <= radius * radius
+def _inside_ellipse(x: float, y: float, cx: float, cy: float, rx: float, ry: float) -> bool:
+    if rx <= 0 or ry <= 0:
+        return False
+    dx = (x - cx) / rx
+    dy = (y - cy) / ry
+    return dx * dx + dy * dy <= 1.0
+
+
+def _inside_rotated_ellipse(x: float, y: float, cx: float, cy: float, rx: float, ry: float, angle: float) -> bool:
+    s, c = math.sin(angle), math.cos(angle)
+    dx, dy = x - cx, y - cy
+    px = dx * c + dy * s
+    py = -dx * s + dy * c
+    return (px / rx) ** 2 + (py / ry) ** 2 <= 1.0
+
+
+def _inside_triangle(x: float, y: float, a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]) -> bool:
+    def sign(p1, p2, p3):
+        return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+    p = (x, y)
+    d1, d2, d3 = sign(p, a, b), sign(p, b, c), sign(p, c, a)
+    neg = d1 < 0 or d2 < 0 or d3 < 0
+    pos = d1 > 0 or d2 > 0 or d3 > 0
+    return not (neg and pos)
+
+
+def _inside_arrow(x: float, y: float, y0: float, length: float, thickness: float) -> bool:
+    left = 54.0
+    body_right = left + length - 28.0
+    tip = left + length
+    if left <= x <= body_right and y0 - thickness / 2 <= y <= y0 + thickness / 2:
+        return True
+    return _inside_triangle(
+        x,
+        y,
+        (body_right - 2.0, y0 - thickness * 1.35),
+        (tip, y0),
+        (body_right - 2.0, y0 + thickness * 1.35),
+    )
 
 
 def _inside_ghost(x: float, y: float) -> bool:
-    # Reference proportions: rounded head, straight shoulders/body and three
-    # soft lower lobes. Coordinates are expressed on the canonical 256 canvas.
-    cx = 128.0
-    left = 78.0
-    right = 178.0
-    head_cy = 112.0
-    radius = 50.0
-    body_top = 112.0
-    body_bottom = 181.0
-
-    if y < body_top:
-        return _inside_circle(x, y, cx, head_cy, radius) and y >= head_cy - radius
-    if left <= x <= right and body_top <= y <= body_bottom:
-        # Wavy lower edge: three rounded feet separated by two shallow arches.
-        if y <= 161.0:
-            return True
-        # Keep the body where y is above the local scalloped lower boundary.
-        phase = (x - left) / (right - left)
-        boundary = 174.0 + 8.0 * math.cos(phase * 6.0 * math.pi)
-        return y <= boundary
-    return False
+    # Sleek forward-leaning ghost: rounded crown, tapered lower body and a
+    # streaming tail that visually merges with the transfer direction.
+    head = _inside_rotated_ellipse(x, y, 143.0, 101.0, 54.0, 52.0, -0.18)
+    shoulder = _inside_rotated_ellipse(x, y, 136.0, 132.0, 69.0, 52.0, -0.18)
+    body = _inside_triangle(x, y, (83.0, 118.0), (193.0, 94.0), (171.0, 197.0))
+    tail = _inside_triangle(x, y, (91.0, 128.0), (171.0, 197.0), (61.0, 176.0))
+    return head or shoulder or body or tail
 
 
 def _sample_reference_pixel(x: float, y: float) -> tuple[int, int, int, int]:
-    # Transparent outer corners make the icon integrate cleanly with native
-    # shells while the visible tile remains identical to the reference.
+    # Rounded app tile with a thin electric-blue rim.
     if not _inside_rounded_rect(x, y, 8.0, 8.0, 248.0, 248.0, 42.0):
         return TRANSPARENT
 
-    color = DARK
+    inner = _inside_rounded_rect(x, y, 13.0, 13.0, 243.0, 243.0, 38.0)
+    tile = CHARCOAL if inner else _mix(BLUE, VIOLET, 0.42)
 
-    outer = _inside_rounded_rect(x, y, 14.0, 14.0, 242.0, 242.0, 36.0)
-    inner = _inside_rounded_rect(x, y, 22.0, 22.0, 234.0, 234.0, 30.0)
-    if outer and not inner:
-        color = GOLD
+    ghost = _inside_ghost(x, y)
+    if ghost:
+        tile = _gradient(x, y)
 
-    if _inside_ghost(x, y):
-        # Subtle vertical highlight keeps the mark visually faithful to the
-        # supplied gold/cream reference without adding an external asset.
-        t = min(1.0, max(0.0, (y - 62.0) / 120.0))
-        color = tuple(round(GOLD_LIGHT[i] * (1.0 - 0.30 * t) + GOLD[i] * (0.30 * t)) for i in range(3)) + (255,)
+    # Eyes are negative-space dark ovals.
+    if ghost and (
+        _inside_rotated_ellipse(x, y, 151.0, 92.0, 7.0, 12.0, 0.18)
+        or _inside_rotated_ellipse(x, y, 176.0, 99.0, 6.5, 11.0, 0.18)
+    ):
+        return CHARCOAL
 
-    if _inside_circle(x, y, 108.0, 116.0, 8.0) or _inside_circle(x, y, 148.0, 116.0, 8.0):
-        color = DARK
+    # Two transfer arrows cut through the lower half of the ghost and extend
+    # into the streaming tail. Their bright cyan/blue fill stays legible at 16px.
+    if _inside_arrow(x, y, 139.0, 102.0, 10.0):
+        return _mix(CYAN, BLUE, min(1.0, max(0.0, (x - 54.0) / 102.0)))
+    if _inside_arrow(x, y, 164.0, 82.0, 8.0):
+        return _mix(BLUE, VIOLET, min(1.0, max(0.0, (x - 54.0) / 82.0)))
 
-    return color
+    # Small motion dots mirror the approved mark without adding noisy detail.
+    for cx, cy, r, color in (
+        (49.0, 139.0, 3.0, CYAN),
+        (42.0, 164.0, 2.8, BLUE),
+        (55.0, 184.0, 2.5, VIOLET),
+    ):
+        if _inside_ellipse(x, y, cx, cy, r, r):
+            return color
+
+    return tile
 
 
 def _render_rgba(size: int) -> bytes:
@@ -154,17 +203,7 @@ def _ico_bytes() -> bytes:
         width = 0 if size == 256 else size
         height = 0 if size == 256 else size
         directory.extend(
-            struct.pack(
-                "<BBBBHHII",
-                width,
-                height,
-                0,
-                0,
-                1,
-                32,
-                len(image),
-                offset,
-            )
+            struct.pack("<BBBBHHII", width, height, 0, 0, 1, 32, len(image), offset)
         )
         offset += len(image)
     return header + bytes(directory) + b"".join(images)
@@ -189,27 +228,17 @@ def validate() -> None:
     png = require_file(ICON_PNG, 1024)
     if not png.startswith(PNG_SIGNATURE):
         raise ValueError("build/icon.png is not a valid PNG asset")
-
     ico = require_file(ICON_ICO, 1024)
     if not ico.startswith(ICO_SIGNATURE):
         raise ValueError("build/icon.ico is not a valid Windows icon asset")
-
     if (ROOT / "GhostFTP WEB").exists():
         raise ValueError("retired Web/PWA application surface is present")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate or validate Ghost FTP desktop brand assets")
-    parser.add_argument(
-        "--materialize",
-        action="store_true",
-        help="write deterministic gold-ghost PNG/ICO assets before validation",
-    )
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="validate the current assets without rewriting them",
-    )
+    parser.add_argument("--materialize", action="store_true", help="write deterministic cyan/blue/violet PNG/ICO assets before validation")
+    parser.add_argument("--check", action="store_true", help="validate the current assets without rewriting them")
     args = parser.parse_args()
 
     try:
@@ -222,7 +251,7 @@ def main() -> int:
 
     print("BRAND_ASSET_AUDIT=PASS")
     print("PUBLIC_BRAND=Ghost FTP")
-    print("CANONICAL_LOGO=GOLD_GHOST_REFERENCE")
+    print("CANONICAL_LOGO=GHOST_TRANSFER_CYAN_BLUE_VIOLET")
     print("ACTIVE_BRAND_ASSETS=WINDOWS,LINUX,MACOS,ANDROID")
     print("RETIRED_WEB_PWA_ASSETS=BLOCKED")
     return 0
