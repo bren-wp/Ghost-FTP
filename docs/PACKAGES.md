@@ -18,11 +18,11 @@ The canonical 0.0.8 release contains **14 platform artifacts / 17 public files**
 
 - Windows: one universal Setup and one universal Portable executable;
 - Linux: one Installer and one Portable archive each for Debian, Ubuntu and Fedora;
-- Android: one production-signed APK;
+- Android: one installable APK using production signing when configured or a one-run compatibility certificate;
 - browser helpers: one deterministic ZIP each for Chrome, Edge, Firefox and Opera;
 - metadata: `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
 
-The GitHub Package is built from exactly that same verified 16-file release directory. Architecture-specific Windows staging executables and retired architecture-specific Linux `.deb`, `.rpm` and Portable archives are not part of the public bundle.
+The GitHub Package is built from exactly that same verified 17-file release directory. Architecture-specific Windows staging executables and retired architecture-specific Linux `.deb`, `.rpm` and Portable archives are not part of the public bundle.
 
 ## Publication contract
 
@@ -34,7 +34,7 @@ Package publication occurs only after release quality plus Windows, Linux, Andro
 - verifies the six Linux universal distro bundles and their embedded amd64/arm64/i386 payloads;
 - verifies deterministic Chrome/Edge/Firefox/Opera helper ZIPs;
 - keeps internal architecture-specific Windows staging executables out of the public directory;
-- creates the exact 16-file release directory before packaging;
+- creates the exact 17-file release directory before packaging;
 - publishes exact version plus current aliases and `latest`;
 - verifies `ghcr.io/bren-wp/ghost-ftp:0.0.8` after push;
 - never treats the OCI object as a supported runtime container or hidden service.
@@ -53,7 +53,7 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386
 LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386
 LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
@@ -62,7 +62,7 @@ LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
 LINUX_ARM64_RUNTIME_EVIDENCE=build-and-package-ci
 LINUX_I386_RUNTIME_EVIDENCE=build-and-package-ci
-ANDROID_APK=production-signed
+ANDROID_APK=compatibility-signed-or-production-signed
 ANDROID_SIGNER_SHA256=<verified signer certificate SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
@@ -82,15 +82,15 @@ Windows trust and exact-byte integrity are independent: official Windows artifac
 
 ## Latest-only retention
 
-After successful 0.0.8 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
+After successful 0.0.8 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **17-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
 
-Until that protected transaction succeeds, **0.0.7 remains the last actually published GitHub Release** and 0.0.8 remains a release candidate rather than a falsely advertised published build.
+The published **0.0.7** identity remains the protected baseline even after 0.0.8 is published; retention must preserve both.
 
 ## Platform boundaries
 
-Android production signing does not expose SFTP without strict maintained host-key verification. Browser packages do not add desktop launch/handoff, browser networking permissions or a Ghost FTP relay. macOS is included only as the Developer ID signed, Apple-notarized and stapled universal AppKit archive.
+Android signing state does not expose SFTP without strict maintained host-key verification. Browser packages do not add networking permissions or a Ghost FTP relay. macOS is included as an ad-hoc signed universal AppKit compatibility archive without a notarization claim.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
 
 
-macOS: `Ghost-FTP-0.0.8-macOS-notarized.app.zip` (arm64 + x86_64, Developer ID signed, notarized and stapled).
+macOS: `Ghost-FTP-0.0.8-macOS.app.zip` (arm64 + x86_64, ad-hoc signed compatibility archive; not notarized).
