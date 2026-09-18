@@ -1,12 +1,12 @@
 # Ghost FTP architecture
 
-Ghost FTP **0.0.7** is a multi-platform file-transfer product built around a shared typed Go desktop engine, native Windows and Linux frontends, a native Android application, a native macOS source surface, and four privacy-minimal browser helper packages.
+Ghost FTP **0.0.8** is a multi-platform file-transfer product built around a shared typed Go desktop engine, native Windows and Linux frontends, a native Android application, a native macOS source surface, and four privacy-minimal browser helper packages.
 
 The retired repository website and Web FTP runtime are not part of the supported product architecture and are intentionally absent from the source tree. The root `VERSION` file remains authoritative and stays at **0.0.6**.
 
 ## Release identity
 
-The current candidate identity is `ghostftp-v0.0.7`, Current channel, `prerelease=false`. Publication must originate from the exact verified `main` commit and must not rewrite an existing tag or release.
+The current candidate identity is `ghostftp-v0.0.8`, Current channel, `prerelease=false`. Publication must originate from the exact verified `main` commit and must not rewrite an existing tag or release.
 
 The canonical public release contains **13 platform artifacts / 16 public files**:
 
@@ -34,8 +34,8 @@ The desktop runtime has no product telemetry, advertising SDK, mandatory Ghost F
 Windows is the reference desktop UI. Public 0.0.6 output is exactly:
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 Each user-facing package embeds verified x64, x86 and ARM64 payloads. The bootstrap selects the local payload from native system architecture information and performs no architecture download. Official publication requires trusted Authenticode signing; isolated CI smoke identities never substitute for production signing.
