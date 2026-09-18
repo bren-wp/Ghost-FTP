@@ -21,7 +21,7 @@ The macOS action inventory in `PARITY.md` is complete. The native AppKit applica
 - Directory Compare with atomic paired navigation;
 - Upload and Download through the shared transfer engine;
 - native Transfer Queue with Pause, Resume, Cancel, Retry, Clear Finished and four-way queued reordering;
-- Settings backed by shared `model.Settings`, including the shared 24-language registry, Classic Light/Dark appearance, parallelism, independent bandwidth limits, timeout, retries, conflict policy and delete confirmation;
+- Settings backed by shared `model.Settings`, including the shared 24-language registry, Dark/Light appearance, parallelism, independent bandwidth limits, timeout, retries, conflict policy and delete confirmation;
 - privacy-safe About and Diagnostics surfaces.
 
 Every visible parity action is backed by real shared-engine/platform behavior and regression coverage. There are no intentional decorative parity controls.
@@ -42,12 +42,15 @@ Ghost FTP for macOS keeps the same security/privacy contract as the rest of the 
 
 ## Visual contract
 
-The Mac workspace follows the maintained Windows hierarchy while using native macOS window chrome, focus behavior and accessibility APIs.
+The Mac workspace follows the maintained Windows/Linux master hierarchy while using native macOS window chrome, focus behavior and accessibility APIs. The main AppKit window uses the same left application rail, connection surface and real Local/Remote workspace ownership rather than a separate Mac-only visual language.
 
-- Classic Light: workspace `#EEF1F5`, panel `#F6F8FB`, list `#FAFBFD`.
-- Dark: workspace `#0B0F17`, panel `#121824`, list `#161D2A`.
+- Dark is the product default: workspace `#0B0F17`, panel `#121824`, list `#161D2A`, border `#2C3648`, text `#F2F5FA`, muted `#97A3B8`, Ghost Gold `#F6C445` / `#FFD768`, selection `#2B2515`.
+- Light is the secondary appearance: workspace `#EEF1F5`, panel `#F6F8FB`, list `#FAFBFD`, border `#D6DCE5`, text `#172033`, muted `#667085`, Ghost Gold `#A66500` / `#875100`, selection `#F5E7C7`.
+- Files is the selected master-rail destination; Connections, Transfer Queue, Settings, Bookmarks, Connection info and About route to their existing real engine-backed surfaces.
 - English is the canonical default/fallback and the shared registry exposes the same 24 languages.
 - FTP, explicit FTPS and SFTP remain the desktop protocol set.
+
+The palette values above intentionally match `internal/uipalette` exactly. macOS must not substitute the user's system accent color for Ghost FTP primary/action state, because that would make the product visually diverge from Windows and Linux.
 
 ## CI validation build
 
