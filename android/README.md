@@ -19,6 +19,7 @@ The canonical release workflow requires protected Android signing credentials an
 ## Current capability
 
 - Native Android Java UI.
+- Canonical **Dark** appearance is the fresh-install default with charcoal/blue-black surfaces and gold/amber actions; a neutral gray **Light** appearance remains available in Settings.
 - Phone navigation uses a real left navigation drawer; wide/tablet layouts use the same destinations as a persistent sidebar.
 - Active destinations: **Files**, **Sites**, **Bookmarks**, **Transfers**, **Settings** and **About**.
 - Local vector assets; no remote fonts, tracking assets or emoji-as-navigation icons.
