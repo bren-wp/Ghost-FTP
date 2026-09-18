@@ -8,7 +8,7 @@ Queue ordering and transfer lifecycle are maintained desktop capabilities.
 - queued work may be reordered without rewriting transfer identity;
 - running or terminal work must not be silently converted back to queued work;
 - UI buttons must reflect whether an action is currently valid;
-- controls may move into **More** or compact layouts, but the underlying behavior must remain real.
+- controls may move into **More** or compact layouts, but underlying behavior must remain real.
 
 ## Transfer Queue reference columns
 
@@ -21,8 +21,6 @@ Queue ordering and transfer lifecycle are maintained desktop capabilities.
 
 The visible status must be derived from real transfer state.
 
-## Platforms
-
-Windows and Linux expose the maintained desktop queue capabilities. Android exposes the mobile transfer controls appropriate to its implementation.
+Windows and Linux expose maintained desktop queue capabilities. Android exposes mobile transfer controls appropriate to its implementation.
 
 macOS queue parity is retired with the removed macOS application.
