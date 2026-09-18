@@ -1,6 +1,6 @@
 # Ghost FTP signing
 
-Ghost FTP **0.0.7** separates production publisher trust from development signing. Official Windows and Android publication both fail closed when their protected production identities are unavailable. Linux relies on exact-source/package/digest verification, and macOS remains outside the public release until its real Developer ID + Apple notarization path succeeds.
+Ghost FTP **0.0.8** separates production publisher trust from development signing. Official Windows and Android publication both fail closed when their protected production identities are unavailable. Linux relies on exact-source/package/digest verification, and macOS remains outside the public release until its real Developer ID + Apple notarization path succeeds.
 
 The production workflow never creates its own long-lived publisher key.
 
@@ -37,8 +37,8 @@ Local/ordinary CI Windows builds may remain unsigned, but they are not official 
 `BUILD-WINDOWS-ARCH-STAGE.ps1` creates verified native x64, x86 and ARM64 Setup/Portable staging pairs. `BUILD-WINDOWS.ps1` embeds those payloads into the two public universal files:
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 The outer executables are signed only after final byte mutation. `Get-AuthenticodeSignature` must report a signer certificate and `Valid` status before publication. `scripts/verify_release.py` independently rejects unsigned official public artifacts.
@@ -47,10 +47,10 @@ The outer executables are signed only after final byte mutation. `Get-Authentico
 
 ## Android production signing
 
-Ghost FTP 0.0.7 adds a **production-signed public Android release**:
+Ghost FTP 0.0.8 adds a **production-signed public Android release**:
 
 ```text
-Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.8-Android.apk
 ```
 
 The canonical release workflow requires protected secrets:
@@ -94,7 +94,7 @@ Linux artifacts do not use Authenticode, Android signing or Apple Developer ID. 
 
 ## Browser helper distribution boundary
 
-The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Their presence in the 0.0.6 GitHub Release does not claim Chrome Web Store/Edge Add-ons/Firefox AMO signing or approval. They remain privacy-minimal local parser/copy helpers with no supported browser-to-desktop handoff.
+The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Their presence in the 0.0.8 GitHub Release does not claim Chrome Web Store/Edge Add-ons/Firefox AMO signing or approval. They remain privacy-minimal local helpers. On supported Windows installs, the explicit **Open in Ghost FTP** action uses the sanitized `ghostftp://connect` handoff and never carries credentials or auto-connects.
 
 ## macOS development signing
 
@@ -104,11 +104,11 @@ The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Thei
 
 `macos/SIGN_AND_NOTARIZE.sh` is the separate fail-closed production-distribution path. It requires a real **Developer ID Application** identity, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. `.github/workflows/macos-production.yml` is the environment-gated CI path.
 
-A successful development build does not prove production distribution readiness. Ghost FTP does not claim macOS publication until that credentialed path actually succeeds. macOS therefore remains outside the 0.0.6 21-file public release.
+A successful development build does not prove production distribution readiness. Ghost FTP does not claim macOS publication until that credentialed path actually succeeds. macOS therefore remains outside the 0.0.8 16-file public release.
 
 ## Release shape and metadata
 
-The 0.0.6 release contains **18 platform artifacts / 21 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
+The 0.0.8 release contains **13 platform artifacts / 16 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
 
 ```text
 WINDOWS_AUTHENTICODE=signed

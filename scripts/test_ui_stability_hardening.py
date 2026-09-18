@@ -193,7 +193,7 @@ class UIStabilityHardeningTests(unittest.TestCase):
         for marker in (
             '"en": {"Local path", "Remote path"}',
             '"hr": {"Lokalna putanja", "Udaljena putanja"}',
-            "cleanSFTPSecurityTitle",
+            "cleanConnectionSecurityTitle",
             'label(parent.tr("cue.passphrase")',
             "sitePathLabel(parent.languageCode(), false)",
             "sitePathLabel(parent.languageCode(), true)",

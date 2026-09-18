@@ -1,16 +1,16 @@
 # Ghost FTP installation
 
-Ghost FTP **0.0.7** is the active release candidate. The last actually published GitHub release remains **0.0.6** until the protected 0.0.7 release workflow completes successfully. Root `VERSION` is the authoritative build/version source.
+Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub release remains **0.0.7** until the protected 0.0.8 release workflow completes successfully. Root `VERSION` is the authoritative build/version source.
 
-## Canonical 0.0.7 release packages
+## Canonical 0.0.8 release packages
 
-The 0.0.7 publication contract contains **13 platform artifacts / 16 public files**: two Windows executables, six Linux bundles, one production-signed Android APK, four browser-helper ZIPs and three metadata/verification files.
+The 0.0.8 publication contract contains **13 platform artifacts / 16 public files**: two Windows executables, six Linux bundles, one production-signed Android APK, four browser-helper ZIPs and three metadata/verification files.
 
 ### Windows
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 Both are self-contained universal launchers carrying native **x64, x86 and ARM64** Ghost FTP payloads. The launcher selects the appropriate embedded payload locally; no architecture-specific runtime download is required.
@@ -32,12 +32,12 @@ WINDOWS_AUTHENTICODE=signed
 Every supported distribution receives exactly **one Installer and one Portable archive**. Both carry amd64, arm64 and i386 payloads and select the native payload on the local machine.
 
 ```text
-Ghost-FTP-0.0.7-Linux-Debian-Installer.run
-Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Debian-Installer.run
+Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz
 ```
 
 Native installer/runtime/GUI verification is maintained for **Debian 13 amd64**, **Ubuntu 26.04 LTS amd64** and **Fedora 44 x86_64**. ARM64 and i386 payloads are exact-head build/package verified; native runtime execution is not claimed without a maintained runner or emulator proving it.
@@ -45,8 +45,8 @@ Native installer/runtime/GUI verification is maintained for **Debian 13 amd64**,
 Installer example:
 
 ```bash
-chmod +x Ghost-FTP-0.0.7-Linux-Debian-Installer.run
-sudo ./Ghost-FTP-0.0.7-Linux-Debian-Installer.run
+chmod +x Ghost-FTP-0.0.8-Linux-Debian-Installer.run
+sudo ./Ghost-FTP-0.0.8-Linux-Debian-Installer.run
 ```
 
 The installer checks required runtime tools and CA trust before installation. Debian/Ubuntu require `ca-certificates`, `curl` and `openssh-client`; Fedora requires `ca-certificates`, `curl` and `openssh-clients`. A real `ghostftp-uninstall` command is installed and removes Ghost FTP application files without deleting user configuration or server data.
@@ -54,15 +54,15 @@ The installer checks required runtime tools and CA trust before installation. De
 Portable example:
 
 ```bash
-tar -xzf Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
-cd Ghost-FTP-0.0.7-Linux-Debian-Portable
+tar -xzf Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
+cd Ghost-FTP-0.0.8-Linux-Debian-Portable
 ./ghostftp
 ```
 
 ### Android
 
 ```text
-Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.8-Android.apk
 ```
 
 There is exactly one public Android APK. It is a **production-signed** release artifact. Publication requires the protected keystore/password/alias credentials and an exact signer-certificate SHA-256 match against `GHOSTFTP_ANDROID_CERT_SHA256`. The ordinary development artifact remains separately named `Ghost-FTP-Android-dev.apk` and is never substituted for production.
@@ -74,21 +74,21 @@ Android supports FTP and strict explicit FTPS with certificate/hostname validati
 ### Browser helper packages
 
 ```text
-Ghost-FTP-0.0.7-Chrome-Extension.zip
-Ghost-FTP-0.0.7-Edge-Extension.zip
-Ghost-FTP-0.0.7-Firefox-Extension.zip
-Ghost-FTP-0.0.7-Opera-Extension.zip
+Ghost-FTP-0.0.8-Chrome-Extension.zip
+Ghost-FTP-0.0.8-Edge-Extension.zip
+Ghost-FTP-0.0.8-Firefox-Extension.zip
+Ghost-FTP-0.0.8-Opera-Extension.zip
 ```
 
 Each package is built from the shared local-only helper runtime and a browser-specific manifest under `extensions/<browser>/`. Official packages request zero browser permissions and zero host permissions. They parse/sanitize user-entered FTP/FTPS/SFTP targets locally and support a sanitized browser-to-desktop handoff through the registered `ghostftp:` protocol on supported Windows installs; they never carry passwords, private-key passphrases, private keys, source query data or fragments, and they never auto-connect.
 
 ### macOS development app
 
-macOS remains an active native development/source surface and is not part of the 16-file public 0.0.7 allow-list. Development build success or ad-hoc signing is not production evidence. Public macOS distribution requires a real Developer ID Application identity plus successful Apple notarization.
+macOS remains an active native development/source surface and is not part of the 16-file public 0.0.8 allow-list. Development build success or ad-hoc signing is not production evidence. Public macOS distribution requires a real Developer ID Application identity plus successful Apple notarization.
 
 ## Windows Setup
 
-1. Download `Ghost-FTP-0.0.7-Setup.exe`.
+1. Download `Ghost-FTP-0.0.8-Setup.exe`.
 2. Verify SHA-256 against `SHA256.txt`.
 3. Require `WINDOWS_AUTHENTICODE=signed` in `BUILD-METADATA.txt` and a valid trusted Authenticode signature.
 4. Run Setup as the intended user.
@@ -98,11 +98,11 @@ Setup embeds x64/x86/ARM64 application payloads and does not require a second ar
 
 ## Windows Portable
 
-Run `Ghost-FTP-0.0.7-Portable.exe` directly. It performs no installer registration and selects the embedded native payload without downloading another executable.
+Run `Ghost-FTP-0.0.8-Portable.exe` directly. It performs no installer registration and selects the embedded native payload without downloading another executable.
 
 ## Android installation
 
-1. Download `Ghost-FTP-0.0.7-Android.apk` from the canonical GitHub Release.
+1. Download `Ghost-FTP-0.0.8-Android.apk` from the canonical GitHub Release.
 2. Verify SHA-256 against `SHA256.txt`.
 3. Verify the APK signing certificate fingerprint as described in [`RELEASE-VERIFICATION.md`](RELEASE-VERIFICATION.md).
 4. Install through Android's normal package installer after explicitly allowing the chosen download source if device policy requires it.
@@ -115,9 +115,9 @@ Use the package for the target browser. Publication of the ZIPs does not imply C
 
 ## Verification
 
-Before accepting an official 0.0.7 artifact:
+Before accepting an official 0.0.8 artifact:
 
-1. confirm `VERSION=0.0.7`, `TAG=ghostftp-v0.0.7`, `CHANNEL=Current` and `PRERELEASE=false`;
+1. confirm `VERSION=0.0.8`, `TAG=ghostftp-v0.0.8`, `CHANNEL=Current` and `PRERELEASE=false`;
 2. verify the filename belongs to the canonical **16-file** set;
 3. verify SHA-256 against `SHA256.txt`;
 4. verify `BUILD-METADATA.txt` binds the bundle to the exact release-source commit;
@@ -125,6 +125,6 @@ Before accepting an official 0.0.7 artifact:
 6. for Android, require the protected production certificate fingerprint;
 7. preserve documented evidence boundaries for Windows ARM64, Linux ARM64/i386, Android SFTP and macOS production signing.
 
-The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.7`; it is distribution infrastructure, not a runtime container.
+The verified distribution bundle is `ghcr.io/bren-wp/ghost-ftp:0.0.8`; it is distribution infrastructure, not a runtime container.
 
 See [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [GitHub Releases](GITHUB-RELEASES.md).

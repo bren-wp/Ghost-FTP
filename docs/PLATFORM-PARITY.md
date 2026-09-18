@@ -1,6 +1,6 @@
 # Ghost FTP platform parity
 
-Ghost FTP **0.0.7** treats parity as **equivalent real capability with honest platform-native UX**, not pixel-copying unsupported controls.
+Ghost FTP **0.0.8** treats parity as **equivalent real capability with honest platform-native UX**, not pixel-copying unsupported controls.
 
 ## Windows and Linux desktop parity
 
@@ -21,7 +21,7 @@ Linux public output is exactly six bundles: Installer + Portable for Debian/Ubun
 
 ## Android parity boundary
 
-Android is a public 0.0.6 application with Android-native Files, Sites, Bookmarks, Transfers, Settings and About surfaces. It uses Storage Access Framework local authority, FTP + strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
+Android 0.0.8 is a public-release target with Android-native Files, Connections, Bookmarks, Transfer Queue, Settings, Connection info and About surfaces. It uses Storage Access Framework local authority, FTP + strict explicit FTPS, bounded file/search/comparison/Remote Edit behavior and Android lifecycle ownership.
 
 Android SFTP remains hidden until strict native host-key identity verification exists. Production release packaging remains fail-closed on signing and does not weaken that protocol boundary.
 
@@ -35,7 +35,7 @@ Chrome, Edge, Firefox and Opera helpers are public companion ZIPs built from one
 
 ## Retired application surfaces
 
-The repository website, Web FTP runtime and PWA application surface are retired and intentionally absent from the maintained product tree. They are not part of the Ghost FTP 0.0.7 runtime, release or platform-parity contract.
+The repository website, Web FTP runtime and PWA application surface are retired and intentionally absent from the maintained product tree. They are not part of the Ghost FTP 0.0.8 runtime, release or platform-parity contract.
 
 ## Theme and visual direction
 
@@ -45,7 +45,7 @@ Windows remains the canonical desktop visual reference. Dark uses the maintained
 
 Every public release stage is independently required. A successful Windows build cannot substitute for failed Linux, Android or browser publication.
 
-The Ghost FTP 0.0.7 release contract is **13 platform artifacts / 16 public files**:
+The Ghost FTP 0.0.8 release contract is **13 platform artifacts / 16 public files**:
 
 - Windows: 2;
 - Linux: 6;
@@ -53,6 +53,6 @@ The Ghost FTP 0.0.7 release contract is **13 platform artifacts / 16 public file
 - Browser helpers: 4;
 - release metadata: 3.
 
-macOS remains active source/build validation only and is not a public release artifact for 0.0.6. Retired web surfaces do not contribute release artifacts.
+macOS remains active source/build validation only and is not a public release artifact for 0.0.8. Retired web surfaces do not contribute release artifacts.
 
 See [Architecture](ARCHITECTURE.md), [Reference UI](REFERENCE-UI.md), [Testing](TESTING.md), [Signing](SIGNING.md) and [Security](SECURITY.md).

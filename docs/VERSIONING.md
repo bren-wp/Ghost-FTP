@@ -2,7 +2,7 @@
 
 Ghost FTP uses semantic versioning with root `VERSION` as the authoritative production version source.
 
-Current source candidate: **0.0.7**.
+Current source candidate: **0.0.8**.
 
 ## Version format
 
@@ -15,8 +15,8 @@ Production tags use `ghostftp-vMAJOR.MINOR.PATCH`.
 Current identity:
 
 ```text
-VERSION=0.0.7
-TAG=ghostftp-v0.0.7
+VERSION=0.0.8
+TAG=ghostftp-v0.0.8
 CHANNEL=Current
 PRERELEASE=false
 ```
@@ -45,7 +45,7 @@ Active native source platforms:
 WINDOWS,LINUX,ANDROID,MACOS
 ```
 
-Android 0.0.7 is public only through the protected production-signing path. Android SFTP remains hidden until strict maintained host-key verification exists. Browser-helper publication does not make it an application platform. Supported Windows installs expose only a sanitized `ghostftp:` launch handoff that never transports secrets and never auto-connects. macOS remains a development/source platform until real Developer ID signing + notarization succeeds.
+Android 0.0.8 is public only through the protected production-signing path. Android SFTP remains hidden until strict maintained host-key verification exists. Browser-helper publication does not make it an application platform. Supported Windows installs expose only a sanitized `ghostftp:` launch handoff that never transports secrets and never auto-connects. macOS remains a development/source platform until real Developer ID signing + notarization succeeds.
 
 ## Latest-only public release retention
 
@@ -59,10 +59,10 @@ A `VERSION` edit or ordinary push to `main` does not publish a release. Canonica
 release/ghostftp-v<version>
 ```
 
-For 0.0.7:
+For 0.0.8:
 
 ```text
-release/ghostftp-v0.0.7
+release/ghostftp-v0.0.8
 ```
 
 The branch trigger accepts it only when branch version equals root `VERSION` and branch SHA equals exact current `main`. It dispatches `release.yml`, waits for the exact release run to succeed, then dispatches and waits for retention.
@@ -74,7 +74,7 @@ CHANNEL=Current
 PRERELEASE=false
 ```
 
-The 0.0.7 release contains **13 platform artifacts / 16 public files**:
+The 0.0.8 release contains **13 platform artifacts / 16 public files**:
 
 - 2 universal Windows executables;
 - 6 canonical Linux Debian/Ubuntu/Fedora Installer/Portable bundles;
@@ -85,7 +85,7 @@ The 0.0.7 release contains **13 platform artifacts / 16 public files**:
 Verified bundle:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.7
+ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
 The GHCR object is a distribution bundle, not a runtime container.
@@ -93,8 +93,8 @@ The GHCR object is a distribution bundle, not a runtime container.
 ## Windows packaging/signing identity
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 Native x64, x86 and ARM64 staging payloads are internal and embedded in those same two public files. The current metadata contract is:
@@ -116,10 +116,10 @@ Windows Authenticode is a **required public-release trust boundary**. **Absence 
 
 ## Android release and development identities
 
-Public 0.0.7 Android artifact:
+Public 0.0.8 Android artifact:
 
 ```text
-Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.8-Android.apk
 ```
 
 The release `versionName` equals root `VERSION`. Publication requires the protected production keystore/alias/password credentials and an exact signer-certificate fingerprint match against `GHOSTFTP_ANDROID_CERT_SHA256`.
@@ -134,12 +134,12 @@ Debug builds add `-dev` and use a separate development application ID. An epheme
 
 ## Browser-helper identity
 
-Public 0.0.7 packages:
+Public 0.0.8 packages:
 
 ```text
-Ghost-FTP-0.0.7-Chrome-Extension.zip
-Ghost-FTP-0.0.7-Edge-Extension.zip
-Ghost-FTP-0.0.7-Firefox-Extension.zip
+Ghost-FTP-0.0.8-Chrome-Extension.zip
+Ghost-FTP-0.0.8-Edge-Extension.zip
+Ghost-FTP-0.0.8-Firefox-Extension.zip
 ```
 
 Browser packages remain local parser/copy helpers and may hand a sanitized `ghostftp://connect` target to supported Windows installs without secrets or automatic connection.
@@ -160,7 +160,7 @@ Active release-bound documentation must agree with root `VERSION`, `CHANNEL=Curr
 
 Historical versions remain valid only as historical records; they are not current publication instructions.
 
-## 0.0.7 release checklist
+## 0.0.8 release checklist
 
 The exact candidate must pass:
 
@@ -179,11 +179,11 @@ The exact candidate must pass:
 - universal macOS development-app validation without claiming public notarization;
 - 24-language desktop localization and exact-head cross-platform UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
-- exact-main `release/ghostftp-v0.0.7` validation;
-- `ghostftp-v0.0.7`, `prerelease=false`, exact **16-file** GitHub Release readback;
-- `ghcr.io/bren-wp/ghost-ftp:0.0.7` publication/readback;
+- exact-main `release/ghostftp-v0.0.8` validation;
+- `ghostftp-v0.0.8`, `prerelease=false`, exact **16-file** GitHub Release readback;
+- `ghcr.io/bren-wp/ghost-ftp:0.0.8` publication/readback;
 - successful latest-only retention cleanup.
 
 ## Next release
 
-Only after 0.0.7 publication and retention are completely green may root `VERSION` advance again through a separate reviewed release-prep change.
+Only after 0.0.8 publication and retention are completely green may root `VERSION` advance again through a separate reviewed release-prep change.

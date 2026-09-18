@@ -1,23 +1,23 @@
 # Ghost FTP for Linux
 
-Ghost FTP **0.0.7** is the active Linux release candidate and remains under active development. The official product website is **https://ghostftp.com**.
+Ghost FTP **0.0.8** is the active Linux release candidate and remains under active development. The official product website is **https://ghostftp.com**.
 
 Linux uses the shared Ghost FTP connection, profile, filesystem, remote-operation, transfer, settings, Remote Edit, sorting/search/comparison and localization engine contracts used by the Windows reference desktop application. Platform-specific UI and operating-system integration are tested separately rather than assumed equivalent.
 
-## 0.0.6 Linux distribution model
+## 0.0.8 Linux distribution model
 
-The public 0.0.6 contract intentionally exposes exactly **one Installer and one Portable bundle per supported Linux distribution**:
+The 0.0.8 public-release contract intentionally exposes exactly **one Installer and one Portable bundle per supported Linux distribution**:
 
 ```text
-Ghost-FTP-0.0.7-Linux-Debian-Installer.run
-Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Debian-Installer.run
+Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz
 ```
 
-There are no architecture-specific public `.deb`, `.rpm` or `Linux-Portable-<arch>.tar.gz` assets in the 0.0.6 release contract. Each of the six bundles carries native **amd64, arm64 and i386** Ghost FTP payloads and selects the matching payload locally from `uname -m`.
+There are no architecture-specific public `.deb`, `.rpm` or `Linux-Portable-<arch>.tar.gz` assets in the 0.0.8 release contract. Each of the six bundles carries native **amd64, arm64 and i386** Ghost FTP payloads and selects the matching payload locally from `uname -m`.
 
 The canonical builder is:
 
@@ -43,8 +43,8 @@ Unsupported CPU architectures fail closed with an explicit error rather than run
 Debian example:
 
 ```bash
-chmod +x Ghost-FTP-0.0.7-Linux-Debian-Installer.run
-sudo ./Ghost-FTP-0.0.7-Linux-Debian-Installer.run
+chmod +x Ghost-FTP-0.0.8-Linux-Debian-Installer.run
+sudo ./Ghost-FTP-0.0.8-Linux-Debian-Installer.run
 ```
 
 Ubuntu and Fedora use their corresponding `Installer.run` file in exactly the same way.
@@ -63,8 +63,8 @@ A successful installation provides `ghostftp` plus a real `ghostftp-uninstall` c
 Debian example:
 
 ```bash
-tar -xzf Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
-cd Ghost-FTP-0.0.7-Linux-Debian-Portable
+tar -xzf Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
+cd Ghost-FTP-0.0.8-Linux-Debian-Portable
 ./ghostftp
 ```
 
@@ -88,7 +88,7 @@ ARM64 and i386 payloads are exact-head build/package/binary-format verified. The
 
 With a local `DISPLAY`, `ghostftp` launches the native Linux graphical frontend using the maintained X11/XWayland-compatible path. It does not require Electron, a webview, GTK/Qt or an external Go GUI module.
 
-The maintained workspace includes Quick Connect, Site Manager/profile workflows, FTP/FTPS/SFTP, local and remote panes, create/rename/delete/permissions, upload/download, sorting/filtering, bounded recursive search, directory comparison, synchronized navigation, transfer queue controls, Top/Up/Down/Bottom priority, Remote Edit, bookmarks/start directories, appearance and validated settings/bandwidth behavior where supported by the shared engine.
+The maintained workspace includes Quick Connect, Connections/saved-profile workflows, FTP/FTPS/SFTP, local and remote panes, create/rename/delete/permissions, upload/download, sorting/filtering, bounded recursive search, directory comparison, synchronized navigation, transfer queue controls, Top/Up/Down/Bottom priority, Remote Edit, bookmarks/start directories, appearance and validated settings/bandwidth behavior where supported by the shared engine.
 
 For headless/terminal operation:
 
@@ -111,13 +111,13 @@ Automatic SFTP password or private-key-passphrase delivery requires trusted inst
 
 ## Appearance and localization
 
-Linux follows the shared Ghost FTP visual language and maintained desktop localization catalog. Dark mode is maintained alongside the light appearance; the broader 0.0.6 UI polish work is moving the light palette toward an off-white/soft-gray surface instead of harsh pure white.
+Linux follows the shared Ghost FTP visual language and maintained desktop localization catalog. Dark mode is maintained alongside the light appearance; the 0.0.8 UI polish work is moving the light palette toward an off-white/soft-gray surface instead of harsh pure white.
 
 English remains the canonical fallback. A localization is described as complete only when the maintained catalog and platform UI audits prove all required user-facing strings are covered.
 
-## 0.0.6 release context
+## 0.0.8 release context
 
-The complete planned public 0.0.6 set is **13 platform artifacts / 16 public files**:
+The complete planned public 0.0.8 set is **13 platform artifacts / 16 public files**:
 
 - Windows: one universal Setup + one universal Portable with x64, x86 and ARM64 payloads;
 - Linux: the six Installer/Portable bundles listed above;
@@ -127,7 +127,7 @@ The complete planned public 0.0.6 set is **13 platform artifacts / 16 public fil
 
 Android SFTP remains hidden until strict maintained host-key verification exists. Browser helpers remain local zero-permission parser/copy companions with no supported browser-to-desktop handoff. macOS remains active development/source until real Developer ID Application signing and Apple notarization succeed.
 
-The verified 0.0.6 release directory is also intended to be distributed as `ghcr.io/bren-wp/ghost-ftp:0.0.7`; this is a distribution bundle, not a runtime container.
+The verified 0.0.8 release directory is also distributed as `ghcr.io/bren-wp/ghost-ftp:0.0.8`; this is a distribution bundle, not a runtime container.
 
 ## License
 

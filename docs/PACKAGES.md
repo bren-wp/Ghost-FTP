@@ -1,20 +1,20 @@
 # Ghost FTP GitHub Packages
 
-Ghost FTP **0.0.7** is the active release candidate. After the protected publication transaction succeeds, the exact verified release directory is also published to GitHub Packages as a **distribution bundle**.
+Ghost FTP **0.0.8** is the active release candidate. After the protected publication transaction succeeds, the exact verified release directory is also published to GitHub Packages as a **distribution bundle**.
 
 ## Package reference
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.7
+ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
-The exact `0.0.6` package tag is the verification identity for the release transaction. Current semantic aliases and `latest` are maintained only after the exact-version package has been published and verified.
+The exact `0.0.8` package tag is the verification identity for the release transaction. Current semantic aliases and `latest` are maintained only after the exact-version package has been published and verified.
 
 The GHCR object is a **distribution bundle**, **not a runtime container**. Its payload mirrors the canonical release directory under `/ghostftp-release/`. Ghost FTP does not use GHCR as a hidden application backend, relay, account service or transfer service.
 
-## 0.0.6 bundle shape
+## 0.0.8 bundle shape
 
-The canonical 0.0.6 release contains **13 platform artifacts / 16 public files**:
+The canonical 0.0.8 release contains **13 platform artifacts / 16 public files**:
 
 - Windows: one universal Setup and one universal Portable executable;
 - Linux: one Installer and one Portable archive each for Debian, Ubuntu and Fedora;
@@ -36,7 +36,7 @@ Package publication occurs only after release quality plus Windows, Linux, Andro
 - keeps internal architecture-specific Windows staging executables out of the public directory;
 - creates the exact 16-file release directory before packaging;
 - publishes exact version plus current aliases and `latest`;
-- verifies `ghcr.io/bren-wp/ghost-ftp:0.0.7` after push;
+- verifies `ghcr.io/bren-wp/ghost-ftp:0.0.8` after push;
 - never treats the OCI object as a supported runtime container or hidden service.
 
 ## Current metadata identity
@@ -44,8 +44,8 @@ Package publication occurs only after release quality plus Windows, Linux, Andro
 `BUILD-METADATA.txt` records at least:
 
 ```text
-VERSION=0.0.7
-RELEASE_TAG=ghostftp-v0.0.7
+VERSION=0.0.8
+RELEASE_TAG=ghostftp-v0.0.8
 RELEASE_CHANNEL=current
 PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
 ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
@@ -69,7 +69,7 @@ BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
 BROWSER_DESKTOP_HANDOFF=unsupported
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
-GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.7
+GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
 `ANDROID_SIGNER_SHA256` above is release **output metadata** containing the verified public certificate fingerprint. The protected GitHub Actions input secret that the workflow compares against is named **`GHOSTFTP_ANDROID_CERT_SHA256`**. Production private-key material and passwords are never written to metadata or included in the package payload.
@@ -82,9 +82,9 @@ Windows trust and exact-byte integrity are independent: official Windows artifac
 
 ## Latest-only retention
 
-After successful 0.0.6 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
+After successful 0.0.8 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
 
-Until that protected transaction succeeds, **0.0.5 remains the last actually published GitHub Release** and 0.0.6 remains a release candidate rather than a falsely advertised published build.
+Until that protected transaction succeeds, **0.0.7 remains the last actually published GitHub Release** and 0.0.8 remains a release candidate rather than a falsely advertised published build.
 
 ## Platform boundaries
 

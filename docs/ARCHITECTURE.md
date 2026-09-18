@@ -1,12 +1,12 @@
 # Ghost FTP architecture
 
-Ghost FTP **0.0.7** is a multi-platform file-transfer product built around a shared typed Go desktop engine, native Windows and Linux frontends, a native Android application, a native macOS source surface, and four privacy-minimal browser helper packages.
+Ghost FTP **0.0.8** is a multi-platform file-transfer product built around a shared typed Go desktop engine, native Windows and Linux frontends, a native Android application, a native macOS source surface, and four privacy-minimal browser helper packages.
 
-The retired repository website and Web FTP runtime are not part of the supported product architecture and are intentionally absent from the source tree. The root `VERSION` file remains authoritative and stays at **0.0.6**.
+The retired repository website and Web FTP runtime are not part of the supported product architecture and are intentionally absent from the source tree. The root `VERSION` file remains authoritative and stays at **0.0.8**.
 
 ## Release identity
 
-The current candidate identity is `ghostftp-v0.0.7`, Current channel, `prerelease=false`. Publication must originate from the exact verified `main` commit and must not rewrite an existing tag or release.
+The current candidate identity is `ghostftp-v0.0.8`, Current channel, `prerelease=false`. Publication must originate from the exact verified `main` commit and must not rewrite an existing tag or release.
 
 The canonical public release contains **13 platform artifacts / 16 public files**:
 
@@ -31,11 +31,11 @@ The desktop runtime has no product telemetry, advertising SDK, mandatory Ghost F
 
 ## Windows
 
-Windows is the reference desktop UI. Public 0.0.6 output is exactly:
+Windows is the reference desktop UI. Public 0.0.8 output is exactly:
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 Each user-facing package embeds verified x64, x86 and ARM64 payloads. The bootstrap selects the local payload from native system architecture information and performs no architecture download. Official publication requires trusted Authenticode signing; isolated CI smoke identities never substitute for production signing.
@@ -53,13 +53,13 @@ Installed Windows builds also own the `ghostftp:` custom protocol registration u
 
 ## Linux
 
-`linux/BUILD-DISTROS.sh` builds amd64, arm64 and i386 payloads. Those payloads are bundled into exactly six user-facing 0.0.6 files: Installer and Portable for Debian, Ubuntu and Fedora. Each bundle selects the matching payload locally.
+`linux/BUILD-DISTROS.sh` builds amd64, arm64 and i386 payloads. Those payloads are bundled into exactly six user-facing 0.0.8 files: Installer and Portable for Debian, Ubuntu and Fedora. Each bundle selects the matching payload locally.
 
 Native installer, runtime and GUI evidence is maintained on supported amd64 runners. ARM64 and i386 remain cross-build/package evidence unless native runtime evidence is available.
 
 ## Android
 
-Android publishes one production-signed 0.0.6 APK. The client uses Android Storage Access Framework capabilities, FTP plus strict explicit FTPS, bounded parsing, staged transfer semantics and lifecycle generation ownership.
+Android 0.0.8 publishes one production-signed APK after the protected release transaction succeeds. The client uses Android Storage Access Framework capabilities, FTP plus strict explicit FTPS, bounded parsing, staged transfer semantics and lifecycle generation ownership.
 
 Android SFTP is not exposed as a supported public capability until strict maintained host-key verification is implemented. Release validation is fail-closed: source contracts, tests, lint, APK structure and signing identity must pass before publication.
 
@@ -89,7 +89,7 @@ Runtime transport connections are initiated for the destination explicitly confi
 
 ## Release architecture
 
-The 0.0.6 publication sequence is:
+The 0.0.8 publication sequence is:
 
 1. exact-head Go format, race tests and vet plus repository/platform/security/privacy/documentation/release audits;
 2. maintained regression and platform contract tests;

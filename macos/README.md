@@ -10,7 +10,7 @@ The macOS action inventory in `PARITY.md` is complete. The native AppKit applica
 
 - FTP, explicit FTPS and SFTP connection/disconnection;
 - SFTP private-key authentication and strict first-contact host-key trust;
-- Site Manager with Save Profile, Remove Profile, Duplicate and Connect;
+- Connections with Save Profile, Remove Profile, Duplicate and Connect;
 - explicit saved-credential consent and native Keychain-backed durable profile protection;
 - Bookmarks with shared account-bound remote navigation;
 - Local and Remote panes, refresh/up/navigation and native local folder selection;

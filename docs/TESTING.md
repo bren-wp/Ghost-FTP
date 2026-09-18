@@ -1,6 +1,6 @@
 # Ghost FTP testing and quality gates
 
-Ghost FTP **0.0.7** is validated through layered source, protocol/security, native build, packaging, signing, authentic runtime evidence, exact-release readback and retention gates.
+Ghost FTP **0.0.8** is validated through layered source, protocol/security, native build, packaging, signing, authentic runtime evidence, exact-release readback and retention gates.
 
 ## Core quality gate
 
@@ -40,27 +40,27 @@ Visible controls require matching command/click handlers and code-level state gu
 
 Android contracts protect strict explicit FTPS, no trust-all fallback, SAF-only storage, staged transfer commit, bounded parsing/search, lifecycle cancellation/generation ownership, authentication-error redaction, file-management path validation, comparison/search semantics and Remote Edit conflict/read-back safeguards.
 
-The canonical public release additionally requires a protected production keystore and exact signer-certificate SHA-256 match before `Ghost-FTP-0.0.7-Android.apk` can enter the allow-list. Android SFTP remains hidden until strict maintained host-key verification exists.
+The canonical public release additionally requires a protected production keystore and exact signer-certificate SHA-256 match before `Ghost-FTP-0.0.8-Android.apk` can enter the allow-list. Android SFTP remains hidden until strict maintained host-key verification exists.
 
 ## Browser package gate
 
 `.github/workflows/browser-extensions.yml` validates the canonical brand/privacy contract and deterministically builds exactly three packages:
 
 ```text
-Ghost-FTP-0.0.7-Chrome-Extension.zip
-Ghost-FTP-0.0.7-Edge-Extension.zip
-Ghost-FTP-0.0.7-Firefox-Extension.zip
+Ghost-FTP-0.0.8-Chrome-Extension.zip
+Ghost-FTP-0.0.8-Edge-Extension.zip
+Ghost-FTP-0.0.8-Firefox-Extension.zip
 ```
 
 The package contract rejects brand drift, manifest version drift, broad permissions, credential persistence, remote executable code and any unsupported desktop launch/handoff behavior.
 
 ## macOS development-app gate
 
-`.github/workflows/macos-app.yml` — **Ghost FTP macOS Development App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 21-file release.
+`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 21-file release.
 
 ## Windows build and public signing gates
 
-Ordinary Windows CI builds and verifies `Ghost-FTP-0.0.7-Setup.exe` and `Ghost-FTP-0.0.7-Portable.exe`. Internally, native x64/x86/ARM64 staging pairs are PE/resource verified and embedded in those two universal public files; architecture-specific executables are forbidden from leaking publicly.
+Ordinary Windows CI builds and verifies `Ghost-FTP-0.0.8-Setup.exe` and `Ghost-FTP-0.0.8-Portable.exe`. Internally, native x64/x86/ARM64 staging pairs are PE/resource verified and embedded in those two universal public files; architecture-specific executables are forbidden from leaking publicly.
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
@@ -80,7 +80,7 @@ Canonical Linux packaging is `linux/BUILD-DISTROS.sh` and `.github/workflows/lin
 
 ## Authentic runtime evidence
 
-`.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI: Windows — Main Workspace, Site Manager, Bookmarks, Settings, About; Linux — Main Workspace, Bookmarks, Settings; Android — Files, Navigation, Sites, Bookmarks, Transfers, Settings, About.
+`.github/workflows/ui-screenshots.yml` captures exact-head real runtime UI: Windows — Main Workspace, Connections, Bookmarks, Settings, About; Linux — Main Workspace, Bookmarks, Settings, Connection info, About; Android — Files, Navigation, Connections, Bookmarks, Transfer Queue, Settings, Connection info, About.
 
 The final read-only verifier assembles exactly 15 images into the immutable evidence bundle and validates source SHA, file set, sizes and SHA-256 hashes. Generated mockups are not accepted as runtime evidence.
 
@@ -88,11 +88,11 @@ The final read-only verifier assembles exactly 15 images into the immutable evid
 
 **Exact-head and post-merge rule:** a PR is not merge-ready until every workflow triggered for its exact final head is `completed/success`. After merge, required push workflows are identified by the exact merge SHA and must also finish `completed/success` before release preparation continues. A green older SHA never satisfies a newer candidate.
 
-For 0.0.6, the broad gate set includes Ghost FTP CI, Android APK, Browser Extensions, macOS Development App, Linux Distro Packages, Linux Distro Install Matrix, Windows Modal Keyboard Runtime, Govulncheck, CodeQL and Authentic Cross-Platform UI Screenshots whenever path filters trigger them.
+For 0.0.8, the broad gate set includes Ghost FTP CI, Android APK, Browser Extensions, macOS Validation App, Linux Distro Packages, Linux Distro Install Matrix, Windows Modal Keyboard Runtime, Govulncheck, CodeQL and Authentic Cross-Platform UI Screenshots whenever path filters trigger them.
 
 ## Release publication gate
 
-0.0.6 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox packages, exact **18 platform artifacts / 21 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.7` distribution bundle and successful release-integrity/latest-only retention chains.
+0.0.8 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox/Opera packages, exact **13 platform artifacts / 16 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.8` distribution bundle and successful release-integrity/latest-only retention chains.
 
 ## Deterministic release-to-retention gate
 
@@ -100,6 +100,6 @@ The release-branch trigger records prior run IDs, dispatches canonical publicati
 
 ## Retention validation
 
-Retention must leave only the current `ghostftp-v0.0.7` public release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded Ghost FTP release/tag/branch/package identities, and leave `main` history untouched.
+Retention must leave only the current `ghostftp-v0.0.8` public release/tag, retain the current canonical release branch and exact-version GHCR package, remove superseded Ghost FTP release/tag/branch/package identities, and leave `main` history untouched.
 
 See [Security](SECURITY.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [GitHub Releases](GITHUB-RELEASES.md) and [Versioning](VERSIONING.md).

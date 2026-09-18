@@ -17,6 +17,31 @@ A privacy-first FTP, FTPS and SFTP workspace for direct professional file transf
   <a href="docs/README.md"><strong>Documentation</strong></a>
 </p>
 
+<p align="center">
+  <strong>0.0.8 release candidate</strong> · Current channel · 24 desktop languages · no telemetry
+</p>
+
+---
+
+## Built for direct, controlled file transfer
+
+<table>
+<tr>
+<td width="33%" valign="top" align="center"><img src="docs/images/readme/transfer.svg" width="54" alt=""><br><strong>Real transfer workspace</strong><br><sub>Local + remote panes, queue lifecycle, retry, cancellation, priority, Remote Edit and directory operations.</sub></td>
+<td width="33%" valign="top" align="center"><img src="docs/images/readme/security.svg" width="54" alt=""><br><strong>Fail-closed security</strong><br><sub>Strict desktop SFTP host-key trust, verified FTPS identity and protected publication signing.</sub></td>
+<td width="33%" valign="top" align="center"><img src="docs/images/readme/privacy.svg" width="54" alt=""><br><strong>Privacy by architecture</strong><br><sub>No telemetry, ads, behavioral analytics, hidden sync service or mandatory Ghost FTP account.</sub></td>
+</tr>
+<tr>
+<td width="33%" valign="top" align="center"><img src="docs/images/readme/platforms.svg" width="54" alt=""><br><strong>Native platform surfaces</strong><br><sub>Windows, Linux, Android and maintained macOS source with platform-specific lifecycle ownership.</sub></td>
+<td width="33%" valign="top" align="center"><img src="docs/images/readme/release.svg" width="54" alt=""><br><strong>Verified releases</strong><br><sub>Exact-head builds, checksums, Authenticode, protected Android signing and readback verification.</sub></td>
+<td width="33%" valign="top" align="center"><img src="docs/images/readme/docs.svg" width="54" alt=""><br><strong>Auditable documentation</strong><br><sub>Security, privacy, packaging, platform parity, release verification and runtime evidence stay version-bound.</sub></td>
+</tr>
+</table>
+
+### What 0.0.8 changes
+
+Ghost FTP 0.0.8 consolidates the new master workspace across the maintained native applications: **Files, Connections, Transfer Queue and Settings**, with **Bookmarks, Connection info and About** as supporting surfaces. It also includes Dark/Light palette parity, tighter empty states, safer option defaults, Restore Defaults flows and refreshed runtime evidence.
+
 ---
 
 ## Product scope
@@ -86,22 +111,22 @@ See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence cont
 
 ---
 
-## Ghost FTP 0.0.7
+## Ghost FTP 0.0.8
 
-Current source version: **0.0.7**
+Current source version: **0.0.8**
 Release channel: **Current**
 Product status: **Current**
-Last actually published GitHub Release: **0.0.6**
-Next public release target: **ghostftp-v0.0.7**
+Last actually published GitHub Release: **0.0.7**
+Next public release target: **ghostftp-v0.0.8**
 Prerelease: **false**
 
-The 0.0.7 publication contract contains **13 platform artifacts / 16 public files**.
+The 0.0.8 publication contract contains **13 platform artifacts / 16 public files**.
 
 ### Windows
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 Both public Windows executables carry x64, x86 and ARM64 payloads internally.
@@ -109,12 +134,12 @@ Both public Windows executables carry x64, x86 and ARM64 payloads internally.
 ### Linux
 
 ```text
-Ghost-FTP-0.0.7-Linux-Debian-Installer.run
-Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Debian-Installer.run
+Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz
 ```
 
 Each distro bundle carries amd64, arm64 and i386 payloads and selects the local architecture at runtime.
@@ -122,7 +147,7 @@ Each distro bundle carries amd64, arm64 and i386 payloads and selects the local 
 ### Android
 
 ```text
-Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.8-Android.apk
 ```
 
 Publication requires `apksigner` verification and an exact protected `GHOSTFTP_ANDROID_CERT_SHA256` signer fingerprint match.
@@ -130,10 +155,10 @@ Publication requires `apksigner` verification and an exact protected `GHOSTFTP_A
 ### Browser helpers
 
 ```text
-Ghost-FTP-0.0.7-Chrome-Extension.zip
-Ghost-FTP-0.0.7-Edge-Extension.zip
-Ghost-FTP-0.0.7-Firefox-Extension.zip
-Ghost-FTP-0.0.7-Opera-Extension.zip
+Ghost-FTP-0.0.8-Chrome-Extension.zip
+Ghost-FTP-0.0.8-Edge-Extension.zip
+Ghost-FTP-0.0.8-Firefox-Extension.zip
+Ghost-FTP-0.0.8-Opera-Extension.zip
 ```
 
 The four packages use one shared local runtime with browser-specific manifests. On supported Windows installs, the explicit **Open in Ghost FTP** action uses the sanitized `ghostftp://connect` handoff described above; credentials never enter that launch URL.
@@ -144,7 +169,7 @@ The four packages use one shared local runtime with browser-specific manifests. 
 
 Ghost FTP publication is bound to source identity: the binary being published must correspond to the **exact final head SHA** that passed verification.
 
-Version 0.0.7 is published only after:
+Version 0.0.8 is published only after:
 
 - the exact final head SHA is merged to `main`;
 - the complete post-merge gate succeeds;
@@ -156,8 +181,8 @@ Version 0.0.7 is published only after:
 Canonical release identity:
 
 ```text
-VERSION=0.0.7
-TAG=ghostftp-v0.0.7
+VERSION=0.0.8
+TAG=ghostftp-v0.0.8
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13
@@ -174,7 +199,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-The verified release directory is additionally represented as `ghcr.io/bren-wp/ghost-ftp:0.0.7`. This OCI object is a distribution bundle, not a runtime product backend.
+The verified release directory is additionally represented as `ghcr.io/bren-wp/ghost-ftp:0.0.8`. This OCI object is a distribution bundle, not a runtime product backend.
 
 ---
 

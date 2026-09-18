@@ -1,13 +1,13 @@
 # Navigation bookmarks and profile start directories
 
-Ghost FTP **0.0.7** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux desktop capabilities. The native macOS development frontend also wires bookmark navigation through the shared Engine. Android has its own saved-site/bookmark model and is now a production-signed public application, but it does not replace or weaken the desktop bookmark/account-binding contract documented here.
+Ghost FTP **0.0.8** includes navigation bookmarks and explicit local/server profile start directories as maintained Windows/Linux desktop capabilities. The native macOS development frontend also wires bookmark navigation through the shared Engine. Android has its own saved-site/bookmark model and is now a production-signed public application, but it does not replace or weaken the desktop bookmark/account-binding contract documented here.
 
 ## Scope
 
 Two related desktop navigation mechanisms are maintained:
 
-1. **Bookmarks** are reusable local or remote navigation entries independent of Site Manager profiles.
-2. **Profile start directories** are explicit default local and remote directories saved with a Site Manager profile.
+1. **Bookmarks** are reusable local or remote navigation entries independent of Connections/saved profiles.
+2. **Profile start directories** are explicit default local and remote directories saved with a saved connection profile.
 
 Windows and Linux expose the complete desktop bookmark workflow. macOS uses the same shared bookmark Engine APIs under its native development frontend. This is **source/development parity** for macOS, not a public macOS distribution claim.
 
@@ -29,7 +29,7 @@ Changing account identity invalidates inherited remote navigation authority.
 
 ## Creating and opening bookmarks
 
-`Engine.SaveLocalBookmark` stores validated local navigation metadata. `Engine.SaveRemoteBookmark` requires a real active connection and captures identity from the authoritative session; Saving a bookmark does **not** create a hidden persistent Site Manager profile.
+`Engine.SaveLocalBookmark` stores validated local navigation metadata. `Engine.SaveRemoteBookmark` requires a real active connection and captures identity from the authoritative session; Saving a bookmark does **not** create a hidden persistent saved connection profile.
 
 `Engine.NavigateBookmark` never treats a stored path as pre-verified authority. Local navigation performs a fresh listing. Remote navigation requires active-account match, captures connection identity, performs a real fresh remote listing, rechecks connection identity/account after the listing and rejects stale reconnect races before visible state commits.
 
@@ -45,7 +45,7 @@ Linux exposes an X11 Bookmarks overlay with the same functional actions, bounded
 
 The native AppKit development frontend exposes Bookmarks through the **same shared bookmark Engine APIs**: `Engine.Bookmarks`, `SaveLocalBookmark`, `SaveRemoteBookmark`, `RemoveBookmark` and `NavigateBookmark`. Local/remote save actions use authoritative bridge state and remote activation retains shared account/session revalidation before visible commit.
 
-This is **source/development parity**. macOS remains a separately validated native development/source frontend; a successful development build is not Developer ID signing/notarization evidence and does not add a macOS public artifact to Ghost FTP 0.0.7.
+This is **source/development parity**. macOS remains a separately validated native development/source frontend; a successful development build is not Developer ID signing/notarization evidence and does not add a macOS public artifact to Ghost FTP 0.0.8.
 
 ## Profile start directories
 
@@ -73,14 +73,14 @@ Bookmarks/start directories remain local application state and add no telemetry,
 | Remote account binding | Yes | Yes | Yes |
 | Stale-session protection | Engine + generation | Engine + serialized session behavior | Shared Engine + bridge generation rules |
 
-Windows/Linux remain the maintained desktop implementation surfaces for this feature. Public release scope for Ghost FTP 0.0.7 is broader: Windows/Linux desktop, a production-signed Android APK and Chrome/Edge/Firefox helper packages. The browser helper does not own bookmark state or desktop handoff.
+Windows/Linux remain the maintained desktop implementation surfaces for this feature. Public release scope for Ghost FTP 0.0.8 is broader: Windows/Linux desktop, a production-signed Android APK and Chrome/Edge/Firefox/Opera helper packages. Browser helpers do not own bookmark state; on supported Windows installs their explicit sanitized `ghostftp://connect` handoff carries no credentials and never auto-connects.
 
 ## Regression coverage
 
-The 0.0.7 contract is protected by bookmark/config/profile-binding Go tests, Linux desktop modal/viewport tests, `scripts/test_navigation_bookmarks_contract.py`, and the macOS development parity contract. Publication additionally requires exact-head CI/native-build/authentic-runtime evidence.
+The 0.0.8 contract is protected by bookmark/config/profile-binding Go tests, Linux desktop modal/viewport tests, `scripts/test_navigation_bookmarks_contract.py`, and the macOS development parity contract. Publication additionally requires exact-head CI/native-build/authentic-runtime evidence.
 
-## 0.0.7 release boundary
+## 0.0.8 release boundary
 
-Root `VERSION` is **0.0.7**. Navigation bookmarks/profile starts remain part of the maintained desktop/source contract, but this document does not authorize publication by itself. Publication requires exact-head and post-merge verification plus canonical `ghostftp-v0.0.7` publication/readback/retention.
+Root `VERSION` is **0.0.8**. Navigation bookmarks/profile starts remain part of the maintained desktop/source contract, but this document does not authorize publication by itself. Publication requires exact-head and post-merge verification plus canonical `ghostftp-v0.0.8` publication/readback/retention.
 
 The public release is **13 platform artifacts / 16 public files**. Android is public through the protected production-signing path, Android SFTP remains hidden until strict maintained host-key verification exists, browser packages remain local parser/copy helpers with only the sanitized Windows `ghostftp:` handoff and no secrets or automatic connection, and macOS remains a separately validated native development/source frontend.

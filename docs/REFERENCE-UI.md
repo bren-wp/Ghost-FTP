@@ -1,6 +1,6 @@
 # Ghost FTP native reference UI
 
-Ghost FTP **0.0.7** uses focused native two-pane desktop layouts on Windows and Linux, a public purpose-built Android workspace, and a separately validated native macOS development frontend.
+Ghost FTP **0.0.8** uses focused native two-pane desktop layouts on Windows and Linux, a public purpose-built Android workspace, and a separately validated native macOS development frontend.
 
 This is a source/runtime contract, not a mockup specification. Visible controls must map to real capability and state. Windows remains the canonical desktop visual/behavior reference; Linux uses native X11/XWayland-compatible presentation while sharing engine/security/transfer semantics.
 
@@ -24,15 +24,15 @@ Windows Settings is one application-owned modal surface for appearance, concurre
 
 Linux modal overlays own only their bounded lifecycle. macOS uses native AppKit windows/sheets and must not create parallel engine state.
 
-## Site Manager and saved profiles
+## Connections and saved profiles
 
-![Ghost FTP 0.0.7 Site Manager](images/0.0.6/ghost-ftp-site-manager.png)
+![Ghost FTP 0.0.8 Connections](images/0.0.6/ghost-ftp-site-manager.png)
 
-Site Manager/profile workflows preserve explicit credential-consent and trust semantics. Windows and Linux save non-secret profile state independently from newly entered credentials; protected durable secret paths remain platform-specific.
+Connections/saved-profile workflows preserve explicit credential-consent and trust semantics. Windows and Linux save non-secret profile state independently from newly entered credentials; protected durable secret paths remain platform-specific.
 
 ## Main Workspace
 
-![Ghost FTP 0.0.7 Main Workspace](images/0.0.6/ghost-ftp-main-workspace.png)
+![Ghost FTP 0.0.8 Main Workspace](images/0.0.6/ghost-ftp-main-workspace.png)
 
 Actions are enabled from real state. Disabled operations remain disabled regardless of button, menu, list gesture or keyboard route. Stale async callbacks are rejected through connection/session identity.
 
@@ -69,15 +69,15 @@ Authentic Windows screenshots prove the UI on the maintained runner architecture
 
 ## Linux native workspace
 
-![Ghost FTP 0.0.7 Linux workspace](images/0.0.6/ghost-ftp-linux-main-workspace.png)
+![Ghost FTP 0.0.8 Linux workspace](images/0.0.6/ghost-ftp-linux-main-workspace.png)
 
 Linux uses the same typed engine and security/transfer contracts as Windows, with native X11/XWayland-compatible presentation. Canonical Debian/Ubuntu/Fedora/Portable packages retain package metadata, extraction and binary-parity gates; maintained native lifecycle evidence is x86-64 only.
 
 ## Android native workspace
 
-![Ghost FTP 0.0.7 Android Files](images/0.0.6/ghost-ftp-android-files.png)
+![Ghost FTP 0.0.8 Android Files](images/0.0.6/ghost-ftp-android-files.png)
 
-Android 0.0.7 is a public native application. The maintained exact-head UI exposes **Files**, **Connections**, **Transfer Queue**, **Settings**, **Bookmarks**, **Connection info** and **About** through semantic navigation. Small screens use a drawer and wider layouts a visible sidebar; system-bar insets keep controls outside reserved system UI.
+Android 0.0.8 is a public native application. The maintained exact-head UI exposes **Files**, **Connections**, **Transfer Queue**, **Settings**, **Bookmarks**, **Connection info** and **About** through semantic navigation. Small screens use a drawer and wider layouts a visible sidebar; system-bar insets keep controls outside reserved system UI.
 
 Android supports FTP and strict explicit FTPS. Local access uses Storage Access Framework capabilities; saved sites contain non-secret connection/navigation metadata; file operations/search/comparison/Remote Edit and transfers remain bounded and lifecycle-owned. SFTP remains absent until strict maintained host-key identity verification exists.
 
@@ -87,15 +87,15 @@ The AppKit frontend uses the shared `internal/api.Engine` and a universal develo
 
 ## Browser helper boundary
 
-Chrome, Edge, Firefox and Opera helper packages are public 0.0.7 companions. They use one canonical shared runtime, request no broad browser/network permissions and have no supported browser-to-desktop launch/handoff.
+Chrome, Edge, Firefox and Opera helper packages are public 0.0.8 companions. They use one canonical shared runtime, request no broad browser/network permissions and use the explicit sanitized Windows `ghostftp://connect` handoff on supported installed builds; secrets, query data and fragments are excluded and the desktop never auto-connects.
 
 ## Settings and About evidence
 
-![Ghost FTP 0.0.7 Settings](images/0.0.6/ghost-ftp-settings.png)
+![Ghost FTP 0.0.8 Settings](images/0.0.6/ghost-ftp-settings.png)
 
-![Ghost FTP 0.0.7 About](images/0.0.6/ghost-ftp-about.png)
+![Ghost FTP 0.0.8 About](images/0.0.6/ghost-ftp-about.png)
 
-About displays product/version identity generated from canonical build `VERSION`; the maintained current public identity is **Ghost FTP 0.0.7**.
+About displays product/version identity generated from canonical build `VERSION`; the maintained current public identity is **Ghost FTP 0.0.8**.
 
 ## Authentic screenshot evidence
 

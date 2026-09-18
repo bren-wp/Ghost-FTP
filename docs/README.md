@@ -5,12 +5,12 @@
 
 ## Current status
 
-- Current source version: **0.0.7**
+- Current source version: **0.0.8**
 - Release channel: **Current**
 - Product status: **Current**
-- Last actually published GitHub Release: **0.0.6**
-- 0.0.6 release target: `ghostftp-v0.0.7`, `PRERELEASE=false`
-- 0.0.6 shape: **13 platform artifacts / 16 public files**
+- Last actually published GitHub Release: **0.0.7**
+- 0.0.8 release target: `ghostftp-v0.0.8`, `PRERELEASE=false`
+- 0.0.8 shape: **13 platform artifacts / 16 public files**
 - Public release targets: **Windows, Linux, Android and browser helper packages**
 - Maintained native source platforms: **Windows, Linux, Android and macOS**
 - Browser packages: **Chrome, Edge, Firefox and Opera**
@@ -18,7 +18,7 @@
 - Retired repository surfaces: **website and Web FTP**
 - License: **proprietary commercial software, Brendigo LTD**
 
-Version 0.0.6 is not treated as published until the exact verified `main` SHA succeeds through protected signing, publication and readback verification. macOS source remains maintained, while a public macOS artifact is withheld until real Developer ID Application signing and Apple notarization succeed.
+Version 0.0.8 is not treated as published until the exact verified `main` SHA succeeds through protected signing, publication and readback verification. macOS source remains maintained, while a public macOS artifact is withheld until real Developer ID Application signing and Apple notarization succeed.
 
 ## Documentation principles
 
@@ -53,22 +53,22 @@ Version 0.0.6 is not treated as published until the exact verified `main` SHA su
 | Browser helpers | [`../extensions/README.md`](../extensions/README.md) |
 | Engineering audit prompt | [`prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md`](prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md) |
 
-## 0.0.6 public artifact contract
+## 0.0.8 public artifact contract
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
-Ghost-FTP-0.0.7-Linux-Debian-Installer.run
-Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
-Ghost-FTP-0.0.7-Android.apk
-Ghost-FTP-0.0.7-Chrome-Extension.zip
-Ghost-FTP-0.0.7-Edge-Extension.zip
-Ghost-FTP-0.0.7-Firefox-Extension.zip
-Ghost-FTP-0.0.7-Opera-Extension.zip
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
+Ghost-FTP-0.0.8-Linux-Debian-Installer.run
+Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.8-Android.apk
+Ghost-FTP-0.0.8-Chrome-Extension.zip
+Ghost-FTP-0.0.8-Edge-Extension.zip
+Ghost-FTP-0.0.8-Firefox-Extension.zip
+Ghost-FTP-0.0.8-Opera-Extension.zip
 BUILD-METADATA.txt
 RELEASE-NOTES.txt
 SHA256.txt
@@ -77,8 +77,8 @@ SHA256.txt
 Canonical identity:
 
 ```text
-VERSION=0.0.7
-TAG=ghostftp-v0.0.7
+VERSION=0.0.8
+TAG=ghostftp-v0.0.8
 CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13

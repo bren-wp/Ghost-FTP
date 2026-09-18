@@ -1,8 +1,8 @@
 # Ghost FTP settings
 
-Ghost FTP **0.0.7** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within shared bounds, and visible controls map to real engine/runtime behavior.
+Ghost FTP **0.0.8** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within shared bounds, and visible controls map to real engine/runtime behavior.
 
-Windows and Linux share the desktop settings model. Android 0.0.7 is a public native application with platform-appropriate settings and SAF/lifecycle constraints; unsupported desktop-only controls are not fabricated. macOS remains a development/source frontend and consumes the shared model where the native surface implements the option.
+Windows and Linux share the desktop settings model. Android 0.0.8 is a public native application with platform-appropriate settings and SAF/lifecycle constraints; unsupported desktop-only controls are not fabricated. macOS remains a development/source frontend and consumes the shared model where the native surface implements the option.
 
 ## Current shared desktop settings
 
@@ -27,7 +27,7 @@ Linux exposes the same validated policy through the maintained native X11/XWayla
 
 ## Android settings boundary
 
-Android 0.0.7 keeps native settings appropriate to its current public client: Dark/Light appearance, opt-in Quick Connect metadata persistence, file-size display, delete confirmation and Restore app defaults. Restore defaults clears remembered Quick Connect metadata while keeping saved connections and the user-selected SAF folder authority. Connection/storage choices preserve strict FTPS verification, Storage Access Framework authority, transfer/lifecycle ownership and local-only non-secret saved-site state. **SFTP remains hidden** until strict maintained native host-key verification exists.
+Android 0.0.8 keeps native settings appropriate to its current public client: Dark/Light appearance, opt-in Quick Connect metadata persistence, file-size display, delete confirmation and Restore app defaults. Restore defaults clears remembered Quick Connect metadata while keeping saved connections and the user-selected SAF folder authority. Connection/storage choices preserve strict FTPS verification, Storage Access Framework authority, transfer/lifecycle ownership and local-only non-secret saved-site state. **SFTP remains hidden** until strict maintained native host-key verification exists.
 
 ## Appearance and localization
 
@@ -43,8 +43,8 @@ Canonical conflict values are `skip`, `replace` and `replace_backup`. Automatic 
 
 Credential persistence is separate from ordinary non-secret settings persistence. Windows uses its maintained current-user protected-secret boundary; Linux retains explicit persistence consent plus trusted AskPass provenance; macOS development profiles use the maintained Keychain-backed path; Android saved-site state remains intentionally non-secret.
 
-## 0.0.7 lifecycle note
+## 0.0.8 lifecycle note
 
-Ghost FTP 0.0.7 retains the Windows profile/file/Remote Edit in-flight guards and connection-generation ownership that prevent stale asynchronous completion from mutating replacement state. Android binds connection and transfer completion to Activity/session generations. These are runtime correctness guarantees rather than user-configurable toggles.
+Ghost FTP 0.0.8 retains the Windows profile/file/Remote Edit in-flight guards and connection-generation ownership that prevent stale asynchronous completion from mutating replacement state. Android binds connection and transfer completion to Activity/session generations. These are runtime correctness guarantees rather than user-configurable toggles.
 
 See [Architecture](ARCHITECTURE.md), [Privacy](PRIVACY.md), [Security](SECURITY.md), [Testing](TESTING.md) and [Localization](LOCALIZATION.md).

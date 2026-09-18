@@ -85,13 +85,19 @@ func sitePathLabel(language string, remote bool) string {
 	return pair[0]
 }
 
-func cleanSFTPSecurityTitle(value string) string {
+func cleanConnectionSecurityTitle(value string) string {
 	value = strings.TrimSpace(value)
 	for _, prefix := range []string{"GhostFTP —", "Ghost FTP —"} {
 		value = strings.TrimSpace(strings.TrimPrefix(value, prefix))
 	}
+	// The Connections editor can represent FTP, FTPS and SFTP. Reuse the
+	// maintained localized SFTP security noun, but remove the protocol token so
+	// FTPS/FTP profiles are never shown under a misleading "SFTP security"
+	// heading.
+	value = strings.ReplaceAll(value, "SFTP", "")
+	value = strings.TrimSpace(strings.Trim(value, "—-:"))
 	if value == "" {
-		return "SFTP security"
+		return "Security"
 	}
 	return value
 }
@@ -530,7 +536,7 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 	label(parent.tr("cue.passphrase"), 310, 348, 160)
 	state.passphrase = mk("EDIT", "", wsBorder|wsTabStop|esAutoHScroll|esPassword, 490, 342, 390, 30, siteIDPassphrase)
 
-	label(cleanSFTPSecurityTitle(parent.tr("sftp.security")), 310, 390, 570)
+	label(cleanConnectionSecurityTitle(parent.tr("sftp.security")), 310, 390, 570)
 	state.security = mk("STATIC", "", wsBorder, 310, 416, 570, 58, siteIDSecurity)
 
 	state.save = parent.registerButton(mk("BUTTON", parent.tr("profile.save"), wsTabStop|bsOwnerDraw, 310, 500, 146, 34, siteIDSave), iconSave, parent.tr("profile.save"), buttonDefault)

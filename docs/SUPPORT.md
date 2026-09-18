@@ -1,13 +1,13 @@
 # Ghost FTP support
 
-Ghost FTP **0.0.7** is the current supported public release.
+Ghost FTP **0.0.8** is the active release candidate. Ghost FTP **0.0.7** remains the current published release until the protected 0.0.8 release transaction succeeds.
 
 Official product and support destination: **https://ghostftp.com**.
 
 ## Before reporting a problem
 
-1. Confirm the artifact reports version `0.0.6` or identify the exact maintained development source SHA for a non-public macOS/dev report.
-2. Confirm the file came from the canonical `ghostftp-v0.0.7` release when reporting a public Windows/Linux/Android/browser package issue.
+1. Confirm the published artifact reports version `0.0.7` or identify the exact maintained development source SHA for a non-public macOS/dev report.
+2. Confirm the file came from the canonical `ghostftp-v0.0.8` release when reporting a public Windows/Linux/Android/browser package issue.
 3. Verify public artifacts against `SHA256.txt`.
 4. For official Windows Setup/Portable, verify trusted Authenticode.
 5. For the public Android APK, verify the production signing certificate fingerprint as described in release verification.
@@ -21,8 +21,8 @@ Latest-only retention means support targets the current public release rather th
 The public Windows files are:
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 There are no supported public architecture-specific EXE aliases. Both files contain native **x64, x86 and ARM64** payloads and record:
@@ -45,10 +45,10 @@ For SFTP password/passphrase issues, state whether Ghost FTP is package-installe
 
 ## Android public APK reports
 
-Public Android 0.0.6 artifact:
+Current published Android 0.0.7 artifact:
 
 ```text
-Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.8-Android.apk
 ```
 
 Report Android API level, physical device/emulator, FTP/FTPS mode, SAF provider/folder behavior and whether the issue occurs during navigation, listing, file mutation, transfer/cancellation or Activity lifecycle changes.
@@ -59,7 +59,7 @@ For development-only issues, identify `Ghost-FTP-Android-dev.apk` and the exact 
 
 ## Browser helper reports
 
-The public helper ZIPs target Chrome, Edge and Firefox. The helper parses explicitly supplied FTP/FTPS/SFTP targets locally and can copy a credential-stripped target. There is no supported browser-to-desktop handoff. Report browser family/version and whether parsing, safe-target generation or explicit copy failed; never include live credentials.
+The public helper ZIPs target Chrome, Edge, Firefox and Opera. The helper parses explicitly supplied FTP/FTPS/SFTP targets locally and can copy a credential-stripped target. On supported installed Windows builds, the explicit **Open in Ghost FTP** action uses the sanitized `ghostftp://connect` handoff; credentials, private keys, query data and fragments are excluded and Ghost FTP never auto-connects. Report browser family/version and whether parsing, safe-target generation, explicit copy or explicit handoff failed; never include live credentials.
 
 ## macOS development reports
 
@@ -82,12 +82,12 @@ For Remote Edit, include file-size class, encoding/line endings if relevant and 
 Current identity:
 
 ```text
-VERSION=0.0.7
-TAG=ghostftp-v0.0.7
+VERSION=0.0.8
+TAG=ghostftp-v0.0.8
 PRERELEASE=false
-PUBLIC_PLATFORM_ARTIFACTS=18
-PUBLIC_RELEASE_FILES=21
-GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.7
+PUBLIC_PLATFORM_ARTIFACTS=13
+PUBLIC_RELEASE_FILES=16
+GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
 After a successor is successfully verified, superseded release/tag/package identities are intentionally removed by latest-only retention. Git history remains engineering provenance rather than a supported binary archive.

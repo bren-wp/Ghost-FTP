@@ -33,6 +33,27 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         self.assertIn("if len(u.transferJobs) == 0 {", queue)
         self.assertIn('u.tr("transfer.summary", 0, 0, 0)', queue)
 
+    def test_linux_workspace_titles_stay_out_of_master_rail(self) -> None:
+        source = read("internal/desktop/gui_linux.go")
+        workspace_start = source.index("func (u *linuxDesktop) renderWorkspace() error")
+        queue_start = source.index("func (u *linuxDesktop) renderQueue() error", workspace_start)
+        render_start = source.index("func (u *linuxDesktop) render() error", queue_start)
+        workspace = source[workspace_start:queue_start]
+        queue = source[queue_start:render_start]
+        self.assertIn("left: u.layout.localPath.left - 6", workspace)
+        self.assertIn("u.x.text(u.layout.localPath.left+8, leftPanel.top+20", workspace)
+        self.assertIn("u.x.text(u.layout.queue.left+8, u.layout.pause.top+19", queue)
+        self.assertNotIn("u.x.text(premiumOuterGap, leftPanel.top+20", workspace)
+        self.assertNotIn("u.x.text(premiumOuterGap, u.layout.pause.top+19", queue)
+
+    def test_linux_quick_connect_label_avoids_known_parenthetical_clipping(self) -> None:
+        source = read("internal/desktop/gui_linux.go")
+        start = source.index("func (u *linuxDesktop) renderQuickConnect() error")
+        end = source.index("func (u *linuxDesktop) renderItemRows", start)
+        quick = source[start:end]
+        self.assertIn('strings.Index(profileLabel, " (")', quick)
+        self.assertIn("strings.TrimSpace(profileLabel[:i])", quick)
+
     def test_macos_master_rail_and_empty_queue_have_clear_state(self) -> None:
         preparer = read("macos/prepare_site_manager_sources.py")
         main = read("macos/Sources/GhostFTPApp/main.swift")
@@ -60,6 +81,14 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         self.assertNotIn("Site Manager control initialization failed", manager)
         self.assertIn('TitleContains "Connections"', capture)
         self.assertIn("-Title 'Connections'", runtime)
+
+    def test_windows_connections_security_heading_is_protocol_neutral(self) -> None:
+        source = read("internal/desktop/site_manager_windows.go")
+        self.assertIn("func cleanConnectionSecurityTitle", source)
+        self.assertIn('strings.ReplaceAll(value, "SFTP", "")', source)
+        self.assertIn('return "Security"', source)
+        self.assertIn('cleanConnectionSecurityTitle(parent.tr("sftp.security"))', source)
+        self.assertNotIn('cleanSFTPSecurityTitle(parent.tr("sftp.security"))', source)
 
     def test_macos_connection_surfaces_use_public_master_names(self) -> None:
         manager = read("macos/Sources/GhostFTPApp/SiteManager.swift")

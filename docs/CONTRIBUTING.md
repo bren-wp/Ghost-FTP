@@ -61,7 +61,7 @@ Windows asynchronous transfer actions that publish UI completion must remain tie
 
 Never commit real passwords, private keys, key passphrases, protected profile payloads, signing private material, production server private data or CI secret values. Tests use synthetic credentials and isolated fixtures.
 
-Credential persistence is opt-in. Main-profile and Site Manager flows must retain equivalent consent semantics. Secret-lifetime work must distinguish session-owned from borrowed profile-owned protected material.
+Credential persistence is opt-in. Main-profile and Connections-manager flows must retain equivalent consent semantics. Secret-lifetime work must distinguish session-owned from borrowed profile-owned protected material.
 
 ## Dependency policy
 

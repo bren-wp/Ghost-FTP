@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify canonical Ghost FTP 0.0.7 production identity across maintained source surfaces."""
+"""Verify canonical Ghost FTP 0.0.8 production identity across maintained source surfaces."""
 
 from __future__ import annotations
 
@@ -63,8 +63,8 @@ def main() -> int:
     version = read("VERSION").strip()
     if not VERSION_RE.fullmatch(version):
         fail(f"VERSION is not semantic: {version!r}")
-    if version != "0.0.7":
-        fail(f"active release candidate must remain 0.0.7, got {version!r}")
+    if version != "0.0.8":
+        fail(f"active release candidate must remain 0.0.8, got {version!r}")
 
     if f"go {GO_TOOLCHAIN}" not in read("go.mod"):
         fail(f"go.mod must use Go {GO_TOOLCHAIN}")
@@ -96,7 +96,7 @@ def main() -> int:
             f"Current source version: **{version}**",
             "Release channel: **Current**",
             "Product status: **Current**",
-            "Last actually published GitHub Release: **0.0.6**",
+            "Last actually published GitHub Release: **0.0.7**",
             f"ghostftp-v{version}",
             "Prerelease: **false**",
             "13 platform artifacts / 16 public files",
@@ -347,8 +347,8 @@ def main() -> int:
     print(f"VERSION_AUDIT=PASS ({version}; channel=current; product=current)")
     print(f"GO_TOOLCHAIN={GO_TOOLCHAIN}")
     print("PUBLIC_BRAND=Ghost FTP")
-    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.6")
-    print("NEXT_PUBLIC_RELEASE=0.0.7")
+    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.7")
+    print("NEXT_PUBLIC_RELEASE=0.0.8")
     print("PUBLIC_RELEASE_CHANNEL=CURRENT")
     print("CURRENT_RELEASE_PRERELEASE_FLAG=FALSE")
     print("PUBLIC_PLATFORM_ARTIFACTS=13")
