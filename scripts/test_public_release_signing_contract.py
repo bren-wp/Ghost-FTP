@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression contract for fail-closed Windows signing in official releases."""
+"""Regression contract for explicit Windows compatibility publication."""
 
 from __future__ import annotations
 
@@ -12,38 +12,34 @@ VERIFY_RELEASE = ROOT / "scripts" / "verify_release.py"
 
 
 class PublicReleaseSigningContractTest(unittest.TestCase):
-    def test_official_release_requires_protected_authenticode_identity(self) -> None:
+    def test_release_supports_signed_or_explicit_unsigned_compatibility(self) -> None:
         workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("name: Publish Ghost FTP", workflow)
-        self.assertIn("Require protected Authenticode identity", workflow)
-        self.assertIn(
-            "Official Ghost FTP publication requires GHOSTFTP_SIGNING_PFX_BASE64.",
-            workflow,
-        )
-        self.assertIn(
-            "Official Ghost FTP publication requires GHOSTFTP_SIGNING_PASSWORD.",
-            workflow,
-        )
-        self.assertIn('"state=signed"', workflow)
-        self.assertNotIn('"state=unsigned"', workflow)
-        self.assertNotIn("Publishing current release with explicitly unsigned Windows artifacts", workflow)
+        self.assertIn("Resolve Windows signing identity", workflow)
+        self.assertIn("WINDOWS_RELEASE_SIGNING=UNSIGNED_COMPATIBILITY", workflow)
+        self.assertIn("'state=unsigned'", workflow)
+        self.assertIn("'state=signed'", workflow)
+        self.assertIn("Windows signing configuration is incomplete", workflow)
+        self.assertIn("GHOSTFTP_ALLOW_UNSIGNED_PUBLIC_RELEASE", workflow)
 
-    def test_official_release_verifies_signatures_before_publication(self) -> None:
+    def test_release_verifies_declared_signature_state_before_publication(self) -> None:
         workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("Get-AuthenticodeSignature -FilePath $path", workflow)
+        self.assertIn("$env:SIGNING_STATE -eq 'signed'", workflow)
+        self.assertIn("$env:SIGNING_STATE -eq 'unsigned'", workflow)
         self.assertIn("$signature.Status -ne 'Valid'", workflow)
-        self.assertNotIn("if ('${{ steps.signing.outputs.state }}' -eq 'signed')", workflow)
-        self.assertIn("test \"$WINDOWS_SIGNING_STATE\" = 'signed'", workflow)
+        self.assertIn("$signature.Status -ne 'NotSigned'", workflow)
         self.assertIn("WINDOWS_AUTHENTICODE=${WINDOWS_SIGNING_STATE}", workflow)
 
-    def test_release_verifier_keeps_public_workflow_fail_closed(self) -> None:
+    def test_release_verifier_is_strict_unless_compatibility_gate_is_explicit(self) -> None:
         verifier = VERIFY_RELEASE.read_text(encoding="utf-8")
 
         self.assertIn('PUBLIC_WINDOWS_RELEASE_WORKFLOW = "Publish Ghost FTP"', verifier)
-        self.assertIn("public Windows release artifacts must be Authenticode signed", verifier)
-        self.assertIn("trusted production signing identity", verifier)
+        self.assertIn('PUBLIC_WINDOWS_COMPATIBILITY_ENV = "GHOSTFTP_ALLOW_UNSIGNED_PUBLIC_RELEASE"', verifier)
+        self.assertIn("explicit compatibility-release gate is enabled", verifier)
+        self.assertIn("inconsistent Authenticode state", verifier)
         self.assertIn("require_public_release_signatures", verifier)
 
 
