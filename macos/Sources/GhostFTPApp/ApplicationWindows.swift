@@ -497,9 +497,28 @@ final class SettingsWindowController: NSWindowController {
 }
 
 final class AboutWindowController: NSWindowController {
+    private struct UpdatePayload: Decodable {
+        let currentVersion: String
+        let latestVersion: String
+        let releaseURL: String
+        let available: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case currentVersion = "current_version"
+            case latestVersion = "latest_version"
+            case releaseURL = "release_url"
+            case available
+        }
+    }
+
+    private let updateQueue = DispatchQueue(label: "app.ghostftp.update-check", qos: .userInitiated)
+    private let statusLabel = applicationLabel("", size: 11)
+    private let checkUpdatesButton = NSButton(title: "Check for Updates", target: nil, action: nil)
+    private let premiumButton = NSButton(title: "Download Premium", target: nil, action: nil)
+
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 390),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 470),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -512,6 +531,7 @@ final class AboutWindowController: NSWindowController {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func showAbout() {
+        statusLabel.stringValue = ""
         showWindow(nil)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
@@ -537,12 +557,30 @@ final class AboutWindowController: NSWindowController {
             applicationLabel("No telemetry or tracking.")
         ]
         rows.last?.textColor = .secondaryLabelColor
+
+        checkUpdatesButton.target = self
+        checkUpdatesButton.action = #selector(checkUpdatesTapped)
+        premiumButton.target = self
+        premiumButton.action = #selector(premiumTapped)
+        premiumButton.bezelStyle = .rounded
         let closeButton = NSButton(title: "Close", target: self, action: #selector(closeTapped))
-        let stack = NSStackView(views: rows + [closeButton])
+        let actions = NSStackView(views: [checkUpdatesButton, premiumButton, closeButton])
+        actions.orientation = .horizontal
+        actions.spacing = 8
+
+        statusLabel.textColor = .secondaryLabelColor
+        statusLabel.maximumNumberOfLines = 2
+        let privacy = applicationLabel(
+            "Update and Premium network access occurs only after you click an action. Server credentials, paths and transfer data are never sent.",
+            size: 10
+        )
+        privacy.textColor = .secondaryLabelColor
+
+        let stack = NSStackView(views: rows + [privacy, actions, statusLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 12
-        stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+        stack.spacing = 11
+        stack.edgeInsets = NSEdgeInsets(top: 22, left: 24, bottom: 22, right: 24)
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -551,6 +589,57 @@ final class AboutWindowController: NSWindowController {
             stack.topAnchor.constraint(equalTo: content.topAnchor),
             stack.bottomAnchor.constraint(equalTo: content.bottomAnchor)
         ])
+    }
+
+    @objc private func checkUpdatesTapped() {
+        checkUpdatesButton.isEnabled = false
+        premiumButton.isEnabled = false
+        statusLabel.stringValue = "Checking the stable Ghost FTP release channel…"
+
+        updateQueue.async { [weak self] in
+            let raw = applicationBridgeString(GhostFTPCheckForUpdates())
+            let payload: UpdatePayload?
+            if let data = raw.data(using: .utf8), !raw.isEmpty {
+                payload = try? JSONDecoder().decode(UpdatePayload.self, from: data)
+            } else {
+                payload = nil
+            }
+
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.checkUpdatesButton.isEnabled = true
+                self.premiumButton.isEnabled = true
+                guard let payload else {
+                    self.statusLabel.stringValue = "Update check failed. Try again later."
+                    return
+                }
+                guard payload.available else {
+                    self.statusLabel.stringValue = "Ghost FTP \(payload.currentVersion) is the current stable release."
+                    return
+                }
+
+                self.statusLabel.stringValue = "Ghost FTP \(payload.latestVersion) is available."
+                let alert = NSAlert()
+                alert.messageText = "Update available"
+                alert.informativeText = "Ghost FTP \(payload.latestVersion) is available. Open the verified GitHub Release page?"
+                alert.addButton(withTitle: "Open Download")
+                alert.addButton(withTitle: "Later")
+                if alert.runModal() == .alertFirstButtonReturn {
+                    let value = ApplicationCStringBox(payload.releaseURL)
+                    if GhostFTPOpenReleasePage(value.pointer) != 1 {
+                        self.statusLabel.stringValue = "Unable to open the verified release page."
+                    }
+                }
+            }
+        }
+    }
+
+    @objc private func premiumTapped() {
+        if GhostFTPOpenPremiumPage() == 1 {
+            statusLabel.stringValue = "Premium download page opened in your browser."
+        } else {
+            statusLabel.stringValue = "Unable to open the Premium download page."
+        }
     }
 
     @objc private func closeTapped() { close() }
