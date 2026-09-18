@@ -148,6 +148,7 @@ public final class MainActivity extends Activity {
     private SiteProfileStore profileStore;
     private String activeProfileId;
     private String connectedIdentityKey;
+    private String connectedProtocol;
     private Uri treeUri;
     private String rootDocumentId;
     private String currentDocumentId;
@@ -214,6 +215,7 @@ public final class MainActivity extends Activity {
         FtpSession current = session;
         session = null;
         connectedIdentityKey = null;
+        connectedProtocol = null;
         if (current != null) {
             if (gate == null) {
                 current.cancelActiveTransfer();
@@ -757,20 +759,20 @@ public final class MainActivity extends Activity {
             return;
         }
         boolean connected = session != null && session.isConnected();
-        String selectedProtocol = protocol != null && protocol.getSelectedItem() != null
-                ? protocol.getSelectedItem().toString()
-                : "—";
+        String selectedProtocol = connected && connectedProtocol != null ? connectedProtocol : "—";
 
         connectionInfoState.setText("State\n" + (connected ? "Connected" : "Disconnected"));
-        connectionInfoProtocol.setText("Protocol\n" + (connected ? selectedProtocol : "—"));
+        connectionInfoProtocol.setText("Protocol\n" + selectedProtocol);
 
         String security;
         if (!connected) {
             security = "No active connection";
         } else if ("FTPS".equals(selectedProtocol)) {
             security = "Certificate and hostname verification enabled";
-        } else {
+        } else if ("FTP".equals(selectedProtocol)) {
             security = "Unencrypted compatibility connection";
+        } else {
+            security = "Connection security state unavailable";
         }
         connectionInfoSecurity.setText("Security\n" + security);
 
@@ -1142,7 +1144,8 @@ public final class MainActivity extends Activity {
         String hostValue = host.getText().toString().trim();
         String userValue = username.getText().toString().trim();
         String passwordValue = password.getText().toString();
-        boolean secure = "FTPS".equals(protocol.getSelectedItem().toString());
+        String protocolValue = protocol.getSelectedItem().toString();
+        boolean secure = "FTPS".equals(protocolValue);
         final int portValue;
         try {
             portValue = parsePort();
@@ -1155,7 +1158,7 @@ public final class MainActivity extends Activity {
             return;
         }
         SiteProfile profile = activeProfile();
-        String identity = identityKey(protocol.getSelectedItem().toString(), hostValue, portValue, userValue);
+        String identity = identityKey(protocolValue, hostValue, portValue, userValue);
         if (profile != null && !profile.identityKey().equals(identity)) {
             setStatus("Connection details changed. Save the connection or switch to Quick Connect before connecting.");
             return;
@@ -1195,6 +1198,7 @@ public final class MainActivity extends Activity {
                     connectingSession = null;
                     session = next;
                     connectedIdentityKey = identity;
+                    connectedProtocol = protocolValue;
                     currentRemotePath = start;
                     remoteEntries.clear();
                     remoteEntries.addAll(entries);
@@ -1227,6 +1231,7 @@ public final class MainActivity extends Activity {
         FtpSession current = session;
         session = null;
         connectedIdentityKey = null;
+        connectedProtocol = null;
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
@@ -1269,6 +1274,7 @@ public final class MainActivity extends Activity {
         activeTransferGate = null;
         session = null;
         connectedIdentityKey = null;
+        connectedProtocol = null;
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
@@ -1880,6 +1886,8 @@ public final class MainActivity extends Activity {
             owner.abort();
             session = null;
             connectedIdentityKey = null;
+            connectedProtocol = null;
+        connectedProtocol = null;
             remoteEntries.clear();
             selectedRemote = -1;
             currentRemotePath = "/";
@@ -1932,6 +1940,10 @@ public final class MainActivity extends Activity {
                     if (session == owner && !owner.isConnected()) {
                         session = null;
                         connectedIdentityKey = null;
+                connectedProtocol = null;
+                        connectedProtocol = null;
+            connectedProtocol = null;
+        connectedProtocol = null;
                         remoteEntries.clear();
                         selectedRemote = -1;
                         currentRemotePath = "/";
@@ -2626,6 +2638,9 @@ public final class MainActivity extends Activity {
             if (session == current && !current.isConnected()) {
                 session = null;
                 connectedIdentityKey = null;
+                connectedProtocol = null;
+            connectedProtocol = null;
+        connectedProtocol = null;
                 remoteEntries.clear();
                 selectedRemote = -1;
                 currentRemotePath = "/";
@@ -2832,7 +2847,7 @@ public final class MainActivity extends Activity {
             text = "TRANSFER ACTIVE";
             color = GhostTheme.WARN;
         } else if (connected) {
-            boolean secure = protocol.getSelectedItem() != null && "FTPS".equals(protocol.getSelectedItem().toString());
+            boolean secure = "FTPS".equals(connectedProtocol);
             text = secure ? "FTPS CONNECTED" : "FTP CONNECTED";
             color = secure ? GhostTheme.SUCCESS : GhostTheme.WARN;
         } else {
@@ -2883,6 +2898,9 @@ public final class MainActivity extends Activity {
             if (current != null && !current.isConnected()) {
                 session = null;
                 connectedIdentityKey = null;
+                connectedProtocol = null;
+            connectedProtocol = null;
+        connectedProtocol = null;
                 remoteEntries.clear();
                 selectedRemote = -1;
                 currentRemotePath = "/";
