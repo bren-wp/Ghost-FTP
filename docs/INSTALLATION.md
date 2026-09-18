@@ -45,3 +45,13 @@ WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 ```
 
 The ARM64 payload is built and structurally verified in CI. The metadata value above is intentionally explicit: current hosted CI does not claim native Windows-on-ARM runtime execution evidence.
+
+
+## Current public release shape
+
+The active Windows/Linux/Android plus browser-helper publication contract contains **13 platform artifacts / 16 public files** after macOS retirement. Historical published releases remain immutable.
+
+```text
+PUBLIC_PLATFORM_ARTIFACTS=13
+PUBLIC_RELEASE_FILES=16
+```
