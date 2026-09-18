@@ -1,0 +1,41 @@
+name: Temporary release branch gofmt
+
+on:
+  push:
+    branches:
+      - release/0.0.8-final-platform-parity
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: release/0.0.8-final-platform-parity
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.27.1'
+          check-latest: false
+          cache: false
+      - name: Format Go sources and push exact result
+        shell: bash
+        run: |
+          set -euo pipefail
+          gofmt -w $(find cmd internal macos -name '*.go' -print)
+          if git diff --quiet -- cmd internal macos; then
+            echo 'GOFMT_CHANGES=NONE'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cmd internal macos
+          git commit -m 'style: gofmt release branch sources'
+          git push origin HEAD:release/0.0.8-final-platform-parity
