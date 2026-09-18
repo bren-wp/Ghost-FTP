@@ -67,7 +67,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         for marker in (
             'card("CURRENT CONNECTION"',
             'currentConnectionSummary = pathLabel("Not connected")',
-            'openConnections.setOnClickListener(v -> showSection(Section.SITES));',
+            'connectionCard.setOnClickListener(v -> showSection(Section.SITES));',
             'card("ACTIONS"',
             'Button refreshAll = button("Refresh")',
             'Button newFolder = button("New Folder")',
@@ -75,9 +75,10 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             'Button uploadQuick = primaryButton("Upload")',
             'Button downloadQuick = primaryButton("Download")',
             'Button more = button("More")',
+            'more.setOnClickListener(v -> showFilesMoreActions());',
             'card("TRANSFER QUEUE"',
             'filesTransferStatus = label("No active transfer."',
-            'openQueue.setOnClickListener(v -> showSection(Section.TRANSFERS));',
+            'transferCard.setOnClickListener(v -> showSection(Section.TRANSFERS));',
             "upload = uploadQuick;",
             "download = downloadQuick;",
         ):
@@ -85,6 +86,18 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
         self.assertNotIn("fake", files.lower())
         self.assertNotIn("demo", files.lower())
+        self.assertIn('card("LOCAL FILES", tabletLayout', activity)
+        self.assertIn('card("REMOTE FILES", tabletLayout', activity)
+        self.assertIn("if (tabletLayout) card.addView(navigationActions, matchWrap());", activity)
+        self.assertIn("private void showFilesMoreActions()", activity)
+        self.assertIn("private void showNewFolderTarget()", activity)
+        self.assertIn('labels.add("Choose local folder")', activity)
+        self.assertIn('labels.add("Connection info")', activity)
+        self.assertIn("actions.add(this::renameLocalSelected)", activity)
+        self.assertIn("actions.add(this::renameRemoteSelected)", activity)
+        self.assertIn("actions.add(this::chmodRemoteSelected)", activity)
+        self.assertIn("actions.add(this::openRemoteEditorSelected)", activity)
+        self.assertNotIn('more.setOnClickListener(v -> openNavigationDrawer())', files)
 
         refresh_start = activity.index("private void refreshFilesMasterSummary()")
         refresh_end = activity.index("private void styleNavigationButton(", refresh_start)
