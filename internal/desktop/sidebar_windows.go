@@ -9,14 +9,14 @@ import (
 
 const (
 	applicationSidebarX           = 14
-	applicationSidebarWidth       = 166
-	applicationContentLeft        = 204
-	applicationSidebarCardH       = 46
+	applicationSidebarWidth       = 208
+	applicationContentLeft        = 232
+	applicationSidebarCardH       = 50
 	applicationSidebarCardGap     = 8
 	applicationSidebarUtilityH    = 38
 	applicationSidebarUtilityGap  = 7
-	applicationSidebarPrimaryTop  = 64
-	applicationSidebarBrandIcon   = 32
+	applicationSidebarPrimaryTop  = 72
+	applicationSidebarBrandIcon   = 38
 	applicationSidebarBrandGap    = 8
 	applicationSidebarBottomInset = 14
 )
