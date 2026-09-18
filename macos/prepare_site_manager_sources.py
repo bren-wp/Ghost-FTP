@@ -192,6 +192,22 @@ def integrate_main(text: str) -> str:
         brand.font = .systemFont(ofSize: 20, weight: .bold)
         brand.textColor = Palette.text
 
+        let brandIcon = NSImageView()
+        if let iconPath = Bundle.main.path(forResource: "GhostFTP", ofType: "icns"),
+           let icon = NSImage(contentsOfFile: iconPath) {
+            brandIcon.image = icon
+        } else {
+            brandIcon.image = NSApp.applicationIconImage
+        }
+        brandIcon.imageScaling = .scaleProportionallyUpOrDown
+        brandIcon.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        brandIcon.heightAnchor.constraint(equalToConstant: 32).isActive = true
+
+        let brandRow = NSStackView(views: [brandIcon, brand])
+        brandRow.orientation = .horizontal
+        brandRow.alignment = .centerY
+        brandRow.spacing = 8
+
         let platform = NSTextField(labelWithString: "macOS")
         platform.font = .systemFont(ofSize: 11, weight: .medium)
         platform.textColor = Palette.muted
@@ -219,7 +235,7 @@ def integrate_main(text: str) -> str:
 
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
-        let railStack = NSStackView(views: [brand, platform, primary, spacer, utility])
+        let railStack = NSStackView(views: [brandRow, platform, primary, spacer, utility])
         railStack.orientation = .vertical
         railStack.alignment = .leading
         railStack.spacing = 10
