@@ -7,12 +7,10 @@ const (
 	idSiteManager        = 701
 	idTransferQueueNav   = 702
 	idDiagnostics        = 703
-	idCheckUpdates       = 704
-	idPremiumDownload    = 705
-	idWorkspaceBack      = 706
-	idWorkspaceForward   = 707
-	idWorkspaceNewFolder = 708
-	idWorkspaceMore      = 709
+	idWorkspaceBack      = 704
+	idWorkspaceForward   = 705
+	idWorkspaceNewFolder = 706
+	idWorkspaceMore      = 707
 )
 
 // nativeMenuWords remains as a narrow compatibility shim for one localization
