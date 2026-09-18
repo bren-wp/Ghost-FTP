@@ -120,7 +120,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         self.assertNotIn("LATEST_ONLY_RELEASE_RETENTION=YES", verification)
         self.assertIn("exactly four packages", testing)
         self.assertIn("Ghost-FTP-0.0.8-Opera-Extension.zip", testing)
-        self.assertIn("17-file public release", testing)
+        self.assertIn("17 public release files", testing)
 
     def test_android_and_browser_boundaries_remain_truthful(self):
         version = self.read("VERSION").strip()
