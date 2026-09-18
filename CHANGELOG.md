@@ -26,8 +26,8 @@
 ### Release engineering and security
 
 - Advances root `VERSION` to **0.0.8** and keeps the Current channel with `ghostftp-v0.0.8`, `prerelease=false`.
-- Keeps the canonical public release at **13 platform artifacts / 16 public files**: 2 universal Windows executables, 6 universal Linux bundles, 1 production-signed Android APK, 4 browser-helper ZIPs and 3 verification/metadata files.
-- Preserves trusted Windows Authenticode as a required publication gate, protected Android signing plus exact certificate-fingerprint verification, strict FTPS verification, strict desktop SFTP host-key trust/pinning, fail-closed local/transfer boundaries and no application telemetry.
+- Publishes the 0.0.8 compatibility release as **14 platform artifacts / 17 public files**: 2 universal Windows executables, 6 universal Linux bundles, 1 installable Android APK, 1 universal macOS validation archive, 4 browser-helper ZIPs and 3 verification/metadata files.
+- Keeps the canonical protected-signing workflow fail-closed, while the user-selected 0.0.8 compatibility path explicitly publishes unsigned Windows binaries, a one-run compatibility-signed Android APK and an ad-hoc-signed/not-notarized macOS validation archive. Strict FTPS verification, strict desktop SFTP host-key trust/pinning, fail-closed local/transfer boundaries and no application telemetry remain unchanged.
 - Browser helpers retain zero browser/host permissions and the explicit sanitized Windows `ghostftp://connect` handoff; secrets, URL query data and fragments are excluded and the desktop never auto-connects.
 
 ## 0.0.7 - 2026-09-17
