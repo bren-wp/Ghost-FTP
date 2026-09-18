@@ -56,6 +56,7 @@ public final class MainActivity extends Activity {
         BOOKMARKS,
         TRANSFERS,
         SETTINGS,
+        CONNECTION_INFO,
         ABOUT
     }
 
@@ -89,6 +90,10 @@ public final class MainActivity extends Activity {
     private TextView transferStatus;
     private TextView sectionTitle;
     private TextView connectionBadge;
+    private TextView connectionInfoState;
+    private TextView connectionInfoProtocol;
+    private TextView connectionInfoSecurity;
+    private TextView connectionInfoTransfer;
     private ListView localList;
     private ListView remoteList;
     private Button connect;
@@ -135,6 +140,7 @@ public final class MainActivity extends Activity {
     private View bookmarksSurface;
     private View transfersSurface;
     private View settingsSurface;
+    private View connectionInfoSurface;
     private View aboutSurface;
     private boolean tabletLayout;
     private Section activeSection = Section.FILES;
@@ -325,12 +331,14 @@ public final class MainActivity extends Activity {
         bookmarksSurface = buildBookmarksSurface();
         transfersSurface = buildTransfersSurface();
         settingsSurface = buildSettingsSurface();
+        connectionInfoSurface = buildConnectionInfoSurface();
         aboutSurface = buildAboutSurface();
         addSurface(filesSurface);
         addSurface(sitesSurface);
         addSurface(bookmarksSurface);
         addSurface(transfersSurface);
         addSurface(settingsSurface);
+        addSurface(connectionInfoSurface);
         addSurface(aboutSurface);
         return main;
     }
@@ -353,10 +361,16 @@ public final class MainActivity extends Activity {
         navigation.addView(platform, matchWrap());
 
         navigation.addView(navButton("Files", R.drawable.ic_files, Section.FILES), navParams());
-        navigation.addView(navButton("Sites", R.drawable.ic_sites, Section.SITES), navParams());
-        navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
-        navigation.addView(navButton("Transfers", R.drawable.ic_transfers, Section.TRANSFERS), navParams());
+        navigation.addView(navButton("Connections", R.drawable.ic_sites, Section.SITES), navParams());
+        navigation.addView(navButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS), navParams());
         navigation.addView(navButton("Settings", R.drawable.ic_settings, Section.SETTINGS), navParams());
+
+        View utilitySpacer = new View(this);
+        navigation.addView(utilitySpacer, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
+        navigation.addView(navButton("Connection info", R.drawable.ic_sites, Section.CONNECTION_INFO), navParams());
         navigation.addView(navButton("About", R.drawable.ic_about, Section.ABOUT), navParams());
 
         TextView privacy = label("No telemetry · no ads · no Ghost FTP cloud", 10, GhostTheme.MUTED);
@@ -538,7 +552,7 @@ public final class MainActivity extends Activity {
 
     private View buildSitesSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Sites", "Connect quickly or save the server details you use often."));
+        content.addView(surfaceHeading("Connections", "Connect quickly or save the server details you use often."));
 
         LinearLayout connectionCard = card("QUICK CONNECT", "Passwords are never saved. FTP and secure FTPS are available on Android.");
         protocol = new Spinner(this);
@@ -566,11 +580,11 @@ public final class MainActivity extends Activity {
         disconnect.setOnClickListener(v -> disconnect());
         content.addView(connectionCard, cardParams());
 
-        LinearLayout savedCard = card("SAVED SITES", "Save only the connection details you choose. Passwords are never stored.");
+        LinearLayout savedCard = card("SAVED CONNECTIONS", "Save only the connection details you choose. Passwords are never stored.");
         siteSpinner = new Spinner(this);
         GhostTheme.styleSpinner(siteSpinner);
         savedCard.addView(siteSpinner, matchWrapSpaced());
-        profileName = field("Site name", false);
+        profileName = field("Connection name", false);
         savedCard.addView(profileName, matchWrapSpaced());
         LinearLayout actions = row();
         Button load = button("Load");
@@ -639,8 +653,8 @@ public final class MainActivity extends Activity {
 
     private View buildTransfersSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Transfers", "Follow the current transfer and cancel it while cancellation is still safe."));
-        LinearLayout card = card("ACTIVE TRANSFER", "Progress reflects the current file transfer.");
+        content.addView(surfaceHeading("Transfer Queue", "Follow the current transfer and cancel it while cancellation is still safe."));
+        LinearLayout card = card("CURRENT TRANSFER", "Progress reflects the current file transfer.");
         transferStatus = label("No active transfer.", 14, GhostTheme.MUTED);
         transferStatus.setPadding(dp(10), dp(12), dp(10), dp(12));
         transferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
@@ -715,6 +729,62 @@ public final class MainActivity extends Activity {
         return scrollSurface(content);
     }
 
+    private View buildConnectionInfoSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading(
+                "Connection info",
+                "Current protocol, connection state and transfer state without exposing credentials or server identity."));
+
+        LinearLayout card = card(
+                "CONNECTION",
+                "This view intentionally excludes host, username, password, private keys and saved server paths.");
+        connectionInfoState = infoLine("State", "Disconnected");
+        connectionInfoProtocol = infoLine("Protocol", "—");
+        connectionInfoSecurity = infoLine("Security", "No active connection");
+        connectionInfoTransfer = infoLine("Transfer Queue", "No active transfer.");
+        card.addView(connectionInfoState, matchWrapSpaced());
+        card.addView(connectionInfoProtocol, matchWrapSpaced());
+        card.addView(connectionInfoSecurity, matchWrapSpaced());
+        card.addView(connectionInfoTransfer, matchWrapSpaced());
+        card.addView(infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud"), matchWrapSpaced());
+        content.addView(card, cardParams());
+        return scrollSurface(content);
+    }
+
+    private void refreshConnectionInfoSurface() {
+        if (connectionInfoState == null || connectionInfoProtocol == null
+                || connectionInfoSecurity == null || connectionInfoTransfer == null) {
+            return;
+        }
+        boolean connected = session != null && session.isConnected();
+        String selectedProtocol = protocol != null && protocol.getSelectedItem() != null
+                ? protocol.getSelectedItem().toString()
+                : "—";
+
+        connectionInfoState.setText("State\n" + (connected ? "Connected" : "Disconnected"));
+        connectionInfoProtocol.setText("Protocol\n" + (connected ? selectedProtocol : "—"));
+
+        String security;
+        if (!connected) {
+            security = "No active connection";
+        } else if ("FTPS".equals(selectedProtocol)) {
+            security = "Certificate and hostname verification enabled";
+        } else {
+            security = "Unencrypted compatibility connection";
+        }
+        connectionInfoSecurity.setText("Security\n" + security);
+
+        String transfer;
+        if (transferFinalizing) {
+            transfer = "Finalizing current transfer";
+        } else if (transferActive) {
+            transfer = "Transfer active";
+        } else {
+            transfer = "No active transfer";
+        }
+        connectionInfoTransfer.setText("Transfer Queue\n" + transfer);
+    }
+
     private View buildAboutSurface() {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("About", "Version, supported protocols and privacy information."));
@@ -738,6 +808,7 @@ public final class MainActivity extends Activity {
         bookmarksSurface.setVisibility(section == Section.BOOKMARKS ? View.VISIBLE : View.GONE);
         transfersSurface.setVisibility(section == Section.TRANSFERS ? View.VISIBLE : View.GONE);
         settingsSurface.setVisibility(section == Section.SETTINGS ? View.VISIBLE : View.GONE);
+        connectionInfoSurface.setVisibility(section == Section.CONNECTION_INFO ? View.VISIBLE : View.GONE);
         aboutSurface.setVisibility(section == Section.ABOUT ? View.VISIBLE : View.GONE);
         sectionTitle.setText(sectionTitle(section));
         refreshNavigationSelection();
@@ -748,13 +819,15 @@ public final class MainActivity extends Activity {
     private String sectionTitle(Section section) {
         switch (section) {
             case SITES:
-                return "Sites";
+                return "Connections";
             case BOOKMARKS:
                 return "Bookmarks";
             case TRANSFERS:
-                return "Transfers";
+                return "Transfer Queue";
             case SETTINGS:
                 return "Settings";
+            case CONNECTION_INFO:
+                return "Connection info";
             case ABOUT:
                 return "About";
             case FILES:
@@ -2738,6 +2811,7 @@ public final class MainActivity extends Activity {
 
         updateConnectionBadge(connected);
         updateTransferSurface();
+        refreshConnectionInfoSurface();
         updateEnabledAlpha(connect, disconnect, upload, download,
                 localCreateDirectory, localRename, localDelete,
                 remoteCreateDirectory, remoteRename, remoteDelete, remoteChmod,
