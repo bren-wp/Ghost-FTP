@@ -4,13 +4,30 @@ import Foundation
 import GhostFTPEngine
 
 private enum Palette {
-    static let workspace = NSColor(rgb: 0xEEF1F5)
-    static let panel = NSColor(rgb: 0xF6F8FB)
-    static let list = NSColor(rgb: 0xFAFBFD)
-    static let text = NSColor(rgb: 0x111827)
-    static let muted = NSColor(rgb: 0x667085)
-    static let accent = NSColor(rgb: 0x2563EB)
-    static let border = NSColor(rgb: 0xD7DDE6)
+    static var isDark: Bool {
+        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+
+    private static func dynamic(_ dark: Int, _ light: Int) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let darkMode = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return NSColor(rgb: darkMode ? dark : light)
+        }
+    }
+
+    static var workspace: NSColor { NSColor(rgb: isDark ? 0x0B0F17 : 0xEEF1F5) }
+    static var panel: NSColor { NSColor(rgb: isDark ? 0x121824 : 0xF6F8FB) }
+    static var list: NSColor { NSColor(rgb: isDark ? 0x161D2A : 0xFAFBFD) }
+    static let text = dynamic(0xF2F5FA, 0x172033)
+    static let muted = dynamic(0x97A3B8, 0x667085)
+    static let accent = dynamic(0xF6C445, 0xA66500)
+    static let accentStrong = dynamic(0xFFD768, 0x875100)
+    static let onAccent = dynamic(0x16130B, 0xFAFBFD)
+    static var border: NSColor { NSColor(rgb: isDark ? 0x2C3648 : 0xD6DCE5) }
+    static var selection: NSColor { NSColor(rgb: isDark ? 0x2B2515 : 0xF5E7C7) }
+    static let success = dynamic(0x4AD79B, 0x1B7F4B)
+    static let warning = dynamic(0xF2BA55, 0x9A6700)
+    static let danger = dynamic(0xFF6878, 0xB42318)
 }
 
 private extension NSColor {
@@ -268,6 +285,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         connectButton.target = self
         connectButton.action = #selector(connectTapped)
         connectButton.bezelStyle = .rounded
+        connectButton.bezelColor = Palette.accent
+        connectButton.contentTintColor = Palette.onAccent
         connectButton.keyEquivalent = "\r"
         disconnectButton.target = self
         disconnectButton.action = #selector(disconnectTapped)
@@ -277,13 +296,19 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         transferQueueButton.action = #selector(transferQueueTapped)
 
         configureWorkspaceActions()
+        uploadButton.bezelColor = Palette.accent
+        uploadButton.contentTintColor = Palette.onAccent
+        downloadButton.bezelColor = Palette.accent
+        downloadButton.contentTintColor = Palette.onAccent
+        localDeleteButton.contentTintColor = Palette.danger
+        remoteDeleteButton.contentTintColor = Palette.danger
         configureTable(localTable, remote: false)
         configureTable(remoteTable, remote: true)
 
         let title = NSTextField(labelWithString: "Ghost FTP")
         title.font = .systemFont(ofSize: 25, weight: .bold)
         title.textColor = Palette.text
-        let subtitle = NSTextField(labelWithString: "Quick Connect")
+        let subtitle = NSTextField(labelWithString: "Connection")
         subtitle.font = .systemFont(ofSize: 13, weight: .medium)
         subtitle.textColor = Palette.muted
 

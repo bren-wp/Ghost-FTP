@@ -333,7 +333,7 @@ final class SettingsWindowController: NSWindowController {
 
     private func buildUI() {
         guard let content = window?.contentView else { return }
-        appearancePopup.addItems(withTitles: ["Classic Light", "Dark"])
+        appearancePopup.addItems(withTitles: ["Dark", "Light"])
         conflictPopup.addItems(withTitles: ["Skip existing", "Replace", "Replace + Backup"])
         for field in [parallelismField, uploadLimitField, downloadLimitField, connectionTimeoutField, autoRetryField, retryDelayField] {
             field.alignment = .right
@@ -409,7 +409,7 @@ final class SettingsWindowController: NSWindowController {
         if let index = languages.firstIndex(where: { $0.code == language }) {
             languagePopup.selectItem(at: index)
         }
-        appearancePopup.selectItem(at: applicationBridgeString(GhostFTPSettingsAppearance()) == "dark" ? 1 : 0)
+        appearancePopup.selectItem(at: applicationBridgeString(GhostFTPSettingsAppearance()) == "dark" ? 0 : 1)
         parallelismField.stringValue = String(GhostFTPSettingsParallelism())
         uploadLimitField.stringValue = String(GhostFTPSettingsUploadLimit())
         downloadLimitField.stringValue = String(GhostFTPSettingsDownloadLimit())
@@ -446,7 +446,7 @@ final class SettingsWindowController: NSWindowController {
               let retryDelay = validatedInteger(retryDelayField, name: "Retry delay", minimum: 1, maximum: 30) else { return }
 
         let language = languages[languagePopup.indexOfSelectedItem].code
-        let appearance = appearancePopup.indexOfSelectedItem == 1 ? "dark" : "light"
+        let appearance = appearancePopup.indexOfSelectedItem == 0 ? "dark" : "light"
         let conflict: String
         switch conflictPopup.indexOfSelectedItem {
         case 0: conflict = "skip"

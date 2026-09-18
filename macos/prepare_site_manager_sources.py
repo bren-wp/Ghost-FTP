@@ -13,33 +13,6 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 def integrate_main(text: str) -> str:
     text = replace_once(
         text,
-        '''private enum Palette {
-    static let workspace = NSColor(rgb: 0xEEF1F5)
-    static let panel = NSColor(rgb: 0xF6F8FB)
-    static let list = NSColor(rgb: 0xFAFBFD)
-    static let text = NSColor(rgb: 0x111827)
-    static let muted = NSColor(rgb: 0x667085)
-    static let accent = NSColor(rgb: 0x2563EB)
-    static let border = NSColor(rgb: 0xD7DDE6)
-}
-''',
-        '''private enum Palette {
-    static var isDark: Bool {
-        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    }
-    static var workspace: NSColor { NSColor(rgb: isDark ? 0x0B0F17 : 0xEEF1F5) }
-    static var panel: NSColor { NSColor(rgb: isDark ? 0x121824 : 0xF6F8FB) }
-    static var list: NSColor { NSColor(rgb: isDark ? 0x161D2A : 0xFAFBFD) }
-    static let text = NSColor.labelColor
-    static let muted = NSColor.secondaryLabelColor
-    static let accent = NSColor.controlAccentColor
-    static var border: NSColor { NSColor(rgb: isDark ? 0x273244 : 0xD7DDE6) }
-}
-''',
-        "dynamic-palette",
-    )
-    text = replace_once(
-        text,
         "    private var transferQueueController: TransferQueueWindowController?\n",
         "    private var transferQueueController: TransferQueueWindowController?\n"
         "    private var siteManagerController: SiteManagerWindowController?\n"
@@ -52,12 +25,13 @@ def integrate_main(text: str) -> str:
     text = replace_once(
         text,
         '    private let transferQueueButton = NSButton(title: "Transfers", target: nil, action: nil)\n',
-        '    private let transferQueueButton = NSButton(title: "Transfers", target: nil, action: nil)\n'
-        '    private let siteManagerButton = NSButton(title: "Site Manager", target: nil, action: nil)\n'
+        '    private let filesNavButton = NSButton(title: "Files", target: nil, action: nil)\n'
+        '    private let transferQueueButton = NSButton(title: "Transfer Queue", target: nil, action: nil)\n'
+        '    private let siteManagerButton = NSButton(title: "Connections", target: nil, action: nil)\n'
         '    private let bookmarksButton = NSButton(title: "Bookmarks", target: nil, action: nil)\n'
         '    private let settingsButton = NSButton(title: "Settings", target: nil, action: nil)\n'
         '    private let aboutButton = NSButton(title: "About", target: nil, action: nil)\n'
-        '    private let diagnosticsButton = NSButton(title: "Diagnostics", target: nil, action: nil)\n',
+        '    private let diagnosticsButton = NSButton(title: "Connection info", target: nil, action: nil)\n',
         "main-button-properties",
     )
     text = replace_once(
@@ -113,6 +87,8 @@ def integrate_main(text: str) -> str:
         text,
         "        transferQueueButton.target = self\n"
         "        transferQueueButton.action = #selector(transferQueueTapped)\n",
+        "        filesNavButton.target = self\n"
+        "        filesNavButton.action = #selector(filesNavigationTapped)\n"
         "        transferQueueButton.target = self\n"
         "        transferQueueButton.action = #selector(transferQueueTapped)\n"
         "        siteManagerButton.target = self\n"
@@ -136,23 +112,137 @@ def integrate_main(text: str) -> str:
         "        statusLabel.textColor = Palette.muted\n"
         "        statusLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\n\n"
         "        let connectionStack = NSStackView(views: [heading, form, rememberFingerprint, buttonRow])\n",
-        "        let buttonRow = NSStackView(views: [connectButton, disconnectButton, siteManagerButton, bookmarksButton, settingsButton, statusLabel])\n"
+        "        let buttonRow = NSStackView(views: [connectButton, disconnectButton, directoryCompareButton, statusLabel])\n"
         "        buttonRow.orientation = .horizontal\n"
         "        buttonRow.alignment = .centerY\n"
         "        buttonRow.spacing = 10\n"
-        "        let toolsRow = NSStackView(views: [directoryCompareButton, transferQueueButton, diagnosticsButton, aboutButton])\n"
-        "        toolsRow.orientation = .horizontal\n"
-        "        toolsRow.alignment = .centerY\n"
-        "        toolsRow.spacing = 10\n"
         "        statusLabel.textColor = Palette.muted\n"
         "        statusLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\n\n"
-        "        let connectionStack = NSStackView(views: [heading, form, rememberFingerprint, buttonRow, toolsRow])\n",
+        "        let connectionStack = NSStackView(views: [heading, form, rememberFingerprint, buttonRow])\n",
         "main-button-rows",
+    )
+    text = replace_once(
+        text,
+        "        let workspace = makeWorkspace()\n"
+        "        let root = NSStackView(views: [connectionStack, workspace])\n"
+        "        root.orientation = .vertical\n"
+        "        root.spacing = 14\n"
+        "        root.edgeInsets = NSEdgeInsets(top: 18, left: 18, bottom: 18, right: 18)\n"
+        "        root.translatesAutoresizingMaskIntoConstraints = false\n"
+        "        window.contentView?.addSubview(root)\n"
+        "        guard let content = window.contentView else { return }\n"
+        "        NSLayoutConstraint.activate([\n"
+        "            root.leadingAnchor.constraint(equalTo: content.leadingAnchor),\n"
+        "            root.trailingAnchor.constraint(equalTo: content.trailingAnchor),\n"
+        "            root.topAnchor.constraint(equalTo: content.topAnchor),\n"
+        "            root.bottomAnchor.constraint(equalTo: content.bottomAnchor),\n"
+        "            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 380),\n"
+        "            connectionStack.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -36)\n"
+        "        ])\n",
+        "        let workspace = makeWorkspace()\n"
+        "        let navigationRail = makeMasterNavigationRail()\n"
+        "        let mainColumn = NSStackView(views: [connectionStack, workspace])\n"
+        "        mainColumn.orientation = .vertical\n"
+        "        mainColumn.spacing = 12\n"
+        "        mainColumn.alignment = .leading\n"
+        "        let root = NSStackView(views: [navigationRail, mainColumn])\n"
+        "        root.orientation = .horizontal\n"
+        "        root.alignment = .top\n"
+        "        root.spacing = 14\n"
+        "        root.edgeInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)\n"
+        "        root.translatesAutoresizingMaskIntoConstraints = false\n"
+        "        window.contentView?.addSubview(root)\n"
+        "        guard let content = window.contentView else { return }\n"
+        "        NSLayoutConstraint.activate([\n"
+        "            root.leadingAnchor.constraint(equalTo: content.leadingAnchor),\n"
+        "            root.trailingAnchor.constraint(equalTo: content.trailingAnchor),\n"
+        "            root.topAnchor.constraint(equalTo: content.topAnchor),\n"
+        "            root.bottomAnchor.constraint(equalTo: content.bottomAnchor),\n"
+        "            navigationRail.widthAnchor.constraint(equalToConstant: 188),\n"
+        "            navigationRail.heightAnchor.constraint(equalTo: root.heightAnchor, constant: -28),\n"
+        "            mainColumn.heightAnchor.constraint(equalTo: root.heightAnchor, constant: -28),\n"
+        "            connectionStack.widthAnchor.constraint(equalTo: mainColumn.widthAnchor),\n"
+        "            workspace.widthAnchor.constraint(equalTo: mainColumn.widthAnchor),\n"
+        "            workspace.heightAnchor.constraint(greaterThanOrEqualToConstant: 380)\n"
+        "        ])\n",
+        "main-master-rail-layout",
     )
     text = replace_once(
         text,
         "\n\n    private func startTransferQueuePolling() {\n",
         '''
+
+    private func styleMasterRailButton(_ button: NSButton, active: Bool) {
+        button.isBordered = false
+        button.font = .systemFont(ofSize: 13, weight: active ? .semibold : .medium)
+        button.alignment = .left
+        button.contentTintColor = active ? Palette.accentStrong : Palette.text
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 8
+        button.layer?.borderWidth = active ? 1 : 0
+        button.layer?.borderColor = active ? Palette.accent.cgColor : NSColor.clear.cgColor
+        button.layer?.backgroundColor = active ? Palette.selection.cgColor : NSColor.clear.cgColor
+    }
+
+    private func makeMasterNavigationRail() -> NSView {
+        let brand = NSTextField(labelWithString: "Ghost FTP")
+        brand.font = .systemFont(ofSize: 20, weight: .bold)
+        brand.textColor = Palette.text
+
+        let platform = NSTextField(labelWithString: "macOS")
+        platform.font = .systemFont(ofSize: 11, weight: .medium)
+        platform.textColor = Palette.muted
+
+        for button in [filesNavButton, siteManagerButton, transferQueueButton, settingsButton, bookmarksButton, diagnosticsButton, aboutButton] {
+            styleMasterRailButton(button, active: button === filesNavButton)
+            button.heightAnchor.constraint(equalToConstant: 38).isActive = true
+        }
+
+        let primary = NSStackView(views: [filesNavButton, siteManagerButton, transferQueueButton, settingsButton])
+        primary.orientation = .vertical
+        primary.alignment = .leading
+        primary.spacing = 6
+
+        let utility = NSStackView(views: [bookmarksButton, diagnosticsButton, aboutButton])
+        utility.orientation = .vertical
+        utility.alignment = .leading
+        utility.spacing = 6
+
+        for stack in [primary, utility] {
+            for view in stack.views {
+                view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            }
+        }
+
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
+        let railStack = NSStackView(views: [brand, platform, primary, spacer, utility])
+        railStack.orientation = .vertical
+        railStack.alignment = .leading
+        railStack.spacing = 10
+        railStack.edgeInsets = NSEdgeInsets(top: 18, left: 14, bottom: 14, right: 14)
+        railStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let rail = NSView()
+        rail.wantsLayer = true
+        rail.layer?.backgroundColor = Palette.panel.cgColor
+        rail.layer?.cornerRadius = 12
+        rail.layer?.borderWidth = 1
+        rail.layer?.borderColor = Palette.border.cgColor
+        rail.addSubview(railStack)
+        NSLayoutConstraint.activate([
+            railStack.leadingAnchor.constraint(equalTo: rail.leadingAnchor),
+            railStack.trailingAnchor.constraint(equalTo: rail.trailingAnchor),
+            railStack.topAnchor.constraint(equalTo: rail.topAnchor),
+            railStack.bottomAnchor.constraint(equalTo: rail.bottomAnchor)
+        ])
+        return rail
+    }
+
+    @objc private func filesNavigationTapped() {
+        window?.makeKeyAndOrderFront(nil)
+        window?.makeFirstResponder(localTable)
+    }
 
     @objc private func siteManagerTapped() {
         guard engineReady, !connectionBusy else { return }
@@ -292,6 +382,10 @@ def integrate_main(text: str) -> str:
             for child in view.subviews { visit(child) }
         }
         visit(content)
+        styleMasterRailButton(filesNavButton, active: true)
+        for button in [siteManagerButton, transferQueueButton, settingsButton, bookmarksButton, diagnosticsButton, aboutButton] {
+            styleMasterRailButton(button, active: false)
+        }
         content.needsDisplay = true
     }
 
@@ -330,6 +424,20 @@ def integrate_main(text: str) -> str:
         "        diagnosticsButton.isEnabled = engineReady\n"
         "        transferQueueButton.isEnabled = engineReady && !connectionBusy\n",
         "main-control-state",
+    )
+    text = replace_once(
+        text,
+        "        transferQueueEntries = entries\n"
+        "        transferQueuePaused = paused\n"
+        "        transferQueueController?.apply(\n",
+        "        transferQueueEntries = entries\n"
+        "        let actionableCount = entries.filter { entry in\n"
+        "            entry.status == \"queued\" || entry.status == \"running\" || entry.status == \"failed\" || entry.status == \"cancelled\"\n"
+        "        }.count\n"
+        "        transferQueueButton.title = actionableCount > 0 ? \"Transfer Queue (\\(min(actionableCount, 99)))\" : \"Transfer Queue\"\n"
+        "        transferQueuePaused = paused\n"
+        "        transferQueueController?.apply(\n",
+        "main-transfer-queue-badge",
     )
     text = replace_once(
         text,

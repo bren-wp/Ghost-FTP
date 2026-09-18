@@ -89,7 +89,7 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             "Conflict policy",
             "Confirm delete",
             "Dark",
-            "Classic Light",
+            "Light",
         ):
             self.assertIn(marker, source)
 
@@ -123,7 +123,7 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             'NSButton(title: "Bookmarks"',
             'NSButton(title: "Settings"',
             'NSButton(title: "About"',
-            'NSButton(title: "Diagnostics"',
+            'NSButton(title: "Connection info"',
             "bookmarkNavigationApplied",
             "settingsAppearanceChanged",
         ):
@@ -136,7 +136,7 @@ class MacOSApplicationParityContractTests(unittest.TestCase):
             'grep -F \'NSButton(title: "Bookmarks"\'',
             'grep -F \'NSButton(title: "Settings"\'',
             'grep -F \'NSButton(title: "About"\'',
-            'grep -F \'NSButton(title: "Diagnostics"\'',
+            'grep -F \'NSButton(title: "Connection info"\'',
             "main.productVersion=${VERSION}",
         ):
             self.assertIn(marker, build)

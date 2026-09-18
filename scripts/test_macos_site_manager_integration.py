@@ -31,7 +31,12 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
             site_text = output_site.read_text(encoding="utf-8")
 
         for marker in (
-            'NSButton(title: "Site Manager"',
+            'NSButton(title: "Files"',
+            'NSButton(title: "Connections"',
+            'NSButton(title: "Transfer Queue"',
+            'NSButton(title: "Connection info"',
+            "makeMasterNavigationRail()",
+            "filesNavigationTapped()",
             "#selector(siteManagerTapped)",
             "SiteManagerWindowController()",
             "controller.onConnected = { [weak self] protocolName, remoteStart, localStart in",
@@ -57,10 +62,33 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
             'GENERATED_SOURCE="$GENERATED_SOURCE_DIR/main.swift"',
             'GENERATED_SITE_MANAGER_SOURCE="$GENERATED_SOURCE_DIR/SiteManager.swift"',
             'python3 "$PREPARE_SITE_MANAGER_SOURCES"',
-            'grep -F \'NSButton(title: "Site Manager"\' "$GENERATED_SOURCE"',
+            'grep -F \'NSButton(title: "Files"\' "$GENERATED_SOURCE"',
+            'grep -F \'NSButton(title: "Connections"\' "$GENERATED_SOURCE"',
+            'grep -F \'makeMasterNavigationRail()\' "$GENERATED_SOURCE"',
             '"$GENERATED_SOURCE" "$GENERATED_SITE_MANAGER_SOURCE"',
         ):
             self.assertIn(marker, build)
+
+    def test_native_source_uses_explicit_dark_gold_product_palette(self) -> None:
+        main = (ROOT / "macos" / "Sources" / "GhostFTPApp" / "main.swift").read_text(encoding="utf-8")
+        for marker in (
+            "0x0B0F17",
+            "0x121824",
+            "0x161D2A",
+            "0xF6C445",
+            "0xFFD768",
+            "0x2B2515",
+            "0x4AD79B",
+            "0xFF6878",
+        ):
+            self.assertIn(marker, main)
+        self.assertNotIn("NSColor.controlAccentColor", main)
+
+    def test_macos_settings_present_dark_before_light(self) -> None:
+        windows = (ROOT / "macos" / "Sources" / "GhostFTPApp" / "ApplicationWindows.swift").read_text(encoding="utf-8")
+        self.assertIn('appearancePopup.addItems(withTitles: ["Dark", "Light"])', windows)
+        self.assertIn('GhostFTPSettingsAppearance()) == "dark" ? 0 : 1', windows)
+        self.assertIn('appearancePopup.indexOfSelectedItem == 0 ? "dark" : "light"', windows)
 
     def test_saved_ftp_runtime_secret_uses_darwin_broker_and_session_ownership(self) -> None:
         runtime_other = (ROOT / "internal" / "security" / "runtime_secret_other.go").read_text(encoding="utf-8")
