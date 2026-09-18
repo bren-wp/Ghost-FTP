@@ -60,6 +60,7 @@ ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
 WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 WINDOWS_AUTHENTICODE=signed
 LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386
 LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386
@@ -87,6 +88,8 @@ For the actual no-secret 0.0.8 release, the corresponding trust boundaries are:
 
 ```text
 WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
 ANDROID_APK=temporary-compatibility-certificate
 ANDROID_SIGNER_SHA256=<verified temporary compatibility certificate fingerprint>
 MACOS_SIGNING=ad-hoc-not-notarized
