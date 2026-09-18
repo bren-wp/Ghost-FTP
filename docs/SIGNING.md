@@ -94,7 +94,7 @@ Linux artifacts do not use Authenticode, Android signing or Apple Developer ID. 
 
 ## Browser helper distribution boundary
 
-The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Their presence in the 0.0.8 GitHub Release does not claim Chrome Web Store/Edge Add-ons/Firefox AMO signing or approval. They remain privacy-minimal local parser/copy helpers with no supported browser-to-desktop handoff.
+The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Their presence in the 0.0.8 GitHub Release does not claim Chrome Web Store/Edge Add-ons/Firefox AMO signing or approval. They remain privacy-minimal local helpers. On supported Windows installs, the explicit **Open in Ghost FTP** action uses the sanitized `ghostftp://connect` handoff and never carries credentials or auto-connects.
 
 ## macOS development signing
 
