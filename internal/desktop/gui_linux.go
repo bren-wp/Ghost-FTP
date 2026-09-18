@@ -43,6 +43,7 @@ const (
 	linuxActionLocalRefresh
 	linuxActionRemoteRefresh
 	linuxActionTransfer
+	linuxActionUpdateCheck
 )
 
 type linuxRect struct {
@@ -191,6 +192,9 @@ type linuxUIResult struct {
 	localBase     string
 	localItems    []model.Item
 	remoteItems   []model.Item
+	updateLatest  string
+	updateURL     string
+	updateAvailable bool
 }
 
 type linuxDesktop struct {
@@ -240,6 +244,8 @@ type linuxDesktop struct {
 	settingsDraft      model.Settings
 	settingsRects      linuxSettingsRects
 	infoOverlay        linuxInfoOverlayKind
+	pendingUpdateURL   string
+	pendingUpdateVersion string
 
 	resultCh chan linuxUIResult
 }
@@ -1041,6 +1047,9 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 	u.busy = false
 	u.action = linuxActionNone
 	if u.handleRemoteEditResult(result) {
+		return
+	}
+	if u.handleLinuxUpdateResult(result) {
 		return
 	}
 	if result.err != nil {
