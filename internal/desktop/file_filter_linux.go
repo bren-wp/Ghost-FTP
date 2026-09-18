@@ -62,9 +62,14 @@ func (u *linuxDesktop) fileFilterListRect(remote bool) linuxRect {
 	if remote {
 		base = u.layout.remoteList
 	}
-	base.top += 34
-	if base.top > base.bottom {
-		base.top = base.bottom
+	// The master Files workspace gives the ordinary directory list the full pane.
+	// Reserve the compact control row only while recursive search or directory
+	// comparison is actively replacing the normal list with modal results.
+	if u.directoryComparisonActiveLinux() || u.recursiveSearchActive(remote) {
+		base.top += 34
+		if base.top > base.bottom {
+			base.top = base.bottom
+		}
 	}
 	return base
 }
@@ -152,15 +157,9 @@ func (u *linuxDesktop) redrawLinuxEditableFields() error {
 }
 
 func (u *linuxDesktop) renderFileFilterControls() error {
-	// Bookmarks are application-level navigation, so keep their header entry
-	// visible even when recursive search or directory comparison temporarily owns
-	// the file-filter row below.
-	if err := u.renderBookmarksHeaderButton(); err != nil {
-		return err
-	}
 	// Empty linuxUIResult notifications are used only to wake the established UI
 	// loop after recursive-search or comparison work. Reconcile on the UI
-	// goroutine before ordinary row-indexed controls are painted.
+	// goroutine before the modal controls are painted.
 	u.reconcileRecursiveSearchState()
 	u.reconcileDirectoryComparisonLinux()
 	comparisonActive := u.directoryComparisonActiveLinux()
@@ -180,56 +179,25 @@ func (u *linuxDesktop) renderFileFilterControls() error {
 	if comparisonActive {
 		return u.renderDirectoryComparisonControlsLinux()
 	}
-	for _, remote := range []bool{false, true} {
-		if u.recursiveSearchActive(remote) {
-			if err := u.renderRecursiveSearchControls(remote); err != nil {
-				return err
+	if searchActive {
+		for _, remote := range []bool{false, true} {
+			if u.recursiveSearchActive(remote) {
+				return u.renderRecursiveSearchControls(remote)
 			}
-			continue
-		}
-		filterEnabled := !u.busy && (!remote || u.connected)
-		if err := u.drawButton(u.fileFilterPromptControlRect(remote), u.fileFilterLabel(remote), filterEnabled, false); err != nil {
-			return err
-		}
-		if err := u.drawButton(u.fileSortControlRect(remote), u.linuxFileSortLabel(remote), filterEnabled, false); err != nil {
-			return err
-		}
-		if err := u.renderRecursiveSearchButton(remote); err != nil {
-			return err
 		}
 	}
-	return u.renderDirectoryComparisonButtonLinux()
+	// Filter, sort, recursive-search and comparison entry points are available
+	// from the master More menu. Keep the normal Files surface visually 1:1
+	// with the supplied reference instead of exposing permanent technical rows.
+	return nil
 }
 
 func (u *linuxDesktop) handleFileFilterMouse(x, y int) bool {
-	if u.handleBookmarksHeaderMouse(x, y) {
-		return true
+	if u.directoryComparisonActiveLinux() {
+		return u.handleDirectoryComparisonMouseLinux(x, y)
 	}
-	if u.handleDirectoryComparisonMouseLinux(x, y) {
-		return true
-	}
-	if u.handleRecursiveSearchMouse(x, y) {
-		return true
-	}
-	if u.fileSortControlRect(false).contains(x, y) {
-		u.cycleLinuxFileSort(false)
-		return true
-	}
-	if u.fileFilterPromptControlRect(false).contains(x, y) {
-		if !u.busy {
-			u.openFileFilterPrompt(false)
-		}
-		return true
-	}
-	if u.fileSortControlRect(true).contains(x, y) {
-		u.cycleLinuxFileSort(true)
-		return true
-	}
-	if u.fileFilterPromptControlRect(true).contains(x, y) {
-		if u.connected && !u.busy {
-			u.openFileFilterPrompt(true)
-		}
-		return true
+	if u.recursiveSearchActive(false) || u.recursiveSearchActive(true) {
+		return u.handleRecursiveSearchMouse(x, y)
 	}
 	return false
 }

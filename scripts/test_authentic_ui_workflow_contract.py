@@ -197,17 +197,23 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn("two consecutive native-window", capture)
 
     def test_linux_bookmarks_and_settings_evidence_is_user_reachable_and_distinct(self) -> None:
-        gui = read("internal/desktop/gui_linux.go")
+        master = read("internal/desktop/linux_master_rail.go")
         capture = read("scripts/capture_linux_screenshots.sh")
-        self.assertIn("u.renderBookmarksHeaderButton()", gui)
-        self.assertIn("u.handleBookmarksHeaderMouse(x, y)", gui)
-        self.assertIn("open_distinct_overlay 'Bookmarks'", capture)
-        self.assertIn("open_distinct_overlay 'Settings'", capture)
-        self.assertIn("open_distinct_overlay 'Connection info'", capture)
-        self.assertIn("open_distinct_overlay 'About'", capture)
+        self.assertIn('case layout.bookmarks.contains(x, y):', master)
+        self.assertIn('u.openLinuxBookmarks("")', master)
+        self.assertIn('case layout.more.contains(x, y):', master)
+        self.assertIn("u.openLinuxInfoOverlay(linuxInfoOverlayMore)", master)
+        for label in ("Bookmarks", "Settings", "More", "Connection info", "About"):
+            self.assertIn(f"click_client '{label}'", capture)
+        for label in ("Bookmarks", "Settings", "More", "Connection info", "About"):
+            self.assertIn(f"capture_distinct_from_main '{label}'", capture)
         self.assertIn('! cmp -s "$main_png" "$output"', capture)
-        self.assertIn('overlay_pngs=("$bookmarks_png" "$settings_png" "$connection_info_png" "$about_png")', capture)
+        self.assertIn(
+            'overlay_pngs=("$bookmarks_png" "$settings_png" "$more_png" "$connection_info_png" "$about_png")',
+            capture,
+        )
         self.assertIn('cmp -s "${overlay_pngs[$i]}" "${overlay_pngs[$j]}"', capture)
+
 
     def test_workflow_avoids_yaml_sensitive_embedded_heredocs(self) -> None:
         workflow = read(".github/workflows/ui-screenshots.yml")

@@ -161,9 +161,10 @@ cmp -s "$stable_a" "$stable_b" || {
 cp "$stable_b" "$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 
 read_window_geometry
-# The master Linux workspace moved application-level actions into the same
-# fixed left rail contract used by the Windows redesign. Keep evidence clicks
-# derived from that public geometry instead of stale top-right header offsets.
+# The master Linux workspace keeps only Files / Connections / Transfer Queue /
+# Settings in the rail. Bookmarks is in the Files toolbar; Connection info and
+# About are real actions inside More. Derive evidence clicks from those public
+# master-layout contracts so screenshot validation follows the shipping UI.
 rail_x=14
 rail_width=166
 rail_center_x=$((rail_x + rail_width / 2))
@@ -172,67 +173,106 @@ primary_height=46
 primary_gap=8
 settings_client_x=$rail_center_x
 settings_client_y=$((primary_top + 3 * (primary_height + primary_gap) + primary_height / 2))
-rail_bottom_inset=42
-utility_height=$((3 * 38 + 2 * 7))
-utility_top=$((window_height - rail_bottom_inset - utility_height))
-bookmarks_client_x=$rail_center_x
-bookmarks_client_y=$((utility_top + 38 / 2))
-connection_info_client_x=$rail_center_x
-connection_info_client_y=$((utility_top + 38 + 7 + 38 / 2))
-about_client_x=$rail_center_x
-about_client_y=$((utility_top + 2 * (38 + 7) + 38 / 2))
+
+content_left=$((204 + 10))
+content_right=$((window_width - 14))
+content_width=$((content_right - content_left))
+toolbar_gap=7
+toolbar_button_w=$(((content_width - 7 * toolbar_gap) / 8))
+toolbar_y=124
+bookmarks_client_x=$((content_left + 6 * (toolbar_button_w + toolbar_gap) + toolbar_button_w / 2))
+bookmarks_client_y=$((toolbar_y + 19))
+more_client_x=$((content_left + 7 * (toolbar_button_w + toolbar_gap) + toolbar_button_w / 2))
+more_client_y=$((toolbar_y + 19))
+
+more_panel_width=760
+if (( window_width - 80 < more_panel_width )); then
+  more_panel_width=$((window_width - 80))
+fi
+if (( more_panel_width < 620 )); then
+  more_panel_width=620
+fi
+more_panel_height=500
+if (( window_height - 80 < more_panel_height )); then
+  more_panel_height=$((window_height - 80))
+fi
+if (( more_panel_height < 430 )); then
+  more_panel_height=430
+fi
+more_panel_left=$(((window_width - more_panel_width) / 2))
+more_panel_top=$(((window_height - more_panel_height) / 2))
+more_column_gap=10
+more_button_gap=8
+more_button_h=34
+more_button_w=$(((more_panel_width - 40 - more_column_gap) / 2))
+more_start_y=$((more_panel_top + 66))
+# Action 13 = Connection info (row 6, right column), action 14 = About (row 7, left).
+connection_info_client_x=$((more_panel_left + 20 + more_button_w + more_column_gap + more_button_w / 2))
+connection_info_client_y=$((more_start_y + 6 * (more_button_h + more_button_gap) + more_button_h / 2))
+about_client_x=$((more_panel_left + 20 + more_button_w / 2))
+about_client_y=$((more_start_y + 7 * (more_button_h + more_button_gap) + more_button_h / 2))
 
 main_png="$OUTPUT_DIR/ghost-ftp-linux-main-workspace.png"
 bookmarks_png="$OUTPUT_DIR/ghost-ftp-linux-bookmarks.png"
 settings_png="$OUTPUT_DIR/ghost-ftp-linux-settings.png"
+more_png="$OUTPUT_DIR/ghost-ftp-linux-more.png"
 connection_info_png="$OUTPUT_DIR/ghost-ftp-linux-connection-info.png"
 about_png="$OUTPUT_DIR/ghost-ftp-linux-about.png"
 
-open_distinct_overlay() {
+click_client() {
   local label="$1"
   local client_x="$2"
   local client_y="$3"
-  local output="$4"
   local root_x=$((window_x + client_x))
   local root_y=$((window_y + client_y))
-
   printf 'LINUX_UI_CLICK=%s CLIENT=%s,%s ROOT=%s,%s\n' \
     "$label" "$client_x" "$client_y" "$root_x" "$root_y"
+  xdotool windowfocus "$win" >/dev/null 2>&1 || true
+  xdotool mousemove "$root_x" "$root_y"
+  xdotool click 1
+  sleep 0.4
+}
 
+capture_distinct_from_main() {
+  local label="$1"
+  local output="$2"
   for _ in $(seq 1 20); do
-    xdotool windowfocus "$win" >/dev/null 2>&1 || true
-    xdotool mousemove "$root_x" "$root_y"
-    xdotool click 1
-    sleep 0.3
     import -window "$win" "$output"
     if [[ -s "$output" ]] && ! cmp -s "$main_png" "$output"; then
       return 0
     fi
     sleep 0.25
   done
-
   cat "$app_log" >&2 || true
-  echo "$label evidence is identical to the main workspace; the real overlay did not open." >&2
+  echo "$label evidence is identical to the main workspace; the real surface did not open." >&2
   return 1
 }
 
-open_distinct_overlay 'Bookmarks' "$bookmarks_client_x" "$bookmarks_client_y" "$bookmarks_png"
+click_client 'Bookmarks' "$bookmarks_client_x" "$bookmarks_client_y"
+capture_distinct_from_main 'Bookmarks' "$bookmarks_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
-open_distinct_overlay 'Settings' "$settings_client_x" "$settings_client_y" "$settings_png"
+click_client 'Settings' "$settings_client_x" "$settings_client_y"
+capture_distinct_from_main 'Settings' "$settings_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
-open_distinct_overlay 'Connection info' "$connection_info_client_x" "$connection_info_client_y" "$connection_info_png"
+click_client 'More' "$more_client_x" "$more_client_y"
+capture_distinct_from_main 'More' "$more_png"
+click_client 'Connection info' "$connection_info_client_x" "$connection_info_client_y"
+capture_distinct_from_main 'Connection info' "$connection_info_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
-open_distinct_overlay 'About' "$about_client_x" "$about_client_y" "$about_png"
+click_client 'More' "$more_client_x" "$more_client_y"
+capture_distinct_from_main 'More' "$more_png"
+click_client 'About' "$about_client_x" "$about_client_y"
+capture_distinct_from_main 'About' "$about_png"
 xdotool key --window "$win" Escape
 sleep 0.3
 
-overlay_pngs=("$bookmarks_png" "$settings_png" "$connection_info_png" "$about_png")
+overlay_pngs=("$bookmarks_png" "$settings_png" "$more_png" "$connection_info_png" "$about_png")
 for ((i = 0; i < ${#overlay_pngs[@]}; i++)); do
   for ((j = i + 1; j < ${#overlay_pngs[@]}; j++)); do
     if cmp -s "${overlay_pngs[$i]}" "${overlay_pngs[$j]}"; then

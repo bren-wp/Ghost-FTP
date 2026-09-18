@@ -548,6 +548,13 @@ func (u *linuxDesktop) renderQuickConnect() error {
 	return u.drawButton(u.layout.disconnect, u.tr("common.disconnect"), u.connected && !u.busy, false)
 }
 
+func linuxModifiedLabel(item model.Item) string {
+	if item.Modified.IsZero() {
+		return "—"
+	}
+	return item.Modified.Local().Format("2006-01-02 15:04")
+}
+
 func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected int) error {
 	rowH := 24
 	maxRows := (r.bottom - r.top - 26) / rowH
@@ -560,11 +567,31 @@ func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected 
 	if err := u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, premiumTheme.Border); err != nil {
 		return err
 	}
-	if err := u.x.text(r.left+8, r.top+17, strings.ToUpper(u.tr("column.name")), premiumTheme.Muted, premiumTheme.List); err != nil {
+	width := r.right - r.left
+	remote := r.left >= u.layout.remoteList.left
+	nameX := r.left + 8
+	sizeX := r.left + width*54/100
+	modifiedX := r.left + width*70/100
+	permissionsX := r.left + width*88/100
+	if remote {
+		sizeX = r.left + width*48/100
+		modifiedX = r.left + width*64/100
+		permissionsX = r.left + width*84/100
+	}
+	headerY := r.top + 17
+	if err := u.x.text(nameX, headerY, u.tr("column.name"), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
 	}
-	if err := u.x.text(r.right-112, r.top+17, strings.ToUpper(u.tr("column.size")), premiumTheme.Muted, premiumTheme.List); err != nil {
+	if err := u.x.text(sizeX, headerY, u.tr("column.size"), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
+	}
+	if err := u.x.text(modifiedX, headerY, u.tr("column.modified"), premiumTheme.Muted, premiumTheme.List); err != nil {
+		return err
+	}
+	if remote {
+		if err := u.x.text(permissionsX, headerY, u.tr("common.permissions"), premiumTheme.Muted, premiumTheme.List); err != nil {
+			return err
+		}
 	}
 	for i := 0; i < len(items) && i < maxRows; i++ {
 		item := items[i]
@@ -576,28 +603,48 @@ func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected 
 				return err
 			}
 		}
-		prefix := "FILE  "
+		iconX := nameX
 		if item.IsDirectory {
-			prefix = "DIR   "
-		} else if item.IsSymlink {
-			prefix = "LINK  "
+			if err := u.x.fillRect(iconX, y-11, 13, 9, premiumTheme.Accent); err != nil {
+				return err
+			}
+			if err := u.x.fillRect(iconX+2, y-14, 6, 3, premiumTheme.AccentStrong); err != nil {
+				return err
+			}
+		} else {
+			if err := u.x.strokeRect(iconX, y-14, 11, 13, premiumTheme.Muted); err != nil {
+				return err
+			}
 		}
-		if err := u.x.text(r.left+8, y, linuxTrimForUI(prefix+item.Name, max(12, (r.right-r.left-150)/7)), premiumTheme.Text, bg); err != nil {
+		nameWidth := max(10, (sizeX-(nameX+22)-8)/7)
+		if err := u.x.text(nameX+22, y, linuxTrimForUI(item.Name, nameWidth), premiumTheme.Text, bg); err != nil {
 			return err
 		}
 		size := linuxHumanSize(item.Size)
 		if item.IsDirectory {
-			size = "--"
+			size = "—"
 		}
-		if err := u.x.text(r.right-112, y, size, premiumTheme.Muted, bg); err != nil {
+		if err := u.x.text(sizeX, y, size, premiumTheme.Muted, bg); err != nil {
 			return err
+		}
+		if err := u.x.text(modifiedX, y, linuxModifiedLabel(item), premiumTheme.Muted, bg); err != nil {
+			return err
+		}
+		if remote {
+			permissions := strings.TrimSpace(item.Permissions)
+			if permissions == "" {
+				permissions = "—"
+			}
+			if err := u.x.text(permissionsX, y, linuxTrimForUI(permissions, 12), premiumTheme.Muted, bg); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
 func (u *linuxDesktop) renderWorkspace() error {
-	leftPanel := linuxRect{left: u.layout.localPath.left - 6, top: u.layout.localPath.top - 30, right: u.layout.localList.right + 6, bottom: u.layout.upload.bottom + 8}
+	leftPanel := linuxRect{left: u.layout.localPath.left - 6, top: u.layout.localPath.top - 30, right: u.layout.localList.right + 6, bottom: u.layout.localList.bottom + 8}
 	rightPanel := linuxRect{left: u.layout.remotePath.left - 6, top: leftPanel.top, right: u.layout.remoteList.right + 6, bottom: leftPanel.bottom}
 	if err := u.drawPanel(leftPanel); err != nil {
 		return err
@@ -605,49 +652,18 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.drawPanel(rightPanel); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.localPath.left+8, leftPanel.top+20, strings.ToUpper(u.tr("section.local")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	localTitle := u.tr("section.local")
+	remoteTitle := u.tr("section.remote")
+	if err := u.x.text(u.layout.localPath.left+8, leftPanel.top+20, localTitle, premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.remotePath.left, leftPanel.top+20, strings.ToUpper(u.tr("section.remote")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(u.layout.remotePath.left+8, leftPanel.top+20, remoteTitle, premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	if err := u.drawField(linuxFieldLocalPath, u.tr("column.local")); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.localUp, u.tr("common.up"), !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localRefresh, u.tr("common.refresh"), !u.busy, false); err != nil {
-		return err
-	}
 	if err := u.drawField(linuxFieldRemotePath, u.tr("column.remote")); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteUp, u.tr("common.up"), u.connected && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteRefresh, u.tr("common.refresh"), u.connected && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localNew, u.tr("common.new_folder"), !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localRename, u.tr("common.rename"), u.selectedLocal >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localDelete, u.tr("common.delete"), u.selectedLocal >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteNew, u.tr("common.new_folder"), u.connected && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteRename, u.tr("common.rename"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteDelete, u.tr("common.delete"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteChmod, u.tr("common.permissions"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
 		return err
 	}
 	if err := u.renderFileFilterControls(); err != nil {
@@ -659,36 +675,63 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.renderItemRows(u.fileFilterListRect(true), u.remoteItems, u.selectedRemote); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.upload, u.tr("transfer.upload")+" →", u.connected && u.selectedLocal >= 0 && !u.busy, true); err != nil {
-		return err
+	return nil
+}
+
+func linuxTransferFileName(job model.TransferJob) string {
+	value := job.LocalPath
+	if strings.EqualFold(job.Direction, "download") && strings.TrimSpace(job.RemotePath) != "" {
+		value = job.RemotePath
 	}
-	if err := u.drawButton(u.layout.download, "← "+u.tr("transfer.download"), u.connected && u.selectedRemote >= 0 && !u.busy, true); err != nil {
-		return err
+	value = strings.TrimRight(strings.ReplaceAll(strings.TrimSpace(value), "\\", "/"), "/")
+	if value == "" {
+		return "—"
 	}
-	return u.renderRemoteEditButton()
+	if index := strings.LastIndex(value, "/"); index >= 0 && index+1 < len(value) {
+		return value[index+1:]
+	}
+	return value
+}
+
+func linuxCapitalized(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "—"
+	}
+	runes := []rune(strings.ToLower(value))
+	runes[0] = []rune(strings.ToUpper(string(runes[0])))[0]
+	return string(runes)
+}
+
+func linuxTransferSpeedLabel(job model.TransferJob) string {
+	if job.BytesPerSecond <= 0 || (job.Status != "running" && job.Status != "done") {
+		return "—"
+	}
+	return linuxHumanSize(int64(job.BytesPerSecond)) + "/s"
+}
+
+func linuxTransferETALabel(job model.TransferJob) string {
+	if job.Status != "running" || job.ETASeconds <= 0 {
+		return "—"
+	}
+	if job.ETASeconds < 60 {
+		return fmt.Sprintf("%ds", job.ETASeconds)
+	}
+	minutes := job.ETASeconds / 60
+	seconds := job.ETASeconds % 60
+	return fmt.Sprintf("%d:%02d", minutes, seconds)
 }
 
 func (u *linuxDesktop) renderQueue() error {
 	actions := u.linuxTransferActionState()
-	if err := u.x.text(u.layout.queue.left+8, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
-		return err
+	title := u.tr("section.transfers")
+	if count := len(u.transferJobs); count > 0 {
+		title = fmt.Sprintf("%s (%d)", title, count)
 	}
-	if err := u.drawButton(u.layout.pause, u.tr("transfer.pause"), actions.Pause && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.resume, u.tr("transfer.resume"), actions.Resume && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), actions.Cancel && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), actions.Retry && !u.busy, false); err != nil {
+	if err := u.x.text(u.layout.queue.left+8, u.layout.pause.top+19, title, premiumTheme.Text, premiumTheme.Window); err != nil {
 		return err
 	}
 	if err := u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.renderQueuePriorityControls(); err != nil {
 		return err
 	}
 	if err := u.x.fillRect(u.layout.queue.left, u.layout.queue.top, u.layout.queue.right-u.layout.queue.left, u.layout.queue.bottom-u.layout.queue.top, premiumTheme.List); err != nil {
@@ -697,14 +740,35 @@ func (u *linuxDesktop) renderQueue() error {
 	if err := u.x.strokeRect(u.layout.queue.left, u.layout.queue.top, u.layout.queue.right-u.layout.queue.left, u.layout.queue.bottom-u.layout.queue.top, premiumTheme.Border); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+17, strings.ToUpper(u.tr("column.direction")+"   "+u.tr("column.local")+" / "+u.tr("column.remote")), premiumTheme.Muted, premiumTheme.List); err != nil {
-		return err
+	width := u.layout.queue.right - u.layout.queue.left
+	fileX := u.layout.queue.left + 8
+	directionX := u.layout.queue.left + width*30/100
+	progressX := u.layout.queue.left + width*43/100
+	statusX := u.layout.queue.left + width*57/100
+	speedX := u.layout.queue.left + width*78/100
+	etaX := u.layout.queue.left + width*91/100
+	headerY := u.layout.queue.top + 17
+	headers := []struct {
+		x     int
+		label string
+	}{
+		{fileX, "File"},
+		{directionX, u.tr("column.direction")},
+		{progressX, "Progress"},
+		{statusX, u.tr("column.status")},
+		{speedX, "Speed"},
+		{etaX, "ETA"},
 	}
-	if len(u.transferJobs) == 0 {
-		emptySummary := u.tr("transfer.summary", 0, 0, 0)
-		if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+42, emptySummary, premiumTheme.Muted, premiumTheme.List); err != nil {
+	for _, header := range headers {
+		if err := u.x.text(header.x, headerY, header.label, premiumTheme.Muted, premiumTheme.List); err != nil {
 			return err
 		}
+	}
+	if len(u.transferJobs) == 0 {
+		if err := u.x.text(fileX, u.layout.queue.top+42, u.tr("transfer.summary", 0, 0, 0), premiumTheme.Muted, premiumTheme.List); err != nil {
+			return err
+		}
+		return u.renderLinuxMasterRail()
 	}
 	rowH := 22
 	maxRows := (u.layout.queue.bottom - u.layout.queue.top - 28) / rowH
@@ -714,20 +778,39 @@ func (u *linuxDesktop) renderQueue() error {
 		bg := premiumTheme.List
 		if i == u.selectedTransfer {
 			bg = premiumTheme.Selection
-			if err := u.x.fillRect(u.layout.queue.left+1, y-16, u.layout.queue.right-u.layout.queue.left-2, rowH, bg); err != nil {
+			if err := u.x.fillRect(u.layout.queue.left+1, y-16, width-2, rowH, bg); err != nil {
 				return err
 			}
 		}
-		line := fmt.Sprintf("%-10s %s  ->  %s", strings.ToUpper(job.Direction), filepath.Base(job.LocalPath), job.RemotePath)
-		if err := u.x.text(u.layout.queue.left+8, y, linuxTrimForUI(line, max(24, (u.layout.queue.right-u.layout.queue.left-220)/7)), premiumTheme.Text, bg); err != nil {
+		statusColor := premiumTheme.Muted
+		switch job.Status {
+		case "running":
+			statusColor = premiumTheme.Warn
+		case "done":
+			statusColor = premiumTheme.Success
+		case "failed", "cancelled":
+			statusColor = premiumTheme.Danger
+		}
+		if err := u.x.text(fileX, y, linuxTrimForUI(linuxTransferFileName(job), max(12, (directionX-fileX-12)/7)), premiumTheme.Text, bg); err != nil {
 			return err
 		}
-		status := fmt.Sprintf("%-10s %3.0f%%", job.Status, job.Progress*100)
-		if err := u.x.text(u.layout.queue.right-170, y, status, premiumTheme.Muted, bg); err != nil {
+		if err := u.x.text(directionX, y, linuxCapitalized(job.Direction), premiumTheme.Text, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(progressX, y, fmt.Sprintf("%.0f%%", job.Progress*100), premiumTheme.Text, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(statusX, y, linuxTrimForUI(linuxCapitalized(job.Status), max(8, (speedX-statusX-8)/7)), statusColor, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(speedX, y, linuxTransferSpeedLabel(job), premiumTheme.Muted, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(etaX, y, linuxTransferETALabel(job), premiumTheme.Muted, bg); err != nil {
 			return err
 		}
 	}
-	return nil
+	return u.renderLinuxMasterRail()
 }
 
 func (u *linuxDesktop) render() error {
@@ -1108,7 +1191,7 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 }
 
 func (u *linuxDesktop) selectRow(r linuxRect, y int, count int) int {
-	index := (y - r.top - 11) / 24
+	index := (y - r.top - 28) / 24
 	if index < 0 || index >= count {
 		return -1
 	}
@@ -1116,6 +1199,9 @@ func (u *linuxDesktop) selectRow(r linuxRect, y int, count int) int {
 }
 
 func (u *linuxDesktop) handleMouse(x, y int) {
+	if u.handleLinuxMasterRailMouse(x, y) {
+		return
+	}
 	if u.handleLinuxMasterToolbarMouse(x, y) {
 		return
 	}
@@ -1134,7 +1220,7 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		return
 	}
 	l := u.layout
-	if u.handleQueuePriorityMouse(x, y) {
+	if u.handleLinuxFileSortHeaderMouse(x, y) {
 		return
 	}
 	if u.handleFileFilterMouse(x, y) {
@@ -1153,52 +1239,12 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		u.saveProfile()
 	case l.removeProfile.contains(x, y):
 		u.removeProfile()
-	case l.localUp.contains(x, y):
-		u.lastFilePaneRemote = false
-		u.refreshLocal(filepath.Dir(u.localCurrent))
-	case l.localRefresh.contains(x, y):
-		u.lastFilePaneRemote = false
-		u.refreshLocal(u.localCurrent)
-	case l.remoteUp.contains(x, y):
-		u.lastFilePaneRemote = true
-		u.refreshRemote(terminalRemotePath(u.remoteCurrent, ".."))
-	case l.remoteRefresh.contains(x, y):
-		u.lastFilePaneRemote = true
-		u.refreshRemote(u.remoteCurrent)
-	case l.localNew.contains(x, y):
-		u.openPrompt(linuxPromptLocalMkdir, u.tr("common.new_folder")+" · "+u.tr("section.local"), u.tr("common.new_folder"))
-	case l.localRename.contains(x, y):
-		u.openSelectedLocalRename()
-	case l.localDelete.contains(x, y):
-		u.deleteSelectedLocal()
-	case l.remoteNew.contains(x, y):
-		u.openPrompt(linuxPromptRemoteMkdir, u.tr("common.new_folder")+" · "+u.tr("section.remote"), u.tr("common.new_folder"))
-	case l.remoteRename.contains(x, y):
-		u.openSelectedRemoteRename()
-	case l.remoteDelete.contains(x, y):
-		u.deleteSelectedRemote()
-	case l.remoteChmod.contains(x, y):
-		u.openSelectedRemoteChmod()
-	case u.remoteEditButtonRect().contains(x, y):
-		u.openSelectedRemoteEditor()
 	case u.fileFilterListRect(false).contains(x, y):
 		u.lastFilePaneRemote = false
 		u.selectedLocal = u.selectRow(u.fileFilterListRect(false), y, len(u.localItems))
 	case u.fileFilterListRect(true).contains(x, y):
 		u.lastFilePaneRemote = true
 		u.selectedRemote = u.selectRow(u.fileFilterListRect(true), y, len(u.remoteItems))
-	case l.upload.contains(x, y):
-		u.queueTransfer("upload")
-	case l.download.contains(x, y):
-		u.queueTransfer("download")
-	case l.pause.contains(x, y):
-		u.pauseTransfersLinux()
-	case l.resume.contains(x, y):
-		u.resumeTransfersLinux()
-	case l.cancelJob.contains(x, y):
-		u.cancelSelectedTransferLinux()
-	case l.retryJob.contains(x, y):
-		u.retrySelectedTransferLinux()
 	case l.clearQueue.contains(x, y):
 		u.clearFinishedTransfersLinux()
 	case l.queue.contains(x, y):

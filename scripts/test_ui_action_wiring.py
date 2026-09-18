@@ -40,47 +40,60 @@ class UIActionWiringTests(unittest.TestCase):
 
     def test_linux_main_controls_are_both_rendered_and_click_wired(self) -> None:
         ui = self.read("internal/desktop/gui_linux.go")
+        master = self.read("internal/desktop/linux_master_rail.go")
+        more = self.read("internal/desktop/linux_info_overlay.go")
 
-        controls = (
-            "connect",
-            "disconnect",
-            "settings",
-            "profile",
-            "saveProfile",
-            "removeProfile",
-            "localUp",
-            "localRefresh",
-            "remoteUp",
-            "remoteRefresh",
-            "localNew",
-            "localRename",
-            "localDelete",
-            "remoteNew",
-            "remoteRename",
-            "remoteDelete",
-            "remoteChmod",
+        for rect in ("files", "connections", "transfers", "settings"):
+            self.assertIn(f"layout.{rect} = linuxRectWH", master)
+            self.assertIn(f"case rail.{rect}.contains(x, y):", master)
+
+        for rect in (
+            "back",
+            "forward",
+            "refresh",
+            "newFolder",
             "upload",
             "download",
-            "pause",
-            "resume",
-            "cancelJob",
-            "retryJob",
-            "clearQueue",
-        )
-        for control in controls:
-            self.assertRegex(
-                ui,
-                rf"layout\.{re.escape(control)}\s*=\s*linuxRectWH\(",
-                f"Linux control {control} is not assigned a clickable rectangle",
-            )
-            self.assertIn(
-                f"case l.{control}.contains(x, y):",
-                ui,
-                f"Linux control {control} is rendered but has no click handler",
-            )
+            "bookmarks",
+            "more",
+        ):
+            self.assertIn(f"&layout.{rect}", master)
+            self.assertIn(f"case layout.{rect}.contains(x, y):", master)
 
-        self.assertIn("case u.remoteEditButtonRect().contains(x, y):", ui)
-        self.assertIn("u.openSelectedRemoteEditor()", ui)
+        for marker in (
+            "u.navigateLinuxWorkspaceHistory(true)",
+            "u.navigateLinuxWorkspaceHistory(false)",
+            "u.refreshRemote(u.remoteCurrent)",
+            "u.refreshLocal(u.localCurrent)",
+            "linuxPromptRemoteMkdir",
+            "linuxPromptLocalMkdir",
+            'u.queueTransfer("upload")',
+            'u.queueTransfer("download")',
+            'u.openLinuxBookmarks("")',
+            "u.openLinuxInfoOverlay(linuxInfoOverlayMore)",
+        ):
+            self.assertIn(marker, master)
+
+        for marker in (
+            "u.openFileFilterPrompt(false)",
+            "u.openFileFilterPrompt(true)",
+            "u.openRecursiveSearchPrompt(false)",
+            "u.openRecursiveSearchPrompt(true)",
+            "u.openSelectedLocalRename()",
+            "u.openSelectedRemoteRename()",
+            "u.deleteSelectedLocal()",
+            "u.deleteSelectedRemote()",
+            "u.openSelectedRemoteChmod()",
+            "u.openSelectedRemoteEditor()",
+            "u.startDirectoryComparisonLinux()",
+        ):
+            self.assertIn(marker, more)
+
+        self.assertIn("u.handleLinuxMasterRailMouse(x, y)", ui)
+        self.assertIn("u.handleLinuxMasterToolbarMouse(x, y)", ui)
+        self.assertIn("u.handleLinuxFileSortHeaderMouse(x, y)", ui)
+        self.assertIn("case l.clearQueue.contains(x, y):", ui)
+
 
     def test_linux_overlay_buttons_are_wired(self) -> None:
         ui = self.read("internal/desktop/gui_linux.go")
@@ -102,6 +115,7 @@ class UIActionWiringTests(unittest.TestCase):
     def test_linux_queue_actions_share_policy_and_surface_engine_errors(self) -> None:
         ui = self.read("internal/desktop/gui_linux.go")
         actions = self.read("internal/desktop/queue_actions_linux.go")
+        more = self.read("internal/desktop/linux_info_overlay.go")
 
         for marker in (
             "deriveTransferActionState",
@@ -117,17 +131,34 @@ class UIActionWiringTests(unittest.TestCase):
 
         self.assertNotIn("_ = u.engine.CancelTransfer", ui)
         self.assertNotIn("_ = u.engine.RetryTransfer", ui)
+
+        # Clear Completed remains the one queue-level action visible in the
+        # supplied master. The rest stay user-reachable through More.
         self.assertIn("actions := u.linuxTransferActionState()", ui)
-        self.assertIn('u.drawButton(u.layout.pause, u.tr("transfer.pause"), actions.Pause && !u.busy, false)', ui)
-        self.assertIn('u.drawButton(u.layout.resume, u.tr("transfer.resume"), actions.Resume && !u.busy, false)', ui)
-        self.assertIn('u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), actions.Cancel && !u.busy, false)', ui)
-        self.assertIn('u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), actions.Retry && !u.busy, false)', ui)
-        self.assertIn('u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false)', ui)
-        self.assertIn("u.pauseTransfersLinux()", ui)
-        self.assertIn("u.resumeTransfersLinux()", ui)
-        self.assertIn("u.cancelSelectedTransferLinux()", ui)
-        self.assertIn("u.retrySelectedTransferLinux()", ui)
+        self.assertIn(
+            'u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false)',
+            ui,
+        )
+        self.assertIn("case l.clearQueue.contains(x, y):", ui)
         self.assertIn("u.clearFinishedTransfersLinux()", ui)
+
+        self.assertIn("linuxInfoOverlayTransferActions", more)
+        self.assertIn('"Transfer actions…"', more)
+        self.assertIn("actions := u.linuxTransferActionState()", more)
+        self.assertIn("priority := u.selectedQueuePriorityState()", more)
+        for marker in (
+            "u.pauseTransfersLinux()",
+            "u.resumeTransfersLinux()",
+            "u.cancelSelectedTransferLinux()",
+            "u.retrySelectedTransferLinux()",
+            "u.clearFinishedTransfersLinux()",
+            "u.moveSelectedQueueTransfer(queuePriorityTop)",
+            "u.moveSelectedQueueTransfer(queuePriorityUp)",
+            "u.moveSelectedQueueTransfer(queuePriorityDown)",
+            "u.moveSelectedQueueTransfer(queuePriorityBottom)",
+        ):
+            self.assertIn(marker, more)
+
 
     def test_linux_disabled_queue_controls_are_functionally_inert(self) -> None:
         actions = self.read("internal/desktop/queue_actions_linux.go")
