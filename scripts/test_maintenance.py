@@ -161,7 +161,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("Last actually published GitHub Release: **0.0.7**", readme)
         self.assertIn("13 platform artifacts / 16 public files", readme)
         self.assertIn(f"Current source version: **{version}**", docs_index)
-        self.assertIn("Last actually published GitHub Release: **0.0.6**", docs_index)
+        self.assertIn("Last actually published GitHub Release: **0.0.7**", docs_index)
         self.assertIn("PRERELEASE=false", docs_index)
         self.assertIn(f"Tag: ghostftp-v{version}", releases)
         self.assertIn("## Exact-head transaction", releases)
