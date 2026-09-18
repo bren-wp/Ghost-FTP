@@ -32,7 +32,7 @@ def expected_release_names(version: str) -> set[str]:
         f"Ghost-FTP-{version}-Setup.exe",
         f"Ghost-FTP-{version}-Portable.exe",
         f"Ghost-FTP-{version}-Android.apk",
-        f"Ghost-FTP-{version}-macOS-notarized.app.zip",
+        f"Ghost-FTP-{version}-macOS.app.zip",
     }
     for distro in ("Debian", "Ubuntu", "Fedora"):
         names.add(f"Ghost-FTP-{version}-Linux-{distro}-Installer.run")
