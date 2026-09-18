@@ -31,7 +31,12 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
             site_text = output_site.read_text(encoding="utf-8")
 
         for marker in (
-            'NSButton(title: "Site Manager"',
+            'NSButton(title: "Files"',
+            'NSButton(title: "Connections"',
+            'NSButton(title: "Transfer Queue"',
+            'NSButton(title: "Connection info"',
+            "makeMasterNavigationRail()",
+            "filesNavigationTapped()",
             "#selector(siteManagerTapped)",
             "SiteManagerWindowController()",
             "controller.onConnected = { [weak self] protocolName, remoteStart, localStart in",
@@ -57,10 +62,27 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
             'GENERATED_SOURCE="$GENERATED_SOURCE_DIR/main.swift"',
             'GENERATED_SITE_MANAGER_SOURCE="$GENERATED_SOURCE_DIR/SiteManager.swift"',
             'python3 "$PREPARE_SITE_MANAGER_SOURCES"',
-            'grep -F \'NSButton(title: "Site Manager"\' "$GENERATED_SOURCE"',
+            'grep -F \'NSButton(title: "Files"\' "$GENERATED_SOURCE"',
+            'grep -F \'NSButton(title: "Connections"\' "$GENERATED_SOURCE"',
+            'grep -F \'makeMasterNavigationRail()\' "$GENERATED_SOURCE"',
             '"$GENERATED_SOURCE" "$GENERATED_SITE_MANAGER_SOURCE"',
         ):
             self.assertIn(marker, build)
+
+    def test_native_source_uses_explicit_dark_gold_product_palette(self) -> None:
+        main = (ROOT / "macos" / "Sources" / "GhostFTPApp" / "main.swift").read_text(encoding="utf-8")
+        for marker in (
+            "0x0A0D12",
+            "0x11161F",
+            "0x171D27",
+            "0xDFAF3E",
+            "0xF6C84F",
+            "0x2A2416",
+            "0x43D17D",
+            "0xFF6B73",
+        ):
+            self.assertIn(marker, main)
+        self.assertNotIn("NSColor.controlAccentColor", main)
 
     def test_saved_ftp_runtime_secret_uses_darwin_broker_and_session_ownership(self) -> None:
         runtime_other = (ROOT / "internal" / "security" / "runtime_secret_other.go").read_text(encoding="utf-8")
