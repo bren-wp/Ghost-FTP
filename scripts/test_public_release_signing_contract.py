@@ -22,6 +22,7 @@ class PublicReleaseSigningContractTest(unittest.TestCase):
         self.assertIn("'state=signed'", workflow)
         self.assertIn("Windows signing configuration is incomplete", workflow)
         self.assertIn("GHOSTFTP_ALLOW_UNSIGNED_PUBLIC_RELEASE", workflow)
+        self.assertIn("No-key compatibility publication is authorized only for Ghost FTP 0.0.8", workflow)
 
     def test_release_verifies_declared_signature_state_before_publication(self) -> None:
         workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
