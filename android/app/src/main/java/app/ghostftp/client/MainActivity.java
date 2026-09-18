@@ -458,9 +458,9 @@ public final class MainActivity extends Activity {
         bar.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 16));
 
         bar.addView(bottomNavButton("Files", R.drawable.ic_files, Section.FILES), bottomNavParams());
-        bar.addView(bottomNavButton("Connections", R.drawable.ic_sites, Section.SITES), bottomNavParams());
+        bar.addView(bottomNavButton("Sites", R.drawable.ic_sites, Section.SITES), bottomNavParams());
         bar.addView(bottomNavButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), bottomNavParams());
-        bar.addView(bottomNavButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS), bottomNavParams());
+        bar.addView(bottomNavButton("Transfers", R.drawable.ic_transfers, Section.TRANSFERS), bottomNavParams());
         bar.addView(bottomNavButton("Settings", R.drawable.ic_settings, Section.SETTINGS), bottomNavParams());
         return bar;
     }
@@ -471,7 +471,7 @@ public final class MainActivity extends Activity {
         button.setAllCaps(false);
         button.setTag(section);
         styleNavigationButton(button, false);
-        button.setTextSize("Connections".equals(text) ? 9f : 10f);
+        button.setTextSize(10f);
         button.setSingleLine(false);
         button.setMaxLines(2);
         button.setGravity(Gravity.CENTER);
