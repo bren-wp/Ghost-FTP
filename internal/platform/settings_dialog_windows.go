@@ -15,6 +15,7 @@ const (
 	// Enter/Escape consistently even though this surface is application-owned.
 	settingsIDApply      = 1 // IDOK
 	settingsIDCancel     = 2 // IDCANCEL
+	settingsIDReset      = 3
 	settingsIDAppearance = 4101
 	settingsIDNumberBase = 4110
 	settingsIDConflict   = 4120
@@ -67,9 +68,14 @@ type SettingsDialogConfig struct {
 	ConflictIndex     int
 	ConfirmDelete     string
 	ConfirmDeleteOn   bool
-	Footer            string
-	ApplyLabel        string
-	CancelLabel       string
+	Footer                 string
+	ApplyLabel             string
+	CancelLabel            string
+	ResetLabel             string
+	DefaultAppearanceIndex int
+	DefaultNumbers         []int
+	DefaultConflictIndex   int
+	DefaultConfirmDelete   bool
 }
 
 type SettingsDialogResult struct {
@@ -150,6 +156,32 @@ func settingsWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintp
 				state.accepted = true
 				promptDestroyWindow.Call(hwnd)
 				return 0
+			case settingsIDReset:
+				if len(state.config.DefaultNumbers) != len(state.numbers) {
+					return 0
+				}
+				promptSendMessageW.Call(
+					state.appearance,
+					settingsCBSet,
+					uintptr(normalizedSettingsIndex(state.config.DefaultAppearanceIndex, len(state.config.AppearanceOptions))),
+					0,
+				)
+				for index, edit := range state.numbers {
+					settingsSetText(edit, strconv.Itoa(state.config.DefaultNumbers[index]))
+				}
+				promptSendMessageW.Call(
+					state.conflict,
+					settingsCBSet,
+					uintptr(normalizedSettingsIndex(state.config.DefaultConflictIndex, len(state.config.ConflictOptions))),
+					0,
+				)
+				check := uintptr(0)
+				if state.config.DefaultConfirmDelete {
+					check = settingsBSTChecked
+				}
+				promptSendMessageW.Call(state.confirm, settingsBMSetCheck, check, 0)
+				settingsSetText(state.errorLabel, "")
+				return 0
 			case settingsIDCancel:
 				promptDestroyWindow.Call(hwnd)
 				return 0
@@ -215,6 +247,13 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	}
 	config.AppearanceIndex = fallback.AppearanceIndex
 	config.ConflictIndex = fallback.ConflictIndex
+	if len(config.DefaultNumbers) != len(config.Numbers) {
+		config.ResetLabel = ""
+		config.DefaultNumbers = nil
+	} else {
+		config.DefaultAppearanceIndex = normalizedSettingsIndex(config.DefaultAppearanceIndex, len(config.AppearanceOptions))
+		config.DefaultConflictIndex = normalizedSettingsIndex(config.DefaultConflictIndex, len(config.ConflictOptions))
+	}
 
 	const (
 		wsOverlapped    = 0x00C80000
@@ -359,8 +398,11 @@ func SettingsDialog(config SettingsDialogConfig) (SettingsDialogResult, bool) {
 	}
 
 	makeControl("STATIC", "", settingsEtchedHorz, 36, footerSeparatorY, 688, 2, 0, font)
-	makeControl("STATIC", config.Footer, 0, 36, footerY, 470, 38, 0, captionFont)
-	state.errorLabel = makeControl("STATIC", "", 0, 36, errorY, 470, 24, settingsIDError, captionFont)
+	makeControl("STATIC", config.Footer, 0, 36, footerY, 334, 38, 0, captionFont)
+	state.errorLabel = makeControl("STATIC", "", 0, 36, errorY, 334, 24, settingsIDError, captionFont)
+	if config.ResetLabel != "" {
+		makeControl("BUTTON", config.ResetLabel, settingsWSTabStop, 386, buttonY, 120, 38, settingsIDReset, font)
+	}
 	applyButton := makeControl("BUTTON", config.ApplyLabel, settingsWSTabStop|settingsDefButton, 516, buttonY, 98, 38, settingsIDApply, font)
 	makeControl("BUTTON", config.CancelLabel, settingsWSTabStop, 624, buttonY, 100, 38, settingsIDCancel, font)
 
