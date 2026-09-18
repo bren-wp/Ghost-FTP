@@ -81,6 +81,16 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertNotIn("a.measureMenuItem(lParam)", wnd)
         self.assertNotIn("a.drawMenuItem(&d)", wnd)
 
+    def test_master_workspace_uses_reference_titles_and_queue_alignment(self):
+        source = self.read("internal/desktop/master_workspace_windows.go")
+        self.assertIn('setText(a.sectionLocal, "Local Files")', source)
+        self.assertIn('setText(a.sectionRemote, "Remote Files")', source)
+        self.assertIn('setText(a.sectionTransfers, "Transfer Queue")', source)
+        self.assertIn("sendMessageW.Call(a.sectionLocal, wmSetFont, a.font, 1)", source)
+        self.assertIn("listY := actionY + 29 + 12", source)
+        self.assertIn("a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)", source)
+        self.assertNotIn("listY := actionY + 29 + 44", source)
+
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
         self.assertIn("setControlEnabled(a.remoteList, true)", source)
