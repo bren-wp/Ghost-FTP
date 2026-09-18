@@ -40,7 +40,7 @@ Visible controls require matching command/click handlers and code-level state gu
 
 Android contracts protect strict explicit FTPS, no trust-all fallback, SAF-only storage, staged transfer commit, bounded parsing/search, lifecycle cancellation/generation ownership, authentication-error redaction, file-management path validation, comparison/search semantics and Remote Edit conflict/read-back safeguards.
 
-The canonical public release additionally requires a protected production keystore and exact signer-certificate SHA-256 match before `Ghost-FTP-0.0.8-Android.apk` can enter the allow-list. Android SFTP remains hidden until strict maintained host-key verification exists.
+The canonical public release always verifies `Ghost-FTP-0.0.8-Android.apk` with `apksigner`. A complete protected identity requires exact signer SHA-256 equality; otherwise a one-run compatibility certificate is permitted and its fingerprint is recorded. Android SFTP remains hidden until strict maintained host-key verification exists.
 
 ## Browser package gate
 
@@ -57,7 +57,7 @@ The package contract rejects brand drift, manifest version drift, broad permissi
 
 ## macOS validation and public signing gate
 
-`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — validates the maintained universal native frontend on macOS. Canonical publication then requires the protected `macos-production` signing boundary: Developer ID Application signing, Hardened Runtime, secure timestamp, Apple notarization, stapling and Gatekeeper verification. The verified notarized archive is one of the 17 public release files.
+`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — validates the maintained universal native frontend on macOS. Canonical 0.0.8 compatibility publication uses the same universal native build with an ad-hoc signature. The public `Ghost-FTP-0.0.8-macOS.app.zip` is one of the 17 release files and is explicitly not notarized.
 
 ## Windows build and public signing gates
 
@@ -93,7 +93,7 @@ For 0.0.8, the broad gate set includes Ghost FTP CI, Android APK, Browser Extens
 
 ## Release publication gate
 
-0.0.8 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox/Opera packages, exact **14 platform artifacts / 17 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.8` distribution bundle and successful release-integrity and protected-history retention chains.
+0.0.8 publication requires exact current `main` release-branch validation, canonical quality/build jobs, explicit Windows Authenticode-state verification, Android production-or-compatibility signing plus actual signer SHA-256 verification, deterministic Chrome/Edge/Firefox/Opera packages, exact **14 platform artifacts / 17 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.8` distribution bundle and successful release-integrity and protected-history retention chains.
 
 ## Deterministic release-to-retention gate
 
