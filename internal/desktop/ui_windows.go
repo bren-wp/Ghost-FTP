@@ -322,17 +322,13 @@ func (a *app) resizeListColumns() {
 	}
 
 	available := logicalWidth - 28
-	directionW, statusW, progressW := 108, 184, 92
-	pathsW := available - directionW - statusW - progressW - 8
-	if pathsW < 340 {
-		pathsW = 340
+	if available < 720 {
+		available = 720
 	}
-	localW := pathsW / 2
-	remoteW := pathsW - localW
-	transferWidths := []int{directionW, localW, remoteW, statusW, progressW}
-	for i, width := range transferWidths {
+	transferPercents := []int{22, 14, 20, 20, 14, 10}
+	for i, percent := range transferPercents {
 		if a.transferList != 0 {
-			sendMessageW.Call(a.transferList, lvmSetColumnWidth, uintptr(i), uintptr(a.scale(width)))
+			sendMessageW.Call(a.transferList, lvmSetColumnWidth, uintptr(i), uintptr(a.scale(available*percent/100)))
 		}
 	}
 }
@@ -383,11 +379,12 @@ func (a *app) setupFileColumns(list uintptr, remote bool) {
 }
 
 func (a *app) setupTransferColumns(list uintptr) {
-	a.insertColumn(list, 0, a.tr("column.direction"), 100)
-	a.insertColumn(list, 1, a.tr("column.local"), 325)
-	a.insertColumn(list, 2, a.tr("column.remote"), 325)
+	a.insertColumn(list, 0, a.tr("column.file"), 230)
+	a.insertColumn(list, 1, a.tr("column.direction"), 120)
+	a.insertColumn(list, 2, a.tr("column.progress"), 180)
 	a.insertColumn(list, 3, a.tr("column.status"), 180)
-	a.insertColumn(list, 4, a.tr("column.progress"), 92)
+	a.insertColumn(list, 4, a.tr("column.speed"), 120)
+	a.insertColumn(list, 5, a.tr("column.eta"), 90)
 }
 
 func (a *app) insertColumn(list uintptr, idx int, title string, width int) {
