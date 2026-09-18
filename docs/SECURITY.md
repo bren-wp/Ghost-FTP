@@ -1,6 +1,6 @@
 # Ghost FTP security
 
-Ghost FTP **0.0.6** uses explicit transport, identity, path, secret, process and release boundaries. Security-sensitive behavior is tested in the shared engine, native platform adapters, browser-helper contracts and protected release workflow.
+Ghost FTP **0.0.8** uses explicit transport, identity, path, secret, process and release boundaries. Security-sensitive behavior is tested in the shared engine, native platform adapters, browser-helper contracts and protected release workflow.
 
 ## Transport policy
 
@@ -38,7 +38,7 @@ Linux accepts `curl`, `ssh`, `sftp` and `ssh-keyscan` only through trusted root-
 
 ## Windows universal package security
 
-Public Windows output is exactly `Ghost-FTP-0.0.6-Setup.exe` and `Ghost-FTP-0.0.6-Portable.exe`. Each carries internal **x64, x86 and ARM64** payloads selected locally. Staged payload bytes are verified before execution and no architecture payload is fetched from the network.
+Public Windows output is exactly `Ghost-FTP-0.0.8-Setup.exe` and `Ghost-FTP-0.0.8-Portable.exe`. Each carries internal **x64, x86 and ARM64** payloads selected locally. Staged payload bytes are verified before execution and no architecture payload is fetched from the network.
 
 The release evidence metadata must retain these exact markers:
 
