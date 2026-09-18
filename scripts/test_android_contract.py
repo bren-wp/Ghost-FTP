@@ -244,6 +244,9 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         ):
             self.assertIn(marker, theme)
         self.assertNotIn("Configuration.UI_MODE_NIGHT", theme)
+        disconnected = theme.index('value.contains("disconnected")')
+        connected = theme.index('value.contains("completed") || value.contains("connected")')
+        self.assertLess(disconnected, connected)
 
         self.assertIn('<color name="ghost_window">#0A0D12</color>', colors)
         self.assertIn('<color name="ghost_accent">#DFAF3E</color>', colors)
