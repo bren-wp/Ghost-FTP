@@ -23,7 +23,7 @@ class ReleaseTriggerContractTests(unittest.TestCase):
     def test_release_branch_trigger_verifies_exact_main_before_dispatch(self):
         trigger = (ROOT / ".github/workflows/release-branch-trigger.yml").read_text(encoding="utf-8")
         required = [
-            "on:\n  create:\n  push:\n    branches:\n      - 'release/ghostftp-v*'",
+            "on:\n  create:\n  push:\n    branches:\n      - 'release/ghostftp-v*'\n      - '!release/ghostftp-v*-no-key'",
             "github.event_name == 'create'",
             "github.event.ref_type == 'branch'",
             "startsWith(github.event.ref, 'release/ghostftp-v')",
@@ -43,6 +43,13 @@ class ReleaseTriggerContractTests(unittest.TestCase):
         ]
         for marker in required:
             self.assertIn(marker, trigger)
+
+    def test_no_key_branch_is_excluded_from_canonical_release_dispatch(self):
+        trigger = (ROOT / ".github/workflows/release-branch-trigger.yml").read_text(encoding="utf-8")
+        self.assertIn("!release/ghostftp-v*-no-key", trigger)
+        self.assertIn("!endsWith(github.event.ref, '-no-key')", trigger)
+        self.assertIn("!endsWith(github.ref_name, '-no-key')", trigger)
+        self.assertIn("handled by release-no-key.yml", trigger)
 
     def test_release_branch_trigger_waits_for_exact_release_before_retention(self):
         trigger = (ROOT / ".github/workflows/release-branch-trigger.yml").read_text(encoding="utf-8")
