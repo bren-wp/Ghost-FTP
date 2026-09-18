@@ -8,17 +8,26 @@ private enum Palette {
         NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 
+    private static func dynamic(_ dark: Int, _ light: Int) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let darkMode = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return NSColor(rgb: darkMode ? dark : light)
+        }
+    }
+
     static var workspace: NSColor { NSColor(rgb: isDark ? 0x0B0F17 : 0xEEF1F5) }
     static var panel: NSColor { NSColor(rgb: isDark ? 0x121824 : 0xF6F8FB) }
     static var list: NSColor { NSColor(rgb: isDark ? 0x161D2A : 0xFAFBFD) }
-    static var text: NSColor { NSColor(rgb: isDark ? 0xF2F5FA : 0x172033) }
-    static var muted: NSColor { NSColor(rgb: isDark ? 0x97A3B8 : 0x667085) }
-    static var accent: NSColor { NSColor(rgb: isDark ? 0xF6C445 : 0xA66500) }
-    static var accentStrong: NSColor { NSColor(rgb: isDark ? 0xFFD768 : 0x875100) }
+    static let text = dynamic(0xF2F5FA, 0x172033)
+    static let muted = dynamic(0x97A3B8, 0x667085)
+    static let accent = dynamic(0xF6C445, 0xA66500)
+    static let accentStrong = dynamic(0xFFD768, 0x875100)
+    static let onAccent = dynamic(0x16130B, 0xFAFBFD)
     static var border: NSColor { NSColor(rgb: isDark ? 0x2C3648 : 0xD6DCE5) }
     static var selection: NSColor { NSColor(rgb: isDark ? 0x2B2515 : 0xF5E7C7) }
-    static var success: NSColor { NSColor(rgb: isDark ? 0x4AD79B : 0x1B7F4B) }
-    static var danger: NSColor { NSColor(rgb: isDark ? 0xFF6878 : 0xB42318) }
+    static let success = dynamic(0x4AD79B, 0x1B7F4B)
+    static let warning = dynamic(0xF2BA55, 0x9A6700)
+    static let danger = dynamic(0xFF6878, 0xB42318)
 }
 
 private extension NSColor {
@@ -277,7 +286,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         connectButton.action = #selector(connectTapped)
         connectButton.bezelStyle = .rounded
         connectButton.bezelColor = Palette.accent
-        connectButton.contentTintColor = NSColor(rgb: 0x16130B)
+        connectButton.contentTintColor = Palette.onAccent
         connectButton.keyEquivalent = "\r"
         disconnectButton.target = self
         disconnectButton.action = #selector(disconnectTapped)
@@ -288,9 +297,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
         configureWorkspaceActions()
         uploadButton.bezelColor = Palette.accent
-        uploadButton.contentTintColor = NSColor(rgb: 0x16130B)
+        uploadButton.contentTintColor = Palette.onAccent
         downloadButton.bezelColor = Palette.accent
-        downloadButton.contentTintColor = NSColor(rgb: 0x16130B)
+        downloadButton.contentTintColor = Palette.onAccent
         localDeleteButton.contentTintColor = Palette.danger
         remoteDeleteButton.contentTintColor = Palette.danger
         configureTable(localTable, remote: false)
