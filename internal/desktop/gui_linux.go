@@ -693,6 +693,16 @@ func linuxTransferFileName(job model.TransferJob) string {
 	return value
 }
 
+func linuxCapitalized(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "—"
+	}
+	runes := []rune(strings.ToLower(value))
+	runes[0] = []rune(strings.ToUpper(string(runes[0])))[0]
+	return string(runes)
+}
+
 func linuxTransferSpeedLabel(job model.TransferJob) string {
 	if job.BytesPerSecond <= 0 || (job.Status != "running" && job.Status != "done") {
 		return "—"
@@ -781,13 +791,13 @@ func (u *linuxDesktop) renderQueue() error {
 		if err := u.x.text(fileX, y, linuxTrimForUI(linuxTransferFileName(job), max(12, (directionX-fileX-12)/7)), premiumTheme.Text, bg); err != nil {
 			return err
 		}
-		if err := u.x.text(directionX, y, strings.ToUpper(job.Direction[:1])+strings.ToLower(job.Direction[1:]), premiumTheme.Text, bg); err != nil {
+		if err := u.x.text(directionX, y, linuxCapitalized(job.Direction), premiumTheme.Text, bg); err != nil {
 			return err
 		}
 		if err := u.x.text(progressX, y, fmt.Sprintf("%.0f%%", job.Progress*100), premiumTheme.Text, bg); err != nil {
 			return err
 		}
-		if err := u.x.text(statusX, y, linuxTrimForUI(strings.ToUpper(job.Status[:1])+strings.ToLower(job.Status[1:]), max(8, (speedX-statusX-8)/7)), statusColor, bg); err != nil {
+		if err := u.x.text(statusX, y, linuxTrimForUI(linuxCapitalized(job.Status), max(8, (speedX-statusX-8)/7)), statusColor, bg); err != nil {
 			return err
 		}
 		if err := u.x.text(speedX, y, linuxTransferSpeedLabel(job), premiumTheme.Muted, bg); err != nil {
