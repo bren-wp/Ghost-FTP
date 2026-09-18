@@ -432,6 +432,7 @@ def integrate_main(text: str) -> str:
         text,
         "        transferQueueEntries = entries\n"
         "        transferQueuePaused = paused\n"
+        "        updateEmbeddedTransferQueue()\n"
         "        transferQueueController?.apply(\n",
         "        transferQueueEntries = entries\n"
         "        let actionableCount = entries.filter { entry in\n"
@@ -439,6 +440,7 @@ def integrate_main(text: str) -> str:
         "        }.count\n"
         "        transferQueueButton.title = actionableCount > 0 ? \"Transfer Queue (\\(min(actionableCount, 99)))\" : \"Transfer Queue\"\n"
         "        transferQueuePaused = paused\n"
+        "        updateEmbeddedTransferQueue()\n"
         "        transferQueueController?.apply(\n",
         "main-transfer-queue-badge",
     )
