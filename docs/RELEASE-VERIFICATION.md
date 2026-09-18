@@ -1,6 +1,6 @@
 # Ghost FTP release verification
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release remains **0.0.7** until the protected 0.0.8 release transaction succeeds.
+Ghost FTP **0.0.8** is the current publication target; **0.0.7** remains the immutable protected baseline. The 0.0.8 transaction is a transparent compatibility release that may publish without production signing keys.
 
 The canonical 0.0.8 publication contains **14 platform artifacts / 17 public files**.
 
@@ -58,7 +58,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS is accepted into the public 17-file release only after real Developer ID signing, Apple notarization, stapling and Gatekeeper verification succeed.
+macOS enters the 17-file compatibility release as a universal arm64 + x86_64 archive with verified ad-hoc signing. This is not Developer ID signing or Apple notarization.
 
 ## Canonical release dispatch
 
@@ -80,7 +80,7 @@ Before publication:
 6. release quality, Windows, Linux, Android and browser jobs succeed again from fresh source;
 7. official Windows Setup/Portable pass trusted Authenticode verification;
 8. the Android APK passes production signing verification and exact signer-fingerprint validation;
-9. the release contains exactly the canonical **16-file** set.
+9. the release contains exactly the canonical **17-file** set.
 
 ## SHA-256 verification
 
@@ -99,7 +99,7 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 ```
 
 Architecture-specific staging executables are internal verified inputs and must never appear among public assets. `WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci` means current CI cross-builds and structurally verifies ARM64 but does not claim native Windows ARM64 execution.
@@ -140,7 +140,7 @@ GHOSTFTP_ANDROID_KEY_PASSWORD
 GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-The workflow builds the unsigned release APK, signs it with the protected publisher keystore, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The production workflow must not generate its own replacement publisher identity.
+The workflow builds the unsigned release APK and always verifies the final APK with `apksigner`. With a complete protected publisher identity, its signer must equal `GHOSTFTP_ANDROID_CERT_SHA256`. With no protected identity configured, the workflow creates a temporary one-run compatibility certificate and records the resulting signer SHA-256. Partial protected signing configuration is rejected.
 
 The ordinary `Ghost-FTP-Android-dev.apk` and ephemeral CI signing identity prove only development/signing mechanics and are not accepted as the public APK.
 
@@ -165,14 +165,14 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386
 LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386
 LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
 LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
-ANDROID_APK=production-signed
+ANDROID_APK=compatibility-signed-or-production-signed
 ANDROID_SIGNER_SHA256=<verified signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
@@ -186,11 +186,11 @@ GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 
 Exact-head UI evidence is source-bound. Maintained workflows capture real Windows, Linux and Android runtime surfaces and assemble a verified evidence bundle containing source SHA, filenames, byte counts and SHA-256 hashes. Mockups, image-generation output and manually composed approximations are not release evidence.
 
-The Windows evidence does not claim native ARM64 execution. macOS validation CI remains separate from production evidence; only the credentialed Developer ID + notarization release job is publication evidence.
+The Windows evidence does not claim native ARM64 execution. macOS validation and the public 0.0.8 compatibility archive use ad-hoc signing; neither is evidence of Developer ID signing or notarization.
 
 ## Remote release readback
 
-The publish workflow requires the remote GitHub Release asset set to match the exact **16-file** allow-list immediately and after a delay. It requires `prerelease=false` and refuses to rewrite an existing tag/release.
+The publish workflow requires the remote GitHub Release asset set to match the exact **17-file** allow-list immediately and after a delay. It requires `prerelease=false` and refuses to rewrite an existing tag/release.
 
 The digest-readback verifier compares GitHub's per-asset SHA-256 digests with the exact source-workflow bundle and checks that `BUILD-METADATA.txt` binds `COMMIT` to the expected source SHA.
 
@@ -204,9 +204,9 @@ The exact-version package is verified after push. It is a distribution bundle, n
 
 ## Protected retention verification
 
-Only after the 0.0.8 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.8` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. The published `ghostftp-v0.0.7` release/tag is a protected immutable baseline and must remain present and unchanged; an existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
+Only after the 0.0.8 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.8` is non-draft/non-prerelease, has **17 assets** and points to exact current `main`. The published `ghostftp-v0.0.7` release/tag is a protected immutable baseline and must remain present and unchanged; an existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).
 
 
-Verified macOS asset: `Ghost-FTP-0.0.8-macOS-notarized.app.zip`.
+Verified macOS asset: `Ghost-FTP-0.0.8-macOS.app.zip`.
