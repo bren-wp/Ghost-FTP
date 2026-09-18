@@ -179,7 +179,7 @@ def integrate_main(text: str) -> str:
         button.isBordered = false
         button.font = .systemFont(ofSize: 13, weight: active ? .semibold : .medium)
         button.alignment = .left
-        button.contentTintColor = active ? Palette.accentStrong : Palette.text
+        button.contentTintColor = active ? Palette.accentStrong : Palette.muted
         button.wantsLayer = true
         button.layer?.cornerRadius = 8
         button.layer?.borderWidth = active ? 1 : 0
