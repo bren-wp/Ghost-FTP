@@ -3714,14 +3714,6 @@ public final class MainActivity extends Activity {
         return button;
     }
 
-    private Button primaryIconButton(String text, int iconRes) {
-        Button button = primaryButton(text);
-        button.setCompoundDrawablesWithIntrinsicBounds(iconRes, 0, 0, 0);
-        button.setCompoundDrawablePadding(dp(7));
-        button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.ON_ACCENT));
-        return button;
-    }
-
     private Button dangerButton(String text) {
         Button button = new Button(this);
         button.setText(text);
