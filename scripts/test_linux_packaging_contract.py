@@ -65,7 +65,7 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertIn("LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386", workflow)
         self.assertIn("PUBLIC_PLATFORM_ARTIFACTS=14", workflow)
         self.assertIn("PUBLIC_RELEASE_FILES=17", workflow)
-        self.assertIn('test "$count" = \'16\'', workflow)
+        self.assertIn('test "$count" = \'17\'', workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Android.apk", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-macOS-notarized.app.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Chrome-Extension.zip", workflow)
