@@ -18,7 +18,6 @@ const (
 	linuxMasterRailCardGap     = 8
 	linuxMasterRailUtilityH    = 38
 	linuxMasterRailUtilityGap  = 7
-	linuxMasterRailLanguageH   = 30
 	linuxMasterRailPrimaryTop  = 64
 	linuxMasterRailBottomInset = 42
 )
@@ -31,10 +30,7 @@ type linuxMasterRailLayout struct {
 	settings    linuxRect
 	bookmarks   linuxRect
 	diagnostics linuxRect
-	updates     linuxRect
-	premium     linuxRect
 	about       linuxRect
-	language    linuxRect
 	content     linuxRect
 }
 
@@ -61,7 +57,7 @@ func buildLinuxMasterRailLayout(width, height int) linuxMasterRailLayout {
 	layout.settings = linuxRectWH(linuxMasterRailX, y, linuxMasterRailWidth, linuxMasterRailCardH)
 	y += linuxMasterRailCardH
 
-	utilityHeight := 5*linuxMasterRailUtilityH + 5*linuxMasterRailUtilityGap + linuxMasterRailLanguageH
+	utilityHeight := 3*linuxMasterRailUtilityH + 2*linuxMasterRailUtilityGap
 	utilityY := height - linuxMasterRailBottomInset - utilityHeight
 	if minimum := y + 18; utilityY < minimum {
 		utilityY = minimum
@@ -70,13 +66,7 @@ func buildLinuxMasterRailLayout(width, height int) linuxMasterRailLayout {
 	utilityY += linuxMasterRailUtilityH + linuxMasterRailUtilityGap
 	layout.diagnostics = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailUtilityH)
 	utilityY += linuxMasterRailUtilityH + linuxMasterRailUtilityGap
-	layout.updates = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailUtilityH)
-	utilityY += linuxMasterRailUtilityH + linuxMasterRailUtilityGap
-	layout.premium = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailUtilityH)
-	utilityY += linuxMasterRailUtilityH + linuxMasterRailUtilityGap
 	layout.about = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailUtilityH)
-	utilityY += linuxMasterRailUtilityH + linuxMasterRailUtilityGap
-	layout.language = linuxRectWH(linuxMasterRailX, utilityY, linuxMasterRailWidth, linuxMasterRailLanguageH)
 	return layout
 }
 
@@ -201,17 +191,7 @@ func (u *linuxDesktop) renderLinuxMasterRail() error {
 	if err := u.drawButton(rail.diagnostics, labels.Diagnostics, !u.busy, false); err != nil {
 		return err
 	}
-	if err := u.drawButton(rail.updates, "Check for updates", !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(rail.premium, "Premium", !u.busy, false); err != nil {
-		return err
-	}
 	if err := u.drawButton(rail.about, u.tr("common.about"), !u.busy, false); err != nil {
-		return err
-	}
-	languageLabel := strings.ToUpper(u.language)
-	if err := u.drawButton(rail.language, languageLabel, !u.busy, false); err != nil {
 		return err
 	}
 
@@ -266,21 +246,9 @@ func (u *linuxDesktop) handleLinuxMasterRailMouse(x, y int) bool {
 		if !u.busy {
 			u.openLinuxInfoOverlay(linuxInfoOverlayConnection)
 		}
-	case rail.updates.contains(x, y):
-		if !u.busy {
-			u.checkForUpdates()
-		}
-	case rail.premium.contains(x, y):
-		if !u.busy {
-			u.openPremiumDownload()
-		}
 	case rail.about.contains(x, y):
 		if !u.busy {
 			u.openLinuxInfoOverlay(linuxInfoOverlayAbout)
-		}
-	case rail.language.contains(x, y):
-		if !u.busy {
-			u.openSettings()
 		}
 	default:
 		return false
