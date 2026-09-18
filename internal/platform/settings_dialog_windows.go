@@ -56,18 +56,18 @@ type SettingsDialogNumber struct {
 // application-owned Windows settings surface. The desktop layer owns all labels
 // and business meaning; this package owns only native rendering and interaction.
 type SettingsDialogConfig struct {
-	Title             string
-	Heading           string
-	Intro             string
-	AppearanceLabel   string
-	AppearanceOptions []string
-	AppearanceIndex   int
-	Numbers           []SettingsDialogNumber
-	ConflictLabel     string
-	ConflictOptions   []string
-	ConflictIndex     int
-	ConfirmDelete     string
-	ConfirmDeleteOn   bool
+	Title                  string
+	Heading                string
+	Intro                  string
+	AppearanceLabel        string
+	AppearanceOptions      []string
+	AppearanceIndex        int
+	Numbers                []SettingsDialogNumber
+	ConflictLabel          string
+	ConflictOptions        []string
+	ConflictIndex          int
+	ConfirmDelete          string
+	ConfirmDeleteOn        bool
 	Footer                 string
 	ApplyLabel             string
 	CancelLabel            string
