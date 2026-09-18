@@ -72,14 +72,14 @@ class MacOSSiteManagerIntegrationTests(unittest.TestCase):
     def test_native_source_uses_explicit_dark_gold_product_palette(self) -> None:
         main = (ROOT / "macos" / "Sources" / "GhostFTPApp" / "main.swift").read_text(encoding="utf-8")
         for marker in (
-            "0x0A0D12",
-            "0x11161F",
-            "0x171D27",
-            "0xDFAF3E",
-            "0xF6C84F",
-            "0x2A2416",
-            "0x43D17D",
-            "0xFF6B73",
+            "0x0B0F17",
+            "0x121824",
+            "0x161D2A",
+            "0xF6C445",
+            "0xFFD768",
+            "0x2B2515",
+            "0x4AD79B",
+            "0xFF6878",
         ):
             self.assertIn(marker, main)
         self.assertNotIn("NSColor.controlAccentColor", main)
