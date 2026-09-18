@@ -59,7 +59,7 @@ For development-only issues, identify `Ghost-FTP-Android-dev.apk` and the exact 
 
 ## Browser helper reports
 
-The public helper ZIPs target Chrome, Edge and Firefox. The helper parses explicitly supplied FTP/FTPS/SFTP targets locally and can copy a credential-stripped target. There is no supported browser-to-desktop handoff. Report browser family/version and whether parsing, safe-target generation or explicit copy failed; never include live credentials.
+The public helper ZIPs target Chrome, Edge, Firefox and Opera. The helper parses explicitly supplied FTP/FTPS/SFTP targets locally and can copy a credential-stripped target. On supported installed Windows builds, the explicit **Open in Ghost FTP** action uses the sanitized `ghostftp://connect` handoff; credentials, private keys, query data and fragments are excluded and Ghost FTP never auto-connects. Report browser family/version and whether parsing, safe-target generation, explicit copy or explicit handoff failed; never include live credentials.
 
 ## macOS development reports
 
@@ -85,8 +85,8 @@ Current identity:
 VERSION=0.0.8
 TAG=ghostftp-v0.0.8
 PRERELEASE=false
-PUBLIC_PLATFORM_ARTIFACTS=18
-PUBLIC_RELEASE_FILES=21
+PUBLIC_PLATFORM_ARTIFACTS=13
+PUBLIC_RELEASE_FILES=16
 GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
