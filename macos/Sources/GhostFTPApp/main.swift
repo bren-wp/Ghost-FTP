@@ -276,6 +276,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         connectButton.target = self
         connectButton.action = #selector(connectTapped)
         connectButton.bezelStyle = .rounded
+        connectButton.bezelColor = Palette.accent
+        connectButton.contentTintColor = NSColor(rgb: 0x18140A)
         connectButton.keyEquivalent = "\r"
         disconnectButton.target = self
         disconnectButton.action = #selector(disconnectTapped)
@@ -285,13 +287,19 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         transferQueueButton.action = #selector(transferQueueTapped)
 
         configureWorkspaceActions()
+        uploadButton.bezelColor = Palette.accent
+        uploadButton.contentTintColor = NSColor(rgb: 0x18140A)
+        downloadButton.bezelColor = Palette.accent
+        downloadButton.contentTintColor = NSColor(rgb: 0x18140A)
+        localDeleteButton.contentTintColor = Palette.danger
+        remoteDeleteButton.contentTintColor = Palette.danger
         configureTable(localTable, remote: false)
         configureTable(remoteTable, remote: true)
 
         let title = NSTextField(labelWithString: "Ghost FTP")
         title.font = .systemFont(ofSize: 25, weight: .bold)
         title.textColor = Palette.text
-        let subtitle = NSTextField(labelWithString: "Quick Connect")
+        let subtitle = NSTextField(labelWithString: "Connection")
         subtitle.font = .systemFont(ofSize: 13, weight: .medium)
         subtitle.textColor = Palette.muted
 
