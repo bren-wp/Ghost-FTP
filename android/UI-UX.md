@@ -34,6 +34,8 @@ The compact phone app bar shows the local Ghost FTP icon and brand once. Files t
 
 The Current connection card is derived from the active live session/profile and protocol state. The transfer card is derived from the actual transfer lifecycle; neither surface may inject demo servers, fake queue entries or decorative state.
 
+On phones, secondary file-management controls do not occupy permanent rows inside both file cards. **More** opens a real context menu backed by the existing local/remote filter, sort, recursive search, rename, delete, permissions, Remote Edit, comparison and navigation functions. **New Folder** routes to a real local/remote target based on the capabilities currently available. Tablets retain the wider inline action rows where there is enough room.
+
 Local storage is restricted to Android Storage Access Framework capabilities granted by the user. The surface provides the local current path, folder picker, Up, Refresh, a real directory listing and local file selection.
 
 The server pane displays the active remote path, Up, Refresh and the freshly listed remote entries for the active FTP/FTPS session. Upload and download actions are enabled only for actual file selections. Directory transfer is not implied by file buttons.
