@@ -14,7 +14,8 @@ CHANNEL=Current
 PRERELEASE=false
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
-LATEST_ONLY_RELEASE_RETENTION=YES
+PROTECTED_RELEASE_TAG=ghostftp-v0.0.7
+PROTECTED_RELEASE_POLICY=PRESERVE_TAG_RELEASE_AND_EXISTING_PACKAGE
 ```
 
 The release source must be the exact current `main` commit that passed every required gate.
@@ -175,7 +176,7 @@ ANDROID_APK=production-signed
 ANDROID_SIGNER_SHA256=<verified signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-uri-windows
+BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
 PUBLIC_PLATFORM_ARTIFACTS=13
 PUBLIC_RELEASE_FILES=16
 GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
@@ -201,8 +202,8 @@ ghcr.io/bren-wp/ghost-ftp:0.0.8
 
 The exact-version package is verified after push. It is a distribution bundle, not a supported runtime container.
 
-## Latest-only retention verification
+## Protected retention verification
 
-Only after the 0.0.8 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.8` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. `main` history is never rewritten.
+Only after the 0.0.8 transaction succeeds may retention delete superseded public releases/tags/branches/package versions. Retention independently verifies `ghostftp-v0.0.8` is non-draft/non-prerelease, has **16 assets** and points to exact current `main`. The published `ghostftp-v0.0.7` release/tag is a protected immutable baseline and must remain present and unchanged; an existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Signing](SIGNING.md), [Packages](PACKAGES.md) and [Versioning](VERSIONING.md).
