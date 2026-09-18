@@ -64,3 +64,15 @@ The protected production workflow is the required public-release trust boundary:
 - macOS is not an active release target and is not part of future artifact counts.
 
 The separately documented no-secret distribution path has an explicitly weaker publisher-trust state and must never be presented as equivalent to the protected production-signing path.
+
+
+## Windows architecture evidence
+
+Ghost FTP Windows Setup and Portable are universal launchers with native **x64, x86 and ARM64** application payloads.
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 payload is built and structurally verified in CI. The metadata value above is intentionally explicit: current hosted CI does not claim native Windows-on-ARM runtime execution evidence.
