@@ -226,6 +226,73 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertNotIn('object.put("secret"', store)
         self.assertNotIn('object.put("token"', store)
 
+    def test_android_dark_master_palette_is_default_with_real_light_secondary(self) -> None:
+        theme = self.read(f"{_regressions.ANDROID_JAVA}/GhostTheme.java")
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+        colors = self.read("android/app/src/main/res/values/colors.xml")
+        styles = self.read("android/app/src/main/res/values/styles.xml")
+        ui_contract = self.read("android/UI-UX.md")
+
+        for marker in (
+            'static final String APPEARANCE_DARK = "dark";',
+            'static final String APPEARANCE_LIGHT = "light";',
+            'return value != null && APPEARANCE_LIGHT.equalsIgnoreCase(value.trim())',
+            ': APPEARANCE_DARK;',
+            'ACCENT = Color.rgb(0xDF, 0xAF, 0x3E);',
+            'ACCENT_STRONG = Color.rgb(0xF6, 0xC8, 0x4F);',
+            'SELECTION = Color.rgb(0x2A, 0x24, 0x16);',
+        ):
+            self.assertIn(marker, theme)
+        self.assertNotIn("Configuration.UI_MODE_NIGHT", theme)
+
+        self.assertIn('<color name="ghost_window">#0A0D12</color>', colors)
+        self.assertIn('<color name="ghost_accent">#DFAF3E</color>', colors)
+        self.assertIn('<item name="android:windowLightStatusBar">false</item>', styles)
+        self.assertIn('<item name="android:windowLightNavigationBar">false</item>', styles)
+
+        create_start = activity.index("protected void onCreate(Bundle state)")
+        create_end = activity.index("protected void onDestroy()", create_start)
+        create = activity[create_start:create_end]
+        self.assertLess(create.index('preferences.getString("appearance", GhostTheme.APPEARANCE_DARK)'), create.index("GhostTheme.apply(this, appearanceMode);"))
+
+        for marker in (
+            'appearanceOptions.add("Dark");',
+            'appearanceOptions.add("Light");',
+            'applyAppearance.setOnClickListener(v -> applyAppearancePreference());',
+            '.putString("appearance", appearanceMode)',
+            'Dark is the Ghost FTP default. Light keeps a neutral gray secondary palette.',
+        ):
+            self.assertIn(marker, activity)
+
+        self.assertIn("The default appearance is **Dark**", ui_contract)
+        self.assertIn("**Light** remains a real secondary appearance", ui_contract)
+        self.assertIn("warm gold/amber", ui_contract)
+
+    def test_android_appearance_switch_preserves_live_navigation_and_memory_only_password(self) -> None:
+        activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
+        start = activity.index("private void applyAppearancePreference()")
+        end = activity.index("private void renderSites()", start)
+        appearance = activity[start:end]
+
+        for marker in (
+            'String passwordValue = password == null ? "" : password.getText().toString();',
+            "Section previousSection = activeSection;",
+            "navigationButtons.clear();",
+            "buildUi();",
+            "password.setText(passwordValue);",
+            "renderBookmarks();",
+            "renderLocal();",
+            "renderRemote();",
+            "showSection(previousSection);",
+            "setStatus(statusValue);",
+        ):
+            self.assertIn(marker, appearance)
+
+        self.assertNotIn("restorePreferences();", appearance)
+        self.assertNotIn("recreate();", appearance)
+        self.assertNotIn('putString("password"', appearance)
+        self.assertNotIn('putString("secret"', appearance)
+
     def test_sftp_is_fail_closed_until_host_key_verification_exists(self) -> None:
         readme = self.read("android/README.md")
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
