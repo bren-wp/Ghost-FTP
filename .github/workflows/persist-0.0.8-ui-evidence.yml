@@ -1,0 +1,147 @@
+name: Persist verified Ghost FTP 0.0.8 UI evidence
+
+on:
+  push:
+    branches:
+      - release-prep/ghostftp-v0.0.8
+    paths:
+      - docs/UI-EVIDENCE-IMPORT-REQUEST
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: ghostftp-0.0.8-ui-evidence-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    name: Import pinned verified runtime evidence
+    if: contains(github.event.head_commit.message, '[import-ui-evidence]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: 54032022c926b1ac07a4964785b20882e02ca582
+      SOURCE_RUN_ID: '35329686590'
+      ARTIFACT_ID: '10540637156'
+      ARTIFACT_DIGEST: sha256:2d5da83d7caf83943467a595b4d26c5b93e8c9416d68ea1c7a1911990e7ced7a
+      TARGET_DIR: docs/images/0.0.8
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout release preparation branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify pinned request
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(tr -d '\r\n' < docs/UI-EVIDENCE-IMPORT-REQUEST)" = "$SOURCE_SHA $SOURCE_RUN_ID $ARTIFACT_ID $ARTIFACT_DIGEST"
+
+      - name: Download pinned verified evidence artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata="$(gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID")"
+          test "$(jq -r '.workflow_run.id' <<<"$metadata")" = "$SOURCE_RUN_ID"
+          test "$(jq -r '.workflow_run.head_sha' <<<"$metadata")" = "$SOURCE_SHA"
+          test "$(jq -r '.digest' <<<"$metadata")" = "$ARTIFACT_DIGEST"
+          test "$(jq -r '.expired' <<<"$metadata")" = "false"
+          gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$RUNNER_TEMP/ui-evidence.zip"
+          mkdir -p "$RUNNER_TEMP/ui-evidence"
+          unzip -q "$RUNNER_TEMP/ui-evidence.zip" -d "$RUNNER_TEMP/ui-evidence"
+
+      - name: Verify manifest and all runtime images
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "ui-evidence"
+          manifest_path = root / "UI-SCREENSHOT-PROVENANCE.json"
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          source_sha = os.environ["SOURCE_SHA"]
+          run_id = int(os.environ["SOURCE_RUN_ID"])
+          if manifest.get("schema") != 1:
+              raise SystemExit("unexpected UI evidence schema")
+          if manifest.get("evidence") != "authentic-runtime-capture":
+              raise SystemExit("unexpected UI evidence type")
+          if manifest.get("capture_source_sha") != source_sha:
+              raise SystemExit("UI evidence source SHA mismatch")
+          if manifest.get("workflow_run_id") != run_id:
+              raise SystemExit("UI evidence workflow run mismatch")
+          images = manifest.get("images")
+          if not isinstance(images, list) or len(images) != 18:
+              raise SystemExit("UI evidence must contain exactly 18 runtime images")
+          names = set()
+          for item in images:
+              path = root / Path(item["path"]).name
+              if not path.is_file():
+                  path = root / "images" / Path(item["path"]).name
+              if not path.is_file():
+                  raise SystemExit(f"missing verified image: {item['path']}")
+              if path.name in names:
+                  raise SystemExit(f"duplicate verified image: {path.name}")
+              names.add(path.name)
+              data = path.read_bytes()
+              if len(data) != item["bytes"]:
+                  raise SystemExit(f"byte-count mismatch: {path.name}")
+              if hashlib.sha256(data).hexdigest() != item["sha256"]:
+                  raise SystemExit(f"SHA-256 mismatch: {path.name}")
+          expected = {
+              "ghost-ftp-main-workspace.png",
+              "ghost-ftp-site-manager.png",
+              "ghost-ftp-bookmarks.png",
+              "ghost-ftp-settings.png",
+              "ghost-ftp-about.png",
+              "ghost-ftp-linux-main-workspace.png",
+              "ghost-ftp-linux-bookmarks.png",
+              "ghost-ftp-linux-settings.png",
+              "ghost-ftp-linux-connection-info.png",
+              "ghost-ftp-linux-about.png",
+              "ghost-ftp-android-files.png",
+              "ghost-ftp-android-navigation.png",
+              "ghost-ftp-android-connections.png",
+              "ghost-ftp-android-bookmarks.png",
+              "ghost-ftp-android-transfer-queue.png",
+              "ghost-ftp-android-settings.png",
+              "ghost-ftp-android-connection-info.png",
+              "ghost-ftp-android-about.png",
+          }
+          if names != expected:
+              raise SystemExit("verified UI evidence filenames do not match the 0.0.8 contract")
+          print(f"VERIFIED_0_0_8_RUNTIME_IMAGES={len(names)}")
+          PY
+
+      - name: Persist immutable 0.0.8 documentation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$TARGET_DIR"
+          mkdir -p "$TARGET_DIR"
+          cp "$RUNNER_TEMP/ui-evidence/images/"*.png "$TARGET_DIR/"
+          cp "$RUNNER_TEMP/ui-evidence/UI-SCREENSHOT-PROVENANCE.json" "$TARGET_DIR/UI-SCREENSHOT-PROVENANCE.json"
+          (
+            cd "$TARGET_DIR"
+            sha256sum *.png | sort -k2 > SHA256.txt
+          )
+          test "$(find "$TARGET_DIR" -maxdepth 1 -type f -name '*.png' | wc -l | tr -d ' ')" = "18"
+          test -s "$TARGET_DIR/UI-SCREENSHOT-PROVENANCE.json"
+          test -s "$TARGET_DIR/SHA256.txt"
+
+      - name: Commit verified documentation media only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$TARGET_DIR"
+          git diff --cached --quiet && { echo "No verified UI media changes to persist." >&2; exit 1; }
+          git commit -m "docs(ui): persist verified 0.0.8 runtime evidence"
+          git push origin "HEAD:$GITHUB_REF_NAME"
