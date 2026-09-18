@@ -143,48 +143,33 @@ func (u *linuxDesktop) renderLinuxBrandMark(r linuxRect) error {
 		return nil
 	}
 	x, y := r.left+2, r.top+1
-	if err := u.x.fillRect(x, y, 32, 32, RGB{R: 16, G: 32, B: 56}); err != nil {
+	dark := RGB{R: 11, G: 15, B: 23}
+	gold := RGB{R: 246, G: 196, B: 69}
+
+	// Compact application mark from the supplied Ghost FTP references:
+	// dark square, gold frame and a simple gold ghost with two dark eyes.
+	if err := u.x.fillRect(x, y, 32, 32, gold); err != nil {
 		return err
 	}
-	if err := u.x.fillRect(x+4, y+4, 24, 24, RGB{R: 27, G: 43, B: 67}); err != nil {
+	if err := u.x.fillRect(x+2, y+2, 28, 28, dark); err != nil {
 		return err
 	}
-	server := RGB{R: 232, G: 241, B: 255}
-	slot := RGB{R: 11, G: 17, B: 28}
-	cyan := RGB{R: 70, G: 214, B: 200}
-	blue := RGB{R: 90, G: 134, B: 247}
-	for _, sx := range []int{x + 5, x + 21} {
-		if err := u.x.fillRect(sx, y+8, 7, 7, server); err != nil {
-			return err
-		}
-		if err := u.x.fillRect(sx, y+18, 7, 7, server); err != nil {
-			return err
-		}
-		if err := u.x.fillRect(sx+1, y+11, 5, 1, slot); err != nil {
-			return err
-		}
-		if err := u.x.fillRect(sx+1, y+21, 5, 1, slot); err != nil {
-			return err
-		}
-	}
-	// Cyan arrow moves right across the upper half; blue arrow mirrors it left
-	// across the lower half, matching the canonical 0.0.8 transfer mark.
-	if err := u.x.fillRect(x+10, y+10, 10, 4, cyan); err != nil {
+	if err := u.x.fillRect(x+9, y+9, 14, 14, gold); err != nil {
 		return err
 	}
-	if err := u.x.fillRect(x+17, y+7, 4, 10, cyan); err != nil {
+	if err := u.x.fillRect(x+8, y+12, 16, 13, gold); err != nil {
 		return err
 	}
-	if err := u.x.fillRect(x+20, y+12, 4, 4, cyan); err != nil {
+	if err := u.x.fillRect(x+10, y+23, 4, 3, gold); err != nil {
 		return err
 	}
-	if err := u.x.fillRect(x+12, y+19, 10, 4, blue); err != nil {
+	if err := u.x.fillRect(x+18, y+23, 4, 3, gold); err != nil {
 		return err
 	}
-	if err := u.x.fillRect(x+11, y+16, 4, 10, blue); err != nil {
+	if err := u.x.fillRect(x+12, y+14, 2, 2, dark); err != nil {
 		return err
 	}
-	return u.x.fillRect(x+8, y+18, 4, 4, blue)
+	return u.x.fillRect(x+18, y+14, 2, 2, dark)
 }
 
 func linuxTransferBadgeLabel(count int) string {
