@@ -69,9 +69,9 @@ During active data I/O, cancellation closes the active data/control sockets with
 
 Malformed EPSV/PASV replies, invalid passive ports, TCP data-connect failure or FTPS data-channel TLS failure close the FTP session and require reconnect. There is no fallback to an unprotected FTPS data channel and no disabled hostname verification.
 
-## Saved-site and bookmark boundary
+## Saved-connection and bookmark boundary
 
-Saved sites remain non-secret. Persisted identity/navigation state is bounded and tied to `(protocol, host, port, username)`. Changing that remote identity clears server-specific starts/bookmarks rather than carrying them to a different endpoint. Local starts/bookmarks require persisted SAF permission and a fresh provider query before becoming authoritative.
+Saved connections remain non-secret. Persisted identity/navigation state is bounded and tied to `(protocol, host, port, username)`. Changing that remote identity clears server-specific starts/bookmarks rather than carrying them to a different endpoint. Local starts/bookmarks require persisted SAF permission and a fresh provider query before becoming authoritative.
 
 ## Authentic Android screenshots
 
