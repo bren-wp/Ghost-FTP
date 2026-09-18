@@ -307,24 +307,52 @@ open_navigation
 capture 'ghost-ftp-android-navigation.png'
 
 first_section=1
-while IFS='|' read -r section expected_title file_slug; do
-  [[ -n "$section" ]] || continue
+capture_nav_surface() {
+  local section="$1"
+  local expected_title="$2"
+  local file_slug="$3"
   if (( first_section == 0 )); then
     open_navigation
   fi
   tap_nav_section "$section" "$expected_title"
   first_section=0
   capture "ghost-ftp-android-${file_slug}.png"
-done <<'SURFACES'
-Connections|Connections|connections
-Bookmarks|Bookmarks|bookmarks
-Transfer Queue|Transfer Queue|transfer-queue
-Settings|Settings|settings
-Connection info|Connection info|connection-info
-About|About|about
-SURFACES
+}
 
-for png in "$OUTPUT_DIR"/*.png; do
+# Keep the route list out of stdin: adb/uiautomator may read inherited stdin,
+# which can silently consume a heredoc-driven loop and truncate evidence.
+capture_nav_surface 'Connections' 'Connections' 'connections'
+capture_nav_surface 'Bookmarks' 'Bookmarks' 'bookmarks'
+capture_nav_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'
+capture_nav_surface 'Settings' 'Settings' 'settings'
+capture_nav_surface 'Connection info' 'Connection info' 'connection-info'
+capture_nav_surface 'About' 'About' 'about'
+
+expected_pngs=(
+  'ghost-ftp-android-files.png'
+  'ghost-ftp-android-navigation.png'
+  'ghost-ftp-android-connections.png'
+  'ghost-ftp-android-bookmarks.png'
+  'ghost-ftp-android-transfer-queue.png'
+  'ghost-ftp-android-settings.png'
+  'ghost-ftp-android-connection-info.png'
+  'ghost-ftp-android-about.png'
+)
+for name in "${expected_pngs[@]}"; do
+  [[ -s "$OUTPUT_DIR/$name" ]] || {
+    echo "Missing required Android screenshot: $name" >&2
+    exit 1
+  }
+done
+shopt -s nullglob
+captured_pngs=("$OUTPUT_DIR"/*.png)
+(( ${#captured_pngs[@]} == ${#expected_pngs[@]} )) || {
+  echo "Android evidence count mismatch: expected ${#expected_pngs[@]}, found ${#captured_pngs[@]}." >&2
+  printf 'Captured: %s\n' "${captured_pngs[@]##*/}" >&2
+  exit 1
+}
+
+for png in "${captured_pngs[@]}"; do
   dims="$(identify -format '%w %h %k' "$png")"
   read -r width height colors <<<"$dims"
   if (( width < 320 || height < 480 || colors < 8 )); then
