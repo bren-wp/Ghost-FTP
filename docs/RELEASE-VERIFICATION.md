@@ -83,7 +83,7 @@ Before publication:
 5. authentic Windows/Linux/Android runtime evidence is bound to that exact source revision;
 6. release quality, Windows, Linux, Android and browser jobs succeed again from fresh source;
 7. Windows Setup/Portable are verified as intentionally unsigned and that state is recorded;
-8. the Android APK passes signature verification and its CI debug signer fingerprint is recorded without claiming a protected publisher identity;
+8. the Android APK passes signature verification and its temporary compatibility signer fingerprint is recorded without claiming a protected publisher identity;
 9. the macOS universal app passes ad-hoc codesign verification without claiming notarization;
 10. the release contains exactly the canonical **17-file** set.
 
@@ -158,7 +158,7 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned
 LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386
 LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386
 LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
@@ -166,7 +166,7 @@ LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
 ANDROID_APK=temporary-compatibility-certificate
-ANDROID_SIGNER_SHA256=<verified CI debug signer SHA-256>
+ANDROID_SIGNER_SHA256=<verified temporary compatibility signer SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
 BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
