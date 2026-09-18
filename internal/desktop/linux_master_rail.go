@@ -42,18 +42,18 @@ type linuxWorkspaceHistoryEntry struct {
 }
 
 type linuxMasterToolbarLayout struct {
-	region      linuxRect
-	connection  linuxRect
-	status      linuxRect
-	quick       linuxRect
-	back        linuxRect
-	forward     linuxRect
-	refresh     linuxRect
-	newFolder   linuxRect
-	upload      linuxRect
-	download    linuxRect
-	bookmarks   linuxRect
-	more        linuxRect
+	region     linuxRect
+	connection linuxRect
+	status     linuxRect
+	quick      linuxRect
+	back       linuxRect
+	forward    linuxRect
+	refresh    linuxRect
+	newFolder  linuxRect
+	upload     linuxRect
+	download   linuxRect
+	bookmarks  linuxRect
+	more       linuxRect
 }
 
 func buildLinuxMasterToolbarLayout(width int) linuxMasterToolbarLayout {
