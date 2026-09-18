@@ -96,7 +96,11 @@ Documentation may state that SFTP is intentionally hidden. That informational te
 
 ## Visual system
 
-Ghost FTP Android uses the project dark palette and local Android resources. Navigation uses local vector drawables for hamburger, Files, Sites, Bookmarks, Transfers, Settings and About.
+Ghost FTP Android uses the same charcoal/blue-black product shell as the desktop applications, with warm gold/amber as the primary action and active-navigation accent. Green is reserved for positive connection/operation state and red for destructive or failed state. The default appearance is **Dark**, independent of the device's system light/dark preference, so a fresh install opens in the canonical Ghost FTP visual identity.
+
+**Light** remains a real secondary appearance in Settings. It uses a neutral gray surface hierarchy with the same gold action language rather than reverting to a generic blue Android palette. Appearance changes rebuild the Activity-owned view hierarchy in place, retain the active FTP/FTPS session and navigation state, and keep the password memory-only instead of persisting it as part of the preference change.
+
+Navigation uses local vector drawables for hamburger, Files, Sites, Bookmarks, Transfers, Settings and About. Startup window/status/navigation-bar resources use the dark palette as well, preventing a light-theme flash before the Java UI owns the first frame.
 
 The runtime UI must not depend on emoji icons, externally hosted fonts, tracking resources or decorative controls that look actionable but have no owner.
 
