@@ -1,6 +1,6 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release is **0.0.6** until the protected 0.0.8 publication workflow completes successfully.
+Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release is **0.0.7** until the protected 0.0.8 publication workflow completes successfully.
 
 ## Release identity
 
