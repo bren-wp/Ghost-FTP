@@ -230,6 +230,7 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         theme = self.read(f"{_regressions.ANDROID_JAVA}/GhostTheme.java")
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
         colors = self.read("android/app/src/main/res/values/colors.xml")
+        night_colors = self.read("android/app/src/main/res/values-night/colors.xml")
         styles = self.read("android/app/src/main/res/values/styles.xml")
         ui_contract = self.read("android/UI-UX.md")
 
@@ -250,6 +251,9 @@ class AndroidContractTests(_regressions.AndroidContractTests):
 
         self.assertIn('<color name="ghost_window">#0A0D12</color>', colors)
         self.assertIn('<color name="ghost_accent">#DFAF3E</color>', colors)
+        self.assertIn('<color name="ghost_window">#0A0D12</color>', night_colors)
+        self.assertIn('<color name="ghost_accent">#DFAF3E</color>', night_colors)
+        self.assertNotIn("#5B7CFA", night_colors)
         self.assertIn('<item name="android:windowLightStatusBar">false</item>', styles)
 
         create_start = activity.index("protected void onCreate(Bundle state)")
