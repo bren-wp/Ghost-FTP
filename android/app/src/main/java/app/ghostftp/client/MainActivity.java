@@ -1634,6 +1634,9 @@ public final class MainActivity extends Activity {
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
+        remoteBackHistory.clear();
+        remoteForwardHistory.clear();
+        lastFilesNavigationRemote = false;
         busy = false;
         renderRemote();
         setStatus(disposition == TransferCommitGate.CancelDisposition.CLEANUP_STAGING
