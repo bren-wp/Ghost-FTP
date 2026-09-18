@@ -13,17 +13,11 @@ import (
 
 var ErrUntrustedURL = errors.New("untrusted external URL")
 
-func OpenReleasePage(value string) error {
-	return open(value, []string{"github.com"})
-}
+var officialHosts = []string{"ghostftp.com", "www.ghostftp.com"}
 
-func OpenPremiumPage() error {
-	return open(brand.PremiumURL, []string{"ghostftp.com", "www.ghostftp.com"})
-}
-
-func OpenWebsite() error {
-	return open(brand.WebsiteURL, []string{"ghostftp.com", "www.ghostftp.com"})
-}
+func OpenUpdatePage() error { return open(brand.UpdateURL, officialHosts) }
+func OpenPremiumPage() error { return open(brand.PremiumURL, officialHosts) }
+func OpenWebsite() error { return open(brand.WebsiteURL, officialHosts) }
 
 func trustedURL(value string, allowedHosts []string) (*url.URL, error) {
 	parsed, err := url.Parse(strings.TrimSpace(value))
@@ -67,5 +61,5 @@ func open(value string, allowedHosts []string) error {
 	return nil
 }
 
+func TrustedUpdateURL() string { return brand.UpdateURL }
 func TrustedPremiumURL() string { return brand.PremiumURL }
-func TrustedReleaseURL() string { return brand.ReleaseURL }
