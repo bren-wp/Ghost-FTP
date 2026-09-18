@@ -111,6 +111,6 @@ The standalone `macos-production.yml` workflow destroys the temporary signing Ke
 
 Source/native functionality is complete and continuously validated on universal macOS builds. Ghost FTP 0.0.8 treats macOS as a public release target, but the canonical release fails closed unless a real Developer ID certificate and Apple notarization credentials are supplied and the exact release run completes signing, notarization, stapling and Gatekeeper verification. Those private Apple credentials are external security material and are intentionally not stored in this repository.
 
-The About window also exposes explicit **Check for Updates** and **Download Premium** actions. Update network access runs only after the user requests it, executes away from the AppKit main thread, and does not send FTP credentials, server paths or transfer data.
+Language selection and product utility actions are owned by **Settings**, not the main master rail or About window. **Update** is a local-only simulation. **Download latest**, **Premium** and **Official website** open only fixed HTTPS destinations on `ghostftp.com`; no user-facing GitHub release URL or release-API request is used by the application.
 
 See `PARITY.md` for the completed Windows ↔ macOS action/security contract.
