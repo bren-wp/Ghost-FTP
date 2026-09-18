@@ -93,21 +93,21 @@ Browser helpers have zero browser permissions and zero host permissions. Windows
 
 ## Runtime evidence
 
-These repository-local screenshots document maintained Windows, Linux and Android application surfaces. They are exact-head runtime evidence, not generated product mockups.
+These repository-local screenshots document maintained Windows, Linux and Android application surfaces from the verified 0.0.8 evidence bundle. They are exact-head runtime evidence, not generated product mockups. macOS remains source/build validation only until an authentic AppKit runtime capture can be produced on maintained macOS infrastructure; the design references are never substituted as product evidence.
 
 ### Windows
 
-![Ghost FTP 0.0.6 Windows main workspace](docs/images/0.0.6/ghost-ftp-main-workspace.png)
+![Ghost FTP 0.0.8 Windows main workspace](docs/images/0.0.8/ghost-ftp-main-workspace.png)
 
 ### Linux
 
-![Ghost FTP 0.0.6 Linux main workspace](docs/images/0.0.6/ghost-ftp-linux-main-workspace.png)
+![Ghost FTP 0.0.8 Linux main workspace](docs/images/0.0.8/ghost-ftp-linux-main-workspace.png)
 
 ### Android
 
-![Ghost FTP 0.0.6 Android files](docs/images/0.0.6/ghost-ftp-android-files.png)
+![Ghost FTP 0.0.8 Android files](docs/images/0.0.8/ghost-ftp-android-files.png)
 
-See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence contract.
+See [Reference UI](docs/REFERENCE-UI.md) for the complete 18-image 0.0.8 evidence contract: Windows 5, Linux 5 and Android 8.
 
 ---
 
