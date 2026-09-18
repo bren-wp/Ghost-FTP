@@ -67,7 +67,7 @@ class LinuxPackagingContractTests(unittest.TestCase):
         self.assertIn("PUBLIC_RELEASE_FILES=17", workflow)
         self.assertIn('test "$count" = \'17\'', workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Android.apk", workflow)
-        self.assertIn("Ghost-FTP-${VERSION}-macOS-notarized.app.zip", workflow)
+        self.assertIn("Ghost-FTP-${VERSION}-macOS.app.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Chrome-Extension.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Edge-Extension.zip", workflow)
         self.assertIn("Ghost-FTP-${VERSION}-Firefox-Extension.zip", workflow)
