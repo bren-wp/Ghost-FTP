@@ -2,7 +2,7 @@
 
 Ghost FTP **0.0.8** treats settings as validated runtime policy rather than decorative UI state. Persisted values are accepted only within shared bounds, and visible controls map to real engine/runtime behavior.
 
-Windows and Linux share the desktop settings model. Android 0.0.8 is a public native application with platform-appropriate settings and SAF/lifecycle constraints; unsupported desktop-only controls are not fabricated. macOS remains a development/source frontend and consumes the shared model where the native surface implements the option.
+Windows and Linux share the desktop settings model. Android 0.0.8 is a public native application with platform-appropriate settings and SAF/lifecycle constraints; unsupported desktop-only controls are not fabricated. macOS is a maintained native AppKit frontend and public 0.0.8 release target; it consumes the shared model where the native surface implements the option.
 
 ## Current shared desktop settings
 
@@ -21,13 +21,19 @@ Windows and Linux share the desktop settings model. Android 0.0.8 is a public na
 
 A non-zero bandwidth value is the aggregate ceiling for that direction. The scheduler divides budgets conservatively across configured worker slots; running attempts snapshot their effective budget at start. FTP/FTPS use curl `limit-rate`; desktop SFTP uses OpenSSH `sftp -l` with conservative conversion.
 
-Windows exposes **one application-owned native Settings dialog** for appearance, concurrency, independent upload/download bandwidth, timeout, retries, conflict policy and delete confirmation. **Restore defaults** loads the canonical safe values into the dialog without saving them; Apply is still the persistence boundary. **Invalid input keeps the dialog open**; Cancel/X discards the pending candidate.
+Windows exposes **one application-owned native Settings dialog** for **language**, appearance, concurrency, independent upload/download bandwidth, timeout, retries, conflict policy and delete confirmation. Language is intentionally not shown in the main navigation rail. **Restore defaults** loads the canonical safe values into the dialog without saving them; Apply is still the persistence boundary. **Invalid input keeps the dialog open**; Cancel/X discards the pending candidate.
 
-Linux exposes the same validated policy through the maintained native X11/XWayland-compatible overlay and has the same draft-only Restore defaults action. macOS development uses native AppKit controls backed by the same typed settings model, including draft-only Restore Defaults and fail-closed delete confirmation when settings cannot be read.
+Linux exposes the same validated policy through the maintained native X11/XWayland-compatible overlay; language and product utility actions are kept inside Settings rather than the master rail. macOS uses native AppKit controls backed by the same typed settings model, including language, draft-only Restore Defaults and fail-closed delete confirmation when settings cannot be read.
+
+## Update, download and Premium actions
+
+Across Windows, Linux, Android and macOS, **Update** is an explicit local simulation. It may animate progress and report that the current build is updated, but it does not rewrite the installed binary, falsify the build version or contact a release API. Installing a genuinely newer signed build remains a separate download/install action.
+
+**Download latest**, **Premium** and **Official website** open only fixed HTTPS destinations on `ghostftp.com`. There is no GitHub/user-facing release link, no passive startup update request and no transmission of FTP credentials, usernames, server paths, local file paths or transfer metadata.
 
 ## Android settings boundary
 
-Android 0.0.8 keeps native settings appropriate to its current public client: Dark/Light appearance, opt-in Quick Connect metadata persistence, file-size display, delete confirmation and Restore app defaults. Restore defaults clears remembered Quick Connect metadata while keeping saved connections and the user-selected SAF folder authority. Connection/storage choices preserve strict FTPS verification, Storage Access Framework authority, transfer/lifecycle ownership and local-only non-secret saved-site state. **SFTP remains hidden** until strict maintained native host-key verification exists.
+Android 0.0.8 keeps native settings appropriate to its current public client: Dark/Light appearance, opt-in Quick Connect metadata persistence, file-size display, delete confirmation, Restore app defaults, local Update simulation and official-site Download/Premium/Website actions. Restore defaults clears remembered Quick Connect metadata while keeping saved connections and the user-selected SAF folder authority. Connection/storage choices preserve strict FTPS verification, Storage Access Framework authority, transfer/lifecycle ownership and local-only non-secret saved-site state. **SFTP remains hidden** until strict maintained native host-key verification exists.
 
 ## Appearance and localization
 
