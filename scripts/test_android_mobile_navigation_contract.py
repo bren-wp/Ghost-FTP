@@ -331,7 +331,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("bottom navigation", ui_doc.lower())
         self.assertIn("Remote Desktop", ui_doc)
         self.assertIn("not shown", ui_doc.lower())
-        self.assertIn("production-signed Android artifact", readme)
+        self.assertIn("one-run compatibility certificate", readme)
         self.assertIn("validation outputs keep the canonical visible version", ui_doc)
         self.assertNotIn("development builds append `-dev`", ui_doc)
 
