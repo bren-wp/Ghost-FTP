@@ -91,16 +91,19 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
             self.assertIn(name, linux)
         self.assertIn("capture 'ghost-ftp-android-files.png'", android)
         self.assertIn("capture 'ghost-ftp-android-navigation.png'", android)
-        for surface in (
-            "Connections|Connections|connections",
-            "Bookmarks|Bookmarks|bookmarks",
-            "Transfer Queue|Transfer Queue|transfer-queue",
-            "Settings|Settings|settings",
-            "Connection info|Connection info|connection-info",
-            "About|About|about",
+        for call in (
+            "capture_nav_surface 'Connections' 'Connections' 'connections'",
+            "capture_nav_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
+            "capture_nav_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
+            "capture_nav_surface 'Settings' 'Settings' 'settings'",
+            "capture_nav_surface 'Connection info' 'Connection info' 'connection-info'",
+            "capture_nav_surface 'About' 'About' 'about'",
         ):
-            self.assertIn(surface, android)
-        self.assertIn('capture "ghost-ftp-android-${file_slug}.png"', android)
+            self.assertIn(call, android)
+        self.assertIn("capture_nav_surface() {", android)
+        self.assertIn("expected_pngs=(", android)
+        self.assertIn("Android evidence count mismatch", android)
+        self.assertNotIn("done <<'SURFACES'", android)
         for name in (
             "ghost-ftp-android-files.png",
             "ghost-ftp-android-navigation.png",
@@ -144,15 +147,18 @@ class AuthenticUIWorkflowContractTests(unittest.TestCase):
         self.assertIn('adb install -r "$APK_PATH"', capture)
         self.assertIn("uiautomator dump", capture)
         self.assertIn("tap_ui 'Open navigation'", capture)
-        for surface in (
-            "Connections|Connections|connections",
-            "Bookmarks|Bookmarks|bookmarks",
-            "Transfer Queue|Transfer Queue|transfer-queue",
-            "Settings|Settings|settings",
-            "Connection info|Connection info|connection-info",
-            "About|About|about",
+        for call in (
+            "capture_nav_surface 'Connections' 'Connections' 'connections'",
+            "capture_nav_surface 'Bookmarks' 'Bookmarks' 'bookmarks'",
+            "capture_nav_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'",
+            "capture_nav_surface 'Settings' 'Settings' 'settings'",
+            "capture_nav_surface 'Connection info' 'Connection info' 'connection-info'",
+            "capture_nav_surface 'About' 'About' 'about'",
         ):
-            self.assertIn(surface, capture)
+            self.assertIn(call, capture)
+        self.assertIn("expected_pngs=(", capture)
+        self.assertIn("Android evidence count mismatch", capture)
+        self.assertNotIn("done <<'SURFACES'", capture)
         self.assertIn("adb exec-out screencap -p", capture)
 
     def test_android_capture_teardown_waits_before_bounded_avd_cleanup(self) -> None:
