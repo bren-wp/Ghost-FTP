@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 RETIRED=re.compile(r"by[\s_-]?ftp",re.IGNORECASE)
 AUTHOR_BRAND=re.compile(r"brendigo",re.IGNORECASE)
-ALLOWED_AUTHOR_IDENTITY={"LICENSE","README.md","CHANGELOG.md","docs/README.md","docs/RELEASE-HISTORY.md","linux/README.md","internal/desktop/about_identity_windows.go","macos/Bridge/about_identity.go","internal/brand/runtime_metadata_test.go","scripts/audit_brand_hardcut.py","scripts/audit_docs.py","scripts/test_about_card_release.py","scripts/test_official_destinations_contract.py","scripts/test_linux_distro_packaging_contract.py","web/legal.html","web/privacy.html"}
+ALLOWED_AUTHOR_IDENTITY={"LICENSE","README.md","CHANGELOG.md","docs/README.md","docs/RELEASE-HISTORY.md","linux/README.md","internal/desktop/about_identity_windows.go","internal/brand/runtime_metadata_test.go","scripts/audit_brand_hardcut.py","scripts/audit_docs.py","scripts/test_about_card_release.py","scripts/test_official_destinations_contract.py","scripts/test_linux_distro_packaging_contract.py","web/legal.html","web/privacy.html"}
 def fail(message:str)->None: raise SystemExit("BRAND_HARDCUT_FAILED: "+message)
 def main()->int:
  raw=subprocess.check_output(["git","ls-files","-z"],cwd=ROOT);violations=[]
@@ -20,7 +20,7 @@ def main()->int:
   except (UnicodeDecodeError,OSError):continue
   if RETIRED.search(text): violations.append("retired-content:"+rel)
   if rel not in ALLOWED_AUTHOR_IDENTITY and AUTHOR_BRAND.search(text): violations.append("author-identity-outside-approved-surface:"+rel)
- for rel,markers in (("internal/desktop/about_identity_windows.go",('aboutPublisher     = "BRENDIGO LTD"','aboutAuthorWebsite = "brendigo.com"','aboutSupport       = "brendigo.com/kontakt"')),("macos/Bridge/about_identity.go",('macAboutPublisher     = "BRENDIGO LTD"','macAboutAuthorWebsite = "brendigo.com"','macAboutSupport       = "brendigo.com/kontakt"'))):
+ for rel,markers in (("internal/desktop/about_identity_windows.go",('aboutPublisher     = "BRENDIGO LTD"','aboutAuthorWebsite = "brendigo.com"','aboutSupport       = "brendigo.com/kontakt"')),):
   p=ROOT/rel
   if not p.is_file(): violations.append("missing-about-identity-source:"+rel);continue
   t=p.read_text(encoding="utf-8")
