@@ -192,7 +192,7 @@ func (a *app) unscale(v int) int {
 }
 
 func (a *app) preferredWindowBounds() (x, y, width, height int) {
-	width, height = 1500, 960
+	width, height = 1600, 920
 	x, y = 40, 30
 	screenWRaw, _, _ := getSystemMetrics.Call(smCxScreen)
 	screenHRaw, _, _ := getSystemMetrics.Call(smCyScreen)
