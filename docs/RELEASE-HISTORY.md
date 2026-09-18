@@ -1,5 +1,17 @@
 # Ghost FTP release history
 
+## 0.0.8 — 2026-09-18
+
+Ghost FTP 0.0.8 is the native UI/UX parity and release-quality update built on the published 0.0.7 baseline.
+
+- Unified Windows, Linux, macOS and Android around the maintained **Files / Connections / Transfer Queue / Settings** product hierarchy while preserving platform-native interaction patterns.
+- Integrated real engine-backed transfer/connection state rather than decorative controls; added privacy-safe Connection info surfaces and standardized visible terminology.
+- Expanded authentic cross-platform evidence to **18 runtime images** (Windows 5, Linux 5, Android 8), each bound to source/workflow provenance and SHA-256.
+- Polished empty states, queue affordances, mobile density, desktop modal lifecycle, X11 text fallback behavior and master Dark/Light palette parity.
+- Refreshed root README and active product/release documentation for the 0.0.8 design and package contract.
+- Keeps the public shape at **13 platform artifacts / 16 public files** and preserves required Windows Authenticode, protected Android signing, strict FTPS/desktop-SFTP trust and the no-telemetry/no-hidden-cloud privacy model.
+- macOS remains a separately validated native source surface until real Developer ID Application signing and Apple notarization are verified.
+
 ## 0.0.7 — 2026-09-17
 
 Ghost FTP 0.0.7 is the cumulative cleanup, polish and hardening release built from all maintained changes after 0.0.6.
