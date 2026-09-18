@@ -41,10 +41,18 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         workspace = source[workspace_start:queue_start]
         queue = source[queue_start:render_start]
         self.assertIn("left: u.layout.localPath.left - 6", workspace)
-        self.assertIn("u.x.text(u.layout.localPath.left, leftPanel.top+20", workspace)
-        self.assertIn("u.x.text(u.layout.queue.left, u.layout.pause.top+19", queue)
+        self.assertIn("u.x.text(u.layout.localPath.left+8, leftPanel.top+20", workspace)
+        self.assertIn("u.x.text(u.layout.queue.left+8, u.layout.pause.top+19", queue)
         self.assertNotIn("u.x.text(premiumOuterGap, leftPanel.top+20", workspace)
         self.assertNotIn("u.x.text(premiumOuterGap, u.layout.pause.top+19", queue)
+
+    def test_linux_quick_connect_label_avoids_known_parenthetical_clipping(self) -> None:
+        source = read("internal/desktop/gui_linux.go")
+        start = source.index("func (u *linuxDesktop) renderQuickConnect() error")
+        end = source.index("func (u *linuxDesktop) renderItemRows", start)
+        quick = source[start:end]
+        self.assertIn('strings.Index(profileLabel, " (")', quick)
+        self.assertIn("strings.TrimSpace(profileLabel[:i])", quick)
 
     def test_macos_master_rail_and_empty_queue_have_clear_state(self) -> None:
         preparer = read("macos/prepare_site_manager_sources.py")
