@@ -18,7 +18,7 @@ A privacy-first FTP, FTPS and SFTP workspace for direct professional file transf
 </p>
 
 <p align="center">
-  <strong>0.0.8 release candidate</strong> · Current channel · 24 desktop languages · no telemetry
+  <strong>0.0.8 compatibility release</strong> · Current channel · 24 desktop languages · no telemetry
 </p>
 
 ---
@@ -60,7 +60,7 @@ Ghost FTP contains no application telemetry, behavioral analytics, advertising, 
 - Explicit FTPS validates certificate trust and server hostname identity.
 - Desktop SFTP uses strict SSH host-key trust and pinning.
 - Android exposes FTP and strict explicit FTPS; SFTP remains hidden until strict host-key verification is maintained on Android.
-- Production publication fails closed when required signing identities are unavailable.
+- The canonical production-signing workflow still fails closed when publisher identities are unavailable. The separately labeled 0.0.8 compatibility publication can ship without protected signing keys and records the exact unsigned/temporary/ad-hoc signing state instead of pretending production trust.
 - Native transfer traffic goes to the server selected by the user.
 
 ## File and transfer operations
@@ -85,8 +85,8 @@ Ghost FTP provides real file-management and transfer operations rather than simu
 | --- | --- | --- |
 | **Windows** | Current release target | Universal Setup and Portable applications with x64, x86 and ARM64 payloads |
 | **Linux** | Current release target | Debian, Ubuntu and Fedora Installer + Portable bundles |
-| **Android** | Current release target | Production-signed APK with FTP and strict explicit FTPS |
-| **macOS** | Current release target | Universal arm64 + x86_64 AppKit package; publication requires Developer ID signing, Apple notarization, stapling and Gatekeeper verification |
+| **Android** | Current compatibility release | Installable APK signed with a one-run compatibility certificate; FTP and strict explicit FTPS |
+| **macOS** | Current compatibility release | Universal arm64 + x86_64 AppKit validation archive; ad-hoc signed and explicitly not notarized |
 | **Browser helpers** | Current release target | Chrome, Edge, Firefox and Opera local helper packages |
 
 Browser helpers have zero browser permissions and zero host permissions. Windows installed builds support a **sanitized browser-to-desktop handoff** through the registered `ghostftp:` protocol. Only protocol, host, optional port, optional username and remote path are handed to the desktop app; passwords, private-key passphrases, private keys, query data and fragments are excluded. The helper never performs FTP/FTPS/SFTP transport itself and never auto-connects.
@@ -118,11 +118,11 @@ See [Reference UI](docs/REFERENCE-UI.md) for the complete 18-image 0.0.8 evidenc
 Current source version: **0.0.8**
 Release channel: **Current**
 Product status: **Current**
-Last actually published GitHub Release: **0.0.7**
+Last actually published GitHub Release before this compatibility transaction: **0.0.7**
 Next public release target: **ghostftp-v0.0.8**
 Prerelease: **false**
 
-The 0.0.8 publication contract contains **14 platform artifacts / 17 public files**, including a production-signed and Apple-notarized universal macOS app.
+The 0.0.8 compatibility publication contains **14 platform artifacts / 17 public files**. Windows is explicitly unsigned, Android uses a temporary one-run compatibility certificate, and macOS is an ad-hoc-signed universal validation archive that is explicitly not Apple-notarized. Runtime transport security, privacy audits and exact-source verification remain unchanged.
 
 ### Windows
 
@@ -152,15 +152,15 @@ Each distro bundle carries amd64, arm64 and i386 payloads and selects the local 
 Ghost-FTP-0.0.8-Android.apk
 ```
 
-Publication requires `apksigner` verification and an exact protected `GHOSTFTP_ANDROID_CERT_SHA256` signer fingerprint match.
+The compatibility APK is still verified with `apksigner`, but its signer is a temporary one-run compatibility certificate whose SHA-256 fingerprint is recorded in release metadata. It is not represented as the permanent production Android publisher identity.
 
 ### macOS
 
 ```text
-Ghost-FTP-0.0.8-macOS-notarized.app.zip
+Ghost-FTP-0.0.8-macOS-Unsigned-Validation.app.zip
 ```
 
-Publication requires a real Developer ID Application identity, Hardened Runtime, secure timestamp, accepted Apple notarization, a stapled ticket and Gatekeeper verification. The ad-hoc validation build is never substituted for this public artifact.
+The compatibility archive is built from the real universal AppKit application and ad-hoc signed for validation only. It is not Developer ID signed, not Apple notarized and may require explicit user approval in Gatekeeper. The canonical production-signing workflow remains available separately.
 
 ### Browser helpers
 
