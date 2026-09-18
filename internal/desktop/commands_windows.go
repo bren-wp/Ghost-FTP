@@ -40,10 +40,6 @@ func (a *app) command(id int) {
 		a.openAbout()
 	case idDiagnostics:
 		a.showDiagnostics()
-	case idCheckUpdates:
-		a.checkForUpdates()
-	case idPremiumDownload:
-		a.openPremiumDownload()
 	case idLocalRefresh:
 		a.refreshLocal(getText(a.localPath))
 	case idLocalChoose:
