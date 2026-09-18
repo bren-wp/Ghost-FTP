@@ -2698,7 +2698,7 @@ public final class MainActivity extends Activity {
         if (remoteList != null) remoteList.setAdapter(GhostTheme.listAdapter(this, labels));
         if (remoteList != null && remoteEmptyState != null) {
             boolean connected = session != null && session.isConnected();
-            boolean hasVisibleItems = !remoteVisibleItems.isEmpty();
+            boolean hasVisibleItems = connected && !remoteVisibleItems.isEmpty();
             String emptyMessage;
             if (!connected) {
                 emptyMessage = "Connect from Sites to browse server files.";
