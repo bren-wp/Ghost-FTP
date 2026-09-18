@@ -8,9 +8,9 @@
 - Current source version: **0.0.8**
 - Release channel: **Current**
 - Product status: **Current**
-- Last actually published GitHub Release: **0.0.6**
-- 0.0.6 release target: `ghostftp-v0.0.8`, `PRERELEASE=false`
-- 0.0.6 shape: **13 platform artifacts / 16 public files**
+- Last actually published GitHub Release: **0.0.7**
+- 0.0.8 release target: `ghostftp-v0.0.8`, `PRERELEASE=false`
+- 0.0.8 shape: **13 platform artifacts / 16 public files**
 - Public release targets: **Windows, Linux, Android and browser helper packages**
 - Maintained native source platforms: **Windows, Linux, Android and macOS**
 - Browser packages: **Chrome, Edge, Firefox and Opera**
@@ -18,7 +18,7 @@
 - Retired repository surfaces: **website and Web FTP**
 - License: **proprietary commercial software, Brendigo LTD**
 
-Version 0.0.6 is not treated as published until the exact verified `main` SHA succeeds through protected signing, publication and readback verification. macOS source remains maintained, while a public macOS artifact is withheld until real Developer ID Application signing and Apple notarization succeed.
+Version 0.0.8 is not treated as published until the exact verified `main` SHA succeeds through protected signing, publication and readback verification. macOS source remains maintained, while a public macOS artifact is withheld until real Developer ID Application signing and Apple notarization succeed.
 
 ## Documentation principles
 
@@ -53,7 +53,7 @@ Version 0.0.6 is not treated as published until the exact verified `main` SHA su
 | Browser helpers | [`../extensions/README.md`](../extensions/README.md) |
 | Engineering audit prompt | [`prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md`](prompts/GHOST-FTP-ENGINEERING-AUDIT-PROMPT.md) |
 
-## 0.0.6 public artifact contract
+## 0.0.8 public artifact contract
 
 ```text
 Ghost-FTP-0.0.8-Setup.exe
