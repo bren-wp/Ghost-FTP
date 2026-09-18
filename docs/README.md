@@ -38,3 +38,13 @@ Authentic runtime screenshots live under [`images/`](images/). Windows, Linux an
 ## Documentation rule
 
 Current-product documentation must describe only shipping or maintained source behavior. Historical documents may mention older macOS work only when clearly describing historical releases rather than current support.
+
+
+## Current public release shape
+
+The active Windows/Linux/Android plus browser-helper publication contract contains **13 platform artifacts / 16 public files** after macOS retirement. Historical published releases remain immutable.
+
+```text
+PUBLIC_PLATFORM_ARTIFACTS=13
+PUBLIC_RELEASE_FILES=16
+```
