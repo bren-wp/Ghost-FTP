@@ -31,7 +31,7 @@ install -d -m 700 "$XDG_DATA_HOME"
 xvfb_log="${RUNNER_TEMP:-/tmp}/xvfb.log"
 app_log="${RUNNER_TEMP:-/tmp}/ghostftp-linux.log"
 app_pid=''
-Xvfb "$DISPLAY" -screen 0 1440x1000x24 -nolisten tcp >"$xvfb_log" 2>&1 &
+Xvfb "$DISPLAY" -screen 0 1600x1000x24 -nolisten tcp >"$xvfb_log" 2>&1 &
 xvfb_pid=$!
 cleanup() {
   if [[ -n "$app_pid" ]]; then
@@ -130,7 +130,7 @@ done
   echo "Linux UI is below the supported minimum geometry: ${window_width}x${window_height}" >&2
   exit 1
 }
-if (( window_x == 0 && window_y == 0 && window_width == 1440 && window_height == 1000 )); then
+if (( window_x == 0 && window_y == 0 && window_width == 1600 && window_height == 1000 )); then
   echo 'Resolved X11 window matches the Xvfb root screen, not the Ghost FTP client.' >&2
   exit 1
 fi
@@ -166,15 +166,15 @@ read_window_geometry
 # About are real actions inside More. Derive evidence clicks from those public
 # master-layout contracts so screenshot validation follows the shipping UI.
 rail_x=14
-rail_width=166
+rail_width=208
 rail_center_x=$((rail_x + rail_width / 2))
-primary_top=64
-primary_height=46
+primary_top=72
+primary_height=50
 primary_gap=8
 settings_client_x=$rail_center_x
 settings_client_y=$((primary_top + 3 * (primary_height + primary_gap) + primary_height / 2))
 
-content_left=$((204 + 10))
+content_left=$((232 + 10))
 content_right=$((window_width - 14))
 content_width=$((content_right - content_left))
 toolbar_gap=7
