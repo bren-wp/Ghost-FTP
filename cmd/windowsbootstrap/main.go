@@ -24,7 +24,7 @@ var payload embed.FS
 
 const maxEmbeddedExecutableSize = 256 << 20
 
-var version = "0.0.7"
+var version = "0.0.8"
 var role = "portable"
 
 func normalizedRole(value string) (string, error) {
