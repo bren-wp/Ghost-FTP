@@ -223,8 +223,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("wait_ui 'Navigate to Bookmarks'", capture)
         self.assertIn("wait_ui 'Navigate to Transfers'", capture)
         self.assertIn("wait_ui 'Navigate to Settings'", capture)
-        self.assertIn("capture_primary_surface 'Connections'", capture)
-        self.assertIn("capture_primary_surface 'Transfer Queue'", capture)
+        self.assertIn("capture_primary_surface 'Sites' 'Connections' 'connections'", capture)
+        self.assertIn("capture_primary_surface 'Transfers' 'Transfer Queue' 'transfer-queue'", capture)
         self.assertNotIn("tap_ui 'Open navigation'", capture)
         self.assertNotIn("ANDROID_NAV_DRAWER=VISIBLE", capture)
 
