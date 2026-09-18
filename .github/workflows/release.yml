@@ -562,17 +562,17 @@ jobs:
           done
 
           python scripts/release_notes.py --version "$VERSION" --output release/RELEASE-NOTES.txt
-          cat >> release/RELEASE-NOTES.txt <<EOF
-
-Compatibility signing
-=====================
-
-Windows Authenticode: ${WINDOWS_SIGNING_STATE}.
-Android signing: ${ANDROID_SIGNING_STATE}; signer SHA-256: ${ANDROID_SIGNER_SHA256}.
-macOS signing: ${MACOS_SIGNING_STATE}; this archive is not Developer ID signed or Apple notarized.
-
-This 0.0.8 compatibility publication intentionally mirrors the 0.0.7 no-production-key policy while preserving exact-source builds, runtime tests and SHA-256 verification.
-EOF
+          printf '%s\n' \
+            '' \
+            'Compatibility signing' \
+            '=====================' \
+            '' \
+            "Windows Authenticode: ${WINDOWS_SIGNING_STATE}." \
+            "Android signing: ${ANDROID_SIGNING_STATE}; signer SHA-256: ${ANDROID_SIGNER_SHA256}." \
+            "macOS signing: ${MACOS_SIGNING_STATE}; this archive is not Developer ID signed or Apple notarized." \
+            '' \
+            'This 0.0.8 compatibility publication intentionally mirrors the 0.0.7 no-production-key policy while preserving exact-source builds, runtime tests and SHA-256 verification.' \
+            >> release/RELEASE-NOTES.txt
           cat > release/BUILD-METADATA.txt <<EOF
           BRAND=Ghost FTP
           TECHNICAL_IDENTITY=GhostFTP
