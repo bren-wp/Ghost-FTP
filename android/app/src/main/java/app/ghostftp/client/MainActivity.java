@@ -543,7 +543,7 @@ public final class MainActivity extends Activity {
         directoryCompare.setOnClickListener(v -> showDirectoryComparison());
         remoteEdit.setOnClickListener(v -> openRemoteEditorSelected());
 
-        remoteEmptyState = workspaceEmptyState("Connect from Sites to browse server files.");
+        remoteEmptyState = workspaceEmptyState("Connect from Connections to browse server files.");
         card.addView(remoteEmptyState, matchWrapSpaced());
         remoteList = new ListView(this);
         GhostTheme.styleList(remoteList);
@@ -2783,7 +2783,7 @@ public final class MainActivity extends Activity {
             boolean hasVisibleItems = connected && !remoteVisibleItems.isEmpty();
             String emptyMessage;
             if (!connected) {
-                emptyMessage = "Connect from Sites to browse server files.";
+                emptyMessage = "Connect from Connections to browse server files.";
             } else if (!remoteFilterQuery.isEmpty() && !remoteEntries.isEmpty()) {
                 emptyMessage = "No server files match this filter.";
             } else {
