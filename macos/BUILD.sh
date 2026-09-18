@@ -51,11 +51,13 @@ python3 "$PREPARE_SITE_MANAGER_SOURCES" \
   "$GENERATED_SITE_MANAGER_SOURCE"
 test -s "$GENERATED_SOURCE"
 test -s "$GENERATED_SITE_MANAGER_SOURCE"
-grep -F 'NSButton(title: "Site Manager"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'NSButton(title: "Files"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'NSButton(title: "Connections"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'makeMasterNavigationRail()' "$GENERATED_SOURCE" >/dev/null
 grep -F 'NSButton(title: "Bookmarks"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'NSButton(title: "Settings"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'NSButton(title: "About"' "$GENERATED_SOURCE" >/dev/null
-grep -F 'NSButton(title: "Diagnostics"' "$GENERATED_SOURCE" >/dev/null
+grep -F 'NSButton(title: "Connection info"' "$GENERATED_SOURCE" >/dev/null
 grep -F 'controller.onConnected' "$GENERATED_SOURCE" >/dev/null
 grep -F 'bookmarkNavigationApplied' "$GENERATED_SOURCE" >/dev/null
 grep -F 'settingsAppearanceChanged' "$GENERATED_SOURCE" >/dev/null
