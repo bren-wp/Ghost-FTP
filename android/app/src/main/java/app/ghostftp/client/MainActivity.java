@@ -307,7 +307,7 @@ public final class MainActivity extends Activity {
         appBar.setBackgroundColor(GhostTheme.PANEL);
 
         ImageView brandIcon = new ImageView(this);
-        brandIcon.setImageResource(getApplicationInfo().icon);
+        brandIcon.setImageResource(R.drawable.ic_ghost_brand);
         brandIcon.setContentDescription("Ghost FTP");
         brandIcon.setPadding(dp(3), dp(3), dp(3), dp(3));
         appBar.addView(brandIcon, new LinearLayout.LayoutParams(dp(46), dp(46)));
@@ -451,10 +451,12 @@ public final class MainActivity extends Activity {
         Button button = new Button(this);
         button.setText(text);
         button.setAllCaps(false);
-        button.setTextSize(10);
+        button.setTextSize(8);
+        button.setSingleLine(true);
         button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(1), dp(2), dp(1), dp(2));
         button.setCompoundDrawablesWithIntrinsicBounds(0, iconRes, 0, 0);
-        button.setCompoundDrawablePadding(dp(3));
+        button.setCompoundDrawablePadding(dp(2));
         button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.MUTED));
         button.setTag(section);
         button.setContentDescription("Navigate to " + text);
@@ -481,14 +483,21 @@ public final class MainActivity extends Activity {
             content.addView(surfaceHeading("Files", "Browse local files and your connected server from one workspace."));
         }
 
-        LinearLayout connectionCard = card("CURRENT CONNECTION", "");
-        currentConnectionSummary = pathLabel("Not connected");
+        LinearLayout connectionCard = new LinearLayout(this);
+        connectionCard.setOrientation(LinearLayout.VERTICAL);
+        connectionCard.setPadding(dp(10), dp(9), dp(10), dp(9));
+        connectionCard.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14));
+        currentConnectionSummary = label("Not connected", 14, GhostTheme.TEXT);
+        currentConnectionSummary.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        currentConnectionSummary.setPadding(dp(8), dp(8), dp(8), dp(8));
         currentConnectionSummary.setContentDescription("Current connection. Open Connections.");
-        connectionCard.addView(currentConnectionSummary, matchWrapSpaced());
+        connectionCard.addView(currentConnectionSummary, matchWrap());
         connectionCard.setOnClickListener(v -> showSection(Section.SITES));
         content.addView(connectionCard, cardParams());
 
-        LinearLayout quickActionsCard = card("ACTIONS", "");
+        LinearLayout quickActionsCard = new LinearLayout(this);
+        quickActionsCard.setOrientation(LinearLayout.VERTICAL);
+        quickActionsCard.setPadding(0, 0, 0, dp(4));
         LinearLayout actionRowOne = row();
         Button refreshAll = button("Refresh");
         Button newFolder = button("New Folder");
@@ -519,7 +528,7 @@ public final class MainActivity extends Activity {
         content.addView(quickActionsCard, cardParams());
 
         LinearLayout panes = new LinearLayout(this);
-        boolean wideFiles = getResources().getConfiguration().screenWidthDp >= 900;
+        boolean wideFiles = getResources().getConfiguration().screenWidthDp >= 400;
         panes.setOrientation(wideFiles ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         LinearLayout localPane = buildLocalFilesCard();
         LinearLayout remotePane = buildRemoteFilesCard();
@@ -3281,7 +3290,9 @@ public final class MainActivity extends Activity {
     private LinearLayout surfaceContent() {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(12), dp(12), dp(12), dp(24));
+        int horizontal = tabletLayout ? 12 : 8;
+        int vertical = tabletLayout ? 12 : 8;
+        content.setPadding(dp(horizontal), dp(vertical), dp(horizontal), dp(tabletLayout ? 24 : 12));
         content.setBackgroundColor(GhostTheme.WINDOW);
         return content;
     }
@@ -3310,9 +3321,10 @@ public final class MainActivity extends Activity {
     private LinearLayout card(String title, String hint) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(14), dp(14), dp(14), dp(14));
+        int pad = tabletLayout ? 14 : 10;
+        card.setPadding(dp(pad), dp(pad), dp(pad), dp(pad));
         card.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14));
-        TextView heading = label(title, 15, GhostTheme.TEXT);
+        TextView heading = label(title, tabletLayout ? 15 : 14, GhostTheme.TEXT);
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         card.addView(heading, matchWrap());
         if (hint != null && !hint.isEmpty()) {
@@ -3326,7 +3338,7 @@ public final class MainActivity extends Activity {
     private TextView workspaceEmptyState(String value) {
         TextView view = label(value, 12, GhostTheme.MUTED);
         view.setGravity(Gravity.CENTER_VERTICAL);
-        view.setMinHeight(dp(78));
+        view.setMinHeight(dp(tabletLayout ? 78 : 58));
         view.setPadding(dp(12), dp(12), dp(12), dp(12));
         view.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
         return view;
@@ -3433,7 +3445,7 @@ public final class MainActivity extends Activity {
 
     private LinearLayout.LayoutParams cardParams() {
         LinearLayout.LayoutParams params = matchWrap();
-        params.setMargins(0, 0, 0, dp(10));
+        params.setMargins(0, 0, 0, dp(tabletLayout ? 10 : 8));
         return params;
     }
 
