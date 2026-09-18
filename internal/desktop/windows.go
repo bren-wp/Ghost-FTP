@@ -134,7 +134,7 @@ func Run(engine *api.Engine, version string) error {
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(wstr(brand.ProductName+" "+version))),
 		wsOverlappedWindow,
-		40, 30, 1200, 780,
+		32, 24, 1440, 900,
 		0, 0, hinst, 0,
 	)
 	if hwnd == 0 {
@@ -171,7 +171,7 @@ func Run(engine *api.Engine, version string) error {
 	if r, _, _ := getClientRect.Call(hwnd, uintptr(unsafe.Pointer(&client))); r != 0 {
 		a.layout(int(client.Right-client.Left), int(client.Bottom-client.Top))
 	} else {
-		a.layout(a.scale(1180), a.scale(760))
+		a.layout(a.scale(1420), a.scale(880))
 	}
 	a.updateActionControls()
 	showWindow.Call(hwnd, swShow)
