@@ -18,7 +18,7 @@ Treat the repository as the final source of truth, but the intended 0.0.6 shape 
 - **Linux — public production surface.** Six universal distro bundles: Debian Installer, Debian Portable, Ubuntu Installer, Ubuntu Portable, Fedora Installer and Fedora Portable. Each bundle carries amd64, arm64 and i386 payloads and selects the local architecture. Native runtime/install evidence must not be claimed for architectures that CI only builds or packages.
 - **Android — public production surface.** One canonical APK. The current Android build contract is `minSdk 26`, `targetSdk 35`; never claim support for every Android version. Local files use Android storage-access semantics. FTP and explicitly secure FTPS are maintained. **Android SFTP remains hidden/unsupported** until a maintained implementation provides strict host-key verification/pinning and fail-closed handling of unknown or mismatched keys. Never add trust-all SFTP or expose a placeholder SFTP option.
 - **Browser helper — public production surface.** Deterministic ZIPs for Chrome, Edge, Firefox and Opera. The official helper must retain **zero browser permissions and zero host permissions**, no telemetry, no cloud/backend, no FTP credential collection, no automatic network destination and no browser-to-desktop handoff. It is a local connection helper, not a browser FTP runtime.
-- **macOS — active development/source surface only.** Do not publish a production macOS artifact until a real Developer ID Application identity is used and Apple notarization succeeds. Ad-hoc or development signing is not production evidence.
+- **macOS — retired.** The AppKit application, Darwin-only support, dedicated workflows and macOS tests are intentionally removed. Do not reintroduce them as part of ordinary parity work.
 
 The current candidate release contract is **13 platform artifacts plus 3 metadata files = 16 public release files**. The three metadata files are `RELEASE-NOTES.txt`, `BUILD-METADATA.txt` and `SHA256.txt`. Re-read the release scripts/workflows before relying on these numbers; if the contract changes, migrate code, tests and documentation together.
 
@@ -43,7 +43,6 @@ Inspect concrete behavior and evidence before changing code. At minimum cover th
 - Linux universal bundle selection, dependency preflight, installation and uninstall;
 - Android SAF/document-provider semantics, activity lifecycle and transfer cancellation;
 - browser manifest permissions, deterministic packaging and brand identity;
-- macOS development-only signing/distribution boundary;
 - localization and long-string UI behavior;
 - diagnostics/error redaction;
 - dependency and supply-chain boundaries;
@@ -108,9 +107,6 @@ The canonical public APK must be production signed. The release contract uses th
 
 Produce deterministic Chrome, Edge, Firefox and Opera ZIPs from the maintained extension source. Enforce official product/helper branding and permission-free manifests. Open-source-style fork assumptions must not be invented: follow the controlling `LICENSE` and official brand contract.
 
-### macOS
-
-Development builds may be produced for engineering validation. Do not call them public production artifacts. Public release requires real Developer ID Application signing and successful notarization; fail closed otherwise.
 
 ## 7. Release integrity
 
@@ -142,7 +138,6 @@ Use the repository's actual CI contract, not a hand-picked subset. Preserve and 
 - Debian/Ubuntu/Fedora installer GUI-smoke/uninstall lifecycle;
 - Android build, lint and signing-pipeline contract tests;
 - browser deterministic packaging/permission/brand checks;
-- macOS development app contract where triggered;
 - CodeQL and Govulncheck;
 - authentic UI evidence workflow when the changed paths trigger it.
 
