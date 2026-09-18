@@ -138,6 +138,15 @@ func (a *app) openSettings() {
 		conflict.Replace,
 		conflict.ReplaceBackup,
 	}
+	defaults := config.DefaultSettings()
+	defaultNumbers := []int{
+		defaults.Parallelism,
+		defaults.UploadLimitKiBPerSecond,
+		defaults.DownloadLimitKiBPerSecond,
+		defaults.ConnectionTimeoutSeconds,
+		defaults.AutoRetryCount,
+		defaults.RetryDelaySeconds,
+	}
 
 	parallelLabel := a.tr("settings.parallel")
 	timeoutLabel := a.tr("settings.timeout")
@@ -158,14 +167,19 @@ func (a *app) openSettings() {
 			settingsNumber(retriesLabel, settings.AutoRetryCount, config.MinAutoRetryCount, config.MaxAutoRetryCount, retriesLabel+" "+a.tr("settings.enter_range", config.MinAutoRetryCount, config.MaxAutoRetryCount)),
 			settingsNumber(retryDelayLabel, settings.RetryDelaySeconds, config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds, retryDelayLabel+" "+a.tr("settings.enter_range", config.MinRetryDelaySeconds, config.MaxRetryDelaySeconds)),
 		},
-		ConflictLabel:   conflict.Title,
-		ConflictOptions: conflictOptions,
-		ConflictIndex:   conflictPolicyIndex(settings),
-		ConfirmDelete:   a.tr("settings.confirm_delete_title"),
-		ConfirmDeleteOn: settings.ConfirmDelete,
-		Footer:          appearance.Hint,
-		ApplyLabel:      okLabel(language),
-		CancelLabel:     a.tr("common.cancel"),
+		ConflictLabel:          conflict.Title,
+		ConflictOptions:        conflictOptions,
+		ConflictIndex:          conflictPolicyIndex(settings),
+		ConfirmDelete:          a.tr("settings.confirm_delete_title"),
+		ConfirmDeleteOn:        settings.ConfirmDelete,
+		Footer:                 appearance.Hint,
+		ApplyLabel:             okLabel(language),
+		CancelLabel:            a.tr("common.cancel"),
+		ResetLabel:             settingsResetLabel(language),
+		DefaultAppearanceIndex: appearanceIndex(defaults.Appearance),
+		DefaultNumbers:         defaultNumbers,
+		DefaultConflictIndex:   conflictPolicyIndex(defaults),
+		DefaultConfirmDelete:   defaults.ConfirmDelete,
 	})
 	if !ok || len(result.Numbers) != 6 {
 		return

@@ -21,7 +21,7 @@ type linuxSettingsRects struct {
 	delayMinus, delayPlus       linuxRect
 	timeoutMinus, timeoutPlus   linuxRect
 	conflict, confirmDelete     linuxRect
-	save, close                 linuxRect
+	reset, save, close          linuxRect
 }
 
 func linuxSettingsPanelWidth(windowWidth int) int {
@@ -107,14 +107,21 @@ func nextLinuxAppearance(current string) string {
 	return model.AppearanceDark
 }
 
+func linuxDefaultSettingsDraft(current model.Settings) model.Settings {
+	defaults := config.DefaultSettings()
+	defaults.Language = i18n.Normalize(current.Language)
+	return defaults
+}
+
 func (u *linuxDesktop) conflictPolicyLabel(policy string) string {
+	words := conflictPolicyText(u.settingsDraft.Language)
 	switch policy {
 	case model.ConflictPolicySkip:
-		return u.draftTr("settings.skip_existing")
+		return words.Skip
 	case model.ConflictPolicyReplace:
-		return u.draftTr("settings.overwrite")
+		return words.Replace
 	default:
-		return u.draftTr("settings.overwrite") + " + " + u.draftTr("settings.backup_title")
+		return words.ReplaceBackup
 	}
 }
 
@@ -245,6 +252,10 @@ func (u *linuxDesktop) handleSettingsMouse(x, y int) bool {
 		u.settingsDraft.ConfirmDelete = !u.settingsDraft.ConfirmDelete
 		return true
 	}
+	if r.reset.contains(x, y) {
+		u.settingsDraft = linuxDefaultSettingsDraft(u.settingsDraft)
+		return true
+	}
 	if r.save.contains(x, y) {
 		u.saveSettings()
 		return true
@@ -310,11 +321,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 	if err := u.x.text(left+24, top+32, linuxTrimForUI(u.draftTr("settings.title"), 54), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(left+24, top+54, linuxTrimForUI(u.draftTr("settings.confirm_delete_body"), 82), premiumTheme.Muted, premiumTheme.Panel); err != nil {
-		return err
-	}
-
-	row := top + 76
+	row := top + 60
 	language := i18n.LanguageByCode(u.settingsDraft.Language)
 	if err := u.x.text(left+24, row+20, "Aa", premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
@@ -364,7 +371,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return err
 	}
 	row += 48
-	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.skip_title"), linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(conflictPolicyText(u.settingsDraft.Language).Title, linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	u.settingsRects.conflict = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
@@ -384,8 +391,12 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return err
 	}
 
+	u.settingsRects.reset = linuxRectWH(left+24, top+height-48, min(220, max(150, width-470)), 30)
 	u.settingsRects.save = linuxRectWH(left+width-226, top+height-48, 98, 30)
 	u.settingsRects.close = linuxRectWH(left+width-118, top+height-48, 98, 30)
+	if err := u.drawButtonWithLimit(u.settingsRects.reset, settingsResetLabel(u.settingsDraft.Language), true, false, linuxButtonLabelLimit(u.settingsRects.reset)); err != nil {
+		return err
+	}
 	if err := u.drawButton(u.settingsRects.save, "OK", true, true); err != nil {
 		return err
 	}

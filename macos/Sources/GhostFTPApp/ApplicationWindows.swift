@@ -356,10 +356,11 @@ final class SettingsWindowController: NSWindowController {
         grid.columnSpacing = 14
         grid.column(at: 0).xPlacement = .trailing
 
+        let resetButton = NSButton(title: "Restore Defaults", target: self, action: #selector(restoreDefaultsTapped))
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveTapped))
         saveButton.keyEquivalent = "\r"
         let closeButton = NSButton(title: "Close", target: self, action: #selector(closeTapped))
-        let actions = NSStackView(views: [saveButton, closeButton])
+        let actions = NSStackView(views: [resetButton, saveButton, closeButton])
         actions.orientation = .horizontal
         actions.spacing = 8
         statusLabel.textColor = .secondaryLabelColor
@@ -474,6 +475,22 @@ final class SettingsWindowController: NSWindowController {
         }
         statusLabel.stringValue = "Settings saved."
         onAppearanceChanged?(appearance)
+    }
+
+    @objc private func restoreDefaultsTapped() {
+        // Keep the explicitly chosen language while restoring the shared desktop
+        // behavior defaults. Values are loaded into the draft only; Save remains
+        // the single persistence boundary.
+        appearancePopup.selectItem(at: 0)
+        parallelismField.stringValue = "2"
+        uploadLimitField.stringValue = "0"
+        downloadLimitField.stringValue = "0"
+        connectionTimeoutField.stringValue = "15"
+        autoRetryField.stringValue = "0"
+        retryDelayField.stringValue = "3"
+        conflictPopup.selectItem(at: 2)
+        confirmDeleteButton.state = .on
+        statusLabel.stringValue = "Defaults loaded. Select Save to apply."
     }
 
     @objc private func closeTapped() { close() }

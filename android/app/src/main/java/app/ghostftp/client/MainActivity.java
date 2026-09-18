@@ -131,6 +131,7 @@ public final class MainActivity extends Activity {
     private Button applyAppearance;
     private CheckBox rememberEndpointToggle;
     private CheckBox showFileSizesToggle;
+    private CheckBox confirmDeleteToggle;
     private Spinner appearanceSpinner;
 
     private FrameLayout contentHost;
@@ -161,8 +162,9 @@ public final class MainActivity extends Activity {
     private volatile FtpSession connectingSession;
     private volatile boolean lifecycleDestroyed;
     private boolean busy;
-    private boolean rememberEndpoint = true;
+    private boolean rememberEndpoint = false;
     private boolean showFileSizes = true;
+    private boolean confirmDelete = true;
     private String appearanceMode = GhostTheme.APPEARANCE_DARK;
     private String localFilterQuery = "";
     private String remoteFilterQuery = "";
@@ -729,6 +731,20 @@ public final class MainActivity extends Activity {
             setStatus(showFileSizes ? "File sizes are visible." : "File sizes are hidden from list rows.");
         });
         uiCard.addView(showFileSizesToggle, matchWrapSpaced());
+
+        confirmDeleteToggle = checkBox("Confirm before deleting files and folders");
+        confirmDeleteToggle.setOnClickListener(v -> {
+            confirmDelete = confirmDeleteToggle.isChecked();
+            savePreferences();
+            setStatus(confirmDelete
+                    ? "Delete confirmation is enabled."
+                    : "Delete confirmation is disabled. Delete actions will run immediately.");
+        });
+        uiCard.addView(confirmDeleteToggle, matchWrapSpaced());
+
+        Button restoreDefaults = button("Restore app defaults");
+        restoreDefaults.setOnClickListener(v -> restoreDefaultPreferences());
+        uiCard.addView(restoreDefaults, matchWrapSpaced());
         content.addView(uiCard, cardParams());
 
         LinearLayout securityCard = card("SECURITY", "Security protections stay enforced automatically.");
@@ -879,12 +895,14 @@ public final class MainActivity extends Activity {
 
     private void restorePreferences() {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        rememberEndpoint = prefs.getBoolean("rememberEndpoint", true);
+        rememberEndpoint = prefs.getBoolean("rememberEndpoint", false);
         showFileSizes = prefs.getBoolean("showFileSizes", true);
+        confirmDelete = prefs.getBoolean("confirmDelete", true);
         appearanceMode = GhostTheme.normalizeAppearance(
                 prefs.getString("appearance", GhostTheme.APPEARANCE_DARK));
         rememberEndpointToggle.setChecked(rememberEndpoint);
         showFileSizesToggle.setChecked(showFileSizes);
+        confirmDeleteToggle.setChecked(confirmDelete);
         if (appearanceSpinner != null) {
             appearanceSpinner.setSelection(GhostTheme.APPEARANCE_LIGHT.equals(appearanceMode) ? 1 : 0);
         }
@@ -908,6 +926,7 @@ public final class MainActivity extends Activity {
         SharedPreferences.Editor editor = getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                 .putBoolean("rememberEndpoint", rememberEndpoint)
                 .putBoolean("showFileSizes", showFileSizes)
+                .putBoolean("confirmDelete", confirmDelete)
                 .putString("appearance", appearanceMode)
                 .putString("treeUri", treeUri == null ? "" : treeUri.toString());
         if (rememberEndpoint) {
@@ -960,6 +979,7 @@ public final class MainActivity extends Activity {
 
         rememberEndpointToggle.setChecked(rememberEndpoint);
         showFileSizesToggle.setChecked(showFileSizes);
+        confirmDeleteToggle.setChecked(confirmDelete);
         appearanceSpinner.setSelection(GhostTheme.APPEARANCE_LIGHT.equals(appearanceMode) ? 1 : 0);
         profileName.setText(profileNameValue);
         host.setText(hostValue);
@@ -975,6 +995,33 @@ public final class MainActivity extends Activity {
         refreshButtons();
         showSection(previousSection);
         setStatus(statusValue);
+    }
+
+    private void restoreDefaultPreferences() {
+        if (busy || transferActive || transferFinalizing || remoteEditorState != null || lifecycleDestroyed) {
+            setStatus("Finish the active operation before restoring app defaults.");
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Restore app defaults?")
+                .setMessage("This restores Dark appearance, file-size display and delete confirmation, and clears remembered Quick Connect metadata. Saved connections and your selected local folder are kept.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Restore", (dialog, which) -> {
+                    rememberEndpoint = false;
+                    showFileSizes = true;
+                    confirmDelete = true;
+                    if (appearanceSpinner != null) appearanceSpinner.setSelection(0);
+                    savePreferences();
+                    applyAppearancePreference();
+                    rememberEndpointToggle.setChecked(false);
+                    showFileSizesToggle.setChecked(true);
+                    confirmDeleteToggle.setChecked(true);
+                    savePreferences();
+                    renderLocal();
+                    renderRemote();
+                    setStatus("App defaults restored. Saved connections and local folder access were kept.");
+                })
+                .show();
     }
 
     private void renderSites() {
@@ -2716,6 +2763,10 @@ public final class MainActivity extends Activity {
 
     private void confirmDestructive(String title, String message, Runnable action) {
         if (busy || lifecycleDestroyed) return;
+        if (!confirmDelete) {
+            action.run();
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setMessage(message)

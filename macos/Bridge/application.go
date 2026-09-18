@@ -428,8 +428,9 @@ func GhostFTPSettingsConflictPolicy() *C.char {
 func GhostFTPSettingsConfirmDelete() C.int {
 	bridgeState.mu.Lock()
 	defer bridgeState.mu.Unlock()
-	if ensureSettingsLocked() != nil && !settingsSnapshot.ConfirmDelete {
-		return 0
+	if ensureSettingsLocked() != nil {
+		// Settings read failure must not silently weaken delete safety.
+		return 1
 	}
 	if settingsSnapshot.ConfirmDelete {
 		return 1

@@ -32,6 +32,7 @@ The canonical release workflow requires protected Android signing credentials an
 - Local SAF create-directory, rename and delete operations.
 - Remote FTP/FTPS create-directory, rename, delete and `SITE CHMOD` operations with path/name validation, confirmation and fresh-list readback.
 - Saved connections/bookmarks persist only non-secret identity/navigation metadata; passwords remain memory-only.
+- Quick Connect endpoint metadata is opt-in on fresh installs; Settings can also toggle file-size display, delete confirmation and restore app defaults without removing saved connections or SAF folder authority.
 - **Connection info** is privacy-safe runtime diagnostics: connection state, protocol/security mode and transfer state only; host, username, passwords, keys and saved paths are excluded.
 - No telemetry, analytics, ads, automatic crash-report upload or Ghost FTP relay/backend.
 

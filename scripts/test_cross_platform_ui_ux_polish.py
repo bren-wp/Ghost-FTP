@@ -80,6 +80,48 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
         self.assertIn("About and Connection info surfaces", readme)
         self.assertIn("Connection info is intentionally compact and privacy-safe", parity)
 
+    def test_restore_defaults_is_real_on_every_native_settings_surface(self) -> None:
+        windows = read("internal/desktop/settings_windows.go")
+        windows_platform = read("internal/platform/settings_dialog_windows.go")
+        linux = read("internal/desktop/gui_linux_settings.go")
+        macos = read("macos/Sources/GhostFTPApp/ApplicationWindows.swift")
+        android = read("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
+
+        self.assertIn("defaults := config.DefaultSettings()", windows)
+        self.assertIn("ResetLabel:             settingsResetLabel(language)", windows)
+        self.assertIn("settingsIDReset", windows_platform)
+        self.assertIn("state.config.DefaultNumbers", windows_platform)
+
+        self.assertIn("linuxDefaultSettingsDraft", linux)
+        self.assertIn("settingsResetLabel(u.settingsDraft.Language)", linux)
+        self.assertIn("u.settingsRects.reset", linux)
+
+        settings = macos[macos.index("final class SettingsWindowController"):macos.index("final class AboutWindowController")]
+        self.assertIn('NSButton(title: "Restore Defaults"', settings)
+        self.assertIn("restoreDefaultsTapped", settings)
+        self.assertIn('parallelismField.stringValue = "2"', settings)
+        self.assertIn("confirmDeleteButton.state = .on", settings)
+
+        self.assertIn('Button restoreDefaults = button("Restore app defaults")', android)
+        self.assertIn("private void restoreDefaultPreferences()", android)
+        self.assertIn("confirmDelete = true;", android)
+
+    def test_linux_settings_header_does_not_mislabel_the_whole_panel_as_delete_safety(self) -> None:
+        source = read("internal/desktop/gui_linux_settings.go")
+        start = source.index("func (u *linuxDesktop) renderSettingsOverlay() error")
+        overlay = source[start:]
+        self.assertNotIn('u.draftTr("settings.confirm_delete_body")', overlay)
+        self.assertIn("row := top + 60", overlay)
+        self.assertIn("conflictPolicyText(u.settingsDraft.Language).Title", overlay)
+
+    def test_android_quick_connect_persistence_is_opt_in_and_delete_safety_is_configurable(self) -> None:
+        activity = read("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
+        self.assertIn("private boolean rememberEndpoint = false;", activity)
+        self.assertIn('prefs.getBoolean("rememberEndpoint", false)', activity)
+        self.assertIn('prefs.getBoolean("confirmDelete", true)', activity)
+        self.assertIn('.putBoolean("confirmDelete", confirmDelete)', activity)
+        self.assertIn("if (!confirmDelete) {", activity)
+
     def test_android_hides_only_idle_phone_status_chrome(self) -> None:
         activity = read("android/app/src/main/java/app/ghostftp/client/MainActivity.java")
         build_start = activity.index("private LinearLayout buildMainColumn()")

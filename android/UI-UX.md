@@ -74,10 +74,17 @@ Settings exposes only controls with an actual Android runtime owner.
 
 Current interactive settings are:
 
+- Dark or Light appearance;
 - whether non-secret Quick Connect endpoint metadata is remembered;
-- whether file sizes are shown in Files lists.
+- whether file sizes are shown in Files lists;
+- whether file/folder deletion requires confirmation;
+- Restore app defaults.
 
-Disabling endpoint persistence removes stored host, username, protocol and port metadata. It never affects the password rule because passwords are never persisted.
+Quick Connect metadata persistence is **opt-in on fresh installs**. Disabling it removes stored host, username, protocol and port metadata. Passwords remain memory-only regardless of this preference.
+
+Delete confirmation defaults to enabled. Turning it off affects only the two real Android delete actions; path validation, SAF confinement, remote-path safety checks and fresh-list verification remain enforced.
+
+Restore app defaults returns appearance to Dark, enables file sizes and delete confirmation, and clears remembered Quick Connect metadata. It intentionally keeps saved connections and the user-selected local SAF folder authority.
 
 Security rows are informational and cannot weaken TLS verification, storage confinement, transfer staging or privacy behavior.
 
