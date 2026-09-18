@@ -30,7 +30,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             'navButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS)',
             'navButton("Settings", R.drawable.ic_settings, Section.SETTINGS)',
             'navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS)',
-            'navButton("Connection info", R.drawable.ic_sites, Section.CONNECTION_INFO)',
+            'navButton("Connection info", R.drawable.ic_connection_info, Section.CONNECTION_INFO)',
             'navButton("About", R.drawable.ic_about, Section.ABOUT)',
             "tabletLayout = getResources().getConfiguration().screenWidthDp >= TABLET_SIDEBAR_MIN_DP;",
             "menuToggle.setOnClickListener(v -> openNavigationDrawer());",
@@ -89,6 +89,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "ic_bookmarks.xml",
             "ic_transfers.xml",
             "ic_settings.xml",
+            "ic_connection_info.xml",
             "ic_about.xml",
         ):
             content = self.read(DRAWABLES / name)
