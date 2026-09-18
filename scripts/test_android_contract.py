@@ -241,6 +241,7 @@ class AndroidContractTests(_regressions.AndroidContractTests):
             '"This server folder is empty."',
             "updateWorkspaceListState(localList, localEmptyState, hasVisibleItems, emptyMessage);",
             "updateWorkspaceListState(remoteList, remoteEmptyState, hasVisibleItems, emptyMessage);",
+            "boolean hasVisibleItems = connected && !remoteVisibleItems.isEmpty();",
         ):
             self.assertIn(expected, activity)
 
