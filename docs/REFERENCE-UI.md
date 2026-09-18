@@ -77,7 +77,7 @@ Linux uses the same typed engine and security/transfer contracts as Windows, wit
 
 ![Ghost FTP 0.0.7 Android Files](images/0.0.6/ghost-ftp-android-files.png)
 
-Android 0.0.7 is a public native application exposing **Files**, **Sites**, **Bookmarks**, **Transfers**, **Settings** and **About** plus semantic navigation. Small screens use a drawer and wider layouts a visible sidebar; system-bar insets keep controls outside reserved system UI.
+Android 0.0.7 is a public native application. The maintained exact-head UI exposes **Files**, **Connections**, **Transfer Queue**, **Settings**, **Bookmarks**, **Connection info** and **About** through semantic navigation. Small screens use a drawer and wider layouts a visible sidebar; system-bar insets keep controls outside reserved system UI.
 
 Android supports FTP and strict explicit FTPS. Local access uses Storage Access Framework capabilities; saved sites contain non-secret connection/navigation metadata; file operations/search/comparison/Remote Edit and transfers remain bounded and lifecycle-owned. SFTP remains absent until strict maintained host-key identity verification exists.
 
@@ -109,7 +109,7 @@ The immutable 0.0.6 evidence set stored in [`images/0.0.6/`](images/0.0.6/) cont
 
 The stored [`UI-SCREENSHOT-PROVENANCE.json`](images/0.0.6/UI-SCREENSHOT-PROVENANCE.json) records workflow run `34863585111`, capture source SHA `9adace20030a300c39eb320a97482eb50dfdb9d8`, image byte counts and SHA-256 digests. [`SHA256.txt`](images/0.0.6/SHA256.txt) provides a compact digest allow-list for repository verification.
 
-The immutable 0.0.6 repository set above remains a historical evidence snapshot with exactly **15 runtime images**. The current exact-head capture contract adds Linux **Connection info** and **About**, so the live verifier now requires exactly **17 runtime images**: Windows 5, Linux 5 and Android 7. It verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The repository copy is imported only after those checks pass and is not a substitute for the original workflow artifact.
+The immutable 0.0.6 repository set above remains a historical evidence snapshot with exactly **15 runtime images**. The current exact-head capture contract adds Linux **Connection info** and **About** and Android **Connection info**, while Android's current runtime names are **Connections** and **Transfer Queue**. Current exact-head coverage is Windows — 5 images, Linux — 5 images and Android — 8 images. The live verifier now requires exactly **18 runtime images**: Windows 5, Linux 5 and Android 8. It verifies source/workflow identity, filenames, byte counts and SHA-256, and emits the read-only `ghostftp-authentic-ui-verified-bundle`. The repository copy is imported only after those checks pass and is not a substitute for the original workflow artifact.
 
 Legacy unversioned documentation images may remain for historical links, but the **0.0.6 README and reference documentation must use `images/0.0.6/`** so later releases cannot silently replace the evidence presented for 0.0.6.
 

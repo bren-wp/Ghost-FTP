@@ -169,7 +169,7 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertIn(".withRemoteStateResetForIdentityChange(previous)", activity)
         self.assertIn("if (previous != null && !next.sameServerIdentity(previous))", activity)
         self.assertIn(
-            "Site updated. Saved server paths and bookmarks were cleared because the connection details changed.",
+            "Connection updated. Saved server paths and bookmarks were cleared because the connection details changed.",
             activity,
         )
 
@@ -183,8 +183,8 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertNotIn("profileStore.save", connect)
         self.assertIn("profile == null ? null : profile.remoteStartPath", connect)
         self.assertIn("Quick Connect (not saved)", activity)
-        self.assertIn("Save or load a site before setting a start folder.", activity)
-        self.assertIn("Save or load a site before adding a local bookmark.", activity)
+        self.assertIn("Save or load a connection before setting a start folder.", activity)
+        self.assertIn("Save or load a connection before adding a local bookmark.", activity)
 
     def test_local_profile_paths_revalidate_persisted_saf_capability(self) -> None:
         activity = self.read(f"{_regressions.ANDROID_JAVA}/MainActivity.java")
@@ -210,10 +210,10 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertIn("boolean localStartUnavailable = false;", activity)
         self.assertIn("if (localStartUnavailable) {", activity)
         self.assertIn(
-            "Site loaded, but its local start folder is unavailable. Choose it again and update the site.",
+            "Connection loaded, but its local start folder is unavailable. Choose it again and update the connection.",
             activity,
         )
-        self.assertIn("Site loaded. Enter your password to connect.", activity)
+        self.assertIn("Connection loaded. Enter your password to connect.", activity)
 
     def test_profile_store_scrubs_noncanonical_persisted_state(self) -> None:
         store = self.read(f"{_regressions.ANDROID_JAVA}/SiteProfileStore.java")
@@ -233,7 +233,7 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         for expected in (
             'sectionTitle.setVisibility(tabletLayout ? View.VISIBLE : View.GONE);',
             'localEmptyState = workspaceEmptyState("Choose a folder to browse local files.");',
-            'remoteEmptyState = workspaceEmptyState("Connect from Sites to browse server files.");',
+            'remoteEmptyState = workspaceEmptyState("Connect from Connections to browse server files.");',
             'new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220))',
             '"No local files match this filter."',
             '"This local folder is empty."',

@@ -9,10 +9,11 @@ Ghost FTP Android is a mobile client, not a compressed copy of the desktop windo
 Phones use a real left navigation drawer opened by the local hamburger vector icon. The drawer contains only runtime-owned surfaces:
 
 - **Files**
-- **Sites**
-- **Bookmarks**
-- **Transfers**
+- **Connections**
+- **Transfer Queue**
 - **Settings**
+- **Bookmarks**
+- **Connection info**
 - **About**
 
 Selecting a destination hides all other surfaces and commits exactly one active workspace. The Back action closes an open drawer before leaving the Activity.
@@ -21,7 +22,7 @@ Selecting a destination hides all other surfaces and commits exactly one active 
 
 When Android reports at least 700 dp of screen width, the same navigation model is rendered as a persistent left sidebar. The content remains a single active surface; the wider layout does not re-create the desktop application as one long page.
 
-The Files surface may place local and remote panes side-by-side only when there is enough width. On narrower layouts they stack inside the Files surface rather than mixing unrelated Sites, Bookmarks, Settings or About controls into the same scroll flow.
+The Files surface may place local and remote panes side-by-side only when there is enough width. On narrower layouts they stack inside the Files surface rather than mixing unrelated Connections, Transfer Queue, Settings, Bookmarks, Connection info or About controls into the same scroll flow.
 
 ## Surface ownership
 
@@ -39,19 +40,19 @@ The server pane displays the active remote path, Up, Refresh and the freshly lis
 
 Staged upload/download, exact-name commit verification, FTPS verification and transfer-generation protections are protocol/runtime contracts and are not weakened by the UI split.
 
-### Sites
+### Connections
 
-Sites owns Quick Connect and explicitly saved connection profiles.
+Connections owns Quick Connect and explicitly saved connection profiles.
 
 Quick Connect exposes only Android protocols that have complete runtime security ownership: FTP and explicit FTPS. FTPS keeps strict certificate and hostname verification. FTP remains visibly unencrypted by its runtime status messaging.
 
-Passwords remain memory-only. Saving a site never persists a password. Quick Connect never creates a hidden profile.
+Passwords remain memory-only. Saving a connection never persists a password. Quick Connect never creates a hidden saved connection.
 
-Saved site identity continues to bind remote navigation state to protocol, canonical host, port and exact username. Changing that identity clears remote start-directory/bookmark state rather than silently carrying it to another endpoint.
+Saved connection identity continues to bind remote navigation state to protocol, canonical host, port and exact username. Changing that identity clears remote start-directory/bookmark state rather than silently carrying it to another endpoint.
 
 ### Bookmarks
 
-Bookmarks owns local SAF navigation bookmarks, local site start folders, remote bookmarks and remote site start directories.
+Bookmarks owns local SAF navigation bookmarks, local saved-connection start folders, remote bookmarks and remote saved-connection start directories.
 
 Local bookmarks are persisted SAF capability URIs. They must still have a persisted permission and produce a fresh directory query before the visible local state is changed.
 
@@ -59,9 +60,9 @@ Remote bookmarks remain account-bound. Opening one performs a fresh server listi
 
 The Android UI exposes explicit Add, Remove and Open actions. Bookmark records remain non-secret.
 
-### Transfers
+### Transfer Queue
 
-Transfers owns only real transfer state.
+Transfer Queue owns only real transfer state.
 
 It shows the current transfer status/progress produced by actual bytes read or written and exposes **Cancel active transfer** only while the transfer is in a cancellable phase. Once the irreversible final-name commit gate has started, the control changes to **Finalizing…** and cancellation is disabled.
 
@@ -79,6 +80,12 @@ Current interactive settings are:
 Disabling endpoint persistence removes stored host, username, protocol and port metadata. It never affects the password rule because passwords are never persisted.
 
 Security rows are informational and cannot weaken TLS verification, storage confinement, transfer staging or privacy behavior.
+
+### Connection info
+
+Connection info is a real runtime-owned, privacy-safe diagnostic surface. It reports only the current connection state, the protocol bound to the live session, the corresponding security mode and the current transfer state. It deliberately excludes server host, username, passwords, private keys and saved server paths.
+
+The protocol value is captured when the live session is created, so editing Quick Connect fields after connection cannot make diagnostics or the connection badge misreport FTP as FTPS or vice versa. FTPS reports certificate and hostname verification. Plain FTP is identified as an unencrypted compatibility connection.
 
 ### About
 
@@ -106,7 +113,7 @@ The runtime values intentionally match `internal/uipalette` **1:1**: Dark uses w
 
 **Light** remains a real secondary appearance in Settings. It uses a neutral gray surface hierarchy with the same gold action language rather than reverting to a generic blue Android palette. Appearance changes rebuild the Activity-owned view hierarchy in place, retain the active FTP/FTPS session and navigation state, and keep the password memory-only instead of persisting it as part of the preference change.
 
-Navigation uses local vector drawables for hamburger, Files, Sites, Bookmarks, Transfers, Settings and About. Startup window/status/navigation-bar resources use the dark palette as well, preventing a light-theme flash before the Java UI owns the first frame.
+Navigation uses local vector drawables for hamburger, Files, Connections, Transfer Queue, Settings, Bookmarks, Connection info and About. Startup window/status/navigation-bar resources use the dark palette as well, preventing a light-theme flash before the Java UI owns the first frame.
 
 The runtime UI must not depend on emoji icons, externally hosted fonts, tracking resources or decorative controls that look actionable but have no owner.
 
@@ -114,4 +121,4 @@ The runtime UI must not depend on emoji icons, externally hosted fonts, tracking
 
 Documentation screenshots must come from a real build of the Android Activity running in an emulator or physical Android runtime. Generated mockups, Figma compositions and marketing renders must not be labeled as application screenshots.
 
-The screenshot workflow must record the source/build SHA, verify PNG files and capture the real surfaces that exist: Files, Sites, Bookmarks, Transfers and Settings/About. RDP must not be captured or named unless it becomes a real Android runtime surface.
+The screenshot workflow must record the source/build SHA, verify PNG files and capture the real surfaces that exist: Files, Connections, Transfer Queue, Settings, Bookmarks, Connection info and About. RDP must not be captured or named unless it becomes a real Android runtime surface.
