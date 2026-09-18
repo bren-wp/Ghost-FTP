@@ -462,10 +462,13 @@ public final class MainActivity extends Activity {
         Button button = new Button(this);
         button.setText(text);
         button.setAllCaps(false);
-        button.setTextSize(8);
-        button.setSingleLine(true);
+        button.setTextSize(10);
+        button.setSingleLine(false);
+        button.setMaxLines(2);
         button.setGravity(Gravity.CENTER);
-        button.setPadding(dp(1), dp(2), dp(1), dp(2));
+        button.setPadding(dp(1), dp(3), dp(1), dp(3));
+        button.setMinWidth(dp(48));
+        button.setMinHeight(dp(56));
         button.setCompoundDrawablesWithIntrinsicBounds(0, iconRes, 0, 0);
         button.setCompoundDrawablePadding(dp(2));
         button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.MUTED));
