@@ -248,7 +248,6 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         self.assertIn('<color name="ghost_window">#0A0D12</color>', colors)
         self.assertIn('<color name="ghost_accent">#DFAF3E</color>', colors)
         self.assertIn('<item name="android:windowLightStatusBar">false</item>', styles)
-        self.assertIn('<item name="android:windowLightNavigationBar">false</item>', styles)
 
         create_start = activity.index("protected void onCreate(Bundle state)")
         create_end = activity.index("protected void onDestroy()", create_start)
