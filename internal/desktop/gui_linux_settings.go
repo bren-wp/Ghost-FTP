@@ -114,13 +114,14 @@ func linuxDefaultSettingsDraft(current model.Settings) model.Settings {
 }
 
 func (u *linuxDesktop) conflictPolicyLabel(policy string) string {
+	words := conflictPolicyText(u.settingsDraft.Language)
 	switch policy {
 	case model.ConflictPolicySkip:
-		return u.draftTr("settings.skip_existing")
+		return words.Skip
 	case model.ConflictPolicyReplace:
-		return u.draftTr("settings.overwrite")
+		return words.Replace
 	default:
-		return u.draftTr("settings.overwrite") + " + " + u.draftTr("settings.backup_title")
+		return words.ReplaceBackup
 	}
 }
 
@@ -374,7 +375,7 @@ func (u *linuxDesktop) renderSettingsOverlay() error {
 		return err
 	}
 	row += 48
-	if err := u.x.text(left+24, row+20, linuxTrimForUI(u.draftTr("settings.skip_title"), linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
+	if err := u.x.text(left+24, row+20, linuxTrimForUI(conflictPolicyText(u.settingsDraft.Language).Title, linuxSettingsLabelLimit(width)), premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	u.settingsRects.conflict = linuxRectWH(left+width-choiceWidth-16, row, choiceWidth, 30)
