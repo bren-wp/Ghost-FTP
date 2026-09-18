@@ -25,6 +25,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
@@ -94,6 +95,8 @@ public final class MainActivity extends Activity {
     private TextView connectionInfoProtocol;
     private TextView connectionInfoSecurity;
     private TextView connectionInfoTransfer;
+    private TextView currentConnectionSummary;
+    private TextView filesTransferStatus;
     private TextView localEmptyState;
     private TextView remoteEmptyState;
     private ListView localList;
@@ -136,6 +139,7 @@ public final class MainActivity extends Activity {
 
     private FrameLayout contentHost;
     private LinearLayout navigationPanel;
+    private LinearLayout bottomNavigation;
     private View drawerScrim;
     private ImageButton menuToggle;
     private View filesSurface;
@@ -276,10 +280,14 @@ public final class MainActivity extends Activity {
             drawerScrim.setOnClickListener(v -> closeNavigationDrawer());
             shell.addView(drawerScrim, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+            // Phone navigation follows the master reference: the five primary
+            // destinations stay permanently reachable in the bottom bar. The
+            // top overflow drawer contains only secondary utility surfaces, so
+            // primary navigation is not duplicated.
             navigationPanel = buildNavigationPanel();
             navigationPanel.setVisibility(View.GONE);
             FrameLayout.LayoutParams drawerParams = new FrameLayout.LayoutParams(dp(286), ViewGroup.LayoutParams.MATCH_PARENT);
-            drawerParams.gravity = Gravity.START;
+            drawerParams.gravity = Gravity.END;
             shell.addView(navigationPanel, drawerParams);
         }
 
@@ -298,22 +306,18 @@ public final class MainActivity extends Activity {
         appBar.setPadding(dp(12), dp(10), dp(12), dp(10));
         appBar.setBackgroundColor(GhostTheme.PANEL);
 
-        menuToggle = new ImageButton(this);
-        menuToggle.setImageResource(R.drawable.ic_menu);
-        menuToggle.setImageTintList(ColorStateList.valueOf(GhostTheme.TEXT));
-        menuToggle.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
-        menuToggle.setContentDescription("Open navigation");
-        menuToggle.setPadding(dp(10), dp(10), dp(10), dp(10));
-        menuToggle.setOnClickListener(v -> openNavigationDrawer());
-        menuToggle.setVisibility(tabletLayout ? View.GONE : View.VISIBLE);
-        appBar.addView(menuToggle, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        ImageView brandIcon = new ImageView(this);
+        brandIcon.setImageResource(getApplicationInfo().icon);
+        brandIcon.setContentDescription("Ghost FTP");
+        brandIcon.setPadding(dp(3), dp(3), dp(3), dp(3));
+        appBar.addView(brandIcon, new LinearLayout.LayoutParams(dp(46), dp(46)));
 
         LinearLayout titleStack = new LinearLayout(this);
         titleStack.setOrientation(LinearLayout.VERTICAL);
-        titleStack.setPadding(dp(12), 0, dp(8), 0);
-        TextView brand = label("GHOST FTP", 16, GhostTheme.TEXT);
+        titleStack.setPadding(dp(10), 0, dp(8), 0);
+        TextView brand = label("Ghost FTP", 18, GhostTheme.TEXT);
         brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        sectionTitle = label("Files", 12, GhostTheme.MUTED);
+        sectionTitle = label("Files", 11, GhostTheme.MUTED);
         sectionTitle.setVisibility(tabletLayout ? View.VISIBLE : View.GONE);
         titleStack.addView(brand, matchWrap());
         titleStack.addView(sectionTitle, matchWrap());
@@ -322,6 +326,18 @@ public final class MainActivity extends Activity {
         connectionBadge = label("DISCONNECTED", 10, GhostTheme.MUTED);
         GhostTheme.styleBadge(connectionBadge, GhostTheme.MUTED);
         appBar.addView(connectionBadge, wrapWrap());
+
+        menuToggle = new ImageButton(this);
+        menuToggle.setImageResource(R.drawable.ic_menu);
+        menuToggle.setImageTintList(ColorStateList.valueOf(GhostTheme.TEXT));
+        menuToggle.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 12));
+        menuToggle.setContentDescription("Open utility menu");
+        menuToggle.setPadding(dp(10), dp(10), dp(10), dp(10));
+        menuToggle.setOnClickListener(v -> openNavigationDrawer());
+        menuToggle.setVisibility(tabletLayout ? View.GONE : View.VISIBLE);
+        LinearLayout.LayoutParams menuParams = new LinearLayout.LayoutParams(dp(44), dp(44));
+        menuParams.setMargins(dp(8), 0, 0, 0);
+        appBar.addView(menuToggle, menuParams);
         main.addView(appBar, matchWrap());
 
         status = label("Ready.", 12, GhostTheme.MUTED);
@@ -348,6 +364,12 @@ public final class MainActivity extends Activity {
         addSurface(settingsSurface);
         addSurface(connectionInfoSurface);
         addSurface(aboutSurface);
+
+        if (!tabletLayout) {
+            bottomNavigation = buildBottomNavigation();
+            main.addView(bottomNavigation, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(78)));
+        }
         return main;
     }
 
@@ -368,16 +390,22 @@ public final class MainActivity extends Activity {
         platform.setPadding(0, dp(2), 0, dp(18));
         navigation.addView(platform, matchWrap());
 
-        navigation.addView(navButton("Files", R.drawable.ic_files, Section.FILES), navParams());
-        navigation.addView(navButton("Connections", R.drawable.ic_sites, Section.SITES), navParams());
-        navigation.addView(navButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS), navParams());
-        navigation.addView(navButton("Settings", R.drawable.ic_settings, Section.SETTINGS), navParams());
+        if (tabletLayout) {
+            navigation.addView(navButton("Files", R.drawable.ic_files, Section.FILES), navParams());
+            navigation.addView(navButton("Connections", R.drawable.ic_sites, Section.SITES), navParams());
+            navigation.addView(navButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS), navParams());
+            navigation.addView(navButton("Settings", R.drawable.ic_settings, Section.SETTINGS), navParams());
 
-        View utilitySpacer = new View(this);
-        navigation.addView(utilitySpacer, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+            View utilitySpacer = new View(this);
+            navigation.addView(utilitySpacer, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
+            navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
+        } else {
+            View utilitySpacer = new View(this);
+            navigation.addView(utilitySpacer, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        }
         navigation.addView(navButton("Connection info", R.drawable.ic_connection_info, Section.CONNECTION_INFO), navParams());
         navigation.addView(navButton("About", R.drawable.ic_about, Section.ABOUT), navParams());
 
@@ -404,9 +432,95 @@ public final class MainActivity extends Activity {
         return button;
     }
 
+    private LinearLayout buildBottomNavigation() {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER);
+        bar.setPadding(dp(8), dp(5), dp(8), dp(5));
+        bar.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 16));
+
+        bar.addView(bottomNavButton("Files", R.drawable.ic_files, Section.FILES), bottomNavParams());
+        bar.addView(bottomNavButton("Connections", R.drawable.ic_sites, Section.SITES), bottomNavParams());
+        bar.addView(bottomNavButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), bottomNavParams());
+        bar.addView(bottomNavButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS), bottomNavParams());
+        bar.addView(bottomNavButton("Settings", R.drawable.ic_settings, Section.SETTINGS), bottomNavParams());
+        return bar;
+    }
+
+    private Button bottomNavButton(String text, int iconRes, Section section) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextSize(10);
+        button.setGravity(Gravity.CENTER);
+        button.setCompoundDrawablesWithIntrinsicBounds(0, iconRes, 0, 0);
+        button.setCompoundDrawablePadding(dp(3));
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.MUTED));
+        button.setTag(section);
+        button.setContentDescription("Navigate to " + text);
+        button.setOnClickListener(v -> showSection((Section) v.getTag()));
+        navigationButtons.add(button);
+        styleNavigationButton(button, false);
+        return button;
+    }
+
+    private LinearLayout.LayoutParams bottomNavParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        params.setMargins(dp(2), 0, dp(2), 0);
+        return params;
+    }
+
     private View buildFilesSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Files", "Browse local files and your connected server from one workspace."));
+
+        // Phone Files follows the supplied master composition: current
+        // connection first, then actions, file panes and live transfer state.
+        // Tablet keeps the semantic page heading because the persistent rail
+        // already owns the product header.
+        if (tabletLayout) {
+            content.addView(surfaceHeading("Files", "Browse local files and your connected server from one workspace."));
+        }
+
+        LinearLayout connectionCard = card("CURRENT CONNECTION", "Connection details are privacy-safe; credentials are never shown here.");
+        currentConnectionSummary = pathLabel("Not connected");
+        connectionCard.addView(currentConnectionSummary, matchWrapSpaced());
+        Button openConnections = primaryButton("Open Connections");
+        openConnections.setOnClickListener(v -> showSection(Section.SITES));
+        connectionCard.addView(openConnections, matchWrapSpaced());
+        content.addView(connectionCard, cardParams());
+
+        LinearLayout quickActionsCard = card("ACTIONS", "Real file and transfer actions for the current workspace.");
+        LinearLayout actionRowOne = row();
+        Button refreshAll = button("Refresh");
+        Button newFolder = button("New Folder");
+        Button bookmarks = button("Bookmarks");
+        actionRowOne.addView(refreshAll, weightedSpaced());
+        actionRowOne.addView(newFolder, weightedSpaced());
+        actionRowOne.addView(bookmarks, weightedSpaced());
+        quickActionsCard.addView(actionRowOne, matchWrap());
+
+        LinearLayout actionRowTwo = row();
+        Button uploadQuick = primaryButton("Upload");
+        Button downloadQuick = primaryButton("Download");
+        Button more = button("More");
+        actionRowTwo.addView(uploadQuick, weightedSpaced());
+        actionRowTwo.addView(downloadQuick, weightedSpaced());
+        actionRowTwo.addView(more, weightedSpaced());
+        quickActionsCard.addView(actionRowTwo, matchWrap());
+
+        refreshAll.setOnClickListener(v -> {
+            refreshLocal();
+            if (session != null && session.isConnected()) refreshRemote();
+        });
+        newFolder.setOnClickListener(v -> {
+            if (selectedRemote >= 0 && session != null && session.isConnected()) createRemoteDirectory();
+            else createLocalDirectory();
+        });
+        bookmarks.setOnClickListener(v -> showSection(Section.BOOKMARKS));
+        uploadQuick.setOnClickListener(v -> uploadSelected());
+        downloadQuick.setOnClickListener(v -> downloadSelected());
+        more.setOnClickListener(v -> openNavigationDrawer());
+        content.addView(quickActionsCard, cardParams());
 
         LinearLayout panes = new LinearLayout(this);
         boolean wideFiles = getResources().getConfiguration().screenWidthDp >= 900;
@@ -424,16 +538,21 @@ public final class MainActivity extends Activity {
         }
         content.addView(panes, matchWrap());
 
-        LinearLayout transferCard = card("TRANSFER", "Move the selected file safely and follow its progress while the transfer is active.");
-        LinearLayout actions = row();
-        upload = primaryButton("Upload →");
-        download = primaryButton("← Download");
-        actions.addView(upload, weightedSpaced());
-        actions.addView(download, weightedSpaced());
-        transferCard.addView(actions, matchWrap());
-        upload.setOnClickListener(v -> uploadSelected());
-        download.setOnClickListener(v -> downloadSelected());
+        LinearLayout transferCard = card("TRANSFER QUEUE", "Live state from the current Android transfer engine.");
+        filesTransferStatus = label("No active transfer.", 13, GhostTheme.MUTED);
+        filesTransferStatus.setPadding(dp(10), dp(10), dp(10), dp(10));
+        filesTransferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
+        transferCard.addView(filesTransferStatus, matchWrapSpaced());
+        Button openQueue = button("Open Transfer Queue");
+        openQueue.setOnClickListener(v -> showSection(Section.TRANSFERS));
+        transferCard.addView(openQueue, matchWrapSpaced());
         content.addView(transferCard, cardParams());
+
+        // Preserve the canonical Upload/Download controls used by refreshButtons
+        // and the existing transfer lifecycle, but keep them visually owned by
+        // the compact ACTIONS card above.
+        upload = uploadQuick;
+        download = downloadQuick;
         return scrollSurface(content);
     }
 
@@ -868,6 +987,36 @@ public final class MainActivity extends Activity {
         for (Button button : navigationButtons) {
             Object tag = button.getTag();
             styleNavigationButton(button, tag == activeSection);
+        }
+        refreshFilesMasterSummary();
+    }
+
+    private void refreshFilesMasterSummary() {
+        if (currentConnectionSummary != null) {
+            boolean connected = session != null && session.isConnected();
+            String profile = "";
+            if (activeProfileId != null) {
+                for (SiteProfile item : profiles) {
+                    if (activeProfileId.equals(item.id)) {
+                        profile = item.name == null ? "" : item.name.trim();
+                        break;
+                    }
+                }
+            }
+            if (!connected) {
+                currentConnectionSummary.setText("Not connected");
+            } else if (!profile.isEmpty()) {
+                currentConnectionSummary.setText(profile + " · " + (connectedProtocol == null ? "" : connectedProtocol));
+            } else {
+                currentConnectionSummary.setText("Connected · " + (connectedProtocol == null ? "" : connectedProtocol));
+            }
+        }
+        if (filesTransferStatus != null) {
+            String value;
+            if (transferFinalizing) value = "Finalizing current transfer…";
+            else if (transferActive) value = "Transfer active";
+            else value = "No active transfer.";
+            filesTransferStatus.setText(value);
         }
     }
 
