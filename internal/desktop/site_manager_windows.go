@@ -544,7 +544,7 @@ func (state *siteManagerState) createControls(hinst uintptr) error {
 		state.save, state.delete, state.connect, state.close,
 	} {
 		if control == 0 {
-			return fmt.Errorf("Site Manager control initialization failed")
+			return fmt.Errorf("Connections control initialization failed")
 		}
 	}
 	limitEdit(state.name, 120)
