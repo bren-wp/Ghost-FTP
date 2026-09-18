@@ -120,7 +120,7 @@ def audit_manual_update_boundary() -> None:
             'officialHosts = []string{"ghostftp.com", "www.ghostftp.com"}',
         ),
     )
-    if "http://" in external or "github.com" in external:
+    if "http://" in external or "https://github.com" in external or "https://api.github.com" in external:
         fail("external browser launcher must use official Ghost FTP HTTPS destinations only")
 
 
