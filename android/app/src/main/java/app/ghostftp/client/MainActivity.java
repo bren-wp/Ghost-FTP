@@ -463,6 +463,8 @@ public final class MainActivity extends Activity {
         Button button = new Button(this);
         button.setText(text);
         button.setAllCaps(false);
+        button.setTag(section);
+        styleNavigationButton(button, false);
         button.setTextSize(10);
         button.setSingleLine(false);
         button.setMaxLines(2);
@@ -473,11 +475,9 @@ public final class MainActivity extends Activity {
         button.setCompoundDrawablesWithIntrinsicBounds(0, iconRes, 0, 0);
         button.setCompoundDrawablePadding(dp(2));
         button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.MUTED));
-        button.setTag(section);
         button.setContentDescription("Navigate to " + text);
         button.setOnClickListener(v -> showSection((Section) v.getTag()));
         navigationButtons.add(button);
-        styleNavigationButton(button, false);
         return button;
     }
 
