@@ -246,17 +246,67 @@ class AndroidContractTests(_regressions.AndroidContractTests):
         ):
             self.assertIn(marker, theme)
         palette = self.read("internal/uipalette/palette.go")
-        for marker in (
-            "Window:       RGB{0x0B, 0x0F, 0x17}",
-            "Panel:        RGB{0x12, 0x18, 0x24}",
-            "List:         RGB{0x16, 0x1D, 0x2A}",
-            "Border:       RGB{0x2C, 0x36, 0x48}",
-            "Accent:       RGB{0xF6, 0xC4, 0x45}",
-            "AccentStrong: RGB{0xFF, 0xD7, 0x68}",
-            "OnAccent:     RGB{0x16, 0x13, 0x0B}",
-            "Selection:    RGB{0x2B, 0x25, 0x15}",
-        ):
-            self.assertIn(marker, palette)
+
+        def go_palette(name: str) -> dict[str, tuple[int, int, int]]:
+            match = re.search(rf"var {name} = Theme\\{{(?P<body>.*?)\\n\\}}", palette, re.S)
+            self.assertIsNotNone(match, f"missing canonical {name} palette")
+            return {
+                field: tuple(int(channel, 16) for channel in (red, green, blue))
+                for field, red, green, blue in re.findall(
+                    r"(\\w+):\\s+RGB\\{0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2})\\}",
+                    match.group("body"),
+                )
+            }
+
+        apply_start = theme.index("static void apply(Context context, String appearance)")
+        apply_end = theme.index("static void applySystemBars", apply_start)
+        apply_body = theme[apply_start:apply_end]
+        light_start = apply_body.index("if (light) {")
+        light_end = apply_body.index("return;", light_start)
+        light_body = apply_body[light_start:light_end]
+        dark_body = apply_body[light_end + len("return;"):]
+
+        def android_palette(body: str) -> dict[str, tuple[int, int, int]]:
+            return {
+                field: tuple(int(channel, 16) for channel in (red, green, blue))
+                for field, red, green, blue in re.findall(
+                    r"([A-Z_]+) = Color\\.rgb\\(0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2})\\);",
+                    body,
+                )
+            }
+
+        field_map = {
+            "WINDOW": "Window",
+            "PANEL": "Panel",
+            "LIST": "List",
+            "BORDER": "Border",
+            "TEXT": "Text",
+            "MUTED": "Muted",
+            "ACCENT": "Accent",
+            "ACCENT_STRONG": "AccentStrong",
+            "ON_ACCENT": "OnAccent",
+            "SUCCESS": "Success",
+            "WARN": "Warn",
+            "DANGER": "Danger",
+            "SELECTION": "Selection",
+        }
+        canonical_dark = go_palette("Dark")
+        canonical_light = go_palette("Light")
+        android_dark = android_palette(dark_body)
+        android_light = android_palette(light_body)
+        self.assertEqual(set(field_map), set(android_dark))
+        self.assertEqual(set(field_map), set(android_light))
+        for android_name, canonical_name in field_map.items():
+            self.assertEqual(
+                canonical_dark[canonical_name],
+                android_dark[android_name],
+                f"Android Dark {android_name} drifted from internal/uipalette.Dark.{canonical_name}",
+            )
+            self.assertEqual(
+                canonical_light[canonical_name],
+                android_light[android_name],
+                f"Android Light {android_name} drifted from internal/uipalette.Light.{canonical_name}",
+            )
 
         self.assertNotIn("Configuration.UI_MODE_NIGHT", theme)
         disconnected = theme.index('value.contains("disconnected")')
