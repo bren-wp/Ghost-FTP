@@ -100,7 +100,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("connectionBadge.setMinHeight(dp(40));", activity)
         self.assertIn("connectionBadge.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0);", activity)
         self.assertIn("connectionBadge.setOnClickListener(v -> showSection(Section.SITES));", activity)
-        self.assertIn("button.setTextSize(10);", activity)
+        self.assertIn('button.setTextSize("Connections".equals(text) ? 9f : 10f);', activity)
         self.assertIn("button.setSingleLine(false);", activity)
         self.assertIn("button.setMaxLines(2);", activity)
         self.assertIn("button.setMinWidth(dp(48));", activity)
