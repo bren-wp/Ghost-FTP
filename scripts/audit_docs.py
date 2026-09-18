@@ -210,7 +210,7 @@ def main() -> int:
         "README 0.0.8 identity",
         readme,
         "Current source version: **0.0.8**",
-        "Last actually published GitHub Release: **0.0.7**",
+        "Last actually published GitHub Release: **0.0.8**",
         "14 platform artifacts / 17 public files",
         "Ghost-FTP-0.0.8-Linux-Debian-Installer.run",
         "Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz",
@@ -230,7 +230,7 @@ def main() -> int:
         "documentation index",
         index,
         "Current source version: **0.0.8**",
-        "Last actually published GitHub Release: **0.0.7**",
+        "Last actually published GitHub Release: **0.0.8**",
         "14 platform artifacts / 17 public files",
         "Chrome, Edge, Firefox and Opera",
         "proprietary commercial software",
@@ -333,8 +333,8 @@ def main() -> int:
     )
 
     print(f"DOCS_AUDIT=PASS ({version}; 14 platform artifacts / 17 public files)")
-    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.7")
-    print("NEXT_PUBLIC_RELEASE=0.0.8")
+    print("LAST_PUBLISHED_GITHUB_RELEASE=0.0.8")
+    print("NEXT_PUBLIC_RELEASE=0.0.9")
     print("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER")
     print("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS")
     print("ACTIVE_WEB_SURFACE=NONE")
