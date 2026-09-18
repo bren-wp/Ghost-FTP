@@ -39,3 +39,15 @@ macOS is no longer an active source or release platform. AppKit source, Darwin-o
 Protocol and credential boundaries are independent of UI parity work. Visual changes must not bypass TLS verification, SFTP host trust, credential protection, path safety or transfer ownership.
 
 See [Security](SECURITY.md), [Privacy](PRIVACY.md) and [Platform parity](PLATFORM-PARITY.md).
+
+
+## Windows architecture evidence
+
+Ghost FTP Windows Setup and Portable are universal launchers with native **x64, x86 and ARM64** application payloads.
+
+```text
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+```
+
+The ARM64 payload is built and structurally verified in CI. The metadata value above is intentionally explicit: current hosted CI does not claim native Windows-on-ARM runtime execution evidence.
