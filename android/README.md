@@ -12,7 +12,7 @@ Ghost-FTP-0.0.8-Android.apk
 
 The repository root `VERSION` is the canonical release identity. Android `versionName` equals that root version exactly; validation builds keep the same visible product version while using an isolated debug application ID where required for CI testing.
 
-Pull-request and branch CI build the standard Android test variant and an unsigned release APK for verification. These CI outputs are validation inputs only and are not public release artifacts. The public 0.0.6 APK is produced exclusively by the protected release workflow after publisher signing and certificate-fingerprint verification.
+Pull-request and branch CI build the standard Android test variant and an unsigned release APK for verification. These CI outputs are validation inputs only and are not public release artifacts. The public 0.0.8 APK is produced exclusively by the protected release workflow after publisher signing and certificate-fingerprint verification.
 
 The canonical release workflow requires protected Android signing credentials and verifies the signing certificate SHA-256 fingerprint before publication. Production signing material is never committed to the repository.
 
@@ -42,7 +42,7 @@ See [`UI-UX.md`](UI-UX.md) for navigation and per-surface ownership.
 
 **SFTP is intentionally not exposed** on Android. Ghost FTP desktop requires strict host-key verification/pinning; Android will not present SFTP until equivalent strict, maintained host-key identity verification exists and is tested. There is no silent SFTP-to-FTP/FTPS fallback.
 
-The public 0.0.6 APK does not change this boundary. Production signing proves publisher/package identity, not protocol safety.
+The public 0.0.8 APK does not change this boundary. Production signing proves publisher/package identity, not protocol safety.
 
 ## Remote Desktop boundary
 
@@ -86,7 +86,7 @@ No CI validation APK is presented as a public Ghost FTP release artifact or publ
 
 ## Production release signing
 
-The public 0.0.6 publication path requires:
+The public 0.0.8 publication path requires:
 
 ```text
 GHOSTFTP_ANDROID_KEYSTORE_BASE64
