@@ -1,6 +1,6 @@
 # Ghost FTP release verification
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release remains **0.0.6** until the protected 0.0.8 release transaction succeeds.
+Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release remains **0.0.7** until the protected 0.0.8 release transaction succeeds.
 
 The canonical 0.0.8 publication contains **13 platform artifacts / 16 public files**.
 
