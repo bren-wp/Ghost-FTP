@@ -151,6 +151,35 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("showControls(false, filterButton, pane.searchButton, pane.navigateButton, pane.list)", search)
         self.assertIn("showControls(false, state.compareButton, state.openBothButton, state.localList, state.remoteList)", compare)
 
+    def test_master_file_and_transfer_columns_match_reference_without_fake_metrics(self):
+        sidebar = self.read("internal/desktop/sidebar_windows.go")
+        ui = self.read("internal/desktop/ui_windows.go")
+        localization = self.read("internal/desktop/localization_windows.go")
+        model = self.read("internal/model/types.go")
+
+        self.assertIn("sendMessageW.Call(list, lvmSetColumnWidth, 1, 0)", sidebar)
+        self.assertIn("parts := map[int]int{0: 52, 2: 16, 3: 32}", sidebar)
+        self.assertIn("parts := map[int]int{0: 40, 2: 14, 3: 26, 4: 20}", sidebar)
+        self.assertIn("parts := []int{22, 14, 20, 20, 14, 10}", sidebar)
+
+        for marker in (
+            'a.tr("column.file")',
+            'a.tr("column.direction")',
+            'a.tr("column.progress")',
+            'a.tr("column.status")',
+            'a.tr("column.speed")',
+            'a.tr("column.eta")',
+        ):
+            self.assertIn(marker, ui)
+
+        self.assertIn("transferDisplayFile(job)", localization)
+        self.assertIn("transferProgressText(job)", localization)
+        self.assertIn("transferSpeedColumn(job)", localization)
+        self.assertIn("transferETAColumn(job)", localization)
+        self.assertNotIn("status += transferRuntimeSuffix(job)", localization)
+        self.assertIn("BytesPerSecond   float64", model)
+        self.assertIn("ETASeconds       int64", model)
+
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
         self.assertIn("setControlEnabled(a.remoteList, true)", source)
