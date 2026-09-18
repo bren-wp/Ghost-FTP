@@ -56,7 +56,7 @@ jobs:
           echo "CURRENT_GHOSTFTP_RELEASE_SHA=$tag_sha"
           echo "CURRENT_GHOSTFTP_RELEASE_ASSETS=$asset_count"
 
-      - name: Remove older Ghost FTP releases and tags
+      - name: Remove superseded Ghost FTP releases and tags
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -64,10 +64,19 @@ jobs:
           set -euo pipefail
           version="$(tr -d '\r\n' < VERSION)"
           current_tag="ghostftp-v${version}"
+          protected_tag="ghostftp-v0.0.7"
+
+          keep_release_tag() {
+            [[ "$1" = "$current_tag" || "$1" = "$protected_tag" ]]
+          }
+
           mapfile -t release_tags < <(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName')
           for tag in "${release_tags[@]}"; do
             case "$tag" in ghostftp-v*) ;; *) continue ;; esac
-            if [[ "$tag" = "$current_tag" ]]; then continue; fi
+            if keep_release_tag "$tag"; then
+              echo "Keeping protected Ghost FTP release/tag: $tag"
+              continue
+            fi
             echo "Deleting superseded Ghost FTP release/tag: $tag"
             gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           done
@@ -75,18 +84,28 @@ jobs:
           mapfile -t refs < <(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/ghostftp-v" --jq '.[].ref')
           for ref in "${refs[@]}"; do
             tag="${ref#refs/tags/}"
-            if [[ "$tag" = "$current_tag" ]]; then continue; fi
+            if keep_release_tag "$tag"; then
+              echo "Keeping protected Ghost FTP tag ref: $tag"
+              continue
+            fi
             echo "Deleting orphan/superseded Ghost FTP tag: $tag"
             gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag"
           done
 
-          mapfile -t remaining_releases < <(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[] | select(.tagName | startswith("ghostftp-v")) | .tagName')
-          test "${#remaining_releases[@]}" -eq 1
-          test "${remaining_releases[0]}" = "$current_tag"
-          mapfile -t remaining_refs < <(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/ghostftp-v" --jq '.[].ref')
-          test "${#remaining_refs[@]}" -eq 1
-          test "${remaining_refs[0]}" = "refs/tags/$current_tag"
-          echo "GHOSTFTP_RELEASE_RETENTION=PASS (latest=$current_tag)"
+          expected_tags="$(printf '%s\n' "$protected_tag" "$current_tag" | LC_ALL=C sort -u)"
+          remaining_releases="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[] | select(.tagName | startswith("ghostftp-v")) | .tagName' | LC_ALL=C sort)"
+          test "$remaining_releases" = "$expected_tags" || {
+            echo 'Ghost FTP release retention set mismatch.' >&2
+            diff -u <(printf '%s\n' "$expected_tags") <(printf '%s\n' "$remaining_releases") || true
+            exit 1
+          }
+          remaining_refs="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/ghostftp-v" --jq '.[].ref | sub("^refs/tags/"; "")' | LC_ALL=C sort)"
+          test "$remaining_refs" = "$expected_tags" || {
+            echo 'Ghost FTP tag retention set mismatch.' >&2
+            diff -u <(printf '%s\n' "$expected_tags") <(printf '%s\n' "$remaining_refs") || true
+            exit 1
+          }
+          echo "GHOSTFTP_RELEASE_RETENTION=PASS (current=$current_tag; protected=$protected_tag)"
 
       - name: Remove obsolete release branches
         shell: bash
@@ -134,9 +153,10 @@ jobs:
           while IFS=$'\t' read -r id tags; do
             [[ -n "$id" ]] || continue
             keep='false'
+            protected_version='0.0.7'
             IFS=',' read -ra tag_list <<< "$tags"
             for tag in "${tag_list[@]}"; do
-              if [[ "$tag" = "$version" ]]; then keep='true'; break; fi
+              if [[ "$tag" = "$version" || "$tag" = "$protected_version" ]]; then keep='true'; break; fi
             done
             if [[ "$keep" = 'true' ]]; then
               echo "Keeping current package version id=$id tags=$tags"
@@ -148,11 +168,12 @@ jobs:
 
           current_count="$(gh api "$endpoint" | jq --arg version "$version" '[.[] | select((.metadata.container.tags // []) | index($version))] | length')"
           test "$current_count" -ge 1
-          echo "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version)"
+          echo "GHOSTFTP_PACKAGE_RETENTION=PASS (current=$version; preserves-0.0.7-if-present)"
 
-      - name: Record latest-only policy
+      - name: Record protected retention policy
         shell: bash
         run: |
           version="$(tr -d '\r\n' < VERSION)"
-          echo "LATEST_ONLY_RELEASE_RETENTION=YES"
           echo "CURRENT_PUBLIC_VERSION=$version"
+          echo "PROTECTED_RELEASE_TAG=ghostftp-v0.0.7"
+          echo "PROTECTED_RELEASE_POLICY=PRESERVE_TAG_RELEASE_AND_EXISTING_PACKAGE"
