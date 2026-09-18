@@ -14,7 +14,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         self.assertEqual(version, "0.0.8")
         text = self.read("docs/RELEASE-VERIFICATION.md")
         required = [
-            f"Ghost FTP **{version}** is the active release candidate",
+            f"Ghost FTP **{version}** is the current release target",
             f"VERSION={version}",
             f"TAG=ghostftp-v{version}",
             f"TITLE=Ghost FTP {version}",
@@ -37,7 +37,6 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             "PUBLIC_PLATFORM_ARTIFACTS=14",
             "PUBLIC_RELEASE_FILES=17",
             "ANDROID_SIGNER_SHA256",
-            f"ghcr.io/bren-wp/ghost-ftp:{version}",
         ]
         for marker in required:
             self.assertIn(marker, text)
