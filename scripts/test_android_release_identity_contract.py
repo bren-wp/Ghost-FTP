@@ -40,7 +40,8 @@ class AndroidReleaseIdentityContractTests(unittest.TestCase):
 
         self.assertIn("repository root `VERSION`", readme)
         self.assertIn(f"Ghost-FTP-{version}-Android.apk", readme)
-        self.assertIn("production-signed", readme.lower())
+        self.assertIn("temporary compatibility-signed", readme.lower())
+        self.assertIn("protected production-signing workflow", readme.lower())
         self.assertNotIn("Ghost-FTP-Android-dev.apk", readme)
         self.assertIn("BuildConfig.VERSION_NAME", uiux)
         self.assertIn("are not public release artifacts", uiux)
