@@ -765,7 +765,10 @@ func (u *linuxDesktop) renderQueue() error {
 		}
 	}
 	if len(u.transferJobs) == 0 {
-		return u.x.text(fileX, u.layout.queue.top+42, u.tr("transfer.summary", 0, 0, 0), premiumTheme.Muted, premiumTheme.List)
+		if err := u.x.text(fileX, u.layout.queue.top+42, u.tr("transfer.summary", 0, 0, 0), premiumTheme.Muted, premiumTheme.List); err != nil {
+			return err
+		}
+		return u.renderLinuxMasterRail()
 	}
 	rowH := 22
 	maxRows := (u.layout.queue.bottom - u.layout.queue.top - 28) / rowH
@@ -807,7 +810,7 @@ func (u *linuxDesktop) renderQueue() error {
 			return err
 		}
 	}
-	return nil
+	return u.renderLinuxMasterRail()
 }
 
 func (u *linuxDesktop) render() error {
@@ -1188,7 +1191,7 @@ func (u *linuxDesktop) handleResult(result linuxUIResult) {
 }
 
 func (u *linuxDesktop) selectRow(r linuxRect, y int, count int) int {
-	index := (y - r.top - 11) / 24
+	index := (y - r.top - 28) / 24
 	if index < 0 || index >= count {
 		return -1
 	}
@@ -1196,6 +1199,9 @@ func (u *linuxDesktop) selectRow(r linuxRect, y int, count int) int {
 }
 
 func (u *linuxDesktop) handleMouse(x, y int) {
+	if u.handleLinuxMasterRailMouse(x, y) {
+		return
+	}
 	if u.handleLinuxMasterToolbarMouse(x, y) {
 		return
 	}
@@ -1214,7 +1220,7 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		return
 	}
 	l := u.layout
-	if u.handleQueuePriorityMouse(x, y) {
+	if u.handleLinuxFileSortHeaderMouse(x, y) {
 		return
 	}
 	if u.handleFileFilterMouse(x, y) {
@@ -1239,14 +1245,6 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 	case u.fileFilterListRect(true).contains(x, y):
 		u.lastFilePaneRemote = true
 		u.selectedRemote = u.selectRow(u.fileFilterListRect(true), y, len(u.remoteItems))
-	case l.pause.contains(x, y):
-		u.pauseTransfersLinux()
-	case l.resume.contains(x, y):
-		u.resumeTransfersLinux()
-	case l.cancelJob.contains(x, y):
-		u.cancelSelectedTransferLinux()
-	case l.retryJob.contains(x, y):
-		u.retrySelectedTransferLinux()
 	case l.clearQueue.contains(x, y):
 		u.clearFinishedTransfersLinux()
 	case l.queue.contains(x, y):
