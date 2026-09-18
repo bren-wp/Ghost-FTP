@@ -94,7 +94,7 @@ class QueuePriorityContractTests(unittest.TestCase):
 
     def test_linux_priority_controls_are_rendered_click_wired_and_identity_safe(self) -> None:
         linux = self.read("internal/desktop/queue_priority_linux.go")
-        gui = self.read("internal/desktop/gui_linux.go")
+        more = self.read("internal/desktop/linux_info_overlay.go")
 
         for marker in (
             "deriveQueuePriorityState",
@@ -109,8 +109,15 @@ class QueuePriorityContractTests(unittest.TestCase):
             "func (u *linuxDesktop) handleQueuePriorityMouse(x, y int) bool",
         ):
             self.assertIn(marker, linux)
-        self.assertIn("u.renderQueuePriorityControls()", gui)
-        self.assertIn("u.handleQueuePriorityMouse(x, y)", gui)
+        self.assertIn("priority := u.selectedQueuePriorityState()", more)
+        for marker in (
+            "u.moveSelectedQueueTransfer(queuePriorityTop)",
+            "u.moveSelectedQueueTransfer(queuePriorityUp)",
+            "u.moveSelectedQueueTransfer(queuePriorityDown)",
+            "u.moveSelectedQueueTransfer(queuePriorityBottom)",
+        ):
+            self.assertIn(marker, more)
+        self.assertIn("linuxInfoOverlayTransferActions", more)
 
     def test_tree_transfer_dependencies_are_prepared_before_queue_commit(self) -> None:
         tree = self.read("internal/api/tree_transfer.go")
