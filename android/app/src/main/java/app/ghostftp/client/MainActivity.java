@@ -338,6 +338,11 @@ public final class MainActivity extends Activity {
         connectionBadge = label("DISCONNECTED", 10, GhostTheme.MUTED);
         GhostTheme.styleBadge(connectionBadge, GhostTheme.MUTED);
         connectionBadge.setMinHeight(dp(40));
+        connectionBadge.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0);
+        connectionBadge.setCompoundDrawablePadding(dp(4));
+        connectionBadge.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.MUTED));
+        connectionBadge.setContentDescription("Connection state. Open Connections.");
+        connectionBadge.setOnClickListener(v -> showSection(Section.SITES));
         appBar.addView(connectionBadge, wrapWrap());
 
         menuToggle = new ImageButton(this);
