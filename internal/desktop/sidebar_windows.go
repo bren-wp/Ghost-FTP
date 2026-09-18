@@ -268,15 +268,21 @@ func (a *app) layoutSidebarRail(height int) {
 		y += applicationSidebarCardH + applicationSidebarCardGap
 	}
 
-	utilityBlockH := 3*applicationSidebarUtilityH + 2*applicationSidebarUtilityGap
-	utilityY := height - applicationSidebarBottomInset - utilityBlockH
-	if utilityY < y+18 {
-		utilityY = y + 18
+	// The supplied desktop master keeps the application rail focused on the
+	// four primary destinations. Bookmarks is in the master toolbar, while
+	// Connection info and About live in More, so duplicate utility buttons stay
+	// out of the main Files rail.
+	showControls(false, bookmarks, diagnostics, a.aboutBtn)
+	setText(a.brandSubtitle, "One client.\r\nFive platforms.\r\nZero friction.")
+	if a.smallFont != 0 {
+		sendMessageW.Call(a.brandSubtitle, wmSetFont, a.smallFont, 1)
 	}
-	for _, control := range []uintptr{bookmarks, diagnostics, a.aboutBtn} {
-		a.move(control, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarUtilityH)
-		utilityY += applicationSidebarUtilityH + applicationSidebarUtilityGap
+	promoY := height - 116
+	if promoY < y+18 {
+		promoY = y + 18
 	}
+	a.move(a.brandSubtitle, applicationSidebarX+12, promoY, applicationSidebarWidth-24, 72)
+	showControls(true, a.brandSubtitle)
 	showControls(false, a.languageCombo)
 }
 
