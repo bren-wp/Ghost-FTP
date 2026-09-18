@@ -91,7 +91,7 @@ See [Reference UI](docs/REFERENCE-UI.md) for the complete 15-image evidence cont
 Current source version: **0.0.8**
 Release channel: **Current**
 Product status: **Current**
-Last actually published GitHub Release: **0.0.6**
+Last actually published GitHub Release: **0.0.7**
 Next public release target: **ghostftp-v0.0.8**
 Prerelease: **false**
 
