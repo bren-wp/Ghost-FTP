@@ -683,6 +683,12 @@ func (u *linuxDesktop) renderQueue() error {
 	if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+17, strings.ToUpper(u.tr("column.direction")+"   "+u.tr("column.local")+" / "+u.tr("column.remote")), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
 	}
+	if len(u.transferJobs) == 0 {
+		emptySummary := u.tr("transfer.summary", 0, 0, 0)
+		if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+42, emptySummary, premiumTheme.Muted, premiumTheme.List); err != nil {
+			return err
+		}
+	}
 	rowH := 22
 	maxRows := (u.layout.queue.bottom - u.layout.queue.top - 28) / rowH
 	for i := 0; i < len(u.transferJobs) && i < maxRows; i++ {
