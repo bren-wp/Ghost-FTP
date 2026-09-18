@@ -97,7 +97,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             self.assertNotIn("images/0.0.6/ghost-ftp-main-workspace.png", text)
 
         self.assertIn("18-image 0.0.8 evidence contract", readme)
-        self.assertIn("18 authentic runtime images", reference)
+        self.assertIn("exactly **18 runtime images**", reference)
         self.assertIn("Windows 5, Linux 5 and Android 8", testing)
         self.assertIn("ghost-ftp-android-transfer-queue.png", docs_index)
         self.assertNotIn("Windows Site Manager", docs_index)
