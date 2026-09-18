@@ -24,6 +24,7 @@ const (
 	masterMoreRemoteEdit
 	masterMoreCompare
 	masterMoreConnectionInfo
+	masterMoreAbout
 )
 
 const (
@@ -213,6 +214,7 @@ func (a *app) masterMoreAction() {
 	appendSeparator()
 	appendItem(masterMoreCompare, "Compare local and remote folders")
 	appendItem(masterMoreConnectionInfo, "Connection info")
+	appendItem(masterMoreAbout, "About Ghost FTP")
 
 	var bounds rect
 	if ok, _, _ := masterGetWindowRect.Call(a.masterMore, uintptr(unsafe.Pointer(&bounds))); ok == 0 {
@@ -259,6 +261,8 @@ func (a *app) masterMoreAction() {
 		a.directoryComparisonCommand()
 	case masterMoreConnectionInfo:
 		a.showDiagnostics()
+	case masterMoreAbout:
+		a.openAbout()
 	}
 }
 
@@ -425,14 +429,20 @@ func (a *app) layoutMasterWorkspaceChrome() {
 		a.upload, a.download, a.masterBookmarks, a.masterMore,
 	}
 	toolbarGap := 7
-	buttonW := (contentWidth - toolbarGap*(len(controls)-1)) / len(controls)
-	if buttonW < 76 {
-		buttonW = 76
+	compactToolbar := contentWidth < 860
+	toolbarRows := 1
+	buttonsPerRow := len(controls)
+	if compactToolbar {
+		toolbarRows = 2
+		buttonsPerRow = 4
 	}
-	x := contentLeft
-	for _, control := range controls {
-		a.move(control, x, toolbarY, buttonW, toolbarH)
-		x += buttonW + toolbarGap
+	buttonW := (contentWidth - toolbarGap*(buttonsPerRow-1)) / buttonsPerRow
+	for index, control := range controls {
+		row := index / buttonsPerRow
+		column := index % buttonsPerRow
+		x := contentLeft + column*(buttonW+toolbarGap)
+		y := toolbarY + row*(toolbarH+toolbarGap)
+		a.move(control, x, y, buttonW, toolbarH)
 	}
 
 	// Remove the legacy center transfer column and use two equal master panes.
@@ -440,7 +450,9 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	paneW := (contentWidth - paneGap) / 2
 	leftX := contentLeft
 	rightX := contentLeft + paneW + paneGap
-	sectionY, pathY, actionY := 108, 136, 174
+	sectionY := toolbarY + toolbarRows*toolbarH + (toolbarRows-1)*toolbarGap + 14
+	pathY := sectionY + 28
+	actionY := pathY + 38
 	a.move(a.sectionLocal, leftX, sectionY, paneW, 24)
 	a.move(a.sectionRemote, rightX, sectionY, paneW, 24)
 
