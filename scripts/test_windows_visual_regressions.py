@@ -109,6 +109,7 @@ class WindowsVisualRegressionTests(unittest.TestCase):
             'appendItem(masterMoreRemoteEdit, "Remote Edit")',
             'appendItem(masterMoreCompare, "Compare local and remote folders")',
             'appendItem(masterMoreConnectionInfo, "Connection info")',
+            'appendItem(masterMoreAbout, "About Ghost FTP")',
             "a.localFilterAction()",
             "a.recursiveSearchCommand(false)",
             "a.remoteFilterAction()",
@@ -117,9 +118,23 @@ class WindowsVisualRegressionTests(unittest.TestCase):
             "a.remoteEditAction()",
             "a.directoryComparisonCommand()",
             "a.showDiagnostics()",
+            "a.openAbout()",
         ):
             self.assertIn(marker, source)
         self.assertNotIn("Coming Soon", source)
+
+    def test_compact_master_toolbar_preserves_all_action_labels(self):
+        master = self.read("internal/desktop/master_workspace_windows.go")
+        buttons = self.read("internal/desktop/button_draw_windows.go")
+        sidebar = self.read("internal/desktop/sidebar_windows.go")
+        self.assertIn("compactToolbar := contentWidth < 860", master)
+        self.assertIn("buttonsPerRow = 4", master)
+        self.assertIn("toolbarRows = 2", master)
+        self.assertIn("row := index / buttonsPerRow", master)
+        self.assertIn("case contentWidth >= a.scale(54):", buttons)
+        self.assertIn('setText(a.brandSubtitle, "One client.\\r\\nFive platforms.\\r\\nZero friction.")', sidebar)
+        self.assertIn("showControls(false, bookmarks, diagnostics, a.aboutBtn)", sidebar)
+        self.assertIn("showControls(true, a.brandSubtitle)", sidebar)
 
     def test_master_files_surface_hides_duplicate_inline_action_chrome(self):
         master = self.read("internal/desktop/master_workspace_windows.go")
