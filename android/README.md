@@ -22,10 +22,11 @@ The canonical release workflow requires protected Android signing credentials an
 - Canonical **Dark** appearance is the fresh-install default with charcoal/blue-black surfaces and gold/amber actions; a neutral gray **Light** appearance remains available in Settings.
 - Phone navigation uses a persistent five-destination **bottom navigation** for Files, Connections, Bookmarks, Transfer Queue and Settings, plus a right-side utility drawer for Connection info and About; wide/tablet layouts use the same product destinations in a persistent sidebar.
 - Active destinations: **Files**, **Connections**, **Bookmarks**, **Transfer Queue**, **Settings**, **Connection info** and **About**. Primary phone destinations remain continuously reachable from the bottom bar.
-- Canonical local Ghost FTP transfer-mark vector for both in-app brand and launcher icon; no remote fonts, tracking assets or emoji-as-navigation icons.
+- Canonical local **Ghost Gold** vector for both in-app brand and launcher icon, matching the supplied 0.0.8 reference; no remote fonts, tracking assets or emoji-as-navigation icons.
 - **FTP and explicit FTPS Quick Connect**.
 - FTPS uses the platform trust store and strict hostname verification on control and protected passive data channels; there is no trust-all fallback.
 - FTP remains available only as an explicitly unencrypted compatibility choice.
+- Files uses real **Back / Forward / Refresh / New Folder / Upload / Download / Bookmarks / More** master actions. Back/Forward maintain bounded local SAF and server-folder history without inventing demo state.
 - Local navigation uses Android **Storage Access Framework** (`ACTION_OPEN_DOCUMENT_TREE`); the app does not request broad all-files storage access.
 - MLSD directory listing over EPSV/PASV with fail-closed passive-data validation.
 - Binary upload/download with staged same-directory/same-provider commit behavior and explicit cancellation ownership.
