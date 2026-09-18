@@ -99,6 +99,28 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("showControls(true, controls...)", source)
         self.assertIn("minButtonWidth := a.scale(44)", source)
 
+    def test_master_more_menu_routes_only_to_real_engine_backed_actions(self):
+        source = self.read("internal/desktop/master_workspace_windows.go")
+        for marker in (
+            'appendItem(masterMoreLocalChoose, "Local: Choose folder")',
+            'appendItem(masterMoreLocalFilter, "Local: Filter")',
+            'appendItem(masterMoreLocalSearch, "Local: Recursive search")',
+            'appendItem(masterMoreRemotePermissions, "Remote: Permissions")',
+            'appendItem(masterMoreRemoteEdit, "Remote Edit")',
+            'appendItem(masterMoreCompare, "Compare local and remote folders")',
+            'appendItem(masterMoreConnectionInfo, "Connection info")',
+            "a.localFilterAction()",
+            "a.recursiveSearchCommand(false)",
+            "a.remoteFilterAction()",
+            "a.recursiveSearchCommand(true)",
+            "a.remoteChmodAction()",
+            "a.remoteEditAction()",
+            "a.directoryComparisonCommand()",
+            "a.showDiagnostics()",
+        ):
+            self.assertIn(marker, source)
+        self.assertNotIn("Coming Soon", source)
+
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
         self.assertIn("setControlEnabled(a.remoteList, true)", source)
