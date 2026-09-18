@@ -2,12 +2,12 @@
 
 Native Android client source lives entirely under this `android/` directory.
 
-## Ghost FTP 0.0.7 release status
+## Ghost FTP 0.0.8 release status
 
-Ghost FTP **0.0.7** publishes one production-signed Android artifact in the canonical GitHub Release:
+Ghost FTP **0.0.8** publishes one production-signed Android artifact in the canonical GitHub Release:
 
 ```text
-Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.8-Android.apk
 ```
 
 The repository root `VERSION` is the canonical release identity. Android `versionName` equals that root version exactly; validation builds keep the same visible product version while using an isolated debug application ID where required for CI testing.
