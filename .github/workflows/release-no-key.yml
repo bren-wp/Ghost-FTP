@@ -279,15 +279,15 @@ jobs:
           EOF
           cat > release/RELEASE-NOTES.txt <<EOF
           Ghost FTP 0.0.8
-          
+
           This is the requested no-secret distribution build from exact source ${GITHUB_SHA}.
-          
+
           Trust/signing boundary:
           - Windows Setup and Portable are intentionally unsigned and may trigger Windows SmartScreen/Unknown Publisher warnings.
           - Android is an installable debug-signed APK built in CI without a protected publisher secret.
           - macOS is an ad-hoc signed universal validation app. It is not Developer ID signed or Apple notarized.
           - Linux and browser helper artifacts are verified by exact-source build and SHA-256 checksums.
-          
+
           Security/privacy behavior is unchanged: no telemetry, no ads, strict FTPS verification, desktop SFTP host-key trust, and Android SFTP remains hidden until strict host-key verification is maintained.
           EOF
           (cd release && find . -maxdepth 1 -type f ! -name SHA256.txt -printf '%f\n' | LC_ALL=C sort | xargs -r sha256sum > SHA256.txt)
