@@ -75,8 +75,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             'Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh)',
             'Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder)',
             'Button bookmarks = iconButton("Bookmarks", R.drawable.ic_bookmarks)',
-            'Button uploadQuick = primaryIconButton("Upload", R.drawable.ic_upload)',
-            'Button downloadQuick = primaryIconButton("Download", R.drawable.ic_download)',
+            'Button uploadQuick = iconButton("Upload", R.drawable.ic_upload)',
+            'Button downloadQuick = iconButton("Download", R.drawable.ic_download)',
             'Button more = iconButton("More", R.drawable.ic_more)',
             'filesBack.setOnClickListener(v -> navigateFilesHistory(true));',
             'filesForward.setOnClickListener(v -> navigateFilesHistory(false));',
@@ -116,8 +116,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn('filesForward = iconButton("Forward", R.drawable.ic_forward);', activity)
         self.assertIn('Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh);', activity)
         self.assertIn('Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder);', activity)
-        self.assertIn('Button uploadQuick = primaryIconButton("Upload", R.drawable.ic_upload);', activity)
-        self.assertIn('Button downloadQuick = primaryIconButton("Download", R.drawable.ic_download);', activity)
+        self.assertIn('Button uploadQuick = iconButton("Upload", R.drawable.ic_upload);', activity)
+        self.assertIn('Button downloadQuick = iconButton("Download", R.drawable.ic_download);', activity)
         self.assertIn('workspaceCard("LOCAL FILES", R.drawable.ic_local_files', activity)
         self.assertIn('workspaceCard("REMOTE FILES", R.drawable.ic_remote_files', activity)
         self.assertIn('workspaceTableHeader(false)', activity)
