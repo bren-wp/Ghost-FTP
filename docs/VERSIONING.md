@@ -45,7 +45,7 @@ Active native source platforms:
 WINDOWS,LINUX,ANDROID,MACOS
 ```
 
-Android 0.0.8 is public only through the protected production-signing path. Android SFTP remains hidden until strict maintained host-key verification exists. Browser-helper publication does not make it an application platform. Supported Windows installs expose only a sanitized `ghostftp:` launch handoff that never transports secrets and never auto-connects. macOS remains a development/source platform until real Developer ID signing + notarization succeeds.
+Android 0.0.8 is public through the canonical production-or-compatibility signing path: a complete protected publisher identity is preferred, while a one-run compatibility certificate is permitted when no production identity is configured. Android SFTP remains hidden until strict maintained host-key verification exists. Browser-helper publication does not make it an application platform. Supported Windows installs expose only a sanitized `ghostftp:` launch handoff that never transports secrets and never auto-connects. macOS 0.0.8 is public as an ad-hoc signed universal compatibility archive; Developer ID signing and Apple notarization remain a separate production-distribution path.
 
 ## Latest-only public release retention
 
@@ -105,10 +105,10 @@ WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_BOOTSTRAP_PE=x86
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 ```
 
-Windows Authenticode is a **required public-release trust boundary**. **Absence of the production Authenticode identity is a release failure.** No architecture-specific public EXE aliases or unsigned official fallback are allowed.
+Windows Authenticode is an explicit **public-release compatibility trust boundary**. With a complete protected identity the release must verify trusted Authenticode; with no identity configured, both public EXEs may be explicitly unsigned and must verify as `NotSigned`. Partial signing configuration fails. No architecture-specific public EXE aliases are allowed.
 
 ## Linux packaging identity
 
@@ -146,7 +146,7 @@ Browser packages remain local parser/copy helpers and may hand a sanitized `ghos
 
 ## macOS development identity
 
-macOS source is bound to root `VERSION`. Its universal development app may be ad-hoc signed for CI/regression use. Public macOS distribution can be claimed only after the real Developer ID signing/notarization path succeeds with protected credentials; development success does not enlarge the public 16-file release.
+macOS source is bound to root `VERSION`. The 0.0.8 compatibility release publishes the universal app with an ad-hoc signature and records that it is not Developer ID signed or Apple notarized. The separate Developer ID/notarization path remains available for future production distribution. The compatibility archive is part of the 17-file release.
 
 ## Version source integrity
 
@@ -176,7 +176,7 @@ The exact candidate must pass:
 - Android source/security/lifecycle/JVM/lint/debug/release build checks and authentic emulator evidence;
 - protected Android production signing and exact signer SHA-256 verification;
 - deterministic Chrome/Edge/Firefox helper package checks;
-- universal macOS development-app validation without claiming public notarization;
+- universal macOS validation and ad-hoc compatibility publication without claiming Developer ID signing or Apple notarization;
 - 24-language desktop localization and exact-head cross-platform UI evidence;
 - exact-head PR gates and exact post-merge `main` gates;
 - exact-main `release/ghostftp-v0.0.8` validation;
