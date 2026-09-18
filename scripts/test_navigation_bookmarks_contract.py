@@ -195,7 +195,7 @@ class NavigationBookmarksContractTests(unittest.TestCase):
         self.assertIn("Bookmarks are non-secret metadata", detail)
         self.assertIn("AccountMatches", detail)
         self.assertIn("NavigateBookmark", detail)
-        self.assertIn("does **not** create a hidden persistent Site Manager profile", detail)
+        self.assertIn("does **not** create a hidden persistent saved connection profile", detail)
         self.assertIn(f"Root `VERSION` is **{version}**", detail)
         self.assertIn("exact-head CI/native-build/authentic-runtime evidence", detail)
         self.assertNotIn("post-0.0.3 source line", detail)
