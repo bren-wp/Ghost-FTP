@@ -61,6 +61,22 @@ func TestLinuxDefaultSettingsDraftPreservesLanguageAndRestoresSafetyDefaults(t *
 	}
 }
 
+func TestLinuxConflictPolicyUsesCanonicalLocalizedWords(t *testing.T) {
+	u := &linuxDesktop{settingsDraft: model.Settings{Language: "en"}}
+	if got := u.conflictPolicyLabel(model.ConflictPolicySkip); got != "Skip existing files" {
+		t.Fatalf("skip label = %q", got)
+	}
+	if got := u.conflictPolicyLabel(model.ConflictPolicyReplace); got != "Replace existing files" {
+		t.Fatalf("replace label = %q", got)
+	}
+	if got := u.conflictPolicyLabel(model.ConflictPolicyReplaceBackup); got != "Replace and keep a backup" {
+		t.Fatalf("replace+backup label = %q", got)
+	}
+	if title := conflictPolicyText("en").Title; title != "When a destination file already exists" {
+		t.Fatalf("conflict policy title = %q", title)
+	}
+}
+
 func TestLinuxSettingsPanelUsesRoomyWidthWithoutBreakingCompactWindows(t *testing.T) {
 	if got := linuxSettingsPanelWidth(1280); got != 860 {
 		t.Fatalf("1280 px panel width = %d, want 860", got)
