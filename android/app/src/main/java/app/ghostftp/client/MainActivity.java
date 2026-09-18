@@ -325,6 +325,7 @@ public final class MainActivity extends Activity {
         status = label("Ready.", 12, GhostTheme.MUTED);
         status.setPadding(dp(14), dp(9), dp(14), dp(9));
         status.setBackgroundColor(GhostTheme.WINDOW);
+        status.setVisibility(tabletLayout ? View.VISIBLE : View.GONE);
         main.addView(status, matchWrap());
 
         contentHost = new FrameLayout(this);
@@ -2940,6 +2941,8 @@ public final class MainActivity extends Activity {
         String safe = value == null ? "" : value.replace('\n', ' ').replace('\r', ' ');
         status.setText(safe);
         status.setTextColor(GhostTheme.statusColor(safe));
+        boolean idle = safe.isEmpty() || "Ready.".equals(safe);
+        status.setVisibility(!tabletLayout && idle ? View.GONE : View.VISIBLE);
         updateTransferSurface();
     }
 
