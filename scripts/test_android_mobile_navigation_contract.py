@@ -361,6 +361,11 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertNotIn("development-only", about.lower())
         self.assertNotIn("not the production-signed public APK", about)
 
+    def test_master_button_typography_uses_regular_weight(self) -> None:
+        theme = self.read(ROOT / "android/app/src/main/java/app/ghostftp/client/GhostTheme.java")
+        self.assertIn("button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);", theme)
+        self.assertNotIn("button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);", theme)
+
     def test_android_docs_describe_the_same_surface_contract(self) -> None:
         readme = self.read(ANDROID_README)
         ui_doc = self.read(UI_DOC)
