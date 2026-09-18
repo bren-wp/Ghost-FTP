@@ -55,9 +55,9 @@ Ghost-FTP-0.0.8-Opera-Extension.zip
 
 The package contract rejects brand drift, manifest version drift, broad permissions, credential persistence, remote executable code and unsafe desktop handoff behavior. The supported Windows handoff is the explicit sanitized `ghostftp://connect` flow; it excludes secrets, query data and fragments and never auto-connects.
 
-## macOS development-app gate
+## macOS validation and public signing gate
 
-`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — builds and validates the maintained universal native development frontend. This is source/build evidence only; it is not Developer ID-signed/notarized public-distribution evidence and does not enlarge the 16-file public release.
+`.github/workflows/macos-app.yml` — **Ghost FTP macOS Validation App** — validates the maintained universal native frontend on macOS. Canonical publication then requires the protected `macos-production` signing boundary: Developer ID Application signing, Hardened Runtime, secure timestamp, Apple notarization, stapling and Gatekeeper verification. The verified notarized archive is one of the 17 public release files.
 
 ## Windows build and public signing gates
 
@@ -93,7 +93,7 @@ For 0.0.8, the broad gate set includes Ghost FTP CI, Android APK, Browser Extens
 
 ## Release publication gate
 
-0.0.8 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox/Opera packages, exact **13 platform artifacts / 16 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.8` distribution bundle and successful release-integrity/latest-only retention chains.
+0.0.8 publication requires exact current `main` release-branch validation, canonical quality/build jobs, trusted Authenticode on both public Windows executables, production Android signing plus exact signer SHA-256 verification, deterministic Chrome/Edge/Firefox/Opera packages, exact **14 platform artifacts / 17 public files** allow-list, `prerelease=false`, exact GitHub Release/SHA-256 readback, verified `ghcr.io/bren-wp/ghost-ftp:0.0.8` distribution bundle and successful release-integrity and protected-history retention chains.
 
 ## Deterministic release-to-retention gate
 
