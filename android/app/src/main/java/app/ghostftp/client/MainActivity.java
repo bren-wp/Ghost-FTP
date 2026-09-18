@@ -315,19 +315,19 @@ public final class MainActivity extends Activity {
         LinearLayout appBar = new LinearLayout(this);
         appBar.setOrientation(LinearLayout.HORIZONTAL);
         appBar.setGravity(Gravity.CENTER_VERTICAL);
-        appBar.setPadding(dp(14), dp(10), dp(12), dp(10));
+        appBar.setPadding(dp(12), dp(8), dp(10), dp(8));
         appBar.setBackgroundColor(GhostTheme.PANEL);
 
         ImageView brandIcon = new ImageView(this);
         brandIcon.setImageResource(R.drawable.ic_ghost_brand);
         brandIcon.setContentDescription("Ghost FTP");
         brandIcon.setPadding(dp(3), dp(3), dp(3), dp(3));
-        appBar.addView(brandIcon, new LinearLayout.LayoutParams(dp(50), dp(50)));
+        appBar.addView(brandIcon, new LinearLayout.LayoutParams(dp(46), dp(46)));
 
         LinearLayout titleStack = new LinearLayout(this);
         titleStack.setOrientation(LinearLayout.VERTICAL);
         titleStack.setPadding(dp(10), 0, dp(8), 0);
-        TextView brand = label("Ghost FTP", 20, GhostTheme.TEXT);
+        TextView brand = label("Ghost FTP", 18, GhostTheme.TEXT);
         brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         sectionTitle = label("Files", 11, GhostTheme.MUTED);
         sectionTitle.setVisibility(tabletLayout ? View.VISIBLE : View.GONE);
@@ -386,7 +386,7 @@ public final class MainActivity extends Activity {
         if (!tabletLayout) {
             bottomNavigation = buildBottomNavigation();
             main.addView(bottomNavigation, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(78)));
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));
         }
         return main;
     }
@@ -603,7 +603,7 @@ public final class MainActivity extends Activity {
         }
         content.addView(panes, matchWrap());
 
-        LinearLayout transferCard = workspaceCard("TRANSFER QUEUE", R.drawable.ic_transfers, null);
+        LinearLayout transferCard = workspaceCard("Transfer Queue", R.drawable.ic_transfers, null);
         filesTransferStatus = label("No active transfer.", 13, GhostTheme.MUTED);
         filesTransferStatus.setPadding(dp(10), dp(10), dp(10), dp(10));
         filesTransferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
@@ -621,7 +621,7 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildLocalFilesCard() {
-        LinearLayout card = workspaceCard("LOCAL FILES", R.drawable.ic_local_files, v -> showFilesMoreActions());
+        LinearLayout card = workspaceCard("Local Files", R.drawable.ic_local_files, v -> showFilesMoreActions());
         localPath = workspacePathLabel("No folder selected");
         card.addView(localPath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -681,7 +681,7 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildRemoteFilesCard() {
-        LinearLayout card = workspaceCard("REMOTE FILES", R.drawable.ic_remote_files, v -> showFilesMoreActions());
+        LinearLayout card = workspaceCard("Remote Files", R.drawable.ic_remote_files, v -> showFilesMoreActions());
         remotePath = workspacePathLabel(currentRemotePath);
         card.addView(remotePath, matchWrapSpaced());
         LinearLayout navigationActions = row();
@@ -3583,11 +3583,11 @@ public final class MainActivity extends Activity {
             ImageButton overflow = new ImageButton(this);
             overflow.setImageResource(R.drawable.ic_more);
             overflow.setImageTintList(ColorStateList.valueOf(GhostTheme.MUTED));
-            overflow.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
-            overflow.setPadding(dp(8), dp(8), dp(8), dp(8));
+            overflow.setBackgroundColor(Color.TRANSPARENT);
+            overflow.setPadding(dp(5), dp(5), dp(5), dp(5));
             overflow.setContentDescription("More file actions");
             overflow.setOnClickListener(overflowAction);
-            header.addView(overflow, new LinearLayout.LayoutParams(dp(38), dp(38)));
+            header.addView(overflow, new LinearLayout.LayoutParams(dp(32), dp(32)));
         }
         card.addView(header, matchWrap());
         return card;
@@ -3605,8 +3605,8 @@ public final class MainActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(4), dp(7), dp(4), dp(7));
-        header.setBackground(GhostTheme.rounded(this, GhostTheme.WINDOW, GhostTheme.BORDER, 8));
+        header.setPadding(dp(2), dp(7), dp(2), dp(7));
+        header.setBackgroundColor(Color.TRANSPARENT);
 
         TextView name = label("Name ↑", 10, GhostTheme.MUTED);
         TextView size = label("Size", 10, GhostTheme.MUTED);
