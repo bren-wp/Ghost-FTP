@@ -81,7 +81,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             'filesBack.setOnClickListener(v -> navigateFilesHistory(true));',
             'filesForward.setOnClickListener(v -> navigateFilesHistory(false));',
             'more.setOnClickListener(v -> showFilesMoreActions());',
-            'workspaceCard("TRANSFER QUEUE", R.drawable.ic_transfers',
+            'workspaceCard("Transfer Queue", R.drawable.ic_transfers',
             'filesTransferStatus = label("No active transfer."',
             'transferCard.setOnClickListener(v -> showSection(Section.TRANSFERS));',
             "upload = uploadQuick;",
@@ -91,8 +91,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
         self.assertNotIn("fake", files.lower())
         self.assertNotIn("demo", files.lower())
-        self.assertIn('workspaceCard("LOCAL FILES", R.drawable.ic_local_files', activity)
-        self.assertIn('workspaceCard("REMOTE FILES", R.drawable.ic_remote_files', activity)
+        self.assertIn('workspaceCard("Local Files", R.drawable.ic_local_files', activity)
+        self.assertIn('workspaceCard("Remote Files", R.drawable.ic_remote_files', activity)
         self.assertIn("screenWidthDp >= 400", files)
         self.assertIn("brandIcon.setImageResource(R.drawable.ic_ghost_brand);", activity)
         self.assertIn("menuToggle.setImageResource(R.drawable.ic_overflow_vertical);", activity)
@@ -105,6 +105,11 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("button.setMaxLines(2);", activity)
         self.assertIn("button.setMinWidth(dp(48));", activity)
         self.assertIn("button.setMinHeight(dp(56));", activity)
+        self.assertIn("appBar.setPadding(dp(12), dp(8), dp(10), dp(8));", activity)
+        self.assertIn('TextView brand = label("Ghost FTP", 18, GhostTheme.TEXT);', activity)
+        self.assertIn("ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));", activity)
+        self.assertIn("overflow.setBackgroundColor(Color.TRANSPARENT);", activity)
+        self.assertIn("header.setBackgroundColor(Color.TRANSPARENT);", activity)
         bottom_start = activity.index("private Button bottomNavButton(")
         bottom_end = activity.index("private LinearLayout.LayoutParams bottomNavParams()", bottom_start)
         bottom = activity[bottom_start:bottom_end]
@@ -118,8 +123,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn('Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder);', activity)
         self.assertIn('Button uploadQuick = iconButton("Upload", R.drawable.ic_upload);', activity)
         self.assertIn('Button downloadQuick = iconButton("Download", R.drawable.ic_download);', activity)
-        self.assertIn('workspaceCard("LOCAL FILES", R.drawable.ic_local_files', activity)
-        self.assertIn('workspaceCard("REMOTE FILES", R.drawable.ic_remote_files', activity)
+        self.assertIn('workspaceCard("Local Files", R.drawable.ic_local_files', activity)
+        self.assertIn('workspaceCard("Remote Files", R.drawable.ic_remote_files', activity)
         self.assertIn('workspaceTableHeader(false)', activity)
         self.assertIn('workspaceTableHeader(true)', activity)
         self.assertIn('connectionIcon.setImageResource(R.drawable.ic_link);', activity)
