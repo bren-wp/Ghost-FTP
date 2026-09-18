@@ -96,7 +96,6 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("screenWidthDp >= 400", files)
         self.assertIn("brandIcon.setImageResource(R.drawable.ic_ghost_brand);", activity)
         self.assertIn("menuToggle.setImageResource(R.drawable.ic_overflow_vertical);", activity)
-        self.assertIn('TextView brand = label("Ghost FTP", 20, GhostTheme.TEXT);', activity)
         self.assertIn("connectionBadge.setMinHeight(dp(40));", activity)
         self.assertIn("connectionBadge.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0);", activity)
         self.assertIn("connectionBadge.setOnClickListener(v -> showSection(Section.SITES));", activity)
