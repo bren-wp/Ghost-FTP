@@ -1,15 +1,15 @@
 # Testing
 
-Ghost FTP testing covers the active Windows, Linux and Android applications plus shared engine/security/release behavior.
+Ghost FTP testing covers the active Windows, Linux and Android applications plus shared engine, security and release behavior.
 
 ## Shared gates
 
-- Go formatting, tests and vet;
-- security/privacy audits;
-- localization/documentation contracts;
-- CodeQL;
-- Govulncheck;
-- release/version integrity.
+- Go formatting, tests and vet
+- security/privacy audits
+- localization/documentation contracts
+- CodeQL
+- Govulncheck
+- release/version integrity
 
 ## Windows
 
@@ -33,4 +33,4 @@ macOS-specific workflows and tests are retired and removed.
 
 ## Merge rule
 
-Do not merge a UI/release change because an older commit was green. Required checks and evidence must apply to the exact PR head being merged.
+Required checks and evidence must apply to the exact PR head being merged.
