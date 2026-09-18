@@ -102,6 +102,7 @@ public final class MainActivity extends Activity {
     private TextView connectionInfoProtocol;
     private TextView connectionInfoSecurity;
     private TextView connectionInfoTransfer;
+    private TextView currentConnectionTitle;
     private TextView currentConnectionSummary;
     private TextView filesTransferStatus;
     private TextView localEmptyState;
@@ -498,14 +499,37 @@ public final class MainActivity extends Activity {
         }
 
         LinearLayout connectionCard = new LinearLayout(this);
-        connectionCard.setOrientation(LinearLayout.VERTICAL);
-        connectionCard.setPadding(dp(10), dp(9), dp(10), dp(9));
+        connectionCard.setOrientation(LinearLayout.HORIZONTAL);
+        connectionCard.setGravity(Gravity.CENTER_VERTICAL);
+        connectionCard.setPadding(dp(12), dp(10), dp(12), dp(10));
         connectionCard.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14));
-        currentConnectionSummary = label("Not connected", 14, GhostTheme.TEXT);
-        currentConnectionSummary.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        currentConnectionSummary.setPadding(dp(8), dp(8), dp(8), dp(8));
-        currentConnectionSummary.setContentDescription("Current connection. Open Connections.");
-        connectionCard.addView(currentConnectionSummary, matchWrap());
+
+        ImageView connectionIcon = new ImageView(this);
+        connectionIcon.setImageResource(R.drawable.ic_link);
+        connectionIcon.setImageTintList(ColorStateList.valueOf(GhostTheme.ACCENT_STRONG));
+        connectionIcon.setPadding(dp(8), dp(8), dp(8), dp(8));
+        connectionIcon.setBackground(GhostTheme.rounded(this, GhostTheme.SELECTION, GhostTheme.ACCENT, 12));
+        connectionCard.addView(connectionIcon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+        LinearLayout connectionText = new LinearLayout(this);
+        connectionText.setOrientation(LinearLayout.VERTICAL);
+        connectionText.setPadding(dp(12), 0, dp(8), 0);
+        currentConnectionTitle = label("No active connection", 15, GhostTheme.TEXT);
+        currentConnectionTitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        currentConnectionSummary = label("Open Connections", 12, GhostTheme.MUTED);
+        currentConnectionSummary.setPadding(0, dp(2), 0, 0);
+        connectionText.addView(currentConnectionTitle, matchWrap());
+        connectionText.addView(currentConnectionSummary, matchWrap());
+        connectionCard.addView(connectionText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        ImageView connectionChevron = new ImageView(this);
+        connectionChevron.setImageResource(R.drawable.ic_forward);
+        connectionChevron.setImageTintList(ColorStateList.valueOf(GhostTheme.MUTED));
+        connectionChevron.setContentDescription("Open Connections");
+        connectionChevron.setPadding(dp(6), dp(6), dp(6), dp(6));
+        connectionCard.addView(connectionChevron, new LinearLayout.LayoutParams(dp(34), dp(34)));
+
+        connectionCard.setContentDescription("Current connection. Open Connections.");
         connectionCard.setOnClickListener(v -> showSection(Section.SITES));
         content.addView(connectionCard, cardParams());
 
@@ -513,11 +537,11 @@ public final class MainActivity extends Activity {
         quickActionsCard.setOrientation(LinearLayout.VERTICAL);
         quickActionsCard.setPadding(0, 0, 0, dp(4));
         LinearLayout actionRowOne = row();
-        filesBack = button("Back");
-        filesForward = button("Forward");
-        Button refreshAll = button("Refresh");
-        Button newFolder = button("New Folder");
-        Button uploadQuick = primaryButton("Upload");
+        filesBack = iconButton("Back", R.drawable.ic_back);
+        filesForward = iconButton("Forward", R.drawable.ic_forward);
+        Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh);
+        Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder);
+        Button uploadQuick = primaryIconButton("Upload", R.drawable.ic_upload);
         for (Button compact : new Button[]{filesBack, filesForward, refreshAll, newFolder, uploadQuick}) {
             compact.setTextSize(10f);
             compact.setSingleLine(true);
@@ -530,9 +554,9 @@ public final class MainActivity extends Activity {
         quickActionsCard.addView(actionRowOne, matchWrap());
 
         LinearLayout actionRowTwo = row();
-        Button downloadQuick = primaryButton("Download");
-        Button bookmarks = button("Bookmarks");
-        Button more = button("More");
+        Button downloadQuick = primaryIconButton("Download", R.drawable.ic_download);
+        Button bookmarks = iconButton("Bookmarks", R.drawable.ic_bookmarks);
+        Button more = iconButton("More", R.drawable.ic_more);
         actionRowTwo.addView(downloadQuick, weightedSpaced());
         actionRowTwo.addView(bookmarks, weightedSpaced());
         actionRowTwo.addView(more, weightedSpaced());
@@ -567,7 +591,7 @@ public final class MainActivity extends Activity {
         }
         content.addView(panes, matchWrap());
 
-        LinearLayout transferCard = card("TRANSFER QUEUE", "");
+        LinearLayout transferCard = workspaceCard("TRANSFER QUEUE", R.drawable.ic_transfers, null);
         filesTransferStatus = label("No active transfer.", 13, GhostTheme.MUTED);
         filesTransferStatus.setPadding(dp(10), dp(10), dp(10), dp(10));
         filesTransferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
@@ -585,10 +609,8 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildLocalFilesCard() {
-        LinearLayout card = card("LOCAL FILES", tabletLayout
-                ? "Browse and manage files only in folders you allow Ghost FTP to use. Long-press a folder to select it."
-                : "");
-        localPath = pathLabel("No folder selected");
+        LinearLayout card = workspaceCard("LOCAL FILES", R.drawable.ic_local_files, v -> showFilesMoreActions());
+        localPath = workspacePathLabel("No folder selected");
         card.addView(localPath, matchWrapSpaced());
         LinearLayout navigationActions = row();
         Button choose = button("Choose folder");
@@ -627,6 +649,7 @@ public final class MainActivity extends Activity {
         localRename.setOnClickListener(v -> renameLocalSelected());
         localDelete.setOnClickListener(v -> deleteLocalSelected());
 
+        card.addView(workspaceTableHeader(false), matchWrapSpaced());
         localEmptyState = workspaceEmptyState("Choose a folder to browse local files.");
         card.addView(localEmptyState, matchWrapSpaced());
         localList = new ListView(this);
@@ -646,10 +669,8 @@ public final class MainActivity extends Activity {
     }
 
     private LinearLayout buildRemoteFilesCard() {
-        LinearLayout card = card("REMOTE FILES", tabletLayout
-                ? "Browse and manage files on the connected server. Long-press a folder to select it."
-                : "");
-        remotePath = pathLabel(currentRemotePath);
+        LinearLayout card = workspaceCard("REMOTE FILES", R.drawable.ic_remote_files, v -> showFilesMoreActions());
+        remotePath = workspacePathLabel(currentRemotePath);
         card.addView(remotePath, matchWrapSpaced());
         LinearLayout navigationActions = row();
         Button up = button("Up");
@@ -697,6 +718,7 @@ public final class MainActivity extends Activity {
         directoryCompare.setOnClickListener(v -> showDirectoryComparison());
         remoteEdit.setOnClickListener(v -> openRemoteEditorSelected());
 
+        card.addView(workspaceTableHeader(true), matchWrapSpaced());
         remoteEmptyState = workspaceEmptyState("Connect from Connections to browse server files.");
         card.addView(remoteEmptyState, matchWrapSpaced());
         remoteList = new ListView(this);
@@ -1142,7 +1164,7 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshFilesMasterSummary() {
-        if (currentConnectionSummary != null) {
+        if (currentConnectionSummary != null && currentConnectionTitle != null) {
             boolean connected = session != null && session.isConnected();
             String profile = "";
             if (activeProfileId != null) {
@@ -1153,12 +1175,16 @@ public final class MainActivity extends Activity {
                     }
                 }
             }
+            String hostValue = host == null ? "" : host.getText().toString().trim();
             if (!connected) {
-                currentConnectionSummary.setText("Not connected");
-            } else if (!profile.isEmpty()) {
-                currentConnectionSummary.setText(profile + " · " + (connectedProtocol == null ? "" : connectedProtocol));
+                currentConnectionTitle.setText(profile.isEmpty() ? "No active connection" : profile);
+                currentConnectionSummary.setText(hostValue.isEmpty() ? "Open Connections" : hostValue);
             } else {
-                currentConnectionSummary.setText("Connected · " + (connectedProtocol == null ? "" : connectedProtocol));
+                String protocolValue = connectedProtocol == null ? "" : connectedProtocol.trim().toLowerCase(java.util.Locale.ROOT);
+                currentConnectionTitle.setText(!profile.isEmpty() ? profile : (hostValue.isEmpty() ? "Connected server" : hostValue));
+                currentConnectionSummary.setText(hostValue.isEmpty()
+                        ? (protocolValue.isEmpty() ? "Connected" : protocolValue.toUpperCase(java.util.Locale.ROOT) + " connected")
+                        : protocolValue + "://" + hostValue);
             }
         }
         if (filesTransferStatus != null) {
@@ -3517,6 +3543,68 @@ public final class MainActivity extends Activity {
         return block;
     }
 
+    private LinearLayout workspaceCard(String title, int iconRes, View.OnClickListener overflowAction) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        int pad = tabletLayout ? 14 : 10;
+        card.setPadding(dp(pad), dp(pad), dp(pad), dp(pad));
+        card.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setImageTintList(ColorStateList.valueOf(GhostTheme.ACCENT_STRONG));
+        icon.setPadding(dp(7), dp(7), dp(7), dp(7));
+        icon.setBackground(GhostTheme.rounded(this, GhostTheme.SELECTION, GhostTheme.ACCENT, 10));
+        header.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
+
+        TextView heading = label(title, tabletLayout ? 15 : 14, GhostTheme.TEXT);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        LinearLayout.LayoutParams headingParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        headingParams.setMargins(dp(10), 0, dp(6), 0);
+        header.addView(heading, headingParams);
+
+        if (overflowAction != null) {
+            ImageButton overflow = new ImageButton(this);
+            overflow.setImageResource(R.drawable.ic_more);
+            overflow.setImageTintList(ColorStateList.valueOf(GhostTheme.MUTED));
+            overflow.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
+            overflow.setPadding(dp(8), dp(8), dp(8), dp(8));
+            overflow.setContentDescription("More file actions");
+            overflow.setOnClickListener(overflowAction);
+            header.addView(overflow, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        }
+        card.addView(header, matchWrap());
+        return card;
+    }
+
+    private TextView workspacePathLabel(String value) {
+        TextView view = label(value, 11, GhostTheme.MUTED);
+        view.setSingleLine(true);
+        view.setPadding(dp(48), 0, dp(4), dp(3));
+        return view;
+    }
+
+    private LinearLayout workspaceTableHeader(boolean remote) {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(4), dp(7), dp(4), dp(7));
+        header.setBackground(GhostTheme.rounded(this, GhostTheme.WINDOW, GhostTheme.BORDER, 8));
+
+        TextView name = label("Name ↑", 10, GhostTheme.MUTED);
+        TextView size = label("Size", 10, GhostTheme.MUTED);
+        TextView modified = label("Modified", 10, GhostTheme.MUTED);
+        header.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.52f));
+        header.addView(size, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.16f));
+        header.addView(modified, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.32f));
+        header.setContentDescription(remote ? "Remote Files columns: Name, Size, Modified" : "Local Files columns: Name, Size, Modified");
+        return header;
+    }
+
     private LinearLayout card(String title, String hint) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -3602,6 +3690,22 @@ public final class MainActivity extends Activity {
         Button button = new Button(this);
         button.setText(text);
         GhostTheme.stylePrimaryButton(button);
+        return button;
+    }
+
+    private Button iconButton(String text, int iconRes) {
+        Button button = button(text);
+        button.setCompoundDrawablesWithIntrinsicBounds(iconRes, 0, 0, 0);
+        button.setCompoundDrawablePadding(dp(7));
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.TEXT));
+        return button;
+    }
+
+    private Button primaryIconButton(String text, int iconRes) {
+        Button button = primaryButton(text);
+        button.setCompoundDrawablesWithIntrinsicBounds(iconRes, 0, 0, 0);
+        button.setCompoundDrawablePadding(dp(7));
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(GhostTheme.ON_ACCENT));
         return button;
     }
 
