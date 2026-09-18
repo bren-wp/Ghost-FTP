@@ -14,7 +14,7 @@ The GHCR object is a **distribution bundle**, **not a runtime container**. Its p
 
 ## 0.0.8 bundle shape
 
-The canonical 0.0.8 release contains **13 platform artifacts / 16 public files**:
+The canonical 0.0.8 release contains **14 platform artifacts / 17 public files**:
 
 - Windows: one universal Setup and one universal Portable executable;
 - Linux: one Installer and one Portable archive each for Debian, Ubuntu and Fedora;
@@ -47,7 +47,7 @@ Package publication occurs only after release quality plus Windows, Linux, Andro
 VERSION=0.0.8
 RELEASE_TAG=ghostftp-v0.0.8
 RELEASE_CHANNEL=current
-PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,BROWSER_HELPER
+PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER
 ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
 WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
@@ -67,8 +67,8 @@ ANDROID_SIGNER_SHA256=<verified signer certificate SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
 BROWSER_DESKTOP_HANDOFF=unsupported
-PUBLIC_PLATFORM_ARTIFACTS=13
-PUBLIC_RELEASE_FILES=16
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
 GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
@@ -88,6 +88,9 @@ Until that protected transaction succeeds, **0.0.7 remains the last actually pub
 
 ## Platform boundaries
 
-Android production signing does not expose SFTP without strict maintained host-key verification. Browser packages do not add desktop launch/handoff, browser networking permissions or a Ghost FTP relay. macOS remains outside the public bundle until real Developer ID Application signing and Apple notarization succeed.
+Android production signing does not expose SFTP without strict maintained host-key verification. Browser packages do not add desktop launch/handoff, browser networking permissions or a Ghost FTP relay. macOS is included only as the Developer ID signed, Apple-notarized and stapled universal AppKit archive.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
+
+
+macOS: `Ghost-FTP-0.0.8-macOS-notarized.app.zip` (arm64 + x86_64, Developer ID signed, notarized and stapled).
