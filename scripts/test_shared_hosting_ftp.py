@@ -68,7 +68,7 @@ class SharedHostingFTPTests(unittest.TestCase):
         ):
             self.assertIn(marker, ui)
         for marker in (
-            '"app.subtitle":    "FTP • FTPS • SFTP  ·  Fast hosting management"',
+            '"app.subtitle":    "FTP • FTPS • SFTP  ·  Direct, private file transfer"',
             '"cue.host":           "FTP/SFTP server, e.g. ftp.example.com"',
             '"cue.user": "Username, may be user@example.com"',
         ):
