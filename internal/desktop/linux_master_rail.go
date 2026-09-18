@@ -333,7 +333,7 @@ func (u *linuxDesktop) handleLinuxMasterToolbarMouse(x, y int) bool {
 	case layout.bookmarks.contains(x, y):
 		u.openLinuxBookmarks("")
 	case layout.more.contains(x, y):
-		u.openLinuxInfoOverlay(linuxInfoOverlayConnection)
+		u.openLinuxInfoOverlay(linuxInfoOverlayMore)
 	}
 	return true
 }
