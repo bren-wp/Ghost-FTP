@@ -172,21 +172,27 @@ class MacOSWindowsParityContractTests(unittest.TestCase):
             self.assertIn(f"- [x] {action}", parity)
             self.assertNotIn(f"- [ ] {action}", parity)
 
-    def test_production_preparation_stays_separate_while_canonical_release_promotes_verified_macos(self) -> None:
+    def test_production_preparation_stays_separate_from_compatibility_publication(self) -> None:
         readme = read("macos/README.md")
         self.assertIn("Source/native functionality is complete", readme)
         self.assertIn("Developer ID", readme)
         self.assertIn("Apple notarization", readme)
         self.assertIn("does **not** modify or upload to an existing public GitHub Release", readme)
+        self.assertIn("ad-hoc signed", readme)
+
+        production = read(".github/workflows/macos-production.yml")
+        self.assertIn("environment: macos-production", production)
+        self.assertIn("bash macos/SIGN_AND_NOTARIZE.sh", production)
 
         release = read(".github/workflows/release.yml")
         for marker in (
-            "environment: macos-production",
-            "bash macos/SIGN_AND_NOTARIZE.sh",
-            "Ghost-FTP-${VERSION}-macOS-notarized.app.zip",
-            "MACOS_RELEASE_ARTIFACT_VERIFIED=PASS",
+            "Ad-hoc signed universal macOS compatibility app",
+            "bash macos/BUILD.sh",
+            "Ghost-FTP-${VERSION}-macOS.app.zip",
+            "MACOS_COMPATIBILITY_ARTIFACT_VERIFIED=PASS",
         ):
             self.assertIn(marker, release)
+        self.assertNotIn("environment: macos-production", release)
 
     def test_build_contract_binds_to_root_version_and_app_bundle(self) -> None:
         build = read("macos/BUILD.sh")
