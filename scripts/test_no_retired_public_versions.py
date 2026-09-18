@@ -52,7 +52,7 @@ class NoRetiredPublicVersionsTests(unittest.TestCase):
         self.assertIn("PRERELEASE=false", versioning)
         self.assertIn("major version `0` does not imply prerelease", versioning)
         self.assertNotIn("--prerelease", release_workflow)
-        self.assertIn("LATEST_ONLY_RELEASE_RETENTION", (ROOT / "scripts" / "audit_release.py").read_text(encoding="utf-8"))
+        self.assertIn("PROTECTED_RELEASE_TAG=ghostftp-v0.0.7", (ROOT / "scripts" / "audit_release.py").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
