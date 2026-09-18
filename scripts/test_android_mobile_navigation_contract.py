@@ -95,6 +95,9 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn('workspaceCard("REMOTE FILES", R.drawable.ic_remote_files', activity)
         self.assertIn("screenWidthDp >= 400", files)
         self.assertIn("brandIcon.setImageResource(R.drawable.ic_ghost_brand);", activity)
+        self.assertIn("menuToggle.setImageResource(R.drawable.ic_overflow_vertical);", activity)
+        self.assertIn('TextView brand = label("Ghost FTP", 20, GhostTheme.TEXT);', activity)
+        self.assertIn("connectionBadge.setMinHeight(dp(40));", activity)
         self.assertIn("button.setTextSize(10);", activity)
         self.assertIn("button.setSingleLine(false);", activity)
         self.assertIn("button.setMaxLines(2);", activity)
@@ -240,6 +243,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "ic_link.xml",
             "ic_local_files.xml",
             "ic_remote_files.xml",
+            "ic_overflow_vertical.xml",
         ):
             content = self.read(DRAWABLES / name)
             self.assertIn("<vector", content)
