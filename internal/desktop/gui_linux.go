@@ -548,6 +548,13 @@ func (u *linuxDesktop) renderQuickConnect() error {
 	return u.drawButton(u.layout.disconnect, u.tr("common.disconnect"), u.connected && !u.busy, false)
 }
 
+func linuxModifiedLabel(item model.Item) string {
+	if item.Modified.IsZero() {
+		return "—"
+	}
+	return item.Modified.Local().Format("2006-01-02 15:04")
+}
+
 func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected int) error {
 	rowH := 24
 	maxRows := (r.bottom - r.top - 26) / rowH
@@ -560,11 +567,31 @@ func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected 
 	if err := u.x.strokeRect(r.left, r.top, r.right-r.left, r.bottom-r.top, premiumTheme.Border); err != nil {
 		return err
 	}
-	if err := u.x.text(r.left+8, r.top+17, strings.ToUpper(u.tr("column.name")), premiumTheme.Muted, premiumTheme.List); err != nil {
+	width := r.right - r.left
+	remote := r.left >= u.layout.remoteList.left
+	nameX := r.left + 8
+	sizeX := r.left + width*54/100
+	modifiedX := r.left + width*70/100
+	permissionsX := r.left + width*88/100
+	if remote {
+		sizeX = r.left + width*48/100
+		modifiedX = r.left + width*64/100
+		permissionsX = r.left + width*84/100
+	}
+	headerY := r.top + 17
+	if err := u.x.text(nameX, headerY, u.tr("column.name"), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
 	}
-	if err := u.x.text(r.right-112, r.top+17, strings.ToUpper(u.tr("column.size")), premiumTheme.Muted, premiumTheme.List); err != nil {
+	if err := u.x.text(sizeX, headerY, u.tr("column.size"), premiumTheme.Muted, premiumTheme.List); err != nil {
 		return err
+	}
+	if err := u.x.text(modifiedX, headerY, u.tr("column.modified"), premiumTheme.Muted, premiumTheme.List); err != nil {
+		return err
+	}
+	if remote {
+		if err := u.x.text(permissionsX, headerY, u.tr("common.permissions"), premiumTheme.Muted, premiumTheme.List); err != nil {
+			return err
+		}
 	}
 	for i := 0; i < len(items) && i < maxRows; i++ {
 		item := items[i]
@@ -576,21 +603,41 @@ func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected 
 				return err
 			}
 		}
-		prefix := "FILE  "
+		iconX := nameX
 		if item.IsDirectory {
-			prefix = "DIR   "
-		} else if item.IsSymlink {
-			prefix = "LINK  "
+			if err := u.x.fillRect(iconX, y-11, 13, 9, premiumTheme.Accent); err != nil {
+				return err
+			}
+			if err := u.x.fillRect(iconX+2, y-14, 6, 3, premiumTheme.AccentStrong); err != nil {
+				return err
+			}
+		} else {
+			if err := u.x.strokeRect(iconX, y-14, 11, 13, premiumTheme.Muted); err != nil {
+				return err
+			}
 		}
-		if err := u.x.text(r.left+8, y, linuxTrimForUI(prefix+item.Name, max(12, (r.right-r.left-150)/7)), premiumTheme.Text, bg); err != nil {
+		nameWidth := max(10, (sizeX-(nameX+22)-8)/7)
+		if err := u.x.text(nameX+22, y, linuxTrimForUI(item.Name, nameWidth), premiumTheme.Text, bg); err != nil {
 			return err
 		}
 		size := linuxHumanSize(item.Size)
 		if item.IsDirectory {
-			size = "--"
+			size = "—"
 		}
-		if err := u.x.text(r.right-112, y, size, premiumTheme.Muted, bg); err != nil {
+		if err := u.x.text(sizeX, y, size, premiumTheme.Muted, bg); err != nil {
 			return err
+		}
+		if err := u.x.text(modifiedX, y, linuxModifiedLabel(item), premiumTheme.Muted, bg); err != nil {
+			return err
+		}
+		if remote {
+			permissions := strings.TrimSpace(item.Permissions)
+			if permissions == "" {
+				permissions = "—"
+			}
+			if err := u.x.text(permissionsX, y, linuxTrimForUI(permissions, 12), premiumTheme.Muted, bg); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -631,27 +678,50 @@ func (u *linuxDesktop) renderWorkspace() error {
 	return nil
 }
 
+func linuxTransferFileName(job model.TransferJob) string {
+	value := job.LocalPath
+	if strings.EqualFold(job.Direction, "download") && strings.TrimSpace(job.RemotePath) != "" {
+		value = job.RemotePath
+	}
+	value = strings.TrimRight(strings.ReplaceAll(strings.TrimSpace(value), "\\", "/"), "/")
+	if value == "" {
+		return "—"
+	}
+	if index := strings.LastIndex(value, "/"); index >= 0 && index+1 < len(value) {
+		return value[index+1:]
+	}
+	return value
+}
+
+func linuxTransferSpeedLabel(job model.TransferJob) string {
+	if job.BytesPerSecond <= 0 || (job.Status != "running" && job.Status != "done") {
+		return "—"
+	}
+	return linuxHumanSize(int64(job.BytesPerSecond)) + "/s"
+}
+
+func linuxTransferETALabel(job model.TransferJob) string {
+	if job.Status != "running" || job.ETASeconds <= 0 {
+		return "—"
+	}
+	if job.ETASeconds < 60 {
+		return fmt.Sprintf("%ds", job.ETASeconds)
+	}
+	minutes := job.ETASeconds / 60
+	seconds := job.ETASeconds % 60
+	return fmt.Sprintf("%d:%02d", minutes, seconds)
+}
+
 func (u *linuxDesktop) renderQueue() error {
 	actions := u.linuxTransferActionState()
-	if err := u.x.text(u.layout.queue.left+8, u.layout.pause.top+19, strings.ToUpper(u.tr("section.transfers")), premiumTheme.Muted, premiumTheme.Window); err != nil {
-		return err
+	title := u.tr("section.transfers")
+	if count := len(u.transferJobs); count > 0 {
+		title = fmt.Sprintf("%s (%d)", title, count)
 	}
-	if err := u.drawButton(u.layout.pause, u.tr("transfer.pause"), actions.Pause && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.resume, u.tr("transfer.resume"), actions.Resume && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.cancelJob, u.tr("common.cancel"), actions.Cancel && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.retryJob, u.tr("transfer.retry"), actions.Retry && !u.busy, false); err != nil {
+	if err := u.x.text(u.layout.queue.left+8, u.layout.pause.top+19, title, premiumTheme.Text, premiumTheme.Window); err != nil {
 		return err
 	}
 	if err := u.drawButton(u.layout.clearQueue, u.tr("transfer.clear"), actions.Clear && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.renderQueuePriorityControls(); err != nil {
 		return err
 	}
 	if err := u.x.fillRect(u.layout.queue.left, u.layout.queue.top, u.layout.queue.right-u.layout.queue.left, u.layout.queue.bottom-u.layout.queue.top, premiumTheme.List); err != nil {
@@ -660,14 +730,32 @@ func (u *linuxDesktop) renderQueue() error {
 	if err := u.x.strokeRect(u.layout.queue.left, u.layout.queue.top, u.layout.queue.right-u.layout.queue.left, u.layout.queue.bottom-u.layout.queue.top, premiumTheme.Border); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+17, strings.ToUpper(u.tr("column.direction")+"   "+u.tr("column.local")+" / "+u.tr("column.remote")), premiumTheme.Muted, premiumTheme.List); err != nil {
-		return err
+	width := u.layout.queue.right - u.layout.queue.left
+	fileX := u.layout.queue.left + 8
+	directionX := u.layout.queue.left + width*30/100
+	progressX := u.layout.queue.left + width*43/100
+	statusX := u.layout.queue.left + width*57/100
+	speedX := u.layout.queue.left + width*78/100
+	etaX := u.layout.queue.left + width*91/100
+	headerY := u.layout.queue.top + 17
+	headers := []struct {
+		x     int
+		label string
+	}{
+		{fileX, "File"},
+		{directionX, u.tr("column.direction")},
+		{progressX, "Progress"},
+		{statusX, u.tr("column.status")},
+		{speedX, "Speed"},
+		{etaX, "ETA"},
 	}
-	if len(u.transferJobs) == 0 {
-		emptySummary := u.tr("transfer.summary", 0, 0, 0)
-		if err := u.x.text(u.layout.queue.left+8, u.layout.queue.top+42, emptySummary, premiumTheme.Muted, premiumTheme.List); err != nil {
+	for _, header := range headers {
+		if err := u.x.text(header.x, headerY, header.label, premiumTheme.Muted, premiumTheme.List); err != nil {
 			return err
 		}
+	}
+	if len(u.transferJobs) == 0 {
+		return u.x.text(fileX, u.layout.queue.top+42, u.tr("transfer.summary", 0, 0, 0), premiumTheme.Muted, premiumTheme.List)
 	}
 	rowH := 22
 	maxRows := (u.layout.queue.bottom - u.layout.queue.top - 28) / rowH
@@ -677,16 +765,35 @@ func (u *linuxDesktop) renderQueue() error {
 		bg := premiumTheme.List
 		if i == u.selectedTransfer {
 			bg = premiumTheme.Selection
-			if err := u.x.fillRect(u.layout.queue.left+1, y-16, u.layout.queue.right-u.layout.queue.left-2, rowH, bg); err != nil {
+			if err := u.x.fillRect(u.layout.queue.left+1, y-16, width-2, rowH, bg); err != nil {
 				return err
 			}
 		}
-		line := fmt.Sprintf("%-10s %s  ->  %s", strings.ToUpper(job.Direction), filepath.Base(job.LocalPath), job.RemotePath)
-		if err := u.x.text(u.layout.queue.left+8, y, linuxTrimForUI(line, max(24, (u.layout.queue.right-u.layout.queue.left-220)/7)), premiumTheme.Text, bg); err != nil {
+		statusColor := premiumTheme.Muted
+		switch job.Status {
+		case "running":
+			statusColor = premiumTheme.Warn
+		case "done":
+			statusColor = premiumTheme.Success
+		case "failed", "cancelled":
+			statusColor = premiumTheme.Danger
+		}
+		if err := u.x.text(fileX, y, linuxTrimForUI(linuxTransferFileName(job), max(12, (directionX-fileX-12)/7)), premiumTheme.Text, bg); err != nil {
 			return err
 		}
-		status := fmt.Sprintf("%-10s %3.0f%%", job.Status, job.Progress*100)
-		if err := u.x.text(u.layout.queue.right-170, y, status, premiumTheme.Muted, bg); err != nil {
+		if err := u.x.text(directionX, y, strings.ToUpper(job.Direction[:1])+strings.ToLower(job.Direction[1:]), premiumTheme.Text, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(progressX, y, fmt.Sprintf("%.0f%%", job.Progress*100), premiumTheme.Text, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(statusX, y, linuxTrimForUI(strings.ToUpper(job.Status[:1])+strings.ToLower(job.Status[1:]), max(8, (speedX-statusX-8)/7)), statusColor, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(speedX, y, linuxTransferSpeedLabel(job), premiumTheme.Muted, bg); err != nil {
+			return err
+		}
+		if err := u.x.text(etaX, y, linuxTransferETALabel(job), premiumTheme.Muted, bg); err != nil {
 			return err
 		}
 	}
