@@ -14,7 +14,7 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
     def read(self, path: Path) -> str:
         return path.read_text(encoding="utf-8")
 
-    def test_phone_drawer_and_tablet_sidebar_are_real_runtime_navigation(self) -> None:
+    def test_phone_bottom_navigation_and_tablet_sidebar_are_real_runtime_navigation(self) -> None:
         activity = self.read(ACTIVITY)
         for marker in (
             "private static final int TABLET_SIDEBAR_MIN_DP = 700;",
@@ -35,6 +35,13 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "tabletLayout = getResources().getConfiguration().screenWidthDp >= TABLET_SIDEBAR_MIN_DP;",
             "menuToggle.setOnClickListener(v -> openNavigationDrawer());",
             "navigationPanel.setVisibility(View.GONE);",
+            "drawerParams.gravity = Gravity.END;",
+            "private LinearLayout buildBottomNavigation()",
+            'bottomNavButton("Files", R.drawable.ic_files, Section.FILES)',
+            'bottomNavButton("Connections", R.drawable.ic_sites, Section.SITES)',
+            'bottomNavButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS)',
+            'bottomNavButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS)',
+            'bottomNavButton("Settings", R.drawable.ic_settings, Section.SETTINGS)',
             "private void showSection(Section section)",
         ):
             self.assertIn(marker, activity)
@@ -50,6 +57,61 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "aboutSurface.setVisibility(section == Section.ABOUT ? View.VISIBLE : View.GONE);",
         ):
             self.assertIn(marker, show)
+
+    def test_phone_files_matches_master_information_hierarchy_without_fake_state(self) -> None:
+        activity = self.read(ACTIVITY)
+        start = activity.index("private View buildFilesSurface()")
+        end = activity.index("private LinearLayout buildLocalFilesCard()", start)
+        files = activity[start:end]
+
+        for marker in (
+            'connectionCard.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14))',
+            'currentConnectionSummary = label("Not connected", 14, GhostTheme.TEXT)',
+            'connectionCard.setOnClickListener(v -> showSection(Section.SITES));',
+            'quickActionsCard.setOrientation(LinearLayout.VERTICAL)',
+            'Button refreshAll = button("Refresh")',
+            'Button newFolder = button("New Folder")',
+            'Button bookmarks = button("Bookmarks")',
+            'Button uploadQuick = primaryButton("Upload")',
+            'Button downloadQuick = primaryButton("Download")',
+            'Button more = button("More")',
+            'more.setOnClickListener(v -> showFilesMoreActions());',
+            'card("TRANSFER QUEUE"',
+            'filesTransferStatus = label("No active transfer."',
+            'transferCard.setOnClickListener(v -> showSection(Section.TRANSFERS));',
+            "upload = uploadQuick;",
+            "download = downloadQuick;",
+        ):
+            self.assertIn(marker, files)
+
+        self.assertNotIn("fake", files.lower())
+        self.assertNotIn("demo", files.lower())
+        self.assertIn('card("LOCAL FILES", tabletLayout', activity)
+        self.assertIn('card("REMOTE FILES", tabletLayout', activity)
+        self.assertIn("screenWidthDp >= 400", files)
+        self.assertIn("brandIcon.setImageResource(R.drawable.ic_ghost_brand);", activity)
+        self.assertIn("button.setSingleLine(true);", activity)
+        self.assertIn("button.setTextSize(8);", activity)
+        self.assertIn("if (tabletLayout) card.addView(navigationActions, matchWrap());", activity)
+        self.assertIn("private void showFilesMoreActions()", activity)
+        self.assertIn("private void showNewFolderTarget()", activity)
+        self.assertIn('labels.add("Choose local folder")', activity)
+        self.assertIn('labels.add("Connection info")', activity)
+        self.assertIn("actions.add(this::renameLocalSelected)", activity)
+        self.assertIn("actions.add(this::renameRemoteSelected)", activity)
+        self.assertIn("actions.add(this::chmodRemoteSelected)", activity)
+        self.assertIn("actions.add(this::openRemoteEditorSelected)", activity)
+        self.assertNotIn('more.setOnClickListener(v -> openNavigationDrawer())', files)
+
+        refresh_start = activity.index("private void refreshFilesMasterSummary()")
+        refresh_end = activity.index("private void styleNavigationButton(", refresh_start)
+        refresh = activity[refresh_start:refresh_end]
+        self.assertIn("session != null && session.isConnected()", refresh)
+        self.assertIn("connectedProtocol", refresh)
+        self.assertIn("transferFinalizing", refresh)
+        self.assertIn("transferActive", refresh)
+        self.assertNotIn("password", refresh.lower())
+        self.assertNotIn("username", refresh.lower())
 
     def test_connection_info_is_runtime_owned_and_privacy_safe(self) -> None:
         activity = self.read(ACTIVITY)
@@ -113,9 +175,26 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             activity.count("connectedProtocol = null;"),
         )
 
+    def test_authentic_capture_follows_bottom_nav_and_utility_drawer(self) -> None:
+        capture = self.read(ROOT / "scripts/capture_android_screenshots.sh")
+        self.assertIn("open_utility_navigation()", capture)
+        self.assertIn("tap_ui 'Open utility menu'", capture)
+        self.assertIn("wait_ui 'Navigate to Connection info'", capture)
+        self.assertIn("wait_ui 'Navigate to About'", capture)
+        self.assertIn("wait_ui 'Navigate to Files'", capture)
+        self.assertIn("wait_ui 'Navigate to Connections'", capture)
+        self.assertIn("wait_ui 'Navigate to Bookmarks'", capture)
+        self.assertIn("wait_ui 'Navigate to Transfer Queue'", capture)
+        self.assertIn("wait_ui 'Navigate to Settings'", capture)
+        self.assertIn("capture_primary_surface 'Connections'", capture)
+        self.assertIn("capture_primary_surface 'Transfer Queue'", capture)
+        self.assertNotIn("tap_ui 'Open navigation'", capture)
+        self.assertNotIn("ANDROID_NAV_DRAWER=VISIBLE", capture)
+
     def test_navigation_uses_local_vector_assets_and_no_emoji_controls(self) -> None:
         for name in (
             "ic_menu.xml",
+            "ic_ghost_brand.xml",
             "ic_files.xml",
             "ic_sites.xml",
             "ic_bookmarks.xml",
@@ -238,8 +317,10 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         for marker in ("Files", "Connections", "Transfer Queue", "Settings", "Bookmarks", "Connection info", "About"):
             self.assertIn(marker, readme)
             self.assertIn(marker, ui_doc)
-        self.assertIn("navigation drawer", readme.lower())
+        self.assertIn("bottom navigation", readme.lower())
+        self.assertIn("utility drawer", readme.lower())
         self.assertIn("persistent sidebar", readme.lower())
+        self.assertIn("bottom navigation", ui_doc.lower())
         self.assertIn("Remote Desktop", ui_doc)
         self.assertIn("not shown", ui_doc.lower())
         self.assertIn("production-signed Android artifact", readme)
