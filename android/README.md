@@ -14,7 +14,7 @@ The repository root `VERSION` is the canonical release identity. Android `versio
 
 Pull-request and branch CI build the standard Android test variant and an unsigned release APK for verification. These CI outputs are validation inputs only and are not public release artifacts. The public 0.0.8 APK is produced by the canonical release workflow. It uses the protected publisher identity when fully configured; otherwise it uses a one-run compatibility certificate and records that certificate fingerprint.
 
-The canonical release workflow requires protected Android signing credentials and verifies the signing certificate SHA-256 fingerprint before publication. Production signing material is never committed to the repository.
+The canonical release workflow prefers protected Android signing credentials and verifies their certificate SHA-256 fingerprint when fully configured. If none are configured, it creates a temporary one-run compatibility certificate, verifies the final APK with `apksigner`, records the actual signer SHA-256 and removes the temporary keystore. Production signing material is never committed to the repository.
 
 ## Current capability
 
@@ -86,9 +86,9 @@ The maintained Android CI uses Gradle 8.9 and Android SDK 35. It runs unit tests
 
 No CI validation APK is presented as a public Ghost FTP release artifact or publisher-signed package.
 
-## Production release signing
+## Release signing
 
-The public 0.0.8 publication path requires:
+The public 0.0.8 publication path accepts either a complete protected signing set or no production signing values at all:
 
 ```text
 GHOSTFTP_ANDROID_KEYSTORE_BASE64
@@ -98,6 +98,4 @@ GHOSTFTP_ANDROID_KEY_PASSWORD
 GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-The workflow builds the unsigned release APK, signs it using Android `apksigner`, verifies the APK and requires the signer certificate SHA-256 digest to match the protected expected fingerprint. The temporary keystore is removed after the job.
-
-The production workflow fails closed if credentials are absent or invalid and never generates a replacement publisher identity.
+When all five values are present, the workflow signs with that publisher identity and requires the actual signer SHA-256 to match `GHOSTFTP_ANDROID_CERT_SHA256`. When all are absent, it creates a temporary compatibility key for that release run, signs and verifies the APK, and records the generated signer fingerprint. A partially configured protected identity fails closed. The temporary keystore is removed after the job. Because compatibility certificates are not a stable publisher identity, a later production-signed Android release may require reinstalling the app.
