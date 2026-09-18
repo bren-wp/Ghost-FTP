@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 260" role="img" aria-labelledby="title desc">
+  <title id="title">Ghost FTP</title>
+  <desc id="desc">Ghost FTP transfer ghost mark and wordmark</desc>
+  <defs>
+    <linearGradient id="ghost" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00e5ff"/>
+      <stop offset=".52" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="ftp" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00e5ff"/>
+      <stop offset=".55" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(18 14)">
+    <path fill="url(#ghost)" d="M192 26c39 0 68 25 74 61 7 42-12 100-45 143-12 15-28 22-44 17-13-4-23-15-30-31-22 13-48 20-77 18 14-10 27-23 38-39-29 10-58 12-88 5 36-17 65-41 86-72-13-7-23-19-28-34 29 12 58 9 82-8 12-34 28-60 32-60Z"/>
+    <ellipse cx="204" cy="82" rx="9" ry="16" fill="#080e14" transform="rotate(10 204 82)"/>
+    <ellipse cx="238" cy="90" rx="8" ry="15" fill="#080e14" transform="rotate(10 238 90)"/>
+    <path d="M66 137h94l-18-20 45 29-45 29 18-20H66Z" fill="#07111b" opacity=".92"/>
+    <path d="M52 176h72l-15-16 37 24-37 24 15-16H52Z" fill="#07111b" opacity=".9"/>
+    <circle cx="42" cy="144" r="4" fill="#00e5ff"/>
+    <circle cx="32" cy="180" r="3.5" fill="#3b82f6"/>
+    <circle cx="47" cy="211" r="3" fill="#8b5cf6"/>
+  </g>
+  <text x="326" y="124" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="86" font-weight="700" fill="#e5e7eb">Ghost</text>
+  <text x="610" y="124" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="86" font-weight="700" fill="url(#ftp)">FTP</text>
+  <text x="333" y="174" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="18" letter-spacing="7" fill="#8ea2b7">SECURE TRANSFERS. WITHOUT A TRACE.</text>
+</svg>
