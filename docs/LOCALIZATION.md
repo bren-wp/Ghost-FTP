@@ -4,17 +4,13 @@ English is the canonical Ghost FTP default/fallback language.
 
 ## Active surfaces
 
-Localization applies to:
-
-- Windows native desktop UI;
-- Linux native desktop UI;
-- Android native UI where translated resources are implemented.
+Localization applies to Windows native desktop UI, Linux native desktop UI and Android native UI where translated resources are implemented.
 
 A platform must not claim translation parity for strings it does not actually expose.
 
 ## Product terminology
 
-The following product nouns should stay consistent:
+Keep these product nouns consistent:
 
 - Files
 - Connections / Sites
