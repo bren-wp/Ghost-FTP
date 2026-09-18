@@ -379,12 +379,13 @@ func (a *app) setupFileColumns(list uintptr, remote bool) {
 }
 
 func (a *app) setupTransferColumns(list uintptr) {
-	a.insertColumn(list, 0, a.tr("column.file"), 230)
-	a.insertColumn(list, 1, a.tr("column.direction"), 120)
-	a.insertColumn(list, 2, a.tr("column.progress"), 180)
-	a.insertColumn(list, 3, a.tr("column.status"), 180)
-	a.insertColumn(list, 4, a.tr("column.speed"), 120)
-	a.insertColumn(list, 5, a.tr("column.eta"), 90)
+	labels := a.masterTransferColumns()
+	a.insertColumn(list, 0, labels.File, 230)
+	a.insertColumn(list, 1, labels.Direction, 120)
+	a.insertColumn(list, 2, labels.Progress, 180)
+	a.insertColumn(list, 3, labels.Status, 180)
+	a.insertColumn(list, 4, labels.Speed, 120)
+	a.insertColumn(list, 5, labels.ETA, 90)
 }
 
 func (a *app) insertColumn(list uintptr, idx int, title string, width int) {
