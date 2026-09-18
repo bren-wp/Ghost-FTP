@@ -56,6 +56,7 @@ public final class MainActivity extends Activity {
         BOOKMARKS,
         TRANSFERS,
         SETTINGS,
+        CONNECTION_INFO,
         ABOUT
     }
 
@@ -89,6 +90,10 @@ public final class MainActivity extends Activity {
     private TextView transferStatus;
     private TextView sectionTitle;
     private TextView connectionBadge;
+    private TextView connectionInfoState;
+    private TextView connectionInfoProtocol;
+    private TextView connectionInfoSecurity;
+    private TextView connectionInfoTransfer;
     private TextView localEmptyState;
     private TextView remoteEmptyState;
     private ListView localList;
@@ -137,6 +142,7 @@ public final class MainActivity extends Activity {
     private View bookmarksSurface;
     private View transfersSurface;
     private View settingsSurface;
+    private View connectionInfoSurface;
     private View aboutSurface;
     private boolean tabletLayout;
     private Section activeSection = Section.FILES;
@@ -144,6 +150,7 @@ public final class MainActivity extends Activity {
     private SiteProfileStore profileStore;
     private String activeProfileId;
     private String connectedIdentityKey;
+    private String connectedProtocol;
     private Uri treeUri;
     private String rootDocumentId;
     private String currentDocumentId;
@@ -210,6 +217,7 @@ public final class MainActivity extends Activity {
         FtpSession current = session;
         session = null;
         connectedIdentityKey = null;
+        connectedProtocol = null;
         if (current != null) {
             if (gate == null) {
                 current.cancelActiveTransfer();
@@ -328,12 +336,14 @@ public final class MainActivity extends Activity {
         bookmarksSurface = buildBookmarksSurface();
         transfersSurface = buildTransfersSurface();
         settingsSurface = buildSettingsSurface();
+        connectionInfoSurface = buildConnectionInfoSurface();
         aboutSurface = buildAboutSurface();
         addSurface(filesSurface);
         addSurface(sitesSurface);
         addSurface(bookmarksSurface);
         addSurface(transfersSurface);
         addSurface(settingsSurface);
+        addSurface(connectionInfoSurface);
         addSurface(aboutSurface);
         return main;
     }
@@ -351,15 +361,21 @@ public final class MainActivity extends Activity {
         TextView product = label("Ghost FTP", 20, GhostTheme.TEXT);
         product.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         navigation.addView(product, matchWrap());
-        TextView platform = label("Android app", 11, GhostTheme.MUTED);
+        TextView platform = label("Android", 11, GhostTheme.MUTED);
         platform.setPadding(0, dp(2), 0, dp(18));
         navigation.addView(platform, matchWrap());
 
         navigation.addView(navButton("Files", R.drawable.ic_files, Section.FILES), navParams());
-        navigation.addView(navButton("Sites", R.drawable.ic_sites, Section.SITES), navParams());
-        navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
-        navigation.addView(navButton("Transfers", R.drawable.ic_transfers, Section.TRANSFERS), navParams());
+        navigation.addView(navButton("Connections", R.drawable.ic_sites, Section.SITES), navParams());
+        navigation.addView(navButton("Transfer Queue", R.drawable.ic_transfers, Section.TRANSFERS), navParams());
         navigation.addView(navButton("Settings", R.drawable.ic_settings, Section.SETTINGS), navParams());
+
+        View utilitySpacer = new View(this);
+        navigation.addView(utilitySpacer, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        navigation.addView(navButton("Bookmarks", R.drawable.ic_bookmarks, Section.BOOKMARKS), navParams());
+        navigation.addView(navButton("Connection info", R.drawable.ic_connection_info, Section.CONNECTION_INFO), navParams());
         navigation.addView(navButton("About", R.drawable.ic_about, Section.ABOUT), navParams());
 
         TextView privacy = label("No telemetry · no ads · no Ghost FTP cloud", 10, GhostTheme.MUTED);
@@ -547,7 +563,7 @@ public final class MainActivity extends Activity {
 
     private View buildSitesSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Sites", "Connect quickly or save the server details you use often."));
+        content.addView(surfaceHeading("Connections", "Connect quickly or save the server details you use often."));
 
         LinearLayout connectionCard = card("QUICK CONNECT", "Passwords are never saved. FTP and secure FTPS are available on Android.");
         protocol = new Spinner(this);
@@ -575,11 +591,11 @@ public final class MainActivity extends Activity {
         disconnect.setOnClickListener(v -> disconnect());
         content.addView(connectionCard, cardParams());
 
-        LinearLayout savedCard = card("SAVED SITES", "Save only the connection details you choose. Passwords are never stored.");
+        LinearLayout savedCard = card("SAVED CONNECTIONS", "Save only the connection details you choose. Passwords are never stored.");
         siteSpinner = new Spinner(this);
         GhostTheme.styleSpinner(siteSpinner);
         savedCard.addView(siteSpinner, matchWrapSpaced());
-        profileName = field("Site name", false);
+        profileName = field("Connection name", false);
         savedCard.addView(profileName, matchWrapSpaced());
         LinearLayout actions = row();
         Button load = button("Load");
@@ -648,8 +664,8 @@ public final class MainActivity extends Activity {
 
     private View buildTransfersSurface() {
         LinearLayout content = surfaceContent();
-        content.addView(surfaceHeading("Transfers", "Follow the current transfer and cancel it while cancellation is still safe."));
-        LinearLayout card = card("ACTIVE TRANSFER", "Progress reflects the current file transfer.");
+        content.addView(surfaceHeading("Transfer Queue", "Follow the current transfer and cancel it while cancellation is still safe."));
+        LinearLayout card = card("CURRENT TRANSFER", "Progress reflects the current file transfer.");
         transferStatus = label("No active transfer.", 14, GhostTheme.MUTED);
         transferStatus.setPadding(dp(10), dp(12), dp(10), dp(12));
         transferStatus.setBackground(GhostTheme.rounded(this, GhostTheme.LIST, GhostTheme.BORDER, 10));
@@ -724,6 +740,62 @@ public final class MainActivity extends Activity {
         return scrollSurface(content);
     }
 
+    private View buildConnectionInfoSurface() {
+        LinearLayout content = surfaceContent();
+        content.addView(surfaceHeading(
+                "Connection info",
+                "Current protocol, connection state and transfer state without exposing credentials or server identity."));
+
+        LinearLayout card = card(
+                "CONNECTION",
+                "This view intentionally excludes host, username, password, private keys and saved server paths.");
+        connectionInfoState = infoLine("State", "Disconnected");
+        connectionInfoProtocol = infoLine("Protocol", "—");
+        connectionInfoSecurity = infoLine("Security", "No active connection");
+        connectionInfoTransfer = infoLine("Transfer Queue", "No active transfer.");
+        card.addView(connectionInfoState, matchWrapSpaced());
+        card.addView(connectionInfoProtocol, matchWrapSpaced());
+        card.addView(connectionInfoSecurity, matchWrapSpaced());
+        card.addView(connectionInfoTransfer, matchWrapSpaced());
+        card.addView(infoLine("Privacy", "No telemetry, analytics, ads or Ghost FTP cloud"), matchWrapSpaced());
+        content.addView(card, cardParams());
+        return scrollSurface(content);
+    }
+
+    private void refreshConnectionInfoSurface() {
+        if (connectionInfoState == null || connectionInfoProtocol == null
+                || connectionInfoSecurity == null || connectionInfoTransfer == null) {
+            return;
+        }
+        boolean connected = session != null && session.isConnected();
+        String selectedProtocol = connected && connectedProtocol != null ? connectedProtocol : "—";
+
+        connectionInfoState.setText("State\n" + (connected ? "Connected" : "Disconnected"));
+        connectionInfoProtocol.setText("Protocol\n" + selectedProtocol);
+
+        String security;
+        if (!connected) {
+            security = "No active connection";
+        } else if ("FTPS".equals(selectedProtocol)) {
+            security = "Certificate and hostname verification enabled";
+        } else if ("FTP".equals(selectedProtocol)) {
+            security = "Unencrypted compatibility connection";
+        } else {
+            security = "Connection security state unavailable";
+        }
+        connectionInfoSecurity.setText("Security\n" + security);
+
+        String transfer;
+        if (transferFinalizing) {
+            transfer = "Finalizing current transfer";
+        } else if (transferActive) {
+            transfer = "Transfer active";
+        } else {
+            transfer = "No active transfer";
+        }
+        connectionInfoTransfer.setText("Transfer Queue\n" + transfer);
+    }
+
     private View buildAboutSurface() {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("About", "Version, supported protocols and privacy information."));
@@ -747,6 +819,7 @@ public final class MainActivity extends Activity {
         bookmarksSurface.setVisibility(section == Section.BOOKMARKS ? View.VISIBLE : View.GONE);
         transfersSurface.setVisibility(section == Section.TRANSFERS ? View.VISIBLE : View.GONE);
         settingsSurface.setVisibility(section == Section.SETTINGS ? View.VISIBLE : View.GONE);
+        connectionInfoSurface.setVisibility(section == Section.CONNECTION_INFO ? View.VISIBLE : View.GONE);
         aboutSurface.setVisibility(section == Section.ABOUT ? View.VISIBLE : View.GONE);
         sectionTitle.setText(sectionTitle(section));
         refreshNavigationSelection();
@@ -757,13 +830,15 @@ public final class MainActivity extends Activity {
     private String sectionTitle(Section section) {
         switch (section) {
             case SITES:
-                return "Sites";
+                return "Connections";
             case BOOKMARKS:
                 return "Bookmarks";
             case TRANSFERS:
-                return "Transfers";
+                return "Transfer Queue";
             case SETTINGS:
                 return "Settings";
+            case CONNECTION_INFO:
+                return "Connection info";
             case ABOUT:
                 return "About";
             case FILES:
@@ -780,7 +855,7 @@ public final class MainActivity extends Activity {
     }
 
     private void styleNavigationButton(Button button, boolean active) {
-        button.setTextColor(active ? GhostTheme.TEXT : GhostTheme.MUTED);
+        button.setTextColor(active ? GhostTheme.ACCENT_STRONG : GhostTheme.MUTED);
         button.setCompoundDrawableTintList(ColorStateList.valueOf(active ? GhostTheme.ACCENT_STRONG : GhostTheme.MUTED));
         button.setBackground(GhostTheme.rounded(this, active ? GhostTheme.SELECTION : GhostTheme.PANEL,
                 active ? GhostTheme.ACCENT : GhostTheme.PANEL, 10));
@@ -933,7 +1008,7 @@ public final class MainActivity extends Activity {
 
     private void loadSelectedSite() {
         if (busy || session != null) {
-            setStatus("Disconnect before switching sites.");
+            setStatus("Disconnect before switching saved connections.");
             return;
         }
         int index = siteSpinner.getSelectedItemPosition() - 1;
@@ -967,15 +1042,15 @@ public final class MainActivity extends Activity {
         if (!profile.localStartTreeUri.isEmpty()) {
             localStartUnavailable = !tryActivateLocalTree(
                     Uri.parse(profile.localStartTreeUri),
-                    "This site's local start folder is unavailable. Choose it again and update the site.",
+                    "This connection's local start folder is unavailable. Choose it again and update the connection.",
                     true);
         }
         renderSites();
         renderBookmarks();
         if (localStartUnavailable) {
-            setStatus("Site loaded, but its local start folder is unavailable. Choose it again and update the site.");
+            setStatus("Connection loaded, but its local start folder is unavailable. Choose it again and update the connection.");
         } else {
-            setStatus("Site loaded. Enter your password to connect.");
+            setStatus("Connection loaded. Enter your password to connect.");
         }
     }
 
@@ -986,7 +1061,7 @@ public final class MainActivity extends Activity {
         }
         String name = profileName.getText().toString().trim();
         if (name.isEmpty()) {
-            setStatus("Site name is required.");
+            setStatus("Connection name is required.");
             return;
         }
         final int portValue;
@@ -1025,9 +1100,9 @@ public final class MainActivity extends Activity {
             renderSites();
             renderBookmarks();
             if (previous != null && !next.sameServerIdentity(previous)) {
-                setStatus("Site updated. Saved server paths and bookmarks were cleared because the connection details changed.");
+                setStatus("Connection updated. Saved server paths and bookmarks were cleared because the connection details changed.");
             } else {
-                setStatus(previous == null ? "Site saved. No password was stored." : "Site updated. No password was stored.");
+                setStatus(previous == null ? "Connection saved. No password was stored." : "Connection updated. No password was stored.");
             }
         } catch (IllegalArgumentException e) {
             setStatus(e.getMessage());
@@ -1036,12 +1111,12 @@ public final class MainActivity extends Activity {
 
     private void deleteActiveSite() {
         if (busy || session != null) {
-            setStatus("Disconnect before deleting a saved site.");
+            setStatus("Disconnect before deleting a saved connection.");
             return;
         }
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site before deleting it.");
+            setStatus("Load a saved connection before deleting it.");
             return;
         }
         profiles.remove(profile);
@@ -1050,7 +1125,7 @@ public final class MainActivity extends Activity {
         profileName.setText("");
         renderSites();
         renderBookmarks();
-        setStatus("Saved site deleted.");
+        setStatus("Saved connection deleted.");
     }
 
     private void replaceProfile(SiteProfile next) {
@@ -1078,7 +1153,8 @@ public final class MainActivity extends Activity {
         String hostValue = host.getText().toString().trim();
         String userValue = username.getText().toString().trim();
         String passwordValue = password.getText().toString();
-        boolean secure = "FTPS".equals(protocol.getSelectedItem().toString());
+        String protocolValue = protocol.getSelectedItem().toString();
+        boolean secure = "FTPS".equals(protocolValue);
         final int portValue;
         try {
             portValue = parsePort();
@@ -1091,9 +1167,9 @@ public final class MainActivity extends Activity {
             return;
         }
         SiteProfile profile = activeProfile();
-        String identity = identityKey(protocol.getSelectedItem().toString(), hostValue, portValue, userValue);
+        String identity = identityKey(protocolValue, hostValue, portValue, userValue);
         if (profile != null && !profile.identityKey().equals(identity)) {
-            setStatus("Connection details changed. Save the site or switch to Quick Connect before connecting.");
+            setStatus("Connection details changed. Save the connection or switch to Quick Connect before connecting.");
             return;
         }
         String requestedStart = profile == null ? null : profile.remoteStartPath;
@@ -1131,6 +1207,7 @@ public final class MainActivity extends Activity {
                     connectingSession = null;
                     session = next;
                     connectedIdentityKey = identity;
+                    connectedProtocol = protocolValue;
                     currentRemotePath = start;
                     remoteEntries.clear();
                     remoteEntries.addAll(entries);
@@ -1163,6 +1240,7 @@ public final class MainActivity extends Activity {
         FtpSession current = session;
         session = null;
         connectedIdentityKey = null;
+        connectedProtocol = null;
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
@@ -1205,6 +1283,7 @@ public final class MainActivity extends Activity {
         activeTransferGate = null;
         session = null;
         connectedIdentityKey = null;
+        connectedProtocol = null;
         remoteEntries.clear();
         selectedRemote = -1;
         currentRemotePath = "/";
@@ -1390,7 +1469,7 @@ public final class MainActivity extends Activity {
     private void removeRemoteBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site before removing a server bookmark.");
+            setStatus("Load a saved connection before removing a server bookmark.");
             return;
         }
         int index = remoteBookmarkSpinner.getSelectedItemPosition();
@@ -1422,11 +1501,11 @@ public final class MainActivity extends Activity {
     private SiteProfile requireConnectedActiveProfile() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load or save a site first.");
+            setStatus("Load or save a connection first.");
             return null;
         }
         if (session == null || connectedIdentityKey == null || !profile.identityKey().equals(connectedIdentityKey)) {
-            setStatus("Connect using this saved site before changing or opening its server paths.");
+            setStatus("Connect using this saved connection before changing or opening its server paths.");
             return null;
         }
         return profile;
@@ -1816,6 +1895,7 @@ public final class MainActivity extends Activity {
             owner.abort();
             session = null;
             connectedIdentityKey = null;
+            connectedProtocol = null;
             remoteEntries.clear();
             selectedRemote = -1;
             currentRemotePath = "/";
@@ -1868,6 +1948,7 @@ public final class MainActivity extends Activity {
                     if (session == owner && !owner.isConnected()) {
                         session = null;
                         connectedIdentityKey = null;
+                        connectedProtocol = null;
                         remoteEntries.clear();
                         selectedRemote = -1;
                         currentRemotePath = "/";
@@ -2310,7 +2391,7 @@ public final class MainActivity extends Activity {
     private void setLocalStart() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Save or load a site before setting a start folder.");
+            setStatus("Save or load a connection before setting a start folder.");
             return;
         }
         String uri = persistedCurrentTreeUri();
@@ -2328,7 +2409,7 @@ public final class MainActivity extends Activity {
     private void addLocalBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Save or load a site before adding a local bookmark.");
+            setStatus("Save or load a connection before adding a local bookmark.");
             return;
         }
         String uri = persistedCurrentTreeUri();
@@ -2346,7 +2427,7 @@ public final class MainActivity extends Activity {
     private void removeLocalBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site before removing a local bookmark.");
+            setStatus("Load a saved connection before removing a local bookmark.");
             return;
         }
         int index = localBookmarkSpinner.getSelectedItemPosition();
@@ -2367,7 +2448,7 @@ public final class MainActivity extends Activity {
     private void openLocalBookmark() {
         SiteProfile profile = activeProfile();
         if (profile == null) {
-            setStatus("Load a saved site first.");
+            setStatus("Load a saved connection first.");
             return;
         }
         int index = localBookmarkSpinner.getSelectedItemPosition();
@@ -2562,6 +2643,7 @@ public final class MainActivity extends Activity {
             if (session == current && !current.isConnected()) {
                 session = null;
                 connectedIdentityKey = null;
+                connectedProtocol = null;
                 remoteEntries.clear();
                 selectedRemote = -1;
                 currentRemotePath = "/";
@@ -2772,6 +2854,7 @@ public final class MainActivity extends Activity {
 
         updateConnectionBadge(connected);
         updateTransferSurface();
+        refreshConnectionInfoSurface();
         updateEnabledAlpha(connect, disconnect, upload, download,
                 localCreateDirectory, localRename, localDelete,
                 remoteCreateDirectory, remoteRename, remoteDelete, remoteChmod,
@@ -2792,7 +2875,7 @@ public final class MainActivity extends Activity {
             text = "TRANSFER ACTIVE";
             color = GhostTheme.WARN;
         } else if (connected) {
-            boolean secure = protocol.getSelectedItem() != null && "FTPS".equals(protocol.getSelectedItem().toString());
+            boolean secure = "FTPS".equals(connectedProtocol);
             text = secure ? "FTPS CONNECTED" : "FTP CONNECTED";
             color = secure ? GhostTheme.SUCCESS : GhostTheme.WARN;
         } else {
@@ -2843,6 +2926,7 @@ public final class MainActivity extends Activity {
             if (current != null && !current.isConnected()) {
                 session = null;
                 connectedIdentityKey = null;
+                connectedProtocol = null;
                 remoteEntries.clear();
                 selectedRemote = -1;
                 currentRemotePath = "/";
