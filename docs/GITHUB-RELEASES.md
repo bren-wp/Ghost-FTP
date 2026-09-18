@@ -1,12 +1,12 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **0.0.7** is the active release candidate. The last actually published GitHub Release is **0.0.6** until the protected 0.0.7 publication workflow completes successfully.
+Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release is **0.0.6** until the protected 0.0.8 publication workflow completes successfully.
 
 ## Release identity
 
 ```text
-Tag: ghostftp-v0.0.7
-Title: Ghost FTP 0.0.7
+Tag: ghostftp-v0.0.8
+Title: Ghost FTP 0.0.8
 Prerelease: false
 ```
 
@@ -20,45 +20,45 @@ A push to `main`, including a `VERSION` change, **does not publish a release dir
 release/ghostftp-vX.Y.Z
 ```
 
-For 0.0.7 the branch is `release/ghostftp-v0.0.7`. The branch trigger accepts it only when its semantic version equals root `VERSION` and its SHA equals exact current `main`.
+For 0.0.8 the branch is `release/ghostftp-v0.0.8`. The branch trigger accepts it only when its semantic version equals root `VERSION` and its SHA equals exact current `main`.
 
 The trigger snapshots existing workflow runs, dispatches `Publish Ghost FTP`, waits for the exact new run to finish successfully, and only then dispatches and verifies release retention. A successful dispatch request is not publication evidence.
 
-## 0.0.7 public files
+## 0.0.8 public files
 
-Ghost FTP 0.0.7 publishes **13 platform artifacts / 16 public files**.
+Ghost FTP 0.0.8 publishes **13 platform artifacts / 16 public files**.
 
 Windows:
 
 ```text
-Ghost-FTP-0.0.7-Setup.exe
-Ghost-FTP-0.0.7-Portable.exe
+Ghost-FTP-0.0.8-Setup.exe
+Ghost-FTP-0.0.8-Portable.exe
 ```
 
 Linux:
 
 ```text
-Ghost-FTP-0.0.7-Linux-Debian-Installer.run
-Ghost-FTP-0.0.7-Linux-Debian-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Ubuntu-Installer.run
-Ghost-FTP-0.0.7-Linux-Ubuntu-Portable.tar.gz
-Ghost-FTP-0.0.7-Linux-Fedora-Installer.run
-Ghost-FTP-0.0.7-Linux-Fedora-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Debian-Installer.run
+Ghost-FTP-0.0.8-Linux-Debian-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Ubuntu-Installer.run
+Ghost-FTP-0.0.8-Linux-Ubuntu-Portable.tar.gz
+Ghost-FTP-0.0.8-Linux-Fedora-Installer.run
+Ghost-FTP-0.0.8-Linux-Fedora-Portable.tar.gz
 ```
 
 Android:
 
 ```text
-Ghost-FTP-0.0.7-Android.apk
+Ghost-FTP-0.0.8-Android.apk
 ```
 
 Browser helper packages:
 
 ```text
-Ghost-FTP-0.0.7-Chrome-Extension.zip
-Ghost-FTP-0.0.7-Edge-Extension.zip
-Ghost-FTP-0.0.7-Firefox-Extension.zip
-Ghost-FTP-0.0.7-Opera-Extension.zip
+Ghost-FTP-0.0.8-Chrome-Extension.zip
+Ghost-FTP-0.0.8-Edge-Extension.zip
+Ghost-FTP-0.0.8-Firefox-Extension.zip
+Ghost-FTP-0.0.8-Opera-Extension.zip
 ```
 
 Verification/metadata:
@@ -69,7 +69,7 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS remains an active development/source surface and is not in the public 0.0.7 allow-list until real Developer ID signing and Apple notarization are proven.
+macOS remains an active development/source surface and is not in the public 0.0.8 allow-list until real Developer ID signing and Apple notarization are proven.
 
 ## Exact-head transaction
 
@@ -103,13 +103,13 @@ GHOSTFTP_ANDROID_KEY_PASSWORD
 GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-It signs `Ghost-FTP-0.0.7-Android.apk`, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The workflow never generates a production Android publisher identity.
+It signs `Ghost-FTP-0.0.8-Android.apk`, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The workflow never generates a production Android publisher identity.
 
 Android SFTP remains hidden until strict maintained host-key verification exists. Production signing does not weaken that boundary.
 
 ## Browser helper gate
 
-Chrome, Edge, Firefox and Opera packages are rebuilt deterministically from the 0.0.7 source tree under `extensions/`. Official manifests remain zero-permission/zero-host-permission and publication preserves the sanitized `ghostftp://connect` browser-to-desktop handoff on supported Windows installs without adding a remote service or automatic update mechanism.
+Chrome, Edge, Firefox and Opera packages are rebuilt deterministically from the 0.0.8 source tree under `extensions/`. Official manifests remain zero-permission/zero-host-permission and publication preserves the sanitized `ghostftp://connect` browser-to-desktop handoff on supported Windows installs without adding a remote service or automatic update mechanism.
 
 ## Linux universal-distribution gate
 
@@ -144,7 +144,7 @@ The sorted remote GitHub Release asset set must match the exact 16-file allow-li
 The same verified release directory is published as:
 
 ```text
-ghcr.io/bren-wp/ghost-ftp:0.0.7
+ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
 This is a distribution bundle, not a supported runtime container.
