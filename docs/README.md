@@ -8,7 +8,7 @@
 - Current source version: **0.0.8**
 - Release channel: **Current**
 - Product status: **Current**
-- Last actually published GitHub Release: **0.0.7**
+- Last actually published GitHub Release: **0.0.8**
 - 0.0.8 release target: `ghostftp-v0.0.8`, `PRERELEASE=false`
 - 0.0.8 shape: **14 platform artifacts / 17 public files**
 - Public release targets: **Windows, Linux, Android, macOS and browser helper packages**
