@@ -510,7 +510,7 @@ public final class MainActivity extends Activity {
 
         refreshAll.setOnClickListener(v -> {
             refreshLocal();
-            if (session != null && session.isConnected()) refreshRemote();
+            if (session != null && session.isConnected()) refreshRemote(currentRemotePath);
         });
         newFolder.setOnClickListener(v -> {
             if (selectedRemote >= 0 && session != null && session.isConnected()) createRemoteDirectory();
@@ -3056,6 +3056,7 @@ public final class MainActivity extends Activity {
         updateConnectionBadge(connected);
         updateTransferSurface();
         refreshConnectionInfoSurface();
+        refreshFilesMasterSummary();
         updateEnabledAlpha(connect, disconnect, upload, download,
                 localCreateDirectory, localRename, localDelete,
                 remoteCreateDirectory, remoteRename, remoteDelete, remoteChmod,
@@ -3095,6 +3096,10 @@ public final class MainActivity extends Activity {
         }
         transferStatus.setText(value);
         transferStatus.setTextColor(GhostTheme.statusColor(value));
+        if (filesTransferStatus != null) {
+            filesTransferStatus.setText(value);
+            filesTransferStatus.setTextColor(GhostTheme.statusColor(value));
+        }
     }
 
     private void updateEnabledAlpha(Button... buttons) {
