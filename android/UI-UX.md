@@ -98,6 +98,8 @@ Documentation may state that SFTP is intentionally hidden. That informational te
 
 Ghost FTP Android uses the same charcoal/blue-black product shell as the desktop applications, with warm gold/amber as the primary action and active-navigation accent. Green is reserved for positive connection/operation state and red for destructive or failed state. The default appearance is **Dark**, independent of the device's system light/dark preference, so a fresh install opens in the canonical Ghost FTP visual identity.
 
+The runtime values intentionally match `internal/uipalette` **1:1**: Dark uses workspace `#0B0F17`, panel `#121824`, list `#161D2A`, border `#2C3648`, text `#F2F5FA`, muted `#97A3B8`, Ghost Gold `#F6C445` / `#FFD768`, success `#4AD79B`, warning `#F2BA55`, danger `#FF6878` and selection `#2B2515`. Light uses the same canonical secondary palette as Windows/Linux/macOS rather than a separate mobile color system.
+
 **Light** remains a real secondary appearance in Settings. It uses a neutral gray surface hierarchy with the same gold action language rather than reverting to a generic blue Android palette. Appearance changes rebuild the Activity-owned view hierarchy in place, retain the active FTP/FTPS session and navigation state, and keep the password memory-only instead of persisting it as part of the preference change.
 
 Navigation uses local vector drawables for hamburger, Files, Sites, Bookmarks, Transfers, Settings and About. Startup window/status/navigation-bar resources use the dark palette as well, preventing a light-theme flash before the Java UI owns the first frame.

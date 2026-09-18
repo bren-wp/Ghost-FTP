@@ -48,9 +48,9 @@ class ProductSurfaceContractTests(unittest.TestCase):
 
         self.assertRegex(desktop, r"Window:\s+RGB\{0xEE, 0xF1, 0xF5\}")
         self.assertRegex(desktop, r"Panel:\s+RGB\{0xF6, 0xF8, 0xFB\}")
-        self.assertIn("WINDOW = Color.rgb(0xF0, 0xF2, 0xF5);", android)
-        self.assertIn("PANEL = Color.rgb(0xF7, 0xF8, 0xFA);", android)
-        self.assertIn("ACCENT = Color.rgb(0xC5, 0x8D, 0x22);", android)
+        self.assertIn("WINDOW = Color.rgb(0xEE, 0xF1, 0xF5);", android)
+        self.assertIn("PANEL = Color.rgb(0xF6, 0xF8, 0xFB);", android)
+        self.assertIn("ACCENT = Color.rgb(0xA6, 0x65, 0x00);", android)
         self.assertNotIn("WINDOW = Color.rgb(0xFF, 0xFF, 0xFF);", android)
         self.assertNotIn("PANEL = Color.rgb(0xFF, 0xFF, 0xFF);", android)
         self.assertIn("--bg: #eef1f5;", browser)
