@@ -7,7 +7,7 @@ cd "$ROOT"
 VERSION="$(tr -d '\r\n' < VERSION)"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid VERSION.' >&2; exit 1; }
 
-for tool in go tar gzip sed awk tail mktemp; do
+for tool in go tar gzip sed awk tail mktemp python3; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 
@@ -18,6 +18,7 @@ telemetry="$(go telemetry)"
 }
 
 export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off CGO_ENABLED=0 GOOS=linux
+python3 scripts/generate_brand_assets.py --materialize
 mkdir -p dist
 
 WORK="$(mktemp -d)"
