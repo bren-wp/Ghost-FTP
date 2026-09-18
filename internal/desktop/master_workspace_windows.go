@@ -240,11 +240,32 @@ func (a *app) updateMasterToolbarState() {
 	a.updateMasterConnectVisual()
 }
 
+func (a *app) applyMasterWorkspaceLabels() {
+	if a == nil {
+		return
+	}
+	// The supplied master screenshots use these canonical English workspace
+	// nouns. Keep non-English catalog strings intact; English gets the exact
+	// product terminology used across Windows, Linux, macOS and Android.
+	if a.languageCode() != "en" {
+		return
+	}
+	setText(a.sectionLocal, "Local Files")
+	setText(a.sectionRemote, "Remote Files")
+	setText(a.sectionTransfers, "Transfer Queue")
+}
+
 func (a *app) layoutMasterWorkspaceChrome() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
 	a.ensureMasterWorkspaceControls()
+	a.applyMasterWorkspaceLabels()
+	if a.font != 0 {
+		sendMessageW.Call(a.sectionLocal, wmSetFont, a.font, 1)
+		sendMessageW.Call(a.sectionRemote, wmSetFont, a.font, 1)
+		sendMessageW.Call(a.sectionTransfers, wmSetFont, a.font, 1)
+	}
 
 	var client rect
 	if ok, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
@@ -301,7 +322,7 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	paneW := (contentWidth - paneGap) / 2
 	leftX := contentLeft
 	rightX := contentLeft + paneW + paneGap
-	sectionY, pathY, actionY := 108, 132, 169
+	sectionY, pathY, actionY := 108, 136, 174
 	pathButtonGap := 6
 	pathButtonW := 78
 	localPathW := paneW - 3*pathButtonW - 3*pathButtonGap
@@ -313,8 +334,8 @@ func (a *app) layoutMasterWorkspaceChrome() {
 		remotePathW = 120
 	}
 
-	a.move(a.sectionLocal, leftX, sectionY, paneW, 20)
-	a.move(a.sectionRemote, rightX, sectionY, paneW, 20)
+	a.move(a.sectionLocal, leftX, sectionY, paneW, 24)
+	a.move(a.sectionRemote, rightX, sectionY, paneW, 24)
 
 	a.move(a.localPath, leftX, pathY, localPathW, 29)
 	lx := leftX + localPathW + pathButtonGap
@@ -350,7 +371,7 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	queueY := statusY - queueH - 9
 	queueButtonsY := queueY - 38
 	queueLabelY := queueButtonsY - 23
-	listY := actionY + 29 + 44
+	listY := actionY + 29 + 12
 	listBottom := queueLabelY - 10
 	listH := listBottom - listY
 	if listH < 120 {
@@ -359,14 +380,16 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	a.move(a.localList, leftX, listY, paneW, listH)
 	a.move(a.remoteList, rightX, listY, paneW, listH)
 
-	a.move(a.sectionTransfers, contentLeft, queueLabelY, 180, 18)
-	a.move(a.transferSummary, contentLeft+180, queueLabelY, clampInt(contentWidth-180, 260, 640), 18)
+	a.move(a.sectionTransfers, contentLeft, queueLabelY-2, 190, 22)
+	a.move(a.transferSummary, contentLeft+190, queueLabelY, clampInt(contentWidth-190, 260, 620), 18)
 	qx := contentLeft
-	queueWidths := []int{112, 112, 104, 104, 150}
-	for i, control := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob, a.clearQueue} {
+	queueWidths := []int{104, 104, 96, 96}
+	for i, control := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob} {
 		a.move(control, qx, queueButtonsY, queueWidths[i], 31)
 		qx += queueWidths[i] + 7
 	}
+	clearW := 150
+	a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)
 	a.move(a.transferList, contentLeft, queueY, contentWidth, queueH)
 	a.move(a.status, contentLeft, statusY, contentWidth-250, statusBandHeight)
 	a.move(a.statusVersion, contentRight-238, statusY, 238, statusBandHeight)
