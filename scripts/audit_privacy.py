@@ -9,13 +9,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_ROOTS = (ROOT / "cmd", ROOT / "internal")
 FORBIDDEN_IMPORTS = {"net/http", "net/rpc", "net/smtp"}
-MANUAL_UPDATE_NETWORK_FILE = "internal/updatecheck/updatecheck.go"
 TRUSTED_FIXED_URL_FILE = "internal/brand/brand.go"
 TRUSTED_FIXED_URLS = {
     "https://ghostftp.com/",
     "https://ghostftp.com/premium/",
-    "https://github.com/bren-wp/Ghost-FTP/releases/latest",
-    "https://api.github.com/repos/bren-wp/Ghost-FTP/releases/latest",
+    "https://ghostftp.com/#download",
 }
 FORBIDDEN_VENDOR_MARKERS = {
     "sentry.io",
@@ -78,8 +76,6 @@ def audit_runtime_sources() -> None:
         for imp in FORBIDDEN_IMPORTS:
             if not re.search(rf'["`]{re.escape(imp)}["`]', text):
                 continue
-            if rel_text == MANUAL_UPDATE_NETWORK_FILE and imp == "net/http":
-                continue
             fail(f"forbidden network import {imp!r} in {rel}")
         urls = sorted(set(URL_RE.findall(text)))
         if urls:
@@ -102,29 +98,30 @@ def audit_runtime_sources() -> None:
 
 def audit_manual_update_boundary() -> None:
     checker = require(
-        MANUAL_UPDATE_NETWORK_FILE,
+        "internal/updatecheck/updatecheck.go",
         (
-            "Timeout: 10 * time.Second",
-            "io.LimitReader(resp.Body, maxResponseBytes)",
-            "payload.Draft || payload.Prerelease",
-            'host != "github.com"',
-            '"/bren-wp/Ghost-FTP/releases/"',
+            "func Simulate(currentVersion string)",
+            "Simulated:      true",
+            "UpdateURL:      brand.UpdateURL",
         ),
     )
-    if "Password" in checker or "Passphrase" in checker or "LocalPath" in checker or "RemotePath" in checker:
-        fail("manual update checker must not accept transfer credentials or file paths")
+    for forbidden in ("net/http", "api.github.com", "github.com/", "Password", "Passphrase", "LocalPath", "RemotePath"):
+        if forbidden in checker:
+            fail(f"local update simulator contains forbidden marker: {forbidden}")
 
     external = require(
         "internal/external/open.go",
         (
             'parsed.Scheme != "https"',
             "parsed.User != nil",
-            "OpenReleasePage",
+            "OpenUpdatePage",
             "OpenPremiumPage",
+            "OpenWebsite",
+            'officialHosts = []string{"ghostftp.com", "www.ghostftp.com"}',
         ),
     )
-    if "http://" in external:
-        fail("external browser launcher must never permit plaintext HTTP")
+    if "http://" in external or "github.com" in external:
+        fail("external browser launcher must use official Ghost FTP HTTPS destinations only")
 
 
 def audit_credentials_and_network_tools() -> None:
@@ -257,8 +254,8 @@ def main() -> None:
     audit_build_privacy()
     print("PRIVACY_AUDIT=PASS")
     print("PRIVACY_AUDIT_RUNTIME_SCOPE=WINDOWS,LINUX")
-    print("FIXED_RUNTIME_HTTP_URLS=BLOCKED_EXCEPT_EXPLICIT_TRUSTED_UPDATE_PREMIUM_ENDPOINTS")
-    print("MANUAL_UPDATE_NETWORK_BOUNDARY=EXPLICIT_USER_ACTION_ONLY")
+    print("FIXED_RUNTIME_HTTP_URLS=OFFICIAL_GHOSTFTP_WEBSITE_ONLY")
+    print("UPDATE_SIMULATION=LOCAL_ONLY_NO_NETWORK")
     print("TELEMETRY_VENDOR_MARKERS=BLOCKED")
     print("RUNTIME_CREDENTIAL_FILES=BLOCKED")
     print("RAW_TOOL_DIAGNOSTICS_USER_SURFACE=BLOCKED")
