@@ -872,8 +872,10 @@ public final class MainActivity extends Activity {
 
         navigationButtons.clear();
         buildUi();
-        restorePreferences();
 
+        rememberEndpointToggle.setChecked(rememberEndpoint);
+        showFileSizesToggle.setChecked(showFileSizes);
+        appearanceSpinner.setSelection(GhostTheme.APPEARANCE_LIGHT.equals(appearanceMode) ? 1 : 0);
         profileName.setText(profileNameValue);
         host.setText(hostValue);
         port.setText(portValue);
