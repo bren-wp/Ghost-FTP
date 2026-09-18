@@ -11,12 +11,13 @@ const (
 
 // nativeMenuWords remains as a narrow compatibility shim for one localization
 // call site. The native menu itself and its unused translated nouns are gone;
-// only the canonical site-manager and diagnostics nouns are populated. The
-// visible application rail relabels the Site Manager entry as Connections.
+// only the canonical connection-manager and diagnostics nouns are populated.
+// Internal Site Manager IDs/classes remain compatibility details; visible UI uses
+// the same Connections noun as the application rail.
 func nativeMenuWords(language string) [9]string {
 	labels := navigationLabelsForLanguage(language)
 	var words [9]string
-	words[5] = labels.SiteManager
+	words[5] = labels.Connections
 	words[8] = labels.Diagnostics
 	return words
 }
