@@ -147,7 +147,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
 
     def test_version_history_and_current_release_contract(self) -> None:
         version = read("VERSION").strip()
-        self.assertEqual(version, "0.0.7")
+        self.assertEqual(version, "0.0.8")
 
         readme = read("README.md")
         docs_index = read("docs/README.md")
@@ -158,7 +158,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn(f"Current source version: **{version}**", readme)
         self.assertIn("Product status: **Current**", readme)
         self.assertIn("Release channel: **Current**", readme)
-        self.assertIn("Last actually published GitHub Release: **0.0.6**", readme)
+        self.assertIn("Last actually published GitHub Release: **0.0.7**", readme)
         self.assertIn("13 platform artifacts / 16 public files", readme)
         self.assertIn(f"Current source version: **{version}**", docs_index)
         self.assertIn("Last actually published GitHub Release: **0.0.6**", docs_index)
@@ -179,7 +179,7 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertEqual(len(sections), len(set(sections)))
         section_parts = [tuple(int(part) for part in value.split(".")) for value in sections]
         self.assertEqual(section_parts, sorted(section_parts, reverse=True))
-        self.assertTrue(all(value <= (0, 0, 7) for value in section_parts))
+        self.assertTrue(all(value <= (0, 0, 8) for value in section_parts))
 
 
 if __name__ == "__main__":
