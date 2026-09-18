@@ -597,7 +597,7 @@ func (u *linuxDesktop) renderItemRows(r linuxRect, items []model.Item, selected 
 }
 
 func (u *linuxDesktop) renderWorkspace() error {
-	leftPanel := linuxRect{left: u.layout.localPath.left - 6, top: u.layout.localPath.top - 30, right: u.layout.localList.right + 6, bottom: u.layout.upload.bottom + 8}
+	leftPanel := linuxRect{left: u.layout.localPath.left - 6, top: u.layout.localPath.top - 30, right: u.layout.localList.right + 6, bottom: u.layout.localList.bottom + 8}
 	rightPanel := linuxRect{left: u.layout.remotePath.left - 6, top: leftPanel.top, right: u.layout.remoteList.right + 6, bottom: leftPanel.bottom}
 	if err := u.drawPanel(leftPanel); err != nil {
 		return err
@@ -605,49 +605,18 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.drawPanel(rightPanel); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.localPath.left+8, leftPanel.top+20, strings.ToUpper(u.tr("section.local")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	localTitle := u.tr("section.local")
+	remoteTitle := u.tr("section.remote")
+	if err := u.x.text(u.layout.localPath.left+8, leftPanel.top+20, localTitle, premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
-	if err := u.x.text(u.layout.remotePath.left, leftPanel.top+20, strings.ToUpper(u.tr("section.remote")), premiumTheme.Muted, premiumTheme.Panel); err != nil {
+	if err := u.x.text(u.layout.remotePath.left+8, leftPanel.top+20, remoteTitle, premiumTheme.Text, premiumTheme.Panel); err != nil {
 		return err
 	}
 	if err := u.drawField(linuxFieldLocalPath, u.tr("column.local")); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.localUp, u.tr("common.up"), !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localRefresh, u.tr("common.refresh"), !u.busy, false); err != nil {
-		return err
-	}
 	if err := u.drawField(linuxFieldRemotePath, u.tr("column.remote")); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteUp, u.tr("common.up"), u.connected && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteRefresh, u.tr("common.refresh"), u.connected && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localNew, u.tr("common.new_folder"), !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localRename, u.tr("common.rename"), u.selectedLocal >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.localDelete, u.tr("common.delete"), u.selectedLocal >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteNew, u.tr("common.new_folder"), u.connected && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteRename, u.tr("common.rename"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteDelete, u.tr("common.delete"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.remoteChmod, u.tr("common.permissions"), u.connected && u.selectedRemote >= 0 && !u.busy, false); err != nil {
 		return err
 	}
 	if err := u.renderFileFilterControls(); err != nil {
@@ -659,13 +628,7 @@ func (u *linuxDesktop) renderWorkspace() error {
 	if err := u.renderItemRows(u.fileFilterListRect(true), u.remoteItems, u.selectedRemote); err != nil {
 		return err
 	}
-	if err := u.drawButton(u.layout.upload, u.tr("transfer.upload")+" →", u.connected && u.selectedLocal >= 0 && !u.busy, true); err != nil {
-		return err
-	}
-	if err := u.drawButton(u.layout.download, "← "+u.tr("transfer.download"), u.connected && u.selectedRemote >= 0 && !u.busy, true); err != nil {
-		return err
-	}
-	return u.renderRemoteEditButton()
+	return nil
 }
 
 func (u *linuxDesktop) renderQueue() error {
@@ -1153,44 +1116,12 @@ func (u *linuxDesktop) handleMouse(x, y int) {
 		u.saveProfile()
 	case l.removeProfile.contains(x, y):
 		u.removeProfile()
-	case l.localUp.contains(x, y):
-		u.lastFilePaneRemote = false
-		u.refreshLocal(filepath.Dir(u.localCurrent))
-	case l.localRefresh.contains(x, y):
-		u.lastFilePaneRemote = false
-		u.refreshLocal(u.localCurrent)
-	case l.remoteUp.contains(x, y):
-		u.lastFilePaneRemote = true
-		u.refreshRemote(terminalRemotePath(u.remoteCurrent, ".."))
-	case l.remoteRefresh.contains(x, y):
-		u.lastFilePaneRemote = true
-		u.refreshRemote(u.remoteCurrent)
-	case l.localNew.contains(x, y):
-		u.openPrompt(linuxPromptLocalMkdir, u.tr("common.new_folder")+" · "+u.tr("section.local"), u.tr("common.new_folder"))
-	case l.localRename.contains(x, y):
-		u.openSelectedLocalRename()
-	case l.localDelete.contains(x, y):
-		u.deleteSelectedLocal()
-	case l.remoteNew.contains(x, y):
-		u.openPrompt(linuxPromptRemoteMkdir, u.tr("common.new_folder")+" · "+u.tr("section.remote"), u.tr("common.new_folder"))
-	case l.remoteRename.contains(x, y):
-		u.openSelectedRemoteRename()
-	case l.remoteDelete.contains(x, y):
-		u.deleteSelectedRemote()
-	case l.remoteChmod.contains(x, y):
-		u.openSelectedRemoteChmod()
-	case u.remoteEditButtonRect().contains(x, y):
-		u.openSelectedRemoteEditor()
 	case u.fileFilterListRect(false).contains(x, y):
 		u.lastFilePaneRemote = false
 		u.selectedLocal = u.selectRow(u.fileFilterListRect(false), y, len(u.localItems))
 	case u.fileFilterListRect(true).contains(x, y):
 		u.lastFilePaneRemote = true
 		u.selectedRemote = u.selectRow(u.fileFilterListRect(true), y, len(u.remoteItems))
-	case l.upload.contains(x, y):
-		u.queueTransfer("upload")
-	case l.download.contains(x, y):
-		u.queueTransfer("download")
 	case l.pause.contains(x, y):
 		u.pauseTransfersLinux()
 	case l.resume.contains(x, y):
