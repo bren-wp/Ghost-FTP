@@ -176,9 +176,9 @@ func (a *app) drawHorizontalButtonContent(hdc uintptr, content rect, visual butt
 			drawText(hdc, visual.Icon, &iconRect, dtCenter|dtVCenter|dtSingleLine|dtNoPrefix)
 			selectObject.Call(hdc, old)
 			content.Left += int32(a.scale(30))
-		case contentWidth >= a.scale(68):
+		case contentWidth >= a.scale(54):
 			font := a.font
-			if contentWidth < a.scale(104) && a.smallFont != 0 {
+			if contentWidth < a.scale(112) && a.smallFont != 0 {
 				font = a.smallFont
 			}
 			old, _, _ := selectObject.Call(hdc, font)
