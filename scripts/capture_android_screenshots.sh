@@ -305,9 +305,9 @@ capture() {
 
 capture 'ghost-ftp-android-files.png'
 wait_ui 'Navigate to Files'
-wait_ui 'Navigate to Connections'
+wait_ui 'Navigate to Sites'
 wait_ui 'Navigate to Bookmarks'
-wait_ui 'Navigate to Transfer Queue'
+wait_ui 'Navigate to Transfers'
 wait_ui 'Navigate to Settings'
 
 # Navigation evidence shows the real utility drawer layered over the fixed
@@ -326,9 +326,9 @@ capture_primary_surface() {
 }
 
 # Primary destinations are reached directly from the persistent bottom bar.
-capture_primary_surface 'Connections' 'Connections' 'connections'
+capture_primary_surface 'Sites' 'Connections' 'connections'
 capture_primary_surface 'Bookmarks' 'Bookmarks' 'bookmarks'
-capture_primary_surface 'Transfer Queue' 'Transfer Queue' 'transfer-queue'
+capture_primary_surface 'Transfers' 'Transfer Queue' 'transfer-queue'
 capture_primary_surface 'Settings' 'Settings' 'settings'
 
 # About is a secondary utility destination, so exercise the actual utility menu.
