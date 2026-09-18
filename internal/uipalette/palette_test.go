@@ -25,7 +25,7 @@ func TestClassicLightAvoidsPureWhitePrimarySurfaces(t *testing.T) {
 }
 
 func TestMaintainedModalRolesMatchDesktopContract(t *testing.T) {
-	if Dark.Panel != (RGB{0x12, 0x18, 0x24}) || Dark.Text != (RGB{0xF2, 0xF5, 0xFA}) {
+	if Dark.Panel != (RGB{0x0D, 0x17, 0x24}) || Dark.Text != (RGB{0xE5, 0xE7, 0xEB}) {
 		t.Fatal("canonical Dark panel/text contract changed unexpectedly")
 	}
 	if Light.Panel != (RGB{0xF6, 0xF8, 0xFB}) || Light.Text != (RGB{0x17, 0x20, 0x33}) {
@@ -33,19 +33,17 @@ func TestMaintainedModalRolesMatchDesktopContract(t *testing.T) {
 	}
 }
 
-func TestGhostGoldAccentContract(t *testing.T) {
-	if Dark.Accent != (RGB{0xF6, 0xC4, 0x45}) || Dark.AccentStrong != (RGB{0xFF, 0xD7, 0x68}) {
-		t.Fatal("dark Ghost Gold accent contract changed unexpectedly")
+func TestGhostCyanBlueAccentContract(t *testing.T) {
+	if Dark.Accent != (RGB{0x00, 0xE5, 0xFF}) || Dark.AccentStrong != (RGB{0x3B, 0x82, 0xF6}) {
+		t.Fatal("dark Ghost cyan/blue accent contract changed unexpectedly")
 	}
-	if Light.Accent != (RGB{0xA6, 0x65, 0x00}) || Light.AccentStrong != (RGB{0x87, 0x51, 0x00}) {
-		t.Fatal("light Ghost Gold accent contract changed unexpectedly")
+	if Light.Accent != (RGB{0x00, 0x82, 0xB8}) || Light.AccentStrong != (RGB{0x25, 0x63, 0xEB}) {
+		t.Fatal("light Ghost cyan/blue accent contract changed unexpectedly")
 	}
 	if Dark.OnAccent == Dark.Accent || Light.OnAccent == Light.Accent {
 		t.Fatal("filled accent controls lost their dedicated foreground role")
 	}
-	for name, accent := range map[string]RGB{"dark": Dark.Accent, "light": Light.Accent} {
-		if !(accent.R > accent.G && accent.G > accent.B) {
-			t.Fatalf("%s accent no longer belongs to the warm Ghost Gold family: %#v", name, accent)
-		}
+	if Dark.Accent.B < Dark.Accent.G || Dark.Accent.G <= Dark.Accent.R {
+		t.Fatalf("dark accent no longer belongs to the Ghost cyan family: %#v", Dark.Accent)
 	}
 }
