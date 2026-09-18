@@ -121,8 +121,10 @@ public final class MainActivity extends Activity {
     private Button remoteRemoveBookmark;
     private Button remoteOpenBookmark;
     private Button transferCancel;
+    private Button applyAppearance;
     private CheckBox rememberEndpointToggle;
     private CheckBox showFileSizesToggle;
+    private Spinner appearanceSpinner;
 
     private FrameLayout contentHost;
     private LinearLayout navigationPanel;
@@ -152,6 +154,7 @@ public final class MainActivity extends Activity {
     private boolean busy;
     private boolean rememberEndpoint = true;
     private boolean showFileSizes = true;
+    private String appearanceMode = GhostTheme.APPEARANCE_DARK;
     private String localFilterQuery = "";
     private String remoteFilterQuery = "";
     private WorkspaceOps.SortKey localSortKey = WorkspaceOps.SortKey.NAME;
@@ -168,9 +171,11 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
-        GhostTheme.apply(this);
-        GhostTheme.applySystemBars(this);
         SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+        appearanceMode = GhostTheme.normalizeAppearance(
+                preferences.getString("appearance", GhostTheme.APPEARANCE_DARK));
+        GhostTheme.apply(this, appearanceMode);
+        GhostTheme.applySystemBars(this);
         profileStore = new SiteProfileStore(preferences);
         profiles.addAll(profileStore.load());
         buildUi();
@@ -654,6 +659,32 @@ public final class MainActivity extends Activity {
         LinearLayout content = surfaceContent();
         content.addView(surfaceHeading("Settings", "Choose how Ghost FTP behaves on this device."));
         LinearLayout uiCard = card("APP PREFERENCES", "Adjust local preferences for browsing and quick connections.");
+
+        TextView appearanceLabel = label("Appearance", 12, GhostTheme.MUTED);
+        appearanceLabel.setPadding(dp(4), dp(4), dp(4), dp(5));
+        uiCard.addView(appearanceLabel, matchWrap());
+        LinearLayout appearanceRow = row();
+        appearanceSpinner = new Spinner(this);
+        List<String> appearanceOptions = new ArrayList<>();
+        appearanceOptions.add("Dark");
+        appearanceOptions.add("Light");
+        appearanceSpinner.setAdapter(GhostTheme.spinnerAdapter(this, appearanceOptions));
+        GhostTheme.styleSpinner(appearanceSpinner);
+        appearanceSpinner.setSelection(GhostTheme.APPEARANCE_LIGHT.equals(appearanceMode) ? 1 : 0);
+        appearanceRow.addView(appearanceSpinner, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        applyAppearance = primaryButton("Apply");
+        LinearLayout.LayoutParams applyAppearanceParams = new LinearLayout.LayoutParams(dp(96), ViewGroup.LayoutParams.WRAP_CONTENT);
+        applyAppearanceParams.setMargins(dp(8), 0, 0, 0);
+        appearanceRow.addView(applyAppearance, applyAppearanceParams);
+        uiCard.addView(appearanceRow, matchWrapSpaced());
+        TextView appearanceHelp = label(
+                "Dark is the Ghost FTP default. Light keeps a neutral gray secondary palette.",
+                11,
+                GhostTheme.MUTED);
+        appearanceHelp.setPadding(dp(4), 0, dp(4), dp(8));
+        uiCard.addView(appearanceHelp, matchWrap());
+        applyAppearance.setOnClickListener(v -> applyAppearancePreference());
+
         rememberEndpointToggle = checkBox("Remember Quick Connect host, username, protocol and port");
         rememberEndpointToggle.setOnClickListener(v -> {
             rememberEndpoint = rememberEndpointToggle.isChecked();
@@ -765,8 +796,13 @@ public final class MainActivity extends Activity {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         rememberEndpoint = prefs.getBoolean("rememberEndpoint", true);
         showFileSizes = prefs.getBoolean("showFileSizes", true);
+        appearanceMode = GhostTheme.normalizeAppearance(
+                prefs.getString("appearance", GhostTheme.APPEARANCE_DARK));
         rememberEndpointToggle.setChecked(rememberEndpoint);
         showFileSizesToggle.setChecked(showFileSizes);
+        if (appearanceSpinner != null) {
+            appearanceSpinner.setSelection(GhostTheme.APPEARANCE_LIGHT.equals(appearanceMode) ? 1 : 0);
+        }
         if (rememberEndpoint) {
             host.setText(prefs.getString("host", ""));
             username.setText(prefs.getString("username", ""));
@@ -787,6 +823,7 @@ public final class MainActivity extends Activity {
         SharedPreferences.Editor editor = getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                 .putBoolean("rememberEndpoint", rememberEndpoint)
                 .putBoolean("showFileSizes", showFileSizes)
+                .putString("appearance", appearanceMode)
                 .putString("treeUri", treeUri == null ? "" : treeUri.toString());
         if (rememberEndpoint) {
             editor.putString("host", host.getText().toString().trim())
@@ -797,6 +834,62 @@ public final class MainActivity extends Activity {
             editor.remove("host").remove("username").remove("protocol").remove("port");
         }
         editor.apply();
+    }
+
+    private void applyAppearancePreference() {
+        if (appearanceSpinner == null || applyAppearance == null) return;
+        if (busy || transferActive || transferFinalizing || remoteEditorState != null) {
+            setStatus("Finish the active operation before changing appearance.");
+            return;
+        }
+
+        String next = appearanceSpinner.getSelectedItemPosition() == 1
+                ? GhostTheme.APPEARANCE_LIGHT
+                : GhostTheme.APPEARANCE_DARK;
+        next = GhostTheme.normalizeAppearance(next);
+        if (next.equals(appearanceMode)) {
+            setStatus(GhostTheme.APPEARANCE_LIGHT.equals(next)
+                    ? "Light appearance is already active."
+                    : "Dark appearance is already active.");
+            return;
+        }
+
+        String profileNameValue = profileName == null ? "" : profileName.getText().toString();
+        String hostValue = host == null ? "" : host.getText().toString();
+        String portValue = port == null ? "21" : port.getText().toString();
+        String usernameValue = username == null ? "" : username.getText().toString();
+        String passwordValue = password == null ? "" : password.getText().toString();
+        int protocolPosition = protocol == null ? 0 : protocol.getSelectedItemPosition();
+        String statusValue = status == null ? "Ready." : status.getText().toString();
+        Section previousSection = activeSection;
+
+        appearanceMode = next;
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putString("appearance", appearanceMode)
+                .apply();
+        GhostTheme.apply(this, appearanceMode);
+        GhostTheme.applySystemBars(this);
+
+        navigationButtons.clear();
+        buildUi();
+
+        rememberEndpointToggle.setChecked(rememberEndpoint);
+        showFileSizesToggle.setChecked(showFileSizes);
+        appearanceSpinner.setSelection(GhostTheme.APPEARANCE_LIGHT.equals(appearanceMode) ? 1 : 0);
+        profileName.setText(profileNameValue);
+        host.setText(hostValue);
+        port.setText(portValue);
+        username.setText(usernameValue);
+        password.setText(passwordValue);
+        protocol.setSelection(Math.max(0, Math.min(protocolPosition, protocol.getCount() - 1)));
+
+        renderSites();
+        renderBookmarks();
+        renderLocal();
+        renderRemote();
+        refreshButtons();
+        showSection(previousSection);
+        setStatus(statusValue);
     }
 
     private void renderSites() {
@@ -2637,6 +2730,11 @@ public final class MainActivity extends Activity {
         transferCancel.setText(transferFinalizing ? "Finalizing…" : "Cancel active transfer");
         transferCancel.setEnabled(transferActive && !transferFinalizing);
         transferCancel.setAlpha(transferCancel.isEnabled() ? 1f : 0.45f);
+        if (applyAppearance != null) {
+            boolean appearanceReady = !busy && !transferActive && !transferFinalizing && remoteEditorState == null;
+            applyAppearance.setEnabled(appearanceReady);
+            applyAppearance.setAlpha(appearanceReady ? 1f : 0.45f);
+        }
 
         updateConnectionBadge(connected);
         updateTransferSurface();

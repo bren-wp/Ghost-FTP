@@ -35,20 +35,24 @@ class ProductSurfaceContractTests(unittest.TestCase):
         self.assertNotIn('putString("password"', source)
         self.assertNotIn('putString("passphrase"', source)
         self.assertNotIn('infoLine("Package", BuildConfig.APPLICATION_ID)', source)
-        self.assertIn("GhostTheme.apply(this);", source)
+        self.assertIn('preferences.getString("appearance", GhostTheme.APPEARANCE_DARK)', source)
+        self.assertIn("GhostTheme.apply(this, appearanceMode);", source)
         self.assertIn("GhostTheme.applySystemBars(this);", source)
         self.assertIn('surfaceHeading("Files", "Browse local files and your connected server from one workspace.")', source)
         self.assertIn('infoLine("Data collection", "No telemetry, analytics or ads")', source)
 
-    def test_dirty_off_white_light_theme_is_consistent(self) -> None:
+    def test_secondary_light_themes_remain_off_white_and_neutral(self) -> None:
         desktop = self.read("internal/uipalette/palette.go")
         android = self.read("android/app/src/main/java/app/ghostftp/client/GhostTheme.java")
         browser = self.read("extensions/shared/popup.css")
 
         self.assertRegex(desktop, r"Window:\s+RGB\{0xEE, 0xF1, 0xF5\}")
         self.assertRegex(desktop, r"Panel:\s+RGB\{0xF6, 0xF8, 0xFB\}")
-        self.assertIn("WINDOW = Color.rgb(0xEE, 0xF1, 0xF5);", android)
-        self.assertIn("PANEL = Color.rgb(0xF6, 0xF8, 0xFB);", android)
+        self.assertIn("WINDOW = Color.rgb(0xF0, 0xF2, 0xF5);", android)
+        self.assertIn("PANEL = Color.rgb(0xF7, 0xF8, 0xFA);", android)
+        self.assertIn("ACCENT = Color.rgb(0xC5, 0x8D, 0x22);", android)
+        self.assertNotIn("WINDOW = Color.rgb(0xFF, 0xFF, 0xFF);", android)
+        self.assertNotIn("PANEL = Color.rgb(0xFF, 0xFF, 0xFF);", android)
         self.assertIn("--bg: #eef1f5;", browser)
         self.assertIn("--panel: #f6f8fb;", browser)
         self.assertNotIn("--bg: #ffffff;", browser.lower())
