@@ -109,9 +109,9 @@ A successful ad-hoc validation build does not prove production distribution read
 The 0.0.8 release contains **14 platform artifacts / 17 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
 
 ```text
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned
 ANDROID_APK=temporary-compatibility-certificate
-ANDROID_SIGNER_SHA256=<verified CI debug certificate fingerprint>
+ANDROID_SIGNER_SHA256=<verified temporary compatibility certificate fingerprint>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 PUBLIC_PLATFORM_ARTIFACTS=14
 PUBLIC_RELEASE_FILES=17

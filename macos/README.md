@@ -105,11 +105,11 @@ Raw certificate/private-key/notary credentials must never be committed to the re
 - `APPLE_NOTARY_API_KEY_ID`
 - `APPLE_NOTARY_ISSUER_ID`
 
-The standalone `macos-production.yml` workflow destroys the temporary signing Keychain/files in an `always()` cleanup step and deliberately does **not** modify or upload to an existing public GitHub Release. The canonical 0.0.8 `release.yml` now performs the equivalent protected signing/notarization gate and promotes only its exact-run verified notarized ZIP into the release bundle.
+The standalone `macos-production.yml` workflow destroys the temporary signing Keychain/files in an `always()` cleanup step and deliberately does **not** modify or upload to an existing public GitHub Release. The separate protected `release.yml` path performs the equivalent signing/notarization gate and may publish a notarized ZIP only when real Apple credentials are available and every verification succeeds. It is not evidence that the already-published 0.0.8 no-secret artifact was notarized.
 
 ## Release truthfulness
 
-Source/native functionality is complete and continuously validated on universal macOS builds. Ghost FTP 0.0.8 treats macOS as a public release target, but the canonical release fails closed unless a real Developer ID certificate and Apple notarization credentials are supplied and the exact release run completes signing, notarization, stapling and Gatekeeper verification. Those private Apple credentials are external security material and are intentionally not stored in this repository.
+Source/native functionality is complete and continuously validated on universal macOS builds. Ghost FTP 0.0.8 treats macOS as a public release target and the published no-secret artifact is an **ad-hoc signed universal validation app that is not Developer ID signed and not Apple notarized**. A separate protected production-distribution path fails closed unless a real Developer ID certificate and Apple notarization credentials are supplied and the exact run completes signing, notarization, stapling and Gatekeeper verification. Those private Apple credentials are external security material and are intentionally not stored in this repository.
 
 Language selection and product utility actions are owned by **Settings**, not the main master rail or About window. **Update** is a local-only simulation. **Download latest**, **Premium** and **Official website** open only fixed HTTPS destinations on `ghostftp.com`; no user-facing GitHub release URL or release-API request is used by the application.
 

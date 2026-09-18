@@ -1,51 +1,59 @@
 # Ghost FTP GitHub Packages
 
-Ghost FTP **0.0.8** is the active release candidate. After the protected publication transaction succeeds, the exact verified release directory is also published to GitHub Packages as a **distribution bundle**.
+Ghost FTP **0.0.8** is already published through the exact-main **no-secret GitHub Release** path. That no-secret publication does **not** publish or update a GHCR package.
 
-## Package reference
+A separate protected production-signing workflow can publish a verified distribution bundle to GitHub Packages only when its Windows, Android and macOS production-signing gates all succeed.
+
+## Protected package reference
+
+```text
+ghcr.io/bren-wp/ghost-ftp:<VERSION>
+```
+
+For version 0.0.8 the protected-path identity is:
 
 ```text
 ghcr.io/bren-wp/ghost-ftp:0.0.8
 ```
 
-The exact `0.0.8` package tag is the verification identity for the release transaction. Current semantic aliases and `latest` are maintained only after the exact-version package has been published and verified.
+The presence of that name in documentation or workflow configuration is not evidence that a package was actually published. Package existence must be established by the protected workflow's own successful push and readback verification.
 
-The GHCR object is a **distribution bundle**, **not a runtime container**. Its payload mirrors the canonical release directory under `/ghostftp-release/`. Ghost FTP does not use GHCR as a hidden application backend, relay, account service or transfer service.
+The GHCR object is a **distribution bundle, not a runtime container**. It must never be treated as an application backend, relay, account service, storage service or transfer service.
 
-## 0.0.8 bundle shape
+## Two release modes
 
-The canonical 0.0.8 release contains **14 platform artifacts / 17 public files**:
+### Published 0.0.8 no-secret distribution
 
-- Windows: one universal Setup and one universal Portable executable;
-- Linux: one Installer and one Portable archive each for Debian, Ubuntu and Fedora;
-- Android: one production-signed APK;
-- browser helpers: one deterministic ZIP each for Chrome, Edge, Firefox and Opera;
+The already-published 0.0.8 GitHub Release contains **14 platform artifacts / 17 public files**:
+
+- Windows: universal Setup and Portable, intentionally unsigned;
+- Linux: Debian, Ubuntu and Fedora Installer + Portable bundles;
+- Android: installable release APK signed with a temporary one-run compatibility certificate;
+- macOS: ad-hoc signed universal validation app, not Developer ID signed and not notarized;
+- browser helpers: Chrome, Edge, Firefox and Opera ZIPs;
 - metadata: `BUILD-METADATA.txt`, `RELEASE-NOTES.txt` and `SHA256.txt`.
 
-The GitHub Package is built from exactly that same verified 16-file release directory. Architecture-specific Windows staging executables and retired architecture-specific Linux `.deb`, `.rpm` and Portable archives are not part of the public bundle.
+The no-secret workflow reads no production signing secrets and does not publish GHCR.
 
-## Publication contract
+### Protected production-signing distribution
 
-Package publication occurs only after release quality plus Windows, Linux, Android and browser jobs succeed. The workflow:
+The protected `.github/workflows/release.yml` path remains fail-closed. It requires:
 
-- binds version/revision labels to root `VERSION` and exact `GITHUB_SHA`;
-- requires trusted Authenticode for official Windows Setup/Portable;
-- requires the Android APK to be signed by the protected production publisher and match `GHOSTFTP_ANDROID_CERT_SHA256`;
-- verifies the six Linux universal distro bundles and their embedded amd64/arm64/i386 payloads;
-- verifies deterministic Chrome/Edge/Firefox/Opera helper ZIPs;
-- keeps internal architecture-specific Windows staging executables out of the public directory;
-- creates the exact 16-file release directory before packaging;
-- publishes exact version plus current aliases and `latest`;
-- verifies `ghcr.io/bren-wp/ghost-ftp:0.0.8` after push;
-- never treats the OCI object as a supported runtime container or hidden service.
+- trusted Windows Authenticode;
+- the protected Android publisher identity with exact signer-fingerprint verification;
+- Developer ID signing, Hardened Runtime, Apple notarization, stapling and Gatekeeper verification for macOS;
+- the same Linux and browser-helper verification contracts;
+- exactly **17 public files** in the protected release directory.
 
-## Current metadata identity
+Only after those gates succeed does that workflow publish the release-directory distribution bundle to GHCR and verify the exact-version package.
 
-`BUILD-METADATA.txt` records at least:
+## Protected package metadata
+
+When the protected production workflow succeeds, its `BUILD-METADATA.txt` records values such as:
 
 ```text
-VERSION=0.0.8
-RELEASE_TAG=ghostftp-v0.0.8
+VERSION=<VERSION>
+RELEASE_TAG=ghostftp-v<VERSION>
 RELEASE_CHANNEL=current
 PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER
 ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS
@@ -60,37 +68,44 @@ LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
 LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
-LINUX_ARM64_RUNTIME_EVIDENCE=build-and-package-ci
-LINUX_I386_RUNTIME_EVIDENCE=build-and-package-ci
 ANDROID_APK=production-signed
-ANDROID_SIGNER_SHA256=<verified signer certificate SHA-256>
+ANDROID_SIGNER_SHA256=<verified protected publisher certificate SHA-256>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
+MACOS_APP=developer-id-signed-notarized-universal-arm64-x86_64
+MACOS_SIGNING=developer-id-hardened-runtime-notarized-stapled
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
-BROWSER_DESKTOP_HANDOFF=unsupported
+BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
 PUBLIC_PLATFORM_ARTIFACTS=14
 PUBLIC_RELEASE_FILES=17
-GITHUB_PACKAGE=ghcr.io/bren-wp/ghost-ftp:0.0.8
+GITHUB_PACKAGE=ghcr.io/<owner>/ghost-ftp:<VERSION>
 ```
 
-`ANDROID_SIGNER_SHA256` above is release **output metadata** containing the verified public certificate fingerprint. The protected GitHub Actions input secret that the workflow compares against is named **`GHOSTFTP_ANDROID_CERT_SHA256`**. Production private-key material and passwords are never written to metadata or included in the package payload.
+Those values describe the **protected production path**, not the trust state of the already-published 0.0.8 no-secret release.
 
-## Integrity
+## Published 0.0.8 trust metadata
 
-`SHA256.txt` binds every public file except itself. Release digest readback compares the exact source-workflow bundle with GitHub Release per-asset SHA-256 digests before publication is considered verified.
+For the actual no-secret 0.0.8 release, the corresponding trust boundaries are:
 
-Windows trust and exact-byte integrity are independent: official Windows artifacts need both valid trusted Authenticode and matching SHA-256. Android similarly requires matching release bytes plus the expected production signing-certificate fingerprint.
+```text
+WINDOWS_AUTHENTICODE=unsigned
+WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
+WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
+ANDROID_APK=temporary-compatibility-certificate
+ANDROID_SIGNER_SHA256=<verified temporary compatibility certificate fingerprint>
+MACOS_SIGNING=ad-hoc-not-notarized
+ANDROID_SFTP=hidden-until-strict-host-key-verification
+PUBLIC_PLATFORM_ARTIFACTS=14
+PUBLIC_RELEASE_FILES=17
+```
 
-## Latest-only retention
+Code signing and protocol security are independent. The absence of production publisher credentials never permits weaker TLS, SFTP host-key verification, credential handling or path-safety behavior.
 
-After successful 0.0.8 release publication and remote readback, `.github/workflows/release-retention.yml` independently verifies the current release/tag/main identity and exact **16-file** asset set before removing superseded Ghost FTP Releases, tags, canonical release branches and obsolete package versions. `main` history is never rewritten.
+## Integrity and retention
 
-Until that protected transaction succeeds, **0.0.7 remains the last actually published GitHub Release** and 0.0.8 remains a release candidate rather than a falsely advertised published build.
+`SHA256.txt` binds every public release file except itself. GitHub Release digest readback verifies the exact remote asset set and source identity.
 
-## Platform boundaries
+The protected package workflow uses exact-version package identity before semantic aliases. Retention must preserve the immutable `ghostftp-v0.0.7` baseline and the published `ghostftp-v0.0.8` release/tag. It must never rewrite `main` history or mutate an existing published release.
 
-Android production signing does not expose SFTP without strict maintained host-key verification. Browser packages do not add desktop launch/handoff, browser networking permissions or a Ghost FTP relay. macOS is included only as the Developer ID signed, Apple-notarized and stapled universal AppKit archive.
+The no-secret 0.0.8 publication does not perform destructive GHCR retention because it does not publish GHCR.
 
 See [GitHub Releases](GITHUB-RELEASES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md) and [Versioning](VERSIONING.md).
-
-
-macOS: `Ghost-FTP-0.0.8-macOS-notarized.app.zip` (arm64 + x86_64, Developer ID signed, notarized and stapled).

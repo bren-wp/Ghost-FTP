@@ -66,21 +66,22 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
         for marker in (
             'connectionCard.setBackground(GhostTheme.rounded(this, GhostTheme.PANEL, GhostTheme.BORDER, 14))',
-            'currentConnectionSummary = label("Not connected", 14, GhostTheme.TEXT)',
+            'currentConnectionTitle = label("No active connection", 15, GhostTheme.TEXT)',
+            'currentConnectionSummary = label("Open Connections", 12, GhostTheme.MUTED)',
             'connectionCard.setOnClickListener(v -> showSection(Section.SITES));',
             'quickActionsCard.setOrientation(LinearLayout.VERTICAL)',
-            'filesBack = button("Back")',
-            'filesForward = button("Forward")',
-            'Button refreshAll = button("Refresh")',
-            'Button newFolder = button("New Folder")',
-            'Button bookmarks = button("Bookmarks")',
-            'Button uploadQuick = primaryButton("Upload")',
-            'Button downloadQuick = primaryButton("Download")',
-            'Button more = button("More")',
+            'filesBack = iconButton("Back", R.drawable.ic_back)',
+            'filesForward = iconButton("Forward", R.drawable.ic_forward)',
+            'Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh)',
+            'Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder)',
+            'Button bookmarks = iconButton("Bookmarks", R.drawable.ic_bookmarks)',
+            'Button uploadQuick = iconButton("Upload", R.drawable.ic_upload)',
+            'Button downloadQuick = iconButton("Download", R.drawable.ic_download)',
+            'Button more = iconButton("More", R.drawable.ic_more)',
             'filesBack.setOnClickListener(v -> navigateFilesHistory(true));',
             'filesForward.setOnClickListener(v -> navigateFilesHistory(false));',
             'more.setOnClickListener(v -> showFilesMoreActions());',
-            'card("TRANSFER QUEUE"',
+            'workspaceCard("Transfer Queue", R.drawable.ic_transfers',
             'filesTransferStatus = label("No active transfer."',
             'transferCard.setOnClickListener(v -> showSection(Section.TRANSFERS));',
             "upload = uploadQuick;",
@@ -90,14 +91,42 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
         self.assertNotIn("fake", files.lower())
         self.assertNotIn("demo", files.lower())
-        self.assertIn('card("LOCAL FILES", tabletLayout', activity)
-        self.assertIn('card("REMOTE FILES", tabletLayout', activity)
+        self.assertIn('workspaceCard("Local Files", R.drawable.ic_local_files', activity)
+        self.assertIn('workspaceCard("Remote Files", R.drawable.ic_remote_files', activity)
         self.assertIn("screenWidthDp >= 400", files)
         self.assertIn("brandIcon.setImageResource(R.drawable.ic_ghost_brand);", activity)
-        self.assertIn("button.setSingleLine(true);", activity)
-        self.assertIn("button.setTextSize(8);", activity)
+        self.assertIn("menuToggle.setImageResource(R.drawable.ic_overflow_vertical);", activity)
+        self.assertIn("connectionBadge.setMinHeight(dp(40));", activity)
+        self.assertIn("connectionBadge.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0);", activity)
+        self.assertIn("connectionBadge.setOnClickListener(v -> showSection(Section.SITES));", activity)
+        self.assertIn('button.setTextSize("Connections".equals(text) ? 9f : 10f);', activity)
+        self.assertIn("button.setSingleLine(false);", activity)
+        self.assertIn("button.setMaxLines(2);", activity)
+        self.assertIn("button.setMinWidth(dp(48));", activity)
+        self.assertIn("button.setMinHeight(dp(56));", activity)
+        self.assertIn("appBar.setPadding(dp(12), dp(8), dp(10), dp(8));", activity)
+        self.assertIn('TextView brand = label("Ghost FTP", 18, GhostTheme.TEXT);', activity)
+        self.assertIn("ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));", activity)
+        self.assertIn("overflow.setBackgroundColor(Color.TRANSPARENT);", activity)
+        self.assertIn("header.setBackgroundColor(Color.TRANSPARENT);", activity)
+        bottom_start = activity.index("private Button bottomNavButton(")
+        bottom_end = activity.index("private LinearLayout.LayoutParams bottomNavParams()", bottom_start)
+        bottom = activity[bottom_start:bottom_end]
+        self.assertLess(bottom.index("styleNavigationButton(button, false);"), bottom.index("button.setMinHeight(dp(56));"))
+        self.assertNotIn("button.setTextSize(8);", activity)
         self.assertIn("if (tabletLayout) card.addView(navigationActions, matchWrap());", activity)
         self.assertIn("private void showFilesMoreActions()", activity)
+        self.assertIn('filesBack = iconButton("Back", R.drawable.ic_back);', activity)
+        self.assertIn('filesForward = iconButton("Forward", R.drawable.ic_forward);', activity)
+        self.assertIn('Button refreshAll = iconButton("Refresh", R.drawable.ic_refresh);', activity)
+        self.assertIn('Button newFolder = iconButton("New Folder", R.drawable.ic_new_folder);', activity)
+        self.assertIn('Button uploadQuick = iconButton("Upload", R.drawable.ic_upload);', activity)
+        self.assertIn('Button downloadQuick = iconButton("Download", R.drawable.ic_download);', activity)
+        self.assertIn('workspaceCard("Local Files", R.drawable.ic_local_files', activity)
+        self.assertIn('workspaceCard("Remote Files", R.drawable.ic_remote_files', activity)
+        self.assertIn('workspaceTableHeader(false)', activity)
+        self.assertIn('workspaceTableHeader(true)', activity)
+        self.assertIn('connectionIcon.setImageResource(R.drawable.ic_link);', activity)
         self.assertIn("private void navigateFilesHistory(boolean back)", activity)
         self.assertIn("private void refreshRemoteInternal(String target, boolean recordHistory, Runnable onSuccess)", activity)
         self.assertIn("localBackHistory", activity)
@@ -201,7 +230,6 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
 
     def test_navigation_uses_local_vector_assets_and_no_emoji_controls(self) -> None:
         for name in (
-            "ic_menu.xml",
             "ic_ghost_brand.xml",
             "ic_files.xml",
             "ic_sites.xml",
@@ -210,12 +238,26 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
             "ic_settings.xml",
             "ic_connection_info.xml",
             "ic_about.xml",
+            "ic_back.xml",
+            "ic_forward.xml",
+            "ic_refresh.xml",
+            "ic_new_folder.xml",
+            "ic_upload.xml",
+            "ic_download.xml",
+            "ic_more.xml",
+            "ic_link.xml",
+            "ic_local_files.xml",
+            "ic_remote_files.xml",
+            "ic_overflow_vertical.xml",
+            "ic_expand_more.xml",
         ):
             content = self.read(DRAWABLES / name)
             self.assertIn("<vector", content)
             self.assertIn("<path", content)
 
         activity = self.read(ACTIVITY)
+        self.assertNotIn("R.drawable.ic_menu", activity)
+        self.assertFalse((DRAWABLES / "ic_menu.xml").exists())
         for emoji in ("📁", "🔖", "⚙", "ℹ", "💻", "⬆", "⬇"):
             self.assertNotIn(emoji, activity)
 
@@ -319,6 +361,11 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertNotIn("development-only", about.lower())
         self.assertNotIn("not the production-signed public APK", about)
 
+    def test_master_button_typography_uses_regular_weight(self) -> None:
+        theme = self.read(ROOT / "android/app/src/main/java/app/ghostftp/client/GhostTheme.java")
+        self.assertIn("button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);", theme)
+        self.assertNotIn("button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);", theme)
+
     def test_android_docs_describe_the_same_surface_contract(self) -> None:
         readme = self.read(ANDROID_README)
         ui_doc = self.read(UI_DOC)
@@ -331,7 +378,8 @@ class AndroidMobileNavigationContractTests(unittest.TestCase):
         self.assertIn("bottom navigation", ui_doc.lower())
         self.assertIn("Remote Desktop", ui_doc)
         self.assertIn("not shown", ui_doc.lower())
-        self.assertIn("production-signed Android artifact", readme)
+        self.assertIn("temporary compatibility-signed", readme)
+        self.assertIn("protected production-signing workflow", readme)
         self.assertIn("validation outputs keep the canonical visible version", ui_doc)
         self.assertNotIn("development builds append `-dev`", ui_doc)
 

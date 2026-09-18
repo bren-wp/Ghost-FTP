@@ -62,7 +62,7 @@ They embed verified native **x64, x86 and ARM64** payloads. The x86 bootstrap se
 ```text
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned
 ```
 
 Authentic Windows screenshots prove the UI on the maintained runner architecture, not native ARM64 execution. Native ARM64 runtime claims require a maintained ARM64 runner/device and source-bound evidence.
@@ -83,7 +83,7 @@ Android supports FTP and strict explicit FTPS. Local access uses Storage Access 
 
 ## macOS native development workspace
 
-The AppKit frontend uses the shared `internal/api.Engine` and a universal development build. This is development/source evidence only. Public macOS distribution requires the dedicated Developer ID signing/notarization path to succeed with real protected Apple credentials.
+The AppKit frontend uses the shared `internal/api.Engine` and a universal development build. This is development/source evidence only. The published 0.0.8 no-secret macOS artifact is an ad-hoc signed universal validation build and is not Apple notarized. The dedicated Developer ID signing/notarization path remains a separate protected production-distribution option and must succeed with real Apple credentials before any Developer ID/notarization claim is made.
 
 ## Browser helper boundary
 

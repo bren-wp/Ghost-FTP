@@ -91,10 +91,10 @@ class MaintenanceRegressionTests(unittest.TestCase):
         self.assertIn("retired non-English extension source root is tracked", audit)
         self.assertIn("PUBLIC_RELEASE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS,BROWSER_HELPER", audit)
         self.assertIn("ACTIVE_SOURCE_PLATFORMS=WINDOWS,LINUX,ANDROID,MACOS", audit)
-        self.assertIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_PRODUCTION_SIGNED", audit)
+        self.assertIn("ANDROID_PUBLIC_RELEASE_ARTIFACT=YES_TEMPORARY_COMPATIBILITY_SIGNED", audit)
         self.assertIn("BROWSER_PUBLIC_RELEASE_PACKAGES=CHROME,EDGE,FIREFOX,OPERA", audit)
         self.assertIn("LINUX_BUNDLE_ARCHITECTURES=AMD64,ARM64,I386", audit)
-        self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_DEVELOPER_ID_NOTARIZED", audit)
+        self.assertIn("MACOS_PUBLIC_RELEASE_ARTIFACT=YES_ADHOC_NOT_NOTARIZED", audit)
         self.assertIn("RETIRED_APPLICATION_PLATFORMS=IOS", audit)
 
     def test_auxiliary_audits_report_only_validated_scope(self) -> None:
