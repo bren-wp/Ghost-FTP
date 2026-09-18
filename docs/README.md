@@ -90,12 +90,12 @@ Windows publishes exactly two architecture-independent user-facing EXEs containi
 ## Authentic visual reference
 
 <table>
-<tr><td width="50%"><strong>Windows workspace</strong><br><img src="images/0.0.6/ghost-ftp-main-workspace.png" alt="Windows workspace"></td><td width="50%"><strong>Windows Site Manager</strong><br><img src="images/0.0.6/ghost-ftp-site-manager.png" alt="Windows Site Manager"></td></tr>
-<tr><td width="50%"><strong>Linux workspace</strong><br><img src="images/0.0.6/ghost-ftp-linux-main-workspace.png" alt="Linux workspace"></td><td width="50%"><strong>Linux Settings</strong><br><img src="images/0.0.6/ghost-ftp-linux-settings.png" alt="Linux Settings"></td></tr>
-<tr><td width="50%"><strong>Android Files</strong><br><img src="images/0.0.6/ghost-ftp-android-files.png" alt="Android Files"></td><td width="50%"><strong>Android Transfers</strong><br><img src="images/0.0.6/ghost-ftp-android-transfers.png" alt="Android Transfers"></td></tr>
+<tr><td width="50%"><strong>Windows workspace</strong><br><img src="images/0.0.8/ghost-ftp-main-workspace.png" alt="Windows workspace"></td><td width="50%"><strong>Windows Connections</strong><br><img src="images/0.0.8/ghost-ftp-site-manager.png" alt="Windows Connections"></td></tr>
+<tr><td width="50%"><strong>Linux workspace</strong><br><img src="images/0.0.8/ghost-ftp-linux-main-workspace.png" alt="Linux workspace"></td><td width="50%"><strong>Linux Settings</strong><br><img src="images/0.0.8/ghost-ftp-linux-settings.png" alt="Linux Settings"></td></tr>
+<tr><td width="50%"><strong>Android Files</strong><br><img src="images/0.0.8/ghost-ftp-android-files.png" alt="Android Files"></td><td width="50%"><strong>Android Transfer Queue</strong><br><img src="images/0.0.8/ghost-ftp-android-transfer-queue.png" alt="Android Transfer Queue"></td></tr>
 </table>
 
-Authentic runtime evidence is maintained across Windows, Linux and Android and must remain bound to an exact-head source SHA. Generated mockups are never accepted as execution or release evidence.
+Authentic runtime evidence is maintained across Windows, Linux and Android and must remain bound to an exact-head source SHA. The current 0.0.8 bundle contains 18 verified images (Windows 5, Linux 5, Android 8). macOS remains source/build validation until an authentic AppKit runtime capture is available; master references are never used as release evidence. Generated mockups are never accepted as execution or release evidence.
 
 ## Commercial proprietary license
 
