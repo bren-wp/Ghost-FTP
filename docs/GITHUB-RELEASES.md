@@ -1,6 +1,6 @@
 # Ghost FTP GitHub Releases
 
-Ghost FTP **0.0.8** is the active release candidate. The last actually published GitHub Release is **0.0.7** until the protected 0.0.8 publication workflow completes successfully.
+Ghost FTP **0.0.8** is the current publication target; **0.0.7** remains the immutable protected baseline. The canonical workflow publishes 0.0.8 only after exact-main validation, compatibility signing verification and remote asset readback.
 
 ## Release identity
 
@@ -69,27 +69,27 @@ RELEASE-NOTES.txt
 SHA256.txt
 ```
 
-macOS is in the public 0.0.8 allow-list only as the verified `Ghost-FTP-0.0.8-macOS-notarized.app.zip` produced by real Developer ID signing and Apple notarization.
+macOS is in the public 0.0.8 allow-list only as the verified `Ghost-FTP-0.0.8-macOS.app.zip` produced by the universal macOS build and verified with ad-hoc signing. It is not Developer ID signed or Apple notarized.
 
 ## Exact-head transaction
 
 Before publication, `release.yml` requires its source SHA to remain exact current `main`. A moved `main`, pre-existing tag or pre-existing release fails closed rather than rewriting release identity.
 
-After successful publication, retention independently verifies the **16-file** asset count and exact tag/main identity. It must preserve the immutable published `ghostftp-v0.0.7` release/tag plus the current release/tag, while removing only other superseded Ghost FTP releases/tags, obsolete canonical release branches and obsolete GHCR versions. An existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
+After successful publication, retention independently verifies the **17-file** asset count and exact tag/main identity. It must preserve the immutable published `ghostftp-v0.0.7` release/tag plus the current release/tag, while removing only other superseded Ghost FTP releases/tags, obsolete canonical release branches and obsolete GHCR versions. An existing 0.0.7 GHCR package is preserved when present. `main` history is never rewritten.
 
 ## Windows signing gate
 
-Official Windows publication requires the protected trusted Authenticode identity. The workflow fails when the production PFX or password is absent and verifies both public executables with `Get-AuthenticodeSignature` before publication.
+Windows 0.0.8 compatibility publication supports two explicit states. With a complete protected PFX/password it verifies trusted Authenticode. With neither value configured it publishes the exact verified EXEs as `unsigned` and requires `Get-AuthenticodeSignature` to report `NotSigned`. Partial signing configuration still fails.
 
 ```text
 WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 ```
 
-There is no unsigned official-publication fallback and the workflow does not create a replacement self-signed production publisher identity.
+Unsigned Windows publication is an explicit compatibility state only; it is never described as signed and no replacement Windows publisher identity is generated.
 
 ## Android production-signing gate
 
@@ -103,7 +103,7 @@ GHOSTFTP_ANDROID_KEY_PASSWORD
 GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-It signs `Ghost-FTP-0.0.8-Android.apk`, runs `apksigner verify --verbose --print-certs`, normalizes the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The workflow never generates a production Android publisher identity.
+It signs `Ghost-FTP-0.0.8-Android.apk` and runs `apksigner verify --verbose --print-certs`. A complete protected identity requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`; with no protected identity configured, a one-run compatibility certificate is generated and its actual SHA-256 fingerprint is recorded. Partial production signing configuration fails.
 
 Android SFTP remains hidden until strict maintained host-key verification exists. Production signing does not weaken that boundary.
 
@@ -126,21 +126,21 @@ WINDOWS_SETUP=universal-x86-x64-arm64
 WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 LINUX_DEBIAN_INSTALLER=universal-amd64-arm64-i386
 LINUX_DEBIAN_PORTABLE=universal-amd64-arm64-i386
 LINUX_UBUNTU_INSTALLER=universal-amd64-arm64-i386
 LINUX_UBUNTU_PORTABLE=universal-amd64-arm64-i386
 LINUX_FEDORA_INSTALLER=universal-amd64-arm64-i386
 LINUX_FEDORA_PORTABLE=universal-amd64-arm64-i386
-ANDROID_APK=production-signed
+ANDROID_APK=compatibility-signed-or-production-signed
 BROWSER_EXTENSION_PACKAGES=Chrome,Edge,Firefox,Opera
 BROWSER_DESKTOP_HANDOFF=sanitized-ghostftp-connect-no-autoconnect
 PUBLIC_PLATFORM_ARTIFACTS=14
 PUBLIC_RELEASE_FILES=17
 ```
 
-The sorted remote GitHub Release asset set must match the exact 16-file allow-list immediately and after delayed readback. `Prerelease: false` remains part of the current-channel contract.
+The sorted remote GitHub Release asset set must match the exact 17-file allow-list immediately and after delayed readback. `Prerelease: false` remains part of the current-channel contract.
 
 The same verified release directory is published as:
 
@@ -152,6 +152,6 @@ This is a distribution bundle, not a supported runtime container.
 
 ## What counts as release evidence
 
-A local build, PR artifact, debug APK, development certificate, self-signed Windows test certificate or ad-hoc macOS signature is not official publication evidence. Release evidence requires the canonical exact-main workflow, protected Windows/Android signing verification, exact GitHub Release readback, GHCR publication/readback and successful retention verification.
+A local build, PR artifact, debug APK, development certificate, self-signed Windows test certificate or ad-hoc macOS signature is not official publication evidence. Release evidence requires the canonical exact-main workflow, explicit Windows/Android signing-state verification, exact GitHub Release readback, GHCR publication/readback and successful retention verification.
 
 See [Packages](PACKAGES.md), [Release verification](RELEASE-VERIFICATION.md), [Signing](SIGNING.md), [Testing](TESTING.md) and [Versioning](VERSIONING.md).
