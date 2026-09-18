@@ -105,6 +105,13 @@ def integrate_main(text: str) -> str:
     )
     text = replace_once(
         text,
+        "        let buttonRow = NSStackView(views: [connectButton, disconnectButton, directoryCompareButton, transferQueueButton, statusLabel])\n"
+        "        buttonRow.orientation = .horizontal\n"
+        "        buttonRow.alignment = .centerY\n"
+        "        buttonRow.spacing = 10\n"
+        "        statusLabel.textColor = Palette.muted\n"
+        "        statusLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)\n\n"
+        "        let connectionStack = NSStackView(views: [heading, form, rememberFingerprint, buttonRow])\n",
         "        let buttonRow = NSStackView(views: [connectButton, disconnectButton, directoryCompareButton, statusLabel])\n"
         "        buttonRow.orientation = .horizontal\n"
         "        buttonRow.alignment = .centerY\n"
