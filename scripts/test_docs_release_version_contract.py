@@ -29,7 +29,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
             f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
             f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
             f"Ghost-FTP-{version}-Android.apk",
-            f"Ghost-FTP-{version}-macOS-notarized.app.zip",
+            f"Ghost-FTP-{version}-macOS.app.zip",
             f"Ghost-FTP-{version}-Chrome-Extension.zip",
             f"Ghost-FTP-{version}-Edge-Extension.zip",
             f"Ghost-FTP-{version}-Firefox-Extension.zip",
@@ -70,7 +70,7 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
                 f"Ghost-FTP-{version}-Linux-Fedora-Installer.run",
                 f"Ghost-FTP-{version}-Linux-Fedora-Portable.tar.gz",
                 f"Ghost-FTP-{version}-Android.apk",
-                f"Ghost-FTP-{version}-macOS-notarized.app.zip",
+                f"Ghost-FTP-{version}-macOS.app.zip",
                 f"Ghost-FTP-{version}-Chrome-Extension.zip",
                 f"Ghost-FTP-{version}-Edge-Extension.zip",
                 f"Ghost-FTP-{version}-Firefox-Extension.zip",
@@ -155,12 +155,13 @@ class ReleaseDocumentationContractTests(unittest.TestCase):
         self.assertIn("must never publish a release directly", verification)
         self.assertIn("does not publish a release directly", releases)
 
-    def test_published_history_is_not_misrepresented(self):
+    def test_release_docs_identify_current_target_and_protected_baseline(self):
         for relative in ("docs/INSTALLATION.md", "docs/GITHUB-RELEASES.md", "docs/RELEASE-VERIFICATION.md"):
             text = self.read(relative)
-            self.assertIn("last actually published github", text.lower())
-            self.assertIn("0.0.7", text)
             self.assertIn("0.0.8", text)
+            self.assertIn("protected", text.lower())
+            self.assertIn("0.0.7", text)
+            self.assertIn("compatibility", text.lower())
 
 
 if __name__ == "__main__":
