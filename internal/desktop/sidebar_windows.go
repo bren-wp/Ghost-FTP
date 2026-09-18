@@ -209,18 +209,45 @@ func (a *app) transformSidebarContent(hwnd uintptr, oldLeft, oldRight, newLeft, 
 }
 
 func (a *app) resizeSidebarColumns() {
-	// File panes have one canonical width policy. The old sidebar-specific
-	// percentages overrode resizeListColumns and made Permissions too narrow.
-	// Fit from each ListView's actual client width so sidebar and non-sidebar
-	// passes cannot disagree about the same columns.
+	// Start from the shared width policy, then apply the supplied master
+	// presentation: Type remains an internal sortable column but is visually
+	// hidden, leaving Name / Size / Modified (+ Permissions remotely).
 	a.fitFileColumnsToWorkspace()
+
+	fitMasterFileColumns := func(list uintptr, remote bool) {
+		if list == 0 {
+			return
+		}
+		var client rect
+		if ok, _, _ := getClientRect.Call(list, uintptr(unsafe.Pointer(&client))); ok == 0 {
+			return
+		}
+		width := int(client.Right - client.Left)
+		if width < a.scale(260) {
+			return
+		}
+		sendMessageW.Call(list, lvmSetColumnWidth, 1, 0)
+		if remote {
+			parts := map[int]int{0: 40, 2: 14, 3: 26, 4: 20}
+			for index, percent := range parts {
+				sendMessageW.Call(list, lvmSetColumnWidth, uintptr(index), uintptr(width*percent/100))
+			}
+			return
+		}
+		parts := map[int]int{0: 52, 2: 16, 3: 32}
+		for index, percent := range parts {
+			sendMessageW.Call(list, lvmSetColumnWidth, uintptr(index), uintptr(width*percent/100))
+		}
+	}
+	fitMasterFileColumns(a.localList, false)
+	fitMasterFileColumns(a.remoteList, true)
 
 	if a.transferList != 0 {
 		var client rect
 		if ok, _, _ := getClientRect.Call(a.transferList, uintptr(unsafe.Pointer(&client))); ok != 0 {
 			width := int(client.Right - client.Left)
-			if width >= a.scale(360) {
-				parts := []int{12, 25, 25, 25, 13}
+			if width >= a.scale(420) {
+				parts := []int{22, 14, 20, 20, 14, 10}
 				for index, percent := range parts {
 					sendMessageW.Call(a.transferList, lvmSetColumnWidth, uintptr(index), uintptr(width*percent/100))
 				}
@@ -268,15 +295,21 @@ func (a *app) layoutSidebarRail(height int) {
 		y += applicationSidebarCardH + applicationSidebarCardGap
 	}
 
-	utilityBlockH := 3*applicationSidebarUtilityH + 2*applicationSidebarUtilityGap
-	utilityY := height - applicationSidebarBottomInset - utilityBlockH
-	if utilityY < y+18 {
-		utilityY = y + 18
+	// The supplied desktop master keeps the application rail focused on the
+	// four primary destinations. Bookmarks is in the master toolbar, while
+	// Connection info and About live in More, so duplicate utility buttons stay
+	// out of the main Files rail.
+	showControls(false, bookmarks, diagnostics, a.aboutBtn)
+	setText(a.brandSubtitle, "One client.\r\nFive platforms.\r\nZero friction.")
+	if a.smallFont != 0 {
+		sendMessageW.Call(a.brandSubtitle, wmSetFont, a.smallFont, 1)
 	}
-	for _, control := range []uintptr{bookmarks, diagnostics, a.aboutBtn} {
-		a.move(control, applicationSidebarX, utilityY, applicationSidebarWidth, applicationSidebarUtilityH)
-		utilityY += applicationSidebarUtilityH + applicationSidebarUtilityGap
+	promoY := height - 116
+	if promoY < y+18 {
+		promoY = y + 18
 	}
+	a.move(a.brandSubtitle, applicationSidebarX+12, promoY, applicationSidebarWidth-24, 72)
+	showControls(true, a.brandSubtitle)
 	showControls(false, a.languageCombo)
 }
 

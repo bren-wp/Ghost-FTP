@@ -193,8 +193,8 @@ func (a *app) updateDirectoryComparisonControls() {
 	words := directoryCompareWordsForLanguage(a.languageCode())
 	if !state.active {
 		a.setButtonLabel(state.compareButton, words.Compare)
-		showControls(true, state.compareButton, a.localList, a.remoteList, a.upload, a.download)
-		showControls(false, state.openBothButton, state.localList, state.remoteList)
+		showControls(true, a.localList, a.remoteList, a.upload, a.download)
+		showControls(false, state.compareButton, state.openBothButton, state.localList, state.remoteList)
 		setControlEnabled(state.compareButton, a.comparisonCanStart())
 		return
 	}

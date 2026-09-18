@@ -81,6 +81,112 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertNotIn("a.measureMenuItem(lParam)", wnd)
         self.assertNotIn("a.drawMenuItem(&d)", wnd)
 
+    def test_master_workspace_uses_reference_titles_and_queue_alignment(self):
+        source = self.read("internal/desktop/master_workspace_windows.go")
+        self.assertIn('setText(a.sectionLocal, "Local Files")', source)
+        self.assertIn('setText(a.sectionRemote, "Remote Files")', source)
+        self.assertIn('setText(a.sectionTransfers, "Transfer Queue")', source)
+        self.assertIn("sendMessageW.Call(a.sectionLocal, wmSetFont, a.font, 1)", source)
+        self.assertIn("listY := pathY + 29 + 10", source)
+        self.assertIn("a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)", source)
+        self.assertNotIn("listY := actionY + 29 + 44", source)
+
+    def test_queue_priority_controls_never_clip_past_master_row(self):
+        source = self.read("internal/desktop/queue_priority_windows.go")
+        self.assertIn("left := int(retryBottomRight.X) + gap", source)
+        self.assertIn("right := int(clearTopLeft.X) - gap", source)
+        self.assertIn("showControls(false, controls...)", source)
+        self.assertIn("showControls(true, controls...)", source)
+        self.assertIn("minButtonWidth := a.scale(44)", source)
+
+    def test_master_more_menu_routes_only_to_real_engine_backed_actions(self):
+        source = self.read("internal/desktop/master_workspace_windows.go")
+        for marker in (
+            'appendItem(masterMoreLocalChoose, "Local: Choose folder")',
+            'appendItem(masterMoreLocalFilter, "Local: Filter")',
+            'appendItem(masterMoreLocalSearch, "Local: Recursive search")',
+            'appendItem(masterMoreRemotePermissions, "Remote: Permissions")',
+            'appendItem(masterMoreRemoteEdit, "Remote Edit")',
+            'appendItem(masterMoreCompare, "Compare local and remote folders")',
+            'appendItem(masterMoreConnectionInfo, "Connection info")',
+            'appendItem(masterMoreAbout, "About Ghost FTP")',
+            "a.localFilterAction()",
+            "a.recursiveSearchCommand(false)",
+            "a.remoteFilterAction()",
+            "a.recursiveSearchCommand(true)",
+            "a.remoteChmodAction()",
+            "a.remoteEditAction()",
+            "a.directoryComparisonCommand()",
+            "a.showDiagnostics()",
+            "a.openAbout()",
+        ):
+            self.assertIn(marker, source)
+        self.assertNotIn("Coming Soon", source)
+
+    def test_compact_master_toolbar_preserves_all_action_labels(self):
+        master = self.read("internal/desktop/master_workspace_windows.go")
+        buttons = self.read("internal/desktop/button_draw_windows.go")
+        sidebar = self.read("internal/desktop/sidebar_windows.go")
+        self.assertIn("compactToolbar := contentWidth < 860", master)
+        self.assertIn("buttonsPerRow = 4", master)
+        self.assertIn("toolbarRows = 2", master)
+        self.assertIn("row := index / buttonsPerRow", master)
+        self.assertIn("case contentWidth >= a.scale(54):", buttons)
+        self.assertIn('setText(a.brandSubtitle, "One client.\\r\\nFive platforms.\\r\\nZero friction.")', sidebar)
+        self.assertIn("showControls(false, bookmarks, diagnostics, a.aboutBtn)", sidebar)
+        self.assertIn("showControls(true, a.brandSubtitle)", sidebar)
+
+    def test_master_files_surface_hides_duplicate_inline_action_chrome(self):
+        master = self.read("internal/desktop/master_workspace_windows.go")
+        filters = self.read("internal/desktop/file_filter_windows.go")
+        search = self.read("internal/desktop/recursive_search_windows.go")
+        compare = self.read("internal/desktop/directory_compare_windows.go")
+        self.assertIn("showControls(false,", master)
+        self.assertIn("a.localUp, a.localChoose, a.localRefresh", master)
+        self.assertIn("a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod", master)
+        self.assertIn("a.move(a.localPath, leftX, pathY, paneW, 29)", master)
+        self.assertIn("a.move(a.remotePath, rightX, pathY, paneW, 29)", master)
+        self.assertIn("showControls(false, button)", filters)
+        self.assertNotIn("a.move(list, left, listTop, width, bottom-listTop)", filters)
+        self.assertIn("showControls(false, filterButton, pane.searchButton, pane.navigateButton, pane.list)", search)
+        self.assertIn("showControls(false, state.compareButton, state.openBothButton, state.localList, state.remoteList)", compare)
+
+    def test_master_file_and_transfer_columns_match_reference_without_fake_metrics(self):
+        sidebar = self.read("internal/desktop/sidebar_windows.go")
+        ui = self.read("internal/desktop/ui_windows.go")
+        localization = self.read("internal/desktop/localization_windows.go")
+        model = self.read("internal/model/types.go")
+
+        self.assertIn("sendMessageW.Call(list, lvmSetColumnWidth, 1, 0)", sidebar)
+        self.assertIn("parts := map[int]int{0: 52, 2: 16, 3: 32}", sidebar)
+        self.assertIn("parts := map[int]int{0: 40, 2: 14, 3: 26, 4: 20}", sidebar)
+        self.assertIn("parts := []int{22, 14, 20, 20, 14, 10}", sidebar)
+
+        self.assertIn("labels := a.masterTransferColumns()", ui)
+        for marker in (
+            "labels.File",
+            "labels.Direction",
+            "labels.Progress",
+            "labels.Status",
+            "labels.Speed",
+            "labels.ETA",
+        ):
+            self.assertIn(marker, ui)
+
+        self.assertIn('File:      "File"', localization)
+        self.assertIn('Speed:     "Speed"', localization)
+        self.assertIn('ETA:       "ETA"', localization)
+        self.assertIn('labels.File = "Datoteka"', localization)
+        self.assertIn('labels.Speed = "Brzina"', localization)
+        self.assertIn('labels.ETA = "Preostalo"', localization)
+        self.assertIn("transferDisplayFile(job)", localization)
+        self.assertIn("transferProgressText(job)", localization)
+        self.assertIn("transferSpeedColumn(job)", localization)
+        self.assertIn("transferETAColumn(job)", localization)
+        self.assertNotIn("status += transferRuntimeSuffix(job)", localization)
+        self.assertIn("BytesPerSecond   float64", model)
+        self.assertIn("ETASeconds       int64", model)
+
     def test_disconnected_remote_list_keeps_dark_enabled_surface(self):
         source = self.read("internal/desktop/chrome_windows.go")
         self.assertIn("setControlEnabled(a.remoteList, true)", source)

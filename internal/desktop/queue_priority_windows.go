@@ -112,31 +112,45 @@ func (a *app) layoutQueuePriorityControls() {
 	if ok, _, _ := queueGetWindowRect.Call(a.clearQueue, uintptr(unsafe.Pointer(&clearRect))); ok == 0 {
 		return
 	}
-	topLeft := point{X: clearRect.Left, Y: clearRect.Top}
-	bottomRight := point{X: clearRect.Right, Y: clearRect.Bottom}
-	if ok, _, _ := queueScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&topLeft))); ok == 0 {
+	clearTopLeft := point{X: clearRect.Left, Y: clearRect.Top}
+	clearBottomRight := point{X: clearRect.Right, Y: clearRect.Bottom}
+	if ok, _, _ := queueScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&clearTopLeft))); ok == 0 {
 		return
 	}
-	if ok, _, _ := queueScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&bottomRight))); ok == 0 {
+	if ok, _, _ := queueScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&clearBottomRight))); ok == 0 {
+		return
+	}
+
+	// Priority controls belong immediately before Clear Completed in the master
+	// queue action row. At compact widths fail closed by hiding them instead of
+	// clipping buttons past the right edge of the window.
+	var retryRect rect
+	if ok, _, _ := queueGetWindowRect.Call(a.retryJob, uintptr(unsafe.Pointer(&retryRect))); ok == 0 {
+		return
+	}
+	retryBottomRight := point{X: retryRect.Right, Y: retryRect.Bottom}
+	if ok, _, _ := queueScreenToClient.Call(a.hwnd, uintptr(unsafe.Pointer(&retryBottomRight))); ok == 0 {
 		return
 	}
 
 	gap := a.scale(6)
-	x := int(bottomRight.X) + gap
-	y := int(topLeft.Y)
-	height := int(bottomRight.Y - topLeft.Y)
-	var client rect
-	if ok, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
+	left := int(retryBottomRight.X) + gap
+	right := int(clearTopLeft.X) - gap
+	available := right - left
+	minButtonWidth := a.scale(44)
+	if available < 4*minButtonWidth+3*gap {
+		showControls(false, controls...)
 		return
 	}
-	available := int(client.Right) - a.scale(14) - x
 	buttonWidth := (available - 3*gap) / 4
-	if buttonWidth > a.scale(112) {
-		buttonWidth = a.scale(112)
+	if buttonWidth > a.scale(72) {
+		buttonWidth = a.scale(72)
 	}
-	if buttonWidth < a.scale(60) {
-		buttonWidth = a.scale(60)
-	}
+	totalWidth := 4*buttonWidth + 3*gap
+	x := right - totalWidth
+	y := int(clearTopLeft.Y)
+	height := int(clearBottomRight.Y - clearTopLeft.Y)
+	showControls(true, controls...)
 	for i, control := range controls {
 		moveWindow.Call(control, uintptr(x+i*(buttonWidth+gap)), uintptr(y), uintptr(buttonWidth), uintptr(height), 1)
 	}

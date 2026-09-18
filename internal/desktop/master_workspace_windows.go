@@ -8,6 +8,40 @@ import (
 	"unsafe"
 )
 
+const (
+	masterMoreLocalChoose = 9001 + iota
+	masterMoreLocalUp
+	masterMoreLocalFilter
+	masterMoreLocalSearch
+	masterMoreLocalRename
+	masterMoreLocalDelete
+	masterMoreRemoteUp
+	masterMoreRemoteFilter
+	masterMoreRemoteSearch
+	masterMoreRemoteRename
+	masterMoreRemoteDelete
+	masterMoreRemotePermissions
+	masterMoreRemoteEdit
+	masterMoreCompare
+	masterMoreConnectionInfo
+	masterMoreAbout
+)
+
+const (
+	masterMFString    = 0x0000
+	masterMFSeparator = 0x0800
+	masterTPMReturn   = 0x0100
+	masterTPMRight    = 0x0002
+)
+
+var (
+	masterCreatePopupMenu = user32.NewProc("CreatePopupMenu")
+	masterAppendMenuW     = user32.NewProc("AppendMenuW")
+	masterTrackPopupMenu  = user32.NewProc("TrackPopupMenu")
+	masterDestroyMenu     = user32.NewProc("DestroyMenu")
+	masterGetWindowRect   = user32.NewProc("GetWindowRect")
+)
+
 type workspaceHistoryEntry struct {
 	Remote bool
 	Path   string
@@ -146,13 +180,90 @@ func (a *app) masterNewFolderAction() {
 }
 
 func (a *app) masterMoreAction() {
-	if a == nil {
+	if a == nil || a.hwnd == 0 || a.masterMore == 0 {
 		return
 	}
-	// Connection info is the canonical secondary utility surface. More never
-	// fabricates operations or hidden state; advanced per-pane controls remain
-	// available below the master toolbar.
-	a.showDiagnostics()
+	menu, _, _ := masterCreatePopupMenu.Call()
+	if menu == 0 {
+		a.showDiagnostics()
+		return
+	}
+	defer masterDestroyMenu.Call(menu)
+
+	appendItem := func(id int, label string) {
+		masterAppendMenuW.Call(menu, masterMFString, uintptr(id), uintptr(unsafe.Pointer(wstr(label))))
+	}
+	appendSeparator := func() {
+		masterAppendMenuW.Call(menu, masterMFSeparator, 0, 0)
+	}
+
+	appendItem(masterMoreLocalChoose, "Local: Choose folder")
+	appendItem(masterMoreLocalUp, "Local: Up")
+	appendItem(masterMoreLocalFilter, "Local: Filter")
+	appendItem(masterMoreLocalSearch, "Local: Recursive search")
+	appendItem(masterMoreLocalRename, "Local: Rename selected")
+	appendItem(masterMoreLocalDelete, "Local: Delete selected")
+	appendSeparator()
+	appendItem(masterMoreRemoteUp, "Remote: Up")
+	appendItem(masterMoreRemoteFilter, "Remote: Filter")
+	appendItem(masterMoreRemoteSearch, "Remote: Recursive search")
+	appendItem(masterMoreRemoteRename, "Remote: Rename selected")
+	appendItem(masterMoreRemoteDelete, "Remote: Delete selected")
+	appendItem(masterMoreRemotePermissions, "Remote: Permissions")
+	appendItem(masterMoreRemoteEdit, "Remote Edit")
+	appendSeparator()
+	appendItem(masterMoreCompare, "Compare local and remote folders")
+	appendItem(masterMoreConnectionInfo, "Connection info")
+	appendItem(masterMoreAbout, "About Ghost FTP")
+
+	var bounds rect
+	if ok, _, _ := masterGetWindowRect.Call(a.masterMore, uintptr(unsafe.Pointer(&bounds))); ok == 0 {
+		a.showDiagnostics()
+		return
+	}
+	command, _, _ := masterTrackPopupMenu.Call(
+		menu,
+		masterTPMReturn|masterTPMRight,
+		uintptr(bounds.Left),
+		uintptr(bounds.Bottom),
+		0,
+		a.hwnd,
+		0,
+	)
+	switch int(command) {
+	case masterMoreLocalChoose:
+		a.chooseLocalDirectory()
+	case masterMoreLocalUp:
+		a.refreshLocal(filepath.Dir(getText(a.localPath)))
+	case masterMoreLocalFilter:
+		a.localFilterAction()
+	case masterMoreLocalSearch:
+		a.recursiveSearchCommand(false)
+	case masterMoreLocalRename:
+		a.localRenameAction()
+	case masterMoreLocalDelete:
+		a.localDeleteAction()
+	case masterMoreRemoteUp:
+		a.remoteUpOne()
+	case masterMoreRemoteFilter:
+		a.remoteFilterAction()
+	case masterMoreRemoteSearch:
+		a.recursiveSearchCommand(true)
+	case masterMoreRemoteRename:
+		a.remoteRenameAction()
+	case masterMoreRemoteDelete:
+		a.remoteDeleteAction()
+	case masterMoreRemotePermissions:
+		a.remoteChmodAction()
+	case masterMoreRemoteEdit:
+		a.remoteEditAction()
+	case masterMoreCompare:
+		a.directoryComparisonCommand()
+	case masterMoreConnectionInfo:
+		a.showDiagnostics()
+	case masterMoreAbout:
+		a.openAbout()
+	}
 }
 
 func (a *app) masterConnectAction() {
@@ -240,11 +351,32 @@ func (a *app) updateMasterToolbarState() {
 	a.updateMasterConnectVisual()
 }
 
+func (a *app) applyMasterWorkspaceLabels() {
+	if a == nil {
+		return
+	}
+	// The supplied master screenshots use these canonical English workspace
+	// nouns. Keep non-English catalog strings intact; English gets the exact
+	// product terminology used across Windows, Linux, macOS and Android.
+	if a.languageCode() != "en" {
+		return
+	}
+	setText(a.sectionLocal, "Local Files")
+	setText(a.sectionRemote, "Remote Files")
+	setText(a.sectionTransfers, "Transfer Queue")
+}
+
 func (a *app) layoutMasterWorkspaceChrome() {
 	if a == nil || a.hwnd == 0 {
 		return
 	}
 	a.ensureMasterWorkspaceControls()
+	a.applyMasterWorkspaceLabels()
+	if a.font != 0 {
+		sendMessageW.Call(a.sectionLocal, wmSetFont, a.font, 1)
+		sendMessageW.Call(a.sectionRemote, wmSetFont, a.font, 1)
+		sendMessageW.Call(a.sectionTransfers, wmSetFont, a.font, 1)
+	}
 
 	var client rect
 	if ok, _, _ := getClientRect.Call(a.hwnd, uintptr(unsafe.Pointer(&client))); ok == 0 {
@@ -268,6 +400,17 @@ func (a *app) layoutMasterWorkspaceChrome() {
 		a.saveProfile, a.removeProfile, a.disconnect,
 	)
 	showControls(true, a.profilesCombo, a.connectionBadge, a.connect)
+	// The master Files reference keeps per-pane mutation/navigation operations
+	// out of permanent rows. They remain fully available through the real More
+	// menu and master toolbar, so hiding these duplicate controls removes visual
+	// clutter without removing functionality.
+	showControls(false,
+		a.localUp, a.localChoose, a.localRefresh,
+		a.localMkdir, a.localRename, a.localDelete,
+		a.remoteUp, a.remoteRefresh,
+		a.remoteMkdir, a.remoteRename, a.remoteDelete, a.remoteChmod,
+		remoteEditButton(a),
+	)
 
 	topY, rowH, gap := 13, 34, 8
 	badgeW, connectW := 122, 134
@@ -286,14 +429,20 @@ func (a *app) layoutMasterWorkspaceChrome() {
 		a.upload, a.download, a.masterBookmarks, a.masterMore,
 	}
 	toolbarGap := 7
-	buttonW := (contentWidth - toolbarGap*(len(controls)-1)) / len(controls)
-	if buttonW < 76 {
-		buttonW = 76
+	compactToolbar := contentWidth < 860
+	toolbarRows := 1
+	buttonsPerRow := len(controls)
+	if compactToolbar {
+		toolbarRows = 2
+		buttonsPerRow = 4
 	}
-	x := contentLeft
-	for _, control := range controls {
-		a.move(control, x, toolbarY, buttonW, toolbarH)
-		x += buttonW + toolbarGap
+	buttonW := (contentWidth - toolbarGap*(buttonsPerRow-1)) / buttonsPerRow
+	for index, control := range controls {
+		row := index / buttonsPerRow
+		column := index % buttonsPerRow
+		x := contentLeft + column*(buttonW+toolbarGap)
+		y := toolbarY + row*(toolbarH+toolbarGap)
+		a.move(control, x, y, buttonW, toolbarH)
 	}
 
 	// Remove the legacy center transfer column and use two equal master panes.
@@ -301,48 +450,25 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	paneW := (contentWidth - paneGap) / 2
 	leftX := contentLeft
 	rightX := contentLeft + paneW + paneGap
-	sectionY, pathY, actionY := 108, 132, 169
-	pathButtonGap := 6
-	pathButtonW := 78
-	localPathW := paneW - 3*pathButtonW - 3*pathButtonGap
-	if localPathW < 120 {
-		localPathW = 120
-	}
-	remotePathW := paneW - 2*pathButtonW - 2*pathButtonGap
-	if remotePathW < 120 {
-		remotePathW = 120
-	}
+	sectionY := toolbarY + toolbarRows*toolbarH + (toolbarRows-1)*toolbarGap + 14
+	pathY := sectionY + 28
+	actionY := pathY + 38
+	a.move(a.sectionLocal, leftX, sectionY, paneW, 24)
+	a.move(a.sectionRemote, rightX, sectionY, paneW, 24)
 
-	a.move(a.sectionLocal, leftX, sectionY, paneW, 20)
-	a.move(a.sectionRemote, rightX, sectionY, paneW, 20)
+	a.move(a.localPath, leftX, pathY, paneW, 29)
+	a.move(a.remotePath, rightX, pathY, paneW, 29)
 
-	a.move(a.localPath, leftX, pathY, localPathW, 29)
-	lx := leftX + localPathW + pathButtonGap
-	for _, control := range []uintptr{a.localUp, a.localChoose, a.localRefresh} {
-		a.move(control, lx, pathY, pathButtonW, 29)
-		lx += pathButtonW + pathButtonGap
-	}
-
-	a.move(a.remotePath, rightX, pathY, remotePathW, 29)
-	rx := rightX + remotePathW + pathButtonGap
-	for _, control := range []uintptr{a.remoteUp, a.remoteRefresh} {
-		a.move(control, rx, pathY, pathButtonW, 29)
-		rx += pathButtonW + pathButtonGap
-	}
-
-	actionGap := 6
-	localActionW := (paneW - 2*actionGap) / 3
-	lx = leftX
-	for _, control := range []uintptr{a.localMkdir, a.localRename, a.localDelete} {
-		a.move(control, lx, actionY, localActionW, 29)
-		lx += localActionW + actionGap
-	}
-	remoteControls := []uintptr{a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod}
-	remoteActionW := (paneW - actionGap*(len(remoteControls)-1)) / len(remoteControls)
-	rx = rightX
-	for _, control := range remoteControls {
-		a.move(control, rx, actionY, remoteActionW, 29)
-		rx += remoteActionW + actionGap
+	// Preserve deterministic hidden-control bounds for command ownership and
+	// accessibility bookkeeping; these controls are not part of the visible
+	// master Files composition.
+	for _, control := range []uintptr{
+		a.localUp, a.localChoose, a.localRefresh,
+		a.localMkdir, a.localRename, a.localDelete,
+		a.remoteUp, a.remoteRefresh,
+		a.remoteMkdir, a.remoteRename, a.remoteDelete, remoteEditButton(a), a.remoteChmod,
+	} {
+		a.move(control, contentRight-1, actionY, 1, 1)
 	}
 
 	statusY, _ := statusBandGeometry(height)
@@ -350,7 +476,7 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	queueY := statusY - queueH - 9
 	queueButtonsY := queueY - 38
 	queueLabelY := queueButtonsY - 23
-	listY := actionY + 29 + 44
+	listY := pathY + 29 + 10
 	listBottom := queueLabelY - 10
 	listH := listBottom - listY
 	if listH < 120 {
@@ -359,14 +485,16 @@ func (a *app) layoutMasterWorkspaceChrome() {
 	a.move(a.localList, leftX, listY, paneW, listH)
 	a.move(a.remoteList, rightX, listY, paneW, listH)
 
-	a.move(a.sectionTransfers, contentLeft, queueLabelY, 180, 18)
-	a.move(a.transferSummary, contentLeft+180, queueLabelY, clampInt(contentWidth-180, 260, 640), 18)
+	a.move(a.sectionTransfers, contentLeft, queueLabelY-2, 190, 22)
+	a.move(a.transferSummary, contentLeft+190, queueLabelY, clampInt(contentWidth-190, 260, 620), 18)
 	qx := contentLeft
-	queueWidths := []int{112, 112, 104, 104, 150}
-	for i, control := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob, a.clearQueue} {
+	queueWidths := []int{104, 104, 96, 96}
+	for i, control := range []uintptr{a.pauseQueue, a.resumeQueue, a.cancelJob, a.retryJob} {
 		a.move(control, qx, queueButtonsY, queueWidths[i], 31)
 		qx += queueWidths[i] + 7
 	}
+	clearW := 150
+	a.move(a.clearQueue, contentRight-clearW, queueButtonsY, clearW, 31)
 	a.move(a.transferList, contentLeft, queueY, contentWidth, queueH)
 	a.move(a.status, contentLeft, statusY, contentWidth-250, statusBandHeight)
 	a.move(a.statusVersion, contentRight-238, statusY, 238, statusBandHeight)

@@ -72,6 +72,24 @@ class CrossPlatformUIUXPolishTests(unittest.TestCase):
             update,
         )
 
+    def test_primary_english_and_croatian_copy_uses_final_product_terminology(self) -> None:
+        catalog = read("internal/i18n/catalogs.go")
+        for marker in (
+            '"profile.quick": "Quick Connect"',
+            '"section.local": "Local Files"',
+            '"section.remote": "Remote Files"',
+            '"section.transfers": "Transfer Queue"',
+            '"settings.title": "Ghost FTP — Settings"',
+            '"profile.quick": "Brzo povezivanje"',
+            '"section.local": "Lokalne datoteke"',
+            '"section.remote": "Udaljene datoteke"',
+            '"section.transfers": "Red prijenosa"',
+            '"settings.title": "Ghost FTP — Postavke"',
+        ):
+            self.assertIn(marker, catalog)
+        self.assertNotIn('"profile.quick": "Quick connect (no profile)"', catalog)
+        self.assertNotIn('"profile.quick": "Brzi spoj (bez profila)"', catalog)
+
     def test_windows_connection_manager_uses_master_navigation_name(self) -> None:
         navigation = read("internal/desktop/navigation_windows.go")
         manager = read("internal/desktop/site_manager_windows.go")
