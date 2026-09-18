@@ -1,2 +1,3 @@
-Ghost FTP 0.0.7 documentation refresh.
-Capture authentic Windows, Linux and Android runtime surfaces for versioned README/reference evidence.
+Ghost FTP 0.0.8 exact-head runtime evidence refresh.
+Capture authentic Windows, Linux and Android runtime surfaces from the current pull-request head.
+Use the resulting verified evidence bundle to compare the implemented UI against the supplied Windows, macOS, Linux and Android master references; do not treat the reference images themselves as implementation evidence.
