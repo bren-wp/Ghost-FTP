@@ -1,12 +1,12 @@
 # Ghost FTP signing
 
-Ghost FTP **0.0.8** separates production publisher trust from development signing. Official Windows, Android and macOS publication fail closed when their protected production identities are unavailable. Linux relies on exact-source/package/digest verification; macOS additionally requires the real Developer ID + Apple notarization path.
+Ghost FTP **0.0.8** separates application integrity from publisher-trust credentials. This compatibility release can be published without production keys while recording the exact signing state for Windows, Android and macOS. Protocol security, exact-source checks, privacy audits and SHA-256 verification remain mandatory.
 
 The production workflow never creates its own long-lived publisher key.
 
 ## Windows production publication policy
 
-Official Windows publication is **signed-only**.
+Windows 0.0.8 publication supports an explicit **unsigned compatibility** state when neither protected PFX nor password is configured.
 
 The canonical `Publish Ghost FTP` workflow requires:
 
@@ -15,7 +15,7 @@ GHOSTFTP_SIGNING_PFX_BASE64
 GHOSTFTP_SIGNING_PASSWORD
 ```
 
-`GHOSTFTP_SIGNING_TIMESTAMP_URL` is used when a production timestamp endpoint is intentionally configured. There is **no supported `state=unsigned` continuation path** for official publication.
+`GHOSTFTP_SIGNING_TIMESTAMP_URL` is used when a production timestamp endpoint is intentionally configured. `state=unsigned` is allowed only through the explicit compatibility gate; partial PFX configuration fails and unsigned artifacts must verify as `NotSigned`.
 
 A successful release records:
 
@@ -25,7 +25,7 @@ WINDOWS_PORTABLE=universal-x86-x64-arm64
 WINDOWS_BOOTSTRAP_PE=x86
 WINDOWS_NATIVE_PAYLOADS=x64,x86,arm64
 WINDOWS_ARM64_RUNTIME_EVIDENCE=not-native-ci
-WINDOWS_AUTHENTICODE=signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
 ```
 
 The PFX is decoded only into runner temporary storage and removed in an `always()` cleanup path. Private-key material must never be committed, logged, uploaded as an artifact or included in release/GHCR payloads.
@@ -47,7 +47,7 @@ The outer executables are signed only after final byte mutation. `Get-Authentico
 
 ## Android production signing
 
-Ghost FTP 0.0.8 adds a **production-signed public Android release**:
+Ghost FTP 0.0.8 publishes one **installable Android release APK**:
 
 ```text
 Ghost-FTP-0.0.8-Android.apk
@@ -63,7 +63,7 @@ GHOSTFTP_ANDROID_KEY_PASSWORD
 GHOSTFTP_ANDROID_CERT_SHA256
 ```
 
-The keystore is decoded only into runner temporary storage with restricted file permissions. The workflow builds the unsigned release APK, signs it with Android `apksigner`, verifies it with `apksigner verify --verbose --print-certs`, reads the signer certificate SHA-256 digest and requires exact equality with `GHOSTFTP_ANDROID_CERT_SHA256`. The temporary keystore is removed in an `always()` cleanup path.
+When all protected Android values are configured, the keystore is decoded only into runner temporary storage and the signer SHA-256 must equal `GHOSTFTP_ANDROID_CERT_SHA256`. When none are configured, the release creates an ephemeral compatibility certificate, signs the APK, verifies it with `apksigner`, records the actual signer SHA-256, and removes the temporary keystore. Partial protected signing configuration fails.
 
 Production Android publication fails closed if:
 
@@ -74,7 +74,7 @@ Production Android publication fails closed if:
 - the signer certificate SHA-256 fingerprint cannot be read; or
 - the actual fingerprint does not equal the protected expected fingerprint.
 
-The release workflow must not run `keytool -genkeypair` or otherwise generate a replacement Android publisher identity.
+`keytool -genkeypair` is used only for the one-run compatibility certificate. That certificate is explicitly not a long-lived production publisher identity.
 
 ### Android development signing
 
@@ -104,15 +104,15 @@ The public Chrome, Edge and Firefox ZIPs are deterministic source packages. Thei
 
 `macos/SIGN_AND_NOTARIZE.sh` is the separate fail-closed production-distribution path. It requires a real **Developer ID Application** identity, Hardened Runtime, secure timestamping, Apple notarization acceptance, ticket stapling and Gatekeeper verification. `.github/workflows/macos-production.yml` is the environment-gated CI path.
 
-A successful validation build does not prove production distribution readiness. The 0.0.8 public macOS artifact is admitted only when the credentialed Developer ID + Apple notarization path succeeds; otherwise the whole canonical release fails closed.
+The 0.0.8 public macOS compatibility archive is produced by `macos/BUILD.sh`, uses an ad-hoc signature, and is not notarized. `macos/SIGN_AND_NOTARIZE.sh` remains a separate future production-distribution path.
 
 ## Release shape and metadata
 
 The 0.0.8 release contains **14 platform artifacts / 17 public files**. `BUILD-METADATA.txt` records public signing/evidence states but never secret key material, including:
 
 ```text
-WINDOWS_AUTHENTICODE=signed
-ANDROID_APK=production-signed
+WINDOWS_AUTHENTICODE=unsigned-or-signed
+ANDROID_APK=compatibility-signed-or-production-signed
 ANDROID_SIGNER_SHA256=<verified public certificate fingerprint>
 ANDROID_SFTP=hidden-until-strict-host-key-verification
 PUBLIC_PLATFORM_ARTIFACTS=14
