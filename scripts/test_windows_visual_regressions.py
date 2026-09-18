@@ -162,16 +162,23 @@ class WindowsVisualRegressionTests(unittest.TestCase):
         self.assertIn("parts := map[int]int{0: 40, 2: 14, 3: 26, 4: 20}", sidebar)
         self.assertIn("parts := []int{22, 14, 20, 20, 14, 10}", sidebar)
 
+        self.assertIn("labels := a.masterTransferColumns()", ui)
         for marker in (
-            'a.tr("column.file")',
-            'a.tr("column.direction")',
-            'a.tr("column.progress")',
-            'a.tr("column.status")',
-            'a.tr("column.speed")',
-            'a.tr("column.eta")',
+            "labels.File",
+            "labels.Direction",
+            "labels.Progress",
+            "labels.Status",
+            "labels.Speed",
+            "labels.ETA",
         ):
             self.assertIn(marker, ui)
 
+        self.assertIn('File:      "File"', localization)
+        self.assertIn('Speed:     "Speed"', localization)
+        self.assertIn('ETA:       "ETA"', localization)
+        self.assertIn('labels.File = "Datoteka"', localization)
+        self.assertIn('labels.Speed = "Brzina"', localization)
+        self.assertIn('labels.ETA = "Preostalo"', localization)
         self.assertIn("transferDisplayFile(job)", localization)
         self.assertIn("transferProgressText(job)", localization)
         self.assertIn("transferSpeedColumn(job)", localization)
